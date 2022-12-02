@@ -11,6 +11,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+#include <arcane/utils/NumArray.h>
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IMesh.h>
 #include <arcane/IItemFamily.h>
@@ -54,6 +55,10 @@ class Fem1Module
 
  private:
 
+  NumArray<Real, MDDim2> m_k_matrix;
+
+ private:
+
   void _doStationarySolve();
   void _updateBoundayConditions();
   void _computeConductivity();
@@ -88,6 +93,10 @@ void Fem1Module::
 startInit()
 {
   info() << "Module Fem1 INIT";
+
+  Int32 nb_node = allNodes().size();
+  m_k_matrix.resize(nb_node, nb_node);
+  m_k_matrix.fill(0.0);
 
   // # init mesh
   // # init behavior
@@ -279,7 +288,7 @@ _computeConductivity()
       ARCANE_FATAL("Only Triangle3 cell type is supported");
     //             # first compute elementary thermal conductivity matrix
     //             K_e=elem.int_c_dPhii_dPhij(elem.k)
-    _computeIntCDPhiiDPhij(cell);
+    auto K_e = _computeIntCDPhiiDPhij(cell);
     //             # assemble elementary matrix into the global one
     //             # elementary terms are positionned into K according
     //             # to the rank of associated node in the mesh.nodes list
@@ -292,7 +301,8 @@ _computeConductivity()
     for (NodeLocalId node1 : cell.nodes()) {
       Int32 n2_index = 0;
       for (NodeLocalId node2 : cell.nodes()) {
-        //C++                    K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
+        //                 K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
+        m_k_matrix(node1.localId(), node2.localId()) += K_e(n1_index, n2_index);
         ++n2_index;
       }
       ++n1_index;
