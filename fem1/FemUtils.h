@@ -7,7 +7,7 @@
 /*---------------------------------------------------------------------------*/
 /* FemUtils.h                                                  (C) 2022-2022 */
 /*                                                                           */
-/* Classes utilisateurs pour FEM.                                            */
+/* Utilitary classes for FEM.                                                */
 /*---------------------------------------------------------------------------*/
 #ifndef FEMTEST_FEMUTILS_H
 #define FEMTEST_FEMUTILS_H
@@ -15,6 +15,8 @@
 /*---------------------------------------------------------------------------*/
 
 #include <arcane/ArcaneTypes.h>
+#include <arcane/utils/MDSpan.h>
+#include <arcane/matvec/Matrix.h>
 
 #include <array>
 #include <iostream>
@@ -37,15 +39,15 @@ class FixedMatrix
 
   Arcane::Real& operator()(Arcane::Int32 i, Arcane::Int32 j)
   {
-    ARCANE_CHECK_AT(i,N);
-    ARCANE_CHECK_AT(j,M);
+    ARCANE_CHECK_AT(i, N);
+    ARCANE_CHECK_AT(j, M);
     return m_values[i * M + j];
   }
 
   Arcane::Real operator()(Arcane::Int32 i, Arcane::Int32 j) const
   {
-    ARCANE_CHECK_AT(i,N);
-    ARCANE_CHECK_AT(j,M);
+    ARCANE_CHECK_AT(i, N);
+    ARCANE_CHECK_AT(j, M);
     return m_values[i * M + j];
   }
 
@@ -78,7 +80,6 @@ class FixedMatrix
   std::array<Arcane::Real, totalNbElement()> m_values = {};
 };
 
-
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -100,6 +101,9 @@ matrixMultiplication(const FixedMatrix<N, M>& a, const FixedMatrix<M, N>& b)
   return new_matrix;
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 template <int N, int M> inline FixedMatrix<M, N>
 matrixTranspose(const FixedMatrix<N, M>& a)
 {
@@ -113,6 +117,12 @@ matrixTranspose(const FixedMatrix<N, M>& a)
   }
   return t_matrix;
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void _convertNumArrayToCSRMatrix(Arcane::MatVec::Matrix& out_matrix,
+                                 Arcane::MDSpan<const Arcane::Real, Arcane::MDDim2> in_matrix);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

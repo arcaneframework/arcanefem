@@ -5,6 +5,7 @@ find_package(Arcane REQUIRED)
 
 add_executable(FemTest1
   FemUtils.h
+  FemUtils.cc
   Fem1Module.cc
   main.cc
   Fem1_axl.h

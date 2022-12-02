@@ -329,7 +329,15 @@ _computeGeneralizedFluxes()
 void Fem1Module::
 _solve()
 {
+  Int32 matrix_size = m_k_matrix.extent0();
+  Arcane::MatVec::Matrix matrix(matrix_size, matrix_size);
+  _convertNumArrayToCSRMatrix(matrix, m_k_matrix.span());
+
   info() << "TODO " << A_FUNCINFO;
+  int p = std::cout.precision();
+  std::cout.precision(12);
+  matrix.dump(std::cout);
+  std::cout.precision(p);
 }
 
 /*---------------------------------------------------------------------------*/
