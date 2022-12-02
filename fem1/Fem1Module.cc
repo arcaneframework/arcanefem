@@ -63,6 +63,7 @@ class Fem1Module
   void _applyOneBoundaryCondition(const String& group_name, Real value);
   FixedMatrix<3, 3> _computeIntCDPhiiDPhij(Cell cell);
   FixedMatrix<2, 3> _computeBMatrix(Cell cell);
+  Real _computeAreaTriangle3(Cell cell);
 };
 
 /*---------------------------------------------------------------------------*/
@@ -171,13 +172,17 @@ _updateBoundayConditions()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-namespace
+Real Fem1Module::
+_computeAreaTriangle3(Cell cell)
 {
-Real _computeAreaTriangle3(Real2 m0, Real2 m1, Real2 m2)
-{
+  Real3 m0 = m_node_coord[cell.nodeId(0)];
+  Real3 m1 = m_node_coord[cell.nodeId(1)];
+  Real3 m2 = m_node_coord[cell.nodeId(2)];
   return 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));
 }
-} // namespace
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 //     """Compute matrix of gradient of FE shape functions for current element
 //     B=[grad(Phi_0) grad(Phi1) grad(Phi2)] and return a numpy array
@@ -185,21 +190,21 @@ Real _computeAreaTriangle3(Real2 m0, Real2 m1, Real2 m2)
 FixedMatrix<2, 3> Fem1Module::
 _computeBMatrix(Cell cell)
 {
-  Real3 n0 = m_node_coord[cell.nodeId(0)];
-  Real3 n1 = m_node_coord[cell.nodeId(1)];
-  Real3 n2 = m_node_coord[cell.nodeId(2)];
+  Real3 m0 = m_node_coord[cell.nodeId(0)];
+  Real3 m1 = m_node_coord[cell.nodeId(1)];
+  Real3 m2 = m_node_coord[cell.nodeId(2)];
 
-  info() << "TODO: _computeBMatrix() n0=" << n0 << " n1=" << n1 << " n2=" << n2;
+  info() << "TODO: _computeBMatrix() m0=" << m0 << " m1=" << m1 << " m2=" << m2;
 
   // Copy 3D coordinates in 2D
-  Real2 m0(n0.x, n0.y);
-  Real2 m1(n1.x, n1.y);
-  Real2 m2(n2.x, n2.y);
+  //Real2 m0(n0.x, n0.y);
+  //Real2 m1(n1.x, n1.y);
+  //Real2 m2(n2.x, n2.y);
 
   //     (M0,M1,M2)=(self.nodes[0],self.nodes[1],self.nodes[2])
 
   //     area=self.compute_area()
-  Real area = _computeAreaTriangle3(m0, m1, m2);
+  Real area = _computeAreaTriangle3(cell); //m0, m1, m2);
   //     dPhi0=[M1.y-M2.y,M2.x-M1.x]
   //     dPhi1=[M2.y-M0.y,M0.x-M2.x]
   //     dPhi2=[M0.y-M1.y,M1.x-M0.x]
@@ -235,10 +240,11 @@ FixedMatrix<3, 3> Fem1Module::
 _computeIntCDPhiiDPhij(Cell cell)
 {
   info() << "TODO: _compute int_c_dPhii_dPhij()";
-  _computeBMatrix(cell);
+  FixedMatrix<2, 3> b_matrix = _computeBMatrix(cell);
   //         B=self.compute_B_matrix()
   //         print("B=",B, "\nT=",B.T)
   //         area=self.compute_area()
+  Real area = _computeAreaTriangle3(cell); //m0, m1, m2);
   //         #z = dot(B.T,B)
   //         #print("Z=",z)
   //         #z2 = matmul(B.T,B)
