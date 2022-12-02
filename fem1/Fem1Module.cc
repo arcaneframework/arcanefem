@@ -60,6 +60,8 @@ class Fem1Module
   void _solve();
   void _initBoundaryconditions();
   void _applyOneBoundaryCondition(const String& group_name, Real value);
+  void _computeIntCDPhiiDPhij(Cell cell);
+  void _computeBMatrix(Cell cell);
 };
 
 /*---------------------------------------------------------------------------*/
@@ -169,8 +171,73 @@ _updateBoundayConditions()
 /*---------------------------------------------------------------------------*/
 
 void Fem1Module::
+_computeBMatrix(Cell cell)
+{
+  info() << "TODO: _computeBMatrix()";
+  //     """Compute matrix of gradient of FE shape functions for current element
+  //     B=[grad(Phi_0) grad(Phi1) grad(Phi2)] and return a numpy array
+  //     """
+  //     (M0,M1,M2)=(self.nodes[0],self.nodes[1],self.nodes[2])
+  //     area=self.compute_area()
+  //     dPhi0=[M1.y-M2.y,M2.x-M1.x]
+  //     dPhi1=[M2.y-M0.y,M0.x-M2.x]
+  //     dPhi2=[M0.y-M1.y,M1.x-M0.x]
+  //     B=1/(2*area)*array([[dPhi0[0],dPhi1[0],dPhi2[0]],        \
+  //                             [dPhi0[1],dPhi1[1],dPhi2[1]]])
+  //     return(B)
+}
+
+void Fem1Module::
+_computeIntCDPhiiDPhij(Cell cell)
+{
+  info() << "TODO: _compute int_c_dPhii_dPhij()";
+  _computeBMatrix(cell);
+  //         B=self.compute_B_matrix()
+  //         print("B=",B, "\nT=",B.T)
+  //         area=self.compute_area()
+  //         #z = dot(B.T,B)
+  //         #print("Z=",z)
+  //         #z2 = matmul(B.T,B)
+  //         #print("Z2=",z2)
+  //         int_cdPi_dPj=area*c*dot(B.T,B)
+  //         #print(int_cdPi_dPj)
+  //        return int_cdPi_dPj
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void Fem1Module::
 _computeConductivity()
 {
+  // for elem in self.mesh.elements:
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    if (cell.type() != IT_Triangle3)
+      ARCANE_FATAL("Only Triangle3 cell type is supported");
+    //             # first compute elementary thermal conductivity matrix
+    //             K_e=elem.int_c_dPhii_dPhij(elem.k)
+    _computeIntCDPhiiDPhij(cell);
+    //             # assemble elementary matrix into the global one
+    //             # elementary terms are positionned into K according
+    //             # to the rank of associated node in the mesh.nodes list
+    //             for node1 in elem.nodes:
+    //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
+    //                 for node2 in elem.nodes:
+    //                     inode2=elem.nodes.index(node2)
+    //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
+    Int32 n1_index = 0;
+    for (NodeLocalId node1 : cell.nodes()) {
+      Int32 n2_index = 0;
+      for (NodeLocalId node2 : cell.nodes()) {
+        //C++                    K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
+        ++n2_index;
+      }
+      ++n1_index;
+    }
+  }
+
   info() << "TODO " << A_FUNCINFO;
 }
 
