@@ -16,6 +16,7 @@
 #include <arcane/IItemFamily.h>
 
 #include "Fem1_axl.h"
+#include "./FemUtils.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -60,8 +61,8 @@ class Fem1Module
   void _solve();
   void _initBoundaryconditions();
   void _applyOneBoundaryCondition(const String& group_name, Real value);
-  void _computeIntCDPhiiDPhij(Cell cell);
-  void _computeBMatrix(Cell cell);
+  FixedMatrix<3, 3> _computeIntCDPhiiDPhij(Cell cell);
+  FixedMatrix<2, 3> _computeBMatrix(Cell cell);
 };
 
 /*---------------------------------------------------------------------------*/
@@ -170,10 +171,11 @@ _updateBoundayConditions()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+FixedMatrix<2, 3> Fem1Module::
 _computeBMatrix(Cell cell)
 {
   info() << "TODO: _computeBMatrix()";
+  FixedMatrix<2, 3> b_matrix;
   //     """Compute matrix of gradient of FE shape functions for current element
   //     B=[grad(Phi_0) grad(Phi1) grad(Phi2)] and return a numpy array
   //     """
@@ -182,12 +184,16 @@ _computeBMatrix(Cell cell)
   //     dPhi0=[M1.y-M2.y,M2.x-M1.x]
   //     dPhi1=[M2.y-M0.y,M0.x-M2.x]
   //     dPhi2=[M0.y-M1.y,M1.x-M0.x]
-  //     B=1/(2*area)*array([[dPhi0[0],dPhi1[0],dPhi2[0]],        \
+  //     B=1/(2*area)*array([[dPhi0[0],dPhi1[0],dPhi2[0]],
   //                             [dPhi0[1],dPhi1[1],dPhi2[1]]])
   //     return(B)
+  return b_matrix;
 }
 
-void Fem1Module::
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+FixedMatrix<3, 3> Fem1Module::
 _computeIntCDPhiiDPhij(Cell cell)
 {
   info() << "TODO: _compute int_c_dPhii_dPhij()";
@@ -202,6 +208,8 @@ _computeIntCDPhiiDPhij(Cell cell)
   //         int_cdPi_dPj=area*c*dot(B.T,B)
   //         #print(int_cdPi_dPj)
   //        return int_cdPi_dPj
+  FixedMatrix<3, 3> int_cdPi_dPj;
+  return int_cdPi_dPj;
 }
 
 /*---------------------------------------------------------------------------*/

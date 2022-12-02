@@ -3,7 +3,12 @@ project(FemTest1 LANGUAGES C CXX)
 
 find_package(Arcane REQUIRED)
 
-add_executable(FemTest1 Fem1Module.cc main.cc Fem1_axl.h)
+add_executable(FemTest1
+  FemUtils.h
+  Fem1Module.cc
+  main.cc
+  Fem1_axl.h
+)
 
 arcane_generate_axl(Fem1)
 arcane_add_arcane_libraries_to_target(FemTest1)
