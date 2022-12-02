@@ -55,7 +55,10 @@ class Fem1Module
 
  private:
 
+  //! K matrix
   NumArray<Real, MDDim2> m_k_matrix;
+  //! RHS (Right Hand Side) vector
+  NumArray<Real, MDDim1> m_rhs_vector;
 
  private:
 
@@ -98,6 +101,9 @@ startInit()
   m_k_matrix.resize(nb_node, nb_node);
   m_k_matrix.fill(0.0);
 
+  m_rhs_vector.resize(nb_node);
+  m_rhs_vector.fill(0.0);
+
   // # init mesh
   // # init behavior
   // # init behavior on mesh entities
@@ -125,7 +131,13 @@ _doStationarySolve()
   //                 K[node.rank,node.rank]=K[node.rank,node.rank]+10**6
   //                 RHS[node.rank]=RHS[node.rank]+(10**6)*node.T
 
-  info() << "TODO: adapt K and RHS";
+  ENUMERATE_ (Node, inode, allNodes()) {
+    NodeLocalId node_id = *inode;
+    if (m_node_is_temperature_fixed[node_id]) {
+      m_k_matrix(node_id, node_id) += 1.0e6;
+      m_rhs_vector[node_id] += 1.0e6 * m_node_temperature[node_id];
+    }
+  }
 
   // # T=linalg.solve(K,RHS)
   _solve();
@@ -203,13 +215,6 @@ _computeBMatrix(Cell cell)
   Real3 m1 = m_node_coord[cell.nodeId(1)];
   Real3 m2 = m_node_coord[cell.nodeId(2)];
 
-  info() << "TODO: _computeBMatrix() m0=" << m0 << " m1=" << m1 << " m2=" << m2;
-
-  // Copy 3D coordinates in 2D
-  //Real2 m0(n0.x, n0.y);
-  //Real2 m1(n1.x, n1.y);
-  //Real2 m2(n2.x, n2.y);
-
   //     (M0,M1,M2)=(self.nodes[0],self.nodes[1],self.nodes[2])
 
   //     area=self.compute_area()
@@ -250,7 +255,6 @@ _computeIntCDPhiiDPhij(Cell cell)
 {
   const Real c = 1.75;
 
-  info() << "TODO: _compute int_c_dPhii_dPhij()";
   FixedMatrix<2, 3> b_matrix = _computeBMatrix(cell);
   //         B=self.compute_B_matrix()
   //         print("B=",B, "\nT=",B.T)
@@ -308,8 +312,6 @@ _computeConductivity()
       ++n1_index;
     }
   }
-
-  info() << "TODO " << A_FUNCINFO;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -318,7 +320,7 @@ _computeConductivity()
 void Fem1Module::
 _computeGeneralizedFluxes()
 {
-  info() << "TODO " << A_FUNCINFO;
+  m_rhs_vector.fill(0.0);
 }
 
 /*---------------------------------------------------------------------------*/
