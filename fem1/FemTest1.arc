@@ -7,13 +7,7 @@
 
   <meshes>
     <mesh>
-      <generator name="Cartesian2D" >
-        <nb-part-x>1</nb-part-x> 
-        <nb-part-y>1</nb-part-y>
-        <origin>0.0 0.0</origin>
-        <x><n>20</n><length>2.0</length></x>
-        <y><n>20</n><length>2.0</length></y>
-      </generator>
+      <filename>plancher.msh</filename>
     </mesh>
   </meshes>
 </case>

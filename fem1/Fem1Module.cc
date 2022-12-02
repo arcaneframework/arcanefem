@@ -1,4 +1,4 @@
-// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 
 #include "Fem1_axl.h"
 #include <arcane/ITimeLoopMng.h>
@@ -37,9 +37,10 @@ compute()
 {
   info() << "Module Fem1 COMPUTE";
 
-  // Stop code after 10 iterations
-  if (m_global_iteration()>10)
-    subDomain()->timeLoopMng()->stopComputeLoop(true);
+  // Stop code after computatio
+  subDomain()->timeLoopMng()->stopComputeLoop(true);
+
+  info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
 }
 
 void Fem1Module::
