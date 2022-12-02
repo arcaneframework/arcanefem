@@ -171,22 +171,60 @@ _updateBoundayConditions()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+namespace
+{
+Real _computeAreaTriangle3(Real2 m0, Real2 m1, Real2 m2)
+{
+  return 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));
+}
+} // namespace
+
+//     """Compute matrix of gradient of FE shape functions for current element
+//     B=[grad(Phi_0) grad(Phi1) grad(Phi2)] and return a numpy array
+//     """
 FixedMatrix<2, 3> Fem1Module::
 _computeBMatrix(Cell cell)
 {
-  info() << "TODO: _computeBMatrix()";
-  FixedMatrix<2, 3> b_matrix;
-  //     """Compute matrix of gradient of FE shape functions for current element
-  //     B=[grad(Phi_0) grad(Phi1) grad(Phi2)] and return a numpy array
-  //     """
+  Real3 n0 = m_node_coord[cell.nodeId(0)];
+  Real3 n1 = m_node_coord[cell.nodeId(1)];
+  Real3 n2 = m_node_coord[cell.nodeId(2)];
+
+  info() << "TODO: _computeBMatrix() n0=" << n0 << " n1=" << n1 << " n2=" << n2;
+
+  // Copy 3D coordinates in 2D
+  Real2 m0(n0.x, n0.y);
+  Real2 m1(n1.x, n1.y);
+  Real2 m2(n2.x, n2.y);
+
   //     (M0,M1,M2)=(self.nodes[0],self.nodes[1],self.nodes[2])
+
   //     area=self.compute_area()
+  Real area = _computeAreaTriangle3(m0, m1, m2);
   //     dPhi0=[M1.y-M2.y,M2.x-M1.x]
   //     dPhi1=[M2.y-M0.y,M0.x-M2.x]
   //     dPhi2=[M0.y-M1.y,M1.x-M0.x]
+  Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
+  Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
+  Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
+
+  FixedMatrix<2, 3> b_matrix;
+  b_matrix(0, 0) = dPhi0.x;
+  b_matrix(0, 1) = dPhi1.x;
+  b_matrix(0, 2) = dPhi2.x;
+
+  b_matrix(1, 0) = dPhi0.y;
+  b_matrix(1, 1) = dPhi1.y;
+  b_matrix(1, 2) = dPhi2.y;
+
   //     B=1/(2*area)*array([[dPhi0[0],dPhi1[0],dPhi2[0]],
   //                             [dPhi0[1],dPhi1[1],dPhi2[1]]])
+  b_matrix.multInPlace(1.0 / (2.0 * area));
   //     return(B)
+
+  std::cout << "B=";
+  b_matrix.dump(std::cout);
+  std::cout << "\n";
+
   return b_matrix;
 }
 
