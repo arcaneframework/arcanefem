@@ -239,6 +239,8 @@ _computeBMatrix(Cell cell)
 FixedMatrix<3, 3> Fem1Module::
 _computeIntCDPhiiDPhij(Cell cell)
 {
+  const Real c = 1.75;
+
   info() << "TODO: _compute int_c_dPhii_dPhij()";
   FixedMatrix<2, 3> b_matrix = _computeBMatrix(cell);
   //         B=self.compute_B_matrix()
@@ -250,9 +252,16 @@ _computeIntCDPhiiDPhij(Cell cell)
   //         #z2 = matmul(B.T,B)
   //         #print("Z2=",z2)
   //         int_cdPi_dPj=area*c*dot(B.T,B)
+  FixedMatrix<3, 3> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
+  int_cdPi_dPj.multInPlace(area * c);
   //         #print(int_cdPi_dPj)
   //        return int_cdPi_dPj
-  FixedMatrix<3, 3> int_cdPi_dPj;
+
+  info() << "Cell=" << cell.localId();
+  std::cout << " int_cdPi_dPj=";
+  int_cdPi_dPj.dump(std::cout);
+  std::cout << "\n";
+
   return int_cdPi_dPj;
 }
 
