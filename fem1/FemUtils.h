@@ -78,8 +78,43 @@ class FixedMatrix
   std::array<Arcane::Real, totalNbElement()> m_values = {};
 };
 
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#endif  
+template <int N, int M> inline FixedMatrix<N, N>
+matrixMultiplication(const FixedMatrix<N, M>& a, const FixedMatrix<M, N>& b)
+{
+  using namespace Arcane;
+  FixedMatrix<N, N> new_matrix;
 
+  for (Int32 i = 0; i < N; ++i) {
+    for (Int32 j = 0; j < N; ++j) {
+      Real x = 0.0;
+      for (Int32 k = 0; k < M; ++k) {
+        x += a(i, k) * b(k, j);
+      }
+      new_matrix(i, j) += x;
+    }
+  }
+  return new_matrix;
+}
+
+template <int N, int M> inline FixedMatrix<M, N>
+matrixTranspose(const FixedMatrix<N, M>& a)
+{
+  using namespace Arcane;
+
+  FixedMatrix<M, N> t_matrix;
+  for (Int32 i = 0; i < N; ++i) {
+    for (Int32 j = 0; j < M; ++j) {
+      t_matrix(j, i) = a(i, j);
+    }
+  }
+  return t_matrix;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+#endif
