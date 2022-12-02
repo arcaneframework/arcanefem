@@ -338,6 +338,43 @@ _solve()
   std::cout.precision(12);
   matrix.dump(std::cout);
   std::cout.precision(p);
+
+  Arcane::MatVec::Vector vector_b(matrix_size);
+  Arcane::MatVec::Vector vector_x(matrix_size);
+  {
+    auto vector_b_view = vector_b.values();
+    auto vector_x_view = vector_x.values();
+    for (Int32 i = 0; i < matrix_size; ++i) {
+      vector_b_view(i) = m_rhs_vector[i];
+      vector_x_view(i) = 0.0;
+    }
+  }
+
+  {
+    Real epsilon = 1.0e-15;
+    Arcane::MatVec::DiagonalPreconditioner p(matrix);
+    Arcane::MatVec::ConjugateGradientSolver solver;
+    solver.solve(matrix, vector_b, vector_x, epsilon, &p);
+  }
+
+  // def update_T(self,T):
+  //     """Update temperature value on nodes after the FE resolution"""
+  //     for i in range(0,len(self.mesh.nodes)):
+  //         node=self.mesh.nodes[i]
+  //         # don't update T imposed by Dirichlet BC
+  //         if not node.is_T_fixed:
+  //             self.mesh.nodes[i].T=T[i]
+
+  {
+    auto vector_x_view = vector_x.values();
+    ENUMERATE_ (Node, inode, allNodes()) {
+      Node node = *inode;
+      if (!m_node_is_temperature_fixed[node]) {
+        m_node_temperature[node] = vector_x_view[node.localId()];
+      }
+      info() << "T[" << node.localId() << "] = " << m_node_temperature[node];
+    }
+  }
 }
 
 /*---------------------------------------------------------------------------*/
