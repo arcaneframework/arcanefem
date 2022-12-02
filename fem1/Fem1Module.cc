@@ -1,9 +1,29 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+//-----------------------------------------------------------------------------
+// Copyright 2000-2022 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// See the top-level COPYRIGHT file for details.
+// SPDX-License-Identifier: Apache-2.0
+//-----------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
+/* Fem1Module.cc                                               (C) 2022-2022 */
+/*                                                                           */
+/* Simple module to test simple FEM mechanism.                               */
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+#include <arcane/ITimeLoopMng.h>
+#include <arcane/IMesh.h>
+#include <arcane/IItemFamily.h>
 
 #include "Fem1_axl.h"
-#include <arcane/ITimeLoopMng.h>
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 using namespace Arcane;
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 /*!
  * \brief Module Fem1.
@@ -12,10 +32,13 @@ class Fem1Module
 : public ArcaneFem1Object
 {
  public:
-  explicit Fem1Module(const ModuleBuildInfo& mbi) 
-  : ArcaneFem1Object(mbi) { }
+
+  explicit Fem1Module(const ModuleBuildInfo& mbi)
+  : ArcaneFem1Object(mbi)
+  {}
 
  public:
+
   /*!
    * \brief Méthode appelée à chaque itération.
    */
@@ -36,6 +59,7 @@ class Fem1Module
   void _computeGeneralizedFluxes();
   void _solve();
   void _initBoundaryconditions();
+  void _applyOneBoundaryCondition(const String& group_name, Real value);
 };
 
 /*---------------------------------------------------------------------------*/
@@ -103,6 +127,33 @@ _initBoundaryconditions()
   info() << "Init boundary conditions...";
 
   info() << "TODO: Init boundary conditions";
+
+  // For this test apply fixed boundary conditions.
+  // TODO: Adapt 'axl' file to allow the user to specifiy Boundary conditions
+
+  // BC T=50.0 GROUP=Cercle
+  // BC T=5.0 GROUP=Bas
+  // BC T=21.0 GROUP=Haut
+  _applyOneBoundaryCondition("Cercle", 50.0);
+  _applyOneBoundaryCondition("Bas", 5.0);
+  _applyOneBoundaryCondition("Haut", 21.0);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void Fem1Module::
+_applyOneBoundaryCondition(const String& group_name, Real value)
+{
+  FaceGroup group = mesh()->faceFamily()->findGroup(group_name);
+  if (group.null())
+    ARCANE_FATAL("Can not find FaceGroup '{0}'", group_name);
+  ENUMERATE_ (Face, iface, group) {
+    for (Node node : iface->nodes()) {
+      m_node_temperature[node] = value;
+      m_node_is_temperature_fixed[node] = true;
+    }
+  }
 }
 
 /*---------------------------------------------------------------------------*/
