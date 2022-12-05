@@ -15,6 +15,7 @@
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IMesh.h>
 #include <arcane/IItemFamily.h>
+#include <arcane/ItemGroup.h>
 
 #include "Fem1_axl.h"
 #include "./FemUtils.h"
@@ -63,15 +64,19 @@ class Fem1Module
  private:
 
   void _doStationarySolve();
+  void _getMaterialParameters();
   void _updateBoundayConditions();
   void _computeConductivity();
   void _computeGeneralizedFluxes();
+  void _computeSourceTerm();
   void _solve();
   void _initBoundaryconditions();
+  void _applyPenaltyDirichletBC();
   void _applyOneBoundaryCondition(const String& group_name, Real value);
   FixedMatrix<3, 3> _computeIntCDPhiiDPhij(Cell cell);
   FixedMatrix<2, 3> _computeBMatrix(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
+  Real lambda;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -117,30 +122,37 @@ startInit()
 void Fem1Module::
 _doStationarySolve()
 {
+
+  // # get material parameters
+  _getMaterialParameters();
+
   // # update BCs
   _updateBoundayConditions();
 
   // K=self.compute_conductivity()
   _computeConductivity();
-  //      # compute RHS
+
+  //      # compute flux component RHS
   _computeGeneralizedFluxes();
 
-  // # adapt K and RHS to take into account Dirichlet BCs
-  //         for node in self.mesh.nodes:
-  //             if node.is_T_fixed:
-  //                 K[node.rank,node.rank]=K[node.rank,node.rank]+10**6
-  //                 RHS[node.rank]=RHS[node.rank]+(10**6)*node.T
+  //      # compute source component RHS
+  _computeSourceTerm();
 
-  ENUMERATE_ (Node, inode, allNodes()) {
-    NodeLocalId node_id = *inode;
-    if (m_node_is_temperature_fixed[node_id]) {
-      m_k_matrix(node_id, node_id) += 1.0e6;
-      m_rhs_vector[node_id] += 1.0e6 * m_node_temperature[node_id];
-    }
-  }
+  // Plenalty method to enforce Dirichlet conditions
+  _applyPenaltyDirichletBC();
 
   // # T=linalg.solve(K,RHS)
   _solve();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void Fem1Module::
+_getMaterialParameters()
+{
+  info() << "Get material parameters...";
+  lambda = options()->lambda();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -188,6 +200,32 @@ void Fem1Module::
 _updateBoundayConditions()
 {
   info() << "TODO " << A_FUNCINFO;
+}
+
+/*---------------------------------------------------------------------------*/
+// This function enforces a Dirichlet boundary condition in a weak sense by
+// penalty method
+/*---------------------------------------------------------------------------*/
+
+void Fem1Module::
+_applyPenaltyDirichletBC()
+{
+  info() << "Applying Dirichlet boundary condition via  penalty method ";
+
+  // # adapt K and RHS to take into account Dirichlet BCs
+  //         for node in self.mesh.nodes:
+  //             if node.is_T_fixed:
+  //                 K[node.rank,node.rank]=K[node.rank,node.rank]+10**6
+  //                 RHS[node.rank]=RHS[node.rank]+(10**6)*node.T
+
+  // TODO: 1.0e6 is a user value, moreover we should use seomthing like 1e31
+  ENUMERATE_ (Node, inode, allNodes()) {
+    NodeLocalId node_id = *inode;
+    if (m_node_is_temperature_fixed[node_id]) {
+      m_k_matrix(node_id, node_id) += 1.0e6;
+      m_rhs_vector[node_id] += 1.0e6 * m_node_temperature[node_id];
+    }
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -253,8 +291,7 @@ _computeBMatrix(Cell cell)
 FixedMatrix<3, 3> Fem1Module::
 _computeIntCDPhiiDPhij(Cell cell)
 {
-  const Real c = 1.75;
-
+  //const Real c = 1.75;
   FixedMatrix<2, 3> b_matrix = _computeBMatrix(cell);
   //         B=self.compute_B_matrix()
   //         print("B=",B, "\nT=",B.T)
@@ -266,7 +303,7 @@ _computeIntCDPhiiDPhij(Cell cell)
   //         #print("Z2=",z2)
   //         int_cdPi_dPj=area*c*dot(B.T,B)
   FixedMatrix<3, 3> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
-  int_cdPi_dPj.multInPlace(area * c);
+  int_cdPi_dPj.multInPlace(area * lambda);
   //         #print(int_cdPi_dPj)
   //        return int_cdPi_dPj
 
@@ -320,6 +357,17 @@ _computeConductivity()
 void Fem1Module::
 _computeGeneralizedFluxes()
 {
+  // TODO: Loop over all faces on the border instead
+  m_rhs_vector.fill(0.0);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void Fem1Module::
+_computeSourceTerm()
+{
+  // TODO: Loop over all cells and fill the source term
   m_rhs_vector.fill(0.0);
 }
 

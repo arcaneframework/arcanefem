@@ -17,4 +17,8 @@
       <filename>plancher.msh</filename>
     </mesh>
   </meshes>
+
+  <Fem1>
+    <lambda>1.75</lambda>
+  </Fem1>
 </case>
