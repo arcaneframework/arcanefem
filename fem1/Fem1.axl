@@ -16,4 +16,9 @@
       <description>NodeCoord from Arcane variable</description>
     </variable>
   </variables>
+  <options>
+    <simple name="lambda" type="real" default="1.75">
+      <description>Thermal conductivity of the material.</description>
+    </simple>
+  </options>
 </module>
