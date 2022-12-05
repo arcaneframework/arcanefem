@@ -61,6 +61,8 @@ class Fem1Module
   //! RHS (Right Hand Side) vector
   NumArray<Real, MDDim1> m_rhs_vector;
 
+  Real lambda;
+
  private:
 
   void _doStationarySolve();
@@ -72,11 +74,10 @@ class Fem1Module
   void _solve();
   void _initBoundaryconditions();
   void _applyPenaltyDirichletBC();
-  void _applyOneBoundaryCondition(const String& group_name, Real value);
   FixedMatrix<3, 3> _computeIntCDPhiiDPhij(Cell cell);
   FixedMatrix<2, 3> _computeBMatrix(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
-  Real lambda;
+  void _applyDirichletBoundaryConditions();
 };
 
 /*---------------------------------------------------------------------------*/
@@ -163,32 +164,32 @@ _initBoundaryconditions()
 {
   info() << "Init boundary conditions...";
 
-  info() << "TODO: Init boundary conditions";
-
-  // For this test apply fixed boundary conditions.
-  // TODO: Adapt 'axl' file to allow the user to specifiy Boundary conditions
-
-  // BC T=50.0 GROUP=Cercle
-  // BC T=5.0 GROUP=Bas
-  // BC T=21.0 GROUP=Haut
-  _applyOneBoundaryCondition("Cercle", 50.0);
-  _applyOneBoundaryCondition("Bas", 5.0);
-  _applyOneBoundaryCondition("Haut", 21.0);
+  info() << "Apply boundary conditions";
+  _applyDirichletBoundaryConditions();
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 void Fem1Module::
-_applyOneBoundaryCondition(const String& group_name, Real value)
+_applyDirichletBoundaryConditions()
 {
-  FaceGroup group = mesh()->faceFamily()->findGroup(group_name);
-  if (group.null())
-    ARCANE_FATAL("Can not find FaceGroup '{0}'", group_name);
-  ENUMERATE_ (Face, iface, group) {
-    for (Node node : iface->nodes()) {
-      m_node_temperature[node] = value;
-      m_node_is_temperature_fixed[node] = true;
+  // Handle all the Dirichlet boundary conditions.
+  // In the 'arc' file, there are in the following format:
+  //   <dirichlet-boundary-condition>
+  //   <surface>Haut</surface>
+  //   <value>21.0</value>
+  // </dirichlet-boundary-condition>
+
+  for (const auto& bs : options()->dirichletBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    Real value = bs->value();
+    info() << "Apply Dirichlet boundary condition surface=" << group.name() << " v=" << value;
+    ENUMERATE_ (Face, iface, group) {
+      for (Node node : iface->nodes()) {
+        m_node_temperature[node] = value;
+        m_node_is_temperature_fixed[node] = true;
+      }
     }
   }
 }

@@ -18,7 +18,19 @@
     </mesh>
   </meshes>
 
-  <Fem1>
+  <fem1>
     <lambda>1.75</lambda>
-  </Fem1>
+    <dirichlet-boundary-condition>
+      <surface>Cercle</surface>
+      <value>50.0</value>
+    </dirichlet-boundary-condition>
+    <dirichlet-boundary-condition>
+      <surface>Bas</surface>
+      <value>5.0</value>
+    </dirichlet-boundary-condition>
+    <dirichlet-boundary-condition>
+      <surface>Haut</surface>
+      <value>21.0</value>
+    </dirichlet-boundary-condition>
+  </fem1>
 </case>
