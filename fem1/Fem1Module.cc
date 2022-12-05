@@ -82,7 +82,7 @@ compute()
 {
   info() << "Module Fem1 COMPUTE";
 
-  // Stop code after computatio
+  // Stop code after computations
   subDomain()->timeLoopMng()->stopComputeLoop(true);
 
   info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
