@@ -16,6 +16,7 @@
 #include <arcane/IMesh.h>
 #include <arcane/IItemFamily.h>
 #include <arcane/ItemGroup.h>
+#include <arcane/ICaseMng.h>
 
 #include "Fem1_axl.h"
 #include "./FemUtils.h"
@@ -38,7 +39,11 @@ class Fem1Module
 
   explicit Fem1Module(const ModuleBuildInfo& mbi)
   : ArcaneFem1Object(mbi)
-  {}
+  {
+    ICaseMng* cm = mbi.subDomain()->caseMng();
+    cm->setTreatWarningAsError(true);
+    cm->setAllowUnkownRootElelement(false);
+  }
 
  public:
 
