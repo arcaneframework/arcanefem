@@ -14,6 +14,13 @@
 #include "FemUtils.h"
 
 #include <arcane/utils/FatalErrorException.h>
+#include <arcane/utils/PlatformUtils.h>
+#include <arcane/utils/ValueConvert.h>
+
+#include <arcane/VariableTypes.h>
+#include <arcane/IItemFamily.h>
+
+#include <map>
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -60,6 +67,76 @@ void _convertNumArrayToCSRMatrix(Matrix& out_matrix, MDSpan<const Real, MDDim2> 
 
   out_matrix.setRowsSize(nb_non_zero_in_row);
   out_matrix.setValues(columns, values);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void checkNodeResultFile(ITraceMng* tm, const String& filename,
+                         const VariableNodeReal& node_values, double epsilon)
+{
+  std::cout << "CheckNodeResultFile filename=" << filename << "\n";
+  if (filename.empty())
+    ARCANE_FATAL("Invalid empty filename");
+  IItemFamily* node_family = node_values.variable()->itemFamily();
+  if (!node_family)
+    ARCANE_FATAL("Variable '{0}' is not allocated", node_values.name());
+
+  std::map<Int64, double> item_reference_values;
+  {
+    std::ifstream sbuf(filename.localstr());
+    double read_value = 0.0;
+    Int64 read_uid = 0;
+    if (!sbuf.eof())
+      sbuf >> ws;
+    while (!sbuf.eof()) {
+      sbuf >> read_uid >> ws >> read_value;
+      if (sbuf.fail() || sbuf.bad())
+        ARCANE_FATAL("Error during parsing of file '{0}'", filename);
+      item_reference_values.insert(std::make_pair(read_uid, read_value));
+      sbuf >> ws;
+    }
+  }
+
+  std::cout << "NB_Values=" << item_reference_values.size() << "\n";
+
+  // Get Max UID
+  Int64 max_uid = 0;
+  ENUMERATE_ (Node, inode, node_family->allItems()) {
+    Node node = *inode;
+    if (node.uniqueId() > max_uid)
+      max_uid = node.uniqueId();
+  }
+
+  std::map<Int64, double> item_current_values;
+
+  ENUMERATE_ (Node, inode, node_family->allItems()) {
+    Node node = *inode;
+    item_current_values[node.uniqueId()] = node_values[node];
+  }
+
+  Int32 nb_ref_value = item_reference_values.size();
+  Int32 nb_current_value = item_current_values.size();
+  if (nb_ref_value != nb_current_value)
+    ARCANE_FATAL("Can not compare files because there is not the same number of values nb_ref={0} nb_current={1}",
+                 nb_ref_value, nb_current_value);
+
+  Int64 nb_error = 0;
+  for (const auto& x : item_current_values) {
+    Int64 uid = x.first;
+    Real v = x.second;
+    auto x_ref = item_reference_values.find(uid);
+    if (x_ref != item_reference_values.end()) {
+      Real ref_v = x_ref->second;
+      if (!TypeEqualT<double>::isNearlyEqualWithEpsilon(ref_v, v, epsilon)) {
+        ++nb_error;
+        if (nb_error < 15)
+          std::cout << String::format("ERROR: ref={0} v={1} diff={2}", ref_v, v, ref_v - v) << "\n";
+      }
+    }
+  }
+  if (nb_error > 0)
+    ARCANE_FATAL("Error checking values nb_error={0}", nb_error);
 }
 
 /*---------------------------------------------------------------------------*/

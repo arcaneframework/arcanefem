@@ -21,6 +21,10 @@
       <description>Thermal conductivity of the material.</description>
     </simple>
 
+    <simple name="result-file" type="string" optional="true">
+      <description>File name of a file containing the valuess of the solution vector to check the results</description>
+    </simple>
+
     <!-- - - - - - dirichlet-boundary-condition - - - - -->
     <complex name  = "dirichlet-boundary-condition"
              type  = "DirichletBoundaryCondition"
