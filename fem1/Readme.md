@@ -22,7 +22,11 @@ Here, $\lambda$ is the thermal conductivity of the material and $\dot{\mathcal{Q
 
 To complete the problem description,  three first type (Dirichlet) boundary conditions are applied to this problem
 
-$$T|_{\partial\Omega^h_{\text{Cercle}}} = 50.0 \degree C, \quad T|_{\partial\Omega^h_{\text{Bas}}} = 5.0\degree C, \quad \text{and}\quad T|_{\partial\Omega^h_{\text{Haut}}} = 21.0\degree C$$,
+$T = 50.0 \degree C \quad \forall(x,y)\in\partial\Omega^h_{\text{Cercle}}\subset\partial \Omega^h,$
+
+$T = 5.0\degree C \quad \forall(x,y)\in\partial\Omega^h_{\text{Bas}}\subset\partial \Omega^h,$ and
+
+$T  = 21.0\degree C  \quad \forall(x,y)\in\partial\Omega^h_{\text{Haut}}\subset\partial \Omega^h,$
 
 in addition, other boundaries $\partial\Omega^h_N$ are exposed to  second type (Neumann) boundary condition, the derivative of temperature (heat flux) is zero - insulation boundary
 
@@ -38,13 +42,13 @@ $$- \int_{\Omega^h}\lambda\nabla u^h \nabla  v^h + \int_{\partial\Omega_N} (\ove
 
 given
 
-  $$u^h=50.0 \quad \forall (x,y)\in\Omega^h_{\text{Cercle}}, $$
+$u^h=50.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Cercle}}$,
 
- $u^h=5.0 \quad \forall (x,y)\in\Omega^h_{\text{Bas}}$ ,
+$u^h=5.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Bas}}$ ,
 
-$$u^h=20.0 \quad \forall (x,y)\in\Omega^h_{\text{Haut}}$$,
+$u^h=20.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Haut}}$,
 
- $\int_{\Omega^h_N}(\mathbf{q} \cdot \mathbf{n}) v^h=0$,
+$\int_{\Omega^h_N}(\mathbf{q} \cdot \mathbf{n}) v^h=0$,
 
 $\int_{\Omega^h}\dot{\mathcal{Q}} v^h=0$, and
 
@@ -80,21 +84,24 @@ Please not that use version 4 `.msh` file from `Gmsh`.
 
 #### Boundary conditions ####
 
-These are setup via the `Fem1Module::_initBoundaryconditions()` within the `Fem1Module.cc`:
+These are provided in `FemTest1.arc` file
 
-```c++
-void Fem1Module::
-_initBoundaryconditions()
-{
-  info() << "Init boundary conditions...";
-    
-  _applyOneBoundaryCondition("Cercle", 50.0);
-  _applyOneBoundaryCondition("Bas", 5.0);
-  _applyOneBoundaryCondition("Haut", 21.0);
-}
+```xml
+    <dirichlet-boundary-condition>
+      <surface>Cercle</surface>
+      <value>50.0</value>
+    </dirichlet-boundary-condition>
+    <dirichlet-boundary-condition>
+      <surface>Bas</surface>
+      <value>5.0</value>
+    </dirichlet-boundary-condition>
+    <dirichlet-boundary-condition>
+      <surface>Haut</surface>
+      <value>21.0</value>
+    </dirichlet-boundary-condition>
 ```
 
-the `_applyOneBoundaryCondition()` function is used to input the three Dirichlet boundary conditions here. For example, via  `_applyOneBoundaryCondition("Bas", 5.0);` we impose $5.0$ $\degree C$ on the border "Bas" (french for bottom). Note, "Bas" is a physical tag in the `plancher.msh` file.  So in the snippet above, three Dirichlet conditions are applied ($50 \degree C, 5.0 \degree C, 21.0 \degree C$)  on three borders ('cercle', 'Bas', 'Haut').
+So in the snippet above, three Dirichlet conditions are applied ($50 \degree C, 5.0 \degree C, 21.0 \degree C$)  on three borders ('cercle', 'Bas', 'Haut').
 
 #### Zero flux and zero source condition ###
 
