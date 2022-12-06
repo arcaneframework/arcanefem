@@ -29,6 +29,9 @@
 
 using namespace Arcane;
 
+extern "C++" FemLinearSystemImpl*
+createAlephFemLinearSystemImpl(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable);
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -157,9 +160,16 @@ initialize(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable)
   ARCANE_CHECK_POINTER(sd);
   if (m_p)
     ARCANE_FATAL("The instance is already initialized");
-  auto* x = new SequentialFemLinearSystemImpl(sd, node_variable);
-  x->build();
-  m_p = x;
+  IParallelMng* pm = sd->parallelMng();
+  bool is_parallel = pm->isParallel();
+  if (is_parallel) {
+    m_p = createAlephFemLinearSystemImpl(sd, node_variable);
+  }
+  else {
+    auto* x = new SequentialFemLinearSystemImpl(sd, node_variable);
+    x->build();
+    m_p = x;
+  }
 }
 
 /*---------------------------------------------------------------------------*/
