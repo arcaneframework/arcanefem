@@ -83,6 +83,7 @@ class Fem1Module
   FixedMatrix<2, 3> _computeBMatrix(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
   void _applyDirichletBoundaryConditions();
+  void _checkResultFile();
 };
 
 /*---------------------------------------------------------------------------*/
@@ -149,6 +150,9 @@ _doStationarySolve()
 
   // # T=linalg.solve(K,RHS)
   _solve();
+
+  // Check results
+  _checkResultFile();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -387,11 +391,10 @@ _solve()
   Arcane::MatVec::Matrix matrix(matrix_size, matrix_size);
   _convertNumArrayToCSRMatrix(matrix, m_k_matrix.span());
 
-  info() << "TODO " << A_FUNCINFO;
-  int p = std::cout.precision();
-  std::cout.precision(12);
-  matrix.dump(std::cout);
-  std::cout.precision(p);
+  //int p = std::cout.precision();
+  //std::cout.precision(12);
+  //matrix.dump(std::cout);
+  //std::cout.precision(p);
 
   Arcane::MatVec::Vector vector_b(matrix_size);
   Arcane::MatVec::Vector vector_x(matrix_size);
@@ -420,15 +423,33 @@ _solve()
   //             self.mesh.nodes[i].T=T[i]
 
   {
+    int p = std::cout.precision();
+    std::cout.precision(17);
     auto vector_x_view = vector_x.values();
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
       if (!m_node_is_temperature_fixed[node]) {
         m_node_temperature[node] = vector_x_view[node.localId()];
       }
-      info() << "T[" << node.localId() << "] = " << m_node_temperature[node];
+      std::cout << "T[" << node.localId() << "][" << node.uniqueId() << "] = "
+                << m_node_temperature[node] << "\n";
     }
+    std::cout.precision(p);
   }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void Fem1Module::
+_checkResultFile()
+{
+  String filename = options()->resultFile();
+  info() << "CheckResultFile filename=" << filename;
+  if (filename.empty())
+    return;
+  const double epsilon = 1.0e-15;
+  checkNodeResultFile(traceMng(),filename,m_node_temperature,epsilon);
 }
 
 /*---------------------------------------------------------------------------*/

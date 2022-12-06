@@ -17,6 +17,7 @@
 #include <arcane/ArcaneTypes.h>
 #include <arcane/utils/MDSpan.h>
 #include <arcane/matvec/Matrix.h>
+#include <arcane/VariableTypedef.h>
 
 #include <array>
 #include <iostream>
@@ -120,9 +121,26 @@ matrixTranspose(const FixedMatrix<N, M>& a)
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
+/*!
+ * \brief Convert a dense matrix to an Arcane sequential CSR Matrix.
+ */
 void _convertNumArrayToCSRMatrix(Arcane::MatVec::Matrix& out_matrix,
                                  Arcane::MDSpan<const Arcane::Real, Arcane::MDDim2> in_matrix);
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*!
+ * \brief Check the values of the variable against a reference file.
+ *
+ * The reference file \a filename is an ASCII file containing N values where
+ * \a N is the number of nodes in the mesh.
+ *
+ * For each item the current value of \a node_values is compared to the
+ * reference value and if the relative difference is greater than \a epsilon
+ * this is an error.
+ */
+void checkNodeResultFile(Arcane::ITraceMng* tm, const Arcane::String& filename,
+                         const Arcane::VariableNodeReal& node_values, double epsilon);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
