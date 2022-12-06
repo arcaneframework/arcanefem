@@ -39,7 +39,5 @@ add_test(NAME femtest1 COMMAND FemTest1 FemTest1.arc)
 
 # If parallel part is available, add some tests
 if(FEMTEST_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-  set(MPIEXEC_EXECUTABLE /ccc/spack/links4/gcc9-mpich3/bin/mpiexec)
-
   add_test(NAME femtest1_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./FemTest1 FemTest1.arc)
 endif()
