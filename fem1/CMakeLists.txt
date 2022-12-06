@@ -9,6 +9,8 @@ add_executable(FemTest1
   Fem1Module.cc
   main.cc
   Fem1_axl.h
+  FemLinearSystem.h
+  FemLinearSystem.cc
 )
 
 arcane_generate_axl(Fem1)

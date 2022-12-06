@@ -19,7 +19,8 @@
 #include <arcane/ICaseMng.h>
 
 #include "Fem1_axl.h"
-#include "./FemUtils.h"
+#include "FemUtils.h"
+#include "FemLinearSystem.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -28,7 +29,6 @@ using namespace Arcane;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
 /*!
  * \brief Module Fem1.
  */
@@ -47,26 +47,22 @@ class Fem1Module
 
  public:
 
-  /*!
-   * \brief Méthode appelée à chaque itération.
-   */
+  //! Method called at each iteration
   void compute() override;
-  /*!
-   * \brief Méthode appelée lors de l'initialisation.
-   */
+
+  //! Method called at the beginning of the simulation
   void startInit() override;
 
-  /** Retourne le numéro de version du module */
-  VersionInfo versionInfo() const override { return VersionInfo(1, 0, 0); }
+  VersionInfo versionInfo() const override
+  {
+    return VersionInfo(1, 0, 0);
+  }
 
  private:
 
-  //! K matrix
-  NumArray<Real, MDDim2> m_k_matrix;
-  //! RHS (Right Hand Side) vector
-  NumArray<Real, MDDim1> m_rhs_vector;
-
   Real lambda;
+
+  FemLinearSystem m_linear_system;
 
  private:
 
@@ -95,7 +91,11 @@ compute()
   info() << "Module Fem1 COMPUTE";
 
   // Stop code after computations
-  subDomain()->timeLoopMng()->stopComputeLoop(true);
+  if (m_global_iteration() > 0)
+    subDomain()->timeLoopMng()->stopComputeLoop(true);
+
+  m_linear_system.reset();
+  m_linear_system.initialize(subDomain(), m_node_temperature);
 
   info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
   _doStationarySolve();
@@ -109,12 +109,12 @@ startInit()
 {
   info() << "Module Fem1 INIT";
 
-  Int32 nb_node = allNodes().size();
-  m_k_matrix.resize(nb_node, nb_node);
-  m_k_matrix.fill(0.0);
+  //Int32 nb_node = allNodes().size();
+  //m_k_matrix.resize(nb_node, nb_node);
+  //m_k_matrix.fill(0.0);
 
-  m_rhs_vector.resize(nb_node);
-  m_rhs_vector.fill(0.0);
+  //m_rhs_vector.resize(nb_node);
+  //m_rhs_vector.fill(0.0);
 
   // # init mesh
   // # init behavior
@@ -129,7 +129,6 @@ startInit()
 void Fem1Module::
 _doStationarySolve()
 {
-
   // # get material parameters
   _getMaterialParameters();
 
@@ -228,14 +227,23 @@ _applyPenaltyDirichletBC()
   //                 K[node.rank,node.rank]=K[node.rank,node.rank]+10**6
   //                 RHS[node.rank]=RHS[node.rank]+(10**6)*node.T
 
-  // TODO: 1.0e6 is a user value, moreover we should use seomthing like 1e31
-  ENUMERATE_ (Node, inode, allNodes()) {
+  // TODO: 1.0e6 is a user value, moreover we should use something like 1e31
+  UniqueArray<Real> rhs_values;
+  ENUMERATE_ (Node, inode, ownNodes()) {
     NodeLocalId node_id = *inode;
     if (m_node_is_temperature_fixed[node_id]) {
-      m_k_matrix(node_id, node_id) += 1.0e6;
-      m_rhs_vector[node_id] += 1.0e6 * m_node_temperature[node_id];
+      //m_k_matrix(node_id, node_id) += 1.0e6;
+      m_linear_system.matrixAddValue(*inode, *inode, 1.0e6);
+      //m_rhs_vector[node_id] += 1.0e6 * m_node_temperature[node_id];
+      {
+        Real temperature = 1.0e6 * m_node_temperature[node_id];
+        rhs_values.add(temperature);
+      }
     }
+    else
+      rhs_values.add(0.0);
   }
+  m_linear_system.setRHSValues(rhs_values);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -288,9 +296,9 @@ _computeBMatrix(Cell cell)
   b_matrix.multInPlace(1.0 / (2.0 * area));
   //     return(B)
 
-  std::cout << "B=";
-  b_matrix.dump(std::cout);
-  std::cout << "\n";
+  //std::cout << "B=";
+  //b_matrix.dump(std::cout);
+  //std::cout << "\n";
 
   return b_matrix;
 }
@@ -317,10 +325,10 @@ _computeIntCDPhiiDPhij(Cell cell)
   //         #print(int_cdPi_dPj)
   //        return int_cdPi_dPj
 
-  info() << "Cell=" << cell.localId();
-  std::cout << " int_cdPi_dPj=";
-  int_cdPi_dPj.dump(std::cout);
-  std::cout << "\n";
+  //info() << "Cell=" << cell.localId();
+  //std::cout << " int_cdPi_dPj=";
+  //int_cdPi_dPj.dump(std::cout);
+  //std::cout << "\n";
 
   return int_cdPi_dPj;
 }
@@ -349,11 +357,15 @@ _computeConductivity()
     //                     inode2=elem.nodes.index(node2)
     //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
     Int32 n1_index = 0;
-    for (NodeLocalId node1 : cell.nodes()) {
+    for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
-      for (NodeLocalId node2 : cell.nodes()) {
+      for (Node node2 : cell.nodes()) {
         //                 K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-        m_k_matrix(node1.localId(), node2.localId()) += K_e(n1_index, n2_index);
+        Real v = K_e(n1_index, n2_index);
+        //m_k_matrix(node1.localId(), node2.localId()) += v;
+        if (node1.isOwn()) {
+          m_linear_system.matrixAddValue(node1, node2, v);
+        }
         ++n2_index;
       }
       ++n1_index;
@@ -368,7 +380,7 @@ void Fem1Module::
 _computeGeneralizedFluxes()
 {
   // TODO: Loop over all faces on the border instead
-  m_rhs_vector.fill(0.0);
+  //m_rhs_vector.fill(0.0);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -378,7 +390,7 @@ void Fem1Module::
 _computeSourceTerm()
 {
   // TODO: Loop over all cells and fill the source term
-  m_rhs_vector.fill(0.0);
+  //m_rhs_vector.fill(0.0);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -387,33 +399,13 @@ _computeSourceTerm()
 void Fem1Module::
 _solve()
 {
-  Int32 matrix_size = m_k_matrix.extent0();
-  Arcane::MatVec::Matrix matrix(matrix_size, matrix_size);
-  _convertNumArrayToCSRMatrix(matrix, m_k_matrix.span());
+  m_linear_system.solve();
 
-  //int p = std::cout.precision();
-  //std::cout.precision(12);
-  //matrix.dump(std::cout);
-  //std::cout.precision(p);
+  // Re-Apply boundary conditions because the solver has modified the value
+  // of node_temperature on all nodes
+  _applyDirichletBoundaryConditions();
 
-  Arcane::MatVec::Vector vector_b(matrix_size);
-  Arcane::MatVec::Vector vector_x(matrix_size);
-  {
-    auto vector_b_view = vector_b.values();
-    auto vector_x_view = vector_x.values();
-    for (Int32 i = 0; i < matrix_size; ++i) {
-      vector_b_view(i) = m_rhs_vector[i];
-      vector_x_view(i) = 0.0;
-    }
-  }
-
-  {
-    Real epsilon = 1.0e-15;
-    Arcane::MatVec::DiagonalPreconditioner p(matrix);
-    Arcane::MatVec::ConjugateGradientSolver solver;
-    solver.solve(matrix, vector_b, vector_x, epsilon, &p);
-  }
-
+  m_node_temperature.synchronize();
   // def update_T(self,T):
   //     """Update temperature value on nodes after the FE resolution"""
   //     for i in range(0,len(self.mesh.nodes)):
@@ -422,15 +414,12 @@ _solve()
   //         if not node.is_T_fixed:
   //             self.mesh.nodes[i].T=T[i]
 
-  {
+  const bool do_print = (allNodes().size() < 200);
+  if (do_print) {
     int p = std::cout.precision();
     std::cout.precision(17);
-    auto vector_x_view = vector_x.values();
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      if (!m_node_is_temperature_fixed[node]) {
-        m_node_temperature[node] = vector_x_view[node.localId()];
-      }
       std::cout << "T[" << node.localId() << "][" << node.uniqueId() << "] = "
                 << m_node_temperature[node] << "\n";
     }
@@ -448,8 +437,8 @@ _checkResultFile()
   info() << "CheckResultFile filename=" << filename;
   if (filename.empty())
     return;
-  const double epsilon = 1.0e-15;
-  checkNodeResultFile(traceMng(),filename,m_node_temperature,epsilon);
+  const double epsilon = 1.0e-9;
+  checkNodeResultFile(traceMng(), filename, m_node_temperature, epsilon);
 }
 
 /*---------------------------------------------------------------------------*/
