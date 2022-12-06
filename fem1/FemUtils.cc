@@ -16,6 +16,7 @@
 #include <arcane/utils/FatalErrorException.h>
 #include <arcane/utils/PlatformUtils.h>
 #include <arcane/utils/ValueConvert.h>
+#include <arcane/utils/ITraceMng.h>
 
 #include <arcane/VariableTypes.h>
 #include <arcane/IItemFamily.h>
@@ -75,7 +76,9 @@ void _convertNumArrayToCSRMatrix(Matrix& out_matrix, MDSpan<const Real, MDDim2> 
 void checkNodeResultFile(ITraceMng* tm, const String& filename,
                          const VariableNodeReal& node_values, double epsilon)
 {
-  std::cout << "CheckNodeResultFile filename=" << filename << "\n";
+  ARCANE_CHECK_POINTER(tm);
+
+  tm->info() << "CheckNodeResultFile filename=" << filename;
   if (filename.empty())
     ARCANE_FATAL("Invalid empty filename");
   IItemFamily* node_family = node_values.variable()->itemFamily();
@@ -98,7 +101,7 @@ void checkNodeResultFile(ITraceMng* tm, const String& filename,
     }
   }
 
-  std::cout << "NB_Values=" << item_reference_values.size() << "\n";
+  tm->info() << "NB_Values=" << item_reference_values.size();
 
   // Get Max UID
   Int64 max_uid = 0;
@@ -115,12 +118,6 @@ void checkNodeResultFile(ITraceMng* tm, const String& filename,
     item_current_values[node.uniqueId()] = node_values[node];
   }
 
-  Int32 nb_ref_value = item_reference_values.size();
-  Int32 nb_current_value = item_current_values.size();
-  if (nb_ref_value != nb_current_value)
-    ARCANE_FATAL("Can not compare files because there is not the same number of values nb_ref={0} nb_current={1}",
-                 nb_ref_value, nb_current_value);
-
   Int64 nb_error = 0;
   for (const auto& x : item_current_values) {
     Int64 uid = x.first;
@@ -130,8 +127,9 @@ void checkNodeResultFile(ITraceMng* tm, const String& filename,
       Real ref_v = x_ref->second;
       if (!TypeEqualT<double>::isNearlyEqualWithEpsilon(ref_v, v, epsilon)) {
         ++nb_error;
-        if (nb_error < 15)
-          std::cout << String::format("ERROR: ref={0} v={1} diff={2}", ref_v, v, ref_v - v) << "\n";
+        if (nb_error < 50)
+          tm->info() << String::format("ERROR: uid={0} ref={1} v={2} diff={3}",
+                                       uid, ref_v, v, ref_v - v);
       }
     }
   }
