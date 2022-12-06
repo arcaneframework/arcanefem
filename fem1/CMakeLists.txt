@@ -11,6 +11,7 @@ add_executable(FemTest1
   Fem1_axl.h
   FemLinearSystem.h
   FemLinearSystem.cc
+  AlephFemLinearSystem.cc
 )
 
 arcane_generate_axl(Fem1)
@@ -19,6 +20,13 @@ target_include_directories(FemTest1 PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
 configure_file(FemTest1.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(FemTest1.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(plancher.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+
+target_link_libraries(FemTest1 PRIVATE Arcane::arcane_aleph)
+if (TARGET Arcane::arcane_aleph_hypre)
+  target_link_libraries(FemTest1 PRIVATE Arcane::arcane_aleph_hypre)
+else()
+  message(STATUS "WARNING: Target Arcane::arcane_aleph_hypre is not available. Parallel linear solver system is disabled")
+endif()
 
 # Copy the tests files in the binary directory
 # The '/' after 'tests' is needed because we want to copy the files
