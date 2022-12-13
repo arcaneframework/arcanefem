@@ -61,6 +61,7 @@ class Fem1Module
  private:
 
   Real lambda;
+  Real qdot;
 
   FemLinearSystem m_linear_system;
 
@@ -162,6 +163,7 @@ _getMaterialParameters()
 {
   info() << "Get material parameters...";
   lambda = options()->lambda();
+  qdot   = options()->qdot();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -437,7 +439,7 @@ _checkResultFile()
   info() << "CheckResultFile filename=" << filename;
   if (filename.empty())
     return;
-  const double epsilon = 1.0e-9;
+  const double epsilon = 1.0e-4;
   checkNodeResultFile(traceMng(), filename, m_node_temperature, epsilon);
 }
 

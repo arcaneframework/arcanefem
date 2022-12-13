@@ -17,6 +17,9 @@
     </variable>
   </variables>
   <options>
+    <simple name="qdot" type="real" default="0.0">
+      <description>Heat source within the material.</description>
+    </simple>
     <simple name="lambda" type="real" default="1.75">
       <description>Thermal conductivity of the material.</description>
     </simple>
