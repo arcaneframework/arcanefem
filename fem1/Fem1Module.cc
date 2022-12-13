@@ -223,6 +223,10 @@ _assembleLinearOperator()
   info() << "Assembly of FEM linear operator ";
   info() << "Applying Dirichlet boundary condition via  penalty method ";
 
+  // Temporary variable to keep values for the RHS part of the linear system
+  VariableNodeReal rhs_values(VariableBuildInfo(defaultMesh(),"NodeRHSValues"));
+  rhs_values.fill(0.0);
+
   //----------------------------------------------
   // penelty method for assembly of Dirichlet BC
   //----------------------------------------------
@@ -234,7 +238,6 @@ _assembleLinearOperator()
   //                 RHS[node.rank]=RHS[node.rank]+(10**6)*node.T
 
   // TODO: 1.0e6 is a user value, moreover we should use something like 1e31
-  UniqueArray<Real> rhs_values;
   ENUMERATE_ (Node, inode, ownNodes()) {
     NodeLocalId node_id = *inode;
     if (m_node_is_temperature_fixed[node_id]) {
@@ -243,11 +246,9 @@ _assembleLinearOperator()
       //m_rhs_vector[node_id] += 1.0e6 * m_node_temperature[node_id];
       {
         Real temperature = 1.0e6 * m_node_temperature[node_id];
-        rhs_values.add(temperature);
+        rhs_values[node_id] = temperature;
       }
     }
-    else
-      rhs_values.add(0.0);
   }
 
   //----------------------------------------------
@@ -262,11 +263,21 @@ _assembleLinearOperator()
     Real area = _computeAreaTriangle3(cell);
     for (Node node : cell.nodes()) {
       if(!(m_node_is_temperature_fixed[node])  && node.isOwn())
-        rhs_values[node.localId()] += qdot*area/3;
+        rhs_values[node] += qdot*area/3;
       }
     }
 
-  m_linear_system.setRHSValues(rhs_values);
+  {
+    // For the LinearSystem class we need an array
+    // with only the values for the ownNodes().
+    // The values of 'rhs_values' should not be updated after
+    // this call.
+    UniqueArray<Real> rhs_values_for_linear_system;
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      rhs_values_for_linear_system.add(rhs_values[inode]);
+    }
+    m_linear_system.setRHSValues(rhs_values_for_linear_system);
+  }
 }
 
 /*---------------------------------------------------------------------------*/
