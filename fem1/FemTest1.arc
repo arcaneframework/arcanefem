@@ -20,6 +20,7 @@
 
   <fem1>
     <lambda>1.75</lambda>
+    <qdot>0.0</qdot>
     <result-file>test1_results.txt</result-file>
     <dirichlet-boundary-condition>
       <surface>Cercle</surface>

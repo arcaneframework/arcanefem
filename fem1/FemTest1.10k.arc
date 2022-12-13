@@ -20,6 +20,7 @@
 
   <fem1>
     <lambda>1.75</lambda>
+    <qdot>0.0</qdot>
     <dirichlet-boundary-condition>
       <surface>Cercle</surface>
       <value>50.0</value>

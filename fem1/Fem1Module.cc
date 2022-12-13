@@ -72,10 +72,9 @@ class Fem1Module
   void _updateBoundayConditions();
   void _computeConductivity();
   void _computeGeneralizedFluxes();
-  void _computeSourceTerm();
   void _solve();
   void _initBoundaryconditions();
-  void _applyPenaltyDirichletBC();
+  void _assembleLinearOperator();
   FixedMatrix<3, 3> _computeIntCDPhiiDPhij(Cell cell);
   FixedMatrix<2, 3> _computeBMatrix(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
@@ -142,11 +141,8 @@ _doStationarySolve()
   //      # compute flux component RHS
   _computeGeneralizedFluxes();
 
-  //      # compute source component RHS
-  _computeSourceTerm();
-
-  // Plenalty method to enforce Dirichlet conditions
-  _applyPenaltyDirichletBC();
+  // Assemble the FEM linear operator (RHS)
+  _assembleLinearOperator();
 
   // # T=linalg.solve(K,RHS)
   _solve();
@@ -214,15 +210,23 @@ _updateBoundayConditions()
 }
 
 /*---------------------------------------------------------------------------*/
-// This function enforces a Dirichlet boundary condition in a weak sense by
-// penalty method
+// Assemble the FEM linear operator
+//  - This function enforces a Dirichlet boundary condition in a weak sense
+//    via the penalty method
+//  - The method also adds source term
+//  - TODO: external fluxes
 /*---------------------------------------------------------------------------*/
 
 void Fem1Module::
-_applyPenaltyDirichletBC()
+_assembleLinearOperator()
 {
+  info() << "Assembly of FEM linear operator ";
   info() << "Applying Dirichlet boundary condition via  penalty method ";
 
+  //----------------------------------------------
+  // penelty method for assembly of Dirichlet BC
+  //----------------------------------------------
+  //
   // # adapt K and RHS to take into account Dirichlet BCs
   //         for node in self.mesh.nodes:
   //             if node.is_T_fixed:
@@ -245,6 +249,23 @@ _applyPenaltyDirichletBC()
     else
       rhs_values.add(0.0);
   }
+
+  //----------------------------------------------
+  // Constant source term assembly
+  //----------------------------------------------
+  //
+  //  $int_{Omega}(qdot*v^h)$
+  //  only for noded that are non-Dirichlet
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    Real area = _computeAreaTriangle3(cell);
+    for (Node node : cell.nodes()) {
+      if(!(m_node_is_temperature_fixed[node])  && node.isOwn())
+        rhs_values[node.localId()] += qdot*area/3;
+      }
+    }
+
   m_linear_system.setRHSValues(rhs_values);
 }
 
@@ -382,16 +403,6 @@ void Fem1Module::
 _computeGeneralizedFluxes()
 {
   // TODO: Loop over all faces on the border instead
-  //m_rhs_vector.fill(0.0);
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void Fem1Module::
-_computeSourceTerm()
-{
-  // TODO: Loop over all cells and fill the source term
   //m_rhs_vector.fill(0.0);
 }
 
