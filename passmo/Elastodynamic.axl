@@ -1,0 +1,239 @@
+<?xml version="1.0" ?>
+<module name="Elastodynamic" version="1.0">
+  <description>Elastodynamic module</description>
+  <variables>
+    <variable field-name="acceleration" name="Acceleration" data-type="real3" item-kind="node" dim="0">
+      <description>Acceleration vectors on node coords</description>
+    </variable>
+    <variable field-name="velocity" name="Velocity" data-type="real3" item-kind="node" dim="0">
+      <description>Velocity vectors on node coords</description>
+    </variable>
+    <variable field-name="displacement" name="Displacement" data-type="real3" item-kind="node" dim="0">
+      <description>Displacement vectors on node coords</description>
+    </variable>
+    <variable field-name="force" name="Force" data-type="real3" item-kind="node" dim="0">
+      <description>Force resultants on node coords</description>
+    </variable>
+    <variable field-name="node_has_imposed_ux" name="NodeHasImposedUx" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if node has imposed X-displacement</description>
+    </variable>
+    <variable field-name="node_has_imposed_uy" name="NodeHasImposedUy" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if node has imposed Y-displacement</description>
+    </variable>
+    <variable field-name="node_has_imposed_uz" name="NodeHasImposedUz" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if node has imposed Z-displacement</description>
+    </variable>
+    <variable field-name="node_has_imposed_vx" name="NodeHasImposedVx" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if node has imposed X-velocity</description>
+    </variable>
+    <variable field-name="node_has_imposed_vy" name="NodeHasImposedVy" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if node has imposed Y-velocity</description>
+    </variable>
+    <variable field-name="node_has_imposed_vz" name="NodeHasImposedVz" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if node has imposed Z-velocity</description>
+    </variable>
+    <variable field-name="node_has_imposed_ax" name="NodeHasImposedAx" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if node has imposed X-acceleration</description>
+    </variable>
+    <variable field-name="node_has_imposed_ay" name="NodeHasImposedAy" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if node has imposed Y-acceleration</description>
+    </variable>
+    <variable field-name="node_has_imposed_az" name="NodeHasImposedAz" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if node has imposed Z-acceleration</description>
+    </variable>
+    <variable field-name="node_has_imposed_fx" name="NodeHasImposedFx" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if node has imposed X-force</description>
+    </variable>
+    <variable field-name="node_has_imposed_fy" name="NodeHasImposedFy" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if node has imposed Y-force</description>
+    </variable>
+    <variable field-name="node_has_imposed_fz" name="NodeHasImposedFz" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if node has imposed Z-force</description>
+    </variable>
+    <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
+      <description>NodeCoord from Arcane variable</description>
+    </variable>
+    <variable field-name="cell_strain" name="CellStrain" data-type="real3x3" item-kind="cell" dim="0">
+      <description>Total strains per Cell</description>
+    </variable>
+    <variable field-name="cell_stress" name="CellStress" data-type="real3x3" item-kind="cell" dim="0">
+      <description>Total stresses per Cell</description>
+    </variable>
+  </variables>
+
+  <entry-points>
+    <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
+    <entry-point method-name="predict" name="Predict" where="compute-loop" property="none" />
+    <entry-point method-name="compute" name="Compute" where="compute-loop" property="none" />
+    <entry-point method-name="update" name="Update" where="compute-loop" property="none"/>
+  </entry-points>
+
+  <options>
+    <!-- - - - - - elastic-property - - - - -->
+    <complex name="elastic-property" type="ElasticProperty" minOccurs="0" maxOccurs="unbounded">
+      <description>Definition of elastic properties on CellGroup</description>
+        <extended name="cell-group" type="Arcane::CellGroup">
+          <description>CellGroup on which to set these elastic properties</description>
+        </extended>
+        <simple name="density" type="real" default="2000." optional="true"/>
+        <simple name="young-modulus" type="real" default="50.e6" optional="true"/>
+        <simple name="poisson-ratio" type="real" default="0.2" optional="true"/>
+    </complex>
+
+    <simple name = "displacement-result-file" type = "string" default="displ-result.txt" optional = "true">
+      <description>Filename containing the solution displacements</description>
+    </simple>
+    <simple name = "acceleration-result-file" type = "string" default="acc-result.txt" optional = "true">
+      <description>Filename containing the solution accelerations</description>
+    </simple>
+    <simple name = "velocity-result-file" type = "string" default="vel-result.txt" optional = "true">
+      <description>Filename containing the solution velocities</description>
+    </simple>
+    <simple name = "stress-result-file" type = "string" default="stress-result.txt" optional = "true">
+      <description>Filename containing the solution stresses per Cell</description>
+    </simple>
+    <simple name = "strain-result-file" type = "string" default="strain-result.txt" optional = "true">
+      <description>Filename containing the solution strains per Cell</description>
+    </simple>
+    <simple name = "acceleration-input-file" type = "string" default="acc-input.txt" optional = "true">
+      <description>Filename containing the acceleration time history (input motion)</description>
+    </simple>
+    <simple name = "displacement-input-file" type = "string" default="displ-input.txt" optional = "true">
+      <description>Filename containing the displacement time history (input motion)</description>
+    </simple>
+    <simple name = "velocity-input-file" type = "string" default="vel-input.txt" optional = "true">
+      <description>Filename containing the velocity time history (input motion)</description>
+    </simple>
+    <simple name = "init-stress-file" type = "string" default="init-stress.txt" optional = "true">
+      <description>Filename containing the initial stresses for all cells</description>
+    </simple>
+
+    <!-- - - - - - boundary-condition - - - - -->
+    <complex name="boundary-condition" type="BoundaryCondition" minOccurs="0" maxOccurs="unbounded">
+      <description>Definition of boundary conditions</description>
+        <enumeration name="type" type="TypesElastodynamic::eBoundaryCondition">
+          <description>Type of boundary condition</description>
+          <enumvalue genvalue="TypesElastodynamic::DisplacementX" name="Ux" />
+          <enumvalue genvalue="TypesElastodynamic::DisplacementY" name="Uy" />
+          <enumvalue genvalue="TypesElastodynamic::DisplacementZ" name="Uz" />
+          <enumvalue genvalue="TypesElastodynamic::VelocityX" name="Vx" />
+          <enumvalue genvalue="TypesElastodynamic::VelocityY" name="Vy" />
+          <enumvalue genvalue="TypesElastodynamic::VelocityZ" name="Vz" />
+          <enumvalue genvalue="TypesElastodynamic::AccelerationX" name="Ax" />
+          <enumvalue genvalue="TypesElastodynamic::AccelerationY" name="Ay" />
+          <enumvalue genvalue="TypesElastodynamic::AccelerationZ" name="Az" />
+          <enumvalue genvalue="TypesElastodynamic::ForceX" name="Fx" />
+          <enumvalue genvalue="TypesElastodynamic::ForceY" name="Fy" />
+          <enumvalue genvalue="TypesElastodynamic::ForceZ" name="Fz" />
+        </enumeration>
+        <extended name="surface" type="Arcane::FaceGroup">
+          <description>Surface on which to apply these boundary conditions</description>
+        </extended>
+        <extended name="node-group" type="Arcane::NodeGroup">
+          <description>NodeGroup on which to apply these boundary conditions</description>
+        </extended>
+        <simple name="value" type="real">
+          <description>Value of the component to impose</description>
+        </simple>
+    </complex>
+
+    <!-- - - - - - initial-condition - - - - -->
+    <complex name="initial-condition" type="InitialCondition" minOccurs="0" maxOccurs="unbounded">
+      <description>Definition of initial conditions</description>
+        <enumeration name="type" type="TypesElastodynamic::eBoundaryCondition">
+          <description>Type of boundary condition</description>
+          <enumvalue genvalue="TypesElastodynamic::DisplacementX" name="Ux" />
+          <enumvalue genvalue="TypesElastodynamic::DisplacementY" name="Uy" />
+          <enumvalue genvalue="TypesElastodynamic::DisplacementZ" name="Uz" />
+          <enumvalue genvalue="TypesElastodynamic::VelocityX" name="Vx" />
+          <enumvalue genvalue="TypesElastodynamic::VelocityY" name="Vy" />
+          <enumvalue genvalue="TypesElastodynamic::VelocityZ" name="Vz" />
+          <enumvalue genvalue="TypesElastodynamic::AccelerationX" name="Ax" />
+          <enumvalue genvalue="TypesElastodynamic::AccelerationY" name="Ay" />
+          <enumvalue genvalue="TypesElastodynamic::AccelerationZ" name="Az" />
+        </enumeration>
+        <extended name="cell-group" type="Arcane::CellGroup">
+          <description>CellGroup on which initial conditions will be set</description>
+        </extended>
+        <extended name="node-group" type="Arcane::NodeGroup">
+          <description>NodeGroup on which initial conditions will be set</description>
+        </extended>
+        <simple name="value" type="real" default="0." optional = "true">
+          <description>Value of the component to initialize</description>
+        </simple>
+    </complex>
+
+    <!-- - - - - - initial-stress-condition - - - - -->
+    <complex name="initial-stress-condition" type="InitialStressCondition" minOccurs="0" maxOccurs="unbounded">
+      <description>Definition of initial stress conditions on Cell</description>
+      <extended name="cell-group" type="Arcane::CellGroup">
+        <description>CellGroup on which initial stresses will be set</description>
+      </extended>
+      <simple name="stress" type="real3">
+        <description>Initial stress vector (xx yy zz) on Cell</description>
+      </simple>
+    </complex>
+
+    <!-- - - - - - initial-strain-condition - - - - -->
+    <complex name="initial-strain-condition" type="InitialStrainCondition" minOccurs="0" maxOccurs="unbounded">
+      <description>Definition of initial strains on Cell</description>
+      <extended name="cell-group" type="Arcane::CellGroup">
+        <description>CellGroup on which initial strains will be set</description>
+      </extended>
+      <simple name="strain" type="real3">
+        <description>Initial strain vector (xx yy zz) on Cell</description>
+      </simple>
+    </complex>
+
+    <!-- - - - - - gauss-integration - - - - -->
+    <complex name="gauss-integration" type="GaussIntegration" minOccurs="0" maxOccurs="unbounded">
+      <description>Definition of Gauss-Legendre integration features on groups of cells</description>
+        <enumeration name="type" type="TypesElastodynamic::eGaussIntegrationOrder">
+          <description>Integration orders in local cell directions</description>
+          <enumvalue genvalue="TypesElastodynamic::IntegOrder1" name="Nint1" />
+          <enumvalue genvalue="TypesElastodynamic::IntegOrder2" name="Nint2" />
+          <enumvalue genvalue="TypesElastodynamic::IntegOrder3" name="Nint3" />
+        </enumeration>
+      <extended name="cell-group" type="Arcane::CellGroup">
+        <description>CellGroup on which these integration features will be applied</description>
+      </extended>
+      <simple name = "value" type = "integer" default="2" optional = "true">
+        <description>Integration order value along the local cell direction </description>
+      </simple>
+    </complex>
+
+    <!-- - - - - - analysis-type - - - - -->
+    <enumeration name="analysis-type" type="TypesElastodynamic::eAnalysisType">
+      <description>Type of analysis</description>
+      <enumvalue genvalue="TypesElastodynamic::PlaneStrain" name="planestrain" />
+      <enumvalue genvalue="TypesElastodynamic::PlaneStress" name="planestress" />
+      <enumvalue genvalue="TypesElastodynamic::AxiSym" name="axisym" />
+      <enumvalue genvalue="TypesElastodynamic::ThreeD" name="3D" />
+    </enumeration>
+
+    <simple name="start" type="real" default="0." optional="true">
+      <description>Start time for simulation</description>
+    </simple>
+    <simple name="final-time" type="real">
+      <description>Final time for simulation</description>
+    </simple>
+    <simple name="deltat" type="real">
+      <description>Timestep value for simulation</description>
+    </simple>
+    <simple name="beta" type="real" default="0.25" optional="true">
+      <description>Newmark Beta coefficient</description>
+    </simple>
+    <simple name="gamma" type="real" default="0.5" optional="true">
+      <description>Newmark Gamma coefficient</description>
+    </simple>
+    <simple name="alfam" type="real" default="0." optional="true">
+      <description>Coefficient related to mass terms in Newmark Generalized alfa-method</description>
+    </simple>
+    <simple name="alfaf" type="real" default="0." optional="true">
+      <description>Coefficient related to force terms in Newmark Generalized alfa-method</description>
+    </simple>
+    <simple name="is_alfa_method" type="bool" default="false" optional="true">
+      <description>Boolean which is true if Newmark Generalized alfa-method is used</description>
+    </simple>
+  </options>
+</module>

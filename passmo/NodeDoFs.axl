@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<service name="NodeDoFs" version="1.0" type="caseoption" parent-name="Arcane::BasicService">
+  <interface name="Arcane::IService" inherited='false'/>
+  <variables>
+    <variable field-name="dof_acceleration" name="DofAcceleration" data-type="real" family-name="dof_on_node" item-kind="dof" dim="0">
+      <description>Acceleration dof on node</description>
+    </variable>
+    <variable field-name="dof_velocity" name="DofVelocity" data-type="real" family-name="dof_on_node" item-kind="dof" dim="0">
+      <description>Velocity dof on node</description>
+    </variable>
+    <variable field-name="dof_displacement" name="DofDisplacement" data-type="real" family-name="dof_on_node" item-kind="dof" dim="0">
+      <description>Displacement dof on node</description>
+    </variable>
+  </variables>
+  <options>
+    <service-instance name="particle-exchanger" type="Arcane::IParticleExchanger" default="BasicParticleExchanger">
+      <name lang="fr">echangeur-particule</name>
+      <description>Service utilisé pour échanger les particules.</description>
+    </service-instance>
+  </options>
+</service>
