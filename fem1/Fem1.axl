@@ -48,5 +48,26 @@
         </description>
       </simple>
     </complex>
+
+    <!-- - - - - - neumann-boundary-condition - - - - -->
+    <complex name  = "neumann-boundary-condition"
+             type  = "NeumannBoundaryCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Neumann boundary condition
+      </description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>
+          FaceGroup on which to apply these boundary condition
+        </description>
+      </extended>
+      <simple name = "value" type = "real">
+        <description>
+          Value of the boundary condition
+        </description>
+      </simple>
+    </complex>
   </options>
 </module>
