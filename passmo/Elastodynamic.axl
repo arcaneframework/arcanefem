@@ -3,13 +3,22 @@
   <description>Elastodynamic module</description>
   <variables>
     <variable field-name="acceleration" name="Acceleration" data-type="real3" item-kind="node" dim="0">
-      <description>Acceleration vectors on node coords</description>
+      <description>Acceleration vectors on node coords at current step</description>
     </variable>
     <variable field-name="velocity" name="Velocity" data-type="real3" item-kind="node" dim="0">
-      <description>Velocity vectors on node coords</description>
+      <description>Velocity vectors on node coords at current step</description>
     </variable>
     <variable field-name="displacement" name="Displacement" data-type="real3" item-kind="node" dim="0">
-      <description>Displacement vectors on node coords</description>
+      <description>Displacement vectors on node coords at current step</description>
+    </variable>
+    <variable field-name="prev_acceleration" name="PrevAcceleration" data-type="real3" item-kind="node" dim="0">
+      <description>Acceleration vectors on node coords at previous step</description>
+    </variable>
+    <variable field-name="prev_velocity" name="PrevVelocity" data-type="real3" item-kind="node" dim="0">
+      <description>Velocity vectors on node coords at previous step</description>
+    </variable>
+    <variable field-name="prev_displacement" name="PrevDisplacement" data-type="real3" item-kind="node" dim="0">
+      <description>Displacement vectors on node coords at previous step</description>
     </variable>
     <variable field-name="force" name="Force" data-type="real3" item-kind="node" dim="0">
       <description>Force resultants on node coords</description>
