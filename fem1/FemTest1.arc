@@ -34,5 +34,9 @@
       <surface>Haut</surface>
       <value>21.0</value>
     </dirichlet-boundary-condition>
+    <neumann-boundary-condition>
+      <surface>Droite</surface>
+      <value>15.0</value>
+    </neumann-boundary-condition>
   </fem1>
 </case>

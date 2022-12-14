@@ -18,6 +18,7 @@
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 
+
 #include "Fem1_axl.h"
 #include "FemUtils.h"
 #include "FemLinearSystem.h"
@@ -70,14 +71,14 @@ class Fem1Module
   void _doStationarySolve();
   void _getMaterialParameters();
   void _updateBoundayConditions();
-  void _computeConductivity();
-  void _computeGeneralizedFluxes();
+  void _assembleBilinearOperator();
   void _solve();
   void _initBoundaryconditions();
   void _assembleLinearOperator();
   FixedMatrix<3, 3> _computeIntCDPhiiDPhij(Cell cell);
   FixedMatrix<2, 3> _computeBMatrix(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
+  Real _computeEdgeLength3(Face face);
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
 };
@@ -135,13 +136,10 @@ _doStationarySolve()
   // # update BCs
   _updateBoundayConditions();
 
-  // K=self.compute_conductivity()
-  _computeConductivity();
+  // Assemble the FEM bilinear operator (LHS - matrix A)
+  _assembleBilinearOperator();
 
-  //      # compute flux component RHS
-  _computeGeneralizedFluxes();
-
-  // Assemble the FEM linear operator (RHS)
+  // Assemble the FEM linear operator (RHS - vector b)
   _assembleLinearOperator();
 
   // # T=linalg.solve(K,RHS)
@@ -200,6 +198,7 @@ _applyDirichletBoundaryConditions()
   }
 }
 
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -236,8 +235,9 @@ _assembleLinearOperator()
   //             if node.is_T_fixed:
   //                 K[node.rank,node.rank]=K[node.rank,node.rank]+10**6
   //                 RHS[node.rank]=RHS[node.rank]+(10**6)*node.T
-
   // TODO: 1.0e6 is a user value, moreover we should use something like 1e31
+  //----------------------------------------------
+
   ENUMERATE_ (Node, inode, ownNodes()) {
     NodeLocalId node_id = *inode;
     if (m_node_is_temperature_fixed[node_id]) {
@@ -257,7 +257,7 @@ _assembleLinearOperator()
   //
   //  $int_{Omega}(qdot*v^h)$
   //  only for noded that are non-Dirichlet
-
+  //----------------------------------------------
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
     Real area = _computeAreaTriangle3(cell);
@@ -266,6 +266,27 @@ _assembleLinearOperator()
         rhs_values[node] += qdot*area/3;
       }
     }
+
+  //----------------------------------------------
+  // Constant flux term assembly
+  //----------------------------------------------
+  //
+  //  $int_{dOmega_N}((q.n)*v^h)$
+  //  only for noded that are non-Dirichlet
+  //  TODO : take flux vector and use normals at boundaries
+  //----------------------------------------------
+  for (const auto& bs : options()->neumannBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    Real value = bs->value();
+    ENUMERATE_ (Face, iface, group) {
+      Face face = *iface;
+      Real length = _computeEdgeLength3(face);
+      for (Node node : iface->nodes()) {
+        if(!(m_node_is_temperature_fixed[node])  && node.isOwn())
+        rhs_values[node] += value*length/2.;
+      }
+    }
+  }
 
   {
     // For the LinearSystem class we need an array
@@ -290,6 +311,17 @@ _computeAreaTriangle3(Cell cell)
   Real3 m1 = m_node_coord[cell.nodeId(1)];
   Real3 m2 = m_node_coord[cell.nodeId(2)];
   return 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+Real Fem1Module::
+_computeEdgeLength3(Face face)
+{
+  Real3 m0 = m_node_coord[face.nodeId(0)];
+  Real3 m1 = m_node_coord[face.nodeId(1)];
+  return  math::sqrt((m1.x-m0.x)*(m1.x-m0.x) + (m1.y-m0.y)*(m1.y - m0.y));
 }
 
 /*---------------------------------------------------------------------------*/
@@ -371,7 +403,7 @@ _computeIntCDPhiiDPhij(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 void Fem1Module::
-_computeConductivity()
+_assembleBilinearOperator()
 {
   // for elem in self.mesh.elements:
 
@@ -411,16 +443,6 @@ _computeConductivity()
 /*---------------------------------------------------------------------------*/
 
 void Fem1Module::
-_computeGeneralizedFluxes()
-{
-  // TODO: Loop over all faces on the border instead
-  //m_rhs_vector.fill(0.0);
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void Fem1Module::
 _solve()
 {
   m_linear_system.solve();
@@ -446,6 +468,7 @@ _solve()
       Node node = *inode;
       std::cout << "T[" << node.localId() << "][" << node.uniqueId() << "] = "
                 << m_node_temperature[node] << "\n";
+      //std::cout << "T[]" << node.uniqueId() << " " << m_node_temperature[node] << "\n";
     }
     std::cout.precision(p);
   }
