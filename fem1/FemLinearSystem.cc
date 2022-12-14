@@ -162,7 +162,9 @@ initialize(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable)
     ARCANE_FATAL("The instance is already initialized");
   IParallelMng* pm = sd->parallelMng();
   bool is_parallel = pm->isParallel();
-  if (is_parallel) {
+  // If true, we use a dense debug matrix in sequential
+  bool use_debug_dense_matrix = false;
+  if (is_parallel || !use_debug_dense_matrix) {
     m_p = createAlephFemLinearSystemImpl(sd, node_variable);
   }
   else {
