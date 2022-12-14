@@ -20,7 +20,7 @@ Here, $\lambda$ is the thermal conductivity of the material and $\dot{\mathcal{Q
 
 
 
-To complete the problem description,  three first type (Dirichlet) boundary conditions are applied to this problem
+To complete the problem description,  three first type (Dirichlet) boundary conditions are applied to this problem:
 
 $T = 50.0 \degree C \quad \forall(x,y)\in\partial\Omega^h_{\text{Cercle}}\subset\partial \Omega^h,$
 
@@ -28,13 +28,25 @@ $T = 5.0\degree C \quad \forall(x,y)\in\partial\Omega^h_{\text{Bas}}\subset\part
 
 $T  = 21.0\degree C  \quad \forall(x,y)\in\partial\Omega^h_{\text{Haut}}\subset\partial \Omega^h,$
 
-in addition, other boundaries $\partial\Omega^h_N$ are exposed to  second type (Neumann) boundary condition, the derivative of temperature (heat flux) is zero - insulation boundary
+in addition, other boundaries $\partial\Omega^h_N$ are exposed to  second type (Neumann) boundary condition:
 
-$$\mathbf{q}\cdot\mathbf{n}|_{\partial \Omega^h_N} = 0$$
+- first Neumann condition $\partial\Omega^h_{\text{Droite}}$ the derivative of temperature (heat flux) is non-null - influx boundary
+
+$$\mathbf{q}\cdot\mathbf{n}|_{\partial \Omega^h_{\text{Droite}}} = 15.0$$
+
+- second Neumann condition $\partial\Omega^h_{\text{Gauche}}$ the derivative of temperature (heat flux) is null - insulation boundary
+
+$\mathbf{q}\cdot\mathbf{n}|_{\partial \Omega^h_{\text{Gauche}}} = 0$$
+
+Finally a uniform heat-source is present within the domain 
+
+$\dot{\mathcal{Q}}=1\times10^5$
 
 
 
-We work with approximation, $\lambda$ is homogeneous $\lambda : \Omega^h \in \mathbb{R}^{+}$, there is not heat source present $\dot{\mathcal{Q}}=0$.  The variational formulation in $H^1_{0}(\Omega) \subset H^1{\Omega}$  reads
+
+
+We work with approximation, $\lambda$ is homogeneous $\lambda : \Omega^h \in \mathbb{R}^{+}$, in this case  the variational formulation in $H^1_{0}(\Omega) \subset H^1{\Omega}$  reads
 
 search FEM trial function $u^h(x,y)$ satisfying
 
@@ -48,9 +60,11 @@ $u^h=5.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Bas}}$ ,
 
 $u^h=20.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Haut}}$,
 
-$\int_{\Omega^h_N}(\mathbf{q} \cdot \mathbf{n}) v^h=0$,
+$\int_{\Omega^h_{\text{Droite}}}(\mathbf{q} \cdot \mathbf{n}) v^h=15$,
 
-$\int_{\Omega^h}\dot{\mathcal{Q}} v^h=0$, and
+$\int_{\Omega^h_{\text{Gauche}}}(\mathbf{q} \cdot \mathbf{n}) v^h=0$,
+
+$\int_{\Omega^h}\dot{\mathcal{Q}} v^h=1\times10^5$, and
 
 $\lambda=1.75$
 
@@ -60,11 +74,12 @@ $\lambda=1.75$
 
 #### Thermal Conductivity ###
 
-The value of thermal conductivity $\lambda$ can be provided in  `FemTest1.arc` file
+The value of thermal conductivity $\lambda$  and heat source $\dot{\mathcal{Q}}$ can be provided in  `FemTest1.arc` file
 
 ```xml
   <Fem1>
     <lambda>1.75</lambda>
+    <qdot>1e5</qdot>
   </Fem1>
 ```
 
@@ -80,11 +95,11 @@ The mesh `plancher.msh` is provided in the `FemTest1.arc` file
   </meshes>
 ```
 
-Please not that use version 4 `.msh` file from `Gmsh`. 
+Please not that use version 4.1 `.msh` file from `Gmsh`. 
 
 #### Boundary conditions ####
 
-These are provided in `FemTest1.arc` file
+The Dirichlet (constant temperature) boundary conditions  are provided in `FemTest1.arc` file
 
 ```xml
     <dirichlet-boundary-condition>
@@ -103,28 +118,17 @@ These are provided in `FemTest1.arc` file
 
 So in the snippet above, three Dirichlet conditions are applied ($50 \degree C, 5.0 \degree C, 21.0 \degree C$)  on three borders ('cercle', 'Bas', 'Haut').
 
-#### Zero flux and zero source condition ###
+The Neumann  boundary conditions  are also provided in `FemTest1.arc` file
 
-In FEM the source therm and the flux term are a part of RHS vector. Since here $\int_{\Omega^h}\dot{\mathcal Q} v^h = 0  $ and $\int_{\partial\Omega^h_N} ({\mathbf{q}} \cdot \mathbf{n}) v^h = 0$, the RHS contribution due to these terms is null. These are setup in `Fem1Module.cc`
-
- ```c++
- void Fem1Module::
- _computeGeneralizedFluxes()
- {
-   // TODO: Loop over all faces on the border instead
-   m_rhs_vector.fill(0.0);
- }
- ```
-
-and
-
-```c++
-void Fem1Module::
-_computeSourceTerm()
-{
-  // TODO: Loop over all cells and fill the source term
-  m_rhs_vector.fill(0.0);
-}
+```xml
+    <neumann-boundary-condition>
+      <surface>Droite</surface>
+      <value>15.0</value>
+    </neumann-boundary-condition>
+    <neumann-boundary-condition>
+      <surface>Gauche</surface>
+      <value>0.0</value>
+    </neumann-boundary-condition>
 ```
 
 

@@ -38,5 +38,9 @@
       <surface>Droite</surface>
       <value>15.0</value>
     </neumann-boundary-condition>
+    <neumann-boundary-condition>
+      <surface>Gauche</surface>
+      <value>0.0</value>
+    </neumann-boundary-condition>
   </fem1>
 </case>
