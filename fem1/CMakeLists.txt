@@ -48,7 +48,11 @@ if (GMSH)
 endif()
 
 enable_testing()
+
 add_test(NAME femtest1 COMMAND FemTest1 FemTest1.arc)
+if(FEMTEST_HAS_GMSH_TEST)
+  add_test(NAME femtest1_10k COMMAND ./FemTest1 FemTest1.10k.arc)
+endif()
 
 # If parallel part is available, add some tests
 if(FEMTEST_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
