@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="ISO-8859-1" ?>
-<service name="NodeDoFs" version="1.0" type="caseoption" parent-name="Arcane::BasicService">
-  <interface name="Arcane::IService" inherited='false'/>
+<service name="NodeDoFs" version="1.0" singleton="true">
+  <interface name="INodeDoFs"/>
   <variables>
-    <variable field-name="dof_acceleration" name="DofAcceleration" data-type="real" family-name="dof_on_node" item-kind="dof" dim="0">
+    <variable field-name="dof_acceleration" name="DofAcceleration" data-type="real3" family-name="dofs_on_node" item-kind="dof" dim="0">
       <description>Acceleration dof on node at current step</description>
     </variable>
-    <variable field-name="dof_velocity" name="DofVelocity" data-type="real" family-name="dof_on_node" item-kind="dof" dim="0">
+    <variable field-name="dof_velocity" name="DofVelocity" data-type="real3" family-name="dofs_on_node" item-kind="dof" dim="0">
       <description>Velocity dof on node at current step</description>
     </variable>
-    <variable field-name="dof_displacement" name="DofDisplacement" data-type="real" family-name="dof_on_node" item-kind="dof" dim="0">
+    <variable field-name="dof_displacement" name="DofDisplacement" data-type="real3" family-name="dofs_on_node" item-kind="dof" dim="0">
       <description>Displacement dof on node at current step</description>
     </variable>
     <variable field-name="prev_dof_acceleration" name="PrevDofAcceleration" data-type="real" family-name="dof_on_node" item-kind="dof" dim="0">
@@ -22,9 +22,5 @@
     </variable>
   </variables>
   <options>
-    <service-instance name="particle-exchanger" type="Arcane::IParticleExchanger" default="BasicParticleExchanger">
-      <name lang="fr">echangeur-particule</name>
-      <description>Service utilisé pour échanger les particules.</description>
-    </service-instance>
   </options>
 </service>

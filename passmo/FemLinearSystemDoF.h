@@ -65,7 +65,7 @@ public:
     /*!
      * \brief Initialize the instance.
      *
-     * The variable node_variable will be filled with the solution value after
+     * The variable dof_variable will be filled with the solution value after
      * the call to the method solve().
      */
     void initialize(Arcane::ISubDomain* sd, const Arcane::VariableDoFReal& dof_variable);

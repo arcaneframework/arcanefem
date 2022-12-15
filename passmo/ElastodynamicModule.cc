@@ -21,7 +21,7 @@ Int32 NODE_NDDL = 3;
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 ElastodynamicModule::ElastodynamicModule(const ModuleBuildInfo& mbi)
-        : ArcaneElastodynamicObject(mbi) {
+        : ArcaneElastodynamicObject(mbi), m_cell_fem_dispatch(m_node_coord) {
     ICaseMng *cm = mbi.subDomain()->caseMng();
     cm->setTreatWarningAsError(true);
     cm->setAllowUnkownRootElelement(false);
@@ -38,25 +38,17 @@ startInit(){
 
     info() << "Module Elastodynamic INIT";
 
-    m_global_deltat = options()->deltat();
     TypesElastodynamic::eAnalysisType anal = options()->getAnalysisType();
     if (anal < TypesElastodynamic::ThreeD)
         NODE_NDDL = 2;
     else
         NODE_NDDL = 3;
 
-
-//    m_linear_system.initialize(subDomain(), m_node_temperature);
-    //m_k_matrix.resize(nb_node, nb_node);
-    //m_k_matrix.fill(0.0);
-
-    //m_rhs_vector.resize(nb_node);
-    //m_rhs_vector.fill(0.0);
-
-    // # init behavior
-    // # init behavior on mesh entities
-    // # init BCs
     _initBoundaryConditions();
+    _initDofs();
+
+    // TO DO : link to dof_variable to initialize linear system...
+//    m_linear_system.initialize(subDomain(), dof_variable);
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -69,6 +61,9 @@ compute(){
     if (m_global_iteration() > 0)
         subDomain()->timeLoopMng()->stopComputeLoop(true);
 
+    _predictNewmark();
+
+
     m_linear_system.reset();
 //    m_linear_system.initialize(subDomain(), m_node_temperature);
 
@@ -79,18 +74,123 @@ compute(){
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void ElastodynamicModule::
-predict() {
+_initDofs(){
 
+    Integer ndim{2};
+    if (options()->getAnalysisType() == TypesElastodynamic::ThreeD)
+        ndim = 3;
+
+    int j{0};
+    ENUMERATE_NODE(inode, allNodes()) {
+        Node node = *inode;
+        auto node_dof_ids = static_cast<Integer3>(m_node_dof_ids[node]);
+
+        bool b[3] = {(m_node_has_imposed_ax[node] || m_node_has_imposed_vx[node] || m_node_has_imposed_ux[node]),
+                     (m_node_has_imposed_ay[node] || m_node_has_imposed_vy[node] || m_node_has_imposed_uy[node]),
+                     (m_node_has_imposed_az[node] || m_node_has_imposed_vz[node] || m_node_has_imposed_uz[node])};
+
+        for (int i = 0; i < ndim; ++i) {
+           if (!b[i])
+               node_dof_ids[i] = j++;
+           else
+               node_dof_ids[i] = -1;
+        }
+    }
+    m_nb_neqs = j;
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-void ElastodynamicModule::
-update() {
-}
+void ElastodynamicModule::_predictNewmark(){
 
+    Real dt = options()->getDeltat();
+    Real dt2 = dt*dt;
+    bool is_alfa_method = options()->is_alfa_method();
+    Real beta{0.}, gamma{0.};
+    Real alfam{0.}, alfaf{0.};
+
+    if (!is_alfa_method) {
+        beta = options()->getBeta();
+        gamma = options()->getGamma();
+    } else {
+        alfam = options()->getAlfam();
+        alfaf = options()->getAlfaf();
+        gamma = 0.5 + alfaf - alfam;
+        beta = 0.5*pow(0.5 + gamma,2);
+    }
+
+    Integer ndim{2};
+    if (options()->getAnalysisType() == TypesElastodynamic::ThreeD)
+        ndim = 3;
+
+    ENUMERATE_NODE(inode, allNodes()){
+        Node node = *inode;
+        auto node_dof_ids = static_cast<Integer3>(m_node_dof_ids[node]);
+        auto an = m_prev_acceleration[node];
+        auto vn = m_prev_velocity[node];
+        auto dn = m_prev_displacement[node];
+
+        Real3 d,v;
+        for (int i = 0; i < ndim; ++i) {
+            if (node_dof_ids[i] != -1) {
+                d[i] = dn[i] + dt * vn[i] + dt2 * (0.5 - beta) * an[i];
+                v[i] = vn[i] + dt * (1. - gamma) * an[i];
+            }
+        }
+        m_displacement[node] = d;
+        m_velocity[node] = v;
+
+        // TO DO: predict corresponding dof values...
+    }
+}
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+void ElastodynamicModule::_updateNewmark(){
+    Real dt = options()->getDeltat();
+    Real dt2 = dt*dt;
+    bool is_alfa_method = options()->is_alfa_method();
+    Real beta{0.}, gamma{0.};
+    Real alfam{0.}, alfaf{0.};
+
+    if (!is_alfa_method) {
+        beta = options()->getBeta();
+        gamma = options()->getGamma();
+    } else {
+        alfam = options()->getAlfam();
+        alfaf = options()->getAlfaf();
+        gamma = 0.5 + alfaf - alfam;
+        beta = 0.5*pow(0.5 + gamma,2);
+    }
+    Integer ndim{2};
+    if (options()->getAnalysisType() == TypesElastodynamic::ThreeD)
+        ndim = 3;
+
+    ENUMERATE_NODE(inode, allNodes()){
+        Node node = *inode;
+        auto node_dof_ids = static_cast<Integer3>(m_node_dof_ids[node]);
+        Real3 an = m_prev_acceleration[node];
+        Real3 vn = m_prev_velocity[node];
+        Real3 dn = m_prev_displacement[node];
+        Real3 d = m_displacement[node];
+
+        Real3 a,v;
+        if (!is_alfa_method) {
+            for (int i = 0; i < ndim; ++i) {
+                if (node_dof_ids[i] != -1) {
+                    a[i] = (d[i] - (dn[i] + dt * vn[i] + dt2 * (0.5 - beta) * an[i])) / beta / dt2;
+                    v[i] = vn[i] + dt * (1. - gamma) * an[i] + dt * gamma * a[i];
+                }
+            }
+        } else {
+            // TO DO
+        }
+        m_acceleration[node] = a;
+        m_velocity[node] = v;
+    }
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 void ElastodynamicModule::
 _initBoundaryConditions(){
 

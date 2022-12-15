@@ -20,6 +20,9 @@
     <variable field-name="prev_displacement" name="PrevDisplacement" data-type="real3" item-kind="node" dim="0">
       <description>Displacement vectors on node coords at previous step</description>
     </variable>
+    <variable field-name="node_dof_ids" name="NodeDofIds" data-type="real3" item-kind="node" dim="0">
+      <description>Global dof ids on node coords for solving needs</description>
+    </variable>
     <variable field-name="force" name="Force" data-type="real3" item-kind="node" dim="0">
       <description>Force resultants on node coords</description>
     </variable>
@@ -72,9 +75,7 @@
 
   <entry-points>
     <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
-    <entry-point method-name="predict" name="Predict" where="compute-loop" property="none" />
     <entry-point method-name="compute" name="Compute" where="compute-loop" property="none" />
-    <entry-point method-name="update" name="Update" where="compute-loop" property="none"/>
   </entry-points>
 
   <options>

@@ -18,7 +18,7 @@ add_executable(Passmo
   utilFEM.h
   utilFEM.cc
   NodeDoFs_axl.h
-  NodeDoFs.cc)
+  NodeDoFs.cc INodeDoFs.h)
 
 arcane_generate_axl(Elastodynamic)
 arcane_generate_axl(NodeDoFs)
