@@ -13,6 +13,8 @@ add_executable(FemTest1
   FemLinearSystem.cc
   FemLinearSystem2.h
   FemLinearSystem2.cc
+  FemDoFsOnNodes.h
+  FemDoFsOnNodes.cc
   AlephFemLinearSystem.cc
   AlephFemLinearSystem2.cc
 )

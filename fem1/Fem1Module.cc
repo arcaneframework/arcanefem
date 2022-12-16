@@ -18,14 +18,10 @@
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 
-#include <arcane/mesh/DoFFamily.h>
-#include "arcane/IIndexedIncrementalItemConnectivityMng.h"
-#include "arcane/IIndexedIncrementalItemConnectivity.h"
-#include "arcane/IndexedItemConnectivityView.h"
-
 #include "Fem1_axl.h"
 #include "FemUtils.h"
 #include "FemLinearSystem2.h"
+#include "FemDoFsOnNodes.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -43,7 +39,8 @@ class Fem1Module
  public:
 
   explicit Fem1Module(const ModuleBuildInfo& mbi)
-  : ArcaneFem1Object(mbi) //, m_dof_temperature(VariableBuildInfo(mbi.meshHandle(),"DoFTemperature","DoFNodeFamily"))
+  : ArcaneFem1Object(mbi)
+  , m_dofs_on_nodes(mbi.subDomain()->traceMng())
   {
     ICaseMng* cm = mbi.subDomain()->caseMng();
     cm->setTreatWarningAsError(true);
@@ -69,9 +66,8 @@ class Fem1Module
   Real qdot;
 
   FemLinearSystem2 m_linear_system;
-  Ref<IIndexedIncrementalItemConnectivity> m_node_dof_connectivity;
-  //VariableDoFReal m_dof_temperature;
   IItemFamily* m_dof_family = nullptr;
+  FemDoFsOnNodes m_dofs_on_nodes;
 
  private:
 
@@ -88,7 +84,6 @@ class Fem1Module
   Real _computeEdgeLength3(Face face);
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
-  void _buildDoFOnNodes();
 };
 
 /*---------------------------------------------------------------------------*/
@@ -118,7 +113,10 @@ startInit()
 {
   info() << "Module Fem1 INIT";
 
-  _buildDoFOnNodes();
+  m_dofs_on_nodes.initialize(mesh(), 1);
+  m_dof_family = m_dofs_on_nodes.dofFamily();
+
+  //_buildDoFOnNodes();
   //Int32 nb_node = allNodes().size();
   //m_k_matrix.resize(nb_node, nb_node);
   //m_k_matrix.fill(0.0);
@@ -194,7 +192,7 @@ _applyDirichletBoundaryConditions()
   //   <value>21.0</value>
   // </dirichlet-boundary-condition>
 
-  IndexedNodeDoFConnectivityView node_dof(m_node_dof_connectivity->view());
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   for (const auto& bs : options()->dirichletBoundaryCondition()) {
     FaceGroup group = bs->surface();
@@ -234,7 +232,7 @@ _assembleLinearOperator()
   info() << "Applying Dirichlet boundary condition via  penalty method ";
 
   // Temporary variable to keep values for the RHS part of the linear system
-  VariableDoFReal rhs_values(VariableBuildInfo(m_dof_family,"DoFRHSValues"));
+  VariableDoFReal rhs_values(VariableBuildInfo(m_dof_family, "DoFRHSValues"));
   rhs_values.fill(0.0);
 
   //----------------------------------------------
@@ -249,19 +247,15 @@ _assembleLinearOperator()
   // TODO: 1.0e6 is a user value, moreover we should use something like 1e31
   //----------------------------------------------
 
-  IndexedNodeDoFConnectivityView node_dof(m_node_dof_connectivity->view());
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Node, inode, ownNodes()) {
     NodeLocalId node_id = *inode;
     if (m_node_is_temperature_fixed[node_id]) {
-      //m_k_matrix(node_id, node_id) += 1.0e6;
-      DoFLocalId dof_id = node_dof.dofId(*inode,0);
+      DoFLocalId dof_id = node_dof.dofId(*inode, 0);
       m_linear_system.matrixAddValue(dof_id, dof_id, 1.0e6);
-      //m_rhs_vector[node_id] += 1.0e6 * m_node_temperature[node_id];
-      {
-        Real temperature = 1.0e6 * m_dof_temperature[dof_id];
-        rhs_values[dof_id] = temperature;
-      }
+      Real temperature = 1.0e6 * m_node_temperature[node_id];
+      rhs_values[dof_id] = temperature;
     }
   }
 
@@ -276,10 +270,10 @@ _assembleLinearOperator()
     Cell cell = *icell;
     Real area = _computeAreaTriangle3(cell);
     for (Node node : cell.nodes()) {
-      if(!(m_node_is_temperature_fixed[node])  && node.isOwn())
-        rhs_values[node_dof.dofId(node,0)] += qdot*area/3;
-      }
+      if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
+        rhs_values[node_dof.dofId(node, 0)] += qdot * area / 3;
     }
+  }
 
   //----------------------------------------------
   // Constant flux term assembly
@@ -296,8 +290,8 @@ _assembleLinearOperator()
       Face face = *iface;
       Real length = _computeEdgeLength3(face);
       for (Node node : iface->nodes()) {
-        if(!(m_node_is_temperature_fixed[node])  && node.isOwn())
-        rhs_values[node_dof.dofId(node,0)] += value*length/2.;
+        if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
+          rhs_values[node_dof.dofId(node, 0)] += value * length / 2.;
       }
     }
   }
@@ -421,7 +415,7 @@ _assembleBilinearOperator()
 {
   // for elem in self.mesh.elements:
 
-  IndexedNodeDoFConnectivityView node_dof(m_node_dof_connectivity->view());
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
@@ -469,7 +463,7 @@ _solve()
 
   {
     // Copy RHS DoF to Node temperature
-    IndexedNodeDoFConnectivityView node_dof(m_node_dof_connectivity->view());
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
       Real v = m_dof_temperature[node_dof.dofId(node, 0)];
@@ -512,81 +506,6 @@ _checkResultFile()
     return;
   const double epsilon = 1.0e-4;
   checkNodeResultFile(traceMng(), filename, m_node_temperature, epsilon);
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void Fem1Module::
-_buildDoFOnNodes()
-{
-  IItemFamily* dof_family_interface = mesh()->findItemFamily(Arcane::IK_DoF, "DoFNodeFamily", true);
-  mesh::DoFFamily* dof_family = ARCANE_CHECK_POINTER(dynamic_cast<mesh::DoFFamily*>(dof_family_interface));
-  m_dof_family = dof_family_interface;
-
-  // Number of DoF per node
-  Int32 nb_dof_per_node = 1;
-
-  // Create the DoFs
-  Int64UniqueArray uids(allNodes().size() * nb_dof_per_node);
-  Int64 max_node_uid = mesh::DoFUids::getMaxItemUid(mesh()->nodeFamily());
-  {
-    Integer dof_index = 0;
-    ENUMERATE_NODE (inode, allNodes()) {
-      Node node = *inode;
-      Int64 node_unique_id = node.uniqueId().asInt64();
-      for (Integer i = 0; i < nb_dof_per_node; ++i) {
-        uids[dof_index] = node_unique_id * nb_dof_per_node + i;
-        ++dof_index;
-      }
-    }
-  }
-  info() << "ADD_Dofs list=" << uids;
-  Int32UniqueArray dof_lids(uids.size());
-  dof_family->addDoFs(uids, dof_lids);
-  dof_family->endUpdate();
-  info() << "NB_DOF=" << dof_family->allItems().size();
-
-  // Create Node -> DoF connectivity.
-  m_node_dof_connectivity = mesh()->indexedConnectivityMng()->findOrCreateConnectivity(mesh()->nodeFamily(), dof_family, "DoFNode");
-  auto* cn = m_node_dof_connectivity->connectivity();
-  {
-    Integer dof_index = 0;
-    ENUMERATE_NODE (inode, allNodes()) {
-      NodeLocalId node = *inode;
-      for (Integer i = 0; i < nb_dof_per_node; ++i) {
-        cn->addConnectedItem(node, DoFLocalId(dof_lids[dof_index]));
-        ++dof_index;
-      }
-    }
-  }
-  info() << "End build Dofs";
-
-  IndexedNodeDoFConnectivityView node_dof(m_node_dof_connectivity->view());
-  {
-    // Set the owners of the DoF.
-    IParallelMng* pm = mesh()->parallelMng();
-    Int32 my_rank = pm->commRank();
-    ItemInternalList dofs = m_dof_family->itemsInternal();
-    ENUMERATE_ (Node, inode, allNodes()) {
-      Node node = *inode;
-      Int32 node_owner = node.owner();
-      for (DoFLocalId dof : node_dof.dofs(node)) {
-        dofs[dof]->setOwner(node_owner, my_rank);
-      }
-    }
-    dof_family->notifyItemsOwnerChanged();
-    dof_family->computeSynchronizeInfos();
-  }
-
-  // Remplit les DoF par la valeur nulle.
-  info() << "Fill DoFs";
-  ENUMERATE_ (Node, inode, allNodes()) {
-    Node node = *inode;
-    for (DoFLocalId dof : node_dof.dofs(node)) {
-      m_dof_temperature[dof] = 0.0;
-    }
-  }
 }
 
 /*---------------------------------------------------------------------------*/
