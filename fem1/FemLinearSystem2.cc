@@ -45,6 +45,7 @@ class SequentialFemLinearSystem2Impl
   : TraceAccessor(sd->traceMng())
   , m_sub_domain(sd)
   , m_dof_family(dof_family)
+  , m_rhs_variable(VariableBuildInfo(dof_family, solver_name + "RHSVariable"))
   , m_dof_variable(VariableBuildInfo(dof_family, solver_name + "SolutionVariable"))
   {}
 
@@ -115,10 +116,16 @@ class SequentialFemLinearSystem2Impl
     return m_dof_variable;
   }
 
+  VariableDoFReal& rhsVariable() override
+  {
+    return m_rhs_variable;
+  }
+
  private:
 
   ISubDomain* m_sub_domain = nullptr;
   IItemFamily* m_dof_family = nullptr;
+  VariableDoFReal m_rhs_variable;
   VariableDoFReal m_dof_variable;
 
   NumArray<Real, MDDim2> m_k_matrix;
@@ -165,6 +172,7 @@ initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
   ARCANE_CHECK_POINTER(sd);
   if (m_p)
     ARCANE_FATAL("The instance is already initialized");
+  m_item_family = dof_family;
   IParallelMng* pm = sd->parallelMng();
   bool is_parallel = pm->isParallel();
   // If true, we use a dense debug matrix in sequential
@@ -206,6 +214,20 @@ void FemLinearSystem2::
 solve()
 {
   _checkInit();
+
+  {
+    // For the LinearSystem class we need an array
+    // with only the values for the ownNodes().
+    // The values of 'rhs_values' should not be updated after
+    // this call.
+    UniqueArray<Real> rhs_values_for_linear_system;
+    VariableDoFReal& rhs_values(rhsVariable());
+    ENUMERATE_ (DoF, idof, m_item_family->allItems().own()) {
+      rhs_values_for_linear_system.add(rhs_values[idof]);
+    }
+    setRHSValues(rhs_values_for_linear_system);
+  }
+
   m_p->solve();
 }
 
@@ -222,11 +244,22 @@ solutionVariable()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+VariableDoFReal& FemLinearSystem2::
+rhsVariable()
+{
+  _checkInit();
+  return m_p->rhsVariable();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 void FemLinearSystem2::
 reset()
 {
   delete m_p;
   m_p = nullptr;
+  m_item_family = nullptr;
 }
 
 /*---------------------------------------------------------------------------*/

@@ -35,6 +35,7 @@ class FemLinearSystem2Impl
   virtual void setRHSValues(Arcane::Span<const Arcane::Real> values) = 0;
   virtual void solve() = 0;
   virtual Arcane::VariableDoFReal& solutionVariable() = 0;
+  virtual Arcane::VariableDoFReal& rhsVariable() = 0;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -97,13 +98,22 @@ class FemLinearSystem2
   /*!
    * \brief Variable containing the solution vector.
    *
-   * The values of this varaible are only relevant after a call to solve().
+   * The values of this variable are only relevant after a call to solve().
    */
   Arcane::VariableDoFReal& solutionVariable();
+
+  /*!
+   * \brief Variable containing the right hand side vector.
+   *
+   * The values of this variable will be used during the solve() call to
+   * fill the right hand side vector.
+   */
+  Arcane::VariableDoFReal& rhsVariable();
 
  private:
 
   FemLinearSystem2Impl* m_p = nullptr;
+  Arcane::IItemFamily* m_item_family = nullptr;
 
  private:
 

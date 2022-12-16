@@ -43,6 +43,7 @@ class AlephFemLinearSystem2Impl
   : TraceAccessor(sd->traceMng())
   , m_sub_domain(sd)
   , m_dof_family(dof_family)
+  , m_rhs_variable(VariableBuildInfo(dof_family, solver_name + "RHSVariable"))
   , m_dof_variable(VariableBuildInfo(dof_family, solver_name + "SolutionVariable"))
   , m_dof_matrix_indexes(VariableBuildInfo(m_dof_family, solver_name + "DoFMatrixIndexes"))
   {}
@@ -146,6 +147,11 @@ class AlephFemLinearSystem2Impl
     return m_dof_variable;
   }
 
+  VariableDoFReal& rhsVariable() override
+  {
+    return m_rhs_variable;
+  }
+
  private:
 
   AlephParams* _createAlephParam()
@@ -189,6 +195,7 @@ class AlephFemLinearSystem2Impl
 
   ISubDomain* m_sub_domain = nullptr;
   IItemFamily* m_dof_family = nullptr;
+  VariableDoFReal m_rhs_variable;
   VariableDoFReal m_dof_variable;
   VariableDoFInt32 m_dof_matrix_indexes;
   AlephKernel* m_aleph_kernel = nullptr;

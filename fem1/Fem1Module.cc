@@ -231,7 +231,7 @@ _assembleLinearOperator()
   info() << "Applying Dirichlet boundary condition via  penalty method ";
 
   // Temporary variable to keep values for the RHS part of the linear system
-  VariableDoFReal rhs_values(VariableBuildInfo(m_dof_family, "DoFRHSValues"));
+  VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
 
   //----------------------------------------------
@@ -293,18 +293,6 @@ _assembleLinearOperator()
           rhs_values[node_dof.dofId(node, 0)] += value * length / 2.;
       }
     }
-  }
-
-  {
-    // For the LinearSystem class we need an array
-    // with only the values for the ownNodes().
-    // The values of 'rhs_values' should not be updated after
-    // this call.
-    UniqueArray<Real> rhs_values_for_linear_system;
-    ENUMERATE_ (DoF, idof, m_dof_family->allItems().own()) {
-      rhs_values_for_linear_system.add(rhs_values[idof]);
-    }
-    m_linear_system.setRHSValues(rhs_values_for_linear_system);
   }
 }
 
