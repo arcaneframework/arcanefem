@@ -88,7 +88,7 @@ initialize(IMesh* mesh, Int32 nb_dof_per_node)
       }
     }
   }
-  info() << "ADD_Dofs list=" << uids;
+  //info() << "ADD_Dofs list=" << uids;
   Int32UniqueArray dof_lids(uids.size());
   dof_family->addDoFs(uids, dof_lids);
   dof_family->endUpdate();
