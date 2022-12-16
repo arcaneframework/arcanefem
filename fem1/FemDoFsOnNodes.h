@@ -24,6 +24,16 @@
  *
  * Before using an instance of this class you need to call method
  * initialize().
+ *
+ * After initialization, you can access DoFs like that:
+ *
+ * \code
+ * FemDoFsOnNodes dofs_on_nodes = ...;
+ * auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+ * Node node = ...
+ * DoFLocalId dof0 = node_dof.dofId(node, 0); //< First DoF of the node
+ * DoFLocalId dof1 = node_dof.dofId(node, 1); //< Second DoF of the node
+ * \endcode
  */
 class FemDoFsOnNodes
 {
@@ -33,6 +43,8 @@ class FemDoFsOnNodes
 
   FemDoFsOnNodes(Arcane::ITraceMng* tm);
   ~FemDoFsOnNodes();
+
+ public:
 
   FemDoFsOnNodes(const FemDoFsOnNodes&) = delete;
   FemDoFsOnNodes(FemDoFsOnNodes&&) = delete;

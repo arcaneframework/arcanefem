@@ -34,6 +34,7 @@ class FemLinearSystem2Impl
   virtual void matrixAddValue(Arcane::DoFLocalId row, Arcane::DoFLocalId column, Arcane::Real value) = 0;
   virtual void setRHSValues(Arcane::Span<const Arcane::Real> values) = 0;
   virtual void solve() = 0;
+  virtual Arcane::VariableDoFReal& solutionVariable() = 0;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -45,6 +46,10 @@ class FemLinearSystem2Impl
  * initialize(). If you want to reuse the same instance for several solving
  * you need to call reset() to destroy the underlying linear system and then
  * you need to call initialize() again.
+ *
+ * The solve() method solves the current linear system. After this variable
+ * returned by the method solutionVariable() will be filled with the values
+ * of the solution vector.
  */
 class FemLinearSystem2
 {
@@ -65,7 +70,7 @@ class FemLinearSystem2
    * The variable dof_variable will be filled with the solution value after
    * the call to the method solve().
    */
-  void initialize(Arcane::ISubDomain* sd, const Arcane::VariableDoFReal& dof_variable);
+  void initialize(Arcane::ISubDomain* sd, Arcane::IItemFamily* dof_family, const Arcane::String& solver_name);
 
   //! Add the value \a value to the (row,column) element of the matrix
   void matrixAddValue(Arcane::DoFLocalId row, Arcane::DoFLocalId column, Arcane::Real value);
@@ -88,6 +93,13 @@ class FemLinearSystem2
    * You have to call initialize() again to re-use the same instance
    */
   void reset();
+
+  /*!
+   * \brief Variable containing the solution vector.
+   *
+   * The values of this varaible are only relevant after a call to solve().
+   */
+  Arcane::VariableDoFReal& solutionVariable();
 
  private:
 

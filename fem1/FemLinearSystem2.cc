@@ -30,7 +30,7 @@
 using namespace Arcane;
 
 extern "C++" FemLinearSystem2Impl*
-createAlephFemLinearSystem2Impl(ISubDomain* sd, const VariableDoFReal& node_variable);
+createAlephFemLinearSystem2Impl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -41,11 +41,11 @@ class SequentialFemLinearSystem2Impl
 {
  public:
 
-  SequentialFemLinearSystem2Impl(ISubDomain* sd, const Arcane::VariableDoFReal& dof_variable)
+  SequentialFemLinearSystem2Impl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
   : TraceAccessor(sd->traceMng())
   , m_sub_domain(sd)
-  , m_dof_family(dof_variable.variable()->itemFamily())
-  , m_dof_variable(dof_variable)
+  , m_dof_family(dof_family)
+  , m_dof_variable(VariableBuildInfo(dof_family, solver_name + "SolutionVariable"))
   {}
 
  public:
@@ -110,6 +110,11 @@ class SequentialFemLinearSystem2Impl
     }
   }
 
+  VariableDoFReal& solutionVariable() override
+  {
+    return m_dof_variable;
+  }
+
  private:
 
   ISubDomain* m_sub_domain = nullptr;
@@ -155,7 +160,7 @@ _checkInit()
 /*---------------------------------------------------------------------------*/
 
 void FemLinearSystem2::
-initialize(ISubDomain* sd, const Arcane::VariableDoFReal& dof_variable)
+initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
 {
   ARCANE_CHECK_POINTER(sd);
   if (m_p)
@@ -165,10 +170,10 @@ initialize(ISubDomain* sd, const Arcane::VariableDoFReal& dof_variable)
   // If true, we use a dense debug matrix in sequential
   bool use_debug_dense_matrix = false;
   if (is_parallel || !use_debug_dense_matrix) {
-    m_p = createAlephFemLinearSystem2Impl(sd, dof_variable);
+    m_p = createAlephFemLinearSystem2Impl(sd, dof_family, solver_name);
   }
   else {
-    auto* x = new SequentialFemLinearSystem2Impl(sd, dof_variable);
+    auto* x = new SequentialFemLinearSystem2Impl(sd, dof_family, solver_name);
     x->build();
     m_p = x;
   }
@@ -202,6 +207,16 @@ solve()
 {
   _checkInit();
   m_p->solve();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFReal& FemLinearSystem2::
+solutionVariable()
+{
+  _checkInit();
+  return m_p->solutionVariable();
 }
 
 /*---------------------------------------------------------------------------*/

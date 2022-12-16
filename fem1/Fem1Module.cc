@@ -99,7 +99,7 @@ compute()
     subDomain()->timeLoopMng()->stopComputeLoop(true);
 
   m_linear_system.reset();
-  m_linear_system.initialize(subDomain(), m_dof_temperature);
+  m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
   info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
   _doStationarySolve();
@@ -201,7 +201,6 @@ _applyDirichletBoundaryConditions()
     ENUMERATE_ (Face, iface, group) {
       for (Node node : iface->nodes()) {
         m_node_temperature[node] = value;
-        m_dof_temperature[node_dof.dofId(node, 0)] = value;
         m_node_is_temperature_fixed[node] = true;
       }
     }
@@ -462,11 +461,12 @@ _solve()
   _applyDirichletBoundaryConditions();
 
   {
+    VariableDoFReal& dof_temperature(m_linear_system.solutionVariable());
     // Copy RHS DoF to Node temperature
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
-      Real v = m_dof_temperature[node_dof.dofId(node, 0)];
+      Real v = dof_temperature[node_dof.dofId(node, 0)];
       m_node_temperature[node] = v;
     }
   }
@@ -482,15 +482,11 @@ _solve()
 
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {
-    int p = std::cout.precision();
-    std::cout.precision(17);
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      std::cout << "T[" << node.localId() << "][" << node.uniqueId() << "] = "
-                << m_node_temperature[node] << "\n";
-      //std::cout << "T[]" << node.uniqueId() << " " << m_node_temperature[node] << "\n";
+      info() << "T[" << node.localId() << "][" << node.uniqueId() << "] = "
+             << m_node_temperature[node];
     }
-    std::cout.precision(p);
   }
 }
 

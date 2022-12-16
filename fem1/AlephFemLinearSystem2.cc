@@ -39,12 +39,12 @@ class AlephFemLinearSystem2Impl
  public:
 
   // TODO: do not use subDomain() but we need to modify aleph before
-  AlephFemLinearSystem2Impl(ISubDomain* sd, const Arcane::VariableDoFReal& dof_variable)
+  AlephFemLinearSystem2Impl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
   : TraceAccessor(sd->traceMng())
   , m_sub_domain(sd)
-  , m_dof_family(dof_variable.variable()->itemFamily())
-  , m_dof_variable(dof_variable)
-  , m_dof_matrix_indexes(VariableBuildInfo(m_dof_family, "DoFMatrixIndexes"))
+  , m_dof_family(dof_family)
+  , m_dof_variable(VariableBuildInfo(dof_family, solver_name + "SolutionVariable"))
+  , m_dof_matrix_indexes(VariableBuildInfo(m_dof_family, solver_name + "DoFMatrixIndexes"))
   {}
 
  public:
@@ -141,6 +141,11 @@ class AlephFemLinearSystem2Impl
     m_aleph_rhs_vector->setLocalComponents(ConstArrayView(values.size(), values.data()));
   }
 
+  VariableDoFReal& solutionVariable() override
+  {
+    return m_dof_variable;
+  }
+
  private:
 
   AlephParams* _createAlephParam()
@@ -196,9 +201,9 @@ class AlephFemLinearSystem2Impl
 /*---------------------------------------------------------------------------*/
 
 extern "C++" FemLinearSystem2Impl*
-createAlephFemLinearSystem2Impl(ISubDomain* sd, const Arcane::VariableDoFReal& dof_variable)
+createAlephFemLinearSystem2Impl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
 {
-  auto* x = new AlephFemLinearSystem2Impl(sd, dof_variable);
+  auto* x = new AlephFemLinearSystem2Impl(sd, dof_family, solver_name);
   x->build();
   return x;
 }
