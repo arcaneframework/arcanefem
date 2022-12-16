@@ -1,0 +1,79 @@
+<?xml version="1.0" ?>
+<module name="Fem1" version="1.0">
+  <description>Descripteur du module Fem1</description>
+  <entry-points>
+    <entry-point method-name="compute" name="Compute" where="compute-loop" property="none" />
+    <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
+  </entry-points>
+  <variables>
+    <variable field-name="node_temperature" name="NodeTemperature" data-type="real" item-kind="node" dim="0">
+      <description>Temperature on variables for node coords</description>
+    </variable>
+    <variable field-name="node_is_temperature_fixed" name="NodeIsTemperatureFixed" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if temperature is fixed on the node</description>
+    </variable>
+    <variable field-name="node_temp" name="NodeTemp" data-type="real" item-kind="node" dim="0">
+      <description>Temperature2 on variables for node coords</description>
+    </variable>
+    <variable field-name="node_is_temp_fixed" name="NodeIsTempFixed" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if temperature is fixed on the node</description>
+    </variable>    
+    <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
+      <description>NodeCoord from Arcane variable</description>
+    </variable>
+  </variables>
+  <options>
+    <simple name="qdot" type="real" default="0.0">
+      <description>Heat source within the material.</description>
+    </simple>
+    <simple name="lambda" type="real" default="1.75">
+      <description>Thermal conductivity of the material.</description>
+    </simple>
+
+    <simple name="result-file" type="string" optional="true">
+      <description>File name of a file containing the valuess of the solution vector to check the results</description>
+    </simple>
+
+    <!-- - - - - - dirichlet-boundary-condition - - - - -->
+    <complex name  = "dirichlet-boundary-condition"
+             type  = "DirichletBoundaryCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Dirichelt boundary condition
+      </description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>
+          FaceGroup on which to apply these boundary condition
+        </description>
+      </extended>
+      <simple name = "value" type = "real">
+        <description>
+          Value of the boundary condition
+        </description>
+      </simple>
+    </complex>
+
+    <!-- - - - - - neumann-boundary-condition - - - - -->
+    <complex name  = "neumann-boundary-condition"
+             type  = "NeumannBoundaryCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Neumann boundary condition
+      </description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>
+          FaceGroup on which to apply these boundary condition
+        </description>
+      </extended>
+      <simple name = "value" type = "real">
+        <description>
+          Value of the boundary condition
+        </description>
+      </simple>
+    </complex>
+  </options>
+</module>
