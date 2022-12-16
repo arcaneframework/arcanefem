@@ -528,18 +528,20 @@ _buildDoFOnNodes()
   Int32 nb_dof_per_node = 1;
 
   // Create the DoFs
-  Int64UniqueArray uids(ownNodes().size() * nb_dof_per_node);
+  Int64UniqueArray uids(allNodes().size() * nb_dof_per_node);
   Int64 max_node_uid = mesh::DoFUids::getMaxItemUid(mesh()->nodeFamily());
-  Int64 max_dof_uid = mesh::DoFUids::getMaxItemUid(dof_family);
   {
     Integer dof_index = 0;
-    ENUMERATE_NODE (inode, ownNodes()) {
+    ENUMERATE_NODE (inode, allNodes()) {
+      Node node = *inode;
+      Int64 node_unique_id = node.uniqueId().asInt64();
       for (Integer i = 0; i < nb_dof_per_node; ++i) {
-        uids[dof_index] = mesh::DoFUids::uid(max_dof_uid, max_node_uid, inode->uniqueId().asInt64(), i);
+        uids[dof_index] = node_unique_id * nb_dof_per_node + i;
         ++dof_index;
       }
     }
   }
+  info() << "ADD_Dofs list=" << uids;
   Int32UniqueArray dof_lids(uids.size());
   dof_family->addDoFs(uids, dof_lids);
   dof_family->endUpdate();
@@ -550,7 +552,7 @@ _buildDoFOnNodes()
   auto* cn = m_node_dof_connectivity->connectivity();
   {
     Integer dof_index = 0;
-    ENUMERATE_NODE (inode, ownNodes()) {
+    ENUMERATE_NODE (inode, allNodes()) {
       NodeLocalId node = *inode;
       for (Integer i = 0; i < nb_dof_per_node; ++i) {
         cn->addConnectedItem(node, DoFLocalId(dof_lids[dof_index]));
@@ -560,10 +562,26 @@ _buildDoFOnNodes()
   }
   info() << "End build Dofs";
 
+  IndexedNodeDoFConnectivityView node_dof(m_node_dof_connectivity->view());
+  {
+    // Set the owners of the DoF.
+    IParallelMng* pm = mesh()->parallelMng();
+    Int32 my_rank = pm->commRank();
+    ItemInternalList dofs = m_dof_family->itemsInternal();
+    ENUMERATE_ (Node, inode, allNodes()) {
+      Node node = *inode;
+      Int32 node_owner = node.owner();
+      for (DoFLocalId dof : node_dof.dofs(node)) {
+        dofs[dof]->setOwner(node_owner, my_rank);
+      }
+    }
+    dof_family->notifyItemsOwnerChanged();
+    dof_family->computeSynchronizeInfos();
+  }
+
   // Remplit les DoF par la valeur nulle.
   info() << "Fill DoFs";
-  IndexedNodeDoFConnectivityView node_dof(m_node_dof_connectivity->view());
-  ENUMERATE_ (Node, inode, ownNodes()) {
+  ENUMERATE_ (Node, inode, allNodes()) {
     Node node = *inode;
     for (DoFLocalId dof : node_dof.dofs(node)) {
       m_dof_temperature[dof] = 0.0;

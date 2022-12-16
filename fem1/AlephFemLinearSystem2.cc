@@ -79,6 +79,10 @@ class AlephFemLinearSystem2Impl
 
   void matrixAddValue(DoFLocalId row, DoFLocalId column, Real value) override
   {
+    if (row.isNull())
+      ARCANE_FATAL("Row is null");
+    if (column.isNull())
+      ARCANE_FATAL("Column is null");
     ItemInfoListView item_list_view(m_dof_family);
     m_aleph_matrix->addValue(m_dof_variable, item_list_view[row], m_dof_variable, item_list_view[column], value);
   }
