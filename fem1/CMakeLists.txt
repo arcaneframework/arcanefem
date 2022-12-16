@@ -11,7 +11,10 @@ add_executable(FemTest1
   Fem1_axl.h
   FemLinearSystem.h
   FemLinearSystem.cc
+  FemLinearSystem2.h
+  FemLinearSystem2.cc
   AlephFemLinearSystem.cc
+  AlephFemLinearSystem2.cc
 )
 
 arcane_generate_axl(Fem1)
