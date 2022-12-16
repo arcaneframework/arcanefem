@@ -9,6 +9,9 @@
     <variable field-name="node_temperature" name="NodeTemperature" data-type="real" item-kind="node" dim="0">
       <description>Temperature on variables for node coords</description>
     </variable>
+    <variable field-name="dof_temperature" name="DoFTemperature" data-type="real" item-kind="dof" dim="0" family-name="DoFNodeFamily">
+      <description>Temperature on variables for node coords</description>
+    </variable>
     <variable field-name="node_is_temperature_fixed" name="NodeIsTemperatureFixed" data-type="bool" item-kind="node" dim="0">
       <description>Boolean which is true if temperature is fixed on the node</description>
     </variable>

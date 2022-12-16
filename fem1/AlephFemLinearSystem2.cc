@@ -44,7 +44,7 @@ class AlephFemLinearSystem2Impl
   , m_sub_domain(sd)
   , m_dof_family(dof_variable.variable()->itemFamily())
   , m_dof_variable(dof_variable)
-  , m_dof_matrix_indexes(VariableBuildInfo(sd->defaultMeshHandle(), "DoFMatrixIndexes"))
+  , m_dof_matrix_indexes(VariableBuildInfo(m_dof_family, "DoFMatrixIndexes"))
   {}
 
  public:
