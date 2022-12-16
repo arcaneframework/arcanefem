@@ -18,6 +18,10 @@
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 
+#include <arcane/mesh/DoFFamily.h>
+#include "arcane/IIndexedIncrementalItemConnectivityMng.h"
+#include "arcane/IIndexedIncrementalItemConnectivity.h"
+#include "arcane/IndexedItemConnectivityView.h"
 
 #include "Fem1_axl.h"
 #include "FemUtils.h"
@@ -65,6 +69,7 @@ class Fem1Module
   Real qdot;
 
   FemLinearSystem m_linear_system;
+  Ref<IIndexedIncrementalItemConnectivity> m_node_dof_connectivity;
 
  private:
 
@@ -81,6 +86,7 @@ class Fem1Module
   Real _computeEdgeLength3(Face face);
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
+  void _buildDoFOnNodes();
 };
 
 /*---------------------------------------------------------------------------*/
@@ -110,6 +116,7 @@ startInit()
 {
   info() << "Module Fem1 INIT";
 
+  _buildDoFOnNodes();
   //Int32 nb_node = allNodes().size();
   //m_k_matrix.resize(nb_node, nb_node);
   //m_k_matrix.fill(0.0);
@@ -486,6 +493,63 @@ _checkResultFile()
     return;
   const double epsilon = 1.0e-4;
   checkNodeResultFile(traceMng(), filename, m_node_temperature, epsilon);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void Fem1Module::
+_buildDoFOnNodes()
+{
+  IItemFamily* dof_family_interface = mesh()->findItemFamily(Arcane::IK_DoF, "DoFNode", true);
+  mesh::DoFFamily* dof_family = ARCANE_CHECK_POINTER(dynamic_cast<mesh::DoFFamily*>(dof_family_interface));
+
+  // Number of DoF per node
+  Int32 nb_dof_per_node = 1;
+
+  // Create the DoFs
+  Int64UniqueArray uids(ownNodes().size() * nb_dof_per_node);
+  Int64 max_node_uid = mesh::DoFUids::getMaxItemUid(mesh()->nodeFamily());
+  Int64 max_dof_uid = mesh::DoFUids::getMaxItemUid(dof_family);
+  {
+    Integer dof_index = 0;
+    ENUMERATE_NODE (inode, ownNodes()) {
+      for (Integer i = 0; i < nb_dof_per_node; ++i) {
+        uids[dof_index] = mesh::DoFUids::uid(max_dof_uid, max_node_uid, inode->uniqueId().asInt64(), i);
+        ++dof_index;
+      }
+    }
+  }
+  Int32UniqueArray dof_lids(uids.size());
+  dof_family->addDoFs(uids, dof_lids);
+  dof_family->endUpdate();
+  info() << "NB_DOF=" << dof_family->allItems().size();
+
+  // Create Node -> DoF connectivity.
+  m_node_dof_connectivity = mesh()->indexedConnectivityMng()->findOrCreateConnectivity(mesh()->nodeFamily(), dof_family, "DoFNode");
+  auto* cn = m_node_dof_connectivity->connectivity();
+  {
+    Integer dof_index = 0;
+    ENUMERATE_NODE (inode, ownNodes()) {
+      NodeLocalId node = *inode;
+      for (Integer i = 0; i < nb_dof_per_node; ++i) {
+        cn->addConnectedItem(node, DoFLocalId(dof_lids[dof_index]));
+        ++dof_index;
+      }
+    }
+  }
+  info() << "End build Dofs";
+
+  // Remplit les DoF par la valeur nulle.
+  info() << "Fill DoFs";
+  VariableDoFReal dof_var(VariableBuildInfo(dof_family, "DofValues"));
+  IndexedNodeDoFConnectivityView node_dof(m_node_dof_connectivity->view());
+  ENUMERATE_ (Node, inode, ownNodes()) {
+    Node node = *inode;
+    for (DoFLocalId dof : node_dof.dofs(node)) {
+      dof_var[dof] = 0.0;
+    }
+  }
 }
 
 /*---------------------------------------------------------------------------*/
