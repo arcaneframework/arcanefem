@@ -18,10 +18,10 @@
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 
-
 #include "Fem1_axl.h"
 #include "FemUtils.h"
-#include "FemLinearSystem.h"
+#include "FemLinearSystem2.h"
+#include "FemDoFsOnNodes.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -40,6 +40,7 @@ class Fem1Module
 
   explicit Fem1Module(const ModuleBuildInfo& mbi)
   : ArcaneFem1Object(mbi)
+  , m_dofs_on_nodes(mbi.subDomain()->traceMng())
   {
     ICaseMng* cm = mbi.subDomain()->caseMng();
     cm->setTreatWarningAsError(true);
@@ -64,7 +65,8 @@ class Fem1Module
   Real lambda;
   Real qdot;
 
-  FemLinearSystem m_linear_system;
+  FemLinearSystem2 m_linear_system;
+  FemDoFsOnNodes m_dofs_on_nodes;
 
  private:
 
@@ -97,7 +99,7 @@ compute()
     subDomain()->timeLoopMng()->stopComputeLoop(true);
 
   m_linear_system.reset();
-  m_linear_system.initialize(subDomain(), m_node_temperature);
+  m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
   info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
   _doStationarySolve();
@@ -110,6 +112,8 @@ void Fem1Module::
 startInit()
 {
   info() << "Module Fem1 INIT";
+
+  m_dofs_on_nodes.initialize(mesh(), 2);
 
   //Int32 nb_node = allNodes().size();
   //m_k_matrix.resize(nb_node, nb_node);
@@ -224,12 +228,15 @@ _assembleLinearOperator()
   info() << "Applying Dirichlet boundary condition via  penalty method ";
 
   // Temporary variable to keep values for the RHS part of the linear system
-  VariableNodeReal rhs1_values(VariableBuildInfo(defaultMesh(),"NodeRHS1Values"));
-  rhs1_values.fill(0.0);
+  //VariableNodeReal rhs1_values(VariableBuildInfo(defaultMesh(), "NodeRHS1Values"));
+  //rhs1_values.fill(0.0);
 
-  VariableNodeReal rhs2_values(VariableBuildInfo(defaultMesh(),"NodeRHS2Values"));
-  rhs2_values.fill(0.0);
-  
+  //VariableNodeReal rhs2_values(VariableBuildInfo(defaultMesh(), "NodeRHS2Values"));
+  //rhs2_values.fill(0.0);
+
+  VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
+  rhs_values.fill(0.0);
+
   //----------------------------------------------
   // penelty method for assembly of Dirichlet BC
   //----------------------------------------------
@@ -242,20 +249,26 @@ _assembleLinearOperator()
   // TODO: 1.0e6 is a user value, moreover we should use something like 1e31
   //----------------------------------------------
 
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
   ENUMERATE_ (Node, inode, ownNodes()) {
     NodeLocalId node_id = *inode;
     if (m_node_is_temperature_fixed[node_id]) {
+      DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
+      DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
       //m_k_matrix(node_id, node_id) += 1.0e6;
-      //                                             u1   ,NA,NA, u2 
-      m_linear_system.matrixAddValue(*inode, *inode, 1.0e30, 0, 0, 0);
+      //                                             u1   ,NA,NA, u2
+      // m_linear_system.matrixAddValue(*inode, *inode, 1.0e30, 0, 0, 0);
+      m_linear_system.matrixAddValue(dof_id1, dof_id1, 1.0e30);
+      m_linear_system.matrixAddValue(dof_id2, dof_id2, 0.0);
       //m_rhs_vector[node_id] += 1.0e6 * m_node_temperature[node_id];
       {
         Real temperature = 1.0e30 * m_node_temperature[node_id];
-        rhs1_values[node_id] = temperature;
+        rhs_values[dof_id1] = temperature;
       }
     }
   }
-  
+
   info() << "Applying Dirichlet boundary condition via  penalty method 1 ";
   //----------------------------------------------
   // Constant source term assembly
@@ -268,10 +281,12 @@ _assembleLinearOperator()
     Cell cell = *icell;
     Real area = _computeAreaTriangle3(cell);
     for (Node node : cell.nodes()) {
-      if(!(m_node_is_temperature_fixed[node])  && node.isOwn())
-        rhs1_values[node] += qdot*area/3;
+      if (!(m_node_is_temperature_fixed[node]) && node.isOwn()) {
+        DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+        rhs_values[dof_id1] += qdot * area / 3;
       }
     }
+  }
   info() << "Applying Dirichlet boundary condition via  penalty method 2 ";
   //----------------------------------------------
   // Constant flux term assembly
@@ -288,27 +303,31 @@ _assembleLinearOperator()
       Face face = *iface;
       Real length = _computeEdgeLength3(face);
       for (Node node : iface->nodes()) {
-        if(!(m_node_is_temperature_fixed[node])  && node.isOwn())
-        rhs1_values[node] += value*length/2.;
+        if (!(m_node_is_temperature_fixed[node]) && node.isOwn()) {
+          DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+          rhs_values[dof_id1] += value * length / 2.;
+        }
       }
     }
   }
   info() << "Applying Dirichlet boundary condition via  penalty method 3 ";
+#if 0
   {
     // For the LinearSystem class we need an array
     // with only the values for the ownNodes().
     // The values of 'rhs_values' should not be updated after
     // this call.
-    UniqueArray<Real> rhs_values_for_linear_system;    
+    UniqueArray<Real> rhs_values_for_linear_system;
     ENUMERATE_ (Node, inode, ownNodes()) {
       rhs_values_for_linear_system.add(rhs1_values[inode]);
       rhs_values_for_linear_system.add(rhs2_values[inode]);
     }
     for (Int32 i = 0; i < rhs_values_for_linear_system.size(); ++i) {
-         cout << "VECT[" << i <<"] = " << rhs_values_for_linear_system[i]<<endl;            
+      cout << "VECT[" << i << "] = " << rhs_values_for_linear_system[i] << endl;
     }
     m_linear_system.setRHSValues(rhs_values_for_linear_system);
   }
+#endif
   info() << "Applying Dirichlet boundary condition via  penalty method 4 ";
 }
 
@@ -479,6 +498,8 @@ _assembleBilinearOperator()
 {
   // for elem in self.mesh.elements:
 
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
     if (cell.type() != IT_Triangle3)
@@ -487,7 +508,7 @@ _assembleBilinearOperator()
     //             K_e=elem.int_c_dPhii_dPhij(elem.k)
     auto K_e = _computeIntCDPhiiDPhij(cell);
     auto K_e2 = _computeIntPhiiDPhij(cell);
-  Real area = _computeAreaTriangle3(cell); //m0, m1, m2);
+    Real area = _computeAreaTriangle3(cell); //m0, m1, m2);
     //             # assemble elementary matrix into the global one
     //             # elementary terms are positionned into K according
     //             # to the rank of associated node in the mesh.nodes list
@@ -501,13 +522,23 @@ _assembleBilinearOperator()
       Int32 n2_index = 0;
       for (Node node2 : cell.nodes()) {
         //                 K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-        Real v1  = 0;//K_e(2*n1_index  ,   2*n2_index);
-        Real v2  = K_e(2*n1_index  ,   2*n2_index+1 );
-        Real v3  = K_e(2*n1_index+1,   2*n2_index   );
-        Real v4  = K_e2(2*n1_index+1,  2*n2_index+1 );//area/12.;//K_e2(2*n1_index+1,  2*n2_index+1 );
+        Real v1 = 0; //K_e(2*n1_index  ,   2*n2_index);
+        Real v2 = K_e(2 * n1_index, 2 * n2_index + 1);
+        Real v3 = K_e(2 * n1_index + 1, 2 * n2_index);
+        Real v4 = K_e2(2 * n1_index + 1, 2 * n2_index + 1); //area/12.;//K_e2(2*n1_index+1,  2*n2_index+1 );
         //m_k_matrix(node1.localId(), node2.localId()) += v;
         if (node1.isOwn()) {
-          m_linear_system.matrixAddValue(node1, node2, v1, v2, v3, v4);
+          //m_linear_system.matrixAddValue(node1, node2, v1, v2, v3, v4);
+
+          DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
+          DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
+          DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
+          DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
+
+          m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
+          m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
+          m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v3);
+          m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v4);
         }
         ++n2_index;
       }
@@ -522,11 +553,23 @@ _assembleBilinearOperator()
 void Fem1Module::
 _solve()
 {
+  info() << "Solving Linear system";
   m_linear_system.solve();
 
   // Re-Apply boundary conditions because the solver has modified the value
   // of node_temperature on all nodes
   _applyDirichletBoundaryConditions();
+
+  {
+    VariableDoFReal& dof_temperature(m_linear_system.solutionVariable());
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      Real v1 = dof_temperature[node_dof.dofId(node, 0)];
+      Real v2 = dof_temperature[node_dof.dofId(node, 1)];
+      info() << "Node: " << node.localId() << " V1=" << v1 << " V2=" << v2;
+    }
+  }
 
   m_node_temperature.synchronize();
   m_node_temp.synchronize();

@@ -12,11 +12,16 @@ add_executable(FemTest1
   FemLinearSystem.h
   FemLinearSystem.cc
   AlephFemLinearSystem.cc
+  ../fem1/FemLinearSystem2.h
+  ../fem1/FemLinearSystem2.cc
+  ../fem1/AlephFemLinearSystem2.cc
+  ../fem1/FemDoFsOnNodes.h
+  ../fem1/FemDoFsOnNodes.cc
 )
 
 arcane_generate_axl(Fem1)
 arcane_add_arcane_libraries_to_target(FemTest1)
-target_include_directories(FemTest1 PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(FemTest1 PUBLIC . ../fem1 ${CMAKE_CURRENT_BINARY_DIR})
 configure_file(FemTest1.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(FemTest1.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(FemTest1.10k.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
