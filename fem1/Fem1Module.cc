@@ -81,7 +81,7 @@ class Fem1Module
   FixedMatrix<3, 3> _computeIntCDPhiiDPhij(Cell cell);
   FixedMatrix<2, 3> _computeBMatrix(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
-  Real _computeEdgeLength3(Face face);
+  Real _computeEdgeLength2(Face face);
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
 };
@@ -301,7 +301,7 @@ _assembleLinearOperator()
     Real value = bs->value();
     ENUMERATE_ (Face, iface, group) {
       Face face = *iface;
-      Real length = _computeEdgeLength3(face);
+      Real length = _computeEdgeLength2(face);
       for (Node node : iface->nodes()) {
         if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
           rhs_values[node_dof.dofId(node, 0)] += value * length / 2.;
@@ -326,7 +326,7 @@ _computeAreaTriangle3(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 Real Fem1Module::
-_computeEdgeLength3(Face face)
+_computeEdgeLength2(Face face)
 {
   Real3 m0 = m_node_coord[face.nodeId(0)];
   Real3 m1 = m_node_coord[face.nodeId(1)];
