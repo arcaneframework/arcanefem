@@ -20,7 +20,8 @@
 
 #include "Fem1_axl.h"
 #include "FemUtils.h"
-#include "FemLinearSystem.h"
+#include "FemLinearSystem2.h"
+#include "FemDoFsOnNodes.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -39,6 +40,7 @@ class Fem1Module
 
   explicit Fem1Module(const ModuleBuildInfo& mbi)
   : ArcaneFem1Object(mbi)
+  , m_dofs_on_nodes(mbi.subDomain()->traceMng())
   {
     ICaseMng* cm = mbi.subDomain()->caseMng();
     cm->setTreatWarningAsError(true);
@@ -61,23 +63,25 @@ class Fem1Module
  private:
 
   Real lambda;
+  Real qdot;
 
-  FemLinearSystem m_linear_system;
+  FemLinearSystem2 m_linear_system;
+  IItemFamily* m_dof_family = nullptr;
+  FemDoFsOnNodes m_dofs_on_nodes;
 
  private:
 
   void _doStationarySolve();
   void _getMaterialParameters();
   void _updateBoundayConditions();
-  void _computeConductivity();
-  void _computeGeneralizedFluxes();
-  void _computeSourceTerm();
+  void _assembleBilinearOperator();
   void _solve();
   void _initBoundaryconditions();
-  void _applyPenaltyDirichletBC();
+  void _assembleLinearOperator();
   FixedMatrix<3, 3> _computeIntCDPhiiDPhij(Cell cell);
   FixedMatrix<2, 3> _computeBMatrix(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
+  Real _computeEdgeLength3(Face face);
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
 };
@@ -95,7 +99,7 @@ compute()
     subDomain()->timeLoopMng()->stopComputeLoop(true);
 
   m_linear_system.reset();
-  m_linear_system.initialize(subDomain(), m_node_temperature);
+  m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
   info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
   _doStationarySolve();
@@ -109,6 +113,10 @@ startInit()
 {
   info() << "Module Fem1 INIT";
 
+  m_dofs_on_nodes.initialize(mesh(), 1);
+  m_dof_family = m_dofs_on_nodes.dofFamily();
+
+  //_buildDoFOnNodes();
   //Int32 nb_node = allNodes().size();
   //m_k_matrix.resize(nb_node, nb_node);
   //m_k_matrix.fill(0.0);
@@ -135,17 +143,11 @@ _doStationarySolve()
   // # update BCs
   _updateBoundayConditions();
 
-  // K=self.compute_conductivity()
-  _computeConductivity();
+  // Assemble the FEM bilinear operator (LHS - matrix A)
+  _assembleBilinearOperator();
 
-  //      # compute flux component RHS
-  _computeGeneralizedFluxes();
-
-  //      # compute source component RHS
-  _computeSourceTerm();
-
-  // Plenalty method to enforce Dirichlet conditions
-  _applyPenaltyDirichletBC();
+  // Assemble the FEM linear operator (RHS - vector b)
+  _assembleLinearOperator();
 
   // # T=linalg.solve(K,RHS)
   _solve();
@@ -162,6 +164,7 @@ _getMaterialParameters()
 {
   info() << "Get material parameters...";
   lambda = options()->lambda();
+  qdot   = options()->qdot();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -189,6 +192,8 @@ _applyDirichletBoundaryConditions()
   //   <value>21.0</value>
   // </dirichlet-boundary-condition>
 
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
   for (const auto& bs : options()->dirichletBoundaryCondition()) {
     FaceGroup group = bs->surface();
     Real value = bs->value();
@@ -212,38 +217,83 @@ _updateBoundayConditions()
 }
 
 /*---------------------------------------------------------------------------*/
-// This function enforces a Dirichlet boundary condition in a weak sense by
-// penalty method
+// Assemble the FEM linear operator
+//  - This function enforces a Dirichlet boundary condition in a weak sense
+//    via the penalty method
+//  - The method also adds source term
+//  - TODO: external fluxes
 /*---------------------------------------------------------------------------*/
 
 void Fem1Module::
-_applyPenaltyDirichletBC()
+_assembleLinearOperator()
 {
+  info() << "Assembly of FEM linear operator ";
   info() << "Applying Dirichlet boundary condition via  penalty method ";
 
+  // Temporary variable to keep values for the RHS part of the linear system
+  VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
+  rhs_values.fill(0.0);
+
+  //----------------------------------------------
+  // penelty method for assembly of Dirichlet BC
+  //----------------------------------------------
+  //
   // # adapt K and RHS to take into account Dirichlet BCs
   //         for node in self.mesh.nodes:
   //             if node.is_T_fixed:
   //                 K[node.rank,node.rank]=K[node.rank,node.rank]+10**6
   //                 RHS[node.rank]=RHS[node.rank]+(10**6)*node.T
-
   // TODO: 1.0e6 is a user value, moreover we should use something like 1e31
-  UniqueArray<Real> rhs_values;
+  //----------------------------------------------
+
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
   ENUMERATE_ (Node, inode, ownNodes()) {
     NodeLocalId node_id = *inode;
     if (m_node_is_temperature_fixed[node_id]) {
-      //m_k_matrix(node_id, node_id) += 1.0e6;
-      m_linear_system.matrixAddValue(*inode, *inode, 1.0e6);
-      //m_rhs_vector[node_id] += 1.0e6 * m_node_temperature[node_id];
-      {
-        Real temperature = 1.0e6 * m_node_temperature[node_id];
-        rhs_values.add(temperature);
+      DoFLocalId dof_id = node_dof.dofId(*inode, 0);
+      m_linear_system.matrixAddValue(dof_id, dof_id, 1.0e6);
+      Real temperature = 1.0e6 * m_node_temperature[node_id];
+      rhs_values[dof_id] = temperature;
+    }
+  }
+
+  //----------------------------------------------
+  // Constant source term assembly
+  //----------------------------------------------
+  //
+  //  $int_{Omega}(qdot*v^h)$
+  //  only for noded that are non-Dirichlet
+  //----------------------------------------------
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    Real area = _computeAreaTriangle3(cell);
+    for (Node node : cell.nodes()) {
+      if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
+        rhs_values[node_dof.dofId(node, 0)] += qdot * area / 3;
+    }
+  }
+
+  //----------------------------------------------
+  // Constant flux term assembly
+  //----------------------------------------------
+  //
+  //  $int_{dOmega_N}((q.n)*v^h)$
+  //  only for noded that are non-Dirichlet
+  //  TODO : take flux vector and use normals at boundaries
+  //----------------------------------------------
+  for (const auto& bs : options()->neumannBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    Real value = bs->value();
+    ENUMERATE_ (Face, iface, group) {
+      Face face = *iface;
+      Real length = _computeEdgeLength3(face);
+      for (Node node : iface->nodes()) {
+        if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
+          rhs_values[node_dof.dofId(node, 0)] += value * length / 2.;
       }
     }
-    else
-      rhs_values.add(0.0);
   }
-  m_linear_system.setRHSValues(rhs_values);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -256,6 +306,17 @@ _computeAreaTriangle3(Cell cell)
   Real3 m1 = m_node_coord[cell.nodeId(1)];
   Real3 m2 = m_node_coord[cell.nodeId(2)];
   return 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+Real Fem1Module::
+_computeEdgeLength3(Face face)
+{
+  Real3 m0 = m_node_coord[face.nodeId(0)];
+  Real3 m1 = m_node_coord[face.nodeId(1)];
+  return  math::sqrt((m1.x-m0.x)*(m1.x-m0.x) + (m1.y-m0.y)*(m1.y - m0.y));
 }
 
 /*---------------------------------------------------------------------------*/
@@ -337,9 +398,11 @@ _computeIntCDPhiiDPhij(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 void Fem1Module::
-_computeConductivity()
+_assembleBilinearOperator()
 {
   // for elem in self.mesh.elements:
+
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
@@ -364,33 +427,13 @@ _computeConductivity()
         Real v = K_e(n1_index, n2_index);
         //m_k_matrix(node1.localId(), node2.localId()) += v;
         if (node1.isOwn()) {
-          m_linear_system.matrixAddValue(node1, node2, v);
+          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
         }
         ++n2_index;
       }
       ++n1_index;
     }
   }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void Fem1Module::
-_computeGeneralizedFluxes()
-{
-  // TODO: Loop over all faces on the border instead
-  //m_rhs_vector.fill(0.0);
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void Fem1Module::
-_computeSourceTerm()
-{
-  // TODO: Loop over all cells and fill the source term
-  //m_rhs_vector.fill(0.0);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -405,6 +448,17 @@ _solve()
   // of node_temperature on all nodes
   _applyDirichletBoundaryConditions();
 
+  {
+    VariableDoFReal& dof_temperature(m_linear_system.solutionVariable());
+    // Copy RHS DoF to Node temperature
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      Real v = dof_temperature[node_dof.dofId(node, 0)];
+      m_node_temperature[node] = v;
+    }
+  }
+
   m_node_temperature.synchronize();
   // def update_T(self,T):
   //     """Update temperature value on nodes after the FE resolution"""
@@ -416,14 +470,11 @@ _solve()
 
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {
-    int p = std::cout.precision();
-    std::cout.precision(17);
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      std::cout << "T[" << node.localId() << "][" << node.uniqueId() << "] = "
-                << m_node_temperature[node] << "\n";
+      info() << "T[" << node.localId() << "][" << node.uniqueId() << "] = "
+             << m_node_temperature[node];
     }
-    std::cout.precision(p);
   }
 }
 
@@ -437,7 +488,7 @@ _checkResultFile()
   info() << "CheckResultFile filename=" << filename;
   if (filename.empty())
     return;
-  const double epsilon = 1.0e-9;
+  const double epsilon = 1.0e-4;
   checkNodeResultFile(traceMng(), filename, m_node_temperature, epsilon);
 }
 

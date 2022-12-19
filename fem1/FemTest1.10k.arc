@@ -20,6 +20,7 @@
 
   <fem1>
     <lambda>1.75</lambda>
+    <qdot>1e5</qdot>
     <dirichlet-boundary-condition>
       <surface>Cercle</surface>
       <value>50.0</value>
@@ -32,5 +33,13 @@
       <surface>Haut</surface>
       <value>21.0</value>
     </dirichlet-boundary-condition>
+    <neumann-boundary-condition>
+      <surface>Droite</surface>
+      <value>15.0</value>
+    </neumann-boundary-condition>
+    <neumann-boundary-condition>
+      <surface>Gauche</surface>
+      <value>0.0</value>
+    </neumann-boundary-condition>
   </fem1>
 </case>

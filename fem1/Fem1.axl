@@ -17,6 +17,9 @@
     </variable>
   </variables>
   <options>
+    <simple name="qdot" type="real" default="0.0">
+      <description>Heat source within the material.</description>
+    </simple>
     <simple name="lambda" type="real" default="1.75">
       <description>Thermal conductivity of the material.</description>
     </simple>
@@ -33,6 +36,27 @@
       >
       <description>
         Dirichelt boundary condition
+      </description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>
+          FaceGroup on which to apply these boundary condition
+        </description>
+      </extended>
+      <simple name = "value" type = "real">
+        <description>
+          Value of the boundary condition
+        </description>
+      </simple>
+    </complex>
+
+    <!-- - - - - - neumann-boundary-condition - - - - -->
+    <complex name  = "neumann-boundary-condition"
+             type  = "NeumannBoundaryCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Neumann boundary condition
       </description>
       <extended name = "surface" type = "Arcane::FaceGroup">
         <description>
