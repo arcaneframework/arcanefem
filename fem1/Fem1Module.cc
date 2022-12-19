@@ -171,16 +171,14 @@ _getMaterialParameters()
     m_cell_lambda[cell] = lambda;
     }
 
-  if(options()->materialProperty().size()){
-    for (const auto& bs : options()->materialProperty()) {
-      CellGroup group = bs->volume();
-      Real value = bs->lambda();
-      info() << "Lambda for group=" << group.name() << " v=" << value;
+  for (const auto& bs : options()->materialProperty()) {
+    CellGroup group = bs->volume();
+    Real value = bs->lambda();
+    info() << "Lambda for group=" << group.name() << " v=" << value;
 
-      ENUMERATE_ (Cell, icell, group) {
-        Cell cell = *icell;
-        m_cell_lambda[cell] = value;
-        }
+    ENUMERATE_ (Cell, icell, group) {
+      Cell cell = *icell;
+      m_cell_lambda[cell] = value;
       }
     }
 }
@@ -209,8 +207,6 @@ _applyDirichletBoundaryConditions()
   //   <surface>Haut</surface>
   //   <value>21.0</value>
   // </dirichlet-boundary-condition>
-
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   for (const auto& bs : options()->dirichletBoundaryCondition()) {
     FaceGroup group = bs->surface();
