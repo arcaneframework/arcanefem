@@ -165,6 +165,24 @@ _getMaterialParameters()
   info() << "Get material parameters...";
   lambda = options()->lambda();
   qdot   = options()->qdot();
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    m_cell_lambda[cell] = lambda;
+    }
+
+  if(options()->materialProperty().size()){
+    for (const auto& bs : options()->materialProperty()) {
+      CellGroup group = bs->volume();
+      Real value = bs->lambda();
+      info() << "Lambda for group=" << group.name() << " v=" << value;
+
+      ENUMERATE_ (Cell, icell, group) {
+        Cell cell = *icell;
+        m_cell_lambda[cell] = value;
+        }
+      }
+    }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -410,6 +428,7 @@ _assembleBilinearOperator()
       ARCANE_FATAL("Only Triangle3 cell type is supported");
     //             # first compute elementary thermal conductivity matrix
     //             K_e=elem.int_c_dPhii_dPhij(elem.k)
+    lambda = m_cell_lambda[cell];
     auto K_e = _computeIntCDPhiiDPhij(cell);
     //             # assemble elementary matrix into the global one
     //             # elementary terms are positionned into K according
@@ -474,6 +493,8 @@ _solve()
       Node node = *inode;
       info() << "T[" << node.localId() << "][" << node.uniqueId() << "] = "
              << m_node_temperature[node];
+     // info() << "T[]" << node.uniqueId() << " "
+     //        << m_node_temperature[node];
     }
   }
 }

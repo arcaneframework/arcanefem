@@ -6,6 +6,9 @@
     <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
   </entry-points>
   <variables>
+    <variable field-name="cell_lambda" name="CellLambda" data-type="real" item-kind="cell" dim="0">
+      <description>Conductivity of the element</description>
+    </variable>
     <variable field-name="node_temperature" name="NodeTemperature" data-type="real" item-kind="node" dim="0">
       <description>Temperature on variables for node coords</description>
     </variable>
@@ -66,6 +69,27 @@
       <simple name = "value" type = "real">
         <description>
           Value of the boundary condition
+        </description>
+      </simple>
+    </complex>
+
+    <!-- - - - - - material-property - - - - -->
+    <complex name  = "material-property"
+             type  = "MaterialProperty"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Material properties
+      </description>
+      <extended name = "volume" type = "Arcane::CellGroup">
+        <description>
+          CellGroup on which material properties are applied
+        </description>
+      </extended>
+      <simple name = "lambda" type = "real">
+        <description>
+          Value of the conductivity for CellGroup
         </description>
       </simple>
     </complex>
