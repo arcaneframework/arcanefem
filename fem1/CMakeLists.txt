@@ -25,6 +25,7 @@ target_include_directories(FemTest1 PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
 configure_file(FemTest1.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(FemTest1.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(FemTest1.MultiMaterial.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(FemTest1.MultiMaterial.10k.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(FemTest1.10k.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(plancher.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(multi-material.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
@@ -49,7 +50,11 @@ if (GMSH)
     COMMAND ${GMSH} -2 ${CMAKE_CURRENT_SOURCE_DIR}/plancher.geo -format msh41 -o plancher.10k.msh
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )
-  add_custom_target(gmsh_files DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/plancher.10k.msh)
+  add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/multi-material.10k.msh
+    COMMAND ${GMSH} -2 ${CMAKE_CURRENT_SOURCE_DIR}/multi-mat.geo -format msh41 -o multi-material.10k.msh
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  )
+  add_custom_target(gmsh_files DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/multi-material.10k.msh ${CMAKE_CURRENT_BINARY_DIR}/plancher.10k.msh)
   add_dependencies(FemTest1 gmsh_files)
   set(FEMTEST_HAS_GMSH_TEST TRUE)
 endif()
@@ -60,6 +65,7 @@ add_test(NAME femtest1 COMMAND FemTest1 FemTest1.arc)
 add_test(NAME femtest1_multimaterial COMMAND FemTest1 FemTest1.MultiMaterial.arc)
 if(FEMTEST_HAS_GMSH_TEST)
   add_test(NAME femtest1_10k COMMAND ./FemTest1 FemTest1.10k.arc)
+  add_test(NAME femtest1_multimaterial_10k COMMAND ./FemTest1 FemTest1.MultiMaterial.10k.arc)
 endif()
 
 # If parallel part is available, add some tests
@@ -68,5 +74,6 @@ if(FEMTEST_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
   add_test(NAME femtest1_multimaterial_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./FemTest1 FemTest1.MultiMaterial.arc)
   if(FEMTEST_HAS_GMSH_TEST)
     add_test(NAME femtest1_10k_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./FemTest1 FemTest1.10k.arc)
+    add_test(NAME femtest1_multimaterial_10k_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./FemTest1 FemTest1.MultiMaterial.10k.arc)
   endif()
 endif()
