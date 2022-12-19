@@ -78,8 +78,7 @@ class Fem1Module
   void _solve();
   void _initBoundaryconditions();
   void _assembleLinearOperator();
-  FixedMatrix<3, 3> _computeIntCDPhiiDPhij(Cell cell);
-  FixedMatrix<2, 3> _computeBMatrix(Cell cell);
+  FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
   Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
@@ -351,23 +350,23 @@ _computeEdgeLength2(Face face)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-//     """Compute matrix of gradient of FE shape functions for current element
-//     B=[grad(Phi_0) grad(Phi1) grad(Phi2)] and return a numpy array
-//     """
-FixedMatrix<2, 3> Fem1Module::
-_computeBMatrix(Cell cell)
+FixedMatrix<3, 3> Fem1Module::
+_computeElementMatrixTRIA3(Cell cell)
 {
+  // Get coordiantes of the triangle element  TRI3
+  //------------------------------------------------
+  //                  0 o
+  //                   . .
+  //                  .   .
+  //                 .     .
+  //              1 o . . . o 2
+  //------------------------------------------------
   Real3 m0 = m_node_coord[cell.nodeId(0)];
   Real3 m1 = m_node_coord[cell.nodeId(1)];
   Real3 m2 = m_node_coord[cell.nodeId(2)];
 
-  //     (M0,M1,M2)=(self.nodes[0],self.nodes[1],self.nodes[2])
+  Real area = _computeAreaTriangle3(cell);    // calculate area
 
-  //     area=self.compute_area()
-  Real area = _computeAreaTriangle3(cell); //m0, m1, m2);
-  //     dPhi0=[M1.y-M2.y,M2.x-M1.x]
-  //     dPhi1=[M2.y-M0.y,M0.x-M2.x]
-  //     dPhi2=[M0.y-M1.y,M1.x-M0.x]
   Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
   Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
   Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
@@ -381,39 +380,10 @@ _computeBMatrix(Cell cell)
   b_matrix(1, 1) = dPhi1.y;
   b_matrix(1, 2) = dPhi2.y;
 
-  //     B=1/(2*area)*array([[dPhi0[0],dPhi1[0],dPhi2[0]],
-  //                             [dPhi0[1],dPhi1[1],dPhi2[1]]])
   b_matrix.multInPlace(1.0 / (2.0 * area));
-  //     return(B)
 
-  //std::cout << "B=";
-  //b_matrix.dump(std::cout);
-  //std::cout << "\n";
-
-  return b_matrix;
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-FixedMatrix<3, 3> Fem1Module::
-_computeIntCDPhiiDPhij(Cell cell)
-{
-  //const Real c = 1.75;
-  FixedMatrix<2, 3> b_matrix = _computeBMatrix(cell);
-  //         B=self.compute_B_matrix()
-  //         print("B=",B, "\nT=",B.T)
-  //         area=self.compute_area()
-  Real area = _computeAreaTriangle3(cell); //m0, m1, m2);
-  //         #z = dot(B.T,B)
-  //         #print("Z=",z)
-  //         #z2 = matmul(B.T,B)
-  //         #print("Z2=",z2)
-  //         int_cdPi_dPj=area*c*dot(B.T,B)
   FixedMatrix<3, 3> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
   int_cdPi_dPj.multInPlace(area * lambda);
-  //         #print(int_cdPi_dPj)
-  //        return int_cdPi_dPj
 
   //info() << "Cell=" << cell.localId();
   //std::cout << " int_cdPi_dPj=";
@@ -440,7 +410,7 @@ _assembleBilinearOperator()
     //             # first compute elementary thermal conductivity matrix
     //             K_e=elem.int_c_dPhii_dPhij(elem.k)
     lambda = m_cell_lambda[cell];
-    auto K_e = _computeIntCDPhiiDPhij(cell);
+    auto K_e = _computeElementMatrixTRIA3(cell);
     //             # assemble elementary matrix into the global one
     //             # elementary terms are positionned into K according
     //             # to the rank of associated node in the mesh.nodes list
