@@ -64,6 +64,7 @@ class Fem1Module
 
   Real lambda;
   Real qdot;
+  Real ElementNodes;
 
   FemLinearSystem2 m_linear_system;
   IItemFamily* m_dof_family = nullptr;
@@ -74,13 +75,15 @@ class Fem1Module
   void _doStationarySolve();
   void _getMaterialParameters();
   void _updateBoundayConditions();
-  void _assembleBilinearOperator();
+  void _assembleBilinearOperatorTRIA3();
+  void _assembleBilinearOperatorQUAD4();
   void _solve();
   void _initBoundaryconditions();
   void _assembleLinearOperator();
-  FixedMatrix<3, 3> _computeIntCDPhiiDPhij(Cell cell);
-  FixedMatrix<2, 3> _computeBMatrix(Cell cell);
+  FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
+  FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
+  Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
@@ -144,7 +147,10 @@ _doStationarySolve()
   _updateBoundayConditions();
 
   // Assemble the FEM bilinear operator (LHS - matrix A)
-  _assembleBilinearOperator();
+  if (options()->meshType == "QUAD4")
+    _assembleBilinearOperatorQUAD4();
+  else
+    _assembleBilinearOperatorTRIA3();
 
   // Assemble the FEM linear operator (RHS - vector b)
   _assembleLinearOperator();
@@ -165,6 +171,10 @@ _getMaterialParameters()
   info() << "Get material parameters...";
   lambda = options()->lambda();
   qdot   = options()->qdot();
+  ElementNodes = 3.;
+
+  if (options()->meshType == "QUAD4")
+    ElementNodes = 4.;
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
@@ -284,7 +294,7 @@ _assembleLinearOperator()
     Real area = _computeAreaTriangle3(cell);
     for (Node node : cell.nodes()) {
       if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
-        rhs_values[node_dof.dofId(node, 0)] += qdot * area / 3;
+        rhs_values[node_dof.dofId(node, 0)] += qdot * area / ElementNodes;
     }
   }
 
@@ -314,6 +324,20 @@ _assembleLinearOperator()
 /*---------------------------------------------------------------------------*/
 
 Real Fem1Module::
+_computeAreaQuad4(Cell cell)
+{
+  Real3 m0 = m_node_coord[cell.nodeId(0)];
+  Real3 m1 = m_node_coord[cell.nodeId(1)];
+  Real3 m2 = m_node_coord[cell.nodeId(2)];
+  Real3 m3 = m_node_coord[cell.nodeId(3)];
+  return 0.5 * (  (m1.x*m2.y + m2.x*m3.y + m3.x*m0.y + m0.x*m1.y)
+                 -(m2.x*m1.y + m3.x*m2.y + m0.x*m3.y + m1.x*m0.y) );
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+Real Fem1Module::
 _computeAreaTriangle3(Cell cell)
 {
   Real3 m0 = m_node_coord[cell.nodeId(0)];
@@ -336,23 +360,23 @@ _computeEdgeLength2(Face face)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-//     """Compute matrix of gradient of FE shape functions for current element
-//     B=[grad(Phi_0) grad(Phi1) grad(Phi2)] and return a numpy array
-//     """
-FixedMatrix<2, 3> Fem1Module::
-_computeBMatrix(Cell cell)
+FixedMatrix<3, 3> Fem1Module::
+_computeElementMatrixTRIA3(Cell cell)
 {
+  // Get coordiantes of the triangle element  TRI3
+  //------------------------------------------------
+  //                  0 o
+  //                   . .
+  //                  .   .
+  //                 .     .
+  //              1 o . . . o 2
+  //------------------------------------------------
   Real3 m0 = m_node_coord[cell.nodeId(0)];
   Real3 m1 = m_node_coord[cell.nodeId(1)];
   Real3 m2 = m_node_coord[cell.nodeId(2)];
 
-  //     (M0,M1,M2)=(self.nodes[0],self.nodes[1],self.nodes[2])
+  Real area = _computeAreaTriangle3(cell);    // calculate area
 
-  //     area=self.compute_area()
-  Real area = _computeAreaTriangle3(cell); //m0, m1, m2);
-  //     dPhi0=[M1.y-M2.y,M2.x-M1.x]
-  //     dPhi1=[M2.y-M0.y,M0.x-M2.x]
-  //     dPhi2=[M0.y-M1.y,M1.x-M0.x]
   Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
   Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
   Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
@@ -366,39 +390,60 @@ _computeBMatrix(Cell cell)
   b_matrix(1, 1) = dPhi1.y;
   b_matrix(1, 2) = dPhi2.y;
 
-  //     B=1/(2*area)*array([[dPhi0[0],dPhi1[0],dPhi2[0]],
-  //                             [dPhi0[1],dPhi1[1],dPhi2[1]]])
   b_matrix.multInPlace(1.0 / (2.0 * area));
-  //     return(B)
 
-  //std::cout << "B=";
-  //b_matrix.dump(std::cout);
+  FixedMatrix<3, 3> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
+  int_cdPi_dPj.multInPlace(area * lambda);
+
+  //info() << "Cell=" << cell.localId();
+  //std::cout << " int_cdPi_dPj=";
+  //int_cdPi_dPj.dump(std::cout);
   //std::cout << "\n";
 
-  return b_matrix;
+  return int_cdPi_dPj;
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<3, 3> Fem1Module::
-_computeIntCDPhiiDPhij(Cell cell)
+FixedMatrix<4, 4> Fem1Module::
+_computeElementMatrixQUAD4(Cell cell)
 {
-  //const Real c = 1.75;
-  FixedMatrix<2, 3> b_matrix = _computeBMatrix(cell);
-  //         B=self.compute_B_matrix()
-  //         print("B=",B, "\nT=",B.T)
-  //         area=self.compute_area()
-  Real area = _computeAreaTriangle3(cell); //m0, m1, m2);
-  //         #z = dot(B.T,B)
-  //         #print("Z=",z)
-  //         #z2 = matmul(B.T,B)
-  //         #print("Z2=",z2)
-  //         int_cdPi_dPj=area*c*dot(B.T,B)
-  FixedMatrix<3, 3> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
+  // Get coordiantes of the quadrangular element  QUAD4
+  //------------------------------------------------
+  //             1 o . . . . o 0
+  //               .         .
+  //               .         .
+  //               .         .
+  //             2 o . . . . o 3
+  //------------------------------------------------
+  Real3 m0 = m_node_coord[cell.nodeId(0)];
+  Real3 m1 = m_node_coord[cell.nodeId(1)];
+  Real3 m2 = m_node_coord[cell.nodeId(2)];
+  Real3 m3 = m_node_coord[cell.nodeId(3)];
+
+  Real area = _computeAreaQuad4(cell);    // calculate area
+
+  Real2 dPhi0(m2.y - m3.y, m3.x - m2.x);
+  Real2 dPhi1(m3.y - m0.y, m0.x - m3.x);
+  Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
+  Real2 dPhi3(m1.y - m2.y, m2.x - m1.x);
+
+  FixedMatrix<2, 4> b_matrix;
+  b_matrix(0, 0) = dPhi0.x;
+  b_matrix(0, 1) = dPhi1.x;
+  b_matrix(0, 2) = dPhi2.x;
+  b_matrix(0, 3) = dPhi3.x;
+
+  b_matrix(1, 0) = dPhi0.y;
+  b_matrix(1, 1) = dPhi1.y;
+  b_matrix(1, 2) = dPhi2.y;
+  b_matrix(1, 3) = dPhi3.y;
+
+  b_matrix.multInPlace(1.0 / (2.0 * area));
+
+  FixedMatrix<4, 4> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
   int_cdPi_dPj.multInPlace(area * lambda);
-  //         #print(int_cdPi_dPj)
-  //        return int_cdPi_dPj
 
   //info() << "Cell=" << cell.localId();
   //std::cout << " int_cdPi_dPj=";
@@ -412,20 +457,17 @@ _computeIntCDPhiiDPhij(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 void Fem1Module::
-_assembleBilinearOperator()
+_assembleBilinearOperatorQUAD4()
 {
-  // for elem in self.mesh.elements:
-
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    if (cell.type() != IT_Triangle3)
-      ARCANE_FATAL("Only Triangle3 cell type is supported");
-    //             # first compute elementary thermal conductivity matrix
-    //             K_e=elem.int_c_dPhii_dPhij(elem.k)
-    lambda = m_cell_lambda[cell];
-    auto K_e = _computeIntCDPhiiDPhij(cell);
+    if (cell.type() != IT_Quad4)
+      ARCANE_FATAL("Only Quad4 cell type is supported");
+
+    lambda = m_cell_lambda[cell];                 // lambda is always considered cell constant
+    auto K_e = _computeElementMatrixQUAD4(cell);  // element stifness matrix
     //             # assemble elementary matrix into the global one
     //             # elementary terms are positionned into K according
     //             # to the rank of associated node in the mesh.nodes list
@@ -438,9 +480,49 @@ _assembleBilinearOperator()
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
       for (Node node2 : cell.nodes()) {
-        //                 K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
+        // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
         Real v = K_e(n1_index, n2_index);
-        //m_k_matrix(node1.localId(), node2.localId()) += v;
+        // m_k_matrix(node1.localId(), node2.localId()) += v;
+        if (node1.isOwn()) {
+          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+        }
+        ++n2_index;
+      }
+      ++n1_index;
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void Fem1Module::
+_assembleBilinearOperatorTRIA3()
+{
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    if (cell.type() != IT_Triangle3)
+      ARCANE_FATAL("Only Triangle3 cell type is supported");
+
+    lambda = m_cell_lambda[cell];                 // lambda is always considered cell constant
+    auto K_e = _computeElementMatrixTRIA3(cell);  // element stifness matrix
+    //             # assemble elementary matrix into the global one
+    //             # elementary terms are positionned into K according
+    //             # to the rank of associated node in the mesh.nodes list
+    //             for node1 in elem.nodes:
+    //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
+    //                 for node2 in elem.nodes:
+    //                     inode2=elem.nodes.index(node2)
+    //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
+    Int32 n1_index = 0;
+    for (Node node1 : cell.nodes()) {
+      Int32 n2_index = 0;
+      for (Node node2 : cell.nodes()) {
+        // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
+        Real v = K_e(n1_index, n2_index);
+        // m_k_matrix(node1.localId(), node2.localId()) += v;
         if (node1.isOwn()) {
           m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
         }
