@@ -4,27 +4,29 @@ project(Passmo LANGUAGES C CXX)
 find_package(Arcane REQUIRED)
 
 add_executable(Passmo
-  AlephFemLinearSystemDoF.cc
   TypesElastodynamic.h
   Elastodynamic_axl.h
   ElastodynamicModule.h
   ElastodynamicModule.cc
   main.cc
-  FemLinearSystemDoF.h
-  FemLinearSystemDoF.cc
   FemUtils.h
   FemUtils.cc
   Integer3std.h
   utilFEM.h
   utilFEM.cc
   NodeDoFs_axl.h
-  NodeDoFs.cc INodeDoFs.h)
+  NodeDoFs.cc
+  INodeDoFs.h
+  ../fem1/FemLinearSystem2.cc
+  ../fem1/FemLinearSystem2.h
+  ../fem1/AlephFemLinearSystem2.cc
+  )
 
 arcane_generate_axl(Elastodynamic)
 arcane_generate_axl(NodeDoFs)
 arcane_add_arcane_libraries_to_target(Passmo)
 
-target_include_directories(Passmo PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(Passmo PUBLIC . ../fem1 ${CMAKE_CURRENT_BINARY_DIR})
 configure_file(Passmo.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Passmo.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
