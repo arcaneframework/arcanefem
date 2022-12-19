@@ -81,6 +81,7 @@ class Fem1Module
   FixedMatrix<3, 3> _computeIntCDPhiiDPhij(Cell cell);
   FixedMatrix<2, 3> _computeBMatrix(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
+  Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
@@ -308,6 +309,20 @@ _assembleLinearOperator()
       }
     }
   }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+Real Fem1Module::
+_computeAreaQuad4(Cell cell)
+{
+  Real3 m0 = m_node_coord[cell.nodeId(0)];
+  Real3 m1 = m_node_coord[cell.nodeId(1)];
+  Real3 m2 = m_node_coord[cell.nodeId(2)];
+  Real3 m3 = m_node_coord[cell.nodeId(3)];
+  return 0.5 * (  (m1.x*m2.y + m2.x*m3.y + m3.x*m0.y + m0.x*m1.y)
+                 -(m2.x*m1.y + m3.x*m2.y + m0.x*m3.y + m1.x*m0.y) );
 }
 
 /*---------------------------------------------------------------------------*/
