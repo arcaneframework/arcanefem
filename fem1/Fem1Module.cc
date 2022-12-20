@@ -276,8 +276,8 @@ _assembleLinearOperator()
     NodeLocalId node_id = *inode;
     if (m_node_is_temperature_fixed[node_id]) {
       DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-      m_linear_system.matrixAddValue(dof_id, dof_id, 1.0e6);
-      Real temperature = 1.0e6 * m_node_temperature[node_id];
+      m_linear_system.matrixAddValue(dof_id, dof_id, 1.0e12);
+      Real temperature = 1.0e12 * m_node_temperature[node_id];
       rhs_values[dof_id] = temperature;
     }
   }
@@ -571,8 +571,8 @@ _solve()
       Node node = *inode;
       info() << "T[" << node.localId() << "][" << node.uniqueId() << "] = "
              << m_node_temperature[node];
-     // info() << "T[]" << node.uniqueId() << " "
-     //        << m_node_temperature[node];
+      //info() << "T[]" << node.uniqueId() << " "
+             << m_node_temperature[node];
     }
   }
 }
