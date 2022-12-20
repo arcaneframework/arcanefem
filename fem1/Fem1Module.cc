@@ -572,7 +572,7 @@ _solve()
       info() << "T[" << node.localId() << "][" << node.uniqueId() << "] = "
              << m_node_temperature[node];
       //info() << "T[]" << node.uniqueId() << " "
-             << m_node_temperature[node];
+      //       << m_node_temperature[node];
     }
   }
 }
