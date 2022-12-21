@@ -85,7 +85,14 @@ class SequentialDoFLinearSystemImpl
       }
     }
 
-    {
+    bool use_direct_solver = true;
+    if (use_direct_solver) {
+      info() << "Using direct solver";
+      Arcane::MatVec::DirectSolver solver;
+      solver.solve(matrix, vector_b, vector_x);
+    }
+    else {
+      info() << "Using internal solver with diagonal preconditioner";
       Real epsilon = 1.0e-15;
       Arcane::MatVec::DiagonalPreconditioner p(matrix);
       Arcane::MatVec::ConjugateGradientSolver solver;
@@ -177,7 +184,7 @@ initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
   IParallelMng* pm = sd->parallelMng();
   bool is_parallel = pm->isParallel();
   // If true, we use a dense debug matrix in sequential
-  bool use_debug_dense_matrix = false;
+  bool use_debug_dense_matrix = true;
   if (is_parallel || !use_debug_dense_matrix) {
     m_p = createAlephDoFLinearSystemImpl(sd, dof_family, solver_name);
   }
