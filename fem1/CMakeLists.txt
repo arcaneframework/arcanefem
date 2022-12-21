@@ -4,19 +4,9 @@ project(FemTest1 LANGUAGES C CXX)
 find_package(Arcane REQUIRED)
 
 add_executable(FemTest1
-  FemUtils.h
-  FemUtils.cc
   Fem1Module.cc
   main.cc
   Fem1_axl.h
-  FemLinearSystem.h
-  FemLinearSystem.cc
-  FemLinearSystem2.h
-  FemLinearSystem2.cc
-  FemDoFsOnNodes.h
-  FemDoFsOnNodes.cc
-  AlephFemLinearSystem.cc
-  AlephFemLinearSystem2.cc
 )
 
 arcane_generate_axl(Fem1)
@@ -33,13 +23,7 @@ configure_file(plancher.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(multi-material.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(plancher.quad4.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
-target_link_libraries(FemTest1 PRIVATE Arcane::arcane_aleph)
-if (TARGET Arcane::arcane_aleph_hypre)
-  set(FEMTEST_HAS_PARALLEL_SOLVER TRUE)
-  target_link_libraries(FemTest1 PRIVATE Arcane::arcane_aleph_hypre)
-else()
-  message(STATUS "WARNING: Target Arcane::arcane_aleph_hypre is not available. Parallel linear solver system is disabled")
-endif()
+target_link_libraries(FemTest1 PUBLIC FemUtils)
 
 # Copy the tests files in the binary directory
 # The '/' after 'tests' is needed because we want to copy the files
@@ -74,7 +58,7 @@ if(FEMTEST_HAS_GMSH_TEST)
 endif()
 
 # If parallel part is available, add some tests
-if(FEMTEST_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
+if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
   add_test(NAME femtest1_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./FemTest1 FemTest1.arc)
   add_test(NAME femtest1_multimaterial_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./FemTest1 FemTest1.MultiMaterial.arc)
   if(FEMTEST_HAS_GMSH_TEST)

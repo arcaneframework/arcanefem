@@ -57,6 +57,7 @@ void _convertNumArrayToCSRMatrix(Matrix& out_matrix, MDSpan<const Real, MDDim2> 
     for (Int32 i = 0; i < matrix_size; ++i) {
       for (Int32 j = 0; j < matrix_size; ++j) {
         Real v = in_matrix(i, j);
+        cout << "MAT[" << i << "]["<< j <<"] = "<< v << endl;
         if (v != 0) {
           columns[fill_index] = j;
           values[fill_index] = v;

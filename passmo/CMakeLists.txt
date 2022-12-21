@@ -9,14 +9,9 @@ add_executable(Passmo
   ElastodynamicModule.h
   ElastodynamicModule.cc
   main.cc
-  FemUtils.h
-  FemUtils.cc
   Integer3std.h
   utilFEM.h
   utilFEM.cc
-  ../fem1/FemLinearSystem2.cc
-  ../fem1/FemLinearSystem2.h
-  ../fem1/AlephFemLinearSystem2.cc
   )
 
 arcane_generate_axl(Elastodynamic)
@@ -27,13 +22,4 @@ target_include_directories(Passmo PUBLIC . ../fem1 ${CMAKE_CURRENT_BINARY_DIR})
 configure_file(Passmo.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Passmo.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
-target_link_libraries(Passmo PRIVATE Arcane::arcane_aleph)
-
-if (TARGET Arcane::arcane_aleph_hypre)
-  set(PASSMO_HAS_PARALLEL_SOLVER TRUE)
-  target_link_libraries(Passmo PRIVATE Arcane::arcane_aleph_hypre)
-else()
-  message(STATUS "WARNING: Target Arcane::arcane_aleph_hypre is not available. Parallel linear solver system is disabled")
-endif()
-
-
+target_link_libraries(Passmo PUBLIC FemUtils)

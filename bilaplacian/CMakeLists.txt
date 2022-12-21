@@ -4,16 +4,9 @@ project(Bilaplacian LANGUAGES C CXX)
 find_package(Arcane REQUIRED)
 
 add_executable(Bilaplacian
-  FemUtils.h
-  FemUtils.cc
   Fem1Module.cc
   main.cc
   Fem1_axl.h
-  ../fem1/FemLinearSystem2.h
-  ../fem1/FemLinearSystem2.cc
-  ../fem1/AlephFemLinearSystem2.cc
-  ../fem1/FemDoFsOnNodes.h
-  ../fem1/FemDoFsOnNodes.cc
 )
 
 arcane_generate_axl(Fem1)
@@ -25,13 +18,7 @@ configure_file(FemTest1.10k.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(plancher.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(plancher_Coarse.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
-target_link_libraries(Bilaplacian PRIVATE Arcane::arcane_aleph)
-if (TARGET Arcane::arcane_aleph_hypre)
-  set(BILAPLACIAN_HAS_PARALLEL_SOLVER TRUE)
-  target_link_libraries(Bilaplacian PRIVATE Arcane::arcane_aleph_hypre)
-else()
-  message(STATUS "WARNING: Target Arcane::arcane_aleph_hypre is not available. Parallel linear solver system is disabled")
-endif()
+target_link_libraries(Bilaplacian PUBLIC FemUtils)
 
 # Copy the tests files in the binary directory
 # The '/' after 'tests' is needed because we want to copy the files
@@ -54,7 +41,7 @@ enable_testing()
 add_test(NAME bilaplacian COMMAND Bilaplacian FemTest1.arc)
 
 # If parallel part is available, add some tests
-if(BILAPLACIAN_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
+if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
   add_test(NAME bilaplacian_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Bilaplacian FemTest1.arc)
   if(BILAPLACIAN_HAS_GMSH_TEST)
     add_test(NAME bilaplacian_10k_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Bilaplacian FemTest1.10k.arc)
