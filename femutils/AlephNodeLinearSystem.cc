@@ -5,13 +5,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemLinearSystem.cc                                          (C) 2022-2022 */
+/* NodeLinearSystem.cc                                          (C) 2022-2022 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include "FemLinearSystem.h"
+#include "NodeLinearSystem.h"
 
 #include <arcane/utils/FatalErrorException.h>
 #include <arcane/utils/NumArray.h>
@@ -27,19 +27,21 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+namespace Arcane::FemUtils
+{
 using namespace Arcane;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-class AlephFemLinearSystemImpl
+class AlephNodeLinearSystemImpl
 : public TraceAccessor
-, public FemLinearSystemImpl
+, public NodeLinearSystemImpl
 {
  public:
 
   // TODO: do not use subDomain() but we need to modify aleph before
-  AlephFemLinearSystemImpl(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable)
+  AlephNodeLinearSystemImpl(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable)
   : TraceAccessor(sd->traceMng())
   , m_sub_domain(sd)
   , m_node_family(node_variable.variable()->itemFamily())
@@ -201,12 +203,17 @@ class AlephFemLinearSystemImpl
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-extern "C++" FemLinearSystemImpl*
-createAlephFemLinearSystemImpl(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable)
+extern "C++" NodeLinearSystemImpl*
+createAlephNodeLinearSystemImpl(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable)
 {
-  auto* x = new AlephFemLinearSystemImpl(sd, node_variable);
+  auto* x = new AlephNodeLinearSystemImpl(sd, node_variable);
   x->build();
   return x;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 }
 
 /*---------------------------------------------------------------------------*/

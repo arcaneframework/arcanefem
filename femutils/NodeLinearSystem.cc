@@ -5,13 +5,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemLinearSystem.cc                                          (C) 2022-2022 */
+/* NodeLinearSystem.cc                                         (C) 2022-2022 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include "FemLinearSystem.h"
+#include "NodeLinearSystem.h"
 
 #include <arcane/utils/FatalErrorException.h>
 #include <arcane/utils/TraceAccessor.h>
@@ -27,21 +27,22 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-using namespace Arcane;
+namespace Arcane::FemUtils
+{
 
-extern "C++" FemLinearSystemImpl*
-createAlephFemLinearSystemImpl(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable);
+extern "C++" NodeLinearSystemImpl*
+createAlephNodeLinearSystemImpl(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-class SequentialFemLinearSystemImpl
+class SequentialNodeLinearSystemImpl
 : public TraceAccessor
-, public FemLinearSystemImpl
+, public NodeLinearSystemImpl
 {
  public:
 
-  SequentialFemLinearSystemImpl(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable)
+  SequentialNodeLinearSystemImpl(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable)
   : TraceAccessor(sd->traceMng())
   , m_sub_domain(sd)
   , m_node_family(node_variable.variable()->itemFamily())
@@ -127,16 +128,16 @@ class SequentialFemLinearSystemImpl
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FemLinearSystem::
-FemLinearSystem()
+NodeLinearSystem::
+NodeLinearSystem()
 {
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FemLinearSystem::
-~FemLinearSystem()
+NodeLinearSystem::
+~NodeLinearSystem()
 {
   delete m_p;
 }
@@ -144,7 +145,7 @@ FemLinearSystem::
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemLinearSystem::
+void NodeLinearSystem::
 _checkInit()
 {
   if (!m_p)
@@ -154,7 +155,7 @@ _checkInit()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemLinearSystem::
+void NodeLinearSystem::
 initialize(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable)
 {
   ARCANE_CHECK_POINTER(sd);
@@ -163,12 +164,12 @@ initialize(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable)
   IParallelMng* pm = sd->parallelMng();
   bool is_parallel = pm->isParallel();
   // If true, we use a dense debug matrix in sequential
-  bool use_debug_dense_matrix = false;
+  bool use_debug_dense_matrix = true;
   if (is_parallel || !use_debug_dense_matrix) {
-    m_p = createAlephFemLinearSystemImpl(sd, node_variable);
+    m_p = createAlephNodeLinearSystemImpl(sd, node_variable);
   }
   else {
-    auto* x = new SequentialFemLinearSystemImpl(sd, node_variable);
+    auto* x = new SequentialNodeLinearSystemImpl(sd, node_variable);
     x->build();
     m_p = x;
   }
@@ -177,7 +178,7 @@ initialize(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemLinearSystem::
+void NodeLinearSystem::
 matrixAddValue(NodeLocalId row, NodeLocalId column, Real value)
 {
   _checkInit();
@@ -187,7 +188,7 @@ matrixAddValue(NodeLocalId row, NodeLocalId column, Real value)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemLinearSystem::
+void NodeLinearSystem::
 setRHSValues(Span<const Real> values)
 {
   _checkInit();
@@ -197,7 +198,7 @@ setRHSValues(Span<const Real> values)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemLinearSystem::
+void NodeLinearSystem::
 solve()
 {
   _checkInit();
@@ -207,11 +208,16 @@ solve()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemLinearSystem::
+void NodeLinearSystem::
 reset()
 {
   delete m_p;
   m_p = nullptr;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 }
 
 /*---------------------------------------------------------------------------*/

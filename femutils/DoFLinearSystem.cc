@@ -5,13 +5,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemLinearSystem2.cc                                          (C) 2022-2022 */
+/* DoFLinearSystem.cc                                          (C) 2022-2022 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include "FemLinearSystem2.h"
+#include "DoFLinearSystem.h"
 
 #include <arcane/utils/FatalErrorException.h>
 #include <arcane/utils/TraceAccessor.h>
@@ -27,21 +27,22 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-using namespace Arcane;
+namespace Arcane::FemUtils
+{
 
-extern "C++" FemLinearSystem2Impl*
-createAlephFemLinearSystem2Impl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name);
+extern "C++" DoFLinearSystemImpl*
+createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-class SequentialFemLinearSystem2Impl
+class SequentialDoFLinearSystemImpl
 : public TraceAccessor
-, public FemLinearSystem2Impl
+, public DoFLinearSystemImpl
 {
  public:
 
-  SequentialFemLinearSystem2Impl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
+  SequentialDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
   : TraceAccessor(sd->traceMng())
   , m_sub_domain(sd)
   , m_dof_family(dof_family)
@@ -139,16 +140,16 @@ class SequentialFemLinearSystem2Impl
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FemLinearSystem2::
-FemLinearSystem2()
+DoFLinearSystem::
+DoFLinearSystem()
 {
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FemLinearSystem2::
-~FemLinearSystem2()
+DoFLinearSystem::
+~DoFLinearSystem()
 {
   delete m_p;
 }
@@ -156,7 +157,7 @@ FemLinearSystem2::
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemLinearSystem2::
+void DoFLinearSystem::
 _checkInit()
 {
   if (!m_p)
@@ -166,7 +167,7 @@ _checkInit()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemLinearSystem2::
+void DoFLinearSystem::
 initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
 {
   ARCANE_CHECK_POINTER(sd);
@@ -178,10 +179,10 @@ initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
   // If true, we use a dense debug matrix in sequential
   bool use_debug_dense_matrix = false;
   if (is_parallel || !use_debug_dense_matrix) {
-    m_p = createAlephFemLinearSystem2Impl(sd, dof_family, solver_name);
+    m_p = createAlephDoFLinearSystemImpl(sd, dof_family, solver_name);
   }
   else {
-    auto* x = new SequentialFemLinearSystem2Impl(sd, dof_family, solver_name);
+    auto* x = new SequentialDoFLinearSystemImpl(sd, dof_family, solver_name);
     x->build();
     m_p = x;
   }
@@ -190,7 +191,7 @@ initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemLinearSystem2::
+void DoFLinearSystem::
 matrixAddValue(DoFLocalId row, DoFLocalId column, Real value)
 {
   _checkInit();
@@ -200,7 +201,7 @@ matrixAddValue(DoFLocalId row, DoFLocalId column, Real value)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemLinearSystem2::
+void DoFLinearSystem::
 setRHSValues(Span<const Real> values)
 {
   _checkInit();
@@ -210,7 +211,7 @@ setRHSValues(Span<const Real> values)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemLinearSystem2::
+void DoFLinearSystem::
 solve()
 {
   _checkInit();
@@ -234,7 +235,7 @@ solve()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-VariableDoFReal& FemLinearSystem2::
+VariableDoFReal& DoFLinearSystem::
 solutionVariable()
 {
   _checkInit();
@@ -244,7 +245,7 @@ solutionVariable()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-VariableDoFReal& FemLinearSystem2::
+VariableDoFReal& DoFLinearSystem::
 rhsVariable()
 {
   _checkInit();
@@ -254,12 +255,17 @@ rhsVariable()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemLinearSystem2::
+void DoFLinearSystem::
 reset()
 {
   delete m_p;
   m_p = nullptr;
   m_item_family = nullptr;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 }
 
 /*---------------------------------------------------------------------------*/

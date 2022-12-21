@@ -11,7 +11,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include "FemLinearSystem2.h"
+#include "DoFLinearSystem.h"
 
 #include <arcane/utils/FatalErrorException.h>
 #include <arcane/utils/NumArray.h>
@@ -27,19 +27,21 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+namespace Arcane::FemUtils
+{
 using namespace Arcane;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-class AlephFemLinearSystem2Impl
+class AlephDoFLinearSystemImpl
 : public TraceAccessor
-, public FemLinearSystem2Impl
+, public DoFLinearSystemImpl
 {
  public:
 
   // TODO: do not use subDomain() but we need to modify aleph before
-  AlephFemLinearSystem2Impl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
+  AlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
   : TraceAccessor(sd->traceMng())
   , m_sub_domain(sd)
   , m_dof_family(dof_family)
@@ -207,12 +209,17 @@ class AlephFemLinearSystem2Impl
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-extern "C++" FemLinearSystem2Impl*
-createAlephFemLinearSystem2Impl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
+extern "C++" DoFLinearSystemImpl*
+createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
 {
-  auto* x = new AlephFemLinearSystem2Impl(sd, dof_family, solver_name);
+  auto* x = new AlephDoFLinearSystemImpl(sd, dof_family, solver_name);
   x->build();
   return x;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 }
 
 /*---------------------------------------------------------------------------*/

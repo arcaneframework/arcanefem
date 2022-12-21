@@ -24,6 +24,12 @@
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+
+namespace Arcane::FemUtils
+{
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 /*!
  * \brief Matrice NxM de taille fixe.
  */
@@ -124,8 +130,9 @@ matrixTranspose(const FixedMatrix<N, M>& a)
 /*!
  * \brief Convert a dense matrix to an Arcane sequential CSR Matrix.
  */
-void _convertNumArrayToCSRMatrix(Arcane::MatVec::Matrix& out_matrix,
-                                 Arcane::MDSpan<const Arcane::Real, Arcane::MDDim2> in_matrix);
+extern "C++" void
+_convertNumArrayToCSRMatrix(Arcane::MatVec::Matrix& out_matrix,
+                            Arcane::MDSpan<const Arcane::Real, Arcane::MDDim2> in_matrix);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -139,8 +146,14 @@ void _convertNumArrayToCSRMatrix(Arcane::MatVec::Matrix& out_matrix,
  * reference value and if the relative difference is greater than \a epsilon
  * this is an error.
  */
-void checkNodeResultFile(Arcane::ITraceMng* tm, const Arcane::String& filename,
-                         const Arcane::VariableNodeReal& node_values, double epsilon);
+extern "C++" void
+checkNodeResultFile(ITraceMng* tm, const String& filename,
+                    const VariableNodeReal& node_values, double epsilon);
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
