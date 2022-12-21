@@ -11,6 +11,8 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 using namespace Arcane;
+using namespace Arcane::FemUtils;
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
@@ -34,7 +36,7 @@ public:
 
 private:
 
- DoFLinearSystem m_linear_system;
+   DoFLinearSystem m_linear_system;
     CellFEMDispatcher m_cell_fem_dispatch;
     Integer m_nb_neqs{0}; // This will be the size of the linear system to solve
 

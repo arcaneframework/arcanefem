@@ -11,7 +11,6 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/utils/NumArray.h>
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IMesh.h>
 #include <arcane/IItemFamily.h>
@@ -27,6 +26,7 @@
 /*---------------------------------------------------------------------------*/
 
 using namespace Arcane;
+using namespace Arcane::FemUtils;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -606,7 +606,7 @@ _checkResultFile()
   if (filename.empty())
     return;
   const double epsilon = 1.0e-4;
-  checkNodeResultFile(traceMng(), filename, m_node_temperature, epsilon);
+  Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_node_temperature, epsilon);
 }
 
 /*---------------------------------------------------------------------------*/
