@@ -14,9 +14,6 @@ add_executable(Passmo
   Integer3std.h
   utilFEM.h
   utilFEM.cc
-  NodeDoFs_axl.h
-  NodeDoFs.cc
-  INodeDoFs.h
   ../fem1/FemLinearSystem2.cc
   ../fem1/FemLinearSystem2.h
   ../fem1/AlephFemLinearSystem2.cc

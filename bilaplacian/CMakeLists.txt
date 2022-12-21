@@ -9,9 +9,6 @@ add_executable(Bilaplacian
   Fem1Module.cc
   main.cc
   Fem1_axl.h
-  FemLinearSystem.h
-  FemLinearSystem.cc
-  AlephFemLinearSystem.cc
   ../fem1/FemLinearSystem2.h
   ../fem1/FemLinearSystem2.cc
   ../fem1/AlephFemLinearSystem2.cc
