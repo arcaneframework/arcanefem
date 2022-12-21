@@ -11,7 +11,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include "FemLinearSystem2.h"
+#include "DoFLinearSystem.h"
 
 #include <arcane/utils/FatalErrorException.h>
 #include <arcane/utils/NumArray.h>
@@ -34,7 +34,7 @@ using namespace Arcane;
 
 class AlephFemLinearSystem2Impl
 : public TraceAccessor
-, public FemLinearSystem2Impl
+, public DoFLinearSystemImpl
 {
  public:
 
@@ -207,7 +207,7 @@ class AlephFemLinearSystem2Impl
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-extern "C++" FemLinearSystem2Impl*
+extern "C++" DoFLinearSystemImpl*
 createAlephFemLinearSystem2Impl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
 {
   auto* x = new AlephFemLinearSystem2Impl(sd, dof_family, solver_name);

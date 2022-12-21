@@ -20,7 +20,7 @@
 
 #include "Fem1_axl.h"
 #include "FemUtils.h"
-#include "FemLinearSystem2.h"
+#include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
 
 /*---------------------------------------------------------------------------*/
@@ -66,7 +66,7 @@ class Fem1Module
   Real qdot;
   Real ElementNodes;
 
-  FemLinearSystem2 m_linear_system;
+  DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;
 

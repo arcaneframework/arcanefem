@@ -6,10 +6,10 @@ find_package(Arcane REQUIRED)
 add_library(FemUtils
   FemUtils.h
   FemUtils.cc
-  FemLinearSystem.h
-  FemLinearSystem.cc
-  FemLinearSystem2.h
-  FemLinearSystem2.cc
+  NodeLinearSystem.h
+  NodeLinearSystem.cc
+  DoFLinearSystem.h
+  DoFLinearSystem.cc
   FemDoFsOnNodes.h
   FemDoFsOnNodes.cc
   AlephFemLinearSystem.cc

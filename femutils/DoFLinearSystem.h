@@ -5,12 +5,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemLinearSystem.h                                           (C) 2022-2022 */
+/* DoFLinearSystem.h                                           (C) 2022-2022 */
 /*                                                                           */
-/* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
+/* Linear system: Matrix A + Vector x + Vector b for Ax=b wit DoFs.          */
 /*---------------------------------------------------------------------------*/
-#ifndef FEMTEST_FEMLINEARSYSTEM_H
-#define FEMTEST_FEMLINEARSYSTEM_H
+#ifndef FEMTEST_DOFLINEARSYSTEM_H
+#define FEMTEST_DOFLINEARSYSTEM_H
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -21,19 +21,21 @@
 /*---------------------------------------------------------------------------*/
 /*!
  * \internal.
- * \brief Implementation for FemLinearSystem.
+ * \brief Implementation for NodeLinearSystem.
  */
-class FemLinearSystemImpl
+class DoFLinearSystemImpl
 {
  public:
 
-  virtual ~FemLinearSystemImpl() = default;
+  virtual ~DoFLinearSystemImpl() = default;
 
  public:
 
-  virtual void matrixAddValue(Arcane::NodeLocalId row, Arcane::NodeLocalId column, Arcane::Real value) = 0;
+  virtual void matrixAddValue(Arcane::DoFLocalId row, Arcane::DoFLocalId column, Arcane::Real value) = 0;
   virtual void setRHSValues(Arcane::Span<const Arcane::Real> values) = 0;
   virtual void solve() = 0;
+  virtual Arcane::VariableDoFReal& solutionVariable() = 0;
+  virtual Arcane::VariableDoFReal& rhsVariable() = 0;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -45,30 +47,34 @@ class FemLinearSystemImpl
  * initialize(). If you want to reuse the same instance for several solving
  * you need to call reset() to destroy the underlying linear system and then
  * you need to call initialize() again.
+ *
+ * The solve() method solves the current linear system. After this variable
+ * returned by the method solutionVariable() will be filled with the values
+ * of the solution vector.
  */
-class FemLinearSystem
+class DoFLinearSystem
 {
  public:
 
-  FemLinearSystem();
-  ~FemLinearSystem();
-  FemLinearSystem(const FemLinearSystem&) = delete;
-  FemLinearSystem(FemLinearSystem&&) = delete;
-  FemLinearSystem& operator=(FemLinearSystem&&) = delete;
-  FemLinearSystem& operator=(const FemLinearSystem&) = delete;
+  DoFLinearSystem();
+  ~DoFLinearSystem();
+  DoFLinearSystem(const DoFLinearSystem&) = delete;
+  DoFLinearSystem(DoFLinearSystem&&) = delete;
+  DoFLinearSystem& operator=(DoFLinearSystem&&) = delete;
+  DoFLinearSystem& operator=(const DoFLinearSystem&) = delete;
 
  public:
 
   /*!
    * \brief Initialize the instance.
    *
-   * The variable node_variable will be filled with the solution value after
+   * The variable dof_variable will be filled with the solution value after
    * the call to the method solve().
    */
-  void initialize(Arcane::ISubDomain* sd, const Arcane::VariableNodeReal& node_variable);
+  void initialize(Arcane::ISubDomain* sd, Arcane::IItemFamily* dof_family, const Arcane::String& solver_name);
 
   //! Add the value \a value to the (row,column) element of the matrix
-  void matrixAddValue(Arcane::NodeLocalId row, Arcane::NodeLocalId column, Arcane::Real value);
+  void matrixAddValue(Arcane::DoFLocalId row, Arcane::DoFLocalId column, Arcane::Real value);
 
   /*!
    * \brief Set the values for vector B.
@@ -89,9 +95,25 @@ class FemLinearSystem
    */
   void reset();
 
+  /*!
+   * \brief Variable containing the solution vector.
+   *
+   * The values of this variable are only relevant after a call to solve().
+   */
+  Arcane::VariableDoFReal& solutionVariable();
+
+  /*!
+   * \brief Variable containing the right hand side vector.
+   *
+   * The values of this variable will be used during the solve() call to
+   * fill the right hand side vector.
+   */
+  Arcane::VariableDoFReal& rhsVariable();
+
  private:
 
-  FemLinearSystemImpl* m_p = nullptr;
+  DoFLinearSystemImpl* m_p = nullptr;
+  Arcane::IItemFamily* m_item_family = nullptr;
 
  private:
 

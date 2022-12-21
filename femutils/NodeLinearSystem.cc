@@ -5,13 +5,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemLinearSystem2.cc                                          (C) 2022-2022 */
+/* NodeLinearSystem.cc                                          (C) 2022-2022 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include "FemLinearSystem2.h"
+#include "NodeLinearSystem.h"
 
 #include <arcane/utils/FatalErrorException.h>
 #include <arcane/utils/TraceAccessor.h>
@@ -29,31 +29,30 @@
 
 using namespace Arcane;
 
-extern "C++" FemLinearSystem2Impl*
-createAlephFemLinearSystem2Impl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name);
+extern "C++" NodeLinearSystemImpl*
+createAlephFemLinearSystemImpl(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-class SequentialFemLinearSystem2Impl
+class SequentialFemLinearSystemImpl
 : public TraceAccessor
-, public FemLinearSystem2Impl
+, public NodeLinearSystemImpl
 {
  public:
 
-  SequentialFemLinearSystem2Impl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
+  SequentialFemLinearSystemImpl(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable)
   : TraceAccessor(sd->traceMng())
   , m_sub_domain(sd)
-  , m_dof_family(dof_family)
-  , m_rhs_variable(VariableBuildInfo(dof_family, solver_name + "RHSVariable"))
-  , m_dof_variable(VariableBuildInfo(dof_family, solver_name + "SolutionVariable"))
+  , m_node_family(node_variable.variable()->itemFamily())
+  , m_node_variable(node_variable)
   {}
 
  public:
 
   void build()
   {
-    Int32 nb_node = m_dof_family->allItems().size();
+    Int32 nb_node = m_node_family->allItems().size();
     m_k_matrix.resize(nb_node, nb_node);
     m_k_matrix.fill(0.0);
     m_rhs_vector.resize(nb_node);
@@ -62,7 +61,7 @@ class SequentialFemLinearSystem2Impl
 
  private:
 
-  void matrixAddValue(DoFLocalId row, DoFLocalId column, Real value) override
+  void matrixAddValue(NodeLocalId row, NodeLocalId column, Real value) override
   {
     m_k_matrix(row, column) += value;
   }
@@ -93,9 +92,9 @@ class SequentialFemLinearSystem2Impl
 
     {
       auto vector_x_view = vector_x.values();
-      ENUMERATE_ (DoF, idof, m_dof_family->allItems()) {
-        DoF dof = *idof;
-        m_dof_variable[dof] = vector_x_view[dof.localId()];
+      ENUMERATE_ (Node, inode, m_node_family->allItems()) {
+        Node node = *inode;
+        m_node_variable[node] = vector_x_view[node.localId()];
       }
     }
   }
@@ -103,30 +102,19 @@ class SequentialFemLinearSystem2Impl
   void setRHSValues(Span<const Real> values) override
   {
     Int32 index = 0;
-    DoFGroup own_dofs = m_dof_family->allItems().own();
-    ENUMERATE_ (DoF, idof, own_dofs) {
-      DoFLocalId dof_id = *idof;
-      m_rhs_vector[dof_id] = values[index];
+    NodeGroup own_nodes = m_node_family->allItems().own();
+    ENUMERATE_ (Node, inode, own_nodes) {
+      NodeLocalId node_id = *inode;
+      m_rhs_vector[node_id] = values[index];
       ++index;
     }
-  }
-
-  VariableDoFReal& solutionVariable() override
-  {
-    return m_dof_variable;
-  }
-
-  VariableDoFReal& rhsVariable() override
-  {
-    return m_rhs_variable;
   }
 
  private:
 
   ISubDomain* m_sub_domain = nullptr;
-  IItemFamily* m_dof_family = nullptr;
-  VariableDoFReal m_rhs_variable;
-  VariableDoFReal m_dof_variable;
+  IItemFamily* m_node_family = nullptr;
+  VariableNodeReal m_node_variable;
 
   NumArray<Real, MDDim2> m_k_matrix;
   //! RHS (Right Hand Side) vector
@@ -139,16 +127,16 @@ class SequentialFemLinearSystem2Impl
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FemLinearSystem2::
-FemLinearSystem2()
+NodeLinearSystem::
+NodeLinearSystem()
 {
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FemLinearSystem2::
-~FemLinearSystem2()
+NodeLinearSystem::
+~NodeLinearSystem()
 {
   delete m_p;
 }
@@ -156,7 +144,7 @@ FemLinearSystem2::
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemLinearSystem2::
+void NodeLinearSystem::
 _checkInit()
 {
   if (!m_p)
@@ -166,22 +154,21 @@ _checkInit()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemLinearSystem2::
-initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
+void NodeLinearSystem::
+initialize(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable)
 {
   ARCANE_CHECK_POINTER(sd);
   if (m_p)
     ARCANE_FATAL("The instance is already initialized");
-  m_item_family = dof_family;
   IParallelMng* pm = sd->parallelMng();
   bool is_parallel = pm->isParallel();
   // If true, we use a dense debug matrix in sequential
   bool use_debug_dense_matrix = false;
   if (is_parallel || !use_debug_dense_matrix) {
-    m_p = createAlephFemLinearSystem2Impl(sd, dof_family, solver_name);
+    m_p = createAlephFemLinearSystemImpl(sd, node_variable);
   }
   else {
-    auto* x = new SequentialFemLinearSystem2Impl(sd, dof_family, solver_name);
+    auto* x = new SequentialFemLinearSystemImpl(sd, node_variable);
     x->build();
     m_p = x;
   }
@@ -190,8 +177,8 @@ initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemLinearSystem2::
-matrixAddValue(DoFLocalId row, DoFLocalId column, Real value)
+void NodeLinearSystem::
+matrixAddValue(NodeLocalId row, NodeLocalId column, Real value)
 {
   _checkInit();
   m_p->matrixAddValue(row, column, value);
@@ -200,7 +187,7 @@ matrixAddValue(DoFLocalId row, DoFLocalId column, Real value)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemLinearSystem2::
+void NodeLinearSystem::
 setRHSValues(Span<const Real> values)
 {
   _checkInit();
@@ -210,56 +197,21 @@ setRHSValues(Span<const Real> values)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemLinearSystem2::
+void NodeLinearSystem::
 solve()
 {
   _checkInit();
-
-  {
-    // For the LinearSystem class we need an array
-    // with only the values for the ownNodes().
-    // The values of 'rhs_values' should not be updated after
-    // this call.
-    UniqueArray<Real> rhs_values_for_linear_system;
-    VariableDoFReal& rhs_values(rhsVariable());
-    ENUMERATE_ (DoF, idof, m_item_family->allItems().own()) {
-      rhs_values_for_linear_system.add(rhs_values[idof]);
-    }
-    setRHSValues(rhs_values_for_linear_system);
-  }
-
   m_p->solve();
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-VariableDoFReal& FemLinearSystem2::
-solutionVariable()
-{
-  _checkInit();
-  return m_p->solutionVariable();
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-VariableDoFReal& FemLinearSystem2::
-rhsVariable()
-{
-  _checkInit();
-  return m_p->rhsVariable();
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemLinearSystem2::
+void NodeLinearSystem::
 reset()
 {
   delete m_p;
   m_p = nullptr;
-  m_item_family = nullptr;
 }
 
 /*---------------------------------------------------------------------------*/

@@ -5,13 +5,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemLinearSystem.cc                                          (C) 2022-2022 */
+/* NodeLinearSystem.cc                                          (C) 2022-2022 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include "FemLinearSystem.h"
+#include "NodeLinearSystem.h"
 
 #include <arcane/utils/FatalErrorException.h>
 #include <arcane/utils/NumArray.h>
@@ -34,7 +34,7 @@ using namespace Arcane;
 
 class AlephFemLinearSystemImpl
 : public TraceAccessor
-, public FemLinearSystemImpl
+, public NodeLinearSystemImpl
 {
  public:
 
@@ -201,7 +201,7 @@ class AlephFemLinearSystemImpl
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-extern "C++" FemLinearSystemImpl*
+extern "C++" NodeLinearSystemImpl*
 createAlephFemLinearSystemImpl(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable)
 {
   auto* x = new AlephFemLinearSystemImpl(sd, node_variable);

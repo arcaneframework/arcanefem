@@ -20,7 +20,7 @@
 
 #include "Fem1_axl.h"
 #include "FemUtils.h"
-#include "FemLinearSystem2.h"
+#include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
 
 /*---------------------------------------------------------------------------*/
@@ -65,7 +65,7 @@ class Fem1Module
   Real lambda;
   Real qdot;
 
-  FemLinearSystem2 m_linear_system;
+  DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
 
  private:

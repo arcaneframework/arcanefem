@@ -4,7 +4,7 @@
 #include "TypesElastodynamic.h"
 #include "Elastodynamic_axl.h"
 #include "FemUtils.h"
-#include "FemLinearSystem2.h"
+#include "DoFLinearSystem.h"
 #include "utilFEM.h"
 
 
@@ -33,7 +33,8 @@ public:
     VersionInfo versionInfo() const override;
 
 private:
-    FemLinearSystem2 m_linear_system;
+
+ DoFLinearSystem m_linear_system;
     CellFEMDispatcher m_cell_fem_dispatch;
     Integer m_nb_neqs{0}; // This will be the size of the linear system to solve
 
