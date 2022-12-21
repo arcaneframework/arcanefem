@@ -59,14 +59,22 @@ class AlephDoFLinearSystemImpl
   void _computeMatrixInfo()
   {
     info() << "[AlephFem] COMPUTE_MATRIX_INFO\n";
+    // Aleph solver:
+    // Hypre = 2
+    // Trilinos = 3
+    // Cuda = 4 (not available)
+    // PETSc = 5
+    // We need to compile Arcane with the needed library and link
+    // the code with the associated aleph library (see CMakeLists.txt)
     m_aleph_kernel = new AlephKernel(m_sub_domain, 2, 1);
     DoFGroup own_dofs = m_dof_family->allItems().own();
     //Int32 nb_node = own_nodes.size();
     //Int32 total_nb_node = m_sub_domain->parallelMng()->reduce(Parallel::ReduceSum, nb_node);
     m_dof_matrix_indexes.fill(-1);
+    AlephIndexing* indexing = m_aleph_kernel->indexing();
     ENUMERATE_ (DoF, idof, own_dofs) {
       DoF dof = *idof;
-      Integer row = m_aleph_kernel->indexing()->get(m_dof_variable, dof);
+      Integer row = indexing->get(m_dof_variable, dof);
       //info() << "ROW=" << row;
       m_dof_matrix_indexes[dof] = row;
     }
@@ -98,9 +106,10 @@ class AlephDoFLinearSystemImpl
     m_aleph_rhs_vector->assemble();
     auto* aleph_solution_vector = m_aleph_solution_vector;
     DoFGroup own_dofs = m_dof_family->allItems().own();
-    UniqueArray<Real> vector_zero(own_dofs.size());
+    const Int32 nb_dof = own_dofs.size();
+    UniqueArray<Real> vector_zero(nb_dof);
     vector_zero.fill(0.0);
-    //aleph_solution_vector->create();
+
     aleph_solution_vector->setLocalComponents(vector_zero);
     aleph_solution_vector->assemble();
 
@@ -125,9 +134,9 @@ class AlephDoFLinearSystemImpl
     rhs_vector->getLocalComponents(rhs_results);
     solution_vector->getLocalComponents(aleph_result);
 
-    bool do_verbose = own_dofs.size() < 200;
+    bool do_verbose = nb_dof < 200;
     Int32 index = 0;
-    ENUMERATE_ (DoF, idof, own_dofs) {
+    ENUMERATE_ (DoF, idof, m_dof_family->allItems().own()) {
       DoF dof = *idof;
 
       m_dof_variable[dof] = aleph_result[m_aleph_kernel->indexing()->get(m_dof_variable, dof)];
