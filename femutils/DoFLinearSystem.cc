@@ -85,7 +85,7 @@ class SequentialDoFLinearSystemImpl
       }
     }
 
-    bool use_direct_solver = true;
+    bool use_direct_solver = matrix_size < 500;
     if (use_direct_solver) {
       info() << "Using direct solver";
       Arcane::MatVec::DirectSolver solver;
