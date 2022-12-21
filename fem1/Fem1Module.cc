@@ -229,6 +229,17 @@ _applyDirichletBoundaryConditions()
       }
     }
   }
+
+  for (const auto& bs : options()->dirichletPointCondition()) {
+    NodeGroup group = bs->node();
+    Real value = bs->value();
+    info() << "Apply Dirichlet point condition node=" << group.name() << " v=" << value;
+    ENUMERATE_ (Node, inode, group) {
+      Node node = *inode;
+      m_node_temperature[node] = value;
+      m_node_is_temperature_fixed[node] = true;
+      }
+    }
 }
 
 /*---------------------------------------------------------------------------*/

@@ -75,6 +75,28 @@
       </simple>
     </complex>
 
+
+    <!-- - - - - - dirichlet-point-condition - - - - -->
+    <complex name  = "dirichlet-point-condition"
+             type  = "DirichletPointCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Dirichelt point condition
+      </description>
+      <extended name = "node" type = "Arcane::NodeGroup">
+        <description>
+          NodeGroup on which to apply these point Dirichelt condition
+        </description>
+      </extended>
+      <simple name = "value" type = "real">
+        <description>
+          Value of the point Dirichelt condition
+        </description>
+      </simple>
+    </complex>
+
     <!-- - - - - - material-property - - - - -->
     <complex name  = "material-property"
              type  = "MaterialProperty"
