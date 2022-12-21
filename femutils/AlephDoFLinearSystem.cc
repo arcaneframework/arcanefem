@@ -34,14 +34,14 @@ using namespace Arcane;
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-class AlephFemLinearSystem2Impl
+class AlephDoFLinearSystemImpl
 : public TraceAccessor
 , public DoFLinearSystemImpl
 {
  public:
 
   // TODO: do not use subDomain() but we need to modify aleph before
-  AlephFemLinearSystem2Impl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
+  AlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
   : TraceAccessor(sd->traceMng())
   , m_sub_domain(sd)
   , m_dof_family(dof_family)
@@ -210,9 +210,9 @@ class AlephFemLinearSystem2Impl
 /*---------------------------------------------------------------------------*/
 
 extern "C++" DoFLinearSystemImpl*
-createAlephFemLinearSystem2Impl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
+createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
 {
-  auto* x = new AlephFemLinearSystem2Impl(sd, dof_family, solver_name);
+  auto* x = new AlephDoFLinearSystemImpl(sd, dof_family, solver_name);
   x->build();
   return x;
 }

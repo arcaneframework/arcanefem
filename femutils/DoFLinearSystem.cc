@@ -31,18 +31,18 @@ namespace Arcane::FemUtils
 {
 
 extern "C++" DoFLinearSystemImpl*
-createAlephFemLinearSystem2Impl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name);
+createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-class SequentialFemLinearSystem2Impl
+class SequentialDoFLinearSystemImpl
 : public TraceAccessor
 , public DoFLinearSystemImpl
 {
  public:
 
-  SequentialFemLinearSystem2Impl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
+  SequentialDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
   : TraceAccessor(sd->traceMng())
   , m_sub_domain(sd)
   , m_dof_family(dof_family)
@@ -179,10 +179,10 @@ initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
   // If true, we use a dense debug matrix in sequential
   bool use_debug_dense_matrix = false;
   if (is_parallel || !use_debug_dense_matrix) {
-    m_p = createAlephFemLinearSystem2Impl(sd, dof_family, solver_name);
+    m_p = createAlephDoFLinearSystemImpl(sd, dof_family, solver_name);
   }
   else {
-    auto* x = new SequentialFemLinearSystem2Impl(sd, dof_family, solver_name);
+    auto* x = new SequentialDoFLinearSystemImpl(sd, dof_family, solver_name);
     x->build();
     m_p = x;
   }

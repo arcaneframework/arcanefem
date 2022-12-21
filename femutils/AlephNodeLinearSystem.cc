@@ -29,20 +29,19 @@
 
 namespace Arcane::FemUtils
 {
-
 using namespace Arcane;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-class AlephFemLinearSystemImpl
+class AlephNodeLinearSystemImpl
 : public TraceAccessor
 , public NodeLinearSystemImpl
 {
  public:
 
   // TODO: do not use subDomain() but we need to modify aleph before
-  AlephFemLinearSystemImpl(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable)
+  AlephNodeLinearSystemImpl(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable)
   : TraceAccessor(sd->traceMng())
   , m_sub_domain(sd)
   , m_node_family(node_variable.variable()->itemFamily())
@@ -205,9 +204,9 @@ class AlephFemLinearSystemImpl
 /*---------------------------------------------------------------------------*/
 
 extern "C++" NodeLinearSystemImpl*
-createAlephFemLinearSystemImpl(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable)
+createAlephNodeLinearSystemImpl(ISubDomain* sd, const Arcane::VariableNodeReal& node_variable)
 {
-  auto* x = new AlephFemLinearSystemImpl(sd, node_variable);
+  auto* x = new AlephNodeLinearSystemImpl(sd, node_variable);
   x->build();
   return x;
 }
