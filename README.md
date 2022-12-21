@@ -17,3 +17,19 @@ After running the test case, you can display the results with ParaView:
 ~~~
 paraview ${BUILD_DIR}/output/depouillement/ensight.case
 ~~~
+
+## Todo List ##
+#### Short term ####
+
+- [x] Reading group of nodes (Arcane::NodeGroup) from msh file 
+- [ ] Point Dirichlet boundary condition
+- [ ] Update documentation
+- [ ] First vectorial FEM example - Bilaplacian
+- [ ] Reorganization (FemLib, Poission, Bilaplacian, .... )
+
+#### Long term ####
+
+- [ ] Parallel visulization
+- [ ] top-ii-vol integration
+- [ ] FEM interpolation
+- [ ] MED file testing
