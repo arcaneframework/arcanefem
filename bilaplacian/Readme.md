@@ -1,6 +1,6 @@
 # Notes on the solver #
 
-The code here is a simple FEM code used to solve a conduction problem on unstructured 2D mesh. 
+The code here is a simple FEM code used to solve a bilaplacian problem on unstructured 2D mesh. 
 
 
 
@@ -8,124 +8,49 @@ The code here is a simple FEM code used to solve a conduction problem on unstruc
 
 #### Problem description ####
 
-The steady state 2D heat conduction equation is solved for a closed meshed domain $\Omega^h$ in order to know the temperature $T(x,y)$ within the domain. The equation reads
+The steady state 2D bilaplacian equation is solved for a closed square meshed domain $\Omega^h = (0,1)^2$ in order to know the vectorial unknowns $\{u_i(x,y)\}_{i=1}^2$, i.e, $u_1$ and $u_2$ within the domain. The system of equations read
 
-$$\frac{\partial}{\partial x}\left(\lambda \frac{\partial T}{\partial x} \right) + \frac{\partial}{\partial y}\left(\lambda \frac{\partial T}{\partial y} \right)+ \dot{\mathcal{Q}} = 0  \quad \forall (x,y)\in\Omega^h $$
+$$\triangle u_1 + u_2  = 0  \quad \forall (x,y)\in\Omega^h $$
 
-or in a more compact form
+$$\triangle u_2  = f  \quad \forall (x,y)\in\Omega^h $$
 
-$$\nabla(\lambda\nabla T) + \dot{\mathcal{Q}} = 0 \quad \forall (x,y)\in\Omega^h.$$
+There are no Neumann boundrary conditions attached to this problem, however to complete the problem description,  four first type (Dirichlet) boundary conditions are applied to this problem:
 
-Here, $\lambda$ is the thermal conductivity of the material and $\dot{\mathcal{Q}}$ is the heat generation source.
+$u_1 = 0.0  \quad \forall(x,y)\in\partial\Omega^h_{\text{Top}}\subset\partial \Omega^h,$
 
+$u_1 = 0.0  \quad \forall(x,y)\in\partial\Omega^h_{\text{Left}}\subset\partial \Omega^h,$
 
+$u_1 = 0.0  \quad \forall(x,y)\in\partial\Omega^h_{\text{Right}}\subset\partial \Omega^h,$
 
-To complete the problem description,  three first type (Dirichlet) boundary conditions are applied to this problem
-
-$T = 50.0 \degree C \quad \forall(x,y)\in\partial\Omega^h_{\text{Cercle}}\subset\partial \Omega^h,$
-
-$T = 5.0\degree C \quad \forall(x,y)\in\partial\Omega^h_{\text{Bas}}\subset\partial \Omega^h,$ and
-
-$T  = 21.0\degree C  \quad \forall(x,y)\in\partial\Omega^h_{\text{Haut}}\subset\partial \Omega^h,$
-
-in addition, other boundaries $\partial\Omega^h_N$ are exposed to  second type (Neumann) boundary condition, the derivative of temperature (heat flux) is zero - insulation boundary
-
-$$\mathbf{q}\cdot\mathbf{n}|_{\partial \Omega^h_N} = 0$$
+$u_1 = 0.0  \quad \forall(x,y)\in\partial\Omega^h_{\text{Bot}}\subset\partial \Omega^h,$
 
 
 
-We work with approximation, $\lambda$ is homogeneous $\lambda : \Omega^h \in \mathbb{R}^{+}$, there is not heat source present $\dot{\mathcal{Q}}=0$.  The variational formulation in $H^1_{0}(\Omega) \subset H^1{\Omega}$  reads
+#### Variational formulation
 
-search FEM trial function $u^h(x,y)$ satisfying
 
-$$- \int_{\Omega^h}\lambda\nabla u^h \nabla  v^h + \int_{\partial\Omega_N} (\overline{q} \cdot \mathbf{n}) v^h + \int_{\Omega^h}\dot{\mathcal{Q}} v^h = 0 \quad \forall v^h\in H^1_0(\Omega^h)$$
 
-given
+In this case  the variational formulation we use the subset of square integrable Sobolev functional space   $H^1_{0}(\Omega) \subset H^1{\Omega}$. The FEM formulation then reads:
 
-$u^h=50.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Cercle}}$,
+search vectorial FEM trial function $(u^h_1,u^h_2)\in\left[H^1_0(\Omega^h)\right]^2$ satisfying
 
-$u^h=5.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Bas}}$ ,
+$$ \int_{\Omega^h}\nabla u^h_1 \nabla  v_2^h +  \int_{\Omega^h}\nabla u^h_2 \nabla  v_1^h + \int_{\Omega^h} u^h_2   v_2^h + \int_{\Omega^h}f v_1^h = 0 \quad \forall (v_1^h,v_2^h)\in \left[H^1_0(\Omega^h)\right]^2$$
 
-$u^h=20.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Haut}}$,
+given:
 
-$\int_{\Omega^h_N}(\mathbf{q} \cdot \mathbf{n}) v^h=0$,
+$u_1 = 0.0  \quad \forall(x,y)\in\partial\Omega^h_{\text{Top}}\subset\partial \Omega^h,$
 
-$\int_{\Omega^h}\dot{\mathcal{Q}} v^h=0$, and
+$u_1 = 0.0  \quad \forall(x,y)\in\partial\Omega^h_{\text{Left}}\subset\partial \Omega^h,$
 
-$\lambda=1.75$
+$u_1 = 0.0  \quad \forall(x,y)\in\partial\Omega^h_{\text{Right}}\subset\partial \Omega^h,$
+
+$u_1 = 0.0  \quad \forall(x,y)\in\partial\Omega^h_{\text{Bot}}\subset\partial \Omega^h,$
+
+$\int_{\Omega^h}f v_1^h=1\times10^5$
 
 
 
 ## The code ##
-
-#### Thermal Conductivity ###
-
-The value of thermal conductivity $\lambda$ can be provided in  `FemTest1.arc` file
-
-```xml
-  <Fem1>
-    <lambda>1.75</lambda>
-  </Fem1>
-```
-
-#### Mesh #### 
-
-The mesh `plancher.msh` is provided in the `FemTest1.arc` file 
-
-```xml
-  <meshes>
-    <mesh>
-      <filename>plancher.msh</filename>
-    </mesh>
-  </meshes>
-```
-
-Please not that use version 4 `.msh` file from `Gmsh`. 
-
-#### Boundary conditions ####
-
-These are provided in `FemTest1.arc` file
-
-```xml
-    <dirichlet-boundary-condition>
-      <surface>Cercle</surface>
-      <value>50.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Bas</surface>
-      <value>5.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Haut</surface>
-      <value>21.0</value>
-    </dirichlet-boundary-condition>
-```
-
-So in the snippet above, three Dirichlet conditions are applied ($50 \degree C, 5.0 \degree C, 21.0 \degree C$)  on three borders ('cercle', 'Bas', 'Haut').
-
-#### Zero flux and zero source condition ###
-
-In FEM the source therm and the flux term are a part of RHS vector. Since here $\int_{\Omega^h}\dot{\mathcal Q} v^h = 0  $ and $\int_{\partial\Omega^h_N} ({\mathbf{q}} \cdot \mathbf{n}) v^h = 0$, the RHS contribution due to these terms is null. These are setup in `Fem1Module.cc`
-
- ```c++
- void Fem1Module::
- _computeGeneralizedFluxes()
- {
-   // TODO: Loop over all faces on the border instead
-   m_rhs_vector.fill(0.0);
- }
- ```
-
-and
-
-```c++
-void Fem1Module::
-_computeSourceTerm()
-{
-  // TODO: Loop over all cells and fill the source term
-  m_rhs_vector.fill(0.0);
-}
-```
 
 
 
