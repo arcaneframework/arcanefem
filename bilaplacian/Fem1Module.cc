@@ -567,6 +567,8 @@ _solve()
       Node node = *inode;
       Real v1 = dof_temperature[node_dof.dofId(node, 0)];
       Real v2 = dof_temperature[node_dof.dofId(node, 1)];
+      m_node_temperature[node] = v1;
+      m_node_temp[node] = v2;
       info() << "Node: " << node.localId() << " V1=" << v1 << " V2=" << v2;
     }
   }

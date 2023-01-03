@@ -9,37 +9,22 @@
    <output-period>1</output-period>
    <output>
      <variable>NodeTemperature</variable>
+     <variable>NodeTemp</variable>
    </output>
   </arcane-post-processing>
 
   <meshes>
     <mesh>
-      <filename>plancher_Coarse.msh</filename>
+      <filename>bilap.msh</filename>
     </mesh>
   </meshes>
 
   <fem1>
     <lambda>1.</lambda>
-    <qdot>1.0</qdot>
+    <qdot>-1.0</qdot>
     <dirichlet-boundary-condition>
-      <surface>Cercle</surface>
-      <value>1.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Bas</surface>
-      <value>1.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Haut</surface>
-      <value>1.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Droite</surface>
-      <value>1.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Gauche</surface>
-      <value>1.0</value>
+      <surface>boundary</surface>
+      <value>0.05</value>
     </dirichlet-boundary-condition>
   </fem1>
 </case>
