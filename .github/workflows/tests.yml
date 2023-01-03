@@ -1,6 +1,10 @@
 name: 'Tests'
 
 on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 env:
@@ -15,13 +19,15 @@ env:
   # MPI
   OMPI_ALLOW_RUN_AS_ROOT: 1
   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+  OMPI_MCA_rmaps_base_oversubscribe: 1
 
 jobs:
   tests:
-    name: 'Tests'
+    name: 'Build and Test'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/arcaneframework/arcane_ubuntu-2204:gcc-12_full_check_latest
+      options: --user root
 
     steps:
       - name: Checkout repo
