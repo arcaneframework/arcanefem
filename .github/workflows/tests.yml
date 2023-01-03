@@ -12,10 +12,6 @@ env:
   CT_RESULT_DIR: '/__w/femtest1/femtest1/test'
   CT_OPTS: "--timeout 300 --output-on-failure"
 
-  # MPI
-  OMPI_ALLOW_RUN_AS_ROOT: 1
-  OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
-
 jobs:
   tests:
     name: 'Tests'
