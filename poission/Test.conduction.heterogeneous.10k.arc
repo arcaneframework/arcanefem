@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
-<case codename="FemTest1" xml:lang="en" codeversion="1.0">
+<case codename="FemTest" xml:lang="en" codeversion="1.0">
   <arcane>
     <title>Sample</title>
-    <timeloop>FemTest1Loop</timeloop>
+    <timeloop>FemTestLoop</timeloop>
   </arcane>
 
   <arcane-post-processing>
@@ -18,7 +18,7 @@
     </mesh>
   </meshes>
 
-  <fem1>
+  <fem>
     <lambda>0.0</lambda>
     <qdot>15.</qdot>
     <dirichlet-boundary-condition>
@@ -45,5 +45,5 @@
       <volume>Mat2</volume>
       <lambda>1.0</lambda>
     </material-property>
-  </fem1>
+  </fem>
 </case>

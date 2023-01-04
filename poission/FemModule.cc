@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* Fem1Module.cc                                               (C) 2022-2022 */
+/* FemModule.cc                                                (C) 2022-2022 */
 /*                                                                           */
 /* Simple module to test simple FEM mechanism.                               */
 /*---------------------------------------------------------------------------*/
@@ -18,7 +18,7 @@
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 
-#include "Fem1_axl.h"
+#include "Fem_axl.h"
 #include "FemUtils.h"
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
@@ -32,15 +32,15 @@ using namespace Arcane::FemUtils;
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
- * \brief Module Fem1.
+ * \brief Module Fem.
  */
-class Fem1Module
-: public ArcaneFem1Object
+class FemModule
+: public ArcaneFemObject
 {
  public:
 
-  explicit Fem1Module(const ModuleBuildInfo& mbi)
-  : ArcaneFem1Object(mbi)
+  explicit FemModule(const ModuleBuildInfo& mbi)
+  : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
   {
     ICaseMng* cm = mbi.subDomain()->caseMng();
@@ -93,10 +93,10 @@ class Fem1Module
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 compute()
 {
-  info() << "Module Fem1 COMPUTE";
+  info() << "Module Fem COMPUTE";
 
   // Stop code after computations
   if (m_global_iteration() > 0)
@@ -112,10 +112,10 @@ compute()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 startInit()
 {
-  info() << "Module Fem1 INIT";
+  info() << "Module Fem INIT";
 
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
@@ -138,7 +138,7 @@ startInit()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _doStationarySolve()
 {
   // # get material parameters
@@ -166,7 +166,7 @@ _doStationarySolve()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _getMaterialParameters()
 {
   info() << "Get material parameters...";
@@ -197,7 +197,7 @@ _getMaterialParameters()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _initBoundaryconditions()
 {
   info() << "Init boundary conditions...";
@@ -209,7 +209,7 @@ _initBoundaryconditions()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _applyDirichletBoundaryConditions()
 {
   // Handle all the Dirichlet boundary conditions.
@@ -246,7 +246,7 @@ _applyDirichletBoundaryConditions()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _updateBoundayConditions()
 {
   info() << "TODO " << A_FUNCINFO;
@@ -260,7 +260,7 @@ _updateBoundayConditions()
 //  - TODO: external fluxes
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _assembleLinearOperator()
 {
   info() << "Assembly of FEM linear operator ";
@@ -335,7 +335,7 @@ _assembleLinearOperator()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-Real Fem1Module::
+Real FemModule::
 _computeAreaQuad4(Cell cell)
 {
   Real3 m0 = m_node_coord[cell.nodeId(0)];
@@ -349,7 +349,7 @@ _computeAreaQuad4(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-Real Fem1Module::
+Real FemModule::
 _computeAreaTriangle3(Cell cell)
 {
   Real3 m0 = m_node_coord[cell.nodeId(0)];
@@ -361,7 +361,7 @@ _computeAreaTriangle3(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-Real Fem1Module::
+Real FemModule::
 _computeEdgeLength2(Face face)
 {
   Real3 m0 = m_node_coord[face.nodeId(0)];
@@ -372,7 +372,7 @@ _computeEdgeLength2(Face face)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<3, 3> Fem1Module::
+FixedMatrix<3, 3> FemModule::
 _computeElementMatrixTRIA3(Cell cell)
 {
   // Get coordiantes of the triangle element  TRI3
@@ -418,7 +418,7 @@ _computeElementMatrixTRIA3(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<4, 4> Fem1Module::
+FixedMatrix<4, 4> FemModule::
 _computeElementMatrixQUAD4(Cell cell)
 {
   // Get coordiantes of the quadrangular element  QUAD4
@@ -468,7 +468,7 @@ _computeElementMatrixQUAD4(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _assembleBilinearOperatorQUAD4()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -508,7 +508,7 @@ _assembleBilinearOperatorQUAD4()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _assembleBilinearOperatorTRIA3()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -548,7 +548,7 @@ _assembleBilinearOperatorTRIA3()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _solve()
 {
   m_linear_system.solve();
@@ -592,7 +592,7 @@ _solve()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _checkResultFile()
 {
   String filename = options()->resultFile();
@@ -606,7 +606,7 @@ _checkResultFile()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCANE_REGISTER_MODULE_FEM1(Fem1Module);
+ARCANE_REGISTER_MODULE_FEM(FemModule);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

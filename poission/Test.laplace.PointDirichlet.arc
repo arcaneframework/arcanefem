@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
-<case codename="FemTest1" xml:lang="en" codeversion="1.0">
+<case codename="FemTest" xml:lang="en" codeversion="1.0">
   <arcane>
     <title>Sample</title>
-    <timeloop>FemTest1Loop</timeloop>
+    <timeloop>FemTestLoop</timeloop>
   </arcane>
 
   <arcane-post-processing>
@@ -18,7 +18,7 @@
     </mesh>
   </meshes>
 
-  <fem1>
+  <fem>
     <lambda>1.75</lambda>
     <qdot>0.0</qdot>
     <result-file>test3_results.txt</result-file>
@@ -38,5 +38,5 @@
       <node>botRightCorner</node>
       <value>50.0</value>
     </dirichlet-point-condition>
-  </fem1>
+  </fem>
 </case>
