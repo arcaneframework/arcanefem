@@ -72,14 +72,15 @@ class FemModule
   void _doStationarySolve();
   void _getMaterialParameters();
   void _updateBoundayConditions();
-  void _assembleBilinearOperator();
+  void _assembleBilinearOperatorTRIA3();
+  void _assembleBilinearOperatorQUAD4();
   void _solve();
   void _initBoundaryconditions();
   void _assembleLinearOperator();
-  FixedMatrix<6, 6> _computeIntCDPhiiDPhij(Cell cell);
-  FixedMatrix<6, 6> _computeIntPhiiDPhij(Cell cell);
-  FixedMatrix<2, 6> _computeBMatrix(Cell cell);
+  FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
+  FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
+  Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
@@ -130,7 +131,10 @@ _doStationarySolve()
   _updateBoundayConditions();
 
   // Assemble the FEM bilinear operator (LHS - matrix A)
-  _assembleBilinearOperator();
+  if (options()->meshType == "QUAD4")
+    _assembleBilinearOperatorQUAD4();
+  else
+    _assembleBilinearOperatorTRIA3();
 
   // Assemble the FEM linear operator (RHS - vector b)
   _assembleLinearOperator();
@@ -256,7 +260,6 @@ _assembleLinearOperator()
     }
   }
 
-  info() << "Applying Dirichlet boundary condition via  penalty method 1 ";
   //----------------------------------------------
   // Constant source term assembly
   //----------------------------------------------
@@ -274,7 +277,7 @@ _assembleLinearOperator()
       }
     }
   }
-  info() << "Applying Dirichlet boundary condition via  penalty method 2 ";
+
   //----------------------------------------------
   // Constant flux term assembly
   //----------------------------------------------
@@ -297,25 +300,20 @@ _assembleLinearOperator()
       }
     }
   }
-  info() << "Applying Dirichlet boundary condition via  penalty method 3 ";
-#if 0
-  {
-    // For the LinearSystem class we need an array
-    // with only the values for the ownNodes().
-    // The values of 'rhs_values' should not be updated after
-    // this call.
-    UniqueArray<Real> rhs_values_for_linear_system;
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      rhs_values_for_linear_system.add(rhs1_values[inode]);
-      rhs_values_for_linear_system.add(rhs2_values[inode]);
-    }
-    for (Int32 i = 0; i < rhs_values_for_linear_system.size(); ++i) {
-      cout << "VECT[" << i << "] = " << rhs_values_for_linear_system[i] << endl;
-    }
-    m_linear_system.setRHSValues(rhs_values_for_linear_system);
-  }
-#endif
-  info() << "Applying Dirichlet boundary condition via  penalty method 4 ";
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+Real FemModule::
+_computeAreaQuad4(Cell cell)
+{
+  Real3 m0 = m_node_coord[cell.nodeId(0)];
+  Real3 m1 = m_node_coord[cell.nodeId(1)];
+  Real3 m2 = m_node_coord[cell.nodeId(2)];
+  Real3 m3 = m_node_coord[cell.nodeId(3)];
+  return 0.5 * (  (m1.x*m2.y + m2.x*m3.y + m3.x*m0.y + m0.x*m1.y)
+                 -(m2.x*m1.y + m3.x*m2.y + m0.x*m3.y + m1.x*m0.y) );
 }
 
 /*---------------------------------------------------------------------------*/
@@ -344,130 +342,202 @@ _computeEdgeLength2(Face face)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-//     """Compute matrix of gradient of FE shape functions for current element
-//     B=[grad(Phi_0) grad(Phi1) grad(Phi2)] and return a numpy array
-//     """
-FixedMatrix<2, 6> FemModule::
-_computeBMatrix(Cell cell)
+FixedMatrix<6, 6> FemModule::
+_computeElementMatrixTRIA3(Cell cell)
 {
+  // Get coordiantes of the triangle element  TRI3
+  //------------------------------------------------
+  //                  0 o
+  //                   . .
+  //                  .   .
+  //                 .     .
+  //              1 o . . . o 2
+  //------------------------------------------------
   Real3 m0 = m_node_coord[cell.nodeId(0)];
   Real3 m1 = m_node_coord[cell.nodeId(1)];
   Real3 m2 = m_node_coord[cell.nodeId(2)];
 
-  //     (M0,M1,M2)=(self.nodes[0],self.nodes[1],self.nodes[2])
+  Real area = _computeAreaTriangle3(cell);    // calculate area
 
-  //     area=self.compute_area()
-  Real area = _computeAreaTriangle3(cell); //m0, m1, m2);
-  //     dPhi0=[M1.y-M2.y,M2.x-M1.x]
-  //     dPhi1=[M2.y-M0.y,M0.x-M2.x]
-  //     dPhi2=[M0.y-M1.y,M1.x-M0.x]
   Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
   Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
   Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
 
-  FixedMatrix<2, 6> b_matrix;
-  b_matrix(0, 0) = dPhi0.x +0;
-  b_matrix(0, 1) = dPhi0.x +0;  
-  b_matrix(0, 2) = dPhi1.x +0;
-  b_matrix(0, 3) = dPhi1.x +0;
-  b_matrix(0, 4) = dPhi2.x +0;
-  b_matrix(0, 5) = dPhi2.x +0;
+  FixedMatrix<1, 6> b_matrix;
+  FixedMatrix<6, 1> bT_matrix;
+  FixedMatrix<6, 6> int_Omega_i;
 
-  b_matrix(1, 0) = dPhi0.y +0;
-  b_matrix(1, 1) = dPhi0.y +0;
-  b_matrix(1, 2) = dPhi1.y +0;
-  b_matrix(1, 3) = dPhi1.y +0;
-  b_matrix(1, 4) = dPhi2.y +0;
-  b_matrix(1, 5) = dPhi2.y +0;
+  for (Int32 i = 0; i<6; i++)
+    for (Int32 j = 0; j<6; j++)
+      int_Omega_i(i,j) = 0.;
 
-  //     B=1/(2*area)*array([[dPhi0[0],dPhi1[0],dPhi2[0]],
-  //                             [dPhi0[1],dPhi1[1],dPhi2[1]]])
-  b_matrix.multInPlace(1.0 / (2.0 * area));
-  //     return(B)
+// -----------------------------------------------------------------------------
+//  dx(u1)dx(v2) + dy(u1)dy(v2) + dx(u2)dx(v1) + dy(u2)dy(v1) + u2v2
+//------------------------------------------------------------------------------
 
-  //std::cout << "B=";
-  //b_matrix.dump(std::cout);
-  //std::cout << "\n";
+  // dx(u1)dx(v2) //
+  b_matrix(0, 0) = dPhi0.x/area;
+  b_matrix(0, 1) = 0.;
+  b_matrix(0, 2) = dPhi1.x/area;
+  b_matrix(0, 3) = 0.;
+  b_matrix(0, 4) = dPhi2.x/area;
+  b_matrix(0, 5) = 0.;
 
-  return b_matrix;
-}
+  b_matrix.multInPlace(0.5f);
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
+  bT_matrix(0, 0) = 0.;
+  bT_matrix(1, 0) = dPhi0.x;
+  bT_matrix(2, 0) = 0.;
+  bT_matrix(3, 0) = dPhi1.x;
+  bT_matrix(4, 0) = 0.;
+  bT_matrix(5, 0) = dPhi2.x;
 
-FixedMatrix<6, 6> FemModule::
-_computeIntCDPhiiDPhij(Cell cell)
-{
-  //const Real c = 1.75;
-  FixedMatrix<2, 6> b_matrix = _computeBMatrix(cell);
-  //         B=self.compute_B_matrix()
-  //         print("B=",B, "\nT=",B.T)
-  //         area=self.compute_area()
-  Real area = _computeAreaTriangle3(cell); //m0, m1, m2);
-  //         #z = dot(B.T,B)
-  //         #print("Z=",z)
-  //         #z2 = matmul(B.T,B)
-  //         #print("Z2=",z2)
-  //         int_cdPi_dPj=area*c*dot(B.T,B)
-  FixedMatrix<6, 6> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
-  int_cdPi_dPj.multInPlace(area);
-  //         #print(int_cdPi_dPj)
-  //        return int_cdPi_dPj
+  bT_matrix.multInPlace(0.5f);
+
+  FixedMatrix<6, 6> int_dxU1dxV1 = matrixMultiplication(bT_matrix, b_matrix);
+  int_Omega_i = matrixAddition( int_Omega_i, int_dxU1dxV1);
+
+  // dy(u1)dy(v2) //
+  b_matrix(0, 0) = dPhi0.y/area;
+  b_matrix(0, 1) = 0.;
+  b_matrix(0, 2) = dPhi1.y/area;
+  b_matrix(0, 3) = 0.;
+  b_matrix(0, 4) = dPhi2.y/area;
+  b_matrix(0, 5) = 0.;
+
+  b_matrix.multInPlace(0.5f);
+
+  bT_matrix(0, 0) = 0.;
+  bT_matrix(1, 0) = dPhi0.y;
+  bT_matrix(2, 0) = 0.;
+  bT_matrix(3, 0) = dPhi1.y;
+  bT_matrix(4, 0) = 0.;
+  bT_matrix(5, 0) = dPhi2.y;
+
+  bT_matrix.multInPlace(0.5f);
+
+  FixedMatrix<6, 6> int_dyU1dyV1 = matrixMultiplication(bT_matrix, b_matrix);
+  int_Omega_i = matrixAddition( int_Omega_i, int_dyU1dyV1);
+
+  // dx(u2)dx(v1) //
+  b_matrix(0, 0) = 0.;
+  b_matrix(0, 1) = dPhi0.x/area;
+  b_matrix(0, 2) = 0.;
+  b_matrix(0, 3) = dPhi1.x/area;
+  b_matrix(0, 4) = 0.;
+  b_matrix(0, 5) = dPhi2.x/area;
+
+  b_matrix.multInPlace(0.5f);
+
+  bT_matrix(0, 0) = dPhi0.x;
+  bT_matrix(1, 0) = 0.;
+  bT_matrix(2, 0) = dPhi1.x;
+  bT_matrix(3, 0) = 0.;
+  bT_matrix(4, 0) = dPhi2.x;
+  bT_matrix(5, 0) = 0.;
+
+  bT_matrix.multInPlace(0.5f);
+
+  FixedMatrix<6, 6> int_dxU2dxV1  = matrixMultiplication(bT_matrix, b_matrix);
+  int_Omega_i = matrixAddition( int_Omega_i, int_dxU2dxV1);
+
+  // dy(u2)dy(v1) //
+  b_matrix(0, 0) = 0.;
+  b_matrix(0, 1) = dPhi0.y/area;
+  b_matrix(0, 2) = 0.;
+  b_matrix(0, 3) = dPhi1.y/area;
+  b_matrix(0, 4) = 0.;
+  b_matrix(0, 5) = dPhi2.y/area;
+
+  b_matrix.multInPlace(0.5f);
+
+  bT_matrix(0, 0) = dPhi0.y;
+  bT_matrix(1, 0) = 0.;
+  bT_matrix(2, 0) = dPhi1.y;
+  bT_matrix(3, 0) = 0.;
+  bT_matrix(4, 0) = dPhi2.y;
+  bT_matrix(5, 0) = 0.;
+
+  bT_matrix.multInPlace(0.5f);
+
+  FixedMatrix<6, 6> int_dyU2dyV1  = matrixMultiplication(bT_matrix, b_matrix);
+  int_Omega_i = matrixAddition( int_Omega_i, int_dyU2dyV1);
+
+  // u2v2 //
+  b_matrix(0, 0) = 0;
+  b_matrix(0, 1) = 1.;
+  b_matrix(0, 2) = 0;
+  b_matrix(0, 3) = 1.;
+  b_matrix(0, 4) = 0;
+  b_matrix(0, 5) = 1.;
+
+  b_matrix.multInPlace(0.5f);
+
+  bT_matrix(0, 0) = 0.;
+  bT_matrix(1, 0) = area/3.;
+  bT_matrix(2, 0) = 0.;
+  bT_matrix(3, 0) = area/3.;
+  bT_matrix(4, 0) = 0.;
+  bT_matrix(5, 0) = area/3.;
+
+  bT_matrix.multInPlace(0.5f);
+
+  FixedMatrix<6, 6> int_U2V2   = matrixMultiplication(bT_matrix, b_matrix);
+
+  for (Int32 i = 0; i<6; i++)
+    int_U2V2(i,i) *= 2.;
+
+  int_Omega_i = matrixAddition( int_Omega_i, int_U2V2);
 
   //info() << "Cell=" << cell.localId();
   //std::cout << " int_cdPi_dPj=";
   //int_cdPi_dPj.dump(std::cout);
   //std::cout << "\n";
 
-  return int_cdPi_dPj;
+  return int_Omega_i;
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<6, 6> FemModule::
-_computeIntPhiiDPhij(Cell cell)
+FixedMatrix<4, 4> FemModule::
+_computeElementMatrixQUAD4(Cell cell)
 {
+  // Get coordiantes of the quadrangular element  QUAD4
+  //------------------------------------------------
+  //             1 o . . . . o 0
+  //               .         .
+  //               .         .
+  //               .         .
+  //             2 o . . . . o 3
+  //------------------------------------------------
+  Real3 m0 = m_node_coord[cell.nodeId(0)];
+  Real3 m1 = m_node_coord[cell.nodeId(1)];
+  Real3 m2 = m_node_coord[cell.nodeId(2)];
+  Real3 m3 = m_node_coord[cell.nodeId(3)];
 
-  Real area = _computeAreaTriangle3(cell); //m0, m1, m2);
-  
-  //const Real c = 1.75;
-  FixedMatrix<1, 6> b_matrix ;// = _computeBMatrix(cell);
-  
-  b_matrix(0, 0) = 1/12.;//dPhi0.x;
-  b_matrix(0, 1) = 1/12.;//dPhi1.x;
-  b_matrix(0, 2) = 1/12.;//dPhi2.x;
-  b_matrix(0, 3) = 1/12.;//dPhi0.x;
-  b_matrix(0, 4) = 1/12.;//dPhi1.x;
-  b_matrix(0, 5) = 1/12.;//dPhi2.x;
-    
-  FixedMatrix<6, 1> bT_matrix ;// = _computeBMatrix(cell);
-  
-  bT_matrix(0, 0) = 1.;//dPhi0.x;
-  bT_matrix(1, 0) = 1.;//dPhi1.x;
-  bT_matrix(2, 0) = 1.;//dPhi2.x;  
-  bT_matrix(3, 0) = 1.;//dPhi0.x;
-  bT_matrix(4, 0) = 1.;//dPhi1.x;
-  bT_matrix(5, 0) = 1.;//dPhi2.x; 
-  
-  //bT_matrix.multInPlace(1.0 / (2.0 * area));
-        
-  //         B=self.compute_B_matrix()
-  //         print("B=",B, "\nT=",B.T)
-  //         area=self.compute_area()
+  Real area = _computeAreaQuad4(cell);    // calculate area
 
-  //         #z = dot(B.T,B)
-  //         #print("Z=",z)
-  //         #z2 = matmul(B.T,B)
-  //         #print("Z2=",z2)
-  //         int_cdPi_dPj=area*c*dot(B.T,B)
-  FixedMatrix<6, 6> int_cdPi_dPj = matrixMultiplication(bT_matrix, b_matrix);
-  
-  for (Int32 i = 0; i<6; i++)
-    int_cdPi_dPj(i,i) *= 2.; 
+  Real2 dPhi0(m2.y - m3.y, m3.x - m2.x);
+  Real2 dPhi1(m3.y - m0.y, m0.x - m3.x);
+  Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
+  Real2 dPhi3(m1.y - m2.y, m2.x - m1.x);
+
+  FixedMatrix<2, 4> b_matrix;
+  b_matrix(0, 0) = dPhi0.x;
+  b_matrix(0, 1) = dPhi1.x;
+  b_matrix(0, 2) = dPhi2.x;
+  b_matrix(0, 3) = dPhi3.x;
+
+  b_matrix(1, 0) = dPhi0.y;
+  b_matrix(1, 1) = dPhi1.y;
+  b_matrix(1, 2) = dPhi2.y;
+  b_matrix(1, 3) = dPhi3.y;
+
+  b_matrix.multInPlace(1.0 / (2.0 * area));
+
+  FixedMatrix<4, 4> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
   int_cdPi_dPj.multInPlace(area);
-  //         #print(int_cdPi_dPj)
-  //        return int_cdPi_dPj
 
   //info() << "Cell=" << cell.localId();
   //std::cout << " int_cdPi_dPj=";
@@ -481,46 +551,88 @@ _computeIntPhiiDPhij(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleBilinearOperator()
+_assembleBilinearOperatorQUAD4()
 {
-  // for elem in self.mesh.elements:
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    if (cell.type() != IT_Quad4)
+      ARCANE_FATAL("Only Quad4 cell type is supported");
+
+    auto K_e = _computeElementMatrixQUAD4(cell);  // element stifness matrix
+    // assemble elementary matrix into the global one elementary terms are
+    // positionned into K according to the rank of associated  node in the
+    // mesh.nodes list and acoording the dof number. Here  for  each  node
+    // two dofs exists [u1,u2]. For each TRIA3 there are 3 nodes hence the
+    // elementary stifness matrix size is (3*2 x 3*2)=(6x6). We will  fill
+    // this below in 4 at a time.
+    Int32 n1_index = 0;
+    for (Node node1 : cell.nodes()) {
+      Int32 n2_index = 0;
+      for (Node node2 : cell.nodes()) {
+        // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
+        //Real v = K_e(n1_index, n2_index);
+        Real v1 = K_e(2 * n1_index    , 2 * n2_index    );
+        Real v2 = K_e(2 * n1_index    , 2 * n2_index + 1);
+        Real v3 = K_e(2 * n1_index + 1, 2 * n2_index    );
+        Real v4 = K_e(2 * n1_index + 1, 2 * n2_index + 1);
+        // m_k_matrix(node1.localId(), node2.localId()) += v;
+        if (node1.isOwn()) {
+          DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
+          DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
+          DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
+          DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
+
+//          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+          m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
+          m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
+          m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v3);
+          m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v4);
+        }
+        ++n2_index;
+      }
+      ++n1_index;
+    }
+
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleBilinearOperatorTRIA3()
+{
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
     if (cell.type() != IT_Triangle3)
       ARCANE_FATAL("Only Triangle3 cell type is supported");
-    //             # first compute elementary thermal conductivity matrix
-    //             K_e=elem.int_c_dPhii_dPhij(elem.k)
-    auto K_e = _computeIntCDPhiiDPhij(cell);
-    auto K_e2 = _computeIntPhiiDPhij(cell);
-    Real area = _computeAreaTriangle3(cell); //m0, m1, m2);
-    //             # assemble elementary matrix into the global one
-    //             # elementary terms are positionned into K according
-    //             # to the rank of associated node in the mesh.nodes list
-    //             for node1 in elem.nodes:
-    //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
-    //                 for node2 in elem.nodes:
-    //                     inode2=elem.nodes.index(node2)
-    //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
+
+    auto K_e = _computeElementMatrixTRIA3(cell);  // element stifness matrix
+    // assemble elementary matrix into the global one elementary terms are
+    // positionned into K according to the rank of associated  node in the
+    // mesh.nodes list and acoording the dof number. Here  for  each  node
+    // two dofs exists [u1,u2]. For each TRIA3 there are 3 nodes hence the
+    // elementary stifness matrix size is (3*2 x 3*2)=(6x6). We will  fill
+    // this below in 4 at a time.
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
       for (Node node2 : cell.nodes()) {
-        //                 K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-        Real v1 = 0; //K_e(2*n1_index  ,   2*n2_index);
-        Real v2 = K_e(2 * n1_index, 2 * n2_index + 1);
-        Real v3 = K_e(2 * n1_index + 1, 2 * n2_index);
-        Real v4 = K_e2(2 * n1_index + 1, 2 * n2_index + 1); //area/12.;//K_e2(2*n1_index+1,  2*n2_index+1 );
-        //m_k_matrix(node1.localId(), node2.localId()) += v;
+        Real v1 = K_e(2 * n1_index    , 2 * n2_index    );
+        Real v2 = K_e(2 * n1_index    , 2 * n2_index + 1);
+        Real v3 = K_e(2 * n1_index + 1, 2 * n2_index    );
+        Real v4 = K_e(2 * n1_index + 1, 2 * n2_index + 1);
+        // m_k_matrix(node1.localId(), node2.localId()) += v;
         if (node1.isOwn()) {
-
           DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
           DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
           DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
           DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
-
+//          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
           m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
           m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
           m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v3);
