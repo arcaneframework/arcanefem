@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemModule.cc                                                (C) 2022-2022 */
+/* FemModule.cc                                                (C) 2022-2023 */
 /*                                                                           */
 /* FEM code to test vectorial FE for Elasticity problem.                     */
 /*---------------------------------------------------------------------------*/
@@ -67,7 +67,6 @@ class FemModule
   Real fy;
   Real mu2;
   Real lambda;
-  Real sqrt2;
 
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
@@ -158,13 +157,12 @@ void FemModule::
 _getMaterialParameters()
 {
   info() << "Get material parameters...";
-  fy   = options()->fy();
-  E    = options()->E();
-  nu   = options()->nu();
+  fy   = options()->fy();                  // body force in Y
+  E    = options()->E();                   // Youngs modulus
+  nu   = options()->nu();                  // Poission ratio
   
-  mu2 = ( E/(2*(1+nu)) )*2;
-  lambda = E*nu/((1+nu)*(1-2*nu));
-  sqrt2 = math::sqrt(2.0);
+  mu2 = ( E/(2*(1+nu)) )*2;                // lame parameter mu * 2
+  lambda = E*nu/((1+nu)*(1-2*nu));         // lame parameter lambda
 }
 
 /*---------------------------------------------------------------------------*/
@@ -189,7 +187,8 @@ _applyDirichletBoundaryConditions()
   // In the 'arc' file, there are in the following format:
   //   <dirichlet-boundary-condition>
   //   <surface>Left</surface>
-  //   <u1>21.0</u1>
+  //   <u1>1.0</u1>
+  //   <u1>0.0</u2>
   // </dirichlet-boundary-condition>
 
   for (const auto& bs : options()->dirichletBoundaryCondition()) {
@@ -222,7 +221,7 @@ _updateBoundayConditions()
 //  - This function enforces a Dirichlet boundary condition in a weak sense
 //    via the penalty method
 //  - The method also adds source term
-//  - TODO: external fluxes
+//  - The method also adds external fluxes
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -232,11 +231,6 @@ _assembleLinearOperator()
   info() << "Applying Dirichlet boundary condition via  penalty method ";
 
   // Temporary variable to keep values for the RHS part of the linear system
-  //VariableNodeReal rhs1_values(VariableBuildInfo(defaultMesh(), "NodeRHS1Values"));
-  //rhs1_values.fill(0.0);
-
-  //VariableNodeReal rhs2_values(VariableBuildInfo(defaultMesh(), "NodeRHS2Values"));
-  //rhs2_values.fill(0.0);
 
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
@@ -277,7 +271,7 @@ _assembleLinearOperator()
   // Constant source term assembly
   //----------------------------------------------
   //
-  //  $int_{Omega}(fy*v^h)$
+  //  $int_{Omega}(fy*v2^h)$
   //  only for noded that are non-Dirichlet
   //----------------------------------------------
   ENUMERATE_ (Cell, icell, allCells()) {
@@ -533,8 +527,6 @@ _computeElementMatrixTRIA3(Cell cell)
 
   FixedMatrix<6, 6> int_mudyU2dyV2  = matrixMultiplication(bT_matrix, b_matrix);
   int_Omega_i = matrixAddition( int_Omega_i, int_mudyU2dyV2);
-  
-
 
   // 0.5*0.5*mu*dy(u1)dy(v1) //
   b_matrix(0, 0) = dPhi0.y/area;
