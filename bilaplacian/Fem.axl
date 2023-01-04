@@ -1,33 +1,30 @@
 <?xml version="1.0" ?>
-<module name="Fem1" version="1.0">
-  <description>Descripteur du module Fem1</description>
+<module name="Fem" version="1.0">
+  <description>Descripteur du module Fem</description>
   <entry-points>
     <entry-point method-name="compute" name="Compute" where="compute-loop" property="none" />
     <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
   </entry-points>
   <variables>
-    <variable field-name="node_temperature" name="NodeTemperature" data-type="real" item-kind="node" dim="0">
-      <description>Temperature on variables for node coords</description>
+    <variable field-name="u1" name="u1" data-type="real" item-kind="node" dim="0">
+      <description>First component of vector variables on node</description>
     </variable>
-    <variable field-name="node_is_temperature_fixed" name="NodeIsTemperatureFixed" data-type="bool" item-kind="node" dim="0">
-      <description>Boolean which is true if temperature is fixed on the node</description>
+    <variable field-name="u1_fixed" name="u1Fixed" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if u1 is fixed on the node</description>
     </variable>
-    <variable field-name="node_temp" name="NodeTemp" data-type="real" item-kind="node" dim="0">
-      <description>Temperature2 on variables for node coords</description>
+    <variable field-name="u2" name="u2" data-type="real" item-kind="node" dim="0">
+      <description>Second component of vector variables on node</description>
     </variable>
-    <variable field-name="node_is_temp_fixed" name="NodeIsTempFixed" data-type="bool" item-kind="node" dim="0">
-      <description>Boolean which is true if temperature is fixed on the node</description>
+    <variable field-name="u2_fixed" name="u2Fixed" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if u2 is fixed on the node</description>
     </variable>    
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
       <description>NodeCoord from Arcane variable</description>
     </variable>
   </variables>
   <options>
-    <simple name="qdot" type="real" default="0.0">
-      <description>Heat source within the material.</description>
-    </simple>
-    <simple name="lambda" type="real" default="1.75">
-      <description>Thermal conductivity of the material.</description>
+    <simple name="f" type="real" default="0.0">
+      <description>Source within the material.</description>
     </simple>
 
     <simple name="result-file" type="string" optional="true">

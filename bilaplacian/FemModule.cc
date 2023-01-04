@@ -5,9 +5,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* Fem1Module.cc                                               (C) 2022-2022 */
+/* FemModule.cc                                                (C) 2022-2022 */
 /*                                                                           */
-/* Simple module to test simple FEM mechanism.                               */
+/* FEM code to test vectorial FE for bilaplacian problem.                    */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -17,7 +17,7 @@
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 
-#include "Fem1_axl.h"
+#include "Fem_axl.h"
 #include "FemUtils.h"
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
@@ -31,15 +31,15 @@ using namespace Arcane::FemUtils;
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
- * \brief Module Fem1.
+ * \brief Module Fem.
  */
-class Fem1Module
-: public ArcaneFem1Object
+class FemModule
+: public ArcaneFemObject
 {
  public:
 
-  explicit Fem1Module(const ModuleBuildInfo& mbi)
-  : ArcaneFem1Object(mbi)
+  explicit FemModule(const ModuleBuildInfo& mbi)
+  : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
   {
     ICaseMng* cm = mbi.subDomain()->caseMng();
@@ -62,8 +62,7 @@ class Fem1Module
 
  private:
 
-  Real lambda;
-  Real qdot;
+  Real f;
 
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
@@ -81,7 +80,7 @@ class Fem1Module
   FixedMatrix<6, 6> _computeIntPhiiDPhij(Cell cell);
   FixedMatrix<2, 6> _computeBMatrix(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
-  Real _computeEdgeLength3(Face face);
+  Real _computeEdgeLength2(Face face);
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
 };
@@ -89,10 +88,10 @@ class Fem1Module
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 compute()
 {
-  info() << "Module Fem1 COMPUTE";
+  info() << "Module Fem COMPUTE";
 
   // Stop code after computations
   if (m_global_iteration() > 0)
@@ -108,31 +107,20 @@ compute()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 startInit()
 {
-  info() << "Module Fem1 INIT";
+  info() << "Module Fem INIT";
 
   m_dofs_on_nodes.initialize(mesh(), 2);
 
-  //Int32 nb_node = allNodes().size();
-  //m_k_matrix.resize(nb_node, nb_node);
-  //m_k_matrix.fill(0.0);
-
-  //m_rhs_vector.resize(nb_node);
-  //m_rhs_vector.fill(0.0);
-
-  // # init mesh
-  // # init behavior
-  // # init behavior on mesh entities
-  // # init BCs
   _initBoundaryconditions();
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _doStationarySolve()
 {
   // # get material parameters
@@ -147,7 +135,7 @@ _doStationarySolve()
   // Assemble the FEM linear operator (RHS - vector b)
   _assembleLinearOperator();
 
-  // # T=linalg.solve(K,RHS)
+  // Solve for [u1,u2]
   _solve();
 
   // Check results
@@ -157,18 +145,17 @@ _doStationarySolve()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _getMaterialParameters()
 {
   info() << "Get material parameters...";
-  lambda = options()->lambda();
-  qdot   = options()->qdot();
+  f   = options()->f();
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _initBoundaryconditions()
 {
   info() << "Init boundary conditions...";
@@ -180,7 +167,7 @@ _initBoundaryconditions()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _applyDirichletBoundaryConditions()
 {
   // Handle all the Dirichlet boundary conditions.
@@ -196,8 +183,8 @@ _applyDirichletBoundaryConditions()
     info() << "Apply Dirichlet boundary condition surface=" << group.name() << " v=" << value;
     ENUMERATE_ (Face, iface, group) {
       for (Node node : iface->nodes()) {
-        m_node_temperature[node] = value;
-        m_node_is_temperature_fixed[node] = true;
+        m_u1[node] = value;
+        m_u1_fixed[node] = true;
       }
     }
   }
@@ -207,7 +194,7 @@ _applyDirichletBoundaryConditions()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _updateBoundayConditions()
 {
   info() << "TODO " << A_FUNCINFO;
@@ -221,7 +208,7 @@ _updateBoundayConditions()
 //  - TODO: external fluxes
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _assembleLinearOperator()
 {
   info() << "Assembly of FEM linear operator ";
@@ -253,7 +240,7 @@ _assembleLinearOperator()
 
   ENUMERATE_ (Node, inode, ownNodes()) {
     NodeLocalId node_id = *inode;
-    if (m_node_is_temperature_fixed[node_id]) {
+    if (m_u1_fixed[node_id]) {
       DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
       DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
       //m_k_matrix(node_id, node_id) += 1.0e6;
@@ -263,7 +250,7 @@ _assembleLinearOperator()
       m_linear_system.matrixAddValue(dof_id2, dof_id2, 0.0);
       //m_rhs_vector[node_id] += 1.0e6 * m_node_temperature[node_id];
       {
-        Real temperature = 1.0e30 * m_node_temperature[node_id];
+        Real temperature = 1.0e30 * m_u1[node_id];
         rhs_values[dof_id1] = temperature;
       }
     }
@@ -274,16 +261,16 @@ _assembleLinearOperator()
   // Constant source term assembly
   //----------------------------------------------
   //
-  //  $int_{Omega}(qdot*v^h)$
+  //  $int_{Omega}(f*v^h)$
   //  only for noded that are non-Dirichlet
   //----------------------------------------------
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
     Real area = _computeAreaTriangle3(cell);
     for (Node node : cell.nodes()) {
-      if (!(m_node_is_temperature_fixed[node]) && node.isOwn()) {
+      if (!(m_u1_fixed[node]) && node.isOwn()) {
         DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-        rhs_values[dof_id1] += qdot * area / 3;
+        rhs_values[dof_id1] += f * area / 3;
       }
     }
   }
@@ -301,9 +288,9 @@ _assembleLinearOperator()
     Real value = bs->value();
     ENUMERATE_ (Face, iface, group) {
       Face face = *iface;
-      Real length = _computeEdgeLength3(face);
+      Real length = _computeEdgeLength2(face);
       for (Node node : iface->nodes()) {
-        if (!(m_node_is_temperature_fixed[node]) && node.isOwn()) {
+        if (!(m_u1_fixed[node]) && node.isOwn()) {
           DoFLocalId dof_id1 = node_dof.dofId(node, 0);
           rhs_values[dof_id1] += value * length / 2.;
         }
@@ -334,7 +321,7 @@ _assembleLinearOperator()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-Real Fem1Module::
+Real FemModule::
 _computeAreaTriangle3(Cell cell)
 {
   Real3 m0 = m_node_coord[cell.nodeId(0)];
@@ -346,8 +333,8 @@ _computeAreaTriangle3(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-Real Fem1Module::
-_computeEdgeLength3(Face face)
+Real FemModule::
+_computeEdgeLength2(Face face)
 {
   Real3 m0 = m_node_coord[face.nodeId(0)];
   Real3 m1 = m_node_coord[face.nodeId(1)];
@@ -360,7 +347,7 @@ _computeEdgeLength3(Face face)
 //     """Compute matrix of gradient of FE shape functions for current element
 //     B=[grad(Phi_0) grad(Phi1) grad(Phi2)] and return a numpy array
 //     """
-FixedMatrix<2, 6> Fem1Module::
+FixedMatrix<2, 6> FemModule::
 _computeBMatrix(Cell cell)
 {
   Real3 m0 = m_node_coord[cell.nodeId(0)];
@@ -408,7 +395,7 @@ _computeBMatrix(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<6, 6> Fem1Module::
+FixedMatrix<6, 6> FemModule::
 _computeIntCDPhiiDPhij(Cell cell)
 {
   //const Real c = 1.75;
@@ -423,7 +410,7 @@ _computeIntCDPhiiDPhij(Cell cell)
   //         #print("Z2=",z2)
   //         int_cdPi_dPj=area*c*dot(B.T,B)
   FixedMatrix<6, 6> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
-  int_cdPi_dPj.multInPlace(area * lambda);
+  int_cdPi_dPj.multInPlace(area);
   //         #print(int_cdPi_dPj)
   //        return int_cdPi_dPj
 
@@ -438,7 +425,7 @@ _computeIntCDPhiiDPhij(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<6, 6> Fem1Module::
+FixedMatrix<6, 6> FemModule::
 _computeIntPhiiDPhij(Cell cell)
 {
 
@@ -478,7 +465,7 @@ _computeIntPhiiDPhij(Cell cell)
   
   for (Int32 i = 0; i<6; i++)
     int_cdPi_dPj(i,i) *= 2.; 
-  int_cdPi_dPj.multInPlace(area * lambda);
+  int_cdPi_dPj.multInPlace(area);
   //         #print(int_cdPi_dPj)
   //        return int_cdPi_dPj
 
@@ -493,7 +480,7 @@ _computeIntPhiiDPhij(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _assembleBilinearOperator()
 {
   // for elem in self.mesh.elements:
@@ -528,7 +515,6 @@ _assembleBilinearOperator()
         Real v4 = K_e2(2 * n1_index + 1, 2 * n2_index + 1); //area/12.;//K_e2(2*n1_index+1,  2*n2_index+1 );
         //m_k_matrix(node1.localId(), node2.localId()) += v;
         if (node1.isOwn()) {
-          //m_linear_system.matrixAddValue(node1, node2, v1, v2, v3, v4);
 
           DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
           DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
@@ -550,14 +536,13 @@ _assembleBilinearOperator()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _solve()
 {
   info() << "Solving Linear system";
   m_linear_system.solve();
 
   // Re-Apply boundary conditions because the solver has modified the value
-  // of node_temperature on all nodes
   _applyDirichletBoundaryConditions();
 
   {
@@ -565,23 +550,16 @@ _solve()
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
-      Real v1 = dof_temperature[node_dof.dofId(node, 0)];
-      Real v2 = dof_temperature[node_dof.dofId(node, 1)];
-      m_node_temperature[node] = v1;
-      m_node_temp[node] = v2;
-      info() << "Node: " << node.localId() << " V1=" << v1 << " V2=" << v2;
+      Real u1_val = dof_temperature[node_dof.dofId(node, 0)];
+      Real u2_val = dof_temperature[node_dof.dofId(node, 1)];
+      m_u1[node] = u1_val;
+      m_u2[node] = u2_val;
+      info() << "Node: " << node.localId() << " U1=" << u1_val << " U2=" << u2_val;
     }
   }
 
-  m_node_temperature.synchronize();
-  m_node_temp.synchronize();
-  // def update_T(self,T):
-  //     """Update temperature value on nodes after the FE resolution"""
-  //     for i in range(0,len(self.mesh.nodes)):
-  //         node=self.mesh.nodes[i]
-  //         # don't update T imposed by Dirichlet BC
-  //         if not node.is_T_fixed:
-  //             self.mesh.nodes[i].T=T[i]
+  m_u1.synchronize();
+  m_u2.synchronize();
 
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {
@@ -589,9 +567,10 @@ _solve()
     std::cout.precision(17);
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      std::cout << "T[" << node.localId() << "][" << node.uniqueId() << "] = "
-                << m_node_temperature[node] << "\n";
-      //std::cout << "T[]" << node.uniqueId() << " " << m_node_temperature[node] << "\n";
+      std::cout << "U1[" << node.localId() << "][" << node.uniqueId() << "] = "
+                << m_u1[node] << " U2[" << node.localId() << "][" << node.uniqueId() << "] = "
+                << m_u2[node] << "\n";
+      //std::cout << "U1[]" << node.uniqueId() << " " << m_u1[node] << "\n";
     }
     std::cout.precision(p);
   }
@@ -600,7 +579,7 @@ _solve()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void Fem1Module::
+void FemModule::
 _checkResultFile()
 {
   String filename = options()->resultFile();
@@ -608,13 +587,13 @@ _checkResultFile()
   if (filename.empty())
     return;
   const double epsilon = 1.0e-4;
-  Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_node_temperature, epsilon);
+  Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_u1, epsilon);
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCANE_REGISTER_MODULE_FEM1(Fem1Module);
+ARCANE_REGISTER_MODULE_FEM(FemModule);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

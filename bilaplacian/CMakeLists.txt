@@ -4,15 +4,15 @@ project(Bilaplacian LANGUAGES C CXX)
 find_package(Arcane REQUIRED)
 
 add_executable(Bilaplacian
-  Fem1Module.cc
+  FemModule.cc
   main.cc
-  Fem1_axl.h
+  Fem_axl.h
 )
 
-arcane_generate_axl(Fem1)
+arcane_generate_axl(Fem)
 arcane_add_arcane_libraries_to_target(Bilaplacian)
-target_include_directories(Bilaplacian PUBLIC . ../fem1 ${CMAKE_CURRENT_BINARY_DIR})
-configure_file(FemTest1.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+target_include_directories(Bilaplacian PUBLIC . ../fem ${CMAKE_CURRENT_BINARY_DIR})
+configure_file(Bilaplacian.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.Bilaplacian.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(bilap.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
