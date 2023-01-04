@@ -1,10 +1,8 @@
-# Notes on the solver #
+# Solving Poission equation with FEM and Arcane #
 
-The code here is a simple FEM code used to solve a conduction problem on unstructured 2D mesh. 
+Here Poission equation, which is one of the basics PDEs, is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver. The Poisson equation arises in numerous physical contexts, e.g., heat conduction, diffusion of substances, membrane elasticity,  inviscid fluid flow, electrostatics, twisting of elastic rods, and water waves. Here in this tutorial we will focus on the heat conduction.
 
-
-
-## Theory ##
+## Theory of heat conduction ##
 
 #### Problem description ####
 
@@ -74,7 +72,7 @@ $\lambda=1.75$
 
 #### Thermal Conductivity ###
 
-The value of thermal conductivity $\lambda$  and heat source $\dot{\mathcal{Q}}$ can be provided in  `FemTest1.arc` file
+The value of thermal conductivity $\lambda$  and heat source $\dot{\mathcal{Q}}$ can be provided in  `Test.conduction.arc` file
 
 ```xml
   <Fem1>
@@ -85,7 +83,7 @@ The value of thermal conductivity $\lambda$  and heat source $\dot{\mathcal{Q}}$
 
 #### Mesh #### 
 
-The mesh `plancher.msh` is provided in the `FemTest1.arc` file 
+The mesh `plancher.msh` is provided in the `Test.conduction.arc` file 
 
 ```xml
   <meshes>
@@ -99,7 +97,7 @@ Please not that use version 4.1 `.msh` file from `Gmsh`.
 
 #### Boundary conditions ####
 
-The Dirichlet (constant temperature) boundary conditions  are provided in `FemTest1.arc` file
+The Dirichlet (constant temperature) boundary conditions  are provided in `Test.conduction.arc` file
 
 ```xml
     <dirichlet-boundary-condition>
@@ -118,7 +116,7 @@ The Dirichlet (constant temperature) boundary conditions  are provided in `FemTe
 
 So in the snippet above, three Dirichlet conditions are applied ($50 \degree C, 5.0 \degree C, 21.0 \degree C$)  on three borders ('cercle', 'Bas', 'Haut').
 
-The Neumann  boundary conditions  are also provided in `FemTest1.arc` file
+The Neumann  boundary conditions  are also provided in `Test.conduction.arc` file
 
 ```xml
     <neumann-boundary-condition>
