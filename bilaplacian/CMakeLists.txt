@@ -14,6 +14,7 @@ arcane_add_arcane_libraries_to_target(Bilaplacian)
 target_include_directories(Bilaplacian PUBLIC . ../fem ${CMAKE_CURRENT_BINARY_DIR})
 configure_file(Bilaplacian.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.Bilaplacian.direct.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Test.Bilaplacian.internal_pcg.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.Bilaplacian.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(bilap.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
@@ -21,6 +22,7 @@ target_link_libraries(Bilaplacian PUBLIC FemUtils)
 
 enable_testing()
 add_test(NAME bilaplacian_direct COMMAND Bilaplacian Test.Bilaplacian.direct.arc)
+add_test(NAME bilaplacian_internal_pcg COMMAND Bilaplacian Test.Bilaplacian.internal_pcg.arc)
 add_test(NAME bilaplacian COMMAND Bilaplacian Test.Bilaplacian.arc)
 
 # If parallel part is available, add some tests

@@ -26,7 +26,8 @@
       <value>0.05</value>
     </dirichlet-boundary-condition>
     <linear-system name="SequentialBasicLinearSystem">
-      <solver-method>direct</solver-method>
+      <epsilon>1.0e-25</epsilon>
+      <solver-method>pcg</solver-method>
     </linear-system>
   </fem>
 </case>
