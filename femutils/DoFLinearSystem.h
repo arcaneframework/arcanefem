@@ -120,7 +120,7 @@ class DoFLinearSystem
   //! Set the factory used to create the underlying linear system solver
   void setLinearSystemFactory(IDoFLinearSystemFactory* factory)
   {
-    factory = m_linear_system_factory;
+    m_linear_system_factory = factory;
   }
 
   IDoFLinearSystemFactory* linearSystemFactory() const

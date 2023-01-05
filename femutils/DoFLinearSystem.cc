@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2022 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2023 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* DoFLinearSystem.cc                                          (C) 2022-2022 */
+/* DoFLinearSystem.cc                                          (C) 2022-2023 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
 /*---------------------------------------------------------------------------*/
@@ -16,6 +16,7 @@
 #include <arcane/utils/FatalErrorException.h>
 #include <arcane/utils/TraceAccessor.h>
 #include <arcane/utils/NumArray.h>
+#include <arcane/utils/ITraceMng.h>
 
 #include <arcane/VariableTypes.h>
 #include <arcane/IItemFamily.h>
@@ -223,9 +224,12 @@ void DoFLinearSystem::
 initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
 {
   ARCANE_CHECK_POINTER(sd);
+  ARCANE_CHECK_POINTER(dof_family);
+  ITraceMng* tm = dof_family->traceMng();
   if (m_p)
     ARCANE_FATAL("The instance is already initialized");
   if (!m_linear_system_factory) {
+    tm->info() << "Creating default Linear System Factory";
     if (!m_default_linear_system_factory)
       m_default_linear_system_factory = new DefaultDoFLinearSystemFactory();
     m_linear_system_factory = m_default_linear_system_factory;
