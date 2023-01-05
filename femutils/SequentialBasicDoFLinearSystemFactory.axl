@@ -1,0 +1,24 @@
+<?xml version="1.0" ?><!-- -*- SGML -*- -->
+<service name="SequentialBasicDoFLinearSystemFactory" version="1.0" type="caseoption" namespace-name="Arcane::FemUtils">
+  <interface name="Arcane::FemUtils::IDoFLinearSystemFactory" />
+  <description>
+    Simple linear system solver.
+
+    It only works in sequential and use a dense matrix to store values.
+    It should not be used for matrix whose dimension is greater than 1000.
+  </description>
+    
+  <options>
+    <simple name="epsilon" type="real" default="1.0e-15" />
+
+    <enumeration name = "solver-method"
+                 type = "Arcane::FemUtils::eInternalSolverMethod"
+                 default = "auto"
+                 >
+      <enumvalue genvalue="Arcane::FemUtils::eInternalSolverMethod::Auto" name="auto"/>
+      <enumvalue genvalue="Arcane::FemUtils::eInternalSolverMethod::Direct" name="direct"/>
+      <enumvalue genvalue="Arcane::FemUtils::eInternalSolverMethod::PCG" name="pcg"/>
+    </enumeration>
+
+  </options>
+</service>

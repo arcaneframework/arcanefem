@@ -1,0 +1,32 @@
+<?xml version="1.0" ?><!-- -*- SGML -*- -->
+<service name="AlephDoFLinearSystemFactory" version="1.0" type="caseoption" namespace-name="Arcane::FemUtils">
+  <interface name="Arcane::FemUtils::IDoFLinearSystemFactory" />
+  <options>
+    <simple name="epsilon" type="real" default="1.0e-15" />
+
+    <enumeration name = "preconditioner"
+                 type = "Arcane::TypesSolver::ePreconditionerMethod"
+                 default = "diagonal"
+                 >
+      <enumvalue genvalue="Arcane::TypesSolver::DIAGONAL" name="diagonal" />
+      <enumvalue genvalue="Arcane::TypesSolver::AMG" name="amg" />
+      <enumvalue genvalue="Arcane::TypesSolver::AINV" name="ainv" />
+      <enumvalue genvalue="Arcane::TypesSolver::IC" name="ic" />
+      <enumvalue genvalue="Arcane::TypesSolver::POLY" name="poly" />
+      <enumvalue genvalue="Arcane::TypesSolver::ILU" name="ilu" />
+      <enumvalue genvalue="Arcane::TypesSolver::ILUp" name="ilup"/>
+      <enumvalue genvalue="Arcane::TypesSolver::NONE" name="none"/>
+    </enumeration>
+
+    <enumeration name = "solver-method"
+                 type = "Arcane::TypesSolver::eSolverMethod"
+                 default = "pcg"
+                 >
+      <enumvalue genvalue="Arcane::TypesSolver::PCG" name="pcg"/>
+      <enumvalue genvalue="Arcane::TypesSolver::BiCGStab" name="bicgstab"/>
+      <enumvalue genvalue="Arcane::TypesSolver::BiCGStab2" name="bicgstab2"/>
+      <enumvalue genvalue="Arcane::TypesSolver::GMRES" name="gmres"/>
+    </enumeration>
+
+  </options>
+</service>

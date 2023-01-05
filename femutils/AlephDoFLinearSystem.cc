@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2022 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2023 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* AlephFemLinearSystem2.cc                                    (C) 2022-2022 */
+/* AlephDoFLinearSystem.cc                                     (C) 2022-2023 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
 /*---------------------------------------------------------------------------*/
@@ -23,6 +23,8 @@
 #include <arcane/aleph/Aleph.h>
 
 #include "FemUtils.h"
+#include "IDoFLinearSystemFactory.h"
+#include "AlephDoFLinearSystemFactory_axl.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -50,9 +52,20 @@ class AlephDoFLinearSystemImpl
   , m_dof_matrix_indexes(VariableBuildInfo(m_dof_family, solver_name + "DoFMatrixIndexes"))
   {}
 
+  ~AlephDoFLinearSystemImpl()
+  {
+    delete m_aleph_params;
+  }
+
  public:
 
-  void build() { _computeMatrixInfo(); }
+  void build()
+  {
+    _computeMatrixInfo();
+    m_aleph_params = _createAlephParam();
+  }
+
+  AlephParams* params() const { return m_aleph_params; }
 
  private:
 
@@ -94,6 +107,8 @@ class AlephDoFLinearSystemImpl
       ARCANE_FATAL("Row is null");
     if (column.isNull())
       ARCANE_FATAL("Column is null");
+    if (value==0.0)
+      return;
     ItemInfoListView item_list_view(m_dof_family);
     m_aleph_matrix->addValue(m_dof_variable, item_list_view[row], m_dof_variable, item_list_view[column], value);
   }
@@ -113,8 +128,6 @@ class AlephDoFLinearSystemImpl
     aleph_solution_vector->setLocalComponents(vector_zero);
     aleph_solution_vector->assemble();
 
-    auto* aleph_params = _createAlephParam();
-
     Int32 nb_iteration = 0;
     Real residual_norm = 0.0;
     info() << "[AlephFem] BEGIN SOLVING WITH ALEPH";
@@ -123,7 +136,7 @@ class AlephDoFLinearSystemImpl
                           m_aleph_rhs_vector,
                           nb_iteration,
                           &residual_norm,
-                          aleph_params,
+                          m_aleph_params,
                           false);
     info() << "[AlephFem] END SOLVING WITH ALEPH r=" << residual_norm
            << " nb_iter=" << nb_iteration;
@@ -135,6 +148,7 @@ class AlephDoFLinearSystemImpl
     solution_vector->getLocalComponents(aleph_result);
 
     bool do_verbose = nb_dof < 200;
+    do_verbose = false;
     Int32 index = 0;
     ENUMERATE_ (DoF, idof, m_dof_family->allItems().own()) {
       DoF dof = *idof;
@@ -182,13 +196,13 @@ class AlephDoFLinearSystemImpl
                               1.e-40, // m_param_min_rhs_norm
                               false, // m_param_convergence_analyse
                               true, // m_param_stop_error_strategy
-                              false, // m_param_write_matrix_to_file_error_strategy
+                              true, // m_param_write_matrix_to_file_error_strategy
                               "SolveErrorAlephMatrix.dbg", // m_param_write_matrix_name_error_strategy
                               false, // m_param_listing_output
                               0., // m_param_threshold
                               false, // m_param_print_cpu_time_resolution
                               0, // m_param_amg_coarsening_method: par défault celui de Sloop,
-                              0, // m_param_output_level
+                              100, // m_param_output_level
                               1, // m_param_amg_cycle: 1-cycle amg en V, 2= cycle amg en W, 3=cycle en Full Multigrid V
                               1, // m_param_amg_solver_iterations
                               1, // m_param_amg_smoother_iterations
@@ -213,6 +227,33 @@ class AlephDoFLinearSystemImpl
   AlephMatrix* m_aleph_matrix = nullptr;
   AlephVector* m_aleph_rhs_vector = nullptr;
   AlephVector* m_aleph_solution_vector = nullptr;
+  AlephParams* m_aleph_params = nullptr;
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+class AlephDoFLinearSystemFactoryService
+: public ArcaneAlephDoFLinearSystemFactoryObject
+{
+ public:
+
+  AlephDoFLinearSystemFactoryService(const ServiceBuildInfo& sbi)
+  : ArcaneAlephDoFLinearSystemFactoryObject(sbi)
+  {
+  }
+
+  DoFLinearSystemImpl*
+  createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
+  {
+    auto* x = new AlephDoFLinearSystemImpl(sd, dof_family, solver_name);
+    x->build();
+    auto* p = x->params();
+    p->setEpsilon(options()->epsilon());
+    p->setPrecond(options()->preconditioner());
+    p->setMethod(options()->solverMethod());
+    return x;
+  }
 };
 
 /*---------------------------------------------------------------------------*/
@@ -229,6 +270,11 @@ createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const St
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+ARCANE_REGISTER_SERVICE_ALEPHDOFLINEARSYSTEMFACTORY(AlephLinearSystem,
+                                                    AlephDoFLinearSystemFactoryService);
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 }
 
 /*---------------------------------------------------------------------------*/

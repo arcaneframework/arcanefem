@@ -91,6 +91,23 @@ class FixedMatrix
 /*---------------------------------------------------------------------------*/
 
 template <int N, int M> inline FixedMatrix<N, N>
+matrixAddition(const FixedMatrix<N, M>& a, const FixedMatrix<M, N>& b)
+{
+  using namespace Arcane;
+  FixedMatrix<N, N> new_matrix;
+
+  for (Int32 i = 0; i < N; ++i) {
+    for (Int32 j = 0; j < N; ++j) {
+       new_matrix(i, j) = a(i, j) + b(i, j);
+    }
+  }
+  return new_matrix;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+template <int N, int M> inline FixedMatrix<N, N>
 matrixMultiplication(const FixedMatrix<N, M>& a, const FixedMatrix<M, N>& b)
 {
   using namespace Arcane;

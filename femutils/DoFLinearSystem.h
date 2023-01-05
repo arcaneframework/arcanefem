@@ -22,6 +22,7 @@
 
 namespace Arcane::FemUtils
 {
+class IDoFLinearSystemFactory;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -87,7 +88,7 @@ class DoFLinearSystem
    *
    * There is one value in values for each own nodes of the current sub-domain.
    */
-  void setRHSValues(Arcane::Span<const Arcane::Real> values);
+  void setRHSValues(Span<const Real> values);
 
   /*!
    * \brief Solve the current linear system.
@@ -106,7 +107,7 @@ class DoFLinearSystem
    *
    * The values of this variable are only relevant after a call to solve().
    */
-  Arcane::VariableDoFReal& solutionVariable();
+  VariableDoFReal& solutionVariable();
 
   /*!
    * \brief Variable containing the right hand side vector.
@@ -114,12 +115,25 @@ class DoFLinearSystem
    * The values of this variable will be used during the solve() call to
    * fill the right hand side vector.
    */
-  Arcane::VariableDoFReal& rhsVariable();
+  VariableDoFReal& rhsVariable();
+
+  //! Set the factory used to create the underlying linear system solver
+  void setLinearSystemFactory(IDoFLinearSystemFactory* factory)
+  {
+    m_linear_system_factory = factory;
+  }
+
+  IDoFLinearSystemFactory* linearSystemFactory() const
+  {
+    return m_linear_system_factory;
+  }
 
  private:
 
   DoFLinearSystemImpl* m_p = nullptr;
-  Arcane::IItemFamily* m_item_family = nullptr;
+  IItemFamily* m_item_family = nullptr;
+  IDoFLinearSystemFactory* m_linear_system_factory = nullptr;
+  IDoFLinearSystemFactory* m_default_linear_system_factory = nullptr;
 
  private:
 

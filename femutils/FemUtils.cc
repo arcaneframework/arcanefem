@@ -53,13 +53,16 @@ void _convertNumArrayToCSRMatrix(Matrix& out_matrix, MDSpan<const Real, MDDim2> 
   UniqueArray<Int32> columns(nb_non_zero);
   UniqueArray<Real> values(nb_non_zero);
 
+  std::ostringstream ostr;
+  ostr.flags(ios::scientific);
+  ostr.precision(17);
   {
     Int32 fill_index = 0;
     for (Int32 i = 0; i < matrix_size; ++i) {
       for (Int32 j = 0; j < matrix_size; ++j) {
         Real v = in_matrix(i, j);
-        if (matrix_size<200)
-          cout << "MAT[" << i << "][" << j << "] = " << v << endl;
+        if (matrix_size<200 && v!=0.0)
+          ostr << "MAT[" << i << "][" << j << "] = " << v << endl;
         if (v != 0) {
           columns[fill_index] = j;
           values[fill_index] = v;
@@ -68,7 +71,7 @@ void _convertNumArrayToCSRMatrix(Matrix& out_matrix, MDSpan<const Real, MDDim2> 
       }
     }
   }
-
+  std::cout << ostr.str();
   out_matrix.setRowsSize(nb_non_zero_in_row);
   out_matrix.setValues(columns, values);
 }
