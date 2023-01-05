@@ -195,14 +195,14 @@ _applyDirichletBoundaryConditions()
     FaceGroup group = bs->surface();
     Real u1_val = bs->u1();
     Real u2_val = bs->u2();
-    
+
     if( bs->u1.isPresent() && bs->u2.isPresent()) {
       info() << "Apply Dirichlet boundary condition surface=" << group.name() << " u1= " << u1_val << " u2= " << u2_val;
       ENUMERATE_ (Face, iface, group) {
         for (Node node : iface->nodes()) {
           m_u1[node] = u1_val; 
           m_u2[node] = u2_val;
-          m_u1_fixed[node] = true;  
+          m_u1_fixed[node] = true;
           m_u2_fixed[node] = true;
         }
       }
@@ -214,7 +214,7 @@ _applyDirichletBoundaryConditions()
       ENUMERATE_ (Face, iface, group) {
         for (Node node : iface->nodes()) {
           m_u1[node] = u1_val; 
-          m_u1_fixed[node] = true;  
+          m_u1_fixed[node] = true;
         }
       }
       continue;
