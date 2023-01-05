@@ -267,40 +267,40 @@ _initBoundaryConditions(){
         switch (type)
         {
         case TypesElastodynamic::AccelerationX:
-          m_acceleration[node].x = value;
+          m_node_has_imposed_acc[node].x = 1;
           break;
         case TypesElastodynamic::AccelerationY:
-          m_acceleration[node].y = value;
+          m_node_has_imposed_acc[node].y = 1;
           break;
         case TypesElastodynamic::AccelerationZ:
-          m_acceleration[node].z = value;
+          m_node_has_imposed_acc[node].z = 1;
           break;
         case TypesElastodynamic::DisplacementX:
-          m_displacement[node].x = value;
+          m_node_has_imposed_displ[node].x = 1;
           break;
         case TypesElastodynamic::DisplacementY:
-          m_displacement[node].y = value;
+          m_node_has_imposed_displ[node].y = 1;
           break;
         case TypesElastodynamic::DisplacementZ:
-          m_displacement[node].z = value;
+          m_node_has_imposed_displ[node].z = 1;
           break;
         case TypesElastodynamic::VelocityX:
-          m_velocity[node].x = value;
+          m_node_has_imposed_vel[node].x = 1;
           break;
         case TypesElastodynamic::VelocityY:
-          m_velocity[node].y = value;
+          m_node_has_imposed_vel[node].y = 1;
           break;
         case TypesElastodynamic::VelocityZ:
-          m_velocity[node].z = value;
+          m_node_has_imposed_vel[node].z = 1;
           break;
         case TypesElastodynamic::ForceX:
-          m_force[node].x = value;
+          m_node_has_imposed_force[node].x = 1;
           break;
         case TypesElastodynamic::ForceY:
-          m_force[node].y = value;
+          m_node_has_imposed_force[node].y = 1;
           break;
         case TypesElastodynamic::ForceZ:
-          m_force[node].z = value;
+          m_node_has_imposed_force[node].z = 1;
           break;
         case TypesElastodynamic::Unknown:
           break;
