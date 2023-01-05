@@ -12,7 +12,7 @@
   </arcane-post-processing>
 
     <mesh>
-      <filename>beam.msh</filename>
+      <filename>plancher.msh</filename>
     </mesh>
 
     <elastodynamic>

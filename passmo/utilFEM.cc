@@ -26,7 +26,7 @@
 #include "utilFEM.h"
 
 using namespace Arcane;
-
+using namespace Arcane::FemUtils;
 /////////////////////////////////////////////////////////////////////////////
 // class CellFEMDispatcher: constructor
 
@@ -106,8 +106,10 @@ CellFEMDispatcher::CellFEMDispatcher(VariableNodeReal3& node_coords): m_node_coo
 /////////////////////////////////////////////////////////////////////////////
 // class CellFEMDispatcher: implementation methods
 
-// ! Computes the geometric size (length, surface or volume) of any finite-element
-Real CellFEMDispatcher::getGeomSize(const ItemWithNodes& item)
+// ! Computes the Jacobian = geometric size (length, surface or volume) of any finite-element
+// aligned with the coordinate axes (otherwise, jacobian to be computed by the
+// general Jacobian matrix)
+Real CellFEMDispatcher::getJacobian(const ItemWithNodes& item)
 {
     Int32 item_type = item.type();
     auto f = m_geomfunc[item_type];
@@ -132,85 +134,33 @@ Real3 CellFEMDispatcher::getBarycenter(const ItemWithNodes& item)
 }
 
 // ! Computes the value of the nodal shape functions of a given FE element at a given Gauss point (allowing to the element type)
-Real CellFEMDispatcher::getShapeFuncVal(const ItemWithNodes& item,const Integer& inod,const Real3& coord)
+Real CellFEMDispatcher::getShapeFuncVal(const Int16& item_type,const Integer& inod,const Real3& coord)
 {
-    Int32 item_type = item.type();
     auto f = m_shapefunc[item_type];
     if (f!=nullptr)
       return f(inod,coord);
     return 0.;
 }
 
-// ! Gives the values of the derivatives for all nodal shape functions for a given FE element at a given Gauss point
-// ! Size of the returned vector = number of nodes allowing to the element type
-// ! Derivation is performed along idir direction:
-// ! idir = 0 -> along x
-//        = 1 -> along y
-//        = 2 -> along z
-RealUniqueArray CellFEMDispatcher::getShapeFuncDeriv(const ItemWithNodes& item,const Integer& idir,const Real3& coord)
-{
-    Int32 item_type = item.type();
+// ! Gives the values of the derivatives for the function of node inod for a given FE element at a given Gauss point
+// ! Derivation is performed along 3 directions x, y,z
+Real3 CellFEMDispatcher::getShapeFuncDeriv(const Int16& item_type,const Integer& inod,const Real3& ref_coord){
     auto f = m_shapefuncderiv[item_type];
     if (f!=nullptr)
-      return f(idir,coord);
-    return RealUniqueArray();
+      return f(inod,ref_coord);
+    return {};
 }
 
 // ! Computes the cartesian directions of a finite-element (used for derivation of shape functions)
 // ! For instance, assuming the returned Integer3 vector=idir, idir = (0,-1,-1) means there will derivation along x only
-Integer3 CellFEMDispatcher::getOrientation(const ItemWithNodes& item)
+Integer3 CellFEMDispatcher::getOrientation(const ItemWithNodes& cell)
 {
-     Int32 item_type = item.type();
+     Int32 item_type = cell.type();
      auto f = m_orientfunc[item_type];
      if (f!=nullptr)
-       return f(item,m_node_coords);
+       return f(cell,m_node_coords);
      return Integer3::zero();
 }
-
-// ! Computes the Jacobian of a finite-element at a Gauss point given by its local coordinates in the element
-Real CellFEMDispatcher::computeJacobian(const ItemWithNodes& item,const Real3& coord)
-{
-	  Integer	n = item.nbNode();
-//	  Integer	ndim = getGeomDimension(item);
-	  Integer3	dir = getOrientation(item);
-
-	  // Jacobian matrix computed at the integration point
-	  Real3x3	jac;
-
-	  for (int i = 0, ii = 0; i < 3; i++) {
-
-	      int idir = dir[i];
-		  if (idir != -1)
-		  {
-			  // vector of local derivatives at this integration point, for all nodes of the cell
-			  RealUniqueArray	dwi = getShapeFuncDeriv(item,idir,coord);
-
-			  for (int j = 0, jj = 0; j < 3; j++) {
-
-				  Real temp = 0.;
-
-                  if (dir[j] != -1) {
-                      for (int k = 0; k < n; k++) {
-
-                          Real3 coord_nodk = m_node_coords[item.node(k)];
-                          temp += dwi[k] * coord_nodk[j];
-                      }
-                      jac[ii][jj++] = temp;
-                  }
-			  }
-			  ii++;
-		  }
-	  }
-
-	  // Jacobian = determinant of matrix jac
-      Real jacobian = math::matrixDeterminant(jac);
-
-	  if (fabs(jacobian) < REL_PREC)
-	  {
-		  // Error
-	  }
-	  return jacobian;
-  }
 
 /////////////////////////////////////////////////////////////////////////////
 // Functions useful for class CellFEMDispatcher
@@ -224,50 +174,35 @@ Real CellFEMDispatcher::computeJacobian(const ItemWithNodes& item,const Real3& c
 // direct : 0->1 (local numbering)
 /*---------------------------------------------------------------------------*/
 
-Real Line2Length(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
-  Real3 n0 = n[item.node(0)];
-  Real3 n1 = n[item.node(1)];
-
+Real Line2Length(const ItemWithNodes& item,const VariableNodeReal3& n){
+  const Real3& n0 = n[item.node(0)];
+  const Real3& n1 = n[item.node(1)];
   return (n0-n1).normL2();
 }
 
-Real Line2ShapeFuncVal(const Integer& inod,const Real3& coord)
-{
+Real Line2ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 #ifdef _DEBUG
 	assert(inod >= 0 && inod < 2);
 #endif
 
-	Real r = coord[0];
+	Real r = ref_coord[0];
 	if (!inod) return (0.5*(1 + r));
 	return (0.5*(1 - r));
 }
 
-RealUniqueArray Line2ShapeFuncDeriv(const Integer& idir,const Real3& coord)
-{
-	RealUniqueArray vec(2);
-
-	// idir = local direction for derivation
-	// derivation vector at all nodes of the finite-element
-	if (idir >= 0)
-	{
-		vec[0] = 0.5;
-		vec[1] = -0.5;
-	}
-	return vec;
+Real3 Line2ShapeFuncDeriv(const Integer& inod,const Real3&){
+  if (!inod) return { 0.5,0.,0. };
+  return { -0.5,0.,0. };
 }
 
-Integer3 Line2Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
-	Real3 n0 = n[item.node(0)];
-	Real3 n1 = n[item.node(1)];
+Integer3 Line2Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
+	const Real3& n0 = n[item.node(0)];
+	const Real3& n1 = n[item.node(1)];
 	Integer3 dir;
-
 	Real3 pt = n0-n1;
 
 	Integer j = -1;
-	for (Integer i = 0; i < 3; i++)
-	{
+	for (Integer i = 0; i < 3; i++)	{
 		if (fabs(pt[i]) != 0.) dir[i] = ++j;
 	}
 	return dir;
@@ -282,41 +217,29 @@ Integer3 Line2Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
 // direct : 0->1 (local numbering)
 /*---------------------------------------------------------------------------*/
 
-Real Line3Length(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
+Real Line3Length(const ItemWithNodes& item,const VariableNodeReal3& n){
     return Line2Length(item,n);
 }
 
-Real Line3ShapeFuncVal(const Integer& inod,const Real3& coord)
-{
+Real Line3ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 #ifdef _DEBUG
         assert(inod >= 0 && inod < 3);
 #endif
 
-    Real ri = coord[0];
+    Real ri = ref_coord[0];
     if (inod == 1) ri *= -1;
 
     if (inod < 2) return 0.5*ri*(1 + ri); // nodes 0 or 1
     return (1 - ri*ri); // middle node
 }
 
-RealUniqueArray Line3ShapeFuncDeriv(const Integer& idir,const Real3& coord)
-{
-    RealUniqueArray vec(3);
-
-    // idir = local direction for derivation
-    // derivation vector at all nodes of the finite-element
-    if (idir >= 0)
-    {
-        vec[0] = 0.5 + coord[0];
-        vec[1] = -0.5 + coord[0];
-        vec[2] = -2.*coord[0];
-    }
-    return vec;
+Real3 Line3ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
+    if (!inod) return {0.5 + ref_coord[0], 0.,0.};
+    if (inod == 1) return {-0.5 + ref_coord[0], 0.,0.};
+    return {-2.*ref_coord[0], 0.,0.};
 }
 
-Integer3 Line3Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
+Integer3 Line3Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
     return Line2Orientation(item,n);
 }
 
@@ -335,8 +258,7 @@ Integer3 Line3Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
 // direct : 0,1,2 (local numbering)
 /*---------------------------------------------------------------------------*/
 
-Real Tri3Surface(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
+Real Tri3Surface(const ItemWithNodes& item,const VariableNodeReal3& n){
   Real3 n0 = n[item.node(0)];
   Real3 n1 = n[item.node(1)];
   Real3 n2 = n[item.node(2)];
@@ -349,32 +271,21 @@ Real Tri3Surface(const ItemWithNodes& item,const VariableNodeReal3& n)
   return x1 * y2 - y1 * x2;
 }
 
-Real Tri3ShapeFuncVal(const Integer& inod,const Real3& coord)
-{
+Real Tri3ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 #ifdef _DEBUG
 	assert(inod >= 0 && inod < 3);
 #endif
 
-	return coord[inod];
+	return ref_coord[inod];
 }
 
-RealUniqueArray Tri3ShapeFuncDeriv(const Integer& idir,const Real3&)
-{
-#ifdef _DEBUG
-	assert (idir >= 0 && idir < 2);
-#endif
-
-	// idir = local direction for derivation
-	// derivation vector at all nodes of the finite-element
-	RealUniqueArray vec(3);
-
-	vec[2] = -1.;
-	vec[idir] = 1.;
-	return vec;
+Real3 Tri3ShapeFuncDeriv(const Integer& inod,const Real3&){
+  if (!inod) return {1., 0.,0.};
+  if (inod==1) return {0., 1., 0.};
+  return {-1., -1.,0.};
 }
 
-Integer3 Tri3Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
+Integer3 Tri3Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
 	Real3 p0 = n[item.node(0)];
 	Real3 u1 = p0 - n[item.node(1)];
 	Real3 u2 = p0 - n[item.node(2)];
@@ -404,22 +315,19 @@ Integer3 Tri3Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
 // direct : 0,1,...,5 (local numbering)
 /*---------------------------------------------------------------------------*/
 
-Real Tri6Surface(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
+Real Tri6Surface(const ItemWithNodes& item,const VariableNodeReal3& n){
     return Tri3Surface(item,n);
 }
 
-Real Tri6ShapeFuncVal(const Integer& inod,const Real3& coord)
-{
+Real Tri6ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 #ifdef _DEBUG
     assert(inod >= 0 && inod < 6);
 #endif
 
-    if (inod < 3) return coord[inod];
+    if (inod < 3) return ref_coord[inod];
 
-    double	wi = 0.,ri = coord[0],si = coord[1],ti = coord[2];
-    switch(inod)
-    {
+    auto	wi = 0.,ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2];
+    switch(inod) {
         default: break;
 
         case 3:	wi = 4.*ri*si; break;
@@ -431,37 +339,18 @@ Real Tri6ShapeFuncVal(const Integer& inod,const Real3& coord)
     return wi;
 }
 
-RealUniqueArray Tri6ShapeFuncDeriv(const Integer& idir,const Real3& coord)
-{
-#ifdef _DEBUG
-    assert (idir >= 0 && idir < 2);
-#endif
+Real3 Tri6ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
+  if (!inod) return {1., 0.,0.};
+  if (inod==1) return {0., 1., 0.};
+  if (inod == 2) return {-1., -1.,0.};
 
-    // idir = local direction for derivation
-    // derivation vector at all nodes of the finite-element
-    RealUniqueArray vec(6);
-
-    vec[idir] = 1.;
-    vec[2] = -1.;
-
-    double	ri = coord[0],si = coord[1],ti = coord[2];
-    if (!idir)
-    {
-        vec[3] = 4.*si;
-        vec[4] = -4.*si;
-        vec[5] = 4.*(ti - ri);
-    }
-    else
-    {
-        vec[3] = 4.*ri;
-        vec[4] = 4.*(ti - si);
-        vec[5] = -4.*ri;
-    }
-    return vec;
+  auto	ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2];
+  if (inod == 3) return {4.*si, 4.*ri,0.};
+  if (inod == 4) return {-4.*si, 4.*(ti - si),0.};
+  return {4.*(ti - ri), -4.*ri,0.};
 }
 
-Integer3 Tri6Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
+Integer3 Tri6Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
     return Tri3Orientation(item,n);
 }
 
@@ -483,8 +372,7 @@ Integer3 Tri6Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
 // direct : 0,1,2,3 (local numbering)
 /*---------------------------------------------------------------------------*/
 
-Real Quad4Surface(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
+Real Quad4Surface(const ItemWithNodes& item,const VariableNodeReal3& n){
   Real3 n0 = n[item.node(0)];
   Real3 n1 = n[item.node(1)];
   Real3 n2 = n[item.node(2)];
@@ -502,70 +390,44 @@ Real Quad4Surface(const ItemWithNodes& item,const VariableNodeReal3& n)
   y2 = n3.y - n2.y;
 
   surface += x1 * y2 - y1 * x2;
-
   return surface;
 }
 
-
-Real Quad4ShapeFuncVal(const Integer& inod,const Real3& coord)
-{
+Real Quad4ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 #ifdef _DEBUG
 	assert(inod >= 0 && inod < 4);
 #endif
 
-	Real	ri = coord[0],si = coord[1]; // default is first node (index 0)
+	Real	ri = ref_coord[0],si = ref_coord[1]; // default is first node (index 0)
 
-	switch(inod)
-	{
+	switch(inod){
 		default: break;
 		case 1:	ri *= -1; break;
 		case 2:	ri *= -1; si *= -1; break;
 		case 3:	si *= -1; break;
 	}
-
 	return ( 0.25*(1 + ri)*(1 + si) );
 }
 
-RealUniqueArray Quad4ShapeFuncDeriv(const Integer& idir,const Real3& coord)
-{
+Real3 Quad4ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
 #ifdef _DEBUG
 	assert (idir >= 0 && idir < 2);
 #endif
 
-	// idir = local direction for derivation
-	// derivation vector at all nodes of the finite-element
-	RealUniqueArray vec(4);
-
-	if (!idir)
-	{
-		Real val = 0.25*(1 + coord[1]);
-		vec[0] = val;
-		vec[1] = -val;
-		val = -0.25*(1 - coord[1]);
-		vec[2] = val;
-		vec[3] = -val;
-	}
-	else
-	{
-		Real val = 0.25*(1 + coord[0]);
-		vec[0] = val;
-		vec[3] = -val;
-		val = 0.25*(1 - coord[0]);
-		vec[1] = val;
-		vec[2] = -val;
-	}
-	return vec;
+  auto ri{ref_coord[0]}, si{ref_coord[1]};
+  if (!inod) return {0.25*(1 + si),0.25*(1 + ri),0.};
+  if (inod == 1) return {-0.25*(1 + si),0.25*(1 - ri),0.};
+  if (inod == 2) return {-0.25*(1 - si),-0.25*(1 - ri),0.};
+  return {0.25*(1 - si),-0.25*(1 + ri),0.};
 }
 
-Integer3 Quad4Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
-	Real3 p0 = n[item.node(0)];
+Integer3 Quad4Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
+	const Real3& p0 = n[item.node(0)];
 	Real3 u1 = p0 - n[item.node(1)];
 	Real3 u2 = p0 - n[item.node(2)];
 	Integer3 dir;
 
-	for (Integer i = 0,j = -1; i < 3; i++)
-	{
+	for (Integer i = 0,j = -1; i < 3; i++)	{
 		Real3 e;
 		e[i] = 1.;
 		if (math::dot(u1,e) != 0. || math::dot(u2,e) != 0.) dir[i] = ++j;
@@ -591,24 +453,21 @@ Integer3 Quad4Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
 // direct : 0,1,2,3,...,7 (local numbering)
 /*---------------------------------------------------------------------------*/
 
-Real Quad8Surface(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
+Real Quad8Surface(const ItemWithNodes& item,const VariableNodeReal3& n){
     return Quad4Surface(item,n);
 }
 
 
-Real Quad8ShapeFuncVal(const Integer& inod,const Real3& coord)
-{
+Real Quad8ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 #ifdef _DEBUG
     assert(inod >= 0 && inod < 8);
 #endif
 
-    Real	wi = 0.,
-            r = coord[0],s = coord[1],
-            ri = r,si = s; // default is first node (index 0)
+    auto	wi{0.},
+          r = ref_coord[0],s = ref_coord[1],
+          ri{ r },si{ s }; // default is first node (index 0)
 
-    switch(inod)
-    {
+    switch(inod){
         default: break;
 
         case 1:	ri *= -1; break;
@@ -633,17 +492,9 @@ Real Quad8ShapeFuncVal(const Integer& inod,const Real3& coord)
     return wi;
 }
 
-RealUniqueArray Quad8ShapeFuncDeriv(const Integer& idir,const Real3& coord)
-{
-#ifdef _DEBUG
-    assert (idir >= 0 && idir < 2);
-#endif
+Real3 Quad8ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
 
-    // idir = local direction for derivation
-    // derivation vector at all nodes of the finite-element
-    RealUniqueArray vec(8);
     RealUniqueArray r(8),s(8);
-
     r[0] = 1; s[0] = 1;
     r[1] = -1; s[1] = 1;
     r[2] = -1; s[2] = -1;
@@ -652,56 +503,21 @@ RealUniqueArray Quad8ShapeFuncDeriv(const Integer& idir,const Real3& coord)
     r[5] = -1; s[5] = 0;
     r[6] = 0; s[6] = -1;
     r[7] = 1; s[7] = 0;
+    auto wi = Quad4ShapeFuncVal(inod,ref_coord),
+         ri = r[inod]*ref_coord[0],
+         si = s[inod]*ref_coord[1],
+         r2 = ref_coord[0]*ref_coord[0],
+         s2 = ref_coord[1]*ref_coord[1];
 
-    if (!idir) // r direction
-    {
-        // derivatives on 4 corner nodes
-        for (int j = 0; j < 4; j++)
-        {
-            Real    wj = Quad4ShapeFuncVal(j,coord),
-                    rj = r[j]*coord[0],
-                    sj = s[j]*coord[1];
+    // derivatives on corner nodes
+    if (inod < 4) return {r[inod]*(0.25*(1 + si)*(ri + si - 1) + wi),s[inod]*(0.25*(1 + ri)*(ri + si - 1) + wi), 0.};
 
-            vec[j] = r[j]*(0.25*(1 + sj)*(rj + sj - 1) + wj);
-        }
-
-        Real s2 = coord[1]*coord[1];
-        // derivatives on 4 middle nodes
-        for (int j = 4; j < 8; j++)
-        {
-            Real    rj = r[j]*coord[0],
-                    sj = s[j]*coord[1];
-
-            if (!rj) vec[j] = -coord[0]*(1 + sj);
-            else if (!sj) vec[j] = 0.5*rj*(1 - s2);
-        }
-    }
-    else // s direction
-    {
-        // derivatives on 4 corner nodes
-        for (int j = 0; j < 4; j++)
-        {
-            Real    wj = Quad4ShapeFuncVal(j,coord),
-                    rj = r[j]*coord[0],
-                    sj = s[j]*coord[1];
-
-            vec[j] = s[j]*(0.25*(1 + rj)*(rj + sj - 1) + wj);
-        }
-
-        Real r2 = coord[0]*coord[0];
-        // derivatives on 4 middle nodes
-        for (int j = 4; j < 8; j++)
-        {
-            Real rj = r[j]*coord[0], sj = s[j]*coord[1];
-            if (!rj) vec[j] = 0.5*sj*(1 - r2);
-            else if (!sj) vec[j] = -coord[1]*(1 + rj);
-        }
-    }
-    return vec;
+    // derivatives on middle nodes
+    if (r[inod] != 0.) return {-ref_coord[0]*(1 + si), 0.5*si*(1 - r2),0.};
+    return {0.5*ri*(1 - s2), -ref_coord[1]*(1 + ri),0.};
 }
 
-Integer3 Quad8Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
+Integer3 Quad8Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
     return Quad4Orientation(item,n);
 }
 
@@ -724,116 +540,58 @@ Integer3 Quad8Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
 // direct : 0,1,2,3,...,7 (local numbering)
 /*---------------------------------------------------------------------------*/
 
-Real Hexa8Volume(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
-  Real3 n0 = n[item.node(0)];
-  Real3 n1 = n[item.node(1)];
-  Real3 n2 = n[item.node(2)];
-  Real3 n3 = n[item.node(3)];
-  Real3 n4 = n[item.node(4)];
-  Real3 n5 = n[item.node(5)];
-  Real3 n6 = n[item.node(6)];
-  Real3 n7 = n[item.node(7)];
+Real Hexa8Volume(const ItemWithNodes& item,const VariableNodeReal3& n){
+  const Real3& n0 = n[item.node(0)];
+  const Real3& n1 = n[item.node(1)];
+  const Real3& n2 = n[item.node(2)];
+  const Real3& n3 = n[item.node(3)];
+  const Real3& n4 = n[item.node(4)];
+  const Real3& n5 = n[item.node(5)];
+  const Real3& n6 = n[item.node(6)];
+  const Real3& n7 = n[item.node(7)];
 
   Real v1 = math::matDet((n6 - n1) + (n7 - n0), n6 - n3, n2 - n0);
   Real v2 = math::matDet(n7 - n0, (n6 - n3) + (n5 - n0), n6 - n4);
   Real v3 = math::matDet(n6 - n1, n5 - n0, (n6 - n4) + (n2 - n0));
-
-  Real res = (v1 + v2 + v3) / 12.0;
-
-  return res;
+  return (v1 + v2 + v3) / 12.0;
 }
 
-Real Hexa8ShapeFuncVal(const Integer& inod,const Real3& coord)
-{
+Real Hexa8ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 #ifdef _DEBUG
 	assert(inod >= 0 && inod < 8);
 #endif
 
-	Real	ri = coord[0],si = coord[1],ti = coord[2]; // default is first node (index 0)
+	auto	ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2]; // default is first node (index 0)
 
-	switch(inod)
-	{
+	switch(inod){
 		default: break;
-
 		case 1:	ri *= -1; break;
-
 		case 2:	ri *= -1; si *= -1; break;
-
 		case 3:	si *= -1; break;
-
 		case 4:	ti *= -1; break;
-
 		case 5:	ri *= -1; ti *= -1; break;
-
 		case 6:	ri *= -1; si *= -1; ti *= -1; break;
-
 		case 7:	si *= -1; ti *= -1; break;
 	}
-
 	return (0.125*(1 + ri)*(1 + si)*(1 + ti));
 }
 
-RealUniqueArray Hexa8ShapeFuncDeriv(const Integer& idir,const Real3& coord)
-{
-#ifdef _DEBUG
-	assert(idir >= 0 && idir < 3);
-#endif
+Real3 Hexa8ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
+	Real	rp = 1.+ ref_coord[0],sp = 1. + ref_coord[1],tp = 1. + ref_coord[2],
+			rm = 1.- ref_coord[0],sm = 1. - ref_coord[1],tm = 1. - ref_coord[2];
 
-	// idir = local direction for derivation
-	// derivation vector at all nodes of the finite-element
-	RealUniqueArray	vec(8);
-	Real	rp = 1.+ coord[0],sp = 1. + coord[1],tp = 1. + coord[2],
-			rm = 1.- coord[0],sm = 1. - coord[1],tm = 1. - coord[2];
-
-	if (!idir)
-	{
-		auto val = 0.125*sp;
-		vec[0] = val*tp;
-		vec[1] = -val*tp;
-		vec[4] = val*tm;
-		vec[5] = -val*tm;
-
-		val = -0.125*sm;
-		vec[2] = val*tp;
-		vec[3] = -val*tp;
-		vec[6] = val*tm;
-		vec[7] = -val*tm;
-	}
-	else if (idir == 1)
-	{
-		auto val = 0.125*rp;
-		vec[0] = val*tp;
-		vec[3] = -val*tp;
-		vec[4] = val*tm;
-		vec[7] = -val*tm;
-
-		val = 0.125*rm;
-		vec[1] = val*tp;
-		vec[2] = -val*tp;
-		vec[5] = val*tm;
-		vec[6] = -val*tm;
-	}
-	else if (idir == 2)
-	{
-		auto val = 0.125*rp;
-		vec[0] = val*sp;
-		vec[4] = -val*sp;
-		vec[3] = val*sm;
-		vec[7] = -val*sm;
-
-		val = 0.125*rm;
-		vec[1] = val*sp;
-		vec[5] = -val*sp;
-		vec[2] = val*sm;
-		vec[6] = -val*sm;
-	}
-	return vec;
+  if (!inod) return {0.125*sp*tp,0.125*rp*tp, 0.125*rp*sp};
+  if (inod == 1) return {-0.125*sp*tp,0.125*rm*tp, 0.125*rm*sp};
+  if (inod == 2) return {-0.125*sm*tp,-0.125*rm*tp, 0.125*rm*sm};
+  if (inod == 3) return {0.125*sm*tp,-0.125*rp*tp, 0.125*rp*sm};
+  if (inod == 4) return {0.125*sp*tm,-0.125*rp*tm, -0.125*rp*sp};
+  if (inod == 5) return {-0.125*sp*tm,0.125*rm*tm, -0.125*rm*sp};
+  if (inod == 6) return {-0.125*sm*tm,-0.125*rm*tm, -0.125*rm*sm};
+  return {0.125*sm*tm,-0.125*rp*tm, -0.125*rp*sm};
 }
 
-Integer3 Hexa8Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
-	return Integer3(1,1,1);
+Integer3 Hexa8Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
+	return {1,1,1};
 }
 
 /*---------------------------------------------------------------------------*/
@@ -855,29 +613,25 @@ Integer3 Hexa8Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
 // direct : 0,1,2,3,...,7 (local numbering)
 /*---------------------------------------------------------------------------*/
 
-Real Hexa20Volume(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
+Real Hexa20Volume(const ItemWithNodes& item,const VariableNodeReal3& n){
     return Hexa8Volume(item, n);
 }
 
-Real Hexa20ShapeFuncVal(const Integer& inod,const Real3& coord)
-{
+Real Hexa20ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 #ifdef _DEBUG
     assert(inod >= 0 && inod < 20);
 #endif
 
-    Real	wi = 0.,ri = coord[0],si = coord[1],ti = coord[2],
+    auto	wi = 0.,ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2],
             rm = 1. - ri,rp = 1. + ri,
             sm = 1. - si,sp = 1. + si,
             tm = 1. - ti,tp = 1. + ti,
             r2 = 1. - ri*ri,s2 = 1. - si*si,t2 = 1. - ti*ti;
 
-    if (inod < 8) return Hexa8ShapeFuncVal(inod,coord);
+    if (inod < 8) return Hexa8ShapeFuncVal(inod,ref_coord);
 
-    switch(inod)
-    {
+    switch(inod){
         default: break;
-
         case 8: wi = 0.25*r2*sp*tp; break;
         case 9: wi = 0.25*rm*s2*tp; break;
         case 10: wi = 0.25*r2*sm*tp; break;
@@ -891,98 +645,37 @@ Real Hexa20ShapeFuncVal(const Integer& inod,const Real3& coord)
         case 18: wi = 0.25*rm*sm*t2; break;
         case 19: wi = 0.25*rp*sm*t2; break;
     }
-
     return wi;
 }
 
-RealUniqueArray Hexa20ShapeFuncDeriv(const Integer& idir,const Real3& coord)
-{
-#ifdef _DEBUG
-    assert(idir >= 0 && idir < 3);
-#endif
+Real3 Hexa20ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
 
-    // idir = local direction for derivation
-    RealUniqueArray	vec(20),    // derivation vector at all nodes of the finite-element
-            vec_h8(Hexa8ShapeFuncDeriv(idir,coord));  // derivation vector at the 8 corner nodes
+  if (inod < 8) return Hexa8ShapeFuncDeriv(inod,ref_coord);
 
-    Real	ri = coord[0],si = coord[1],ti = coord[2],
-            rm = 1. - ri,rp = 1. + ri,
-            sm = 1. - si,sp = 1. + si,
-            tm = 1. - ti,tp = 1. + ti,
-            r2 = 1. - ri*ri,s2 = 1. - si*si,t2 = 1. - ti*ti;
+  auto ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2],
+       rm = 1. - ri,rp = 1. + ri,
+       sm = 1. - si,sp = 1. + si,
+       tm = 1. - ti,tp = 1. + ti,
+       r2 = 1. - ri*ri,
+       s2 = 1. - si*si,
+       t2 = 1. - ti*ti;
 
-    // corner nodes
-    for (int j = 0; j < 8; j++)
-    {
-        vec[j] = vec_h8[j];
-    }
-
-    if (!idir) // r direction
-    {
-        auto val = 0.25*s2;
-        vec[9] = -val*tp;
-        vec[11] = val*tp;
-        vec[13] = -val*tm;
-        vec[15] = val*tm;
-
-        val = 0.25*t2;
-        vec[16] = val*sp;
-        vec[17] = -val*sp;
-        vec[18] = -val*sm;
-        vec[19] = val*sm;
-
-        val = -0.5*ri;
-        vec[8] = val*sp*tp;
-        vec[10] = val*sm*tp;
-        vec[12] = val*sp*tm;
-        vec[14] = val*sm*tm;
-    }
-    else if (idir == 1) // s direction
-    {
-        auto val = -0.5*si;
-        vec[9] = val*rm*tp;
-        vec[11] = val*rp*tp;
-        vec[13] = val*rm*tm;
-        vec[15] = val*rp*tm;
-
-        val = 0.25*t2;
-        vec[16] = val*rp;
-        vec[17] = val*rm;
-        vec[18] = -val*rm;
-        vec[19] = -val*rp;
-
-        val = 0.25*r2;
-        vec[8] = val*tp;
-        vec[10] = -val*tp;
-        vec[12] = val*tm;
-        vec[14] = -val*tm;
-    }
-    else if (idir == 2) // t direction
-    {
-        auto val = 0.25*s2;
-        vec[9] = val*rm;
-        vec[11] = val*rp;
-        vec[13] = -val*rm;
-        vec[15] = -val*rp;
-
-        val = -0.5*ti;
-        vec[16] = val*rp*sp;
-        vec[17] = val*rm*sp;
-        vec[18] = val*rm*sm;
-        vec[19] = val*rp*sm;
-
-        val = 0.25*r2;
-        vec[8] = val*sp;
-        vec[10] = val*sm;
-        vec[12] = -val*sp;
-        vec[14] = -val*sm;
-    }
-    return vec;
+  if (inod == 8) return { -0.5*ri*sp*tp,0.25*r2*tp,0.25*r2*sp };
+  if (inod == 9) return { -0.25*s2*tp,-0.5*si*rm*tp,0.25*s2*rm };
+  if (inod == 10) return { -0.5*ri*sm*tp,-0.25*r2*tp,0.25*r2*sm };
+  if (inod == 11) return { 0.25*s2*tp,-0.5*si*rp*tp,0.25*s2*rp };
+  if (inod == 12) return { -0.5*ri*sp*tm,0.25*r2*tm,-0.25*r2*sp };
+  if (inod == 13) return { -0.25*s2*tm,-0.5*si*rm*tm,-0.25*s2*rm };
+  if (inod == 14) return { -0.5*ri*sm*tm,-0.25*r2*tm,-0.25*r2*sm };
+  if (inod == 15) return { 0.25*s2*tm,-0.5*si*rp*tm,-0.25*s2*rp };
+  if (inod == 16) return { 0.25*t2*sp,0.25*t2*rp,-0.5*ti*rp*sp };
+  if (inod == 17) return { -0.25*t2*sp,0.25*t2*rm,-0.5*ti*rm*sp };
+  if (inod == 18) return { -0.25*t2*sm,-0.25*t2*rm,-0.5*ti*rm*sm };
+  if (inod == 19) return { 0.25*t2*sm,-0.25*t2*rp,-0.5*ti*rp*sm };
 }
 
-Integer3 Hexa20Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
-    return Integer3(1,1,1);
+Integer3 Hexa20Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
+    return {1,1,1};
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1004,73 +697,40 @@ Integer3 Hexa20Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
 // direct : 0,1,2,3 (local numbering)
 /*---------------------------------------------------------------------------*/
 
-Real Tetra4Volume(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
-  Real3 n0 = n[item.node(0)];
-  Real3 n1 = n[item.node(1)];
-  Real3 n2 = n[item.node(2)];
-  Real3 n3 = n[item.node(3)];
-
+Real Tetra4Volume(const ItemWithNodes& item,const VariableNodeReal3& n){
+  const Real3& n0 = n[item.node(0)];
+  const Real3& n1 = n[item.node(1)];
+  const Real3& n2 = n[item.node(2)];
+  const Real3& n3 = n[item.node(3)];
   return math::matDet(n1 - n0, n2 - n0, n3 - n0)/6.;
 }
 
-Real Tetra4ShapeFuncVal(const Integer& inod,const Real3& coord)
-{
+Real Tetra4ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 #ifdef _DEBUG
 	assert(inod >= 0 && inod < 4);
 #endif
 
-	Real	ri = coord[0],si = coord[1],ti = coord[2]; // default is first node (index 0)
+	auto	ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2]; // default is first node (index 0)
 
-	switch(inod)
-	{
+	switch(inod){
 		default: break;
-
 		case 1:	return ri;
 		case 2:	return si;
 		case 3:	return (1. - ri - si - ti);
 	}
-
 	return ti;
 }
 
-RealUniqueArray Tetra4ShapeFuncDeriv(const Integer& idir,const Real3& coord)
-{
-#ifdef _DEBUG
-	assert(idir >= 0 && idir < 3);
-#endif
+Real3 Tetra4ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
 
-	// idir = local direction for derivation
-	// derivation vector at all nodes of the finite-element
-	RealUniqueArray	vec(4);
-
-	if (!idir) // x
-	{
-		vec[0] = 0.;
-		vec[1] = 1.;
-		vec[2] = 0.;
-		vec[3] = -1.;
-	}
-	else if (idir == 1) // y
-	{
-		vec[0] = 0.;
-		vec[1] = 0.;
-		vec[2] = 1.;
-		vec[3] = -1.;
-	}
-	else if (idir == 2) // z
-	{
-		vec[0] = 1.;
-		vec[1] = 0.;
-		vec[2] = 0.;
-		vec[3] = -1.;
-	}
-	return vec;
+  if (!inod) return {0.,0.,1.};
+  if (inod == 1) return {1.,0.,0.};
+  if (inod == 2) return {0.,1.,0.};
+  return {-1.,-1.,-1.};
 }
 
-Integer3 Tetra4Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
-	return Integer3(1,1,1);
+Integer3 Tetra4Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
+	return {1,1,1};
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1093,23 +753,20 @@ Integer3 Tetra4Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
 // direct : 0,1,2,...,9 (local numbering)
 /*---------------------------------------------------------------------------*/
 
-Real Tetra10Volume(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
+Real Tetra10Volume(const ItemWithNodes& item,const VariableNodeReal3& n){
     return Tetra4Volume(item,n);
 }
 
-Real Tetra10ShapeFuncVal(const Integer& inod,const Real3& coord)
-{
+Real Tetra10ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 #ifdef _DEBUG
     assert(inod >= 0 && inod < 10);
 #endif
 
-    Real	x = coord[0],y = coord[1],z = coord[2],
-            t = 1. - x - y - z,
-            wi = 0.;
+    auto x = ref_coord[0],y = ref_coord[1],z = ref_coord[2],
+         t = 1. - x - y - z,
+         wi{0.};
 
-    switch(inod)
-    {
+    switch(inod){
         default: break;
 
         // Corner nodes
@@ -1126,82 +783,35 @@ Real Tetra10ShapeFuncVal(const Integer& inod,const Real3& coord)
         case 8:	wi = 4*z*y;break;
         case 9:	wi = 4*z*t;break;
     }
-
     return wi;
 }
 
-RealUniqueArray Tetra10ShapeFuncDeriv(const Integer& idir,const Real3& coord)
-{
-#ifdef _DEBUG
-    assert(idir >= 0 && idir < 3);
-#endif
+Real3 Tetra10ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
+    auto x = ref_coord[0],y = ref_coord[1],z = ref_coord[2],
+         t = 1. - x - y - z;
 
-    // idir = local direction for derivation
-    // derivation vector at all nodes of the finite-element
-    RealUniqueArray	vec(10);
-    Real	x = coord[0],y = coord[1],z = coord[2],
-            t = 1. - x - y - z;
+    // Corner nodes
+    if (!inod) return {0.,0.,1. - 2*t - 2*x - 2*y + 2*z};
+    if (inod == 1) return {1. - 2*t - 2*y - 2*z + 2*x,0.,0.};
+    if (inod == 2) return {0.,1. - 2*x - 2*t - 2*z + 2*y,0.};
+    if (inod == 3) return {-1. - 2*t + 2*x + 2*y + 2*z,-1. - 2*t+ 2*x + 2*y + 2*z,-1. - 2*t + 2*x + 2*y + 2*z};
 
-    if (!idir) // x direction
-    {
-        // Corner nodes
-        vec[0] = 0.;
-        vec[1] = 1. - 2*t - 2*y - 2*z + 2*x;
-        vec[2] = 0.;
-        vec[3] = -1. - 2*t + 2*x + 2*y + 2*z;
-
-        // Middle nodes
-        vec[4] = 4*y;
-        vec[5] = -4*y;
-        vec[6] = 4*(t - x);
-        vec[7] = 4*z;
-        vec[8] = 0.;
-        vec[9] = -4*z;
-    }
-    else if (idir == 1) // y direction
-    {
-        // Corner nodes
-        vec[0] = 0.;
-        vec[1] = 0.;
-        vec[2] = 1. - 2*x - 2*t - 2*z + 2*y;
-        vec[3] = -1. - 2*t+ 2*x + 2*y + 2*z;
-
-        // Middle nodes
-        vec[4] = 4*x;
-        vec[5] = 4*(t - y);
-        vec[6] = -4*x;
-        vec[7] = 0.;
-        vec[8] = 4*z;
-        vec[9] = -4*z;
-    }
-    else if (idir == 2) // z direction
-    {
-        // Corner nodes
-        vec[0] = 1. - 2*t - 2*x - 2*y + 2*z;
-        vec[1] = 0.;
-        vec[2] = 0.;
-        vec[3] = -1. - 2*t + 2*x + 2*y + 2*z;
-
-        // Middle nodes
-        vec[4] = 0.;
-        vec[5] = -4*y;
-        vec[6] = -4*x;
-        vec[7] = 4*x;
-        vec[8] = 4*y;
-        vec[9] = 4*(t - z);
-    }
-    return vec;
+    // Middle nodes
+    if (inod == 4) return {4*y,4*x,0.};
+    if (inod == 5) return {-4*y,4*(t - y),-4*y};
+    if (inod == 6) return {4*(t - x),-4*x,-4*x};
+    if (inod == 7) return {4*z,0.,4*x};
+    if (inod == 8) return {0.,4*z,4*y};
+    return {-4*z,-4*z,4*(t - z)};
 }
 
-Integer3 Tetra10Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
-{
-    return Integer3(1,1,1);
+Integer3 Tetra10Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
+    return {1,1,1};
 }
 
 /*---------------------------------------------------------------------------*/
 
-Integer getGeomDimension(const ItemWithNodes& item)
-{
+Integer getGeomDimension(const ItemWithNodes& item){
     Int32 item_type = item.type();
     Integer dim = 1; // default geometric dimension is 1D (Line2 and Line3 finite-elements)
 
@@ -1232,11 +842,9 @@ Integer getGeomDimension(const ItemWithNodes& item)
 // class GaussPointDispatcher: construction methods
 
 GaussPointDispatcher::GaussPointDispatcher(const Integer3& indices,const Integer3& int_order):
-        m_indices(indices),m_integ_order(int_order)
-{
+        m_indices(indices),m_integ_order(int_order){
     // Setting to null default value
-    for(Integer i = 0; i < NB_BASIC_ITEM_TYPE; ++i )
-    {
+    for(Integer i = 0; i < NB_BASIC_ITEM_TYPE; ++i ){
         m_weightfunc[i] = nullptr;
         m_refpositionfunc[i] = nullptr;
     }
@@ -1276,8 +884,7 @@ GaussPointDispatcher::GaussPointDispatcher(const Integer3& indices,const Integer
 /////////////////////////////////////////////////////////////////////////////
 // class GaussPointDispatcher: implementation methods
 
-Real3 GaussPointDispatcher::getRefPosition(const ItemWithNodes& item)
-{
+Real3 GaussPointDispatcher::getRefPosition(const ItemWithNodes& item){
 	  Int32 item_type = item.type();
 	  auto f = m_refpositionfunc[item_type];
 	  if (f!=nullptr)
@@ -1285,8 +892,7 @@ Real3 GaussPointDispatcher::getRefPosition(const ItemWithNodes& item)
 	  return Real3::zero();
 }
 
-Real GaussPointDispatcher::getWeight(const ItemWithNodes& item)
-{
+Real GaussPointDispatcher::getWeight(const ItemWithNodes& item){
 	  Int32 item_type = item.type();
 	  auto f = m_weightfunc[item_type];
 	  if (f!=nullptr)
@@ -1298,12 +904,10 @@ Real GaussPointDispatcher::getWeight(const ItemWithNodes& item)
 /////////////////////////////////////////////////////////////////////////////
 // Functions useful for class GaussPointDispatcher
 
-Real getRefPosition(const Integer& indx,const Integer& ordre)
-{
+Real getRefPosition(const Integer& indx,const Integer& ordre){
 		Real x = xgauss1; // default is order 1
 
-		switch(ordre)
-		{
+		switch(ordre){
 			case 2: x = xgauss2[indx]; break;
 			case 3: x = xgauss3[indx]; break;
 			case 4: x = xgauss4[indx]; break;
@@ -1317,12 +921,10 @@ Real getRefPosition(const Integer& indx,const Integer& ordre)
 		return x;
 }
 
-Real getWeight(const Integer& indx,const Integer& ordre)
-{
+Real getWeight(const Integer& indx,const Integer& ordre){
 		Real w = wgauss1; // default is order 1
 
-		switch(ordre)
-		{
+		switch(ordre){
 			case 2: w = wgauss2[indx]; break;
 			case 3: w = wgauss3[indx]; break;
 			case 4: w = wgauss4[indx]; break;
@@ -1338,41 +940,35 @@ Real getWeight(const Integer& indx,const Integer& ordre)
 
 /*---------------------------------------------------------------------------*/
 
-Real3 LineRefPosition(const Integer3& indices,const Integer3& ordre)
-{
-	return Real3(getRefPosition(indices[0],ordre[0]),0.,0.);
+Real3 LineRefPosition(const Integer3& indices,const Integer3& ordre){
+	return {getRefPosition(indices[0],ordre[0]),0.,0.};
 }
 
-Real LineWeight(const Integer3& indices,const Integer3& ordre)
-{
+Real LineWeight(const Integer3& indices,const Integer3& ordre){
 	return getWeight(indices[0],ordre[0]);
 }
 
 /*---------------------------------------------------------------------------*/
 
-Real3 TriRefPosition(const Integer3& indices,const Integer3& ordre)
-{
+Real3 TriRefPosition(const Integer3& indices,const Integer3& ordre){
 	Integer o = ordre[0];
 	Integer i = indices[0];
-	return Real3(xg1[o][i],xg2[o][i],xg3[o][i]);
+	return {xg1[o][i],xg2[o][i],xg3[o][i]};
 }
 
-Real TriWeight(const Integer3& indices,const Integer3& ordre)
-{
+Real TriWeight(const Integer3& indices,const Integer3& ordre){
 	return wg[ordre[0]][indices[0]];
 }
 
 /*---------------------------------------------------------------------------*/
 
-Real3 QuadRefPosition(const Integer3& indices,const Integer3& ordre)
-{
+Real3 QuadRefPosition(const Integer3& indices,const Integer3& ordre){
 	Real3 pos;
 	for (Integer i = 0; i < 2; i++) pos[i] = getRefPosition(indices[i],ordre[i]);
 	return pos;
 }
 
-Real QuadWeight(const Integer3& indices,const Integer3& ordre)
-{
+Real QuadWeight(const Integer3& indices,const Integer3& ordre){
 	Real w = 1.;
 	for (Integer i = 0; i < 2; i++) w *= getWeight(indices[i],ordre[i]);
 	return w;
@@ -1380,15 +976,13 @@ Real QuadWeight(const Integer3& indices,const Integer3& ordre)
 
 /*---------------------------------------------------------------------------*/
 
-Real3 HexaRefPosition(const Integer3& indices,const Integer3& ordre)
-{
+Real3 HexaRefPosition(const Integer3& indices,const Integer3& ordre){
 	Real3 pos;
 	for (Integer i = 0; i < 3; i++) pos[i] = getRefPosition(indices[i],ordre[i]);
 	return pos;
 }
 
-Real HexaWeight(const Integer3& indices,const Integer3& ordre)
-{
+Real HexaWeight(const Integer3& indices,const Integer3& ordre){
 	Real w = 1.;
 	for (Integer i = 0; i < 3; i++) w *= getWeight(indices[i],ordre[i]);
 	return w;
@@ -1396,14 +990,12 @@ Real HexaWeight(const Integer3& indices,const Integer3& ordre)
 
 /*---------------------------------------------------------------------------*/
 
-Real3 TetraRefPosition(const Integer3& indices,const Integer3& ordre)
-{
+Real3 TetraRefPosition(const Integer3& indices,const Integer3& ordre){
 	Integer i = indices[0];
-	return Real3(xit[i],yit[i],zit[i]);
+	return {xit[i],yit[i],zit[i]};
 }
 
-Real TetraWeight(const Integer3& indices,const Integer3& ordre)
-{
+Real TetraWeight(const Integer3& indices,const Integer3& ordre){
 	return wgtetra;
 }
 

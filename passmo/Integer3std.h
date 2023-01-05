@@ -8,9 +8,9 @@
  /*---------------------------------------------------------------------------*/
  /*---------------------------------------------------------------------------*/
 
-#include "arcane/utils/Real3.h"
-#include "arcane/utils/Numeric.h"
-#include "arcane/Assertion.h"
+#include <arcane/utils/Real3.h>
+#include <arcane/utils/Numeric.h>
+#include <arcane/Assertion.h>
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -79,8 +79,8 @@ struct Int3POD {
 
   public:
 
-   static Integer3 null() { return Integer3(0,0,0); }
-   static Integer3 zero() { return Integer3(0,0,0); }
+   static Integer3 null() { return {0,0,0}; }
+   static Integer3 zero() { return {0,0,0}; }
 
   public:
 
