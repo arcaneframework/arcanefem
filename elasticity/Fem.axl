@@ -57,12 +57,12 @@
           FaceGroup on which to apply these boundary condition
         </description>
       </extended>
-      <simple name = "u1" type = "real">
+      <simple name = "u1" type = "real" optional="true">
         <description>
           Value u1 on the boundary condition
         </description>
       </simple>
-      <simple name = "u2" type = "real">
+      <simple name = "u2" type = "real" optional="true">
         <description>
           Value u1 on the boundary condition
         </description>

@@ -195,13 +195,40 @@ _applyDirichletBoundaryConditions()
     FaceGroup group = bs->surface();
     Real u1_val = bs->u1();
     Real u2_val = bs->u2();
-    info() << "Apply Dirichlet boundary condition surface=" << group.name() << " u1=" << u1_val;
-    info() << "Apply Dirichlet boundary condition surface=" << group.name() << " u2=" << u2_val;
-    ENUMERATE_ (Face, iface, group) {
-      for (Node node : iface->nodes()) {
-        m_u1[node] = u1_val; m_u2[node] = u2_val;
-        m_u1_fixed[node] = true;  m_u2_fixed[node] = true;
+    
+    if( bs->u1.isPresent() && bs->u2.isPresent()) {
+      info() << "Apply Dirichlet boundary condition surface=" << group.name() << " u1= " << u1_val << " u2= " << u2_val;
+      ENUMERATE_ (Face, iface, group) {
+        for (Node node : iface->nodes()) {
+          m_u1[node] = u1_val; 
+          m_u2[node] = u2_val;
+          m_u1_fixed[node] = true;  
+          m_u2_fixed[node] = true;
+        }
       }
+      continue;
+    }
+
+    if(bs->u1.isPresent()) {
+      info() << "Apply Dirichlet boundary condition surface=" << group.name() << " u1=" << u1_val;
+      ENUMERATE_ (Face, iface, group) {
+        for (Node node : iface->nodes()) {
+          m_u1[node] = u1_val; 
+          m_u1_fixed[node] = true;  
+        }
+      }
+      continue;
+    }
+
+    if(bs->u2.isPresent()) {
+      info() << "Apply Dirichlet boundary condition surface=" << group.name() << " u2=" << u2_val;
+      ENUMERATE_ (Face, iface, group) {
+        for (Node node : iface->nodes()) {
+          m_u2[node] = u2_val;
+          m_u2_fixed[node] = true;
+        }
+      }
+      continue;
     }
   }
 }
@@ -247,18 +274,14 @@ _assembleLinearOperator()
     NodeLocalId node_id = *inode;
     if (m_u1_fixed[node_id]) {
       DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
-      DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
       m_linear_system.matrixAddValue(dof_id1, dof_id1, 1.0e30);
-      m_linear_system.matrixAddValue(dof_id2, dof_id2, 0.0);
       {
         Real u1_dirichlet = 1.0e30 * m_u1[node_id];
         rhs_values[dof_id1] = u1_dirichlet;
       }
     }
     if (m_u2_fixed[node_id]) {
-      DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
       DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
-      m_linear_system.matrixAddValue(dof_id1, dof_id1, 0.0);
       m_linear_system.matrixAddValue(dof_id2, dof_id2, 1.0e30);
       {
         Real u2_dirichlet = 1.0e30 * m_u2[node_id];
