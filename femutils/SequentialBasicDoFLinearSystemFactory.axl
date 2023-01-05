@@ -1,0 +1,13 @@
+<?xml version="1.0" ?><!-- -*- SGML -*- -->
+<service name="SequentialBasicDoFLinearSystemFactory" version="1.0" type="caseoption" namespace-name="Arcane::FemUtils">
+  <interface name="Arcane::FemUtils::IDoFLinearSystemFactory" />
+  <description>
+    Simple linear system solver.
+
+    It only works in sequential and use a dense matrix to store values.
+    It should not be used for matrix whose dimension is greater than 1000.
+  </description>
+    
+  <options>
+  </options>
+</service>

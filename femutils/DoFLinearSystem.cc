@@ -25,6 +25,7 @@
 
 #include "FemUtils.h"
 #include "IDoFLinearSystemFactory.h"
+#include "SequentialBasicDoFLinearSystemFactory_axl.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -312,6 +313,40 @@ reset()
   m_p = nullptr;
   m_item_family = nullptr;
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+class SequentialBasicDoFLinearSystemFactoryService
+: public ArcaneSequentialBasicDoFLinearSystemFactoryObject
+{
+ public:
+
+  SequentialBasicDoFLinearSystemFactoryService(const ServiceBuildInfo& sbi)
+  : ArcaneSequentialBasicDoFLinearSystemFactoryObject(sbi)
+  {
+  }
+
+  DoFLinearSystemImpl*
+  createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
+  {
+    IParallelMng* pm = sd->parallelMng();
+    if (pm->isParallel())
+      ARCANE_FATAL("This service is not available in parallel");
+    auto* x = new SequentialDoFLinearSystemImpl(sd, dof_family, solver_name);
+    x->build();
+    return x;
+  }
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCANE_REGISTER_SERVICE_SEQUENTIALBASICDOFLINEARSYSTEMFACTORY(SequentialBasicLinearSystem,
+                                                              SequentialBasicDoFLinearSystemFactoryService);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
