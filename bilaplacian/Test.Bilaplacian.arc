@@ -25,5 +25,8 @@
       <surface>boundary</surface>
       <value>0.05</value>
     </dirichlet-boundary-condition>
+    <linear-system>
+      <epsilon>1.0e-15</epsilon>
+    </linear-system>
   </fem>
 </case>

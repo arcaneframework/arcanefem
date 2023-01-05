@@ -139,6 +139,10 @@ class SequentialDoFLinearSystemImpl
     return m_rhs_variable;
   }
 
+ public:
+
+  void setEpsilon(Real v) { m_epsilon = v; }
+
  private:
 
   ISubDomain* m_sub_domain = nullptr;
@@ -149,6 +153,7 @@ class SequentialDoFLinearSystemImpl
   NumArray<Real, MDDim2> m_k_matrix;
   //! RHS (Right Hand Side) vector
   NumArray<Real, MDDim1> m_rhs_vector;
+  Real m_epsilon = 1.0e-15;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -338,6 +343,7 @@ class SequentialBasicDoFLinearSystemFactoryService
       ARCANE_FATAL("This service is not available in parallel");
     auto* x = new SequentialDoFLinearSystemImpl(sd, dof_family, solver_name);
     x->build();
+    x->setEpsilon(options()->epsilon());
     return x;
   }
 };

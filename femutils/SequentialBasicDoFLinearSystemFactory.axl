@@ -9,5 +9,6 @@
   </description>
     
   <options>
+    <simple name="epsilon" type="real" default="1.0e-15" />
   </options>
 </service>

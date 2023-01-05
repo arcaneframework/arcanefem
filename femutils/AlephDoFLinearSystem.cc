@@ -52,9 +52,20 @@ class AlephDoFLinearSystemImpl
   , m_dof_matrix_indexes(VariableBuildInfo(m_dof_family, solver_name + "DoFMatrixIndexes"))
   {}
 
+  ~AlephDoFLinearSystemImpl()
+  {
+    delete m_aleph_params;
+  }
+
  public:
 
-  void build() { _computeMatrixInfo(); }
+  void build()
+  {
+    _computeMatrixInfo();
+    m_aleph_params = _createAlephParam();
+  }
+
+  AlephParams* params() const { return m_aleph_params; }
 
  private:
 
@@ -117,8 +128,6 @@ class AlephDoFLinearSystemImpl
     aleph_solution_vector->setLocalComponents(vector_zero);
     aleph_solution_vector->assemble();
 
-    auto* aleph_params = _createAlephParam();
-
     Int32 nb_iteration = 0;
     Real residual_norm = 0.0;
     info() << "[AlephFem] BEGIN SOLVING WITH ALEPH";
@@ -127,7 +136,7 @@ class AlephDoFLinearSystemImpl
                           m_aleph_rhs_vector,
                           nb_iteration,
                           &residual_norm,
-                          aleph_params,
+                          m_aleph_params,
                           false);
     info() << "[AlephFem] END SOLVING WITH ALEPH r=" << residual_norm
            << " nb_iter=" << nb_iteration;
@@ -218,6 +227,7 @@ class AlephDoFLinearSystemImpl
   AlephMatrix* m_aleph_matrix = nullptr;
   AlephVector* m_aleph_rhs_vector = nullptr;
   AlephVector* m_aleph_solution_vector = nullptr;
+  AlephParams* m_aleph_params = nullptr;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -238,6 +248,8 @@ class AlephDoFLinearSystemFactoryService
   {
     auto* x = new AlephDoFLinearSystemImpl(sd, dof_family, solver_name);
     x->build();
+    auto* p = x->params();
+    p->setEpsilon(options()->epsilon());
     return x;
   }
 };

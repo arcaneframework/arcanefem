@@ -2,5 +2,6 @@
 <service name="AlephDoFLinearSystemFactory" version="1.0" type="caseoption" namespace-name="Arcane::FemUtils">
   <interface name="Arcane::FemUtils::IDoFLinearSystemFactory" />
   <options>
+    <simple name="epsilon" type="real" default="1.0e-15" />
   </options>
 </service>
