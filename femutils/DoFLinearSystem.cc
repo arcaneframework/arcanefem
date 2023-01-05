@@ -23,6 +23,7 @@
 #include <arcane/IParallelMng.h>
 
 #include "FemUtils.h"
+#include "IDoFLinearSystemFactory.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -73,7 +74,7 @@ class SequentialDoFLinearSystemImpl
     Int32 matrix_size = m_k_matrix.extent0();
     Arcane::MatVec::Matrix matrix(matrix_size, matrix_size);
     _convertNumArrayToCSRMatrix(matrix, m_k_matrix.span());
-
+    bool is_verbose = true;
     Arcane::MatVec::Vector vector_b(matrix_size);
     Arcane::MatVec::Vector vector_x(matrix_size);
     {
@@ -81,6 +82,8 @@ class SequentialDoFLinearSystemImpl
       auto vector_x_view = vector_x.values();
       for (Int32 i = 0; i < matrix_size; ++i) {
         vector_b_view(i) = m_rhs_vector[i];
+        if (is_verbose)
+          info() << "VectorB[" << i << "] = " << m_rhs_vector[i];
         vector_x_view(i) = 0.0;
       }
     }
@@ -97,13 +100,18 @@ class SequentialDoFLinearSystemImpl
       Arcane::MatVec::DiagonalPreconditioner p(matrix);
       Arcane::MatVec::ConjugateGradientSolver solver;
       solver.solve(matrix, vector_b, vector_x, epsilon, &p);
+      info() << "End solver nb_iteration=" << solver.nbIteration()
+             << " residual_norm=" << solver.residualNorm();
     }
 
     {
       auto vector_x_view = vector_x.values();
       ENUMERATE_ (DoF, idof, m_dof_family->allItems()) {
         DoF dof = *idof;
-        m_dof_variable[dof] = vector_x_view[dof.localId()];
+        Real v = vector_x_view[dof.localId()];
+        m_dof_variable[dof] = v;
+        if (is_verbose)
+          info() << "VectorX[" << dof.localId() << "] = " << v;
       }
     }
   }
@@ -146,6 +154,42 @@ class SequentialDoFLinearSystemImpl
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+/*!
+ * \brief Default factory for Linear System.
+ *
+ * It is only used if there is no service specified in the 'arc' file and the
+ * method DoFLinearSystem::setLinearSystemFactory() has not been called.
+ */
+class DefaultDoFLinearSystemFactory
+: public IDoFLinearSystemFactory
+{
+ public:
+
+  DoFLinearSystemImpl* createInstance(ISubDomain* sd, IItemFamily* dof_family,
+                                      const String& solver_name) override
+  {
+    IParallelMng* pm = sd->parallelMng();
+    bool is_parallel = pm->isParallel();
+    // If true, we use a dense debug matrix in sequential
+    bool use_debug_dense_matrix = true;
+    DoFLinearSystemImpl* p = nullptr;
+    if (is_parallel || !use_debug_dense_matrix) {
+      p = createAlephDoFLinearSystemImpl(sd, dof_family, solver_name);
+    }
+    else {
+      auto* x = new SequentialDoFLinearSystemImpl(sd, dof_family, solver_name);
+      x->build();
+      p = x;
+    }
+    return p;
+  }
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 DoFLinearSystem::
 DoFLinearSystem()
@@ -159,6 +203,7 @@ DoFLinearSystem::
 ~DoFLinearSystem()
 {
   delete m_p;
+  delete m_default_linear_system_factory;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -180,19 +225,13 @@ initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
   ARCANE_CHECK_POINTER(sd);
   if (m_p)
     ARCANE_FATAL("The instance is already initialized");
+  if (!m_linear_system_factory) {
+    if (!m_default_linear_system_factory)
+      m_default_linear_system_factory = new DefaultDoFLinearSystemFactory();
+    m_linear_system_factory = m_default_linear_system_factory;
+  }
   m_item_family = dof_family;
-  IParallelMng* pm = sd->parallelMng();
-  bool is_parallel = pm->isParallel();
-  // If true, we use a dense debug matrix in sequential
-  bool use_debug_dense_matrix = true;
-  if (is_parallel || !use_debug_dense_matrix) {
-    m_p = createAlephDoFLinearSystemImpl(sd, dof_family, solver_name);
-  }
-  else {
-    auto* x = new SequentialDoFLinearSystemImpl(sd, dof_family, solver_name);
-    x->build();
-    m_p = x;
-  }
+  m_p = m_linear_system_factory->createInstance(sd, dof_family, solver_name);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -273,7 +312,7 @@ reset()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-}
+} // namespace Arcane::FemUtils
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

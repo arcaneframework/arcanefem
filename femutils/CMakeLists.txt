@@ -14,6 +14,7 @@ add_library(FemUtils
   FemDoFsOnNodes.cc
   AlephNodeLinearSystem.cc
   AlephDoFLinearSystem.cc
+  IDoFLinearSystemFactory.h
 )
 target_include_directories(FemUtils PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
