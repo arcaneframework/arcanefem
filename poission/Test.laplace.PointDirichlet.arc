@@ -38,5 +38,6 @@
       <node>botRightCorner</node>
       <value>50.0</value>
     </dirichlet-point-condition>
+    <linear-system name="SequentialBasicLinearSystem" />
   </fem>
 </case>

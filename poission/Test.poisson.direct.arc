@@ -1,32 +1,30 @@
 <?xml version="1.0"?>
-<case codename="Bilaplacian" xml:lang="en" codeversion="1.0">
+<case codename="FemTest" xml:lang="en" codeversion="1.0">
   <arcane>
     <title>Sample</title>
-    <timeloop>BilaplacianLoop</timeloop>
+    <timeloop>FemTestLoop</timeloop>
   </arcane>
 
   <arcane-post-processing>
    <output-period>1</output-period>
    <output>
-     <variable>u1</variable>
-     <variable>u2</variable>
+     <variable>NodeTemperature</variable>
    </output>
   </arcane-post-processing>
 
   <meshes>
     <mesh>
-      <filename>bilap.msh</filename>
+      <filename>L-shape.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <f>-1.0</f>
+    <lambda>1.0</lambda>
+    <qdot>-1.0</qdot>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
-      <value>0.05</value>
+      <value>0.0</value>
     </dirichlet-boundary-condition>
-    <linear-system>
-      <epsilon>1.0e-15</epsilon>
-    </linear-system>
+    <linear-system name="SequentialBasicLinearSystem" />
   </fem>
 </case>
