@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2022 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2023 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemModule.cc                                                (C) 2022-2022 */
+/* FemModule.cc                                                (C) 2022-2023 */
 /*                                                                           */
 /* FEM code to test vectorial FE for bilaplacian problem.                    */
 /*---------------------------------------------------------------------------*/
@@ -17,6 +17,7 @@
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 
+#include "IDoFLinearSystemFactory.h"
 #include "Fem_axl.h"
 #include "FemUtils.h"
 #include "DoFLinearSystem.h"
@@ -99,6 +100,7 @@ compute()
     subDomain()->timeLoopMng()->stopComputeLoop(true);
 
   m_linear_system.reset();
+  m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
   info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
