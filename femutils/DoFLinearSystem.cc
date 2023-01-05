@@ -25,6 +25,20 @@
 
 #include "FemUtils.h"
 #include "IDoFLinearSystemFactory.h"
+
+namespace Arcane::FemUtils
+{
+enum class eInternalSolverMethod
+{
+  Auto,
+  Direct,
+  PCG
+};
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 #include "SequentialBasicDoFLinearSystemFactory_axl.h"
 
 /*---------------------------------------------------------------------------*/
@@ -90,15 +104,26 @@ class SequentialDoFLinearSystemImpl
       }
     }
 
-    bool use_direct_solver = matrix_size < 500;
+    bool use_direct_solver = false;
+    switch (m_solver_method) {
+    case eInternalSolverMethod::Auto:
+      use_direct_solver = matrix_size < 500;
+      break;
+    case eInternalSolverMethod::Direct:
+      use_direct_solver = true;
+      break;
+    case eInternalSolverMethod::PCG:
+      use_direct_solver = false;
+      break;
+    }
     if (use_direct_solver) {
       info() << "Using direct solver";
       Arcane::MatVec::DirectSolver solver;
       solver.solve(matrix, vector_b, vector_x);
     }
     else {
-      info() << "Using internal solver with diagonal preconditioner";
-      Real epsilon = 1.0e-15;
+      Real epsilon = m_epsilon;
+      info() << "Using internal solver with diagonal preconditioner epsilon=" << epsilon;
       Arcane::MatVec::DiagonalPreconditioner p(matrix);
       Arcane::MatVec::ConjugateGradientSolver solver;
       solver.solve(matrix, vector_b, vector_x, epsilon, &p);
@@ -142,6 +167,7 @@ class SequentialDoFLinearSystemImpl
  public:
 
   void setEpsilon(Real v) { m_epsilon = v; }
+  void setSolverMethod(eInternalSolverMethod v) { m_solver_method = v; }
 
  private:
 
@@ -153,7 +179,9 @@ class SequentialDoFLinearSystemImpl
   NumArray<Real, MDDim2> m_k_matrix;
   //! RHS (Right Hand Side) vector
   NumArray<Real, MDDim1> m_rhs_vector;
+
   Real m_epsilon = 1.0e-15;
+  eInternalSolverMethod m_solver_method = eInternalSolverMethod::Auto;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -344,6 +372,7 @@ class SequentialBasicDoFLinearSystemFactoryService
     auto* x = new SequentialDoFLinearSystemImpl(sd, dof_family, solver_name);
     x->build();
     x->setEpsilon(options()->epsilon());
+    x->setSolverMethod(options()->solverMethod());
     return x;
   }
 };
@@ -357,7 +386,7 @@ ARCANE_REGISTER_SERVICE_SEQUENTIALBASICDOFLINEARSYSTEMFACTORY(SequentialBasicLin
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-} // namespace Arcane::FemUtils
+  } // namespace Arcane::FemUtils
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
