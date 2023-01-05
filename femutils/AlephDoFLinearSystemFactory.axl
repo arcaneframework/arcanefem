@@ -1,0 +1,6 @@
+<?xml version="1.0" ?><!-- -*- SGML -*- -->
+<service name="AlephDoFLinearSystemFactory" version="1.0" type="caseoption" namespace-name="Arcane::FemUtils">
+  <interface name="Arcane::FemUtils::IDoFLinearSystemFactory" />
+  <options>
+  </options>
+</service>

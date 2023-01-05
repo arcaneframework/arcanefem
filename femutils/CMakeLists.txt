@@ -15,8 +15,12 @@ add_library(FemUtils
   AlephNodeLinearSystem.cc
   AlephDoFLinearSystem.cc
   IDoFLinearSystemFactory.h
+  AlephDoFLinearSystemFactory_axl.h
 )
+arcane_generate_axl(AlephDoFLinearSystemFactory)
+
 target_include_directories(FemUtils PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(FemUtils PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 arcane_add_arcane_libraries_to_target(FemUtils)
 
