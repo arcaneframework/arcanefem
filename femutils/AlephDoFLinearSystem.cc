@@ -250,6 +250,8 @@ class AlephDoFLinearSystemFactoryService
     x->build();
     auto* p = x->params();
     p->setEpsilon(options()->epsilon());
+    p->setPrecond(options()->preconditioner());
+    p->setMethod(options()->solverMethod());
     return x;
   }
 };
