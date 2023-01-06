@@ -21,11 +21,14 @@
   <fem>
     <E>21.0e5</E>
     <nu>0.28</nu>
-    <f2>-1.0</f2>
     <dirichlet-boundary-condition>
       <surface>left</surface>
       <u1>0.0</u1>
       <u2>0.0</u2>
     </dirichlet-boundary-condition>
+    <traction-boundary-condition>
+      <surface>right</surface>
+      <t1>1.0</t1>
+    </traction-boundary-condition>
   </fem>
 </case>

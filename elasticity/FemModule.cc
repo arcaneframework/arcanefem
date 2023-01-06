@@ -65,8 +65,8 @@ class FemModule
 
   Real E;
   Real nu;
-  Real fx;
-  Real fy;
+  Real f1;
+  Real f2;
   Real mu2;
   Real lambda;
 
@@ -160,8 +160,8 @@ void FemModule::
 _getMaterialParameters()
 {
   info() << "Get material parameters...";
-  fx   = options()->fx();                  // body force in Y
-  fy   = options()->fy();                  // body force in Y
+  f1   = options()->f1();                  // body force in Y
+  f2   = options()->f2();                  // body force in Y
   E    = options()->E();                   // Youngs modulus
   nu   = options()->nu();                  // Poission ratio
   
@@ -343,60 +343,102 @@ _assembleLinearOperator()
   }
 
   //----------------------------------------------
-  // Constant source term assembly
+  // Body force term assembly
   //----------------------------------------------
   //
-  //  $int_{Omega}(fy*v2^h)$
+  //  $int_{Omega}(f1*v1^h)$
+  //  $int_{Omega}(f2*v2^h)$
   //  only for noded that are non-Dirichlet
   //----------------------------------------------
 
-  if ( options()->fx.isPresent()) {
+  if ( options()->f1.isPresent()) {
     ENUMERATE_ (Cell, icell, allCells()) {
       Cell cell = *icell;
       Real area = _computeAreaTriangle3(cell);
       for (Node node : cell.nodes()) {
         if (!(m_u1_fixed[node]) && node.isOwn()) {
           DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-          rhs_values[dof_id1] += fx * area / 3;
+          rhs_values[dof_id1] += f1 * area / 3;
         }
       }
     }
   }
 
-  if ( options()->fy.isPresent()) {
+  if ( options()->f2.isPresent()) {
     ENUMERATE_ (Cell, icell, allCells()) {
       Cell cell = *icell;
       Real area = _computeAreaTriangle3(cell);
       for (Node node : cell.nodes()) {
         if (!(m_u2_fixed[node]) && node.isOwn()) {
           DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-          rhs_values[dof_id2] += fy * area / 3;
+          rhs_values[dof_id2] += f2 * area / 3;
         }
       }
     }
   }
 
   //----------------------------------------------
-  // Constant flux term assembly
+  // Traction term assembly
   //----------------------------------------------
   //
-  //  $int_{dOmega_N}((q.n)*v^h)$
+  //  $int_{dOmega_N}((tx.nx)*v1^h)$
+  //  $int_{dOmega_N}((ty.ny)*v1^h)$
   //  only for noded that are non-Dirichlet
-  //  TODO : take flux vector and use normals at boundaries
   //----------------------------------------------
-  for (const auto& bs : options()->neumannBoundaryCondition()) {
+  for (const auto& bs : options()->tractionBoundaryCondition()) {
     FaceGroup group = bs->surface();
-    Real value = bs->value();
-    ENUMERATE_ (Face, iface, group) {
-      Face face = *iface;
-      Real length = _computeEdgeLength2(face);
-      for (Node node : iface->nodes()) {
-        if (!(m_u1_fixed[node]) && node.isOwn()) {
-          DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-          rhs_values[dof_id1] += value * length / 2.;
+    Real t1_val = bs->t1();
+    Real t2_val = bs->t2();
+
+    if( bs->t1.isPresent() && bs->t2.isPresent()) {
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real length = _computeEdgeLength2(face);
+        for (Node node : iface->nodes()) {
+          if (!(m_u1_fixed[node]) && node.isOwn()) {
+            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+            rhs_values[dof_id1] += t1_val * length / 2.;
+          }
+          if (!(m_u2_fixed[node]) && node.isOwn()) {
+            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+            rhs_values[dof_id2] += t2_val * length / 2.;
+          }
         }
       }
+      continue;
     }
+
+
+    if( bs->t1.isPresent()) {
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real length = _computeEdgeLength2(face);
+        for (Node node : iface->nodes()) {
+          if (!(m_u1_fixed[node]) && node.isOwn()) {
+            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+            rhs_values[dof_id1] += t1_val * length / 2.;
+          }
+        }
+      }
+      continue;
+    }
+
+
+
+    if( bs->t2.isPresent()) {
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real length = _computeEdgeLength2(face);
+        for (Node node : iface->nodes()) {
+          if (!(m_u2_fixed[node]) && node.isOwn()) {
+            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+            rhs_values[dof_id2] += t2_val * length / 2.;
+          }
+        }
+      }
+      continue;
+    }
+
   }
 }
 
@@ -885,7 +927,7 @@ _solve()
       Real u2_val = dof_u[node_dof.dofId(node, 1)];
       m_u1[node] = u1_val;
       m_u2[node] = u2_val;
-      Real3 u_disp;  
+      Real3 u_disp;
       u_disp.x = u1_val;
       u_disp.y = u2_val; 
       u_disp.z = 0.0;

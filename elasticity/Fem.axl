@@ -26,10 +26,10 @@
     </variable>
   </variables>
   <options>
-    <simple name="fx" type="real" default="0.0" optional="true">
+    <simple name="f1" type="real" default="0.0" optional="true">
       <description>Body force in x within the material.</description>
     </simple>
-    <simple name="fy" type="real" default="0.0" optional="true">
+    <simple name="f2" type="real" default="0.0" optional="true">
       <description>Body force in y within the material.</description>
     </simple>
     <simple name="E" type="real" default="0.0">
@@ -99,22 +99,27 @@
     </complex>
 
     <!-- - - - - - neumann-boundary-condition - - - - -->
-    <complex name  = "neumann-boundary-condition"
-             type  = "NeumannBoundaryCondition"
+    <complex name  = "traction-boundary-condition"
+             type  = "TractionBoundaryCondition"
              minOccurs = "0"
              maxOccurs = "unbounded"
       >
       <description>
-        Neumann boundary condition
+        Traction boundary condition
       </description>
       <extended name = "surface" type = "Arcane::FaceGroup">
         <description>
           FaceGroup on which to apply these boundary condition
         </description>
       </extended>
-      <simple name = "value" type = "real">
+      <simple name = "t1" type = "real"  optional="true">
         <description>
-          Value of the boundary condition
+          Value of traction in X direction
+        </description>
+      </simple>
+      <simple name = "t2" type = "real"  optional="true">
+        <description>
+          Value of traction in Y direction
         </description>
       </simple>
     </complex>
