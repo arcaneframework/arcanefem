@@ -79,7 +79,8 @@ class AlephDoFLinearSystemImpl
     // PETSc = 5
     // We need to compile Arcane with the needed library and link
     // the code with the associated aleph library (see CMakeLists.txt)
-    m_aleph_kernel = new AlephKernel(m_sub_domain, 2, 1);
+    // TODO: Linear algebra backend should be accessed from arc file.
+    m_aleph_kernel = new AlephKernel(m_sub_domain, 5, 1);
     DoFGroup own_dofs = m_dof_family->allItems().own();
     //Int32 nb_node = own_nodes.size();
     //Int32 total_nb_node = m_sub_domain->parallelMng()->reduce(Parallel::ReduceSum, nb_node);
