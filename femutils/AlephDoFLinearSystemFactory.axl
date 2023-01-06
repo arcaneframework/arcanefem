@@ -8,6 +8,7 @@
                  type = "Arcane::TypesSolver::ePreconditionerMethod"
                  default = "diagonal"
                  >
+      <description>Preconditioner to use to solve the linear system</description>
       <enumvalue genvalue="Arcane::TypesSolver::DIAGONAL" name="diagonal" />
       <enumvalue genvalue="Arcane::TypesSolver::AMG" name="amg" />
       <enumvalue genvalue="Arcane::TypesSolver::AINV" name="ainv" />
@@ -22,10 +23,21 @@
                  type = "Arcane::TypesSolver::eSolverMethod"
                  default = "pcg"
                  >
+      <description>Method to use to solve the linear system</description>
       <enumvalue genvalue="Arcane::TypesSolver::PCG" name="pcg"/>
       <enumvalue genvalue="Arcane::TypesSolver::BiCGStab" name="bicgstab"/>
       <enumvalue genvalue="Arcane::TypesSolver::BiCGStab2" name="bicgstab2"/>
       <enumvalue genvalue="Arcane::TypesSolver::GMRES" name="gmres"/>
+    </enumeration>
+
+    <enumeration name = "solver-backend"
+                 type = "Arcane::FemUtils::eSolverBackend"
+                 default = "petsc"
+                 >
+      <description>Backend to use to solve the linear system</description>
+      <enumvalue genvalue="Arcane::FemUtils::eSolverBackend::PETSc" name="petsc"/>
+      <enumvalue genvalue="Arcane::FemUtils::eSolverBackend::Trilinos" name="trilinos"/>
+      <enumvalue genvalue="Arcane::FemUtils::eSolverBackend::Hypre" name="hypre"/>
     </enumeration>
 
   </options>
