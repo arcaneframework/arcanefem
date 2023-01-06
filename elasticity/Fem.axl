@@ -26,7 +26,10 @@
     </variable>
   </variables>
   <options>
-    <simple name="fy" type="real" default="0.0">
+    <simple name="fx" type="real" default="0.0" optional="true">
+      <description>Body force in x within the material.</description>
+    </simple>
+    <simple name="fy" type="real" default="0.0" optional="true">
       <description>Body force in y within the material.</description>
     </simple>
     <simple name="E" type="real" default="0.0">
