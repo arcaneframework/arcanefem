@@ -22,6 +22,6 @@ enable_testing()
 add_test(NAME elasticity COMMAND Elasticity Test.Elasticity.arc)
 
 # If parallel part is available, add some tests
-#if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-#  add_test(NAME elasticity_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity Test.Elasticity.arc)
-#endif()
+if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
+  add_test(NAME elasticity_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity Test.Elasticity.arc)
+endif()
