@@ -30,10 +30,14 @@ paraview ${BUILD_DIR}/poission/output/depouillement/ensight.case
 
 #### Short term ####
 
+- [ ] Update documentation
+- [ ] Point-Dirichlet for elasticity
+- [ ] Traction condition for elasticity
+- [ ] Possibility to change linear-algebra backed in .arc files
+- [ ] Row-Column elimination for Dirichlet BC
 - [x] Reading group of nodes (Arcane::NodeGroup) from msh file 
 - [x] Point Dirichlet boundary condition
-- [ ] Update documentation
-- [ ] First vectorial FEM example - Bilaplacian
+- [x] First vectorial FEM example - Bilaplacian
 - [x] Reorganization (FemLib, Poission, Bilaplacian, .... )
 
 #### Long term ####

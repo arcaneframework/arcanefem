@@ -65,6 +65,7 @@ class FemModule
 
   Real E;
   Real nu;
+  Real fx;
   Real fy;
   Real mu2;
   Real lambda;
@@ -159,6 +160,7 @@ void FemModule::
 _getMaterialParameters()
 {
   info() << "Get material parameters...";
+  fx   = options()->fx();                  // body force in Y
   fy   = options()->fy();                  // body force in Y
   E    = options()->E();                   // Youngs modulus
   nu   = options()->nu();                  // Poission ratio
@@ -299,13 +301,29 @@ _assembleLinearOperator()
   //  $int_{Omega}(fy*v2^h)$
   //  only for noded that are non-Dirichlet
   //----------------------------------------------
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-    Real area = _computeAreaTriangle3(cell);
-    for (Node node : cell.nodes()) {
-      if (!(m_u1_fixed[node]) && node.isOwn()) {
-        DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-        rhs_values[dof_id2] += fy * area / 3;
+
+  if ( options()->fx.isPresent()) {
+    ENUMERATE_ (Cell, icell, allCells()) {
+      Cell cell = *icell;
+      Real area = _computeAreaTriangle3(cell);
+      for (Node node : cell.nodes()) {
+        if (!(m_u1_fixed[node]) && node.isOwn()) {
+          DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+          rhs_values[dof_id1] += fx * area / 3;
+        }
+      }
+    }
+  }
+
+  if ( options()->fy.isPresent()) {
+    ENUMERATE_ (Cell, icell, allCells()) {
+      Cell cell = *icell;
+      Real area = _computeAreaTriangle3(cell);
+      for (Node node : cell.nodes()) {
+        if (!(m_u2_fixed[node]) && node.isOwn()) {
+          DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+          rhs_values[dof_id2] += fy * area / 3;
+        }
       }
     }
   }
