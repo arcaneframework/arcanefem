@@ -17,6 +17,7 @@
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 
+#include "IDoFLinearSystemFactory.h"
 #include "Fem_axl.h"
 #include "FemUtils.h"
 #include "DoFLinearSystem.h"
@@ -103,6 +104,7 @@ compute()
     subDomain()->timeLoopMng()->stopComputeLoop(true);
 
   m_linear_system.reset();
+  m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
   info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();

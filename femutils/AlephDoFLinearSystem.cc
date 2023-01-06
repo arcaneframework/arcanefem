@@ -24,6 +24,17 @@
 
 #include "FemUtils.h"
 #include "IDoFLinearSystemFactory.h"
+
+namespace Arcane::FemUtils
+{
+enum class eSolverBackend
+{
+  Hypre = 2,
+  Trilinos = 3,
+  PETSc = 5,
+};
+}
+
 #include "AlephDoFLinearSystemFactory_axl.h"
 
 /*---------------------------------------------------------------------------*/
@@ -67,11 +78,14 @@ class AlephDoFLinearSystemImpl
 
   AlephParams* params() const { return m_aleph_params; }
 
+  void setSolverBackend(eSolverBackend v) { m_solver_backend = v; }
+
  private:
 
   void _computeMatrixInfo()
   {
-    info() << "[AlephFem] COMPUTE_MATRIX_INFO\n";
+    int solver_backend = (int)m_solver_backend;
+    info() << "[AlephFem] COMPUTE_MATRIX_INFO solver_backend=" << solver_backend;
     // Aleph solver:
     // Hypre = 2
     // Trilinos = 3
@@ -80,7 +94,7 @@ class AlephDoFLinearSystemImpl
     // We need to compile Arcane with the needed library and link
     // the code with the associated aleph library (see CMakeLists.txt)
     // TODO: Linear algebra backend should be accessed from arc file.
-    m_aleph_kernel = new AlephKernel(m_sub_domain, 5, 1);
+    m_aleph_kernel = new AlephKernel(m_sub_domain, solver_backend, 1);
     DoFGroup own_dofs = m_dof_family->allItems().own();
     //Int32 nb_node = own_nodes.size();
     //Int32 total_nb_node = m_sub_domain->parallelMng()->reduce(Parallel::ReduceSum, nb_node);
@@ -131,7 +145,7 @@ class AlephDoFLinearSystemImpl
 
     Int32 nb_iteration = 0;
     Real residual_norm = 0.0;
-    info() << "[AlephFem] BEGIN SOLVING WITH ALEPH";
+    info() << "[AlephFem] BEGIN SOLVING WITH ALEPH solver_backend=" << (int)m_solver_backend;
 
     m_aleph_matrix->solve(aleph_solution_vector,
                           m_aleph_rhs_vector,
@@ -229,6 +243,7 @@ class AlephDoFLinearSystemImpl
   AlephVector* m_aleph_rhs_vector = nullptr;
   AlephVector* m_aleph_solution_vector = nullptr;
   AlephParams* m_aleph_params = nullptr;
+  eSolverBackend m_solver_backend = eSolverBackend::Hypre;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -248,11 +263,15 @@ class AlephDoFLinearSystemFactoryService
   createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
   {
     auto* x = new AlephDoFLinearSystemImpl(sd, dof_family, solver_name);
+    x->setSolverBackend(options()->solverBackend());
+
     x->build();
+
     auto* p = x->params();
     p->setEpsilon(options()->epsilon());
     p->setPrecond(options()->preconditioner());
     p->setMethod(options()->solverMethod());
+
     return x;
   }
 };
