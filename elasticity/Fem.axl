@@ -89,5 +89,10 @@
         </description>
       </simple>
     </complex>
+    <!-- - - - - - linear-system - - - - -->
+    <service-instance name = "linear-system"
+                      type = "Arcane::FemUtils::IDoFLinearSystemFactory"
+                      default = "AlephLinearSystem"
+                      />
   </options>
 </module>
