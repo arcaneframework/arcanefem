@@ -235,6 +235,54 @@ _applyDirichletBoundaryConditions()
       continue;
     }
   }
+
+
+  // Handle all the Dirichlet point conditions.
+  // In the 'arc' file, there are in the following format:
+  //   <dirichlet-point-condition>
+  //   <surface>Left</surface>
+  //   <u1>1.0</u1>
+  //   <u1>0.0</u2>
+  // </dirichlet-point-condition>
+
+  for (const auto& bs : options()->dirichletPointCondition()) {
+    NodeGroup group = bs->node();
+    Real u1_val = bs->u1();
+    Real u2_val = bs->u2();
+
+    if( bs->u1.isPresent() && bs->u2.isPresent()) {
+      info() << "Apply Dirichlet point condition on node=" << group.name() << " u1= " << u1_val << " u2= " << u2_val;
+      ENUMERATE_ (Node, inode, group) {
+        Node node = *inode;
+        m_u1[node] = u1_val;
+        m_u2[node] = u2_val;
+        m_u1_fixed[node] = true;
+        m_u2_fixed[node] = true;
+      }
+      continue;
+    }
+
+    if(bs->u1.isPresent()) {
+      info() << "Apply Dirichlet point condition on node=" << group.name() << " u1=" << u1_val;
+      ENUMERATE_ (Node, inode, group) {
+        Node node = *inode;
+        m_u1[node] = u1_val;
+        m_u1_fixed[node] = true;
+      }
+      continue;
+    }
+
+    if(bs->u2.isPresent()) {
+      info() << "Apply Dirichlet point condition on node=" << group.name() << " u2=" << u2_val;
+      ENUMERATE_ (Node, inode, group) {
+        Node node = *inode;
+        m_u2[node] = u2_val;
+        m_u2_fixed[node] = true;
+      }
+      continue;
+    }
+  }
+
 }
 
 
