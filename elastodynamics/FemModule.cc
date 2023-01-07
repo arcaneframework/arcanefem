@@ -63,12 +63,23 @@ class FemModule
 
  private:
 
-  Real E;
-  Real nu;
-  Real f1;
-  Real f2;
-  Real mu2;
-  Real lambda;
+  Real t;                     // time variable
+  Real dt;                    // time step
+  Real tmax;                  // max time
+
+  Real etam;                  // time discretization param etam
+  Real etak;                  // time discretization param etak
+  Real alpm;                  // time discretization param alpm
+  Real alpf;                  // time discretization param alpf
+  Real beta;                  // time discretization param beta
+  Real gamma;                 // time discretization param gamma
+
+  Real E;                     // Youngs modulus
+  Real nu;                    // Poissions ratio
+  Real f1;                    // Body force in x
+  Real f2;                    // Body force in y
+  Real mu2;                   // Lame parameter mu * 2
+  Real lambda;                // Lame parameter lambda
 
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
@@ -76,7 +87,7 @@ class FemModule
  private:
 
   void _doStationarySolve();
-  void _getMaterialParameters();
+  void _getParameters();
   void _updateBoundayConditions();
   void _assembleBilinearOperatorTRIA3();
   void _assembleBilinearOperatorQUAD4();
@@ -101,15 +112,19 @@ compute()
   info() << "Module Fem COMPUTE";
 
   // Stop code after computations
-  if (m_global_iteration() > 0)
+  if (t >= tmax)
     subDomain()->timeLoopMng()->stopComputeLoop(true);
+
+  info() << "Time iteration at t : " << t << " (s) ";
 
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
-  info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
+  //info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
   _doStationarySolve();
+
+  t += dt;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -123,6 +138,12 @@ startInit()
   m_dofs_on_nodes.initialize(mesh(), 2);
 
   _initBoundaryconditions();
+
+  // # get parameters
+  _getParameters();
+
+  t    = 0.0;
+  tmax = tmax - dt;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -131,9 +152,6 @@ startInit()
 void FemModule::
 _doStationarySolve()
 {
-  // # get material parameters
-  _getMaterialParameters();
-
   // # update BCs
   _updateBoundayConditions();
 
@@ -157,9 +175,21 @@ _doStationarySolve()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_getMaterialParameters()
+_getParameters()
 {
   info() << "Get material parameters...";
+
+  //--------- time parameters -----------//
+  tmax = options()->tmax();                // max time
+  dt   = options()->dt();                  // time step
+
+  //--- time discretization parameter ---//
+  etam = options()->etam();                // time discretization param etam
+  etak = options()->etak();                // time discretization param etak
+  alpm = options()->alpm();                // time discretization param alpm
+  alpf = options()->alpf();                // time discretization param alpf
+
+  //--------- material parameter ---------//
   f1   = options()->f1();                  // body force in Y
   f2   = options()->f2();                  // body force in Y
   E    = options()->E();                   // Youngs modulus
@@ -167,6 +197,9 @@ _getMaterialParameters()
   
   mu2 = ( E/(2*(1+nu)) )*2;                // lame parameter mu * 2
   lambda = E*nu/((1+nu)*(1-2*nu));         // lame parameter lambda
+
+  gamma = 0.5 + alpf - alpm                ;
+  beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
 }
 
 /*---------------------------------------------------------------------------*/

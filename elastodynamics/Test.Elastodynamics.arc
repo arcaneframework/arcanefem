@@ -6,7 +6,7 @@
   </arcane>
 
   <arcane-post-processing>
-   <output-period>1</output-period>
+   <output-period>10</output-period>
    <output>
      <variable>dU</variable>
    </output>
@@ -19,6 +19,12 @@
   </meshes>
 
   <fem>
+    <tmax>0.1</tmax>
+    <dt>0.01</dt>
+    <etam>0.01</etam>
+    <etak>0.01</etak>
+    <alpm>0.20</alpm>
+    <alpf>0.40</alpf>
     <E>21.0e5</E>
     <nu>0.28</nu>
     <f2>-1.0</f2>
