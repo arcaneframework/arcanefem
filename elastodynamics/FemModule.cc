@@ -88,6 +88,7 @@ class FemModule
 
   void _doStationarySolve();
   void _getParameters();
+  void _updateVariables();
   void _updateBoundayConditions();
   void _assembleBilinearOperatorTRIA3();
   void _assembleBilinearOperatorQUAD4();
@@ -318,6 +319,44 @@ _applyDirichletBoundaryConditions()
 
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_updateVariables()
+{
+  Real alocX;
+  Real alocY;
+  VariableDoFReal& dof_u(m_linear_system.solutionVariable());
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  ENUMERATE_ (Node, inode, ownNodes()) {
+    Node node = *inode;
+
+    Real  u1_val = dof_u[node_dof.dofId(node, 0)];
+    Real  u2_val = dof_u[node_dof.dofId(node, 1)];
+
+    Real3 u_disp;
+    u_disp.x = u1_val;
+    u_disp.y = u2_val;
+    u_disp.z = 0.0;
+
+    m_dU[node] = u_disp;
+
+    alocX = (m_dU[node].x - m_U[node].x - dt*m_V[node].x)/beta/(dt*dt)
+                  - (1.-2.*beta)/2./beta*m_A[node].x;
+    alocY = (m_dU[node].y - m_U[node].y - dt*m_V[node].y)/beta/(dt*dt)
+                  - (1.-2.*beta)/2./beta*m_A[node].y;
+
+    m_V[node].x = m_V[node].x + dt*((1.-gamma)*m_A[node].x + gamma*alocX);
+    m_V[node].y = m_V[node].y + dt*((1.-gamma)*m_A[node].y + gamma*alocY);
+
+    m_A[node].x = alocX;
+    m_A[node].y = alocY;
+
+    m_U[node].x = m_dU[node].x;
+    m_U[node].y = m_dU[node].y;
+  }
+}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -455,8 +494,6 @@ _assembleLinearOperator()
       }
       continue;
     }
-
-
 
     if( bs->t2.isPresent()) {
       ENUMERATE_ (Face, iface, group) {
@@ -715,7 +752,6 @@ _computeElementMatrixTRIA3(Cell cell)
 
   FixedMatrix<6, 6> int_mudyU1dyV1  = matrixMultiplication(bT_matrix, b_matrix);
   int_Omega_i = matrixAddition( int_Omega_i, int_mudyU1dyV1);
-
 
   // 0.5*mu*dx(u2)dy(v1) //
   b_matrix(0, 0) = 0.;
