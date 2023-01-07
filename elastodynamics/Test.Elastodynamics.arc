@@ -8,7 +8,7 @@
   <arcane-post-processing>
    <output-period>1</output-period>
    <output>
-     <variable>U</variable>
+     <variable>dU</variable>
    </output>
   </arcane-post-processing>
 
