@@ -8,7 +8,9 @@
   <arcane-post-processing>
    <output-period>10</output-period>
    <output>
-     <variable>dU</variable>
+     <variable>U</variable>
+     <variable>V</variable>
+     <variable>A</variable>
    </output>
   </arcane-post-processing>
 
@@ -25,8 +27,9 @@
     <etak>0.01</etak>
     <alpm>0.20</alpm>
     <alpf>0.40</alpf>
-    <E>21.0e5</E>
-    <nu>0.28</nu>
+    <rho>1.0</rho>
+    <E>1000.0</E>
+    <nu>0.3</nu>
     <f2>-1.0</f2>
     <dirichlet-boundary-condition>
       <surface>left</surface>

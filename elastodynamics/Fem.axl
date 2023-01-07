@@ -41,6 +41,12 @@
     <simple name="nu" type="real" default="0.0">
       <description>Poission ratio of the material.</description>
     </simple>
+    <simple name="lambda" type="real" default="0.0" optional="true">
+      <description>Lame parameter of the material.</description>
+    </simple>
+    <simple name="mu" type="real" default="0.0" optional="true">
+      <description>Lame parameter of the material.</description>
+    </simple>
     <simple name="rho" type="real" default="0.0">
       <description>Density of the material.</description>
     </simple>

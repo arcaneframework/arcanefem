@@ -76,10 +76,24 @@ class FemModule
 
   Real E;                     // Youngs modulus
   Real nu;                    // Poissions ratio
+  Real rho;                   // Density
   Real f1;                    // Body force in x
   Real f2;                    // Body force in y
+  Real mu;                    // Lame parameter mu
   Real mu2;                   // Lame parameter mu * 2
   Real lambda;                // Lame parameter lambda
+
+  Real c0;                    // constant
+  Real c1;                    // constant
+  Real c2;                    // constant
+  Real c3;                    // constant
+  Real c4;                    // constant
+  Real c5;                    // constant
+  Real c6;                    // constant
+  Real c7;                    // constant
+  Real c8;                    // constant
+  Real c9;                    // constant
+  Real c10;                   // constant
 
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
@@ -89,6 +103,7 @@ class FemModule
   void _doStationarySolve();
   void _getParameters();
   void _updateVariables();
+  void _updateTime();
   void _updateBoundayConditions();
   void _assembleBilinearOperatorTRIA3();
   void _assembleBilinearOperatorQUAD4();
@@ -122,10 +137,11 @@ compute()
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
-  //info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
   _doStationarySolve();
 
-  t += dt;
+  _updateVariables();
+
+  _updateTime();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -145,6 +161,16 @@ startInit()
 
   t    = 0.0;
   tmax = tmax - dt;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_updateTime()
+{
+  info() << "Update time";
+  t += dt;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -195,12 +221,33 @@ _getParameters()
   f2   = options()->f2();                  // body force in Y
   E    = options()->E();                   // Youngs modulus
   nu   = options()->nu();                  // Poission ratio
-  
-  mu2 = ( E/(2*(1+nu)) )*2;                // lame parameter mu * 2
+  rho  = options()->rho();                 // Density
+
+  mu  = E/(2*(1+nu));                      // lame parameter mu
   lambda = E*nu/((1+nu)*(1-2*nu));         // lame parameter lambda
+
+  if( options()->mu.isPresent())
+    mu = options()->mu;
+
+  if( options()->lambda.isPresent())
+    lambda = options()->lambda;
+
+  mu2 =  mu*2;                             // lame parameter mu * 2
 
   gamma = 0.5 + alpf - alpm                ;
   beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
+
+  c0 =   rho*(1.-alpm)/(beta*dt*dt) + etam*rho*gamma*(1-alpf)/beta/dt       ;
+  c1 =   lambda*(1.-alpf) + lambda*etak*gamma*(1-alpf)/beta/dt              ;
+  c2 =   2.*mu*(1.-alpf) + 2.*mu*etak*gamma*(1-alpf)/beta/dt                ;
+  c3 =   rho*(1.-alpm)/beta/dt - etam*rho*(1-gamma*(1-alpf)/beta)           ;
+  c4 =   rho*( (1.-alpm)*(1.-2.*beta)/2./beta - alpm - etam*dt*(1.-alpf)*(1.-gamma/2/beta))   ;
+  c5 =   lambda*alpf -    lambda*etak*gamma*(1.-alpf)/beta/dt               ;
+  c6 =   2*mu*alpf   -    2.*mu*etak*gamma*(1.-alpf)/beta/dt                ;
+  c7 =   etak*lambda*(gamma*(1.-alpf)/beta - 1)                             ;
+  c8 =   etak*lambda*dt*(1.-alpf)*((1.-2*beta)/2./beta - (1.-gamma))        ;
+  c9 =   etak*2*mu*(gamma*(1.-alpf)/beta -1)                                ;
+  c10=   etak*2*mu*dt*(1.-alpf)*((1.-2*beta)/2./beta -(1.-gamma))           ;
 }
 
 /*---------------------------------------------------------------------------*/
