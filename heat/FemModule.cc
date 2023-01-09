@@ -68,6 +68,9 @@ class FemModule
   Real t   ,
        dt  ,
        tmax;
+  //! Temprature
+  Real Tinit ,
+       Text  ;
   //! Material paramters
   Real lambda;
   Real qdot;
@@ -82,6 +85,8 @@ class FemModule
 
   void _initTime();
   void _updateTime();
+  void _updateVariables();
+  void _initTemperature();
   void _doStationarySolve();
   void _getParameters();
   void _updateBoundayConditions();
@@ -117,6 +122,7 @@ compute()
 
   info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
   _doStationarySolve();
+  _updateVariables();
   _updateTime();
 
 }
@@ -132,9 +138,10 @@ startInit()
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
-  _initBoundaryconditions();    // initilize bounday conditions
-  _initTime();                  // initilize time
-  _getParameters();             // get material parameters 
+  _initBoundaryconditions();    // initialize boundary conditions
+  _initTime();                  // initialize time
+  _getParameters();             // get material parameters
+  _initTemperature();           // initialize temperature
 }
 
 /*---------------------------------------------------------------------------*/
@@ -163,13 +170,49 @@ _updateTime()
   t += dt;
   info() << "Time t is :" << t << " (s)";
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_updateVariables()
+{
+  info() << "Update FEM variables";
+
+  {
+    // Copy Node temperature to Node temperature old
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      m_node_temperature_old[node] = m_node_temperature[node];
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_initTemperature()
+{
+  info() << "Init Temperature";
+
+  Tinit   = options()->Tinit();
+
+  {
+    // Copy Node temperature to Node temperature old
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      m_node_temperature_old[node] = Tinit;
+    }
+  }
+}
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
 _doStationarySolve()
 {
-
 
   // # update BCs
   _updateBoundayConditions();
@@ -596,13 +639,7 @@ _solve()
   }
 
   m_node_temperature.synchronize();
-  // def update_T(self,T):
-  //     """Update temperature value on nodes after the FE resolution"""
-  //     for i in range(0,len(self.mesh.nodes)):
-  //         node=self.mesh.nodes[i]
-  //         # don't update T imposed by Dirichlet BC
-  //         if not node.is_T_fixed:
-  //             self.mesh.nodes[i].T=T[i]
+  m_node_temperature_old.synchronize();
 
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {
