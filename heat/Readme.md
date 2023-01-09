@@ -1,70 +1,56 @@
-# Solving Poission equation with FEM and Arcane #
+# Solving heat conduction equation with FEM and Arcane #
 
-Here Poission equation, which is one of the basics PDEs, is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver. The Poisson equation arises in numerous physical contexts, e.g., heat conduction, diffusion of substances, membrane elasticity,  inviscid fluid flow, electrostatics, twisting of elastic rods, and water waves. Here in this tutorial we will focus on the heat conduction.
+Here time dependent parabolic problem of heat conduction, is solved using FEM in Arcane.
 
 ## Theory of heat conduction ##
 
 #### Problem description ####
 
-The steady state 2D heat conduction equation is solved for a closed meshed domain $\Omega^h$ in order to know the temperature $T(x,y)$ within the domain. The equation reads
+The transient 2D heat conduction equation is solved for a closed meshed domain $\Omega^h$ in order to know the temperature $T(x,y)$ within the domain. The equation reads
 
-$$\frac{\partial}{\partial x}\left(\lambda \frac{\partial T}{\partial x} \right) + \frac{\partial}{\partial y}\left(\lambda \frac{\partial T}{\partial y} \right)+ \dot{\mathcal{Q}} = 0  \quad \forall (x,y)\in\Omega^h $$
+$$\frac{\partial T}{\partial t} - \frac{\partial}{\partial x}\left(\lambda \frac{\partial T}{\partial x} \right) - \frac{\partial}{\partial y}\left(\lambda \frac{\partial T}{\partial y} \right)+ \dot{\mathcal{Q}} = 0  \quad \forall (x,y)\in\Omega^h $$
 
 or in a more compact form
 
-$$\nabla(\lambda\nabla T) + \dot{\mathcal{Q}} = 0 \quad \forall (x,y)\in\Omega^h.$$
+$$\partial_tT - \nabla(\lambda\nabla T) + \dot{\mathcal{Q}} = 0 \quad \forall (x,y)\in\Omega^h.$$
 
 Here, $\lambda$ is the thermal conductivity of the material and $\dot{\mathcal{Q}}$ is the heat generation source.
 
 
 
-To complete the problem description,  three first type (Dirichlet) boundary conditions are applied to this problem:
+To complete the problem description,  one first type (Dirichlet) boundary conditions are applied to this problem:
 
-$T = 50.0 \degree C \quad \forall(x,y)\in\partial\Omega^h_{\text{Cercle}}\subset\partial \Omega^h,$
+$T = 10.0 \degree C \quad \forall(x,y)\in\partial\Omega^h_{\text{left}}\subset\partial \Omega^h,$
 
-$T = 5.0\degree C \quad \forall(x,y)\in\partial\Omega^h_{\text{Bas}}\subset\partial \Omega^h,$ and
+in addition, we are provided with initial conditions:
 
-$T  = 21.0\degree C  \quad \forall(x,y)\in\partial\Omega^h_{\text{Haut}}\subset\partial \Omega^h,$
+$T(x,y,0)=30.0$
 
-in addition, other boundaries $\partial\Omega^h_N$ are exposed to  second type (Neumann) boundary condition:
+Finally no  heat-source is present within the domain 
 
-- first Neumann condition $\partial\Omega^h_{\text{Droite}}$ the derivative of temperature (heat flux) is non-null - influx boundary
-
-$$\mathbf{q}\cdot\mathbf{n}|_{\partial \Omega^h_{\text{Droite}}} = 15.0$$
-
-- second Neumann condition $\partial\Omega^h_{\text{Gauche}}$ the derivative of temperature (heat flux) is null - insulation boundary
-
-$$\mathbf{q}\cdot\mathbf{n}|_{\partial \Omega^h_{\text{Gauche}}} = 0$$
-
-Finally a uniform heat-source is present within the domain 
-
-$\dot{\mathcal{Q}}=1\times10^5$
+$\dot{\mathcal{Q}}=0$
 
 
 
+#### FEM discretization
 
+We work with approximation, $\lambda$ is homogeneous $\lambda : \Omega^h \in \mathbb{R}^{+}$, and apply the implicit Euler finite difference approximation fir time,  in this case  the variational formulation in $H^1_{0}(\Omega) \subset H^1{\Omega}$  reads
 
-We work with approximation, $\lambda$ is homogeneous $\lambda : \Omega^h \in \mathbb{R}^{+}$, in this case  the variational formulation in $H^1_{0}(\Omega) \subset H^1{\Omega}$  reads
+search FEM trial function $u_n^h(x,y)$ satisfying
 
-search FEM trial function $u^h(x,y)$ satisfying
-
-$$- \int_{\Omega^h}\lambda\nabla u^h \nabla  v^h + \int_{\partial\Omega_N} (\overline{q} \cdot \mathbf{n}) v^h + \int_{\Omega^h}\dot{\mathcal{Q}} v^h = 0 \quad \forall v^h\in H^1_0(\Omega^h)$$
+$$- \int_{\Omega^h} \frac{u^h_n - u^h_{n-1}}{\delta t}+ \int_{\Omega^h}\lambda\nabla u_n^h \nabla  v^h  = 0 \quad \forall v^h\in H^1_0(\Omega^h)$$
 
 given
 
-$u^h=50.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Cercle}}$,
+$u_n^h=10.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{left}}$,
 
-$u^h=5.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Bas}}$ ,
-
-$u^h=20.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Haut}}$,
-
-$\int_{\Omega^h_{\text{Droite}}}(\mathbf{q} \cdot \mathbf{n}) v^h=15$,
-
-$\int_{\Omega^h_{\text{Gauche}}}(\mathbf{q} \cdot \mathbf{n}) v^h=0$,
-
-$\int_{\Omega^h}\dot{\mathcal{Q}} v^h=1\times10^5$, and
+$u_0^h=30.0 \quad \forall (x,y)\in\Omega^h$, and
 
 $\lambda=1.75$
+
+
+
+We also are provided with  $t_{max}=40$ seconds and $\delta t=0.4$, as such the simulation is of 100 time-steps.
 
 
 
@@ -72,23 +58,25 @@ $\lambda=1.75$
 
 #### Thermal Conductivity ###
 
-The value of thermal conductivity $\lambda$  and heat source $\dot{\mathcal{Q}}$ can be provided in  `Test.conduction.arc` file
+The value of thermal conductivity $\lambda$  and heat source $t_{max}, \delta t$, and $T_{init}$ can be provided in  `Test.conduction.arc` file
 
 ```xml
   <Fem1>
     <lambda>1.75</lambda>
-    <qdot>1e5</qdot>
+    <tmax>40.</tmax>
+    <dt>0.4</dt>
+    <Tinit>30.0</Tinit>
   </Fem1>
 ```
 
 #### Mesh #### 
 
-The mesh `plancher.msh` is provided in the `Test.conduction.arc` file 
+The mesh `plate.msh` is provided in the `Test.conduction.arc` file 
 
 ```xml
   <meshes>
     <mesh>
-      <filename>plancher.msh</filename>
+      <filename>plate.msh</filename>
     </mesh>
   </meshes>
 ```
@@ -101,36 +89,26 @@ The Dirichlet (constant temperature) boundary conditions  are provided in `Test.
 
 ```xml
     <dirichlet-boundary-condition>
-      <surface>Cercle</surface>
-      <value>50.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Bas</surface>
-      <value>5.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Haut</surface>
-      <value>21.0</value>
+      <surface>Left</surface>
+      <value>10.0</value>
     </dirichlet-boundary-condition>
 ```
 
-So in the snippet above, three Dirichlet conditions are applied ($50 \degree C, 5.0 \degree C, 21.0 \degree C$)  on three borders ('cercle', 'Bas', 'Haut').
-
-The Neumann  boundary conditions  are also provided in `Test.conduction.arc` file
-
-```xml
-    <neumann-boundary-condition>
-      <surface>Droite</surface>
-      <value>15.0</value>
-    </neumann-boundary-condition>
-    <neumann-boundary-condition>
-      <surface>Gauche</surface>
-      <value>0.0</value>
-    </neumann-boundary-condition>
-```
+So in the snippet above, three Dirichlet conditions are applied $10 \degree C$  on  border tagged as 'left' in the .
 
 
 
 #### Post Process ####
 
-For post processing the `ensight.case` file is outputted, which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
+For post processing the `ensight.case` file is outputted, which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes). In the `Test.conduction.arc` file we provide
+
+```xml
+  <arcane-post-processing>
+   <output-period>2</output-period>
+   <output>
+     <variable>NodeTemperature</variable>
+   </output>
+  </arcane-post-processing>
+```
+
+This means we would like to postprocess`NodeTemprature` variable which is the FEM variable $u^h_n$ and physical variable $T$.  Furthermore the `<output-period>2</output-period>` indicates that for every 2 time iteration dump simulation results in the post-processing file. So for this simulation which has 100 time steps we will post-process 50 times. 
