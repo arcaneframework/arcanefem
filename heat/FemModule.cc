@@ -64,8 +64,14 @@ class FemModule
 
  private:
 
+  //! Time variables
+  Real t   ,
+       dt  ,
+       tmax;
+  //! Material paramters
   Real lambda;
   Real qdot;
+  //! FEM parameter
   Real ElementNodes;
 
   DoFLinearSystem m_linear_system;
@@ -74,8 +80,10 @@ class FemModule
 
  private:
 
+  void _initTime();
+  void _updateTime();
   void _doStationarySolve();
-  void _getMaterialParameters();
+  void _getParameters();
   void _updateBoundayConditions();
   void _assembleBilinearOperatorTRIA3();
   void _assembleBilinearOperatorQUAD4();
@@ -100,7 +108,7 @@ compute()
   info() << "Module Fem COMPUTE";
 
   // Stop code after computations
-  if (m_global_iteration() > 0)
+  if (t >= tmax)
     subDomain()->timeLoopMng()->stopComputeLoop(true);
 
   m_linear_system.reset();
@@ -109,6 +117,8 @@ compute()
 
   info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
   _doStationarySolve();
+  _updateTime();
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -122,29 +132,44 @@ startInit()
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
-  //_buildDoFOnNodes();
-  //Int32 nb_node = allNodes().size();
-  //m_k_matrix.resize(nb_node, nb_node);
-  //m_k_matrix.fill(0.0);
-
-  //m_rhs_vector.resize(nb_node);
-  //m_rhs_vector.fill(0.0);
-
-  // # init mesh
-  // # init behavior
-  // # init behavior on mesh entities
-  // # init BCs
-  _initBoundaryconditions();
+  _initBoundaryconditions();    // initilize bounday conditions
+  _initTime();                  // initilize time
+  _getParameters();             // get material parameters 
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
+_initTime()
+{
+  info() << "Initiate time";
+
+  tmax   = options()->tmax();
+  dt     = options()->dt();
+
+  tmax = tmax ;
+  t    = 0.0;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_updateTime()
+{
+  info() << "Update time";
+
+  t += dt;
+  info() << "Time t is :" << t << " (s)";
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
 _doStationarySolve()
 {
-  // # get material parameters
-  _getMaterialParameters();
+
 
   // # update BCs
   _updateBoundayConditions();
@@ -169,7 +194,7 @@ _doStationarySolve()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_getMaterialParameters()
+_getParameters()
 {
   info() << "Get material parameters...";
   lambda = options()->lambda();

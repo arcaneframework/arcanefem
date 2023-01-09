@@ -21,6 +21,11 @@
   <fem>
     <lambda>1.75</lambda>
     <qdot>1e5</qdot>
+    <tmax>5.</tmax>
+    <dt>0.1</dt>
+    <h>0.25</h>
+    <Text>25.0</Text>
+    <Tinit>0.0</Tinit>
     <dirichlet-boundary-condition>
       <surface>left</surface>
       <value>50.0</value>
