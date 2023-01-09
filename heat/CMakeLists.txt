@@ -12,7 +12,7 @@ add_executable(conduction
 arcane_generate_axl(Fem)
 arcane_add_arcane_libraries_to_target(conduction)
 target_include_directories(conduction PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
-configure_file(FemTest.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Heat.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.conduction.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(plate.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 

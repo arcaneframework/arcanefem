@@ -8,7 +8,7 @@ main(int argc,char* argv[])
 {
   ArcaneLauncher::init(CommandLineArguments(&argc,&argv));
   auto& app_build_info = ArcaneLauncher::applicationBuildInfo();
-  app_build_info.setCodeName("FemTest");
+  app_build_info.setCodeName("Heat");
   app_build_info.setCodeVersion(VersionInfo(1,0,0));
   return ArcaneLauncher::run();
 }

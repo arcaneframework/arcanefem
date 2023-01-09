@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
-<case codename="FemTest" xml:lang="en" codeversion="1.0">
+<case codename="Heat" xml:lang="en" codeversion="1.0">
   <arcane>
     <title>Sample</title>
-    <timeloop>FemTestLoop</timeloop>
+    <timeloop>HeatLoop</timeloop>
   </arcane>
 
   <arcane-post-processing>
