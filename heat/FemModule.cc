@@ -533,22 +533,6 @@ _computeElementMatrixTRIA3(Cell cell)
 
   int_Omega_i = matrixAddition( int_Omega_i, int_UV);
 
-
-/*
-  FixedMatrix<2, 3> b_matrix;
-  b_matrix(0, 0) = dPhi0.x;
-  b_matrix(0, 1) = dPhi1.x;
-  b_matrix(0, 2) = dPhi2.x;
-
-  b_matrix(1, 0) = dPhi0.y;
-  b_matrix(1, 1) = dPhi1.y;
-  b_matrix(1, 2) = dPhi2.y;
-
-  b_matrix.multInPlace(1.0 / (2.0 * area));
-
-  FixedMatrix<3, 3> int_Omega_i = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
-  int_Omega_i.multInPlace(area * lambda);
-*/
   return int_Omega_i;
 }
 
@@ -611,15 +595,7 @@ _assembleBilinearOperatorQUAD4()
       ARCANE_FATAL("Only Quad4 cell type is supported");
 
     lambda = m_cell_lambda[cell];                 // lambda is always considered cell constant
-    auto K_e = _computeElementMatrixQUAD4(cell);  // element stifness matrix
-    //             # assemble elementary matrix into the global one
-    //             # elementary terms are positionned into K according
-    //             # to the rank of associated node in the mesh.nodes list
-    //             for node1 in elem.nodes:
-    //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
-    //                 for node2 in elem.nodes:
-    //                     inode2=elem.nodes.index(node2)
-    //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
+    auto K_e = _computeElementMatrixQUAD4(cell);  // element stiffness matrix
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
@@ -651,15 +627,12 @@ _assembleBilinearOperatorTRIA3()
       ARCANE_FATAL("Only Triangle3 cell type is supported");
 
     lambda = m_cell_lambda[cell];                 // lambda is always considered cell constant
-    auto K_e = _computeElementMatrixTRIA3(cell);  // element stifness matrix
-    //             # assemble elementary matrix into the global one
-    //             # elementary terms are positionned into K according
-    //             # to the rank of associated node in the mesh.nodes list
-    //             for node1 in elem.nodes:
-    //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
-    //                 for node2 in elem.nodes:
-    //                     inode2=elem.nodes.index(node2)
-    //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
+    auto K_e = _computeElementMatrixTRIA3(cell);  // element stiffness matrix
+    // assemble elementary matrix into the global one elementary terms are
+    // positioned into K according to  the rank of associated  node in the
+    // mesh.nodes list and according the dof number. For each TRIA3  there
+    // are 3 nodes hence the elementary stiffness matrix  size  is (3x3)=6
+    // will be  filled.
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
