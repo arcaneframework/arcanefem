@@ -1051,6 +1051,9 @@ _solve()
   }
 
   m_dU.synchronize();
+  m_U.synchronize();
+  m_V.synchronize();
+  m_A.synchronize();
 
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {
