@@ -142,6 +142,7 @@ startInit()
   _initTime();                  // initialize time
   _getParameters();             // get material parameters
   _initTemperature();           // initialize temperature
+  m_global_deltat.assign(dt);
 }
 
 /*---------------------------------------------------------------------------*/

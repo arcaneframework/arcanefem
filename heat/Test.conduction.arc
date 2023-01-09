@@ -6,7 +6,7 @@
   </arcane>
 
   <arcane-post-processing>
-   <output-period>100</output-period>
+   <output-period>2</output-period>
    <output>
      <variable>NodeTemperature</variable>
    </output>
@@ -20,10 +20,8 @@
 
   <fem>
     <lambda>1.75</lambda>
-    <tmax>10.</tmax>
-    <dt>0.1</dt>
-    <h>0.25</h>
-    <Text>25.0</Text>
+    <tmax>40.</tmax>
+    <dt>0.4</dt>
     <Tinit>30.0</Tinit>
     <dirichlet-boundary-condition>
       <surface>left</surface>
