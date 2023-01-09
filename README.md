@@ -29,12 +29,13 @@ paraview ${BUILD_DIR}/poisson/output/depouillement/ensight.case
 ## Todo List ##
 
 #### Short term ####
-
-- [ ] Update documentation
-- [ ] Point-Dirichlet for elasticity
-- [ ] Traction condition for elasticity
-- [ ] Possibility to change linear-algebra backed in .arc files
 - [ ] Row-Column elimination for Dirichlet BC
+- [ ] Convection operator for transient heat conduction problem
+- [x] Transient Heat conduction problem
+- [x] Update documentation
+- [x] Point-Dirichlet for elasticity
+- [x] Traction condition for elasticity
+- [x] Possibility to change linear-algebra backed in .arc files
 - [x] Reading group of nodes (Arcane::NodeGroup) from msh file 
 - [x] Point Dirichlet boundary condition
 - [x] First vectorial FEM example - Bilaplacian
