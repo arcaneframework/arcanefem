@@ -14,16 +14,16 @@ cmake -S ${SOURCE_PATH} -B ${BUILD_DIR} -DCMAKE_PREFIX_PATH=${ARCANE_INSTALL_DIR
 cmake --build ${BUILD_DIR}
 ~~~
 
-To execute an example from poission solver (in a directory)
+To execute an example from poisson solver (in a directory)
 
 ~~~{sh}
-cd ${BUILD_DIR}/poission && ./FemTest Test.conduction.arc
+cd ${BUILD_DIR}/poisson && ./FemTest Test.conduction.arc
 ~~~
 
 After running the test case, you can display the results with ParaView:
 
 ~~~bash
-paraview ${BUILD_DIR}/poission/output/depouillement/ensight.case
+paraview ${BUILD_DIR}/poisson/output/depouillement/ensight.case
 ~~~
 
 ## Todo List ##
