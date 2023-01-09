@@ -358,8 +358,8 @@ _assembleLinearOperator()
     NodeLocalId node_id = *inode;
     if (m_node_is_temperature_fixed[node_id]) {
       DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-      m_linear_system.matrixAddValue(dof_id, dof_id, 1.0e12);
-      Real temperature = 1.0e12 * m_node_temperature[node_id];
+      m_linear_system.matrixAddValue(dof_id, dof_id, 1.0e31);
+      Real temperature = 1.0e31 * m_node_temperature[node_id];
       rhs_values[dof_id] = temperature;
     }
   }
@@ -376,7 +376,7 @@ _assembleLinearOperator()
     Real area = _computeAreaTriangle3(cell);
     for (Node node : cell.nodes()) {
       if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
-        rhs_values[node_dof.dofId(node, 0)] += qdot * area / ElementNodes;
+        rhs_values[node_dof.dofId(node, 0)] += (m_node_temperature_old[node]/dt) * area / ElementNodes;
     }
   }
 
@@ -445,7 +445,7 @@ _computeEdgeLength2(Face face)
 FixedMatrix<3, 3> FemModule::
 _computeElementMatrixTRIA3(Cell cell)
 {
-  // Get coordiantes of the triangle element  TRI3
+  // Get coordinates of the triangle element  TRI3
   //------------------------------------------------
   //                  0 o
   //                   . .
@@ -463,6 +463,78 @@ _computeElementMatrixTRIA3(Cell cell)
   Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
   Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
 
+  FixedMatrix<1, 3> b_matrix;
+  FixedMatrix<3, 1> bT_matrix;
+  FixedMatrix<3, 3> int_Omega_i;
+
+  for (Int32 i = 0; i<3; i++)
+    for (Int32 j = 0; j<3; j++)
+      int_Omega_i(i,j) = 0.;
+
+// -----------------------------------------------------------------------------
+//  lambda*(dx(u)dx(v) + dy(u)dy(v)) + uv/dt
+//------------------------------------------------------------------------------
+
+
+  // dx(u)dx(v) //
+  b_matrix(0, 0) = dPhi0.x/area;
+  b_matrix(0, 1) = dPhi1.x/area;
+  b_matrix(0, 2) = dPhi2.x/area;
+
+  b_matrix.multInPlace(0.5f);
+
+  bT_matrix(0, 0) = dPhi0.x;
+  bT_matrix(1, 0) = dPhi1.x;
+  bT_matrix(2, 0) = dPhi2.x;
+
+  bT_matrix.multInPlace(0.5f);
+
+  FixedMatrix<3, 3> int_dxUdxV = matrixMultiplication(bT_matrix, b_matrix);
+  int_Omega_i = matrixAddition( int_Omega_i, int_dxUdxV);
+
+
+  // dy(u)dy(v) //
+  b_matrix(0, 0) = dPhi0.y/area;
+  b_matrix(0, 1) = dPhi1.y/area;
+  b_matrix(0, 2) = dPhi2.y/area;
+
+  b_matrix.multInPlace(0.5f);
+
+  bT_matrix(0, 0) = dPhi0.y;
+  bT_matrix(1, 0) = dPhi1.y;
+  bT_matrix(2, 0) = dPhi2.y;
+
+  bT_matrix.multInPlace(0.5f);
+
+  FixedMatrix<3, 3> int_dyUdyV = matrixMultiplication(bT_matrix, b_matrix);
+  int_Omega_i = matrixAddition( int_Omega_i, int_dyUdyV);
+
+  int_Omega_i.multInPlace(lambda);
+
+  // uv //
+  b_matrix(0, 0) = 1.;
+  b_matrix(0, 1) = 1.;
+  b_matrix(0, 2) = 1.;
+
+  b_matrix.multInPlace(0.5f);
+
+  bT_matrix(0, 0) = area/3.;
+  bT_matrix(1, 0) = area/3.;
+  bT_matrix(2, 0) = area/3.;
+
+  bT_matrix.multInPlace(0.5f);
+
+  FixedMatrix<3, 3> int_UV   = matrixMultiplication(bT_matrix, b_matrix);
+
+  for (Int32 i = 0; i<3; i++)
+    int_UV(i,i) *= 2.;
+
+  int_UV.multInPlace(1./dt);
+
+  int_Omega_i = matrixAddition( int_Omega_i, int_UV);
+
+
+/*
   FixedMatrix<2, 3> b_matrix;
   b_matrix(0, 0) = dPhi0.x;
   b_matrix(0, 1) = dPhi1.x;
@@ -474,15 +546,10 @@ _computeElementMatrixTRIA3(Cell cell)
 
   b_matrix.multInPlace(1.0 / (2.0 * area));
 
-  FixedMatrix<3, 3> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
-  int_cdPi_dPj.multInPlace(area * lambda);
-
-  //info() << "Cell=" << cell.localId();
-  //std::cout << " int_cdPi_dPj=";
-  //int_cdPi_dPj.dump(std::cout);
-  //std::cout << "\n";
-
-  return int_cdPi_dPj;
+  FixedMatrix<3, 3> int_Omega_i = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
+  int_Omega_i.multInPlace(area * lambda);
+*/
+  return int_Omega_i;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -491,7 +558,7 @@ _computeElementMatrixTRIA3(Cell cell)
 FixedMatrix<4, 4> FemModule::
 _computeElementMatrixQUAD4(Cell cell)
 {
-  // Get coordiantes of the quadrangular element  QUAD4
+  // Get coordinates of the quadrangular element  QUAD4
   //------------------------------------------------
   //             1 o . . . . o 0
   //               .         .
@@ -526,11 +593,6 @@ _computeElementMatrixQUAD4(Cell cell)
 
   FixedMatrix<4, 4> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
   int_cdPi_dPj.multInPlace(area * lambda);
-
-  //info() << "Cell=" << cell.localId();
-  //std::cout << " int_cdPi_dPj=";
-  //int_cdPi_dPj.dump(std::cout);
-  //std::cout << "\n";
 
   return int_cdPi_dPj;
 }
