@@ -14,7 +14,7 @@
 
   <meshes>
     <mesh>
-      <filename>plate.msh</filename>
+      <filename>plate.fine.msh</filename>
     </mesh>
   </meshes>
 
