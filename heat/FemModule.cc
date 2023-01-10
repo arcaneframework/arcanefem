@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2022 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2023 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemModule.cc                                                (C) 2022-2022 */
+/* FemModule.cc                                                (C) 2022-2023 */
 /*                                                                           */
 /* Simple module to test simple FEM mechanism.                               */
 /*---------------------------------------------------------------------------*/
@@ -64,8 +64,18 @@ class FemModule
 
  private:
 
-  Real lambda;
-  Real qdot;
+  //! Time variables
+  Real t   ,
+       dt  ,
+       tmax;
+  //! Temperature
+  Real Tinit ,
+       Text  ;
+  //! Material parameters
+  Real lambda ,
+       h      ,
+       qdot   ;
+  //! FEM parameter
   Real ElementNodes;
 
   DoFLinearSystem m_linear_system;
@@ -74,14 +84,20 @@ class FemModule
 
  private:
 
+  void _initTime();
+  void _updateTime();
+  void _updateVariables();
+  void _initTemperature();
   void _doStationarySolve();
-  void _getMaterialParameters();
+  void _getParameters();
   void _updateBoundayConditions();
   void _assembleBilinearOperatorTRIA3();
   void _assembleBilinearOperatorQUAD4();
+  void _assembleBilinearOperatorEDGE2();
   void _solve();
   void _initBoundaryconditions();
   void _assembleLinearOperator();
+  FixedMatrix<2, 2> _computeElementMatrixEDGE2(Face face);
   FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
@@ -100,7 +116,7 @@ compute()
   info() << "Module Fem COMPUTE";
 
   // Stop code after computations
-  if (m_global_iteration() > 0)
+  if (t >= tmax)
     subDomain()->timeLoopMng()->stopComputeLoop(true);
 
   m_linear_system.reset();
@@ -109,6 +125,9 @@ compute()
 
   info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
   _doStationarySolve();
+  _updateVariables();
+  _updateTime();
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -122,19 +141,74 @@ startInit()
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
-  //_buildDoFOnNodes();
-  //Int32 nb_node = allNodes().size();
-  //m_k_matrix.resize(nb_node, nb_node);
-  //m_k_matrix.fill(0.0);
+  _initBoundaryconditions();    // initialize boundary conditions
+  _initTime();                  // initialize time
+  _getParameters();             // get material parameters
+  _initTemperature();           // initialize temperature
+  m_global_deltat.assign(dt);
+}
 
-  //m_rhs_vector.resize(nb_node);
-  //m_rhs_vector.fill(0.0);
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
-  // # init mesh
-  // # init behavior
-  // # init behavior on mesh entities
-  // # init BCs
-  _initBoundaryconditions();
+void FemModule::
+_initTime()
+{
+  info() << "Initiate time";
+
+  tmax   = options()->tmax();
+  dt     = options()->dt();
+
+  tmax = tmax ;
+  t    = 0.0;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_updateTime()
+{
+  info() << "Update time";
+
+  t += dt;
+  info() << "Time t is :" << t << " (s)";
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_updateVariables()
+{
+  info() << "Update FEM variables";
+
+  {
+    // Copy Node temperature to Node temperature old
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      m_node_temperature_old[node] = m_node_temperature[node];
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_initTemperature()
+{
+  info() << "Init Temperature";
+
+  Tinit   = options()->Tinit();
+
+  {
+    // Copy Node temperature to Node temperature old
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      m_node_temperature_old[node] = Tinit;
+    }
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -143,8 +217,6 @@ startInit()
 void FemModule::
 _doStationarySolve()
 {
-  // # get material parameters
-  _getMaterialParameters();
 
   // # update BCs
   _updateBoundayConditions();
@@ -154,6 +226,8 @@ _doStationarySolve()
     _assembleBilinearOperatorQUAD4();
   else
     _assembleBilinearOperatorTRIA3();
+
+  _assembleBilinearOperatorEDGE2();
 
   // Assemble the FEM linear operator (RHS - vector b)
   _assembleLinearOperator();
@@ -169,7 +243,7 @@ _doStationarySolve()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_getMaterialParameters()
+_getParameters()
 {
   info() << "Get material parameters...";
   lambda = options()->lambda();
@@ -273,7 +347,7 @@ _assembleLinearOperator()
   rhs_values.fill(0.0);
 
   //----------------------------------------------
-  // penelty method for assembly of Dirichlet BC
+  // penalty method for assembly of Dirichlet BC
   //----------------------------------------------
   //
   // # adapt K and RHS to take into account Dirichlet BCs
@@ -290,8 +364,8 @@ _assembleLinearOperator()
     NodeLocalId node_id = *inode;
     if (m_node_is_temperature_fixed[node_id]) {
       DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-      m_linear_system.matrixAddValue(dof_id, dof_id, 1.0e12);
-      Real temperature = 1.0e12 * m_node_temperature[node_id];
+      m_linear_system.matrixAddValue(dof_id, dof_id, 1.0e31);
+      Real temperature = 1.0e31 * m_node_temperature[node_id];
       rhs_values[dof_id] = temperature;
     }
   }
@@ -301,14 +375,14 @@ _assembleLinearOperator()
   //----------------------------------------------
   //
   //  $int_{Omega}(qdot*v^h)$
-  //  only for noded that are non-Dirichlet
+  //  only for nodes that are non-Dirichlet
   //----------------------------------------------
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
     Real area = _computeAreaTriangle3(cell);
     for (Node node : cell.nodes()) {
       if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
-        rhs_values[node_dof.dofId(node, 0)] += qdot * area / ElementNodes;
+        rhs_values[node_dof.dofId(node, 0)] += (m_node_temperature_old[node]/dt) * area / ElementNodes;
     }
   }
 
@@ -317,8 +391,8 @@ _assembleLinearOperator()
   //----------------------------------------------
   //
   //  $int_{dOmega_N}((q.n)*v^h)$
-  //  only for noded that are non-Dirichlet
-  //  TODO : take flux vector and use normals at boundaries
+  //  only for nodes that are non-Dirichlet
+  //  TODO : take flux vector and use normal at boundaries
   //----------------------------------------------
   for (const auto& bs : options()->neumannBoundaryCondition()) {
     FaceGroup group = bs->surface();
@@ -332,6 +406,28 @@ _assembleLinearOperator()
       }
     }
   }
+
+  //----------------------------------------------
+  // Convection term assembly
+  //----------------------------------------------
+  //
+  //  $int_{dOmega_C}( h*Text*v^h)$
+  //  only for nodes that are non-Dirichlet
+  //----------------------------------------------
+  for (const auto& bs : options()->convectionBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    h = bs->h();
+    Text = bs->Text();
+    ENUMERATE_ (Face, iface, group) {
+      Face face = *iface;
+      Real length = _computeEdgeLength2(face);
+      for (Node node : iface->nodes()) {
+        if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
+          rhs_values[node_dof.dofId(node, 0)] += h * Text * length / 2.;
+      }
+    }
+  }
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -374,10 +470,60 @@ _computeEdgeLength2(Face face)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+FixedMatrix<2, 2> FemModule::
+_computeElementMatrixEDGE2(Face face)
+{
+  // Get coordinates of the triangle element  EDGE2
+  //------------------------------------------------
+  //                   1         0
+  //                   o . . . . o
+  //
+  //------------------------------------------------
+  Real3 m0 = m_node_coord[face.nodeId(0)];
+  Real3 m1 = m_node_coord[face.nodeId(1)];
+
+  Real area = _computeEdgeLength2(face);    // calculate length
+
+  Real2 dPhi0(m0.y - m1.y, m1.x - m0.x);
+  Real2 dPhi1(m1.y - m0.y, m0.x - m1.x);
+
+  FixedMatrix<1, 2> b_matrix;
+  FixedMatrix<2, 1> bT_matrix;
+  FixedMatrix<2, 2> int_DOmega_i;
+
+  for (Int32 i = 0; i<2; i++)
+    for (Int32 j = 0; j<2; j++)
+      int_DOmega_i(i,j) = 0.;
+
+  // uv //
+  b_matrix(0, 0) = 1.;
+  b_matrix(0, 1) = 1.;
+
+  b_matrix.multInPlace(0.5f);
+
+  bT_matrix(0, 0) = area/3;
+  bT_matrix(1, 0) = area/3;
+
+  bT_matrix.multInPlace(1.);
+
+  FixedMatrix<2, 2> int_UV   = matrixMultiplication(bT_matrix, b_matrix);
+
+  for (Int32 i = 0; i<2; i++)
+    int_UV(i,i) *= 2.;
+
+  int_UV.multInPlace(h);
+  int_DOmega_i = matrixAddition( int_DOmega_i, int_UV);
+
+  return int_DOmega_i;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 FixedMatrix<3, 3> FemModule::
 _computeElementMatrixTRIA3(Cell cell)
 {
-  // Get coordiantes of the triangle element  TRI3
+  // Get coordinates of the triangle element  TRI3
   //------------------------------------------------
   //                  0 o
   //                   . .
@@ -395,26 +541,77 @@ _computeElementMatrixTRIA3(Cell cell)
   Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
   Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
 
-  FixedMatrix<2, 3> b_matrix;
-  b_matrix(0, 0) = dPhi0.x;
-  b_matrix(0, 1) = dPhi1.x;
-  b_matrix(0, 2) = dPhi2.x;
+  FixedMatrix<1, 3> b_matrix;
+  FixedMatrix<3, 1> bT_matrix;
+  FixedMatrix<3, 3> int_Omega_i;
 
-  b_matrix(1, 0) = dPhi0.y;
-  b_matrix(1, 1) = dPhi1.y;
-  b_matrix(1, 2) = dPhi2.y;
+  for (Int32 i = 0; i<3; i++)
+    for (Int32 j = 0; j<3; j++)
+      int_Omega_i(i,j) = 0.;
 
-  b_matrix.multInPlace(1.0 / (2.0 * area));
+// -----------------------------------------------------------------------------
+//  lambda*(dx(u)dx(v) + dy(u)dy(v)) + uv/dt
+//------------------------------------------------------------------------------
 
-  FixedMatrix<3, 3> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
-  int_cdPi_dPj.multInPlace(area * lambda);
 
-  //info() << "Cell=" << cell.localId();
-  //std::cout << " int_cdPi_dPj=";
-  //int_cdPi_dPj.dump(std::cout);
-  //std::cout << "\n";
+  // dx(u)dx(v) //
+  b_matrix(0, 0) = dPhi0.x/area;
+  b_matrix(0, 1) = dPhi1.x/area;
+  b_matrix(0, 2) = dPhi2.x/area;
 
-  return int_cdPi_dPj;
+  b_matrix.multInPlace(0.5f);
+
+  bT_matrix(0, 0) = dPhi0.x;
+  bT_matrix(1, 0) = dPhi1.x;
+  bT_matrix(2, 0) = dPhi2.x;
+
+  bT_matrix.multInPlace(0.5f);
+
+  FixedMatrix<3, 3> int_dxUdxV = matrixMultiplication(bT_matrix, b_matrix);
+  int_Omega_i = matrixAddition( int_Omega_i, int_dxUdxV);
+
+
+  // dy(u)dy(v) //
+  b_matrix(0, 0) = dPhi0.y/area;
+  b_matrix(0, 1) = dPhi1.y/area;
+  b_matrix(0, 2) = dPhi2.y/area;
+
+  b_matrix.multInPlace(0.5f);
+
+  bT_matrix(0, 0) = dPhi0.y;
+  bT_matrix(1, 0) = dPhi1.y;
+  bT_matrix(2, 0) = dPhi2.y;
+
+  bT_matrix.multInPlace(0.5f);
+
+  FixedMatrix<3, 3> int_dyUdyV = matrixMultiplication(bT_matrix, b_matrix);
+  int_Omega_i = matrixAddition( int_Omega_i, int_dyUdyV);
+
+  int_Omega_i.multInPlace(lambda);
+
+  // uv //
+  b_matrix(0, 0) = 1.;
+  b_matrix(0, 1) = 1.;
+  b_matrix(0, 2) = 1.;
+
+  b_matrix.multInPlace(0.5f);
+
+  bT_matrix(0, 0) = area/3.;
+  bT_matrix(1, 0) = area/3.;
+  bT_matrix(2, 0) = area/3.;
+
+  bT_matrix.multInPlace(0.5f);
+
+  FixedMatrix<3, 3> int_UV   = matrixMultiplication(bT_matrix, b_matrix);
+
+  for (Int32 i = 0; i<3; i++)
+    int_UV(i,i) *= 2.;
+
+  int_UV.multInPlace(1./dt);
+
+  int_Omega_i = matrixAddition( int_Omega_i, int_UV);
+
+  return int_Omega_i;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -423,7 +620,7 @@ _computeElementMatrixTRIA3(Cell cell)
 FixedMatrix<4, 4> FemModule::
 _computeElementMatrixQUAD4(Cell cell)
 {
-  // Get coordiantes of the quadrangular element  QUAD4
+  // Get coordinates of the quadrangular element  QUAD4
   //------------------------------------------------
   //             1 o . . . . o 0
   //               .         .
@@ -459,11 +656,6 @@ _computeElementMatrixQUAD4(Cell cell)
   FixedMatrix<4, 4> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
   int_cdPi_dPj.multInPlace(area * lambda);
 
-  //info() << "Cell=" << cell.localId();
-  //std::cout << " int_cdPi_dPj=";
-  //int_cdPi_dPj.dump(std::cout);
-  //std::cout << "\n";
-
   return int_cdPi_dPj;
 }
 
@@ -481,15 +673,7 @@ _assembleBilinearOperatorQUAD4()
       ARCANE_FATAL("Only Quad4 cell type is supported");
 
     lambda = m_cell_lambda[cell];                 // lambda is always considered cell constant
-    auto K_e = _computeElementMatrixQUAD4(cell);  // element stifness matrix
-    //             # assemble elementary matrix into the global one
-    //             # elementary terms are positionned into K according
-    //             # to the rank of associated node in the mesh.nodes list
-    //             for node1 in elem.nodes:
-    //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
-    //                 for node2 in elem.nodes:
-    //                     inode2=elem.nodes.index(node2)
-    //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
+    auto K_e = _computeElementMatrixQUAD4(cell);  // element stiffness matrix
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
@@ -521,15 +705,12 @@ _assembleBilinearOperatorTRIA3()
       ARCANE_FATAL("Only Triangle3 cell type is supported");
 
     lambda = m_cell_lambda[cell];                 // lambda is always considered cell constant
-    auto K_e = _computeElementMatrixTRIA3(cell);  // element stifness matrix
-    //             # assemble elementary matrix into the global one
-    //             # elementary terms are positionned into K according
-    //             # to the rank of associated node in the mesh.nodes list
-    //             for node1 in elem.nodes:
-    //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
-    //                 for node2 in elem.nodes:
-    //                     inode2=elem.nodes.index(node2)
-    //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
+    auto K_e = _computeElementMatrixTRIA3(cell);  // element stiffness matrix
+    // assemble elementary matrix into the global one elementary terms are
+    // positioned into K according to  the rank of associated  node in the
+    // mesh.nodes list and according the dof number. For each TRIA3  there
+    // are 3 nodes hence the elementary stiffness matrix  size  is (3x3)=6
+    // will be  filled.
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
@@ -543,6 +724,39 @@ _assembleBilinearOperatorTRIA3()
         ++n2_index;
       }
       ++n1_index;
+    }
+  }
+}
+
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleBilinearOperatorEDGE2()
+{
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  for (const auto& bs : options()->convectionBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    h = bs->h();
+    ENUMERATE_ (Face, iface, group) {
+      Face face = *iface;
+
+      auto K_e = _computeElementMatrixEDGE2(face);  // element stiffness matrix
+
+      Int32 n1_index = 0;
+      for (Node node1 : face.nodes() ) {
+        Int32 n2_index = 0;
+        for (Node node2 : face.nodes()) {
+          Real v = K_e(n1_index, n2_index);
+          if (node1.isOwn()) {
+            m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+          }
+          ++n2_index;
+        }
+        ++n1_index;
+      }
     }
   }
 }
@@ -571,13 +785,7 @@ _solve()
   }
 
   m_node_temperature.synchronize();
-  // def update_T(self,T):
-  //     """Update temperature value on nodes after the FE resolution"""
-  //     for i in range(0,len(self.mesh.nodes)):
-  //         node=self.mesh.nodes[i]
-  //         # don't update T imposed by Dirichlet BC
-  //         if not node.is_T_fixed:
-  //             self.mesh.nodes[i].T=T[i]
+  m_node_temperature_old.synchronize();
 
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {

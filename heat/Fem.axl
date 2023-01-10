@@ -1,0 +1,164 @@
+<?xml version="1.0" ?>
+<module name="Fem" version="1.0">
+  <description>Descripteur du module Fem</description>
+  <entry-points>
+    <entry-point method-name="compute" name="Compute" where="compute-loop" property="none" />
+    <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
+  </entry-points>
+  <variables>
+    <variable field-name="cell_lambda" name="CellLambda" data-type="real" item-kind="cell" dim="0">
+      <description>Conductivity of the element</description>
+    </variable>
+    <variable field-name="node_temperature" name="NodeTemperature" data-type="real" item-kind="node" dim="0">
+      <description>Temperature on variables for node coords at time t</description>
+    </variable>
+    <variable field-name="node_temperature_old" name="NodeTemperatureOld" data-type="real" item-kind="node" dim="0">
+      <description>Temperature on variables for node coords at time t-dt</description>
+    </variable>
+    <variable field-name="node_is_temperature_fixed" name="NodeIsTemperatureFixed" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if temperature is fixed on the node</description>
+    </variable>
+    <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
+      <description>NodeCoord from Arcane variable</description>
+    </variable>
+  </variables>
+  <options>
+    <simple name="qdot" type="real" default="0.0">
+      <description>Heat source within the material.</description>
+    </simple>
+    <simple name="lambda" type="real" default="1.75">
+      <description>Thermal conductivity of the material.</description>
+    </simple>
+    <simple name="result-file" type="string" optional="true">
+      <description>File name of a file containing the valuess of the solution vector to check the results</description>
+    </simple>
+    <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
+      <description>Type of mesh provided to the solver</description>
+    </simple>
+    <simple name="dt" type="real" default="0.1">
+      <description>Time step of simulation.</description>
+    </simple>
+    <simple name="tmax" type="real" default="1.0">
+      <description>Maximum time of simulation.</description>
+    </simple>
+    <simple name="Tinit" type="real" default="0.0">
+      <description>Initial temprature.</description>
+    </simple>
+
+    <!-- - - - - - dirichlet-boundary-condition - - - - -->
+    <complex name  = "dirichlet-boundary-condition"
+             type  = "DirichletBoundaryCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Dirichelt boundary condition
+      </description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>
+          FaceGroup on which to apply these boundary condition
+        </description>
+      </extended>
+      <simple name = "value" type = "real">
+        <description>
+          Value of the boundary condition
+        </description>
+      </simple>
+    </complex>
+
+    <!-- - - - - - neumann-boundary-condition - - - - -->
+    <complex name  = "neumann-boundary-condition"
+             type  = "NeumannBoundaryCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Neumann boundary condition
+      </description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>
+          FaceGroup on which to apply these boundary condition
+        </description>
+      </extended>
+      <simple name = "value" type = "real">
+        <description>
+          Value of the boundary condition
+        </description>
+      </simple>
+    </complex>
+
+
+    <!-- - - - - - dirichlet-point-condition - - - - -->
+    <complex name  = "dirichlet-point-condition"
+             type  = "DirichletPointCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Dirichelt point condition
+      </description>
+      <extended name = "node" type = "Arcane::NodeGroup">
+        <description>
+          NodeGroup on which to apply these point Dirichelt condition
+        </description>
+      </extended>
+      <simple name = "value" type = "real">
+        <description>
+          Value of the point Dirichelt condition
+        </description>
+      </simple>
+    </complex>
+
+    <!-- - - - - - convection-boundary-condition - - - - -->
+    <complex name  = "convection-boundary-condition"
+             type  = "ConvectionBoundaryCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Convection boundary condition
+      </description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>
+          FaceGroup on which to apply these boundary condition
+        </description>
+      </extended>
+      <simple name = "h" type = "real">
+        <description>
+          Value of convection coefficient h on the boundary
+        </description>
+      </simple>
+      <simple name = "Text" type = "real">
+        <description>
+          Value of external temperature on the boundary
+        </description>
+      </simple>
+    </complex>
+
+    <!-- - - - - - material-property - - - - -->
+    <complex name  = "material-property"
+             type  = "MaterialProperty"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Material properties
+      </description>
+      <extended name = "volume" type = "Arcane::CellGroup">
+        <description>
+          CellGroup on which material properties are applied
+        </description>
+      </extended>
+      <simple name = "lambda" type = "real">
+        <description>
+          Value of the conductivity for CellGroup
+        </description>
+      </simple>
+    </complex>
+
+    <service-instance name = "linear-system"
+                      type = "Arcane::FemUtils::IDoFLinearSystemFactory"
+                      default = "AlephLinearSystem"
+                      />
+  </options>
+</module>

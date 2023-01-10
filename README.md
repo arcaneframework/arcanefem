@@ -14,27 +14,28 @@ cmake -S ${SOURCE_PATH} -B ${BUILD_DIR} -DCMAKE_PREFIX_PATH=${ARCANE_INSTALL_DIR
 cmake --build ${BUILD_DIR}
 ~~~
 
-To execute an example from poission solver (in a directory)
+To execute an example from poisson solver (in a directory)
 
 ~~~{sh}
-cd ${BUILD_DIR}/poission && ./FemTest Test.conduction.arc
+cd ${BUILD_DIR}/poisson && ./FemTest Test.conduction.arc
 ~~~
 
 After running the test case, you can display the results with ParaView:
 
 ~~~bash
-paraview ${BUILD_DIR}/poission/output/depouillement/ensight.case
+paraview ${BUILD_DIR}/poisson/output/depouillement/ensight.case
 ~~~
 
 ## Todo List ##
 
 #### Short term ####
-
-- [ ] Update documentation
-- [ ] Point-Dirichlet for elasticity
-- [ ] Traction condition for elasticity
-- [ ] Possibility to change linear-algebra backed in .arc files
 - [ ] Row-Column elimination for Dirichlet BC
+- [x] Convection operator for transient heat conduction problem
+- [x] Transient Heat conduction problem
+- [x] Update documentation
+- [x] Point-Dirichlet for elasticity
+- [x] Traction condition for elasticity
+- [x] Possibility to change linear-algebra backed in .arc files
 - [x] Reading group of nodes (Arcane::NodeGroup) from msh file 
 - [x] Point Dirichlet boundary condition
 - [x] First vectorial FEM example - Bilaplacian
