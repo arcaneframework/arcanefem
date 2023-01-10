@@ -68,12 +68,13 @@ class FemModule
   Real t   ,
        dt  ,
        tmax;
-  //! Temprature
+  //! Temperature
   Real Tinit ,
        Text  ;
-  //! Material paramters
-  Real lambda;
-  Real qdot;
+  //! Material parameters
+  Real lambda ,
+       h      ,
+       qdot   ;
   //! FEM parameter
   Real ElementNodes;
 
@@ -346,7 +347,7 @@ _assembleLinearOperator()
   rhs_values.fill(0.0);
 
   //----------------------------------------------
-  // penelty method for assembly of Dirichlet BC
+  // penalty method for assembly of Dirichlet BC
   //----------------------------------------------
   //
   // # adapt K and RHS to take into account Dirichlet BCs
@@ -374,7 +375,7 @@ _assembleLinearOperator()
   //----------------------------------------------
   //
   //  $int_{Omega}(qdot*v^h)$
-  //  only for noded that are non-Dirichlet
+  //  only for nodes that are non-Dirichlet
   //----------------------------------------------
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
@@ -390,8 +391,8 @@ _assembleLinearOperator()
   //----------------------------------------------
   //
   //  $int_{dOmega_N}((q.n)*v^h)$
-  //  only for noded that are non-Dirichlet
-  //  TODO : take flux vector and use normals at boundaries
+  //  only for nodes that are non-Dirichlet
+  //  TODO : take flux vector and use normal at boundaries
   //----------------------------------------------
   for (const auto& bs : options()->neumannBoundaryCondition()) {
     FaceGroup group = bs->surface();
@@ -405,6 +406,28 @@ _assembleLinearOperator()
       }
     }
   }
+
+  //----------------------------------------------
+  // Convection term assembly
+  //----------------------------------------------
+  //
+  //  $int_{dOmega_C}( h*Text*v^h)$
+  //  only for nodes that are non-Dirichlet
+  //----------------------------------------------
+  for (const auto& bs : options()->convectionBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    h = bs->h();
+    Text = bs->Text();
+    ENUMERATE_ (Face, iface, group) {
+      Face face = *iface;
+      Real length = _computeEdgeLength2(face);
+      for (Node node : iface->nodes()) {
+        if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
+          rhs_values[node_dof.dofId(node, 0)] += h * Text * length / 2.;
+      }
+    }
+  }
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -488,7 +511,7 @@ _computeElementMatrixEDGE2(Face face)
   for (Int32 i = 0; i<2; i++)
     int_UV(i,i) *= 2.;
 
-  int_UV.multInPlace(1.);
+  int_UV.multInPlace(h);
   int_DOmega_i = matrixAddition( int_DOmega_i, int_UV);
 
   return int_DOmega_i;
@@ -716,11 +739,11 @@ _assembleBilinearOperatorEDGE2()
 
   for (const auto& bs : options()->convectionBoundaryCondition()) {
     FaceGroup group = bs->surface();
-    Real value = bs->h();
+    h = bs->h();
     ENUMERATE_ (Face, iface, group) {
       Face face = *iface;
 
-      auto K_e = _computeElementMatrixEDGE2(face);  // element stifness matrix
+      auto K_e = _computeElementMatrixEDGE2(face);  // element stiffness matrix
 
       Int32 n1_index = 0;
       for (Node node1 : face.nodes() ) {
