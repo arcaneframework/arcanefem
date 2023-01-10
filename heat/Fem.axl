@@ -41,12 +41,6 @@
     <simple name="tmax" type="real" default="1.0">
       <description>Maximum time of simulation.</description>
     </simple>
-    <simple name="h" type="real" default="0.25" optional="true">
-      <description>Convection coefficeint.</description>
-    </simple>
-    <simple name="Text" type="real" default="25." optional="true">
-      <description>External temprature.</description>
-    </simple>
     <simple name="Tinit" type="real" default="0.0">
       <description>Initial temprature.</description>
     </simple>
@@ -111,6 +105,32 @@
       <simple name = "value" type = "real">
         <description>
           Value of the point Dirichelt condition
+        </description>
+      </simple>
+    </complex>
+
+    <!-- - - - - - convection-boundary-condition - - - - -->
+    <complex name  = "convection-boundary-condition"
+             type  = "ConvectionBoundaryCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Convection boundary condition
+      </description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>
+          FaceGroup on which to apply these boundary condition
+        </description>
+      </extended>
+      <simple name = "h" type = "real">
+        <description>
+          Value of convection coefficient h on the boundary
+        </description>
+      </simple>
+      <simple name = "Text" type = "real">
+        <description>
+          Value of external temperature on the boundary
         </description>
       </simple>
     </complex>

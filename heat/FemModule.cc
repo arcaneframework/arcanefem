@@ -68,12 +68,13 @@ class FemModule
   Real t   ,
        dt  ,
        tmax;
-  //! Temprature
+  //! Temperature
   Real Tinit ,
        Text  ;
-  //! Material paramters
-  Real lambda;
-  Real qdot;
+  //! Material parameters
+  Real lambda ,
+       h      ,
+       qdot   ;
   //! FEM parameter
   Real ElementNodes;
 
@@ -92,9 +93,11 @@ class FemModule
   void _updateBoundayConditions();
   void _assembleBilinearOperatorTRIA3();
   void _assembleBilinearOperatorQUAD4();
+  void _assembleBilinearOperatorEDGE2();
   void _solve();
   void _initBoundaryconditions();
   void _assembleLinearOperator();
+  FixedMatrix<2, 2> _computeElementMatrixEDGE2(Face face);
   FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
@@ -224,6 +227,8 @@ _doStationarySolve()
   else
     _assembleBilinearOperatorTRIA3();
 
+  _assembleBilinearOperatorEDGE2();
+
   // Assemble the FEM linear operator (RHS - vector b)
   _assembleLinearOperator();
 
@@ -342,7 +347,7 @@ _assembleLinearOperator()
   rhs_values.fill(0.0);
 
   //----------------------------------------------
-  // penelty method for assembly of Dirichlet BC
+  // penalty method for assembly of Dirichlet BC
   //----------------------------------------------
   //
   // # adapt K and RHS to take into account Dirichlet BCs
@@ -370,7 +375,7 @@ _assembleLinearOperator()
   //----------------------------------------------
   //
   //  $int_{Omega}(qdot*v^h)$
-  //  only for noded that are non-Dirichlet
+  //  only for nodes that are non-Dirichlet
   //----------------------------------------------
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
@@ -386,8 +391,8 @@ _assembleLinearOperator()
   //----------------------------------------------
   //
   //  $int_{dOmega_N}((q.n)*v^h)$
-  //  only for noded that are non-Dirichlet
-  //  TODO : take flux vector and use normals at boundaries
+  //  only for nodes that are non-Dirichlet
+  //  TODO : take flux vector and use normal at boundaries
   //----------------------------------------------
   for (const auto& bs : options()->neumannBoundaryCondition()) {
     FaceGroup group = bs->surface();
@@ -401,6 +406,28 @@ _assembleLinearOperator()
       }
     }
   }
+
+  //----------------------------------------------
+  // Convection term assembly
+  //----------------------------------------------
+  //
+  //  $int_{dOmega_C}( h*Text*v^h)$
+  //  only for nodes that are non-Dirichlet
+  //----------------------------------------------
+  for (const auto& bs : options()->convectionBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    h = bs->h();
+    Text = bs->Text();
+    ENUMERATE_ (Face, iface, group) {
+      Face face = *iface;
+      Real length = _computeEdgeLength2(face);
+      for (Node node : iface->nodes()) {
+        if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
+          rhs_values[node_dof.dofId(node, 0)] += h * Text * length / 2.;
+      }
+    }
+  }
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -438,6 +465,56 @@ _computeEdgeLength2(Face face)
   Real3 m0 = m_node_coord[face.nodeId(0)];
   Real3 m1 = m_node_coord[face.nodeId(1)];
   return  math::sqrt((m1.x-m0.x)*(m1.x-m0.x) + (m1.y-m0.y)*(m1.y - m0.y));
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+FixedMatrix<2, 2> FemModule::
+_computeElementMatrixEDGE2(Face face)
+{
+  // Get coordinates of the triangle element  EDGE2
+  //------------------------------------------------
+  //                   1         0
+  //                   o . . . . o
+  //
+  //------------------------------------------------
+  Real3 m0 = m_node_coord[face.nodeId(0)];
+  Real3 m1 = m_node_coord[face.nodeId(1)];
+
+  Real area = _computeEdgeLength2(face);    // calculate length
+
+  Real2 dPhi0(m0.y - m1.y, m1.x - m0.x);
+  Real2 dPhi1(m1.y - m0.y, m0.x - m1.x);
+
+  FixedMatrix<1, 2> b_matrix;
+  FixedMatrix<2, 1> bT_matrix;
+  FixedMatrix<2, 2> int_DOmega_i;
+
+  for (Int32 i = 0; i<2; i++)
+    for (Int32 j = 0; j<2; j++)
+      int_DOmega_i(i,j) = 0.;
+
+  // uv //
+  b_matrix(0, 0) = 1.;
+  b_matrix(0, 1) = 1.;
+
+  b_matrix.multInPlace(0.5f);
+
+  bT_matrix(0, 0) = area/3;
+  bT_matrix(1, 0) = area/3;
+
+  bT_matrix.multInPlace(1.);
+
+  FixedMatrix<2, 2> int_UV   = matrixMultiplication(bT_matrix, b_matrix);
+
+  for (Int32 i = 0; i<2; i++)
+    int_UV(i,i) *= 2.;
+
+  int_UV.multInPlace(h);
+  int_DOmega_i = matrixAddition( int_DOmega_i, int_UV);
+
+  return int_DOmega_i;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -647,6 +724,39 @@ _assembleBilinearOperatorTRIA3()
         ++n2_index;
       }
       ++n1_index;
+    }
+  }
+}
+
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleBilinearOperatorEDGE2()
+{
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  for (const auto& bs : options()->convectionBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    h = bs->h();
+    ENUMERATE_ (Face, iface, group) {
+      Face face = *iface;
+
+      auto K_e = _computeElementMatrixEDGE2(face);  // element stiffness matrix
+
+      Int32 n1_index = 0;
+      for (Node node1 : face.nodes() ) {
+        Int32 n2_index = 0;
+        for (Node node2 : face.nodes()) {
+          Real v = K_e(n1_index, n2_index);
+          if (node1.isOwn()) {
+            m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+          }
+          ++n2_index;
+        }
+        ++n1_index;
+      }
     }
   }
 }

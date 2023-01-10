@@ -3,7 +3,7 @@
 //
 // NOTE: Use the -format msh41 format to genrate the mesh
 
-lc = 2.0;
+lc = 0.8;
 length=30.0;
 width=5.0;
 
