@@ -19,6 +19,8 @@
 #include <arcane/matvec/Matrix.h>
 #include <arcane/VariableTypedef.h>
 
+#include <arcane/Parallel.h>
+
 #include <array>
 #include <iostream>
 
@@ -166,6 +168,12 @@ _convertNumArrayToCSRMatrix(Arcane::MatVec::Matrix& out_matrix,
 extern "C++" void
 checkNodeResultFile(ITraceMng* tm, const String& filename,
                     const VariableNodeReal& node_values, double epsilon);
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+extern "C++" void
+readFileAsCaseTable(IParallelMng* pm, const String& filename);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
