@@ -25,11 +25,11 @@ configure_file(Test.conduction.heterogeneous.10k.arc ${CMAKE_CURRENT_BINARY_DIR}
 configure_file(Test.conduction.10k.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.conduction.quad4.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.laplace.PointDirichlet.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(L-shape.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(ring.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(plancher.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(multi-material.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(plancher.quad4.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/L-shape.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/ring.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/plancher.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/multi-material.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/plancher.quad4.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(FemTest PUBLIC FemUtils)
 
@@ -42,11 +42,11 @@ find_program(GMSH NAMES gmsh)
 if (GMSH)
   message(STATUS "GMSH found: ${GMSH}")
   add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/plancher.10k.msh
-    COMMAND ${GMSH} -2 ${CMAKE_CURRENT_SOURCE_DIR}/plancher.geo -format msh41 -o plancher.10k.msh
+    COMMAND ${GMSH} -2 ${MSH_DIR}/plancher.geo -format msh41 -o plancher.10k.msh
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )
   add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/multi-material.10k.msh
-    COMMAND ${GMSH} -2 ${CMAKE_CURRENT_SOURCE_DIR}/multi-mat.geo -format msh41 -o multi-material.10k.msh
+    COMMAND ${GMSH} -2 ${MSH_DIR}/multi-mat.geo -format msh41 -o multi-material.10k.msh
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )
   add_custom_target(gmsh_files DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/multi-material.10k.msh ${CMAKE_CURRENT_BINARY_DIR}/plancher.10k.msh)

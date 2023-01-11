@@ -16,7 +16,7 @@ configure_file(Bilaplacian.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.Bilaplacian.direct.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.Bilaplacian.internal_pcg.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.Bilaplacian.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(bilap.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/bilap.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Bilaplacian PUBLIC FemUtils)
 
