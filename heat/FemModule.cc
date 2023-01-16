@@ -100,6 +100,9 @@ class FemModule
   FixedMatrix<2, 2> _computeElementMatrixEDGE2(Face face);
   FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
+  Real  _computeDxOfRealTRIA3(Cell cell);
+  Real  _computeDyOfRealTRIA3(Cell cell);
+  Real2 _computeDxDyOfRealTRIA3(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
   Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
@@ -428,6 +431,68 @@ _assembleLinearOperator()
     }
   }
 
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+Real FemModule::
+_computeDyOfRealTRIA3(Cell cell)
+{
+  Real3 m0 = m_node_coord[cell.nodeId(0)];
+  Real3 m1 = m_node_coord[cell.nodeId(1)];
+  Real3 m2 = m_node_coord[cell.nodeId(2)];
+
+  Real f0 = m_node_temperature[cell.nodeId(0)];
+  Real f1 = m_node_temperature[cell.nodeId(1)];
+  Real f2 = m_node_temperature[cell.nodeId(2)];
+
+  // Using Cramer's rule  det (adj (A)) / det (A)
+  return ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) /
+         ( m0.x*(m1.y - m2.y) - m0.y*(m1.x - m2.x) + (m1.x*m2.y - m2.x*m1.y) );
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+Real FemModule::
+_computeDxOfRealTRIA3(Cell cell)
+{
+  Real3 m0 = m_node_coord[cell.nodeId(0)];
+  Real3 m1 = m_node_coord[cell.nodeId(1)];
+  Real3 m2 = m_node_coord[cell.nodeId(2)];
+
+  Real f0 = m_node_temperature[cell.nodeId(0)];
+  Real f1 = m_node_temperature[cell.nodeId(1)];
+  Real f2 = m_node_temperature[cell.nodeId(2)];
+
+  // Using Cramer's rule  det (adj (A)) / det (A)
+  return ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) /
+         ( m0.x*(m1.y - m2.y) - m0.y*(m1.x - m2.x) + (m1.x*m2.y - m2.x*m1.y) );
+}
+
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+Real2 FemModule::
+_computeDxDyOfRealTRIA3(Cell cell)
+{
+  Real3 m0 = m_node_coord[cell.nodeId(0)];
+  Real3 m1 = m_node_coord[cell.nodeId(1)];
+  Real3 m2 = m_node_coord[cell.nodeId(2)];
+
+  Real f0 = m_node_temperature[cell.nodeId(0)];
+  Real f1 = m_node_temperature[cell.nodeId(1)];
+  Real f2 = m_node_temperature[cell.nodeId(2)];
+
+  Real detA = ( m0.x*(m1.y - m2.y) - m0.y*(m1.x - m2.x) + (m1.x*m2.y - m2.x*m1.y) );
+
+  Real2 DX;
+        DX.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / detA;
+        DX.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / detA;
+
+  return DX ;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -782,10 +847,35 @@ _solve()
       Real v = dof_temperature[node_dof.dofId(node, 0)];
       m_node_temperature[node] = v;
     }
+
+    ENUMERATE_ (Cell, icell, allCells()) {
+      Cell cell = *icell;
+
+      //m_dx_node_temperature[cell] = _computeDyOfRealTRIA3(cell);
+
+      Real2 DX = _computeDxDyOfRealTRIA3(cell);
+      m_flux[cell].x = -m_cell_lambda[cell] * DX.x;
+      m_flux[cell].y = -m_cell_lambda[cell] * DX.y;
+      m_flux[cell].z = 0.;
+      /*
+      Real3 x0 = m_node_coord[cell.nodeId(0)];
+      Real3 x1 = m_node_coord[cell.nodeId(1)];
+      Real3 x2 = m_node_coord[cell.nodeId(2)];
+
+      Real f0 = m_node_temperature[cell.nodeId(0)];
+      Real f1 = m_node_temperature[cell.nodeId(1)];
+      Real f2 = m_node_temperature[cell.nodeId(2)];
+
+      // Using Cramer's rule  det (adj (A)) / det (A)
+      m_dx_node_temperature[cell]  =    f0*(x1.y - x2.y) - x0.y*(f1 - f2) + (f1*x2.y - f2*x1.y);
+      m_dx_node_temperature[cell] /=  ( x0.x*(x1.y - x2.y) - x0.y*(x1.x - x2.x) + (x1.x*x2.y - x2.x*x1.y) );
+      */
+    }
   }
 
   m_node_temperature.synchronize();
   m_node_temperature_old.synchronize();
+  m_flux.synchronize();
 
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {
@@ -796,6 +886,15 @@ _solve()
       //info() << "T[]" << node.uniqueId() << " "
       //       << m_node_temperature[node];
     }
+
+/*
+    ENUMERATE_ (Cell, icell, allCells()) {
+      Cell cell = *icell;
+
+      info() << "DX[" << cell.localId() << "] = "
+             << m_dx_node_temperature[cell];
+    }
+*/
   }
 }
 

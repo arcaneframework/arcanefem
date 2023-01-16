@@ -9,6 +9,7 @@
    <output-period>2</output-period>
    <output>
      <variable>NodeTemperature</variable>
+     <variable>Flux</variable>
    </output>
   </arcane-post-processing>
 
