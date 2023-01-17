@@ -310,6 +310,12 @@ _applyDirichletBoundaryConditions()
     }
   }
 
+  // Handle all Dirichlet point boundary condition
+  // In the 'arc' file, these are recognized by
+  //     <dirichlet-point-condition>
+  //    <node>botLeftCorner</node>
+  //    <value>20.0</value>
+  //  </dirichlet-point-condition>
   for (const auto& bs : options()->dirichletPointCondition()) {
     NodeGroup group = bs->node();
     Real value = bs->value();
@@ -848,35 +854,38 @@ _solve()
       m_node_temperature[node] = v;
     }
 
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
+    m_node_temperature.synchronize();
+    m_node_temperature_old.synchronize();
 
-      //m_dx_node_temperature[cell] = _computeDyOfRealTRIA3(cell);
+    if(m_flux.tagValue("PostProcessing")=="1") {
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
 
-      Real2 DX = _computeDxDyOfRealTRIA3(cell);
-      m_flux[cell].x = -m_cell_lambda[cell] * DX.x;
-      m_flux[cell].y = -m_cell_lambda[cell] * DX.y;
-      m_flux[cell].z = 0.;
-      /*
-      Real3 x0 = m_node_coord[cell.nodeId(0)];
-      Real3 x1 = m_node_coord[cell.nodeId(1)];
-      Real3 x2 = m_node_coord[cell.nodeId(2)];
+        //m_dx_node_temperature[cell] = _computeDyOfRealTRIA3(cell);
 
-      Real f0 = m_node_temperature[cell.nodeId(0)];
-      Real f1 = m_node_temperature[cell.nodeId(1)];
-      Real f2 = m_node_temperature[cell.nodeId(2)];
+        Real2 DX = _computeDxDyOfRealTRIA3(cell);
+        m_flux[cell].x = -m_cell_lambda[cell] * DX.x;
+        m_flux[cell].y = -m_cell_lambda[cell] * DX.y;
+        m_flux[cell].z = 0.;
+        /*
+        Real3 x0 = m_node_coord[cell.nodeId(0)];
+        Real3 x1 = m_node_coord[cell.nodeId(1)];
+        Real3 x2 = m_node_coord[cell.nodeId(2)];
 
-      // Using Cramer's rule  det (adj (A)) / det (A)
-      m_dx_node_temperature[cell]  =    f0*(x1.y - x2.y) - x0.y*(f1 - f2) + (f1*x2.y - f2*x1.y);
-      m_dx_node_temperature[cell] /=  ( x0.x*(x1.y - x2.y) - x0.y*(x1.x - x2.x) + (x1.x*x2.y - x2.x*x1.y) );
-      */
+        Real f0 = m_node_temperature[cell.nodeId(0)];
+        Real f1 = m_node_temperature[cell.nodeId(1)];
+        Real f2 = m_node_temperature[cell.nodeId(2)];
+
+        // Using Cramer's rule  det (adj (A)) / det (A)
+        m_dx_node_temperature[cell]  =    f0*(x1.y - x2.y) - x0.y*(f1 - f2) + (f1*x2.y - f2*x1.y);
+        m_dx_node_temperature[cell] /=  ( x0.x*(x1.y - x2.y) - x0.y*(x1.x - x2.x) + (x1.x*x2.y - x2.x*x1.y) );
+        */
+      }
+
+      m_flux.synchronize();
     }
+
   }
-
-  m_node_temperature.synchronize();
-  m_node_temperature_old.synchronize();
-  m_flux.synchronize();
-
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {
     ENUMERATE_ (Node, inode, allNodes()) {
