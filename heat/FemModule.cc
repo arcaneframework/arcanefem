@@ -879,6 +879,7 @@ _solve()
         */
       }
     }
+  }
 
   m_node_temperature.synchronize();
   m_node_temperature_old.synchronize();
