@@ -854,6 +854,9 @@ _solve()
       m_node_temperature[node] = v;
     }
 
+    m_node_temperature.synchronize();
+    m_node_temperature_old.synchronize();
+
     if(m_flux.tagValue("PostProcessing")=="1") {
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
@@ -878,15 +881,11 @@ _solve()
         m_dx_node_temperature[cell] /=  ( x0.x*(x1.y - x2.y) - x0.y*(x1.x - x2.x) + (x1.x*x2.y - x2.x*x1.y) );
         */
       }
+
+      m_flux.synchronize();
     }
+
   }
-
-  m_node_temperature.synchronize();
-  m_node_temperature_old.synchronize();
-
-  if(m_flux.tagValue("PostProcessing")=="1")
-    m_flux.synchronize();
-
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {
     ENUMERATE_ (Node, inode, allNodes()) {
