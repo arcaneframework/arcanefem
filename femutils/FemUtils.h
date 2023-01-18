@@ -18,6 +18,9 @@
 #include <arcane/utils/MDSpan.h>
 #include <arcane/matvec/Matrix.h>
 #include <arcane/VariableTypedef.h>
+#include <arcane/Parallel.h>
+#include <arcane/IIOMng.h>
+#include <arcane/CaseTable.h>
 
 #include <array>
 #include <iostream>
@@ -98,7 +101,7 @@ matrixAddition(const FixedMatrix<N, M>& a, const FixedMatrix<M, N>& b)
 
   for (Int32 i = 0; i < N; ++i) {
     for (Int32 j = 0; j < N; ++j) {
-       new_matrix(i, j) = a(i, j) + b(i, j);
+      new_matrix(i, j) = a(i, j) + b(i, j);
     }
   }
   return new_matrix;
@@ -169,9 +172,15 @@ checkNodeResultFile(ITraceMng* tm, const String& filename,
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
+/*!
+ * \brief Sample to read value from a file and create an associated CaseTable.
+ *
+ * The file should contains 3 values for each time step (so the number of
+ * values should be a multiple of 4).
+ */
+extern "C++" CaseTable*
+readFileAsCaseTable(IParallelMng* pm, const String& filename, const Int32& ndim);
 }
-
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 

@@ -672,6 +672,7 @@ Real3 Hexa20ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
   if (inod == 17) return { -0.25*t2*sp,0.25*t2*rm,-0.5*ti*rm*sp };
   if (inod == 18) return { -0.25*t2*sm,-0.25*t2*rm,-0.5*ti*rm*sm };
   if (inod == 19) return { 0.25*t2*sm,-0.25*t2*rp,-0.5*ti*rp*sm };
+  return {};
 }
 
 Integer3 Hexa20Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){

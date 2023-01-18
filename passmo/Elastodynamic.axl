@@ -62,6 +62,9 @@
   </entry-points>
 
   <options>
+    <simple name="bf" type="bool" default="true" optional="true">
+      <description>Indicator to activate body forces.</description>
+    </simple>
     <simple name = "displacement-result-file" type = "string" default="displ-result.txt" optional = "true">
       <description>Filename containing the solution displacements</description>
     </simple>
@@ -110,20 +113,38 @@
         </simple>
     </complex>
 
+    <simple name="max-frequency" type="real" default="10." optional="true">
+      <description>Maximum frequency filter to apply to the input motion</description>
+    </simple>
     <!-- - - - - - input-motion - - - - -->
-    <complex name="input-motion" type="InputMotion" minOccurs="0" maxOccurs="unbounded">
-      <description>Definition of an input time history for nodal acceleration, velocity and/or displacement</description>
+    <complex name="input-motion" type="InputMotion" minOccurs="0" maxOccurs="1">
+      <description>Definition of an input time history for nodal motion</description>
         <extended name="node-group" type="Arcane::NodeGroup">
           <description>NodeGroup on which the input motion will be applied</description>
         </extended>
-        <simple name = "acceleration-input-file" type = "string" default="acc-input.txt" optional = "true">
-          <description>Filename containing the input acceleration time history</description>
+        <simple name = "acceleration-input-file" type = "string">
+          <description>Filename containing the 3D input acceleration time history</description>
         </simple>
-        <simple name = "displacement-input-file" type = "string" default="displ-input.txt" optional = "true">
-          <description>Filename containing the input displacement time history</description>
+        <simple name = "velocity-input-file" type = "string" optional = "true">
+          <description>Filename containing the 3D input velocity time history</description>
         </simple>
-        <simple name = "velocity-input-file" type = "string" default="vel-input.txt" optional = "true">
-          <description>Filename containing the input velocity time history</description>
+        <simple name = "displacement-input-file" type = "string" optional = "true">
+          <description>Filename containing the 3D input velocity time history</description>
+        </simple>
+        <simple name="rigid-base" type="bool" default="true" optional="true">
+          <description>Indicator true for a "rigid base"-type motion (=paraxial otherwise)</description>
+        </simple>
+        <simple name = "x-component" type="bool">
+          <description>Indicator is true when the input motion is defined for x-component</description>
+        </simple>
+        <simple name = "y-component" type="bool">
+          <description>Indicator is true when the input motion is defined for y-component</description>
+        </simple>
+        <simple name = "z-component" type="bool">
+          <description>Indicator is true when the input motion is defined for z-component</description>
+        </simple>
+        <simple name="amplification-factors" type="real3" default="1.0" optional="true">
+          <description>Amplification factors to apply to the input motion time histories</description>
         </simple>
     </complex>
 

@@ -17,10 +17,9 @@
 #include <arcane/utils/PlatformUtils.h>
 #include <arcane/utils/ValueConvert.h>
 #include <arcane/utils/ITraceMng.h>
-
+#include <arcane/IParallelMng.h>
 #include <arcane/VariableTypes.h>
 #include <arcane/IItemFamily.h>
-
 #include <map>
 
 /*---------------------------------------------------------------------------*/
@@ -141,6 +140,63 @@ void checkNodeResultFile(ITraceMng* tm, const String& filename,
   }
   if (nb_error > 0)
     ARCANE_FATAL("Error checking values nb_error={0}", nb_error);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*!
+ * \brief Sample to read value from a file and create an associated CaseTable.
+ *
+ * The file should contains 3 values for each time step (so the number of
+ * values should be a multiple of 4).
+ */
+CaseTable* readFileAsCaseTable(IParallelMng* pm, const String& filename, const Int32& ndim)
+{
+  ITraceMng* tm = pm->traceMng();
+  UniqueArray<Byte> bytes;
+  bool is_bad = pm->ioMng()->collectiveRead(filename, bytes, false);
+  if (is_bad)
+    ARCANE_FATAL("Can not read file '{0}'");
+  String file_as_str(bytes);
+  tm->info() << "FILE=" << file_as_str;
+  UniqueArray<Real> file_values;
+  is_bad = builtInGetValue(file_values, file_as_str);
+  if (is_bad)
+    ARCANE_FATAL("Can not read file '{0}' as Array<Real>");
+  Int32 nb_value = file_values.size();
+
+  // For each line, the first value is the time step and the 3 following values
+  // are the values of the case table. So the total number should be a multiple of 4
+  tm->info() << "NB_VALUE=" << file_values.size();
+  Int32 nb_func_value = nb_value / (ndim+1);
+  tm->info() << "NB_FUNC_VALUE=" << nb_func_value;
+  if ((nb_func_value * (ndim+1)) != nb_value)
+    ARCANE_FATAL("Bad number of values: {0} should be a multiple of {1}", nb_value, ndim+1);
+
+  CaseFunctionBuildInfo cfbi(tm, "MyTestTable");
+  cfbi.m_param_type = ICaseFunction::ParamReal;
+  cfbi.m_value_type = ICaseFunction::ValueReal3;
+
+  // Create the associated CaseTable and fill it with the values from the file
+  auto table = new CaseTable(cfbi, CaseTable::CurveLinear);
+  for (Int32 i = 0; i < nb_func_value; ++i) {
+    Int32 index = i * (ndim+1);
+    Real func_time = file_values[index];
+    Real3 v;
+    for (int j = 0; j < ndim; ++j) {
+      v[j] = file_values[index + j + 1];
+    }
+    String func_param = String::fromNumber(func_time);
+    String func_value;
+    switch (ndim) {
+      default:
+      case 1: func_value = String::format("{0}", v[0]); break;
+      case 2: func_value = String::format("{0} {1}", v[0], v[1]); break;
+      case 3: func_value = String::format("{0} {1} {2}", v[0], v[1], v[2]); break;
+    }
+    table->appendElement(func_param, func_value);
+  }
+  return table;
 }
 
 /*---------------------------------------------------------------------------*/
