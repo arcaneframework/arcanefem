@@ -20,7 +20,7 @@ here, $\lambda\in\mathbb{R}^{+}$ and $\mu\in\mathbb{R}^{+}$ are the Lame's elast
 
 #### Variational formulation ####
 
-Without entering into the details, the varaiational formulation for the Navier's equation reads
+Without entering into the details, the variational formulation for the Navier's equation reads
 
 $$\int_{\Omega} \lambda \nabla \cdot \mathbf{u}(\mathbf{x}) \nabla \cdot \mathbf{v}(\mathbf{x}) + 2\mu\varepsilon(\mathbf{u}(\mathbf{x})):\varepsilon(\mathbf{u}(\mathbf{x})) - \int_{\Omega}\mathbf{f}(\mathbf{x})\cdot{\mathbf{v}(\mathbf{x})} - \int_{\partial\Omega_N} \mathbf{t}(\mathbf{x}) \cdot \mathbf{v}(\mathbf{x}) = 0 $$
 
@@ -34,4 +34,4 @@ $$\varepsilon_{ij}(\mathbf{u}) = \frac{1}{2}(\frac{\partial{u}_i}{\partial{x}_j}
 
 #### Post Process ####
 
-For post processing the `ensight.case` file is outputted, which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
+For post processing the `ensight.case` file is output, which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).

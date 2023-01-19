@@ -503,7 +503,10 @@ _initInputMotion(){
   if (options()->getAnalysisType() == TypesElastodynamic::ThreeD)
     ndim = 3;
 
-  ARCANE_ASSERT(options()->inputMotion().size()==1,"Only one input motion is to be defined in the arc file");
+  // The following to be potentially removed ------------------------------
+  if (options()->inputMotion().size()==1)
+    ARCANE_FATAL("Only one input motion is to be defined in the arc file");
+  //-----------------------------------------------------------------------
 
   for (Int32 i = 0, nb = options()->inputMotion().size(); i < nb; ++i) {
     m_input.m_node_group = options()->inputMotion[i]->nodeGroup();
