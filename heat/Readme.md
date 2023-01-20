@@ -85,6 +85,8 @@ Please not that use version 4.1 `.msh` file from `Gmsh`.
 
 #### Boundary conditions ####
 
+##### Dirichlet only case
+
 The Dirichlet (constant temperature) boundary conditions  are provided in `Test.conduction.arc` file
 
 ```xml
@@ -96,19 +98,48 @@ The Dirichlet (constant temperature) boundary conditions  are provided in `Test.
 
 So in the snippet above, three Dirichlet conditions are applied $10 \degree C$  on  border tagged as 'left' in the .
 
+##### Dirichlet and convection boundary case
+
+See `Test.conduction.convection.arc`  for this. Here the 'Left' border has Dirichlet condition and the borders 'right', 'top'  and 'bottom' have convection boundary conditions.
+
+```xml
+    <dirichlet-boundary-condition>
+      <surface>left</surface>
+      <value>10.0</value>
+    </dirichlet-boundary-condition>
+    <convection-boundary-condition>
+      <surface>right</surface>
+      <h>1.</h>
+      <Text>20.</Text>
+    </convection-boundary-condition>
+    <convection-boundary-condition>
+      <surface>top</surface>
+      <h>1.</h>
+      <Text>20.</Text>
+    </convection-boundary-condition>
+    <convection-boundary-condition>
+      <surface>bottom</surface>
+      <h>1.</h>
+      <Text>20.</Text>
+    </convection-boundary-condition>
+```
+
 
 
 #### Post Process ####
 
-For post processing the `ensight.case` file is outputted, which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes). In the `Test.conduction.arc` file we provide
+For post processing the `ensight.case` file is outputted, which can be read by PARAVIS. 
+
+The output can be $\mathbb{P}_1$ FE order (on nodes) or $\mathbb{P}_0$ FE order (on cells). In the `Test.conduction.arc` file we post-process both types
 
 ```xml
   <arcane-post-processing>
    <output-period>2</output-period>
    <output>
      <variable>NodeTemperature</variable>
+     <variable>Flux</variable>
    </output>
   </arcane-post-processing>
 ```
 
-This means we would like to postprocess`NodeTemprature` variable which is the FEM variable $u^h_n$ and physical variable $T$.  Furthermore the `<output-period>2</output-period>` indicates that for every 2 time iteration dump simulation results in the post-processing file. So for this simulation which has 100 time steps we will post-process 50 times. 
+This means we would like to postprocess`NodeTemprature` variable which is the FEM variable $u^h_n$ and physical variable $T$.  Also we indicate to post process `Flux` which is a vector on each cell $(-\lambda \partial_x u_n^h \hat{i}, -\lambda \partial_y u_n^h \hat{j} )$ Furthermore the `<output-period>2</output-period>` indicates that for every 2 time iteration dump simulation results in the post-processing file. So for this simulation which has 100 time steps we will post-process 50 times.

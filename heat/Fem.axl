@@ -18,6 +18,9 @@
     <variable field-name="node_is_temperature_fixed" name="NodeIsTemperatureFixed" data-type="bool" item-kind="node" dim="0">
       <description>Boolean which is true if temperature is fixed on the node</description>
     </variable>
+    <variable field-name="flux" name="Flux" data-type="real3" item-kind="cell" dim="0">
+      <description>Flux of heat on variables cells</description>
+    </variable>
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
       <description>NodeCoord from Arcane variable</description>
     </variable>

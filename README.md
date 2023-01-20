@@ -30,6 +30,7 @@ paraview ${BUILD_DIR}/poisson/output/depouillement/ensight.case
 
 #### Short term ####
 - [ ] Row-Column elimination for Dirichlet BC
+- [x] Gradient operator
 - [x] Convection operator for transient heat conduction problem
 - [x] Transient Heat conduction problem
 - [x] Update documentation

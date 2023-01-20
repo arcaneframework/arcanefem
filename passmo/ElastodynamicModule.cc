@@ -10,6 +10,8 @@
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 #include <arcane/geometry/IGeometry.h>
+#include <arcane/IIOMng.h>
+#include <arcane/CaseTable.h>
 
 #include "Integer3std.h"
 #include "ElastodynamicModule.h"
@@ -43,9 +45,9 @@ startInit(){
 
   m_linear_system.reset();
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
-  _initDofs();
+  _initInputMotion();
   _applyInitialNodeConditions();
-
+  _initDofs();
   // This will be useful for nonlinear dynamics only (not used in elastodynamics)
 //  _applyInitialCellConditions();
 
@@ -89,6 +91,25 @@ _applyInitialNodeConditions(){
       case TypesElastodynamic::UnknownCond:
         break;
 
+      }
+    }
+  }
+  if (!options()->inputMotion().empty()) {
+    // Loop on nodes with this initial condition
+    ENUMERATE_NODE (inode, m_input.m_node_group) {
+      const Node& node = *inode;
+      Real3 val;
+      Real time = options()->getStart();
+      m_input.m_acc->value(time, val);
+      m_prev_acceleration[node] = val.mul(m_input.m_ampli_factors);
+
+      if (m_input.m_is_vel) {
+        m_input.m_vel->value(time, val);
+        m_prev_velocity[node] = val.mul(m_input.m_ampli_factors);
+      }
+      if (m_input.m_is_displ) {
+        m_input.m_displ->value(time, val);
+        m_prev_displacement[node] = val.mul(m_input.m_ampli_factors);
       }
     }
   }
@@ -246,26 +267,23 @@ _updateNewmark(){
 /*---------------------------------------------------------------------------*/
 void ElastodynamicModule::
 _initBoundaryConditions(){
-  for (Integer i = 0, nb = options()->boundaryCondition.size(); i < nb; ++i)
-  {
+  for (Int32 i = 0, nb = options()->boundaryCondition.size(); i < nb; ++i){
     FaceGroup face_group = options()->boundaryCondition[i]->surface();
     NodeGroup node_group = options()->boundaryCondition[i]->nodeGroup();
     Real value = options()->boundaryCondition[i]->value();
     TypesElastodynamic::eBoundaryCondition type = options()->boundaryCondition[i]->type();
 
     // Loop on faces of the surface
-    ENUMERATE_FACE(j, face_group)
-    {
+    ENUMERATE_FACE(j, face_group){
       const Face & face = * j;
       Integer nb_node = face.nbNode();
 
       // Loop on nodes of the face
-      for (Integer k = 0; k < nb_node; ++k)
-      {
+      for (Integer k = 0; k < nb_node; ++k){
         const Node & node = face.node(k);
 
-        switch (type)
-        {
+        switch (type){
+
         case TypesElastodynamic::AccelerationX:
           m_node_has_imposed_acc[node].x = 1;
           break;
@@ -309,12 +327,11 @@ _initBoundaryConditions(){
     }
 
     // Loop on nodes
-    ENUMERATE_NODE(inode, node_group)
-    {
+    ENUMERATE_NODE(inode, node_group) {
       const Node & node = *inode;
 
-      switch (type)
-      {
+      switch (type) {
+
       case TypesElastodynamic::AccelerationX:
         m_node_has_imposed_acc[node].x = 1;
         break;
@@ -479,7 +496,106 @@ _applyBoundaryConditions(){
 /*---------------------------------------------------------------------------*/
 
 void ElastodynamicModule::
+_initInputMotion(){
+
+  IParallelMng* pm = subDomain()->parallelMng();
+  Int32 ndim{2};
+  if (options()->getAnalysisType() == TypesElastodynamic::ThreeD)
+    ndim = 3;
+
+  // The following to be potentially removed ------------------------------
+  if (options()->inputMotion().size()==1)
+    ARCANE_FATAL("Only one input motion is to be defined in the arc file");
+  //-----------------------------------------------------------------------
+
+  for (Int32 i = 0, nb = options()->inputMotion().size(); i < nb; ++i) {
+    m_input.m_node_group = options()->inputMotion[i]->nodeGroup();
+
+    String fa = options()->inputMotion[i]->accelerationInputFile();
+    m_input.m_acc = readFileAsCaseTable(pm, fa, ndim);
+
+    m_input.m_is_vel = options()->inputMotion[i].hasVelocityInputFile();
+    if (m_input.m_is_vel ) {
+      String fv = options()->inputMotion[i]->velocityInputFile();
+      m_input.m_vel = readFileAsCaseTable(pm, fv, ndim);
+    }
+
+    m_input.m_is_displ = options()->inputMotion[i].hasDisplacementInputFile();
+    if (m_input.m_is_displ) {
+      String fu = options()->inputMotion[i]->displacementInputFile();
+      m_input.m_displ = readFileAsCaseTable(pm, fu, ndim);
+    }
+    m_input.m_rigid_base = options()->inputMotion[i]->hasRigidBase();
+    m_input.m_ampli_factors = options()->inputMotion[i]->amplificationFactors();
+  }
+  m_input.m_max_frequency = options()->getMaxFrequency();
+
+  // Loop on nodes
+  ENUMERATE_NODE(inode, m_input.m_node_group){
+    const Node & node = *inode;
+    if (m_input.m_rigid_base) {
+      for (Int32 i = 0; i < ndim; ++i) {
+        if (m_input.m_component[i]) {
+          m_node_has_imposed_acc[node][i] = 1;
+          if (m_input.m_is_vel)
+            m_node_has_imposed_vel[node][i] = 1;
+          if (m_input.m_is_displ)
+            m_node_has_imposed_displ[node][i] = 1;
+        }
+      }
+    }
+  }
+  // Print some values
+/*{
+    Real3 test_value;
+    Real param = 1.0e-4;
+    table->value(param, test_value);
+    tm->info() << "V1 t=" << param << " v=" << test_value;
+  }
+  {
+    Real3 test_value;
+    Real param = 1.2e-3;
+    table->value(param, test_value);
+    tm->info() << "V2 t=" << param << " v=" << test_value;
+  }*/
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void ElastodynamicModule::
 _applyInputMotion(){
+
+  Int32 ndim{2};
+  if (options()->getAnalysisType() == TypesElastodynamic::ThreeD)
+    ndim = 3;
+
+  Real time = globalTime();
+
+  // Loop on nodes
+  ENUMERATE_NODE(inode, m_input.m_node_group) {
+    const Node& node = *inode;
+    Real3 values;
+    m_input.m_acc->value(time, values);
+    for (Int32 i = 0; i < ndim; ++i) {
+      if (m_input.m_component[i])
+        m_acceleration[node][i] = values[i];
+    }
+    if (m_input.m_is_vel) {
+      m_input.m_vel->value(time, values);
+      for (Int32 i = 0; i < ndim; ++i) {
+        if (m_input.m_component[i])
+          m_velocity[node][i] = values[i];
+      }
+    }
+
+    if (m_input.m_is_displ) {
+      m_input.m_displ->value(time, values);
+      for (Int32 i = 0; i < ndim; ++i) {
+        if (m_input.m_component[i])
+          m_displacement[node][i] = values[i];
+      }
+    }
+  }
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -745,6 +861,7 @@ _doSolve(){
   }
 
 }
+
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

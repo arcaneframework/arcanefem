@@ -17,15 +17,9 @@
 #include <arcane/utils/PlatformUtils.h>
 #include <arcane/utils/ValueConvert.h>
 #include <arcane/utils/ITraceMng.h>
-
+#include <arcane/IParallelMng.h>
 #include <arcane/VariableTypes.h>
 #include <arcane/IItemFamily.h>
-
-#include <arcane/IParallelMng.h>
-#include <arcane/IIOMng.h>
-#include <arcane/utils/ValueConvert.h>
-#include <arcane/CaseTable.h>
-
 #include <map>
 
 /*---------------------------------------------------------------------------*/
@@ -66,7 +60,7 @@ void _convertNumArrayToCSRMatrix(Matrix& out_matrix, MDSpan<const Real, MDDim2> 
     for (Int32 i = 0; i < matrix_size; ++i) {
       for (Int32 j = 0; j < matrix_size; ++j) {
         Real v = in_matrix(i, j);
-        if (matrix_size < 200 && v != 0.0)
+        if (matrix_size<200 && v!=0.0)
           ostr << "MAT[" << i << "][" << j << "] = " << v << endl;
         if (v != 0) {
           columns[fill_index] = j;
@@ -156,7 +150,7 @@ void checkNodeResultFile(ITraceMng* tm, const String& filename,
  * The file should contains 3 values for each time step (so the number of
  * values should be a multiple of 4).
  */
-void readFileAsCaseTable(IParallelMng* pm, const String& filename)
+CaseTable* readFileAsCaseTable(IParallelMng* pm, const String& filename, const Int32& ndim)
 {
   ITraceMng* tm = pm->traceMng();
   UniqueArray<Byte> bytes;
@@ -174,47 +168,41 @@ void readFileAsCaseTable(IParallelMng* pm, const String& filename)
   // For each line, the first value is the time step and the 3 following values
   // are the values of the case table. So the total number should be a multiple of 4
   tm->info() << "NB_VALUE=" << file_values.size();
-  Int32 nb_func_value = nb_value / 4;
+  Int32 nb_func_value = nb_value / (ndim+1);
   tm->info() << "NB_FUNC_VALUE=" << nb_func_value;
-  if ((nb_func_value * 4) != nb_value)
-    ARCANE_FATAL("Bad number of values: {0} should be a multiple of 4", nb_value);
+  if ((nb_func_value * (ndim+1)) != nb_value)
+    ARCANE_FATAL("Bad number of values: {0} should be a multiple of {1}", nb_value, ndim+1);
 
   CaseFunctionBuildInfo cfbi(tm, "MyTestTable");
   cfbi.m_param_type = ICaseFunction::ParamReal;
   cfbi.m_value_type = ICaseFunction::ValueReal3;
 
   // Create the associated CaseTable and fill it with the values from the file
-  CaseTable* table = new CaseTable(cfbi, CaseTable::CurveLinear);
+  auto table = new CaseTable(cfbi, CaseTable::CurveLinear);
   for (Int32 i = 0; i < nb_func_value; ++i) {
-    Int32 index = i * 4;
+    Int32 index = i * (ndim+1);
     Real func_time = file_values[index];
-    Real v1 = file_values[index + 1];
-    Real v2 = file_values[index + 2];
-    Real v3 = file_values[index + 3];
+    Real3 v;
+    for (int j = 0; j < ndim; ++j) {
+      v[j] = file_values[index + j + 1];
+    }
     String func_param = String::fromNumber(func_time);
-    String func_value = String::format("{0} {1} {2}", v1, v2, v3);
+    String func_value;
+    switch (ndim) {
+      default:
+      case 1: func_value = String::format("{0}", v[0]); break;
+      case 2: func_value = String::format("{0} {1}", v[0], v[1]); break;
+      case 3: func_value = String::format("{0} {1} {2}", v[0], v[1], v[2]); break;
+    }
     table->appendElement(func_param, func_value);
   }
-
-  // Print some values
-  {
-    Real3 test_value;
-    Real param = 1.0e-4;
-    table->value(param, test_value);
-    tm->info() << "V1 t=" << param << " v=" << test_value;
-  }
-  {
-    Real3 test_value;
-    Real param = 1.2e-3;
-    table->value(param, test_value);
-    tm->info() << "V2 t=" << param << " v=" << test_value;
-  }
+  return table;
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-} // namespace Arcane::FemUtils
+}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
