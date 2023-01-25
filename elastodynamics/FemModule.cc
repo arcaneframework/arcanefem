@@ -115,6 +115,7 @@ class FemModule
   Real _computeAreaTriangle3(Cell cell);
   Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
+  Real2 _computeDxDyOfRealTRIA3(Cell cell);
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
 };
@@ -159,8 +160,9 @@ startInit()
   // # get parameters
   _getParameters();
 
-  t    = 0.0;
+  t    = dt;
   tmax = tmax - dt;
+  m_global_deltat.assign(dt);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -234,12 +236,32 @@ _getParameters()
 
   mu2 =  mu*2;                             // lame parameter mu * 2
 
+
+  // TODO : Add vairable in AXL for choosing time discretization
+  // Newmark-Beta
+  gamma = 0.5;
+  beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
+
+  c0 =   rho/(beta*dt*dt) + etam*rho*gamma/beta/dt                          ;
+  c1 =   lambda + lambda*etak*gamma/beta/dt                                 ;
+  c2 =   2.*mu + 2.*mu*etak*gamma/beta/dt                                   ;
+  c3 =   rho/beta/dt - etam*rho*(1-gamma/beta)                              ;
+  c4 =   rho*( (1.-2.*beta)/2./beta  - etam*dt*(1.-gamma/2/beta))           ;
+  c5 =  -lambda*etak*gamma/beta/dt                                          ;
+  c6 =  -2.*mu*etak*gamma/beta/dt                                           ;
+  c7 =   etak*lambda*(gamma/beta - 1)                                       ;
+  c8 =   etak*lambda*dt*((1.-2*beta)/2./beta - (1.-gamma))                  ;
+  c9 =   etak*2*mu*(gamma/beta -1)                                          ;
+  c10=   etak*2*mu*dt*((1.-2*beta)/2./beta -(1.-gamma))                     ;
+
+ /* Genralized alpha
+
   gamma = 0.5 + alpf - alpm                ;
   beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
 
   c0 =   rho*(1.-alpm)/(beta*dt*dt) + etam*rho*gamma*(1-alpf)/beta/dt       ;
-  c1 =   lambda*(1.-alpf) + lambda*etak*gamma*(1-alpf)/beta/dt              ;
-  c2 =   2.*mu*(1.-alpf) + 2.*mu*etak*gamma*(1-alpf)/beta/dt                ;
+  c1 =   lambda*(1.-alpf) + lambda*etak*gamma*(1.-alpf)/beta/dt              ;
+  c2 =   2.*mu*(1.-alpf) + 2.*mu*etak*gamma*(1.-alpf)/beta/dt                ;
   c3 =   rho*(1.-alpm)/beta/dt - etam*rho*(1-gamma*(1-alpf)/beta)           ;
   c4 =   rho*( (1.-alpm)*(1.-2.*beta)/2./beta - alpm - etam*dt*(1.-alpf)*(1.-gamma/2/beta))   ;
   c5 =   lambda*alpf -    lambda*etak*gamma*(1.-alpf)/beta/dt               ;
@@ -248,6 +270,7 @@ _getParameters()
   c8 =   etak*lambda*dt*(1.-alpf)*((1.-2*beta)/2./beta - (1.-gamma))        ;
   c9 =   etak*2*mu*(gamma*(1.-alpf)/beta -1)                                ;
   c10=   etak*2*mu*dt*(1.-alpf)*((1.-2*beta)/2./beta -(1.-gamma))           ;
+  */
 }
 
 /*---------------------------------------------------------------------------*/
@@ -317,7 +340,6 @@ _applyDirichletBoundaryConditions()
     }
   }
 
-
   // Handle all the Dirichlet point conditions.
   // In the 'arc' file, there are in the following format:
   //   <dirichlet-point-condition>
@@ -372,6 +394,7 @@ _applyDirichletBoundaryConditions()
 void FemModule::
 _updateVariables()
 {
+  // Note at this stage we already have calculated du
   Real alocX;
   Real alocY;
   VariableDoFReal& dof_u(m_linear_system.solutionVariable());
@@ -382,12 +405,14 @@ _updateVariables()
     Real  u1_val = dof_u[node_dof.dofId(node, 0)];
     Real  u2_val = dof_u[node_dof.dofId(node, 1)];
 
+/*  // I THINK THIS IS NOT IMPORTANT // CHECK ######### // TODO 
     Real3 u_disp;
     u_disp.x = u1_val;
     u_disp.y = u2_val;
     u_disp.z = 0.0;
 
     m_dU[node] = u_disp;
+*/
 
     alocX = (m_dU[node].x - m_U[node].x - dt*m_V[node].x)/beta/(dt*dt)
                   - (1.-2.*beta)/2./beta*m_A[node].x;
@@ -402,8 +427,10 @@ _updateVariables()
 
     m_U[node].x = m_dU[node].x;
     m_U[node].y = m_dU[node].y;
+
   }
 }
+
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -496,6 +523,140 @@ _assembleLinearOperator()
     }
   }
 
+
+
+    ENUMERATE_ (Cell, icell, allCells()) {
+      Cell cell = *icell;
+      Real area = _computeAreaTriangle3(cell);
+
+      Real3 m0 = m_node_coord[cell.nodeId(0)];
+      Real3 m1 = m_node_coord[cell.nodeId(1)];
+      Real3 m2 = m_node_coord[cell.nodeId(2)];
+
+      Real f0 = m_U[cell.nodeId(0)].x;
+      Real f1 = m_U[cell.nodeId(1)].x;
+      Real f2 = m_U[cell.nodeId(2)].x;
+
+      Real detA = ( m0.x*(m1.y - m2.y) - m0.y*(m1.x - m2.x) + (m1.x*m2.y - m2.x*m1.y) );
+
+      Real2 DXU1;
+      DXU1.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / detA;
+      DXU1.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / detA;
+
+      f0 = m_U[cell.nodeId(0)].y;
+      f1 = m_U[cell.nodeId(1)].y;
+      f2 = m_U[cell.nodeId(2)].y;
+
+      Real2 DXU2;
+      DXU2.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / detA;
+      DXU2.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / detA;
+
+      f0 = m_V[cell.nodeId(0)].x;
+      f1 = m_V[cell.nodeId(1)].x;
+      f2 = m_V[cell.nodeId(2)].x;
+
+      Real2 DXV1;
+      DXV1.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / detA;
+      DXV1.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / detA;
+
+      f0 = m_V[cell.nodeId(0)].y;
+      f1 = m_V[cell.nodeId(1)].y;
+      f2 = m_V[cell.nodeId(2)].y;
+
+      Real2 DXV2;
+      DXV2.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / detA;
+      DXV2.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / detA;
+
+      f0 = m_A[cell.nodeId(0)].x;
+      f1 = m_A[cell.nodeId(1)].x;
+      f2 = m_A[cell.nodeId(2)].x;
+
+      Real2 DXA1;
+      DXA1.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / detA;
+      DXA1.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / detA;
+
+      f0 = m_A[cell.nodeId(0)].y;
+      f1 = m_A[cell.nodeId(1)].y;
+      f2 = m_A[cell.nodeId(2)].y;
+
+      Real2 DXA2;
+      DXA2.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / detA;
+      DXA2.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / detA;
+
+
+     //Real2  Ctriangle;
+     //Ctriangle.x = (1/3.)* (m0.x + m1.x+m2.x);
+     //Ctriangle.y = (1/3.)* (m0.y + m1.y+m2.y);
+
+     //Real2 dPhi0(m0.x - Ctriangle.x, m2.x - m1.x);
+     //eal2 dPhi1(m1.x - Ctriangle.x, m0.x - m2.x);
+     //Real2 dPhi2(m2.x - Ctriangle.x, m1.x - m0.x);
+
+     Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
+     Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
+     Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
+
+
+      FixedMatrix<1, 3> DYV;
+
+      DYV(0,0) = dPhi0.y /2.;
+      DYV(0,1) = dPhi1.y /2.;
+      DYV(0,2) = dPhi2.y /2.;
+
+      FixedMatrix<1, 3> DXV;
+
+      DXV(0,0) = dPhi0.x /2.;
+      DXV(0,1) = dPhi1.x /2.;
+      DXV(0,2) = dPhi2.x /2.;
+
+/*                                                                                              
+$$                                                                                              
+\int_{\Omega}(                                                                                
+                    (U \cdot v) c_0                                                            
+                  + (V \cdot v) c_3                                                            
+                  + (A \cdot v) c_4                                                            
+                  - (\nabla \cdot U  \nabla \cdot v) c_5                                    
+                  - (\varepsilon(U) : \varepsilon(v) ) c_6                                    
+                  + (\nabla \cdot V  \nabla \cdot v) c_7                                    
+                  + (\varepsilon(V) : \varepsilon(v) ) c_8                                    
+                  + (\nabla \cdot A  \nabla \cdot v) c_9                                    
+                  + (\varepsilon(A) : \varepsilon(v) ) c_{10}                                 
+               )                                                                                
+$$                                                                                              
+*/
+
+
+      int i = 0;
+      for (Node node : cell.nodes()) {
+        if (node.isOwn()) {
+          DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+          DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+          rhs_values[dof_id1] +=   (m_U[node].x) * (area / 3.) * c0
+                                 + (m_V[node].x) * (area / 3.) * c3
+                                 + (m_A[node].x) * (area / 3.) * c4
+                                 - ( (DXU1.x + DXU2.y) *  DXV(0,i) )* c5
+                                 - ( (DXU1.x * DXV(0,i)) + 0.5 * ( ( DXU1.y + DXU2.x) * DYV(0,i) )   )*c6
+//                                 + ( (DXV1.x +  DXV2.y)* DXV(0,i)  )* c7
+//                                 + ( (DXV1.x * DXV(0,i) ) + 0.5 * ( ( DXV1.y + DXV2.x) * DYV(0,i) )   )*c9
+//                                 + ( (DXA1.x +  DXA2.y)* DXV(0,i)  )* c8
+//                                 + ( (DXA1.x * DXV(0,i) ) + 0.5 * ( ( DXA1.y + DXA2.x) * DYV(0,i) )   )*c10
+                                 ;
+
+          rhs_values[dof_id2] +=   (m_U[node].y)  * (area / 3.) * c0
+                                 + (m_V[node].y)  * (area / 3.) * c3
+                                 + (m_A[node].y)  * (area / 3.) * c4
+                                - ( (DXU1.x + DXU2.y) * DYV(0,i) )* c5
+                                 - ( (DXU2.y * DYV(0,i)) + 0.5 * (( DXU1.y + DXU2.x) * DXV(0,i) ) )*c6
+//                                 + ( (DXV1.x +  DXV2.y) * DYV(0,i))* c7
+//                                 + ( (DXV2.y * DYV(0,i) ) + 0.5 * (( DXV1.y + DXV2.x) * DXV(0,i) ) )*c9
+//                                 + ( (DXA1.x +  DXA2.y) * DYV(0,i))* c8
+//                                 + ( (DXA2.y * DYV(0,i) ) + 0.5 * (( DXA1.y + DXA2.x) * DXV(0,i) ) )*c10
+                                 ;
+        }
+        i++;
+      }
+    }
+
   //----------------------------------------------
   // Traction term assembly
   //----------------------------------------------
@@ -504,10 +665,23 @@ _assembleLinearOperator()
   //  $int_{dOmega_N}((ty.ny)*v1^h)$
   //  only for noded that are non-Dirichlet
   //----------------------------------------------
+  // tt/0.8*(tt <= 0.8)+ 0.*(tt > 0.8)
   for (const auto& bs : options()->tractionBoundaryCondition()) {
     FaceGroup group = bs->surface();
     Real t1_val = bs->t1();
     Real t2_val = bs->t2();
+
+    // TODO: Replace wih a UDF or read via a file
+    t2_val = (t - dt);
+
+    if(t2_val <=0.8){
+      //cout << "t2_value is " << t2_val << " t " << t  << " dt " << dt << endl;
+      t2_val = t2_val/0.8;
+    }
+    else{
+      t2_val = 0.;
+      //cout << "t2_value is " << t2_val << " t " << t  << " dt " << dt << endl;
+    }
 
     if( bs->t1.isPresent() && bs->t2.isPresent()) {
       ENUMERATE_ (Face, iface, group) {
@@ -549,7 +723,7 @@ _assembleLinearOperator()
         for (Node node : iface->nodes()) {
           if (!(m_u2_fixed[node]) && node.isOwn()) {
             DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-            rhs_values[dof_id2] += t2_val * length / 2.;
+            rhs_values[dof_id2] += t2_val * length / 2. ;
           }
         }
       }
@@ -641,7 +815,7 @@ _computeElementMatrixTRIA3(Cell cell)
   b_matrix(0, 4) = dPhi2.x/area;
   b_matrix(0, 5) = 0.;
 
-  b_matrix.multInPlace(0.5f);
+  b_matrix.multInPlace(0.5);
 
   bT_matrix(0, 0) = dPhi0.x;
   bT_matrix(1, 0) = 0.;
@@ -650,7 +824,7 @@ _computeElementMatrixTRIA3(Cell cell)
   bT_matrix(4, 0) = dPhi2.x;
   bT_matrix(5, 0) = 0.;
 
-  bT_matrix.multInPlace(0.5f);
+  bT_matrix.multInPlace(0.5);
 
   FixedMatrix<6, 6> int_dxU1dxV1 = matrixMultiplication(bT_matrix, b_matrix);
   int_Omega_i = matrixAddition( int_Omega_i, int_dxU1dxV1);
@@ -663,7 +837,7 @@ _computeElementMatrixTRIA3(Cell cell)
   b_matrix(0, 4) = 0.;
   b_matrix(0, 5) = dPhi2.y/area;
 
-  b_matrix.multInPlace(0.5f);
+  b_matrix.multInPlace(0.5);
 
   bT_matrix(0, 0) = dPhi0.x;
   bT_matrix(1, 0) = 0.;
@@ -672,7 +846,7 @@ _computeElementMatrixTRIA3(Cell cell)
   bT_matrix(4, 0) = dPhi2.x;
   bT_matrix(5, 0) = 0.;
 
-  bT_matrix.multInPlace(0.5f);
+  bT_matrix.multInPlace(0.5);
 
   FixedMatrix<6, 6> int_dyU1dyV1 = matrixMultiplication(bT_matrix, b_matrix);
   int_Omega_i = matrixAddition( int_Omega_i, int_dyU1dyV1);
@@ -687,7 +861,7 @@ _computeElementMatrixTRIA3(Cell cell)
   b_matrix(0, 4) = dPhi2.x/area;
   b_matrix(0, 5) = 0.;
 
-  b_matrix.multInPlace(0.5f);
+  b_matrix.multInPlace(0.5);
 
   bT_matrix(0, 0) = 0.;
   bT_matrix(1, 0) = dPhi0.y;
@@ -696,7 +870,7 @@ _computeElementMatrixTRIA3(Cell cell)
   bT_matrix(4, 0) = 0.;
   bT_matrix(5, 0) = dPhi2.y;
 
-  bT_matrix.multInPlace(0.5f);
+  bT_matrix.multInPlace(0.5);
 
   FixedMatrix<6, 6> int_dxU2dxV1  = matrixMultiplication(bT_matrix, b_matrix);
   int_Omega_i = matrixAddition( int_Omega_i, int_dxU2dxV1);
@@ -709,7 +883,7 @@ _computeElementMatrixTRIA3(Cell cell)
   b_matrix(0, 4) = 0.;
   b_matrix(0, 5) = dPhi2.y/area;
 
-  b_matrix.multInPlace(0.5f);
+  b_matrix.multInPlace(0.5);
 
   bT_matrix(0, 0) = 0.;
   bT_matrix(1, 0) = dPhi0.y;
@@ -718,18 +892,18 @@ _computeElementMatrixTRIA3(Cell cell)
   bT_matrix(4, 0) = 0.;
   bT_matrix(5, 0) = dPhi2.y;
 
-  bT_matrix.multInPlace(0.5f);
+  bT_matrix.multInPlace(0.5);
 
   FixedMatrix<6, 6> int_dyU2dyV1  = matrixMultiplication(bT_matrix, b_matrix);
   int_Omega_i = matrixAddition( int_Omega_i, int_dyU2dyV1);
 
   // lambda * (.....)
-  int_Omega_i.multInPlace(lambda);
+  int_Omega_i.multInPlace(c1);
 
 
 // -----------------------------------------------------------------------------
-//  2*mu( dx(u1)dx(v1) + dy(u2)dy(v2) + 0.5*(   dy(u1)dy(v1) + dx(u2)dy(v1) 
-//                                            + dy(u1)dx(v2) + dx(u2)dx(v2) ) 
+//  2*mu( dx(u1)dx(v1) + dy(u2)dy(v2) + 0.5*(   dy(u1)dy(v1) + dx(u2)dy(v1)
+//                                            + dy(u1)dx(v2) + dx(u2)dx(v2) )
 //      )
 //------------------------------------------------------------------------------
 
@@ -741,7 +915,7 @@ _computeElementMatrixTRIA3(Cell cell)
   b_matrix(0, 4) = dPhi2.x/area;
   b_matrix(0, 5) = 0.;
 
-  b_matrix.multInPlace(0.5f);
+  b_matrix.multInPlace(0.5);
 
   bT_matrix(0, 0) = dPhi0.x;
   bT_matrix(1, 0) = 0.;
@@ -750,7 +924,7 @@ _computeElementMatrixTRIA3(Cell cell)
   bT_matrix(4, 0) = dPhi2.x;
   bT_matrix(5, 0) = 0.;
 
-  bT_matrix.multInPlace(0.5f*mu2);
+  bT_matrix.multInPlace(0.5*c2);
 
   FixedMatrix<6, 6> int_mudxU1dxV1 = matrixMultiplication(bT_matrix, b_matrix);
   int_Omega_i = matrixAddition( int_Omega_i, int_mudxU1dxV1);
@@ -764,7 +938,7 @@ _computeElementMatrixTRIA3(Cell cell)
   b_matrix(0, 4) = 0.;
   b_matrix(0, 5) = dPhi2.y/area;
 
-  b_matrix.multInPlace(0.5f);
+  b_matrix.multInPlace(0.5);
 
   bT_matrix(0, 0) = 0.;
   bT_matrix(1, 0) = dPhi0.y;
@@ -773,7 +947,7 @@ _computeElementMatrixTRIA3(Cell cell)
   bT_matrix(4, 0) = 0.;
   bT_matrix(5, 0) = dPhi2.y;
 
-  bT_matrix.multInPlace(0.5f*mu2);
+  bT_matrix.multInPlace(0.5*c2);
 
   FixedMatrix<6, 6> int_mudyU2dyV2  = matrixMultiplication(bT_matrix, b_matrix);
   int_Omega_i = matrixAddition( int_Omega_i, int_mudyU2dyV2);
@@ -786,7 +960,7 @@ _computeElementMatrixTRIA3(Cell cell)
   b_matrix(0, 4) = dPhi2.y/area;
   b_matrix(0, 5) = 0.;
 
-  b_matrix.multInPlace(0.5f);
+  b_matrix.multInPlace(0.5);
 
   bT_matrix(0, 0) = dPhi0.y;
   bT_matrix(1, 0) = 0.;
@@ -795,7 +969,7 @@ _computeElementMatrixTRIA3(Cell cell)
   bT_matrix(4, 0) = dPhi2.y;
   bT_matrix(5, 0) = 0.;
 
-  bT_matrix.multInPlace(0.25f*mu2);
+  bT_matrix.multInPlace(0.25*c2);
 
   FixedMatrix<6, 6> int_mudyU1dyV1  = matrixMultiplication(bT_matrix, b_matrix);
   int_Omega_i = matrixAddition( int_Omega_i, int_mudyU1dyV1);
@@ -808,7 +982,7 @@ _computeElementMatrixTRIA3(Cell cell)
   b_matrix(0, 4) = 0.;
   b_matrix(0, 5) = dPhi2.x/area;
 
-  b_matrix.multInPlace(0.5f);
+  b_matrix.multInPlace(0.5);
 
   bT_matrix(0, 0) = dPhi0.y;
   bT_matrix(1, 0) = 0.;
@@ -817,7 +991,7 @@ _computeElementMatrixTRIA3(Cell cell)
   bT_matrix(4, 0) = dPhi2.y;
   bT_matrix(5, 0) = 0.;
 
-  bT_matrix.multInPlace(0.25f*mu2);
+  bT_matrix.multInPlace(0.25*c2);
 
   FixedMatrix<6, 6> int_mudxU2dyV1  = matrixMultiplication(bT_matrix, b_matrix);
   int_Omega_i = matrixAddition( int_Omega_i, int_mudxU2dyV1);
@@ -830,7 +1004,7 @@ _computeElementMatrixTRIA3(Cell cell)
   b_matrix(0, 4) = dPhi2.y/area;
   b_matrix(0, 5) = 0.;
 
-  b_matrix.multInPlace(0.5f);
+  b_matrix.multInPlace(0.5);
 
   bT_matrix(0, 0) = 0.;
   bT_matrix(1, 0) = dPhi0.x;
@@ -839,7 +1013,7 @@ _computeElementMatrixTRIA3(Cell cell)
   bT_matrix(4, 0) = 0.;
   bT_matrix(5, 0) = dPhi2.x;
 
-  bT_matrix.multInPlace(0.25f*mu2);
+  bT_matrix.multInPlace(0.25*c2);
 
   FixedMatrix<6, 6> int_mudyU1dxV2  = matrixMultiplication(bT_matrix, b_matrix);
   int_Omega_i = matrixAddition( int_Omega_i, int_mudyU1dxV2);
@@ -852,7 +1026,7 @@ _computeElementMatrixTRIA3(Cell cell)
   b_matrix(0, 4) = 0.;
   b_matrix(0, 5) = dPhi2.x/area;
 
-  b_matrix.multInPlace(0.5f);
+  b_matrix.multInPlace(0.5);
 
   bT_matrix(0, 0) = 0.;
   bT_matrix(1, 0) = dPhi0.x;
@@ -861,7 +1035,7 @@ _computeElementMatrixTRIA3(Cell cell)
   bT_matrix(4, 0) = 0.;
   bT_matrix(5, 0) = dPhi2.x;
 
-  bT_matrix.multInPlace(0.25f*mu2);
+  bT_matrix.multInPlace(0.25*c2);
 
   FixedMatrix<6, 6> int_mudxU2dxV2  = matrixMultiplication(bT_matrix, b_matrix);
   int_Omega_i = matrixAddition( int_Omega_i, int_mudxU2dxV2);
@@ -870,6 +1044,62 @@ _computeElementMatrixTRIA3(Cell cell)
   //std::cout << " int_cdPi_dPj=";
   //int_cdPi_dPj.dump(std::cout);
   //std::cout << "\n";
+
+
+  // u1v1 //
+  b_matrix(0, 0) = 1.;
+  b_matrix(0, 1) = 0.;
+  b_matrix(0, 2) = 1.;
+  b_matrix(0, 3) = 0.;
+  b_matrix(0, 4) = 1.;
+  b_matrix(0, 5) = 0.;
+
+  b_matrix.multInPlace(0.5);
+
+  bT_matrix(0, 0) = area/3.;
+  bT_matrix(1, 0) = 0.;
+  bT_matrix(2, 0) = area/3.;
+  bT_matrix(3, 0) = 0.;
+  bT_matrix(4, 0) = area/3.;
+  bT_matrix(5, 0) = 0.;
+
+  bT_matrix.multInPlace(0.5*c0);
+
+  FixedMatrix<6, 6> int_U2V2   = matrixMultiplication(bT_matrix, b_matrix);
+
+  for (Int32 i = 0; i<6; i++)
+    int_U2V2(i,i) *= 2.;
+
+  int_Omega_i = matrixAddition( int_Omega_i, int_U2V2);
+
+
+
+  // u2v2 //
+  b_matrix(0, 0) = 0.;
+  b_matrix(0, 1) = 1.;
+  b_matrix(0, 2) = 0.;
+  b_matrix(0, 3) = 1.;
+  b_matrix(0, 4) = 0.;
+  b_matrix(0, 5) = 1.;
+
+  b_matrix.multInPlace(0.5);
+
+  bT_matrix(0, 0) = 0.;
+  bT_matrix(1, 0) = area/3.;
+  bT_matrix(2, 0) = 0.;
+  bT_matrix(3, 0) = area/3.;
+  bT_matrix(4, 0) = 0.;
+  bT_matrix(5, 0) = area/3.;
+
+  bT_matrix.multInPlace(0.5*c0);
+
+  int_U2V2   = matrixMultiplication(bT_matrix, b_matrix);
+
+  for (Int32 i = 0; i<6; i++)
+    int_U2V2(i,i) *= 2.;
+
+
+  int_Omega_i = matrixAddition( int_Omega_i, int_U2V2);
 
   return int_Omega_i;
 }
@@ -1032,7 +1262,7 @@ _solve()
   m_linear_system.solve();
 
   // Re-Apply boundary conditions because the solver has modified the value
-  _applyDirichletBoundaryConditions();
+  _applyDirichletBoundaryConditions();  // ************ CHECK
 
   {
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());

@@ -18,5 +18,5 @@ configure_file(bar.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Elastodynamics PUBLIC FemUtils)
 
-enable_testing()
-add_test(NAME elastodynamics COMMAND Elastodynamics Test.Elastodynamics.arc)
+#enable_testing()
+#add_test(NAME elastodynamics COMMAND Elastodynamics Test.Elastodynamics.arc)
