@@ -326,7 +326,7 @@ _assembleLinearOperator()
     NodeLocalId node_id = *inode;
     if (m_u1_fixed[node_id]) {
       DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
-      m_linear_system.matrixAddValue(dof_id1, dof_id1, 1.0e30);
+      m_linear_system.matrixSetValue(dof_id1, dof_id1, 1.0e30);
       {
         Real u1_dirichlet = 1.0e30 * m_U[node_id].x;
         rhs_values[dof_id1] = u1_dirichlet;
@@ -334,7 +334,7 @@ _assembleLinearOperator()
     }
     if (m_u2_fixed[node_id]) {
       DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
-      m_linear_system.matrixAddValue(dof_id2, dof_id2, 1.0e30);
+      m_linear_system.matrixSetValue(dof_id2, dof_id2, 1.0e30);
       {
         Real u2_dirichlet = 1.0e30 * m_U[node_id].y;
         rhs_values[dof_id2] = u2_dirichlet;
