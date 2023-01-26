@@ -85,6 +85,11 @@ class SequentialDoFLinearSystemImpl
     m_k_matrix(row, column) += value;
   }
 
+  void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value) override
+  {
+    m_k_matrix(row, column) = value;
+  }
+
   void solve() override
   {
     Int32 matrix_size = m_k_matrix.extent0();
@@ -280,6 +285,16 @@ matrixAddValue(DoFLocalId row, DoFLocalId column, Real value)
 {
   _checkInit();
   m_p->matrixAddValue(row, column, value);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystem::
+matrixSetValue(DoFLocalId row, DoFLocalId column, Real value)
+{
+  _checkInit();
+  m_p->matrixSetValue(row, column, value);
 }
 
 /*---------------------------------------------------------------------------*/

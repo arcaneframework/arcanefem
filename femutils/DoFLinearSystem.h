@@ -39,6 +39,7 @@ class DoFLinearSystemImpl
  public:
 
   virtual void matrixAddValue(Arcane::DoFLocalId row, Arcane::DoFLocalId column, Arcane::Real value) = 0;
+  virtual void matrixSetValue(Arcane::DoFLocalId row, Arcane::DoFLocalId column, Arcane::Real value) = 0;
   virtual void setRHSValues(Arcane::Span<const Arcane::Real> values) = 0;
   virtual void solve() = 0;
   virtual Arcane::VariableDoFReal& solutionVariable() = 0;
@@ -82,6 +83,9 @@ class DoFLinearSystem
 
   //! Add the value \a value to the (row,column) element of the matrix
   void matrixAddValue(Arcane::DoFLocalId row, Arcane::DoFLocalId column, Arcane::Real value);
+
+  //! Set the value \a value to the (row,column) element of the matrix
+  void matrixSetValue(Arcane::DoFLocalId row, Arcane::DoFLocalId column, Arcane::Real value);
 
   /*!
    * \brief Set the values for vector B.
