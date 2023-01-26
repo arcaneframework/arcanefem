@@ -37,6 +37,8 @@ enum class eSolverBackend
 
 #include "AlephDoFLinearSystemFactory_axl.h"
 
+#include <unordered_map>
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -51,6 +53,32 @@ class AlephDoFLinearSystemImpl
 : public TraceAccessor
 , public DoFLinearSystemImpl
 {
+
+  struct RowColumn
+  {
+    Int32 row_id = 0;
+    Int32 column_id = 0;
+    friend bool operator==(RowColumn rc1, RowColumn rc2)
+    {
+      if (rc1.row_id != rc2.row_id)
+        return false;
+      return rc1.column_id == rc2.column_id;
+    }
+  };
+
+  struct RowColumnHash
+  {
+    size_t operator()(const RowColumn& s) const noexcept
+    {
+      std::size_t h1 = std::hash<Int32>{}(s.row_id);
+      std::size_t h2 = std::hash<Int32>{}(s.column_id);
+
+      return h1 ^ (h2 << 1);
+    }
+  };
+
+  using RowColumnMap = std::unordered_map<RowColumn, Real, RowColumnHash>;
+
  public:
 
   // TODO: do not use subDomain() but we need to modify aleph before
@@ -122,16 +150,59 @@ class AlephDoFLinearSystemImpl
       ARCANE_FATAL("Row is null");
     if (column.isNull())
       ARCANE_FATAL("Column is null");
-    if (value==0.0)
+    if (value == 0.0)
       return;
-    ItemInfoListView item_list_view(m_dof_family);
-    m_aleph_matrix->addValue(m_dof_variable, item_list_view[row], m_dof_variable, item_list_view[column], value);
+    if (m_use_value_map) {
+      RowColumn rc{ row.localId(), column.localId() };
+      auto x = m_values_map.find(rc);
+      if (x == m_values_map.end())
+        m_values_map.insert(std::make_pair(rc, value));
+      else
+        x->second += value;
+    }
+    else {
+      ItemInfoListView item_list_view(m_dof_family);
+      info() << "AlephAdd R=" << row.localId() << " C=" << column.localId() << " V=" << value;
+      m_aleph_matrix->addValue(m_dof_variable, item_list_view[row], m_dof_variable, item_list_view[column], value);
+    }
+  }
+
+  void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value) override
+  {
+    if (row.isNull())
+      ARCANE_FATAL("Row is null");
+    if (column.isNull())
+      ARCANE_FATAL("Column is null");
+    if (!m_use_value_map)
+      ARCANE_FATAL("matrixSetValue is only allowed if 'm_use_value_map' is true");
+    m_forced_set_values_map[{ row.localId(), column.localId() }] = value;
   }
 
   void solve() override
   {
     UniqueArray<Real> aleph_result;
 
+    // Rempli la matrice
+    if (m_use_value_map) {
+      DoFInfoListView item_list_view(m_dof_family);
+      for (const auto& rc_value : m_values_map) {
+        RowColumn rc = rc_value.first;
+        Real value = rc_value.second;
+
+        DoF dof_row = item_list_view[rc.row_id];
+        DoF dof_column = item_list_view[rc.column_id];
+
+        auto x = m_forced_set_values_map.find(rc);
+        if (x != m_forced_set_values_map.end())
+          value = x->second;
+
+        info() << "ADD R=" << rc.row_id << " C=" << rc.column_id << " V=" << value;
+
+        m_aleph_matrix->setValue(m_dof_variable, dof_row, m_dof_variable, dof_column, value);
+      }
+    }
+
+    info() << "[AlephFem] Assemble matrix ptr=" << m_aleph_matrix;
     m_aleph_matrix->assemble();
     m_aleph_rhs_vector->assemble();
     auto* aleph_solution_vector = m_aleph_solution_vector;
@@ -244,6 +315,17 @@ class AlephDoFLinearSystemImpl
   AlephVector* m_aleph_solution_vector = nullptr;
   AlephParams* m_aleph_params = nullptr;
   eSolverBackend m_solver_backend = eSolverBackend::Hypre;
+  //! List of (i,j) values added to the matrix
+  RowColumnMap m_values_map;
+  //! List of (i,j) whose value is fixed. This will override added values in m_values_map.
+  RowColumnMap m_forced_set_values_map;
+  /*!
+   * \brief True is we use 'm_values_map' to mix add and set.
+   *
+   * You may set the value to 'false' if you want the old behavior when
+   * there is only matrixAddValue() calls.
+   */
+  bool m_use_value_map = true;
 };
 
 /*---------------------------------------------------------------------------*/
