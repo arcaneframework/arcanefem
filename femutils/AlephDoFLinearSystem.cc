@@ -193,10 +193,11 @@ class AlephDoFLinearSystemImpl
         DoF dof_column = item_list_view[rc.column_id];
 
         auto x = m_forced_set_values_map.find(rc);
-        if (x != m_forced_set_values_map.end())
+        if (x != m_forced_set_values_map.end()){
+          info() << "FORCED VALUE R=" << rc.row_id << " C=" << rc.column_id
+                 << " old=" << value << " new=" << x->second;
           value = x->second;
-
-        info() << "ADD R=" << rc.row_id << " C=" << rc.column_id << " V=" << value;
+        }
 
         m_aleph_matrix->setValue(m_dof_variable, dof_row, m_dof_variable, dof_column, value);
       }
