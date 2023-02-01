@@ -32,12 +32,21 @@
     <simple name="nu" type="real" default="0.0">
       <description>Poission ratio of the material.</description>
     </simple>
-
     <simple name="result-file" type="string" optional="true">
-      <description>File name of a file containing the valuess of the solution vector to check the results</description>
+      <description>File name of a file containing the values of the solution vector to check the results</description>
     </simple>
     <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
       <description>Type of mesh provided to the solver</description>
+    </simple>
+    <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
+      <description>
+        Method via which Dirichlet boundary condition is imposed
+      </description>
+    </simple>
+    <simple name = "penalty" type = "real" default="1.e30" optional="true">
+      <description>
+        Penalty value for enforcing Dirichlet condition
+      </description>
     </simple>
 
     <!-- - - - - - dirichlet-boundary-condition - - - - -->
@@ -47,7 +56,7 @@
              maxOccurs = "unbounded"
       >
       <description>
-        Dirichelt boundary condition
+        Dirichlet boundary condition
       </description>
       <extended name = "surface" type = "Arcane::FaceGroup">
         <description>
@@ -73,21 +82,21 @@
              maxOccurs = "unbounded"
       >
       <description>
-        Dirichelt point condition
+        Dirichlet point condition
       </description>
       <extended name = "node" type = "Arcane::NodeGroup">
         <description>
-          NodeGroup on which to apply these point Dirichelt condition
+          NodeGroup on which to apply these point Dirichlet condition
         </description>
       </extended>
       <simple name = "u1" type = "real"  optional="true">
         <description>
-          Value of u1 for point Dirichelt condition
+          Value of u1 for point Dirichlet condition
         </description>
       </simple>
       <simple name = "u2" type = "real"  optional="true">
         <description>
-          Value of u2 for point Dirichelt condition
+          Value of u2 for point Dirichlet condition
         </description>
       </simple>
     </complex>
