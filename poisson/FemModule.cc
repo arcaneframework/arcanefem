@@ -272,18 +272,6 @@ _assembleLinearOperator()
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
 
-  //----------------------------------------------
-  // penelty method for assembly of Dirichlet BC
-  //----------------------------------------------
-  //
-  // # adapt K and RHS to take into account Dirichlet BCs
-  //         for node in self.mesh.nodes:
-  //             if node.is_T_fixed:
-  //                 K[node.rank,node.rank]=K[node.rank,node.rank]+10**6
-  //                 RHS[node.rank]=RHS[node.rank]+(10**6)*node.T
-  // TODO: 1.0e6 is a user value, moreover we should use something like 1e31
-  //----------------------------------------------
-
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Node, inode, ownNodes()) {
