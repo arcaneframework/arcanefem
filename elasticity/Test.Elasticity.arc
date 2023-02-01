@@ -22,6 +22,7 @@
     <E>21.0e5</E>
     <nu>0.28</nu>
     <f2>-1.0</f2>
+    <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     <dirichlet-boundary-condition>
       <surface>left</surface>
       <u1>0.0</u1>

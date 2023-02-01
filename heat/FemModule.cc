@@ -349,35 +349,120 @@ void FemModule::
 _assembleLinearOperator()
 {
   info() << "Assembly of FEM linear operator ";
-  info() << "Applying Dirichlet boundary condition via  penalty method ";
 
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
 
-  //----------------------------------------------
-  // penalty method for assembly of Dirichlet BC
-  //----------------------------------------------
-  //
-  // # adapt K and RHS to take into account Dirichlet BCs
-  //         for node in self.mesh.nodes:
-  //             if node.is_T_fixed:
-  //                 K[node.rank,node.rank]=K[node.rank,node.rank]+10**6
-  //                 RHS[node.rank]=RHS[node.rank]+(10**6)*node.T
-  // TODO: 1.0e6 is a user value, moreover we should use something like 1e31
-  //----------------------------------------------
-
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  ENUMERATE_ (Node, inode, ownNodes()) {
-    NodeLocalId node_id = *inode;
-    if (m_node_is_temperature_fixed[node_id]) {
-      DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-      m_linear_system.matrixAddValue(dof_id, dof_id, 1.0e31);
-      Real temperature = 1.0e31 * m_node_temperature[node_id];
-      rhs_values[dof_id] = temperature;
+
+
+  if (options()->enforceDirichletMethod() == "Penalty") {
+
+    //----------------------------------------------
+    // penalty method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
+    //  Dirichlet condition needs to be applied
+    //
+    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
+    //           a_{i,i} = 1. * P
+    //
+    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
+    //           b_{i} = b_{i} * P
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    Real Penalty = options()->penalty();        // 1.0e30 is the default
+
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      NodeLocalId node_id = *inode;
+      if (m_node_is_temperature_fixed[node_id]) {
+        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
+        m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
+        Real temperature = Penalty * m_node_temperature[node_id];
+        rhs_values[dof_id] = temperature;
+      }
     }
+  }else if (options()->enforceDirichletMethod() == "WeakPenalty") {
+
+    //----------------------------------------------
+    // weak penalty method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
+    //  Dirichlet condition needs to be applied
+    //
+    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
+    //           a_{i,i} = a_{i,i} + P
+    //
+    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
+    //           b_{i} = b_{i} * P
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    Real Penalty = options()->penalty();        // 1.0e30 is the default
+
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      NodeLocalId node_id = *inode;
+      if (m_node_is_temperature_fixed[node_id]) {
+        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
+        m_linear_system.matrixAddValue(dof_id, dof_id, Penalty);
+        Real temperature = Penalty * m_node_temperature[node_id];
+        rhs_values[dof_id] = temperature;
+      }
+    }
+  }else if (options()->enforceDirichletMethod() == "RowElimination") {
+
+    //----------------------------------------------
+    // Row elimination method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
+    //
+    //  to apply the Dirichlet on 'i'th DOF
+    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
+    //           a_{i,j} = 0.  : i!=j
+    //           a_{i,j} = 1.  : i==j
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    // TODO
+  }else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
+
+    //----------------------------------------------
+    // Row elimination method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
+    //
+    //  to apply the Dirichlet on 'i'th DOF
+    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
+    //           a_{i,j} = 0.  : i!=j  for all j
+    //           a_{i,j} = 1.  : i==j
+    //    also the column terms corresponding to the Dirichlet DOF
+    //           a_{i,j} = 0.  : i!=j  for all i
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    // TODO
+  }else {
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " is not supported \n"
+           << "enforce-Dirichlet-method only supports:\n"
+           << "  - Penalty\n"
+           << "  - WeakPenalty\n"
+           << "  - RowElimination\n"
+           << "  - RowColumnElimination\n";
   }
+
 
   //----------------------------------------------
   // Constant source term assembly

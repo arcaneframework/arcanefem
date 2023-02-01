@@ -17,7 +17,7 @@
     </variable>
     <variable field-name="u2_fixed" name="u2Fixed" data-type="bool" item-kind="node" dim="0">
       <description>Boolean which is true if u2 is fixed on the node</description>
-    </variable>    
+    </variable>
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
       <description>NodeCoord from Arcane variable</description>
     </variable>
@@ -26,12 +26,21 @@
     <simple name="f" type="real" default="0.0">
       <description>Source within the material.</description>
     </simple>
-
     <simple name="result-file" type="string" optional="true">
       <description>File name of a file containing the valuess of the solution vector to check the results</description>
     </simple>
     <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
       <description>Type of mesh provided to the solver</description>
+    </simple>
+    <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
+      <description>
+        Method via which Dirichlet boundary condition is imposed
+      </description>
+    </simple>
+    <simple name = "penalty" type = "real" default="1.e30" optional="true">
+      <description>
+        Penalty value for enforcing Dirichlet condition
+      </description>
     </simple>
 
     <!-- - - - - - dirichlet-boundary-condition - - - - -->
