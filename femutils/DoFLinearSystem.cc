@@ -87,11 +87,26 @@ class SequentialDoFLinearSystemImpl
 
   void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value) override
   {
+    // TODO: We should do the set() at the solving time because a following
+    // call to matrixAddValue() will override this value and this is not the
+    // wanted bahavior.
     m_k_matrix(row, column) = value;
+  }
+
+  void matrixEliminateRow(DoFLocalId row) override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
+  void matrixEliminateRowColumn(DoFLocalId row) override
+  {
+    ARCANE_THROW(NotImplementedException, "");
   }
 
   void solve() override
   {
+    _fillRHSVector();
+
     Int32 matrix_size = m_k_matrix.extent0();
     Arcane::MatVec::Matrix matrix(matrix_size, matrix_size);
     _convertNumArrayToCSRMatrix(matrix, m_k_matrix.span());
@@ -148,17 +163,6 @@ class SequentialDoFLinearSystemImpl
     }
   }
 
-  void setRHSValues(Span<const Real> values) override
-  {
-    Int32 index = 0;
-    DoFGroup own_dofs = m_dof_family->allItems().own();
-    ENUMERATE_ (DoF, idof, own_dofs) {
-      DoFLocalId dof_id = *idof;
-      m_rhs_vector[dof_id] = values[index];
-      ++index;
-    }
-  }
-
   VariableDoFReal& solutionVariable() override
   {
     return m_dof_variable;
@@ -187,6 +191,33 @@ class SequentialDoFLinearSystemImpl
 
   Real m_epsilon = 1.0e-15;
   eInternalSolverMethod m_solver_method = eInternalSolverMethod::Auto;
+
+ private:
+
+  void _fillRHSVector()
+  {
+    // For the LinearSystem class we need an array
+    // with only the values for the ownNodes().
+    // The values of 'rhs_values' should not be updated after
+    // this call.
+    UniqueArray<Real> rhs_values_for_linear_system;
+    VariableDoFReal& rhs_values(rhsVariable());
+    ENUMERATE_ (DoF, idof, m_dof_family->allItems().own()) {
+      rhs_values_for_linear_system.add(rhs_values[idof]);
+    }
+    _setRHSValues(rhs_values_for_linear_system);
+  }
+
+  void _setRHSValues(Span<const Real> values)
+  {
+    Int32 index = 0;
+    DoFGroup own_dofs = m_dof_family->allItems().own();
+    ENUMERATE_ (DoF, idof, own_dofs) {
+      DoFLocalId dof_id = *idof;
+      m_rhs_vector[dof_id] = values[index];
+      ++index;
+    }
+  }
 };
 
 /*---------------------------------------------------------------------------*/
@@ -301,10 +332,20 @@ matrixSetValue(DoFLocalId row, DoFLocalId column, Real value)
 /*---------------------------------------------------------------------------*/
 
 void DoFLinearSystem::
-setRHSValues(Span<const Real> values)
+matrixEliminateRow(Arcane::DoFLocalId row)
 {
   _checkInit();
-  m_p->setRHSValues(values);
+  m_p->matrixEliminateRow(row);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystem::
+matrixEliminateRowColumn(Arcane::DoFLocalId row)
+{
+  _checkInit();
+  m_p->matrixEliminateRowColumn(row);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -314,20 +355,6 @@ void DoFLinearSystem::
 solve()
 {
   _checkInit();
-
-  {
-    // For the LinearSystem class we need an array
-    // with only the values for the ownNodes().
-    // The values of 'rhs_values' should not be updated after
-    // this call.
-    UniqueArray<Real> rhs_values_for_linear_system;
-    VariableDoFReal& rhs_values(rhsVariable());
-    ENUMERATE_ (DoF, idof, m_item_family->allItems().own()) {
-      rhs_values_for_linear_system.add(rhs_values[idof]);
-    }
-    setRHSValues(rhs_values_for_linear_system);
-  }
-
   m_p->solve();
 }
 

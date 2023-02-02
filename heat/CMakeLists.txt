@@ -26,6 +26,7 @@ if (GMSH)
   message(STATUS "GMSH found: ${GMSH}")
   add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/plate.fine.msh
     COMMAND ${GMSH} -2 ${MSH_DIR}/plate.fine.geo -format msh41 -o plate.fine.msh
+    DEPENDS ${MSH_DIR}/plate.fine.geo
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )
   add_custom_target(gmsh_files_heat DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/plate.fine.msh)
