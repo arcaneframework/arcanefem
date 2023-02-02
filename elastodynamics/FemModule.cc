@@ -405,7 +405,7 @@ _updateVariables()
     Real  u1_val = dof_u[node_dof.dofId(node, 0)];
     Real  u2_val = dof_u[node_dof.dofId(node, 1)];
 
-/*  // I THINK THIS IS NOT IMPORTANT // CHECK ######### // TODO 
+/*  // I THINK THIS IS NOT IMPORTANT // CHECK ######### // TODO
     Real3 u_disp;
     u_disp.x = u1_val;
     u_disp.y = u2_val;
@@ -468,6 +468,131 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
+  if (options()->enforceDirichletMethod() == "Penalty") {
+
+    //----------------------------------------------
+    // penalty method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
+    //  Dirichlet condition needs to be applied
+    //
+    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
+    //           a_{i,i} = 1. * P
+    //
+    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
+    //           b_{i} = b_{i} * P
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    Real Penalty = options()->penalty();        // 1.0e30 is the default
+
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      NodeLocalId node_id = *inode;
+      if (m_u1_fixed[node_id]) {
+        DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
+        m_linear_system.matrixSetValue(dof_id1, dof_id1, Penalty);
+        {
+          Real u1_dirichlet = Penalty * m_U[node_id].x;
+          rhs_values[dof_id1] = u1_dirichlet;
+        }
+      }
+      if (m_u2_fixed[node_id]) {
+        DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
+        m_linear_system.matrixSetValue(dof_id2, dof_id2, Penalty);
+        {
+          Real u2_dirichlet = Penalty * m_U[node_id].y;
+          rhs_values[dof_id2] = u2_dirichlet;
+        }
+      }
+    }
+  }else if (options()->enforceDirichletMethod() == "WeakPenalty") {
+
+    //----------------------------------------------
+    // weak penalty method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
+    //  Dirichlet condition needs to be applied
+    //
+    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
+    //           a_{i,i} = a_{i,i} + P
+    //
+    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
+    //           b_{i} = b_{i} * P
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    Real Penalty = options()->penalty();        // 1.0e30 is the default
+
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      NodeLocalId node_id = *inode;
+      if (m_u1_fixed[node_id]) {
+        DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
+        m_linear_system.matrixAddValue(dof_id1, dof_id1, Penalty);
+        {
+          Real u1_dirichlet = Penalty * m_U[node_id].x;
+          rhs_values[dof_id1] = u1_dirichlet;
+        }
+      }
+      if (m_u2_fixed[node_id]) {
+        DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
+        m_linear_system.matrixAddValue(dof_id2, dof_id2, Penalty);
+        {
+          Real u2_dirichlet = Penalty * m_U[node_id].y;
+          rhs_values[dof_id2] = u2_dirichlet;
+        }
+      }
+    }
+  }else if (options()->enforceDirichletMethod() == "RowElimination") {
+
+    //----------------------------------------------
+    // Row elimination method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
+    //
+    //  to apply the Dirichlet on 'i'th DOF
+    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
+    //           a_{i,j} = 0.  : i!=j
+    //           a_{i,j} = 1.  : i==j
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    // TODO
+  }else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
+
+    //----------------------------------------------
+    // Row elimination method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
+    //
+    //  to apply the Dirichlet on 'i'th DOF
+    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
+    //           a_{i,j} = 0.  : i!=j  for all j
+    //           a_{i,j} = 1.  : i==j
+    //    also the column terms corresponding to the Dirichlet DOF
+    //           a_{i,j} = 0.  : i!=j  for all i
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    // TODO
+  }else {
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " is not supported \n"
+           << "enforce-Dirichlet-method only supports:\n"
+           << "  - Penalty\n"
+           << "  - WeakPenalty\n"
+           << "  - RowElimination\n"
+           << "  - RowColumnElimination\n";
+  }
+/*
   ENUMERATE_ (Node, inode, ownNodes()) {
     NodeLocalId node_id = *inode;
     if (m_u1_fixed[node_id]) {
@@ -487,7 +612,7 @@ _assembleLinearOperator()
       }
     }
   }
-
+*/
   //----------------------------------------------
   // Body force term assembly
   //----------------------------------------------
@@ -609,20 +734,20 @@ _assembleLinearOperator()
       DXV(0,1) = dPhi1.x /2.;
       DXV(0,2) = dPhi2.x /2.;
 
-/*                                                                                              
-$$                                                                                              
-\int_{\Omega}(                                                                                
-                    (U \cdot v) c_0                                                            
-                  + (V \cdot v) c_3                                                            
-                  + (A \cdot v) c_4                                                            
-                  - (\nabla \cdot U  \nabla \cdot v) c_5                                    
-                  - (\varepsilon(U) : \varepsilon(v) ) c_6                                    
-                  + (\nabla \cdot V  \nabla \cdot v) c_7                                    
-                  + (\varepsilon(V) : \varepsilon(v) ) c_8                                    
-                  + (\nabla \cdot A  \nabla \cdot v) c_9                                    
-                  + (\varepsilon(A) : \varepsilon(v) ) c_{10}                                 
-               )                                                                                
-$$                                                                                              
+/*
+$$
+\int_{\Omega}(
+                    (U \cdot v) c_0
+                  + (V \cdot v) c_3
+                  + (A \cdot v) c_4
+                  - (\nabla \cdot U  \nabla \cdot v) c_5
+                  - (\varepsilon(U) : \varepsilon(v) ) c_6
+                  + (\nabla \cdot V  \nabla \cdot v) c_7
+                  + (\varepsilon(V) : \varepsilon(v) ) c_8
+                  + (\nabla \cdot A  \nabla \cdot v) c_9
+                  + (\varepsilon(A) : \varepsilon(v) ) c_{10}
+               )
+$$
 */
 
 
@@ -635,7 +760,7 @@ $$
                                  + (m_V[node].x) * (area / 3.) * c3
                                  + (m_A[node].x) * (area / 3.) * c4
                                  - ( (DXU1.x + DXU2.y) *  DXV(0,i) )* c5
-                                 - ( (DXU1.x * DXV(0,i)) + 0.5 * ( ( DXU1.y + DXU2.x) * DYV(0,i) )   )*c6
+//                                 - ( (DXU1.x * DXV(0,i)) + 0.5 * ( ( DXU1.y + DXU2.x) * DYV(0,i) )   )*c6
 //                                 + ( (DXV1.x +  DXV2.y)* DXV(0,i)  )* c7
 //                                 + ( (DXV1.x * DXV(0,i) ) + 0.5 * ( ( DXV1.y + DXV2.x) * DYV(0,i) )   )*c9
 //                                 + ( (DXA1.x +  DXA2.y)* DXV(0,i)  )* c8
@@ -645,8 +770,8 @@ $$
           rhs_values[dof_id2] +=   (m_U[node].y)  * (area / 3.) * c0
                                  + (m_V[node].y)  * (area / 3.) * c3
                                  + (m_A[node].y)  * (area / 3.) * c4
-                                - ( (DXU1.x + DXU2.y) * DYV(0,i) )* c5
-                                 - ( (DXU2.y * DYV(0,i)) + 0.5 * (( DXU1.y + DXU2.x) * DXV(0,i) ) )*c6
+                                 - ( (DXU1.x + DXU2.y) * DYV(0,i) )* c5
+//                                 - ( (DXU2.y * DYV(0,i)) + 0.5 * (( DXU1.y + DXU2.x) * DXV(0,i) ) )*c6
 //                                 + ( (DXV1.x +  DXV2.y) * DYV(0,i))* c7
 //                                 + ( (DXV2.y * DYV(0,i) ) + 0.5 * (( DXV1.y + DXV2.x) * DXV(0,i) ) )*c9
 //                                 + ( (DXA1.x +  DXA2.y) * DYV(0,i))* c8
