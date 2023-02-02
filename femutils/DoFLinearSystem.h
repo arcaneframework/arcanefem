@@ -38,12 +38,13 @@ class DoFLinearSystemImpl
 
  public:
 
-  virtual void matrixAddValue(Arcane::DoFLocalId row, Arcane::DoFLocalId column, Arcane::Real value) = 0;
-  virtual void matrixSetValue(Arcane::DoFLocalId row, Arcane::DoFLocalId column, Arcane::Real value) = 0;
-  virtual void setRHSValues(Arcane::Span<const Arcane::Real> values) = 0;
+  virtual void matrixAddValue(DoFLocalId row, DoFLocalId column, Real value) = 0;
+  virtual void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value) = 0;
+  virtual void matrixEliminateRow(DoFLocalId row) = 0;
+  virtual void matrixEliminateRowColumn(DoFLocalId row) = 0;
   virtual void solve() = 0;
-  virtual Arcane::VariableDoFReal& solutionVariable() = 0;
-  virtual Arcane::VariableDoFReal& rhsVariable() = 0;
+  virtual VariableDoFReal& solutionVariable() = 0;
+  virtual VariableDoFReal& rhsVariable() = 0;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -79,20 +80,46 @@ class DoFLinearSystem
    * The variable dof_variable will be filled with the solution value after
    * the call to the method solve().
    */
-  void initialize(Arcane::ISubDomain* sd, Arcane::IItemFamily* dof_family, const Arcane::String& solver_name);
+  void initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name);
 
   //! Add the value \a value to the (row,column) element of the matrix
-  void matrixAddValue(Arcane::DoFLocalId row, Arcane::DoFLocalId column, Arcane::Real value);
-
-  //! Set the value \a value to the (row,column) element of the matrix
-  void matrixSetValue(Arcane::DoFLocalId row, Arcane::DoFLocalId column, Arcane::Real value);
+  void matrixAddValue(DoFLocalId row, DoFLocalId column, Real value);
 
   /*!
-   * \brief Set the values for vector B.
+   * \brief Set the value \a value to the (row,column) element of the matrix.
    *
-   * There is one value in values for each own nodes of the current sub-domain.
+   * The value is only changed when solve() is called. Any call to matrixAddValue(row,column)
+   * done before or after the call to matrixSetValue(row,column) are discarded.
    */
-  void setRHSValues(Span<const Real> values);
+  void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value);
+
+  /*
+   * \brief Eliminate the row \a row of the matrix.
+   *
+   * The elimination is equivalent to the following calls:
+   * - matrixSetValue(row,j,0) for j!=row
+   * - matrixSetValue(row,row,1.0)
+   *
+   * The row is only eliminated solve() is called. Any call to matrixAddValue(row,...)
+   * or matrixSetValue(row,...) are discarded.
+   *
+   * \note After a row elimination the matrix may no longer be symmetric.
+   */
+  void matrixEliminateRow(DoFLocalId row);
+
+  /*
+   * \brief Eliminate the row \a rc and column \a rc of the matrix.
+   *
+   * The elimination is equivalent to the following calls:
+   * - matrixSetValue(rc,j,0) for j!=rc
+   * - matrixSetValue(i,rc,0) for i!=rc
+   * - matrixSetValue(rcw,rc,1.0)
+   * - RHS[i] = RHS[i] - A[rc,i]*RHS[rc] for i!=rc
+   *
+   * The row is only eliminated solve() is called. Any call to matrixAddValue(row,...)
+   * or matrixSetValue(row,...) are discarded.
+   */
+  void matrixEliminateRowColumn(DoFLocalId row);
 
   /*!
    * \brief Solve the current linear system.
