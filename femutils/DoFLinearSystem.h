@@ -40,8 +40,8 @@ class DoFLinearSystemImpl
 
   virtual void matrixAddValue(DoFLocalId row, DoFLocalId column, Real value) = 0;
   virtual void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value) = 0;
-  virtual void matrixEliminateRow(DoFLocalId row) = 0;
-  virtual void matrixEliminateRowColumn(DoFLocalId row) = 0;
+  virtual void eliminateRow(DoFLocalId row,Real value) = 0;
+  virtual void eliminateRowColumn(DoFLocalId row,Real value) = 0;
   virtual void solve() = 0;
   virtual VariableDoFReal& solutionVariable() = 0;
   virtual VariableDoFReal& rhsVariable() = 0;
@@ -94,32 +94,34 @@ class DoFLinearSystem
   void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value);
 
   /*
-   * \brief Eliminate the row \a row of the matrix.
+   * \brief Eliminate the row \a row of the linear system.
    *
    * The elimination is equivalent to the following calls:
    * - matrixSetValue(row,j,0) for j!=row
    * - matrixSetValue(row,row,1.0)
+   * - RHS[rc] = value
    *
-   * The row is only eliminated solve() is called. Any call to matrixAddValue(row,...)
+   * The row is only eliminated when solve() is called. Any call to matrixAddValue(row,...)
    * or matrixSetValue(row,...) are discarded.
    *
    * \note After a row elimination the matrix may no longer be symmetric.
    */
-  void matrixEliminateRow(DoFLocalId row);
+  void eliminateRow(DoFLocalId row,Real value);
 
   /*
-   * \brief Eliminate the row \a rc and column \a rc of the matrix.
+   * \brief Eliminate the row \a rc and column \a rc of the linear system.
    *
    * The elimination is equivalent to the following calls:
    * - matrixSetValue(rc,j,0) for j!=rc
    * - matrixSetValue(i,rc,0) for i!=rc
    * - matrixSetValue(rcw,rc,1.0)
-   * - RHS[i] = RHS[i] - A[rc,i]*RHS[rc] for i!=rc
+   * - RHS[i] = RHS[i] - A[rc,i] * value for i!=rc
    *
-   * The row is only eliminated solve() is called. Any call to matrixAddValue(row,...)
-   * or matrixSetValue(row,...) are discarded.
+   * The row is only eliminated solve() is called.
+   * Any call to matrixAddValue(row,...), matrixSetValue(row,...),
+   * matrixAddValue(...,row) or matrixSetValue(...,row) are discarded.
    */
-  void matrixEliminateRowColumn(DoFLocalId row);
+  void eliminateRowColumn(DoFLocalId row,Real value);
 
   /*!
    * \brief Solve the current linear system.

@@ -93,6 +93,7 @@ class AlephDoFLinearSystemImpl
   , m_dof_variable(VariableBuildInfo(dof_family, solver_name + "SolutionVariable"))
   , m_dof_matrix_indexes(VariableBuildInfo(m_dof_family, solver_name + "DoFMatrixIndexes"))
   , m_dof_elimination_info(VariableBuildInfo(m_dof_family, solver_name + "DoFEliminationInfo"))
+  , m_dof_elimination_value(VariableBuildInfo(m_dof_family, solver_name + "DoFEliminationValue"))
   {}
 
   ~AlephDoFLinearSystemImpl()
@@ -107,6 +108,7 @@ class AlephDoFLinearSystemImpl
     _computeMatrixInfo();
     m_aleph_params = _createAlephParam();
     m_dof_elimination_info.fill(ELIMINATE_NONE);
+    m_dof_elimination_info.fill(0.0);
   }
 
   AlephParams* params() const { return m_aleph_params; }
@@ -183,22 +185,24 @@ class AlephDoFLinearSystemImpl
     m_forced_set_values_map[{ row.localId(), column.localId() }] = value;
   }
 
-  void matrixEliminateRow(DoFLocalId row) override
+  void eliminateRow(DoFLocalId row,Real value) override
   {
     if (row.isNull())
       ARCANE_FATAL("Row is null");
     if (!m_use_value_map)
       ARCANE_FATAL("matrixEliminateRow() is only allowed if 'm_use_value_map' is true");
     m_dof_elimination_info[row] = ELIMINATE_ROW;
+    m_dof_elimination_value[row] = value;
   }
 
-  void matrixEliminateRowColumn(DoFLocalId row) override
+  void eliminateRowColumn(DoFLocalId row,Real value) override
   {
     if (row.isNull())
       ARCANE_FATAL("Row is null");
     if (!m_use_value_map)
       ARCANE_FATAL("matrixEliminateRowColumn() is only allowed if 'm_use_value_map' is true");
     m_dof_elimination_info[row] = ELIMINATE_ROW_COLUMN;
+    m_dof_elimination_value[row] = value;
   }
 
   void solve() override
@@ -314,6 +318,7 @@ class AlephDoFLinearSystemImpl
   VariableDoFReal m_dof_variable;
   VariableDoFInt32 m_dof_matrix_indexes;
   VariableDoFByte m_dof_elimination_info;
+  VariableDoFReal m_dof_elimination_value;
   AlephKernel* m_aleph_kernel = nullptr;
   AlephMatrix* m_aleph_matrix = nullptr;
   AlephVector* m_aleph_rhs_vector = nullptr;
@@ -422,11 +427,13 @@ _fillMatrix()
     m_aleph_matrix->setValue(m_dof_variable, dof_row, m_dof_variable, dof_column, value);
   }
 
-  // Apply Row+Colmumn elimination
-  // Phase 1: substract values of the RHS vector
+  // Apply Row or Row+Column elimination
+  // Phase 1:
+  // - substract values of the RHS vector if Row+Column elimination
+  // - set the value of the RHS if Row elimination
   for (const auto& rc_value : row_column_elimination_map) {
     RowColumn rc = rc_value.first;
-    Real value = rc_value.second;
+    Real matrix_value = rc_value.second;
 
     DoF dof_row = item_list_view[rc.row_id];
     DoF dof_column = item_list_view[rc.column_id];
@@ -435,10 +442,13 @@ _fillMatrix()
     if (!dof_column.isOwn())
       continue;
     Byte row_elimination_info = m_dof_elimination_info[dof_row];
-
+    Real elimination_value = m_dof_elimination_value[dof_row];
     // Substract the value of RHS vector for current column.
-    if (row_elimination_info == ELIMINATE_ROW_COLUMN) {
-      m_rhs_variable[dof_column] -= value * m_rhs_variable[dof_row];
+    if (row_elimination_info == ELIMINATE_ROW){
+      m_rhs_variable[dof_column] = elimination_value;
+    }
+    else if (row_elimination_info == ELIMINATE_ROW_COLUMN) {
+      m_rhs_variable[dof_column] -= matrix_value * elimination_value;
     }
   }
 
