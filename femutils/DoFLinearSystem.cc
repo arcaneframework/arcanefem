@@ -93,12 +93,12 @@ class SequentialDoFLinearSystemImpl
     m_k_matrix(row, column) = value;
   }
 
-  void matrixEliminateRow(DoFLocalId row) override
+  void eliminateRow(DoFLocalId row, Real value) override
   {
     ARCANE_THROW(NotImplementedException, "");
   }
 
-  void matrixEliminateRowColumn(DoFLocalId row) override
+  void eliminateRowColumn(DoFLocalId row, Real value) override
   {
     ARCANE_THROW(NotImplementedException, "");
   }
@@ -332,20 +332,20 @@ matrixSetValue(DoFLocalId row, DoFLocalId column, Real value)
 /*---------------------------------------------------------------------------*/
 
 void DoFLinearSystem::
-matrixEliminateRow(Arcane::DoFLocalId row)
+eliminateRow(DoFLocalId row, Real value)
 {
   _checkInit();
-  m_p->matrixEliminateRow(row);
+  m_p->eliminateRow(row, value);
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 void DoFLinearSystem::
-matrixEliminateRowColumn(Arcane::DoFLocalId row)
+eliminateRowColumn(DoFLocalId row, Real value)
 {
   _checkInit();
-  m_p->matrixEliminateRowColumn(row);
+  m_p->eliminateRowColumn(row, value);
 }
 
 /*---------------------------------------------------------------------------*/
