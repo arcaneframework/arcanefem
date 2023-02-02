@@ -399,18 +399,40 @@ _assembleLinearOperator()
     //----------------------------------------------
     // Row elimination method to enforce Dirichlet BC
     //----------------------------------------------
-    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
+    //  Let 'i' be the DOF for which  Dirichlet condition 'g_i' needs to be applied
     //
     //  to apply the Dirichlet on 'i'th DOF
     //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
     //           a_{i,j} = 0.  : i!=j
     //           a_{i,j} = 1.  : i==j
+    //  - For RHS vector b the terms corresponding to the Dirichlet DOF
+    //           b_i = g_i
     //----------------------------------------------
 
     info() << "Applying Dirichlet boundary condition via "
            << options()->enforceDirichletMethod() << " method ";
 
-    // TODO
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      NodeLocalId node_id = *inode;
+      if (m_u1_fixed[node_id]) {
+        DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
+        m_linear_system.matrixSetValue(dof_id1, dof_id1, 1.);
+        m_linear_system.matrixEliminateRow(dof_id1);
+        {
+          Real u1_dirichlet = m_U[node_id].x;
+          rhs_values[dof_id1] = u1_dirichlet;
+        }
+      }
+      if (m_u2_fixed[node_id]) {
+        DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
+        m_linear_system.matrixAddValue(dof_id2, dof_id2, 1.);
+        m_linear_system.matrixEliminateRow(dof_id2);
+        {
+          Real u2_dirichlet = m_U[node_id].y;
+          rhs_values[dof_id2] = u2_dirichlet;
+        }
+      }
+    }
   }else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
 
     //----------------------------------------------
