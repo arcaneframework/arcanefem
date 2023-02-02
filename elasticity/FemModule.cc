@@ -416,21 +416,13 @@ _assembleLinearOperator()
       NodeLocalId node_id = *inode;
       if (m_u1_fixed[node_id]) {
         DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
-        m_linear_system.matrixSetValue(dof_id1, dof_id1, 1.);
-        m_linear_system.matrixEliminateRow(dof_id1);
-        {
-          Real u1_dirichlet = m_U[node_id].x;
-          rhs_values[dof_id1] = u1_dirichlet;
-        }
+        Real u1_dirichlet = m_U[node_id].x;
+        m_linear_system.eliminateRow(dof_id1, u1_dirichlet);
       }
       if (m_u2_fixed[node_id]) {
         DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
-        m_linear_system.matrixSetValue(dof_id2, dof_id2, 1.);
-        m_linear_system.matrixEliminateRow(dof_id2);
-        {
-          Real u2_dirichlet = m_U[node_id].y;
-          rhs_values[dof_id2] = u2_dirichlet;
-        }
+        Real u2_dirichlet = m_U[node_id].y;
+        m_linear_system.eliminateRow(dof_id2, u2_dirichlet);
       }
     }
   }else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
@@ -451,7 +443,19 @@ _assembleLinearOperator()
     info() << "Applying Dirichlet boundary condition via "
            << options()->enforceDirichletMethod() << " method ";
 
-    // TODO
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      NodeLocalId node_id = *inode;
+      if (m_u1_fixed[node_id]) {
+        DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
+        Real u1_dirichlet = m_U[node_id].x;
+        m_linear_system.eliminateRowColumn(dof_id1, u1_dirichlet);
+      }
+      if (m_u2_fixed[node_id]) {
+        DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
+        Real u2_dirichlet = m_U[node_id].y;
+        m_linear_system.eliminateRowColumn(dof_id2, u2_dirichlet);
+      }
+    }
   }else {
 
     info() << "Applying Dirichlet boundary condition via "
@@ -942,12 +946,12 @@ _assembleBilinearOperatorQUAD4()
     if (cell.type() != IT_Quad4)
       ARCANE_FATAL("Only Quad4 cell type is supported");
 
-    auto K_e = _computeElementMatrixQUAD4(cell);  // element stifness matrix
+    auto K_e = _computeElementMatrixQUAD4(cell);  // element stiffness matrix
     // assemble elementary matrix into the global one elementary terms are
-    // positionned into K according to the rank of associated  node in the
-    // mesh.nodes list and acoording the dof number. Here  for  each  node
-    // two dofs exists [u1,u2]. For each TRIA3 there are 3 nodes hence the
-    // elementary stifness matrix size is (3*2 x 3*2)=(6x6). We will  fill
+    // positioned into  K according to the rank of associated  node in the
+    // mesh.nodes list and according the dof number. Here  for  each  node
+    // two DOFs exists [u1,u2]. For each TRIA3 there are 3 nodes hence the
+    // elementary stiffness matrix size is (3*2 x 3*2)=(6x6). We will  fill
     // this below in 4 at a time.
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
@@ -993,12 +997,12 @@ _assembleBilinearOperatorTRIA3()
     if (cell.type() != IT_Triangle3)
       ARCANE_FATAL("Only Triangle3 cell type is supported");
 
-    auto K_e = _computeElementMatrixTRIA3(cell);  // element stifness matrix
+    auto K_e = _computeElementMatrixTRIA3(cell);  // element stiffness matrix
     // assemble elementary matrix into the global one elementary terms are
-    // positionned into K according to the rank of associated  node in the
-    // mesh.nodes list and acoording the dof number. Here  for  each  node
-    // two dofs exists [u1,u2]. For each TRIA3 there are 3 nodes hence the
-    // elementary stifness matrix size is (3*2 x 3*2)=(6x6). We will  fill
+    // positioned into K according to the rank  of  associated  node in the
+    // mesh.nodes list and according the dof  number. Here  for  each  node
+    // two dofs exists [u1,u2].  For each TRIA3 there are 3 nodes hence the
+    // elementary stiffness matrix size is (3*2 x 3*2)=(6x6). We will  fill
     // this below in 4 at a time.
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
