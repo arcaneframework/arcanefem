@@ -422,13 +422,34 @@ _fillMatrix()
     m_aleph_matrix->setValue(m_dof_variable, dof_row, m_dof_variable, dof_column, value);
   }
 
-  // Apply Row elimination
+  // Apply Row+Colmumn elimination
+  // Phase 1: substract values of the RHS vector
+  for (const auto& rc_value : row_column_elimination_map) {
+    RowColumn rc = rc_value.first;
+    Real value = rc_value.second;
+
+    DoF dof_row = item_list_view[rc.row_id];
+    DoF dof_column = item_list_view[rc.column_id];
+    if (dof_row == dof_column)
+      continue;
+    if (!dof_column.isOwn())
+      continue;
+    Byte row_elimination_info = m_dof_elimination_info[dof_row];
+
+    // Substract the value of RHS vector for current column.
+    if (row_elimination_info == ELIMINATE_ROW_COLUMN) {
+      m_rhs_variable[dof_column] -= value * m_rhs_variable[dof_row];
+    }
+  }
+
+  // Apply Row or Row+Column elimination
+  // Phase 2: fill the diagonal with 1.0
   ENUMERATE_ (DoF, idof, m_dof_family->allItems()) {
     DoF dof = *idof;
     if (!dof.isOwn())
       continue;
     Byte eliminate_info = m_dof_elimination_info[dof];
-    if (eliminate_info == ELIMINATE_ROW) {
+    if (eliminate_info == ELIMINATE_ROW || eliminate_info == ELIMINATE_ROW_COLUMN) {
       m_aleph_matrix->setValue(m_dof_variable, dof, m_dof_variable, dof, 1.0);
     }
   }
