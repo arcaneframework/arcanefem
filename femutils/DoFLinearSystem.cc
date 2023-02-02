@@ -87,7 +87,20 @@ class SequentialDoFLinearSystemImpl
 
   void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value) override
   {
+    // TODO: We should do the set() at the solving time because a following
+    // call to matrixAddValue() will override this value and this is not the
+    // wanted bahavior.
     m_k_matrix(row, column) = value;
+  }
+
+  void matrixEliminateRow(DoFLocalId row) override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
+  void matrixEliminateRowColumn(DoFLocalId row) override
+  {
+    ARCANE_THROW(NotImplementedException, "");
   }
 
   void solve() override
@@ -295,6 +308,26 @@ matrixSetValue(DoFLocalId row, DoFLocalId column, Real value)
 {
   _checkInit();
   m_p->matrixSetValue(row, column, value);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystem::
+matrixEliminateRow(Arcane::DoFLocalId row)
+{
+  _checkInit();
+  m_p->matrixEliminateRow(row);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystem::
+matrixEliminateRowColumn(Arcane::DoFLocalId row)
+{
+  _checkInit();
+  m_p->matrixEliminateRowColumn(row);
 }
 
 /*---------------------------------------------------------------------------*/

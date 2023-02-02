@@ -178,6 +178,16 @@ class AlephDoFLinearSystemImpl
     m_forced_set_values_map[{ row.localId(), column.localId() }] = value;
   }
 
+  void matrixEliminateRow(DoFLocalId row) override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
+  void matrixEliminateRowColumn(DoFLocalId row) override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
   void solve() override
   {
     UniqueArray<Real> aleph_result;
