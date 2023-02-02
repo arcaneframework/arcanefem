@@ -21,6 +21,8 @@
 
   <fem>
     <f>-1.0</f>
+    <enforce-Dirichlet-method>WeakPenalty</enforce-Dirichlet-method>
+    <penalty>1.e30</penalty>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
       <value>0.05</value>
