@@ -432,6 +432,16 @@ _assembleLinearOperator()
     info() << "Applying Dirichlet boundary condition via "
            << options()->enforceDirichletMethod() << " method ";
 
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      NodeLocalId node_id = *inode;
+      if (m_node_is_temperature_fixed[node_id]) {
+        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
+        m_linear_system.matrixEliminateRow(dof_id);
+        m_linear_system.matrixSetValue(dof_id, dof_id, 1.);
+        Real temperature = m_node_temperature[node_id];
+        rhs_values[dof_id] = temperature;
+      }
+    }
     // TODO
   }else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
 
