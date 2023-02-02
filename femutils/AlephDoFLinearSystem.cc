@@ -205,7 +205,11 @@ class AlephDoFLinearSystemImpl
   {
     UniqueArray<Real> aleph_result;
 
+    // _fillMatrix() may change the values of RHS vector
+    // with row or row-column elimination so we has to fill the RHS vector
+    // before the matrix.
     _fillMatrix();
+    _fillRHSVector();
 
     info() << "[AlephFem] Assemble matrix ptr=" << m_aleph_matrix;
     m_aleph_matrix->assemble();
@@ -251,11 +255,6 @@ class AlephDoFLinearSystemImpl
 
       ++index;
     }
-  }
-
-  void setRHSValues(Span<const Real> values) override
-  {
-    m_aleph_rhs_vector->setLocalComponents(ConstArrayView(values.size(), values.data()));
   }
 
   VariableDoFReal& solutionVariable() override
@@ -336,6 +335,7 @@ class AlephDoFLinearSystemImpl
  private:
 
   void _fillMatrix();
+  void _fillRHSVector();
 };
 
 /*---------------------------------------------------------------------------*/
@@ -389,6 +389,8 @@ _fillMatrix()
   if (!m_use_value_map)
     return;
 
+  RowColumnMap row_column_elimination_map;
+
   DoFInfoListView item_list_view(m_dof_family);
   for (const auto& rc_value : m_values_map) {
     RowColumn rc = rc_value.first;
@@ -397,24 +399,27 @@ _fillMatrix()
     DoF dof_row = item_list_view[rc.row_id];
     DoF dof_column = item_list_view[rc.column_id];
 
-    Byte eliminate_info = m_dof_elimination_info[dof_row];
+    Byte row_elimination_info = m_dof_elimination_info[dof_row];
+    Byte column_elimination_info = m_dof_elimination_info[dof_column];
 
-    if (eliminate_info == ELIMINATE_NONE) {
-      // Check if value is forced for current RowColumn
-      auto x = m_forced_set_values_map.find(rc);
-      if (x != m_forced_set_values_map.end()) {
-        info(4) << "FORCED VALUE R=" << rc.row_id << " C=" << rc.column_id
-                << " old=" << value << " new=" << x->second;
-        value = x->second;
-      }
-
-      m_aleph_matrix->setValue(m_dof_variable, dof_row, m_dof_variable, dof_column, value);
+    if (row_elimination_info == ELIMINATE_ROW_COLUMN || column_elimination_info == ELIMINATE_ROW_COLUMN) {
+      row_column_elimination_map[{ rc.row_id, rc.column_id }] = value;
+      continue;
     }
-    else if (eliminate_info == ELIMINATE_ROW)
+
+    if (row_elimination_info == ELIMINATE_ROW)
       // Will be computed after this loop
-      ;
-    else if (eliminate_info == ELIMINATE_ROW_COLUMN)
-      ARCANE_THROW(NotImplementedException, "RowColumn Elimination");
+      continue;
+
+    // Check if value is forced for current RowColumn
+    auto x = m_forced_set_values_map.find(rc);
+    if (x != m_forced_set_values_map.end()) {
+      info(4) << "FORCED VALUE R=" << rc.row_id << " C=" << rc.column_id
+              << " old=" << value << " new=" << x->second;
+      value = x->second;
+    }
+
+    m_aleph_matrix->setValue(m_dof_variable, dof_row, m_dof_variable, dof_column, value);
   }
 
   // Apply Row elimination
@@ -427,6 +432,24 @@ _fillMatrix()
       m_aleph_matrix->setValue(m_dof_variable, dof, m_dof_variable, dof, 1.0);
     }
   }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void AlephDoFLinearSystemImpl::
+_fillRHSVector()
+{
+  // For the LinearSystem class we need an array
+  // with only the values for the ownNodes().
+  // The values of 'rhs_values' should not be updated after
+  // this call.
+  UniqueArray<Real> rhs_values_for_linear_system;
+  VariableDoFReal& rhs_values(rhsVariable());
+  ENUMERATE_ (DoF, idof, m_dof_family->allItems().own()) {
+    rhs_values_for_linear_system.add(rhs_values[idof]);
+  }
+  m_aleph_rhs_vector->setLocalComponents(rhs_values_for_linear_system.view());
 }
 
 /*---------------------------------------------------------------------------*/

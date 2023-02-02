@@ -42,7 +42,6 @@ class DoFLinearSystemImpl
   virtual void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value) = 0;
   virtual void matrixEliminateRow(DoFLocalId row) = 0;
   virtual void matrixEliminateRowColumn(DoFLocalId row) = 0;
-  virtual void setRHSValues(Span<const Real> values) = 0;
   virtual void solve() = 0;
   virtual VariableDoFReal& solutionVariable() = 0;
   virtual VariableDoFReal& rhsVariable() = 0;
@@ -115,19 +114,12 @@ class DoFLinearSystem
    * - matrixSetValue(rc,j,0) for j!=rc
    * - matrixSetValue(i,rc,0) for i!=rc
    * - matrixSetValue(rcw,rc,1.0)
-   * - RHS[i] = RHS[i] - A[i,rc]*RHS[rc] for i!=rc
+   * - RHS[i] = RHS[i] - A[rc,i]*RHS[rc] for i!=rc
    *
    * The row is only eliminated solve() is called. Any call to matrixAddValue(row,...)
    * or matrixSetValue(row,...) are discarded.
    */
   void matrixEliminateRowColumn(DoFLocalId row);
-
-  /*!
-   * \brief Set the values for vector B.
-   *
-   * There is one value in values for each own nodes of the current sub-domain.
-   */
-  void setRHSValues(Span<const Real> values);
 
   /*!
    * \brief Solve the current linear system.
