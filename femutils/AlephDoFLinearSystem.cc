@@ -53,6 +53,9 @@ class AlephDoFLinearSystemImpl
 : public TraceAccessor
 , public DoFLinearSystemImpl
 {
+  static constexpr Byte ELIMINATE_NONE = 0;
+  static constexpr Byte ELIMINATE_ROW = 1;
+  static constexpr Byte ELIMINATE_ROW_COLUMN = 2;
 
   struct RowColumn
   {
@@ -89,6 +92,7 @@ class AlephDoFLinearSystemImpl
   , m_rhs_variable(VariableBuildInfo(dof_family, solver_name + "RHSVariable"))
   , m_dof_variable(VariableBuildInfo(dof_family, solver_name + "SolutionVariable"))
   , m_dof_matrix_indexes(VariableBuildInfo(m_dof_family, solver_name + "DoFMatrixIndexes"))
+  , m_dof_elimination_info(VariableBuildInfo(m_dof_family, solver_name + "DoFEliminationInfo"))
   {}
 
   ~AlephDoFLinearSystemImpl()
@@ -102,6 +106,7 @@ class AlephDoFLinearSystemImpl
   {
     _computeMatrixInfo();
     m_aleph_params = _createAlephParam();
+    m_dof_elimination_info.fill(ELIMINATE_NONE);
   }
 
   AlephParams* params() const { return m_aleph_params; }
@@ -174,44 +179,33 @@ class AlephDoFLinearSystemImpl
     if (column.isNull())
       ARCANE_FATAL("Column is null");
     if (!m_use_value_map)
-      ARCANE_FATAL("matrixSetValue is only allowed if 'm_use_value_map' is true");
+      ARCANE_FATAL("matrixSetValue() is only allowed if 'm_use_value_map' is true");
     m_forced_set_values_map[{ row.localId(), column.localId() }] = value;
   }
 
   void matrixEliminateRow(DoFLocalId row) override
   {
-    ARCANE_THROW(NotImplementedException, "");
+    if (row.isNull())
+      ARCANE_FATAL("Row is null");
+    if (!m_use_value_map)
+      ARCANE_FATAL("matrixEliminateRow() is only allowed if 'm_use_value_map' is true");
+    m_dof_elimination_info[row] = ELIMINATE_ROW;
   }
 
   void matrixEliminateRowColumn(DoFLocalId row) override
   {
-    ARCANE_THROW(NotImplementedException, "");
+    if (row.isNull())
+      ARCANE_FATAL("Row is null");
+    if (!m_use_value_map)
+      ARCANE_FATAL("matrixEliminateRowColumn() is only allowed if 'm_use_value_map' is true");
+    m_dof_elimination_info[row] = ELIMINATE_ROW_COLUMN;
   }
 
   void solve() override
   {
     UniqueArray<Real> aleph_result;
 
-    // Rempli la matrice
-    if (m_use_value_map) {
-      DoFInfoListView item_list_view(m_dof_family);
-      for (const auto& rc_value : m_values_map) {
-        RowColumn rc = rc_value.first;
-        Real value = rc_value.second;
-
-        DoF dof_row = item_list_view[rc.row_id];
-        DoF dof_column = item_list_view[rc.column_id];
-
-        auto x = m_forced_set_values_map.find(rc);
-        if (x != m_forced_set_values_map.end()){
-          info() << "FORCED VALUE R=" << rc.row_id << " C=" << rc.column_id
-                 << " old=" << value << " new=" << x->second;
-          value = x->second;
-        }
-
-        m_aleph_matrix->setValue(m_dof_variable, dof_row, m_dof_variable, dof_column, value);
-      }
-    }
+    _fillMatrix();
 
     info() << "[AlephFem] Assemble matrix ptr=" << m_aleph_matrix;
     m_aleph_matrix->assemble();
@@ -320,6 +314,7 @@ class AlephDoFLinearSystemImpl
   VariableDoFReal m_rhs_variable;
   VariableDoFReal m_dof_variable;
   VariableDoFInt32 m_dof_matrix_indexes;
+  VariableDoFByte m_dof_elimination_info;
   AlephKernel* m_aleph_kernel = nullptr;
   AlephMatrix* m_aleph_matrix = nullptr;
   AlephVector* m_aleph_rhs_vector = nullptr;
@@ -337,6 +332,10 @@ class AlephDoFLinearSystemImpl
    * there is only matrixAddValue() calls.
    */
   bool m_use_value_map = true;
+
+ private:
+
+  void _fillMatrix();
 };
 
 /*---------------------------------------------------------------------------*/
@@ -383,12 +382,62 @@ createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const St
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+void AlephDoFLinearSystemImpl::
+_fillMatrix()
+{
+  // Fill the matrix
+  if (!m_use_value_map)
+    return;
+
+  DoFInfoListView item_list_view(m_dof_family);
+  for (const auto& rc_value : m_values_map) {
+    RowColumn rc = rc_value.first;
+    Real value = rc_value.second;
+
+    DoF dof_row = item_list_view[rc.row_id];
+    DoF dof_column = item_list_view[rc.column_id];
+
+    Byte eliminate_info = m_dof_elimination_info[dof_row];
+
+    if (eliminate_info == ELIMINATE_NONE) {
+      // Check if value is forced for current RowColumn
+      auto x = m_forced_set_values_map.find(rc);
+      if (x != m_forced_set_values_map.end()) {
+        info(4) << "FORCED VALUE R=" << rc.row_id << " C=" << rc.column_id
+                << " old=" << value << " new=" << x->second;
+        value = x->second;
+      }
+
+      m_aleph_matrix->setValue(m_dof_variable, dof_row, m_dof_variable, dof_column, value);
+    }
+    else if (eliminate_info == ELIMINATE_ROW)
+      // Will be computed after this loop
+      ;
+    else if (eliminate_info == ELIMINATE_ROW_COLUMN)
+      ARCANE_THROW(NotImplementedException, "RowColumn Elimination");
+  }
+
+  // Apply Row elimination
+  ENUMERATE_ (DoF, idof, m_dof_family->allItems()) {
+    DoF dof = *idof;
+    if (!dof.isOwn())
+      continue;
+    Byte eliminate_info = m_dof_elimination_info[dof];
+    if (eliminate_info == ELIMINATE_ROW) {
+      m_aleph_matrix->setValue(m_dof_variable, dof, m_dof_variable, dof, 1.0);
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 ARCANE_REGISTER_SERVICE_ALEPHDOFLINEARSYSTEMFACTORY(AlephLinearSystem,
                                                     AlephDoFLinearSystemFactoryService);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-}
+} // namespace Arcane::FemUtils
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
