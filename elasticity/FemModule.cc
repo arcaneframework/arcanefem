@@ -425,7 +425,7 @@ _assembleLinearOperator()
       }
       if (m_u2_fixed[node_id]) {
         DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
-        m_linear_system.matrixAddValue(dof_id2, dof_id2, 1.);
+        m_linear_system.matrixSetValue(dof_id2, dof_id2, 1.);
         m_linear_system.matrixEliminateRow(dof_id2);
         {
           Real u2_dirichlet = m_U[node_id].y;
