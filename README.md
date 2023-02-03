@@ -29,10 +29,10 @@ paraview ${BUILD_DIR}/poisson/output/depouillement/ensight.case
 ## Todo List ##
 
 #### Short term ####
-- [ ] Row elimination for Dirichlet BC
-- [ ] Row-Column elimination for Dirichlet BC
 - [ ] Elastodynamics
 - [ ] PETSc command-line paramerts or set parameters via a string
+- [x] Row elimination for Dirichlet BC
+- [x] Row-Column elimination for Dirichlet BC
 - [x] New parameter to switch the type of method for imposing Dirichlet BC
 - [x] Gradient operator
 - [x] Convection operator for transient heat conduction problem
