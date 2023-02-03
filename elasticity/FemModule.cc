@@ -321,7 +321,7 @@ _assembleLinearOperator()
     //----------------------------------------------
     // penalty method to enforce Dirichlet BC
     //----------------------------------------------
-    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which  
+    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
     //  Dirichlet condition needs to be applied
     //
     //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
@@ -416,13 +416,17 @@ _assembleLinearOperator()
       NodeLocalId node_id = *inode;
       if (m_u1_fixed[node_id]) {
         DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
+
         Real u1_dirichlet = m_U[node_id].x;
         m_linear_system.eliminateRow(dof_id1, u1_dirichlet);
+
       }
       if (m_u2_fixed[node_id]) {
         DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
+
         Real u2_dirichlet = m_U[node_id].y;
         m_linear_system.eliminateRow(dof_id2, u2_dirichlet);
+
       }
     }
   }else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
@@ -447,13 +451,17 @@ _assembleLinearOperator()
       NodeLocalId node_id = *inode;
       if (m_u1_fixed[node_id]) {
         DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
+
         Real u1_dirichlet = m_U[node_id].x;
         m_linear_system.eliminateRowColumn(dof_id1, u1_dirichlet);
+
       }
       if (m_u2_fixed[node_id]) {
         DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
+
         Real u2_dirichlet = m_U[node_id].y;
         m_linear_system.eliminateRowColumn(dof_id2, u2_dirichlet);
+
       }
     }
   }else {
