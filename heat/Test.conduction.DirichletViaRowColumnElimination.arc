@@ -31,7 +31,7 @@
     </dirichlet-boundary-condition>
     <linear-system>
       <solver-backend>petsc</solver-backend>
-      <solver-method>cg</solver-method>
+      <solver-method>pcg</solver-method>
       <preconditioner>amg</preconditioner>
     </linear-system>
   </fem>
