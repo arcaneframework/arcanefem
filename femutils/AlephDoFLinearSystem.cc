@@ -185,7 +185,7 @@ class AlephDoFLinearSystemImpl
     m_forced_set_values_map[{ row.localId(), column.localId() }] = value;
   }
 
-  void eliminateRow(DoFLocalId row,Real value) override
+  void eliminateRow(DoFLocalId row, Real value) override
   {
     if (row.isNull())
       ARCANE_FATAL("Row is null");
@@ -193,9 +193,10 @@ class AlephDoFLinearSystemImpl
       ARCANE_FATAL("matrixEliminateRow() is only allowed if 'm_use_value_map' is true");
     m_dof_elimination_info[row] = ELIMINATE_ROW;
     m_dof_elimination_value[row] = value;
+    info() << "EliminateRow row=" << row.localId() << " v=" << value;
   }
 
-  void eliminateRowColumn(DoFLocalId row,Real value) override
+  void eliminateRowColumn(DoFLocalId row, Real value) override
   {
     if (row.isNull())
       ARCANE_FATAL("Row is null");
@@ -203,6 +204,7 @@ class AlephDoFLinearSystemImpl
       ARCANE_FATAL("matrixEliminateRowColumn() is only allowed if 'm_use_value_map' is true");
     m_dof_elimination_info[row] = ELIMINATE_ROW_COLUMN;
     m_dof_elimination_value[row] = value;
+    info() << "EliminateRowColumn row=" << row.localId() << " v=" << value;
   }
 
   void solve() override
@@ -337,10 +339,21 @@ class AlephDoFLinearSystemImpl
    */
   bool m_use_value_map = true;
 
+  //! True to print matrix values during filling
+  bool m_do_print_filling = true;
+
  private:
 
   void _fillMatrix();
   void _fillRHSVector();
+  void _setMatrixValue(DoF row, DoF column, Real value)
+  {
+    if (m_do_print_filling)
+      info() << "SET MATRIX VALUE (" << std::setw(4) << row.localId()
+             << "," << std::setw(4) << column.localId() << ")"
+             << " v=" << std::setw(25) << value;
+    m_aleph_matrix->setValue(m_dof_variable, row, m_dof_variable, column, value);
+  }
 };
 
 /*---------------------------------------------------------------------------*/
@@ -424,17 +437,15 @@ _fillMatrix()
       value = x->second;
     }
 
-    m_aleph_matrix->setValue(m_dof_variable, dof_row, m_dof_variable, dof_column, value);
+    _setMatrixValue(dof_row, dof_column, value);
   }
 
-  // Apply Row or Row+Column elimination
+  // Apply Row+Column elimination
   // Phase 1:
   // - substract values of the RHS vector if Row+Column elimination
-  // - set the value of the RHS if Row elimination
   for (const auto& rc_value : row_column_elimination_map) {
     RowColumn rc = rc_value.first;
     Real matrix_value = rc_value.second;
-
     DoF dof_row = item_list_view[rc.row_id];
     DoF dof_column = item_list_view[rc.column_id];
     if (dof_row == dof_column)
@@ -444,23 +455,32 @@ _fillMatrix()
     Byte row_elimination_info = m_dof_elimination_info[dof_row];
     Real elimination_value = m_dof_elimination_value[dof_row];
     // Substract the value of RHS vector for current column.
-    if (row_elimination_info == ELIMINATE_ROW){
-      m_rhs_variable[dof_column] = elimination_value;
-    }
-    else if (row_elimination_info == ELIMINATE_ROW_COLUMN) {
-      m_rhs_variable[dof_column] -= matrix_value * elimination_value;
+    if (row_elimination_info == ELIMINATE_ROW_COLUMN) {
+      Real v = m_rhs_variable[dof_column];
+      m_rhs_variable[dof_column] = v - matrix_value * elimination_value;
+      if (m_do_print_filling)
+        info() << "EliminateRowColumn (" << std::setw(4) << rc.row_id
+               << "," << std::setw(4) << rc.column_id << ")"
+               << " elimination_value=" << std::setw(25) << elimination_value
+               << "  old_rhs=" << std::setw(25) << v
+               << "  new_rhs=" << std::setw(25) << m_rhs_variable[dof_column];
     }
   }
 
   // Apply Row or Row+Column elimination
+  // Phase 2: set the value of the RHS if Row elimination
   // Phase 2: fill the diagonal with 1.0
   ENUMERATE_ (DoF, idof, m_dof_family->allItems()) {
     DoF dof = *idof;
     if (!dof.isOwn())
       continue;
-    Byte eliminate_info = m_dof_elimination_info[dof];
-    if (eliminate_info == ELIMINATE_ROW || eliminate_info == ELIMINATE_ROW_COLUMN) {
-      m_aleph_matrix->setValue(m_dof_variable, dof, m_dof_variable, dof, 1.0);
+    Byte elimination_info = m_dof_elimination_info[dof];
+    if (elimination_info == ELIMINATE_ROW || elimination_info == ELIMINATE_ROW_COLUMN) {
+      Real elimination_value = m_dof_elimination_value[dof];
+      m_rhs_variable[dof] = elimination_value;
+      info() << "Eliminate info=" << (int)elimination_info << " row="
+             << std::setw(4) << dof.localId() << " value=" << elimination_value;
+      _setMatrixValue(dof, dof, 1.0);
     }
   }
 }
@@ -478,6 +498,9 @@ _fillRHSVector()
   UniqueArray<Real> rhs_values_for_linear_system;
   VariableDoFReal& rhs_values(rhsVariable());
   ENUMERATE_ (DoF, idof, m_dof_family->allItems().own()) {
+    Real v = rhs_values[idof];
+    if (m_do_print_filling)
+      info() << "SET VECTOR VALUE (" << std::setw(4) << idof.itemLocalId() << ") = " << v;
     rhs_values_for_linear_system.add(rhs_values[idof]);
   }
   m_aleph_rhs_vector->setLocalComponents(rhs_values_for_linear_system.view());
