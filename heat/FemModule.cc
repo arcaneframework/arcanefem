@@ -427,12 +427,23 @@ _assembleLinearOperator()
     //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
     //           a_{i,j} = 0.  : i!=j
     //           a_{i,j} = 1.  : i==j
+    //  - For RHS vector b the terms corresponding to the Dirichlet DOF
+    //           b_i = g_i
     //----------------------------------------------
 
     info() << "Applying Dirichlet boundary condition via "
            << options()->enforceDirichletMethod() << " method ";
 
-    // TODO
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      NodeLocalId node_id = *inode;
+      if (m_node_is_temperature_fixed[node_id]) {
+        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
+
+        Real temperature = m_node_temperature[node_id];
+        m_linear_system.eliminateRow(dof_id, temperature);
+
+      }
+    }
   }else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
 
     //----------------------------------------------
@@ -441,6 +452,8 @@ _assembleLinearOperator()
     //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
     //
     //  to apply the Dirichlet on 'i'th DOF
+    //  - For RHS vector b the terms corresponding to the Dirichlet DOF
+    //           b_i = g_i and b_j = b_j - a_{j,i}*g_i
     //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
     //           a_{i,j} = 0.  : i!=j  for all j
     //           a_{i,j} = 1.  : i==j
@@ -451,7 +464,16 @@ _assembleLinearOperator()
     info() << "Applying Dirichlet boundary condition via "
            << options()->enforceDirichletMethod() << " method ";
 
-    // TODO
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      NodeLocalId node_id = *inode;
+      if (m_node_is_temperature_fixed[node_id]) {
+        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
+
+        Real temperature = m_node_temperature[node_id];
+        m_linear_system.eliminateRowColumn(dof_id, temperature);
+
+      }
+    }
   }else {
 
     info() << "Applying Dirichlet boundary condition via "
