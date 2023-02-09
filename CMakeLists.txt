@@ -5,6 +5,7 @@ enable_testing()
 set(MSH_DIR ${CMAKE_SOURCE_DIR}/meshes/msh)
 
 add_subdirectory(femutils)
+add_subdirectory(aerodynamics)
 add_subdirectory(poisson)
 add_subdirectory(bilaplacian)
 add_subdirectory(elasticity)
