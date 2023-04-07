@@ -31,6 +31,8 @@ paraview ${BUILD_DIR}/poisson/output/depouillement/ensight.case
 #### Short term ####
 - [ ] Elastodynamics
 - [ ] PETSc command-line paramerts or set parameters via a string
+- [ ] Multi-mesh support
+- [ ] Adhoc Matrix and Vector assemblies
 - [x] Row elimination for Dirichlet BC
 - [x] Row-Column elimination for Dirichlet BC
 - [x] New parameter to switch the type of method for imposing Dirichlet BC
@@ -50,5 +52,5 @@ paraview ${BUILD_DIR}/poisson/output/depouillement/ensight.case
 
 - [ ] Parallel visualization
 - [ ] top-ii-vol integration
-- [ ] FEM interpolation
+- [ ] FEM interpolation via MedCoupling
 - [ ] MED file testing
