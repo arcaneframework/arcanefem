@@ -2,9 +2,11 @@ Very simple codes to test Finite Element Methods using Arcane
 
 You need to install a recent (3.7+) version of Arcane Framework before using this sample.
 
-#### How to run the solver  ####
+## How to test a solver  ##
 
-To compile the sources (in a directory)
+It is simple **compile**$\rightarrow$**execute**$\rightarrow$**visualize**
+
+- **Compile** the sources (in a directory)
 
 ~~~{sh}
 ARCANE_INSTALL_DIR=/path/to/arcane/installation
@@ -14,16 +16,24 @@ cmake -S ${SOURCE_PATH} -B ${BUILD_DIR} -DCMAKE_PREFIX_PATH=${ARCANE_INSTALL_DIR
 cmake --build ${BUILD_DIR}
 ~~~
 
-To execute an example from poisson solver (in a directory)
-
+- Now you can **execute** an example from  elasticity solver (in a directory) `elastcity`
 ~~~{sh}
-cd ${BUILD_DIR}/poisson && ./FemTest Test.conduction.arc
+cd ${BUILD_DIR}/elastcity
+~~~
+~~~{sh}
+./Elasticity Test.Elasticity.arc
 ~~~
 
-After running the test case, you can display the results with ParaView:
+*Note that you can also run the solver via the following command* 
+~~~{sh}
+./Elasticity -A,CaseDatasetFileName=Test.Elasticity.arc
+~~~
+  *Note: There are other commands to control Arcane these can be found [here](https://arcaneframework.github.io/arcane/userdoc/html/d8/dd6/arcanedoc_execution_launcher.html).* 
 
-~~~bash
-paraview ${BUILD_DIR}/poisson/output/depouillement/ensight.case
+- After running the test case, you can **visualize** the results with ParaView:
+
+~~~{sh}
+paraview ${BUILD_DIR}/elastcity/output/depouillement/ensight.case
 ~~~
 
 ## Todo List ##
@@ -31,6 +41,8 @@ paraview ${BUILD_DIR}/poisson/output/depouillement/ensight.case
 #### Short term ####
 - [ ] Elastodynamics
 - [ ] PETSc command-line paramerts or set parameters via a string
+- [ ] Multi-mesh support
+- [ ] Adhoc Matrix and Vector assemblies
 - [x] Row elimination for Dirichlet BC
 - [x] Row-Column elimination for Dirichlet BC
 - [x] New parameter to switch the type of method for imposing Dirichlet BC
@@ -50,5 +62,5 @@ paraview ${BUILD_DIR}/poisson/output/depouillement/ensight.case
 
 - [ ] Parallel visualization
 - [ ] top-ii-vol integration
-- [ ] FEM interpolation
+- [ ] FEM interpolation via MedCoupling
 - [ ] MED file testing
