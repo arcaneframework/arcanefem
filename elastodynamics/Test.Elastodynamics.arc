@@ -31,7 +31,7 @@
     <lambda>576.9230769</lambda>
     <mu>384.6153846</mu>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-    <penalty>1.e64</penalty>   
+    <penalty>1.e64</penalty>
     <dirichlet-boundary-condition>
       <surface>surfaceleft</surface>
       <u1>0.0</u1>

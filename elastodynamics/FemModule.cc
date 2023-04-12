@@ -75,7 +75,7 @@ class FemModule
   Real gamma;                 // time discretization param gamma
 
   Real E;                     // Youngs modulus
-  Real nu;                    // Poissions ratio
+  Real nu;                    // Poissons ratio
   Real rho;                   // Density
   Real f1;                    // Body force in x
   Real f2;                    // Body force in y
@@ -238,7 +238,7 @@ _getParameters()
 
 
   // TODO : Add variable in AXL for choosing time discretization
-  // Newmark-Beta
+  // Newmark-Beta or Generalized-alpha
   gamma = 0.5;
   beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
 
@@ -653,91 +653,135 @@ _assembleLinearOperator()
     }
   }
 
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    Real area = _computeAreaTriangle3(cell);
+
+    Real3 m0 = m_node_coord[cell.nodeId(0)];
+    Real3 m1 = m_node_coord[cell.nodeId(1)];
+    Real3 m2 = m_node_coord[cell.nodeId(2)];
+
+/*
+
+    Real f0 = m_U[cell.nodeId(0)].x;
+    Real f1 = m_U[cell.nodeId(1)].x;
+    Real f2 = m_U[cell.nodeId(2)].x;
+
+    Real detA = ( m0.x*(m1.y - m2.y) - m0.y*(m1.x - m2.x) + (m1.x*m2.y - m2.x*m1.y) );
+
+    Real2 DXU1;
+    DXU1.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / (2.*area);/// detA;
+    DXU1.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / (2.*area);/// detA;
+
+    f0 = m_U[cell.nodeId(0)].y;
+    f1 = m_U[cell.nodeId(1)].y;
+    f2 = m_U[cell.nodeId(2)].y;
+
+    Real2 DXU2;
+    DXU2.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / (2.*area);/// detA;
+    DXU2.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / (2.*area);/// detA;
+
+    f0 = m_V[cell.nodeId(0)].x;
+    f1 = m_V[cell.nodeId(1)].x;
+    f2 = m_V[cell.nodeId(2)].x;
+
+    Real2 DXV1;
+    DXV1.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / (2.*area);/// detA;
+    DXV1.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / (2.*area);/// detA;
+
+    f0 = m_V[cell.nodeId(0)].y;
+    f1 = m_V[cell.nodeId(1)].y;
+    f2 = m_V[cell.nodeId(2)].y;
+
+    Real2 DXV2;
+    DXV2.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / (2.*area);/// detA;
+    DXV2.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / (2.*area);/// detA;
+
+    f0 = m_A[cell.nodeId(0)].x;
+    f1 = m_A[cell.nodeId(1)].x;
+    f2 = m_A[cell.nodeId(2)].x;
+
+    Real2 DXA1;
+    DXA1.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / (2.*area);/// detA;
+    DXA1.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / (2.*area);/// detA;
+
+    f0 = m_A[cell.nodeId(0)].y;
+    f1 = m_A[cell.nodeId(1)].y;
+    f2 = m_A[cell.nodeId(2)].y;
+
+    Real2 DXA2;
+    DXA2.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / (2.*area);/// detA;
+    DXA2.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / (2.*area);/// detA;
+*/
+
+    Real2 DXU1, DXU2, DXV1, DXV2, DXA1, DXA2;
+
+    //  Real2  Ctriangle;
+    //  Ctriangle.x = (1/3.)* (m0.x + m1.x+m2.x);
+    //  Ctriangle.y = (1/3.)* (m0.y + m1.y+m2.y);
+
+    // to construct dx(v) we use d(Phi0)/dx , d(Phi1)/dx , d(Phi1)/dx
+    // here Phi_i are the basis functions at three nodes i=1:3
+    Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
+    Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
+    Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
+
+    FixedMatrix<1, 3> DYV;
+
+    DYV(0,0) = dPhi0.y /(2.* area);
+    DYV(0,1) = dPhi1.y /(2.* area);
+    DYV(0,2) = dPhi2.y /(2.* area);
+
+    FixedMatrix<1, 3> DXV;
+
+    DXV(0,0) = dPhi0.x /(2.* area);
+    DXV(0,1) = dPhi1.x /(2.* area);
+    DXV(0,2) = dPhi2.x /(2.* area);
 
 
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-      Real area = _computeAreaTriangle3(cell);
+    // to construct dx(u_n) we use d(Phi0)/dx , d(Phi1)/dx , d(Phi1)/dx
+    //      d(u_n)/dx = \sum_{1=1}^{3} { (u_n)_i* (d(Phi_i)/dx)  }
+    Real f0 = m_U[cell.nodeId(0)].x;
+    Real f1 = m_U[cell.nodeId(1)].x;
+    Real f2 = m_U[cell.nodeId(2)].x;
 
-      Real3 m0 = m_node_coord[cell.nodeId(0)];
-      Real3 m1 = m_node_coord[cell.nodeId(1)];
-      Real3 m2 = m_node_coord[cell.nodeId(2)];
+    DXU1.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
+    DXU1.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
 
-      Real f0 = m_U[cell.nodeId(0)].x;
-      Real f1 = m_U[cell.nodeId(1)].x;
-      Real f2 = m_U[cell.nodeId(2)].x;
+    f0 = m_U[cell.nodeId(0)].y;
+    f1 = m_U[cell.nodeId(1)].y;
+    f2 = m_U[cell.nodeId(2)].y;
 
-      Real detA = ( m0.x*(m1.y - m2.y) - m0.y*(m1.x - m2.x) + (m1.x*m2.y - m2.x*m1.y) );
+    DXU2.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
+    DXU2.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
 
-      Real2 DXU1;
-      DXU1.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / detA;
-      DXU1.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / detA;
+    f0 = m_V[cell.nodeId(0)].x;
+    f1 = m_V[cell.nodeId(1)].x;
+    f2 = m_V[cell.nodeId(2)].x;
 
-      f0 = m_U[cell.nodeId(0)].y;
-      f1 = m_U[cell.nodeId(1)].y;
-      f2 = m_U[cell.nodeId(2)].y;
+    DXV1.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
+    DXV1.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
 
-      Real2 DXU2;
-      DXU2.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / detA;
-      DXU2.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / detA;
+    f0 = m_V[cell.nodeId(0)].y;
+    f1 = m_V[cell.nodeId(1)].y;
+    f2 = m_V[cell.nodeId(2)].y;
 
-      f0 = m_V[cell.nodeId(0)].x;
-      f1 = m_V[cell.nodeId(1)].x;
-      f2 = m_V[cell.nodeId(2)].x;
+    DXV2.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
+    DXV2.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
 
-      Real2 DXV1;
-      DXV1.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / detA;
-      DXV1.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / detA;
+    f0 = m_A[cell.nodeId(0)].x;
+    f1 = m_A[cell.nodeId(1)].x;
+    f2 = m_A[cell.nodeId(2)].x;
 
-      f0 = m_V[cell.nodeId(0)].y;
-      f1 = m_V[cell.nodeId(1)].y;
-      f2 = m_V[cell.nodeId(2)].y;
+    DXA1.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
+    DXA1.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
 
-      Real2 DXV2;
-      DXV2.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / detA;
-      DXV2.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / detA;
+    f0 = m_A[cell.nodeId(0)].y;
+    f1 = m_A[cell.nodeId(1)].y;
+    f2 = m_A[cell.nodeId(2)].y;
 
-      f0 = m_A[cell.nodeId(0)].x;
-      f1 = m_A[cell.nodeId(1)].x;
-      f2 = m_A[cell.nodeId(2)].x;
-
-      Real2 DXA1;
-      DXA1.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / detA;
-      DXA1.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / detA;
-
-      f0 = m_A[cell.nodeId(0)].y;
-      f1 = m_A[cell.nodeId(1)].y;
-      f2 = m_A[cell.nodeId(2)].y;
-
-      Real2 DXA2;
-      DXA2.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / detA;
-      DXA2.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / detA;
-
-
-     //Real2  Ctriangle;
-     //Ctriangle.x = (1/3.)* (m0.x + m1.x+m2.x);
-     //Ctriangle.y = (1/3.)* (m0.y + m1.y+m2.y);
-
-     //Real2 dPhi0(m0.x - Ctriangle.x, m2.x - m1.x);
-     //eal2 dPhi1(m1.x - Ctriangle.x, m0.x - m2.x);
-     //Real2 dPhi2(m2.x - Ctriangle.x, m1.x - m0.x);
-
-     Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
-     Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
-     Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
-
-
-      FixedMatrix<1, 3> DYV;
-
-      DYV(0,0) = dPhi0.y /2.;
-      DYV(0,1) = dPhi1.y /2.;
-      DYV(0,2) = dPhi2.y /2.;
-
-      FixedMatrix<1, 3> DXV;
-
-      DXV(0,0) = dPhi0.x /2.;
-      DXV(0,1) = dPhi1.x /2.;
-      DXV(0,2) = dPhi2.x /2.;
+    DXA2.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
+    DXA2.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
 
 /*
 $$
@@ -748,44 +792,49 @@ $$
                   - (\nabla \cdot U  \nabla \cdot v) c_5
                   - (\varepsilon(U) : \varepsilon(v) ) c_6
                   + (\nabla \cdot V  \nabla \cdot v) c_7
-                  + (\varepsilon(V) : \varepsilon(v) ) c_8
-                  + (\nabla \cdot A  \nabla \cdot v) c_9
+                  + (\varepsilon(V) : \varepsilon(v) ) c_9
+                  + (\nabla \cdot A  \nabla \cdot v) c_8
                   + (\varepsilon(A) : \varepsilon(v) ) c_{10}
                )
 $$
 */
 
 
-      int i = 0;
-      for (Node node : cell.nodes()) {
-        if (node.isOwn()) {
-          DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-          DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-          rhs_values[dof_id1] +=   (m_U[node].x) * (area / 3.) * c0
-                                 + (m_V[node].x) * (area / 3.) * c3
-                                 + (m_A[node].x) * (area / 3.) * c4
-                                 - ( (DXU1.x + DXU2.y) *  DXV(0,i) )* c5
-//                                 - ( (DXU1.x * DXV(0,i)) + 0.5 * ( ( DXU1.y + DXU2.x) * DYV(0,i) )   )*c6
-//                                 + ( (DXV1.x +  DXV2.y)* DXV(0,i)  )* c7
-//                                 + ( (DXV1.x * DXV(0,i) ) + 0.5 * ( ( DXV1.y + DXV2.x) * DYV(0,i) )   )*c9
-//                                 + ( (DXA1.x +  DXA2.y)* DXV(0,i)  )* c8
-//                                 + ( (DXA1.x * DXV(0,i) ) + 0.5 * ( ( DXA1.y + DXA2.x) * DYV(0,i) )   )*c10
-                                 ;
+    // Info: We could also use the following logic
+    //    cell.node(i).isOwn();
+    //    cell.node(i);
+    //    Node node = cell.node(i);
+    // Then we can loop 1:3
+    int i = 0;
+    for (Node node : cell.nodes()) {
+      if (node.isOwn()) {
+        DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+        DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+        rhs_values[dof_id1] +=   (m_U[node].x) * (area / 3) * c0
+                               + (m_V[node].x) * (area / 3) * c3
+                               + (m_A[node].x) * (area / 3) * c4
+                               - ( (DXU1.x + DXU2.y) *DXV(0,i) * area )* c5
+                               - ( (DXU1.x * DXV(0,i) * area ) +   0.5 * ( DXU1.y + DXU2.x) * DYV(0,i) * area    )*c6
+                               + ( (DXV1.x +  DXV2.y) * DXV(0,i)* area  )* c7
+                               + ( (DXV1.x * DXV(0,i) * area ) +   0.5 * ( DXV1.y + DXV2.x) * DYV(0,i) * area    )*c9
+                               + ( (DXA1.x +  DXA2.y) * DXV(0,i) * area  )* c8
+                               + ( (DXA1.x * DXV(0,i) * area ) +   0.5 * ( DXA1.y + DXA2.x) * DYV(0,i) * area    )*c10
+                               ;
 
-          rhs_values[dof_id2] +=   (m_U[node].y)  * (area / 3.) * c0
-                                 + (m_V[node].y)  * (area / 3.) * c3
-                                 + (m_A[node].y)  * (area / 3.) * c4
-                                 - ( (DXU1.x + DXU2.y) * DYV(0,i) )* c5
-//                                 - ( (DXU2.y * DYV(0,i)) + 0.5 * (( DXU1.y + DXU2.x) * DXV(0,i) ) )*c6
-//                                 + ( (DXV1.x +  DXV2.y) * DYV(0,i))* c7
-//                                 + ( (DXV2.y * DYV(0,i) ) + 0.5 * (( DXV1.y + DXV2.x) * DXV(0,i) ) )*c9
-//                                 + ( (DXA1.x +  DXA2.y) * DYV(0,i))* c8
-//                                 + ( (DXA2.y * DYV(0,i) ) + 0.5 * (( DXA1.y + DXA2.x) * DXV(0,i) ) )*c10
-                                 ;
-        }
-        i++;
+        rhs_values[dof_id2] +=   (m_U[node].y)  * (area / 3) * c0
+                               + (m_V[node].y)  * (area / 3) * c3
+                               + (m_A[node].y)  * (area / 3) * c4
+                               - ( (DXU1.x + DXU2.y)  * DYV(0,i) * area )* c5
+                               - ( (DXU2.y * DYV(0,i) * area) +   0.5 * ( DXU1.y + DXU2.x) * DXV(0,i) * area  )*c6
+                               + ( (DXV1.x +  DXV2.y) * DYV(0,i) * area)* c7
+                               + ( (DXV2.y * DYV(0,i) * area) +   0.5 * ( DXV1.y + DXV2.x) * DXV(0,i) * area  )*c9
+                               + ( (DXA1.x +  DXA2.y) * DYV(0,i) * area )* c8
+                               + ( (DXA2.y * DYV(0,i) * area) +   0.5 * ( DXA1.y + DXA2.x) * DXV(0,i) * area  )*c10
+                               ;
       }
+      i++;
     }
+  }
 
   //----------------------------------------------
   // Traction term assembly
@@ -830,7 +879,6 @@ $$
       }
       continue;
     }
-
 
     if( bs->t1.isPresent()) {
       ENUMERATE_ (Face, iface, group) {
