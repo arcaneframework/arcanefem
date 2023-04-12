@@ -4,7 +4,7 @@ You need to install a recent (3.7+) version of Arcane Framework before using thi
 
 ## How to test a solver  ##
 
-It is simple **compile**$\rightarrow$**execute**$\rightarrow$**visulize**
+It is simple **compile**$\rightarrow$**execute**$\rightarrow$**visualize**
 
 - **Compile** the sources (in a directory)
 
@@ -30,7 +30,7 @@ cd ${BUILD_DIR}/elastcity
 ~~~
   *Note: There are other commands to control Arcane these can be found [here](https://arcaneframework.github.io/arcane/userdoc/html/d8/dd6/arcanedoc_execution_launcher.html).* 
 
-- After running the test case, you can **visulize** the results with ParaView:
+- After running the test case, you can **visualize** the results with ParaView:
 
 ~~~{sh}
 paraview ${BUILD_DIR}/elastcity/output/depouillement/ensight.case
