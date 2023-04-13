@@ -13,6 +13,7 @@
 #include <arcane/IIOMng.h>
 #include <arcane/CaseTable.h>
 
+#include "IDoFLinearSystemFactory.h"
 #include "Integer3std.h"
 #include "ElastodynamicModule.h"
 #include "utilFEM.h"
@@ -44,8 +45,9 @@ startInit(){
   info() << "Module Elastodynamic INIT";
 
   m_linear_system.reset();
+  m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
-  _initInputMotion();
+//  _initInputMotion();
   _applyInitialNodeConditions();
   _initDofs();
   // This will be useful for nonlinear dynamics only (not used in elastodynamics)
@@ -94,7 +96,7 @@ _applyInitialNodeConditions(){
       }
     }
   }
-  if (!options()->inputMotion().empty()) {
+/*  if (!options()->inputMotion().empty()) {
     // Loop on nodes with this initial condition
     ENUMERATE_NODE (inode, m_input.m_node_group) {
       const Node& node = *inode;
@@ -111,9 +113,8 @@ _applyInitialNodeConditions(){
         m_input.m_displ->value(time, val);
         m_prev_displacement[node] = val.mul(m_input.m_ampli_factors);
       }
-    }
+    }*/
   }
-}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -157,7 +158,7 @@ compute(){
         subDomain()->timeLoopMng()->stopComputeLoop(true);
 
     // Apply the input motion: imposed time history on groups of nodes/faces (acceleration, velocity or displacement)
-    _applyInputMotion();
+//    _applyInputMotion();
 
     // Apply other Dirichlet/Neumann conditions if any (constant values assumed at present)
     _applyBoundaryConditions();
@@ -266,23 +267,24 @@ _updateNewmark(){
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void ElastodynamicModule::
-_initBoundaryConditions(){
-  for (Int32 i = 0, nb = options()->boundaryCondition.size(); i < nb; ++i){
-    FaceGroup face_group = options()->boundaryCondition[i]->surface();
-    NodeGroup node_group = options()->boundaryCondition[i]->nodeGroup();
-    Real value = options()->boundaryCondition[i]->value();
-    TypesElastodynamic::eBoundaryCondition type = options()->boundaryCondition[i]->type();
+_initBoundaryConditions()
+{
+  for (const auto& bd : options()->dirichletBoundaryCondition()) {
+    FaceGroup face_group = bd->surface();
+    NodeGroup node_group = bd->nodeGroup();
+    Real value = bd->constantValue();
+    TypesElastodynamic::eBoundaryCondition type = bd->type();
 
     // Loop on faces of the surface
-    ENUMERATE_FACE(j, face_group){
-      const Face & face = * j;
+    ENUMERATE_FACE (j, face_group) {
+      const Face& face = *j;
       Integer nb_node = face.nbNode();
 
       // Loop on nodes of the face
-      for (Integer k = 0; k < nb_node; ++k){
-        const Node & node = face.node(k);
+      for (Integer k = 0; k < nb_node; ++k) {
+        const Node& node = face.node(k);
 
-        switch (type){
+        switch (type) {
 
         case TypesElastodynamic::AccelerationX:
           m_node_has_imposed_acc[node].x = 1;
@@ -327,8 +329,8 @@ _initBoundaryConditions(){
     }
 
     // Loop on nodes
-    ENUMERATE_NODE(inode, node_group) {
-      const Node & node = *inode;
+    ENUMERATE_NODE (inode, node_group) {
+      const Node& node = *inode;
 
       switch (type) {
 
@@ -373,6 +375,24 @@ _initBoundaryConditions(){
       }
     }
   }
+
+  IParallelMng* pm = subDomain()->parallelMng();
+
+  for (const auto& bs : options()->neumannBoundaryCondition()) {
+    FaceGroup face_group = bs->surface();
+
+    String fx = bs->XFile();
+    if (!fx.empty())
+        m_tx = readFileAsCaseTable(pm, fx, 1);
+
+    String fy = bs->YFile();
+    if (!fy.empty())
+      m_ty = readFileAsCaseTable(pm, fy, 1);
+
+    String fz = bs->ZFile();
+    if (!fz.empty())
+      m_tz = readFileAsCaseTable(pm, fz, 1);
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -380,12 +400,11 @@ _initBoundaryConditions(){
 void ElastodynamicModule::
 _applyBoundaryConditions(){
 
-  for (Integer i = 0, nb = options()->boundaryCondition.size(); i < nb; ++i)
-  {
-    FaceGroup face_group = options()->boundaryCondition[i]->surface();
-    NodeGroup node_group = options()->boundaryCondition[i]->nodeGroup();
-    Real value = options()->boundaryCondition[i]->value();
-    TypesElastodynamic::eBoundaryCondition type = options()->boundaryCondition[i]->type();
+  for (const auto& bd : options()->dirichletBoundaryCondition()) {
+    FaceGroup face_group = bd->surface();
+    NodeGroup node_group = bd->nodeGroup();
+    Real value = bd->constantValue();
+    TypesElastodynamic::eBoundaryCondition type = bd->type();
 
     // Loop on faces of the surface
     ENUMERATE_FACE(j, face_group)
@@ -495,7 +514,7 @@ _applyBoundaryConditions(){
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void ElastodynamicModule::
+/*void ElastodynamicModule::
 _initInputMotion(){
 
   IParallelMng* pm = subDomain()->parallelMng();
@@ -544,7 +563,7 @@ _initInputMotion(){
         }
       }
     }
-  }
+  }*/
   // Print some values
 /*{
     Real3 test_value;
@@ -558,11 +577,11 @@ _initInputMotion(){
     table->value(param, test_value);
     tm->info() << "V2 t=" << param << " v=" << test_value;
   }*/
-}
+//}
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void ElastodynamicModule::
+/*void ElastodynamicModule::
 _applyInputMotion(){
 
   Int32 ndim{2};
@@ -596,7 +615,7 @@ _applyInputMotion(){
       }
     }
   }
-}
+}*/
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 // ! Computes the Jacobian Matrix of a finite-element at a Gauss point given by its local coordinates in the element
@@ -750,14 +769,14 @@ _assembleLinearGlobal()
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-  Int32 ndim{2};
+  Int32 ndim{ 2 };
   if (options()->getAnalysisType() == TypesElastodynamic::ThreeD)
     ndim = 3;
 
   auto gamma = options()->getGamma();
   auto beta = options()->getBeta();
   auto dt = options()->getDeltat();
-  auto dt2 = dt*dt;
+  auto dt2 = dt * dt;
 
   info() << "Assembly of the FEM bilinear (LHS - matrix A) and linear (RHS - vector B) operators ";
 
@@ -786,7 +805,7 @@ _assembleLinearGlobal()
         bool is_node1_acci_set = (bool)m_node_has_imposed_acc[node1][iddl];
 
         if (node1.isOwn()) {
-          auto rhs_i = Me(ii, ii) / beta / dt2*m_displacement[node1][iddl] + Fe(ii);
+          auto rhs_i = Me(ii, ii) / beta / dt2 * m_displacement[node1][iddl] + Fe(ii);
           if (is_node1_dofi_set) {
             //----------------------------------------------
             // penalty method for assembly of Dirichlet BC
@@ -817,6 +836,48 @@ _assembleLinearGlobal()
         }
       }
       ++n1_index;
+    }
+  }
+
+  // Traction condition (only 2D for testing)
+  Real t = m_global_time();
+  IParallelMng* pm = subDomain()->parallelMng();
+
+  for (const auto& bs : options()->neumannBoundaryCondition()) {
+    FaceGroup face_group = bs->surface();
+
+    // Loop on faces of the surface
+    ENUMERATE_FACE (j, face_group) {
+      const Face& face = *j;
+
+      if (bs->hasXConstant())
+        m_traction.x = bs->XConstant();
+      else if (m_tx != nullptr){
+        m_tx->value(t, m_traction.x);
+      }
+
+      if (bs->hasYConstant())
+        m_traction.y = bs->YConstant();
+      else if (m_ty != nullptr){
+        m_ty->value(t, m_traction.y);
+      }
+
+      Integer nb_node = face.nbNode();
+      Real length = _computeEdgeLength2(face);
+
+      // Loop on nodes of the face
+      for (Integer k = 0; k < nb_node; ++k) {
+        const Node& node = face.node(k);
+
+        if (!(bool)m_node_has_imposed_displ[node][0] && node.isOwn()) {
+          DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+          rhs_values[dof_id1] += m_traction.x * length / 2.;
+        }
+        if (!(bool)m_node_has_imposed_displ[node][1] && node.isOwn()) {
+          DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+          rhs_values[dof_id2] += m_traction.y * length / 2.;
+        }
+      }
     }
   }
 }
@@ -862,6 +923,15 @@ _doSolve(){
 
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+Real ElastodynamicModule::
+_computeEdgeLength2(Face face)
+{
+  Real3 m0 = m_node_coord[face.nodeId(0)];
+  Real3 m1 = m_node_coord[face.nodeId(1)];
+  return  math::sqrt((m1.x-m0.x)*(m1.x-m0.x) + (m1.y-m0.y)*(m1.y - m0.y));
+}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

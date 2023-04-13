@@ -44,6 +44,7 @@
     <variable field-name="cell_stress" name="CellStress" data-type="real3x3" item-kind="cell" dim="0">
       <description>Total stresses per Cell</description>
     </variable>
+
     <!-- - - - - - elastic properties - - - - -->
     <variable field-name="density" name="Density" data-type="real" item-kind="cell" dim="0">
       <description>Bulk density value per Cell</description>
@@ -53,6 +54,12 @@
     </variable>
     <variable field-name="poisson_ratio" name="PoissonRatio" data-type="real" item-kind="cell" dim="0">
       <description>Poisson Ratio value per Cell</description>
+    </variable>
+    <variable field-name="lambda_param" name="LambdaParam" data-type="real" item-kind="cell" dim="0">
+      <description>First Lame parameter value per Cell</description>
+    </variable>
+    <variable field-name="mu_param" name="MuParam" data-type="real" item-kind="cell" dim="0">
+      <description>Second Lame parameter value per Cell</description>
     </variable>
   </variables>
 
@@ -84,8 +91,8 @@
       <description>Filename containing the initial stresses for all cells</description>
     </simple>
 
-    <!-- - - - - - boundary-condition - - - - -->
-    <complex name="boundary-condition" type="BoundaryCondition" minOccurs="0" maxOccurs="unbounded">
+    <!-- - - - - - dirichlet-boundary-condition - - - - -->
+    <complex name="dirichlet-boundary-condition" type="DirichletBoundaryCondition" minOccurs="0" maxOccurs="unbounded">
       <description>Definition of Dirichlet boundary conditions</description>
         <enumeration name="type" type="TypesElastodynamic::eBoundaryCondition">
           <description>Type of boundary condition</description>
@@ -108,45 +115,49 @@
         <extended name="node-group" type="Arcane::NodeGroup">
           <description>NodeGroup on which to apply these boundary conditions</description>
         </extended>
-        <simple name="value" type="real">
+        <simple name="constant-value" type="real" default="0.0" optional="true">
           <description>Value of the component to impose</description>
+        </simple>
+        <simple name="curve-file" type="string" optional="true">
+          <description>Filename of the time history curve for the component to impose</description>
+        </simple>
+        <simple name="amplification-factor" type="real" default="1.0" optional="true">
+          <description>Amplification factor to apply to the time-history curve</description>
+        </simple>
+    </complex>
+
+    <!-- - - - - - neumann-boundary-condition - - - - -->
+    <complex name="neumann-boundary-condition" type="NeumannBoundaryCondition" minOccurs="0" maxOccurs="unbounded">
+      <description>Definition of Neumann (traction) boundary conditions</description>
+        <extended name="surface" type="Arcane::FaceGroup">
+          <description>Surface on which to apply these boundary conditions</description>
+        </extended>
+        <simple name="X-constant" type="real" default="0.0" optional="true">
+          <description>Constant traction value in X direction</description>
+        </simple>
+        <simple name="Y-constant" type="real" default="0.0" optional="true">
+          <description>Constant traction value in Y direction</description>
+        </simple>
+        <simple name="Z-constant" type="real" default="0.0" optional="true">
+          <description>Constant traction value in Z direction</description>
+        </simple>
+        <simple name = "X-file" type = "string">
+          <description>Filename containing the traction time history in X direction</description>
+        </simple>
+        <simple name = "Y-file" type = "string">
+          <description>Filename containing the traction time history in Y direction</description>
+        </simple>
+        <simple name = "Z-file" type = "string">
+          <description>Filename containing the traction time history in Z direction</description>
         </simple>
     </complex>
 
     <simple name="max-frequency" type="real" default="10." optional="true">
       <description>Maximum frequency filter to apply to the input motion</description>
     </simple>
-    <!-- - - - - - input-motion - - - - -->
-    <complex name="input-motion" type="InputMotion" minOccurs="0" maxOccurs="1">
-      <description>Definition of an input time history for nodal motion</description>
-        <extended name="node-group" type="Arcane::NodeGroup">
-          <description>NodeGroup on which the input motion will be applied</description>
-        </extended>
-        <simple name = "acceleration-input-file" type = "string">
-          <description>Filename containing the 3D input acceleration time history</description>
-        </simple>
-        <simple name = "velocity-input-file" type = "string" optional = "true">
-          <description>Filename containing the 3D input velocity time history</description>
-        </simple>
-        <simple name = "displacement-input-file" type = "string" optional = "true">
-          <description>Filename containing the 3D input velocity time history</description>
-        </simple>
-        <simple name="rigid-base" type="bool" default="true" optional="true">
-          <description>Indicator true for a "rigid base"-type motion (=paraxial otherwise)</description>
-        </simple>
-        <simple name = "x-component" type="bool">
-          <description>Indicator is true when the input motion is defined for x-component</description>
-        </simple>
-        <simple name = "y-component" type="bool">
-          <description>Indicator is true when the input motion is defined for y-component</description>
-        </simple>
-        <simple name = "z-component" type="bool">
-          <description>Indicator is true when the input motion is defined for z-component</description>
-        </simple>
-        <simple name="amplification-factors" type="real3" default="1.0" optional="true">
-          <description>Amplification factors to apply to the input motion time histories</description>
-        </simple>
-    </complex>
+    <simple name="rigid-motion" type="bool" default="true" optional="true">
+          <description>Indicator true for a "rigid motion" type (same acceleration imposed on all nodes)</description>
+    </simple>
 
     <!-- - - - - - initial-node-condition - - - - -->
     <complex name="initial-node-condition" type="InitialNodeCondition" minOccurs="0" maxOccurs="unbounded">
@@ -248,5 +259,10 @@
     <simple name="nb_dofs_per_node" type="integer" default="3" optional="true">
       <description>Number of dofs per node</description>
     </simple>
+
+
+    <!-- - - - - - linear-system - - - - -->
+    <service-instance name = "linear-system" type = "Arcane::FemUtils::IDoFLinearSystemFactory" default = "AlephLinearSystem"/>
+
   </options>
 </module>

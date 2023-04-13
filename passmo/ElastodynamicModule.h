@@ -19,7 +19,7 @@ Real REL_PREC{1.0e-15};
 /*!
  * \brief Class to define the seismic inputmotion features
  */
-class Inputmotion{
+/*class Inputmotion{
  public:
   Real3	m_ampli_factors{1.,1.,1.};// Amplification factors to apply on (X, Y, Z) components (default = 1. => no amplification)
   Real  m_max_frequency{10.};// Max frequency for the input signal
@@ -34,7 +34,7 @@ class Inputmotion{
 
   Inputmotion() = default;
   ~Inputmotion() = default;
-};
+};*/
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -61,24 +61,29 @@ private:
 
    DoFLinearSystem m_linear_system;
    FemDoFsOnNodes m_dofs_on_nodes;
-   Inputmotion m_input{};
+   CaseTable* m_tx{ nullptr}; // traction time history along X direction
+   CaseTable* m_ty{ nullptr}; // traction time history along Y direction
+   CaseTable* m_tz{ nullptr}; // traction time history along Z direction
+   Real3 m_traction{};// Traction value in all directions
 
 private:
 
  void _initDofs();
  void _applyInitialNodeConditions();
  void _applyInitialCellConditions();
- void _applyInputMotion();
+// void _applyInputMotion();
  void _assembleLinearGlobal();
  void _doSolve();
  void _initBoundaryConditions();
- void _initInputMotion();
+ //void _initInputMotion();
  void _applyBoundaryConditions();
  static Real _computeJacobian(const Real3x3& jacmat, const Integer& ndim);
  Real3x3 _computeJacobianMatrix(const Cell& cell,const Real3& ref_coord);
  static Real3x3 _computeInverseJacobianMatrix(const Real3x3& jacmat, const Real& jacobian, const Integer& ndim);
  static Real _interpolCurve(const Real& y_before, const Real& y_after,
                 const Real& x, const Real& x_before, const Real& x_after);
+ Real _computeEdgeLength2(Face face);
+
 
  //    FixedMatrix<2, 3> _computeBMatrixT3(Cell cell);
  /**

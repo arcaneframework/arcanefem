@@ -19,8 +19,10 @@ arcane_add_arcane_libraries_to_target(Passmo)
 
 target_include_directories(Passmo PUBLIC . ../fem1 ${CMAKE_CURRENT_BINARY_DIR})
 configure_file(Passmo.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Passmo.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(${MSH_DIR}/plancher.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(${MSH_DIR}/plancher.quad4.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Test.Passmo.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/bar_dynamic.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Passmo PUBLIC FemUtils)
+
+enable_testing()
+add_test(NAME passmo COMMAND Passmo Test.Elastodynamics.arc)
