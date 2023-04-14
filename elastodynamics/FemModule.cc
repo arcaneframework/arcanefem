@@ -212,14 +212,16 @@ _getParameters()
   tmax = options()->tmax();                // max time
   dt   = options()->dt();                  // time step
 
+  //--- damping term parameter ---//
+  etam = options()->etam();                // damping param etam
+  etak = options()->etak();                // damping param etak
+
   //--- time discretization parameter ---//
-  etam = options()->etam();                // time discretization param etam
-  etak = options()->etak();                // time discretization param etak
   alpm = options()->alpm();                // time discretization param alpm
   alpf = options()->alpf();                // time discretization param alpf
 
   //--------- material parameter ---------//
-  f1   = options()->f1();                  // body force in Y
+  f1   = options()->f1();                  // body force in X
   f2   = options()->f2();                  // body force in Y
   E    = options()->E();                   // Youngs modulus
   nu   = options()->nu();                  // Poission ratio
@@ -237,40 +239,54 @@ _getParameters()
   mu2 =  mu*2;                             // lame parameter mu * 2
 
 
-  // TODO : Add variable in AXL for choosing time discretization
-  // Newmark-Beta or Generalized-alpha
-  gamma = 0.5;
-  beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
+  //----- time discretization Newmark-Beta or Generalized-alpha  -----//
+  if (options()->timeDiscretization == "Newmark-beta") {
 
-  c0 =   rho/(beta*dt*dt) + etam*rho*gamma/beta/dt                          ;
-  c1 =   lambda + lambda*etak*gamma/beta/dt                                 ;
-  c2 =   2.*mu + 2.*mu*etak*gamma/beta/dt                                   ;
-  c3 =   rho/beta/dt - etam*rho*(1-gamma/beta)                              ;
-  c4 =   rho*( (1.-2.*beta)/2./beta  - etam*dt*(1.-gamma/2/beta))           ;
-  c5 =  -lambda*etak*gamma/beta/dt                                          ;
-  c6 =  -2.*mu*etak*gamma/beta/dt                                           ;
-  c7 =   etak*lambda*(gamma/beta - 1)                                       ;
-  c8 =   etak*lambda*dt*((1.-2*beta)/2./beta - (1.-gamma))                  ;
-  c9 =   etak*2*mu*(gamma/beta -1)                                          ;
-  c10=   etak*2*mu*dt*((1.-2*beta)/2./beta -(1.-gamma))                     ;
+    info() << "Apply time discretization via Newmark-beta ";
 
- /* Generalized alpha
+    gamma = 0.5;
+    beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
 
-  gamma = 0.5 + alpf - alpm                ;
-  beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
+    c0 =   rho/(beta*dt*dt) + etam*rho*gamma/beta/dt                          ;
+    c1 =   lambda + lambda*etak*gamma/beta/dt                                 ;
+    c2 =   2.*mu + 2.*mu*etak*gamma/beta/dt                                   ;
+    c3 =   rho/beta/dt - etam*rho*(1-gamma/beta)                              ;
+    c4 =   rho*( (1.-2.*beta)/2./beta  - etam*dt*(1.-gamma/2/beta))           ;
+    c5 =  -lambda*etak*gamma/beta/dt                                          ;
+    c6 =  -2.*mu*etak*gamma/beta/dt                                           ;
+    c7 =   etak*lambda*(gamma/beta - 1)                                       ;
+    c8 =   etak*lambda*dt*((1.-2*beta)/2./beta - (1.-gamma))                  ;
+    c9 =   etak*2*mu*(gamma/beta -1)                                          ;
+    c10=   etak*2*mu*dt*((1.-2*beta)/2./beta -(1.-gamma))                     ;
 
-  c0 =   rho*(1.-alpm)/(beta*dt*dt) + etam*rho*gamma*(1-alpf)/beta/dt       ;
-  c1 =   lambda*(1.-alpf) + lambda*etak*gamma*(1.-alpf)/beta/dt              ;
-  c2 =   2.*mu*(1.-alpf) + 2.*mu*etak*gamma*(1.-alpf)/beta/dt                ;
-  c3 =   rho*(1.-alpm)/beta/dt - etam*rho*(1-gamma*(1-alpf)/beta)           ;
-  c4 =   rho*( (1.-alpm)*(1.-2.*beta)/2./beta - alpm - etam*dt*(1.-alpf)*(1.-gamma/2/beta))   ;
-  c5 =   lambda*alpf -    lambda*etak*gamma*(1.-alpf)/beta/dt               ;
-  c6 =   2*mu*alpf   -    2.*mu*etak*gamma*(1.-alpf)/beta/dt                ;
-  c7 =   etak*lambda*(gamma*(1.-alpf)/beta - 1)                             ;
-  c8 =   etak*lambda*dt*(1.-alpf)*((1.-2*beta)/2./beta - (1.-gamma))        ;
-  c9 =   etak*2*mu*(gamma*(1.-alpf)/beta -1)                                ;
-  c10=   etak*2*mu*dt*(1.-alpf)*((1.-2*beta)/2./beta -(1.-gamma))           ;
-  */
+    }
+
+  else if (options()->timeDiscretization == "Generalized-alpha") {
+
+    info() << "Apply time discretization via Generalized-alpha ";
+
+    gamma = 0.5 + alpf - alpm                ;
+    beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
+
+    c0 =   rho*(1.-alpm)/(beta*dt*dt) + etam*rho*gamma*(1-alpf)/beta/dt       ;
+    c1 =   lambda*(1.-alpf) + lambda*etak*gamma*(1.-alpf)/beta/dt             ;
+    c2 =   2.*mu*(1.-alpf) + 2.*mu*etak*gamma*(1.-alpf)/beta/dt               ;
+    c3 =   rho*(1.-alpm)/beta/dt - etam*rho*(1-gamma*(1-alpf)/beta)           ;
+    c4 =   rho*( (1.-alpm)*(1.-2.*beta)/2./beta - alpm - etam*dt*(1.-alpf)*(1.-gamma/2/beta))   ;
+    c5 =   lambda*alpf -    lambda*etak*gamma*(1.-alpf)/beta/dt               ;
+    c6 =   2*mu*alpf   -    2.*mu*etak*gamma*(1.-alpf)/beta/dt                ;
+    c7 =   etak*lambda*(gamma*(1.-alpf)/beta - 1)                             ;
+    c8 =   etak*lambda*dt*(1.-alpf)*((1.-2*beta)/2./beta - (1.-gamma))        ;
+    c9 =   etak*2*mu*(gamma*(1.-alpf)/beta -1)                                ;
+    c10=   etak*2*mu*dt*(1.-alpf)*((1.-2*beta)/2./beta -(1.-gamma))           ;
+
+    }
+
+  else {
+
+    ARCANE_FATAL("Only Newmark-beta Generalized-alpha are supported for time-discretization ");
+
+    }
 }
 
 /*---------------------------------------------------------------------------*/

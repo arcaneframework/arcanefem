@@ -21,7 +21,7 @@
   </meshes>
 
   <fem>
-    <tmax>3.</tmax>
+    <tmax>2.</tmax>
     <dt>0.08</dt>
     <etam>0.01</etam>
     <etak>0.01</etak>
@@ -32,6 +32,7 @@
     <mu>384.6153846</mu>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     <penalty>1.e64</penalty>
+    <time-discretization>Newmark-beta</time-discretization>
     <dirichlet-boundary-condition>
       <surface>surfaceleft</surface>
       <u1>0.0</u1>
