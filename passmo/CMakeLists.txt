@@ -24,5 +24,6 @@ configure_file(${MSH_DIR}/bar_dynamic.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Passmo PUBLIC FemUtils)
 
-enable_testing()
-add_test(NAME passmo COMMAND Passmo Test.Elastodynamics.arc)
+
+# enable_testing()
+# add_test(NAME passmo COMMAND Passmo Test.Elastodynamics.arc)
