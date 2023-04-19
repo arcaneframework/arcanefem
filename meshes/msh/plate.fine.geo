@@ -3,14 +3,49 @@
 //
 // NOTE: Use the -format msh41 format to genrate the mesh
 
-lc = 0.8;
-length=30.0;
-width=5.0;
+//-----------------------------------------------------------------------------
+//
+// Name       : plate.fine.geo
+// Author     : Mohd Afeef BADRI
+// Date       : 19 / April / 2023
+//
+// ----------------------------------------------------------------------------
+// Comment    : simple plate problem mesh for elasticity
+//
+// Parameters : length  - this is the length of the plate
+//              width   - this is the width of the plate
+//
+// Usage      : gmsh plate.fine.geo -setnumber length 30.0 -2 -format msh41
+//
+//              gmsh plate.fine.geo -setnumber length 30.0        \
+//                -setnumber width 5.0 -2 -format msh41
+//
+//
+//-----------------------------------------------------------------------------
 
-Point(1) = {0.0    , 0.0   , 0.0 , lc};
-Point(2) = {length , 0.0   , 0.0 , lc};
-Point(3) = {length , width , 0.0 , lc};
-Point(4) = {0.0    , width , 0.0 , lc};
+//==============================================================================
+// ---- mesh size factor ----
+//==============================================================================
+
+h = 0.8;
+
+//==============================================================================
+// ---- define parameters for commandline ----
+//==============================================================================
+
+DefineConstant[ length = {30.0, Min .0001, Max 1000, Step 1,
+                         Name "Parameters/Airfoil MeshSize"} ];
+
+DefineConstant[ width  = {5.0, Min 10, Max 10000000, Step 1,
+                         Name "Parameters/Farfield MeshSize"} ];
+
+//length=30.0;
+//width=5.0;
+
+Point(1) = {0.0    , 0.0   , 0.0 , h};
+Point(2) = {length , 0.0   , 0.0 , h};
+Point(3) = {length , width , 0.0 , h};
+Point(4) = {0.0    , width , 0.0 , h};
 
 Line(1) = {1 , 2};
 Line(2) = {2 , 3};
