@@ -40,11 +40,12 @@ class DoFLinearSystemImpl
 
   virtual void matrixAddValue(DoFLocalId row, DoFLocalId column, Real value) = 0;
   virtual void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value) = 0;
-  virtual void eliminateRow(DoFLocalId row,Real value) = 0;
-  virtual void eliminateRowColumn(DoFLocalId row,Real value) = 0;
+  virtual void eliminateRow(DoFLocalId row, Real value) = 0;
+  virtual void eliminateRowColumn(DoFLocalId row, Real value) = 0;
   virtual void solve() = 0;
   virtual VariableDoFReal& solutionVariable() = 0;
   virtual VariableDoFReal& rhsVariable() = 0;
+  virtual void setSolverCommandLineArguments(const CommandLineArguments& args) = 0;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -74,7 +75,7 @@ class DoFLinearSystem
 
  public:
 
-  /*!
+  /*
    * \brief Initialize the instance.
    *
    * The variable dof_variable will be filled with the solution value after
@@ -106,7 +107,7 @@ class DoFLinearSystem
    *
    * \note After a row elimination the matrix may no longer be symmetric.
    */
-  void eliminateRow(DoFLocalId row,Real value);
+  void eliminateRow(DoFLocalId row, Real value);
 
   /*
    * \brief Eliminate the row \a rc and column \a rc of the linear system.
@@ -121,7 +122,7 @@ class DoFLinearSystem
    * Any call to matrixAddValue(row,...), matrixSetValue(row,...),
    * matrixAddValue(...,row) or matrixSetValue(...,row) are discarded.
    */
-  void eliminateRowColumn(DoFLocalId row,Real value);
+  void eliminateRowColumn(DoFLocalId row, Real value);
 
   /*!
    * \brief Solve the current linear system.
@@ -155,6 +156,23 @@ class DoFLinearSystem
   {
     m_linear_system_factory = factory;
   }
+
+  /*
+   * \brief Set the arguments for the solver initialisation.
+   *
+   * This method has to be called before the first call to solve().
+   *
+   * Currently it only works when the implementation is Aleph and when
+   * the underlying solver is PETSc. In this case the arguments in \a args
+   * are passed to PetscInitialize().
+   *
+   * \note The call to PetscInitialize() is only done one time during the
+   * simulation so only the first solver using PETSc will proceed
+   * to the initialisation.
+   */
+  void setSolverCommandLineArguments(const CommandLineArguments& args);
+
+ public:
 
   IDoFLinearSystemFactory* linearSystemFactory() const
   {
