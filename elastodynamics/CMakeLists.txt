@@ -15,8 +15,10 @@ target_include_directories(Elastodynamics PUBLIC . ../fem ${CMAKE_CURRENT_BINARY
 configure_file(Elastodynamics.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.Elastodynamics.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/bar_dynamic.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/semi-circle.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Elastodynamics PUBLIC FemUtils)
 
 enable_testing()
 add_test(NAME elastodynamics COMMAND Elastodynamics Test.Elastodynamics.arc)
+add_test(NAME elastodynamics_pointBc COMMAND Elastodynamics Test.Elastodynamics.pointBC.arc)

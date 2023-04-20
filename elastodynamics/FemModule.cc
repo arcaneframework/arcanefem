@@ -104,11 +104,9 @@ class FemModule
   void _getParameters();
   void _updateVariables();
   void _updateTime();
-  void _updateBoundayConditions();
   void _assembleBilinearOperatorTRIA3();
   void _assembleBilinearOperatorQUAD4();
   void _solve();
-  void _initBoundaryconditions();
   void _assembleLinearOperator();
   FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
@@ -155,7 +153,7 @@ startInit()
 
   m_dofs_on_nodes.initialize(mesh(), 2);
 
-  _initBoundaryconditions();
+  _applyDirichletBoundaryConditions();
 
   // # get parameters
   _getParameters();
@@ -181,8 +179,6 @@ _updateTime()
 void FemModule::
 _doStationarySolve()
 {
-  // # update BCs
-  _updateBoundayConditions();
 
   // Assemble the FEM bilinear operator (LHS - matrix A)
   if (options()->meshType == "QUAD4")
@@ -284,7 +280,7 @@ _getParameters()
 
   else {
 
-    ARCANE_FATAL("Only Newmark-beta Generalized-alpha are supported for time-discretization ");
+    ARCANE_FATAL("Only Newmark-beta | Generalized-alpha are supported for time-discretization ");
 
     }
 }
@@ -293,20 +289,11 @@ _getParameters()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_initBoundaryconditions()
-{
-  info() << "Init boundary conditions...";
-
-  info() << "Apply boundary conditions";
-  _applyDirichletBoundaryConditions();
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
 _applyDirichletBoundaryConditions()
 {
+
+  info() << "Apply boundary conditions";
+
   // Handle all the Dirichlet boundary conditions.
   // In the 'arc' file, there are in the following format:
   //   <dirichlet-boundary-condition>
@@ -410,25 +397,15 @@ _applyDirichletBoundaryConditions()
 void FemModule::
 _updateVariables()
 {
-  // Note at this stage we already have calculated du
+  // Note at this stage we already have calculated dU
   Real alocX;
   Real alocY;
+
   VariableDoFReal& dof_u(m_linear_system.solutionVariable());
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
   ENUMERATE_ (Node, inode, ownNodes()) {
     Node node = *inode;
-
-    Real  u1_val = dof_u[node_dof.dofId(node, 0)];
-    Real  u2_val = dof_u[node_dof.dofId(node, 1)];
-
-/*  // I THINK THIS IS NOT IMPORTANT // CHECK ######### // TODO
-    Real3 u_disp;
-    u_disp.x = u1_val;
-    u_disp.y = u2_val;
-    u_disp.z = 0.0;
-
-    m_dU[node] = u_disp;
-*/
 
     alocX = (m_dU[node].x - m_U[node].x - dt*m_V[node].x)/beta/(dt*dt)
                   - (1.-2.*beta)/2./beta*m_A[node].x;
@@ -443,18 +420,7 @@ _updateVariables()
 
     m_U[node].x = m_dU[node].x;
     m_U[node].y = m_dU[node].y;
-
   }
-}
-
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_updateBoundayConditions()
-{
-  info() << "TODO " << A_FUNCINFO;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -633,6 +599,8 @@ _assembleLinearOperator()
            << "  - WeakPenalty\n"
            << "  - RowElimination\n"
            << "  - RowColumnElimination\n";
+
+    ARCANE_FATAL( "Dirichlet boundary conditions were not applied " );
   }
   //----------------------------------------------
   // Body force term assembly
@@ -814,7 +782,6 @@ $$
                )
 $$
 */
-
 
     // Info: We could also use the following logic
     //    cell.node(i).isOwn();
@@ -1044,8 +1011,6 @@ _computeElementMatrixTRIA3(Cell cell)
 
   FixedMatrix<6, 6> int_dyU1dyV1 = matrixMultiplication(bT_matrix, b_matrix);
   int_Omega_i = matrixAddition( int_Omega_i, int_dyU1dyV1);
-
-
 
   // dx(u1)dy(v2) //
   b_matrix(0, 0) = dPhi0.x/area;
