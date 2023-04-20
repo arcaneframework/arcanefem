@@ -35,3 +35,16 @@ $$\varepsilon_{ij}(\mathbf{u}) = \frac{1}{2}(\frac{\partial{u}_i}{\partial{x}_j}
 #### Post Process ####
 
 For post processing the `ensight.case` file is outputted, which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
+
+
+
+## Tests present in the module ##
+
+| Test           | Arc file                          | Comment                                                      |
+| -------------- | --------------------------------- | ------------------------------------------------------------ |
+| elastodynamics | `Test.Elastodynamics.arc`         | Clamped bar being pulled at other end via transient load.<br />**Mesh** `dar_dynamic.msh` . Time-dicretization - **Newmark**-$\beta$<br />**No damping** is present. **Penalty** method for applying Dirichlet |
+| elastodynamics | `Test.Elastodynamics.Galpha.arc`  | Clamped bar being pulled at other end via transient load.<br />**Mesh** `dar_dynamic.msh` . Time-dicretization - **Generalized**-$\alpha$<br />**No damping** is present. **RowColumnElimination** method for applying Dirichlet |
+| elastodynamics | `Test.Elastodynamics.damping.arc` | Clamped bar being pulled at other end via transient load.<br />**Mesh** `dar_dynamic.msh` . Time-dicretization - **Newmark**-$\beta$<br />**Damping** is present. **Penalty** method for applying Dirichlet |
+| elastodynamics | `Test.Elastodynamics.pointBC.arc` | Semi-circular section of soil, loaded via **point source** on top.<br />**Mesh** `semi-circle.msh` . Time-dicretization - **Newmark**-$\beta$<br />**No damping** is present. **RowColumnElimination** method for applying Dirichlet |
+|                |                                   |                                                              |
+

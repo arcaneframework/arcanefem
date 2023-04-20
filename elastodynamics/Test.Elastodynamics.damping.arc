@@ -23,8 +23,8 @@
   <fem>
     <tmax>2.</tmax>
     <dt>0.08</dt>
-    <alpm>0.20</alpm>
-    <alpf>0.40</alpf>
+    <etam>0.01</etam>
+    <etak>0.01</etak>
     <rho>1.0</rho>
     <lambda>576.9230769</lambda>
     <mu>384.6153846</mu>
