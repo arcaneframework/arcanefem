@@ -24,6 +24,7 @@
 
 #include "FemUtils.h"
 #include "IDoFLinearSystemFactory.h"
+#include "arcane_version.h"
 
 namespace Arcane::FemUtils
 {
@@ -130,6 +131,7 @@ class AlephDoFLinearSystemImpl
     // the code with the associated aleph library (see CMakeLists.txt)
     // TODO: Linear algebra backend should be accessed from arc file.
     m_aleph_kernel = new AlephKernel(m_sub_domain, solver_backend, 1);
+
     DoFGroup own_dofs = m_dof_family->allItems().own();
     //Int32 nb_node = own_nodes.size();
     //Int32 total_nb_node = m_sub_domain->parallelMng()->reduce(Parallel::ReduceSum, nb_node);
@@ -271,6 +273,15 @@ class AlephDoFLinearSystemImpl
   VariableDoFReal& rhsVariable() override
   {
     return m_rhs_variable;
+  }
+
+  void setSolverCommandLineArguments(const CommandLineArguments& args) override
+  {
+#if ARCANE_VERSION >= 31002
+    m_aleph_kernel->solverInitializeArgs().setCommandLineArguments(args);
+#else
+    pwarning() << "Call to setSolverCommandLineArguments() is not used because version of Arcane is too old (3.10.2+ required)";
+#endif
   }
 
  private:

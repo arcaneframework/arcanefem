@@ -12,6 +12,9 @@
 /*---------------------------------------------------------------------------*/
 
 #include <arcane/utils/NumArray.h>
+#include <arcane/utils/CommandLineArguments.h>
+#include <arcane/utils/StringList.h>
+
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IMesh.h>
 #include <arcane/IItemFamily.h>
@@ -106,7 +109,15 @@ compute()
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
-
+  // Test for adding parameters for PETSc.
+  // This is only used for the first call.
+  {
+    StringList string_list;
+    string_list.add("-trmalloc");
+    string_list.add("-log_trace");
+    CommandLineArguments args(string_list);
+    m_linear_system.setSolverCommandLineArguments(args);
+  }
   info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
   _doStationarySolve();
 }

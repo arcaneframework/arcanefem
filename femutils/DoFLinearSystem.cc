@@ -173,6 +173,8 @@ class SequentialDoFLinearSystemImpl
     return m_rhs_variable;
   }
 
+  void setSolverCommandLineArguments(const CommandLineArguments&) override {}
+
  public:
 
   void setEpsilon(Real v) { m_epsilon = v; }
@@ -376,6 +378,16 @@ rhsVariable()
 {
   _checkInit();
   return m_p->rhsVariable();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystem::
+setSolverCommandLineArguments(const CommandLineArguments& args)
+{
+  _checkInit();
+  return m_p->setSolverCommandLineArguments(args);
 }
 
 /*---------------------------------------------------------------------------*/
