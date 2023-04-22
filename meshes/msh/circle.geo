@@ -5,12 +5,12 @@
 // Date       : 19 / April / 2023
 //
 // ----------------------------------------------------------------------------
-// Comment    : simple semi-circle problem mesh for elastodynamics/soildynamics
+// Comment    : simple circle problem mesh
 //
-// Parameters : radius  - this is the radius of the semi-circle
+// Parameters : radius  - this is the radius of the circle
 //              meshSize- this is the mesh size of the
 //
-// Usage      : gmsh circle.geo -setnumber radius 50.0 -2 -format msh41
+// Usage      : gmsh circle.geo -setnumber radius .5 -2 -format msh41
 //
 //
 //-----------------------------------------------------------------------------
@@ -19,10 +19,10 @@
 // ---- define parameters for commandline ----
 //==============================================================================
 
-DefineConstant[ radius = {50.0, Min .0001, Max 1000, Step 1,
+DefineConstant[ radius = {0.5, Min .0001, Max 1000, Step 1,
                          Name "Parameters/Airfoil MeshSize"} ];
 
-DefineConstant[ meshSize  = {4.0, Min 10, Max 10000000, Step 1,
+DefineConstant[ meshSize  = {0.4, Min 10, Max 10000000, Step 1,
                          Name "Parameters/Farfield MeshSize"} ];
 
 //==============================================================================
@@ -32,37 +32,18 @@ DefineConstant[ meshSize  = {4.0, Min 10, Max 10000000, Step 1,
 h = meshSize;
 
 //==============================================================================
-// ---- points ----
+// ---- build circle via OCC ----
 //==============================================================================
 
-Point(1) = {0, 0, 0, h};
-Point(2) = {0, -radius, 0, h};
-Point(3) = {radius, 0, 0, h};
-Point(4) = {-radius, 0, 0, h};
-
-//==============================================================================
-// ---- arcs ----
-//==============================================================================
-
-Circle(1) = {4, 1, 2};
-Circle(2) = {2, 1, 3};
-
-//==============================================================================
-// ---- lines ----
-//==============================================================================
-Line(3) = {3, 1};
-Line(4) = {1, 4};
-
-//==============================================================================
-// ---- surface ----
-//==============================================================================
-Curve Loop(1) = {4, 1, 2, 3};
+SetFactory("OpenCASCADE");
+Circle(1) = {0, 0, 0, radius, 0, 2*Pi};
+Curve Loop(1) = {1};
 Plane Surface(1) = {1};
+MeshSize {1} = h;
 
 //==============================================================================
-// ---- groups ----
+// ---- add groups ----
 //==============================================================================
-Physical Point("source", 5) = {1};
-Physical Curve("boderCircle", 6) = {1};
-Physical Curve("boderTop", 7) = {4, 3};
-Physical Surface("surface", 8) = {1};
+
+Physical Curve("boundary", 2) = {1};
+Physical Surface("surface", 3) = {1};
