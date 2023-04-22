@@ -404,7 +404,7 @@ _updateVariables()
   VariableDoFReal& dof_u(m_linear_system.solutionVariable());
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  ENUMERATE_ (Node, inode, ownNodes()) {
+  ENUMERATE_ (Node, inode, allNodes()) {
     Node node = *inode;
 
     alocX = (m_dU[node].x - m_U[node].x - dt*m_V[node].x)/beta/(dt*dt)
