@@ -9,11 +9,11 @@ on:
 
 env:
 
-  SOURCE_DIR: '/__w/femtest1/femtest1/src'
-  BUILD_DIR: '/__w/femtest1/femtest1/build'
+  SOURCE_DIR: '/__w/arcanefem/arcanefem/src'
+  BUILD_DIR: '/__w/arcanefem/arcanefem/build'
 
   # CTest
-  CT_RESULT_DIR: '/__w/femtest1/femtest1/test'
+  CT_RESULT_DIR: '/__w/arcanefem/arcanefem/test'
   CT_OPTS: "--timeout 300 --output-on-failure"
 
   # MPI
