@@ -413,9 +413,10 @@ _assembleLinearOperator()
   // Constant flux term assembly
   //----------------------------------------------
   //
-  //  $int_{dOmega_N}((q.n)*v^h)$
   //  only for noded that are non-Dirichlet
-  //  TODO : take flux vector and use normals at boundaries
+  //  $int_{dOmega_N}((q.n)*v^h)$
+  // or
+  //  $int_{dOmega_N}((n_x*q_x + n_y*q_y)*v^h)$
   //----------------------------------------------
   for (const auto& bs : options()->neumannBoundaryCondition()) {
     FaceGroup group = bs->surface();
@@ -432,6 +433,51 @@ _assembleLinearOperator()
       }
       continue;
     }
+
+
+    if(bs->valueX.isPresent()  && bs->valueY.isPresent()) {
+      Real valueX = bs->valueX();
+      Real valueY = bs->valueY();
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real  length = _computeEdgeLength2(face);
+        Real2 Normal = _computeEdgeNormal2(face);
+        for (Node node : iface->nodes()) {
+          if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
+            rhs_values[node_dof.dofId(node, 0)] += (Normal.x*valueX + Normal.y*valueY) * length / 2.;
+        }
+      }
+      continue;
+    }
+
+    if(bs->valueX.isPresent()) {
+      Real valueX = bs->valueX();
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real  length = _computeEdgeLength2(face);
+        Real2 Normal = _computeEdgeNormal2(face);
+        for (Node node : iface->nodes()) {
+          if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
+            rhs_values[node_dof.dofId(node, 0)] += (Normal.x*valueX) * length / 2.;
+        }
+      }
+      continue;
+    }
+
+    if(bs->valueY.isPresent()) {
+      Real valueY = bs->valueY();
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real  length = _computeEdgeLength2(face);
+        Real2 Normal = _computeEdgeNormal2(face);
+        for (Node node : iface->nodes()) {
+          if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
+            rhs_values[node_dof.dofId(node, 0)] += (Normal.y*valueY) * length / 2.;
+        }
+      }
+      continue;
+    }
+
   }
 }
 
