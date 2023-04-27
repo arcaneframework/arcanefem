@@ -26,4 +26,4 @@ target_link_libraries(Passmo PUBLIC FemUtils)
 
 
 # enable_testing()
-# add_test(NAME passmo COMMAND Passmo Test.Elastodynamics.arc)
+# add_test(NAME [passmo]passmo COMMAND Passmo Test.Elastodynamics.arc)

@@ -1,12 +1,21 @@
-name: 'Test all modules'
+name: 'Module poisson'
 
 on:
+  push:
+    branches: [ main ]
+    paths:
+      - poisson/**
+  pull_request:
+    branches: [ main ]
+    paths:
+      - poisson/**
   workflow_dispatch:
 
 env:
 
   SOURCE_DIR: '/__w/arcanefem/arcanefem/src'
   BUILD_DIR: '/__w/arcanefem/arcanefem/build'
+  MODULE_DIR: 'poisson'
 
   # CTest
   CT_RESULT_DIR: '/__w/arcanefem/arcanefem/test'
@@ -47,12 +56,12 @@ jobs:
         shell: bash
         run: |
           mkdir -p ${{ env.CT_RESULT_DIR }}
-          ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }}
+          ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }} -R '\[${{ env.MODULE_DIR }}\]'
 
       - name: Upload test artifact
         uses: actions/upload-artifact@v3
         if: failure()
         with:
-          name: test-all-modules-artifact
+          name: tests-${{ env.MODULE_DIR }}-artifact
           path: ${{ env.CT_RESULT_DIR }}
           retention-days: 7
