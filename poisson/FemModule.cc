@@ -85,13 +85,15 @@ class FemModule
   void _solve();
   void _initBoundaryconditions();
   void _assembleLinearOperator();
+  void _applyDirichletBoundaryConditions();
+  void _checkResultFile();
   FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
   Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
-  void _applyDirichletBoundaryConditions();
-  void _checkResultFile();
+  Real2 _computeEdgeNormal2(Face face);
+
 };
 
 /*---------------------------------------------------------------------------*/
@@ -417,14 +419,18 @@ _assembleLinearOperator()
   //----------------------------------------------
   for (const auto& bs : options()->neumannBoundaryCondition()) {
     FaceGroup group = bs->surface();
-    Real value = bs->value();
-    ENUMERATE_ (Face, iface, group) {
-      Face face = *iface;
-      Real length = _computeEdgeLength2(face);
-      for (Node node : iface->nodes()) {
-        if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
-          rhs_values[node_dof.dofId(node, 0)] += value * length / 2.;
+
+    if(bs->value.isPresent()) {
+      Real value = bs->value();
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real length = _computeEdgeLength2(face);
+        for (Node node : iface->nodes()) {
+          if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
+            rhs_values[node_dof.dofId(node, 0)] += value * length / 2.;
+        }
       }
+      continue;
     }
   }
 }
@@ -464,6 +470,23 @@ _computeEdgeLength2(Face face)
   Real3 m0 = m_node_coord[face.nodeId(0)];
   Real3 m1 = m_node_coord[face.nodeId(1)];
   return  math::sqrt((m1.x-m0.x)*(m1.x-m0.x) + (m1.y-m0.y)*(m1.y - m0.y));
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+Real2 FemModule::
+_computeEdgeNormal2(Face face)
+{
+  Real3 m0 = m_node_coord[face.nodeId(0)];
+  Real3 m1 = m_node_coord[face.nodeId(1)];
+  if (!face.isSubDomainBoundaryOutside())
+    std::swap(m0,m1);
+  Real2 N;
+  Real norm_N = math::sqrt( (m1.y - m0.y)*(m1.y - m0.y) + (m1.x - m0.x)*(m1.x - m0.x) );   // for normalizing
+  N.x = (m1.y - m0.y)/ norm_N;
+  N.y = (m0.x - m1.x)/ norm_N;
+  return  N;
 }
 
 /*---------------------------------------------------------------------------*/
