@@ -95,6 +95,7 @@ void FemModule::
 compute()
 {
   info() << "Module Fem COMPUTE";
+  info() << "Very good edit !!!";
 
   // Stop code after computations
   if (m_global_iteration() > 0)
