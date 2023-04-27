@@ -1,16 +1,21 @@
-name: 'Tests'
+name: 'Module bilaplacian'
 
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'bilaplacian/**'
   pull_request:
     branches: [ main ]
+    paths:
+      - 'bilaplacian/**'
   workflow_dispatch:
 
 env:
 
   SOURCE_DIR: '/__w/arcanefem/arcanefem/src'
   BUILD_DIR: '/__w/arcanefem/arcanefem/build'
+  MODULE_DIR: 'bilaplacian'
 
   # CTest
   CT_RESULT_DIR: '/__w/arcanefem/arcanefem/test'
@@ -38,7 +43,7 @@ jobs:
         shell: bash
         run: |
           cmake \
-          -S ${{ env.SOURCE_DIR }} \
+          -S ${{ env.SOURCE_DIR }}/${{ env.MODULE_DIR }} \
           -B ${{ env.BUILD_DIR }} \
           -GNinja
 
@@ -57,6 +62,6 @@ jobs:
         uses: actions/upload-artifact@v3
         if: failure()
         with:
-          name: tests-artifact
+          name: tests-${{ env.MODULE_DIR }}-artifact
           path: ${{ env.CT_RESULT_DIR }}
           retention-days: 7
