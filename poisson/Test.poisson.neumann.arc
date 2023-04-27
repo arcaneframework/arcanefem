@@ -20,6 +20,7 @@
 
   <fem>
     <lambda>1.0</lambda>
+    <result-file>test4_results.txt</result-file>
     <neumann-boundary-condition>
       <surface>boundary</surface>
       <valueX>2.0</valueX>
