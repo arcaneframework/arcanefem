@@ -1,6 +1,14 @@
 name: 'Test all modules'
 
 on:
+  push:
+    branches: [ main ]
+    paths:
+      - femutils/**
+  pull_request:
+    branches: [ main ]
+    paths:
+      - femutils/**
   workflow_dispatch:
 
 env:
