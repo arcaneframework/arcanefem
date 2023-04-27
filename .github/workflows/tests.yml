@@ -42,9 +42,8 @@ jobs:
         shell: bash
         run: |
           cmake \
-          -S ${{ env.SOURCE_DIR }}/${{ env.MODULE_DIR }} \
+          -S ${{ env.SOURCE_DIR }} \
           -B ${{ env.BUILD_DIR }} \
-          -D MSH_DIR=${{ env.SOURCE_DIR }}/meshes/msh \
           -GNinja
 
       - name: Build
@@ -56,7 +55,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p ${{ env.CT_RESULT_DIR }}
-          ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }}
+          ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }} -R '\[${{ env.MODULE_DIR }}\]'
 
       - name: Upload test artifact
         uses: actions/upload-artifact@v3
