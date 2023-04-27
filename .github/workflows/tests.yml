@@ -44,6 +44,7 @@ jobs:
           cmake \
           -S ${{ env.SOURCE_DIR }}/${{ env.MODULE_DIR }} \
           -B ${{ env.BUILD_DIR }} \
+          -D MSH_DIR=${{ env.SOURCE_DIR }}/meshes/msh \
           -GNinja
 
       - name: Build
