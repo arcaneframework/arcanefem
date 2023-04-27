@@ -94,7 +94,7 @@ class FemModule
 void FemModule::
 compute()
 {
-  info() << "Module Fem COMPUTE";
+  info() << "Module Fem COMPUTE"; 
 
   // Stop code after computations
   if (m_global_iteration() > 0)
