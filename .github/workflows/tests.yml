@@ -2,13 +2,12 @@ name: 'Module aerodynamics'
 
 on:
   push:
-    branches: [ main ]
     paths:
-      - 'aerodynamics/**'
+      - aerodynamics/**
   pull_request:
     branches: [ main ]
     paths:
-      - 'aerodynamics/**'
+      - aerodynamics/**
   workflow_dispatch:
 
 env:
