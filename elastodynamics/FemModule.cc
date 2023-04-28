@@ -16,6 +16,7 @@
 #include <arcane/IItemFamily.h>
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
+#include <arcane/CaseTable.h>
 
 #include "IDoFLinearSystemFactory.h"
 #include "Fem_axl.h"
@@ -827,69 +828,108 @@ $$
   //  $int_{dOmega_N}((ty.ny)*v1^h)$
   //  only for noded that are non-Dirichlet
   //----------------------------------------------
-  // tt/0.8*(tt <= 0.8)+ 0.*(tt > 0.8)
+
   for (const auto& bs : options()->tractionBoundaryCondition()) {
     FaceGroup group = bs->surface();
-    Real t1_val = bs->t1();
-    Real t2_val = bs->t2();
 
-    // TODO: Replace wih a UDF or read via a file
-    t2_val = (t - dt);
+    Real3 trac;  // traction in x, y and z
 
-    if(t2_val <=0.8){
-      //cout << "t2_value is " << t2_val << " t " << t  << " dt " << dt << endl;
-      t2_val = t2_val/0.8;
+    if(bs->tractionInputFile.isPresent()){
+
+
+      info() << "Applying traction boundary conditions for surface "<< group.name()
+             << " via CaseTable" <<  bs->tractionInputFile();
+
+      IParallelMng* pm = subDomain()->parallelMng();
+      CaseTable* inn = readFileAsCaseTable(pm, bs->tractionInputFile(), 3);
+      inn->value(t, trac);
+
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real length = _computeEdgeLength2(face);
+        for (Node node : iface->nodes()) {
+          if (!(m_u1_fixed[node]) && node.isOwn()) {
+            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+            rhs_values[dof_id1] += trac.x * length / 2.;
+          }
+          if (!(m_u2_fixed[node]) && node.isOwn()) {
+            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+            rhs_values[dof_id2] += trac.y * length / 2.;
+          }
+        }
+      }
+      continue;
+    }
+    else {
+
+      info() << "Applying constant traction boundary conditions for surface "<< group.name();
+
+      trac.x = bs->t1();
+      trac.y = bs->t2();
+      if( bs->t1.isPresent() && bs->t2.isPresent()) {
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2(face);
+          for (Node node : iface->nodes()) {
+            if (!(m_u1_fixed[node]) && node.isOwn()) {
+              DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+              rhs_values[dof_id1] += trac.x * length / 2.;
+            }
+            if (!(m_u2_fixed[node]) && node.isOwn()) {
+              DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+              rhs_values[dof_id2] += trac.y * length / 2.;
+            }
+          }
+        }
+        continue;
+      }
+
+      if( bs->t1.isPresent()) {
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2(face);
+          for (Node node : iface->nodes()) {
+            if (!(m_u1_fixed[node]) && node.isOwn()) {
+              DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+              rhs_values[dof_id1] += trac.x * length / 2.;
+            }
+          }
+        }
+        continue;
+      }
+
+      if( bs->t2.isPresent()) {
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2(face);
+          for (Node node : iface->nodes()) {
+            if (!(m_u2_fixed[node]) && node.isOwn()) {
+              DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+              rhs_values[dof_id2] += trac.y * length / 2. ;
+            }
+          }
+        }
+        continue;
+      }
+
+    }
+
+   /*
+   // tt/0.8*(tt <= 0.8)+ 0.*(tt > 0.8)
+    trac.x = bs->t1();
+    trac.y = bs->t2();
+    trac.y = (t - dt);
+    Real toto = 0.0;
+    std::cout.precision(17);
+    if(trac.y <=0.8){
+      trac.y = trac.y/0.8;
+      cout << std::scientific<<"tttt " << t << "\t"<< trac.x << "\t"<< trac.y << "\t" << toto << endl;
     }
     else{
-      t2_val = 0.;
-      //cout << "t2_value is " << t2_val << " t " << t  << " dt " << dt << endl;
+      trac.y = 0.;
+      cout << std::scientific<<"tttt " << t << "\t"<< trac.x << "\t"<< trac.y << "\t" << toto <<endl;
     }
-
-    if( bs->t1.isPresent() && bs->t2.isPresent()) {
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real length = _computeEdgeLength2(face);
-        for (Node node : iface->nodes()) {
-          if (!(m_u1_fixed[node]) && node.isOwn()) {
-            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-            rhs_values[dof_id1] += t1_val * length / 2.;
-          }
-          if (!(m_u2_fixed[node]) && node.isOwn()) {
-            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-            rhs_values[dof_id2] += t2_val * length / 2.;
-          }
-        }
-      }
-      continue;
-    }
-
-    if( bs->t1.isPresent()) {
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real length = _computeEdgeLength2(face);
-        for (Node node : iface->nodes()) {
-          if (!(m_u1_fixed[node]) && node.isOwn()) {
-            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-            rhs_values[dof_id1] += t1_val * length / 2.;
-          }
-        }
-      }
-      continue;
-    }
-
-    if( bs->t2.isPresent()) {
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real length = _computeEdgeLength2(face);
-        for (Node node : iface->nodes()) {
-          if (!(m_u2_fixed[node]) && node.isOwn()) {
-            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-            rhs_values[dof_id2] += t2_val * length / 2. ;
-          }
-        }
-      }
-      continue;
-    }
+    */
 
   }
 }
