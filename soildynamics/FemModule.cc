@@ -77,6 +77,8 @@ class FemModule
   Real E;                     // Youngs modulus
   Real nu;                    // Poissons ratio
   Real rho;                   // Density
+  Real cp;                    // Primary wave velocity of soil
+  Real cs;                    // Secondary wave velocity of soil
   Real f1;                    // Body force in x
   Real f2;                    // Body force in y
   Real mu;                    // Lame parameter mu
@@ -231,6 +233,8 @@ _getParameters()
   E    = options()->E();                   // Youngs modulus
   nu   = options()->nu();                  // Poission ratio
   rho  = options()->rho();                 // Density
+  cp   = options()->cp();                  // Wave velocity primary
+  cs   = options()->cs();                  // Wave velocity secondary
 
   mu  = E/(2*(1+nu));                      // lame parameter mu
   lambda = E*nu/((1+nu)*(1-2*nu));         // lame parameter lambda
@@ -240,6 +244,17 @@ _getParameters()
 
   if( options()->lambda.isPresent())
     lambda = options()->lambda;
+
+  if( (options()->cp.isPresent()) && (options()->cs.isPresent()) ) {
+    mu     =  cs*cs*rho;
+    lambda =  cp*cp*rho - 2*mu;
+    }
+
+  // TODO : Find cp and cs via mu and lambda
+  // In fact users should have option to enter
+  // - E , nu
+  // - lambda, mu
+  // - cs cp
 
   mu2 =  mu*2;                             // lame parameter mu * 2
 
