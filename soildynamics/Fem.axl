@@ -62,12 +62,6 @@
     <simple name="dt" type="real" default="0.0">
       <description>Time step.</description>
     </simple>
-    <simple name="etam" type="real" default="0.0">
-      <description>Eta m for Generalized Alpha time shceme.</description>
-    </simple>
-    <simple name="etak" type="real" default="0.0">
-      <description>Eta k for Generalized Alpha time shceme.</description>
-    </simple>
     <simple name="alpm" type="real" default="0.0">
       <description>Alpha m for Generalized Alpha time shceme.</description>
     </simple>

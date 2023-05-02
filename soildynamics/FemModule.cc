@@ -95,7 +95,6 @@ class FemModule
   Real c7;                    // constant
   Real c8;                    // constant
   Real c9;                    // constant
-  Real c10;                   // constant
 
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
@@ -219,10 +218,6 @@ _getParameters()
   tmax = options()->tmax();                // max time
   dt   = options()->dt();                  // time step
 
-  //--- damping term parameter ---//
-  etam = options()->etam();                // damping param etam
-  etak = options()->etak();                // damping param etak
-
   //--- time discretization parameter ---//
   alpm = options()->alpm();                // time discretization param alpm
   alpf = options()->alpf();                // time discretization param alpf
@@ -267,17 +262,16 @@ _getParameters()
     gamma = 0.5;
     beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
 
-    c0 =   rho/(beta*dt*dt) + etam*rho*gamma/beta/dt                          ;
-    c1 =   lambda + lambda*etak*gamma/beta/dt                                 ;
-    c2 =   2.*mu + 2.*mu*etak*gamma/beta/dt                                   ;
-    c3 =   rho/beta/dt - etam*rho*(1-gamma/beta)                              ;
-    c4 =   rho*( (1.-2.*beta)/2./beta  - etam*dt*(1.-gamma/2/beta))           ;
-    c5 =  -lambda*etak*gamma/beta/dt                                          ;
-    c6 =  -2.*mu*etak*gamma/beta/dt                                           ;
-    c7 =   etak*lambda*(gamma/beta - 1)                                       ;
-    c8 =   etak*lambda*dt*((1.-2*beta)/2./beta - (1.-gamma))                  ;
-    c9 =   etak*2*mu*(gamma/beta -1)                                          ;
-    c10=   etak*2*mu*dt*((1.-2*beta)/2./beta -(1.-gamma))                     ;
+    c0 =   rho/(beta*dt*dt)                                ;
+    c1 =   lambda                                          ;
+    c2 =   2.*mu                                           ;
+    c3 =   rho/(beta*dt)                                   ;
+    c4 =   rho*(1./2./beta -1.)                            ;
+    c5 =   0.                                              ;
+    c6 =   0.                                              ;
+    c7 =   rho*gamma/beta/dt                               ;
+    c8 =   rho*(1.-gamma/beta)                             ;
+    c9 =   rho*dt*(1.-gamma/(2.*beta))                     ;
 
     }
 
@@ -288,17 +282,18 @@ _getParameters()
     gamma = 0.5 + alpf - alpm                ;
     beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
 
-    c0 =   rho*(1.-alpm)/(beta*dt*dt) + etam*rho*gamma*(1-alpf)/beta/dt       ;
-    c1 =   lambda*(1.-alpf) + lambda*etak*gamma*(1.-alpf)/beta/dt             ;
-    c2 =   2.*mu*(1.-alpf) + 2.*mu*etak*gamma*(1.-alpf)/beta/dt               ;
-    c3 =   rho*(1.-alpm)/beta/dt - etam*rho*(1-gamma*(1-alpf)/beta)           ;
-    c4 =   rho*( (1.-alpm)*(1.-2.*beta)/2./beta - alpm - etam*dt*(1.-alpf)*(1.-gamma/2/beta))   ;
-    c5 =   lambda*alpf -    lambda*etak*gamma*(1.-alpf)/beta/dt               ;
-    c6 =   2*mu*alpf   -    2.*mu*etak*gamma*(1.-alpf)/beta/dt                ;
-    c7 =   etak*lambda*(gamma*(1.-alpf)/beta - 1)                             ;
-    c8 =   etak*lambda*dt*(1.-alpf)*((1.-2*beta)/2./beta - (1.-gamma))        ;
-    c9 =   etak*2*mu*(gamma*(1.-alpf)/beta -1)                                ;
-    c10=   etak*2*mu*dt*(1.-alpf)*((1.-2*beta)/2./beta -(1.-gamma))           ;
+    c0 =   rho*(1.-alpm)/(beta*dt*dt)                      ;
+    c1 =   lambda*(1.-alpf)                                ;
+    c2 =   2.*mu*(1.-alpf)                                 ;
+    c3 =   rho*(1.-alpm)/beta/dt                           ;
+    c4 =   rho*( (1.-alpm)*(1.-2.*beta)/2./beta - alpm )   ;
+    c5 =   lambda*alpf                                     ;
+    c6 =   2*mu*alpf                                       ;
+    c7 =   rho*gamma/beta/dt                               ;
+    c8 =   rho*(1.-gamma/beta)                             ;
+    c9 =   rho*dt*(1.-gamma/(2.*beta))                     ;
+
+    ARCANE_FATAL("ArcaneFEM is not yet ready for Generalized-alpha time-discretization use Newmark-beta");
 
     }
 
@@ -820,23 +815,11 @@ $$
         rhs_values[dof_id1] +=   (m_U[node].x) * (area / 3) * c0
                                + (m_V[node].x) * (area / 3) * c3
                                + (m_A[node].x) * (area / 3) * c4
-                               - ( (DXU1.x + DXU2.y) *DXV(0,i) * area )* c5
-                               - ( (DXU1.x * DXV(0,i) * area ) +   0.5 * ( DXU1.y + DXU2.x) * DYV(0,i) * area    )*c6
-                               + ( (DXV1.x +  DXV2.y) * DXV(0,i)* area  )* c7
-                               + ( (DXV1.x * DXV(0,i) * area ) +   0.5 * ( DXV1.y + DXV2.x) * DYV(0,i) * area    )*c9
-                               + ( (DXA1.x +  DXA2.y) * DXV(0,i) * area  )* c8
-                               + ( (DXA1.x * DXV(0,i) * area ) +   0.5 * ( DXA1.y + DXA2.x) * DYV(0,i) * area    )*c10
                                ;
 
         rhs_values[dof_id2] +=   (m_U[node].y)  * (area / 3) * c0
                                + (m_V[node].y)  * (area / 3) * c3
                                + (m_A[node].y)  * (area / 3) * c4
-                               - ( (DXU1.x + DXU2.y)  * DYV(0,i) * area )* c5
-                               - ( (DXU2.y * DYV(0,i) * area) +   0.5 * ( DXU1.y + DXU2.x) * DXV(0,i) * area  )*c6
-                               + ( (DXV1.x +  DXV2.y) * DYV(0,i) * area)* c7
-                               + ( (DXV2.y * DYV(0,i) * area) +   0.5 * ( DXV1.y + DXV2.x) * DXV(0,i) * area  )*c9
-                               + ( (DXA1.x +  DXA2.y) * DYV(0,i) * area )* c8
-                               + ( (DXA2.y * DYV(0,i) * area) +   0.5 * ( DXA1.y + DXA2.x) * DXV(0,i) * area  )*c10
                                ;
       }
       i++;
