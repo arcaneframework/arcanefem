@@ -285,15 +285,13 @@ _getParameters()
     c0 =   rho*(1.-alpm)/(beta*dt*dt)                      ;
     c1 =   lambda*(1.-alpf)                                ;
     c2 =   2.*mu*(1.-alpf)                                 ;
-    c3 =   rho*(1.-alpm)/beta/dt                           ;
-    c4 =   rho*( (1.-alpm)*(1.-2.*beta)/2./beta - alpm )   ;
+    c3 =   rho*(1.-alpm)/(beta*dt)                         ;
+    c4 =   rho*((1.-alpm)/2./beta -1.)                     ;
     c5 =   lambda*alpf                                     ;
     c6 =   2*mu*alpf                                       ;
-    c7 =   rho*gamma/beta/dt                               ;
-    c8 =   rho*(1.-gamma/beta)                             ;
-    c9 =   rho*dt*(1.-gamma/(2.*beta))                     ;
-
-    ARCANE_FATAL("ArcaneFEM is not yet ready for Generalized-alpha time-discretization use Newmark-beta");
+    c7 =   rho*(1.-alpf)*gamma/beta/dt                     ;
+    c8 =   rho*(1.-gamma*(1-alpf)/beta)                    ;
+    c9 =   rho*(1.-alpf)*dt*(1.-gamma/(2.*beta))           ;
 
     }
 
