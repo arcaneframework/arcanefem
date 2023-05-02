@@ -35,10 +35,10 @@
     <simple name="f2" type="real" default="0.0" optional="true">
       <description>Body force in y within the material.</description>
     </simple>
-    <simple name="E" type="real" default="0.0">
+    <simple name="E" type="real" default="0.0"  optional="true">
       <description>Youngs Modulus of the material.</description>
     </simple>
-    <simple name="nu" type="real" default="0.0">
+    <simple name="nu" type="real" default="0.0"  optional="true">
       <description>Poission ratio of the material.</description>
     </simple>
     <simple name="lambda" type="real" default="0.0" optional="true">
@@ -50,17 +50,17 @@
     <simple name="rho" type="real" default="0.0">
       <description>Density of the material.</description>
     </simple>
+    <simple name="cp" type="real" default="0.0">
+      <description>Primary wave velocity in the soil.</description>
+    </simple>
+    <simple name="cs" type="real" default="0.0">
+      <description>Secondary wave velocity in the soil.</description>
+    </simple>
     <simple name="tmax" type="real" default="0.0">
       <description>Maximum time.</description>
     </simple>
     <simple name="dt" type="real" default="0.0">
       <description>Time step.</description>
-    </simple>
-    <simple name="etam" type="real" default="0.0">
-      <description>Eta m for Generalized Alpha time shceme.</description>
-    </simple>
-    <simple name="etak" type="real" default="0.0">
-      <description>Eta k for Generalized Alpha time shceme.</description>
     </simple>
     <simple name="alpm" type="real" default="0.0">
       <description>Alpha m for Generalized Alpha time shceme.</description>
@@ -165,6 +165,23 @@
         </description>
       </simple>
     </complex>
+
+    <!-- - - - - - paraxial-boundary-condition - - - - -->
+    <complex name  = "paraxial-boundary-condition"
+             type  = "ParaxialBoundaryCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Paraxial boundary condition
+      </description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>
+          FaceGroup on which to apply these boundary condition
+        </description>
+      </extended>
+    </complex>
+
     <!-- - - - - - linear-system - - - - -->
     <service-instance name = "linear-system"
                       type = "Arcane::FemUtils::IDoFLinearSystemFactory"

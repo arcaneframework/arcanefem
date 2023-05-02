@@ -77,6 +77,8 @@ class FemModule
   Real E;                     // Youngs modulus
   Real nu;                    // Poissons ratio
   Real rho;                   // Density
+  Real cp;                    // Primary wave velocity of soil
+  Real cs;                    // Secondary wave velocity of soil
   Real f1;                    // Body force in x
   Real f2;                    // Body force in y
   Real mu;                    // Lame parameter mu
@@ -93,7 +95,6 @@ class FemModule
   Real c7;                    // constant
   Real c8;                    // constant
   Real c9;                    // constant
-  Real c10;                   // constant
 
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
@@ -217,10 +218,6 @@ _getParameters()
   tmax = options()->tmax();                // max time
   dt   = options()->dt();                  // time step
 
-  //--- damping term parameter ---//
-  etam = options()->etam();                // damping param etam
-  etak = options()->etak();                // damping param etak
-
   //--- time discretization parameter ---//
   alpm = options()->alpm();                // time discretization param alpm
   alpf = options()->alpf();                // time discretization param alpf
@@ -231,6 +228,8 @@ _getParameters()
   E    = options()->E();                   // Youngs modulus
   nu   = options()->nu();                  // Poission ratio
   rho  = options()->rho();                 // Density
+  cp   = options()->cp();                  // Wave velocity primary
+  cs   = options()->cs();                  // Wave velocity secondary
 
   mu  = E/(2*(1+nu));                      // lame parameter mu
   lambda = E*nu/((1+nu)*(1-2*nu));         // lame parameter lambda
@@ -240,6 +239,17 @@ _getParameters()
 
   if( options()->lambda.isPresent())
     lambda = options()->lambda;
+
+  if( (options()->cp.isPresent()) && (options()->cs.isPresent()) ) {
+    mu     =  cs*cs*rho;
+    lambda =  cp*cp*rho - 2*mu;
+    }
+
+  // TODO : Find cp and cs via mu and lambda
+  // In fact users should have option to enter
+  // - E , nu
+  // - lambda, mu
+  // - cs cp
 
   mu2 =  mu*2;                             // lame parameter mu * 2
 
@@ -252,17 +262,16 @@ _getParameters()
     gamma = 0.5;
     beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
 
-    c0 =   rho/(beta*dt*dt) + etam*rho*gamma/beta/dt                          ;
-    c1 =   lambda + lambda*etak*gamma/beta/dt                                 ;
-    c2 =   2.*mu + 2.*mu*etak*gamma/beta/dt                                   ;
-    c3 =   rho/beta/dt - etam*rho*(1-gamma/beta)                              ;
-    c4 =   rho*( (1.-2.*beta)/2./beta  - etam*dt*(1.-gamma/2/beta))           ;
-    c5 =  -lambda*etak*gamma/beta/dt                                          ;
-    c6 =  -2.*mu*etak*gamma/beta/dt                                           ;
-    c7 =   etak*lambda*(gamma/beta - 1)                                       ;
-    c8 =   etak*lambda*dt*((1.-2*beta)/2./beta - (1.-gamma))                  ;
-    c9 =   etak*2*mu*(gamma/beta -1)                                          ;
-    c10=   etak*2*mu*dt*((1.-2*beta)/2./beta -(1.-gamma))                     ;
+    c0 =   rho/(beta*dt*dt)                                ;
+    c1 =   lambda                                          ;
+    c2 =   2.*mu                                           ;
+    c3 =   rho/(beta*dt)                                   ;
+    c4 =   rho*(1./2./beta -1.)                            ;
+    c5 =   0.                                              ;
+    c6 =   0.                                              ;
+    c7 =   rho*gamma/beta/dt                               ;
+    c8 =   rho*(1.-gamma/beta)                             ;
+    c9 =   rho*dt*(1.-gamma/(2.*beta))                     ;
 
     }
 
@@ -273,17 +282,18 @@ _getParameters()
     gamma = 0.5 + alpf - alpm                ;
     beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
 
-    c0 =   rho*(1.-alpm)/(beta*dt*dt) + etam*rho*gamma*(1-alpf)/beta/dt       ;
-    c1 =   lambda*(1.-alpf) + lambda*etak*gamma*(1.-alpf)/beta/dt             ;
-    c2 =   2.*mu*(1.-alpf) + 2.*mu*etak*gamma*(1.-alpf)/beta/dt               ;
-    c3 =   rho*(1.-alpm)/beta/dt - etam*rho*(1-gamma*(1-alpf)/beta)           ;
-    c4 =   rho*( (1.-alpm)*(1.-2.*beta)/2./beta - alpm - etam*dt*(1.-alpf)*(1.-gamma/2/beta))   ;
-    c5 =   lambda*alpf -    lambda*etak*gamma*(1.-alpf)/beta/dt               ;
-    c6 =   2*mu*alpf   -    2.*mu*etak*gamma*(1.-alpf)/beta/dt                ;
-    c7 =   etak*lambda*(gamma*(1.-alpf)/beta - 1)                             ;
-    c8 =   etak*lambda*dt*(1.-alpf)*((1.-2*beta)/2./beta - (1.-gamma))        ;
-    c9 =   etak*2*mu*(gamma*(1.-alpf)/beta -1)                                ;
-    c10=   etak*2*mu*dt*(1.-alpf)*((1.-2*beta)/2./beta -(1.-gamma))           ;
+    c0 =   rho*(1.-alpm)/(beta*dt*dt)                      ;
+    c1 =   lambda*(1.-alpf)                                ;
+    c2 =   2.*mu*(1.-alpf)                                 ;
+    c3 =   rho*(1.-alpm)/(beta*dt)                         ;
+    c4 =   rho*((1.-alpm)/2./beta -1.)                     ;
+    c5 =   lambda*alpf                                     ;
+    c6 =   2*mu*alpf                                       ;
+    c7 =   rho*(1.-alpf)*gamma/beta/dt                     ;
+    c8 =   rho*(1.-gamma*(1-alpf)/beta)                    ;
+    c9 =   rho*(1.-alpf)*dt*(1.-gamma/(2.*beta))           ;
+
+    ARCANE_FATAL("Only Newmark-beta works for time-discretization Generalized-alpha WIP ");
 
     }
 
@@ -654,64 +664,7 @@ _assembleLinearOperator()
     Real3 m1 = m_node_coord[cell.nodeId(1)];
     Real3 m2 = m_node_coord[cell.nodeId(2)];
 
-/*
-
-    Real f0 = m_U[cell.nodeId(0)].x;
-    Real f1 = m_U[cell.nodeId(1)].x;
-    Real f2 = m_U[cell.nodeId(2)].x;
-
-    Real detA = ( m0.x*(m1.y - m2.y) - m0.y*(m1.x - m2.x) + (m1.x*m2.y - m2.x*m1.y) );
-
-    Real2 DXU1;
-    DXU1.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / (2.*area);/// detA;
-    DXU1.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / (2.*area);/// detA;
-
-    f0 = m_U[cell.nodeId(0)].y;
-    f1 = m_U[cell.nodeId(1)].y;
-    f2 = m_U[cell.nodeId(2)].y;
-
-    Real2 DXU2;
-    DXU2.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / (2.*area);/// detA;
-    DXU2.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / (2.*area);/// detA;
-
-    f0 = m_V[cell.nodeId(0)].x;
-    f1 = m_V[cell.nodeId(1)].x;
-    f2 = m_V[cell.nodeId(2)].x;
-
-    Real2 DXV1;
-    DXV1.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / (2.*area);/// detA;
-    DXV1.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / (2.*area);/// detA;
-
-    f0 = m_V[cell.nodeId(0)].y;
-    f1 = m_V[cell.nodeId(1)].y;
-    f2 = m_V[cell.nodeId(2)].y;
-
-    Real2 DXV2;
-    DXV2.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / (2.*area);/// detA;
-    DXV2.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / (2.*area);/// detA;
-
-    f0 = m_A[cell.nodeId(0)].x;
-    f1 = m_A[cell.nodeId(1)].x;
-    f2 = m_A[cell.nodeId(2)].x;
-
-    Real2 DXA1;
-    DXA1.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / (2.*area);/// detA;
-    DXA1.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / (2.*area);/// detA;
-
-    f0 = m_A[cell.nodeId(0)].y;
-    f1 = m_A[cell.nodeId(1)].y;
-    f2 = m_A[cell.nodeId(2)].y;
-
-    Real2 DXA2;
-    DXA2.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / (2.*area);/// detA;
-    DXA2.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / (2.*area);/// detA;
-*/
-
     Real2 DXU1, DXU2, DXV1, DXV2, DXA1, DXA2;
-
-    //  Real2  Ctriangle;
-    //  Ctriangle.x = (1/3.)* (m0.x + m1.x+m2.x);
-    //  Ctriangle.y = (1/3.)* (m0.y + m1.y+m2.y);
 
     // to construct dx(v) we use d(Phi0)/dx , d(Phi1)/dx , d(Phi1)/dx
     // here Phi_i are the basis functions at three nodes i=1:3
@@ -782,12 +735,6 @@ $$
                     (U \cdot v) c_0
                   + (V \cdot v) c_3
                   + (A \cdot v) c_4
-                  - (\nabla \cdot U  \nabla \cdot v) c_5
-                  - (\varepsilon(U) : \varepsilon(v) ) c_6
-                  + (\nabla \cdot V  \nabla \cdot v) c_7
-                  + (\varepsilon(V) : \varepsilon(v) ) c_9
-                  + (\nabla \cdot A  \nabla \cdot v) c_8
-                  + (\varepsilon(A) : \varepsilon(v) ) c_{10}
                )
 $$
 */
@@ -804,24 +751,12 @@ $$
         DoFLocalId dof_id2 = node_dof.dofId(node, 1);
         rhs_values[dof_id1] +=   (m_U[node].x) * (area / 3) * c0
                                + (m_V[node].x) * (area / 3) * c3
-                               + (m_A[node].x) * (area / 3) * c4
-                               - ( (DXU1.x + DXU2.y) *DXV(0,i) * area )* c5
-                               - ( (DXU1.x * DXV(0,i) * area ) +   0.5 * ( DXU1.y + DXU2.x) * DYV(0,i) * area    )*c6
-                               + ( (DXV1.x +  DXV2.y) * DXV(0,i)* area  )* c7
-                               + ( (DXV1.x * DXV(0,i) * area ) +   0.5 * ( DXV1.y + DXV2.x) * DYV(0,i) * area    )*c9
-                               + ( (DXA1.x +  DXA2.y) * DXV(0,i) * area  )* c8
-                               + ( (DXA1.x * DXV(0,i) * area ) +   0.5 * ( DXA1.y + DXA2.x) * DYV(0,i) * area    )*c10
+                               + (m_A[node].x) * (area / 3) * c4   // TODO add c5 and c6 contribution for Galpha
                                ;
 
         rhs_values[dof_id2] +=   (m_U[node].y)  * (area / 3) * c0
                                + (m_V[node].y)  * (area / 3) * c3
-                               + (m_A[node].y)  * (area / 3) * c4
-                               - ( (DXU1.x + DXU2.y)  * DYV(0,i) * area )* c5
-                               - ( (DXU2.y * DYV(0,i) * area) +   0.5 * ( DXU1.y + DXU2.x) * DXV(0,i) * area  )*c6
-                               + ( (DXV1.x +  DXV2.y) * DYV(0,i) * area)* c7
-                               + ( (DXV2.y * DYV(0,i) * area) +   0.5 * ( DXV1.y + DXV2.x) * DXV(0,i) * area  )*c9
-                               + ( (DXA1.x +  DXA2.y) * DYV(0,i) * area )* c8
-                               + ( (DXA2.y * DYV(0,i) * area) +   0.5 * ( DXA1.y + DXA2.x) * DXV(0,i) * area  )*c10
+                               + (m_A[node].y)  * (area / 3) * c4  // TODO add c5 and c6 contribution for Galpha
                                ;
       }
       i++;
@@ -973,7 +908,7 @@ _computeElementMatrixTRIA3(Cell cell)
       int_Omega_i(i,j) = 0.;
 
 // -----------------------------------------------------------------------------
-//  lambda( dx(u1)dx(v1) + dy(u2)dx(v1) + dx(u1)dy(v2) + dy(u2)dy(v2) ) + u2v2
+//  c1( dx(du1)dx(v1) + dy(du2)dx(v1) + dx(du1)dy(v2) + dy(du2)dy(v2) )
 //------------------------------------------------------------------------------
 
 
@@ -1070,7 +1005,7 @@ _computeElementMatrixTRIA3(Cell cell)
 
 
 // -----------------------------------------------------------------------------
-//  2*mu( dx(u1)dx(v1) + dy(u2)dy(v2) + 0.5*(   dy(u1)dy(v1) + dx(u2)dy(v1)
+//  c2( dx(u1)dx(v1) + dy(u2)dy(v2) + 0.5*(   dy(u1)dy(v1) + dx(u2)dy(v1)
 //                                            + dy(u1)dx(v2) + dx(u2)dx(v2) )
 //      )
 //------------------------------------------------------------------------------
@@ -1208,13 +1143,9 @@ _computeElementMatrixTRIA3(Cell cell)
   FixedMatrix<6, 6> int_mudxU2dxV2  = matrixMultiplication(bT_matrix, b_matrix);
   int_Omega_i = matrixAddition( int_Omega_i, int_mudxU2dxV2);
 
-  //info() << "Cell=" << cell.localId();
-  //std::cout << " int_cdPi_dPj=";
-  //int_cdPi_dPj.dump(std::cout);
-  //std::cout << "\n";
-
-
-  // u1v1 //
+// -----------------------------------------------------------------------------
+//   c0(du1v1 + du2v2)
+// -----------------------------------------------------------------------------
   b_matrix(0, 0) = 1.;
   b_matrix(0, 1) = 0.;
   b_matrix(0, 2) = 1.;
@@ -1242,7 +1173,7 @@ _computeElementMatrixTRIA3(Cell cell)
 
 
 
-  // u2v2 //
+  // du2v2 //
   b_matrix(0, 0) = 0.;
   b_matrix(0, 1) = 1.;
   b_matrix(0, 2) = 0.;
