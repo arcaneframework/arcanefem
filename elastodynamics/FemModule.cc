@@ -48,6 +48,11 @@ class FemModule
     cm->setTreatWarningAsError(true);
     cm->setAllowUnkownRootElelement(false);
   }
+  ~FemModule()
+  {
+    for( const CaseTableInfo&  t : m_traction_case_table_list )
+      delete t.case_table;
+  }
 
  public:
 
@@ -99,6 +104,16 @@ class FemModule
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
 
+  // Struct to make sure we are using a CaseTable associated
+  // to the right file
+  struct CaseTableInfo
+  {
+    String file_name;
+    CaseTable* case_table = nullptr;
+  };
+  // List of CaseTable for traction boundary conditions
+  UniqueArray<CaseTableInfo> m_traction_case_table_list;
+
  private:
 
   void _doStationarySolve();
@@ -117,6 +132,7 @@ class FemModule
   Real2 _computeDxDyOfRealTRIA3(Cell cell);
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
+  void _readCaseTables();
 };
 
 /*---------------------------------------------------------------------------*/
@@ -162,6 +178,8 @@ startInit()
   t    = dt;
   tmax = tmax - dt;
   m_global_deltat.assign(dt);
+
+  _readCaseTables();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -284,6 +302,24 @@ _getParameters()
     ARCANE_FATAL("Only Newmark-beta | Generalized-alpha are supported for time-discretization ");
 
     }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_readCaseTables()
+{
+  IParallelMng* pm = subDomain()->parallelMng();
+  for (const auto& bs : options()->tractionBoundaryCondition()) {
+    CaseTable* case_table = nullptr;
+    String file_name;
+    if(bs->tractionInputFile.isPresent()){
+      file_name = bs->tractionInputFile();
+      case_table = readFileAsCaseTable(pm, file_name, 3);
+    }
+    m_traction_case_table_list.add(CaseTableInfo{file_name,case_table});
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -829,19 +865,25 @@ $$
   //  only for noded that are non-Dirichlet
   //----------------------------------------------
 
+  // Index of the boundary condition. Needed to associate a CaseTable
+  Int32 boundary_condition_index = 0;
   for (const auto& bs : options()->tractionBoundaryCondition()) {
     FaceGroup group = bs->surface();
+    const CaseTableInfo& case_table_info = m_traction_case_table_list[boundary_condition_index];
+    ++boundary_condition_index;
 
     Real3 trac;  // traction in x, y and z
 
-    if(bs->tractionInputFile.isPresent()){
+    if (bs->tractionInputFile.isPresent()){
 
-
+      String file_name = bs->tractionInputFile();
       info() << "Applying traction boundary conditions for surface "<< group.name()
-             << " via CaseTable" <<  bs->tractionInputFile();
-
-      IParallelMng* pm = subDomain()->parallelMng();
-      CaseTable* inn = readFileAsCaseTable(pm, bs->tractionInputFile(), 3);
+             << " via CaseTable" <<  file_name;
+      CaseTable* inn = case_table_info.case_table;
+      if (!inn)
+        ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _readCaseTables()");
+      if (file_name!=case_table_info.file_name)
+        ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'",case_table_info.file_name);
       inn->value(t, trac);
 
       ENUMERATE_ (Face, iface, group) {
