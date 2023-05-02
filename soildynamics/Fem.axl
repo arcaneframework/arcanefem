@@ -1,0 +1,174 @@
+<?xml version="1.0" ?>
+<module name="Fem" version="1.0">
+  <description>Descripteur du module Fem</description>
+  <entry-points>
+    <entry-point method-name="compute" name="Compute" where="compute-loop" property="none" />
+    <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
+  </entry-points>
+  <variables>
+    <variable field-name="dU" name="dU" data-type="real3" item-kind="node" dim="0">
+      <description>Change in displacement U variable</description>
+    </variable>
+     <variable field-name="U" name="U" data-type="real3" item-kind="node" dim="0">
+      <description>Displacement U vector for time step t-1</description>
+    </variable>
+    <variable field-name="V" name="V" data-type="real3" item-kind="node" dim="0">
+      <description>Velocity V vector for time step t-1</description>
+    </variable>
+    <variable field-name="A" name="A" data-type="real3" item-kind="node" dim="0">
+      <description>Acceleration V vector for time step t-1</description>
+    </variable>
+    <variable field-name="u1_fixed" name="u1Fixed" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if u1 is fixed on the node</description>
+    </variable>
+    <variable field-name="u2_fixed" name="u2Fixed" data-type="bool" item-kind="node" dim="0">
+      <description>Boolean which is true if u2 is fixed on the node</description>
+    </variable>
+    <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
+      <description>NodeCoord from Arcane variable</description>
+    </variable>
+  </variables>
+  <options>
+    <simple name="f1" type="real" default="0.0" optional="true">
+      <description>Body force in x within the material.</description>
+    </simple>
+    <simple name="f2" type="real" default="0.0" optional="true">
+      <description>Body force in y within the material.</description>
+    </simple>
+    <simple name="E" type="real" default="0.0">
+      <description>Youngs Modulus of the material.</description>
+    </simple>
+    <simple name="nu" type="real" default="0.0">
+      <description>Poission ratio of the material.</description>
+    </simple>
+    <simple name="lambda" type="real" default="0.0" optional="true">
+      <description>Lame parameter of the material.</description>
+    </simple>
+    <simple name="mu" type="real" default="0.0" optional="true">
+      <description>Lame parameter of the material.</description>
+    </simple>
+    <simple name="rho" type="real" default="0.0">
+      <description>Density of the material.</description>
+    </simple>
+    <simple name="tmax" type="real" default="0.0">
+      <description>Maximum time.</description>
+    </simple>
+    <simple name="dt" type="real" default="0.0">
+      <description>Time step.</description>
+    </simple>
+    <simple name="etam" type="real" default="0.0">
+      <description>Eta m for Generalized Alpha time shceme.</description>
+    </simple>
+    <simple name="etak" type="real" default="0.0">
+      <description>Eta k for Generalized Alpha time shceme.</description>
+    </simple>
+    <simple name="alpm" type="real" default="0.0">
+      <description>Alpha m for Generalized Alpha time shceme.</description>
+    </simple>
+    <simple name="alpf" type="real" default="0.0">
+      <description>Alpha f for Generalized Alpha time shceme.</description>
+    </simple>
+    <simple name="result-file" type="string" optional="true">
+      <description>File name of a file containing the valuess of the solution vector to check the results</description>
+    </simple>
+    <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
+      <description>Type of mesh provided to the solver</description>
+    </simple>
+    <simple name="time-discretization" type="string"  default="Newmark-beta" optional="true">
+      <description>Type of time discretization for the solver</description>
+    </simple>
+    <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
+      <description>
+        Method via which Dirichlet boundary condition is imposed
+      </description>
+    </simple>
+    <simple name = "penalty" type = "real" default="1.e30" optional="true">
+      <description>
+        Penalty value for enforcing Dirichlet condition
+      </description>
+    </simple>
+
+    <!-- - - - - - dirichlet-boundary-condition - - - - -->
+    <complex name  = "dirichlet-boundary-condition"
+             type  = "DirichletBoundaryCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Dirichlet boundary condition
+      </description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>
+          FaceGroup on which to apply these boundary condition
+        </description>
+      </extended>
+      <simple name = "u1" type = "real" optional="true">
+        <description>
+          Value u1 on the boundary condition
+        </description>
+      </simple>
+      <simple name = "u2" type = "real" optional="true">
+        <description>
+          Value u1 on the boundary condition
+        </description>
+      </simple>
+    </complex>
+
+    <!-- - - - - - dirichlet-point-condition - - - - -->
+    <complex name  = "dirichlet-point-condition"
+             type  = "DirichletPointCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Dirichlet point condition
+      </description>
+      <extended name = "node" type = "Arcane::NodeGroup">
+        <description>
+          NodeGroup on which to apply these point Dirichlet condition
+        </description>
+      </extended>
+      <simple name = "u1" type = "real"  optional="true">
+        <description>
+          Value of u1 for point Dirichlet condition
+        </description>
+      </simple>
+      <simple name = "u2" type = "real"  optional="true">
+        <description>
+          Value of u2 for point Dirichlet condition
+        </description>
+      </simple>
+    </complex>
+
+    <!-- - - - - - neumann-boundary-condition - - - - -->
+    <complex name  = "traction-boundary-condition"
+             type  = "TractionBoundaryCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Traction boundary condition
+      </description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>
+          FaceGroup on which to apply these boundary condition
+        </description>
+      </extended>
+      <simple name = "t1" type = "real"  optional="true">
+        <description>
+          Value of traction in X direction
+        </description>
+      </simple>
+      <simple name = "t2" type = "real"  optional="true">
+        <description>
+          Value of traction in Y direction
+        </description>
+      </simple>
+    </complex>
+    <!-- - - - - - linear-system - - - - -->
+    <service-instance name = "linear-system"
+                      type = "Arcane::FemUtils::IDoFLinearSystemFactory"
+                      default = "AlephLinearSystem"
+                      />
+  </options>
+</module>
