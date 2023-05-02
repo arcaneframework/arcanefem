@@ -164,6 +164,11 @@
           Value of traction in Y direction
         </description>
       </simple>
+      <simple name = "traction-input-file" type = "string"  optional="true">
+        <description>
+          File containing traction inputs (three columns: (T,t_x,t_y))
+        </description>
+      </simple>
     </complex>
     <!-- - - - - - linear-system - - - - -->
     <service-instance name = "linear-system"
