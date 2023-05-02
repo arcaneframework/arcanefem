@@ -109,14 +109,15 @@ class FemModule
   void _assembleBilinearOperatorQUAD4();
   void _solve();
   void _assembleLinearOperator();
+  void _applyDirichletBoundaryConditions();
+  void _checkResultFile();
   FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
   Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
   Real2 _computeDxDyOfRealTRIA3(Cell cell);
-  void _applyDirichletBoundaryConditions();
-  void _checkResultFile();
+  Real2 _computeEdgeNormal2(Face face);
 };
 
 /*---------------------------------------------------------------------------*/
@@ -836,6 +837,42 @@ $$
     }
 
   }
+
+
+  //----------------------------------------------
+  // Paraxial term assembly
+  //----------------------------------------------
+  //
+  //  $int_{dOmega_P}  c7 (.....)
+  //  only for noded that are non-Dirichlet
+  //----------------------------------------------
+
+  for (const auto& bs : options()->paraxialBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+
+    info() << "Applying constant paraxial boundary conditions for surface "<< group.name();
+
+    ENUMERATE_ (Face, iface, group) {
+      Face face = *iface;
+      Real  length = _computeEdgeLength2(face);
+      Real2 Normal = _computeEdgeNormal2(face);
+      for (Node node : iface->nodes()) {
+        if (!(m_u1_fixed[node]) && node.isOwn()) {
+          DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+          rhs_values[dof_id1] += ( cp*( Normal.x*Normal.x*m_U[node].x + Normal.x*Normal.y*m_U[node].y ) +
+                                   cs*( Normal.y*Normal.y*m_U[node].x - Normal.x*Normal.y*m_U[node].y )
+                                 ) * length / 2.;
+        }
+        if (!(m_u2_fixed[node]) && node.isOwn()) {
+          DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+          rhs_values[dof_id2] += ( cp*( Normal.x*Normal.y*m_U[node].x + Normal.y*Normal.y*m_U[node].y ) +
+                                   cs*(-Normal.x*Normal.y*m_U[node].x - Normal.x*Normal.x*m_U[node].y )
+                                 ) * length / 2.;
+        }
+      }
+    }
+  }
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -873,6 +910,23 @@ _computeEdgeLength2(Face face)
   Real3 m0 = m_node_coord[face.nodeId(0)];
   Real3 m1 = m_node_coord[face.nodeId(1)];
   return  math::sqrt((m1.x-m0.x)*(m1.x-m0.x) + (m1.y-m0.y)*(m1.y - m0.y));
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+Real2 FemModule::
+_computeEdgeNormal2(Face face)
+{
+  Real3 m0 = m_node_coord[face.nodeId(0)];
+  Real3 m1 = m_node_coord[face.nodeId(1)];
+  if (!face.isSubDomainBoundaryOutside())
+    std::swap(m0,m1);
+  Real2 N;
+  Real norm_N = math::sqrt( (m1.y - m0.y)*(m1.y - m0.y) + (m1.x - m0.x)*(m1.x - m0.x) );   // for normalizing
+  N.x = (m1.y - m0.y)/ norm_N;
+  N.y = (m0.x - m1.x)/ norm_N;
+  return  N;
 }
 
 /*---------------------------------------------------------------------------*/
