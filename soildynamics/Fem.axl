@@ -171,6 +171,23 @@
         </description>
       </simple>
     </complex>
+
+    <!-- - - - - - paraxial-boundary-condition - - - - -->
+    <complex name  = "paraxial-boundary-condition"
+             type  = "ParaxialBoundaryCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Paraxial boundary condition
+      </description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>
+          FaceGroup on which to apply these boundary condition
+        </description>
+      </extended>
+    </complex>
+
     <!-- - - - - - linear-system - - - - -->
     <service-instance name = "linear-system"
                       type = "Arcane::FemUtils::IDoFLinearSystemFactory"
