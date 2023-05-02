@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
-<case codename="Elastodynamics" xml:lang="en" codeversion="1.0">
+<case codename="Soildynamics" xml:lang="en" codeversion="1.0">
   <arcane>
     <title>Sample</title>
-    <timeloop>ElastodynamicsLoop</timeloop>
+    <timeloop>SoildynamicsLoop</timeloop>
   </arcane>
 
   <arcane-post-processing>
