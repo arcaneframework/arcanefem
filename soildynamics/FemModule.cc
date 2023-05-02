@@ -125,6 +125,7 @@ void FemModule::
 compute()
 {
   info() << "Module Fem COMPUTE";
+  info() << " \n\n***[WIP] this is module is not working yet please dont trust the results***[\n\n";
 
   // Stop code after computations
   if (t >= tmax)
@@ -136,11 +137,19 @@ compute()
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
+  info() << " \n\n***[WIP] this is module is not working yet please dont trust the results***[\n\n";
+
   _doStationarySolve();
+
+  info() << " \n\n***[WIP] this is module is not working yet please dont trust the results***[\n\n";
 
   _updateVariables();
 
+  info() << " \n\n***[WIP] this is module is not working yet please dont trust the results***[\n\n";
+
   _updateTime();
+
+  info() << " \n\n***[WIP] this is module is not working yet please dont trust the results***[\n\n";
 }
 
 /*---------------------------------------------------------------------------*/
