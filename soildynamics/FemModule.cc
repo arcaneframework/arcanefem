@@ -107,10 +107,12 @@ class FemModule
   void _updateTime();
   void _assembleBilinearOperatorTRIA3();
   void _assembleBilinearOperatorQUAD4();
+  void _assembleBilinearOperatorEDGE2();
   void _solve();
   void _assembleLinearOperator();
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
+  FixedMatrix<4, 4> _computeElementMatrixEDGE2(Face face);
   FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
@@ -197,6 +199,8 @@ _doStationarySolve()
   else
     _assembleBilinearOperatorTRIA3();
 
+  _assembleBilinearOperatorEDGE2();
+
   // Assemble the FEM linear operator (RHS - vector b)
   _assembleLinearOperator();
 
@@ -232,28 +236,26 @@ _getParameters()
   cp   = options()->cp();                  // Wave velocity primary
   cs   = options()->cs();                  // Wave velocity secondary
 
-  mu  = E/(2*(1+nu));                      // lame parameter mu
-  lambda = E*nu/((1+nu)*(1-2*nu));         // lame parameter lambda
+  if( options()->E.isPresent() && options()->nu.isPresent()) {
+    mu     = E/(2*(1+nu));                   // lame parameter mu
+    lambda = E*nu/((1+nu)*(1-2*nu));         // lame parameter lambda
+    cs     = math::sqrt(mu/rho);
+    cp     = math::sqrt((lambda+(2.*mu))/rho) ;
+  }
 
-  if( options()->mu.isPresent())
-    mu = options()->mu;
-
-  if( options()->lambda.isPresent())
+  if( options()->mu.isPresent() && options()->lambda.isPresent()) {
+    mu     = options()->mu;
     lambda = options()->lambda;
+    cs     = math::sqrt(mu/rho);
+    cp     = math::sqrt((lambda+(2.*mu))/rho) ;
+  }
 
   if( (options()->cp.isPresent()) && (options()->cs.isPresent()) ) {
     mu     =  cs*cs*rho;
     lambda =  cp*cp*rho - 2*mu;
-    }
-
-  // TODO : Find cp and cs via mu and lambda
-  // In fact users should have option to enter
-  // - E , nu
-  // - lambda, mu
-  // - cs cp
+  }
 
   mu2 =  mu*2;                             // lame parameter mu * 2
-
 
   //----- time discretization Newmark-Beta or Generalized-alpha  -----//
   if (options()->timeDiscretization == "Newmark-beta") {
@@ -778,6 +780,7 @@ $$
     Real t1_val = bs->t1();
     Real t2_val = bs->t2();
 
+/*
     // TODO: Replace wih a UDF or read via a file
     t2_val = (t - dt);
 
@@ -789,7 +792,7 @@ $$
       t2_val = 0.;
       //cout << "t2_value is " << t2_val << " t " << t  << " dt " << dt << endl;
     }
-
+*/
     if( bs->t1.isPresent() && bs->t2.isPresent()) {
       ENUMERATE_ (Face, iface, group) {
         Face face = *iface;
@@ -854,8 +857,10 @@ $$
 
     ENUMERATE_ (Face, iface, group) {
       Face face = *iface;
+
       Real  length = _computeEdgeLength2(face);
       Real2 Normal = _computeEdgeNormal2(face);
+
       for (Node node : iface->nodes()) {
         if (!(m_u1_fixed[node]) && node.isOwn()) {
           DoFLocalId dof_id1 = node_dof.dofId(node, 0);
@@ -1275,6 +1280,122 @@ _computeElementMatrixTRIA3(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 FixedMatrix<4, 4> FemModule::
+_computeElementMatrixEDGE2(Face face)
+{
+  // Get coordinates of the triangle element  EDGE2
+  //------------------------------------------------
+  //                   1         0
+  //                   o . . . . o
+  //
+  //------------------------------------------------
+  Real3 m0 = m_node_coord[face.nodeId(0)];
+  Real3 m1 = m_node_coord[face.nodeId(1)];
+
+  Real area = _computeEdgeLength2(face);    // calculate length
+  Real2 N   = _computeEdgeNormal2(face);
+
+  FixedMatrix<1, 4> b_matrix;
+  FixedMatrix<4, 1> bT_matrix;
+  FixedMatrix<4, 4> int_DOmega_i;
+
+  for (Int32 i = 0; i<4; i++)
+    for (Int32 j = 0; j<4; j++)
+      int_DOmega_i(i,j) = 0.;
+
+  // c7*u1v1 //
+  b_matrix(0, 0) = 1.;
+  b_matrix(0, 1) = 0.;
+  b_matrix(0, 2) = 1.;
+  b_matrix(0, 3) = 0.;
+
+  b_matrix.multInPlace(0.5f);
+
+  bT_matrix(0, 0) = area/3;
+  bT_matrix(1, 0) = 0.;
+  bT_matrix(2, 0) = area/3;
+  bT_matrix(3, 0) = 0.;
+
+  bT_matrix.multInPlace(1.);
+
+  FixedMatrix<4, 4> int_UV   = matrixMultiplication(bT_matrix, b_matrix);
+
+  for (Int32 i = 0; i<4; i++)
+    int_UV(i,i) *= 2.;
+
+  int_UV.multInPlace(c7*(N.x*N.x*cp + N.y*N.y*cs));
+  int_DOmega_i = matrixAddition( int_DOmega_i, int_UV);
+
+  // c7*u2v2 //
+  b_matrix(0, 0) = 0.;
+  b_matrix(0, 1) = 1.;
+  b_matrix(0, 2) = 0.;
+  b_matrix(0, 3) = 1.;
+
+  b_matrix.multInPlace(0.5f);
+
+
+  bT_matrix(0, 0) = 0.;
+  bT_matrix(1, 0) = area/3;
+  bT_matrix(2, 0) = 0.;
+  bT_matrix(3, 0) = area/3;
+
+  bT_matrix.multInPlace(1.);
+
+  int_UV   = matrixMultiplication(bT_matrix, b_matrix);
+
+  for (Int32 i = 0; i<4; i++)
+    int_UV(i,i) *= 2.;
+
+  int_UV.multInPlace(c7*(N.y*N.y*cp + N.x*N.x*cs));
+  int_DOmega_i = matrixAddition( int_DOmega_i, int_UV);
+
+  // c7*u1v2 //
+  b_matrix(0, 0) = 1.;
+  b_matrix(0, 1) = 0.;
+  b_matrix(0, 2) = 1.;
+  b_matrix(0, 3) = 0.;
+
+  b_matrix.multInPlace(0.5f);
+
+  bT_matrix(0, 0) = 0.;
+  bT_matrix(1, 0) = area/3;
+  bT_matrix(2, 0) = 0.;
+  bT_matrix(3, 0) = area/3;
+
+  bT_matrix.multInPlace(1.);
+
+  int_UV   = matrixMultiplication(bT_matrix, b_matrix);
+
+  int_UV.multInPlace(c7*(N.x*N.y*(cp - cs)) );
+  int_DOmega_i = matrixAddition( int_DOmega_i, int_UV);
+
+  // c7*u2v1 //
+  b_matrix(0, 0) = 0.;
+  b_matrix(0, 1) = 1.;
+  b_matrix(0, 2) = 0.;
+  b_matrix(0, 3) = 1.;
+
+  b_matrix.multInPlace(0.5f);
+
+  bT_matrix(0, 0) = area/3;
+  bT_matrix(1, 0) = 0.;
+  bT_matrix(2, 0) = area/3;
+  bT_matrix(3, 0) = 0.;
+
+  bT_matrix.multInPlace(1.);
+
+  int_UV   = matrixMultiplication(bT_matrix, b_matrix);
+
+  int_UV.multInPlace( c7*(N.x*N.y*(cp - cs)) );
+  int_DOmega_i = matrixAddition( int_DOmega_i, int_UV);
+
+  return int_DOmega_i;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+FixedMatrix<4, 4> FemModule::
 _computeElementMatrixQUAD4(Cell cell)
 {
   // Get coordinates of the quadrangular element  QUAD4
@@ -1415,6 +1536,50 @@ _assembleBilinearOperatorTRIA3()
         ++n2_index;
       }
       ++n1_index;
+    }
+  }
+}
+
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleBilinearOperatorEDGE2()
+{
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  for (const auto& bs : options()->paraxialBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+
+    ENUMERATE_ (Face, iface, group) {
+      Face face = *iface;
+
+      auto K_e = _computeElementMatrixEDGE2(face);  // element stiffness matrix
+
+      Int32 n1_index = 0;
+      for (Node node1 : face.nodes() ) {
+        Int32 n2_index = 0;
+        for (Node node2 : face.nodes()) {
+          Real v1 = K_e(2 * n1_index    , 2 * n2_index    );
+          Real v2 = K_e(2 * n1_index    , 2 * n2_index + 1);
+          Real v3 = K_e(2 * n1_index + 1, 2 * n2_index    );
+          Real v4 = K_e(2 * n1_index + 1, 2 * n2_index + 1);
+          if (node1.isOwn()) {
+            DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
+            DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
+            DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
+            DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
+
+            m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
+            m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
+            m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v3);
+            m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v4);
+          }
+          ++n2_index;
+        }
+        ++n1_index;
+      }
     }
   }
 }
