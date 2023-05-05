@@ -16,6 +16,7 @@
 #include <arcane/IItemFamily.h>
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
+#include <arcane/CaseTable.h>
 
 #include "IDoFLinearSystemFactory.h"
 #include "Fem_axl.h"
@@ -46,6 +47,11 @@ class FemModule
     ICaseMng* cm = mbi.subDomain()->caseMng();
     cm->setTreatWarningAsError(true);
     cm->setAllowUnkownRootElelement(false);
+  }
+  ~FemModule()
+  {
+    for( const CaseTableInfo&  t : m_traction_case_table_list )
+      delete t.case_table;
   }
 
  public:
@@ -99,6 +105,16 @@ class FemModule
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
 
+  // Struct to make sure we are using a CaseTable associated
+  // to the right file
+  struct CaseTableInfo
+  {
+    String file_name;
+    CaseTable* case_table = nullptr;
+  };
+  // List of CaseTable for traction boundary conditions
+  UniqueArray<CaseTableInfo> m_traction_case_table_list;
+
  private:
 
   void _doStationarySolve();
@@ -112,6 +128,7 @@ class FemModule
   void _assembleLinearOperator();
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
+  void _readCaseTables();
   FixedMatrix<4, 4> _computeElementMatrixEDGE2(Face face);
   FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
@@ -174,6 +191,8 @@ startInit()
   t    = dt;
   tmax = tmax - dt;
   m_global_deltat.assign(dt);
+
+  _readCaseTables();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -305,6 +324,24 @@ _getParameters()
     ARCANE_FATAL("Only Newmark-beta | Generalized-alpha are supported for time-discretization ");
 
     }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_readCaseTables()
+{
+  IParallelMng* pm = subDomain()->parallelMng();
+  for (const auto& bs : options()->tractionBoundaryCondition()) {
+    CaseTable* case_table = nullptr;
+    String file_name;
+    if(bs->tractionInputFile.isPresent()){
+      file_name = bs->tractionInputFile();
+      case_table = readFileAsCaseTable(pm, file_name, 3);
+    }
+    m_traction_case_table_list.add(CaseTableInfo{file_name,case_table});
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -774,73 +811,109 @@ $$
   //  $int_{dOmega_N}((ty.ny)*v1^h)$
   //  only for noded that are non-Dirichlet
   //----------------------------------------------
-  // tt/0.8*(tt <= 0.8)+ 0.*(tt > 0.8)
+
+  // Index of the boundary condition. Needed to associate a CaseTable
+  Int32 boundary_condition_index = 0;
+
   for (const auto& bs : options()->tractionBoundaryCondition()) {
+
     FaceGroup group = bs->surface();
-    Real t1_val = bs->t1();
-    Real t2_val = bs->t2();
 
-/*
-    // TODO: Replace wih a UDF or read via a file
-    t2_val = (t - dt);
+    const CaseTableInfo& case_table_info = m_traction_case_table_list[boundary_condition_index];
+    ++boundary_condition_index;
 
-    if(t2_val <=0.8){
-      //cout << "t2_value is " << t2_val << " t " << t  << " dt " << dt << endl;
-      t2_val = t2_val/0.8;
-    }
-    else{
-      t2_val = 0.;
-      //cout << "t2_value is " << t2_val << " t " << t  << " dt " << dt << endl;
-    }
-*/
-    if( bs->t1.isPresent() && bs->t2.isPresent()) {
+    Real3 trac; // traction in x, y and z
+
+
+    if (bs->tractionInputFile.isPresent()){
+
+      String file_name = bs->tractionInputFile();
+      info() << "Applying traction boundary conditions for surface "<< group.name()
+             << " via CaseTable" <<  file_name;
+      CaseTable* inn = case_table_info.case_table;
+      if (!inn)
+
+
+        ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _readCaseTables()");
+      if (file_name!=case_table_info.file_name)
+        ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'",case_table_info.file_name);
+      inn->value(t, trac);
+
+
       ENUMERATE_ (Face, iface, group) {
         Face face = *iface;
         Real length = _computeEdgeLength2(face);
         for (Node node : iface->nodes()) {
           if (!(m_u1_fixed[node]) && node.isOwn()) {
             DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-            rhs_values[dof_id1] += t1_val * length / 2.;
+
+            rhs_values[dof_id1] += trac.x * length / 2.;
           }
           if (!(m_u2_fixed[node]) && node.isOwn()) {
             DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-            rhs_values[dof_id2] += t2_val * length / 2.;
+            rhs_values[dof_id2] += trac.y * length / 2.;
+
           }
         }
       }
+
       continue;
     }
+    else {
 
-    if( bs->t1.isPresent()) {
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
+      info() << "Applying constant traction boundary conditions for surface "<< group.name();
+
+      trac.x = bs->t1();
+      trac.y = bs->t2();
+
+      if( bs->t1.isPresent() && bs->t2.isPresent()) {
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2(face);
+          for (Node node : iface->nodes()) {
+            if (!(m_u1_fixed[node]) && node.isOwn()) {
+              DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+              rhs_values[dof_id1] += trac.x * length / 2.;
+            }
+            if (!(m_u2_fixed[node]) && node.isOwn()) {
+              DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+              rhs_values[dof_id2] += trac.y * length / 2.;
+            }
+          }
+        }
+        continue;
+      }
+
+      if( bs->t1.isPresent()) {
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
         Real length = _computeEdgeLength2(face);
-        for (Node node : iface->nodes()) {
-          if (!(m_u1_fixed[node]) && node.isOwn()) {
-            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-            rhs_values[dof_id1] += t1_val * length / 2.;
+          for (Node node : iface->nodes()) {
+            if (!(m_u1_fixed[node]) && node.isOwn()) {
+              DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+              rhs_values[dof_id1] += trac.x * length / 2.;
+            }
           }
         }
+        continue;
       }
-      continue;
-    }
 
-    if( bs->t2.isPresent()) {
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real length = _computeEdgeLength2(face);
-        for (Node node : iface->nodes()) {
-          if (!(m_u2_fixed[node]) && node.isOwn()) {
-            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-            rhs_values[dof_id2] += t2_val * length / 2. ;
+      if( bs->t2.isPresent()) {
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2(face);
+          for (Node node : iface->nodes()) {
+            if (!(m_u2_fixed[node]) && node.isOwn()) {
+              DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+              rhs_values[dof_id2] += trac.y * length / 2. ;
+            }
           }
         }
+        continue;
       }
-      continue;
-    }
 
+    }
   }
-
 
   //----------------------------------------------
   // Paraxial term assembly
