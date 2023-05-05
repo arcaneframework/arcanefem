@@ -34,10 +34,10 @@ h = 0.8;
 //==============================================================================
 
 DefineConstant[ length = {30.0, Min .0001, Max 1000, Step 1,
-                         Name "Parameters/Airfoil MeshSize"} ];
+                         Name "Parameters/length length"} ];
 
 DefineConstant[ width  = {5.0, Min 10, Max 10000000, Step 1,
-                         Name "Parameters/Farfield MeshSize"} ];
+                         Name "Parameters/width width"} ];
 
 //length=30.0;
 //width=5.0;

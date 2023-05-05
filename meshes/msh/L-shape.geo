@@ -1,5 +1,5 @@
 //-----------------------------------------------------------------------------
-// Poission problem L-shape mesh
+// Poisson problem L-shape mesh
 // The  boundaries  of  the mesh are named ( boundary ).
 //-----------------------------------------------------------------------------
 
@@ -7,7 +7,7 @@ L   = 1.;   // length
 W   = 0.5;  // width
 
 rfactor = 11; // mesh refinment factor
-h1 = 1./(rfactor); 
+h1 = 1./(rfactor);
 
 //corner points
 Point(newp) = {0,   0,   0, h1};

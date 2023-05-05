@@ -11,6 +11,7 @@
 //              meshSize- this is the mesh size of the
 //
 // Usage      : gmsh circle.geo -setnumber radius 50.0 -2 -format msh41
+//            : gmsh circle.geo -setnumber MeshSize 5.0 -2 -format msh41
 //
 //
 //-----------------------------------------------------------------------------
@@ -20,10 +21,10 @@
 //==============================================================================
 
 DefineConstant[ radius = {50.0, Min .0001, Max 1000, Step 1,
-                         Name "Parameters/Airfoil MeshSize"} ];
+                         Name "Parameters/radius radius"} ];
 
-DefineConstant[ meshSize  = {4.0, Min 10, Max 10000000, Step 1,
-                         Name "Parameters/Farfield MeshSize"} ];
+DefineConstant[ meshSize  = {4.0, Min 10, Max 100, Step 1,
+                         Name "Parameters/MeshSize MeshSize"} ];
 
 //==============================================================================
 // ---- mesh size factor ----
@@ -50,18 +51,21 @@ Circle(2) = {2, 1, 3};
 //==============================================================================
 // ---- lines ----
 //==============================================================================
+
 Line(3) = {3, 1};
 Line(4) = {1, 4};
 
 //==============================================================================
 // ---- surface ----
 //==============================================================================
+
 Curve Loop(1) = {4, 1, 2, 3};
 Plane Surface(1) = {1};
 
 //==============================================================================
 // ---- groups ----
 //==============================================================================
+
 Physical Point("source", 5) = {1};
 Physical Curve("boderCircle", 6) = {1};
 Physical Curve("boderTop", 7) = {4, 3};

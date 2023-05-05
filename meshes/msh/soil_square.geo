@@ -1,27 +1,27 @@
 /*****************************************************************************
-                                                                              
-         This file is a part of PSD (Parallel Structural Dynamics)            
-                                                                              
-     -------------------------------------------------------------------      
-                                                                              
-     Author(s): Mohd Afeef Badri                                              
-     Email    : mohd-afeef.badri@cea.fr                                       
-     Date     : 2019‑05‑29                                                    
-                                                                              
-     -------------------------------------------------------------------      
-                                                                              
-     PSD a parallel  finite  element framework  provides tools to  solve      
-     multiple  solid-dynamic  problems; PSD is distributed  in  the hope      
-     that it will be useful, but WITHOUT ANY WARRANTY; or  without  even      
-     the implied warranty of  FITNESS  FOR  A  PARTICULAR  PURPOSE. 
-     
+
+         This file is a part of PSD (Parallel Structural Dynamics)
+
+     -------------------------------------------------------------------
+
+     Author(s): Mohd Afeef Badri
+     Email    : mohd-afeef.badri@cea.fr
+     Date     : 2019‑05‑29
+
+     -------------------------------------------------------------------
+
+     PSD a parallel  finite  element framework  provides tools to  solve
+     multiple  solid-dynamic  problems; PSD is distributed  in  the hope
+     that it will be useful, but WITHOUT ANY WARRANTY; or  without  even
+     the implied warranty of  FITNESS  FOR  A  PARTICULAR  PURPOSE.
+
      --------------------------------------------------------------------
-     
+
      This is a Gmsh .geo file which produces a 2D soildynamics mesh which
      includes four points for applying the point source.
-     
-     compile-run: gmsh -2 -format msh41 -setnumber meshSize 0.2 soil_square.geo         
-                                                                              
+
+     compile-run: gmsh -2 -format msh41 -setnumber meshSize 0.2 soil_square.geo
+
 *******************************************************************************/
 
 //==============================================================================
@@ -29,7 +29,7 @@
 //==============================================================================
 
 DefineConstant[ meshSize  = {0.2, Min .00001, Max 10000000, Step 1,
-                         Name "Parameters/Farfield MeshSize"} ];
+                         Name "Parameters/meshSize MeshSize"} ];
 
 h = meshSize;
 
@@ -48,8 +48,8 @@ BoxBottomLeftYCord = 0.0   ;       // Bottom left y coordinate
 //==============================================================================
 
 lcDC         = h/2.  ;    // Force arm length for double couple
-DCSouthXCord = 5.0   ;    // South coordinate X 
-DCSouthYCord = 5.0   ;    // South coordinate Y     
+DCSouthXCord = 5.0   ;    // South coordinate X
+DCSouthYCord = 5.0   ;    // South coordinate Y
 
 //==============================================================================
 // ---- Build box points ----
@@ -64,7 +64,7 @@ Point(4) = {BoxBottomLeftXCord , BoxBottomLeftYCord + HeightSoil , 0.0 , lcBox};
 // ---- Double-couple points ----
 //==============================================================================
 
-Point(5) = {DCSouthXCord , DCSouthYCord , 0.0 , lcDC};                  // South 
+Point(5) = {DCSouthXCord , DCSouthYCord , 0.0 , lcDC};                  // South
 Point(6) = {DCSouthXCord , DCSouthYCord + lcDC, 0.0 , lcDC};            // North
 Point(7) = {DCSouthXCord - lcDC/2 , DCSouthYCord + lcDC/2, 0.0 , lcDC}; // West
 Point(8) = {DCSouthXCord + lcDC/2 , DCSouthYCord + lcDC/2, 0.0 , lcDC}; // East

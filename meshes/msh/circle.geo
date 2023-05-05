@@ -1,6 +1,6 @@
 //-----------------------------------------------------------------------------
 //
-// Name       : semi-circle.geo
+// Name       : circle.geo
 // Author     : Mohd Afeef BADRI
 // Date       : 19 / April / 2023
 //
@@ -20,10 +20,10 @@
 //==============================================================================
 
 DefineConstant[ radius = {0.5, Min .0001, Max 1000, Step 1,
-                         Name "Parameters/Airfoil MeshSize"} ];
+                         Name "Parameters/radius radius"} ];
 
-DefineConstant[ meshSize  = {0.4, Min 10, Max 10000000, Step 1,
-                         Name "Parameters/Farfield MeshSize"} ];
+DefineConstant[ meshSize  = {0.4, Min 10, Max 100, Step 1,
+                         Name "Parameters/meshSize meshSize"} ];
 
 //==============================================================================
 // ---- mesh size factor ----
