@@ -1,14 +1,14 @@
 <?xml version="1.0"?>
-<case codename="FemTest" xml:lang="en" codeversion="1.0">
+<case codename="Poisson" xml:lang="en" codeversion="1.0">
   <arcane>
     <title>Sample</title>
-    <timeloop>FemTestLoop</timeloop>
+    <timeloop>PoissonLoop</timeloop>
   </arcane>
 
   <arcane-post-processing>
    <output-period>1</output-period>
    <output>
-     <variable>NodeTemperature</variable>
+     <variable>U</variable>
    </output>
   </arcane-post-processing>
 

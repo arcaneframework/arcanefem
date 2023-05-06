@@ -20,12 +20,6 @@
     </variable>
   </variables>
   <options>
-    <simple name="qdot" type="real" default="0.0">
-      <description>Heat source within the material.</description>
-    </simple>
-    <simple name="lambda" type="real" default="1.75">
-      <description>Thermal conductivity of the material.</description>
-    </simple>
     <simple name="result-file" type="string" optional="true">
       <description>File name of a file containing the valuess of the solution vector to check the results</description>
     </simple>
@@ -113,27 +107,6 @@
       <simple name = "value" type = "real">
         <description>
           Value of the point Dirichelt condition
-        </description>
-      </simple>
-    </complex>
-
-    <!-- - - - - - material-property - - - - -->
-    <complex name  = "material-property"
-             type  = "MaterialProperty"
-             minOccurs = "0"
-             maxOccurs = "unbounded"
-      >
-      <description>
-        Material properties
-      </description>
-      <extended name = "volume" type = "Arcane::CellGroup">
-        <description>
-          CellGroup on which material properties are applied
-        </description>
-      </extended>
-      <simple name = "lambda" type = "real">
-        <description>
-          Value of the conductivity for CellGroup
         </description>
       </simple>
     </complex>

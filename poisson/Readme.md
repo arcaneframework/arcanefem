@@ -1,6 +1,6 @@
-# Solving Poission equation with FEM and Arcane #
+# Solving Poisson equation with FEM and Arcane #
 
-Here Poission equation, which is one of the basics PDEs, is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver. The Poisson equation arises in numerous physical contexts, e.g., heat conduction, diffusion of substances, membrane elasticity,  inviscid fluid flow, electrostatics, twisting of elastic rods, and water waves. Here in this tutorial we will focus on the heat conduction.
+Here Poisson equation, which is one of the basics PDEs, is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver. The Poisson equation arises in numerous physical contexts, e.g., heat conduction, diffusion of substances, membrane elasticity,  inviscid fluid flow, electrostatics, twisting of elastic rods, and water waves. Here in this tutorial we will focus on the heat conduction.
 
 ## Theory of heat conduction ##
 
@@ -36,7 +36,7 @@ $$\mathbf{q}\cdot\mathbf{n}|_{\partial \Omega^h_{\text{Droite}}} = 15.0$$
 
 $$\mathbf{q}\cdot\mathbf{n}|_{\partial \Omega^h_{\text{Gauche}}} = 0$$
 
-Finally a uniform heat-source is present within the domain 
+Finally a uniform heat-source is present within the domain
 
 $\dot{\mathcal{Q}}=1\times10^5$
 
@@ -81,9 +81,9 @@ The value of thermal conductivity $\lambda$  and heat source $\dot{\mathcal{Q}}$
   </Fem1>
 ```
 
-#### Mesh #### 
+#### Mesh ####
 
-The mesh `plancher.msh` is provided in the `Test.conduction.arc` file 
+The mesh `plancher.msh` is provided in the `Test.conduction.arc` file
 
 ```xml
   <meshes>
@@ -93,7 +93,7 @@ The mesh `plancher.msh` is provided in the `Test.conduction.arc` file
   </meshes>
 ```
 
-Please not that use version 4.1 `.msh` file from `Gmsh`. 
+Please not that use version 4.1 `.msh` file from `Gmsh`.
 
 #### Boundary conditions ####
 
