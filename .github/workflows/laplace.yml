@@ -15,7 +15,7 @@ env:
 
   SOURCE_DIR: '/__w/arcanefem/arcanefem/src'
   BUILD_DIR: '/__w/arcanefem/arcanefem/build'
-  MODULE_DIR: 'poisson'
+  MODULE_DIR: 'laplace'
 
   # CTest
   CT_RESULT_DIR: '/__w/arcanefem/arcanefem/test'
