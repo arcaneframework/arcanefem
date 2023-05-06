@@ -1,14 +1,14 @@
 <?xml version="1.0"?>
-<case codename="FemTest" xml:lang="en" codeversion="1.0">
+<case codename="Laplace" xml:lang="en" codeversion="1.0">
   <arcane>
     <title>Sample</title>
-    <timeloop>FemTestLoop</timeloop>
+    <timeloop>LaplaceLoop</timeloop>
   </arcane>
 
   <arcane-post-processing>
    <output-period>1</output-period>
    <output>
-     <variable>NodeTemperature</variable>
+     <variable>U</variable>
    </output>
   </arcane-post-processing>
 
@@ -19,7 +19,6 @@
   </meshes>
 
   <fem>
-    <lambda>1.0</lambda>
     <dirichlet-boundary-condition>
       <surface>inner</surface>
       <value>50.0</value>
