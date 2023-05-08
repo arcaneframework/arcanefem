@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
-<case codename="Poisson" xml:lang="en" codeversion="1.0">
+<case codename="Fourier" xml:lang="en" codeversion="1.0">
   <arcane>
     <title>Sample</title>
-    <timeloop>PoissonLoop</timeloop>
+    <timeloop>FourierLoop</timeloop>
   </arcane>
 
   <arcane-post-processing>
@@ -14,16 +14,13 @@
 
   <meshes>
     <mesh>
-      <filename>plancher.msh</filename>
+      <filename>plancher.10k.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
     <lambda>1.75</lambda>
     <qdot>1e5</qdot>
-    <result-file>test1_results.txt</result-file>
-    <enforce-Dirichlet-method>WeakPenalty</enforce-Dirichlet-method>
-    <penalty>1.e12</penalty>
     <dirichlet-boundary-condition>
       <surface>Cercle</surface>
       <value>50.0</value>

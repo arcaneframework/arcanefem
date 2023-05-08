@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
-<case codename="Poisson" xml:lang="en" codeversion="1.0">
+<case codename="Fourier" xml:lang="en" codeversion="1.0">
   <arcane>
     <title>Sample</title>
-    <timeloop>PoissonLoop</timeloop>
+    <timeloop>FourierLoop</timeloop>
   </arcane>
 
   <arcane-post-processing>
