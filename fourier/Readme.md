@@ -1,6 +1,6 @@
-# Solving Poisson equation with FEM and Arcane #
+# Solving Fourier equation with FEM and Arcane #
 
-Here Poisson equation, which is one of the basics PDEs, is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver. The Poisson equation arises in numerous physical contexts, e.g., heat conduction, diffusion of substances, membrane elasticity,  inviscid fluid flow, electrostatics, twisting of elastic rods, and water waves. Here in this tutorial we will focus on the heat conduction.
+Here Fourier equation, that governs steady state heat conduction is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver.
 
 ## Theory of heat conduction ##
 
@@ -42,6 +42,8 @@ $\dot{\mathcal{Q}}=1\times10^5$
 
 
 
+### Finite element description of Fourier equation ###
+
 
 
 We work with approximation, $\lambda$ is homogeneous $\lambda : \Omega^h \in \mathbb{R}^{+}$, in this case  the variational formulation in $H^1_{0}(\Omega) \subset H^1{\Omega}$  reads
@@ -66,7 +68,7 @@ $\int_{\Omega^h}\dot{\mathcal{Q}} v^h=1\times10^5$, and
 
 $\lambda=1.75$
 
-
+Please note that the above equation is often called as the weak formulation of the Fourier equation and in fact the finite element variable $u^h$ is an appoximation of temperature $T$. 
 
 ## The code ##
 
