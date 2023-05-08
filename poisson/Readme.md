@@ -1,94 +1,65 @@
 # Solving Poisson equation with FEM and Arcane #
 
-Here Poisson equation, which is one of the basics PDEs, is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver. The Poisson equation arises in numerous physical contexts, e.g., heat conduction, diffusion of substances, membrane elasticity,  inviscid fluid flow, electrostatics, twisting of elastic rods, and water waves. Here in this tutorial we will focus on the heat conduction.
+Here Poisson equation, which is one of the basics elliptic PDEs, is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver. The Poisson equation arises in numerous physical contexts, e.g., heat conduction, diffusion of substances, membrane elasticity,  inviscid fluid flow, electrostatics, twisting of elastic rods, and water waves.
 
-## Theory of heat conduction ##
+## Theory ##
 
 #### Problem description ####
 
-The steady state 2D heat conduction equation is solved for a closed meshed domain $\Omega^h$ in order to know the temperature $T(x,y)$ within the domain. The equation reads
+The 2D Poisson's equation is solved for a closed meshed domain $\Omega^h$ in order to know the solution $u(x,y)$ within the domain. The equation reads
 
-$$\frac{\partial}{\partial x}\left(\lambda \frac{\partial T}{\partial x} \right) + \frac{\partial}{\partial y}\left(\lambda \frac{\partial T}{\partial y} \right)+ \dot{\mathcal{Q}} = 0  \quad \forall (x,y)\in\Omega^h $$
+$$\frac{\partial}{\partial x}\left( \frac{\partial u}{\partial x} \right) + \frac{\partial}{\partial y}\left( \frac{\partial u}{\partial y} \right) = {\mathcal{f}}   \quad \forall (x,y)\in\Omega^h $$
 
 or in a more compact form
 
-$$\nabla(\lambda\nabla T) + \dot{\mathcal{Q}} = 0 \quad \forall (x,y)\in\Omega^h.$$
-
-Here, $\lambda$ is the thermal conductivity of the material and $\dot{\mathcal{Q}}$ is the heat generation source.
+$$\nabla^2 u = {\mathcal{f}} \quad \forall (x,y)\in\Omega^h.$$
 
 
 
-To complete the problem description,  three first type (Dirichlet) boundary conditions are applied to this problem:
+To complete the problem description,   first type (Dirichlet) boundary conditions is applied to this problem:
 
-$T = 50.0 \degree C \quad \forall(x,y)\in\partial\Omega^h_{\text{Cercle}}\subset\partial \Omega^h,$
+$u = 0.0 \quad \forall(x,y)\in\partial\Omega^h_{\text{boundary}}\subset\partial \Omega^h,$
 
-$T = 5.0\degree C \quad \forall(x,y)\in\partial\Omega^h_{\text{Bas}}\subset\partial \Omega^h,$ and
+Finally the right hand side source is present within the domain
 
-$T  = 21.0\degree C  \quad \forall(x,y)\in\partial\Omega^h_{\text{Haut}}\subset\partial \Omega^h,$
-
-in addition, other boundaries $\partial\Omega^h_N$ are exposed to  second type (Neumann) boundary condition:
-
-- first Neumann condition $\partial\Omega^h_{\text{Droite}}$ the derivative of temperature (heat flux) is non-null - influx boundary
-
-$$\mathbf{q}\cdot\mathbf{n}|_{\partial \Omega^h_{\text{Droite}}} = 15.0$$
-
-- second Neumann condition $\partial\Omega^h_{\text{Gauche}}$ the derivative of temperature (heat flux) is null - insulation boundary
-
-$$\mathbf{q}\cdot\mathbf{n}|_{\partial \Omega^h_{\text{Gauche}}} = 0$$
-
-Finally a uniform heat-source is present within the domain
-
-$\dot{\mathcal{Q}}=1\times10^5$
+${\mathcal{f}}=-1$
 
 
 
-
-
-We work with approximation, $\lambda$ is homogeneous $\lambda : \Omega^h \in \mathbb{R}^{+}$, in this case  the variational formulation in $H^1_{0}(\Omega) \subset H^1{\Omega}$  reads
+In this case  the FEM variational formulation in $H^1_{0}(\Omega) \subset H^1{\Omega}$  reads
 
 search FEM trial function $u^h(x,y)$ satisfying
 
-$$- \int_{\Omega^h}\lambda\nabla u^h \nabla  v^h + \int_{\partial\Omega_N} (\overline{q} \cdot \mathbf{n}) v^h + \int_{\Omega^h}\dot{\mathcal{Q}} v^h = 0 \quad \forall v^h\in H^1_0(\Omega^h)$$
+$$- \int_{\Omega^h}\nabla u^h \nabla  v^h + \int_{\partial\Omega_N} (\overline{q} \cdot \mathbf{n}) v^h + \int_{\Omega^h}{\mathcal{f}} v^h = 0 \quad \forall v^h\in H^1_0(\Omega^h)$$
 
 given
 
-$u^h=50.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Cercle}}$,
+$u^h=0.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{boundary}}$,
 
-$u^h=5.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Bas}}$ ,
+$\int_{\Omega^h_{\text{N}}}(\mathbf{q} \cdot \mathbf{n}) v^h=0$ since no Neumann BC is present,
 
-$u^h=20.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Haut}}$,
-
-$\int_{\Omega^h_{\text{Droite}}}(\mathbf{q} \cdot \mathbf{n}) v^h=15$,
-
-$\int_{\Omega^h_{\text{Gauche}}}(\mathbf{q} \cdot \mathbf{n}) v^h=0$,
-
-$\int_{\Omega^h}\dot{\mathcal{Q}} v^h=1\times10^5$, and
-
-$\lambda=1.75$
-
-
+$\int_{\Omega^h}{\mathcal{f}} v^h=1\times10^5$, and
 
 ## The code ##
 
-#### Thermal Conductivity ###
+#### properties ###
 
-The value of thermal conductivity $\lambda$  and heat source $\dot{\mathcal{Q}}$ can be provided in  `Test.conduction.arc` file
+The value of constant source term $\mathcal{f}$  can be provided in  `Test.poisson.arc` file
 
 ```xml
-  <Fem1>
-    <lambda>1.75</lambda>
-    <qdot>1e5</qdot>
-  </Fem1>
+  <fem>
+    <f>-1</f>
+  </fem>
 ```
 
 #### Mesh ####
 
-The mesh `plancher.msh` is provided in the `Test.conduction.arc` file
+The mesh `L-shape.msh` is provided in the `Test.poisson.arc` file
 
 ```xml
   <meshes>
     <mesh>
-      <filename>plancher.msh</filename>
+      <filename>L-shape.msh</filename>
     </mesh>
   </meshes>
 ```
@@ -97,34 +68,22 @@ Please not that use version 4.1 `.msh` file from `Gmsh`.
 
 #### Boundary conditions ####
 
-The Dirichlet (constant temperature) boundary conditions  are provided in `Test.conduction.arc` file
+The Dirichlet boundary conditions  are provided in `Test.poisson.arc` file
 
 ```xml
     <dirichlet-boundary-condition>
-      <surface>Cercle</surface>
-      <value>50.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Bas</surface>
-      <value>5.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Haut</surface>
-      <value>21.0</value>
+      <surface>boundary</surface>
+      <value>0.0</value>
     </dirichlet-boundary-condition>
 ```
 
-So in the snippet above, three Dirichlet conditions are applied ($50 \degree C, 5.0 \degree C, 21.0 \degree C$)  on three borders ('cercle', 'Bas', 'Haut').
+So in the snippet above, three Dirichlet condition $u=0$ is  applied to border ('boundary') which is a group of edges in the mesh file `L-shape.msh`.
 
-The Neumann  boundary conditions  are also provided in `Test.conduction.arc` file
+If needed, the Neumann  boundary conditions  can also be provided in `Test.poission.arc` file
 
 ```xml
     <neumann-boundary-condition>
-      <surface>Droite</surface>
-      <value>15.0</value>
-    </neumann-boundary-condition>
-    <neumann-boundary-condition>
-      <surface>Gauche</surface>
+      <surface>Neumann</surface>
       <value>0.0</value>
     </neumann-boundary-condition>
 ```

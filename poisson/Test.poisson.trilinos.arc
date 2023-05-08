@@ -19,8 +19,7 @@
   </meshes>
 
   <fem>
-    <lambda>1.0</lambda>
-    <qdot>-1.0</qdot>
+    <f>-1.0</f>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
       <value>0.0</value>

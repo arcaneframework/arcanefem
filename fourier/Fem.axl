@@ -6,6 +6,9 @@
     <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
   </entry-points>
   <variables>
+    <variable field-name="cell_lambda" name="CellLambda" data-type="real" item-kind="cell" dim="0">
+      <description>Conductivity of the element</description>
+    </variable>
     <variable field-name="u" name="U" data-type="real" item-kind="node" dim="0">
       <description>FEM variable u on nodes</description>
     </variable>
@@ -17,8 +20,11 @@
     </variable>
   </variables>
   <options>
-    <simple name="f" type="real" default="0.0">
-      <description>Voulume source within the material.</description>
+    <simple name="qdot" type="real" default="0.0">
+      <description>Heat source within the material.</description>
+    </simple>
+    <simple name="lambda" type="real" default="1.75">
+      <description>Thermal conductivity of the material.</description>
     </simple>
     <simple name="result-file" type="string" optional="true">
       <description>File name of a file containing the values of the solution vector to check the results</description>

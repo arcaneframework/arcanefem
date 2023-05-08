@@ -67,7 +67,8 @@ class FemModule
 
  private:
 
-  Real f;
+  Real lambda;
+  Real qdot;
   Real ElementNodes;
 
   DoFLinearSystem m_linear_system;
@@ -184,11 +185,28 @@ void FemModule::
 _getMaterialParameters()
 {
   info() << "Get material parameters...";
-  f   = options()->f();
+  lambda = options()->lambda();
+  qdot   = options()->qdot();
   ElementNodes = 3.;
 
   if (options()->meshType == "QUAD4")
     ElementNodes = 4.;
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    m_cell_lambda[cell] = lambda;
+    }
+
+  for (const auto& bs : options()->materialProperty()) {
+    CellGroup group = bs->volume();
+    Real value = bs->lambda();
+    info() << "Lambda for group=" << group.name() << " v=" << value;
+
+    ENUMERATE_ (Cell, icell, group) {
+      Cell cell = *icell;
+      m_cell_lambda[cell] = value;
+      }
+    }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -379,7 +397,7 @@ _assembleLinearOperator()
   // Constant source term assembly
   //----------------------------------------------
   //
-  //  $int_{Omega}(f*v^h)$
+  //  $int_{Omega}(qdot*v^h)$
   //  only for noded that are non-Dirichlet
   //----------------------------------------------
   ENUMERATE_ (Cell, icell, allCells()) {
@@ -387,7 +405,7 @@ _assembleLinearOperator()
     Real area = _computeAreaTriangle3(cell);
     for (Node node : cell.nodes()) {
       if (!(m_u_dirichlet[node]) && node.isOwn())
-        rhs_values[node_dof.dofId(node, 0)] += f * area / ElementNodes;
+        rhs_values[node_dof.dofId(node, 0)] += qdot * area / ElementNodes;
     }
   }
 
@@ -553,7 +571,7 @@ _computeElementMatrixTRIA3(Cell cell)
   b_matrix.multInPlace(1.0 / (2.0 * area));
 
   FixedMatrix<3, 3> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
-  int_cdPi_dPj.multInPlace(area);
+  int_cdPi_dPj.multInPlace(area * lambda);
 
   //info() << "Cell=" << cell.localId();
   //std::cout << " int_cdPi_dPj=";
@@ -603,7 +621,7 @@ _computeElementMatrixQUAD4(Cell cell)
   b_matrix.multInPlace(1.0 / (2.0 * area));
 
   FixedMatrix<4, 4> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
-  int_cdPi_dPj.multInPlace(area);
+  int_cdPi_dPj.multInPlace(area * lambda);
 
   //info() << "Cell=" << cell.localId();
   //std::cout << " int_cdPi_dPj=";
@@ -626,6 +644,7 @@ _assembleBilinearOperatorQUAD4()
     if (cell.type() != IT_Quad4)
       ARCANE_FATAL("Only Quad4 cell type is supported");
 
+    lambda = m_cell_lambda[cell];                 // lambda is always considered cell constant
     auto K_e = _computeElementMatrixQUAD4(cell);  // element stifness matrix
     //             # assemble elementary matrix into the global one
     //             # elementary terms are positionned into K according
@@ -665,6 +684,7 @@ _assembleBilinearOperatorTRIA3()
     if (cell.type() != IT_Triangle3)
       ARCANE_FATAL("Only Triangle3 cell type is supported");
 
+    lambda = m_cell_lambda[cell];                 // lambda is always considered cell constant
     auto K_e = _computeElementMatrixTRIA3(cell);  // element stifness matrix
     //             # assemble elementary matrix into the global one
     //             # elementary terms are positionned into K according

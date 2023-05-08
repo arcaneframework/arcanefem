@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
-<case codename="Poisson" xml:lang="en" codeversion="1.0">
+<case codename="Fourier" xml:lang="en" codeversion="1.0">
   <arcane>
     <title>Sample</title>
-    <timeloop>PoissonLoop</timeloop>
+    <timeloop>FourierLoop</timeloop>
   </arcane>
 
   <arcane-post-processing>
@@ -14,14 +14,13 @@
 
   <meshes>
     <mesh>
-      <filename>multi-material.msh</filename>
+      <filename>multi-material.10k.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
     <lambda>0.0</lambda>
     <qdot>15.</qdot>
-    <result-file>test2_results.txt</result-file>
     <dirichlet-boundary-condition>
       <surface>Left</surface>
       <value>50.0</value>
