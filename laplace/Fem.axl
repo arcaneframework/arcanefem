@@ -1,14 +1,11 @@
 <?xml version="1.0" ?>
 <module name="Fem" version="1.0">
-  <description>Descripteur du module Fem</description>
+  <description>FEM module description</description>
   <entry-points>
     <entry-point method-name="compute" name="Compute" where="compute-loop" property="none" />
     <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
   </entry-points>
   <variables>
-    <variable field-name="cell_lambda" name="CellLambda" data-type="real" item-kind="cell" dim="0">
-      <description>Conductivity of the element</description>
-    </variable>
     <variable field-name="u" name="U" data-type="real" item-kind="node" dim="0">
       <description>FEM variable u on nodes</description>
     </variable>
@@ -16,7 +13,7 @@
       <description>Boolean which is true if Dirichlet node</description>
     </variable>
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
-      <description>NodeCoord from Arcane variable</description>
+      <description>Node coordinates from Arcane variable</description>
     </variable>
   </variables>
   <options>
@@ -44,7 +41,7 @@
              maxOccurs = "unbounded"
       >
       <description>
-        Dirichelt boundary condition
+        Dirichlet boundary condition
       </description>
       <extended name = "surface" type = "Arcane::FaceGroup">
         <description>
@@ -97,16 +94,16 @@
              maxOccurs = "unbounded"
       >
       <description>
-        Dirichelt point condition
+        Dirichlet point condition
       </description>
       <extended name = "node" type = "Arcane::NodeGroup">
         <description>
-          NodeGroup on which to apply these point Dirichelt condition
+          NodeGroup on which to apply these point Dirichlet condition
         </description>
       </extended>
       <simple name = "value" type = "real">
         <description>
-          Value of the point Dirichelt condition
+          Value of the point Dirichlet condition
         </description>
       </simple>
     </complex>
