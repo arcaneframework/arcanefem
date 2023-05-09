@@ -389,7 +389,7 @@ _assembleLinearOperator()
     Real area = _computeAreaTriangle3(cell);
     for (Node node : cell.nodes()) {
       if (!(m_u_dirichlet[node]) && node.isOwn())
-        rhs_values[node_dof.dofId(node, 0)] += (rho/epsilon) * area / ElementNodes;
+        rhs_values[node_dof.dofId(node, 0)] += (- rho/epsilon) * area / ElementNodes;
     }
   }
 
