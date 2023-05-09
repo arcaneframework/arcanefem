@@ -8,7 +8,8 @@
   <arcane-post-processing>
    <output-period>1</output-period>
    <output>
-     <variable>U</variable>
+     <variable>Phi</variable>
+     <variable>E</variable>
    </output>
   </arcane-post-processing>
 

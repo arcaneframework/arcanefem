@@ -6,11 +6,14 @@
     <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
   </entry-points>
   <variables>
-    <variable field-name="u" name="U" data-type="real" item-kind="node" dim="0">
-      <description>FEM variable u on nodes</description>
+    <variable field-name="phi" name="Phi" data-type="real" item-kind="node" dim="0">
+      <description>FEM variable phi on nodes for electrostatic potential</description>
     </variable>
-    <variable field-name="u_dirichlet" name="UDirichlet" data-type="bool" item-kind="node" dim="0">
+    <variable field-name="phi_dirichlet" name="PhiDirichlet" data-type="bool" item-kind="node" dim="0">
       <description>Boolean which is true if Dirichlet node</description>
+    </variable>
+    <variable field-name="E" name="E" data-type="real3" item-kind="cell" dim="0">
+      <description>electric field vector on cells</description>
     </variable>
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
       <description>Node Coordinates from Arcane variable</description>

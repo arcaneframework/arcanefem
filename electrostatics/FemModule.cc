@@ -83,6 +83,7 @@ class FemModule
   void _assembleBilinearOperatorTRIA3();
   void _assembleBilinearOperatorQUAD4();
   void _solve();
+  void _getE();
   void _initBoundaryconditions();
   void _assembleLinearOperator();
   void _applyDirichletBoundaryConditions();
@@ -93,6 +94,7 @@ class FemModule
   Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
   Real2 _computeEdgeNormal2(Face face);
+  Real2 _computeDxDyOfRealTRIA3(Cell cell);
 
 };
 
@@ -122,6 +124,7 @@ compute()
   }
   info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
   _doStationarySolve();
+  _getE();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -135,18 +138,6 @@ startInit()
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
-  //_buildDoFOnNodes();
-  //Int32 nb_node = allNodes().size();
-  //m_k_matrix.resize(nb_node, nb_node);
-  //m_k_matrix.fill(0.0);
-
-  //m_rhs_vector.resize(nb_node);
-  //m_rhs_vector.fill(0.0);
-
-  // # init mesh
-  // # init behavior
-  // # init behavior on mesh entities
-  // # init BCs
   _initBoundaryconditions();
 }
 
@@ -224,8 +215,8 @@ _applyDirichletBoundaryConditions()
     info() << "Apply Dirichlet boundary condition surface=" << group.name() << " v=" << value;
     ENUMERATE_ (Face, iface, group) {
       for (Node node : iface->nodes()) {
-        m_u[node] = value;
-        m_u_dirichlet[node] = true;
+        m_phi[node] = value;
+        m_phi_dirichlet[node] = true;
       }
     }
   }
@@ -236,8 +227,8 @@ _applyDirichletBoundaryConditions()
     info() << "Apply Dirichlet point condition node=" << group.name() << " v=" << value;
     ENUMERATE_ (Node, inode, group) {
       Node node = *inode;
-      m_u[node] = value;
-      m_u_dirichlet[node] = true;
+      m_phi[node] = value;
+      m_phi_dirichlet[node] = true;
       }
     }
 }
@@ -256,7 +247,6 @@ _updateBoundayConditions()
 //  - This function enforces a Dirichlet boundary condition in a weak sense
 //    via the penalty method
 //  - The method also adds source term
-//  - TODO: external fluxes
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -293,10 +283,10 @@ _assembleLinearOperator()
 
     ENUMERATE_ (Node, inode, ownNodes()) {
       NodeLocalId node_id = *inode;
-      if (m_u_dirichlet[node_id]) {
+      if (m_phi_dirichlet[node_id]) {
         DoFLocalId dof_id = node_dof.dofId(*inode, 0);
         m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
-        Real u_g = Penalty * m_u[node_id];
+        Real u_g = Penalty * m_phi[node_id];
         rhs_values[dof_id] = u_g;
       }
     }
@@ -322,10 +312,10 @@ _assembleLinearOperator()
 
     ENUMERATE_ (Node, inode, ownNodes()) {
       NodeLocalId node_id = *inode;
-      if (m_u_dirichlet[node_id]) {
+      if (m_phi_dirichlet[node_id]) {
         DoFLocalId dof_id = node_dof.dofId(*inode, 0);
         m_linear_system.matrixAddValue(dof_id, dof_id, Penalty);
-        Real u_g = Penalty * m_u[node_id];
+        Real u_g = Penalty * m_phi[node_id];
         rhs_values[dof_id] = u_g;
       }
     }
@@ -345,7 +335,6 @@ _assembleLinearOperator()
     info() << "Applying Dirichlet boundary condition via "
            << options()->enforceDirichletMethod() << " method ";
 
-    // TODO
   }else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
 
     //----------------------------------------------
@@ -364,7 +353,6 @@ _assembleLinearOperator()
     info() << "Applying Dirichlet boundary condition via "
            << options()->enforceDirichletMethod() << " method ";
 
-    // TODO
   }else {
 
     info() << "Applying Dirichlet boundary condition via "
@@ -388,7 +376,7 @@ _assembleLinearOperator()
     Cell cell = *icell;
     Real area = _computeAreaTriangle3(cell);
     for (Node node : cell.nodes()) {
-      if (!(m_u_dirichlet[node]) && node.isOwn())
+      if (!(m_phi_dirichlet[node]) && node.isOwn())
         rhs_values[node_dof.dofId(node, 0)] += (- rho/epsilon) * area / ElementNodes;
     }
   }
@@ -411,7 +399,7 @@ _assembleLinearOperator()
         Face face = *iface;
         Real length = _computeEdgeLength2(face);
         for (Node node : iface->nodes()) {
-          if (!(m_u_dirichlet[node]) && node.isOwn())
+          if (!(m_phi_dirichlet[node]) && node.isOwn())
             rhs_values[node_dof.dofId(node, 0)] += value * length / 2.;
         }
       }
@@ -427,7 +415,7 @@ _assembleLinearOperator()
         Real  length = _computeEdgeLength2(face);
         Real2 Normal = _computeEdgeNormal2(face);
         for (Node node : iface->nodes()) {
-          if (!(m_u_dirichlet[node]) && node.isOwn())
+          if (!(m_phi_dirichlet[node]) && node.isOwn())
             rhs_values[node_dof.dofId(node, 0)] += (Normal.x*valueX + Normal.y*valueY) * length / 2.;
         }
       }
@@ -441,7 +429,7 @@ _assembleLinearOperator()
         Real  length = _computeEdgeLength2(face);
         Real2 Normal = _computeEdgeNormal2(face);
         for (Node node : iface->nodes()) {
-          if (!(m_u_dirichlet[node]) && node.isOwn())
+          if (!(m_phi_dirichlet[node]) && node.isOwn())
             rhs_values[node_dof.dofId(node, 0)] += (Normal.x*valueX) * length / 2.;
         }
       }
@@ -455,7 +443,7 @@ _assembleLinearOperator()
         Real  length = _computeEdgeLength2(face);
         Real2 Normal = _computeEdgeNormal2(face);
         for (Node node : iface->nodes()) {
-          if (!(m_u_dirichlet[node]) && node.isOwn())
+          if (!(m_phi_dirichlet[node]) && node.isOwn())
             rhs_values[node_dof.dofId(node, 0)] += (Normal.y*valueY) * length / 2.;
         }
       }
@@ -463,6 +451,25 @@ _assembleLinearOperator()
     }
 
   }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_getE()
+{
+  info() << "Postprocessing E";
+
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real2 DX = _computeDxDyOfRealTRIA3(cell);
+        m_E[cell].x =  -DX.x  ;
+        m_E[cell].y =  -DX.y  ;
+        m_E[cell].z =  0.0   ;
+      }
+
+      m_E.synchronize();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -517,6 +524,29 @@ _computeEdgeNormal2(Face face)
   N.x = (m1.y - m0.y)/ norm_N;
   N.y = (m0.x - m1.x)/ norm_N;
   return  N;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+Real2 FemModule::
+_computeDxDyOfRealTRIA3(Cell cell)
+{
+  Real3 m0 = m_node_coord[cell.nodeId(0)];
+  Real3 m1 = m_node_coord[cell.nodeId(1)];
+  Real3 m2 = m_node_coord[cell.nodeId(2)];
+
+  Real f0 = m_phi[cell.nodeId(0)];
+  Real f1 = m_phi[cell.nodeId(1)];
+  Real f2 = m_phi[cell.nodeId(2)];
+
+  Real detA = ( m0.x*(m1.y - m2.y) - m0.y*(m1.x - m2.x) + (m1.x*m2.y - m2.x*m1.y) );
+
+  Real2 DX;
+        DX.y = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / detA;
+        DX.x = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / detA;
+
+  return DX ;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -712,27 +742,20 @@ _solve()
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
       Real v = dof_u[node_dof.dofId(node, 0)];
-      m_u[node] = v;
+      m_phi[node] = v;
     }
   }
 
-  m_u.synchronize();
-  // def update_T(self,T):
-  //     """Update u value on nodes after the FE resolution"""
-  //     for i in range(0,len(self.mesh.nodes)):
-  //         node=self.mesh.nodes[i]
-  //         # don't update T imposed by Dirichlet BC
-  //         if not node.is_T_fixed:
-  //             self.mesh.nodes[i].T=T[i]
+  m_phi.synchronize();
 
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      info() << "T[" << node.localId() << "][" << node.uniqueId() << "] = "
-             << m_u[node];
-      //info() << "T[]" << node.uniqueId() << " "
-      //       << m_u[node];
+      info() << "Phi[" << node.localId() << "][" << node.uniqueId() << "] = "
+             << m_phi[node];
+      //info() << "Phi[]" << node.uniqueId() << " "
+      //       << m_phi[node];
     }
   }
 }
@@ -748,7 +771,7 @@ _checkResultFile()
   if (filename.empty())
     return;
   const double epsilon = 1.0e-4;
-  checkNodeResultFile(traceMng(), filename, m_u, epsilon);
+  checkNodeResultFile(traceMng(), filename, m_phi, epsilon);
 }
 
 /*---------------------------------------------------------------------------*/
