@@ -14,7 +14,7 @@ arcane_add_arcane_libraries_to_target(Electrostatics)
 target_include_directories(Electrostatics PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
 configure_file(Electrostatics.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.Electrostatics.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(${MSH_DIR}/L-shape.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/box-rods.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Electrostatics PUBLIC FemUtils)
 

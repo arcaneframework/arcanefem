@@ -14,15 +14,23 @@
 
   <meshes>
     <mesh>
-      <filename>L-shape.msh</filename>
+      <filename>box-rods.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <rho>-1.0</rho>
+    <rho>0.0</rho>
     <epsilon>1.0</epsilon>
     <dirichlet-boundary-condition>
-      <surface>boundary</surface>
+      <surface>rod1</surface>
+      <value>-1.0</value>
+    </dirichlet-boundary-condition>
+    <dirichlet-boundary-condition>
+      <surface>rod2</surface>
+      <value>1.0</value>
+    </dirichlet-boundary-condition>
+    <dirichlet-boundary-condition>
+      <surface>external</surface>
       <value>0.0</value>
     </dirichlet-boundary-condition>
   </fem>
