@@ -46,8 +46,8 @@ h = meshSize;
 
 lcBox        = h       ;       // Mesh size parameter
 lcRods       = h/2.    ;       // Mesh size parameter
-Lbox         = length  ;       // Length of soil box
-Hbox         = length  ;       // Width of soil box
+Lbox         = length  ;       // Length box
+Hbox         = length  ;       // Height box
 Rdistance    = rodDistance ;
 
 //==============================================================================
@@ -66,7 +66,7 @@ Line(4) = {4, 1};
 
 
 //==============================================================================
-// ---- Build internall rods ----
+// ---- Build internal rods ----
 //==============================================================================
 
 // rod 1 //

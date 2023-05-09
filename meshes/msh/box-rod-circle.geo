@@ -1,16 +1,16 @@
 //-----------------------------------------------------------------------------
 //
-// Name       : box-rod.geo
+// Name       : box-rod-circle.geo
 // Author     : Mohd Afeef BADRI
 // Date       : 09 / May / 2023
 //
 // ----------------------------------------------------------------------------
-// Comment    : simple rods in box problem mesh for electrostatics
+// Comment    : simple rod and circle in box problem mesh for electrostatics
 //
 // Parameters : length  - this is the length of the surronding box
 //              meshSize- this is the mesh size of the
 //
-// Usage      : gmsh box-rod.geo -setnumber meshSize 1.0 -2 -format msh41
+// Usage      : gmsh box-rod-circle.geo -setnumber meshSize 1.0 -2 -format msh41
 //
 //
 //-----------------------------------------------------------------------------
@@ -46,8 +46,8 @@ h = meshSize;
 
 lcBox        = h       ;       // Mesh size parameter
 lcRods       = h/2.    ;       // Mesh size parameter
-Lbox         = length  ;       // Length of soil box
-Hbox         = length  ;       // Width of soil box
+Lbox         = length  ;       // Length box
+Hbox         = length  ;       // Height box
 Rdistance    = rodDistance ;
 
 //==============================================================================
@@ -66,7 +66,7 @@ Line(4) = {4, 1};
 
 
 //==============================================================================
-// ---- Build internall rods ----
+// ---- Build internal rods ----
 //==============================================================================
 
 // rod 1 //
