@@ -15,7 +15,6 @@ target_include_directories(aerodynamics PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
 configure_file(aerodynamics.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.Joukowski.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/NACA0012.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(${MSH_DIR}/plancher.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(aerodynamics PUBLIC FemUtils)
 
