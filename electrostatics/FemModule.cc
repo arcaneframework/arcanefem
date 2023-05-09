@@ -67,7 +67,8 @@ class FemModule
 
  private:
 
-  Real f;
+  Real rho;
+  Real epsilon;
   Real ElementNodes;
 
   DoFLinearSystem m_linear_system;
@@ -184,7 +185,8 @@ void FemModule::
 _getMaterialParameters()
 {
   info() << "Get material parameters...";
-  f   = options()->f();
+  rho       = options()->rho();
+  epsilon   = options()->epsilon();
   ElementNodes = 3.;
 
   if (options()->meshType == "QUAD4")
@@ -387,7 +389,7 @@ _assembleLinearOperator()
     Real area = _computeAreaTriangle3(cell);
     for (Node node : cell.nodes()) {
       if (!(m_u_dirichlet[node]) && node.isOwn())
-        rhs_values[node_dof.dofId(node, 0)] += f * area / ElementNodes;
+        rhs_values[node_dof.dofId(node, 0)] += (rho/epsilon) * area / ElementNodes;
     }
   }
 

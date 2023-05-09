@@ -17,8 +17,11 @@
     </variable>
   </variables>
   <options>
-    <simple name="f" type="real" default="0.0">
-      <description>Volume source within the material.</description>
+    <simple name="rho" type="real" default="0.0">
+      <description>charge density of the material.</description>
+    </simple>
+    <simple name="epsilon" type="real" default="0.0">
+      <description>freespace permittivity.</description>
     </simple>
     <simple name="result-file" type="string" optional="true">
       <description>File name of a file containing the values of the solution vector to check the results</description>

@@ -19,7 +19,8 @@
   </meshes>
 
   <fem>
-    <f>-1.0</f>
+    <rho>-1.0</rho>
+    <epsilon>1.0</epsilon>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
       <value>0.0</value>
