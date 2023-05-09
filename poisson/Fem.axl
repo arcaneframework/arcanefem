@@ -18,7 +18,7 @@
   </variables>
   <options>
     <simple name="f" type="real" default="0.0">
-      <description>Voulume source within the material.</description>
+      <description>Volume source within the material.</description>
     </simple>
     <simple name="result-file" type="string" optional="true">
       <description>File name of a file containing the values of the solution vector to check the results</description>

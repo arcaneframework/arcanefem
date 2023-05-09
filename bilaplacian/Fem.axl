@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <module name="Fem" version="1.0">
-  <description>Descripteur du module Fem</description>
+  <description>FEM module descriptor</description>
   <entry-points>
     <entry-point method-name="compute" name="Compute" where="compute-loop" property="none" />
     <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
@@ -19,7 +19,7 @@
       <description>Boolean which is true if u2 is fixed on the node</description>
     </variable>
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
-      <description>NodeCoord from Arcane variable</description>
+      <description>Node coordinates from Arcane variable</description>
     </variable>
   </variables>
   <options>
@@ -27,7 +27,7 @@
       <description>Source within the material.</description>
     </simple>
     <simple name="result-file" type="string" optional="true">
-      <description>File name of a file containing the valuess of the solution vector to check the results</description>
+      <description>File name of a file containing the values of the solution vector to check the results</description>
     </simple>
     <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
       <description>Type of mesh provided to the solver</description>
@@ -50,7 +50,7 @@
              maxOccurs = "unbounded"
       >
       <description>
-        Dirichelt boundary condition
+        Dirichlet boundary condition
       </description>
       <extended name = "surface" type = "Arcane::FaceGroup">
         <description>

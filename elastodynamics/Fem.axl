@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <module name="Fem" version="1.0">
-  <description>Descripteur du module Fem</description>
+  <description>FEM module descriptor</description>
   <entry-points>
     <entry-point method-name="compute" name="Compute" where="compute-loop" property="none" />
     <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
@@ -25,7 +25,7 @@
       <description>Boolean which is true if u2 is fixed on the node</description>
     </variable>
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
-      <description>NodeCoord from Arcane variable</description>
+      <description>Node coordinates from Arcane variable</description>
     </variable>
   </variables>
   <options>
@@ -39,7 +39,7 @@
       <description>Youngs Modulus of the material.</description>
     </simple>
     <simple name="nu" type="real" default="0.0">
-      <description>Poission ratio of the material.</description>
+      <description>Poissons ratio of the material.</description>
     </simple>
     <simple name="lambda" type="real" default="0.0" optional="true">
       <description>Lame parameter of the material.</description>
@@ -57,19 +57,19 @@
       <description>Time step.</description>
     </simple>
     <simple name="etam" type="real" default="0.0">
-      <description>Eta m for Generalized Alpha time shceme.</description>
+      <description>Eta m for Generalized Alpha time scheme.</description>
     </simple>
     <simple name="etak" type="real" default="0.0">
-      <description>Eta k for Generalized Alpha time shceme.</description>
+      <description>Eta k for Generalized Alpha time scheme.</description>
     </simple>
     <simple name="alpm" type="real" default="0.0">
-      <description>Alpha m for Generalized Alpha time shceme.</description>
+      <description>Alpha m for Generalized Alpha time scheme.</description>
     </simple>
     <simple name="alpf" type="real" default="0.0">
-      <description>Alpha f for Generalized Alpha time shceme.</description>
+      <description>Alpha f for Generalized Alpha time scheme.</description>
     </simple>
     <simple name="result-file" type="string" optional="true">
-      <description>File name of a file containing the valuess of the solution vector to check the results</description>
+      <description>File name of a file containing the values of the solution vector to check the results</description>
     </simple>
     <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
       <description>Type of mesh provided to the solver</description>

@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <module name="Fem" version="1.0">
-  <description>Descripteur du module Fem</description>
+  <description>FEM module descriptor</description>
   <entry-points>
     <entry-point method-name="compute" name="Compute" where="compute-loop" property="none" />
     <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
@@ -22,7 +22,7 @@
       <description>Flux of heat on variables cells</description>
     </variable>
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
-      <description>NodeCoord from Arcane variable</description>
+      <description>Node coordinates from Arcane variable</description>
     </variable>
   </variables>
   <options>
@@ -33,7 +33,7 @@
       <description>Thermal conductivity of the material.</description>
     </simple>
     <simple name="result-file" type="string" optional="true">
-      <description>File name of a file containing the valuess of the solution vector to check the results</description>
+      <description>File name of a file containing the values of the solution vector to check the results</description>
     </simple>
     <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
       <description>Type of mesh provided to the solver</description>
@@ -45,7 +45,7 @@
       <description>Maximum time of simulation.</description>
     </simple>
     <simple name="Tinit" type="real" default="0.0">
-      <description>Initial temprature.</description>
+      <description>Initial temperature.</description>
     </simple>
     <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
       <description>
@@ -65,7 +65,7 @@
              maxOccurs = "unbounded"
       >
       <description>
-        Dirichelt boundary condition
+        Dirichlet boundary condition
       </description>
       <extended name = "surface" type = "Arcane::FaceGroup">
         <description>
@@ -108,16 +108,16 @@
              maxOccurs = "unbounded"
       >
       <description>
-        Dirichelt point condition
+        Dirichlet point condition
       </description>
       <extended name = "node" type = "Arcane::NodeGroup">
         <description>
-          NodeGroup on which to apply these point Dirichelt condition
+          NodeGroup on which to apply these point Dirichlet condition
         </description>
       </extended>
       <simple name = "value" type = "real">
         <description>
-          Value of the point Dirichelt condition
+          Value of the point Dirichlet condition
         </description>
       </simple>
     </complex>
