@@ -23,7 +23,7 @@ target_link_libraries(Electrostatics PUBLIC FemUtils)
 # Copy the tests files in the binary directory
 # The '/' after 'tests' is needed because we want to copy the files
 # inside the 'tests' directory but not the directory itself.
-#file(COPY "tests/" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY "tests/" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 enable_testing()
 
