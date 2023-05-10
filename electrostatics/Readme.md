@@ -2,6 +2,8 @@
 
 The code here is a simple 2D unstructured mesh Galerkin FEM solver for Electrostatics.
 
+![electrostatics_2](https://github.com/arcaneframework/arcanefem/assets/52162083/959988a3-1717-4449-b412-14cbd1582367)
+
 ## Theory ##
 
 #### Problem description ####
