@@ -22,6 +22,7 @@
   <fem>
     <rho>0.0</rho>
     <epsilon>1.0</epsilon>
+    <result-file>test_2.txt</result-file>
     <dirichlet-boundary-condition>
       <surface>rod1</surface>
       <value>-1.0</value>
