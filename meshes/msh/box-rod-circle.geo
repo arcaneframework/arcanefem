@@ -19,7 +19,7 @@
 // ---- define parameters for commandline ----
 //==============================================================================
 
-DefineConstant[ length = {5.0, Min .0001, Max 1000, Step 1,
+DefineConstant[ length = {8.0, Min .0001, Max 1000, Step 1,
                          Name "Parameters/length length"} ];
 
 DefineConstant[ meshSize  = {0.5, Min 0.0001, Max 30, Step 1,
@@ -86,7 +86,7 @@ Line(6) = {6, 7};
 Line(7) = {7, 8};
 Line(8) = {8, 5};
 
-// circle // 
+// circle //
 Circle(9) = {11, 9, 10};
 Circle(10) = {10, 9, 11};
 
