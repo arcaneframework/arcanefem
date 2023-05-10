@@ -1,65 +1,76 @@
 # Electrostatics  with ArcaneFEM #
 
-Here Poisson equation, which is one of the basics elliptic PDEs, is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver. The Poisson equation arises in numerous physical contexts, e.g., heat conduction, diffusion of substances, membrane elasticity,  inviscid fluid flow, electrostatics, twisting of elastic rods, and water waves.
+The code here is a simple 2D unstructured mesh Galerkin FEM solver for Electrostatics.
 
 ## Theory ##
 
 #### Problem description ####
 
-The 2D Poisson's equation is solved for a closed meshed domain $\Omega^h$ in order to know the solution $u(x,y)$ within the domain. The equation reads
+Assuming no current and steady-state change distribution, 2D Electrostatic equation is solved for a closed meshed domain $\Omega^h$ in order to know the electric field $\mathbf{E}(x,y)$ within the domain. The equation reads
 
-$$\frac{\partial}{\partial x}\left( \frac{\partial u}{\partial x} \right) + \frac{\partial}{\partial y}\left( \frac{\partial u}{\partial y} \right) = {\mathcal{f}}   \quad \forall (x,y)\in\Omega^h $$
+$$\text{div}\mathbf{E} = \rho/\epsilon   \quad \forall (x,y)\in\Omega^h $$
 
-or in a more compact form
+$$\text{curl}\mathbf{E} = 0   \quad \forall (x,y)\in\Omega^h $$
 
-$$\nabla^2 u = {\mathcal{f}} \quad \forall (x,y)\in\Omega^h.$$
+here, $\rho$ and $\epsilon$ are charge density and permittivity of free space, respectively.
 
+Introducing, electrostatic potential $\phi$ such that 
 
+$$\mathbf{E}=-\nabla\phi$$
 
-To complete the problem description,   first type (Dirichlet) boundary conditions is applied to this problem:
+we get the following form of equation 
 
-$u = 0.0 \quad \forall(x,y)\in\partial\Omega^h_{\text{boundary}}\subset\partial \Omega^h,$
+$$-\nabla\phi=\rho/\epsilon  \quad \forall (x,y)\in\Omega^h$$
 
-Finally the right hand side source is present within the domain
+To complete the problem description,   first type (Dirichlet) boundary conditions is applied to this problem, we assume that external border is held at zero potential:
 
-${\mathcal{f}}=-1$
+$\phi = 0.0 \quad \forall(x,y)\in\partial\Omega^h_{\text{external}}\subset\partial \Omega^h,$
 
+and internally there are two rods held at +1 and -1 volt receptively,  which is again translated to two Dirichlet boundary conditions 
 
+$\phi = 1.0 \quad \forall(x,y)\in\partial\Omega^h_{\text{rod1}}\subset\partial \Omega^h,$
+
+$\phi = -1.0 \quad \forall(x,y)\in\partial\Omega^h_{\text{rod2}}\subset\partial \Omega^h,$
+
+### Finite Element method ###
 
 In this case  the FEM variational formulation in $H^1_{0}(\Omega) \subset H^1{\Omega}$  reads
 
-search FEM trial function $u^h(x,y)$ satisfying
+search FEM trial function $\phi^h(x,y)$ satisfying
 
-$$- \int_{\Omega^h}\nabla u^h \nabla  v^h + \int_{\partial\Omega_N} (\overline{q} \cdot \mathbf{n}) v^h + \int_{\Omega^h}{\mathcal{f}} v^h = 0 \quad \forall v^h\in H^1_0(\Omega^h)$$
+$$- \int_{\Omega^h}\nabla \phi^h \nabla  v^h + \int_{\partial\Omega_N} (\overline{q} \cdot \mathbf{n}) v^h + \int_{\Omega^h}(\rho/\epsilon) v^h = 0 \quad \forall v^h\in H^1_0(\Omega^h)$$
 
 given
 
-$u^h=0.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{boundary}}$,
+$\phi^h=0.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{external}}$,
+
+$\phi^h=1.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{rod1}}$,
+
+$\phi^h=-1. \quad \forall (x,y)\in\partial\Omega^h_{\text{rod2}}$,
 
 $\int_{\Omega^h_{\text{N}}}(\mathbf{q} \cdot \mathbf{n}) v^h=0$ since no Neumann BC is present,
-
-$\int_{\Omega^h}{\mathcal{f}} v^h=1\times10^5$, and
 
 ## The code ##
 
 #### properties ###
 
-The value of constant source term $\mathcal{f}$  can be provided in  `Test.poisson.arc` file
+The value of constant material property terms $\rho,\epsilon$  can be provided in  `Test.Electrostatics.arc` file
 
 ```xml
   <fem>
-    <f>-1</f>
+    <rho>0</rho>
+    <epsilon>1</epsilon>
   </fem>
 ```
 
 #### Mesh ####
 
-The mesh `L-shape.msh` is provided in the `Test.poisson.arc` file
+The mesh `box-rods.msh` is provided in the `Test.Electrostatics.arc` file
 
 ```xml
   <meshes>
     <mesh>
-      <filename>L-shape.msh</filename>
+      <filename>box-rods.msh</filename>
     </mesh>
   </meshes>
 ```
@@ -68,18 +79,26 @@ Please not that use version 4.1 `.msh` file from `Gmsh`.
 
 #### Boundary conditions ####
 
-The Dirichlet boundary conditions  are provided in `Test.poisson.arc` file
+The Dirichlet boundary conditions  are provided in `Test.Electrostatics.arc` file
 
 ```xml
     <dirichlet-boundary-condition>
-      <surface>boundary</surface>
+      <surface>external</surface>
+      <value>0.0</value>
+    </dirichlet-boundary-condition>
+    <dirichlet-boundary-condition>
+      <surface>rod1</surface>
+      <value>1.0</value>
+    </dirichlet-boundary-condition>
+    <dirichlet-boundary-condition>
+      <surface>rod2</surface>
       <value>0.0</value>
     </dirichlet-boundary-condition>
 ```
 
-So in the snippet above, three Dirichlet condition $u=0$ is  applied to border ('boundary') which is a group of edges in the mesh file `L-shape.msh`.
+So in the snippet above, three Dirichlet condition $\phi=0$ is  applied to border ('external') which is a group of edges in the mesh file `box-rods.msh`. Similar logic applies to other two Dirichlet conditions. 
 
-If needed, the Neumann  boundary conditions  can also be provided in `Test.poission.arc` file
+If needed, the Neumann  boundary conditions  can also be provided in `Test.Electrostatics.arc` file
 
 ```xml
     <neumann-boundary-condition>
