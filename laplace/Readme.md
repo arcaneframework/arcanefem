@@ -2,6 +2,9 @@
 
 Here Laplace equation, which is one of the basics PDEs, is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver.
 
+![Test_1_large](https://github.com/arcaneframework/arcanefem/assets/52162083/be3d2ea6-bfb7-42d9-b82e-a62509a498f8)
+
+
 #### Problem description ####
 
 The 2D Laplace equation is solved for a closed meshed domain $\Omega^h$ in order to know the Laplace solution $u(x,y)$ within the domain. The equation reads
@@ -83,3 +86,8 @@ The Neumann  boundary conditions  are absent but could be provided in such a way
 #### Post Process ####
 
 For post processing the `ensight.case` file is outputted, which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
+
+####  Point loading example ####
+
+![Test_2_large_new](https://github.com/arcaneframework/arcanefem/assets/52162083/979b2bd6-9e54-4fae-b6d7-f2b5a232b4dc)
+
