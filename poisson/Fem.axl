@@ -111,27 +111,6 @@
       </simple>
     </complex>
 
-    <!-- - - - - - material-property - - - - -->
-    <complex name  = "material-property"
-             type  = "MaterialProperty"
-             minOccurs = "0"
-             maxOccurs = "unbounded"
-      >
-      <description>
-        Material properties
-      </description>
-      <extended name = "volume" type = "Arcane::CellGroup">
-        <description>
-          CellGroup on which material properties are applied
-        </description>
-      </extended>
-      <simple name = "lambda" type = "real">
-        <description>
-          Value of the conductivity for CellGroup
-        </description>
-      </simple>
-    </complex>
-
     <service-instance name = "linear-system"
                       type = "Arcane::FemUtils::IDoFLinearSystemFactory"
                       default = "AlephLinearSystem"
