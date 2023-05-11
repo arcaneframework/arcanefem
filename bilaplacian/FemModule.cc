@@ -79,9 +79,7 @@ class FemModule
   void _initBoundaryconditions();
   void _assembleLinearOperator();
   FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
-  FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
-  Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
@@ -133,10 +131,7 @@ _doStationarySolve()
   _updateBoundayConditions();
 
   // Assemble the FEM bilinear operator (LHS - matrix A)
-  if (options()->meshType == "QUAD4")
-    _assembleBilinearOperatorQUAD4();
-  else
-    _assembleBilinearOperatorTRIA3();
+  _assembleBilinearOperatorTRIA3();
 
   // Assemble the FEM linear operator (RHS - vector b)
   _assembleLinearOperator();
@@ -211,7 +206,6 @@ _updateBoundayConditions()
 //  - This function enforces a Dirichlet boundary condition in a weak sense
 //    via the penalty method
 //  - The method also adds source term
-//  - TODO: external fluxes
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -320,7 +314,6 @@ _assembleLinearOperator()
     info() << "Applying Dirichlet boundary condition via "
            << options()->enforceDirichletMethod() << " method ";
 
-    // TODO
   }else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
 
     //----------------------------------------------
@@ -339,7 +332,6 @@ _assembleLinearOperator()
     info() << "Applying Dirichlet boundary condition via "
            << options()->enforceDirichletMethod() << " method ";
 
-    // TODO
   }else {
 
     info() << "Applying Dirichlet boundary condition via "
@@ -375,7 +367,6 @@ _assembleLinearOperator()
   //
   //  $int_{dOmega_N}((q.n)*v^h)$
   //  only for noded that are non-Dirichlet
-  //  TODO : take flux vector and use normals at boundaries
   //----------------------------------------------
   for (const auto& bs : options()->neumannBoundaryCondition()) {
     FaceGroup group = bs->surface();
@@ -391,20 +382,6 @@ _assembleLinearOperator()
       }
     }
   }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real FemModule::
-_computeAreaQuad4(Cell cell)
-{
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-  Real3 m3 = m_node_coord[cell.nodeId(3)];
-  return 0.5 * (  (m1.x*m2.y + m2.x*m3.y + m3.x*m0.y + m0.x*m1.y)
-                 -(m2.x*m1.y + m3.x*m2.y + m0.x*m3.y + m1.x*m0.y) );
 }
 
 /*---------------------------------------------------------------------------*/
@@ -580,113 +557,7 @@ _computeElementMatrixTRIA3(Cell cell)
 
   int_Omega_i = matrixAddition( int_Omega_i, int_U2V2);
 
-  //info() << "Cell=" << cell.localId();
-  //std::cout << " int_cdPi_dPj=";
-  //int_cdPi_dPj.dump(std::cout);
-  //std::cout << "\n";
-
   return int_Omega_i;
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-FixedMatrix<4, 4> FemModule::
-_computeElementMatrixQUAD4(Cell cell)
-{
-  // Get coordiantes of the quadrangular element  QUAD4
-  //------------------------------------------------
-  //             1 o . . . . o 0
-  //               .         .
-  //               .         .
-  //               .         .
-  //             2 o . . . . o 3
-  //------------------------------------------------
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-  Real3 m3 = m_node_coord[cell.nodeId(3)];
-
-  Real area = _computeAreaQuad4(cell);    // calculate area
-
-  Real2 dPhi0(m2.y - m3.y, m3.x - m2.x);
-  Real2 dPhi1(m3.y - m0.y, m0.x - m3.x);
-  Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
-  Real2 dPhi3(m1.y - m2.y, m2.x - m1.x);
-
-  FixedMatrix<2, 4> b_matrix;
-  b_matrix(0, 0) = dPhi0.x;
-  b_matrix(0, 1) = dPhi1.x;
-  b_matrix(0, 2) = dPhi2.x;
-  b_matrix(0, 3) = dPhi3.x;
-
-  b_matrix(1, 0) = dPhi0.y;
-  b_matrix(1, 1) = dPhi1.y;
-  b_matrix(1, 2) = dPhi2.y;
-  b_matrix(1, 3) = dPhi3.y;
-
-  b_matrix.multInPlace(1.0 / (2.0 * area));
-
-  FixedMatrix<4, 4> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
-  int_cdPi_dPj.multInPlace(area);
-
-  //info() << "Cell=" << cell.localId();
-  //std::cout << " int_cdPi_dPj=";
-  //int_cdPi_dPj.dump(std::cout);
-  //std::cout << "\n";
-
-  return int_cdPi_dPj;
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_assembleBilinearOperatorQUAD4()
-{
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-    if (cell.type() != IT_Quad4)
-      ARCANE_FATAL("Only Quad4 cell type is supported");
-
-    auto K_e = _computeElementMatrixQUAD4(cell);  // element stifness matrix
-    // assemble elementary matrix into the global one elementary terms are
-    // positionned into K according to the rank of associated  node in the
-    // mesh.nodes list and acoording the dof number. Here  for  each  node
-    // two dofs exists [u1,u2]. For each TRIA3 there are 3 nodes hence the
-    // elementary stifness matrix size is (3*2 x 3*2)=(6x6). We will  fill
-    // this below in 4 at a time.
-    Int32 n1_index = 0;
-    for (Node node1 : cell.nodes()) {
-      Int32 n2_index = 0;
-      for (Node node2 : cell.nodes()) {
-        // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-        //Real v = K_e(n1_index, n2_index);
-        Real v1 = K_e(2 * n1_index    , 2 * n2_index    );
-        Real v2 = K_e(2 * n1_index    , 2 * n2_index + 1);
-        Real v3 = K_e(2 * n1_index + 1, 2 * n2_index    );
-        Real v4 = K_e(2 * n1_index + 1, 2 * n2_index + 1);
-        // m_k_matrix(node1.localId(), node2.localId()) += v;
-        if (node1.isOwn()) {
-          DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
-          DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
-          DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
-          DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
-
-//          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
-          m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
-          m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
-          m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v3);
-          m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v4);
-        }
-        ++n2_index;
-      }
-      ++n1_index;
-    }
-
-  }
 }
 
 /*---------------------------------------------------------------------------*/
