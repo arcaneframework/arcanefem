@@ -2,7 +2,7 @@
 
 Here Laplace equation, which is one of the basics PDEs, is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver.
 
-![Test_1_large](https://github.com/arcaneframework/arcanefem/assets/52162083/be3d2ea6-bfb7-42d9-b82e-a62509a498f8)
+<img src="https://github.com/arcaneframework/arcanefem/assets/52162083/be3d2ea6-bfb7-42d9-b82e-a62509a498f8" alt="Test_1_large" style="zoom: 50%;" />
 
 
 #### Problem description ####
@@ -89,5 +89,5 @@ For post processing the `ensight.case` file is outputted, which can be read by P
 
 ####  Point loading example ####
 
-![Test_2_large_new](https://github.com/arcaneframework/arcanefem/assets/52162083/979b2bd6-9e54-4fae-b6d7-f2b5a232b4dc)
+<img src="https://github.com/arcaneframework/arcanefem/assets/52162083/979b2bd6-9e54-4fae-b6d7-f2b5a232b4dc" alt="Test_2_large_new" style="zoom:67%;" />
 

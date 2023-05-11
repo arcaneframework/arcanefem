@@ -2,7 +2,7 @@
 
 Here Fourier equation, that governs steady state heat conduction is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver.
 
-![Screenshot from 2022-12-19 16-25-59](https://github.com/arcaneframework/arcanefem/assets/52162083/cf86f60f-360f-491b-a234-9631fc27af45)
+<img src="https://github.com/arcaneframework/arcanefem/assets/52162083/cf86f60f-360f-491b-a234-9631fc27af45" alt="Screenshot from 2022-12-19 16-25-59" style="zoom: 50%;" />
 
 
 ## Theory of heat conduction ##
@@ -142,5 +142,5 @@ For post processing the `ensight.case` file is outputted, which can be read by P
 
 #### multi-material example ####
 
-![test_2_small_new](https://github.com/arcaneframework/arcanefem/assets/52162083/eeac62de-3b5f-4264-a643-c6652a5693e8)
+<img src="https://github.com/arcaneframework/arcanefem/assets/52162083/eeac62de-3b5f-4264-a643-c6652a5693e8" alt="test_2_small_new"  />
 

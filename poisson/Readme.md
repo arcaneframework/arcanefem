@@ -2,7 +2,7 @@
 
 Here Poisson equation, which is one of the basics elliptic PDEs, is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver. The Poisson equation arises in numerous physical contexts, e.g., heat conduction, diffusion of substances, membrane elasticity,  inviscid fluid flow, electrostatics, twisting of elastic rods, and water waves.
 
-![poisson_1_large](https://github.com/arcaneframework/arcanefem/assets/52162083/a8d114e1-5589-4efd-88fd-84b398acab84)
+<img src="https://github.com/arcaneframework/arcanefem/assets/52162083/a8d114e1-5589-4efd-88fd-84b398acab84" alt="poisson_1_large" style="zoom: 33%;" />
 
 
 ## Theory ##
