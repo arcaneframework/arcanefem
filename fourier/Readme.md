@@ -2,6 +2,9 @@
 
 Here Fourier equation, that governs steady state heat conduction is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver.
 
+![Screenshot from 2022-12-19 16-25-59](https://github.com/arcaneframework/arcanefem/assets/52162083/cf86f60f-360f-491b-a234-9631fc27af45)
+
+
 ## Theory of heat conduction ##
 
 #### Problem description ####
@@ -136,3 +139,10 @@ The Neumann  boundary conditions  are also provided in `Test.conduction.arc` fil
 #### Post Process ####
 
 For post processing the `ensight.case` file is outputted, which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
+
+#### multi-material example ####
+
+![test_2_large_new](https://github.com/arcaneframework/arcanefem/assets/52162083/f5a61339-3f9a-40c1-bc94-4b9090905e20)
+
+
+
