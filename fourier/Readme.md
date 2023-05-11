@@ -142,7 +142,5 @@ For post processing the `ensight.case` file is outputted, which can be read by P
 
 #### multi-material example ####
 
-![test_2_large_new](https://github.com/arcaneframework/arcanefem/assets/52162083/f5a61339-3f9a-40c1-bc94-4b9090905e20)
-
-
+![test_2_small_new](https://github.com/arcaneframework/arcanefem/assets/52162083/eeac62de-3b5f-4264-a643-c6652a5693e8)
 
