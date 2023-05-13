@@ -114,6 +114,45 @@
       </simple>
     </complex>
 
+    <!-- - - - - - double-couple-condition - - - - -->
+    <complex name  = "double-couple"
+             type  = "DoubleCouple"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Double couple boundary condition
+      </description>
+      <extended name = "north-node-name" type = "Arcane::NodeGroup">
+        <description>
+          North node name in the mesh
+        </description>
+      </extended>
+      <extended name = "south-node-name" type = "Arcane::NodeGroup">
+        <description>
+          South node name in the mesh
+        </description>
+      </extended>
+      <extended name = "east-node-name" type = "Arcane::NodeGroup">
+        <description>
+          East node name in the mesh
+        </description>
+      </extended>
+      <extended name = "west-node-name" type = "Arcane::NodeGroup">
+        <description>
+          West node name in the mesh
+        </description>
+      </extended>
+    <simple name = "method" type = "string" default="Displacement">
+      <description>
+        Method via which double couple boundary condition is imposed
+      </description>
+    </simple>
+    <simple name="loading-file" type="string">
+      <description>File name of a file containing the double-couple loading</description>
+    </simple>
+    </complex>
+
     <!-- - - - - - dirichlet-point-condition - - - - -->
     <complex name  = "dirichlet-point-condition"
              type  = "DirichletPointCondition"
