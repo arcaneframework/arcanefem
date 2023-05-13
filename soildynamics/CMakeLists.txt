@@ -16,11 +16,12 @@ configure_file(Soildynamics.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.Soildynamics.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.transient-traction.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.constant-traction.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(semi-circle-soil-traction.txt ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/bar_dynamic.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/semi-circle-soil.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Soildynamics PUBLIC FemUtils)
+
+file(COPY "data/" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 enable_testing()
 add_test(NAME [soildynamics]soildynamics COMMAND Soildynamics Test.Soildynamics.arc)
