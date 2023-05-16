@@ -16,8 +16,10 @@ configure_file(Soildynamics.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.Soildynamics.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.transient-traction.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.constant-traction.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Test.double-couple.paraxial.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/bar_dynamic.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/semi-circle-soil.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/square_double-couple.geo ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Soildynamics PUBLIC FemUtils)
 
