@@ -143,12 +143,12 @@
           West node name in the mesh
         </description>
       </extended>
-    <simple name = "method" type = "string" default="Displacement">
+    <simple name = "method" type = "string" default="displacement-based">
       <description>
         Method via which double couple boundary condition is imposed
       </description>
     </simple>
-    <simple name="loading-file" type="string">
+    <simple name="double-couple-input-file" type="string">
       <description>File name of a file containing the double-couple loading</description>
     </simple>
     </complex>
