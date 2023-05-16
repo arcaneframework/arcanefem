@@ -928,13 +928,13 @@ $$
         if (!(m_u2_fixed[node]) && node.isOwn()) {
           DoFLocalId dof_id2 = node_dof.dofId(node, 1);
           rhs_values[dof_id2] += (  c7*( cp*( Normal.x*Normal.y*m_U[node].x + Normal.y*Normal.y*m_U[node].y ) +
-                                         cs*(-Normal.x*Normal.y*m_U[node].x - Normal.x*Normal.x*m_U[node].y )
+                                         cs*(-Normal.x*Normal.y*m_U[node].x + Normal.x*Normal.x*m_U[node].y )
                                        )
                                   - c8*( cp*( Normal.x*Normal.y*m_V[node].x + Normal.y*Normal.y*m_V[node].y ) +
-                                         cs*(-Normal.x*Normal.y*m_V[node].x - Normal.x*Normal.x*m_V[node].y )
+                                         cs*(-Normal.x*Normal.y*m_V[node].x + Normal.x*Normal.x*m_V[node].y )
                                        )
                                   - c9*( cp*( Normal.x*Normal.y*m_A[node].x + Normal.y*Normal.y*m_A[node].y ) +
-                                         cs*(-Normal.x*Normal.y*m_A[node].x - Normal.x*Normal.x*m_A[node].y )
+                                         cs*(-Normal.x*Normal.y*m_A[node].x + Normal.x*Normal.x*m_A[node].y )
                                        )
                                  ) * length / 2.;
         }
