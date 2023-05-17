@@ -95,10 +95,16 @@ class AlephDoFLinearSystemImpl
   , m_dof_matrix_indexes(VariableBuildInfo(m_dof_family, solver_name + "DoFMatrixIndexes"))
   , m_dof_elimination_info(VariableBuildInfo(m_dof_family, solver_name + "DoFEliminationInfo"))
   , m_dof_elimination_value(VariableBuildInfo(m_dof_family, solver_name + "DoFEliminationValue"))
-  {}
+  {
+    info() << "Creating AlephDoFLinearSystemImpl()";
+  }
 
   ~AlephDoFLinearSystemImpl()
   {
+    delete m_aleph_matrix;
+    delete m_aleph_rhs_vector;
+    delete m_aleph_solution_vector;
+    delete m_aleph_kernel;
     delete m_aleph_params;
   }
 
@@ -130,6 +136,8 @@ class AlephDoFLinearSystemImpl
     // We need to compile Arcane with the needed library and link
     // the code with the associated aleph library (see CMakeLists.txt)
     // TODO: Linear algebra backend should be accessed from arc file.
+    delete m_aleph_kernel;
+    info() << "Creating Aleph Kernel";
     m_aleph_kernel = new AlephKernel(m_sub_domain, solver_backend, 1);
 
     DoFGroup own_dofs = m_dof_family->allItems().own();
@@ -145,8 +153,11 @@ class AlephDoFLinearSystemImpl
     }
     //m_aleph_kernel->initialize(total_nb_node, nb_node);
 
+    delete m_aleph_matrix;
     m_aleph_matrix = m_aleph_kernel->createSolverMatrix();
+    delete m_aleph_rhs_vector;
     m_aleph_rhs_vector = m_aleph_kernel->createSolverVector();
+    delete m_aleph_solution_vector;
     m_aleph_solution_vector = m_aleph_kernel->createSolverVector();
     m_aleph_matrix->create();
     m_aleph_rhs_vector->create();
