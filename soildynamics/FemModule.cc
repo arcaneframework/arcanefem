@@ -154,9 +154,17 @@ compute()
 
   info() << "Time iteration at t : " << t << " (s) ";
 
-  m_linear_system.reset();
-  m_linear_system.setLinearSystemFactory(options()->linearSystem());
-  m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
+  // Set if we want to keep the matrix structure between calls.
+  // The matrix has to have the same structure (same structure for non-zero)
+  bool keep_struct = true;
+  if (m_linear_system.isInitialized() && keep_struct){
+    m_linear_system.clearValues();
+  }
+  else{
+    m_linear_system.reset();
+    m_linear_system.setLinearSystemFactory(options()->linearSystem());
+    m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
+  }
 
   info() << " \n\n***[WIP] this is module is not working yet please dont trust the results***[\n\n";
 

@@ -175,6 +175,12 @@ class SequentialDoFLinearSystemImpl
 
   void setSolverCommandLineArguments(const CommandLineArguments&) override {}
 
+  void clearValues() override
+  {
+    // TODO: not yet tested. We need to have test for this.
+    build();
+  }
+
  public:
 
   void setEpsilon(Real v) { m_epsilon = v; }
@@ -399,6 +405,25 @@ reset()
   delete m_p;
   m_p = nullptr;
   m_item_family = nullptr;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystem::
+clearValues()
+{
+  _checkInit();
+  m_p->clearValues();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+bool DoFLinearSystem::
+isInitialized() const
+{
+  return m_p;
 }
 
 /*---------------------------------------------------------------------------*/

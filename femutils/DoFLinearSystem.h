@@ -46,6 +46,7 @@ class DoFLinearSystemImpl
   virtual VariableDoFReal& solutionVariable() = 0;
   virtual VariableDoFReal& rhsVariable() = 0;
   virtual void setSolverCommandLineArguments(const CommandLineArguments& args) = 0;
+  virtual void clearValues() = 0;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -82,6 +83,9 @@ class DoFLinearSystem
    * the call to the method solve().
    */
   void initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name);
+
+  //! Indicate if method initialize() has been called
+  bool isInitialized() const;
 
   //! Add the value \a value to the (row,column) element of the matrix
   void matrixAddValue(DoFLocalId row, DoFLocalId column, Real value);
@@ -132,9 +136,17 @@ class DoFLinearSystem
   /*!
    * \brief Reset the current instance.
    *
-   * You have to call initialize() again to re-use the same instance
+   * You have to call initialize() again to re-use the same instance.
    */
   void reset();
+
+  /*!
+   * \brief Clear values.
+   *
+   * After this call, the matrix and the RHS vector will have their
+   * values cleared.
+   */
+  void clearValues();
 
   /*!
    * \brief Variable containing the solution vector.
