@@ -38,7 +38,7 @@ enum class eSolverBackend
 
 #include "AlephDoFLinearSystemFactory_axl.h"
 
-#include <unordered_map>
+#include <map>
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -68,6 +68,12 @@ class AlephDoFLinearSystemImpl
         return false;
       return rc1.column_id == rc2.column_id;
     }
+    friend bool operator<(RowColumn rc1, RowColumn rc2)
+    {
+      if (rc1.row_id == rc2.row_id)
+        return rc1.column_id < rc2.column_id;
+      return rc1.row_id < rc2.row_id;
+    }
   };
 
   struct RowColumnHash
@@ -81,7 +87,13 @@ class AlephDoFLinearSystemImpl
     }
   };
 
-  using RowColumnMap = std::unordered_map<RowColumn, Real, RowColumnHash>;
+  /*!
+   * \brief Map to store values by Row/Column.
+   *
+   * This map has to be sorted if we want to reuse the internal structure because
+   * the matrix filled has to be in the same order when we reuse it.
+   */
+  using RowColumnMap = std::map<RowColumn, Real>;
 
  public:
 
@@ -101,11 +113,15 @@ class AlephDoFLinearSystemImpl
 
   ~AlephDoFLinearSystemImpl()
   {
-    delete m_aleph_matrix;
-    delete m_aleph_rhs_vector;
-    delete m_aleph_solution_vector;
-    delete m_aleph_kernel;
     delete m_aleph_params;
+    if (m_need_destroy_matrix_and_vector){
+      delete m_aleph_matrix;
+      delete m_aleph_rhs_vector;
+      delete m_aleph_solution_vector;
+    }
+    // Doit être fait dans Arcane
+    // delete m_aleph_kernel->factory();
+    delete m_aleph_kernel;
   }
 
  public:
@@ -136,9 +152,14 @@ class AlephDoFLinearSystemImpl
     // We need to compile Arcane with the needed library and link
     // the code with the associated aleph library (see CMakeLists.txt)
     // TODO: Linear algebra backend should be accessed from arc file.
-    delete m_aleph_kernel;
-    info() << "Creating Aleph Kernel";
-    m_aleph_kernel = new AlephKernel(m_sub_domain, solver_backend, 1);
+    if (!m_aleph_kernel){
+      info() << "Creating Aleph Kernel";
+      m_aleph_kernel = new AlephKernel(m_sub_domain, solver_backend, 1);
+    }
+    else{
+      //
+      m_need_destroy_matrix_and_vector = false;
+    }
 
     DoFGroup own_dofs = m_dof_family->allItems().own();
     //Int32 nb_node = own_nodes.size();
@@ -151,18 +172,16 @@ class AlephDoFLinearSystemImpl
       //info() << "ROW=" << row;
       m_dof_matrix_indexes[dof] = row;
     }
-    //m_aleph_kernel->initialize(total_nb_node, nb_node);
 
-    delete m_aleph_matrix;
     m_aleph_matrix = m_aleph_kernel->createSolverMatrix();
-    delete m_aleph_rhs_vector;
     m_aleph_rhs_vector = m_aleph_kernel->createSolverVector();
-    delete m_aleph_solution_vector;
     m_aleph_solution_vector = m_aleph_kernel->createSolverVector();
     m_aleph_matrix->create();
     m_aleph_rhs_vector->create();
     m_aleph_solution_vector->create();
   }
+
+ public:
 
   void matrixAddValue(DoFLocalId row, DoFLocalId column, Real value) override
   {
@@ -295,6 +314,16 @@ class AlephDoFLinearSystemImpl
 #endif
   }
 
+  void clearValues()
+  {
+    info() << "[Aleph] Clear values of current solver";
+    m_dof_elimination_info.fill(ELIMINATE_NONE);
+    m_dof_elimination_info.fill(0.0);
+    m_values_map.clear();
+    m_forced_set_values_map.clear();
+    _computeMatrixInfo();
+  }
+
  private:
 
   AlephParams* _createAlephParam()
@@ -363,6 +392,9 @@ class AlephDoFLinearSystemImpl
 
   //! True to print matrix values during filling
   bool m_do_print_filling = true;
+
+  //! True is we need to manually destroy the matrix/vector
+  bool m_need_destroy_matrix_and_vector = true;
 
  private:
 
@@ -435,7 +467,6 @@ _fillMatrix()
   for (const auto& rc_value : m_values_map) {
     RowColumn rc = rc_value.first;
     Real value = rc_value.second;
-
     DoF dof_row = item_list_view[rc.row_id];
     DoF dof_column = item_list_view[rc.column_id];
 
