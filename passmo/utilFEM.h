@@ -247,7 +247,7 @@ extern Real Tetra10ShapeFuncVal(const Integer& inod, const Real3& coord);
 extern Real3 Tetra10ShapeFuncDeriv(const Integer& inod, const Real3& coord);
 extern Integer3 Tetra10Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
 
-extern Integer getGeomDimension(const ItemWithNodes& item);
+extern Int32 getGeomDimension(const ItemWithNodes& item);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -255,30 +255,32 @@ extern Integer getGeomDimension(const ItemWithNodes& item);
 class CellFEMDispatcher
 {
  public:
-
-  explicit CellFEMDispatcher(VariableNodeReal3& /*node_coords*/);
+  CellFEMDispatcher();
+//  explicit CellFEMDispatcher(VariableNodeReal3& /*node_coords*/);
 
  public:
+
+  void set_node_coords(VariableNodeReal3& /*node_coords*/);
 
   Real getJacobian(const ItemWithNodes& /*cell*/);
 
   Real3 getBarycenter(const ItemWithNodes& /*cell*/);
 
-  Real getShapeFuncVal(const Int16& /*item_type*/, const Integer& /*inod*/, const Real3& /*ref coord*/);
+  Real getShapeFuncVal(const Int16& /*item_type*/, const Int32& /*inod*/, const Real3& /*ref coord*/);
 
   //  RealUniqueArray getShapeFuncDeriv(const Int16& /*item_type*/,const Integer& /*idir*/,const Real3& /*ref coord*/);
-  Real3 getShapeFuncDeriv(const Int16& /*item_type*/, const Integer& /*inod*/, const Real3& /*ref coord*/);
+  Real3 getShapeFuncDeriv(const Int16& /*item_type*/, const Int32& /*inod*/, const Real3& /*ref coord*/);
 
   Integer3 getOrientation(const ItemWithNodes& /*cell*/);
 
  private:
 
   std::function<Real(const ItemWithNodes& item, const VariableNodeReal3& n)> m_geomfunc[NB_BASIC_ITEM_TYPE];
-  std::function<Real(const Integer& inod, const Real3& coord)> m_shapefunc[NB_BASIC_ITEM_TYPE];
+  std::function<Real(const Int32& inod, const Real3& coord)> m_shapefunc[NB_BASIC_ITEM_TYPE];
   //  std::function<RealUniqueArray(const Integer& idir,const Real3& coord)> m_shapefuncderiv[NB_BASIC_ITEM_TYPE];
-  std::function<Real3(const Integer& inod, const Real3& coord)> m_shapefuncderiv[NB_BASIC_ITEM_TYPE];
+  std::function<Real3(const Int32& inod, const Real3& coord)> m_shapefuncderiv[NB_BASIC_ITEM_TYPE];
   std::function<Integer3(const ItemWithNodes& item, const VariableNodeReal3& n)> m_orientfunc[NB_BASIC_ITEM_TYPE];
-  VariableNodeReal3 m_node_coords;
+  VariableNodeReal3 *m_node_coords{ nullptr};
 };
 
 /*---------------------------------------------------------------------------*/
@@ -309,19 +311,21 @@ class GaussPointDispatcher
 {
  public:
 
-  GaussPointDispatcher(const Integer3& indices, const Integer3& int_order);
+  GaussPointDispatcher();
+//  GaussPointDispatcher(const Integer3& indices, const Integer3& int_order);
 
  public:
 
-  Real3 getRefPosition(const ItemWithNodes&);
+  void init_order(const Integer3& /*int_order*/);
 
-  Real getWeight(const ItemWithNodes&);
+  Real3 getRefPosition(const ItemWithNodes&, const Integer3& /*indices*/);
+
+  Real getWeight(const ItemWithNodes&, const Integer3& /*indices*/);
 
  private:
 
   std::function<Real(const Integer3& indices, const Integer3& ordre)> m_weightfunc[NB_BASIC_ITEM_TYPE];
   std::function<Real3(const Integer3& indices, const Integer3& ordre)> m_refpositionfunc[NB_BASIC_ITEM_TYPE];
-  Integer3 m_indices;
   Integer3 m_integ_order;
 };
 

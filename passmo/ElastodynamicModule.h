@@ -4,6 +4,7 @@
 #include "TypesElastodynamic.h"
 #include "Elastodynamic_axl.h"
 #include "FemUtils.h"
+#include "utilFEM.h"
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
 
@@ -61,10 +62,30 @@ private:
 
    DoFLinearSystem m_linear_system;
    FemDoFsOnNodes m_dofs_on_nodes;
-   CaseTable* m_tx{ nullptr}; // traction time history along X direction
-   CaseTable* m_ty{ nullptr}; // traction time history along Y direction
-   CaseTable* m_tz{ nullptr}; // traction time history along Z direction
-   Real3 m_traction{};// Traction value in all directions
+
+   // Struct to make sure we are using a CaseTable associated
+   // to the right file
+   struct CaseTableInfo
+   {
+     String file_name;
+     CaseTable* case_table = nullptr;
+   };
+   // List of CaseTable for traction boundary conditions
+   UniqueArray<CaseTableInfo> m_traction_case_table_list;
+   Real3 m_traction{};// Traction vector
+   Integer3 integ_order{2, 2, 2};
+   Int32 NDIM{2};
+   CellFEMDispatcher cell_fem{};
+   GaussPointDispatcher gausspt{};
+   Real3 gravity{0.,0.,-9.81};
+   Real penalty{1.e30};
+   Real gamma{0.5};
+   Real beta{0.25};
+   Real alfam{0.};
+   Real alfaf{0.};
+   bool is_alfa_method{false};
+   Real dt2{0.};
+   Int32 linop_nstep{100}, linop_nstep_counter{0};
 
 private:
 
@@ -72,17 +93,15 @@ private:
  void _applyInitialNodeConditions();
  void _applyInitialCellConditions();
 // void _applyInputMotion();
- void _assembleLinearGlobal();
+ void _assembleLinearGlobal2D();
+ void _assembleLinearGlobal3D();
  void _doSolve();
  void _initBoundaryConditions();
  //void _initInputMotion();
  void _applyBoundaryConditions();
- static Real _computeJacobian(const Real3x3& jacmat, const Integer& ndim);
- Real3x3 _computeJacobianMatrix(const Cell& cell,const Real3& ref_coord);
- static Real3x3 _computeInverseJacobianMatrix(const Real3x3& jacmat, const Real& jacobian, const Integer& ndim);
- static Real _interpolCurve(const Real& y_before, const Real& y_after,
-                const Real& x, const Real& x_before, const Real& x_after);
- Real _computeEdgeLength2(Face face);
+ Real3x3 _computeInverseJacobian3D(const Cell& cell,const Real3& ref_coord, Real& jacobian);
+ Real2x2  _computeInverseJacobian2D(const Cell& cell,const Real3& ref_coord, Real& jacobian);
+ Real _computeTracFac(const Face& face);
 
 
  //    FixedMatrix<2, 3> _computeBMatrixT3(Cell cell);
@@ -95,7 +114,8 @@ private:
      */
  void _updateNewmark();
 
- void _computeKMF(const Cell& cell,RealUniqueArray2& Ke, RealUniqueArray2& Me, RealUniqueArray& Fe);
+ void _computeKMF3D(const Cell& cell,RealUniqueArray2& Ke, RealUniqueArray2& Me, RealUniqueArray& Fe);
+ void _computeKMF2D(const Cell& cell,RealUniqueArray2& Ke, RealUniqueArray2& Me, RealUniqueArray& Fe);
 };
 
  /*---------------------------------------------------------------------------*/

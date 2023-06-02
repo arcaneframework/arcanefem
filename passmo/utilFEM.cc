@@ -29,9 +29,8 @@ using namespace Arcane;
 using namespace Arcane::FemUtils;
 /////////////////////////////////////////////////////////////////////////////
 // class CellFEMDispatcher: constructor
-
-CellFEMDispatcher::CellFEMDispatcher(VariableNodeReal3& node_coords): m_node_coords(node_coords)
-{
+//CellFEMDispatcher::CellFEMDispatcher(VariableNodeReal3& node_coords): m_node_coords(node_coords)
+CellFEMDispatcher::CellFEMDispatcher(){
         // Setting to null default value
         for(int i = 0; i < NB_BASIC_ITEM_TYPE; ++i )
         {
@@ -109,24 +108,29 @@ CellFEMDispatcher::CellFEMDispatcher(VariableNodeReal3& node_coords): m_node_coo
 // ! Computes the Jacobian = geometric size (length, surface or volume) of any finite-element
 // aligned with the coordinate axes (otherwise, jacobian to be computed by the
 // general Jacobian matrix)
-Real CellFEMDispatcher::getJacobian(const ItemWithNodes& item)
+void CellFEMDispatcher::
+set_node_coords(VariableNodeReal3& node_coords){  m_node_coords = &node_coords; }
+
+Real CellFEMDispatcher::
+getJacobian(const ItemWithNodes& item)
 {
     Int32 item_type = item.type();
     auto f = m_geomfunc[item_type];
     if (f!=nullptr)
-      return f(item,m_node_coords);
+      return f(item,*m_node_coords);
     return (-1.0);
 }
 
 // ! Computes the barycenter of a Cell
-Real3 CellFEMDispatcher::getBarycenter(const ItemWithNodes& item)
+Real3 CellFEMDispatcher::
+getBarycenter(const ItemWithNodes& item)
 {
 
  	Real3 sum = Real3::zero();
   	Integer nnod = item.nbNode();
 
   	for (Integer i = 0; i < nnod; i++) {
-  		sum += m_node_coords[item.node(i)];
+  		sum += (*m_node_coords)[item.node(i)];
   	}
 
   	if (nnod) sum /= nnod;
@@ -134,7 +138,8 @@ Real3 CellFEMDispatcher::getBarycenter(const ItemWithNodes& item)
 }
 
 // ! Computes the value of the nodal shape functions of a given FE element at a given Gauss point (allowing to the element type)
-Real CellFEMDispatcher::getShapeFuncVal(const Int16& item_type,const Integer& inod,const Real3& coord)
+Real CellFEMDispatcher::
+getShapeFuncVal(const Int16& item_type,const Int32& inod,const Real3& coord)
 {
     auto f = m_shapefunc[item_type];
     if (f!=nullptr)
@@ -144,7 +149,8 @@ Real CellFEMDispatcher::getShapeFuncVal(const Int16& item_type,const Integer& in
 
 // ! Gives the values of the derivatives for the function of node inod for a given FE element at a given Gauss point
 // ! Derivation is performed along 3 directions x, y,z
-Real3 CellFEMDispatcher::getShapeFuncDeriv(const Int16& item_type,const Integer& inod,const Real3& ref_coord){
+Real3 CellFEMDispatcher::
+getShapeFuncDeriv(const Int16& item_type,const Int32& inod,const Real3& ref_coord){
     auto f = m_shapefuncderiv[item_type];
     if (f!=nullptr)
       return f(inod,ref_coord);
@@ -153,12 +159,12 @@ Real3 CellFEMDispatcher::getShapeFuncDeriv(const Int16& item_type,const Integer&
 
 // ! Computes the cartesian directions of a finite-element (used for derivation of shape functions)
 // ! For instance, assuming the returned Integer3 vector=idir, idir = (0,-1,-1) means there will derivation along x only
-Integer3 CellFEMDispatcher::getOrientation(const ItemWithNodes& cell)
-{
+Integer3 CellFEMDispatcher::
+getOrientation(const ItemWithNodes& cell){
      Int32 item_type = cell.type();
      auto f = m_orientfunc[item_type];
      if (f!=nullptr)
-       return f(cell,m_node_coords);
+       return f(cell,*m_node_coords);
      return Integer3::zero();
 }
 
@@ -812,9 +818,9 @@ Integer3 Tetra10Orientation(const ItemWithNodes& item,const VariableNodeReal3& n
 
 /*---------------------------------------------------------------------------*/
 
-Integer getGeomDimension(const ItemWithNodes& item){
+Int32 getGeomDimension(const ItemWithNodes& item){
     Int32 item_type = item.type();
-    Integer dim = 1; // default geometric dimension is 1D (Line2 and Line3 finite-elements)
+    Int32 dim = 1; // default geometric dimension is 1D (Line2 and Line3 finite-elements)
 
     switch(item_type) {
 
@@ -842,8 +848,9 @@ Integer getGeomDimension(const ItemWithNodes& item){
 /////////////////////////////////////////////////////////////////////////////
 // class GaussPointDispatcher: construction methods
 
-GaussPointDispatcher::GaussPointDispatcher(const Integer3& indices,const Integer3& int_order):
-        m_indices(indices),m_integ_order(int_order){
+//GaussPointDispatcher::GaussPointDispatcher(const Integer3& indices,const Integer3& int_order):
+// m_indices(indices),m_integ_order(int_order){
+GaussPointDispatcher::GaussPointDispatcher(){
     // Setting to null default value
     for(Integer i = 0; i < NB_BASIC_ITEM_TYPE; ++i ){
         m_weightfunc[i] = nullptr;
@@ -884,20 +891,21 @@ GaussPointDispatcher::GaussPointDispatcher(const Integer3& indices,const Integer
 
 /////////////////////////////////////////////////////////////////////////////
 // class GaussPointDispatcher: implementation methods
+void GaussPointDispatcher::init_order(const Integer3& int_order) { m_integ_order = int_order; }
 
-Real3 GaussPointDispatcher::getRefPosition(const ItemWithNodes& item){
+Real3 GaussPointDispatcher::getRefPosition(const ItemWithNodes& item, const Integer3& indices){
 	  Int32 item_type = item.type();
 	  auto f = m_refpositionfunc[item_type];
 	  if (f!=nullptr)
-		  return f(m_indices,m_integ_order);
+		  return f(indices,m_integ_order);
 	  return Real3::zero();
 }
 
-Real GaussPointDispatcher::getWeight(const ItemWithNodes& item){
+Real GaussPointDispatcher::getWeight(const ItemWithNodes& item, const Integer3& indices){
 	  Int32 item_type = item.type();
 	  auto f = m_weightfunc[item_type];
 	  if (f!=nullptr)
-		  return f(m_indices,m_integ_order);
+		  return f(indices,m_integ_order);
 	  return 0.;
 }
 
