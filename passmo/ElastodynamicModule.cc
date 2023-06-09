@@ -67,6 +67,8 @@ startInit(){
   m_global_final_time = options()->getFinalTime();
   m_global_time = options()->getStart();
   linop_nstep = options()->getLinopNstep();
+  auto nsteps = (int)((m_global_final_time() - m_global_time())/m_global_deltat());
+  if (linop_nstep > nsteps) keep_constop = true;
 
   is_alfa_method = options()->alfa_method();
   if (is_alfa_method) {
@@ -167,29 +169,33 @@ _applyInitialNodeConditions(){
 void ElastodynamicModule::
 _applyInitialCellConditions(){
 
-/*  for (Integer i = 0, nb = options()->initialCellCondition().size(); i < nb; ++i) {
+  for (Integer i = 0, nb = options()->initCellCondition().size(); i < nb; ++i) {
 
-    CellGroup cell_group = options()->initialCellCondition[i]->cellGroup();
-    Real3 stress = options()->initialCellCondition[i]->stress();
-    Real3 sstress = options()->initialCellCondition[i]->shear_stress();
-    Real3 strain = options()->initialCellCondition[i]->strain();
-    Real3 sstrain = options()->initialCellCondition[i]->shear_strain();
+    CellGroup cell_group = options()->initCellCondition[i]->cellGroup();
+    TypesElastodynamic::eCellCondition type = options()->initCellCondition[i]->type();
 
-    // Loop on nodes with this initial condition
-    ENUMERATE_CELL(icell, cell_group) {
-      const Cell & cell = *icell;
+    // In the future, we will have to find a way to impose different initial
+    // stress/strain tensors per element (e.g., coming from a previous computation)
+    Real3 values = options()->initCellCondition[i]->constVolPart();
 
-      // Initialize the stress tensor for the concerned cell
-      m_cell_stress[cell].x = Real3(stress.x,sstress.x,sstress.y);
-      m_cell_stress[cell].y = Real3(sstress.x,stress.y,sstress.z);
-      m_cell_stress[cell].z = Real3(sstress.y,sstress.z,stress.z);
+    // Loop on cells with this initial condition
+    ENUMERATE_CELL (icell, cell_group) {
+      const Cell& cell = *icell;
 
-      // Initialize the strain tensor for the concerned cell
-      m_cell_strain[cell].x = Real3(strain.x,sstrain.x,sstrain.y);
-      m_cell_strain[cell].y = Real3(sstrain.x,strain.y,sstrain.z);
-      m_cell_strain[cell].z = Real3(sstrain.y,sstrain.z,strain.z);
+      if (type == TypesElastodynamic::Stress) {
+        // Initialize the stress tensor for the concerned cell
+        m_stress[cell].x = Real3(values.x, 0., 0.);
+        m_stress[cell].y = Real3(0., values.y, 0.);
+        m_stress[cell].z = Real3(0., 0., values.z);
+      }
+      else {
+        // Initialize the strain tensor for the concerned cell
+        m_strain[cell].x = Real3(values.x, 0., 0.);
+        m_strain[cell].y = Real3(0., values.y, 0.);
+        m_strain[cell].z = Real3(0., 0., values.z);
+      }
     }
-  }*/
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -215,7 +221,7 @@ compute(){
       // Set if we want to keep the matrix structure between calls
       // the rate is a user input (linop_nstep)
       // The matrix has to have the same structure (same structure for non-zero)
-      if (m_linear_system.isInitialized() && linop_nstep_counter < linop_nstep){
+      if (m_linear_system.isInitialized() && (linop_nstep_counter < linop_nstep || keep_constop)){
         m_linear_system.clearValues();
       }
       else {
@@ -572,112 +578,10 @@ _applyBoundaryConditions(){
       m_imposed_traction[face] = trac;
     }
   }
+  // ***TO DO: we may need to add an incident transient wave field for paraxial
+  // boundary conditions (e.g., plane wave, etc.), not only an absorbing condition
+  // Not implemented yet...
 }
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-/*void ElastodynamicModule::
-_initInputMotion(){
-
-  IParallelMng* pm = subDomain()->parallelMng();
-  Int32 ndim{2};
-  if (options()->getAnalysisType() == TypesElastodynamic::ThreeD)
-    ndim = 3;
-
-  // The following to be potentially removed ------------------------------
-  if (options()->inputMotion().size()==1)
-    ARCANE_FATAL("Only one input motion is to be defined in the arc file");
-  //-----------------------------------------------------------------------
-
-  for (Int32 i = 0, nb = options()->inputMotion().size(); i < nb; ++i) {
-    m_input.m_node_group = options()->inputMotion[i]->nodeGroup();
-
-    String fa = options()->inputMotion[i]->accelerationInputFile();
-    m_input.m_acc = readFileAsCaseTable(pm, fa, ndim);
-
-    m_input.m_is_vel = options()->inputMotion[i].hasVelocityInputFile();
-    if (m_input.m_is_vel ) {
-      String fv = options()->inputMotion[i]->velocityInputFile();
-      m_input.m_vel = readFileAsCaseTable(pm, fv, ndim);
-    }
-
-    m_input.m_is_displ = options()->inputMotion[i].hasDisplacementInputFile();
-    if (m_input.m_is_displ) {
-      String fu = options()->inputMotion[i]->displacementInputFile();
-      m_input.m_displ = readFileAsCaseTable(pm, fu, ndim);
-    }
-    m_input.m_rigid_base = options()->inputMotion[i]->hasRigidBase();
-    m_input.m_ampli_factors = options()->inputMotion[i]->amplificationFactors();
-  }
-  m_input.m_max_frequency = options()->getMaxFrequency();
-
-  // Loop on nodes
-  ENUMERATE_NODE(inode, m_input.m_node_group){
-    const Node & node = *inode;
-    if (m_input.m_rigid_base) {
-      for (Int32 i = 0; i < ndim; ++i) {
-        if (m_input.m_component[i]) {
-          m_node_has_imposed_acc[node][i] = 1;
-          if (m_input.m_is_vel)
-            m_node_has_imposed_vel[node][i] = 1;
-          if (m_input.m_is_displ)
-            m_node_has_imposed_displ[node][i] = 1;
-        }
-      }
-    }
-  }*/
-  // Print some values
-/*{
-    Real3 test_value;
-    Real param = 1.0e-4;
-    table->value(param, test_value);
-    tm->info() << "V1 t=" << param << " v=" << test_value;
-  }
-  {
-    Real3 test_value;
-    Real param = 1.2e-3;
-    table->value(param, test_value);
-    tm->info() << "V2 t=" << param << " v=" << test_value;
-  }*/
-//}
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-/*void ElastodynamicModule::
-_applyInputMotion(){
-
-  Int32 ndim{2};
-  if (options()->getAnalysisType() == TypesElastodynamic::ThreeD)
-    ndim = 3;
-
-  Real time = globalTime();
-
-  // Loop on nodes
-  ENUMERATE_NODE(inode, m_input.m_node_group) {
-    const Node& node = *inode;
-    Real3 values;
-    m_input.m_acc->value(time, values);
-    for (Int32 i = 0; i < ndim; ++i) {
-      if (m_input.m_component[i])
-        m_acc[node][i] = values[i];
-    }
-    if (m_input.m_is_vel) {
-      m_input.m_vel->value(time, values);
-      for (Int32 i = 0; i < ndim; ++i) {
-        if (m_input.m_component[i])
-          m_vel[node][i] = values[i];
-      }
-    }
-
-    if (m_input.m_is_displ) {
-      m_input.m_displ->value(time, values);
-      for (Int32 i = 0; i < ndim; ++i) {
-        if (m_input.m_component[i])
-          m_displ[node][i] = values[i];
-      }
-    }
-  }
-}*/
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 // ! Computes the Inverse Jacobian Matrix of a 3D finite-element
@@ -1014,7 +918,7 @@ _assembleLinearGlobal3D()
       const Face& face = *j;
 
       Real3 trac = m_imposed_traction[face];
-      auto fac_el = _computeTracFac(face);
+      auto fac_el = _computeFacLengthOrArea(face);
 
       // Loop on nodes of the face
       ENUMERATE_NODE (k, face.nodes()){
@@ -1025,6 +929,78 @@ _assembleLinearGlobal3D()
           DoFLocalId dof_id = node_dof.dofId(node, iddl);
           rhs_values[dof_id] += trac[iddl] * fac_el;
         }
+      }
+    }
+  }
+
+  //----------------------------------------------
+  // Paraxial terms assembly
+  //----------------------------------------------
+  auto dt = m_global_deltat();
+
+  for (const auto& bs : options()->paraxialBoundaryCondition()) {
+    FaceGroup face_group = bs->surface();
+    auto rho = bs->getRhopar();
+    Real cs,cp;
+
+    if (bs->hasEPar() && bs->hasNuPar()) {
+
+      auto E = bs->getEPar();
+      auto nu = bs->getNuPar();
+      auto lambda = nu*E/(1. + nu)/(1. - 2.*nu);
+      auto mu = E/2./(1. + nu);
+      cp = math::sqrt( (lambda + 2. * mu)/rho );
+      cs = math::sqrt( mu/rho );
+
+    } else if (bs->hasCp() && bs->hasCs()) {
+
+      cp = bs->getCp();
+      cs = bs->getCp();
+
+    } else if (bs->hasLambdaPar() && bs->hasMuPar()) {
+
+      auto mu = bs->getMuPar();
+      cp = math::sqrt( (bs->getLambdaPar() + 2. * mu)/rho );
+      cs = math::sqrt( mu/rho );
+
+    }
+    else {
+      info() << "Elastic properties expected for "
+             << "Paraxial boundary condition on FaceGroup "
+             << face_group.name() << ": \n"
+             << "  - (E-par, nu-par) or\n"
+             << "  - (lambda-par, mu-par) or\n"
+             << "  - (cp, cs)\n";
+
+      ARCANE_FATAL("Paraxial boundary has no elastic properties ");
+    }
+    auto rhocsdt = rho*cs/dt;
+    auto rhocpsdt{rho*cp/dt-rhocsdt};
+
+    info() << "Applying constant paraxial boundary conditions for surface "<< face_group.name();
+
+    // Loop on the faces (=edges in 2D) concerned with the paraxial condition
+    ENUMERATE_FACE (j, face_group) {
+      const Face& face = *j;
+      auto facint = _computeFacLengthOrArea(face);
+      auto VN = FaceNormal(face,m_node_coord);
+
+      // Loop on nodes of the face or edge (with no Dirichlet condition)
+      ENUMERATE_NODE (k, face.nodes()){
+        const Node& node = *k;
+        auto dU{ m_displ[node] - m_prev_displ[node] };
+
+        // Normal displacement (outer edge direction)
+        auto dUN{ math::dot(dU, VN) };
+
+        // Tangential displacement (edge direction)
+        auto dUT{ dU - dUN * VN };
+
+        for (Int32 iddl = 0; iddl < NDIM; ++iddl)
+          if (!(bool)m_imposed_displ[node][iddl] && node.isOwn()) {
+            DoFLocalId dof_id = node_dof.dofId(node, iddl);
+            rhs_values[dof_id] -= (rhocpsdt * dUN * VN[iddl] + rhocsdt*dUT[iddl]) * facint;
+          }
       }
     }
   }
@@ -1112,21 +1088,94 @@ _assembleLinearGlobal2D()
   for (const auto& bs : options()->neumannBoundaryCondition()) {
     FaceGroup face_group = bs->surface();
 
-    // Loop on faces of the surface
+    // Loop on the faces (=edges in 2D) concerned with the traction condition
     ENUMERATE_FACE (j, face_group) {
       const Face& face = *j;
 
       Real3 trac = m_imposed_traction[face];
-      auto fac_el = _computeTracFac(face);
+      auto facint = _computeFacLengthOrArea(face);
 
-      // Loop on nodes of the face
+      // Loop on nodes of the face or edge (with no Dirichlet condition)
       ENUMERATE_NODE (k, face.nodes()){
         const Node& node = *k;
 
         for (Int32 iddl = 0; iddl < NDIM; ++iddl)
           if (!(bool)m_imposed_displ[node][iddl] && node.isOwn()) {
             DoFLocalId dof_id = node_dof.dofId(node, iddl);
-            rhs_values[dof_id] += trac[iddl] * fac_el;
+            rhs_values[dof_id] += trac[iddl] * facint;
+          }
+      }
+    }
+  }
+
+  //----------------------------------------------
+  // Paraxial terms assembly
+  //----------------------------------------------
+  auto dt = m_global_deltat();
+
+  for (const auto& bs : options()->paraxialBoundaryCondition()) {
+    FaceGroup face_group = bs->surface();
+    auto rho = bs->getRhopar();
+    Real cs,cp;
+
+    if (bs->hasEPar() && bs->hasNuPar()) {
+
+      auto E = bs->getEPar();
+      auto nu = bs->getNuPar();
+      auto lambda = nu*E/(1. + nu)/(1. - 2.*nu);
+      auto mu = E/2./(1. + nu);
+      cp = math::sqrt( (lambda + 2. * mu)/rho );
+      cs = math::sqrt( mu/rho );
+
+    } else if (bs->hasCp() && bs->hasCs()) {
+
+      cp = bs->getCp();
+      cs = bs->getCp();
+
+    } else if (bs->hasLambdaPar() && bs->hasMuPar()) {
+
+      auto mu = bs->getMuPar();
+      cp = math::sqrt( (bs->getLambdaPar() + 2. * mu)/rho );
+      cs = math::sqrt( mu/rho );
+
+    }
+    else {
+      info() << "Elastic properties expected for "
+             << "Paraxial boundary condition on FaceGroup "
+             << face_group.name() << ": \n"
+             << "  - (E-par, nu-par) or\n"
+             << "  - (lambda-par, mu-par) or\n"
+             << "  - (cp, cs)\n";
+
+      ARCANE_FATAL("Paraxial boundary has no elastic properties ");
+    }
+
+    auto rhocsdt = rho*cs/dt;
+    auto rhocpsdt{rho*cp/dt-rhocsdt};
+
+    info() << "Applying constant paraxial boundary conditions for surface "<< face_group.name();
+
+    // Loop on the faces (=edges in 2D) concerned with the paraxial condition
+    ENUMERATE_FACE (j, face_group) {
+      const Face& face = *j;
+      auto facint = _computeFacLengthOrArea(face);
+      auto VN = EdgeNormal(face.toEdge(),m_node_coord);
+
+      // Loop on nodes of the face or edge (with no Dirichlet condition)
+      ENUMERATE_NODE (k, face.nodes()){
+        const Node& node = *k;
+        auto dU{ m_displ[node] - m_prev_displ[node] };
+
+        // Normal displacement (outer edge direction)
+        auto dUN{ math::dot(dU, VN) };
+
+        // Tangential displacement (edge direction)
+        auto dUT{ dU - dUN * VN };
+
+        for (Int32 iddl = 0; iddl < NDIM; ++iddl)
+          if (!(bool)m_imposed_displ[node][iddl] && node.isOwn()) {
+            DoFLocalId dof_id = node_dof.dofId(node, iddl);
+            rhs_values[dof_id] -= (rhocpsdt * dUN * VN[iddl] + rhocsdt*dUT[iddl]) * facint;
           }
       }
     }
@@ -1136,7 +1185,7 @@ _assembleLinearGlobal2D()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 Real ElastodynamicModule::
-_computeTracFac(const Face& face)
+_computeFacLengthOrArea(const Face& face)
 {
   Int32 item_type = face.type();
   Real fac_el{0.};
@@ -1175,7 +1224,7 @@ _doSolve(){
 
   // Re-Apply boundary conditions because the solver has modified the values
   // on all nodes
-  _applyBoundaryConditions();
+  _applyBoundaryConditions(); // ************ CHECK
 
   {
     VariableDoFReal& dof_d(m_linear_system.solutionVariable());

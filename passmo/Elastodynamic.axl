@@ -121,12 +121,26 @@
     <simple name = "gz" type = "real" default="-9.81" optional="true">
       <description> Gravity along Z direction </description>
     </simple>
-    <simple name="init-stress" type="string"  default="init-stress.txt" optional="true">
-      <description>Filename containing initial stress tensor (xx yy zz xy yz xz) on mesh elements</description>
-    </simple>
-    <simple name="init-strain" type="string"  default="init-strain.txt" optional="true">
-      <description>Filename containing initial strain tensor (xx yy zz xy yz xz) on mesh elements</description>
-    </simple>
+
+      <!-- - - - - - init-cell-condition - - - - -->
+      <complex name="init-cell-condition"
+               type="InitCellCondition"
+               minOccurs="0"
+               maxOccurs="unbounded">
+
+        <description>Definition of initial strain or stress tensors (xx yy zz xy yz xz) on cell groups</description>
+        <enumeration name="type" type="TypesElastodynamic::eCellCondition">
+          <description>Type of cell initial condition</description>
+          <enumvalue genvalue="TypesElastodynamic::Strain" name="strain" />
+          <enumvalue genvalue="TypesElastodynamic::Stress" name="stress" />
+        </enumeration>
+          <extended name="cell-group" type="Arcane::CellGroup">
+            <description>Cell group on which to apply these initial conditions</description>
+          </extended>
+          <simple name="const-vol-part" type="real3" default="0.0" optional="true">
+            <description>Initial constant volumetric part (xx yy zz)</description>
+          </simple>
+      </complex>
 
     <!-- - - - - - dirichlet-boundary-condition - - - - -->
     <complex name="dirichlet-boundary-condition" type="DirichletBoundaryCondition" minOccurs="0" maxOccurs="unbounded">
@@ -164,7 +178,11 @@
     </complex>
 
     <!-- - - - - - neumann-boundary-condition - - - - -->
-    <complex name="neumann-boundary-condition" type="NeumannBoundaryCondition" minOccurs="0" maxOccurs="unbounded">
+    <complex name="neumann-boundary-condition"
+             type="NeumannBoundaryCondition"
+             minOccurs="0"
+             maxOccurs="unbounded">
+
       <description>Definition of Neumann (traction) boundary conditions</description>
         <extended name="surface" type="Arcane::FaceGroup">
           <description>Surface on which to apply these boundary conditions</description>
@@ -178,15 +196,53 @@
         <simple name="Z-val" type="real" default="0.0" optional="true">
           <description>Constant traction value in Z direction</description>
         </simple>
-        <simple name = "curve" type = "string">
+        <simple name = "curve" type = "string"  optional="true">
           <description>Filename containing the traction time history (3D vector)</description>
+        </simple>
+    </complex>
+
+    <!-- - - - - - paraxial-boundary-condition - - - - -->
+    <complex name  = "paraxial-boundary-condition"
+             type  = "ParaxialBoundaryCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded">
+      <description>Paraxial boundary condition</description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>Surface on which to apply these boundary conditions</description>
+      </extended>
+        <simple name = "incident-wave" type = "bool" default="false" optional="true">
+          <description>Filename containing the incident wave field time history (3D vector)</description>
+        </simple>
+        <simple name = "cs" type = "real" optional="true">
+          <description>Shear wave velocity for the outer domain (default=same as inner)</description>
+        </simple>
+        <simple name = "cp" type = "real" optional="true">
+          <description>P-wave velocity for the outer domain (default=same as inner)</description>
+        </simple>
+        <simple name = "E-par" type = "real" optional="true">
+          <description>Young modulus for the outer domain (default=same as inner)</description>
+        </simple>
+        <simple name = "nu-par" type = "real" optional="true">
+          <description>Poisson ration for the outer domain (default=same as inner)</description>
+        </simple>
+        <simple name = "lambda-par" type = "real" optional="true">
+          <description>1st Lame coefficient for the outer domain (default=same as inner)</description>
+        </simple>
+        <simple name = "mu-par" type = "real" optional="true">
+          <description>2nd Lame coefficient (shear modulus) for the outer domain (default=same as inner)</description>
+        </simple>
+        <simple name = "rhopar" type = "real" optional="false">
+          <description>Bulk density for the outer domain (default=same as inner)</description>
+        </simple>
+        <simple name = "incident-wave-file" type = "string"  optional="true">
+          <description>Filename containing the incident wave field time history (3D vector)</description>
         </simple>
     </complex>
 
     <simple name="maxfreq" type="real" default="10." optional="true">
       <description>Maximum frequency filter to apply to the input motion</description>
     </simple>
-    <simple name="rigidbody" type="bool" default="true" optional="true">
+    <simple name="rigidbody" type="bool" default="false" optional="true">
           <description>Indicator true for a rigid body motion (same acceleration imposed on all nodes)</description>
     </simple>
 

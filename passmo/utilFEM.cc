@@ -158,7 +158,8 @@ getShapeFuncDeriv(const Int16& item_type,const Int32& inod,const Real3& ref_coor
 }
 
 // ! Computes the cartesian directions of a finite-element (used for derivation of shape functions)
-// ! For instance, assuming the returned Integer3 vector=idir, idir = (0,-1,-1) means there will derivation along x only
+// ! For instance, assuming the returned Integer3 vector=idir,
+// idir = (0,-1,-1) means there will be derivation along x only
 Integer3 CellFEMDispatcher::
 getOrientation(const ItemWithNodes& cell){
      Int32 item_type = cell.type();
@@ -168,8 +169,47 @@ getOrientation(const ItemWithNodes& cell){
      return Integer3::zero();
 }
 
-/////////////////////////////////////////////////////////////////////////////
-// Functions useful for class CellFEMDispatcher
+/*---------------------------------------------------------------------------*/
+/* Functions used for geometric transformations (rotations, projections, ...)*/
+/*---------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
+/* Edge normal for 2D only and assuming the edge lies in x-y/x-z or y-z plane*/
+/* Normal vector is expressed in 3D (putting 0. to the out-of-plane coord.)  */
+/*---------------------------------------------------------------------------*/
+Real3 EdgeNormal(const Edge& edge,const VariableNodeReal3& n){
+  Real3 n0 = n[edge.node(0)];
+  Real3 n1 = n[edge.node(1)];
+
+  if (!edge.toFace().isSubDomainBoundaryOutside())
+    std::swap(n0, n1);
+
+  Real3 vec { n1 - n0 };
+  Int32 dir[2]{-1,-1};
+
+  for (Int32 i = 0, j = 0; i < 3; i++)	{
+    if (math::abs(vec[i]) > 0.) {
+      dir[j++] = i;
+    };
+  }
+  Real2 vec2{-vec[dir[1]], vec[dir[0]]};
+  Real3 vn;
+  vn[dir[0]] = vec2.x;
+  vn[dir[1]] = vec2.y;
+  return vn.normalize();
+}
+
+Real3 FaceNormal(const Face& face,const VariableNodeReal3& n){
+  const Real3& n0 = n[face.node(0)];
+  const Real3& n1 = n[face.node(1)];
+  const Real3& n2 = n[face.node(2)];
+  Real3 vec = math::cross(n0-n1,n0-n2);
+  return vec.normalize();
+}
+
+/*---------------------------------------------------------------------------*/
+/* Functions useful for class CellFEMDispatcher                              */
+/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 // Line2: linear edge finite-element
@@ -292,13 +332,12 @@ Real3 Tri3ShapeFuncDeriv(const Integer& inod,const Real3&){
 }
 
 Integer3 Tri3Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
-	Real3 p0 = n[item.node(0)];
+	const Real3& p0 = n[item.node(0)];
 	Real3 u1 = p0 - n[item.node(1)];
 	Real3 u2 = p0 - n[item.node(2)];
 	Integer3 dir;
 
-	for (Integer i = 0, j = -1; i < 3; i++)
-	{
+	for (Int32 i = 0, j = -1; i < 3; i++)	{
 		Real3 e;
 		e[i] = 1.;
 		if (math::dot(u1,e) != 0. || math::dot(u2,e) != 0.) dir[i] = ++j;

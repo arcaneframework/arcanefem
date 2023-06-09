@@ -35,6 +35,11 @@ struct TypesElastodynamic
     Force,
     UnknownCond
   };
+  enum eCellCondition {
+    Strain,
+    Stress,
+    UnknownCellCond
+  };
   enum eGaussIntegrationOrder {
     Nint1, //!< Integration order along 1st local cell direction
     Nint2, //!< Integration order along 2nd local cell direction

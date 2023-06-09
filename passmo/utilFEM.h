@@ -198,6 +198,7 @@ const Integer maxnint = 9;
 /*---------------------------------------------------------------------------*/
 
 extern Real Line2Length(const ItemWithNodes& item, const VariableNodeReal3& n);
+extern Real3 EdgeNormal(const Edge& edge, const VariableNodeReal3& n);
 extern Real Line2ShapeFuncVal(const Integer& inod, const Real3& coord);
 extern Real3 Line2ShapeFuncDeriv(const Integer& inod, const Real3& coord);
 extern Integer3 Line2Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
@@ -208,6 +209,7 @@ extern Real3 Line3ShapeFuncDeriv(const Integer& inod, const Real3& coord);
 extern Integer3 Line3Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
 
 extern Real Tri3Surface(const ItemWithNodes& item, const VariableNodeReal3& n);
+extern Real3 FaceNormal(const Face& face, const VariableNodeReal3& n);
 extern Real Tri3ShapeFuncVal(const Integer& inod, const Real3& coord);
 extern Real3 Tri3ShapeFuncDeriv(const Integer& inod, const Real3& coord);
 extern Integer3 Tri3Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);

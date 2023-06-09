@@ -72,7 +72,11 @@ private:
    };
    // List of CaseTable for traction boundary conditions
    UniqueArray<CaseTableInfo> m_traction_case_table_list;
-   Real3 m_traction{};// Traction vector
+
+   // List of CaseTable for paraxial boundary conditions
+   // (if incident transient wave fields are defined)
+// TO DO ***   UniqueArray<CaseTableInfo> m_paraxial_case_table_list;
+
    Integer3 integ_order{2, 2, 2};
    Int32 NDIM{2};
    CellFEMDispatcher cell_fem{};
@@ -83,7 +87,7 @@ private:
    Real beta{0.25};
    Real alfam{0.};
    Real alfaf{0.};
-   bool is_alfa_method{false};
+   bool is_alfa_method{false},keep_constop{false};
    Real dt2{0.};
    Int32 linop_nstep{100}, linop_nstep_counter{0};
 
@@ -101,7 +105,7 @@ private:
  void _applyBoundaryConditions();
  Real3x3 _computeInverseJacobian3D(const Cell& cell,const Real3& ref_coord, Real& jacobian);
  Real2x2  _computeInverseJacobian2D(const Cell& cell,const Real3& ref_coord, Real& jacobian);
- Real _computeTracFac(const Face& face);
+ Real _computeFacLengthOrArea(const Face& face);
 
 
  //    FixedMatrix<2, 3> _computeBMatrixT3(Cell cell);
