@@ -46,6 +46,9 @@ startInit(){
 
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
+
+  _initDofs();
+
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
   integ_order.m_i = options()->getNint1();
@@ -101,7 +104,6 @@ startInit(){
   //  _initInputMotion();
   _applyInitialNodeConditions();
   _applyInitialCellConditions();
-  _initDofs();
   // This will be useful for nonlinear dynamics only (not used in elastodynamics)
 //  _applyInitialCellConditions();
 
