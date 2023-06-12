@@ -17,9 +17,9 @@
     <mesh>
       <filename>semi-circle-soil.msh</filename>
       <initialization>
-        <variable><name>rho</name><value>2500.0</value><group>soil</group></variable>
-        <variable><name>young</name><value>6.62e6</value><group>soil</group></variable>
-        <variable><name>nu</name><value>0.45</value><group>soil</group></variable>
+        <variable><name>Rho</name><value>2500.0</value><group>soil</group></variable>
+        <variable><name>Young</name><value>6.62e6</value><group>soil</group></variable>
+        <variable><name>Nu</name><value>0.45</value><group>soil</group></variable>
       </initialization>
     </mesh>
   </meshes>
