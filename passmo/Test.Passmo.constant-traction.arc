@@ -16,11 +16,11 @@
   <meshes>
     <mesh>
       <filename>semi-circle-soil.msh</filename>
-    <init>
-      <variable name="rho" value="2500." group="soil" />
-      <variable nom="young" value="6.62e6" group="soil" />
-      <variable nom="nu" value="0.45" group="soil" />
-    </init>
+      <initialisation>
+        <variable name="rho" value="2500." group="soil" />
+        <variable nom="young" value="6.62e6" group="soil" />
+        <variable nom="nu" value="0.45" group="soil" />
+      </initialisation>
     </mesh>
   </meshes>
 
