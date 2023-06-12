@@ -65,10 +65,10 @@
       <description>Second Lame parameter value per cell</description>
     </variable>
     <variable field-name="vs" name="Vs" data-type="real" item-kind="cell" dim="0">
-      <description>Shear wave velocity value per cell</description>
+      <description>S-wave (shear) velocity value per cell</description>
     </variable>
     <variable field-name="vp" name="Vp" data-type="real" item-kind="cell" dim="0">
-      <description>P (compression) wave velocity value per cell</description>
+      <description>P-wave (compression) velocity value per cell</description>
     </variable>
   </variables>
 
@@ -119,6 +119,41 @@
       <description> Gravity along Z direction </description>
     </simple>
 
+    <!-- - - - - - init-elast-properties - - - - -->
+    <complex name="init-elast-properties"
+             type="InitElastProperties"
+             minOccurs="0"
+             maxOccurs="unbounded">
+
+        <description>Definition of initial elastic properties on cell groups</description>
+          <extended name="cell-group" type="Arcane::CellGroup">
+            <description>Cell group on which to apply these initial conditions</description>
+          </extended>
+          <simple name="rho" type="real" default="2500.0" optional="false">
+            <description>Initial constant bulk density</description>
+          </simple>
+          <simple name="type" type="string" default="young" optional="false">
+            <description>Type of elastic parameters = young, lame or vel</description>
+          </simple>
+          <simple name="young" type="real" optional="true">
+            <description>Initial Young modulus</description>
+          </simple>
+          <simple name="nu" type="real" optional="true">
+            <description>Initial Poisson ratio</description>
+          </simple>
+          <simple name="lambda" type="real" optional="true">
+            <description>Initial 1st Lame coefficient</description>
+          </simple>
+          <simple name="mu" type="real" optional="true">
+            <description>Initial 2nd (shear) Lame coefficient</description>
+          </simple>
+          <simple name="vp" type="real" optional="true">
+            <description>Initial P-wave (compression) velocity</description>
+          </simple>
+          <simple name="vs" type="real" optional="true">
+            <description>Initial S-wave (shear) velocity</description>
+          </simple>
+    </complex>
       <!-- - - - - - init-cell-condition - - - - -->
       <complex name="init-cell-condition"
                type="InitCellCondition"
@@ -137,7 +172,7 @@
           <simple name="const-vol-part" type="real3" default="0.0" optional="true">
             <description>Initial constant volumetric part (xx yy zz)</description>
           </simple>
-      </complex>
+    </complex>
 
     <!-- - - - - - dirichlet-boundary-condition - - - - -->
     <complex name="dirichlet-boundary-condition" type="DirichletBoundaryCondition" minOccurs="0" maxOccurs="unbounded">

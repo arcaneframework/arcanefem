@@ -16,11 +16,11 @@
   <meshes>
     <mesh>
       <filename>semi-circle-soil.msh</filename>
-      <initialisation>
+      <initialization>
         <variable name="rho" value="2500." group="soil" />
         <variable nom="young" value="6.62e6" group="soil" />
         <variable nom="nu" value="0.45" group="soil" />
-      </initialisation>
+      </initialization>
     </mesh>
   </meshes>
 
@@ -39,10 +39,6 @@
 
     <paraxial-boundary-condition>
       <surface>lower</surface>
-      <incident-wave>false</incident-wave>
-      <E-par>6.62e6</E-par>
-      <nu-par>0.45</nu-par>
-      <rhopar>2500.0</rhopar>
     </paraxial-boundary-condition>
 
     <neumann-boundary-condition>

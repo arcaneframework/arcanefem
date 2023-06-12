@@ -100,6 +100,7 @@ startInit(){
   }
   //  _initInputMotion();
   _applyInitialNodeConditions();
+  _applyInitialCellConditions();
   _initDofs();
   // This will be useful for nonlinear dynamics only (not used in elastodynamics)
 //  _applyInitialCellConditions();
@@ -169,31 +170,86 @@ _applyInitialNodeConditions(){
 void ElastodynamicModule::
 _applyInitialCellConditions(){
 
+  for (Integer i = 0, nb = options()->initElastProperties().size(); i < nb; ++i) {
+
+    CellGroup cell_group = options()->initElastProperties[i]->cellGroup();
+    auto type = options()->initElastProperties[i]->type().lower();
+
+    // In the future, we will have to find a way to impose different initial
+    // properties (stress/strain tensors, densities...) per element from a file
+    // (e.g., coming from a previous computation)
+    auto rho = options()->initElastProperties[i]->rho();
+    Real vp, vs, E, nu, lambda, mu;
+
+    if (type.contains("young")) {
+      E = options()->initElastProperties[i]->young();
+      nu = options()->initElastProperties[i]->nu();
+      lambda = nu*E/(1. + nu)/(1. - 2.*nu);
+      mu = E/2./(1. + nu);
+      vp = math::sqrt( (lambda + 2. * mu)/rho );
+      vs = math::sqrt( mu/rho );
+
+    } else if (type.contains("lame")) {
+      lambda = options()->initElastProperties[i]->young();
+      mu = options()->initElastProperties[i]->nu();
+      vp = math::sqrt( (lambda + 2.*mu)/rho );
+      vs = math::sqrt( mu/rho );
+      auto x = lambda/mu;
+      nu = x/2./(1. + x);
+      E = 2.*mu*(1. + nu);
+
+    } else if (type.contains("vel")) {
+      vp = options()->initElastProperties[i]->vp();
+      vs = options()->initElastProperties[i]->vs();
+      mu = rho*vs*vs;
+      lambda = rho*vp*vp - 2.*mu;
+      auto x = lambda/mu;
+      nu = x/2./(1. + x);
+      E = 2.*mu*(1. + nu);
+
+    }
+
+    ENUMERATE_CELL (icell, cell_group) {
+        const Cell& cell = *icell;
+        m_rho[cell] = rho;
+        m_vp[cell] = vp;
+        m_vs[cell] = vs;
+        m_lambda[cell] = lambda;
+        m_mu[cell] = mu;
+        m_young[cell] = E;
+        m_nu[cell] = nu;
+      }
+  }
+
   for (Integer i = 0, nb = options()->initCellCondition().size(); i < nb; ++i) {
 
     CellGroup cell_group = options()->initCellCondition[i]->cellGroup();
     TypesElastodynamic::eCellCondition type = options()->initCellCondition[i]->type();
 
     // In the future, we will have to find a way to impose different initial
-    // stress/strain tensors per element (e.g., coming from a previous computation)
-    Real3 values = options()->initCellCondition[i]->constVolPart();
+    // properties (stress/strain tensors, densities...) per element from a file
+    // (e.g., coming from a previous computation)
+    auto values = options()->initCellCondition[i]->constVolPart();
+    if (type == TypesElastodynamic::Stress) {
 
-    // Loop on cells with this initial condition
-    ENUMERATE_CELL (icell, cell_group) {
-      const Cell& cell = *icell;
+        // Loop on cells with this initial condition
+        ENUMERATE_CELL (icell, cell_group) {
+          const Cell& cell = *icell;
 
-      if (type == TypesElastodynamic::Stress) {
-        // Initialize the stress tensor for the concerned cell
-        m_stress[cell].x = Real3(values.x, 0., 0.);
-        m_stress[cell].y = Real3(0., values.y, 0.);
-        m_stress[cell].z = Real3(0., 0., values.z);
-      }
-      else {
-        // Initialize the strain tensor for the concerned cell
-        m_strain[cell].x = Real3(values.x, 0., 0.);
-        m_strain[cell].y = Real3(0., values.y, 0.);
-        m_strain[cell].z = Real3(0., 0., values.z);
-      }
+          // Initialize the stress tensor for the concerned cell
+          m_stress[cell].x = Real3(values.x, 0., 0.);
+          m_stress[cell].y = Real3(0., values.y, 0.);
+          m_stress[cell].z = Real3(0., 0., values.z);
+        }
+    } else if (type == TypesElastodynamic::Strain) {
+
+        ENUMERATE_CELL (icell, cell_group) {
+          const Cell& cell = *icell;
+          // Initialize the strain tensor for the concerned cell
+          m_strain[cell].x = Real3(values.x, 0., 0.);
+          m_strain[cell].y = Real3(0., values.y, 0.);
+          m_strain[cell].z = Real3(0., 0., values.z);
+        }
     }
   }
 }
@@ -1117,6 +1173,7 @@ _assembleLinearGlobal2D()
     FaceGroup face_group = bs->surface();
     auto rho = bs->getRhopar();
     Real cs,cp;
+    bool is_inner{false};
 
     if (bs->hasEPar() && bs->hasNuPar()) {
 
@@ -1146,18 +1203,27 @@ _assembleLinearGlobal2D()
              << "  - (E-par, nu-par) or\n"
              << "  - (lambda-par, mu-par) or\n"
              << "  - (cp, cs)\n";
+      info() << "When not specified, taking elastic properties from inner domain. ";
+      is_inner = true;
 
-      ARCANE_FATAL("Paraxial boundary has no elastic properties ");
+//      ARCANE_FATAL("Paraxial boundary has no elastic properties ");
     }
 
-    auto rhocsdt = rho*cs/dt;
-    auto rhocpsdt{rho*cp/dt-rhocsdt};
 
     info() << "Applying constant paraxial boundary conditions for surface "<< face_group.name();
 
     // Loop on the faces (=edges in 2D) concerned with the paraxial condition
     ENUMERATE_FACE (j, face_group) {
       const Face& face = *j;
+
+      if (is_inner){
+        const Cell& cell = face.boundaryCell();
+        rho = m_rho[cell];
+        cs = m_vs[cell];
+        cp = m_vp[cell];
+      }
+      auto rhocsdt = rho*cs/dt;
+      auto rhocpsdt{rho*cp/dt-rhocsdt};
       auto facint = _computeFacLengthOrArea(face);
       auto VN = EdgeNormal(face.toEdge(),m_node_coord);
 
