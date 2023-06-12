@@ -28,11 +28,10 @@
     <analysis-type>planestrain</analysis-type>
     <start>0.</start>
     <final-time>0.08</final-time>
-    <deltat>0.01</detltat>
+    <deltat>0.01</deltat>
     <beta>0.25</beta>
     <gamma>0.5</gamma>
     <alfa_method>false</alfa_method>
-    <nb_dofs_per_node>2</nb_dofs_per_node>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     <penalty>1.e30</penalty>
     <linop-nstep>10</linop-nstep>

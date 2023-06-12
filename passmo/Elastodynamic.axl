@@ -97,9 +97,6 @@
       <description>Filename containing the solution strains per Cell</description>
     </simple>
 
-    <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
-      <description>Type of mesh provided to the solver</description>
-    </simple>
     <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
       <description>
         Method via which Dirichlet boundary condition is imposed
