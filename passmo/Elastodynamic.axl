@@ -129,10 +129,10 @@
           <extended name="cell-group" type="Arcane::CellGroup">
             <description>Cell group on which to apply these initial conditions</description>
           </extended>
-          <simple name="rho" type="real" default="2500.0" optional="false">
+          <simple name="rho" type="real" default="2500.0" optional="true">
             <description>Initial constant bulk density</description>
           </simple>
-          <simple name="type" type="string" default="young" optional="false">
+          <simple name="type" type="string" default="young" optional="true">
             <description>Type of elastic parameters = young, lame or vel</description>
           </simple>
           <simple name="young" type="real" optional="true">
@@ -263,7 +263,7 @@
         <simple name = "mu-par" type = "real" optional="true">
           <description>2nd Lame coefficient (shear modulus) for the outer domain (default=same as inner)</description>
         </simple>
-        <simple name = "rhopar" type = "real" optional="false">
+        <simple name = "rhopar" type = "real" optional="true">
           <description>Bulk density for the outer domain (default=same as inner)</description>
         </simple>
         <simple name = "incident-wave-file" type = "string"  optional="true">
