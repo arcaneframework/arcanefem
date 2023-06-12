@@ -7,9 +7,9 @@
   <arcane-post-processing>
    <output-period>1</output-period>
    <output>
-     <variable>displ</variable>
-     <variable>vel</variable>
-     <variable>acc</variable>
+     <variable>Displ</variable>
+     <variable>Vel</variable>
+     <variable>Acc</variable>
    </output>
   </arcane-post-processing>
 
