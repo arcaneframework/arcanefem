@@ -1,8 +1,10 @@
-# Solving Laplace equation with FEM and Arcane #
+# Solving Laplace equation with ArcaneFEM #
+<img align="left" width="400" src="https://github.com/arcaneframework/arcanefem/assets/52162083/be3d2ea6-bfb7-42d9-b82e-a62509a498f8" />
 
-Here Laplace equation, which is one of the basics PDEs, is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver.
 
-<img src="https://github.com/arcaneframework/arcanefem/assets/52162083/be3d2ea6-bfb7-42d9-b82e-a62509a498f8" alt="Test_1_large" style="zoom: 50%;" />
+Here, we employ Arcane to solve the Laplace equation, which stands as one of the fundamental partial differential equations (PDEs). The provided code presents a straightforward implementation of a 2D unstructured mesh Galerkin finite element method (FEM) solver.
+
+The Laplace equation, also known as the harmonic equation, appears in various scientific and engineering applications. It plays a crucial role in fields such as physics, engineering, and mathematics. By solving the Laplace equation, we can gain insights into phenomena such as steady-state heat conduction, electrostatics, fluid flow, potential fields, and more. The code showcased here provides a foundation for tackling problems governed by this fundamental equation.
 
 
 #### Problem description ####
