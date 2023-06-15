@@ -1,8 +1,8 @@
 # Aerodynamics with ArcaneFEM #
+<img width="700" align="left" src="https://github.com/arcaneframework/arcanefem/assets/52162083/2c21cab5-5d7f-4bd9-a364-2b1f54e70edf" alt="Test_1_large_psi_new" />
 
 Here Potential flow theory is used on 2D wing profile NACA0012 (airfoil) to determine the flow characteristics. The potential flow theory is a mathematical framework used to describe fluid flow in which the fluid is assumed to be inviscid, incompressible, and irrotational. These assumptions simplify the equations of motion, making them amenable to analytical solutions. In potential flow theory, fluid flow is described by a scalar potential function, known as the velocity potential, which satisfies Laplace's equation. The velocity field can then be obtained by taking the gradient of the velocity potential.
 
-<img src="https://github.com/arcaneframework/arcanefem/assets/52162083/2c21cab5-5d7f-4bd9-a364-2b1f54e70edf" alt="Test_1_large_psi_new" style="zoom:67%;" />
 
 
 
