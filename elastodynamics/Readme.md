@@ -1,5 +1,7 @@
 # Transient elastodynamics
 
+<img width="500" align="left" src="https://github.com/arcaneframework/arcanefem/assets/52162083/692ba9e7-5dbd-450a-ab19-e6c4a0df58a6" />
+
 Here we deal with linear solid-mechanics governed by a system of PDE modeling the deformation of elastic bodies. The solver, here is a 2D unstructured mesh linear elasticity solver, which uses FEM to search for vector solution of displacement unknown $\mathbf{u}=(u_1,u_2)$, since transient $\mathbf{u}$ changes with time.
 
 
