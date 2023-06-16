@@ -1,5 +1,9 @@
 # Bilaplacian with ArcaneFEM #
 
+
+<img width="600" align="left" src="https://github.com/arcaneframework/arcanefem/assets/52162083/9f183f44-cc7c-40cb-9b6b-8fefdf0f94bf"/>
+
+
 The code here is a simple FEM code used to solve a bilaplacian problem on unstructured 2D mesh. Here bilaplacian refers to solution of two Laplace equations (hence the name bilaplacian) coupled through a Poisson equation.
 
 
@@ -28,7 +32,6 @@ $u_1 = 0.0  \quad \forall(x,y)\in\partial\Omega^h_{\text{Bot}}\subset\partial \O
 This system of equations arises in various applications, such as fluid mechanics, electromagnetics, and elasticity. In fluid mechanics, for instance, it can be used to model the flow of an incompressible fluid over a flat plate. In this case, $u_1$ represents the stream function, which describes the flow velocity in the $x$-direction, while $u_2$ represents the velocity potential, which describes the flow velocity in the $y$-direction.
 
 #### Variational formulation
-
 
 
 In this case  the variational formulation we use the subset of square integrable Sobolev functional space   $H^1_{0}(\Omega) \subset H^1{\Omega}$. The FEM formulation then reads:
