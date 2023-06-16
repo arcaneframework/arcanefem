@@ -1,7 +1,10 @@
 # linear elasticity
+<img width="500" align="left" src="https://github.com/arcaneframework/arcanefem/assets/52162083/eb970ece-5fd3-4862-9b93-e8930a103ae9" />
 
-Here we deal with linear solid-mechanics governed by a system of PDE modeling the deformation of elastic bodies. The solver, here is a 2D unstructured mesh linear elasticity solver, which uses FEM to search for vector solution of displacement unknown $\mathbf{u}=(u_1,u_2)$.
 
+Here, we focus on linear solid mechanics, which involves analyzing the behavior of elastic bodies through a system of partial differential equations (PDEs) that govern their deformation. The solver at hand is specifically designed for 2D unstructured mesh problems and operates as a linear elasticity solver utilizing the finite element method (FEM).
+
+The primary objective of the solver is to determine the vector solution for the unknown displacements within the elastic body. By utilizing FEM, it efficiently searches for a solution that satisfies the given boundary conditions and accurately captures the deformation characteristics of the system. This solver serves as a valuable tool for investigating and understanding the mechanical behavior of elastic materials in various engineering applications.
 
 
 ## Mathematics ##
