@@ -154,7 +154,10 @@ class AlephDoFLinearSystemImpl
     // TODO: Linear algebra backend should be accessed from arc file.
     if (!m_aleph_kernel){
       info() << "Creating Aleph Kernel";
-      m_aleph_kernel = new AlephKernel(m_sub_domain, solver_backend, 1);
+      // We can use less than the number of MPI ranks
+      // but for the moment we use all the available cores.
+      Int32 nb_core = m_sub_domain->parallelMng()->commSize();
+      m_aleph_kernel = new AlephKernel(m_sub_domain, solver_backend, nb_core);
     }
     else{
       //
