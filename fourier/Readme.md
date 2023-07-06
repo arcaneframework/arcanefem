@@ -144,3 +144,10 @@ For post processing the `ensight.case` file is outputted, which can be read by P
 
 <img src="https://github.com/arcaneframework/arcanefem/assets/52162083/eeac62de-3b5f-4264-a643-c6652a5693e8" alt="test_2_small_new"  />
 
+#### manufactured solution example ####
+
+![manu](https://github.com/arcaneframework/arcanefem/assets/52162083/5226528f-a5e1-4826-9b0b-36dc52ff57b3)
+
+
+![manu](https://github.com/arcaneframework/arcanefem/assets/52162083/9237d686-2791-4852-b929-4d0c7e5f8df7)
+
