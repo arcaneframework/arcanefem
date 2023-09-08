@@ -1,7 +1,7 @@
 # Bilaplacian with ArcaneFEM #
 
 
-<img width="600" align="left" src="https://github.com/arcaneframework/arcanefem/assets/52162083/9f183f44-cc7c-40cb-9b6b-8fefdf0f94bf"/>
+<img width="500" align="left" src="https://github.com/arcaneframework/arcanefem/assets/52162083/9f183f44-cc7c-40cb-9b6b-8fefdf0f94bf"/>
 
 
 The code here is a simple FEM code used to solve a bilaplacian problem on unstructured 2D mesh. Here bilaplacian refers to solution of two Laplace equations (hence the name bilaplacian) coupled through a Poisson equation.
