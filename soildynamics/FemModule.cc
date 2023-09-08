@@ -52,6 +52,14 @@ class FemModule
   {
     for( const CaseTableInfo&  t : m_traction_case_table_list )
       delete t.case_table;
+    for( const CaseTableInfo&  t : m_double_couple_case_table_list_north )
+      delete t.case_table;
+    for( const CaseTableInfo&  t : m_double_couple_case_table_list_south )
+      delete t.case_table;
+    for( const CaseTableInfo&  t : m_double_couple_case_table_list_east )
+      delete t.case_table;
+    for( const CaseTableInfo&  t : m_double_couple_case_table_list_west )
+      delete t.case_table;
   }
 
  public:
@@ -112,8 +120,13 @@ class FemModule
     String file_name;
     CaseTable* case_table = nullptr;
   };
+
   // List of CaseTable for traction boundary conditions
   UniqueArray<CaseTableInfo> m_traction_case_table_list;
+  UniqueArray<CaseTableInfo> m_double_couple_case_table_list_north;
+  UniqueArray<CaseTableInfo> m_double_couple_case_table_list_south;
+  UniqueArray<CaseTableInfo> m_double_couple_case_table_list_east;
+  UniqueArray<CaseTableInfo> m_double_couple_case_table_list_west;
 
  private:
 
@@ -127,6 +140,8 @@ class FemModule
   void _solve();
   void _assembleLinearOperator();
   void _applyDirichletBoundaryConditions();
+  void _applyDoubleCoupleLinear();
+  void _applyDoubleCoupleBilinear();
   void _checkResultFile();
   void _readCaseTables();
   FixedMatrix<4, 4> _computeElementMatrixEDGE2(Face face);
@@ -349,6 +364,36 @@ _readCaseTables()
       case_table = readFileAsCaseTable(pm, file_name, 3);
     }
     m_traction_case_table_list.add(CaseTableInfo{file_name,case_table});
+  }
+
+  for (const auto& bs : options()->doubleCouple()) {
+    CaseTable* case_table_north = nullptr;
+    CaseTable* case_table_south = nullptr;
+    CaseTable* case_table_east  = nullptr;
+    CaseTable* case_table_west = nullptr;
+
+    String file_name_north;
+    String file_name_south;
+    String file_name_east;
+    String file_name_west;
+
+    if(bs->doubleCoupleInputFile.isPresent()){
+
+      file_name_north = bs->doubleCoupleInputFile()+"_north.txt";
+      file_name_south = bs->doubleCoupleInputFile()+"_south.txt";
+      file_name_east  = bs->doubleCoupleInputFile()+"_east.txt";
+      file_name_west  = bs->doubleCoupleInputFile()+"_west.txt";
+
+      case_table_north = readFileAsCaseTable(pm, file_name_north, 3);
+      case_table_south = readFileAsCaseTable(pm, file_name_south, 3);
+      case_table_east  = readFileAsCaseTable(pm, file_name_east, 3);
+      case_table_west  = readFileAsCaseTable(pm, file_name_west, 3);
+    }
+
+    m_double_couple_case_table_list_north.add(CaseTableInfo{file_name_north,case_table_north});
+    m_double_couple_case_table_list_south.add(CaseTableInfo{file_name_south,case_table_south});
+    m_double_couple_case_table_list_east.add(CaseTableInfo{file_name_east,case_table_east});
+    m_double_couple_case_table_list_west.add(CaseTableInfo{file_name_west,case_table_west});
   }
 }
 
@@ -708,74 +753,6 @@ _assembleLinearOperator()
     Cell cell = *icell;
     Real area = _computeAreaTriangle3(cell);
 
-    Real3 m0 = m_node_coord[cell.nodeId(0)];
-    Real3 m1 = m_node_coord[cell.nodeId(1)];
-    Real3 m2 = m_node_coord[cell.nodeId(2)];
-
-    Real2 DXU1, DXU2, DXV1, DXV2, DXA1, DXA2;
-
-    // to construct dx(v) we use d(Phi0)/dx , d(Phi1)/dx , d(Phi1)/dx
-    // here Phi_i are the basis functions at three nodes i=1:3
-    Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
-    Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
-    Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
-
-    FixedMatrix<1, 3> DYV;
-
-    DYV(0,0) = dPhi0.y /(2.* area);
-    DYV(0,1) = dPhi1.y /(2.* area);
-    DYV(0,2) = dPhi2.y /(2.* area);
-
-    FixedMatrix<1, 3> DXV;
-
-    DXV(0,0) = dPhi0.x /(2.* area);
-    DXV(0,1) = dPhi1.x /(2.* area);
-    DXV(0,2) = dPhi2.x /(2.* area);
-
-
-    // to construct dx(u_n) we use d(Phi0)/dx , d(Phi1)/dx , d(Phi1)/dx
-    //      d(u_n)/dx = \sum_{1=1}^{3} { (u_n)_i* (d(Phi_i)/dx)  }
-    Real f0 = m_U[cell.nodeId(0)].x;
-    Real f1 = m_U[cell.nodeId(1)].x;
-    Real f2 = m_U[cell.nodeId(2)].x;
-
-    DXU1.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
-    DXU1.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
-
-    f0 = m_U[cell.nodeId(0)].y;
-    f1 = m_U[cell.nodeId(1)].y;
-    f2 = m_U[cell.nodeId(2)].y;
-
-    DXU2.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
-    DXU2.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
-
-    f0 = m_V[cell.nodeId(0)].x;
-    f1 = m_V[cell.nodeId(1)].x;
-    f2 = m_V[cell.nodeId(2)].x;
-
-    DXV1.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
-    DXV1.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
-
-    f0 = m_V[cell.nodeId(0)].y;
-    f1 = m_V[cell.nodeId(1)].y;
-    f2 = m_V[cell.nodeId(2)].y;
-
-    DXV2.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
-    DXV2.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
-
-    f0 = m_A[cell.nodeId(0)].x;
-    f1 = m_A[cell.nodeId(1)].x;
-    f2 = m_A[cell.nodeId(2)].x;
-
-    DXA1.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
-    DXA1.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
-
-    f0 = m_A[cell.nodeId(0)].y;
-    f1 = m_A[cell.nodeId(1)].y;
-    f2 = m_A[cell.nodeId(2)].y;
-
-    DXA2.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
-    DXA2.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
 
 /*
 $$
@@ -797,14 +774,14 @@ $$
       if (node.isOwn()) {
         DoFLocalId dof_id1 = node_dof.dofId(node, 0);
         DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-        rhs_values[dof_id1] +=   (m_U[node].x) * (area / 3) * c0
-                               + (m_V[node].x) * (area / 3) * c3
-                               + (m_A[node].x) * (area / 3) * c4   // TODO add c5 and c6 contribution for Galpha
+        rhs_values[dof_id1] +=   (m_U[node].x) * (area / 3.) * c0
+                               + (m_V[node].x) * (area / 3.) * c3
+                               + (m_A[node].x) * (area / 3.) * c4   // TODO add c5 and c6 contribution for Galpha
                                ;
 
-        rhs_values[dof_id2] +=   (m_U[node].y)  * (area / 3) * c0
-                               + (m_V[node].y)  * (area / 3) * c3
-                               + (m_A[node].y)  * (area / 3) * c4  // TODO add c5 and c6 contribution for Galpha
+        rhs_values[dof_id2] +=   (m_U[node].y)  * (area / 3.) * c0
+                               + (m_V[node].y)  * (area / 3.) * c3
+                               + (m_A[node].y)  * (area / 3.) * c4  // TODO add c5 and c6 contribution for Galpha
                                ;
       }
       i++;
@@ -839,12 +816,12 @@ $$
       info() << "Applying traction boundary conditions for surface "<< group.name()
              << " via CaseTable" <<  file_name;
       CaseTable* inn = case_table_info.case_table;
+
       if (!inn)
-
-
         ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _readCaseTables()");
       if (file_name!=case_table_info.file_name)
         ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'",case_table_info.file_name);
+
       inn->value(t, trac);
 
 
@@ -959,13 +936,13 @@ $$
         if (!(m_u2_fixed[node]) && node.isOwn()) {
           DoFLocalId dof_id2 = node_dof.dofId(node, 1);
           rhs_values[dof_id2] += (  c7*( cp*( Normal.x*Normal.y*m_U[node].x + Normal.y*Normal.y*m_U[node].y ) +
-                                         cs*(-Normal.x*Normal.y*m_U[node].x - Normal.x*Normal.x*m_U[node].y )
+                                         cs*(-Normal.x*Normal.y*m_U[node].x + Normal.x*Normal.x*m_U[node].y )
                                        )
                                   - c8*( cp*( Normal.x*Normal.y*m_V[node].x + Normal.y*Normal.y*m_V[node].y ) +
-                                         cs*(-Normal.x*Normal.y*m_V[node].x - Normal.x*Normal.x*m_V[node].y )
+                                         cs*(-Normal.x*Normal.y*m_V[node].x + Normal.x*Normal.x*m_V[node].y )
                                        )
                                   - c9*( cp*( Normal.x*Normal.y*m_A[node].x + Normal.y*Normal.y*m_A[node].y ) +
-                                         cs*(-Normal.x*Normal.y*m_A[node].x - Normal.x*Normal.x*m_A[node].y )
+                                         cs*(-Normal.x*Normal.y*m_A[node].x + Normal.x*Normal.x*m_A[node].y )
                                        )
                                  ) * length / 2.;
         }
@@ -973,6 +950,81 @@ $$
     }
   }
 
+  //----------------------------------------------
+  // Double-couple term assembly
+  //----------------------------------------------
+  //----------------------------------------------
+
+  // Index of the boundary condition. Needed to associate a CaseTable
+  Int32 boundary_condition_index_dc = 0;
+
+  for (const auto& bs : options()->doubleCouple()) {
+
+
+    const CaseTableInfo& case_table_dc_info_north = m_double_couple_case_table_list_north[boundary_condition_index_dc];
+    const CaseTableInfo& case_table_dc_info_south = m_double_couple_case_table_list_south[boundary_condition_index_dc];
+    const CaseTableInfo& case_table_dc_info_east  = m_double_couple_case_table_list_east[boundary_condition_index_dc];
+    const CaseTableInfo& case_table_dc_info_west  = m_double_couple_case_table_list_west[boundary_condition_index_dc];
+    ++boundary_condition_index_dc;
+
+      Real3 trac_north; // values in x, y and z
+      Real3 trac_south; // values in x, y and z
+      Real3 trac_east;  // values in x, y and z
+      Real3 trac_west;  // values in x, y and z
+
+      String file_name = bs->doubleCoupleInputFile();
+      info() << "Applying boundary conditions for surface via CaseTable" <<  file_name;
+
+      CaseTable* inn_north = case_table_dc_info_north.case_table;
+      CaseTable* inn_south = case_table_dc_info_south.case_table;
+      CaseTable* inn_east  = case_table_dc_info_east.case_table;
+      CaseTable* inn_west  = case_table_dc_info_west.case_table;
+
+      //if (!inn_north)
+      //  ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _readCaseTables()");
+
+      //if (file_name!=case_table_dc_info_north.file_name)
+      //  ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'",case_table_dc_info_north.file_name);
+
+      inn_north->value(t, trac_north);
+      inn_south->value(t, trac_south);
+      inn_east->value(t, trac_east);
+      inn_west->value(t, trac_west);
+
+      //cout << "ArcFemDebug north "<< trac_north.x <<  "  " << trac_north.y <<  "  " << trac_north.z << endl;
+      //cout << "ArcFemDebug south "<< trac_south.x <<  "  " << trac_south.y <<  "  " << trac_south.z << endl;
+      //cout << "ArcFemDebug east "<< trac_east.x  <<  "  " << trac_east.y <<  "  " << trac_east.z << endl;
+      //cout << "ArcFemDebug west "<< trac_west.x  <<  "  " << trac_west.y <<  "  " << trac_west.z << endl;
+
+    NodeGroup north = bs->northNodeName();
+    NodeGroup south = bs->southNodeName();
+    NodeGroup east  = bs->eastNodeName();
+    NodeGroup west  = bs->westNodeName();
+
+
+
+       ENUMERATE_ (Node, inode, north) {
+        Node node = *inode;
+        DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+        rhs_values[dof_id1] = trac_north.x;
+      }
+       ENUMERATE_ (Node, inode, south) {
+        Node node = *inode;
+        DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+        rhs_values[dof_id1] = trac_south.x;
+      }
+       ENUMERATE_ (Node, inode, east) {
+        Node node = *inode;
+        DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+        rhs_values[dof_id2] = trac_east.y;
+      }
+       ENUMERATE_ (Node, inode, west) {
+        Node node = *inode;
+        DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+        rhs_values[dof_id2] = trac_west.y;
+      }
+
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1181,9 +1233,11 @@ _computeElementMatrixTRIA3(Cell cell)
   bT_matrix(4, 0) = dPhi2.x;
   bT_matrix(5, 0) = 0.;
 
-  bT_matrix.multInPlace(0.5*c2);
+  bT_matrix.multInPlace(0.5);
 
   FixedMatrix<6, 6> int_mudxU1dxV1 = matrixMultiplication(bT_matrix, b_matrix);
+  int_mudxU1dxV1.multInPlace(c2);
+
   int_Omega_i = matrixAddition( int_Omega_i, int_mudxU1dxV1);
 
 
@@ -1204,9 +1258,11 @@ _computeElementMatrixTRIA3(Cell cell)
   bT_matrix(4, 0) = 0.;
   bT_matrix(5, 0) = dPhi2.y;
 
-  bT_matrix.multInPlace(0.5*c2);
+  bT_matrix.multInPlace(0.5);
 
   FixedMatrix<6, 6> int_mudyU2dyV2  = matrixMultiplication(bT_matrix, b_matrix);
+  int_mudyU2dyV2.multInPlace(c2);
+
   int_Omega_i = matrixAddition( int_Omega_i, int_mudyU2dyV2);
 
   // 0.5*0.5*mu*dy(u1)dy(v1) //
@@ -1226,9 +1282,11 @@ _computeElementMatrixTRIA3(Cell cell)
   bT_matrix(4, 0) = dPhi2.y;
   bT_matrix(5, 0) = 0.;
 
-  bT_matrix.multInPlace(0.25*c2);
+  bT_matrix.multInPlace(0.5);
 
   FixedMatrix<6, 6> int_mudyU1dyV1  = matrixMultiplication(bT_matrix, b_matrix);
+  int_mudyU1dyV1.multInPlace(0.5*c2);
+
   int_Omega_i = matrixAddition( int_Omega_i, int_mudyU1dyV1);
 
   // 0.5*mu*dx(u2)dy(v1) //
@@ -1248,9 +1306,11 @@ _computeElementMatrixTRIA3(Cell cell)
   bT_matrix(4, 0) = dPhi2.y;
   bT_matrix(5, 0) = 0.;
 
-  bT_matrix.multInPlace(0.25*c2);
+  bT_matrix.multInPlace(0.5);
 
   FixedMatrix<6, 6> int_mudxU2dyV1  = matrixMultiplication(bT_matrix, b_matrix);
+  int_mudxU2dyV1.multInPlace(0.5*c2);
+
   int_Omega_i = matrixAddition( int_Omega_i, int_mudxU2dyV1);
 
   // 0.5*mu*dy(u1)dx(v2) //
@@ -1270,9 +1330,11 @@ _computeElementMatrixTRIA3(Cell cell)
   bT_matrix(4, 0) = 0.;
   bT_matrix(5, 0) = dPhi2.x;
 
-  bT_matrix.multInPlace(0.25*c2);
+  bT_matrix.multInPlace(0.5);
 
   FixedMatrix<6, 6> int_mudyU1dxV2  = matrixMultiplication(bT_matrix, b_matrix);
+  int_mudyU1dxV2.multInPlace(0.5*c2);
+
   int_Omega_i = matrixAddition( int_Omega_i, int_mudyU1dxV2);
 
   // 0.5*mu*dx(u2)dx(v2) //
@@ -1292,9 +1354,11 @@ _computeElementMatrixTRIA3(Cell cell)
   bT_matrix(4, 0) = 0.;
   bT_matrix(5, 0) = dPhi2.x;
 
-  bT_matrix.multInPlace(0.25*c2);
+  bT_matrix.multInPlace(0.5);
 
   FixedMatrix<6, 6> int_mudxU2dxV2  = matrixMultiplication(bT_matrix, b_matrix);
+  int_mudxU2dxV2.multInPlace(0.5*c2);
+
   int_Omega_i = matrixAddition( int_Omega_i, int_mudxU2dxV2);
 
 // -----------------------------------------------------------------------------
@@ -1316,9 +1380,10 @@ _computeElementMatrixTRIA3(Cell cell)
   bT_matrix(4, 0) = area/3.;
   bT_matrix(5, 0) = 0.;
 
-  bT_matrix.multInPlace(0.5*c0);
+  bT_matrix.multInPlace(0.5);
 
   FixedMatrix<6, 6> int_U2V2   = matrixMultiplication(bT_matrix, b_matrix);
+  int_U2V2.multInPlace(c0);
 
   for (Int32 i = 0; i<6; i++)
     int_U2V2(i,i) *= 2.;
@@ -1344,9 +1409,10 @@ _computeElementMatrixTRIA3(Cell cell)
   bT_matrix(4, 0) = 0.;
   bT_matrix(5, 0) = area/3.;
 
-  bT_matrix.multInPlace(0.5*c0);
+  bT_matrix.multInPlace(0.5);
 
   int_U2V2   = matrixMultiplication(bT_matrix, b_matrix);
+  int_U2V2.multInPlace(c0);
 
   for (Int32 i = 0; i<6; i++)
     int_U2V2(i,i) *= 2.;
