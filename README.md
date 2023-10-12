@@ -16,9 +16,9 @@ cmake -S ${SOURCE_PATH} -B ${BUILD_DIR} -DCMAKE_PREFIX_PATH=${ARCANE_INSTALL_DIR
 cmake --build ${BUILD_DIR}
 ~~~
 
-- Now you can **execute** an example from  elasticity solver (in a directory) `elastcity`
+- Now you can **execute** an example from  elasticity solver (in a directory) `elasticity`
 ~~~{sh}
-cd ${BUILD_DIR}/elastcity
+cd ${BUILD_DIR}/elasticity
 ~~~
 ~~~{sh}
 ./Elasticity Test.Elasticity.arc
