@@ -27,6 +27,13 @@
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
 
+#ifdef REGISTER_TIME
+#include <iostream>
+#include <fstream>
+#include <chrono>
+#endif
+
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -73,6 +80,11 @@ class FemModule
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;
+
+  #ifdef REGISTER_TIME
+  ofstream logger; 
+  #endif
+
 
  private:
 
@@ -131,6 +143,11 @@ startInit()
 {
   info() << "Module Fem INIT";
 
+
+#ifdef REGISTER_TIME
+logger = ofstream("timer.txt");
+#endif
+
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
@@ -155,6 +172,12 @@ startInit()
 void FemModule::
 _doStationarySolve()
 {
+
+
+#ifdef REGISTER_TIME
+auto fem_start = std::chrono::high_resolution_clock::now();
+#endif
+
   // # get material parameters
   _getMaterialParameters();
 
@@ -175,6 +198,14 @@ _doStationarySolve()
 
   // Check results
   _checkResultFile();
+  
+#ifdef REGISTER_TIME
+auto fem_stop = std::chrono::high_resolution_clock::now();
+std::chrono::duration<double> fem_duration= fem_stop - fem_start;
+logger << "FEM total duration : " << fem_duration.count() << "\n";
+logger.close();
+#endif
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -262,6 +293,12 @@ _assembleLinearOperator()
 {
   info() << "Assembly of FEM linear operator ";
   info() << "Applying Dirichlet boundary condition via  penalty method ";
+  
+
+#ifdef REGISTER_TIME
+auto rhs_start = std::chrono::high_resolution_clock::now();
+#endif
+
 
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
@@ -289,6 +326,11 @@ _assembleLinearOperator()
 
     Real Penalty = options()->penalty();        // 1.0e30 is the default
 
+
+#ifdef REGISTER_TIME
+auto penalty_start = std::chrono::high_resolution_clock::now();
+#endif
+
     ENUMERATE_ (Node, inode, ownNodes()) {
       NodeLocalId node_id = *inode;
       if (m_u_dirichlet[node_id]) {
@@ -298,6 +340,13 @@ _assembleLinearOperator()
         rhs_values[dof_id] = u_g;
       }
     }
+
+#ifdef REGISTER_TIME
+auto penalty_stop = std::chrono::high_resolution_clock::now();
+std::chrono::duration<double> penalty_duration = penalty_stop - penalty_start;
+logger << "Penalty duration : " << penalty_duration.count() << "\n";
+#endif
+
   }else if (options()->enforceDirichletMethod() == "WeakPenalty") {
 
     //----------------------------------------------
@@ -318,6 +367,11 @@ _assembleLinearOperator()
 
     Real Penalty = options()->penalty();        // 1.0e30 is the default
 
+
+#ifdef REGISTER_TIME
+auto wpenalty_start = std::chrono::high_resolution_clock::now();
+#endif
+
     ENUMERATE_ (Node, inode, ownNodes()) {
       NodeLocalId node_id = *inode;
       if (m_u_dirichlet[node_id]) {
@@ -327,6 +381,11 @@ _assembleLinearOperator()
         rhs_values[dof_id] = u_g;
       }
     }
+#ifdef REGISTER_TIME
+auto wpenalty_stop = std::chrono::high_resolution_clock::now();
+std::chrono::duration<double> wpenalty_duration = wpenalty_stop - wpenalty_start;
+logger << "Weak Penalty duration : " << wpenalty_duration.count() << "\n";
+#endif
   }else if (options()->enforceDirichletMethod() == "RowElimination") {
 
     //----------------------------------------------
@@ -375,6 +434,11 @@ _assembleLinearOperator()
   }
 
 
+
+#ifdef REGISTER_TIME
+auto sassemby_start = std::chrono::high_resolution_clock::now();
+#endif
+
   //----------------------------------------------
   // Constant source term assembly
   //----------------------------------------------
@@ -390,6 +454,16 @@ _assembleLinearOperator()
         rhs_values[node_dof.dofId(node, 0)] += f * area / ElementNodes;
     }
   }
+#ifdef REGISTER_TIME
+auto sassemby_stop = std::chrono::high_resolution_clock::now();
+std::chrono::duration<double> sassembly_duration= sassemby_stop - sassemby_start;
+logger << "Constant source term assembly duration : " << sassembly_duration.count() << "\n";
+#endif
+
+
+#ifdef REGISTER_TIME
+auto fassemby_start = std::chrono::high_resolution_clock::now();
+#endif
 
   //----------------------------------------------
   // Constant flux term assembly
@@ -461,6 +535,19 @@ _assembleLinearOperator()
     }
 
   }
+#ifdef REGISTER_TIME
+auto fassemby_stop = std::chrono::high_resolution_clock::now();
+std::chrono::duration<double> fassembly_duration= fassemby_stop - fassemby_start;
+logger << "Constant flux term assembly duration : " << fassembly_duration.count() << "\n";
+#endif
+
+
+#ifdef REGISTER_TIME
+auto rhs_end= std::chrono::high_resolution_clock::now();
+std::chrono::duration<double> duration = rhs_end - rhs_start;
+logger << "RHS total duration : " << duration.count() << "\n\n";
+#endif
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -660,12 +747,32 @@ _assembleBilinearOperatorTRIA3()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
+
+#ifdef REGISTER_TIME
+auto lhs_start = std::chrono::high_resolution_clock::now();
+double compute_average = 0;
+double global_build_average = 0;
+#endif
+
+
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
     if (cell.type() != IT_Triangle3)
       ARCANE_FATAL("Only Triangle3 cell type is supported");
 
-    auto K_e = _computeElementMatrixTRIA3(cell);  // element stifness matrix
+
+#ifdef REGISTER_TIME
+auto compute_El_start = std::chrono::high_resolution_clock::now();
+#endif
+
+auto K_e = _computeElementMatrixTRIA3(cell);  // element stifness matrix
+
+#ifdef REGISTER_TIME
+auto compute_El_stop = std::chrono::high_resolution_clock::now();
+std::chrono::duration<double> compute_duration= compute_El_stop- compute_El_start;
+compute_average += compute_duration.count();
+#endif
+
     //             # assemble elementary matrix into the global one
     //             # elementary terms are positionned into K according
     //             # to the rank of associated node in the mesh.nodes list
@@ -674,6 +781,9 @@ _assembleBilinearOperatorTRIA3()
     //                 for node2 in elem.nodes:
     //                     inode2=elem.nodes.index(node2)
     //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
+#ifdef REGISTER_TIME
+auto global_build_start = std::chrono::high_resolution_clock::now();
+#endif
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
@@ -688,7 +798,23 @@ _assembleBilinearOperatorTRIA3()
       }
       ++n1_index;
     }
+#ifdef REGISTER_TIME
+auto global_build_stop = std::chrono::high_resolution_clock::now();
+std::chrono::duration<double> global_build_duration = global_build_stop - global_build_start;
+global_build_average += global_build_duration.count();
+#endif
   }
+
+#ifdef REGISTER_TIME
+auto lhs_end = std::chrono::high_resolution_clock::now();
+std::chrono::duration<double> duration = lhs_end - lhs_start;
+logger << "Compute Elements average time : " << compute_average / nbCell() << "\n"
+<< "Compute Elements total time : " << compute_average << "\n"
+<< "Add in global matrix average time : " << global_build_average / nbCell() << "\n"
+<< "Add in global matrix total time : " << global_build_average << "\n"
+<< "LHS Total time : " << duration.count() << "\n\n";
+#endif
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -697,6 +823,11 @@ _assembleBilinearOperatorTRIA3()
 void FemModule::
 _solve()
 {
+
+#ifdef REGISTER_TIME
+auto solve_start = std::chrono::high_resolution_clock::now();
+#endif
+
   m_linear_system.solve();
 
   // Re-Apply boundary conditions because the solver has modified the value
@@ -733,6 +864,14 @@ _solve()
       //       << m_u[node];
     }
   }
+  
+
+#ifdef REGISTER_TIME
+auto solve_end = std::chrono::high_resolution_clock::now();
+std::chrono::duration<double> solve_duration = solve_end - solve_start;
+logger << "Solver duration : " << solve_duration.count() << "\n";
+#endif
+
 }
 
 /*---------------------------------------------------------------------------*/

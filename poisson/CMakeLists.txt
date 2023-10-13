@@ -3,6 +3,8 @@ project(Poisson LANGUAGES C CXX)
 
 find_package(Arcane REQUIRED)
 
+option(REGISTER_TIME "Enable time registration" ON)
+
 add_executable(Poisson
   FemModule.cc
   main.cc
@@ -23,6 +25,8 @@ configure_file(${MSH_DIR}/L-shape.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/random.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Poisson PUBLIC FemUtils)
+
+target_compile_definitions(Poisson PRIVATE $<$<BOOL:${REGISTER_TIME}>:REGISTER_TIME>)
 
 # Copy the tests files in the binary directory
 # The '/' after 'tests' is needed because we want to copy the files
