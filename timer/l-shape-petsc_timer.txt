@@ -1,0 +1,25 @@
+Compute Elements average time : 4.27819e-07
+Compute Elements total time : 0.000108666
+Add in global matrix average time : 2.6986e-06
+Add in global matrix total time : 0.000685444
+LHS Total time : 0.00081341
+Compute element time in lhs : 13.3593%
+Add in global matrix time in lhs : 84.268%
+
+-------------------------------------------------------------------------------------
+
+Penalty duration : 1.3457e-05
+Constant source term assembly duration : 4.3807e-05
+Constant flux term assembly duration : 3.44e-07
+RHS total duration : 6.0653e-05
+Penalty time in rhs : 22.1869%
+Constant source term assembly time in rhs : 72.2256%
+Constant flux term assembly time in rhs : 0.567161%
+
+-------------------------------------------------------------------------------------
+
+Solver duration : 0.0130788
+FEM total duration : 0.0139676
+LHS time in total duration : 5.82354%
+RHS time in total duration : 0.43424%
+Solver time in total duration : 93.637%

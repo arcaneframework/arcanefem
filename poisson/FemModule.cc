@@ -33,7 +33,6 @@
 #include <chrono>
 #endif
 
-
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -81,10 +80,12 @@ class FemModule
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;
 
-  #ifdef REGISTER_TIME
-  ofstream logger; 
-  #endif
-
+#ifdef REGISTER_TIME
+  ofstream logger;
+  double lhs_time;
+  double rhs_time;
+  double solver_time;
+#endif
 
  private:
 
@@ -104,7 +105,6 @@ class FemModule
   Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
   Real2 _computeEdgeNormal2(Face face);
-
 };
 
 /*---------------------------------------------------------------------------*/
@@ -143,9 +143,8 @@ startInit()
 {
   info() << "Module Fem INIT";
 
-
 #ifdef REGISTER_TIME
-logger = ofstream("timer.txt");
+  logger = ofstream("timer.txt");
 #endif
 
   m_dofs_on_nodes.initialize(mesh(), 1);
@@ -173,9 +172,8 @@ void FemModule::
 _doStationarySolve()
 {
 
-
 #ifdef REGISTER_TIME
-auto fem_start = std::chrono::high_resolution_clock::now();
+  auto fem_start = std::chrono::high_resolution_clock::now();
 #endif
 
   // # get material parameters
@@ -198,14 +196,18 @@ auto fem_start = std::chrono::high_resolution_clock::now();
 
   // Check results
   _checkResultFile();
-  
-#ifdef REGISTER_TIME
-auto fem_stop = std::chrono::high_resolution_clock::now();
-std::chrono::duration<double> fem_duration= fem_stop - fem_start;
-logger << "FEM total duration : " << fem_duration.count() << "\n";
-logger.close();
-#endif
 
+#ifdef REGISTER_TIME
+  auto fem_stop = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> fem_duration = fem_stop - fem_start;
+  double total_duration = fem_duration.count();
+  logger << "FEM total duration : " << fem_duration.count() << "\n"
+         << "LHS time in total duration : " << lhs_time / total_duration * 100 << "%\n"
+         << "RHS time in total duration : " << rhs_time / total_duration * 100 << "%\n"
+         << "Solver time in total duration : " << solver_time / total_duration * 100 << "%\n";
+
+  logger.close();
+#endif
 }
 
 /*---------------------------------------------------------------------------*/
@@ -215,7 +217,7 @@ void FemModule::
 _getMaterialParameters()
 {
   info() << "Get material parameters...";
-  f   = options()->f();
+  f = options()->f();
   ElementNodes = 3.;
 
   if (options()->meshType == "QUAD4")
@@ -267,8 +269,8 @@ _applyDirichletBoundaryConditions()
       Node node = *inode;
       m_u[node] = value;
       m_u_dirichlet[node] = true;
-      }
     }
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -293,12 +295,14 @@ _assembleLinearOperator()
 {
   info() << "Assembly of FEM linear operator ";
   info() << "Applying Dirichlet boundary condition via  penalty method ";
-  
 
 #ifdef REGISTER_TIME
-auto rhs_start = std::chrono::high_resolution_clock::now();
+  auto rhs_start = std::chrono::high_resolution_clock::now();
+  double penalty_time;
+  double wpenalty_time;
+  double sassembly_time;
+  double fassembly_time;
 #endif
-
 
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
@@ -324,11 +328,10 @@ auto rhs_start = std::chrono::high_resolution_clock::now();
     info() << "Applying Dirichlet boundary condition via "
            << options()->enforceDirichletMethod() << " method ";
 
-    Real Penalty = options()->penalty();        // 1.0e30 is the default
-
+    Real Penalty = options()->penalty(); // 1.0e30 is the default
 
 #ifdef REGISTER_TIME
-auto penalty_start = std::chrono::high_resolution_clock::now();
+    auto penalty_start = std::chrono::high_resolution_clock::now();
 #endif
 
     ENUMERATE_ (Node, inode, ownNodes()) {
@@ -342,12 +345,13 @@ auto penalty_start = std::chrono::high_resolution_clock::now();
     }
 
 #ifdef REGISTER_TIME
-auto penalty_stop = std::chrono::high_resolution_clock::now();
-std::chrono::duration<double> penalty_duration = penalty_stop - penalty_start;
-logger << "Penalty duration : " << penalty_duration.count() << "\n";
+    auto penalty_stop = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> penalty_duration = penalty_stop - penalty_start;
+    penalty_time = penalty_duration.count();
+    logger << "Penalty duration : " << penalty_time << "\n";
 #endif
-
-  }else if (options()->enforceDirichletMethod() == "WeakPenalty") {
+  }
+  else if (options()->enforceDirichletMethod() == "WeakPenalty") {
 
     //----------------------------------------------
     // weak penalty method to enforce Dirichlet BC
@@ -365,11 +369,10 @@ logger << "Penalty duration : " << penalty_duration.count() << "\n";
     info() << "Applying Dirichlet boundary condition via "
            << options()->enforceDirichletMethod() << " method ";
 
-    Real Penalty = options()->penalty();        // 1.0e30 is the default
-
+    Real Penalty = options()->penalty(); // 1.0e30 is the default
 
 #ifdef REGISTER_TIME
-auto wpenalty_start = std::chrono::high_resolution_clock::now();
+    auto wpenalty_start = std::chrono::high_resolution_clock::now();
 #endif
 
     ENUMERATE_ (Node, inode, ownNodes()) {
@@ -382,11 +385,13 @@ auto wpenalty_start = std::chrono::high_resolution_clock::now();
       }
     }
 #ifdef REGISTER_TIME
-auto wpenalty_stop = std::chrono::high_resolution_clock::now();
-std::chrono::duration<double> wpenalty_duration = wpenalty_stop - wpenalty_start;
-logger << "Weak Penalty duration : " << wpenalty_duration.count() << "\n";
+    auto wpenalty_stop = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> wpenalty_duration = wpenalty_stop - wpenalty_start;
+    wpenalty_time = wpenalty_duration.count();
+    logger << "Weak Penalty duration : " << wpenalty_time << "\n";
 #endif
-  }else if (options()->enforceDirichletMethod() == "RowElimination") {
+  }
+  else if (options()->enforceDirichletMethod() == "RowElimination") {
 
     //----------------------------------------------
     // Row elimination method to enforce Dirichlet BC
@@ -403,7 +408,8 @@ logger << "Weak Penalty duration : " << wpenalty_duration.count() << "\n";
            << options()->enforceDirichletMethod() << " method ";
 
     // TODO
-  }else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
+  }
+  else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
 
     //----------------------------------------------
     // Row elimination method to enforce Dirichlet BC
@@ -422,7 +428,8 @@ logger << "Weak Penalty duration : " << wpenalty_duration.count() << "\n";
            << options()->enforceDirichletMethod() << " method ";
 
     // TODO
-  }else {
+  }
+  else {
 
     info() << "Applying Dirichlet boundary condition via "
            << options()->enforceDirichletMethod() << " is not supported \n"
@@ -433,10 +440,8 @@ logger << "Weak Penalty duration : " << wpenalty_duration.count() << "\n";
            << "  - RowColumnElimination\n";
   }
 
-
-
 #ifdef REGISTER_TIME
-auto sassemby_start = std::chrono::high_resolution_clock::now();
+  auto sassemby_start = std::chrono::high_resolution_clock::now();
 #endif
 
   //----------------------------------------------
@@ -455,14 +460,14 @@ auto sassemby_start = std::chrono::high_resolution_clock::now();
     }
   }
 #ifdef REGISTER_TIME
-auto sassemby_stop = std::chrono::high_resolution_clock::now();
-std::chrono::duration<double> sassembly_duration= sassemby_stop - sassemby_start;
-logger << "Constant source term assembly duration : " << sassembly_duration.count() << "\n";
+  auto sassemby_stop = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> sassembly_duration = sassemby_stop - sassemby_start;
+  sassembly_time = sassembly_duration.count();
+  logger << "Constant source term assembly duration : " << sassembly_time << "\n";
 #endif
 
-
 #ifdef REGISTER_TIME
-auto fassemby_start = std::chrono::high_resolution_clock::now();
+  auto fassemby_start = std::chrono::high_resolution_clock::now();
 #endif
 
   //----------------------------------------------
@@ -477,7 +482,7 @@ auto fassemby_start = std::chrono::high_resolution_clock::now();
   for (const auto& bs : options()->neumannBoundaryCondition()) {
     FaceGroup group = bs->surface();
 
-    if(bs->value.isPresent()) {
+    if (bs->value.isPresent()) {
       Real value = bs->value();
       ENUMERATE_ (Face, iface, group) {
         Face face = *iface;
@@ -490,64 +495,69 @@ auto fassemby_start = std::chrono::high_resolution_clock::now();
       continue;
     }
 
-
-    if(bs->valueX.isPresent()  && bs->valueY.isPresent()) {
+    if (bs->valueX.isPresent() && bs->valueY.isPresent()) {
       Real valueX = bs->valueX();
       Real valueY = bs->valueY();
       ENUMERATE_ (Face, iface, group) {
         Face face = *iface;
-        Real  length = _computeEdgeLength2(face);
+        Real length = _computeEdgeLength2(face);
         Real2 Normal = _computeEdgeNormal2(face);
         for (Node node : iface->nodes()) {
           if (!(m_u_dirichlet[node]) && node.isOwn())
-            rhs_values[node_dof.dofId(node, 0)] += (Normal.x*valueX + Normal.y*valueY) * length / 2.;
+            rhs_values[node_dof.dofId(node, 0)] += (Normal.x * valueX + Normal.y * valueY) * length / 2.;
         }
       }
       continue;
     }
 
-    if(bs->valueX.isPresent()) {
+    if (bs->valueX.isPresent()) {
       Real valueX = bs->valueX();
       ENUMERATE_ (Face, iface, group) {
         Face face = *iface;
-        Real  length = _computeEdgeLength2(face);
+        Real length = _computeEdgeLength2(face);
         Real2 Normal = _computeEdgeNormal2(face);
         for (Node node : iface->nodes()) {
           if (!(m_u_dirichlet[node]) && node.isOwn())
-            rhs_values[node_dof.dofId(node, 0)] += (Normal.x*valueX) * length / 2.;
+            rhs_values[node_dof.dofId(node, 0)] += (Normal.x * valueX) * length / 2.;
         }
       }
       continue;
     }
 
-    if(bs->valueY.isPresent()) {
+    if (bs->valueY.isPresent()) {
       Real valueY = bs->valueY();
       ENUMERATE_ (Face, iface, group) {
         Face face = *iface;
-        Real  length = _computeEdgeLength2(face);
+        Real length = _computeEdgeLength2(face);
         Real2 Normal = _computeEdgeNormal2(face);
         for (Node node : iface->nodes()) {
           if (!(m_u_dirichlet[node]) && node.isOwn())
-            rhs_values[node_dof.dofId(node, 0)] += (Normal.y*valueY) * length / 2.;
+            rhs_values[node_dof.dofId(node, 0)] += (Normal.y * valueY) * length / 2.;
         }
       }
       continue;
     }
-
   }
 #ifdef REGISTER_TIME
-auto fassemby_stop = std::chrono::high_resolution_clock::now();
-std::chrono::duration<double> fassembly_duration= fassemby_stop - fassemby_start;
-logger << "Constant flux term assembly duration : " << fassembly_duration.count() << "\n";
+  auto fassemby_stop = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> fassembly_duration = fassemby_stop - fassemby_start;
+  fassembly_time = fassembly_duration.count();
+  logger << "Constant flux term assembly duration : " << fassembly_time << "\n";
 #endif
-
 
 #ifdef REGISTER_TIME
-auto rhs_end= std::chrono::high_resolution_clock::now();
-std::chrono::duration<double> duration = rhs_end - rhs_start;
-logger << "RHS total duration : " << duration.count() << "\n\n";
+  auto rhs_end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> duration = rhs_end - rhs_start;
+  rhs_time = duration.count();
+  logger << "RHS total duration : " << duration.count() << "\n";
+  if (penalty_time != 0)
+    logger << "Penalty time in rhs : " << penalty_time / rhs_time * 100 << "%\n";
+  else
+    logger << "Weak Penalty time in rhs : " << wpenalty_time / rhs_time * 100 << "%\n";
+  logger << "Constant source term assembly time in rhs : " << sassembly_time / rhs_time * 100 << "%\n"
+         << "Constant flux term assembly time in rhs : " << fassembly_time / rhs_time * 100 << "%\n\n"
+         << "-------------------------------------------------------------------------------------\n\n";
 #endif
-
 }
 
 /*---------------------------------------------------------------------------*/
@@ -560,8 +570,7 @@ _computeAreaQuad4(Cell cell)
   Real3 m1 = m_node_coord[cell.nodeId(1)];
   Real3 m2 = m_node_coord[cell.nodeId(2)];
   Real3 m3 = m_node_coord[cell.nodeId(3)];
-  return 0.5 * (  (m1.x*m2.y + m2.x*m3.y + m3.x*m0.y + m0.x*m1.y)
-                 -(m2.x*m1.y + m3.x*m2.y + m0.x*m3.y + m1.x*m0.y) );
+  return 0.5 * ((m1.x * m2.y + m2.x * m3.y + m3.x * m0.y + m0.x * m1.y) - (m2.x * m1.y + m3.x * m2.y + m0.x * m3.y + m1.x * m0.y));
 }
 
 /*---------------------------------------------------------------------------*/
@@ -584,7 +593,7 @@ _computeEdgeLength2(Face face)
 {
   Real3 m0 = m_node_coord[face.nodeId(0)];
   Real3 m1 = m_node_coord[face.nodeId(1)];
-  return  math::sqrt((m1.x-m0.x)*(m1.x-m0.x) + (m1.y-m0.y)*(m1.y - m0.y));
+  return math::sqrt((m1.x - m0.x) * (m1.x - m0.x) + (m1.y - m0.y) * (m1.y - m0.y));
 }
 
 /*---------------------------------------------------------------------------*/
@@ -596,12 +605,12 @@ _computeEdgeNormal2(Face face)
   Real3 m0 = m_node_coord[face.nodeId(0)];
   Real3 m1 = m_node_coord[face.nodeId(1)];
   if (!face.isSubDomainBoundaryOutside())
-    std::swap(m0,m1);
+    std::swap(m0, m1);
   Real2 N;
-  Real norm_N = math::sqrt( (m1.y - m0.y)*(m1.y - m0.y) + (m1.x - m0.x)*(m1.x - m0.x) );   // for normalizing
-  N.x = (m1.y - m0.y)/ norm_N;
-  N.y = (m0.x - m1.x)/ norm_N;
-  return  N;
+  Real norm_N = math::sqrt((m1.y - m0.y) * (m1.y - m0.y) + (m1.x - m0.x) * (m1.x - m0.x)); // for normalizing
+  N.x = (m1.y - m0.y) / norm_N;
+  N.y = (m0.x - m1.x) / norm_N;
+  return N;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -622,7 +631,7 @@ _computeElementMatrixTRIA3(Cell cell)
   Real3 m1 = m_node_coord[cell.nodeId(1)];
   Real3 m2 = m_node_coord[cell.nodeId(2)];
 
-  Real area = _computeAreaTriangle3(cell);    // calculate area
+  Real area = _computeAreaTriangle3(cell); // calculate area
 
   Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
   Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
@@ -669,7 +678,7 @@ _computeElementMatrixQUAD4(Cell cell)
   Real3 m2 = m_node_coord[cell.nodeId(2)];
   Real3 m3 = m_node_coord[cell.nodeId(3)];
 
-  Real area = _computeAreaQuad4(cell);    // calculate area
+  Real area = _computeAreaQuad4(cell); // calculate area
 
   Real2 dPhi0(m2.y - m3.y, m3.x - m2.x);
   Real2 dPhi1(m3.y - m0.y, m0.x - m3.x);
@@ -713,7 +722,7 @@ _assembleBilinearOperatorQUAD4()
     if (cell.type() != IT_Quad4)
       ARCANE_FATAL("Only Quad4 cell type is supported");
 
-    auto K_e = _computeElementMatrixQUAD4(cell);  // element stifness matrix
+    auto K_e = _computeElementMatrixQUAD4(cell); // element stifness matrix
     //             # assemble elementary matrix into the global one
     //             # elementary terms are positionned into K according
     //             # to the rank of associated node in the mesh.nodes list
@@ -747,30 +756,27 @@ _assembleBilinearOperatorTRIA3()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-
 #ifdef REGISTER_TIME
-auto lhs_start = std::chrono::high_resolution_clock::now();
-double compute_average = 0;
-double global_build_average = 0;
+  auto lhs_start = std::chrono::high_resolution_clock::now();
+  double compute_average = 0;
+  double global_build_average = 0;
 #endif
-
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
     if (cell.type() != IT_Triangle3)
       ARCANE_FATAL("Only Triangle3 cell type is supported");
 
-
 #ifdef REGISTER_TIME
-auto compute_El_start = std::chrono::high_resolution_clock::now();
+    auto compute_El_start = std::chrono::high_resolution_clock::now();
 #endif
 
-auto K_e = _computeElementMatrixTRIA3(cell);  // element stifness matrix
+    auto K_e = _computeElementMatrixTRIA3(cell); // element stifness matrix
 
 #ifdef REGISTER_TIME
-auto compute_El_stop = std::chrono::high_resolution_clock::now();
-std::chrono::duration<double> compute_duration= compute_El_stop- compute_El_start;
-compute_average += compute_duration.count();
+    auto compute_El_stop = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> compute_duration = compute_El_stop - compute_El_start;
+    compute_average += compute_duration.count();
 #endif
 
     //             # assemble elementary matrix into the global one
@@ -782,7 +788,7 @@ compute_average += compute_duration.count();
     //                     inode2=elem.nodes.index(node2)
     //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
 #ifdef REGISTER_TIME
-auto global_build_start = std::chrono::high_resolution_clock::now();
+    auto global_build_start = std::chrono::high_resolution_clock::now();
 #endif
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
@@ -799,22 +805,25 @@ auto global_build_start = std::chrono::high_resolution_clock::now();
       ++n1_index;
     }
 #ifdef REGISTER_TIME
-auto global_build_stop = std::chrono::high_resolution_clock::now();
-std::chrono::duration<double> global_build_duration = global_build_stop - global_build_start;
-global_build_average += global_build_duration.count();
+    auto global_build_stop = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> global_build_duration = global_build_stop - global_build_start;
+    global_build_average += global_build_duration.count();
 #endif
   }
 
 #ifdef REGISTER_TIME
-auto lhs_end = std::chrono::high_resolution_clock::now();
-std::chrono::duration<double> duration = lhs_end - lhs_start;
-logger << "Compute Elements average time : " << compute_average / nbCell() << "\n"
-<< "Compute Elements total time : " << compute_average << "\n"
-<< "Add in global matrix average time : " << global_build_average / nbCell() << "\n"
-<< "Add in global matrix total time : " << global_build_average << "\n"
-<< "LHS Total time : " << duration.count() << "\n\n";
+  auto lhs_end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> duration = lhs_end - lhs_start;
+  lhs_time = duration.count();
+  logger << "Compute Elements average time : " << compute_average / nbCell() << "\n"
+         << "Compute Elements total time : " << compute_average << "\n"
+         << "Add in global matrix average time : " << global_build_average / nbCell() << "\n"
+         << "Add in global matrix total time : " << global_build_average << "\n"
+         << "LHS Total time : " << lhs_time << "\n"
+         << "Compute element time in lhs : " << compute_average / lhs_time * 100 << "%\n"
+         << "Add in global matrix time in lhs : " << global_build_average / lhs_time * 100 << "%\n\n"
+         << "-------------------------------------------------------------------------------------\n\n";
 #endif
-
 }
 
 /*---------------------------------------------------------------------------*/
@@ -825,7 +834,7 @@ _solve()
 {
 
 #ifdef REGISTER_TIME
-auto solve_start = std::chrono::high_resolution_clock::now();
+  auto solve_start = std::chrono::high_resolution_clock::now();
 #endif
 
   m_linear_system.solve();
@@ -845,6 +854,7 @@ auto solve_start = std::chrono::high_resolution_clock::now();
     }
   }
 
+  //test
   m_u.synchronize();
   // def update_T(self,T):
   //     """Update u value on nodes after the FE resolution"""
@@ -864,14 +874,13 @@ auto solve_start = std::chrono::high_resolution_clock::now();
       //       << m_u[node];
     }
   }
-  
 
 #ifdef REGISTER_TIME
-auto solve_end = std::chrono::high_resolution_clock::now();
-std::chrono::duration<double> solve_duration = solve_end - solve_start;
-logger << "Solver duration : " << solve_duration.count() << "\n";
+  auto solve_end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> solve_duration = solve_end - solve_start;
+  solver_time = solve_duration.count();
+  logger << "Solver duration : " << solver_time << "\n";
 #endif
-
 }
 
 /*---------------------------------------------------------------------------*/
