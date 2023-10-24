@@ -22,12 +22,24 @@ configure_file(Test.poisson.trilinos.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.poisson.hypre.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.poisson.petsc.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/L-shape.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(${MSH_DIR}/L-100-shape.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/random.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Poisson PUBLIC FemUtils)
 
 target_compile_definitions(Poisson PRIVATE $<$<BOOL:${REGISTER_TIME}>:REGISTER_TIME>)
+
+find_program(GMSH NAMES gmsh)
+if (GMSH)
+  message(STATUS "GMSH found: ${GMSH}")
+  add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/L-100-shape.msh
+    COMMAND ${GMSH} -2 ${MSH_DIR}/L-shape.geo -format msh41 -L-100-shape.msh
+    DEPENDS ${MSH_DIR}/L-shape.geo
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  )
+add_custom_target(gmsh_files_poisson DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/L-100-shape.msh)
+  add_dependencies(Poisson gmsh_files_poisson)
+  set(FEMTEST_HAS_GMSH_TEST TRUE)
+endif()
 
 # Copy the tests files in the binary directory
 # The '/' after 'tests' is needed because we want to copy the files

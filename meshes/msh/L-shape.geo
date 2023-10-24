@@ -1,12 +1,32 @@
 //-----------------------------------------------------------------------------
-// Poisson problem L-shape mesh
-// The  boundaries  of  the mesh are named ( boundary ).
-//-----------------------------------------------------------------------------
+//
+// Name       : L-shape.geo
+// Author     : Mohd Afeef BADRI, Kerian ALLAIRE
+// Date       : 24 / October / 2023
+//
+// ----------------------------------------------------------------------------
+// Comment    : Poisson problem L-shape mesh. The boundaries of the mesh
+//              are named (boundary).
+//
+// Parameters : rfactor - this is the mesh refinment factor
+//
+// Usage      : gmsh L-shape.geo -setnumber rfactor 11 -2 -format msh41
+//
+// ----------------------------------------------------------------------------
+
+
+//==============================================================================
+// ---- define parameters for commandline ----
+//==============================================================================
+
+DefineConstant[ rfactor= {11, Min 1, Max 1000, Step 1,
+                         Name "Parameters/rfactor rfactor"} ];
+
+// ----------------------------------------------------------------------------
 
 L   = 1.;   // length
 W   = 0.5;  // width
 
-rfactor = 11; // mesh refinment factor
 h1 = 1./(rfactor);
 
 //corner points
