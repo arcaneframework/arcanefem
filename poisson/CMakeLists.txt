@@ -3,7 +3,7 @@ project(Poisson LANGUAGES C CXX)
 
 find_package(Arcane REQUIRED)
 
-option(REGISTER_TIME "Enable time registration" ON)
+option(REGISTER_TIME "Enable time registration" OFF)
 
 add_executable(Poisson
   FemModule.cc
@@ -32,7 +32,7 @@ find_program(GMSH NAMES gmsh)
 if (GMSH)
   message(STATUS "GMSH found: ${GMSH}")
   add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/L-100-shape.msh
-    COMMAND ${GMSH} -2 ${MSH_DIR}/L-shape.geo -format msh41 -L-100-shape.msh
+    COMMAND ${GMSH} -2 ${MSH_DIR}/L-shape.geo -setnumber rfactor 100 -format msh41 -L-100-shape.msh
     DEPENDS ${MSH_DIR}/L-shape.geo
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )

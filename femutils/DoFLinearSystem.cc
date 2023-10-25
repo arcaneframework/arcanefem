@@ -250,7 +250,10 @@ class DefaultDoFLinearSystemFactory
     IParallelMng* pm = sd->parallelMng();
     bool is_parallel = pm->isParallel();
     // If true, we use a dense debug matrix in sequential
-    bool use_debug_dense_matrix = true;
+    bool use_debug_dense_matrix = false;
+#ifdef ENABLE_DEBUG_MATRIX
+    use_debug_dense_matrix = true;
+#endif
     DoFLinearSystemImpl* p = nullptr;
     if (is_parallel || !use_debug_dense_matrix) {
       p = createAlephDoFLinearSystemImpl(sd, dof_family, solver_name);
@@ -465,7 +468,7 @@ ARCANE_REGISTER_SERVICE_SEQUENTIALBASICDOFLINEARSYSTEMFACTORY(SequentialBasicLin
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-  } // namespace Arcane::FemUtils
+} // namespace Arcane::FemUtils
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
