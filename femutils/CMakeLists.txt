@@ -12,6 +12,7 @@ add_library(FemUtils
   NodeLinearSystem.cc
   DoFLinearSystem.h
   DoFLinearSystem.cc
+  CsrFormatMatrix.h
   FemDoFsOnNodes.h
   FemDoFsOnNodes.cc
   AlephNodeLinearSystem.cc

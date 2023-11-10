@@ -2,14 +2,27 @@ cmake_minimum_required(VERSION 3.21)
 project(Poisson LANGUAGES C CXX)
 
 find_package(Arcane REQUIRED)
+find_library(CUSPARSE_LIB cusparse HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64)
 
 option(REGISTER_TIME "Enable time registration" OFF)
+option(USE_CSR "Use the CSR ArcaneFEM format instead of the linear hashmap" ON)
+option(USE_CUSPARSE "Use the cusparse library instead of the linear hashmap" OFF)
+option(USE_LEGACY "Use the linear hashmap (original code)" ON)
+arcane_accelerator_enable()
+arcane_accelerator_add_source_files(
+  FemModule.cc
+)
+
 
 add_executable(Poisson
   FemModule.cc
   main.cc
   Fem_axl.h
 )
+
+arcane_accelerator_add_to_target(Poisson)
+
+target_link_libraries(Poisson PRIVATE ${CUSPARSE_LIB})
 
 arcane_generate_axl(Fem)
 arcane_add_arcane_libraries_to_target(Poisson)
@@ -27,6 +40,9 @@ configure_file(${MSH_DIR}/random.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 target_link_libraries(Poisson PUBLIC FemUtils)
 
 target_compile_definitions(Poisson PRIVATE $<$<BOOL:${REGISTER_TIME}>:REGISTER_TIME>)
+target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_CUSPARSE}>:USE_CUSPARSE>)
+target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_CSR}>:USE_CSR>)
+target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_LEGACY}>:USE_LEGACY>)
 
 find_program(GMSH NAMES gmsh)
 if (GMSH)
