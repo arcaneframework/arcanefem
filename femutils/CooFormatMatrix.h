@@ -30,11 +30,11 @@ namespace Arcane::FemUtils
 {
 using namespace Arcane;
 
-class CsrFormat : TraceAccessor
+class CooFormat : TraceAccessor
 {
  public:
 
-  CsrFormat(ISubDomain* sd)
+  CooFormat(ISubDomain* sd)
   : TraceAccessor(sd->traceMng())
   {
     info() << "Creating CSR Matrix";
@@ -194,12 +194,16 @@ class CsrFormat : TraceAccessor
   Int32 indexValue(Int32 row, Int32 column)
   {
 
-    Int32 begin = binSearchRow(row);
-    Int32 end = begin;
-    while ((end + 1) != m_matrix_row.totalNbElement() && m_matrix_row(end + 1) == row) {
-      end++;
+    Int32 i = binSearchRow(row);
+    while (i != m_matrix_row.totalNbElement() && m_matrix_row(i) == row) {
+      if (m_matrix_column(i) == column)
+        return i;
+      i++;
     }
+    //binsearch only on the row and iterate through the column
+    /*
     while (begin <= end) {
+      /*
       Int32 mid = begin + (end - begin) / 2;
       if (column == m_matrix_column(mid)) {
         return mid;
@@ -210,7 +214,8 @@ class CsrFormat : TraceAccessor
       if (column < m_matrix_column(mid)) {
         end = mid - 1;
       }
-    }
+  }
+      */
     return -1;
   }
 
@@ -221,7 +226,8 @@ class CsrFormat : TraceAccessor
  * @param start 
  * @param end 
  */
-  void sortMatrix(bool is_row, Int32 start, Int32 end)
+  void
+  sortMatrix(bool is_row, Int32 start, Int32 end)
   {
     if (start >= end) {
       return;
