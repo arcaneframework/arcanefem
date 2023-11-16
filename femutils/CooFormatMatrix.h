@@ -72,6 +72,33 @@ class CooFormat : TraceAccessor
     m_matrix_value(indexValue(row, column)) += value;
   }
 
+  void matrixAddValueCsr(DoFLocalId row, DoFLocalId column, Real value)
+  {
+    if (row.isNull())
+      ARCANE_FATAL("Row is null");
+    if (column.isNull())
+      ARCANE_FATAL("Column is null");
+    if (value == 0.0)
+      return;
+    m_matrix_value(indexValueCsr(row, column)) += value;
+  }
+
+  Int32 indexValueCsr(DoFLocalId row, DoFLocalId column)
+  {
+    Int32 begin = m_matrix_row(row);
+    Int32 end;
+    if (row == m_matrix_row.dim1Size() - 1)
+      end = m_matrix_column.dim1Size();
+    else
+      Int32 end = m_matrix_row(row + 1);
+    for (Int32 i = begin; i < end; i++) {
+      if (m_matrix_column(i) == column) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
   /**
  * @brief 
  * 
@@ -95,7 +122,7 @@ class CooFormat : TraceAccessor
   {
     ofstream file(fileName);
     file << "size :" << m_matrix_row.extent0() << "\n";
-    for (auto i = 0; i < m_nnz; i++) {
+    for (auto i = 0; i < m_matrix_row.extent0(); i++) {
       if (nonzero && m_matrix_value(i) == 0)
         continue;
       file << m_matrix_row(i) << " ";
@@ -134,7 +161,7 @@ class CooFormat : TraceAccessor
     }
   }
 
- private:
+ public:
 
   Int32 m_nnz;
   // To become parallelizable, have all the index

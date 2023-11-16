@@ -5,10 +5,11 @@ find_package(Arcane REQUIRED)
 find_library(CUSPARSE_LIB cusparse HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64)
 
 option(REGISTER_TIME "Enable time registration" ON)
-option(USE_COO_GPU "Use the CSR ArcaneFEM format instead of the linear hashmap, but computing on GPU" ON)
-option(USE_COO "Use the CSR ArcaneFEM format instead of the linear hashmap" ON)
-option(USE_CUSPARSE "Use the cusparse library instead of the linear hashmap" OFF)
-option(USE_LEGACY "Use the linear hashmap (original code)" ON)
+option(USE_COO_GPU "Use the COO ArcaneFEM format instead of the linear hashmap, but computing on GPU" OFF)
+option(USE_COO "Use the COO ArcaneFEM format instead of the linear hashmap" OFF)
+option(USE_CSR "Use the CSR ArcaneFEM format instead of the linear hashmap" ON)
+option(USE_CUSPARSE_ADD "Use the cusparse library to build the global matrix through addition of multiples CSR elements matrix" OFF)
+option(USE_LEGACY "Use the linear hashmap (original code)" OFF)
 arcane_accelerator_enable()
 arcane_accelerator_add_source_files(
   FemModule.cc
@@ -41,8 +42,9 @@ configure_file(${MSH_DIR}/random.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 target_link_libraries(Poisson PUBLIC FemUtils)
 
 target_compile_definitions(Poisson PRIVATE $<$<BOOL:${REGISTER_TIME}>:REGISTER_TIME>)
-target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_CUSPARSE}>:USE_CUSPARSE>)
+target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_CUSPARSE_ADD}>:USE_CUSPARSE_ADD>)
 target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_COO}>:USE_COO>)
+target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_CSR}>:USE_CSR>)
 target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_COO_GPU}>:USE_COO_GPU>)
 target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_LEGACY}>:USE_LEGACY>)
 
