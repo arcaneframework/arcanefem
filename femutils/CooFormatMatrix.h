@@ -54,7 +54,7 @@ class CooFormat : TraceAccessor
     m_dof_family = dof_family;
     m_last_value = 0;
     m_nnz = nnz;
-    info() << "Filling CSR Matrix with zeros";
+    info() << "Filling COO Matrix with zeros";
   }
 
   /**

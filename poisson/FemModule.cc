@@ -373,9 +373,6 @@ _doStationarySolve()
 #ifdef USE_COO
     _assembleCooBilinearOperatorTRIA3();
 #endif
-#ifdef USE_LEGACY
-    _assembleBilinearOperatorTRIA3();
-#endif
 #ifdef USE_COO_GPU
     _assembleCooGPUBilinearOperatorTRIA3();
 #endif
@@ -384,6 +381,9 @@ _doStationarySolve()
 #endif
 #ifdef USE_CSR
     _assembleCsrBilinearOperatorTRIA3();
+#endif
+#ifdef USE_LEGACY
+    _assembleBilinearOperatorTRIA3();
 #endif
   }
 
@@ -1056,7 +1056,6 @@ _assembleCsrGPUBilinearOperatorTRIA3()
   logger << "-------------------------------------------------------------------------------------\n"
          << "Using GPU csr with NumArray format\n";
   auto lhs_start = std::chrono::high_resolution_clock::now();
-  double compute_average = 0;
   double global_build_average = 0;
   double build_time = 0;
 #endif
@@ -1066,6 +1065,7 @@ _assembleCsrGPUBilinearOperatorTRIA3()
   auto build_stop = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> build_duration = build_stop - lhs_start;
   build_time = build_duration.count();
+  auto var_init_start = std::chrono::high_resolution_clock::now();
 #endif
 
   RunQueue* queue = acceleratorMng()->defaultQueue();
@@ -1084,6 +1084,13 @@ _assembleCsrGPUBilinearOperatorTRIA3()
   auto cnc = m_connectivity_view.cellNode();
   Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
   Arcane::ItemGenericInfoListView cells_infos(this->mesh()->cellFamily());
+
+#ifdef REGISTER_TIME
+  auto var_init_stop = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> var_init_duration = var_init_stop - var_init_start;
+  double var_init_time = var_init_duration.count();
+  auto loop_start = std::chrono::high_resolution_clock::now();
+#endif
   command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
   {
     if (cells_infos.typeId(icell) != IT_Triangle3) {
@@ -1144,16 +1151,17 @@ _assembleCsrGPUBilinearOperatorTRIA3()
 #ifdef REGISTER_TIME
   auto lhs_end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> duration = lhs_end - lhs_start;
+  std::chrono::duration<double> loop_duration = lhs_end - loop_start;
+
+  double loop_time = loop_duration.count();
   double lhs_loc_time = duration.count();
   logger << "Building time of the coo matrix :" << build_time << "\n"
-         << "Compute Elements average time : " << compute_average / nbCell() << "\n"
-         << "Compute Elements total time : " << compute_average << "\n"
-         << "Add in global matrix average time : " << global_build_average / nbCell() << "\n"
-         << "Add in global matrix total time : " << global_build_average << "\n"
+         << "Variable initialisation time : " << var_init_time << "\n"
+         << "Computation and Addition time : " << loop_time << "\n"
          << "LHS Total time : " << lhs_loc_time << "\n"
          << "Build matrix time in lhs :" << build_time / lhs_loc_time * 100 << "%\n"
-         << "Compute element time in lhs : " << compute_average / lhs_loc_time * 100 << "%\n"
-         << "Add in global matrix time in lhs : " << global_build_average / lhs_loc_time * 100 << "%\n\n"
+         << "Variable initialisation time in lhs : " << var_init_time / lhs_loc_time * 100 << "%\n"
+         << "Computation and Addition time in lhs : " << loop_time / lhs_loc_time * 100 << "%\n\n"
          << "-------------------------------------------------------------------------------------\n\n";
   lhs_time += lhs_loc_time;
 #endif
@@ -1626,6 +1634,7 @@ _assembleCooBilinearOperatorTRIA3()
          << "-------------------------------------------------------------------------------------\n\n";
   lhs_time += lhs_loc_time;
 #endif
+  m_csr_matrix.translateToLinearSystem(m_linear_system);
 }
 
 /*---------------------------------------------------------------------------*/
