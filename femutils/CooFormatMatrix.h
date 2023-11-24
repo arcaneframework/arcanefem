@@ -26,10 +26,13 @@
 #include <iostream>
 #include <fstream>
 
+#include "arcane/accelerator/NumArrayViews.h"
+
 namespace Arcane::FemUtils
 {
 using namespace Arcane;
 
+namespace ax = Arcane::Accelerator;
 class CooFormat : TraceAccessor
 {
  public:
@@ -72,35 +75,8 @@ class CooFormat : TraceAccessor
     m_matrix_value(indexValue(row, column)) += value;
   }
 
-  void matrixAddValueCsr(DoFLocalId row, DoFLocalId column, Real value)
-  {
-    if (row.isNull())
-      ARCANE_FATAL("Row is null");
-    if (column.isNull())
-      ARCANE_FATAL("Column is null");
-    if (value == 0.0)
-      return;
-    m_matrix_value(indexValueCsr(row, column)) += value;
-  }
-
-  Int32 indexValueCsr(DoFLocalId row, DoFLocalId column)
-  {
-    Int32 begin = m_matrix_row(row);
-    Int32 end;
-    if (row == m_matrix_row.dim1Size() - 1)
-      end = m_matrix_column.dim1Size();
-    else
-      Int32 end = m_matrix_row(row + 1);
-    for (Int32 i = begin; i < end; i++) {
-      if (m_matrix_column(i) == column) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
   /**
- * @brief 
+ * @brief  Translate to Arcane linear system
  * 
  * @param linear_system 
  */

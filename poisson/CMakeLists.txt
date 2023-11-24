@@ -2,29 +2,62 @@ cmake_minimum_required(VERSION 3.21)
 project(Poisson LANGUAGES C CXX)
 
 find_package(Arcane REQUIRED)
-find_library(CUSPARSE_LIB cusparse HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64)
 
-option(REGISTER_TIME "Enable time registration" ON)
-option(USE_COO_GPU "Use the COO ArcaneFEM format instead of the linear hashmap, but computing on GPU" OFF)
+option(REGISTER_TIME "Enable time registration" OFF)
 option(USE_COO "Use the COO ArcaneFEM format instead of the linear hashmap" OFF)
-option(USE_CSR "Use the CSR ArcaneFEM format instead of the linear hashmap" ON)
+option(USE_COO_GPU "Use the COO ArcaneFEM format instead of the linear hashmap, but computing on GPU. Not working currently" OFF)
+option(USE_CSR "Use the CSR ArcaneFEM format instead of the linear hashmap" OFF)
+option(USE_CSR_GPU "Use the CSR ArcaneFEM format instead of the linear hashmap, but computing on GPU" OFF)
+option(USE_LCSR "Use the Linked CSR ArcaneFEM format instead of the linear hashmap. Not working currenlty" OFF)
 option(USE_CUSPARSE_ADD "Use the cusparse library to build the global matrix through addition of multiples CSR elements matrix" OFF)
-option(USE_LEGACY "Use the linear hashmap (original code)" OFF)
-arcane_accelerator_enable()
-arcane_accelerator_add_source_files(
-  FemModule.cc
-)
+option(USE_LEGACY "Use the linear hashmap (original code)" ON)
 
+if(USE_CUSPARSE_ADD)
+  find_library(CUSPARSE_LIB cusparse HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64)
+  if(CUSPARSE_LIB AND ARCANE_HAS_CUDA)
+    message(STATUS "CUSPARSE found: ${CUSPARSE_LIB}. Arcane installation has CUDA. Enabling features that depends of Cusparse.")
+    message(STATUS "Arcane has been compiled with cuda. Enabling features that need CUDA.")
+    arcane_accelerator_enable()
+    arcane_accelerator_add_source_files(
+      FemModule.cc
+    )
+    set(USE_CUSPARSE_ADD ON)
+  else()
+    message(WARNING "CUSPARSE not found: Disabling features that depends of Cusparse.")
+    set (USE_CUSPARSE_ADD OFF)
+  endif()
+endif()
+
+if(USE_CSR_GPU OR USE_COO_GPU)
+  if(ARCANE_HAS_CUDA)
+    message(STATUS "Arcane has been compiled with cuda. Enabling features that need CUDA.")
+    arcane_accelerator_enable()
+    arcane_accelerator_add_source_files(
+      FemModule.cc
+    )
+  else()
+    message(WARNING "Arcane has not been compiled with cuda. Disabling features that need CUDA.")
+    set(USE_CSR_GPU OFF)
+    set(USE_COO_GPU OFF)
+  endif()
+endif()
+    
 
 add_executable(Poisson
   FemModule.cc
   main.cc
   Fem_axl.h
 )
+if(USE_CSR_GPU OR USE_COO_GPU OR USE_CUSPARSE_ADD)
+  arcane_accelerator_add_to_target(Poisson)
+endif()
 
-arcane_accelerator_add_to_target(Poisson)
+if(USE_CUSPARSE_ADD)
+  target_link_libraries(Poisson PRIVATE ${CUSPARSE_LIB})
+endif()
 
-target_link_libraries(Poisson PRIVATE ${CUSPARSE_LIB})
+set_target_properties(Poisson PROPERTIES CUDA_ARCHITECTURES "72")
+
 
 arcane_generate_axl(Fem)
 arcane_add_arcane_libraries_to_target(Poisson)
@@ -45,7 +78,9 @@ target_compile_definitions(Poisson PRIVATE $<$<BOOL:${REGISTER_TIME}>:REGISTER_T
 target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_CUSPARSE_ADD}>:USE_CUSPARSE_ADD>)
 target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_COO}>:USE_COO>)
 target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_CSR}>:USE_CSR>)
+target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_LCSR}>:USE_LCSR>)
 target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_COO_GPU}>:USE_COO_GPU>)
+target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_CSR_GPU}>:USE_CSR_GPU>)
 target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_LEGACY}>:USE_LEGACY>)
 
 find_program(GMSH NAMES gmsh)

@@ -93,7 +93,6 @@ class CsrFormat : TraceAccessor
     return -1;
   }
 
-  // TODO : check if it works
   /**
  * @brief 
  * 
@@ -101,12 +100,12 @@ class CsrFormat : TraceAccessor
  */
   void translateToLinearSystem(DoFLinearSystem& linear_system)
   {
-    for (Int32 i = 0; i < m_nnz; i++) {
-      linear_system.matrixAddValue(DoFLocalId(m_matrix_row(i)), DoFLocalId(m_matrix_column(i)), m_matrix_value(i));
+    for (Int32 i = 0; i < m_matrix_row.dim1Size(); i++) {
+      for (Int32 j = m_matrix_row(i); (i + 1 < m_matrix_row.dim1Size() && j < m_matrix_row(i + 1)) || (i + 1 == m_matrix_row.dim1Size() && j < m_matrix_column.dim1Size()); j++)
+        linear_system.matrixAddValue(DoFLocalId(i), DoFLocalId(m_matrix_column(j)), m_matrix_value(j));
     }
   }
 
-  // TODO : check if print works
   /**
  * @brief function to print the current content of the csr matrix 
  * 
@@ -114,32 +113,31 @@ class CsrFormat : TraceAccessor
  * @param nonzero if set to true, print only the non zero values 
  */
   void
-  printMatrix(std::string fileName, bool nonzero)
+  printMatrix(std::string fileName)
   {
     ofstream file(fileName);
     file << "size :" << m_nnz << "\n";
-    for (auto i = 0; i < m_matrix_row.extent0(); i++) {
-      if (nonzero && m_matrix_value(i) == 0)
-        continue;
+    for (auto i = 0; i < m_matrix_row.dim1Size(); i++) {
       file << m_matrix_row(i) << " ";
+      for (Int32 j = m_matrix_row(i) + 1; (i + 1 < m_matrix_row.dim1Size() && j < m_matrix_row(i + 1)) || (i + 1 == m_matrix_row.dim1Size() && j < m_matrix_column.dim1Size()); j++) {
+        file << "  ";
+      }
     }
     file << "\n";
     for (auto i = 0; i < m_nnz; i++) {
-      if (nonzero && m_matrix_value(i) == 0)
-        continue;
       file << m_matrix_column(i) << " ";
     }
     file << "\n";
     for (auto i = 0; i < m_nnz; i++) {
-      if (nonzero && m_matrix_value(i) == 0)
-        continue;
       file << m_matrix_value(i) << " ";
     }
+    file << "\n";
     file.close();
   }
 
   // Warning : does not support empty row
-  void setCoordinates(DoFLocalId row, DoFLocalId column)
+  void
+  setCoordinates(DoFLocalId row, DoFLocalId column)
   {
     if (m_matrix_row(row.localId()) == -1) {
       m_matrix_row(row.localId()) = m_last_value;

@@ -180,7 +180,7 @@ checkNodeResultFile(ITraceMng* tm, const String& filename,
  */
 extern "C++" CaseTable*
 readFileAsCaseTable(IParallelMng* pm, const String& filename, const Int32& ndim);
-}
+} // namespace Arcane::FemUtils
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 

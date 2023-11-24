@@ -11,7 +11,8 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/utils/NumArray.h>
+//Having H files for each steps of the FEM
+
 #include <arcane/utils/CommandLineArguments.h>
 #include <arcane/utils/StringList.h>
 
@@ -25,8 +26,12 @@
 #include "CooFormatMatrix.h"
 #endif
 
-#ifdef USE_CSR
+#if defined(USE_CSR) || defined(USE_CSR_GPU)
 #include "CsrFormatMatrix.h"
+#endif
+
+#ifdef USE_LCSR
+#include "LinkedCsrFormatMatrix.h"
 #endif
 
 #include "IDoFLinearSystemFactory.h"
@@ -56,14 +61,29 @@
 #include "arcane/accelerator/Accelerator.h"
 #include "arcane/accelerator/core/RunQueue.h"
 
+#include <arcane/utils/NumArray.h>
+
 //include for connectivity view
 #include "arcane/UnstructuredMeshConnectivity.h"
+#include "arcane/ItemGenericInfoListView.h"
+
+// Pour avoir les vues sur les variables
+#include "arcane/accelerator/VariableViews.h"
+
+// Pour avoir les vues sur les NumArray
+#include "arcane/accelerator/NumArrayViews.h"
 
 // Fichier à inclure pour avoir RUNCOMMAND_ENUMERATE
 #include "arcane/accelerator/RunCommandEnumerate.h"
 
 // Fichier à inclure pour avoir RUNCOMMAND_LOOP
 #include "arcane/accelerator/RunCommandLoop.h"
+
+#include "arcane/accelerator/Reduce.h"
+#include "arcane/accelerator/Accelerator.h"
+
+#include "arcane/AcceleratorRuntimeInitialisationInfo.h"
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -141,11 +161,14 @@ class FemModule
   explicit FemModule(const ModuleBuildInfo& mbi)
   : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
-#if defined(USE_COO) || defined(USE_COO_GPU) || defined(USE_CSR_CUSPARSE)
+#if defined(USE_COO) || defined(USE_COO_GPU)
   , m_coo_matrix(mbi.subDomain())
 #endif
-#ifdef USE_CSR
+#if defined(USE_CSR) || defined(USE_CSR_GPU)
   , m_csr_matrix(mbi.subDomain())
+#endif
+#ifdef USE_LCSR
+  , m_lcsr_matrix(mbi.subDomain())
 #endif
   {
     ICaseMng* cm = mbi.subDomain()->caseMng();
@@ -179,8 +202,12 @@ class FemModule
   CooFormat m_coo_matrix;
 #endif
 
-#ifdef USE_CSR
+#if defined(USE_CSR) || defined(USE_CSR_GPU)
   CsrFormat m_csr_matrix;
+#endif
+
+#ifdef USE_LCSR
+  LinkedCsrFormat m_lcsr_matrix;
 #endif
 
 #if defined(REGISTER_TIME)
@@ -222,11 +249,35 @@ class FemModule
   void _buildMatrix();
   void _assembleCooBilinearOperatorTRIA3();
 #endif
+
+#if defined(USE_CSR_GPU) || defined(USE_COO_GPU)
+ public:
+
+  void _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord, Real K_e[9]);
+
+ private:
+
+#endif
+
+#ifdef USE_CSR_GPU
+
+ public:
+
+  void _buildMatrixCsrGPU();
+  void _assembleCsrGPUBilinearOperatorTRIA3();
+
+ private:
+
+#endif
 #ifdef USE_COO_GPU
+
+ public:
+
   void _buildMatrixGPU();
-  NumArray<Real, ExtentsV<3, 3>>
-  _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc, VariableNodeReal3InView in_node_coord);
   void _assembleCooGPUBilinearOperatorTRIA3();
+
+ private:
+
 #endif
 #ifdef USE_CSR
   void _assembleCsrBilinearOperatorTRIA3();
@@ -328,19 +379,22 @@ _doStationarySolve()
 #ifdef USE_COO_GPU
     _assembleCooGPUBilinearOperatorTRIA3();
 #endif
+#ifdef USE_CSR_GPU
+    _assembleCsrGPUBilinearOperatorTRIA3();
+#endif
 #ifdef USE_CSR
     _assembleCsrBilinearOperatorTRIA3();
 #endif
   }
 
   // Assemble the FEM linear operator (RHS - vector b)
-  //  _assembleLinearOperator();
+  _assembleLinearOperator();
 
   // # T=linalg.solve(K,RHS)
-  //_solve();
+  _solve();
 
   // Check results
-  //_checkResultFile();
+  _checkResultFile();
 
 #ifdef REGISTER_TIME
   auto fem_stop = std::chrono::high_resolution_clock::now();
@@ -889,10 +943,233 @@ _assembleBilinearOperatorQUAD4()
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-#ifdef USE_COO_GPU
+
+#if defined(USE_CSR_GPU) || defined(USE_COO_GPU)
+
+ARCCORE_HOST_DEVICE void FemModule::
+_computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord, Real K_e[9])
+{
+  // Get coordiantes of the triangle element  TRI3
+  //------------------------------------------------
+  //                  0 o
+  //                   . .
+  //                  .   .
+  //                 .     .
+  //              1 o . . . o 2
+  //------------------------------------------------
+  Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
+  Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
+  Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
+
+  Real area = 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y)); // calculate area
+
+  Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
+  Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
+  Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
+
+  //We will want to replace fixed matrix by some numarray ? Will not work because NumArray function are host functions
+  //NumArray<Real, ExtentsV<2, 3>> b_matrix(eMemoryRessource::Device);
+  Real b_matrix[2][3] = { 0 };
+  b_matrix[0][0] = dPhi0.x * (1.0 / (2.0 * area));
+  b_matrix[0][1] = dPhi1.x * (1.0 / (2.0 * area));
+  b_matrix[0][2] = dPhi2.x * (1.0 / (2.0 * area));
+
+  b_matrix[1][0] = dPhi0.y * (1.0 / (2.0 * area));
+  b_matrix[1][1] = dPhi1.y * (1.0 / (2.0 * area));
+  b_matrix[1][2] = dPhi2.y * (1.0 / (2.0 * area));
+
+  //NumArray<Real, ExtentsV<3, 3>> int_cdPi_dPj;
+
+  //Multiplying b_matrix by its transpose, and doing the mult in place in the same loop
+  for (Int32 i = 0; i < 3; i++) {
+    for (Int32 j = 0; j < 3; j++) {
+      Real x = 0.0;
+      for (Int32 k = 0; k < 2; k++) {
+        x += b_matrix[k][i] * b_matrix[k][j];
+      }
+      K_e[i * 3 + j] = x * area;
+    }
+  }
+
+  //info() << "Cell=" << cell.localId();
+  //std::cout << " int_cdPi_dPj=";
+  //int_cdPi_dPj.dump(std::cout);
+  //std::cout << "\n";
+
+  //No need to return anymore
+  //return int_cdPi_dPj;
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+#endif
+
+#ifdef USE_CSR_GPU
+
 /**
  * @brief Initialization of the coo matrix. It only works for p=1 since there is
- * one node per Edge.
+ * one node per Edge. Currently, there is no difference between buildMatrixCsr and this method.
+ * 
+ * 
+ */
+void FemModule::
+_buildMatrixCsrGPU()
+{
+  //Initialization of the csr matrix;
+  //This formula only works in p=1
+
+  /*
+  //Create a connection between nodes through the faces
+  //Useless here because we only need this information once
+  IItemFamily* node_family = mesh()->nodeFamily();
+  NodeGroup nodes = node_family->allItems();
+  auto idx_cn = mesh()->indexedConnectivityMng()->findOrCreateConnectivity(node_family, node_family, "NodeToNeighbourFaceNodes");
+  auto* cn = idx_cn->connectivity();
+  ENUMERATE_NODE (node, allNodes()) {
+  }
+  */
+
+  Int32 nnz = nbFace() * 2 + nbNode();
+  m_csr_matrix.initialize(m_dof_family, nnz, nbNode());
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  //We iterate through the node, and we do not sort anymore : we assume the nodes ID are sorted, and we will iterate throught the column to avoid making < and > comparison
+  ENUMERATE_NODE (inode, allNodes()) {
+    Node node = *inode;
+
+    m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
+
+    for (Face face : node.faces()) {
+      if (face.nodeId(0) == node.localId())
+        m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(1), 0));
+      else
+        m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleCsrGPUBilinearOperatorTRIA3()
+{
+#ifdef REGISTER_TIME
+  logger << "-------------------------------------------------------------------------------------\n"
+         << "Using GPU csr with NumArray format\n";
+  auto lhs_start = std::chrono::high_resolution_clock::now();
+  double compute_average = 0;
+  double global_build_average = 0;
+  double build_time = 0;
+#endif
+  // Build the csr matrix
+  _buildMatrixCsrGPU();
+#ifdef REGISTER_TIME
+  auto build_stop = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> build_duration = build_stop - lhs_start;
+  build_time = build_duration.count();
+#endif
+
+  RunQueue* queue = acceleratorMng()->defaultQueue();
+  // Boucle sur les mailles déportée sur accélérateur
+  auto command = makeCommand(queue);
+
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  auto in_row_csr = ax::viewIn(command, m_csr_matrix.m_matrix_row);
+  Int32 row_csr_size = m_csr_matrix.m_matrix_row.dim1Size();
+  auto in_col_csr = ax::viewIn(command, m_csr_matrix.m_matrix_column);
+  Int32 col_csr_size = m_csr_matrix.m_matrix_column.dim1Size();
+  auto in_out_val_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
+  UnstructuredMeshConnectivityView m_connectivity_view;
+  auto in_node_coord = ax::viewIn(command, m_node_coord);
+  m_connectivity_view.setMesh(this->mesh());
+  auto cnc = m_connectivity_view.cellNode();
+  Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+  Arcane::ItemGenericInfoListView cells_infos(this->mesh()->cellFamily());
+  command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
+  {
+    if (cells_infos.typeId(icell) != IT_Triangle3) {
+      printf("Error : Cell has the wrong type\n");
+      return;
+    }
+
+    Real K_e[9] = { 0 };
+
+    _computeElementMatrixTRIA3GPU(icell, cnc, in_node_coord, K_e); // element stifness matrix
+
+    //             # assemble elementary matrix into the global one
+    //             # elementary terms are positionned into K according
+    //             # to the rank of associated node in the mesh.nodes list
+    //             for node1 in elem.nodes:
+    //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
+    //                 for node2 in elem.nodes:
+    //                     inode2=elem.nodes.index(node2)
+    //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
+    Int32 n1_index = 0;
+    for (NodeLocalId node1 : cnc.nodes(icell)) {
+      Int32 n2_index = 0;
+      for (NodeLocalId node2 : cnc.nodes(icell)) {
+        // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
+        double v = K_e[n1_index * 3 + n2_index];
+        // m_k_matrix(node1.localId(), node2.localId()) += v;
+        if (nodes_infos.isOwn(node1)) {
+          Int32 row = node_dof.dofId(node1, 0).localId();
+          Int32 col = node_dof.dofId(node2, 0).localId();
+          Int32 begin = in_row_csr[row];
+          Int32 end;
+          if (row == row_csr_size - 1) {
+            end = col_csr_size;
+          }
+          else {
+            end = in_row_csr[row + 1];
+          }
+          while (begin < end) {
+            if (in_col_csr[begin] == col) {
+// t is necessary to get the right type for the atomicAdd (but that means that we have more operations ?)
+// The Macro is there to avoid compilation error if not in c++ 20
+#ifdef ARCCORE_DEVICE_CODE
+              double* t = in_out_val_csr.to1DSpan().ptrAt(begin);
+              atomicAdd(t, v);
+#else
+              in_out_val_csr[begin] += v;
+#endif
+              break;
+            }
+            begin++;
+          }
+        }
+        ++n2_index;
+      }
+      ++n1_index;
+    }
+  };
+#ifdef REGISTER_TIME
+  auto lhs_end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> duration = lhs_end - lhs_start;
+  double lhs_loc_time = duration.count();
+  logger << "Building time of the coo matrix :" << build_time << "\n"
+         << "Compute Elements average time : " << compute_average / nbCell() << "\n"
+         << "Compute Elements total time : " << compute_average << "\n"
+         << "Add in global matrix average time : " << global_build_average / nbCell() << "\n"
+         << "Add in global matrix total time : " << global_build_average << "\n"
+         << "LHS Total time : " << lhs_loc_time << "\n"
+         << "Build matrix time in lhs :" << build_time / lhs_loc_time * 100 << "%\n"
+         << "Compute element time in lhs : " << compute_average / lhs_loc_time * 100 << "%\n"
+         << "Add in global matrix time in lhs : " << global_build_average / lhs_loc_time * 100 << "%\n\n"
+         << "-------------------------------------------------------------------------------------\n\n";
+  lhs_time += lhs_loc_time;
+#endif
+  m_csr_matrix.translateToLinearSystem(m_linear_system);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+#endif
+
+#ifdef USE_COO_GPU
+//Currently, this code does not work
+/**
+ * @brief Initialization of the coo matrix. It only works for p=1 since there is
+ * one node per Edge. There is no difference with buildMatrix() and this method currently.
  * 
  * 
  */
@@ -930,9 +1207,8 @@ _buildMatrixGPU()
         m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
     }
   }
-  //m_coo_matrix.printMatrix("test.txt", false);
 
-  //In this one, we begin by filling the diagonal before filling what's left by iterating through the nodes
+  //In this commented code, we begin by filling the diagonal before filling what's left by iterating through the nodes. It corresponds to the COO-sort method in the diagrams
   /*
   //Fill the diagonal
   ENUMERATE_NODE (inode, allNodes()) {
@@ -955,59 +1231,6 @@ _buildMatrixGPU()
   */
 }
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-ARCCORE_DEVICE
-NumArray<Real, ExtentsV<3, 3>> FemModule::
-_computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc, VariableNodeReal3InView in_node_coord)
-{
-  // Get coordiantes of the triangle element  TRI3
-  //------------------------------------------------
-  //                  0 o
-  //                   . .
-  //                  .   .
-  //                 .     .
-  //              1 o . . . o 2
-  //------------------------------------------------
-  Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
-  Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
-  Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
-
-  Real area = 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y)); // calculate area
-
-  Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
-  Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
-  Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
-
-  //We will want to replace fixed matrix by some numarray ?
-  NumArray<Real, ExtentsV<2, 3>> b_matrix(eMemoryRessource::Device);
-  b_matrix(0, 0) = dPhi0.x * (1.0 / (2.0 * area));
-  b_matrix(0, 1) = dPhi1.x * (1.0 / (2.0 * area));
-  b_matrix(0, 2) = dPhi2.x * (1.0 / (2.0 * area));
-
-  b_matrix(1, 0) = dPhi0.y * (1.0 / (2.0 * area));
-  b_matrix(1, 1) = dPhi1.y * (1.0 / (2.0 * area));
-  b_matrix(1, 2) = dPhi2.y * (1.0 / (2.0 * area));
-  NumArray<Real, ExtentsV<3, 3>> int_cdPi_dPj;
-
-  //Multiplying b_matrix by its transpose, and doing the mult in place in the same loop
-  for (Int32 i = 0; i < 3; i++) {
-    for (Int32 j = 0; j < 3; j++) {
-      Real x = 0.0;
-      for (Int32 k = 0; k < 2; k++) {
-        x += b_matrix(k, i) * b_matrix(k, j);
-      }
-      int_cdPi_dPj(i, j) = x * area;
-    }
-  }
-
-  //info() << "Cell=" << cell.localId();
-  //std::cout << " int_cdPi_dPj=";
-  //int_cdPi_dPj.dump(std::cout);
-  //std::cout << "\n";
-
-  return int_cdPi_dPj;
-}
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -1035,15 +1258,27 @@ _assembleCooGPUBilinearOperatorTRIA3()
   auto command = makeCommand(queue);
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  auto in_row_coo = ax::viewIn(command, m_coo_matrix.m_matrix_row);
+  auto in_col_coo = ax::viewIn(command, m_coo_matrix.m_matrix_column);
+  auto in_out_val_coo = ax::viewInOut(command, m_coo_matrix.m_matrix_value);
   UnstructuredMeshConnectivityView m_connectivity_view;
-  VariableNodeReal3InView in_node_coord = ax::viewIn(command, m_node_coord);
+  auto in_node_coord = ax::viewIn(command, m_node_coord);
   m_connectivity_view.setMesh(this->mesh());
   auto cnc = m_connectivity_view.cellNode();
+  Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+  Arcane::ItemGenericInfoListView cells_infos(this->mesh()->cellFamily());
 
   command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
   {
 
-    auto K_e = _computeElementMatrixTRIA3GPU(icell, cnc, in_node_coord); // element stifness matrix
+    if (!cells_infos.typeId(icell) != IT_Triangle3) {
+      printf("Error : Cell has the wrong type\n");
+      return;
+    }
+
+    Real K_e[9] = { 0 };
+
+    _computeElementMatrixTRIA3GPU(icell, cnc, in_node_coord, K_e); // element stifness matrix
 
     //             # assemble elementary matrix into the global one
     //             # elementary terms are positionned into K according
@@ -1058,11 +1293,11 @@ _assembleCooGPUBilinearOperatorTRIA3()
       Int32 n2_index = 0;
       for (NodeLocalId node2 : cnc.nodes(icell)) {
         // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-        Real v = K_e(n1_index, n2_index);
+        Real v = K_e[n1_index * 3 + n2_index];
         // m_k_matrix(node1.localId(), node2.localId()) += v;
         //replacing the isOwn (probably with a nice view)
-        if (node1.isOwn()) {
-          m_coo_matrix.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+        if (nodes_infos.isOwn(node1)) {
+          //m_coo_matrix.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
         }
         ++n2_index;
       }
@@ -1229,6 +1464,8 @@ _assembleCsrBilinearOperatorTRIA3()
          << "-------------------------------------------------------------------------------------\n\n";
   lhs_time += lhs_loc_time;
 #endif
+  //m_csr_matrix.printMatrix("ref.txt");
+  m_csr_matrix.translateToLinearSystem(m_linear_system);
 }
 
 #endif
@@ -1275,6 +1512,7 @@ _buildMatrix()
     }
   }
 
+  //In this commented code, we begin by filling the diagonal before filling what's left by iterating through the nodes. It corresponds to the COO-sort method in the diagrams
   /*
   //In this one, we begin by filling the diagonal before filling what's left by iterating through the nodes
 
@@ -1371,7 +1609,6 @@ _assembleCooBilinearOperatorTRIA3()
     global_build_average += global_build_duration.count();
 #endif
   }
-  m_coo_matrix.printMatrix("COO.txt", false);
 
 #ifdef REGISTER_TIME
   auto lhs_end = std::chrono::high_resolution_clock::now();
@@ -1389,7 +1626,6 @@ _assembleCooBilinearOperatorTRIA3()
          << "-------------------------------------------------------------------------------------\n\n";
   lhs_time += lhs_loc_time;
 #endif
-  //m_coo_matrix.printMatrix("ref.txt", false);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1445,7 +1681,6 @@ _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cel
   Real3 m0 = m_node_coord[cell.nodeId(0)];
   Real3 m1 = m_node_coord[cell.nodeId(1)];
   Real3 m2 = m_node_coord[cell.nodeId(2)];
-  // Dead code to remember  : Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
 
   Real area = _computeAreaTriangle3(cell); // calculate area
 
@@ -1477,12 +1712,15 @@ _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cel
   //Second part : putting the matrix in COO format (might want to optimsie that part by doing it earlier) before converting it to csr
 
   //Must change int_cdPi_dPj in a COO matrix (before converting it to csr);
-  Int32* row_indexes;
-  CHECK_CUDA(cudaMallocManaged(&row_indexes, 9 * sizeof(Int32)));
-  Int32* col_indexes;
-  CHECK_CUDA(cudaMallocManaged(&col_indexes, 9 * sizeof(Int32)));
-  float* vals;
-  CHECK_CUDA(cudaMallocManaged(&vals, 9 * sizeof(float)));
+  void* row_void;
+  CHECK_CUDA(cudaMallocManaged(&row_void, 9 * sizeof(Int32)));
+  Int32* row_indexes = (Int32*)row_void;
+  void* col_void;
+  CHECK_CUDA(cudaMallocManaged(&col_void, 9 * sizeof(Int32)));
+  Int32* col_indexes = (Int32*)col_void;
+  void* vals_void;
+  CHECK_CUDA(cudaMallocManaged(&vals_void, 9 * sizeof(float)));
+  float* vals = (float*)vals_void;
 
   cusparseMatDescr_t local_mat;
   CHECK_CUSPARSE(cusparseCreateMatDescr(&local_mat));
@@ -1490,7 +1728,7 @@ _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cel
   local.desc = local_mat;
   local.csrRow = row_indexes;
   local.csrCol = col_indexes;
-  local.csrVal = vals;
+  local.csrVal = (float*)vals;
   local.nnz = 9;
 
   int i = 0;
@@ -1556,8 +1794,9 @@ _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cel
 #endif
 
   //conversion from COO to CSR
-  Int32* csrRowPtr;
-  CHECK_CUDA(cudaMallocManaged(&csrRowPtr, nbNode() * sizeof(Int32)));
+  void* csrRowPtr_void;
+  CHECK_CUDA(cudaMallocManaged(&csrRowPtr_void, nbNode() * sizeof(Int32)));
+  Int32* csrRowPtr = (Int32*)csrRowPtr_void;
   CHECK_CUSPARSE(cusparseXcoo2csr(handle, row_indexes, 9, nbNode(), csrRowPtr, CUSPARSE_INDEX_BASE_ZERO));
   local.csrRow = csrRowPtr;
   CHECK_CUDA(cudaFree(row_indexes));
@@ -1579,6 +1818,7 @@ _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cel
   nnzC;
   size_t bufferSizeInBytes;
   char* buffer = NULL;
+  void* buffer_void = NULL;
   Int32* nnzTotalDevHostPtr = &nnzC;
   CHECK_CUSPARSE(cusparseSetPointerMode(handle, CUSPARSE_POINTER_MODE_HOST));
   //Int32* csrRowPtrC;
@@ -1595,21 +1835,9 @@ _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cel
                                                  local.csrVal, local.csrRow, local.csrCol,
                                                  result.desc,
                                                  result.csrVal, result.csrRow, result.csrCol, &bufferSizeInBytes));
-  CHECK_CUDA(cudaMallocManaged(&buffer, bufferSizeInBytes * sizeof(char)));
-  /*
-  std::cerr << "buffer : " << buffer << "\n";
-  std::cerr << "nnzTotalDevHst : " << nnzTotalDevHostPtr << "\n";
-  std::cerr << "local desc : " << local.desc << "\n";
-  std::cerr << "local nnz : " << local.nnz << "\n";
-  std::cerr << "local csrRow : " << local.csrRow << "\n";
-  std::cerr << "local csrCol: " << local.csrCol << "\n";
-  std::cerr << "global desc : " << global.desc << "\n";
-  std::cerr << "global nnz : " << global.nnz << "\n";
-  std::cerr << "global csrRow : " << global.csrRow << "\n";
-  std::cerr << "global csrCol : " << global.csrCol << "\n";
-  std::cerr << "result desc : " << result.desc << "\n";
-  std::cerr << "result csrRow: " << result.csrRow << "\n";
-*/
+  CHECK_CUDA(cudaMallocManaged(&buffer_void, bufferSizeInBytes * sizeof(char)));
+  buffer = (char*)buffer_void;
+
   CHECK_CUSPARSE(cusparseXcsrgeam2Nnz(handle, m, m,
                                       local.desc, local.nnz, local.csrRow, local.csrCol,
                                       global.desc, global.nnz, global.csrRow, global.csrCol,
@@ -1623,8 +1851,13 @@ _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cel
     nnzC -= baseC;
   }
   result.nnz = nnzC;
-  CHECK_CUDA(cudaMallocManaged(&result.csrCol, sizeof(Int32) * nnzC));
-  CHECK_CUDA(cudaMallocManaged(&result.csrVal, sizeof(float) * nnzC));
+  void* res_col_void;
+  void* res_val_void;
+
+  CHECK_CUDA(cudaMallocManaged(&res_col_void, sizeof(Int32) * nnzC));
+  CHECK_CUDA(cudaMallocManaged(&res_val_void, sizeof(float) * nnzC));
+  result.csrCol = (Int32*)res_col_void;
+  result.csrVal = (float*)res_val_void;
   CHECK_CUSPARSE(cusparseScsrgeam2(handle, m, m,
                                    &alpha,
                                    local.desc, local.nnz,
@@ -1684,10 +1917,12 @@ _assembleCusparseBilinearOperatorTRIA3()
 
   Int32 nnz = nbFace() * 2 + nbNode();
   //Initialize the global matrix. Everything is in the unified memory
-  Int32* res1_row;
-  CHECK_CUDA(cudaMallocManaged(&res1_row, sizeof(Int32) * nbNode()));
-  Int32* res2_row;
-  CHECK_CUDA(cudaMallocManaged(&res2_row, sizeof(Int32) * nbNode()));
+  void* res1_row_void;
+  void* res2_row_void;
+  CHECK_CUDA(cudaMallocManaged(&res1_row_void, sizeof(Int32) * nbNode()));
+  Int32* res1_row = (Int32*)res1_row_void;
+  CHECK_CUDA(cudaMallocManaged(&res2_row_void, sizeof(Int32) * nbNode()));
+  Int32* res2_row = (Int32*)res2_row_void;
 
   cusparseHandle_t handle;
   CHECK_CUSPARSE(cusparseCreate(&handle));
@@ -1743,7 +1978,7 @@ _assembleCusparseBilinearOperatorTRIA3()
   CHECK_CUSPARSE(cusparseDestroyMatDescr(res1.desc));
   CHECK_CUSPARSE(cusparseDestroyMatDescr(res2.desc));
 
-  //Must free the resulting vectors, be careful
+  //Must free the resulting vectors, not done there yet
 #ifdef REGISTER_TIME
   auto lhs_end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> duration = lhs_end - cuda_init_stop;
@@ -1859,9 +2094,8 @@ _assembleBilinearOperatorTRIA3()
          << "add in global matrix time in lhs : " << global_build_average / lhs_loc_time * 100 << "%\n\n"
          << "-------------------------------------------------------------------------------------\n\n";
   lhs_time += lhs_loc_time;
-}
 #endif
-
+}
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
