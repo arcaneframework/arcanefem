@@ -24,9 +24,5 @@
       <surface>boundary</surface>
       <value>0.0</value>
     </dirichlet-boundary-condition>
-    <linear-system name="SequentialBasicLinearSystem">
-      <epsilon>1.0e-11</epsilon>
-      <solver-method>pcg</solver-method>
-    </linear-system>
   </fem>
 </case>

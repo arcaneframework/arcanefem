@@ -118,6 +118,13 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 endif()
 
 
+if(USE_CSR_GPU OR USE_COO_GPU)
+  if(ARCANE_HAS_CUDA)
+    add_test(NAME [poisson]poisson_gpu COMMAND ./Poisson -A,AcceleratorRuntime=cuda Test.poisson.petsc.arc)
+  endif()
+endif()
+
+
 # If parallel part is available, add some tests
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
   add_test(NAME [poisson]poisson_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Poisson Test.poisson.arc)
