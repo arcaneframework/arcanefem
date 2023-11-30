@@ -206,10 +206,6 @@ class FemModule
   CsrFormat m_csr_matrix;
 #endif
 
-#ifdef USE_LCSR
-  LinkedCsrFormat m_lcsr_matrix;
-#endif
-
 #if defined(REGISTER_TIME)
   ofstream logger;
   double lhs_time;
@@ -222,6 +218,7 @@ class FemModule
   void _doStationarySolve();
   void _getMaterialParameters();
   void _updateBoundayConditions();
+  void _checkCellType();
   void _assembleBilinearOperatorTRIA3();
   void _assembleBilinearOperatorQUAD4();
   void _solve();
@@ -343,6 +340,8 @@ startInit()
   // # init behavior on mesh entities
   // # init BCs
   _initBoundaryconditions();
+
+  _checkCellType();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -372,15 +371,19 @@ _doStationarySolve()
 #endif
 #ifdef USE_COO
     _assembleCooBilinearOperatorTRIA3();
+    m_coo_matrix.translateToLinearSystem(m_linear_system);
 #endif
 #ifdef USE_COO_GPU
     _assembleCooGPUBilinearOperatorTRIA3();
+    m_coo_matrix.translateToLinearSystem(m_linear_system);
 #endif
 #ifdef USE_CSR_GPU
     _assembleCsrGPUBilinearOperatorTRIA3();
+    m_csr_matrix.translateToLinearSystem(m_linear_system);
 #endif
 #ifdef USE_CSR
     _assembleCsrBilinearOperatorTRIA3();
+    m_csr_matrix.translateToLinearSystem(m_linear_system);
 #endif
 #ifdef USE_LEGACY
     _assembleBilinearOperatorTRIA3();
@@ -476,6 +479,23 @@ _applyDirichletBoundaryConditions()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
+_checkCellType()
+{
+  Int16 type = 0;
+  if (options()->meshType == "QUAD4") {
+    type = IT_Quad4;
+  }
+  else {
+    type = IT_Triangle3;
+  }
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    if (cell.type() != type)
+      ARCANE_FATAL("Only Triangle3 cell type is supported");
+  }
+}
+
+void FemModule::
 _updateBoundayConditions()
 {
   info() << "TODO " << A_FUNCINFO;
@@ -497,10 +517,10 @@ _assembleLinearOperator()
 
 #ifdef REGISTER_TIME
   auto rhs_start = std::chrono::high_resolution_clock::now();
-  double penalty_time;
-  double wpenalty_time;
-  double sassembly_time;
-  double fassembly_time;
+  double penalty_time = 0;
+  double wpenalty_time = 0;
+  double sassembly_time = 0;
+  double fassembly_time = 0;
 #endif
 
   // Temporary variable to keep values for the RHS part of the linear system
@@ -1093,10 +1113,6 @@ _assembleCsrGPUBilinearOperatorTRIA3()
 #endif
   command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
   {
-    if (cells_infos.typeId(icell) != IT_Triangle3) {
-      printf("Error : Cell has the wrong type\n");
-      return;
-    }
 
     Real K_e[9] = { 0 };
 
@@ -1165,7 +1181,6 @@ _assembleCsrGPUBilinearOperatorTRIA3()
          << "-------------------------------------------------------------------------------------\n\n";
   lhs_time += lhs_loc_time;
 #endif
-  m_csr_matrix.translateToLinearSystem(m_linear_system);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1279,11 +1294,6 @@ _assembleCooGPUBilinearOperatorTRIA3()
   command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
   {
 
-    if (!cells_infos.typeId(icell) != IT_Triangle3) {
-      printf("Error : Cell has the wrong type\n");
-      return;
-    }
-
     Real K_e[9] = { 0 };
 
     _computeElementMatrixTRIA3GPU(icell, cnc, in_node_coord, K_e); // element stifness matrix
@@ -1329,7 +1339,6 @@ _assembleCooGPUBilinearOperatorTRIA3()
          << "-------------------------------------------------------------------------------------\n\n";
   lhs_time += lhs_loc_time;
 #endif
-  //m_coo_matrix.printMatrix("ref.txt", false);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1408,8 +1417,6 @@ _assembleCsrBilinearOperatorTRIA3()
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    if (cell.type() != IT_Triangle3)
-      ARCANE_FATAL("Only Triangle3 cell type is supported");
 
 #ifdef REGISTER_TIME
     auto compute_El_start = std::chrono::high_resolution_clock::now();
@@ -1472,8 +1479,6 @@ _assembleCsrBilinearOperatorTRIA3()
          << "-------------------------------------------------------------------------------------\n\n";
   lhs_time += lhs_loc_time;
 #endif
-  //m_csr_matrix.printMatrix("ref.txt");
-  m_csr_matrix.translateToLinearSystem(m_linear_system);
 }
 
 #endif
@@ -1505,7 +1510,7 @@ _buildMatrix()
   Int32 nnz = nbFace() * 2 + nbNode();
   m_coo_matrix.initialize(m_dof_family, nnz);
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
+  /*
   //We iterate through the node, and we do not sort anymore : we assume the nodes ID are sorted, and we will iterate throught the column to avoid making < and > comparison
   ENUMERATE_NODE (inode, allNodes()) {
     Node node = *inode;
@@ -1519,9 +1524,9 @@ _buildMatrix()
         m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
     }
   }
-
+*/
   //In this commented code, we begin by filling the diagonal before filling what's left by iterating through the nodes. It corresponds to the COO-sort method in the diagrams
-  /*
+
   //In this one, we begin by filling the diagonal before filling what's left by iterating through the nodes
 
   //Fill the diagonal
@@ -1542,7 +1547,6 @@ _buildMatrix()
 
   //Sort the matrix
   m_coo_matrix.sort();
-  */
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1571,8 +1575,6 @@ _assembleCooBilinearOperatorTRIA3()
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    if (cell.type() != IT_Triangle3)
-      ARCANE_FATAL("Only Triangle3 cell type is supported");
 
 #ifdef REGISTER_TIME
     auto compute_El_start = std::chrono::high_resolution_clock::now();
@@ -1634,7 +1636,6 @@ _assembleCooBilinearOperatorTRIA3()
          << "-------------------------------------------------------------------------------------\n\n";
   lhs_time += lhs_loc_time;
 #endif
-  m_csr_matrix.translateToLinearSystem(m_linear_system);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2043,8 +2044,6 @@ _assembleBilinearOperatorTRIA3()
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    if (cell.type() != IT_Triangle3)
-      ARCANE_FATAL("Only Triangle3 cell type is supported");
 
 #ifdef REGISTER_TIME
     auto compute_El_start = std::chrono::high_resolution_clock::now();

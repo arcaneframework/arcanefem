@@ -3,13 +3,13 @@ project(Poisson LANGUAGES C CXX)
 
 find_package(Arcane REQUIRED)
 
-option(REGISTER_TIME "Enable time registration" OFF)
-option(USE_COO "Use the COO ArcaneFEM format instead of the linear hashmap" OFF)
+option(REGISTER_TIME "Enable time registration" ON)
+option(USE_COO "Use the COO ArcaneFEM format instead of the linear hashmap" ON)
 option(USE_COO_GPU "Use the COO ArcaneFEM format instead of the linear hashmap, but computing on GPU. Not working currently" OFF)
-option(USE_CSR "Use the CSR ArcaneFEM format instead of the linear hashmap" OFF)
-option(USE_CSR_GPU "Use the CSR ArcaneFEM format instead of the linear hashmap, but computing on GPU" OFF)
+option(USE_CSR "Use the CSR ArcaneFEM format instead of the linear hashmap" ON)
+option(USE_CSR_GPU "Use the CSR ArcaneFEM format instead of the linear hashmap, but computing on GPU" ON)
 option(USE_LCSR "Use the Linked CSR ArcaneFEM format instead of the linear hashmap. Not working currenlty" OFF)
-option(USE_CUSPARSE_ADD "Use the cusparse library to build the global matrix through addition of multiples CSR elements matrix" OFF)
+option(USE_CUSPARSE_ADD "Use the cusparse library to build the global matrix through addition of multiples CSR elements matrix" ON)
 option(USE_LEGACY "Use the linear hashmap (original code)" ON)
 
 if(USE_CUSPARSE_ADD)
@@ -87,7 +87,7 @@ find_program(GMSH NAMES gmsh)
 if (GMSH)
   message(STATUS "GMSH found: ${GMSH}")
   add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/L-100-shape.msh
-    COMMAND ${GMSH} -2 ${MSH_DIR}/L-shape.geo -setnumber rfactor 100 -format msh41 -L-100-shape.msh
+    COMMAND ${GMSH} -2 ${MSH_DIR}/L-shape.geo -setnumber rfactor 100 -format msh41 ${CMAKE_CURRENT_BINARY_DIR}/L-100-shape.msh
     DEPENDS ${MSH_DIR}/L-shape.geo
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )

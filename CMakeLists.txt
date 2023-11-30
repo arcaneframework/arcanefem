@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 project(FemTest1Main LANGUAGES NONE)
 enable_testing()
-list(APPEND CMAKE_PREFIX_PATH "~/arcane/install")
 set(MSH_DIR ${CMAKE_SOURCE_DIR}/meshes/msh)
 
 add_subdirectory(femutils)
