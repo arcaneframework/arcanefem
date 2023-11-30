@@ -83,7 +83,7 @@ class CooFormat : TraceAccessor
   void translateToLinearSystem(DoFLinearSystem& linear_system)
   {
     for (Int32 i = 0; i < m_nnz; i++) {
-      linear_system.matrixAddValue(DoFLocalId(m_matrix_row(i)), DoFLocalId(m_matrix_column(i)), m_matrix_value(i));
+      linear_system.matrixSetValue(DoFLocalId(m_matrix_row(i)), DoFLocalId(m_matrix_column(i)), m_matrix_value(i));
     }
   }
 
