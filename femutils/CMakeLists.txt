@@ -3,6 +3,8 @@ project(FemTest1 LANGUAGES C CXX)
 
 find_package(Arcane REQUIRED)
 
+option(ENABLE_DEBUG_MATRIX "Enable Debug matrix instead of a sparse one" OFF)
+
 add_library(FemUtils
   FemUtils.h
   FemUtils.cc
@@ -10,6 +12,8 @@ add_library(FemUtils
   NodeLinearSystem.cc
   DoFLinearSystem.h
   DoFLinearSystem.cc
+  CooFormatMatrix.h
+  CsrFormatMatrix.h
   FemDoFsOnNodes.h
   FemDoFsOnNodes.cc
   AlephNodeLinearSystem.cc
@@ -20,6 +24,8 @@ add_library(FemUtils
 )
 arcane_generate_axl(AlephDoFLinearSystemFactory)
 arcane_generate_axl(SequentialBasicDoFLinearSystemFactory)
+
+target_compile_definitions(FemUtils PRIVATE $<$<BOOL:${ENABLE_DEBUG_MATRIX}>:ENABLE_DEBUG_MATRIX>)
 
 target_include_directories(FemUtils PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(FemUtils PRIVATE ${CMAKE_CURRENT_BINARY_DIR})

@@ -97,3 +97,16 @@ If needed, the Neumann  boundary conditions  can also be provided in `Test.poiss
 #### Post Process ####
 
 For post processing the `ensight.case` file is outputted, which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
+
+### Time analysis ###
+By setting the REGISTER_TIME flag to ON during the compilation, it is possible to generate a timer.txt file during the execution which contains the execution time of the
+different parts of poisson.
+
+Here is an example of compilation with this flag :
+~~~{sh}
+ARCANE_INSTALL_DIR=/path/to/arcane/installation
+BUILD_DIR=/tmp/build
+SOURCE_PATH=/path/to/sources
+cmake -S ${SOURCE_PATH} -B ${BUILD_DIR} -DCMAKE_PREFIX_PATH=${ARCANE_INSTALL_DIR} -DREGISTER_TIME=ON
+cmake --build ${BUILD_DIR}
+~~~
