@@ -84,6 +84,9 @@
 
 #include "arcane/AcceleratorRuntimeInitialisationInfo.h"
 
+// Fichier à inclure afin de pouvoir effectuer des connectivités personnalisées
+#include "arcane/core/IIncrementalItemConnectivity.h"
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -202,8 +205,13 @@ class FemModule
   CooFormat m_coo_matrix;
 #endif
 
-#if defined(USE_CSR) || defined(USE_CSR_GPU)
+#if defined(USE_CSR) || defined(USE_CSR_GPU) || defined(USE_BLCSR)
   CsrFormat m_csr_matrix;
+#endif
+
+#ifdef USE_BLCSR
+  IIncrementalItemConnectivity* cn;
+  Ref<Arcane::IIndexedIncrementalItemConnectivity, 0> idx_cn;
 #endif
 
 #if defined(REGISTER_TIME)
@@ -279,6 +287,16 @@ class FemModule
 #ifdef USE_CSR
   void _assembleCsrBilinearOperatorTRIA3();
   void _buildMatrixCsr();
+#endif
+#ifdef USE_BLCSR
+ public:
+
+  void _buildMatrixBuildLessCsr();
+  void _computeElementVectorTRIA3(NodeLocalId inode, IndexedNodeNodeConnectivityView nnc, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> row_csr, ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> col_csr, ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> val_csr);
+  void _assembleBLCsrBilinearOperatorTria3();
+
+ private:
+
 #endif
 };
 
@@ -2027,6 +2045,87 @@ _assembleCusparseBilinearOperatorTRIA3()
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+#endif
+
+#ifdef USE_BLCSR
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::_buildMatrixBuildLessCsr()
+{
+
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  // Compute the number of nnz and initialize the memory space
+  Int32 nnz = nbFace() * 2 + nbNode();
+  m_csr_matrix.initialize(m_dof_family, nnz, nbNode());
+
+  // Creating a connectivity from node to their neighbouring nodes
+  IItemFamily* node_family = mesh()->nodeFamily();
+  NodeGroup nodes = node_family->allItems();
+  idx_cn = mesh()->indexedConnectivityMng()->findOrCreateConnectivity(node_family, node_family, "NodeToNeighbourFaceNodes");
+  cn = idx_cn->connectivity();
+  ENUMERATE_NODE (inode, allNodes()) {
+
+    //Since we compute the neighbouring connectivity here, we also fill the csr matrix
+
+    Node node = *inode;
+
+    m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
+
+    for (Face face : node.faces()) {
+      if (face.nodeId(0) == node.localId()) {
+        cn->addConnectedItem(node, face.node(0));
+        m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(1), 0));
+      }
+      else {
+        cn->addConnectedItem(node, face.node(1));
+        m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
+      }
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+ARCCORE_HOST_DEVICE
+void FemModule::_computeElementVectorTRIA3(NodeLocalId inode, IndexedNodeNodeConnectivityView nnc, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> row_csr, ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> col_csr, ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> val_csr)
+{
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::_assembleBLCsrBilinearOperatorTria3()
+{
+
+  // Build the csr matrix
+  _buildMatrixBuildLessCsr();
+
+  RunQueue* queue = acceleratorMng()->defaultQueue();
+  // Boucle sur les mailles déportée sur accélérateur
+  auto command = makeCommand(queue);
+
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  auto in_row_csr = ax::viewIn(command, m_csr_matrix.m_matrix_row);
+  Int32 row_csr_size = m_csr_matrix.m_matrix_row.dim1Size();
+  auto in_out_col_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_column);
+  Int32 col_csr_size = m_csr_matrix.m_matrix_column.dim1Size();
+  auto in_out_val_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
+
+  IndexedNodeNodeConnectivityView nnc_view(idx_cn->view());
+
+  command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
+  {
+
+    _computeElementVectorTRIA3(inode, nnc_view, in_row_csr, in_out_col_csr, in_out_val_csr); // element stifness matrix
+  };
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 #endif
 
 void FemModule::
