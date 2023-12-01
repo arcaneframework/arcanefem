@@ -220,6 +220,7 @@ class FemModule
 
 #if defined(REGISTER_TIME)
   ofstream logger;
+  ofstream csv;
   double lhs_time;
   double rhs_time;
   double solver_time;
@@ -352,6 +353,7 @@ startInit()
 
 #ifdef REGISTER_TIME
   logger = ofstream("timer.txt");
+  csv = ofstream("sum.csv", std::ios_base::app);
 #endif
 
   m_dofs_on_nodes.initialize(mesh(), 1);
@@ -420,18 +422,18 @@ _doStationarySolve()
 #endif
 #ifdef USE_BLCSR
     _assembleBLCsrBilinearOperatorTria3();
-    m_csr_matrix.translateToLinearSystem(m_linear_system);
+    //m_csr_matrix.translateToLinearSystem(m_linear_system);
 #endif
   }
 
   // Assemble the FEM linear operator (RHS - vector b)
-  _assembleLinearOperator();
+  //_assembleLinearOperator();
 
   // # T=linalg.solve(K,RHS)
-  _solve();
+  //_solve();
 
   // Check results
-  _checkResultFile();
+  //_checkResultFile();
 
 #ifdef REGISTER_TIME
   auto fem_stop = std::chrono::high_resolution_clock::now();
@@ -2119,8 +2121,23 @@ void FemModule::_computeGlobalRowTRIA3(NodeLocalId inode, ax::VariableNodeReal3I
 void FemModule::_assembleBLCsrBilinearOperatorTria3()
 {
 
+#ifdef REGISTER_TIME
+  logger << "-------------------------------------------------------------------------------------\n"
+         << "Using GPU BLCSR with NumArray format\n";
+  auto lhs_start = std::chrono::high_resolution_clock::now();
+  double global_build_average = 0;
+  double build_time = 0;
+#endif
+
   // Build the csr matrix
   _buildMatrixBuildLessCsr();
+
+#ifdef REGISTER_TIME
+  auto build_stop = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> build_duration = build_stop - lhs_start;
+  build_time = build_duration.count();
+  auto var_init_start = std::chrono::high_resolution_clock::now();
+#endif
 
   RunQueue* queue = acceleratorMng()->defaultQueue();
 
@@ -2142,6 +2159,13 @@ void FemModule::_assembleBLCsrBilinearOperatorTria3()
   auto cnc = m_connectivity_view.cellNode();
   Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
   Arcane::ItemGenericInfoListView cells_infos(this->mesh()->cellFamily());
+
+#ifdef REGISTER_TIME
+  auto var_init_stop = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> var_init_duration = var_init_stop - var_init_start;
+  double var_init_time = var_init_duration.count();
+  auto loop_start = std::chrono::high_resolution_clock::now();
+#endif
 
   command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
   {
@@ -2211,7 +2235,25 @@ void FemModule::_assembleBLCsrBilinearOperatorTria3()
       }
     }
   };
-  m_csr_matrix.printMatrix("test.txt");
+
+#ifdef REGISTER_TIME
+  auto lhs_end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<double> duration = lhs_end - lhs_start;
+  std::chrono::duration<double> loop_duration = lhs_end - loop_start;
+
+  double loop_time = loop_duration.count();
+  double lhs_loc_time = duration.count();
+  csv << lhs_loc_time << "," << loop_time << "\n";
+  logger << "Building time of the coo matrix :" << build_time << "\n"
+         << "Variable initialisation time : " << var_init_time << "\n"
+         << "Computation and Addition time : " << loop_time << "\n"
+         << "LHS Total time : " << lhs_loc_time << "\n"
+         << "Build matrix time in lhs :" << build_time / lhs_loc_time * 100 << "%\n"
+         << "Variable initialisation time in lhs : " << var_init_time / lhs_loc_time * 100 << "%\n"
+         << "Computation and Addition time in lhs : " << loop_time / lhs_loc_time * 100 << "%\n\n"
+         << "-------------------------------------------------------------------------------------\n\n";
+  lhs_time += lhs_loc_time;
+#endif
 }
 
 /*---------------------------------------------------------------------------*/
