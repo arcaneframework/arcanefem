@@ -26,7 +26,7 @@
 #include "CooFormatMatrix.h"
 #endif
 
-#if defined(USE_CSR) || defined(USE_CSR_GPU)
+#if defined(USE_CSR) || defined(USE_CSR_GPU) || defined(USE_BLCSR)
 #include "CsrFormatMatrix.h"
 #endif
 
@@ -85,6 +85,9 @@
 #include "arcane/AcceleratorRuntimeInitialisationInfo.h"
 
 // Fichier à inclure afin de pouvoir effectuer des connectivités personnalisées
+#include "arcane/core/IndexedItemConnectivityView.h"
+#include "arcane/core/IIndexedIncrementalItemConnectivityMng.h"
+#include "arcane/core/IIndexedIncrementalItemConnectivity.h"
 #include "arcane/core/IIncrementalItemConnectivity.h"
 
 /*---------------------------------------------------------------------------*/
@@ -167,7 +170,7 @@ class FemModule
 #if defined(USE_COO) || defined(USE_COO_GPU)
   , m_coo_matrix(mbi.subDomain())
 #endif
-#if defined(USE_CSR) || defined(USE_CSR_GPU)
+#if defined(USE_CSR) || defined(USE_CSR_GPU) || defined(USE_BLCSR)
   , m_csr_matrix(mbi.subDomain())
 #endif
 #ifdef USE_LCSR
@@ -210,8 +213,9 @@ class FemModule
 #endif
 
 #ifdef USE_BLCSR
-  IIncrementalItemConnectivity* cn;
-  Ref<Arcane::IIndexedIncrementalItemConnectivity, 0> idx_cn;
+// Removed connectivity as it seems useless
+//IIncrementalItemConnectivity* cn;
+//Ref<Arcane::IIndexedIncrementalItemConnectivity, 0> idx_cn;
 #endif
 
 #if defined(REGISTER_TIME)
@@ -292,7 +296,7 @@ class FemModule
  public:
 
   void _buildMatrixBuildLessCsr();
-  void _computeElementVectorTRIA3(NodeLocalId inode, IndexedNodeNodeConnectivityView nnc, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> row_csr, ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> col_csr, ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> val_csr);
+  void _computeGlobalRowTRIA3(NodeLocalId inode, ax::VariableNodeReal3InView in_node_coord, IndexedNodeCellConnectivityView ncc, IndexedCellNodeConnectivityView cnc, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> row_csr, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> col_csr, ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> val_csr);
   void _assembleBLCsrBilinearOperatorTria3();
 
  private:
@@ -322,6 +326,14 @@ compute()
     StringList string_list;
     string_list.add("-trmalloc");
     string_list.add("-log_trace");
+    /*
+    string_list.add("-ksp_monitor");
+    string_list.add("-ksp_view");
+    string_list.add("-math_view");
+    string_list.add("draw");
+    string_list.add("-draw_pause");
+    string_list.add("0");
+    */
     CommandLineArguments args(string_list);
     m_linear_system.setSolverCommandLineArguments(args);
   }
@@ -405,6 +417,10 @@ _doStationarySolve()
 #endif
 #ifdef USE_LEGACY
     _assembleBilinearOperatorTRIA3();
+#endif
+#ifdef USE_BLCSR
+    _assembleBLCsrBilinearOperatorTria3();
+    m_csr_matrix.translateToLinearSystem(m_linear_system);
 #endif
   }
 
@@ -1164,8 +1180,8 @@ _assembleCsrGPUBilinearOperatorTRIA3()
           }
           while (begin < end) {
             if (in_col_csr[begin] == col) {
-// t is necessary to get the right type for the atomicAdd (but that means that we have more operations ?)
-// The Macro is there to avoid compilation error if not in c++ 20
+              // t is necessary to get the right type for the atomicAdd (but that means that we have more operations ?)
+              // The Macro is there to avoid compilation error if not in c++ 20
 #ifdef ARCCORE_DEVICE_CODE
               double* t = in_out_val_csr.to1DSpan().ptrAt(begin);
               atomicAdd(t, v);
@@ -1480,6 +1496,7 @@ _assembleCsrBilinearOperatorTRIA3()
     global_build_average += global_build_duration.count();
 #endif
   }
+  //m_csr_matrix.printMatrix("ref.txt");
 
 #ifdef REGISTER_TIME
   auto lhs_end = std::chrono::high_resolution_clock::now();
@@ -2061,11 +2078,13 @@ void FemModule::_buildMatrixBuildLessCsr()
   Int32 nnz = nbFace() * 2 + nbNode();
   m_csr_matrix.initialize(m_dof_family, nnz, nbNode());
 
+  /*removing the neoighbouring currently as it is useless
   // Creating a connectivity from node to their neighbouring nodes
   IItemFamily* node_family = mesh()->nodeFamily();
   NodeGroup nodes = node_family->allItems();
   idx_cn = mesh()->indexedConnectivityMng()->findOrCreateConnectivity(node_family, node_family, "NodeToNeighbourFaceNodes");
   cn = idx_cn->connectivity();
+  */
   ENUMERATE_NODE (inode, allNodes()) {
 
     //Since we compute the neighbouring connectivity here, we also fill the csr matrix
@@ -2076,11 +2095,11 @@ void FemModule::_buildMatrixBuildLessCsr()
 
     for (Face face : node.faces()) {
       if (face.nodeId(0) == node.localId()) {
-        cn->addConnectedItem(node, face.node(0));
+        //    cn->addConnectedItem(node, face.node(0));
         m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(1), 0));
       }
       else {
-        cn->addConnectedItem(node, face.node(1));
+        //  cn->addConnectedItem(node, face.node(1));
         m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
       }
     }
@@ -2090,7 +2109,7 @@ void FemModule::_buildMatrixBuildLessCsr()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE
-void FemModule::_computeElementVectorTRIA3(NodeLocalId inode, IndexedNodeNodeConnectivityView nnc, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> row_csr, ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> col_csr, ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> val_csr)
+void FemModule::_computeGlobalRowTRIA3(NodeLocalId inode, ax::VariableNodeReal3InView in_node_coord, IndexedNodeCellConnectivityView ncc, IndexedCellNodeConnectivityView cnc, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> row_csr, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> col_csr, ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> val_csr)
 {
 }
 
@@ -2104,23 +2123,95 @@ void FemModule::_assembleBLCsrBilinearOperatorTria3()
   _buildMatrixBuildLessCsr();
 
   RunQueue* queue = acceleratorMng()->defaultQueue();
-  // Boucle sur les mailles déportée sur accélérateur
+
+  // Boucle sur les noeuds déportée sur accélérateur
   auto command = makeCommand(queue);
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   auto in_row_csr = ax::viewIn(command, m_csr_matrix.m_matrix_row);
   Int32 row_csr_size = m_csr_matrix.m_matrix_row.dim1Size();
-  auto in_out_col_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_column);
+  auto in_col_csr = ax::viewIn(command, m_csr_matrix.m_matrix_column);
   Int32 col_csr_size = m_csr_matrix.m_matrix_column.dim1Size();
   auto in_out_val_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
 
-  IndexedNodeNodeConnectivityView nnc_view(idx_cn->view());
+  auto in_node_coord = ax::viewIn(command, m_node_coord);
+
+  UnstructuredMeshConnectivityView m_connectivity_view;
+  m_connectivity_view.setMesh(this->mesh());
+  auto ncc = m_connectivity_view.nodeCell();
+  auto cnc = m_connectivity_view.cellNode();
+  Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+  Arcane::ItemGenericInfoListView cells_infos(this->mesh()->cellFamily());
 
   command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
   {
+    Int32 inode_index = 0;
+    for (auto cell : ncc.cells(inode)) {
 
-    _computeElementVectorTRIA3(inode, nnc_view, in_row_csr, in_out_col_csr, in_out_val_csr); // element stifness matrix
+      // How can I know the right index ?
+      // By checking in the global id ?
+      // Working currently, but maybe only because p = 1 ?
+      if (inode == cnc.nodeId(cell, 1)) {
+        inode_index = 1;
+      }
+      else if (inode == cnc.nodeId(cell, 2)) {
+        inode_index = 2;
+      }
+      else {
+        inode_index = 0;
+      }
+      Real3 m0 = in_node_coord[cnc.nodeId(cell, 0)];
+      Real3 m1 = in_node_coord[cnc.nodeId(cell, 1)];
+      Real3 m2 = in_node_coord[cnc.nodeId(cell, 2)];
+
+      Real area = 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y)); // calculate area
+
+      Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
+      Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
+      Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
+
+      Real b_matrix[3][2] = { 0 };
+      Real mul = (1.0 / (2.0 * area));
+      b_matrix[0][0] = dPhi0.x * mul;
+      b_matrix[0][1] = dPhi0.y * mul;
+
+      b_matrix[1][0] = dPhi1.x * mul;
+      b_matrix[1][1] = dPhi1.y * mul;
+
+      b_matrix[2][0] = dPhi2.x * mul;
+      b_matrix[2][1] = dPhi2.y * mul;
+
+      Int32 i = 0;
+      for (NodeLocalId node2 : cnc.nodes(cell)) {
+        Real x = 0.0;
+        for (Int32 k = 0; k < 2; k++) {
+          x += b_matrix[inode_index][k] * b_matrix[i][k];
+        }
+        if (nodes_infos.isOwn(inode)) {
+
+          Int32 row = node_dof.dofId(inode, 0).localId();
+          Int32 col = node_dof.dofId(node2, 0).localId();
+          Int32 begin = in_row_csr[row];
+          Int32 end;
+          if (row == row_csr_size - 1) {
+            end = col_csr_size;
+          }
+          else {
+            end = in_row_csr[row + 1];
+          }
+          while (begin < end) {
+            if (in_col_csr[begin] == col) {
+              in_out_val_csr[begin] += x * area;
+              break;
+            }
+            begin++;
+          }
+        }
+        i++;
+      }
+    }
   };
+  m_csr_matrix.printMatrix("test.txt");
 }
 
 /*---------------------------------------------------------------------------*/
