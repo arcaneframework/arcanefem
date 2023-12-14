@@ -31,6 +31,14 @@ endif()
     
 
 add_executable(Poisson
+  FemModule.h
+  BlcsrBiliAssembly.hxx
+  CooBiliAssembly.hxx
+  CooSortBiliAssembly.hxx
+  CsrBiliAssembly.hxx
+  CsrGpuBiliAssembly.hxx
+  CusparseBiliAssembly.hxx
+  LegacyBiliAssembly.hxx
   FemModule.cc
   main.cc
   Fem_axl.h
