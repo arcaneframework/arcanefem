@@ -200,72 +200,80 @@ _doStationarySolve()
         _assembleCusparseBilinearOperatorTRIA3();
       }
     }
-  }
+
 #endif
-  if (m_use_coo) {
-    for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
-      m_linear_system.clearValues();
-      _assembleCooBilinearOperatorTRIA3();
+    if (m_use_coo) {
+      for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+        m_linear_system.clearValues();
+        _assembleCooBilinearOperatorTRIA3();
+      }
+      m_coo_matrix.translateToLinearSystem(m_linear_system);
     }
-    m_coo_matrix.translateToLinearSystem(m_linear_system);
-  }
-  if (m_use_coo_sort) {
-    for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
-      m_linear_system.clearValues();
-      _assembleCooSortBilinearOperatorTRIA3();
+    if (m_use_coo_sort) {
+      for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+        m_linear_system.clearValues();
+        _assembleCooSortBilinearOperatorTRIA3();
+      }
+      m_coo_matrix.translateToLinearSystem(m_linear_system);
     }
-    m_coo_matrix.translateToLinearSystem(m_linear_system);
-  }
 #ifdef USE_COO_GPU
 #ifdef m_cache_warming
-  for (i = 0; i < 3; i++)
+    for (i = 0; i < 3; i++)
 #endif
-  {
-    m_linear_system.clearValues();
-    _assembleCooGPUBilinearOperatorTRIA3();
-  }
-  m_coo_matrix.translateToLinearSystem(m_linear_system);
+    {
+      m_linear_system.clearValues();
+      _assembleCooGPUBilinearOperatorTRIA3();
+    }
+    m_coo_matrix.translateToLinearSystem(m_linear_system);
 #endif
-  if (m_use_csr) {
-    for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
-      m_linear_system.clearValues();
-      _assembleCsrBilinearOperatorTRIA3();
+    if (m_use_csr) {
+      for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+        m_linear_system.clearValues();
+        _assembleCsrBilinearOperatorTRIA3();
+      }
+      m_csr_matrix.translateToLinearSystem(m_linear_system);
     }
-    m_csr_matrix.translateToLinearSystem(m_linear_system);
-  }
-  if (m_use_legacy) {
-    for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
-      m_linear_system.clearValues();
-      _assembleBilinearOperatorTRIA3();
+    if (m_use_legacy) {
+      for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+        m_linear_system.clearValues();
+        _assembleBilinearOperatorTRIA3();
+      }
     }
-  }
 
 #ifdef ARCANE_HAS_CUDA
-  if (m_use_csr_gpu) {
-    for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
-      m_linear_system.clearValues();
-      _assembleCsrGPUBilinearOperatorTRIA3();
+    if (m_use_csr_gpu) {
+      for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+        m_linear_system.clearValues();
+        _assembleCsrGPUBilinearOperatorTRIA3();
+      }
+      m_csr_matrix.translateToLinearSystem(m_linear_system);
     }
-    m_csr_matrix.translateToLinearSystem(m_linear_system);
-  }
-  if (m_use_nodewise_csr) {
-    for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
-      m_linear_system.clearValues();
-      _assembleNodeWiseCsrBilinearOperatorTria3();
+    if (m_use_nodewise_csr) {
+      for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+        m_linear_system.clearValues();
+        _assembleNodeWiseCsrBilinearOperatorTria3();
+      }
+      m_csr_matrix.translateToLinearSystem(m_linear_system);
     }
-    m_csr_matrix.translateToLinearSystem(m_linear_system);
-  }
-  if (m_use_buildless_csr) {
-    for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
-      m_linear_system.clearValues();
-      _assembleBuildLessCsrBilinearOperatorTria3();
+    if (m_use_buildless_csr) {
+      for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+        m_linear_system.clearValues();
+        _assembleBuildLessCsrBilinearOperatorTria3();
+      }
+      m_csr_matrix.translateToLinearSystem(m_linear_system);
     }
-    m_csr_matrix.translateToLinearSystem(m_linear_system);
   }
-
 #endif
   // Assemble the FEM linear operator (RHS - vector b)
-  _assembleLinearOperator();
+  if (m_use_buildless_csr) {
+    m_linear_system.clearValues();
+    _assembleCsrLinearOperator();
+    m_csr_matrix.translateToLinearSystem(m_linear_system);
+    _translateRhs();
+  }
+  else {
+    _assembleLinearOperator();
+  }
 
   // # T=linalg.solve(K,RHS)
   _solve();
@@ -670,6 +678,313 @@ _assembleLinearOperator()
              << "Constant flux term assembly time in rhs : " << fassembly_time / rhs_time * 100 << "%\n\n"
              << "-------------------------------------------------------------------------------------\n\n";
     }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleCsrLinearOperator()
+{
+  info() << "Assembly of FEM linear operator ";
+  info() << "Applying Dirichlet boundary condition via  penalty method for Csr";
+
+  // time registration
+  std::chrono::_V2::system_clock::time_point rhs_start;
+  double penalty_time = 0;
+  double wpenalty_time = 0;
+  double sassembly_time = 0;
+  double fassembly_time = 0;
+  if (m_register_time) {
+    rhs_start = std::chrono::high_resolution_clock::now();
+  }
+
+  Timer::Action timer_action(this->subDomain(), "CsrAssembleLinearOperator");
+
+  m_rhs_vect.resize(nbNode());
+  m_rhs_vect.fill(0.0);
+
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  if (options()->enforceDirichletMethod() == "Penalty") {
+
+    Timer::Action timer_action(this->subDomain(), "CsrPenalty");
+
+    //----------------------------------------------
+    // penalty method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
+    //  Dirichlet condition needs to be applied
+    //
+    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
+    //           a_{i,i} = 1. * P
+    //
+    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
+    //           b_{i} = b_{i} * P
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    Real Penalty = options()->penalty(); // 1.0e30 is the default
+    std::chrono::_V2::system_clock::time_point penalty_start;
+    if (m_register_time) {
+      penalty_start = std::chrono::high_resolution_clock::now();
+    }
+
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      NodeLocalId node_id = *inode;
+      if (m_u_dirichlet[node_id]) {
+        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
+        // This SetValue should be updated in the acoording format we have (such as COO or CSR)
+        m_csr_matrix.matrixSetValue(dof_id, dof_id, Penalty);
+        Real u_g = Penalty * m_u[node_id];
+        // This should be changed for a numArray
+        m_rhs_vect[dof_id] = u_g;
+      }
+    }
+    std::chrono::_V2::system_clock::time_point penalty_stop;
+    if (m_register_time) {
+      penalty_stop = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> penalty_duration = penalty_stop - penalty_start;
+      penalty_time = penalty_duration.count();
+      logger << "Penalty duration for CSR : " << penalty_time << "\n";
+    }
+  }
+  else if (options()->enforceDirichletMethod() == "WeakPenalty") {
+    Timer::Action timer_action(this->subDomain(), "CsrWeakPenalty");
+
+    //----------------------------------------------
+    // weak penalty method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
+    //  Dirichlet condition needs to be applied
+    //
+    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
+    //           a_{i,i} = a_{i,i} + P
+    //
+    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
+    //           b_{i} = b_{i} * P
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    Real Penalty = options()->penalty(); // 1.0e30 is the default
+    std::chrono::_V2::system_clock::time_point wpenalty_start;
+    if (m_register_time) {
+      wpenalty_start = std::chrono::high_resolution_clock::now();
+    }
+
+    // The same as before
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      NodeLocalId node_id = *inode;
+      if (m_u_dirichlet[node_id]) {
+        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
+        m_csr_matrix.matrixAddValue(dof_id, dof_id, Penalty);
+        Real u_g = Penalty * m_u[node_id];
+        m_rhs_vect[dof_id] = u_g;
+      }
+    }
+    std::chrono::_V2::system_clock::time_point wpenalty_stop;
+    if (m_register_time) {
+      wpenalty_stop = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> wpenalty_duration = wpenalty_stop - wpenalty_start;
+      wpenalty_time = wpenalty_duration.count();
+      logger << "Weak Penalty duration for CSR: " << wpenalty_time << "\n";
+    }
+  }
+  else if (options()->enforceDirichletMethod() == "RowElimination") {
+
+    //----------------------------------------------
+    // Row elimination method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
+    //
+    //  to apply the Dirichlet on 'i'th DOF
+    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
+    //           a_{i,j} = 0.  : i!=j
+    //           a_{i,j} = 1.  : i==j
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+    // The same as before
+    // TODO
+  }
+  else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
+
+    //----------------------------------------------
+    // Row elimination method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
+    //
+    //  to apply the Dirichlet on 'i'th DOF
+    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
+    //           a_{i,j} = 0.  : i!=j  for all j
+    //           a_{i,j} = 1.  : i==j
+    //    also the column terms corresponding to the Dirichlet DOF
+    //           a_{i,j} = 0.  : i!=j  for all i
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    // The same as before
+    // TODO
+  }
+  else {
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " is not supported \n"
+           << "enforce-Dirichlet-method only supports:\n"
+           << "  - Penalty\n"
+           << "  - WeakPenalty\n"
+           << "  - RowElimination\n"
+           << "  - RowColumnElimination\n";
+  }
+  std::chrono::_V2::system_clock::time_point sassemby_start;
+  if (m_register_time) {
+    sassemby_start = std::chrono::high_resolution_clock::now();
+  }
+
+  std::chrono::_V2::system_clock::time_point fassemby_start;
+  {
+    Timer::Action timer_action(this->subDomain(), "CsrConstantSourceTermAssembly");
+    //----------------------------------------------
+    // Constant source term assembly
+    //----------------------------------------------
+    //
+    //  $int_{Omega}(f*v^h)$
+    //  only for noded that are non-Dirichlet
+    //----------------------------------------------
+    ENUMERATE_ (Cell, icell, allCells()) {
+      Cell cell = *icell;
+      Real area = _computeAreaTriangle3(cell);
+      for (Node node : cell.nodes()) {
+        if (!(m_u_dirichlet[node]) && node.isOwn())
+          // must replace rhs_values with numArray
+          m_rhs_vect[node_dof.dofId(node, 0)] += f * area / ElementNodes;
+      }
+    }
+    std::chrono::_V2::system_clock::time_point sassemby_stop;
+    if (m_register_time) {
+      sassemby_stop = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> sassembly_duration = sassemby_stop - sassemby_start;
+      sassembly_time = sassembly_duration.count();
+      logger << "Constant source term assembly duration  for CSR: " << sassembly_time << "\n";
+      fassemby_start = std::chrono::high_resolution_clock::now();
+    }
+  }
+  {
+    Timer::Action timer_action(this->subDomain(), "CsrConstantFluxTermAssembly");
+
+    //----------------------------------------------
+    // Constant flux term assembly
+    //----------------------------------------------
+    //
+    //  only for noded that are non-Dirichlet
+    //  $int_{dOmega_N}((q.n)*v^h)$
+    // or
+    //  $int_{dOmega_N}((n_x*q_x + n_y*q_y)*v^h)$
+    //----------------------------------------------
+    for (const auto& bs : options()->neumannBoundaryCondition()) {
+      FaceGroup group = bs->surface();
+
+      if (bs->value.isPresent()) {
+        Real value = bs->value();
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2(face);
+          for (Node node : iface->nodes()) {
+            if (!(m_u_dirichlet[node]) && node.isOwn())
+              // must replace rhs_values with numArray
+              m_rhs_vect[node_dof.dofId(node, 0)] += value * length / 2.;
+          }
+        }
+        continue;
+      }
+
+      if (bs->valueX.isPresent() && bs->valueY.isPresent()) {
+        Real valueX = bs->valueX();
+        Real valueY = bs->valueY();
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2(face);
+          Real2 Normal = _computeEdgeNormal2(face);
+          for (Node node : iface->nodes()) {
+            if (!(m_u_dirichlet[node]) && node.isOwn())
+              // must replace rhs_values with numArray
+              m_rhs_vect[node_dof.dofId(node, 0)] += (Normal.x * valueX + Normal.y * valueY) * length / 2.;
+          }
+        }
+        continue;
+      }
+
+      if (bs->valueX.isPresent()) {
+        Real valueX = bs->valueX();
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2(face);
+          Real2 Normal = _computeEdgeNormal2(face);
+          for (Node node : iface->nodes()) {
+            if (!(m_u_dirichlet[node]) && node.isOwn())
+              // must replace rhs_values with numArray
+              m_rhs_vect[node_dof.dofId(node, 0)] += (Normal.x * valueX) * length / 2.;
+          }
+        }
+        continue;
+      }
+
+      if (bs->valueY.isPresent()) {
+        Real valueY = bs->valueY();
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2(face);
+          Real2 Normal = _computeEdgeNormal2(face);
+          for (Node node : iface->nodes()) {
+            if (!(m_u_dirichlet[node]) && node.isOwn())
+              // must replace rhs_values with numArray
+              m_rhs_vect[node_dof.dofId(node, 0)] += (Normal.y * valueY) * length / 2.;
+          }
+        }
+        continue;
+      }
+    }
+    std::chrono::_V2::system_clock::time_point fassemby_stop;
+    if (m_register_time) {
+
+      fassemby_stop = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> fassembly_duration = fassemby_stop - fassemby_start;
+      fassembly_time = fassembly_duration.count();
+      logger << "Constant flux term assembly duration for CSR: " << fassembly_time << "\n";
+      auto rhs_end = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> duration = rhs_end - rhs_start;
+      rhs_time = duration.count();
+      logger << "RHS total duration for CSR: " << duration.count() << "\n";
+      if (penalty_time != 0)
+        logger << "Penalty time in rhs for CSR: " << penalty_time / rhs_time * 100 << "%\n";
+      else
+        logger << "Weak Penalty time in rhs for CSR: " << wpenalty_time / rhs_time * 100 << "%\n";
+      logger << "Constant source term assembly time in rhs for CSR: " << sassembly_time / rhs_time * 100 << "%\n"
+             << "Constant flux term assembly time in rhs for CSR: " << fassembly_time / rhs_time * 100 << "%\n\n"
+             << "-------------------------------------------------------------------------------------\n\n";
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_translateRhs()
+{
+  VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
+  rhs_values.fill(0.0);
+  for (Int32 i = 0; i < m_rhs_vect.dim1Size(); i++) {
+
+    rhs_values[DoFLocalId(i)] = m_rhs_vect[DoFLocalId(i)];
   }
 }
 

@@ -211,6 +211,8 @@ class FemModule
 
   CsrFormat m_csr_matrix;
 
+  NumArray<Real, MDDim1> m_rhs_vect;
+
   std::ofstream logger;
   std::ofstream wbuild;
   std::ofstream timer;
@@ -294,4 +296,7 @@ class FemModule
  private:
 
 #endif
+
+  void _assembleCsrLinearOperator();
+  void _translateRhs();
 };

@@ -146,6 +146,12 @@ class CsrFormat : TraceAccessor
     m_last_value++;
   }
 
+  void
+  matrixSetValue(DoFLocalId row, DoFLocalId column, Real value)
+  {
+    m_matrix_value(indexValue(row, column)) = value;
+  }
+
  public:
 
   Int32 m_nnz;
