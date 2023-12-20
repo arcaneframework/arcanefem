@@ -32,18 +32,21 @@ endif()
 
 add_executable(Poisson
   FemModule.h
-  BlcsrBiliAssembly.hxx
   CooBiliAssembly.hxx
   CooSortBiliAssembly.hxx
   CsrBiliAssembly.hxx
-  CsrGpuBiliAssembly.hxx
-  CusparseBiliAssembly.hxx
   LegacyBiliAssembly.hxx
   FemModule.cc
   main.cc
   Fem_axl.h
 )
 if(ARCANE_HAS_CUDA)
+  target_sources(Poisson PRIVATE
+    NodeWiseCsrBiliAssembly.hxx
+    BlCsrBiliAssembly.hxx
+    CsrGpuBiliAssembly.hxx
+    CusparseBiliAssembly.hxx
+  )
   arcane_accelerator_add_to_target(Poisson)
 endif()
 

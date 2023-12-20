@@ -10,11 +10,29 @@
 /* Simple module to test simple FEM mechanism.                               */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
 #include "FemModule.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+
+void FemModule::
+_writeInJson()
+{
+  ofstream jsonFile("time.json");
+  JSONWriter json_writer(JSONWriter::FormatFlags::None);
+  json_writer.beginObject();
+  JSONWriter::Object jo(json_writer, "TimerToTo");
+
+  this->subDomain()->timeStats()->dumpStatsJSON(json_writer);
+  json_writer.endObject();
+  jsonFile << json_writer.getBuffer();
+}
+
+void FemModule::
+endModule()
+{
+  _writeInJson();
+}
 
 void FemModule::
 compute()
@@ -99,45 +117,57 @@ _handleFlags()
   info() << "The time will be registered by arcane in the output/listing/logs.0 file";
   if (parameter_list.getParameterOrNull("REGISTER_TIME") == "TRUE") {
     m_register_time = true;
-    info() << "The time will also be registered in the timer.txt, with_build.csv and timer.csv file";
+    info() << "REGISTER_TIME: The time will also be registered in the timer.txt, with_build.csv and timer.csv file";
   }
   if (parameter_list.getParameterOrNull("CACHE_WARMING") != NULL) {
     std::stringstream test("");
     test << parameter_list.getParameterOrNull("CACHE_WARMING");
     m_cache_warming = std::stoi(test.str());
-    info() << "A cache warming of " << m_cache_warming << " iterations will happen";
+    info() << "CACHE_WARMING: A cache warming of " << m_cache_warming << " iterations will happen";
   }
   if (parameter_list.getParameterOrNull("COO") == "TRUE") {
     m_use_coo = true;
-    info() << "The COO datastructure and its associated methods will be used";
+    m_use_legacy = false;
+    info() << "COO: The COO datastructure and its associated methods will be used";
   }
   if (parameter_list.getParameterOrNull("COO_SORT") == "TRUE") {
     m_use_coo_sort = true;
-    info() << "The COO with sorting datastructure and its associated methods will be used";
+    m_use_legacy = false;
+    info() << "COO_SORT: The COO with sorting datastructure and its associated methods will be used";
   }
   if (parameter_list.getParameterOrNull("CSR") == "TRUE") {
     m_use_csr = true;
-    info() << "The CSR datastructure and its associated methods will be used";
+    m_use_legacy = false;
+    info() << "CSR: The CSR datastructure and its associated methods will be used";
   }
 #ifdef ARCANE_HAS_CUDA
   if (parameter_list.getParameterOrNull("CSR_GPU") == "TRUE") {
     m_use_csr_gpu = true;
-    info() << "The CSR datastructure GPU compatible and its associated methods will be used";
+    m_use_legacy = false;
+    info() << "CSR_GPU: The CSR datastructure GPU compatible and its associated methods will be used";
+  }
+  if (parameter_list.getParameterOrNull("NWCSR") == "TRUE") {
+    m_use_nodewise_csr = true;
+    m_use_legacy = false;
+    info() << "NWCSR: The Csr datastructure (GPU compatible) and its associated methods will be used with computation in a nodewise manner";
   }
   if (parameter_list.getParameterOrNull("BLCSR") == "TRUE") {
-    m_use_blcsr = true;
-    info() << "The BLCSR datastructure (GPU compatible) and its associated methods will be used";
+    m_use_buildless_csr = true;
+    m_use_legacy = false;
+    info() << "BLCSR: The Csr datastructure (GPU compatible) and its associated methods will be used with computation in a nodewise manner with the building phases incorporated in the computation";
   }
   if (parameter_list.getParameterOrNull("CUSPARSE_ADD") == "TRUE") {
     m_use_cusparse_add = true;
-    info() << "CUSPARSE and its associated methods will be used";
+    m_use_legacy = false;
+    info() << "CUSPARSE_ADD: CUSPARSE and its associated methods will be used";
   }
 #endif
-  if (parameter_list.getParameterOrNull("LEGACY") == "FALSE") {
-    m_use_cusparse_add = false;
+  if (parameter_list.getParameterOrNull("LEGACY") == "TRUE") {
+    m_use_legacy = true;
+    info() << "LEGACY: The Legacy datastructure and its associated methods will be used";
   }
-  else {
-    info() << "The Legacy datastructure and its associated methods will be used";
+  else if (parameter_list.getParameterOrNull("LEGACY") == "FALSE") {
+    m_use_legacy = false;
   }
   info() << "-----------------------------------------------------------------------------------------";
 }
@@ -166,59 +196,82 @@ _doStationarySolve()
 
 #ifdef ARCANE_HAS_CUDA
     if (m_use_cusparse_add) {
-      for (cache_index = 0; cache_index < m_cache_warming; cache_index++)
+      for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
         _assembleCusparseBilinearOperatorTRIA3();
+      }
     }
   }
 #endif
   if (m_use_coo) {
-    for (cache_index = 0; cache_index < m_cache_warming; cache_index++)
+    for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+      m_linear_system.clearValues();
       _assembleCooBilinearOperatorTRIA3();
-    //m_coo_matrix.translateToLinearSystem(m_linear_system);
+    }
+    m_coo_matrix.translateToLinearSystem(m_linear_system);
   }
   if (m_use_coo_sort) {
-    for (cache_index = 0; cache_index < m_cache_warming; cache_index++)
+    for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+      m_linear_system.clearValues();
       _assembleCooSortBilinearOperatorTRIA3();
-    //m_coo_matrix.translateToLinearSystem(m_linear_system);
+    }
+    m_coo_matrix.translateToLinearSystem(m_linear_system);
   }
 #ifdef USE_COO_GPU
 #ifdef m_cache_warming
   for (i = 0; i < 3; i++)
 #endif
+  {
+    m_linear_system.clearValues();
     _assembleCooGPUBilinearOperatorTRIA3();
-    //m_coo_matrix.translateToLinearSystem(m_linear_system);
+  }
+  m_coo_matrix.translateToLinearSystem(m_linear_system);
 #endif
   if (m_use_csr) {
-    for (cache_index = 0; cache_index < m_cache_warming; cache_index++)
+    for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+      m_linear_system.clearValues();
       _assembleCsrBilinearOperatorTRIA3();
-    //m_csr_matrix.translateToLinearSystem(m_linear_system);
+    }
+    m_csr_matrix.translateToLinearSystem(m_linear_system);
   }
   if (m_use_legacy) {
-    for (cache_index = 0; cache_index < m_cache_warming; cache_index++)
+    for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+      m_linear_system.clearValues();
       _assembleBilinearOperatorTRIA3();
+    }
   }
 
 #ifdef ARCANE_HAS_CUDA
   if (m_use_csr_gpu) {
-    for (cache_index = 0; cache_index < m_cache_warming; cache_index++)
+    for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+      m_linear_system.clearValues();
       _assembleCsrGPUBilinearOperatorTRIA3();
-    //m_csr_matrix.translateToLinearSystem(m_linear_system);
+    }
+    m_csr_matrix.translateToLinearSystem(m_linear_system);
   }
-#endif
-  if (m_use_blcsr) {
-    for (cache_index = 0; cache_index < m_cache_warming; cache_index++)
-      _assembleBLCsrBilinearOperatorTria3();
-    //m_csr_matrix.translateToLinearSystem(m_linear_system);
+  if (m_use_nodewise_csr) {
+    for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+      m_linear_system.clearValues();
+      _assembleNodeWiseCsrBilinearOperatorTria3();
+    }
+    m_csr_matrix.translateToLinearSystem(m_linear_system);
+  }
+  if (m_use_buildless_csr) {
+    for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+      m_linear_system.clearValues();
+      _assembleBuildLessCsrBilinearOperatorTria3();
+    }
+    m_csr_matrix.translateToLinearSystem(m_linear_system);
   }
 
+#endif
   // Assemble the FEM linear operator (RHS - vector b)
-  //_assembleLinearOperator();
+  _assembleLinearOperator();
 
   // # T=linalg.solve(K,RHS)
-  //_solve();
+  _solve();
 
   // Check results
-  //_checkResultFile();
+  _checkResultFile();
 
   if (m_register_time) {
     auto fem_stop = std::chrono::high_resolution_clock::now();
@@ -383,8 +436,10 @@ _assembleLinearOperator()
       NodeLocalId node_id = *inode;
       if (m_u_dirichlet[node_id]) {
         DoFLocalId dof_id = node_dof.dofId(*inode, 0);
+        // This SetValue should be updated in the acoording format we have (such as COO or CSR)
         m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
         Real u_g = Penalty * m_u[node_id];
+        // This should be changed for a numArray
         rhs_values[dof_id] = u_g;
       }
     }
@@ -421,6 +476,7 @@ _assembleLinearOperator()
       wpenalty_start = std::chrono::high_resolution_clock::now();
     }
 
+    // The same as before
     ENUMERATE_ (Node, inode, ownNodes()) {
       NodeLocalId node_id = *inode;
       if (m_u_dirichlet[node_id]) {
@@ -453,7 +509,7 @@ _assembleLinearOperator()
 
     info() << "Applying Dirichlet boundary condition via "
            << options()->enforceDirichletMethod() << " method ";
-
+    // The same as before
     // TODO
   }
   else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
@@ -474,6 +530,7 @@ _assembleLinearOperator()
     info() << "Applying Dirichlet boundary condition via "
            << options()->enforceDirichletMethod() << " method ";
 
+    // The same as before
     // TODO
   }
   else {
@@ -487,8 +544,9 @@ _assembleLinearOperator()
            << "  - RowColumnElimination\n";
   }
   std::chrono::_V2::system_clock::time_point sassemby_start;
-  if (m_register_time)
+  if (m_register_time) {
     sassemby_start = std::chrono::high_resolution_clock::now();
+  }
 
   std::chrono::_V2::system_clock::time_point fassemby_start;
   {
@@ -505,6 +563,7 @@ _assembleLinearOperator()
       Real area = _computeAreaTriangle3(cell);
       for (Node node : cell.nodes()) {
         if (!(m_u_dirichlet[node]) && node.isOwn())
+          // must replace rhs_values with numArray
           rhs_values[node_dof.dofId(node, 0)] += f * area / ElementNodes;
       }
     }
@@ -539,6 +598,7 @@ _assembleLinearOperator()
           Real length = _computeEdgeLength2(face);
           for (Node node : iface->nodes()) {
             if (!(m_u_dirichlet[node]) && node.isOwn())
+              // must replace rhs_values with numArray
               rhs_values[node_dof.dofId(node, 0)] += value * length / 2.;
           }
         }
@@ -554,6 +614,7 @@ _assembleLinearOperator()
           Real2 Normal = _computeEdgeNormal2(face);
           for (Node node : iface->nodes()) {
             if (!(m_u_dirichlet[node]) && node.isOwn())
+              // must replace rhs_values with numArray
               rhs_values[node_dof.dofId(node, 0)] += (Normal.x * valueX + Normal.y * valueY) * length / 2.;
           }
         }
@@ -568,6 +629,7 @@ _assembleLinearOperator()
           Real2 Normal = _computeEdgeNormal2(face);
           for (Node node : iface->nodes()) {
             if (!(m_u_dirichlet[node]) && node.isOwn())
+              // must replace rhs_values with numArray
               rhs_values[node_dof.dofId(node, 0)] += (Normal.x * valueX) * length / 2.;
           }
         }
@@ -582,6 +644,7 @@ _assembleLinearOperator()
           Real2 Normal = _computeEdgeNormal2(face);
           for (Node node : iface->nodes()) {
             if (!(m_u_dirichlet[node]) && node.isOwn())
+              // must replace rhs_values with numArray
               rhs_values[node_dof.dofId(node, 0)] += (Normal.y * valueY) * length / 2.;
           }
         }
@@ -1111,5 +1174,6 @@ ARCANE_REGISTER_MODULE_FEM(FemModule);
 #endif
 
 #ifdef ARCANE_HAS_CUDA
-#include "BlcsrBiliAssembly.hxx"
+#include "NodeWiseCsrBiliAssembly.hxx"
+#include "BlCsrBiliAssembly.hxx"
 #endif

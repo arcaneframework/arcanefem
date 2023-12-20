@@ -46,7 +46,7 @@ class CsrFormat : TraceAccessor
     m_matrix_column.resize(nnz);
     m_matrix_value.resize(nnz);
     m_matrix_row.fill(-1);
-    m_matrix_column.fill(0);
+    m_matrix_column.fill(-1);
     m_matrix_value.fill(0);
     m_dof_family = dof_family;
     m_last_value = 0;

@@ -79,6 +79,8 @@
 
 //Fichier à inclure afin d'avoir le timer
 #include "arcane/Timer.h"
+#include "arcane/utils/JSONWriter.h"
+#include "arcane/core/ITimeStats.h"
 
 #include "arcane/utils/ApplicationInfo.h"
 
@@ -177,6 +179,9 @@ class FemModule
   //! Method called at the beginning of the simulation
   void startInit() override;
 
+  //! Method called at the end of the simulation
+  void endModule() override;
+
   VersionInfo versionInfo() const override
   {
     return VersionInfo(1, 0, 0);
@@ -197,7 +202,8 @@ class FemModule
   bool m_use_coo_sort = false;
   bool m_use_csr = false;
   bool m_use_csr_gpu = false;
-  bool m_use_blcsr = false;
+  bool m_use_nodewise_csr = false;
+  bool m_use_buildless_csr = false;
   bool m_use_cusparse_add = false;
   bool m_use_legacy = true;
 
@@ -235,6 +241,7 @@ class FemModule
   Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
   Real2 _computeEdgeNormal2(Face face);
+  void _writeInJson();
 #ifdef USE_CUSPARSE_ADD
   void printCsrMatrix(std::string fileName, cusparseCsr csr, bool is_coo);
   void _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell icell, cusparseHandle_t handle, IndexedNodeDoFConnectivityView node_dof,
@@ -278,8 +285,11 @@ class FemModule
 #ifdef ARCANE_HAS_CUDA
  public:
 
+  void _buildMatrixNodeWiseCsr();
+  void _assembleNodeWiseCsrBilinearOperatorTria3();
+
   void _buildMatrixBuildLessCsr();
-  void _assembleBLCsrBilinearOperatorTria3();
+  void _assembleBuildLessCsrBilinearOperatorTria3();
 
  private:
 

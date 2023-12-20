@@ -4,6 +4,7 @@
   <entry-points>
     <entry-point method-name="compute" name="Compute" where="compute-loop" property="none" />
     <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
+    <entry-point method-name="endModule" name="EndModule" where="exit" property="none"/>
   </entry-points>
   <variables>
     <variable field-name="u" name="U" data-type="real" item-kind="node" dim="0">

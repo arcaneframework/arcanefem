@@ -13,7 +13,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_buildMatrixBuildLessCsr()
+void FemModule::_buildMatrixNodeWiseCsr()
 {
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -53,23 +53,23 @@ void FemModule::_buildMatrixBuildLessCsr()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleBLCsrBilinearOperatorTria3()
+void FemModule::_assembleNodeWiseCsrBilinearOperatorTria3()
 {
-  Timer::Action timer_blcsr_bili(this->subDomain(), "AssembleBlcsrBilinearOperatorTria3");
+  Timer::Action timer_blcsr_bili(this->subDomain(), "AssembleNodeWiseCsrBilinearOperatorTria3");
 
   std::chrono::_V2::system_clock::time_point lhs_start;
   double global_build_average = 0;
   double build_time = 0;
   if (m_register_time) {
     logger << "-------------------------------------------------------------------------------------\n"
-           << "Using GPU BLCSR with NumArray format\n";
+           << "Using GPU NodeWise CSR with NumArray format\n";
     lhs_start = std::chrono::high_resolution_clock::now();
   }
 
   {
-    Timer::Action timer_blcsr_build(this->subDomain(), "BlcsrBuildMatrix");
+    Timer::Action timer_blcsr_build(this->subDomain(), "NodeWiseCsrBuildMatrix");
     // Build the csr matrix
-    _buildMatrixBuildLessCsr();
+    _buildMatrixNodeWiseCsr();
   }
 
   std::chrono::_V2::system_clock::time_point var_init_start;
@@ -110,7 +110,7 @@ void FemModule::_assembleBLCsrBilinearOperatorTria3()
     loop_start = std::chrono::high_resolution_clock::now();
   }
 
-  Timer::Action timer_blcsr_add_compute(this->subDomain(), "BlcsrAddAndCompute");
+  Timer::Action timer_blcsr_add_compute(this->subDomain(), "NodeWiseCsrAddAndCompute");
   command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
   {
     Int32 inode_index = 0;
@@ -187,7 +187,7 @@ void FemModule::_assembleBLCsrBilinearOperatorTria3()
 
     double loop_time = loop_duration.count();
     double lhs_loc_time = duration.count();
-    logger << "Building time of the coo matrix :" << build_time << "\n"
+    logger << "Building time of the csr matrix :" << build_time << "\n"
            << "Variable initialisation time : " << var_init_time << "\n"
            << "Computation and Addition time : " << loop_time << "\n"
            << "LHS Total time : " << lhs_loc_time << "\n"

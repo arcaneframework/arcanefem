@@ -61,6 +61,7 @@ _buildMatrixSort()
   }
 
   //Sort the matrix
+  Timer::Action timer_action(this->subDomain(), "SortingCooMatrix");
   m_coo_matrix.sort();
 }
 
