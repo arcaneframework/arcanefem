@@ -53,10 +53,18 @@ _readTimeFromJson(String main_time, String sub_time)
   //From the list of subactions in Fem to the list of subactions in Compute
   JSONValueList compute = (fem.begin() + 1)->child("SubActions").valueAsArray();
   //From the list of subactions in Compute to the list of subactions in StationarySolve
-  JSONValueList stationarySolve = (compute.begin() + 3)->child("SubActions").valueAsArray();
+  String prev = "";
+  JSONValueList stationarySolve;
+  for (JSONValue el : compute) {
+    if (prev == "StationarySolve") {
+      stationarySolve = el.child("SubActions").valueAsArray();
+      break;
+    }
+    prev = el.valueAsStringView();
+  }
   //Selecting the right 'main' action
   JSONValue function;
-  String prev = "";
+  prev = "";
   for (JSONValue el : stationarySolve) {
     if (prev == main_time) {
       function = el;
