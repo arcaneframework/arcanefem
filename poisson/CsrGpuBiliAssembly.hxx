@@ -60,7 +60,7 @@ void FemModule::
 _assembleCsrGPUBilinearOperatorTRIA3()
 {
 
-  Timer::Action timer_gpu_bili(this->subDomain(), "CsrGpuBilinearOperatorTria3");
+  Timer::Action timer_gpu_bili(this->subDomain(), "AssembleCsrGpuBilinearOperatorTria3");
 
   std::chrono::_V2::system_clock::time_point lhs_start;
   double global_build_average = 0;

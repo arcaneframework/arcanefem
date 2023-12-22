@@ -21,17 +21,151 @@ _writeInJson()
   ofstream jsonFile("time.json");
   JSONWriter json_writer(JSONWriter::FormatFlags::None);
   json_writer.beginObject();
-  JSONWriter::Object jo(json_writer, "TimerToTo");
-
-  this->subDomain()->timeStats()->dumpStatsJSON(json_writer);
+  {
+    JSONWriter::Object jo(json_writer, "Timer");
+    this->subDomain()->timeStats()->dumpStatsJSON(json_writer);
+  }
   json_writer.endObject();
   jsonFile << json_writer.getBuffer();
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+Real FemModule::
+_readTimeFromJson(String main_time, String sub_time)
+{
+  UniqueArray<Byte> bytes;
+  IParallelMng* pm = this->mesh()->parallelMng();
+  pm->ioMng()->collectiveRead("time.json", bytes, false);
+  JSONDocument json_doc;
+  json_doc.parse(bytes, "time.json");
+  //Parsing through the JSON
+  JSONValue root = json_doc.root();
+  //From root to the list of subactions in Main
+  JSONValueList main = root.child("Timer").child("Current").child("Main").child("SubActions").valueAsArray();
+  //From the list of subactions in Main to the list of subactions in Loop
+  JSONValueList loop = (main.begin() + 3)->child("SubActions").valueAsArray();
+  //From the list of subactions in Loop to the list of subactions in LoopEntryPoints
+  JSONValueList loopEntryPoint = (loop.begin() + 1)->child("SubActions").valueAsArray();
+  //From the list of subactions in LoopEntryPoints to the list of subactions in Fem
+  JSONValueList fem = (loopEntryPoint.begin() + 7)->child("SubActions").valueAsArray();
+  //From the list of subactions in Fem to the list of subactions in Compute
+  JSONValueList compute = (fem.begin() + 1)->child("SubActions").valueAsArray();
+  //From the list of subactions in Compute to the list of subactions in StationarySolve
+  JSONValueList stationarySolve = (compute.begin() + 3)->child("SubActions").valueAsArray();
+  //Selecting the right 'main' action
+  JSONValue function;
+  String prev = "";
+  for (JSONValue el : stationarySolve) {
+    if (prev == main_time) {
+      function = el;
+      break;
+    }
+    prev = el.valueAsStringView();
+  }
+  //Selecting the sub action if we want it
+  if (sub_time != "") {
+    prev = "";
+    for (JSONValue el : function.child("SubActions").valueAsArray()) {
+      if (prev == sub_time) {
+        function = el;
+        break;
+      }
+      prev = el.valueAsStringView();
+    }
+  }
+  // The timer has not been found
+  if (prev == "") {
+    return 0;
+  }
+  String val;
+  std::stringstream ss;
+  //Get only the Cumulative value
+  ss << function.child("Cumulative").value();
+  ss >> val;
+  return *Convert::Type<Real>::tryParse(val);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_saveTimeInCSV()
+{
+  std::ofstream csv_save;
+  if (!fs::exists("time.csv")) {
+    csv_save.open("time.csv");
+    csv_save << "Number of Nodes,Legacy,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU,CusparseAdd\n";
+  }
+  else {
+    csv_save.open("time.csv", std::ios_base::app);
+  }
+  csv_save << nbNode() << ",";
+  csv_save << _readTimeFromJson("AssembleLegacyBilinearOperatorTria3", "") / m_cache_warming << ",";
+  csv_save << _readTimeFromJson("AssembleCooSortBilinearOperatorTria3", "") / m_cache_warming << ",";
+  csv_save << _readTimeFromJson("AssembleCooBilinearOperatorTria3", "") / m_cache_warming << ",";
+  csv_save << _readTimeFromJson("AssembleCsrBilinearOperatorTria3", "") / m_cache_warming << ",";
+  if (m_running_on_gpu) {
+    csv_save << "0,0,0,";
+    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "") / m_cache_warming << ",";
+    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "") / m_cache_warming << ",";
+    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "") / m_cache_warming << ",";
+  }
+  else {
+    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "") / m_cache_warming << ",";
+    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "") / m_cache_warming << ",";
+    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "") / m_cache_warming << ",";
+    csv_save << "0,0,0,";
+  }
+  csv_save << _readTimeFromJson("AssembleCusparseBilinearOperator", "") / m_cache_warming << "\n";
+  csv_save.close();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_saveNoBuildTimeInCSV()
+{
+  std::ofstream csv_save;
+  if (!fs::exists("timeNoBuild.csv")) {
+    csv_save.open("timeNoBuild.csv");
+    csv_save << "Number of Nodes,Legacy,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU,CusparseAdd\n";
+  }
+  else {
+    csv_save.open("timeNoBuild.csv", std::ios_base::app);
+  }
+  csv_save << nbNode() << ",";
+  csv_save << _readTimeFromJson("AssembleLegacyBilinearOperatorTria3", "") / m_cache_warming << ",";
+  csv_save << (_readTimeFromJson("AssembleCooSortBilinearOperatorTria3", "CooSortComputeElementMatrixTria3") + _readTimeFromJson("AssembleCooSortBilinearOperatorTria3", "CooSortAddToGlobalMatrix")) / m_cache_warming << ",";
+  csv_save << (_readTimeFromJson("AssembleCooBilinearOperatorTria3", "CooComputeElementMatrixTria3") + _readTimeFromJson("AssembleCooBilinearOperatorTria3", "CooAddToGlobalMatrix")) / m_cache_warming << ",";
+  csv_save << (_readTimeFromJson("AssembleCsrBilinearOperatorTria3", "CsrComputeElementMatrixTria3") + _readTimeFromJson("AssembleCsrBilinearOperatorTria3", "CsrAddToGlobalMatrix")) / m_cache_warming << ",";
+  if (m_running_on_gpu) {
+    csv_save << "0,0,0,";
+    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "CsrGpuAddComputeLoop") / m_cache_warming << ",";
+    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "NodeWiseCsrAddAndCompute") / m_cache_warming << ",";
+    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrAddAndCompute") / m_cache_warming << ",";
+  }
+  else {
+    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "CsrGpuAddComputeLoop") / m_cache_warming << ",";
+    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "NodeWiseCsrAddAndCompute") / m_cache_warming << ",";
+    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrAddAndCompute") / m_cache_warming << ",";
+    csv_save << "0,0,0,";
+  }
+  csv_save << "test" << _readTimeFromJson("AssembleCusparseBilinearOperator", "") / m_cache_warming << "\n";
+  csv_save.close();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 void FemModule::
 endModule()
 {
   _writeInJson();
+  _saveTimeInCSV();
+  _saveNoBuildTimeInCSV();
 }
 
 void FemModule::
@@ -114,15 +248,15 @@ _handleFlags()
 {
   ParameterList parameter_list = this->subDomain()->application()->applicationInfo().commandLineArguments().parameters();
   info() << "-----------------------------------------------------------------------------------------";
-  info() << "The time will be registered by arcane in the output/listing/logs.0 file";
+  info() << "The time will be registered by arcane in the output/listing/logs.0 file, and will be added to (or will create) the time.csv (with time for the various bilinear assembly phases) and timeNoBuild.csv (with time without the building part of COO and CSR for the various bilinear assembly phases) fil";
   if (parameter_list.getParameterOrNull("REGISTER_TIME") == "TRUE") {
     m_register_time = true;
     info() << "REGISTER_TIME: The time will also be registered in the timer.txt, with_build.csv and timer.csv file";
   }
-  if (parameter_list.getParameterOrNull("CACHE_WARMING") != NULL) {
-    std::stringstream test("");
-    test << parameter_list.getParameterOrNull("CACHE_WARMING");
-    m_cache_warming = std::stoi(test.str());
+  String cache_warm = parameter_list.getParameterOrNull("CACHE_WARMING");
+  if (cache_warm != NULL) {
+    auto tmp = Convert::Type<Integer>::tryParse(cache_warm);
+    m_cache_warming = *tmp;
     info() << "CACHE_WARMING: A cache warming of " << m_cache_warming << " iterations will happen";
   }
   if (parameter_list.getParameterOrNull("COO") == "TRUE") {
@@ -169,6 +303,9 @@ _handleFlags()
   else if (parameter_list.getParameterOrNull("LEGACY") == "FALSE") {
     m_use_legacy = false;
   }
+  if (parameter_list.getParameterOrNull("AcceleratorRuntime") == "cuda") {
+    m_running_on_gpu = true;
+  }
   info() << "-----------------------------------------------------------------------------------------";
 }
 
@@ -194,7 +331,7 @@ _doStationarySolve()
     _assembleBilinearOperatorQUAD4();
   else {
 
-#ifdef ARCANE_HAS_CUDA
+#ifdef USE_CUSPARSE_ADD
     if (m_use_cusparse_add) {
       for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
         _assembleCusparseBilinearOperatorTRIA3();
@@ -217,10 +354,7 @@ _doStationarySolve()
       m_coo_matrix.translateToLinearSystem(m_linear_system);
     }
 #ifdef USE_COO_GPU
-#ifdef m_cache_warming
-    for (i = 0; i < 3; i++)
-#endif
-    {
+    for (i = 0; i < 3; i++) {
       m_linear_system.clearValues();
       _assembleCooGPUBilinearOperatorTRIA3();
     }
@@ -262,34 +396,35 @@ _doStationarySolve()
       }
       m_csr_matrix.translateToLinearSystem(m_linear_system);
     }
-  }
+
 #endif
-  // Assemble the FEM linear operator (RHS - vector b)
-  if (m_use_buildless_csr) {
-    m_linear_system.clearValues();
-    _assembleCsrLinearOperator();
-    m_csr_matrix.translateToLinearSystem(m_linear_system);
-    _translateRhs();
-  }
-  else {
-    _assembleLinearOperator();
-  }
+    // Assemble the FEM linear operator (RHS - vector b)
+    if (m_use_buildless_csr) {
+      m_linear_system.clearValues();
+      _assembleCsrLinearOperator();
+      m_csr_matrix.translateToLinearSystem(m_linear_system);
+      _translateRhs();
+    }
+    else {
+      _assembleLinearOperator();
+    }
 
-  // # T=linalg.solve(K,RHS)
-  _solve();
+    // # T=linalg.solve(K,RHS)
+    _solve();
 
-  // Check results
-  _checkResultFile();
+    // Check results
+    _checkResultFile();
 
-  if (m_register_time) {
-    auto fem_stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> fem_duration = fem_stop - fem_start;
-    double total_duration = fem_duration.count();
-    logger << "FEM total duration : " << fem_duration.count() << "\n"
-           << "LHS time in total duration : " << lhs_time / total_duration * 100 << "%\n"
-           << "RHS time in total duration : " << rhs_time / total_duration * 100 << "%\n"
-           << "Solver time in total duration : " << solver_time / total_duration * 100 << "%\n";
-    logger.close();
+    if (m_register_time) {
+      auto fem_stop = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> fem_duration = fem_stop - fem_start;
+      double total_duration = fem_duration.count();
+      logger << "FEM total duration : " << fem_duration.count() << "\n"
+             << "LHS time in total duration : " << lhs_time / total_duration * 100 << "%\n"
+             << "RHS time in total duration : " << rhs_time / total_duration * 100 << "%\n"
+             << "Solver time in total duration : " << solver_time / total_duration * 100 << "%\n";
+      logger.close();
+    }
   }
 }
 

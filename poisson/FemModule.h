@@ -33,6 +33,7 @@
 #include <fstream>
 #include <iostream>
 #include <chrono>
+#include <filesystem>
 
 #include "arcane/core/IIndexedIncrementalItemConnectivityMng.h"
 #include "arcane/core/IIndexedIncrementalItemConnectivity.h"
@@ -80,6 +81,7 @@
 //Fichier à inclure afin d'avoir le timer
 #include "arcane/Timer.h"
 #include "arcane/utils/JSONWriter.h"
+#include "arcane/utils/JSONReader.h"
 #include "arcane/core/ITimeStats.h"
 
 #include "arcane/utils/ApplicationInfo.h"
@@ -88,12 +90,15 @@
 #include "arcane/utils/ParameterList.h"
 #include "arcane/core/IApplication.h"
 
+#include "arcane/utils/ValueConvert.h"
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 using namespace Arcane;
 using namespace Arcane::FemUtils;
 namespace ax = Arcane::Accelerator;
+namespace fs = std::filesystem;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -206,6 +211,7 @@ class FemModule
   bool m_use_buildless_csr = false;
   bool m_use_cusparse_add = false;
   bool m_use_legacy = true;
+  bool m_running_on_gpu = false;
 
   CooFormat m_coo_matrix;
 
@@ -237,13 +243,16 @@ class FemModule
   void _assembleLinearOperator();
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
+  void _writeInJson();
+  void _saveTimeInCSV();
+  void _saveNoBuildTimeInCSV();
+  Real _readTimeFromJson(String main_time, String sub_time);
   FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
   Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
   Real2 _computeEdgeNormal2(Face face);
-  void _writeInJson();
 #ifdef USE_CUSPARSE_ADD
   void printCsrMatrix(std::string fileName, cusparseCsr csr, bool is_coo);
   void _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell icell, cusparseHandle_t handle, IndexedNodeDoFConnectivityView node_dof,
