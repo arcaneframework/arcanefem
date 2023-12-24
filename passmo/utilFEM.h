@@ -133,36 +133,38 @@ const Real wgauss9[9] = {
 
 // Local (reference) coordinates on the 1st edge of the triangle
 const Real xg1[4][7] = {
-  { 1. / 3., 0., 0., 0., 0., 0., 0. },
+  { 1./3., 0., 0., 0., 0., 0., 0. },
   { 0.5, 0., 0.5, 0., 0., 0., 0. },
-  { 1. / 3., 0.6, 0.2, 0.2, 0., 0., 0. },
-  { 1. / 3., (9. - 2. * sqrt(15.)) / 21., (6. + sqrt(15.)) / 21., (6. + sqrt(15.)) / 21.,
+  { 1./3., 0.6, 0.2, 0.2, 0., 0., 0. },
+  { 1./3., (9. - 2. * sqrt(15.)) / 21., (6. + sqrt(15.)) / 21., (6. + sqrt(15.)) / 21.,
     (9. + 2. * sqrt(15.)) / 21., (6. - sqrt(15.)) / 21., (6. - sqrt(15.)) / 21. }
 };
 
 // Local (reference) coordinates on the 2nd edge of the triangle
 const Real xg2[4][7] = {
-  { 1. / 3., 0., 0., 0., 0., 0., 0. },
+  { 1./3., 0., 0., 0., 0., 0., 0. },
   { 0.5, 0.5, 0., 0., 0., 0., 0. },
-  { 1. / 3., 0.2, 0.6, 0.2, 0., 0., 0. },
-  { 1. / 3., (6. + sqrt(15.)) / 21., (9. - 2. * sqrt(15.)) / 21., (6. + sqrt(15.)) / 21., (6. - sqrt(15.)) / 21.,
+  { 1./3., 0.2, 0.6, 0.2, 0., 0., 0. },
+  { 1./3., (6. + sqrt(15.)) / 21., (9. - 2. * sqrt(15.)) / 21., (6. + sqrt(15.)) / 21., (6. - sqrt(15.)) / 21.,
     (9. + 2. * sqrt(15.)) / 21., (6. - sqrt(15.)) / 21. }
 };
 
 // Local (reference) coordinates on the 3rd edge of the triangle
+/*
 const Real xg3[4][7] = {
-  { 1. / 3., 0., 0., 0., 0., 0., 0. },
+  { 1./3., 0., 0., 0., 0., 0., 0. },
   { 0., 0.5, 0.5, 0., 0., 0., 0. },
-  { 1. / 3., 0.2, 0.2, 0.6, 0., 0., 0. },
-  { 1. / 3., (6. + sqrt(15.)) / 21., (6. + sqrt(15.)) / 21., (9. - 2. * sqrt(15.)) / 21.,
+  { 1./3., 0.2, 0.2, 0.6, 0., 0., 0. },
+  { 1./3., (6. + sqrt(15.)) / 21., (6. + sqrt(15.)) / 21., (9. - 2. * sqrt(15.)) / 21.,
     (6. - sqrt(15.)) / 21., (6. - sqrt(15.)) / 21., (9. + 2. * sqrt(15.)) / 21. }
 };
+*/
 
 // Integration weights
 const Real wg[4][7] = {
   { 0.5, 0., 0., 0., 0., 0., 0. },
   { 1. / 6., 1. / 6., 1. / 6., 0., 0., 0., 0. },
-  { -0.28125, 0.2604166667, 0.2604166667, 0.2604166667, 0., 0., 0. },
+  { -27./96., 25./96., 25./96., 25./96., 0., 0., 0. },
   { 0.1125, (155. + sqrt(15.)) / 2400., (155. + sqrt(15.)) / 2400., (155. + sqrt(15.)) / 2400.,
     (155. - sqrt(15.)) / 2400., (155. - sqrt(15.)) / 2400., (155. - sqrt(15.)) / 2400. }
 };
@@ -196,9 +198,9 @@ const Integer maxnint = 9;
 // Functions useful for class CellFEMDispatcher
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+extern void DirVectors(const Face& face,const VariableNodeReal3& n, const Int32& ndim, Real3& e1, Real3& e2, Real3& e3);
 
 extern Real Line2Length(const ItemWithNodes& item, const VariableNodeReal3& n);
-extern Real3 EdgeNormal(const Edge& edge, const VariableNodeReal3& n);
 extern Real Line2ShapeFuncVal(const Integer& inod, const Real3& coord);
 extern Real3 Line2ShapeFuncDeriv(const Integer& inod, const Real3& coord);
 extern Integer3 Line2Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
@@ -209,7 +211,6 @@ extern Real3 Line3ShapeFuncDeriv(const Integer& inod, const Real3& coord);
 extern Integer3 Line3Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
 
 extern Real Tri3Surface(const ItemWithNodes& item, const VariableNodeReal3& n);
-extern Real3 FaceNormal(const Face& face, const VariableNodeReal3& n);
 extern Real Tri3ShapeFuncVal(const Integer& inod, const Real3& coord);
 extern Real3 Tri3ShapeFuncDeriv(const Integer& inod, const Real3& coord);
 extern Integer3 Tri3Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
@@ -264,7 +265,7 @@ class CellFEMDispatcher
 
   void set_node_coords(VariableNodeReal3& /*node_coords*/);
 
-  Real getJacobian(const ItemWithNodes& /*cell*/);
+  Real getMeasure(const ItemWithNodes& /*cell*/);
 
   Real3 getBarycenter(const ItemWithNodes& /*cell*/);
 
@@ -274,6 +275,7 @@ class CellFEMDispatcher
   Real3 getShapeFuncDeriv(const Int16& /*item_type*/, const Int32& /*inod*/, const Real3& /*ref coord*/);
 
   Integer3 getOrientation(const ItemWithNodes& /*cell*/);
+  RealUniqueArray getGaussData(const ItemWithNodes& item, const Integer3& nint, Int32& ngauss);
 
  private:
 
@@ -362,60 +364,60 @@ class ElastTensor{
  public:
   using ThatClass = ElastTensor;
  private:
-  FixedMatrix<6,6>	m_values;
+//  FixedMatrix<6,6>	m_values;
+  Real lambda{};
+  Real mu{};
+  Real lamba2mu{};
+  Int32 dim{};
 
  public:
   ElastTensor() = default;
-  ElastTensor(const Real& young, const Real& poisson){
-    Real mu = young/2./(1 + poisson);
-    Real lambda = 2.*mu*poisson/(1 - 2.*poisson);
-    for (Arcane::Int32 i = 0; i < 3; ++i) {
+  ElastTensor(const Real& young, const Real& nu,const Int32& ndim): dim(ndim){
+    mu = young/2./(1 + nu);
+    lambda = 2.*mu*nu/(1 - 2.*nu);
+    lamba2mu = lambda + 2.*mu;
+/*    for (Arcane::Int32 i = 0; i < 3; ++i) {
       m_values(i, i) = lambda + 2 * mu;
       m_values(i+3, i+3) = mu;
 
       for (Arcane::Int32 j = i + 1; j < 3; ++j)
         m_values(i, j) = m_values(j, i) = lambda;
-    }
+    }*/
 
   }
   ~ElastTensor() = default;
 
  public:
 
-  Arcane::Real& operator()(Arcane::Int32 i,Arcane::Int32 j){
-    return m_values(i,j);
-  }
+//  Arcane::Real& operator()(Arcane::Int32 i,Arcane::Int32 j){
+//    return m_values(i,j);
+//  }
+  [[nodiscard]] auto getDim() const { return dim; }
+
   Arcane::Real operator()(Arcane::Int32 i,Arcane::Int32 j) const{
-    return m_values(i,j);
+//    return m_values(i,j);
+    if (i < dim){
+      if (i == j)
+        return lamba2mu;
+      if (j < dim)
+        return lambda;
+    }
+    if (i == j)
+      return mu;
+    return 0.;
   }
 };
 /*---------------------------------------------------------------------------*/
 inline Real
 trace(ElastTensor m)
 {
+  auto ndim = m.getDim();
   Real x{0.};
-  for (Arcane::Int32 i = 0; i < 6; ++i)
+  for (Arcane::Int32 i = 0; i <= ndim; ++i)
     x += m(i, i);
   return x;
 }
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-inline RealUniqueArray2
-rightMultiply(const ElastTensor& a, const RealUniqueArray2& b){
-#ifdef _DEBUG
-  assert(b.dim1Size() == 6);
-#endif
-  RealUniqueArray2 t_matrix(6,b.dim2Size());
-  for (Int32 i = 0; i < 6; ++i) {
-    for (Int32 j = 0; j < b.dim2Size(); ++j) {
-      for (Int32 k = 0; k < 6; ++k) {
-        t_matrix[i][j] += a(i, k)*b[k][j];
-      }
-    }
-  }
-  return t_matrix;
-}
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 inline RealUniqueArray2
@@ -449,18 +451,6 @@ bothMultiply(const ElastTensor& a, const RealUniqueArray2& b){
   return bt_ab;
 }
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-inline ElastTensor
-transpose(const ElastTensor& a){
-  ElastTensor t_matrix;
-  for (Int32 i = 0; i < 6; ++i) {
-    for (Int32 j = 0; j < 6; ++j) {
-      t_matrix(j, i) = a(i, j);
-    }
-  }
-  return t_matrix;
-}
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 template <int N>

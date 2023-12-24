@@ -111,14 +111,116 @@ CellFEMDispatcher::CellFEMDispatcher(){
 void CellFEMDispatcher::
 set_node_coords(VariableNodeReal3& node_coords){  m_node_coords = &node_coords; }
 
+RealUniqueArray CellFEMDispatcher::
+getGaussData(const ItemWithNodes& item, const Integer3& nint, Int32& ngauss){
+
+  Int32 ndim = getGeomDimension(item);
+  const Int32& nnod = item.nbNode();
+  ngauss = nint.m_i;
+  auto cell_type = item.type();
+  auto nint1 {nint.m_i};
+  auto nint2 {nint.m_j};
+
+  if (ndim >= 2) {
+    if (cell_type == IT_Triangle3 || cell_type == IT_Triangle6) {
+      nint2 = 1;
+      nint1 = nptg[nint.m_i-1];
+      ngauss = nint1;
+    }
+    else
+      ngauss *= nint2;
+
+    if (ndim == 3)
+      ngauss *= nint.m_k;
+  }
+
+  // Vector of double containing:
+  // ngauss points * [weight, gauss ref coord [Real3], nnod * (shapefunc values, 3*shapefunc deriv
+  // in ref. coord system)]
+  Int32 nsize = ngauss * 4 * (1 + nnod);
+  RealUniqueArray vec(nsize);
+
+  GaussPointDispatcher gausspt;
+  gausspt.init_order(nint);
+
+  Int32 index{ 0 };
+
+  if (ndim == 2) {
+    for (Int32 i1 = 0; i1 < nint1; ++i1) {
+      for (Int32 i2 = 0; i2 < nint2; ++i2) {
+
+        Integer3 indices{ i1, i2, -1 };
+        auto wt = gausspt.getWeight(item, indices);
+        auto pos = gausspt.getRefPosition(item, indices);
+        vec[index++] = wt;
+        vec[index++] = pos.x;
+        vec[index++] = pos.y;
+        vec[index++] = 0.;
+
+        for (Int32 inod = 0; inod < item.nbNode(); ++inod) {
+          auto Phi_i = getShapeFuncVal(item.type(), inod, pos);
+          vec[index++] = Phi_i;
+          auto dPhi = getShapeFuncDeriv(item.type(), inod, pos);
+          vec[index++] = dPhi.x;
+          vec[index++] = dPhi.y;
+          vec[index++] = 0.;
+        }
+      }
+    }
+  } else if (ndim == 3) {
+
+    for (Int32 i1 = 0; i1 < nint.m_i; ++i1) {
+      for (Int32 i2 = 0; i2 < nint.m_j; ++i2) {
+        for (Int32 i3 = 0; i3 < nint.m_k; ++i3) {
+          Integer3 indices{ i1, i2, i3 };
+          auto wt = gausspt.getWeight(item, indices);
+          auto pos = gausspt.getRefPosition(item, indices);
+          vec[index++] = wt;
+          vec[index++] = pos.x;
+          vec[index++] = pos.y;
+          vec[index++] = pos.z;
+
+          for (Int32 inod = 0; inod < item.nbNode(); ++inod) {
+            auto Phi_i = getShapeFuncVal(item.type(), inod, pos);
+            vec[index++] = Phi_i;
+            auto dPhi = getShapeFuncDeriv(item.type(), inod, pos);
+            vec[index++] = dPhi.x;
+            vec[index++] = dPhi.y;
+            vec[index++] = dPhi.z;
+          }
+         }
+        }
+      }
+    } else {
+
+      for (Int32 i1 = 0; i1 < nint.m_i; ++i1) {
+
+        Integer3 indices{ i1, -1, -1 };
+        auto wt = getWeight(i1, nint.m_i);
+        Real pos{ getRefPosition(i1, nint.m_i) };
+        vec[index++] = wt;
+        vec[index++] = pos;
+        vec[index++] = 0.;
+        vec[index++] = 0.;
+
+        for (Int32 inod = 0; inod < item.nbNode(); ++inod) {
+         auto Phi_i = getShapeFuncVal(item.type(), inod, { pos, 0., 0. });
+         vec[index++] = Phi_i;
+        }
+      }
+    }
+    return vec;
+}
+
+// ! Compute Length, Area or Volume of an element
 Real CellFEMDispatcher::
-getJacobian(const ItemWithNodes& item)
+getMeasure(const ItemWithNodes& item)
 {
     Int32 item_type = item.type();
     auto f = m_geomfunc[item_type];
     if (f!=nullptr)
       return f(item,*m_node_coords);
-    return (-1.0);
+    return (0.0);
 }
 
 // ! Computes the barycenter of a Cell
@@ -174,37 +276,52 @@ getOrientation(const ItemWithNodes& cell){
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
-/* Edge normal for 2D only and assuming the edge lies in x-y/x-z or y-z plane*/
-/* Normal vector is expressed in 3D (putting 0. to the out-of-plane coord.)  */
+/* Edge & Face normal & tangent vectors (normalized, direct oriented)        */
+/* 2D: assuming the edge lies in x-y plane (z coord = 0.)                    */
 /*---------------------------------------------------------------------------*/
-Real3 EdgeNormal(const Edge& edge,const VariableNodeReal3& n){
-  Real3 n0 = n[edge.node(0)];
-  Real3 n1 = n[edge.node(1)];
+void DirVectors(const Face& face,const VariableNodeReal3& n, const Int32& ndim, Real3& e1, Real3& e2, Real3& e3){
 
-  if (!edge.toFace().isSubDomainBoundaryOutside())
-    std::swap(n0, n1);
+     Real3 n0 = n[face.node(0)];
+     Real3 n1 = n[face.node(1)];
 
-  Real3 vec { n1 - n0 };
-  Int32 dir[2]{-1,-1};
+     if (!face.isSubDomainBoundaryOutside())
+       std::swap(n0, n1);
 
-  for (Int32 i = 0, j = 0; i < 3; i++)	{
-    if (math::abs(vec[i]) > 0.) {
-      dir[j++] = i;
-    };
-  }
-  Real2 vec2{-vec[dir[1]], vec[dir[0]]};
-  Real3 vn;
-  vn[dir[0]] = vec2.x;
-  vn[dir[1]] = vec2.y;
-  return vn.normalize();
-}
+     // 1st in-plane vector/along edge
+     e1 = n1 - n0;
 
-Real3 FaceNormal(const Face& face,const VariableNodeReal3& n){
-  const Real3& n0 = n[face.node(0)];
-  const Real3& n1 = n[face.node(1)];
-  const Real3& n2 = n[face.node(2)];
-  Real3 vec = math::cross(n0-n1,n0-n2);
-  return vec.normalize();
+     if (ndim == 3) {
+
+       const Real3& n2 = n[face.node(2)];
+
+       // out Normal to the face plane
+       e3 = math::cross(e1, n2 - n0);
+
+       // 2nd in-plane vector
+       e2 = math::cross(e3,e1);
+
+       e3.normalize();
+     }
+     else {
+
+       Cell cell {face.boundaryCell()};
+       Node nod;
+       for (Node node : cell.nodes()) {
+         if (node != face.node(0) && node != face.node(1)) {
+         nod = node;
+         break;
+        }
+       }
+
+       // Out Normal to the edge
+       e2 = { -e1.y, e1.x, 0. };
+
+       const Real3& n2 = n[nod];
+       auto sgn = math::dot(e2,n2 - n0);
+       if (sgn > 0.) e2 *= -1.;
+     }
+     e1.normalize();
+     e2.normalize();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -311,24 +428,28 @@ Real Tri3Surface(const ItemWithNodes& item,const VariableNodeReal3& n){
 
   Real x1 = n1.x - n0.x;
   Real y1 = n1.y - n0.y;
-  Real x2 = n2.x - n1.x;
-  Real y2 = n2.y - n1.y;
+  Real x2 = n2.x - n0.x;
+  Real y2 = n2.y - n0.y;
 
-  return x1 * y2 - y1 * x2;
+//  return (x1 * y2 - y1 * x2);
+  return 0.5*(x1 * y2 - y1 * x2);
 }
 
 Real Tri3ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 #ifdef _DEBUG
 	assert(inod >= 0 && inod < 3);
 #endif
-
-	return ref_coord[inod];
+  Real r = ref_coord[0];
+  Real s = ref_coord[1];
+  if (!inod) return (1 - r - s);
+  if (inod == 1) return r;
+  return s;
 }
 
 Real3 Tri3ShapeFuncDeriv(const Integer& inod,const Real3&){
-  if (!inod) return {1., 0.,0.};
-  if (inod==1) return {0., 1., 0.};
-  return {-1., -1.,0.};
+  if (!inod) return {-1., -1.,0.};
+  if (inod==1) return {1., 0.,0.};
+  return {0., 1., 0.};
 }
 
 Integer3 Tri3Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
@@ -423,6 +544,7 @@ Real Quad4Surface(const ItemWithNodes& item,const VariableNodeReal3& n){
   Real3 n2 = n[item.node(2)];
   Real3 n3 = n[item.node(3)];
 
+/*
   Real x1 = n1.x - n0.x;
   Real y1 = n1.y - n0.y;
   Real x2 = n2.x - n1.x;
@@ -436,6 +558,9 @@ Real Quad4Surface(const ItemWithNodes& item,const VariableNodeReal3& n){
 
   surface += x1 * y2 - y1 * x2;
   return surface;
+*/
+  return 0.5 * (  (n1.x * n2.y + n2.x * n3.y + n3.x * n0.y + n0.x * n1.y)
+                -(n2.x * n1.y + n3.x * n2.y + n0.x * n3.y + n1.x * n0.y) );
 }
 
 Real Quad4ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
@@ -865,17 +990,15 @@ Int32 getGeomDimension(const ItemWithNodes& item){
 
         // 2D elements
         case IT_Triangle3:
-        case IT_Quad4: dim = 2; break;
-
-/*        case IT_Triangle6:
-        case IT_Quad8: dim = 2; break;*/
+        case IT_Quad4:
+        case IT_Triangle6:
+        case IT_Quad8: dim = 2; break;
 
             // 3D elements
         case IT_Tetraedron4:
-        case IT_Hexaedron8: dim = 3; break;
-
-/*        case IT_Tetraedron10:
-        case IT_Hexaedron20: dim = 3; break;*/
+        case IT_Hexaedron8:
+        case IT_Tetraedron10:
+        case IT_Hexaedron20: dim = 3; break;
 
         default: break;
 
@@ -999,13 +1122,14 @@ Real LineWeight(const Integer3& indices,const Integer3& ordre){
 /*---------------------------------------------------------------------------*/
 
 Real3 TriRefPosition(const Integer3& indices,const Integer3& ordre){
-	Integer o = ordre[0];
+	Integer o = ordre[0]-1;
 	Integer i = indices[0];
-	return {xg1[o][i],xg2[o][i],xg3[o][i]};
+//  return {xg1[o][i],xg2[o][i],xg3[o][i]};
+  return {xg1[o][i],xg2[o][i],0.};
 }
 
 Real TriWeight(const Integer3& indices,const Integer3& ordre){
-	return wg[ordre[0]][indices[0]];
+	return wg[ordre[0]-1][indices[0]];
 }
 
 /*---------------------------------------------------------------------------*/

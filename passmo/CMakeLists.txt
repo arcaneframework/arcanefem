@@ -27,6 +27,7 @@ configure_file(${MSH_DIR}/semi-circle-soil.msh ${CMAKE_CURRENT_BINARY_DIR} COPYO
 
 target_link_libraries(Passmo PUBLIC FemUtils)
 
-# enable_testing()
-# add_test(NAME [passmo]passmo_const_traction COMMAND Passmo Test.Passmo.constant-traction.arc)
-# add_test(NAME [passmo]passmo_transient_traction COMMAND Passmo Test.Passmo.transient-traction.arc)
+
+#enable_testing()
+#add_test(NAME [passmo]passmo_const_traction COMMAND Passmo Test.Passmo.constant-traction.arc)
+#add_test(NAME [passmo]passmo_transient_traction COMMAND Passmo Test.Passmo.transient-traction.arc)

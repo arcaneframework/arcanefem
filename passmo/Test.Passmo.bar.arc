@@ -8,18 +8,16 @@
    <output-period>1</output-period>
    <output>
      <variable>Displ</variable>
-     <variable>Vel</variable>
-     <variable>Acc</variable>
    </output>
-  </arcane-post-processing>
+ </arcane-post-processing>
 
   <meshes>
     <mesh>
-      <filename>sq4.msh</filename>
+      <filename>bardbg.msh</filename>
       <initialization>
-        <variable><name>Rho</name><value>2500.0</value><group>surface</group></variable>
-        <variable><name>Young</name><value>6.62e6</value><group>surface</group></variable>
-        <variable><name>Nu</name><value>0.45</value><group>surface</group></variable>
+        <variable><name>Rho</name><value>2200.000000</value><group>surface</group></variable>
+        <variable><name>Lambda</name><value>34615384.615384616</value><group>surface</group></variable>
+        <variable><name>Mu</name><value>23076923.076923077</value><group>surface</group></variable>
       </initialization>
     </mesh>
   </meshes>
@@ -27,32 +25,27 @@
   <elastodynamic>
     <analysis-type>planestrain</analysis-type>
     <start>0.</start>
-    <final-time>0.08</final-time>
+    <final-time>0.05</final-time>
     <deltat>0.01</deltat>
     <beta>0.25</beta>
     <gamma>0.5</gamma>
     <alfa_method>false</alfa_method>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-    <penalty>1.e30</penalty>
+    <penalty>1.e64</penalty>
     <linop-nstep>10</linop-nstep>
-    <gz>10.0</gz>
 
-    <paraxial-boundary-condition>
-      <surface>bottom</surface>
-    </paraxial-boundary-condition>
+    <init-elast-type>lame</init-elast-type>
 
-    <paraxial-boundary-condition>
+    <dirichlet-boundary-condition>
       <surface>left</surface>
-    </paraxial-boundary-condition>
-
-    <paraxial-boundary-condition>
+      <Ux>0.0</Ux>
+      <Uy>0.0</Uy>
+    </dirichlet-boundary-condition>
+    
+    <dirichlet-boundary-condition>
       <surface>right</surface>
-    </paraxial-boundary-condition>
-
-    <neumann-boundary-condition>
-      <surface>top</surface>
-      <curve>semi-circle-soil-traction.txt</curve>
-    </neumann-boundary-condition>
+      <Ux>1.0</Ux>
+    </dirichlet-boundary-condition>
 
     <linear-system>
       <solver-backend>petsc</solver-backend>

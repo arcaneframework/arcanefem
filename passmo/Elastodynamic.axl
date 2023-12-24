@@ -47,6 +47,15 @@
     <variable field-name="imposed_traction" name="ImposedTraction" data-type="real3" item-kind="face" dim="0">
       <description>Imposed traction vector on cell face</description>
     </variable>
+    <variable field-name="e1_boundary" name="E1Boundary" data-type="real3" item-kind="face" dim="0">
+      <description>1st normalized vector (in-plane) of the local face referential</description>
+    </variable>
+    <variable field-name="e2_boundary" name="E2Boundary" data-type="real3" item-kind="face" dim="0">
+      <description>2nd normalized vector (in-plane in 3D and normal in 2D) of the local face referential</description>
+    </variable>
+    <variable field-name="e3_boundary" name="E3Boundary" data-type="real3" item-kind="face" dim="0">
+      <description>3rd normalized vector (normal in 3D only) of the local face referential</description>
+    </variable>
 
     <!-- - - - - - elastic properties - - - - -->
     <variable field-name="rho" name="Rho" data-type="real" item-kind="cell" dim="0">
@@ -78,6 +87,10 @@
   </entry-points>
 
   <options>
+
+    <simple name="init-elast-type" type="string" optional="false">
+      <description>Type of elastic properties provided by user on mesh cells (=string containing "young", "lame" or "veloc")</description>
+    </simple>
     <simple name="bodyf" type="bool" default="true" optional="true">
       <description>Indicator to activate body forces.</description>
     </simple>
@@ -132,9 +145,6 @@
           <simple name="rho" type="real" default="2500.0" optional="true">
             <description>Initial constant bulk density</description>
           </simple>
-          <simple name="type" type="string" default="young" optional="true">
-            <description>Type of elastic parameters = young, lame or vel</description>
-          </simple>
           <simple name="young" type="real" optional="true">
             <description>Initial Young modulus</description>
           </simple>
@@ -176,36 +186,112 @@
 
     <!-- - - - - - dirichlet-boundary-condition - - - - -->
     <complex name="dirichlet-boundary-condition" type="DirichletBoundaryCondition" minOccurs="0" maxOccurs="unbounded">
-      <description>Definition of Dirichlet boundary conditions</description>
-        <enumeration name="type" type="TypesElastodynamic::eBoundaryCondition">
-          <description>Type of boundary condition</description>
-          <enumvalue genvalue="TypesElastodynamic::UX" name="Ux" />
-          <enumvalue genvalue="TypesElastodynamic::UY" name="Uy" />
-          <enumvalue genvalue="TypesElastodynamic::UZ" name="Uz" />
-          <enumvalue genvalue="TypesElastodynamic::VX" name="Vx" />
-          <enumvalue genvalue="TypesElastodynamic::VY" name="Vy" />
-          <enumvalue genvalue="TypesElastodynamic::VZ" name="Vz" />
-          <enumvalue genvalue="TypesElastodynamic::AX" name="Ax" />
-          <enumvalue genvalue="TypesElastodynamic::AY" name="Ay" />
-          <enumvalue genvalue="TypesElastodynamic::AZ" name="Az" />
-          <enumvalue genvalue="TypesElastodynamic::FX" name="Fx" />
-          <enumvalue genvalue="TypesElastodynamic::FY" name="Fy" />
-          <enumvalue genvalue="TypesElastodynamic::FZ" name="Fz" />
-        </enumeration>
+      <description>Definition of Dirichlet boundary conditions on surfaces</description>
         <extended name="surface" type="Arcane::FaceGroup">
           <description>Surface on which to apply these boundary conditions</description>
         </extended>
-        <extended name="node-group" type="Arcane::NodeGroup">
-          <description>NodeGroup on which to apply these boundary conditions</description>
+        <simple name="Ux" type="real" default="0.0" optional="true">
+          <description>Constant displacement value to impose</description>
+        </simple>
+        <simple name="Uy" type="real" default="0.0" optional="true">
+          <description>Constant displacement value to impose</description>
+        </simple>
+        <simple name="Uz" type="real" default="0.0" optional="true">
+          <description>Constant displacement value to impose</description>
+        </simple>
+        <simple name="Vx" type="real" default="0.0" optional="true">
+          <description>Constant velocity value to impose</description>
+        </simple>
+        <simple name="Vy" type="real" default="0.0" optional="true">
+          <description>Constant velocity value to impose</description>
+        </simple>
+        <simple name="Vz" type="real" default="0.0" optional="true">
+          <description>Constant velocity value to impose</description>
+        </simple>
+        <simple name="Ax" type="real" default="0.0" optional="true">
+          <description>Constant acceleration value to impose</description>
+        </simple>
+        <simple name="Ay" type="real" default="0.0" optional="true">
+          <description>Constant acceleration value to impose</description>
+        </simple>
+        <simple name="Az" type="real" default="0.0" optional="true">
+          <description>Constant acceleration value to impose</description>
+        </simple>
+        <simple name="Fx" type="real" default="0.0" optional="true">
+          <description>Constant force value to impose</description>
+        </simple>
+        <simple name="Fy" type="real" default="0.0" optional="true">
+          <description>Constant force value to impose</description>
+        </simple>
+        <simple name="Fz" type="real" default="0.0" optional="true">
+          <description>Constant force value to impose</description>
+        </simple>
+        <simple name="U-curve" type="string" optional="true">
+          <description>Time history curve for displacements to impose (t, X, Y, Z columns)</description>
+        </simple>
+        <simple name="V-curve" type="string" optional="true">
+          <description>Time history curve for velocities to impose (t, X, Y, Z columns)</description>
+        </simple>
+        <simple name="A-curve" type="string" optional="true">
+          <description>Time history curve for accelerations to impose (t, X, Y, Z columns)</description>
+        </simple>
+        <simple name="F-curve" type="string" optional="true">
+          <description>Time history curve for forces to impose (t, X, Y, Z columns)</description>
+        </simple>
+    </complex>
+    <!-- - - - - - dirichlet-point-condition - - - - -->
+    <complex name="dirichlet-point-condition" type="DirichletPointCondition" minOccurs="0" maxOccurs="unbounded">
+      <description>Definition of Dirichlet boundary conditions on points</description>
+        <extended name="node" type="Arcane::NodeGroup">
+          <description>Node(s) on which to apply this boundary condition</description>
         </extended>
-        <simple name="const-val" type="real" default="0.0" optional="true">
-          <description>Constant value of the component to impose</description>
+        <simple name="Ux" type="real" default="0.0" optional="true">
+          <description>Constant displacement value to impose</description>
         </simple>
-        <simple name="curve" type="string" optional="true">
-          <description>Time history curve file for the component to impose</description>
+        <simple name="Uy" type="real" default="0.0" optional="true">
+          <description>Constant displacement value to impose</description>
         </simple>
-        <simple name="factor" type="real" default="1.0" optional="true">
-          <description>Amplification factor to apply to the time-history curve</description>
+        <simple name="Uz" type="real" default="0.0" optional="true">
+          <description>Constant displacement value to impose</description>
+        </simple>
+        <simple name="Vx" type="real" default="0.0" optional="true">
+          <description>Constant velocity value to impose</description>
+        </simple>
+        <simple name="Vy" type="real" default="0.0" optional="true">
+          <description>Constant velocity value to impose</description>
+        </simple>
+        <simple name="Vz" type="real" default="0.0" optional="true">
+          <description>Constant velocity value to impose</description>
+        </simple>
+        <simple name="Ax" type="real" default="0.0" optional="true">
+          <description>Constant acceleration value to impose</description>
+        </simple>
+        <simple name="Ay" type="real" default="0.0" optional="true">
+          <description>Constant acceleration value to impose</description>
+        </simple>
+        <simple name="Az" type="real" default="0.0" optional="true">
+          <description>Constant acceleration value to impose</description>
+        </simple>
+        <simple name="Fx" type="real" default="0.0" optional="true">
+          <description>Constant force value to impose</description>
+        </simple>
+        <simple name="Fy" type="real" default="0.0" optional="true">
+          <description>Constant force value to impose</description>
+        </simple>
+        <simple name="Fz" type="real" default="0.0" optional="true">
+          <description>Constant force value to impose</description>
+        </simple>
+        <simple name="U-curve" type="string" optional="true">
+          <description>Time history curve for displacements to impose (t, X, Y, Z columns)</description>
+        </simple>
+        <simple name="V-curve" type="string" optional="true">
+          <description>Time history curve for velocities to impose (t, X, Y, Z columns)</description>
+        </simple>
+        <simple name="A-curve" type="string" optional="true">
+          <description>Time history curve for accelerations to impose (t, X, Y, Z columns)</description>
+        </simple>
+        <simple name="F-curve" type="string" optional="true">
+          <description>Time history curve for forces to impose (t, X, Y, Z columns)</description>
         </simple>
     </complex>
 

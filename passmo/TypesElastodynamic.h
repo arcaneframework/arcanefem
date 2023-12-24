@@ -53,6 +53,14 @@ struct TypesElastodynamic
     ThreeD, //!< 3D analysis
     NoAnalysis //!< Unknown type
   };
+
+  // Type of elastic properties initialized on mesh cells
+  enum eElastType {
+    YoungNu = 0, //!< Young Modulus & Poisson Ratio
+    Lame,//!< Lame coefficients (lamba & mu)
+    Veloc, //!< Compression (P) & shear (S) wave velocities
+    NoElastPropType //!< Unknown type
+  };
 };
 
 #endif //PASSMO_TYPESELASTODYNAMIC_H

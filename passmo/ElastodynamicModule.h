@@ -73,6 +73,18 @@ private:
    // List of CaseTable for traction boundary conditions
    UniqueArray<CaseTableInfo> m_traction_case_table_list;
 
+   // List of CaseTable for dirichlet boundary (surface) conditions
+   UniqueArray<CaseTableInfo> m_sacc_case_table_list;
+   UniqueArray<CaseTableInfo> m_sdispl_case_table_list;
+   UniqueArray<CaseTableInfo> m_svel_case_table_list;
+   UniqueArray<CaseTableInfo> m_sforce_case_table_list;
+
+   // List of CaseTable for dirichlet point conditions
+   UniqueArray<CaseTableInfo> m_acc_case_table_list;
+   UniqueArray<CaseTableInfo> m_displ_case_table_list;
+   UniqueArray<CaseTableInfo> m_vel_case_table_list;
+   UniqueArray<CaseTableInfo> m_force_case_table_list;
+
    // List of CaseTable for paraxial boundary conditions
    // (if incident transient wave fields are defined)
 // TO DO ***   UniqueArray<CaseTableInfo> m_paraxial_case_table_list;
@@ -90,36 +102,41 @@ private:
    bool is_alfa_method{false},keep_constop{false};
    Real dt2{0.};
    Int32 linop_nstep{100}, linop_nstep_counter{0};
+   TypesElastodynamic::eElastType elast_type{TypesElastodynamic::NoElastPropType};
 
 private:
 
  void _initDofs();
+ void _initCells();
  void _applyInitialNodeConditions();
  void _applyInitialCellConditions();
 // void _applyInputMotion();
- void _assembleLinearGlobal2D();
- void _assembleLinearGlobal3D();
+ void _assembleLinearLHS2D();
+ void _assembleLinearRHS2D();
+ void _assembleLinearLHS3D();
+ void _assembleLinearRHS3D();
  void _doSolve();
  void _initBoundaryConditions();
- //void _initInputMotion();
- void _applyBoundaryConditions();
- Real3x3 _computeInverseJacobian3D(const Cell& cell,const Real3& ref_coord, Real& jacobian);
- Real2x2  _computeInverseJacobian2D(const Cell& cell,const Real3& ref_coord, Real& jacobian);
+ void _applyDirichletBoundaryConditions();
+ void _getParaxialContribution3D(VariableDoFReal& rhs_values);
+ void _getParaxialContribution2D(VariableDoFReal& rhs_values);
+ void _getTractionContribution(Arcane::VariableDoFReal& rhs_values);
+ void _applyNeumannBoundaryConditions();
+ Real3x3 _computeJacobian3D(const ItemWithNodes& cell, const Int32& ig, const RealUniqueArray& vec, Real& jac);
+ Real2x2  _computeJacobian2D(const ItemWithNodes& cell, const Int32& ig, const RealUniqueArray& vec, Real& jac);
  Real _computeFacLengthOrArea(const Face& face);
 
-
- //    FixedMatrix<2, 3> _computeBMatrixT3(Cell cell);
- /**
-     *  Predict nodal dofs vector for the Newmark or Generalized-alfa time integration schemes
-     */
- void _predictNewmark();
- /**
-     *  Update nodal dofs vector for the Newmark or Generalized-alfa time integration schemes
-     */
+/*  Update nodal dofs vector for the Newmark or Generalized-alfa time integration schemes */
  void _updateNewmark();
 
- void _computeKMF3D(const Cell& cell,RealUniqueArray2& Ke, RealUniqueArray2& Me, RealUniqueArray& Fe);
- void _computeKMF2D(const Cell& cell,RealUniqueArray2& Ke, RealUniqueArray2& Me, RealUniqueArray& Fe);
+ void _computeK3D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real3x3& jac, FixedMatrix<60,60>& Ke);
+ void _computeM3D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, FixedMatrix<60,60>& Me);
+ void _computeK2D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real2x2& jac, FixedMatrix<18,18>& Ke);
+ void _computeM2D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, FixedMatrix<18,18>& Me);
+ void _computeMFParax3D(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
+                        FixedMatrix<27,27>& Me, FixedVector<27>& Fe,const Real& rhocs, const Real& rhocp);
+ void _computeMFParax2D(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
+                        FixedMatrix<6,6>& Me, FixedVector<6>& Fe,const Real& rhocs, const Real& rhocp);
 };
 
  /*---------------------------------------------------------------------------*/
