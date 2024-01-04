@@ -161,7 +161,24 @@ _saveNoBuildTimeInCSV()
     csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrAddAndCompute") / m_cache_warming << ",";
     csv_save << "0,0,0,";
   }
-  csv_save << "test" << _readTimeFromJson("AssembleCusparseBilinearOperator", "") / m_cache_warming << "\n";
+  csv_save << _readTimeFromJson("AssembleCusparseBilinearOperator", "") / m_cache_warming << "\n";
+  csv_save.close();
+}
+
+void FemModule::
+_benchBuildRow()
+{
+  std::ofstream csv_save;
+  if (!fs::exists("buildRow.csv")) {
+    csv_save.open("buildRow.csv");
+    csv_save << "Number of Nodes,Build on CPU,Build on GPU\n";
+  }
+  else {
+    csv_save.open("buildRow.csv", std::ios_base::app);
+  }
+  csv_save << nbNode() << ",";
+  csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrBuildMatrix") / m_cache_warming << ",";
+  csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrBuildMatrixGPU") / m_cache_warming << "\n";
   csv_save.close();
 }
 
@@ -174,6 +191,7 @@ endModule()
   _writeInJson();
   _saveTimeInCSV();
   _saveNoBuildTimeInCSV();
+  //_benchBuildRow();
 }
 
 void FemModule::
@@ -313,6 +331,7 @@ _handleFlags()
   }
   if (parameter_list.getParameterOrNull("AcceleratorRuntime") == "cuda") {
     m_running_on_gpu = true;
+    info() << "CUDA: The methods able to use GPU will use it";
   }
   info() << "-----------------------------------------------------------------------------------------";
 }
@@ -400,13 +419,14 @@ _doStationarySolve()
     }
     if (m_use_buildless_csr) {
       for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
-        m_linear_system.clearValues();
+        //m_linear_system.clearValues();
         _assembleBuildLessCsrBilinearOperatorTria3();
       }
-      m_csr_matrix.translateToLinearSystem(m_linear_system);
+      // m_csr_matrix.translateToLinearSystem(m_linear_system);
     }
 
 #endif
+    /*
     // Assemble the FEM linear operator (RHS - vector b)
     if (m_use_buildless_csr) {
       m_linear_system.clearValues();
@@ -423,7 +443,7 @@ _doStationarySolve()
 
     // Check results
     _checkResultFile();
-
+*/
     if (m_register_time) {
       auto fem_stop = std::chrono::high_resolution_clock::now();
       std::chrono::duration<double> fem_duration = fem_stop - fem_start;

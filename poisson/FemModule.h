@@ -70,6 +70,9 @@
 #include "arcane/accelerator/Reduce.h"
 #include "arcane/accelerator/Accelerator.h"
 
+// Fichier à inclure afin d'avoir le scan
+#include "arcane/accelerator/Scan.h"
+
 #include "arcane/AcceleratorRuntimeInitialisationInfo.h"
 
 // Fichier à inclure afin de pouvoir effectuer des connectivités personnalisées
@@ -249,6 +252,7 @@ class FemModule
   void _writeInJson();
   void _saveTimeInCSV();
   void _saveNoBuildTimeInCSV();
+  void _benchBuildRow();
   Real _readTimeFromJson(String main_time, String sub_time);
   FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
@@ -303,6 +307,7 @@ class FemModule
   void _assembleNodeWiseCsrBilinearOperatorTria3();
 
   void _buildMatrixBuildLessCsr();
+  void _buildMatrixGpuBuildLessCsr();
   void _assembleBuildLessCsrBilinearOperatorTria3();
 
  private:

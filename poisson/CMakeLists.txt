@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 project(Poisson LANGUAGES C CXX)
+#set(CMAKE_BUILD_TYPE Debug)
 
 find_package(Arcane REQUIRED)
 
@@ -17,6 +18,8 @@ if (ARCANE_HAS_CUDA)
     message(WARNING "CUSPARSE not found: Disabling features that depends of Cusparse.")
     set (USE_CUSPARSE_ADD OFF)
   endif()
+else()
+  set (USE_CUSPARSE_ADD OFF)
 endif()
 
 if(ARCANE_HAS_CUDA)

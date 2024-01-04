@@ -22,21 +22,10 @@ void FemModule::_buildMatrixBuildLessCsr()
   Integer nbnde = nbNode();
   Int32 nnz = nbFace() * 2 + nbnde;
   m_csr_matrix.initialize(m_dof_family, nnz, nbnde);
-  /*
-
-  removing the neoighbouring currently as it is useless
-  // Creating a connectivity from node to their neighbouring nodes
-  IItemFamily* node_family = mesh()->nodeFamily();
-  NodeGroup nodes = node_family->allItems();
-  idx_cn = mesh()->indexedConnectivityMng()->findOrCreateConnectivity(node_family, node_family, "NodeToNeighbourFaceNodes");
-  cn = idx_cn->connectivity();
-  */
 
   Integer index = 1;
   m_csr_matrix.m_matrix_row(0) = 0;
   ENUMERATE_NODE (inode, allNodes()) {
-
-    //Since we compute the neighbouring connectivity here, we also fill the csr matrix
 
     Node node = *inode;
     if (index < nbnde) {
@@ -44,6 +33,37 @@ void FemModule::_buildMatrixBuildLessCsr()
       index++;
     }
   }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::_buildMatrixGpuBuildLessCsr()
+{
+
+  // Compute the number of nnz and initialize the memory space
+  Integer nbnde = nbNode();
+  Int32 nnz = nbFace() * 2 + nbnde;
+
+  NumArray<Int32, MDDim1> tmp_row;
+  tmp_row.resize(nbnde);
+  m_csr_matrix.initialize(m_dof_family, nnz, nbnde);
+
+  RunQueue* queue = acceleratorMng()->defaultQueue();
+  auto command = makeCommand(queue);
+  auto in_out_tmp_row = ax::viewInOut(command, tmp_row);
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  UnstructuredMeshConnectivityView connectivity_view;
+  connectivity_view.setMesh(this->mesh());
+  auto nfc = connectivity_view.nodeFace();
+
+  command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
+  {
+    Int64 index = node_dof.dofId(inode, 0).localId();
+    in_out_tmp_row(index) = nfc.nbFace(inode) + 1;
+  };
+  ax::Scanner<Int32> scanner;
+  scanner.exclusiveSum(queue, tmp_row, m_csr_matrix.m_matrix_row);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -62,10 +82,18 @@ void FemModule::_assembleBuildLessCsrBilinearOperatorTria3()
     lhs_start = std::chrono::high_resolution_clock::now();
   }
 
+  /*
   {
     Timer::Action timer_blcsr_build(this->subDomain(), "BuildLessCsrBuildMatrix");
-    // Build only the row part of the csr matrix
+    // Build only the row part of the csr matrix on CPU
     _buildMatrixBuildLessCsr();
+  }
+*/
+  {
+    Timer::Action timer_blcsr_build(this->subDomain(), "BuildLessCsrBuildMatrixGPU");
+    // Build only the row part of the csr matrix on GPU
+    // Using scan -> might be improved
+    _buildMatrixGpuBuildLessCsr();
   }
 
   std::chrono::_V2::system_clock::time_point var_init_start;
