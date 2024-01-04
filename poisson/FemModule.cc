@@ -193,16 +193,16 @@ compute()
   // This is only used for the first call.
   {
     StringList string_list;
+    /*
     string_list.add("-trmalloc");
     string_list.add("-log_trace");
-
     string_list.add("-ksp_monitor");
     string_list.add("-ksp_view");
     string_list.add("-math_view");
     string_list.add("draw");
     string_list.add("-draw_pause");
     string_list.add("-10");
-
+*/
     CommandLineArguments args(string_list);
     m_linear_system.setSolverCommandLineArguments(args);
   }
@@ -304,7 +304,7 @@ _handleFlags()
     info() << "CUSPARSE_ADD: CUSPARSE and its associated methods will be used";
   }
 #endif
-  if (parameter_list.getParameterOrNull("LEGACY") == "TRUE") {
+  if (parameter_list.getParameterOrNull("LEGACY") == "TRUE" || m_use_legacy) {
     m_use_legacy = true;
     info() << "LEGACY: The Legacy datastructure and its associated methods will be used";
   }
@@ -341,6 +341,7 @@ _doStationarySolve()
 
 #ifdef USE_CUSPARSE_ADD
     if (m_use_cusparse_add) {
+      cusparseHandle_t handle;
       for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
         _assembleCusparseBilinearOperatorTRIA3();
       }

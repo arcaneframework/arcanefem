@@ -184,7 +184,7 @@ _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cel
 
   //conversion from COO to CSR
   void* csrRowPtr_void;
-  CHECK_CUDA(cudaMallocManaged(&csrRowPtr_void, nbNode() * sizeof(Int32)));
+  CHECK_CUDA(cudaMallocManaged(&csrRowPtr_void, (nbNode() + 1) * sizeof(Int32)));
   Int32* csrRowPtr = (Int32*)csrRowPtr_void;
   CHECK_CUSPARSE(cusparseXcoo2csr(handle, row_indexes, 9, nbNode(), csrRowPtr, CUSPARSE_INDEX_BASE_ZERO));
   local.csrRow = csrRowPtr;
@@ -233,8 +233,9 @@ _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cel
                                       global.desc, global.nnz, global.csrRow, global.csrCol,
                                       result.desc, result.csrRow, nnzTotalDevHostPtr,
                                       buffer));
-  if (NULL != nnzTotalDevHostPtr)
+  if (NULL != nnzTotalDevHostPtr) {
     nnzC = *nnzTotalDevHostPtr;
+  }
   else {
     CHECK_CUDA(cudaMemcpy(&nnzC, result.csrRow + m, sizeof(int), cudaMemcpyDeviceToHost));
     CHECK_CUDA(cudaMemcpy(&baseC, result.csrRow, sizeof(int), cudaMemcpyDeviceToHost));
@@ -259,6 +260,7 @@ _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cel
                                    result.csrVal, result.csrRow, result.csrCol,
                                    buffer));
 
+  CHECK_CUDA(cudaFree(buffer));
   CHECK_CUDA(cudaFree(local.csrVal));
   CHECK_CUDA(cudaFree(local.csrCol));
   CHECK_CUDA(cudaFree(local.csrRow));
@@ -312,16 +314,18 @@ _assembleCusparseBilinearOperatorTRIA3()
   }
 
   Int32 nnz = nbFace() * 2 + nbNode();
+  cusparseHandle_t handle;
+  CHECK_CUSPARSE(cusparseCreate(&handle));
   //Initialize the global matrix. Everything is in the unified memory
   void* res1_row_void;
   void* res2_row_void;
-  CHECK_CUDA(cudaMallocManaged(&res1_row_void, sizeof(Int32) * nbNode()));
+  CHECK_CUDA(cudaMallocManaged(&res1_row_void, sizeof(Int32) * (nbNode() + 1)));
+  CHECK_CUDA(cudaMemset(res1_row_void, 0, sizeof(Int32) * (nbNode() + 1)));
   Int32* res1_row = (Int32*)res1_row_void;
-  CHECK_CUDA(cudaMallocManaged(&res2_row_void, sizeof(Int32) * nbNode()));
+  CHECK_CUDA(cudaMallocManaged(&res2_row_void, sizeof(Int32) * (nbNode() + 1)));
+  CHECK_CUDA(cudaMemset(res2_row_void, 0, sizeof(Int32) * (nbNode() + 1)));
   Int32* res2_row = (Int32*)res2_row_void;
 
-  cusparseHandle_t handle;
-  CHECK_CUSPARSE(cusparseCreate(&handle));
   //The number of Node must be changed when p != 1
 
   //init result matrix
@@ -339,6 +343,8 @@ _assembleCusparseBilinearOperatorTRIA3()
   res2.csrRow = res2_row;
   res1.csrCol = NULL;
   res2.csrCol = NULL;
+  res1.csrVal = NULL;
+  res2.csrVal = NULL;
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
@@ -347,13 +353,20 @@ _assembleCusparseBilinearOperatorTRIA3()
   ENUMERATE_CELL (icell, allCells()) {
     Cell cell = *icell;
 
-    if (i % 2 == 0)
-      //computation of the local matrix and adding it in the global one
+    if (i % 2 == 0) {
+
+      CHECK_CUDA(cudaFree(res1.csrCol));
+      CHECK_CUDA(cudaFree(res1.csrVal));
       _computeCusparseElementMatrix(res1, res2, cell, handle, node_dof,
                                     t);
-    else
+    }
+    //computation of the local matrix and adding it in the global one
+    else {
+      CHECK_CUDA(cudaFree(res2.csrCol));
+      CHECK_CUDA(cudaFree(res2.csrVal));
       _computeCusparseElementMatrix(res2, res1, cell, handle, node_dof,
                                     t);
+    }
     i++;
   }
   /*
@@ -366,7 +379,14 @@ _assembleCusparseBilinearOperatorTRIA3()
   CHECK_CUSPARSE(cusparseDestroyMatDescr(res1.desc));
   CHECK_CUSPARSE(cusparseDestroyMatDescr(res2.desc));
 
-  //Must free the resulting vectors, not done there yet
+  //Must get the results into a linear format
+  CHECK_CUDA(cudaFree(res1.csrRow));
+  CHECK_CUDA(cudaFree(res1.csrCol));
+  CHECK_CUDA(cudaFree(res1.csrVal));
+  CHECK_CUDA(cudaFree(res2.csrRow));
+  CHECK_CUDA(cudaFree(res2.csrCol));
+  CHECK_CUDA(cudaFree(res2.csrVal));
+  CHECK_CUSPARSE(cusparseDestroy(handle));
   if (m_register_time) {
     auto lhs_end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = lhs_end - cuda_init_stop;

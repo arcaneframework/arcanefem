@@ -114,6 +114,9 @@ namespace fs = std::filesystem;
     if (status != CUSPARSE_STATUS_SUCCESS) { \
       printf("CUSPARSE API failed at line %d with error: %s (%d)\n", \
              __LINE__, cusparseGetErrorString(status), status); \
+      printf("CUSPARSE STATUS INTERNAL ERROR : %d\n", status == CUSPARSE_STATUS_INTERNAL_ERROR); \
+      printf("CUSPARSE STATUS EXECUTION FAILED : %d\n", status == CUSPARSE_STATUS_EXECUTION_FAILED); \
+      printf("CUSPARSE STATUS INSUFFICENT RESOURCES: %d\n", status == CUSPARSE_STATUS_INSUFFICIENT_RESOURCES); \
       return; \
     } \
   }
