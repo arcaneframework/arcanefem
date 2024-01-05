@@ -68,6 +68,56 @@ void FemModule::_buildMatrixGpuBuildLessCsr()
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+ARCCORE_HOST_DEVICE
+Real FemModule::_computeCellMatrixGpuTRIA3(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord, Real b_matrix[6])
+{
+  Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
+  Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
+  Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
+
+  Real area = _computeAreaTriangle3Gpu(icell, cnc, in_node_coord);
+
+  Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
+  Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
+  Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
+
+  Real mul = (1.0 / (2.0 * area));
+  b_matrix[0] = dPhi0.x * mul;
+  b_matrix[1] = dPhi0.y * mul;
+
+  b_matrix[2] = dPhi1.x * mul;
+  b_matrix[3] = dPhi1.y * mul;
+
+  b_matrix[4] = dPhi2.x * mul;
+  b_matrix[5] = dPhi2.y * mul;
+
+  return area;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE
+void FemModule::_addValueToGlobalMatrixTria3Gpu(Int32 begin, Int32 end, Int32 col, ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> in_out_col_csr, ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> in_out_val_csr, Real x)
+{
+
+  // Find the right index in the csr matrix
+  while (begin < end) {
+    if (in_out_col_csr[begin] == -1) {
+      in_out_col_csr[begin] = col;
+      in_out_val_csr[begin] = x;
+      break;
+    }
+    else if (in_out_col_csr[begin] == col) {
+      in_out_val_csr[begin] += x;
+      break;
+    }
+    begin++;
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 void FemModule::_assembleBuildLessCsrBilinearOperatorTria3()
 {
@@ -152,33 +202,17 @@ void FemModule::_assembleBuildLessCsrBilinearOperatorTria3()
       else {
         inode_index = 0;
       }
-      Real3 m0 = in_node_coord[cnc.nodeId(cell, 0)];
-      Real3 m1 = in_node_coord[cnc.nodeId(cell, 1)];
-      Real3 m2 = in_node_coord[cnc.nodeId(cell, 2)];
 
-      Real area = 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y)); // calculate area
-
-      Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
-      Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
-      Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
-
-      Real b_matrix[3][2] = { 0 };
-      Real mul = (1.0 / (2.0 * area));
-      b_matrix[0][0] = dPhi0.x * mul;
-      b_matrix[0][1] = dPhi0.y * mul;
-
-      b_matrix[1][0] = dPhi1.x * mul;
-      b_matrix[1][1] = dPhi1.y * mul;
-
-      b_matrix[2][0] = dPhi2.x * mul;
-      b_matrix[2][1] = dPhi2.y * mul;
+      Real b_matrix[6] = { 0 };
+      Real area = _computeCellMatrixGpuTRIA3(cell, cnc, in_node_coord, b_matrix);
 
       Int32 i = 0;
       for (NodeLocalId node2 : cnc.nodes(cell)) {
         Real x = 0.0;
         for (Int32 k = 0; k < 2; k++) {
-          x += b_matrix[inode_index][k] * b_matrix[i][k];
+          x += b_matrix[inode_index * 2 + k] * b_matrix[i * 2 + k];
         }
+        x = x * area;
         if (nodes_infos.isOwn(inode)) {
 
           Int32 row = node_dof.dofId(inode, 0).localId();
@@ -191,18 +225,7 @@ void FemModule::_assembleBuildLessCsrBilinearOperatorTria3()
           else {
             end = in_row_csr[row + 1];
           }
-          while (begin < end) {
-            if (in_out_col_csr[begin] == -1) {
-              in_out_col_csr[begin] = col;
-              in_out_val_csr[begin] += x * area;
-              break;
-            }
-            else if (in_out_col_csr[begin] == col) {
-              in_out_val_csr[begin] += x * area;
-              break;
-            }
-            begin++;
-          }
+          _addValueToGlobalMatrixTria3Gpu(begin, end, col, in_out_col_csr, in_out_val_csr, x);
         }
         i++;
       }

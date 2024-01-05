@@ -320,6 +320,8 @@ class FemModule
 
   void _buildMatrixBuildLessCsr();
   void _buildMatrixGpuBuildLessCsr();
+  Real _computeCellMatrixGpuTRIA3(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord, Real b_matrix[6]);
+  void _addValueToGlobalMatrixTria3Gpu(Int32 begin, Int32 end, Int32 col, ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> in_out_col_csr, ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> in_out_val_csr, Real x);
   void _assembleBuildLessCsrBilinearOperatorTria3();
 
  private:

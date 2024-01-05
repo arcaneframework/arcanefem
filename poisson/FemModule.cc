@@ -1553,6 +1553,7 @@ _computeAreaQuad4(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+#ifdef ARCANE_HAS_CUDA
 ARCCORE_HOST_DEVICE
 Real FemModule::
 _computeAreaTriangle3Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord)
@@ -1563,6 +1564,7 @@ _computeAreaTriangle3Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
 
   return 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));
 }
+#endif
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -1578,6 +1580,8 @@ _computeAreaTriangle3(Cell cell)
 
 /*---------------------------------------------------------------------------*/
 /*----------------------------#endif-----------------------------------------------*/
+
+#ifdef ARCANE_HAS_CUDA
 ARCCORE_HOST_DEVICE
 Real FemModule::
 _computeEdgeLength2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc, ax::VariableNodeReal3InView in_node_coord)
@@ -1586,6 +1590,7 @@ _computeEdgeLength2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc, a
   Real3 m1 = in_node_coord[fnc.nodeId(iface, 1)];
   return math::sqrt((m1.x - m0.x) * (m1.x - m0.x) + (m1.y - m0.y) * (m1.y - m0.y));
 }
+#endif
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -1793,7 +1798,7 @@ _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView
   Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
   Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
 
-  Real area = 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y)); // calculate area
+  Real area = _computeAreaTriangle3Gpu(icell, cnc, in_node_coord);
 
   Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
   Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
