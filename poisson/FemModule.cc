@@ -419,18 +419,17 @@ _doStationarySolve()
     }
     if (m_use_buildless_csr) {
       for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
-        //m_linear_system.clearValues();
+        m_linear_system.clearValues();
         _assembleBuildLessCsrBilinearOperatorTria3();
       }
-      // m_csr_matrix.translateToLinearSystem(m_linear_system);
+      m_csr_matrix.translateToLinearSystem(m_linear_system);
     }
 
 #endif
-    /*
     // Assemble the FEM linear operator (RHS - vector b)
     if (m_use_buildless_csr) {
       m_linear_system.clearValues();
-      _assembleCsrLinearOperator();
+      _assembleCsrGpuLinearOperator();
       m_csr_matrix.translateToLinearSystem(m_linear_system);
       _translateRhs();
     }
@@ -443,7 +442,6 @@ _doStationarySolve()
 
     // Check results
     _checkResultFile();
-*/
     if (m_register_time) {
       auto fem_stop = std::chrono::high_resolution_clock::now();
       std::chrono::duration<double> fem_duration = fem_stop - fem_start;
@@ -901,13 +899,12 @@ _assembleCsrLinearOperator()
       NodeLocalId node_id = *inode;
       if (m_u_dirichlet[node_id]) {
         DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-        // This SetValue should be updated in the acoording format we have (such as COO or CSR)
         m_csr_matrix.matrixSetValue(dof_id, dof_id, Penalty);
         Real u_g = Penalty * m_u[node_id];
-        // This should be changed for a numArray
         m_rhs_vect[dof_id] = u_g;
       }
     }
+    m_csr_matrix.printMatrix("res.txt");
     std::chrono::_V2::system_clock::time_point penalty_stop;
     if (m_register_time) {
       penalty_stop = std::chrono::high_resolution_clock::now();
@@ -1028,7 +1025,6 @@ _assembleCsrLinearOperator()
       Real area = _computeAreaTriangle3(cell);
       for (Node node : cell.nodes()) {
         if (!(m_u_dirichlet[node]) && node.isOwn())
-          // must replace rhs_values with numArray
           m_rhs_vect[node_dof.dofId(node, 0)] += f * area / ElementNodes;
       }
     }
@@ -1063,7 +1059,6 @@ _assembleCsrLinearOperator()
           Real length = _computeEdgeLength2(face);
           for (Node node : iface->nodes()) {
             if (!(m_u_dirichlet[node]) && node.isOwn())
-              // must replace rhs_values with numArray
               m_rhs_vect[node_dof.dofId(node, 0)] += value * length / 2.;
           }
         }
@@ -1079,7 +1074,6 @@ _assembleCsrLinearOperator()
           Real2 Normal = _computeEdgeNormal2(face);
           for (Node node : iface->nodes()) {
             if (!(m_u_dirichlet[node]) && node.isOwn())
-              // must replace rhs_values with numArray
               m_rhs_vect[node_dof.dofId(node, 0)] += (Normal.x * valueX + Normal.y * valueY) * length / 2.;
           }
         }
@@ -1094,7 +1088,6 @@ _assembleCsrLinearOperator()
           Real2 Normal = _computeEdgeNormal2(face);
           for (Node node : iface->nodes()) {
             if (!(m_u_dirichlet[node]) && node.isOwn())
-              // must replace rhs_values with numArray
               m_rhs_vect[node_dof.dofId(node, 0)] += (Normal.x * valueX) * length / 2.;
           }
         }
@@ -1109,7 +1102,6 @@ _assembleCsrLinearOperator()
           Real2 Normal = _computeEdgeNormal2(face);
           for (Node node : iface->nodes()) {
             if (!(m_u_dirichlet[node]) && node.isOwn())
-              // must replace rhs_values with numArray
               m_rhs_vect[node_dof.dofId(node, 0)] += (Normal.y * valueY) * length / 2.;
           }
         }
@@ -1141,6 +1133,399 @@ _assembleCsrLinearOperator()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+ARCCORE_HOST_DEVICE
+Int32 FemModule::
+_getValIndexCsrGpu(Int32 begin, Int32 end, DoFLocalId col, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> csr_col)
+{
+  Int32 i = begin;
+  while (i < end && col != csr_col(i)) {
+    i++;
+  }
+  // The value has not been found
+  if (i == end) {
+    return -1;
+  }
+  // The value as been found
+  return i;
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleCsrGpuLinearOperator()
+{
+  info() << "Assembly of FEM linear operator ";
+  info() << "Applying Dirichlet boundary condition via penalty method for Csr, designed for GPU";
+
+  Timer::Action timer_action(this->subDomain(), "CsrGpuAssembleLinearOperator");
+
+  m_rhs_vect.resize(nbNode());
+  m_rhs_vect.fill(0.0);
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  if (options()->enforceDirichletMethod() == "Penalty") {
+
+    Timer::Action timer_action(this->subDomain(), "CsrGpuPenalty");
+
+    //----------------------------------------------
+    // penalty method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
+    //  Dirichlet condition needs to be applied
+    //
+    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
+    //           a_{i,i} = 1. * P
+    //
+    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
+    //           b_{i} = b_{i} * P
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    Real Penalty = options()->penalty(); // 1.0e30 is the default
+
+    RunQueue* queue = acceleratorMng()->defaultQueue();
+    auto command = makeCommand(queue);
+
+    auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
+    auto in_csr_row = ax::viewIn(command, m_csr_matrix.m_matrix_row);
+    auto in_csr_col = ax::viewIn(command, m_csr_matrix.m_matrix_column);
+    auto in_out_csr_val = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
+    Int32 row_csr_size = m_csr_matrix.m_matrix_row.dim1Size();
+    Int32 col_csr_size = m_csr_matrix.m_matrix_column.dim1Size();
+
+    auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+    auto in_m_u = ax::viewIn(command, m_u);
+    // In this loop :
+    // m_u_dirichlet must be adapted -> module variable, just need a view
+    // m_u must be adapted
+    // Set value must be replaced
+    // m_rhs_vect must also be replaced
+    command << RUNCOMMAND_ENUMERATE(Node, inode, ownNodes())
+    {
+      if (in_m_u_dirichlet(inode)) {
+        DoFLocalId dof_id = node_dof.dofId(inode, 0);
+        Int32 begin = in_csr_row(dof_id);
+        Int32 end = 0;
+        if (begin == row_csr_size - 1) {
+          end = col_csr_size;
+        }
+        else {
+          end = in_csr_row(dof_id + 1);
+        }
+        Int32 index = _getValIndexCsrGpu(begin, end, dof_id, in_csr_col);
+        in_out_csr_val(index) = Penalty;
+        Real u_g = Penalty * in_m_u(inode);
+        in_out_rhs_vect(dof_id) = u_g;
+      }
+    };
+    m_csr_matrix.printMatrix("newTest.txt");
+  }
+  else if (options()->enforceDirichletMethod() == "WeakPenalty") {
+    Timer::Action timer_action(this->subDomain(), "CsrGpuWeakPenalty");
+
+    //----------------------------------------------
+    // weak penalty method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
+    //  Dirichlet condition needs to be applied
+    //
+    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
+    //           a_{i,i} = a_{i,i} + P
+    //
+    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
+    //           b_{i} = b_{i} * P
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    Real Penalty = options()->penalty(); // 1.0e30 is the default
+
+    RunQueue* queue = acceleratorMng()->defaultQueue();
+    auto command = makeCommand(queue);
+
+    auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
+    auto in_csr_row = ax::viewIn(command, m_csr_matrix.m_matrix_row);
+    auto in_csr_col = ax::viewIn(command, m_csr_matrix.m_matrix_column);
+    auto in_out_csr_val = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
+    Int32 row_csr_size = m_csr_matrix.m_matrix_row.dim1Size();
+    Int32 col_csr_size = m_csr_matrix.m_matrix_column.dim1Size();
+
+    auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+    auto in_m_u = ax::viewIn(command, m_u);
+    // In this loop :
+    // m_u_dirichlet must be adapted
+    // m_u must have a view
+    // Set value must be replaced
+    // m_rhs_vect must also be replaced
+    command << RUNCOMMAND_ENUMERATE(Node, inode, ownNodes())
+    {
+      if (in_m_u_dirichlet(inode)) {
+        DoFLocalId dof_id = node_dof.dofId(inode, 0);
+        Int32 begin = in_csr_row(dof_id);
+        Int32 end = 0;
+        if (begin == row_csr_size - 1) {
+          end = col_csr_size;
+        }
+        else {
+          end = in_csr_row(dof_id + 1);
+        }
+        Int32 index = _getValIndexCsrGpu(begin, end, dof_id, in_csr_col);
+        in_out_csr_val(index) += Penalty;
+
+        Real u_g = Penalty * in_m_u(inode);
+        in_out_rhs_vect(dof_id) = u_g;
+      }
+    };
+  }
+  else if (options()->enforceDirichletMethod() == "RowElimination") {
+
+    //----------------------------------------------
+    // Row elimination method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
+    //
+    //  to apply the Dirichlet on 'i'th DOF
+    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
+    //           a_{i,j} = 0.  : i!=j
+    //           a_{i,j} = 1.  : i==j
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+    // TODO
+  }
+  else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
+
+    //----------------------------------------------
+    // Row elimination method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
+    //
+    //  to apply the Dirichlet on 'i'th DOF
+    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
+    //           a_{i,j} = 0.  : i!=j  for all j
+    //           a_{i,j} = 1.  : i==j
+    //    also the column terms corresponding to the Dirichlet DOF
+    //           a_{i,j} = 0.  : i!=j  for all i
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    // TODO
+  }
+  else {
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " is not supported \n"
+           << "enforce-Dirichlet-method only supports:\n"
+           << "  - Penalty\n"
+           << "  - WeakPenalty\n"
+           << "  - RowElimination\n"
+           << "  - RowColumnElimination\n";
+  }
+
+  {
+    Timer::Action timer_action(this->subDomain(), "CsrGpuConstantSourceTermAssembly");
+    //----------------------------------------------
+    // Constant source term assembly
+    //----------------------------------------------
+    //
+    //  $int_{Omega}(f*v^h)$
+    //  only for noded that are non-Dirichlet
+    //----------------------------------------------
+
+    RunQueue* queue = acceleratorMng()->defaultQueue();
+    auto command = makeCommand(queue);
+
+    auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
+
+    auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+
+    Real tmp_f = f;
+    Real tmp_ElementNodes = ElementNodes;
+
+    UnstructuredMeshConnectivityView m_connectivity_view;
+    auto in_node_coord = ax::viewIn(command, m_node_coord);
+    m_connectivity_view.setMesh(this->mesh());
+    auto cnc = m_connectivity_view.cellNode();
+    Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+    // In this loop :
+    // m_u_dirichlet must be adapted
+    // node.isOwn must be adapted
+    // m_rhs_vect must also be replaced
+    // f and Element nodes must be put in local variable
+    // computeArea must be replaced
+    command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
+    {
+      Real area = _computeAreaTriangle3Gpu(icell, cnc, in_node_coord);
+      for (NodeLocalId node : cnc.nodes(icell)) {
+        if (!(in_m_u_dirichlet(node)) && nodes_infos.isOwn(node))
+          in_out_rhs_vect[node_dof.dofId(node, 0)] += tmp_f * area / tmp_ElementNodes;
+      }
+    };
+  }
+  {
+    Timer::Action timer_action(this->subDomain(), "CsrGpuConstantFluxTermAssembly");
+
+    //----------------------------------------------
+    // Constant flux term assembly
+    //----------------------------------------------
+    //
+    //  only for noded that are non-Dirichlet
+    //  $int_{dOmega_N}((q.n)*v^h)$
+    // or
+    //  $int_{dOmega_N}((n_x*q_x + n_y*q_y)*v^h)$
+    //----------------------------------------------
+    for (const auto& bs : options()->neumannBoundaryCondition()) {
+      FaceGroup group = bs->surface();
+
+      if (bs->value.isPresent()) {
+        Real value = bs->value();
+
+        RunQueue* queue = acceleratorMng()->defaultQueue();
+        auto command = makeCommand(queue);
+
+        auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
+
+        auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+
+        UnstructuredMeshConnectivityView m_connectivity_view;
+        auto in_node_coord = ax::viewIn(command, m_node_coord);
+        m_connectivity_view.setMesh(this->mesh());
+        auto fnc = m_connectivity_view.faceNode();
+        Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+
+        // In this loop :
+        // m_u_dirichlet must be adapted
+        // node.isOwn must be adapted
+        // m_rhs_vect must also be replaced
+        // computeEdgeLength2 must be reimplemented
+        command << RUNCOMMAND_ENUMERATE(Face, iface, group)
+        {
+          Real length = _computeEdgeLength2Gpu(iface, fnc, in_node_coord);
+          for (NodeLocalId node : fnc.nodes(iface)) {
+            if (!(in_m_u_dirichlet[node]) && nodes_infos.isOwn(node))
+              in_out_rhs_vect[node_dof.dofId(node, 0)] += value * length / 2.;
+          }
+        };
+        continue;
+      }
+
+      if (bs->valueX.isPresent() && bs->valueY.isPresent()) {
+        Real valueX = bs->valueX();
+        Real valueY = bs->valueY();
+
+        RunQueue* queue = acceleratorMng()->defaultQueue();
+        auto command = makeCommand(queue);
+
+        auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
+
+        auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+
+        UnstructuredMeshConnectivityView m_connectivity_view;
+        auto in_node_coord = ax::viewIn(command, m_node_coord);
+        m_connectivity_view.setMesh(this->mesh());
+        auto fnc = m_connectivity_view.faceNode();
+        Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+
+        // In this loop :
+        // m_u_dirichlet must be adapted
+        // node.isOwn must be adapted
+        // m_rhs_vect must also be replaced
+        // computeEdgeLength2 must be reimplemented
+        // computeEdgeNormal2 must be reimplemented
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2Gpu(iface, fnc, in_node_coord);
+          //This line must be changed in the futur to run on GPU
+          Real2 Normal = _computeEdgeNormal2(face);
+          for (NodeLocalId node : fnc.nodes(iface)) {
+            if (!(in_m_u_dirichlet[node]) && nodes_infos.isOwn(node))
+              in_out_rhs_vect[node_dof.dofId(node, 0)] += (Normal.x * valueX + Normal.y * valueY) * length / 2.;
+          }
+        }
+        continue;
+      }
+
+      if (bs->valueX.isPresent()) {
+        Real valueX = bs->valueX();
+
+        RunQueue* queue = acceleratorMng()->defaultQueue();
+        auto command = makeCommand(queue);
+
+        auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
+
+        auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+
+        UnstructuredMeshConnectivityView m_connectivity_view;
+        auto in_node_coord = ax::viewIn(command, m_node_coord);
+        m_connectivity_view.setMesh(this->mesh());
+        auto fnc = m_connectivity_view.faceNode();
+        Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+
+        // In this loop :
+        // m_u_dirichlet must be adapted
+        // node.isOwn must be adapted
+        // m_rhs_vect must also be replaced
+        // computeEdgeLength2 must be reimplemented
+        // computeEdgeNormal2 must be reimplemented
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2Gpu(iface, fnc, in_node_coord);
+          // This line must be changed to be able to run on GPU
+          Real2 Normal = _computeEdgeNormal2(face);
+          for (NodeLocalId node : fnc.nodes(iface)) {
+            if (!(in_m_u_dirichlet[node]) && nodes_infos.isOwn(node))
+              in_out_rhs_vect[node_dof.dofId(node, 0)] += (Normal.x * valueX) * length / 2.;
+          }
+        }
+        continue;
+      }
+
+      if (bs->valueY.isPresent()) {
+        Real valueY = bs->valueY();
+
+        RunQueue* queue = acceleratorMng()->defaultQueue();
+        auto command = makeCommand(queue);
+
+        auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
+
+        auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+
+        UnstructuredMeshConnectivityView m_connectivity_view;
+        auto in_node_coord = ax::viewIn(command, m_node_coord);
+        m_connectivity_view.setMesh(this->mesh());
+        auto fnc = m_connectivity_view.faceNode();
+        Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+
+        // In this loop :
+        // m_u_dirichlet must be adapted
+        // node.isOwn must be adapted
+        // m_rhs_vect must also be replaced
+        // computeEdgeLength2 must be reimplemented
+        // computeEdgeNormal2 must be reimplemented
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2Gpu(iface, fnc, in_node_coord);
+          // This line must be changed to be able to run on GPU
+          Real2 Normal = _computeEdgeNormal2(face);
+          for (NodeLocalId node : fnc.nodes(iface)) {
+            if (!(in_m_u_dirichlet[node]) && nodes_infos.isOwn(node))
+              in_out_rhs_vect[node_dof.dofId(node, 0)] += (Normal.y * valueY) * length / 2.;
+          }
+        }
+        continue;
+      }
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 void FemModule::
 _translateRhs()
 {
@@ -1168,6 +1553,20 @@ _computeAreaQuad4(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+ARCCORE_HOST_DEVICE
+Real FemModule::
+_computeAreaTriangle3Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord)
+{
+  Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
+  Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
+  Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
+
+  return 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 Real FemModule::
 _computeAreaTriangle3(Cell cell)
 {
@@ -1179,6 +1578,17 @@ _computeAreaTriangle3(Cell cell)
 
 /*---------------------------------------------------------------------------*/
 /*----------------------------#endif-----------------------------------------------*/
+ARCCORE_HOST_DEVICE
+Real FemModule::
+_computeEdgeLength2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc, ax::VariableNodeReal3InView in_node_coord)
+{
+  Real3 m0 = in_node_coord[fnc.nodeId(iface, 0)];
+  Real3 m1 = in_node_coord[fnc.nodeId(iface, 1)];
+  return math::sqrt((m1.x - m0.x) * (m1.x - m0.x) + (m1.y - m0.y) * (m1.y - m0.y));
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 Real FemModule::
 _computeEdgeLength2(Face face)
@@ -1186,6 +1596,28 @@ _computeEdgeLength2(Face face)
   Real3 m0 = m_node_coord[face.nodeId(0)];
   Real3 m1 = m_node_coord[face.nodeId(1)];
   return math::sqrt((m1.x - m0.x) * (m1.x - m0.x) + (m1.y - m0.y) * (m1.y - m0.y));
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+//This function is not functional currently
+Real2 FemModule::
+_computeEdgeNormal2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc, ax::VariableNodeReal3InView in_node_coord)
+{
+  Real3 m0 = in_node_coord[fnc.nodeId(iface, 0)];
+  Real3 m1 = in_node_coord[fnc.nodeId(iface, 1)];
+  // We need to access this information on GPU
+  /*if (!faces_infos.isSubDomainBoundaryOutside(iface)) {
+  Real3 tmp = m0;
+  m0 = m1;
+  m1 = tmp;
+  }*/
+  Real2 N;
+  Real norm_N = math::sqrt((m1.y - m0.y) * (m1.y - m0.y) + (m1.x - m0.x) * (m1.x - m0.x)); // for normalizing
+  N.x = (m1.y - m0.y) / norm_N;
+  N.y = (m0.x - m1.x) / norm_N;
+  return N;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1356,6 +1788,7 @@ _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView
   //                 .     .
   //              1 o . . . o 2
   //------------------------------------------------
+  // We might want to replace the next 4 lines of codes with _computeAreaTriangle3Gpu()
   Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
   Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
   Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
