@@ -1431,6 +1431,7 @@ _assembleCsrGpuLinearOperator()
         m_connectivity_view.setMesh(this->mesh());
         auto fnc = m_connectivity_view.faceNode();
         Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+        Arcane::FaceInfoListView faces_infos(this->mesh()->nodeFamily());
 
         // In this loop :
         // m_u_dirichlet must be adapted
@@ -1439,10 +1440,8 @@ _assembleCsrGpuLinearOperator()
         // computeEdgeLength2 must be reimplemented
         // computeEdgeNormal2 must be reimplemented
         ENUMERATE_ (Face, iface, group) {
-          Face face = *iface;
           Real length = _computeEdgeLength2Gpu(iface, fnc, in_node_coord);
-          //This line must be changed in the futur to run on GPU
-          Real2 Normal = _computeEdgeNormal2(face);
+          Real2 Normal = _computeEdgeNormal2Gpu(iface, fnc, in_node_coord, faces_infos);
           for (NodeLocalId node : fnc.nodes(iface)) {
             if (!(in_m_u_dirichlet[node]) && nodes_infos.isOwn(node))
               in_out_rhs_vect[node_dof.dofId(node, 0)] += (Normal.x * valueX + Normal.y * valueY) * length / 2.;
@@ -1466,6 +1465,7 @@ _assembleCsrGpuLinearOperator()
         m_connectivity_view.setMesh(this->mesh());
         auto fnc = m_connectivity_view.faceNode();
         Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+        Arcane::FaceInfoListView faces_infos(this->mesh()->nodeFamily());
 
         // In this loop :
         // m_u_dirichlet must be adapted
@@ -1474,10 +1474,8 @@ _assembleCsrGpuLinearOperator()
         // computeEdgeLength2 must be reimplemented
         // computeEdgeNormal2 must be reimplemented
         ENUMERATE_ (Face, iface, group) {
-          Face face = *iface;
           Real length = _computeEdgeLength2Gpu(iface, fnc, in_node_coord);
-          // This line must be changed to be able to run on GPU
-          Real2 Normal = _computeEdgeNormal2(face);
+          Real2 Normal = _computeEdgeNormal2Gpu(iface, fnc, in_node_coord, faces_infos);
           for (NodeLocalId node : fnc.nodes(iface)) {
             if (!(in_m_u_dirichlet[node]) && nodes_infos.isOwn(node))
               in_out_rhs_vect[node_dof.dofId(node, 0)] += (Normal.x * valueX) * length / 2.;
@@ -1501,6 +1499,7 @@ _assembleCsrGpuLinearOperator()
         m_connectivity_view.setMesh(this->mesh());
         auto fnc = m_connectivity_view.faceNode();
         Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+        Arcane::FaceInfoListView faces_infos(this->mesh()->nodeFamily());
 
         // In this loop :
         // m_u_dirichlet must be adapted
@@ -1509,10 +1508,8 @@ _assembleCsrGpuLinearOperator()
         // computeEdgeLength2 must be reimplemented
         // computeEdgeNormal2 must be reimplemented
         ENUMERATE_ (Face, iface, group) {
-          Face face = *iface;
           Real length = _computeEdgeLength2Gpu(iface, fnc, in_node_coord);
-          // This line must be changed to be able to run on GPU
-          Real2 Normal = _computeEdgeNormal2(face);
+          Real2 Normal = _computeEdgeNormal2Gpu(iface, fnc, in_node_coord, faces_infos);
           for (NodeLocalId node : fnc.nodes(iface)) {
             if (!(in_m_u_dirichlet[node]) && nodes_infos.isOwn(node))
               in_out_rhs_vect[node_dof.dofId(node, 0)] += (Normal.y * valueY) * length / 2.;
@@ -1608,16 +1605,16 @@ _computeEdgeLength2(Face face)
 
 //This function is not functional currently
 Real2 FemModule::
-_computeEdgeNormal2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc, ax::VariableNodeReal3InView in_node_coord)
+_computeEdgeNormal2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc, ax::VariableNodeReal3InView in_node_coord, Arcane::FaceInfoListView faces_infos)
 {
   Real3 m0 = in_node_coord[fnc.nodeId(iface, 0)];
   Real3 m1 = in_node_coord[fnc.nodeId(iface, 1)];
   // We need to access this information on GPU
-  /*if (!faces_infos.isSubDomainBoundaryOutside(iface)) {
-  Real3 tmp = m0;
-  m0 = m1;
-  m1 = tmp;
-  }*/
+  if (!faces_infos.isSubDomainBoundaryOutside(iface)) {
+    Real3 tmp = m0;
+    m0 = m1;
+    m1 = tmp;
+  }
   Real2 N;
   Real norm_N = math::sqrt((m1.y - m0.y) * (m1.y - m0.y) + (m1.x - m0.x) * (m1.x - m0.x)); // for normalizing
   N.x = (m1.y - m0.y) / norm_N;
