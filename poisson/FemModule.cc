@@ -1136,7 +1136,7 @@ _assembleCsrLinearOperator()
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
+#ifdef ARCANE_HAS_CUDA
 ARCCORE_HOST_DEVICE
 Int32 FemModule::
 _getValIndexCsrGpu(Int32 begin, Int32 end, DoFLocalId col, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> csr_col)
@@ -1524,6 +1524,7 @@ _assembleCsrGpuLinearOperator()
   }
 }
 
+#endif
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void FemModule::
