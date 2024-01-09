@@ -237,6 +237,8 @@ class FemModule
 
  private:
 
+  void fileNumArray(bool ref, NumArray<Real, MDDim1> numarray);
+
   void _handleFlags();
   void _doStationarySolve();
   void _getMaterialParameters();
@@ -263,6 +265,7 @@ class FemModule
 #ifdef ARCANE_HAS_CUDA
  public:
 
+  void _applyDirichletBoundaryConditionsGpu();
   void _assembleCsrGpuLinearOperator();
   Int32 _getValIndexCsrGpu(Int32 begin, Int32 end, DoFLocalId col, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> csr_col);
   Real _computeAreaTriangle3Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord);

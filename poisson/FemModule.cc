@@ -431,6 +431,7 @@ _doStationarySolve()
     if (m_use_buildless_csr) {
       m_linear_system.clearValues();
       _assembleCsrGpuLinearOperator();
+      //_assembleCsrLinearOperator();
       m_csr_matrix.translateToLinearSystem(m_linear_system);
       _translateRhs();
     }
@@ -442,10 +443,10 @@ _doStationarySolve()
 #endif
 
     // # T=linalg.solve(K,RHS)
-    //_solve();
+    _solve();
 
     // Check results
-    //_checkResultFile();
+    _checkResultFile();
     if (m_register_time) {
       auto fem_stop = std::chrono::high_resolution_clock::now();
       std::chrono::duration<double> fem_duration = fem_stop - fem_start;
@@ -488,6 +489,74 @@ _initBoundaryconditions()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+#ifdef ARCANE_HAS_CUDA
+void FemModule::
+_applyDirichletBoundaryConditionsGpu()
+{
+  // Handle all the Dirichlet boundary conditions.
+  // In the 'arc' file, there are in the following format:
+  //   <dirichlet-boundary-condition>
+  //   <surface>Haut</surface>
+  //   <value>21.0</value>
+  // </dirichlet-boundary-condition>
+
+  for (const auto& bs : options()->dirichletBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    Real value = bs->value();
+    info() << "Apply Dirichlet boundary condition surface=" << group.name() << " v=" << value;
+
+    RunQueue* queue = acceleratorMng()->defaultQueue();
+    auto command = makeCommand(queue);
+
+    UnstructuredMeshConnectivityView m_connectivity_view;
+    auto in_node_coord = ax::viewIn(command, m_node_coord);
+    m_connectivity_view.setMesh(this->mesh());
+    auto fnc = m_connectivity_view.faceNode();
+    auto out_u_dirichlet = ax::viewOut(command, m_u_dirichlet);
+    auto out_u = ax::viewOut(command, m_u);
+
+    Real lambda = 1.75;
+
+    command << RUNCOMMAND_ENUMERATE(Face, iface, group)
+    {
+      for (NodeLocalId node : fnc.nodes(iface)) {
+        out_u[node] = value;
+        //----------------verification 1---------------------
+        //out_u[node] = lambda * (sin(1 * in_node_coord[node].x) + cos(1 * in_node_coord[node].y));
+        //----------------verification 1---------------------
+        //----------------verification 2---------------------
+        //Real x = in_node_coord[node].x;
+        //Real y = in_node_coord[node].y;
+        //out_u[node] = lambda * (x * x * x + y * y * y);
+        //----------------verification 2---------------------
+        out_u_dirichlet[node] = true;
+      }
+    };
+  }
+
+  for (const auto& bs : options()->dirichletPointCondition()) {
+
+    RunQueue* queue = acceleratorMng()->defaultQueue();
+    auto command = makeCommand(queue);
+
+    auto out_u = ax::viewOut(command, m_u);
+    auto out_u_dirichlet = ax::viewOut(command, m_u_dirichlet);
+
+    NodeGroup group = bs->node();
+    Real value = bs->value();
+    info() << "Apply Dirichlet point condition node=" << group.name() << " v=" << value;
+    command << RUNCOMMAND_ENUMERATE(Node, inode, group)
+    {
+      out_u[inode] = value;
+      out_u_dirichlet[inode] = true;
+    };
+  }
+}
+#endif
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 void FemModule::
 _applyDirichletBoundaryConditions()
 {
@@ -501,10 +570,18 @@ _applyDirichletBoundaryConditions()
   for (const auto& bs : options()->dirichletBoundaryCondition()) {
     FaceGroup group = bs->surface();
     Real value = bs->value();
+    Real lambda = 1.75;
     info() << "Apply Dirichlet boundary condition surface=" << group.name() << " v=" << value;
     ENUMERATE_ (Face, iface, group) {
       for (Node node : iface->nodes()) {
+        //Original Code
         m_u[node] = value;
+        //----------------verification 1---------------------
+        //m_u[node] = lambda * (sin(1 * m_node_coord[node].x) + cos(1 * m_node_coord[node].y));
+        //----------------verification 1---------------------
+        //----------------verification 2---------------------
+        //m_u[node] = lambda * (m_node_coord[node].x * m_node_coord[node].x * m_node_coord[node].x + m_node_coord[node].y * m_node_coord[node].y * m_node_coord[node].y);
+        //----------------verification 2---------------------
         m_u_dirichlet[node] = true;
       }
     }
@@ -734,13 +811,28 @@ _assembleLinearOperator()
     //----------------------------------------------
     ENUMERATE_ (Cell, icell, allCells()) {
       Cell cell = *icell;
+
+      //----------------verification 1---------------------
+      //Real lambda = 1.75;
+      //Real3 m0 = m_node_coord[cell.nodeId(0)];
+      //Real3 m1 = m_node_coord[cell.nodeId(1)];
+      //Real3 m2 = m_node_coord[cell.nodeId(2)];
+      //Real Center_x = (m0.x + m1.x + m2.x) / 3;
+      //Real Center_y = (m0.y + m1.y + m2.y) / 3;
+      //----------------verification 1---------------------
+
       Real area = _computeAreaTriangle3(cell);
       for (Node node : cell.nodes()) {
-        if (!(m_u_dirichlet[node]) && node.isOwn())
-          // must replace rhs_values with numArray
+        if (!(m_u_dirichlet[node]) && node.isOwn()) {
+          // Original code
           rhs_values[node_dof.dofId(node, 0)] += f * area / ElementNodes;
+          //----------------verification 1---------------------
+          //rhs_values[node_dof.dofId(node, 0)] += lambda * 1 * ((sin(1 * Center_x) + cos(1 * Center_y))) * area / ElementNodes;
+          //----------------verification 1---------------------
+        }
       }
     }
+
     std::chrono::_V2::system_clock::time_point sassemby_stop;
     if (m_register_time) {
       sassemby_stop = std::chrono::high_resolution_clock::now();
@@ -908,7 +1000,6 @@ _assembleCsrLinearOperator()
         m_rhs_vect[dof_id] = u_g;
       }
     }
-    m_csr_matrix.printMatrix("res.txt");
     std::chrono::_V2::system_clock::time_point penalty_stop;
     if (m_register_time) {
       penalty_stop = std::chrono::high_resolution_clock::now();
@@ -1024,12 +1115,28 @@ _assembleCsrLinearOperator()
     //  $int_{Omega}(f*v^h)$
     //  only for noded that are non-Dirichlet
     //----------------------------------------------
+
     ENUMERATE_ (Cell, icell, allCells()) {
       Cell cell = *icell;
+
+      //----------------verification 1---------------------
+      //Real lambda = 1.75;
+      //Real3 m0 = m_node_coord[cell.nodeId(0)];
+      //Real3 m1 = m_node_coord[cell.nodeId(1)];
+      //Real3 m2 = m_node_coord[cell.nodeId(2)];
+      //Real Center_x = (m0.x + m1.x + m2.x) / 3;
+      //Real Center_y = (m0.y + m1.y + m2.y) / 3;
+      //----------------verification 1---------------------
+
       Real area = _computeAreaTriangle3(cell);
       for (Node node : cell.nodes()) {
-        if (!(m_u_dirichlet[node]) && node.isOwn())
+        if (!(m_u_dirichlet[node]) && node.isOwn()) {
+          // Original code
           m_rhs_vect[node_dof.dofId(node, 0)] += f * area / ElementNodes;
+          //----------------verification 1---------------------
+          //m_rhs_vect[node_dof.dofId(node, 0)] += lambda * 1 * ((sin(1 * Center_x) + cos(1 * Center_y))) * area / ElementNodes;
+          //----------------verification 1---------------------
+        }
       }
     }
     std::chrono::_V2::system_clock::time_point sassemby_stop;
@@ -1165,7 +1272,6 @@ _assembleCsrGpuLinearOperator()
 
   m_rhs_vect.resize(nbNode());
   m_rhs_vect.fill(0.0);
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   if (options()->enforceDirichletMethod() == "Penalty") {
 
@@ -1198,6 +1304,7 @@ _assembleCsrGpuLinearOperator()
     auto in_out_csr_val = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
     Int32 row_csr_size = m_csr_matrix.m_matrix_row.dim1Size();
     Int32 col_csr_size = m_csr_matrix.m_matrix_column.dim1Size();
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
     auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
     auto in_m_u = ax::viewIn(command, m_u);
@@ -1255,6 +1362,7 @@ _assembleCsrGpuLinearOperator()
     auto in_out_csr_val = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
     Int32 row_csr_size = m_csr_matrix.m_matrix_row.dim1Size();
     Int32 col_csr_size = m_csr_matrix.m_matrix_column.dim1Size();
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
     auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
     auto in_m_u = ax::viewIn(command, m_u);
@@ -1276,7 +1384,8 @@ _assembleCsrGpuLinearOperator()
           end = in_csr_row(dof_id + 1);
         }
         Int32 index = _getValIndexCsrGpu(begin, end, dof_id, in_csr_col);
-        in_out_csr_val(index) += Penalty;
+        ax::doAtomic<ax::eAtomicOperation::Add>(in_out_csr_val(index), Penalty);
+        //in_out_csr_val(index) += Penalty;
 
         Real u_g = Penalty * in_m_u(inode);
         in_out_rhs_vect(dof_id) = u_g;
@@ -1350,24 +1459,48 @@ _assembleCsrGpuLinearOperator()
 
     Real tmp_f = f;
     Real tmp_ElementNodes = ElementNodes;
+    //-------------verification----------------
+    //Real lambda = 1.75;
+    //-----------------------------------------
 
     UnstructuredMeshConnectivityView m_connectivity_view;
     auto in_node_coord = ax::viewIn(command, m_node_coord);
     m_connectivity_view.setMesh(this->mesh());
     auto cnc = m_connectivity_view.cellNode();
     Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
     // In this loop :
     // m_u_dirichlet must be adapted
     // node.isOwn must be adapted
     // m_rhs_vect must also be replaced
     // f and Element nodes must be put in local variable
     // computeArea must be replaced
+
     command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
     {
+      //-------------verification----------------
+      //Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
+      //Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
+      //Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
+      //Real Center_x = (m0.x + m1.x + m2.x) / 3;
+      //Real Center_y = (m0.y + m1.y + m2.y) / 3;
+      //-----------------------------------------
       Real area = _computeAreaTriangle3Gpu(icell, cnc, in_node_coord);
       for (NodeLocalId node : cnc.nodes(icell)) {
-        if (!(in_m_u_dirichlet(node)) && nodes_infos.isOwn(node))
-          in_out_rhs_vect[node_dof.dofId(node, 0)] += tmp_f * area / tmp_ElementNodes;
+        if (!(in_m_u_dirichlet(node)) && nodes_infos.isOwn(node)) {
+          // Original code
+          Real val = tmp_f * area / tmp_ElementNodes;
+          //----------------verification 1---------------------
+          //Real val = lambda * 1 * (sin(1*Center_x) + cos(Center_y * 1)) * area / tmp_ElementNodes;
+          //----------------verification 1---------------------
+          //----------------verification 2---------------------
+          //Real val = (-lambda) * 6 * (Center_x + Center_y) * area / tmp_ElementNodes;
+          //----------------verification 2---------------------
+
+          //in_out_rhs_vect[node_dof.dofId(node, 0)] += lambda * 1 * (sin(1 * Center_x) + cos(1 * Center_y)) * area / tmp_ElementNodes;
+          ax::doAtomic<ax::eAtomicOperation::Add>(in_out_rhs_vect(node_dof.dofId(node, 0)), val);
+          //in_out_rhs_vect[node_dof.dofId(node, 0)] += val;
+        }
       }
     };
   }
@@ -1401,6 +1534,7 @@ _assembleCsrGpuLinearOperator()
         m_connectivity_view.setMesh(this->mesh());
         auto fnc = m_connectivity_view.faceNode();
         Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+        auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
         // In this loop :
         // m_u_dirichlet must be adapted
@@ -1412,7 +1546,8 @@ _assembleCsrGpuLinearOperator()
           Real length = _computeEdgeLength2Gpu(iface, fnc, in_node_coord);
           for (NodeLocalId node : fnc.nodes(iface)) {
             if (!(in_m_u_dirichlet[node]) && nodes_infos.isOwn(node))
-              in_out_rhs_vect[node_dof.dofId(node, 0)] += value * length / 2.;
+              ax::doAtomic<ax::eAtomicOperation::Add>(in_out_rhs_vect[node_dof.dofId(node, 0)], value * length / 2.);
+            //in_out_rhs_vect[node_dof.dofId(node, 0)] += value * length / 2.;
           }
         };
         continue;
@@ -1435,6 +1570,7 @@ _assembleCsrGpuLinearOperator()
         auto fnc = m_connectivity_view.faceNode();
         Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
         Arcane::FaceInfoListView faces_infos(this->mesh()->nodeFamily());
+        auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
         // In this loop :
         // m_u_dirichlet must be adapted
@@ -1442,14 +1578,18 @@ _assembleCsrGpuLinearOperator()
         // m_rhs_vect must also be replaced
         // computeEdgeLength2 must be reimplemented
         // computeEdgeNormal2 must be reimplemented
-        ENUMERATE_ (Face, iface, group) {
+        command << RUNCOMMAND_ENUMERATE(Face, iface, group)
+        {
           Real length = _computeEdgeLength2Gpu(iface, fnc, in_node_coord);
           Real2 Normal = _computeEdgeNormal2Gpu(iface, fnc, in_node_coord, faces_infos);
           for (NodeLocalId node : fnc.nodes(iface)) {
-            if (!(in_m_u_dirichlet[node]) && nodes_infos.isOwn(node))
-              in_out_rhs_vect[node_dof.dofId(node, 0)] += (Normal.x * valueX + Normal.y * valueY) * length / 2.;
+            if (!(in_m_u_dirichlet[node]) && nodes_infos.isOwn(node)) {
+              Real value = (Normal.x * valueX + Normal.y * valueY) * length / 2.;
+              ax::doAtomic<ax::eAtomicOperation::Add>(in_out_rhs_vect[node_dof.dofId(node, 0)], value);
+              //in_out_rhs_vect[node_dof.dofId(node, 0)] += value;
+            }
           }
-        }
+        };
         continue;
       }
 
@@ -1469,6 +1609,7 @@ _assembleCsrGpuLinearOperator()
         auto fnc = m_connectivity_view.faceNode();
         Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
         Arcane::FaceInfoListView faces_infos(this->mesh()->nodeFamily());
+        auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
         // In this loop :
         // m_u_dirichlet must be adapted
@@ -1476,14 +1617,18 @@ _assembleCsrGpuLinearOperator()
         // m_rhs_vect must also be replaced
         // computeEdgeLength2 must be reimplemented
         // computeEdgeNormal2 must be reimplemented
-        ENUMERATE_ (Face, iface, group) {
+        command << RUNCOMMAND_ENUMERATE(Face, iface, group)
+        {
           Real length = _computeEdgeLength2Gpu(iface, fnc, in_node_coord);
           Real2 Normal = _computeEdgeNormal2Gpu(iface, fnc, in_node_coord, faces_infos);
           for (NodeLocalId node : fnc.nodes(iface)) {
-            if (!(in_m_u_dirichlet[node]) && nodes_infos.isOwn(node))
-              in_out_rhs_vect[node_dof.dofId(node, 0)] += (Normal.x * valueX) * length / 2.;
+            if (!(in_m_u_dirichlet[node]) && nodes_infos.isOwn(node)) {
+              Real value = (Normal.x * valueX) * length / 2.;
+              ax::doAtomic<ax::eAtomicOperation::Add>(in_out_rhs_vect[node_dof.dofId(node, 0)], value);
+              //in_out_rhs_vect[node_dof.dofId(node, 0)] += value;
+            }
           }
-        }
+        };
         continue;
       }
 
@@ -1503,6 +1648,7 @@ _assembleCsrGpuLinearOperator()
         auto fnc = m_connectivity_view.faceNode();
         Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
         Arcane::FaceInfoListView faces_infos(this->mesh()->nodeFamily());
+        auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
         // In this loop :
         // m_u_dirichlet must be adapted
@@ -1510,14 +1656,18 @@ _assembleCsrGpuLinearOperator()
         // m_rhs_vect must also be replaced
         // computeEdgeLength2 must be reimplemented
         // computeEdgeNormal2 must be reimplemented
-        ENUMERATE_ (Face, iface, group) {
+        command << RUNCOMMAND_ENUMERATE(Face, iface, group)
+        {
           Real length = _computeEdgeLength2Gpu(iface, fnc, in_node_coord);
           Real2 Normal = _computeEdgeNormal2Gpu(iface, fnc, in_node_coord, faces_infos);
           for (NodeLocalId node : fnc.nodes(iface)) {
-            if (!(in_m_u_dirichlet[node]) && nodes_infos.isOwn(node))
-              in_out_rhs_vect[node_dof.dofId(node, 0)] += (Normal.y * valueY) * length / 2.;
+            if (!(in_m_u_dirichlet[node]) && nodes_infos.isOwn(node)) {
+              Real value = (Normal.y * valueY) * length / 2.;
+              ax::doAtomic<ax::eAtomicOperation::Add>(in_out_rhs_vect[node_dof.dofId(node, 0)], value);
+              //in_out_rhs_vect[node_dof.dofId(node, 0)] += (Normal.y * valueY) * length / 2.;
+            }
           }
-        }
+        };
         continue;
       }
     }
@@ -1608,6 +1758,7 @@ _computeEdgeLength2(Face face)
 /*---------------------------------------------------------------------------*/
 
 #ifdef ARCANE_HAS_CUDA
+ARCCORE_HOST_DEVICE
 Real2 FemModule::
 _computeEdgeNormal2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc, ax::VariableNodeReal3InView in_node_coord, Arcane::FaceInfoListView faces_infos)
 {
@@ -2075,6 +2226,21 @@ _checkResultFile()
 /*---------------------------------------------------------------------------*/
 
 ARCANE_REGISTER_MODULE_FEM(FemModule);
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::fileNumArray(bool ref, NumArray<Real, MDDim1> numarray)
+{
+  ofstream file;
+  if (ref)
+    file.open("ref.txt");
+  else
+    file.open("test.txt");
+  for (auto i = 0; i < numarray.dim1Size(); i++) {
+    file << numarray(i) << " ";
+  }
+}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
