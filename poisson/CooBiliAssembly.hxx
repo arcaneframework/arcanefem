@@ -94,7 +94,7 @@ _assembleCooBilinearOperatorTRIA3()
 
     FixedMatrix<3, 3> K_e;
     {
-      Timer::Action timer_coo_compute(this->subDomain(), "CooComputeElementMatrix");
+      //Timer::Action timer_coo_compute(this->subDomain(), "CooComputeElementMatrix");
       K_e = _computeElementMatrixTRIA3(cell); // element stifness matrix
     }
 
@@ -117,7 +117,7 @@ _assembleCooBilinearOperatorTRIA3()
     if (m_register_time) {
       auto global_build_start = std::chrono::high_resolution_clock::now();
     }
-    Timer::Action timer_coo_add(this->subDomain(), "CooAddToGlobalMatrix");
+    //Timer::Action timer_coo_add(this->subDomain(), "CooAddToGlobalMatrix");
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;

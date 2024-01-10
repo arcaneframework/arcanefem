@@ -327,7 +327,7 @@ _handleFlags()
     info() << "CUSPARSE_ADD: CUSPARSE and its associated methods will be used";
   }
 #endif
-  if (parameter_list.getParameterOrNull("LEGACY") == "TRUE" || m_use_legacy) {
+  if (parameter_list.getParameterOrNull("LEGACY") == "TRUE" || m_use_legacy || options()->legacy() == "true") {
     m_use_legacy = true;
     info() << "LEGACY: The Legacy datastructure and its associated methods will be used";
   }

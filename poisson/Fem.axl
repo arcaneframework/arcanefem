@@ -77,7 +77,7 @@
         Boolean to use the cusparse library and its associated methods
       </description>
     </simple>
-    <simple name="legacy" type="string"  default="true" optional="true">
+    <simple name="legacy" type="string"  default="true" optional="false">
       <description>
         Boolean to use the legacy datastructure and its associated methods
       </description>

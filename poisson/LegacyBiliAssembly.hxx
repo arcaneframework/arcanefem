@@ -37,7 +37,7 @@ _assembleBilinearOperatorTRIA3()
 
     FixedMatrix<3, 3> K_e;
     {
-      Timer::Action timer_action(this->subDomain(), "LegacyComputeElementMatrix");
+      //Timer::Action timer_action(this->subDomain(), "LegacyComputeElementMatrix");
       K_e = _computeElementMatrixTRIA3(cell); // element stifness matrix
     }
 
@@ -62,7 +62,7 @@ _assembleBilinearOperatorTRIA3()
     }
 
     {
-      Timer::Action timer_action(this->subDomain(), "LegacyAddToGlobalMatrix");
+      //Timer::Action timer_action(this->subDomain(), "LegacyAddToGlobalMatrix");
       Int32 n1_index = 0;
       for (Node node1 : cell.nodes()) {
         Int32 n2_index = 0;

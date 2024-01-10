@@ -106,7 +106,8 @@ _assembleCooSortBilinearOperatorTRIA3()
 
     FixedMatrix<3, 3> K_e;
     {
-      Timer::Action timer_element_coosort(this->subDomain(), "CooSortComputeElementMatrixTria3");
+      //Timer::Action timer_element_coosort(this->subDomain(), "CooSortComputeElementMatrixTria3");
+
       K_e = _computeElementMatrixTRIA3(cell); // element stifness matrix
     }
 
@@ -129,7 +130,7 @@ _assembleCooSortBilinearOperatorTRIA3()
       global_build_start = std::chrono::high_resolution_clock::now();
     }
 
-    Timer::Action timer_coosort_add_compute(this->subDomain(), "CooSortAddToGlobalMatrix");
+    //Timer::Action timer_coosort_add_compute(this->subDomain(), "CooSortAddToGlobalMatrix");
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
