@@ -101,6 +101,8 @@ class CsrFormat : TraceAccessor
   void translateToLinearSystem(DoFLinearSystem& linear_system)
   {
     for (Int32 i = 0; i < m_matrix_row.dim1Size(); i++) {
+      if (i < m_matrix_row.dim1Size() && m_matrix_row(i) == m_matrix_row(i + 1))
+        continue;
       for (Int32 j = m_matrix_row(i); (i + 1 < m_matrix_row.dim1Size() && j < m_matrix_row(i + 1)) || (i + 1 == m_matrix_row.dim1Size() && j < m_matrix_column.dim1Size()); j++) {
         {
           if (DoFLocalId(m_matrix_column(j)).isNull())
@@ -140,7 +142,7 @@ class CsrFormat : TraceAccessor
     file.close();
   }
 
-  // Warning : does not support empty row
+  // Warning : does not support empty row (or does it ?)
   void
   setCoordinates(DoFLocalId row, DoFLocalId column)
   {

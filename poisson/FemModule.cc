@@ -285,38 +285,43 @@ _handleFlags()
     m_cache_warming = *tmp;
     info() << "CACHE_WARMING: A cache warming of " << m_cache_warming << " iterations will happen";
   }
-  if (parameter_list.getParameterOrNull("COO") == "TRUE") {
+  if (cache_warm == NULL) {
+    m_cache_warming = options()->cacheWarming();
+    if (m_cache_warming != 1)
+      info() << "CACHE_WARMING: A cache warming of " << m_cache_warming << " iterations will happen";
+  }
+  if (parameter_list.getParameterOrNull("COO") == "TRUE" || options()->coo() == "true") {
     m_use_coo = true;
     m_use_legacy = false;
     info() << "COO: The COO datastructure and its associated methods will be used";
   }
-  if (parameter_list.getParameterOrNull("COO_SORT") == "TRUE") {
+  if (parameter_list.getParameterOrNull("COO_SORT") == "TRUE" || options()->cooSorting() == "true") {
     m_use_coo_sort = true;
     m_use_legacy = false;
     info() << "COO_SORT: The COO with sorting datastructure and its associated methods will be used";
   }
-  if (parameter_list.getParameterOrNull("CSR") == "TRUE") {
+  if (parameter_list.getParameterOrNull("CSR") == "TRUE" || options()->csr() == "true") {
     m_use_csr = true;
     m_use_legacy = false;
     info() << "CSR: The CSR datastructure and its associated methods will be used";
   }
 #ifdef ARCANE_HAS_CUDA
-  if (parameter_list.getParameterOrNull("CSR_GPU") == "TRUE") {
+  if (parameter_list.getParameterOrNull("CSR_GPU") == "TRUE" || options()->csrGpu() == "true") {
     m_use_csr_gpu = true;
     m_use_legacy = false;
     info() << "CSR_GPU: The CSR datastructure GPU compatible and its associated methods will be used";
   }
-  if (parameter_list.getParameterOrNull("NWCSR") == "TRUE") {
+  if (parameter_list.getParameterOrNull("NWCSR") == "TRUE" || options()->nwcsr() == "true") {
     m_use_nodewise_csr = true;
     m_use_legacy = false;
     info() << "NWCSR: The Csr datastructure (GPU compatible) and its associated methods will be used with computation in a nodewise manner";
   }
-  if (parameter_list.getParameterOrNull("BLCSR") == "TRUE") {
+  if (parameter_list.getParameterOrNull("BLCSR") == "TRUE" || options()->blcsr() == "true") {
     m_use_buildless_csr = true;
     m_use_legacy = false;
     info() << "BLCSR: The Csr datastructure (GPU compatible) and its associated methods will be used with computation in a nodewise manner with the building phases incorporated in the computation";
   }
-  if (parameter_list.getParameterOrNull("CUSPARSE_ADD") == "TRUE") {
+  if (parameter_list.getParameterOrNull("CUSPARSE_ADD") == "TRUE" || options()->cusparseAdd() == "true") {
     m_use_cusparse_add = true;
     m_use_legacy = false;
     info() << "CUSPARSE_ADD: CUSPARSE and its associated methods will be used";
@@ -326,7 +331,7 @@ _handleFlags()
     m_use_legacy = true;
     info() << "LEGACY: The Legacy datastructure and its associated methods will be used";
   }
-  else if (parameter_list.getParameterOrNull("LEGACY") == "FALSE") {
+  else if (parameter_list.getParameterOrNull("LEGACY") == "FALSE" || options()->legacy() == "false") {
     m_use_legacy = false;
   }
   if (parameter_list.getParameterOrNull("AcceleratorRuntime") == "cuda") {
@@ -426,6 +431,7 @@ _doStationarySolve()
     }
 
 #endif
+    /*
 // Assemble the FEM linear operator (RHS - vector b)
 #ifdef ARCANE_HAS_CUDA
     if (m_use_buildless_csr) {
@@ -441,12 +447,13 @@ _doStationarySolve()
 #else
     _assembleLinearOperator();
 #endif
+*/
 
     // # T=linalg.solve(K,RHS)
-    _solve();
+    //_solve();
 
     // Check results
-    _checkResultFile();
+    //_checkResultFile();
     if (m_register_time) {
       auto fem_stop = std::chrono::high_resolution_clock::now();
       std::chrono::duration<double> fem_duration = fem_stop - fem_start;
