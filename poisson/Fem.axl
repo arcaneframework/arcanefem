@@ -54,22 +54,22 @@
     </simple>
     <simple name="csr" type="string"  default="false" optional="true">
       <description>
-        Boolean to use the CSR datastructure its associated methods
+        Boolean to use the CSR datastructure and its associated methods
       </description>
     </simple>
     <simple name="csr-gpu" type="string"  default="false" optional="true">
       <description>
-        Boolean to use the CSR datastructure Gpu compatible its associated methods
+        Boolean to use the CSR datastructure Gpu compatible and its associated methods
       </description>
     </simple>
     <simple name="nwcsr" type="string"  default="false" optional="true">
       <description>
-        Boolean to use the CSR datastructure Gpu compatible its associated methods will be used with computation in a nodewise manner
+        Boolean to use the CSR datastructure Gpu compatible and its associated methods will be used with computation in a nodewise manner
       </description>
     </simple>
     <simple name="blcsr" type="string"  default="false" optional="true">
       <description>
-        Boolean to use the CSR datastructure Gpu compatible its associated methods will be used with computation in a nodewise manner, without computation of the sparsity (preprocessing step)
+        Boolean to use the CSR datastructure Gpu compatible and its associated methods will be used with computation in a nodewise manner, without computation of the sparsity (preprocessing step)
       </description>
     </simple>
     <simple name="cusparse-add" type="string"  default="false" optional="true">
@@ -77,7 +77,7 @@
         Boolean to use the cusparse library and its associated methods
       </description>
     </simple>
-    <simple name="legacy" type="string"  default="true" optional="false">
+    <simple name="legacy" type="string"  default="false" optional="false">
       <description>
         Boolean to use the legacy datastructure and its associated methods
       </description>

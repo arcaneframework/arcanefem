@@ -431,7 +431,7 @@ _doStationarySolve()
     }
 
 #endif
-    /*
+
 // Assemble the FEM linear operator (RHS - vector b)
 #ifdef ARCANE_HAS_CUDA
     if (m_use_buildless_csr) {
@@ -447,13 +447,12 @@ _doStationarySolve()
 #else
     _assembleLinearOperator();
 #endif
-*/
 
     // # T=linalg.solve(K,RHS)
-    //_solve();
+    _solve();
 
     // Check results
-    //_checkResultFile();
+    _checkResultFile();
     if (m_register_time) {
       auto fem_stop = std::chrono::high_resolution_clock::now();
       std::chrono::duration<double> fem_duration = fem_stop - fem_start;
