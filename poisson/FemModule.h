@@ -262,7 +262,7 @@ class FemModule
   Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
   Real2 _computeEdgeNormal2(Face face);
-#ifdef ARCANE_HAS_CUDA
+#ifdef ARCANE_HAS_ACCELERATOR
  public:
 
   void _applyDirichletBoundaryConditionsGpu();
@@ -293,7 +293,7 @@ class FemModule
 
  private:
 
-#ifdef ARCANE_HAS_CUDA
+#ifdef ARCANE_HAS_ACCELERATOR
 
  public:
 
@@ -315,7 +315,7 @@ class FemModule
 #endif
   void _assembleCsrBilinearOperatorTRIA3();
   void _buildMatrixCsr();
-#ifdef ARCANE_HAS_CUDA
+#ifdef ARCANE_HAS_ACCELERATOR
  public:
 
   void _buildMatrixNodeWiseCsr();

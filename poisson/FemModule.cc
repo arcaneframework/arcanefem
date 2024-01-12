@@ -1,4 +1,4 @@
-﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
 // Copyright 2000-2023 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
@@ -305,7 +305,7 @@ _handleFlags()
     m_use_legacy = false;
     info() << "CSR: The CSR datastructure and its associated methods will be used";
   }
-#ifdef ARCANE_HAS_CUDA
+#ifdef ARCANE_HAS_ACCELERATOR
   if (parameter_list.getParameterOrNull("CSR_GPU") == "TRUE" || options()->csrGpu() == "true") {
     m_use_csr_gpu = true;
     m_use_legacy = false;
@@ -407,7 +407,7 @@ _doStationarySolve()
       }
     }
 
-#ifdef ARCANE_HAS_CUDA
+#ifdef ARCANE_HAS_ACCELERATOR
     if (m_use_csr_gpu) {
       for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
         m_linear_system.clearValues();
@@ -433,7 +433,7 @@ _doStationarySolve()
 #endif
 
 // Assemble the FEM linear operator (RHS - vector b)
-#ifdef ARCANE_HAS_CUDA
+#ifdef ARCANE_HAS_ACCELERATOR
     if (m_use_buildless_csr) {
       m_linear_system.clearValues();
       _assembleCsrGpuLinearOperator();
@@ -495,7 +495,7 @@ _initBoundaryconditions()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#ifdef ARCANE_HAS_CUDA
+#ifdef ARCANE_HAS_ACCELERATOR
 void FemModule::
 _applyDirichletBoundaryConditionsGpu()
 {
@@ -588,6 +588,16 @@ _applyDirichletBoundaryConditions()
         //----------------verification 2---------------------
         //m_u[node] = lambda * (m_node_coord[node].x * m_node_coord[node].x * m_node_coord[node].x + m_node_coord[node].y * m_node_coord[node].y * m_node_coord[node].y);
         //----------------verification 2---------------------
+        //----------------verification 3---------------------
+        //Real x = m_node_coord[node].x;
+        //Real y = m_node_coord[node].y;
+        //Real a = .3;
+        //Real b = 0.0;
+        //Real c = 0.0;
+
+        //Real error = 0.1;
+        //m_u[node] = 1 / 2. + (1 / 2.) * sin((M_PI * (sqrt((x * x) + (y * y)))) / (a));
+        //----------------verification 3---------------------
         m_u_dirichlet[node] = true;
       }
     }
@@ -819,13 +829,20 @@ _assembleLinearOperator()
       Cell cell = *icell;
 
       //----------------verification 1---------------------
-      //Real lambda = 1.75;
-      //Real3 m0 = m_node_coord[cell.nodeId(0)];
-      //Real3 m1 = m_node_coord[cell.nodeId(1)];
-      //Real3 m2 = m_node_coord[cell.nodeId(2)];
-      //Real Center_x = (m0.x + m1.x + m2.x) / 3;
-      //Real Center_y = (m0.y + m1.y + m2.y) / 3;
+      Real lambda = 1.75;
+      Real3 m0 = m_node_coord[cell.nodeId(0)];
+      Real3 m1 = m_node_coord[cell.nodeId(1)];
+      Real3 m2 = m_node_coord[cell.nodeId(2)];
+      Real x = (m0.x + m1.x + m2.x) / 3;
+      Real y = (m0.y + m1.y + m2.y) / 3;
       //----------------verification 1---------------------
+      //----------------verification 3---------------------
+      Real a = .3;
+      Real b = 0.0;
+      Real c = 0.0;
+
+      Real error = 0.1;
+      //----------------verification 3---------------------
 
       Real area = _computeAreaTriangle3(cell);
       for (Node node : cell.nodes()) {
@@ -835,6 +852,11 @@ _assembleLinearOperator()
           //----------------verification 1---------------------
           //rhs_values[node_dof.dofId(node, 0)] += lambda * 1 * ((sin(1 * Center_x) + cos(1 * Center_y))) * area / ElementNodes;
           //----------------verification 1---------------------
+          //----------------verification 3---------------------
+          // Real L2_norm = sqrt(Center_x * Center_x + Center_y * Center_y);
+          //Real val = -(M_PI * ((a * cos((M_PI * sqrt((x * x) + (y * y))) / a) / sqrt((x * x) + (y * y))) - M_PI * sin((M_PI * sqrt((x * x) + (y * y))) / a)) / (2 * a * a)) * area / ElementNodes;
+          //rhs_values[node_dof.dofId(node, 0)] += val;
+          //----------------verification 3---------------------
         }
       }
     }
@@ -1127,12 +1149,15 @@ _assembleCsrLinearOperator()
 
       //----------------verification 1---------------------
       //Real lambda = 1.75;
-      //Real3 m0 = m_node_coord[cell.nodeId(0)];
-      //Real3 m1 = m_node_coord[cell.nodeId(1)];
-      //Real3 m2 = m_node_coord[cell.nodeId(2)];
-      //Real Center_x = (m0.x + m1.x + m2.x) / 3;
-      //Real Center_y = (m0.y + m1.y + m2.y) / 3;
+      Real3 m0 = m_node_coord[cell.nodeId(0)];
+      Real3 m1 = m_node_coord[cell.nodeId(1)];
+      Real3 m2 = m_node_coord[cell.nodeId(2)];
+      Real Center_x = (m0.x + m1.x + m2.x) / 3;
+      Real Center_y = (m0.y + m1.y + m2.y) / 3;
       //----------------verification 1---------------------
+      //----------------verification 3---------------------
+      Real alpha = 0.3;
+      //----------------verification 3---------------------
 
       Real area = _computeAreaTriangle3(cell);
       for (Node node : cell.nodes()) {
@@ -1142,6 +1167,10 @@ _assembleCsrLinearOperator()
           //----------------verification 1---------------------
           //m_rhs_vect[node_dof.dofId(node, 0)] += lambda * 1 * ((sin(1 * Center_x) + cos(1 * Center_y))) * area / ElementNodes;
           //----------------verification 1---------------------
+          //----------------verification 3---------------------
+          //Real L2_norm = sqrt(Center_x * Center_x + Center_y * Center_y);
+          //m_rhs_vect[node_dof.dofId(node, 0)] += (M_PI * (((alpha * cos((M_PI * L2_norm) / alpha)) / L2_norm) - M_PI * sin((M_PI * L2_norm) / alpha) / 2 * alpha * alpha)) * area / ElementNodes;
+          //----------------verification 3---------------------
         }
       }
     }
@@ -1249,7 +1278,7 @@ _assembleCsrLinearOperator()
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-#ifdef ARCANE_HAS_CUDA
+#ifdef ARCANE_HAS_ACCELERATOR
 ARCCORE_HOST_DEVICE
 Int32 FemModule::
 _getValIndexCsrGpu(Int32 begin, Int32 end, DoFLocalId col, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> csr_col)
@@ -1465,9 +1494,16 @@ _assembleCsrGpuLinearOperator()
 
     Real tmp_f = f;
     Real tmp_ElementNodes = ElementNodes;
-    //-------------verification----------------
-    //Real lambda = 1.75;
-    //-----------------------------------------
+    //-------------verification 1 -2 ----------------
+    Real lambda = 1.75;
+    //-----------------------------------------------
+    //----------------verification 3---------------------
+    Real a = .3;
+    Real b = 0.0;
+    Real c = 0.0;
+
+    Real error = 0.1;
+    //----------------verification 3---------------------
 
     UnstructuredMeshConnectivityView m_connectivity_view;
     auto in_node_coord = ax::viewIn(command, m_node_coord);
@@ -1485,11 +1521,11 @@ _assembleCsrGpuLinearOperator()
     command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
     {
       //-------------verification----------------
-      //Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
-      //Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
-      //Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
-      //Real Center_x = (m0.x + m1.x + m2.x) / 3;
-      //Real Center_y = (m0.y + m1.y + m2.y) / 3;
+      Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
+      Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
+      Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
+      Real x = (m0.x + m1.x + m2.x) / 3;
+      Real y = (m0.y + m1.y + m2.y) / 3;
       //-----------------------------------------
       Real area = _computeAreaTriangle3Gpu(icell, cnc, in_node_coord);
       for (NodeLocalId node : cnc.nodes(icell)) {
@@ -1497,15 +1533,17 @@ _assembleCsrGpuLinearOperator()
           // Original code
           Real val = tmp_f * area / tmp_ElementNodes;
           //----------------verification 1---------------------
-          //Real val = lambda * 1 * (sin(1*Center_x) + cos(Center_y * 1)) * area / tmp_ElementNodes;
+          //Real val = lambda * 1 * (sin(1 * Center_x) + cos(Center_y * 1)) * area / tmp_ElementNodes;
           //----------------verification 1---------------------
           //----------------verification 2---------------------
           //Real val = (-lambda) * 6 * (Center_x + Center_y) * area / tmp_ElementNodes;
           //----------------verification 2---------------------
-
-          //in_out_rhs_vect[node_dof.dofId(node, 0)] += lambda * 1 * (sin(1 * Center_x) + cos(1 * Center_y)) * area / tmp_ElementNodes;
+          //----------------verification 3---------------------
+          //Real L2_norm = sqrt(Center_x * Center_x + Center_y * Center_y);
+          //Real val = (M_PI * (((alpha * cos((M_PI * L2_norm) / alpha)) / L2_norm) - M_PI * sin((M_PI * L2_norm) / alpha)) / 2 * alpha * alpha); // * area / tmp_ElementNodes;
+          //Real val = -(M_PI * ((a * cos((M_PI * sqrt((x * x) + (y * y))) / a) / sqrt((x * x) + (y * y))) - M_PI * sin((M_PI * sqrt((x * x) + (y * y))) / a)) / (2 * a * a)) * area / tmp_ElementNodes;
+          //----------------verification 3---------------------
           ax::doAtomic<ax::eAtomicOperation::Add>(in_out_rhs_vect(node_dof.dofId(node, 0)), val);
-          //in_out_rhs_vect[node_dof.dofId(node, 0)] += val;
         }
       }
     };
@@ -1710,7 +1748,7 @@ _computeAreaQuad4(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#ifdef ARCANE_HAS_CUDA
+#ifdef ARCANE_HAS_ACCELERATOR
 ARCCORE_HOST_DEVICE
 Real FemModule::
 _computeAreaTriangle3Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord)
@@ -1738,7 +1776,7 @@ _computeAreaTriangle3(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*----------------------------#endif-----------------------------------------------*/
 
-#ifdef ARCANE_HAS_CUDA
+#ifdef ARCANE_HAS_ACCELERATOR
 ARCCORE_HOST_DEVICE
 Real FemModule::
 _computeEdgeLength2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc, ax::VariableNodeReal3InView in_node_coord)
@@ -1763,7 +1801,7 @@ _computeEdgeLength2(Face face)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#ifdef ARCANE_HAS_CUDA
+#ifdef ARCANE_HAS_ACCELERATOR
 ARCCORE_HOST_DEVICE
 Real2 FemModule::
 _computeEdgeNormal2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc, ax::VariableNodeReal3InView in_node_coord, Arcane::FaceInfoListView faces_infos)
@@ -1939,7 +1977,7 @@ _assembleBilinearOperatorQUAD4()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#ifdef ARCANE_HAS_CUDA
+#ifdef ARCANE_HAS_ACCELERATOR
 
 ARCCORE_HOST_DEVICE void FemModule::
 _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord, Real K_e[9])
@@ -2256,7 +2294,7 @@ void FemModule::fileNumArray(bool ref, NumArray<Real, MDDim1> numarray)
 #include "CooSortBiliAssembly.hxx"
 #include "LegacyBiliAssembly.hxx"
 
-#ifdef ARCANE_HAS_CUDA
+#ifdef ARCANE_HAS_ACCELERATOR
 #include "CsrGpuBiliAssembly.hxx"
 #endif
 
@@ -2264,7 +2302,7 @@ void FemModule::fileNumArray(bool ref, NumArray<Real, MDDim1> numarray)
 #include "CusparseBiliAssembly.hxx"
 #endif
 
-#ifdef ARCANE_HAS_CUDA
+#ifdef ARCANE_HAS_ACCELERATOR
 #include "NodeWiseCsrBiliAssembly.hxx"
 #include "BlCsrBiliAssembly.hxx"
 #endif
