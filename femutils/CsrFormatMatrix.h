@@ -46,7 +46,7 @@ class CsrFormat : TraceAccessor
     m_matrix_column.resize(nnz);
     m_matrix_value.resize(nnz);
     m_matrix_row.fill(-1);
-    m_matrix_column.fill(0);
+    m_matrix_column.fill(-1);
     m_matrix_value.fill(0);
     m_dof_family = dof_family;
     m_last_value = 0;
@@ -101,8 +101,15 @@ class CsrFormat : TraceAccessor
   void translateToLinearSystem(DoFLinearSystem& linear_system)
   {
     for (Int32 i = 0; i < m_matrix_row.dim1Size(); i++) {
-      for (Int32 j = m_matrix_row(i); (i + 1 < m_matrix_row.dim1Size() && j < m_matrix_row(i + 1)) || (i + 1 == m_matrix_row.dim1Size() && j < m_matrix_column.dim1Size()); j++)
-        linear_system.matrixSetValue(DoFLocalId(i), DoFLocalId(m_matrix_column(j)), m_matrix_value(j));
+      if ((i + 1) < m_matrix_row.dim1Size() && m_matrix_row(i) == m_matrix_row(i + 1))
+        continue;
+      for (Int32 j = m_matrix_row(i); (i + 1 < m_matrix_row.dim1Size() && j < m_matrix_row(i + 1)) || (i + 1 == m_matrix_row.dim1Size() && j < m_matrix_column.dim1Size()); j++) {
+        {
+          if (DoFLocalId(m_matrix_column(j)).isNull())
+            continue;
+          linear_system.matrixAddValue(DoFLocalId(i), DoFLocalId(m_matrix_column(j)), m_matrix_value(j));
+        }
+      }
     }
   }
 
@@ -135,7 +142,7 @@ class CsrFormat : TraceAccessor
     file.close();
   }
 
-  // Warning : does not support empty row
+  // Warning : does not support empty row (or does it ?)
   void
   setCoordinates(DoFLocalId row, DoFLocalId column)
   {
@@ -144,6 +151,12 @@ class CsrFormat : TraceAccessor
     }
     m_matrix_column(m_last_value) = column.localId();
     m_last_value++;
+  }
+
+  void
+  matrixSetValue(DoFLocalId row, DoFLocalId column, Real value)
+  {
+    m_matrix_value(indexValue(row, column)) = value;
   }
 
  public:
