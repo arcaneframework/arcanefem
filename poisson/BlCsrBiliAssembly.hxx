@@ -121,7 +121,7 @@ void FemModule::_addValueToGlobalMatrixTria3Gpu(Int32 begin, Int32 end, Int32 co
 
 void FemModule::_assembleBuildLessCsrBilinearOperatorTria3()
 {
-  Timer::Action timer_blcsr_bili(this->subDomain(), "AssembleBuildLessCsrBilinearOperatorTria3");
+  Timer::Action timer_blcsr_bili(m_time_stats, "AssembleBuildLessCsrBilinearOperatorTria3");
 
   std::chrono::_V2::system_clock::time_point lhs_start;
   double global_build_average = 0;
@@ -134,13 +134,13 @@ void FemModule::_assembleBuildLessCsrBilinearOperatorTria3()
 
   /*
   {
-    Timer::Action timer_blcsr_build(this->subDomain(), "BuildLessCsrBuildMatrix");
+    Timer::Action timer_blcsr_build(m_time_stats, "BuildLessCsrBuildMatrix");
     // Build only the row part of the csr matrix on CPU
     _buildMatrixBuildLessCsr();
   }
 */
   {
-    Timer::Action timer_blcsr_build(this->subDomain(), "BuildLessCsrBuildMatrixGPU");
+    Timer::Action timer_blcsr_build(m_time_stats, "BuildLessCsrBuildMatrixGPU");
     // Build only the row part of the csr matrix on GPU
     // Using scan -> might be improved
     _buildMatrixGpuBuildLessCsr();
@@ -184,7 +184,7 @@ void FemModule::_assembleBuildLessCsrBilinearOperatorTria3()
     loop_start = std::chrono::high_resolution_clock::now();
   }
 
-  Timer::Action timer_blcsr_add_compute(this->subDomain(), "BuildLessCsrAddAndCompute");
+  Timer::Action timer_blcsr_add_compute(m_time_stats, "BuildLessCsrAddAndCompute");
   command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
   {
     Int32 inode_index = 0;

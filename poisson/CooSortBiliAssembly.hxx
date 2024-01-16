@@ -1,4 +1,3 @@
-
 // -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
 // Copyright 2000-2023 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
@@ -61,7 +60,7 @@ _buildMatrixSort()
   }
 
   //Sort the matrix
-  Timer::Action timer_action(this->subDomain(), "SortingCooMatrix");
+  Timer::Action timer_action(m_time_stats, "SortingCooMatrix");
   m_coo_matrix.sort();
 }
 
@@ -72,7 +71,7 @@ void FemModule::
 _assembleCooSortBilinearOperatorTRIA3()
 {
 
-  Timer::Action timer_coosort_bili(this->subDomain(), "AssembleCooSortBilinearOperatorTria3");
+  Timer::Action timer_coosort_bili(m_time_stats, "AssembleCooSortBilinearOperatorTria3");
 
   double compute_average = 0;
   double global_build_average = 0;
@@ -84,7 +83,7 @@ _assembleCooSortBilinearOperatorTRIA3()
     lhs_start = std::chrono::high_resolution_clock::now();
   }
   {
-    Timer::Action timer_build_coosort(this->subDomain(), "BuildMatrixCooSort");
+    Timer::Action timer_build_coosort(m_time_stats, "BuildMatrixCooSort");
     // Build the coo matrix
     _buildMatrixSort();
   }
@@ -106,7 +105,7 @@ _assembleCooSortBilinearOperatorTRIA3()
 
     FixedMatrix<3, 3> K_e;
     {
-      //Timer::Action timer_element_coosort(this->subDomain(), "CooSortComputeElementMatrixTria3");
+      //Timer::Action timer_element_coosort(m_time_stats,"CooSortComputeElementMatrixTria3");
 
       K_e = _computeElementMatrixTRIA3(cell); // element stifness matrix
     }
@@ -130,7 +129,7 @@ _assembleCooSortBilinearOperatorTRIA3()
       global_build_start = std::chrono::high_resolution_clock::now();
     }
 
-    //Timer::Action timer_coosort_add_compute(this->subDomain(), "CooSortAddToGlobalMatrix");
+    //Timer::Action timer_coosort_add_compute(m_time_stats, "CooSortAddToGlobalMatrix");
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;

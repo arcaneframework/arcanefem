@@ -22,7 +22,7 @@ else()
   set (USE_CUSPARSE_ADD OFF)
 endif()
 
-if(ARCANE_HAS_CUDA)
+if(ARCANE_HAS_ACCELERATOR)
   message(STATUS "Arcane has been compiled with cuda. Enabling features that need CUDA.")
   arcane_accelerator_enable()
   arcane_accelerator_add_source_files(
@@ -43,7 +43,7 @@ add_executable(Poisson
   main.cc
   Fem_axl.h
 )
-if(ARCANE_HAS_CUDA)
+if(ARCANE_HAS_ACCELERATOR)
   target_sources(Poisson PRIVATE
     NodeWiseCsrBiliAssembly.hxx
     BlCsrBiliAssembly.hxx
@@ -76,13 +76,13 @@ configure_file(${MSH_DIR}/random.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 target_link_libraries(Poisson PUBLIC FemUtils)
 
 target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_CUSPARSE_ADD}>:USE_CUSPARSE_ADD>)
-target_compile_definitions(Poisson PRIVATE $<$<BOOL:${ARCANE_HAS_CUDA}>:ARCANE_HAS_CUDA>)
+target_compile_definitions(Poisson PRIVATE $<$<BOOL:${ARCANE_HAS_ACCELERATOR}>:ARCANE_HAS_ACCELERATOR>)
 
 find_program(GMSH NAMES gmsh)
 if (GMSH)
   message(STATUS "GMSH found: ${GMSH}")
   add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/L-100-shape.msh
-    COMMAND ${GMSH} -2 ${MSH_DIR}/L-shape.geo -setnumber rfactor 100 -format msh41 ${CMAKE_CURRENT_BINARY_DIR}/L-100-shape.msh
+    COMMAND ${GMSH} -2 ${MSH_DIR}/L-shape.geo -setnumber rfactor 100 -format msh41 -o ${CMAKE_CURRENT_BINARY_DIR}/L-100-shape.msh
     DEPENDS ${MSH_DIR}/L-shape.geo
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )
@@ -113,7 +113,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 endif()
 
 
-if(ARCANE_HAS_CUDA)
+if(ARCANE_HAS_ACCELERATOR)
   add_test(NAME [poisson]poisson_gpu COMMAND ./Poisson -A,AcceleratorRuntime=cuda Test.poisson.petsc.arc)
 endif()
 

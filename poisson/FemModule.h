@@ -176,6 +176,7 @@ class FemModule
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
   , m_coo_matrix(mbi.subDomain())
   , m_csr_matrix(mbi.subDomain())
+  , m_time_stats(mbi.subDomain()->timeStats())
   {
     ICaseMng* cm = mbi.subDomain()->caseMng();
     cm->setTreatWarningAsError(true);
@@ -218,6 +219,7 @@ class FemModule
   bool m_use_cusparse_add = false;
   bool m_use_legacy = true;
   bool m_running_on_gpu = false;
+  ITimeStats* m_time_stats;
 
   CooFormat m_coo_matrix;
 
