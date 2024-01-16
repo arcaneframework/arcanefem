@@ -47,7 +47,7 @@ _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cel
                               computeTimer& timer)
 {
 
-  Timer::Action timer_action(this->subDomain(), "ComputeCusparseElementMatrix");
+  Timer::Action timer_action(m_time_stats, "ComputeCusparseElementMatrix");
 
   std::chrono::_V2::system_clock::time_point compute_start;
   if (m_register_time) {
@@ -288,7 +288,7 @@ void FemModule::
 _assembleCusparseBilinearOperatorTRIA3()
 {
 
-  Timer::Action timer_action(this->subDomain(), "AssembleCusparseBilinearOperator");
+  Timer::Action timer_action(m_time_stats, "AssembleCusparseBilinearOperator");
 
   computeTimer t = {};
   std::chrono::_V2::system_clock::time_point lhs_s;

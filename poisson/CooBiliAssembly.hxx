@@ -60,7 +60,7 @@ void FemModule::
 _assembleCooBilinearOperatorTRIA3()
 {
 
-  Timer::Action timer_coo_bili(this->subDomain(), "AssembleCooBilinearOperatorTria3");
+  Timer::Action timer_coo_bili(m_time_stats, "AssembleCooBilinearOperatorTria3");
 
   double compute_average = 0;
   double global_build_average = 0;
@@ -72,7 +72,7 @@ _assembleCooBilinearOperatorTRIA3()
     lhs_start = std::chrono::high_resolution_clock::now();
   }
   {
-    Timer::Action timer_coo_build(this->subDomain(), "CooBuildMatrix");
+    Timer::Action timer_coo_build(m_time_stats, "CooBuildMatrix");
     // Build the coo matrix
     _buildMatrix();
   }
@@ -94,7 +94,7 @@ _assembleCooBilinearOperatorTRIA3()
 
     FixedMatrix<3, 3> K_e;
     {
-      //Timer::Action timer_coo_compute(this->subDomain(), "CooComputeElementMatrix");
+      //Timer::Action timer_coo_compute(m_time_stats, "CooComputeElementMatrix");
       K_e = _computeElementMatrixTRIA3(cell); // element stifness matrix
     }
 
@@ -117,7 +117,7 @@ _assembleCooBilinearOperatorTRIA3()
     if (m_register_time) {
       auto global_build_start = std::chrono::high_resolution_clock::now();
     }
-    //Timer::Action timer_coo_add(this->subDomain(), "CooAddToGlobalMatrix");
+    //Timer::Action timer_coo_add(m_time_stats, "CooAddToGlobalMatrix");
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;

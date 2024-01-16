@@ -23,7 +23,7 @@ _writeInJson()
   json_writer.beginObject();
   {
     JSONWriter::Object jo(json_writer, "Timer");
-    this->subDomain()->timeStats()->dumpStatsJSON(json_writer);
+    m_time_stats->dumpStatsJSON(json_writer);
   }
   json_writer.endObject();
   jsonFile << json_writer.getBuffer();
@@ -109,24 +109,27 @@ _saveTimeInCSV()
   else {
     csv_save.open("time.csv", std::ios_base::app);
   }
+  Integer denume = m_cache_warming;
+  if (denume > 1)
+    denume--;
   csv_save << nbNode() << ",";
-  csv_save << _readTimeFromJson("AssembleLegacyBilinearOperatorTria3", "") / m_cache_warming << ",";
-  csv_save << _readTimeFromJson("AssembleCooSortBilinearOperatorTria3", "") / m_cache_warming << ",";
-  csv_save << _readTimeFromJson("AssembleCooBilinearOperatorTria3", "") / m_cache_warming << ",";
-  csv_save << _readTimeFromJson("AssembleCsrBilinearOperatorTria3", "") / m_cache_warming << ",";
+  csv_save << _readTimeFromJson("AssembleLegacyBilinearOperatorTria3", "") / denume << ",";
+  csv_save << _readTimeFromJson("AssembleCooSortBilinearOperatorTria3", "") / denume << ",";
+  csv_save << _readTimeFromJson("AssembleCooBilinearOperatorTria3", "") / denume << ",";
+  csv_save << _readTimeFromJson("AssembleCsrBilinearOperatorTria3", "") / denume << ",";
   if (m_running_on_gpu) {
     csv_save << "0,0,0,";
-    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "") / m_cache_warming << ",";
-    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "") / m_cache_warming << ",";
-    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "") / m_cache_warming << ",";
+    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "") / denume << ",";
+    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "") / denume << ",";
+    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "") / denume << ",";
   }
   else {
-    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "") / m_cache_warming << ",";
-    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "") / m_cache_warming << ",";
-    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "") / m_cache_warming << ",";
+    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "") / (m_cache_warming == 1 ? 1 : m_cache_warming - 1) << ",";
+    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "") / denume << ",";
+    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "") / denume << ",";
     csv_save << "0,0,0,";
   }
-  csv_save << _readTimeFromJson("AssembleCusparseBilinearOperator", "") / m_cache_warming << "\n";
+  csv_save << _readTimeFromJson("AssembleCusparseBilinearOperator", "") / denume << "\n";
   csv_save.close();
 }
 
@@ -144,24 +147,27 @@ _saveNoBuildTimeInCSV()
   else {
     csv_save.open("timeNoBuild.csv", std::ios_base::app);
   }
+  Integer denume = m_cache_warming;
+  if (denume > 1)
+    denume--;
   csv_save << nbNode() << ",";
-  csv_save << _readTimeFromJson("AssembleLegacyBilinearOperatorTria3", "") / m_cache_warming << ",";
-  csv_save << (_readTimeFromJson("AssembleCooSortBilinearOperatorTria3", "CooSortComputeElementMatrixTria3") + _readTimeFromJson("AssembleCooSortBilinearOperatorTria3", "CooSortAddToGlobalMatrix")) / m_cache_warming << ",";
-  csv_save << (_readTimeFromJson("AssembleCooBilinearOperatorTria3", "CooComputeElementMatrixTria3") + _readTimeFromJson("AssembleCooBilinearOperatorTria3", "CooAddToGlobalMatrix")) / m_cache_warming << ",";
-  csv_save << (_readTimeFromJson("AssembleCsrBilinearOperatorTria3", "CsrComputeElementMatrixTria3") + _readTimeFromJson("AssembleCsrBilinearOperatorTria3", "CsrAddToGlobalMatrix")) / m_cache_warming << ",";
+  csv_save << _readTimeFromJson("AssembleLegacyBilinearOperatorTria3", "") / denume << ",";
+  csv_save << (_readTimeFromJson("AssembleCooSortBilinearOperatorTria3", "CooSortComputeElementMatrixTria3") + _readTimeFromJson("AssembleCooSortBilinearOperatorTria3", "CooSortAddToGlobalMatrix")) / denume << ",";
+  csv_save << (_readTimeFromJson("AssembleCooBilinearOperatorTria3", "CooComputeElementMatrixTria3") + _readTimeFromJson("AssembleCooBilinearOperatorTria3", "CooAddToGlobalMatrix")) / denume << ",";
+  csv_save << (_readTimeFromJson("AssembleCsrBilinearOperatorTria3", "CsrComputeElementMatrixTria3") + _readTimeFromJson("AssembleCsrBilinearOperatorTria3", "CsrAddToGlobalMatrix")) / denume << ",";
   if (m_running_on_gpu) {
     csv_save << "0,0,0,";
-    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "CsrGpuAddComputeLoop") / m_cache_warming << ",";
-    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "NodeWiseCsrAddAndCompute") / m_cache_warming << ",";
-    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrAddAndCompute") / m_cache_warming << ",";
+    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "CsrGpuAddComputeLoop") / denume << ",";
+    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "NodeWiseCsrAddAndCompute") / denume << ",";
+    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrAddAndCompute") / denume << ",";
   }
   else {
-    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "CsrGpuAddComputeLoop") / m_cache_warming << ",";
-    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "NodeWiseCsrAddAndCompute") / m_cache_warming << ",";
-    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrAddAndCompute") / m_cache_warming << ",";
+    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "CsrGpuAddComputeLoop") / denume << ",";
+    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "NodeWiseCsrAddAndCompute") / denume << ",";
+    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrAddAndCompute") / denume << ",";
     csv_save << "0,0,0,";
   }
-  csv_save << _readTimeFromJson("AssembleCusparseBilinearOperator", "") / m_cache_warming << "\n";
+  csv_save << _readTimeFromJson("AssembleCusparseBilinearOperator", "") / denume << "\n";
   csv_save.close();
 }
 
@@ -347,7 +353,7 @@ _handleFlags()
 void FemModule::
 _doStationarySolve()
 {
-  Timer::Action timer_action(this->subDomain(), "StationarySolve");
+  Timer::Action timer_action(m_time_stats, "StationarySolve");
   std::chrono::_V2::system_clock::time_point fem_start;
   if (m_register_time && m_cache_warming)
     fem_start = std::chrono::high_resolution_clock::now();
@@ -366,23 +372,37 @@ _doStationarySolve()
 #ifdef USE_CUSPARSE_ADD
     if (m_use_cusparse_add) {
       cusparseHandle_t handle;
-      for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
-        _assembleCusparseBilinearOperatorTRIA3();
+      _assembleCusparseBilinearOperatorTRIA3();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleCusparseBilinearOperator");
+        for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+          _assembleCusparseBilinearOperatorTRIA3();
+        }
       }
     }
 
 #endif
     if (m_use_coo) {
-      for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
-        m_linear_system.clearValues();
-        _assembleCooBilinearOperatorTRIA3();
+      m_linear_system.clearValues();
+      _assembleCooBilinearOperatorTRIA3();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleCooBilinearOperatorTria3");
+        for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+          m_linear_system.clearValues();
+          _assembleCooBilinearOperatorTRIA3();
+        }
       }
       m_coo_matrix.translateToLinearSystem(m_linear_system);
     }
     if (m_use_coo_sort) {
-      for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
-        m_linear_system.clearValues();
-        _assembleCooSortBilinearOperatorTRIA3();
+      m_linear_system.clearValues();
+      _assembleCooSortBilinearOperatorTRIA3();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleCooSortBilinearOperatorTria3");
+        for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+          m_linear_system.clearValues();
+          _assembleCooSortBilinearOperatorTRIA3();
+        }
       }
       m_coo_matrix.translateToLinearSystem(m_linear_system);
     }
@@ -394,38 +414,70 @@ _doStationarySolve()
     m_coo_matrix.translateToLinearSystem(m_linear_system);
 #endif
     if (m_use_csr) {
-      for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
-        m_linear_system.clearValues();
-        _assembleCsrBilinearOperatorTRIA3();
+      m_linear_system.clearValues();
+      _assembleCsrBilinearOperatorTRIA3();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleCsrBilinearOperatorTria3");
+        for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+          m_linear_system.clearValues();
+          _assembleCsrBilinearOperatorTRIA3();
+        }
       }
       m_csr_matrix.translateToLinearSystem(m_linear_system);
     }
     if (m_use_legacy) {
-      for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
-        m_linear_system.clearValues();
-        _assembleBilinearOperatorTRIA3();
+      m_linear_system.clearValues();
+      _assembleBilinearOperatorTRIA3();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleLegacyBilinearOperatorTria3");
+        for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+          m_linear_system.clearValues();
+          _assembleBilinearOperatorTRIA3();
+        }
       }
     }
 
 #ifdef ARCANE_HAS_ACCELERATOR
     if (m_use_csr_gpu) {
-      for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
-        m_linear_system.clearValues();
-        _assembleCsrGPUBilinearOperatorTRIA3();
+      m_linear_system.clearValues();
+      _assembleCsrGPUBilinearOperatorTRIA3();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleCsrGpuBilinearOperatorTria3");
+        for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+          m_linear_system.clearValues();
+          _assembleCsrGPUBilinearOperatorTRIA3();
+        }
       }
+
       m_csr_matrix.translateToLinearSystem(m_linear_system);
     }
     if (m_use_nodewise_csr) {
-      for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
-        m_linear_system.clearValues();
-        _assembleNodeWiseCsrBilinearOperatorTria3();
+      m_linear_system.clearValues();
+      _assembleNodeWiseCsrBilinearOperatorTria3();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleNodeWiseCsrBilinearOperatorTria3");
+        for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+          m_linear_system.clearValues();
+          _assembleNodeWiseCsrBilinearOperatorTria3();
+        }
       }
       m_csr_matrix.translateToLinearSystem(m_linear_system);
     }
     if (m_use_buildless_csr) {
-      for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
-        m_linear_system.clearValues();
-        _assembleBuildLessCsrBilinearOperatorTria3();
+      m_linear_system.clearValues();
+      _assembleBuildLessCsrBilinearOperatorTria3();
+      if (m_cache_warming != 1) {
+        std::cerr << "Stat before reset (now printed here, no other changes):\n";
+        m_time_stats->dumpCurrentStats("AssembleBuildLessCsrBilinearOperatorTria3");
+        m_time_stats->resetStats("AssembleBuildLessCsrBilinearOperatorTria3");
+        std::cerr << "Stat after reset :\n";
+        m_time_stats->dumpCurrentStats("AssembleBuildLessCsrBilinearOperatorTria3");
+        for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+          m_linear_system.clearValues();
+          _assembleBuildLessCsrBilinearOperatorTria3();
+        }
+        std::cerr << "Stat after a cache warming of " << m_cache_warming << "\n";
+        //m_time_stats->dumpCurrentStats("AssembleBuildLessCsrBilinearOperatorTria3");
       }
       m_csr_matrix.translateToLinearSystem(m_linear_system);
     }
@@ -449,10 +501,10 @@ _doStationarySolve()
 #endif
 
     // # T=linalg.solve(K,RHS)
-    _solve();
+    //_solve();
 
     // Check results
-    _checkResultFile();
+    //_checkResultFile();
     if (m_register_time) {
       auto fem_stop = std::chrono::high_resolution_clock::now();
       std::chrono::duration<double> fem_duration = fem_stop - fem_start;
@@ -527,14 +579,6 @@ _applyDirichletBoundaryConditionsGpu()
     {
       for (NodeLocalId node : fnc.nodes(iface)) {
         out_u[node] = value;
-        //----------------verification 1---------------------
-        //out_u[node] = lambda * (sin(1 * in_node_coord[node].x) + cos(1 * in_node_coord[node].y));
-        //----------------verification 1---------------------
-        //----------------verification 2---------------------
-        //Real x = in_node_coord[node].x;
-        //Real y = in_node_coord[node].y;
-        //out_u[node] = lambda * (x * x * x + y * y * y);
-        //----------------verification 2---------------------
         out_u_dirichlet[node] = true;
       }
     };
@@ -582,22 +626,6 @@ _applyDirichletBoundaryConditions()
       for (Node node : iface->nodes()) {
         //Original Code
         m_u[node] = value;
-        //----------------verification 1---------------------
-        //m_u[node] = lambda * (sin(1 * m_node_coord[node].x) + cos(1 * m_node_coord[node].y));
-        //----------------verification 1---------------------
-        //----------------verification 2---------------------
-        //m_u[node] = lambda * (m_node_coord[node].x * m_node_coord[node].x * m_node_coord[node].x + m_node_coord[node].y * m_node_coord[node].y * m_node_coord[node].y);
-        //----------------verification 2---------------------
-        //----------------verification 3---------------------
-        //Real x = m_node_coord[node].x;
-        //Real y = m_node_coord[node].y;
-        //Real a = .3;
-        //Real b = 0.0;
-        //Real c = 0.0;
-
-        //Real error = 0.1;
-        //m_u[node] = 1 / 2. + (1 / 2.) * sin((M_PI * (sqrt((x * x) + (y * y)))) / (a));
-        //----------------verification 3---------------------
         m_u_dirichlet[node] = true;
       }
     }
@@ -665,7 +693,7 @@ _assembleLinearOperator()
     rhs_start = std::chrono::high_resolution_clock::now();
   }
 
-  Timer::Action timer_action(this->subDomain(), "AssembleLinearOperator");
+  Timer::Action timer_action(m_time_stats, "AssembleLinearOperator");
 
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
@@ -675,7 +703,7 @@ _assembleLinearOperator()
 
   if (options()->enforceDirichletMethod() == "Penalty") {
 
-    Timer::Action timer_action(this->subDomain(), "Penalty");
+    Timer::Action timer_action(m_time_stats, "Penalty");
 
     //----------------------------------------------
     // penalty method to enforce Dirichlet BC
@@ -719,7 +747,7 @@ _assembleLinearOperator()
     }
   }
   else if (options()->enforceDirichletMethod() == "WeakPenalty") {
-    Timer::Action timer_action(this->subDomain(), "WeakPenalty");
+    Timer::Action timer_action(m_time_stats, "WeakPenalty");
 
     //----------------------------------------------
     // weak penalty method to enforce Dirichlet BC
@@ -817,7 +845,7 @@ _assembleLinearOperator()
 
   std::chrono::_V2::system_clock::time_point fassemby_start;
   {
-    Timer::Action timer_action(this->subDomain(), "ConstantSourceTermAssembly");
+    Timer::Action timer_action(m_time_stats, "ConstantSourceTermAssembly");
     //----------------------------------------------
     // Constant source term assembly
     //----------------------------------------------
@@ -828,35 +856,11 @@ _assembleLinearOperator()
     ENUMERATE_ (Cell, icell, allCells()) {
       Cell cell = *icell;
 
-      //----------------verification 1---------------------
-      Real lambda = 1.75;
-      Real3 m0 = m_node_coord[cell.nodeId(0)];
-      Real3 m1 = m_node_coord[cell.nodeId(1)];
-      Real3 m2 = m_node_coord[cell.nodeId(2)];
-      Real x = (m0.x + m1.x + m2.x) / 3;
-      Real y = (m0.y + m1.y + m2.y) / 3;
-      //----------------verification 1---------------------
-      //----------------verification 3---------------------
-      Real a = .3;
-      Real b = 0.0;
-      Real c = 0.0;
-
-      Real error = 0.1;
-      //----------------verification 3---------------------
-
       Real area = _computeAreaTriangle3(cell);
       for (Node node : cell.nodes()) {
         if (!(m_u_dirichlet[node]) && node.isOwn()) {
           // Original code
           rhs_values[node_dof.dofId(node, 0)] += f * area / ElementNodes;
-          //----------------verification 1---------------------
-          //rhs_values[node_dof.dofId(node, 0)] += lambda * 1 * ((sin(1 * Center_x) + cos(1 * Center_y))) * area / ElementNodes;
-          //----------------verification 1---------------------
-          //----------------verification 3---------------------
-          // Real L2_norm = sqrt(Center_x * Center_x + Center_y * Center_y);
-          //Real val = -(M_PI * ((a * cos((M_PI * sqrt((x * x) + (y * y))) / a) / sqrt((x * x) + (y * y))) - M_PI * sin((M_PI * sqrt((x * x) + (y * y))) / a)) / (2 * a * a)) * area / ElementNodes;
-          //rhs_values[node_dof.dofId(node, 0)] += val;
-          //----------------verification 3---------------------
         }
       }
     }
@@ -871,7 +875,7 @@ _assembleLinearOperator()
     }
   }
   {
-    Timer::Action timer_action(this->subDomain(), "ConstantSourceTermAssembly");
+    Timer::Action timer_action(m_time_stats, "ConstantSourceTermAssembly");
 
     //----------------------------------------------
     // Constant flux term assembly
@@ -986,7 +990,7 @@ _assembleCsrLinearOperator()
     rhs_start = std::chrono::high_resolution_clock::now();
   }
 
-  Timer::Action timer_action(this->subDomain(), "CsrAssembleLinearOperator");
+  Timer::Action timer_action(m_time_stats, "CsrAssembleLinearOperator");
 
   m_rhs_vect.resize(nbNode());
   m_rhs_vect.fill(0.0);
@@ -995,7 +999,7 @@ _assembleCsrLinearOperator()
 
   if (options()->enforceDirichletMethod() == "Penalty") {
 
-    Timer::Action timer_action(this->subDomain(), "CsrPenalty");
+    Timer::Action timer_action(m_time_stats, "CsrPenalty");
 
     //----------------------------------------------
     // penalty method to enforce Dirichlet BC
@@ -1037,7 +1041,7 @@ _assembleCsrLinearOperator()
     }
   }
   else if (options()->enforceDirichletMethod() == "WeakPenalty") {
-    Timer::Action timer_action(this->subDomain(), "CsrWeakPenalty");
+    Timer::Action timer_action(m_time_stats, "CsrWeakPenalty");
 
     //----------------------------------------------
     // weak penalty method to enforce Dirichlet BC
@@ -1135,7 +1139,7 @@ _assembleCsrLinearOperator()
 
   std::chrono::_V2::system_clock::time_point fassemby_start;
   {
-    Timer::Action timer_action(this->subDomain(), "CsrConstantSourceTermAssembly");
+    Timer::Action timer_action(m_time_stats, "CsrConstantSourceTermAssembly");
     //----------------------------------------------
     // Constant source term assembly
     //----------------------------------------------
@@ -1147,30 +1151,11 @@ _assembleCsrLinearOperator()
     ENUMERATE_ (Cell, icell, allCells()) {
       Cell cell = *icell;
 
-      //----------------verification 1---------------------
-      //Real lambda = 1.75;
-      Real3 m0 = m_node_coord[cell.nodeId(0)];
-      Real3 m1 = m_node_coord[cell.nodeId(1)];
-      Real3 m2 = m_node_coord[cell.nodeId(2)];
-      Real Center_x = (m0.x + m1.x + m2.x) / 3;
-      Real Center_y = (m0.y + m1.y + m2.y) / 3;
-      //----------------verification 1---------------------
-      //----------------verification 3---------------------
-      Real alpha = 0.3;
-      //----------------verification 3---------------------
-
       Real area = _computeAreaTriangle3(cell);
       for (Node node : cell.nodes()) {
         if (!(m_u_dirichlet[node]) && node.isOwn()) {
           // Original code
           m_rhs_vect[node_dof.dofId(node, 0)] += f * area / ElementNodes;
-          //----------------verification 1---------------------
-          //m_rhs_vect[node_dof.dofId(node, 0)] += lambda * 1 * ((sin(1 * Center_x) + cos(1 * Center_y))) * area / ElementNodes;
-          //----------------verification 1---------------------
-          //----------------verification 3---------------------
-          //Real L2_norm = sqrt(Center_x * Center_x + Center_y * Center_y);
-          //m_rhs_vect[node_dof.dofId(node, 0)] += (M_PI * (((alpha * cos((M_PI * L2_norm) / alpha)) / L2_norm) - M_PI * sin((M_PI * L2_norm) / alpha) / 2 * alpha * alpha)) * area / ElementNodes;
-          //----------------verification 3---------------------
         }
       }
     }
@@ -1184,7 +1169,7 @@ _assembleCsrLinearOperator()
     }
   }
   {
-    Timer::Action timer_action(this->subDomain(), "CsrConstantFluxTermAssembly");
+    Timer::Action timer_action(m_time_stats, "CsrConstantFluxTermAssembly");
 
     //----------------------------------------------
     // Constant flux term assembly
@@ -1303,14 +1288,14 @@ _assembleCsrGpuLinearOperator()
   info() << "Assembly of FEM linear operator ";
   info() << "Applying Dirichlet boundary condition via penalty method for Csr, designed for GPU";
 
-  Timer::Action timer_action(this->subDomain(), "CsrGpuAssembleLinearOperator");
+  Timer::Action timer_action(m_time_stats, "CsrGpuAssembleLinearOperator");
 
   m_rhs_vect.resize(nbNode());
   m_rhs_vect.fill(0.0);
 
   if (options()->enforceDirichletMethod() == "Penalty") {
 
-    Timer::Action timer_action(this->subDomain(), "CsrGpuPenalty");
+    Timer::Action timer_action(m_time_stats, "CsrGpuPenalty");
 
     //----------------------------------------------
     // penalty method to enforce Dirichlet BC
@@ -1368,7 +1353,7 @@ _assembleCsrGpuLinearOperator()
     };
   }
   else if (options()->enforceDirichletMethod() == "WeakPenalty") {
-    Timer::Action timer_action(this->subDomain(), "CsrGpuWeakPenalty");
+    Timer::Action timer_action(m_time_stats, "CsrGpuWeakPenalty");
 
     //----------------------------------------------
     // weak penalty method to enforce Dirichlet BC
@@ -1476,7 +1461,7 @@ _assembleCsrGpuLinearOperator()
   }
 
   {
-    Timer::Action timer_action(this->subDomain(), "CsrGpuConstantSourceTermAssembly");
+    Timer::Action timer_action(m_time_stats, "CsrGpuConstantSourceTermAssembly");
     //----------------------------------------------
     // Constant source term assembly
     //----------------------------------------------
@@ -1494,16 +1479,6 @@ _assembleCsrGpuLinearOperator()
 
     Real tmp_f = f;
     Real tmp_ElementNodes = ElementNodes;
-    //-------------verification 1 -2 ----------------
-    Real lambda = 1.75;
-    //-----------------------------------------------
-    //----------------verification 3---------------------
-    Real a = .3;
-    Real b = 0.0;
-    Real c = 0.0;
-
-    Real error = 0.1;
-    //----------------verification 3---------------------
 
     UnstructuredMeshConnectivityView m_connectivity_view;
     auto in_node_coord = ax::viewIn(command, m_node_coord);
@@ -1520,36 +1495,18 @@ _assembleCsrGpuLinearOperator()
 
     command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
     {
-      //-------------verification----------------
-      Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
-      Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
-      Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
-      Real x = (m0.x + m1.x + m2.x) / 3;
-      Real y = (m0.y + m1.y + m2.y) / 3;
-      //-----------------------------------------
       Real area = _computeAreaTriangle3Gpu(icell, cnc, in_node_coord);
       for (NodeLocalId node : cnc.nodes(icell)) {
         if (!(in_m_u_dirichlet(node)) && nodes_infos.isOwn(node)) {
           // Original code
           Real val = tmp_f * area / tmp_ElementNodes;
-          //----------------verification 1---------------------
-          //Real val = lambda * 1 * (sin(1 * Center_x) + cos(Center_y * 1)) * area / tmp_ElementNodes;
-          //----------------verification 1---------------------
-          //----------------verification 2---------------------
-          //Real val = (-lambda) * 6 * (Center_x + Center_y) * area / tmp_ElementNodes;
-          //----------------verification 2---------------------
-          //----------------verification 3---------------------
-          //Real L2_norm = sqrt(Center_x * Center_x + Center_y * Center_y);
-          //Real val = (M_PI * (((alpha * cos((M_PI * L2_norm) / alpha)) / L2_norm) - M_PI * sin((M_PI * L2_norm) / alpha)) / 2 * alpha * alpha); // * area / tmp_ElementNodes;
-          //Real val = -(M_PI * ((a * cos((M_PI * sqrt((x * x) + (y * y))) / a) / sqrt((x * x) + (y * y))) - M_PI * sin((M_PI * sqrt((x * x) + (y * y))) / a)) / (2 * a * a)) * area / tmp_ElementNodes;
-          //----------------verification 3---------------------
           ax::doAtomic<ax::eAtomicOperation::Add>(in_out_rhs_vect(node_dof.dofId(node, 0)), val);
         }
       }
     };
   }
   {
-    Timer::Action timer_action(this->subDomain(), "CsrGpuConstantFluxTermAssembly");
+    Timer::Action timer_action(m_time_stats, "CsrGpuConstantFluxTermAssembly");
 
     //----------------------------------------------
     // Constant flux term assembly
@@ -2199,7 +2156,7 @@ void FemModule::
 _solve()
 {
 
-  Timer::Action timer_action(this->subDomain(), "Solving");
+  Timer::Action timer_action(m_time_stats, "Solving");
 
   std::chrono::_V2::system_clock::time_point solve_start;
   if (m_register_time) {

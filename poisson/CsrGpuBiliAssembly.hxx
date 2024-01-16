@@ -60,7 +60,7 @@ void FemModule::
 _assembleCsrGPUBilinearOperatorTRIA3()
 {
 
-  Timer::Action timer_gpu_bili(this->subDomain(), "AssembleCsrGpuBilinearOperatorTria3");
+  Timer::Action timer_gpu_bili(m_time_stats, "AssembleCsrGpuBilinearOperatorTria3");
 
   std::chrono::_V2::system_clock::time_point lhs_start;
   double global_build_average = 0;
@@ -71,7 +71,7 @@ _assembleCsrGPUBilinearOperatorTRIA3()
     lhs_start = std::chrono::high_resolution_clock::now();
   }
   {
-    Timer::Action timer_gpu_build(this->subDomain(), "CsrGpuBuildMatrix");
+    Timer::Action timer_gpu_build(m_time_stats, "CsrGpuBuildMatrix");
     // Build the csr matrix
     _buildMatrixCsrGPU();
   }
@@ -112,7 +112,7 @@ _assembleCsrGPUBilinearOperatorTRIA3()
     loop_start = std::chrono::high_resolution_clock::now();
   }
 
-  Timer::Action timer_add_compute(this->subDomain(), "CsrGpuAddComputeLoop");
+  Timer::Action timer_add_compute(m_time_stats, "CsrGpuAddComputeLoop");
 
   command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
   {

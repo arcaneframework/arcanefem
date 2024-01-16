@@ -22,7 +22,7 @@ else()
   set (USE_CUSPARSE_ADD OFF)
 endif()
 
-if(ARCANE_HAS_CUDA)
+if(ARCANE_HAS_ACCELERATOR)
   message(STATUS "Arcane has been compiled with cuda. Enabling features that need CUDA.")
   arcane_accelerator_enable()
   arcane_accelerator_add_source_files(
@@ -43,7 +43,7 @@ add_executable(Poisson
   main.cc
   Fem_axl.h
 )
-if(ARCANE_HAS_CUDA)
+if(ARCANE_HAS_ACCELERATOR)
   target_sources(Poisson PRIVATE
     NodeWiseCsrBiliAssembly.hxx
     BlCsrBiliAssembly.hxx
@@ -76,7 +76,7 @@ configure_file(${MSH_DIR}/random.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 target_link_libraries(Poisson PUBLIC FemUtils)
 
 target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_CUSPARSE_ADD}>:USE_CUSPARSE_ADD>)
-target_compile_definitions(Poisson PRIVATE $<$<BOOL:${ARCANE_HAS_CUDA}>:ARCANE_HAS_CUDA>)
+target_compile_definitions(Poisson PRIVATE $<$<BOOL:${ARCANE_HAS_ACCELERATOR}>:ARCANE_HAS_ACCELERATOR>)
 
 find_program(GMSH NAMES gmsh)
 if (GMSH)
@@ -113,7 +113,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 endif()
 
 
-if(ARCANE_HAS_CUDA)
+if(ARCANE_HAS_ACCELERATOR)
   add_test(NAME [poisson]poisson_gpu COMMAND ./Poisson -A,AcceleratorRuntime=cuda Test.poisson.petsc.arc)
 endif()
 

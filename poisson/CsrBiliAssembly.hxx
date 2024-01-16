@@ -59,7 +59,7 @@ void FemModule::
 _assembleCsrBilinearOperatorTRIA3()
 {
 
-  Timer::Action timer_csr_bili(this->subDomain(), "AssembleCsrBilinearOperatorTria3");
+  Timer::Action timer_csr_bili(m_time_stats, "AssembleCsrBilinearOperatorTria3");
 
   double compute_average = 0;
   double global_build_average = 0;
@@ -71,7 +71,7 @@ _assembleCsrBilinearOperatorTRIA3()
     lhs_start = std::chrono::high_resolution_clock::now();
   }
   {
-    Timer::Action timer_csr_build(this->subDomain(), "CsrBuildMatrix");
+    Timer::Action timer_csr_build(m_time_stats, "CsrBuildMatrix");
     // Build the csr matrix
     _buildMatrixCsr();
   }
@@ -93,7 +93,7 @@ _assembleCsrBilinearOperatorTRIA3()
 
     FixedMatrix<3, 3> K_e;
     {
-      //Timer::Action timer_csr_compute_add(this->subDomain(), "CsrComputeElementMatrixTria3");
+      //Timer::Action timer_csr_compute_add(m_time_stats, "CsrComputeElementMatrixTria3");
       K_e = _computeElementMatrixTRIA3(cell); // element stifness matrix
     }
 
@@ -115,7 +115,7 @@ _assembleCsrBilinearOperatorTRIA3()
     if (m_register_time) {
       global_build_start = std::chrono::high_resolution_clock::now();
     }
-    //Timer::Action timer_action(this->subDomain(), "CsrAddToGlobalMatrix");
+    //Timer::Action timer_action(m_time_stats, "CsrAddToGlobalMatrix");
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;

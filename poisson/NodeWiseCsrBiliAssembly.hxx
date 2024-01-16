@@ -55,7 +55,7 @@ void FemModule::_buildMatrixNodeWiseCsr()
 
 void FemModule::_assembleNodeWiseCsrBilinearOperatorTria3()
 {
-  Timer::Action timer_blcsr_bili(this->subDomain(), "AssembleNodeWiseCsrBilinearOperatorTria3");
+  Timer::Action timer_blcsr_bili(m_time_stats, "AssembleNodeWiseCsrBilinearOperatorTria3");
 
   std::chrono::_V2::system_clock::time_point lhs_start;
   double global_build_average = 0;
@@ -67,7 +67,7 @@ void FemModule::_assembleNodeWiseCsrBilinearOperatorTria3()
   }
 
   {
-    Timer::Action timer_blcsr_build(this->subDomain(), "NodeWiseCsrBuildMatrix");
+    Timer::Action timer_blcsr_build(m_time_stats, "NodeWiseCsrBuildMatrix");
     // Build the csr matrix
     _buildMatrixNodeWiseCsr();
   }
@@ -110,7 +110,7 @@ void FemModule::_assembleNodeWiseCsrBilinearOperatorTria3()
     loop_start = std::chrono::high_resolution_clock::now();
   }
 
-  Timer::Action timer_blcsr_add_compute(this->subDomain(), "NodeWiseCsrAddAndCompute");
+  Timer::Action timer_blcsr_add_compute(m_time_stats, "NodeWiseCsrAddAndCompute");
   command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
   {
     Int32 inode_index = 0;
