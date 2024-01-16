@@ -82,7 +82,7 @@ find_program(GMSH NAMES gmsh)
 if (GMSH)
   message(STATUS "GMSH found: ${GMSH}")
   add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/L-100-shape.msh
-    COMMAND ${GMSH} -2 ${MSH_DIR}/L-shape.geo -setnumber rfactor 100 -format msh41 ${CMAKE_CURRENT_BINARY_DIR}/L-100-shape.msh
+    COMMAND ${GMSH} -2 ${MSH_DIR}/L-shape.geo -setnumber rfactor 100 -format msh41 -o ${CMAKE_CURRENT_BINARY_DIR}/L-100-shape.msh
     DEPENDS ${MSH_DIR}/L-shape.geo
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )

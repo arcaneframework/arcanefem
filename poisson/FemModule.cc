@@ -375,7 +375,7 @@ _doStationarySolve()
       _assembleCusparseBilinearOperatorTRIA3();
       if (m_cache_warming != 1) {
         m_time_stats->resetStats("AssembleCusparseBilinearOperator");
-        for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
           _assembleCusparseBilinearOperatorTRIA3();
         }
       }
@@ -387,7 +387,7 @@ _doStationarySolve()
       _assembleCooBilinearOperatorTRIA3();
       if (m_cache_warming != 1) {
         m_time_stats->resetStats("AssembleCooBilinearOperatorTria3");
-        for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
           m_linear_system.clearValues();
           _assembleCooBilinearOperatorTRIA3();
         }
@@ -399,7 +399,7 @@ _doStationarySolve()
       _assembleCooSortBilinearOperatorTRIA3();
       if (m_cache_warming != 1) {
         m_time_stats->resetStats("AssembleCooSortBilinearOperatorTria3");
-        for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
           m_linear_system.clearValues();
           _assembleCooSortBilinearOperatorTRIA3();
         }
@@ -418,7 +418,7 @@ _doStationarySolve()
       _assembleCsrBilinearOperatorTRIA3();
       if (m_cache_warming != 1) {
         m_time_stats->resetStats("AssembleCsrBilinearOperatorTria3");
-        for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
           m_linear_system.clearValues();
           _assembleCsrBilinearOperatorTRIA3();
         }
@@ -430,7 +430,7 @@ _doStationarySolve()
       _assembleBilinearOperatorTRIA3();
       if (m_cache_warming != 1) {
         m_time_stats->resetStats("AssembleLegacyBilinearOperatorTria3");
-        for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
           m_linear_system.clearValues();
           _assembleBilinearOperatorTRIA3();
         }
@@ -443,7 +443,7 @@ _doStationarySolve()
       _assembleCsrGPUBilinearOperatorTRIA3();
       if (m_cache_warming != 1) {
         m_time_stats->resetStats("AssembleCsrGpuBilinearOperatorTria3");
-        for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
           m_linear_system.clearValues();
           _assembleCsrGPUBilinearOperatorTRIA3();
         }
@@ -456,7 +456,7 @@ _doStationarySolve()
       _assembleNodeWiseCsrBilinearOperatorTria3();
       if (m_cache_warming != 1) {
         m_time_stats->resetStats("AssembleNodeWiseCsrBilinearOperatorTria3");
-        for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
           m_linear_system.clearValues();
           _assembleNodeWiseCsrBilinearOperatorTria3();
         }
@@ -467,17 +467,11 @@ _doStationarySolve()
       m_linear_system.clearValues();
       _assembleBuildLessCsrBilinearOperatorTria3();
       if (m_cache_warming != 1) {
-        std::cerr << "Stat before reset (now printed here, no other changes):\n";
-        m_time_stats->dumpCurrentStats("AssembleBuildLessCsrBilinearOperatorTria3");
         m_time_stats->resetStats("AssembleBuildLessCsrBilinearOperatorTria3");
-        std::cerr << "Stat after reset :\n";
-        m_time_stats->dumpCurrentStats("AssembleBuildLessCsrBilinearOperatorTria3");
-        for (cache_index = 0; cache_index < m_cache_warming; cache_index++) {
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
           m_linear_system.clearValues();
           _assembleBuildLessCsrBilinearOperatorTria3();
         }
-        std::cerr << "Stat after a cache warming of " << m_cache_warming << "\n";
-        //m_time_stats->dumpCurrentStats("AssembleBuildLessCsrBilinearOperatorTria3");
       }
       m_csr_matrix.translateToLinearSystem(m_linear_system);
     }
