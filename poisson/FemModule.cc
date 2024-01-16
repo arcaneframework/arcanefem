@@ -296,48 +296,48 @@ _handleFlags()
     if (m_cache_warming != 1)
       info() << "CACHE_WARMING: A cache warming of " << m_cache_warming << " iterations will happen";
   }
-  if (parameter_list.getParameterOrNull("COO") == "TRUE" || options()->coo() == "true") {
+  if (parameter_list.getParameterOrNull("COO") == "TRUE" || options()->coo()) {
     m_use_coo = true;
     m_use_legacy = false;
     info() << "COO: The COO datastructure and its associated methods will be used";
   }
-  if (parameter_list.getParameterOrNull("COO_SORT") == "TRUE" || options()->cooSorting() == "true") {
+  if (parameter_list.getParameterOrNull("COO_SORT") == "TRUE" || options()->cooSorting()) {
     m_use_coo_sort = true;
     m_use_legacy = false;
     info() << "COO_SORT: The COO with sorting datastructure and its associated methods will be used";
   }
-  if (parameter_list.getParameterOrNull("CSR") == "TRUE" || options()->csr() == "true") {
+  if (parameter_list.getParameterOrNull("CSR") == "TRUE" || options()->csr()) {
     m_use_csr = true;
     m_use_legacy = false;
     info() << "CSR: The CSR datastructure and its associated methods will be used";
   }
 #ifdef ARCANE_HAS_ACCELERATOR
-  if (parameter_list.getParameterOrNull("CSR_GPU") == "TRUE" || options()->csrGpu() == "true") {
+  if (parameter_list.getParameterOrNull("CSR_GPU") == "TRUE" || options()->csrGpu()) {
     m_use_csr_gpu = true;
     m_use_legacy = false;
     info() << "CSR_GPU: The CSR datastructure GPU compatible and its associated methods will be used";
   }
-  if (parameter_list.getParameterOrNull("NWCSR") == "TRUE" || options()->nwcsr() == "true") {
+  if (parameter_list.getParameterOrNull("NWCSR") == "TRUE" || options()->nwcsr()) {
     m_use_nodewise_csr = true;
     m_use_legacy = false;
     info() << "NWCSR: The Csr datastructure (GPU compatible) and its associated methods will be used with computation in a nodewise manner";
   }
-  if (parameter_list.getParameterOrNull("BLCSR") == "TRUE" || options()->blcsr() == "true") {
+  if (parameter_list.getParameterOrNull("BLCSR") == "TRUE" || options()->blcsr()) {
     m_use_buildless_csr = true;
     m_use_legacy = false;
     info() << "BLCSR: The Csr datastructure (GPU compatible) and its associated methods will be used with computation in a nodewise manner with the building phases incorporated in the computation";
   }
-  if (parameter_list.getParameterOrNull("CUSPARSE_ADD") == "TRUE" || options()->cusparseAdd() == "true") {
+  if (parameter_list.getParameterOrNull("CUSPARSE_ADD") == "TRUE" || options()->cusparseAdd()) {
     m_use_cusparse_add = true;
     m_use_legacy = false;
     info() << "CUSPARSE_ADD: CUSPARSE and its associated methods will be used";
   }
 #endif
-  if (parameter_list.getParameterOrNull("LEGACY") == "TRUE" || m_use_legacy || options()->legacy() == "true") {
+  if (parameter_list.getParameterOrNull("LEGACY") == "TRUE" || m_use_legacy || options()->legacy()) {
     m_use_legacy = true;
     info() << "LEGACY: The Legacy datastructure and its associated methods will be used";
   }
-  else if (parameter_list.getParameterOrNull("LEGACY") == "FALSE" || options()->legacy() == "false") {
+  else if (parameter_list.getParameterOrNull("LEGACY") == "FALSE" || options()->legacy()) {
     m_use_legacy = false;
   }
   if (parameter_list.getParameterOrNull("AcceleratorRuntime") == "cuda") {

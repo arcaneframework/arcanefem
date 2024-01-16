@@ -37,47 +37,47 @@
         Penalty value for enforcing Dirichlet condition
       </description>
     </simple>
-    <simple name="cache-warming" type="integer"  default="1" optional="true">
+    <simple name="cache-warming" type="integer"  default="1">
       <description>
         An amount of iteration for cache-warming to benchmark
       </description>
     </simple>
-    <simple name="coo" type="string"  default="false" optional="true">
+    <simple name="coo" type="bool"  default="false">
       <description>
         Boolean to use the COO datastructure and its associated methods
       </description>
     </simple>
-    <simple name="coo-sorting" type="string"  default="false" optional="true">
+    <simple name="coo-sorting" type="bool"  default="false">
       <description>
         Boolean to use the COO datastructure with a sorting phase during preprocessing and its associated methods
       </description>
     </simple>
-    <simple name="csr" type="string"  default="false" optional="true">
+    <simple name="csr" type="bool"  default="false">
       <description>
         Boolean to use the CSR datastructure and its associated methods
       </description>
     </simple>
-    <simple name="csr-gpu" type="string"  default="false" optional="true">
+    <simple name="csr-gpu" type="bool"  default="false">
       <description>
         Boolean to use the CSR datastructure Gpu compatible and its associated methods
       </description>
     </simple>
-    <simple name="nwcsr" type="string"  default="false" optional="true">
+    <simple name="nwcsr" type="bool"  default="false">
       <description>
         Boolean to use the CSR datastructure Gpu compatible and its associated methods will be used with computation in a nodewise manner
       </description>
     </simple>
-    <simple name="blcsr" type="string"  default="false" optional="true">
+    <simple name="blcsr" type="bool"  default="false" >
       <description>
         Boolean to use the CSR datastructure Gpu compatible and its associated methods will be used with computation in a nodewise manner, without computation of the sparsity (preprocessing step)
       </description>
     </simple>
-    <simple name="cusparse-add" type="string"  default="false" optional="true">
+    <simple name="cusparse-add" type="bool"  default="false" >
       <description>
         Boolean to use the cusparse library and its associated methods
       </description>
     </simple>
-    <simple name="legacy" type="string"  default="false" optional="false">
+    <simple name="legacy" type="bool"  default="false" >
       <description>
         Boolean to use the legacy datastructure and its associated methods
       </description>
