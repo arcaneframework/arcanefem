@@ -86,6 +86,8 @@ class DoFLinearSystemImpl
   virtual void clearValues() = 0;
   virtual void setCSRValues(const CSRFormatView& csr_view) = 0;
   virtual bool hasSetCSRValues() const = 0;
+  virtual void setRunner(Runner* r) =0;
+  virtual Runner* runner() const =0;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -117,11 +119,15 @@ class DoFLinearSystem
 
   /*
    * \brief Initialize the instance.
-   *
-   * The variable dof_variable will be filled with the solution value after
-   * the call to the method solve().
    */
   void initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name);
+
+  /*
+   * \brief Initialize the instance.
+   *
+   * \a runner may be null.
+   */
+  void initialize(ISubDomain* sd, Runner* runner, IItemFamily* dof_family, const String& solver_name);
 
   //! Indicate if method initialize() has been called
   bool isInitialized() const;

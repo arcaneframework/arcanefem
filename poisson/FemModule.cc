@@ -212,7 +212,7 @@ compute()
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
 
-  m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
+  m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
   // Test for adding parameters for PETSc.
   // This is only used for the first call.
   {

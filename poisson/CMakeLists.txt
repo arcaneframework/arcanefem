@@ -116,8 +116,7 @@ endif()
 if(ARCANE_HAS_ACCELERATOR)
   add_test(NAME [poisson]poisson_gpu COMMAND ./Poisson -A,AcceleratorRuntime=cuda Test.poisson.petsc.arc)
   if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-    # Not yet available
-    # add_test(NAME [poisson]poisson_hypre_direct_gpu COMMAND ./Poisson -A,AcceleratorRuntime=cuda Test.poisson.hypre_direct.arc)
+    add_test(NAME [poisson]poisson_hypre_direct_gpu COMMAND ./Poisson -A,AcceleratorRuntime=cuda Test.poisson.hypre_direct.arc)
   endif()
 endif()
 

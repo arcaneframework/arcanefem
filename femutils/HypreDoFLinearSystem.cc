@@ -15,11 +15,14 @@
 
 #include <arcane/utils/FatalErrorException.h>
 #include <arcane/utils/NumArray.h>
+#include <arcane/utils/PlatformUtils.h>
 
 #include <arcane/core/VariableTypes.h>
 #include <arcane/core/IItemFamily.h>
 #include <arcane/core/BasicService.h>
 #include <arcane/core/ServiceFactory.h>
+
+#include <arcane/accelerator/core/Runner.h>
 
 #include "FemUtils.h"
 #include "IDoFLinearSystemFactory.h"
@@ -147,6 +150,9 @@ class HypreDoFLinearSystemImpl
   }
   bool hasSetCSRValues() const override { return true; }
 
+  void setRunner(Runner* r) override { m_runner = r; }
+  Runner* runner() const { return m_runner; }
+
  private:
 
   IItemFamily* m_dof_family = nullptr;
@@ -155,6 +161,7 @@ class HypreDoFLinearSystemImpl
   VariableDoFInt32 m_dof_matrix_indexes;
   VariableDoFByte m_dof_elimination_info;
   VariableDoFReal m_dof_elimination_value;
+  Runner* m_runner = nullptr;
 
   CSRFormatView m_csr_view;
 };
@@ -167,27 +174,48 @@ solve()
 {
   HYPRE_Init(); /* must be the first HYPRE function call */
 
-#if 0
-  /* AMG in GPU memory (default) */
-  hypreCheck("HYPRE_SetMemoryLocation", HYPRE_SetMemoryLocation(HYPRE_MEMORY_DEVICE));
-  /* setup AMG on GPUs */
-  HYPRE_SetExecutionPolicy(HYPRE_EXEC_DEVICE);
+  HYPRE_MemoryLocation hypre_memory = HYPRE_MEMORY_HOST;
+  HYPRE_ExecutionPolicy hypre_exec_policy = HYPRE_EXEC_HOST;
 
-  /* use hypre's SpGEMM instead of vendor implementation */
-  HYPRE_SetSpGemmUseVendor(false);
-  /* use GPU RNG */
-  HYPRE_SetUseGpuRand(true);
+  bool is_use_device = false;
+  if (m_runner) {
+    is_use_device = isAcceleratorPolicy(m_runner->executionPolicy());
+    info() << "Runner for Hypre=" << m_runner->executionPolicy() << " is_device=" << is_use_device;
+  }
+  // Si HYPRE n'est pas compilé avec le support GPU, alors on utilise l'hôte.
+  // (NOTE: a priori il n'y a pas besoin de faire cela. Si Hypre n'est pas compilé avec
+  // support GPU alors HYPRE_MEMORY_DEVICE <=> HYPRE_MEMORY_HOST
+  // TODO: détecter la cohérence entre le GPU de Hypre et le notre (.i.e les deux
+  // utilisent CUDA ou ROCM)
+#ifndef HYPRE_USING_GPU
+  if (is_use_device)
+    info() << "Hypre is not compiled with GPU support. Using host backend";
 #endif
 
-  hypreCheck("HYPRE_SetMemoryLocation", HYPRE_SetMemoryLocation(HYPRE_MEMORY_HOST));
+  if (is_use_device) {
+    m_runner->setAsCurrentDevice();
+    hypre_memory = HYPRE_MEMORY_DEVICE;
+    hypre_exec_policy = HYPRE_EXEC_DEVICE;
+  }
+
+  hypreCheck("HYPRE_SetMemoryLocation", HYPRE_SetMemoryLocation(hypre_memory));
   /* setup AMG on GPUs */
-  HYPRE_SetExecutionPolicy(HYPRE_EXEC_HOST);
+  hypreCheck("HYPRE_SetExecutionPolicy", HYPRE_SetExecutionPolicy(hypre_exec_policy));
+
+  if (is_use_device) {
+#if HYPRE_RELEASE_NUMBER >= 22300
+    /* use hypre's SpGEMM instead of vendor implementation */
+    HYPRE_SetSpGemmUseVendor(false);
+#endif
+    /* use GPU RNG */
+    HYPRE_SetUseGpuRand(true);
+  }
 
   /* use hypre's GPU memory pool */
   //HYPRE_SetGPUMemoryPoolSize(bin_growth, min_bin, max_bin, max_bytes);
-  auto hypre_memory = HYPRE_MEMORY_HOST;
+
   /* setup IJ matrix A */
-  // TODO: Utiliser le bon communicateur
+  // TODO: Utiliser le bon communicateur en parallèle.
   MPI_Comm comm = MPI_COMM_WORLD;
 
   HYPRE_IJMatrix ij_A = nullptr;
@@ -212,8 +240,8 @@ solve()
 
   int* rows_nb_column_data = const_cast<int*>(m_csr_view.rowsNbColumn().data());
 
+  Real m1 = platform::getRealTime();
   HYPRE_IJMatrixSetObjectType(ij_A, HYPRE_PARCSR);
-  //HYPRE_IJMatrixSetRowSizes(ij_A, rows_nb_column_data);
   HYPRE_IJMatrixInitialize_v2(ij_A, hypre_memory);
 
   /* GPU pointers; efficient in large chunks */
@@ -226,6 +254,8 @@ solve()
 
   HYPRE_IJMatrixAssemble(ij_A);
   HYPRE_IJMatrixGetObject(ij_A, (void**)&parcsr_A);
+  Real m2 = platform::getRealTime();
+  info() << "Time to create matrix=" << (m2 - m1);
 
   //HYPRE_IJMatrixPrint(ij_A, "dumpA.txt");
 
@@ -242,6 +272,7 @@ solve()
   hypreCheck("IJVectorSetObjectType", HYPRE_IJVectorSetObjectType(ij_vector_x, HYPRE_PARCSR));
   HYPRE_IJVectorInitialize_v2(ij_vector_x, hypre_memory);
 
+  Real v1 = platform::getRealTime();
   hypreCheck("HYPRE_IJVectorSetValues",
              HYPRE_IJVectorSetValues(ij_vector_b, nb_row, rows_index_span.data(),
                                      m_rhs_variable.asArray().data()));
@@ -257,6 +288,8 @@ solve()
   hypreCheck("HYPRE_IJVectorAssemble",
              HYPRE_IJVectorAssemble(ij_vector_x));
   HYPRE_IJVectorGetObject(ij_vector_x, (void**)&parvector_x);
+  Real v2 = platform::getRealTime();
+  info() << "Time to create vectors=" << (v2 - v1);
 
   //HYPRE_IJVectorPrint(ij_vector_b, "dumpB.txt");
   //HYPRE_IJVectorPrint(ij_vector_x, "dumpX.txt");
@@ -288,8 +321,11 @@ solve()
              HYPRE_ParCSRPCGSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
   hypreCheck("HYPRE_PCGSetup",
              HYPRE_ParCSRPCGSetup(solver, parcsr_A, parvector_b, parvector_x));
+  Real a1 = platform::getRealTime();
   hypreCheck("HYPRE_PCGSolve",
              HYPRE_ParCSRPCGSolve(solver, parcsr_A, parvector_b, parvector_x));
+  Real b1 = platform::getRealTime();
+  info() << "Time to solve=" << (b1 - a1);
 
   hypreCheck("HYPRE_IJVectorGetValues",
              HYPRE_IJVectorGetValues(ij_vector_x, nb_row, rows_index_span.data(),
