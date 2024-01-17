@@ -1,4 +1,4 @@
-// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
 // Copyright 2000-2023 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
@@ -63,8 +63,7 @@ _assembleCsrGPUBilinearOperatorTRIA3()
   Timer::Action timer_gpu_bili(m_time_stats, "AssembleCsrGpuBilinearOperatorTria3");
 
   std::chrono::_V2::system_clock::time_point lhs_start;
-  double global_build_average = 0;
-  double build_time = 0;
+  double build_time = 0.0;
   if (m_register_time) {
     logger << "-------------------------------------------------------------------------------------\n"
            << "Using GPU csr with NumArray format\n";
