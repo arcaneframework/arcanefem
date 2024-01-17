@@ -43,15 +43,13 @@ add_executable(Poisson
   main.cc
   Fem_axl.h
 )
-if(ARCANE_HAS_ACCELERATOR)
-  target_sources(Poisson PRIVATE
-    NodeWiseCsrBiliAssembly.hxx
-    BlCsrBiliAssembly.hxx
-    CsrGpuBiliAssembly.hxx
-    CusparseBiliAssembly.hxx
-  )
-  arcane_accelerator_add_to_target(Poisson)
-endif()
+target_sources(Poisson PRIVATE
+  NodeWiseCsrBiliAssembly.hxx
+  BlCsrBiliAssembly.hxx
+  CsrGpuBiliAssembly.hxx
+  CusparseBiliAssembly.hxx
+)
+arcane_accelerator_add_to_target(Poisson)
 
 if(USE_CUSPARSE_ADD)
   target_link_libraries(Poisson PRIVATE ${CUSPARSE_LIB})
