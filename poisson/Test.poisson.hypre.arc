@@ -20,6 +20,7 @@
 
   <fem>
     <f>-1.0</f>
+    <result-file>test_poisson_results.txt</result-file>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
       <value>0.0</value>

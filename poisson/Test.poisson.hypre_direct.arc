@@ -20,6 +20,7 @@
 
   <fem>
     <f>-1.0</f>
+    <result-file>test_poisson_results.txt</result-file>
     <blcsr>true</blcsr>
     <legacy>false</legacy>
     <dirichlet-boundary-condition>
