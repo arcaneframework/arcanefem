@@ -1,11 +1,11 @@
-// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2023 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemModule.h                                                 (C) 2022-2023 */
+/* FemModule.h                                                 (C) 2022-2024 */
 /*                                                                           */
 /* Simple module to test simple FEM mechanism.                               */
 /*---------------------------------------------------------------------------*/
@@ -269,10 +269,20 @@ class FemModule
 
   void _applyDirichletBoundaryConditionsGpu();
   void _assembleCsrGpuLinearOperator();
-  Int32 _getValIndexCsrGpu(Int32 begin, Int32 end, DoFLocalId col, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> csr_col);
-  Real _computeAreaTriangle3Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord);
-  Real _computeEdgeLength2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc, ax::VariableNodeReal3InView in_node_coord);
-  Real2 _computeEdgeNormal2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc, ax::VariableNodeReal3InView in_node_coord, Arcane::FaceInfoListView faces_infos);
+  static ARCCORE_HOST_DEVICE Int32
+  _getValIndexCsrGpu(Int32 begin, Int32 end, DoFLocalId col, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> csr_col);
+
+  static ARCCORE_HOST_DEVICE Real
+  _computeAreaTriangle3Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
+                           ax::VariableNodeReal3InView in_node_coord);
+  static ARCCORE_HOST_DEVICE Real
+  _computeEdgeLength2Gpu(FaceLocalId iface,
+                         IndexedFaceNodeConnectivityView fnc,
+                         ax::VariableNodeReal3InView in_node_coord);
+  static ARCCORE_HOST_DEVICE Real2
+  _computeEdgeNormal2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc,
+                         ax::VariableNodeReal3InView in_node_coord,
+                         FaceInfoListView faces_infos);
 
  private:
 
@@ -291,7 +301,9 @@ class FemModule
 
  public:
 
-  void _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord, Real K_e[9]);
+  static ARCCORE_HOST_DEVICE void
+  _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
+                                ax::VariableNodeReal3InView in_node_coord, Real K_e[9]);
 
  private:
 
@@ -325,8 +337,13 @@ class FemModule
 
   void _buildMatrixBuildLessCsr();
   void _buildMatrixGpuBuildLessCsr();
-  Real _computeCellMatrixGpuTRIA3(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord, Real b_matrix[6]);
-  void _addValueToGlobalMatrixTria3Gpu(Int32 begin, Int32 end, Int32 col, ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> in_out_col_csr, ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> in_out_val_csr, Real x);
+  static ARCCORE_HOST_DEVICE Real
+  _computeCellMatrixGpuTRIA3(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
+                             ax::VariableNodeReal3InView in_node_coord, Real b_matrix[6]);
+  static ARCCORE_HOST_DEVICE void
+  _addValueToGlobalMatrixTria3Gpu(Int32 begin, Int32 end, Int32 col,
+                                  ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> in_out_col_csr,
+                                  ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> in_out_val_csr, Real x);
   void _assembleBuildLessCsrBilinearOperatorTria3();
 
  private:

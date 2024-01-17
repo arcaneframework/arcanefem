@@ -1,11 +1,11 @@
-// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2023 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemModule.cc                                                (C) 2022-2023 */
+/* FemModule.cc                                                (C) 2022-2024 */
 /*                                                                           */
 /* Simple module to test simple FEM mechanism.                               */
 /*---------------------------------------------------------------------------*/
@@ -567,8 +567,6 @@ _applyDirichletBoundaryConditionsGpu()
     auto out_u_dirichlet = ax::viewOut(command, m_u_dirichlet);
     auto out_u = ax::viewOut(command, m_u);
 
-    Real lambda = 1.75;
-
     command << RUNCOMMAND_ENUMERATE(Face, iface, group)
     {
       for (NodeLocalId node : fnc.nodes(iface)) {
@@ -614,7 +612,6 @@ _applyDirichletBoundaryConditions()
   for (const auto& bs : options()->dirichletBoundaryCondition()) {
     FaceGroup group = bs->surface();
     Real value = bs->value();
-    Real lambda = 1.75;
     info() << "Apply Dirichlet boundary condition surface=" << group.name() << " v=" << value;
     ENUMERATE_ (Face, iface, group) {
       for (Node node : iface->nodes()) {
