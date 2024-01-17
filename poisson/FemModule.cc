@@ -1,11 +1,11 @@
-// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2023 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemModule.cc                                                (C) 2022-2023 */
+/* FemModule.cc                                                (C) 2022-2024 */
 /*                                                                           */
 /* Simple module to test simple FEM mechanism.                               */
 /*---------------------------------------------------------------------------*/
@@ -317,6 +317,7 @@ _handleFlags()
     m_use_legacy = false;
     info() << "CSR_GPU: The CSR datastructure GPU compatible and its associated methods will be used";
   }
+#endif
   if (parameter_list.getParameterOrNull("NWCSR") == "TRUE" || options()->nwcsr()) {
     m_use_nodewise_csr = true;
     m_use_legacy = false;
@@ -327,6 +328,7 @@ _handleFlags()
     m_use_legacy = false;
     info() << "BLCSR: The Csr datastructure (GPU compatible) and its associated methods will be used with computation in a nodewise manner with the building phases incorporated in the computation";
   }
+#ifdef ARCANE_HAS_ACCELERATOR
   if (parameter_list.getParameterOrNull("CUSPARSE_ADD") == "TRUE" || options()->cusparseAdd()) {
     m_use_cusparse_add = true;
     m_use_legacy = false;
@@ -451,6 +453,7 @@ _doStationarySolve()
 
       m_csr_matrix.translateToLinearSystem(m_linear_system);
     }
+#endif
     if (m_use_nodewise_csr) {
       m_linear_system.clearValues();
       _assembleNodeWiseCsrBilinearOperatorTria3();
@@ -476,10 +479,7 @@ _doStationarySolve()
       m_csr_matrix.translateToLinearSystem(m_linear_system);
     }
 
-#endif
-
-// Assemble the FEM linear operator (RHS - vector b)
-#ifdef ARCANE_HAS_ACCELERATOR
+    // Assemble the FEM linear operator (RHS - vector b)
     if (m_use_buildless_csr) {
       m_linear_system.clearValues();
       _assembleCsrGpuLinearOperator();
@@ -490,9 +490,6 @@ _doStationarySolve()
     else {
       _assembleLinearOperator();
     }
-#else
-    _assembleLinearOperator();
-#endif
 
     // # T=linalg.solve(K,RHS)
     _solve();
@@ -541,7 +538,6 @@ _initBoundaryconditions()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#ifdef ARCANE_HAS_ACCELERATOR
 void FemModule::
 _applyDirichletBoundaryConditionsGpu()
 {
@@ -566,8 +562,6 @@ _applyDirichletBoundaryConditionsGpu()
     auto fnc = m_connectivity_view.faceNode();
     auto out_u_dirichlet = ax::viewOut(command, m_u_dirichlet);
     auto out_u = ax::viewOut(command, m_u);
-
-    Real lambda = 1.75;
 
     command << RUNCOMMAND_ENUMERATE(Face, iface, group)
     {
@@ -596,7 +590,6 @@ _applyDirichletBoundaryConditionsGpu()
     };
   }
 }
-#endif
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -614,7 +607,6 @@ _applyDirichletBoundaryConditions()
   for (const auto& bs : options()->dirichletBoundaryCondition()) {
     FaceGroup group = bs->surface();
     Real value = bs->value();
-    Real lambda = 1.75;
     info() << "Apply Dirichlet boundary condition surface=" << group.name() << " v=" << value;
     ENUMERATE_ (Face, iface, group) {
       for (Node node : iface->nodes()) {
@@ -1257,7 +1249,7 @@ _assembleCsrLinearOperator()
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-#ifdef ARCANE_HAS_ACCELERATOR
+
 ARCCORE_HOST_DEVICE
 Int32 FemModule::
 _getValIndexCsrGpu(Int32 begin, Int32 end, DoFLocalId col, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> csr_col)
@@ -1669,7 +1661,6 @@ _assembleCsrGpuLinearOperator()
   }
 }
 
-#endif
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void FemModule::
@@ -1699,7 +1690,6 @@ _computeAreaQuad4(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#ifdef ARCANE_HAS_ACCELERATOR
 ARCCORE_HOST_DEVICE
 Real FemModule::
 _computeAreaTriangle3Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord)
@@ -1710,7 +1700,6 @@ _computeAreaTriangle3Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
 
   return 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));
 }
-#endif
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -1727,7 +1716,6 @@ _computeAreaTriangle3(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*----------------------------#endif-----------------------------------------------*/
 
-#ifdef ARCANE_HAS_ACCELERATOR
 ARCCORE_HOST_DEVICE
 Real FemModule::
 _computeEdgeLength2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc, ax::VariableNodeReal3InView in_node_coord)
@@ -1736,7 +1724,6 @@ _computeEdgeLength2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc, a
   Real3 m1 = in_node_coord[fnc.nodeId(iface, 1)];
   return math::sqrt((m1.x - m0.x) * (m1.x - m0.x) + (m1.y - m0.y) * (m1.y - m0.y));
 }
-#endif
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -1752,10 +1739,10 @@ _computeEdgeLength2(Face face)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#ifdef ARCANE_HAS_ACCELERATOR
 ARCCORE_HOST_DEVICE
 Real2 FemModule::
-_computeEdgeNormal2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc, ax::VariableNodeReal3InView in_node_coord, Arcane::FaceInfoListView faces_infos)
+_computeEdgeNormal2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc,
+                       ax::VariableNodeReal3InView in_node_coord, Arcane::FaceInfoListView faces_infos)
 {
   Real3 m0 = in_node_coord[fnc.nodeId(iface, 0)];
   Real3 m1 = in_node_coord[fnc.nodeId(iface, 1)];
@@ -1771,7 +1758,6 @@ _computeEdgeNormal2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc, a
   N.y = (m0.x - m1.x) / norm_N;
   return N;
 }
-#endif
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -1928,8 +1914,6 @@ _assembleBilinearOperatorQUAD4()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#ifdef ARCANE_HAS_ACCELERATOR
-
 ARCCORE_HOST_DEVICE void FemModule::
 _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord, Real K_e[9])
 {
@@ -1985,7 +1969,6 @@ _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView
   //return int_cdPi_dPj;
 }
 
-#endif
 #ifdef USE_COO_GPU
 //Currently, this code does not work
 /**
@@ -2244,16 +2227,11 @@ void FemModule::fileNumArray(bool ref, NumArray<Real, MDDim1> numarray)
 #include "CooBiliAssembly.hxx"
 #include "CooSortBiliAssembly.hxx"
 #include "LegacyBiliAssembly.hxx"
-
-#ifdef ARCANE_HAS_ACCELERATOR
 #include "CsrGpuBiliAssembly.hxx"
-#endif
 
 #ifdef USE_CUSPARSE_ADD
 #include "CusparseBiliAssembly.hxx"
 #endif
 
-#ifdef ARCANE_HAS_ACCELERATOR
 #include "NodeWiseCsrBiliAssembly.hxx"
 #include "BlCsrBiliAssembly.hxx"
-#endif

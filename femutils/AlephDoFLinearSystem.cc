@@ -327,6 +327,13 @@ class AlephDoFLinearSystemImpl
     _computeMatrixInfo();
   }
 
+  void setCSRValues(const CSRFormatView& csr_view) override
+  {
+    ARCANE_THROW(NotImplementedException,"");
+  }
+
+  bool hasSetCSRValues() const { return false; }
+
  private:
 
   AlephParams* _createAlephParam()

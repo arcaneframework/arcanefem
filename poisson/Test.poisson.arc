@@ -19,6 +19,7 @@
   </meshes>
 
   <fem>
+    <result-file>test_poisson_results.txt</result-file>
     <f>-1.0</f>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>

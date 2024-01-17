@@ -181,6 +181,12 @@ class SequentialDoFLinearSystemImpl
     build();
   }
 
+  void setCSRValues(const CSRFormatView& csr_view) override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+  bool hasSetCSRValues() const override { return false; }
+
  public:
 
   void setEpsilon(Real v) { m_epsilon = v; }
@@ -292,7 +298,7 @@ DoFLinearSystem::
 /*---------------------------------------------------------------------------*/
 
 void DoFLinearSystem::
-_checkInit()
+_checkInit() const
 {
   if (!m_p)
     ARCANE_FATAL("The instance is not initialized. You need to call initialize() before using this class");
@@ -397,6 +403,26 @@ setSolverCommandLineArguments(const CommandLineArguments& args)
 {
   _checkInit();
   return m_p->setSolverCommandLineArguments(args);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystem::
+setCSRValues(const CSRFormatView& csr_view)
+{
+  _checkInit();
+  return m_p->setCSRValues(csr_view);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+bool DoFLinearSystem::
+hasSetCSRValues() const
+{
+  _checkInit();
+  return m_p->hasSetCSRValues();
 }
 
 /*---------------------------------------------------------------------------*/

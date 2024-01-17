@@ -21,12 +21,12 @@
   <fem>
     <f>-1.0</f>
     <result-file>test_poisson_results.txt</result-file>
+    <blcsr>true</blcsr>
+    <legacy>false</legacy>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
       <value>0.0</value>
     </dirichlet-boundary-condition>
-    <linear-system>
-      <solver-backend>hypre</solver-backend>
-    </linear-system>
+    <linear-system name="HypreLinearSystem"/>
   </fem>
 </case>

@@ -14,6 +14,7 @@ add_library(FemUtils
   DoFLinearSystem.cc
   CooFormatMatrix.h
   CsrFormatMatrix.h
+  CsrFormatMatrix.cc
   FemDoFsOnNodes.h
   FemDoFsOnNodes.cc
   AlephNodeLinearSystem.cc
@@ -21,9 +22,12 @@ add_library(FemUtils
   IDoFLinearSystemFactory.h
   AlephDoFLinearSystemFactory_axl.h
   SequentialBasicDoFLinearSystemFactory_axl.h
+  HypreDoFLinearSystemFactory_axl.h
 )
+
 arcane_generate_axl(AlephDoFLinearSystemFactory)
 arcane_generate_axl(SequentialBasicDoFLinearSystemFactory)
+arcane_generate_axl(HypreDoFLinearSystemFactory)
 
 target_compile_definitions(FemUtils PRIVATE $<$<BOOL:${ENABLE_DEBUG_MATRIX}>:ENABLE_DEBUG_MATRIX>)
 
@@ -58,6 +62,9 @@ if (TARGET Arcane::arcane_aleph_hypre)
   target_link_libraries(FemUtils PRIVATE Arcane::arcane_aleph_hypre)
   message(STATUS "HYPRE backend is available")
   set(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE TRUE)
+  find_package(Hypre)
+  target_link_libraries(FemUtils PRIVATE arcconpkg_Hypre)
+  target_sources(FemUtils PRIVATE HypreDoFLinearSystem.cc)
 endif()
 
 if(NOT FEMUTILS_HAS_PARALLEL_SOLVER)
