@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2023 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* DoFLinearSystem.cc                                          (C) 2022-2023 */
+/* DoFLinearSystem.cc                                          (C) 2022-2024 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
 /*---------------------------------------------------------------------------*/
@@ -186,6 +186,8 @@ class SequentialDoFLinearSystemImpl
     ARCANE_THROW(NotImplementedException, "");
   }
   bool hasSetCSRValues() const override { return false; }
+  void setRunner(Runner* r) override { m_runner = r; }
+  Runner* runner() const { return m_runner; }
 
  public:
 
@@ -205,6 +207,8 @@ class SequentialDoFLinearSystemImpl
 
   Real m_epsilon = 1.0e-15;
   eInternalSolverMethod m_solver_method = eInternalSolverMethod::Auto;
+
+  Runner* m_runner = nullptr;
 
  private:
 
@@ -308,7 +312,7 @@ _checkInit() const
 /*---------------------------------------------------------------------------*/
 
 void DoFLinearSystem::
-initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
+initialize(ISubDomain* sd, Runner* runner, IItemFamily* dof_family, const String& solver_name)
 {
   ARCANE_CHECK_POINTER(sd);
   ARCANE_CHECK_POINTER(dof_family);
@@ -323,6 +327,16 @@ initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
   }
   m_item_family = dof_family;
   m_p = m_linear_system_factory->createInstance(sd, dof_family, solver_name);
+  m_p->setRunner(runner);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystem::
+initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
+{
+  initialize(sd, nullptr, dof_family, solver_name);
 }
 
 /*---------------------------------------------------------------------------*/
