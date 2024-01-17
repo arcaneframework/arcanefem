@@ -203,8 +203,10 @@ solve()
   hypreCheck("HYPRE_SetExecutionPolicy", HYPRE_SetExecutionPolicy(hypre_exec_policy));
 
   if (is_use_device) {
+#if HYPRE_RELEASE_NUMBER >= 22300
     /* use hypre's SpGEMM instead of vendor implementation */
     HYPRE_SetSpGemmUseVendor(false);
+#endif
     /* use GPU RNG */
     HYPRE_SetUseGpuRand(true);
   }
