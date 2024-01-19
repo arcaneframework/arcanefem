@@ -21,6 +21,7 @@
 #include <arcane/core/IItemFamily.h>
 #include <arcane/core/BasicService.h>
 #include <arcane/core/ServiceFactory.h>
+#include <arcane/core/IParallelMng.h>
 
 #include <arcane/accelerator/core/Runner.h>
 
@@ -177,6 +178,13 @@ solve()
   HYPRE_MemoryLocation hypre_memory = HYPRE_MEMORY_HOST;
   HYPRE_ExecutionPolicy hypre_exec_policy = HYPRE_EXEC_HOST;
 
+  // Récupère le communicateur MPI associé
+  IParallelMng* pm = m_dof_family->parallelMng();
+  Parallel::Communicator arcane_comm = pm->communicator();
+  MPI_Comm mpi_comm = MPI_COMM_WORLD;
+  if (arcane_comm.isValid())
+    mpi_comm = static_cast<MPI_Comm>(arcane_comm);
+
   bool is_use_device = false;
   if (m_runner) {
     is_use_device = isAcceleratorPolicy(m_runner->executionPolicy());
@@ -215,8 +223,6 @@ solve()
   //HYPRE_SetGPUMemoryPoolSize(bin_growth, min_bin, max_bin, max_bytes);
 
   /* setup IJ matrix A */
-  // TODO: Utiliser le bon communicateur en parallèle.
-  MPI_Comm comm = MPI_COMM_WORLD;
 
   HYPRE_IJMatrix ij_A = nullptr;
   HYPRE_ParCSRMatrix parcsr_A = nullptr;
@@ -230,7 +236,7 @@ solve()
     int last_col = first_col + nb_row - 1;
     info() << "CreateMatrix row=" << first_row << ", " << last_row
            << " col=" << first_col << ", " << last_col;
-    HYPRE_IJMatrixCreate(comm, first_row, last_row, first_col, last_col, &ij_A);
+    HYPRE_IJMatrixCreate(mpi_comm, first_row, last_row, first_col, last_col, &ij_A);
   }
 
   NumArray<Int32, MDDim1> rows_index(nb_row);
@@ -264,11 +270,11 @@ solve()
   HYPRE_IJVector ij_vector_x = nullptr;
   HYPRE_ParVector parvector_x = nullptr;
 
-  hypreCheck("IJVectorCreate", HYPRE_IJVectorCreate(comm, first_row, last_row, &ij_vector_b));
+  hypreCheck("IJVectorCreate", HYPRE_IJVectorCreate(mpi_comm, first_row, last_row, &ij_vector_b));
   hypreCheck("IJVectorSetObjectType", HYPRE_IJVectorSetObjectType(ij_vector_b, HYPRE_PARCSR));
   HYPRE_IJVectorInitialize_v2(ij_vector_b, hypre_memory);
 
-  hypreCheck("IJVectorCreate", HYPRE_IJVectorCreate(comm, first_row, last_row, &ij_vector_x));
+  hypreCheck("IJVectorCreate", HYPRE_IJVectorCreate(mpi_comm, first_row, last_row, &ij_vector_x));
   hypreCheck("IJVectorSetObjectType", HYPRE_IJVectorSetObjectType(ij_vector_x, HYPRE_PARCSR));
   HYPRE_IJVectorInitialize_v2(ij_vector_x, hypre_memory);
 
@@ -297,7 +303,7 @@ solve()
   HYPRE_Solver solver = nullptr;
   HYPRE_Solver precond = nullptr;
   /* setup AMG */
-  HYPRE_ParCSRPCGCreate(comm, &solver);
+  HYPRE_ParCSRPCGCreate(mpi_comm, &solver);
 
   /* Set some parameters (See Reference Manual for more parameters) */
   HYPRE_PCGSetMaxIter(solver, 1000); /* max iterations */
