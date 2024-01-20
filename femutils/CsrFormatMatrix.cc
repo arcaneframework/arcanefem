@@ -65,14 +65,14 @@ translateToLinearSystem(DoFLinearSystem& linear_system)
     if (((i + 1) < nb_row) && (m_matrix_row(i) == m_matrix_row(i + 1)))
       continue;
     for (Int32 j = m_matrix_row(i); ((i + 1) < nb_row && j < m_matrix_row(i + 1)) || ((i + 1) == nb_row && j < m_matrix_column.dim1Size()); j++) {
+      if (do_set_csr){
+        ++m_matrix_rows_nb_column[i];
+        continue;
+      }
       if (DoFLocalId(m_matrix_column(j)).isNull())
         continue;
       //info() << "Add: (" << i << ", " << m_matrix_column(j) << " v=" << m_matrix_value(j);
-      if (do_set_csr){
-        ++m_matrix_rows_nb_column[i];
-      }
-      else
-        linear_system.matrixAddValue(DoFLocalId(i), DoFLocalId(m_matrix_column(j)), m_matrix_value(j));
+      linear_system.matrixAddValue(DoFLocalId(i), DoFLocalId(m_matrix_column(j)), m_matrix_value(j));
     }
   }
 
