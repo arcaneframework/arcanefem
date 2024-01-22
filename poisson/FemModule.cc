@@ -1930,7 +1930,7 @@ _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView
   Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
   Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
 
-  Real area = _computeAreaTriangle3Gpu(icell, cnc, in_node_coord);
+  Real area = 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));//_computeAreaTriangle3Gpu(icell, cnc, in_node_coord);
 
   Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
   Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
@@ -1938,25 +1938,26 @@ _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView
 
   //We will want to replace fixed matrix by some numarray ? Will not work because NumArray function are host functions
   //NumArray<Real, ExtentsV<2, 3>> b_matrix(eMemoryRessource::Device);
-  Real b_matrix[2][3] = { 0 };
-  b_matrix[0][0] = dPhi0.x * (1.0 / (2.0 * area));
-  b_matrix[0][1] = dPhi1.x * (1.0 / (2.0 * area));
-  b_matrix[0][2] = dPhi2.x * (1.0 / (2.0 * area));
 
-  b_matrix[1][0] = dPhi0.y * (1.0 / (2.0 * area));
-  b_matrix[1][1] = dPhi1.y * (1.0 / (2.0 * area));
-  b_matrix[1][2] = dPhi2.y * (1.0 / (2.0 * area));
+  Real A2 = 2.0 * area;
+  Real b_matrix[2][3] = { {dPhi0.x / A2, dPhi1.x / A2, dPhi2.x / A2} ,
+                          {dPhi0.y / A2, dPhi1.y / A2, dPhi2.y / A2}  };
+
 
   //NumArray<Real, ExtentsV<3, 3>> int_cdPi_dPj;
 
   //Multiplying b_matrix by its transpose, and doing the mult in place in the same loop
-  for (Int32 i = 0; i < 3; i++) {
-    for (Int32 j = 0; j < 3; j++) {
-      Real x = 0.0;
-      for (Int32 k = 0; k < 2; k++) {
-        x += b_matrix[k][i] * b_matrix[k][j];
+  // Compute the upper triangular part of the matrix
+  for (Int32 i = 0; i < 3; ++i) {
+    for (Int32 j = i; j < 3; ++j) {
+      for (Int32 k = 0; k < 2; ++k) {
+        K_e[i * 3 + j] += b_matrix[k][i] * b_matrix[k][j];
       }
-      K_e[i * 3 + j] = x * area;
+      // Multiply by A2 to complete the matrix
+      K_e[i * 3 + j] *= area;
+
+      // Mirror to the lower triangular part
+      K_e[j * 3 + i] = K_e[i * 3 + j];
     }
   }
 

@@ -41,14 +41,16 @@ _buildMatrixCsrGPU()
   //We iterate through the node, and we do not sort anymore : we assume the nodes ID are sorted, and we will iterate throught the column to avoid making < and > comparison
   ENUMERATE_NODE (inode, allNodes()) {
     Node node = *inode;
+    Int32 node_dof_id = node_dof.dofId(node, 0);
+    ItemLocalIdT<DoF> diagonal_entry(node_dof_id);
 
-    m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
+    m_csr_matrix.setCoordinates(diagonal_entry, diagonal_entry);
 
     for (Face face : node.faces()) {
       if (face.nodeId(0) == node.localId())
-        m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(1), 0));
+        m_csr_matrix.setCoordinates(diagonal_entry, node_dof.dofId(face.nodeId(1), 0));
       else
-        m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
+        m_csr_matrix.setCoordinates(diagonal_entry, node_dof.dofId(face.nodeId(0), 0));
     }
   }
 }
@@ -62,26 +64,10 @@ _assembleCsrGPUBilinearOperatorTRIA3()
 
   Timer::Action timer_gpu_bili(m_time_stats, "AssembleCsrGpuBilinearOperatorTria3");
 
-  std::chrono::_V2::system_clock::time_point lhs_start;
-  double build_time = 0.0;
-  if (m_register_time) {
-    logger << "-------------------------------------------------------------------------------------\n"
-           << "Using GPU csr with NumArray format\n";
-    lhs_start = std::chrono::high_resolution_clock::now();
-  }
   {
     Timer::Action timer_gpu_build(m_time_stats, "CsrGpuBuildMatrix");
     // Build the csr matrix
     _buildMatrixCsrGPU();
-  }
-
-  std::chrono::_V2::system_clock::time_point build_stop;
-  std::chrono::_V2::system_clock::time_point var_init_start;
-  if (m_register_time) {
-    build_stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> build_duration = build_stop - lhs_start;
-    build_time = build_duration.count();
-    var_init_start = std::chrono::high_resolution_clock::now();
   }
 
   RunQueue* queue = acceleratorMng()->defaultQueue();
@@ -99,17 +85,6 @@ _assembleCsrGPUBilinearOperatorTRIA3()
   m_connectivity_view.setMesh(this->mesh());
   auto cnc = m_connectivity_view.cellNode();
   Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
-  Arcane::ItemGenericInfoListView cells_infos(this->mesh()->cellFamily());
-
-  std::chrono::_V2::system_clock::time_point var_init_stop;
-  std::chrono::_V2::system_clock::time_point loop_start;
-  double var_init_time = 0;
-  if (m_register_time) {
-    var_init_stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> var_init_duration = var_init_stop - var_init_start;
-    var_init_time = var_init_duration.count();
-    loop_start = std::chrono::high_resolution_clock::now();
-  }
 
   Timer::Action timer_add_compute(m_time_stats, "CsrGpuAddComputeLoop");
 
@@ -119,7 +94,6 @@ _assembleCsrGPUBilinearOperatorTRIA3()
     Real K_e[9] = { 0 };
 
     _computeElementMatrixTRIA3GPU(icell, cnc, in_node_coord, K_e); // element stifness matrix
-
     //             # assemble elementary matrix into the global one
     //             # elementary terms are positionned into K according
     //             # to the rank of associated node in the mesh.nodes list
@@ -136,16 +110,12 @@ _assembleCsrGPUBilinearOperatorTRIA3()
         double v = K_e[n1_index * 3 + n2_index];
         // m_k_matrix(node1.localId(), node2.localId()) += v;
         if (nodes_infos.isOwn(node1)) {
+
           Int32 row = node_dof.dofId(node1, 0).localId();
           Int32 col = node_dof.dofId(node2, 0).localId();
           Int32 begin = in_row_csr[row];
-          Int32 end;
-          if (row == row_csr_size - 1) {
-            end = col_csr_size;
-          }
-          else {
-            end = in_row_csr[row + 1];
-          }
+          Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
+
           while (begin < end) {
             if (in_col_csr[begin] == col) {
               // t is necessary to get the right type for the atomicAdd (but that means that we have more operations ?)
@@ -161,25 +131,6 @@ _assembleCsrGPUBilinearOperatorTRIA3()
       ++n1_index;
     }
   };
-  if (m_register_time) {
-    auto lhs_end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> duration = lhs_end - lhs_start;
-    std::chrono::duration<double> loop_duration = lhs_end - loop_start;
-
-    double loop_time = loop_duration.count();
-    double lhs_loc_time = duration.count();
-    logger << "Building time of the coo matrix :" << build_time << "\n"
-           << "Variable initialisation time : " << var_init_time << "\n"
-           << "Computation and Addition time : " << loop_time << "\n"
-           << "LHS Total time : " << lhs_loc_time << "\n"
-           << "Build matrix time in lhs :" << build_time / lhs_loc_time * 100 << "%\n"
-           << "Variable initialisation time in lhs : " << var_init_time / lhs_loc_time * 100 << "%\n"
-           << "Computation and Addition time in lhs : " << loop_time / lhs_loc_time * 100 << "%\n\n"
-           << "-------------------------------------------------------------------------------------\n\n";
-    lhs_time += lhs_loc_time;
-    wbuild << lhs_loc_time << ",";
-    timer << loop_time << ",";
-  }
 }
 
 /*---------------------------------------------------------------------------*/
