@@ -1,7 +1,7 @@
 //-------- GMSH geo file to create a 2D bar mesh -------//
 //
 //
-// NOTE: Use the -format msh41 format to genrate the mesh
+// NOTE: Use the -format msh41 format to generate the mesh
 
 lc = 1.0/3.0;
 lengthBar=5.0;
