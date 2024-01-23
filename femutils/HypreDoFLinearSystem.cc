@@ -24,6 +24,7 @@
 #include <arcane/core/ServiceFactory.h>
 #include <arcane/core/IParallelMng.h>
 #include <arcane/core/ItemPrinter.h>
+#include <arcane/core/Timer.h>
 
 #include <arcane/accelerator/core/Runner.h>
 
@@ -243,6 +244,7 @@ solve()
 
   // Récupère le communicateur MPI associé
   IParallelMng* pm = m_dof_family->parallelMng();
+  ITimeStats* tstat = pm->timeStats();
   Parallel::Communicator arcane_comm = pm->communicator();
   MPI_Comm mpi_comm = MPI_COMM_WORLD;
   if (arcane_comm.isValid())
@@ -386,18 +388,21 @@ solve()
     }
   }
 
-  /* GPU pointers; efficient in large chunks */
-  HYPRE_IJMatrixSetValues(ij_A,
-                          nb_local_row,
-                          rows_nb_column_data,
-                          rows_index_span.data(),
-                          columns_index_span.data(),
-                          matrix_values.data());
+  {
+    Timer::Action ta1(tstat, "HypreLinearSystemBuildMatrix");
+    /* GPU pointers; efficient in large chunks */
+    HYPRE_IJMatrixSetValues(ij_A,
+                            nb_local_row,
+                            rows_nb_column_data,
+                            rows_index_span.data(),
+                            columns_index_span.data(),
+                            matrix_values.data());
 
-  HYPRE_IJMatrixAssemble(ij_A);
-  HYPRE_IJMatrixGetObject(ij_A, (void**)&parcsr_A);
-  Real m2 = platform::getRealTime();
-  info() << "Time to create matrix=" << (m2 - m1);
+    HYPRE_IJMatrixAssemble(ij_A);
+    HYPRE_IJMatrixGetObject(ij_A, (void**)&parcsr_A);
+    Real m2 = platform::getRealTime();
+    info() << "Time to create matrix=" << (m2 - m1);
+  }
 
   if (do_dump_matrix) {
     String file_name = String("dumpA.") + String::fromNumber(my_rank) + ".txt";
@@ -449,36 +454,46 @@ solve()
 
   HYPRE_Solver solver = nullptr;
   HYPRE_Solver precond = nullptr;
-  /* setup AMG */
-  HYPRE_ParCSRPCGCreate(mpi_comm, &solver);
+  {
+    Timer::Action ta1(tstat, "HypreSetPrecond");
+    /* setup AMG */
+    HYPRE_ParCSRPCGCreate(mpi_comm, &solver);
 
-  /* Set some parameters (See Reference Manual for more parameters) */
-  HYPRE_PCGSetMaxIter(solver, 1000); /* max iterations */
-  HYPRE_PCGSetTol(solver, 1e-7); /* conv. tolerance */
-  HYPRE_PCGSetTwoNorm(solver, 1); /* use the two norm as the stopping criteria */
-  HYPRE_PCGSetPrintLevel(solver, 2); /* print solve info */
-  HYPRE_PCGSetLogging(solver, 1); /* needed to get run info later */
+    /* Set some parameters (See Reference Manual for more parameters) */
+    HYPRE_PCGSetMaxIter(solver, 1000); /* max iterations */
+    HYPRE_PCGSetTol(solver, 1e-7); /* conv. tolerance */
+    HYPRE_PCGSetTwoNorm(solver, 1); /* use the two norm as the stopping criteria */
+    HYPRE_PCGSetPrintLevel(solver, 2); /* print solve info */
+    HYPRE_PCGSetLogging(solver, 1); /* needed to get run info later */
 
-  hypreCheck("HYPRE_BoomerAMGCreate", HYPRE_BoomerAMGCreate(&precond));
+    hypreCheck("HYPRE_BoomerAMGCreate", HYPRE_BoomerAMGCreate(&precond));
 
-  HYPRE_BoomerAMGCreate(&precond);
-  HYPRE_BoomerAMGSetPrintLevel(precond, 1); /* print amg solution info */
-  HYPRE_BoomerAMGSetCoarsenType(precond, 6);
-  HYPRE_BoomerAMGSetOldDefault(precond);
-  HYPRE_BoomerAMGSetRelaxType(precond, 6); /* Sym G.S./Jacobi hybrid */
-  HYPRE_BoomerAMGSetNumSweeps(precond, 1);
-  HYPRE_BoomerAMGSetTol(precond, 0.0); /* conv. tolerance zero */
-  HYPRE_BoomerAMGSetMaxIter(precond, 1); /* do only one iteration! */
+    HYPRE_BoomerAMGCreate(&precond);
+    HYPRE_BoomerAMGSetPrintLevel(precond, 1); /* print amg solution info */
+    HYPRE_BoomerAMGSetCoarsenType(precond, 6);
+    HYPRE_BoomerAMGSetOldDefault(precond);
+    HYPRE_BoomerAMGSetRelaxType(precond, 6); /* Sym G.S./Jacobi hybrid */
+    HYPRE_BoomerAMGSetNumSweeps(precond, 1);
+    HYPRE_BoomerAMGSetTol(precond, 0.0); /* conv. tolerance zero */
+    HYPRE_BoomerAMGSetMaxIter(precond, 1); /* do only one iteration! */
 
-  hypreCheck("HYPRE_ParCSRPCGSetPrecond",
-             HYPRE_ParCSRPCGSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
-  hypreCheck("HYPRE_PCGSetup",
-             HYPRE_ParCSRPCGSetup(solver, parcsr_A, parvector_b, parvector_x));
+    hypreCheck("HYPRE_ParCSRPCGSetPrecond",
+               HYPRE_ParCSRPCGSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
+  }
   Real a1 = platform::getRealTime();
-  hypreCheck("HYPRE_PCGSolve",
-             HYPRE_ParCSRPCGSolve(solver, parcsr_A, parvector_b, parvector_x));
+  {
+    Timer::Action ta1(tstat, "HypreSetup");
+    hypreCheck("HYPRE_PCGSetup",
+               HYPRE_ParCSRPCGSetup(solver, parcsr_A, parvector_b, parvector_x));
+  }
+
+  {
+    Timer::Action ta1(tstat, "HypreLinearSystemSolve");
+    hypreCheck("HYPRE_PCGSolve",
+               HYPRE_ParCSRPCGSolve(solver, parcsr_A, parvector_b, parvector_x));
+  }
   Real b1 = platform::getRealTime();
-  info() << "Time to solve=" << (b1 - a1);
+  info() << "Time to setup and solve=" << (b1 - a1);
 
   if (is_parallel) {
     Int32 nb_wanted_row = m_parallel_rows_index.extent0();

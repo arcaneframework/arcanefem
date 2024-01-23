@@ -491,7 +491,6 @@ _doStationarySolve()
       _assembleLinearOperator();
     }
 
-    // # T=linalg.solve(K,RHS)
     _solve();
 
     // Check results
@@ -2133,21 +2132,28 @@ _assembleCooGPUBilinearOperatorTRIA3()
 void FemModule::
 _solve()
 {
-
-  Timer::Action timer_action(m_time_stats, "Solving");
+  ITimeStats* tstat = m_time_stats;
+  Timer::Action timer_action(tstat, "Solving");
 
   std::chrono::_V2::system_clock::time_point solve_start;
   if (m_register_time) {
     solve_start = std::chrono::high_resolution_clock::now();
   }
 
-  m_linear_system.solve();
+  {
+    Timer::Action ta1(tstat, "LinearSystemSolve");
+    // # T=linalg.solve(K,RHS)
+    m_linear_system.solve();
+  }
 
   // Re-Apply boundary conditions because the solver has modified the value
   // of u on all nodes
-  _applyDirichletBoundaryConditions();
-
   {
+    Timer::Action ta1(tstat, "ApplyBoundaryConditions");
+    _applyDirichletBoundaryConditions();
+  }
+  {
+    Timer::Action ta1(tstat, "CopySolution");
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
     // Copy RHS DoF to Node u
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -2160,6 +2166,7 @@ _solve()
 
   //test
   m_u.synchronize();
+
   // def update_T(self,T):
   //     """Update u value on nodes after the FE resolution"""
   //     for i in range(0,len(self.mesh.nodes)):
