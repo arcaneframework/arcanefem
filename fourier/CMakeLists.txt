@@ -1,8 +1,3 @@
-cmake_minimum_required(VERSION 3.21)
-project(Fourier LANGUAGES C CXX)
-
-find_package(Arcane REQUIRED)
-
 add_executable(Fourier
   FemModule.cc
   main.cc

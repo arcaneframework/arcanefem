@@ -1,8 +1,3 @@
-cmake_minimum_required(VERSION 3.21)
-project(Soildynamics LANGUAGES C CXX)
-
-find_package(Arcane REQUIRED)
-
 add_executable(Soildynamics
   FemModule.cc
   main.cc

@@ -1,8 +1,3 @@
-cmake_minimum_required(VERSION 3.21)
-project(FemTest1 LANGUAGES C CXX)
-
-find_package(Arcane REQUIRED)
-
 option(ENABLE_DEBUG_MATRIX "Enable Debug matrix instead of a sparse one" OFF)
 
 add_library(FemUtils
