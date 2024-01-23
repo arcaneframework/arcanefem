@@ -1,5 +1,3 @@
-project(aerodynamics LANGUAGES C CXX)
-
 add_executable(aerodynamics
   FemModule.cc
   main.cc
