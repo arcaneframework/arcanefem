@@ -1,8 +1,3 @@
-cmake_minimum_required(VERSION 3.21)
-project(aerodynamics LANGUAGES C CXX)
-
-find_package(Arcane REQUIRED)
-
 add_executable(aerodynamics
   FemModule.cc
   main.cc

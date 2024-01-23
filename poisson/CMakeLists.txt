@@ -1,9 +1,3 @@
-cmake_minimum_required(VERSION 3.21)
-project(Poisson LANGUAGES C CXX)
-#set(CMAKE_BUILD_TYPE Debug)
-
-find_package(Arcane REQUIRED)
-
 if (ARCANE_HAS_CUDA)
   find_library(CUSPARSE_LIB cusparse HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64)
   if(CUSPARSE_LIB)
