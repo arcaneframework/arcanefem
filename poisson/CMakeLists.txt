@@ -1,19 +1,12 @@
+set (USE_CUSPARSE_ADD OFF)
+
 if (ARCANE_HAS_CUDA)
   find_library(CUSPARSE_LIB cusparse HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64)
   if(CUSPARSE_LIB)
     message(STATUS "CUSPARSE found: ${CUSPARSE_LIB}. Arcane installation has CUDA. Enabling features that depends of Cusparse.")
     message(STATUS "Arcane has been compiled with cuda. Enabling features that need CUDA.")
-    arcane_accelerator_enable()
-    arcane_accelerator_add_source_files(
-      FemModule.cc
-    )
     set(USE_CUSPARSE_ADD ON)
-  else()
-    message(WARNING "CUSPARSE not found: Disabling features that depends of Cusparse.")
-    set (USE_CUSPARSE_ADD OFF)
   endif()
-else()
-  set (USE_CUSPARSE_ADD OFF)
 endif()
 
 if(ARCANE_HAS_ACCELERATOR)

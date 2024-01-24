@@ -480,16 +480,18 @@ _doStationarySolve()
     }
 
     // Assemble the FEM linear operator (RHS - vector b)
-    if (m_use_buildless_csr) {
+#ifdef ARCANE_HAS_ACCELERATOR
+    if (m_use_buildless_csr || m_use_csr_gpu || m_use_nodewise_csr || m_use_csr) {
       m_linear_system.clearValues();
       _assembleCsrGpuLinearOperator();
       //_assembleCsrLinearOperator();
       m_csr_matrix.translateToLinearSystem(m_linear_system);
       _translateRhs();
     }
-    else {
+    else
+#endif
       _assembleLinearOperator();
-    }
+
 
     _solve();
 

@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.21)
 project(ArcaneFem LANGUAGES C CXX)
 
+
 find_package(Arcane REQUIRED)
+
+if (ARCANE_HAS_CUDA)
+find_package(CUDAToolkit)
+endif()
 
 enable_testing()
 
