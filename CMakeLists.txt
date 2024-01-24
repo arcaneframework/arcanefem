@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.21)
 project(ArcaneFem LANGUAGES C CXX)
 
 find_package(Arcane REQUIRED)
+arcane_accelerator_enable()
+
+if(ARCANE_HAS_ACCELERATOR)
+  message(STATUS "Arcane has been compiled with cuda. Enabling features that need CUDA.")
+endif()
 
 enable_testing()
 

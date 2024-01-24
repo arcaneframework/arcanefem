@@ -16,16 +16,9 @@ else()
   set (USE_CUSPARSE_ADD OFF)
 endif()
 
-if(ARCANE_HAS_ACCELERATOR)
-  message(STATUS "Arcane has been compiled with cuda. Enabling features that need CUDA.")
-  arcane_accelerator_enable()
-  arcane_accelerator_add_source_files(
-    FemModule.cc
-  )
-else()
-  message(WARNING "Arcane has not been compiled with cuda. Disabling features that need CUDA.")
-endif()
-    
+arcane_accelerator_add_source_files(
+  FemModule.cc
+)
 
 add_executable(Poisson
   FemModule.h
