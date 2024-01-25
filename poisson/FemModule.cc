@@ -1,307 +1,204 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2023 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemModule.cc                                                (C) 2022-2023 */
+/* FemModule.cc                                                (C) 2022-2024 */
 /*                                                                           */
 /* Simple module to test simple FEM mechanism.                               */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
-//Having H files for each steps of the FEM
-
-#include <arcane/utils/CommandLineArguments.h>
-#include <arcane/utils/StringList.h>
-
-#include <arcane/ITimeLoopMng.h>
-#include <arcane/IMesh.h>
-#include <arcane/IItemFamily.h>
-#include <arcane/ItemGroup.h>
-#include <arcane/ICaseMng.h>
-
-#if defined(USE_COO) || defined(USE_COO_GPU)
-#include "CooFormatMatrix.h"
-#endif
-
-#if defined(USE_CSR) || defined(USE_CSR_GPU)
-#include "CsrFormatMatrix.h"
-#endif
-
-#ifdef USE_LCSR
-#include "LinkedCsrFormatMatrix.h"
-#endif
-
-#include "IDoFLinearSystemFactory.h"
-#include "Fem_axl.h"
-#include "FemUtils.h"
-#include "DoFLinearSystem.h"
-#include "FemDoFsOnNodes.h"
-
-#ifdef REGISTER_TIME
-#include <iostream>
-#include <fstream>
-#include <chrono>
-#endif
-
-#ifdef USE_COO
-#include "arcane/core/IIndexedIncrementalItemConnectivityMng.h"
-#include "arcane/core/IIndexedIncrementalItemConnectivity.h"
-#endif
-
-#if defined(USE_CUSPARSE_ADD)
-//include for cusparse
-#include <cusparse_v2.h>
-#endif
-
-//include for GPU use
-#include "arcane/accelerator/core/IAcceleratorMng.h"
-#include "arcane/accelerator/Accelerator.h"
-#include "arcane/accelerator/core/RunQueue.h"
-
-#include <arcane/utils/NumArray.h>
-
-//include for connectivity view
-#include "arcane/UnstructuredMeshConnectivity.h"
-#include "arcane/ItemGenericInfoListView.h"
-
-// Pour avoir les vues sur les variables
-#include "arcane/accelerator/VariableViews.h"
-
-// Pour avoir les vues sur les NumArray
-#include "arcane/accelerator/NumArrayViews.h"
-
-// Fichier à inclure pour avoir RUNCOMMAND_ENUMERATE
-#include "arcane/accelerator/RunCommandEnumerate.h"
-
-// Fichier à inclure pour avoir RUNCOMMAND_LOOP
-#include "arcane/accelerator/RunCommandLoop.h"
-
-#include "arcane/accelerator/Reduce.h"
-#include "arcane/accelerator/Accelerator.h"
-
-#include "arcane/AcceleratorRuntimeInitialisationInfo.h"
-
-// Fichier à inclure afin de pouvoir effectuer des connectivités personnalisées
-#include "arcane/core/IIncrementalItemConnectivity.h"
+#include "FemModule.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-using namespace Arcane;
-using namespace Arcane::FemUtils;
-namespace ax = Arcane::Accelerator;
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-#if defined(USE_CUSPARSE_ADD)
-/**
- * @brief Macro for use of cusparse
- * 
- */
-#define CHECK_CUSPARSE(func) \
-  { \
-    cusparseStatus_t status = (func); \
-    if (status != CUSPARSE_STATUS_SUCCESS) { \
-      printf("CUSPARSE API failed at line %d with error: %s (%d)\n", \
-             __LINE__, cusparseGetErrorString(status), status); \
-      return; \
-    } \
-  }
-
-#define CHECK_CUDA(func) \
-  { \
-    cudaError_t status = (func); \
-    if (status != cudaSuccess) { \
-      printf("CUDA API failed at line %d with error: %s (%d)\n", \
-             __LINE__, cudaGetErrorString(status), status); \
-      return; \
-    } \
-  }
-
-/**
- * @brief struct for the csr of cusparse 
- * 
- */
-struct cusparseCsr
+void FemModule::
+_writeInJson()
 {
-  cusparseMatDescr_t desc;
-  Int32 nnz = 0;
-  Int32* csrRow;
-  Int32* csrCol;
-  float* csrVal;
-};
-
-#ifdef REGISTER_TIME
-struct computeTimer
-{
-  double add_glob = 0;
-  double compute_el = 0;
-  double sort_coo = 0;
-  double convert_coo = 0;
-  double convert_coo_tot = 0;
-  double convert_csr_tot = 0;
-  double convert_tot = 0;
-  double iter_time = 0;
-  double compute_tot = 0;
-};
-#endif
-#endif
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-/*!
- * \brief Module Fem.
- */
-class FemModule
-: public ArcaneFemObject
-{
- public:
-
-  explicit FemModule(const ModuleBuildInfo& mbi)
-  : ArcaneFemObject(mbi)
-  , m_dofs_on_nodes(mbi.subDomain()->traceMng())
-#if defined(USE_COO) || defined(USE_COO_GPU)
-  , m_coo_matrix(mbi.subDomain())
-#endif
-#if defined(USE_CSR) || defined(USE_CSR_GPU)
-  , m_csr_matrix(mbi.subDomain())
-#endif
-#ifdef USE_LCSR
-  , m_lcsr_matrix(mbi.subDomain())
-#endif
+  ofstream jsonFile("time.json");
+  JSONWriter json_writer(JSONWriter::FormatFlags::None);
+  json_writer.beginObject();
   {
-    ICaseMng* cm = mbi.subDomain()->caseMng();
-    cm->setTreatWarningAsError(true);
-    cm->setAllowUnkownRootElelement(false);
+    JSONWriter::Object jo(json_writer, "Timer");
+    m_time_stats->dumpStatsJSON(json_writer);
   }
-
- public:
-
-  //! Method called at each iteration
-  void compute() override;
-
-  //! Method called at the beginning of the simulation
-  void startInit() override;
-
-  VersionInfo versionInfo() const override
-  {
-    return VersionInfo(1, 0, 0);
-  }
-
- private:
-
-  Real f;
-  Real ElementNodes;
-
-  DoFLinearSystem m_linear_system;
-  IItemFamily* m_dof_family = nullptr;
-  FemDoFsOnNodes m_dofs_on_nodes;
-
-#if defined(USE_COO) || defined(USE_COO_GPU)
-  CooFormat m_coo_matrix;
-#endif
-
-#if defined(USE_CSR) || defined(USE_CSR_GPU) || defined(USE_BLCSR)
-  CsrFormat m_csr_matrix;
-#endif
-
-#ifdef USE_BLCSR
-  IIncrementalItemConnectivity* cn;
-  Ref<Arcane::IIndexedIncrementalItemConnectivity, 0> idx_cn;
-#endif
-
-#if defined(REGISTER_TIME)
-  ofstream logger;
-  double lhs_time;
-  double rhs_time;
-  double solver_time;
-#endif
-
- private:
-
-  void _doStationarySolve();
-  void _getMaterialParameters();
-  void _updateBoundayConditions();
-  void _checkCellType();
-  void _assembleBilinearOperatorTRIA3();
-  void _assembleBilinearOperatorQUAD4();
-  void _solve();
-  void _initBoundaryconditions();
-  void _assembleLinearOperator();
-  void _applyDirichletBoundaryConditions();
-  void _checkResultFile();
-  FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
-  FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
-  Real _computeAreaTriangle3(Cell cell);
-  Real _computeAreaQuad4(Cell cell);
-  Real _computeEdgeLength2(Face face);
-  Real2 _computeEdgeNormal2(Face face);
-#ifdef USE_CUSPARSE_ADD
-  void printCsrMatrix(std::string fileName, cusparseCsr csr, bool is_coo);
-  void _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell icell, cusparseHandle_t handle, IndexedNodeDoFConnectivityView node_dof
-#ifdef REGISTER_TIME
-                                     ,
-                                     computeTimer& timer
-#endif
-  );
-  void _assembleCusparseBilinearOperatorTRIA3();
-#endif
-#ifdef USE_COO
-  void _buildMatrix();
-  void _assembleCooBilinearOperatorTRIA3();
-#endif
-
-#if defined(USE_CSR_GPU) || defined(USE_COO_GPU)
- public:
-
-  void _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord, Real K_e[9]);
-
- private:
-
-#endif
-
-#ifdef USE_CSR_GPU
-
- public:
-
-  void _buildMatrixCsrGPU();
-  void _assembleCsrGPUBilinearOperatorTRIA3();
-
- private:
-
-#endif
-#ifdef USE_COO_GPU
-
- public:
-
-  void _buildMatrixGPU();
-  void _assembleCooGPUBilinearOperatorTRIA3();
-
- private:
-
-#endif
-#ifdef USE_CSR
-  void _assembleCsrBilinearOperatorTRIA3();
-  void _buildMatrixCsr();
-#endif
-#ifdef USE_BLCSR
- public:
-
-  void _buildMatrixBuildLessCsr();
-  void _computeElementVectorTRIA3(NodeLocalId inode, IndexedNodeNodeConnectivityView nnc, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> row_csr, ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> col_csr, ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> val_csr);
-  void _assembleBLCsrBilinearOperatorTria3();
-
- private:
-
-#endif
-};
+  json_writer.endObject();
+  jsonFile << json_writer.getBuffer();
+}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+
+Real FemModule::
+_readTimeFromJson(String main_time, String sub_time)
+{
+  UniqueArray<Byte> bytes;
+  IParallelMng* pm = this->mesh()->parallelMng();
+  pm->ioMng()->collectiveRead("time.json", bytes, false);
+  JSONDocument json_doc;
+  json_doc.parse(bytes, "time.json");
+  //Parsing through the JSON
+  JSONValue root = json_doc.root();
+  //From root to the list of subactions in Main
+  JSONValueList main = root.child("Timer").child("Current").child("Main").child("SubActions").valueAsArray();
+  //From the list of subactions in Main to the list of subactions in Loop
+  JSONValueList loop = (main.begin() + 3)->child("SubActions").valueAsArray();
+  //From the list of subactions in Loop to the list of subactions in LoopEntryPoints
+  JSONValueList loopEntryPoint = (loop.begin() + 1)->child("SubActions").valueAsArray();
+  //From the list of subactions in LoopEntryPoints to the list of subactions in Fem
+  JSONValueList fem = (loopEntryPoint.begin() + 7)->child("SubActions").valueAsArray();
+  //From the list of subactions in Fem to the list of subactions in Compute
+  JSONValueList compute = (fem.begin() + 1)->child("SubActions").valueAsArray();
+  //From the list of subactions in Compute to the list of subactions in StationarySolve
+  String prev = "";
+  JSONValueList stationarySolve;
+  for (JSONValue el : compute) {
+    if (prev == "StationarySolve") {
+      stationarySolve = el.child("SubActions").valueAsArray();
+      break;
+    }
+    prev = el.valueAsStringView();
+  }
+  //Selecting the right 'main' action
+  JSONValue function;
+  prev = "";
+  for (JSONValue el : stationarySolve) {
+    if (prev == main_time) {
+      function = el;
+      break;
+    }
+    prev = el.valueAsStringView();
+  }
+  //Selecting the sub action if we want it
+  if (sub_time != "") {
+    prev = "";
+    for (JSONValue el : function.child("SubActions").valueAsArray()) {
+      if (prev == sub_time) {
+        function = el;
+        break;
+      }
+      prev = el.valueAsStringView();
+    }
+  }
+  // The timer has not been found
+  if (prev == "") {
+    return 0;
+  }
+  String val;
+  std::stringstream ss;
+  //Get only the Cumulative value
+  ss << function.child("Cumulative").value();
+  ss >> val;
+  return *Convert::Type<Real>::tryParse(val);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_saveTimeInCSV()
+{
+  std::ofstream csv_save;
+  if (!fs::exists("time.csv")) {
+    csv_save.open("time.csv");
+    csv_save << "Number of Nodes,Legacy,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU,CusparseAdd\n";
+  }
+  else {
+    csv_save.open("time.csv", std::ios_base::app);
+  }
+  Integer denume = m_cache_warming;
+  if (denume > 1)
+    denume--;
+  csv_save << nbNode() << ",";
+  csv_save << _readTimeFromJson("AssembleLegacyBilinearOperatorTria3", "") / denume << ",";
+  csv_save << _readTimeFromJson("AssembleCooSortBilinearOperatorTria3", "") / denume << ",";
+  csv_save << _readTimeFromJson("AssembleCooBilinearOperatorTria3", "") / denume << ",";
+  csv_save << _readTimeFromJson("AssembleCsrBilinearOperatorTria3", "") / denume << ",";
+  if (m_running_on_gpu) {
+    csv_save << "0,0,0,";
+    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "") / denume << ",";
+    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "") / denume << ",";
+    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "") / denume << ",";
+  }
+  else {
+    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "") / (m_cache_warming == 1 ? 1 : m_cache_warming - 1) << ",";
+    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "") / denume << ",";
+    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "") / denume << ",";
+    csv_save << "0,0,0,";
+  }
+  csv_save << _readTimeFromJson("AssembleCusparseBilinearOperator", "") / denume << "\n";
+  csv_save.close();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_saveNoBuildTimeInCSV()
+{
+  std::ofstream csv_save;
+  if (!fs::exists("timeNoBuild.csv")) {
+    csv_save.open("timeNoBuild.csv");
+    csv_save << "Number of Nodes,Legacy,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU,CusparseAdd\n";
+  }
+  else {
+    csv_save.open("timeNoBuild.csv", std::ios_base::app);
+  }
+  Integer denume = m_cache_warming;
+  if (denume > 1)
+    denume--;
+  csv_save << nbNode() << ",";
+  csv_save << _readTimeFromJson("AssembleLegacyBilinearOperatorTria3", "") / denume << ",";
+  csv_save << (_readTimeFromJson("AssembleCooSortBilinearOperatorTria3", "CooSortComputeElementMatrixTria3") + _readTimeFromJson("AssembleCooSortBilinearOperatorTria3", "CooSortAddToGlobalMatrix")) / denume << ",";
+  csv_save << (_readTimeFromJson("AssembleCooBilinearOperatorTria3", "CooComputeElementMatrixTria3") + _readTimeFromJson("AssembleCooBilinearOperatorTria3", "CooAddToGlobalMatrix")) / denume << ",";
+  csv_save << (_readTimeFromJson("AssembleCsrBilinearOperatorTria3", "CsrComputeElementMatrixTria3") + _readTimeFromJson("AssembleCsrBilinearOperatorTria3", "CsrAddToGlobalMatrix")) / denume << ",";
+  if (m_running_on_gpu) {
+    csv_save << "0,0,0,";
+    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "CsrGpuAddComputeLoop") / denume << ",";
+    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "NodeWiseCsrAddAndCompute") / denume << ",";
+    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrAddAndCompute") / denume << ",";
+  }
+  else {
+    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "CsrGpuAddComputeLoop") / denume << ",";
+    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "NodeWiseCsrAddAndCompute") / denume << ",";
+    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrAddAndCompute") / denume << ",";
+    csv_save << "0,0,0,";
+  }
+  csv_save << _readTimeFromJson("AssembleCusparseBilinearOperator", "") / denume << "\n";
+  csv_save.close();
+}
+
+void FemModule::
+_benchBuildRow()
+{
+  std::ofstream csv_save;
+  if (!fs::exists("buildRow.csv")) {
+    csv_save.open("buildRow.csv");
+    csv_save << "Number of Nodes,Build on CPU,Build on GPU\n";
+  }
+  else {
+    csv_save.open("buildRow.csv", std::ios_base::app);
+  }
+  csv_save << nbNode() << ",";
+  csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrBuildMatrix") / m_cache_warming << ",";
+  csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrBuildMatrixGPU") / m_cache_warming << "\n";
+  csv_save.close();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+endModule()
+{
+  _writeInJson();
+  _saveTimeInCSV();
+  _saveNoBuildTimeInCSV();
+  //_benchBuildRow();
+}
 
 void FemModule::
 compute()
@@ -315,13 +212,21 @@ compute()
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
 
-  m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
+  m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
   // Test for adding parameters for PETSc.
   // This is only used for the first call.
   {
     StringList string_list;
+    /*
     string_list.add("-trmalloc");
     string_list.add("-log_trace");
+    string_list.add("-ksp_monitor");
+    string_list.add("-ksp_view");
+    string_list.add("-math_view");
+    string_list.add("draw");
+    string_list.add("-draw_pause");
+    string_list.add("-10");
+*/
     CommandLineArguments args(string_list);
     m_linear_system.setSolverCommandLineArguments(args);
   }
@@ -338,9 +243,13 @@ startInit()
 {
   info() << "Module Fem INIT";
 
-#ifdef REGISTER_TIME
-  logger = ofstream("timer.txt");
-#endif
+  if (m_register_time) {
+    logger = ofstream("timer.txt");
+    wbuild = ofstream("with_build.csv", std::ios_base::app);
+    wbuild << nbNode() << ",";
+    timer = ofstream("timer.csv", std::ios_base::app);
+    timer << nbNode() << ",";
+  }
 
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
@@ -357,6 +266,7 @@ startInit()
   // # init behavior
   // # init behavior on mesh entities
   // # init BCs
+  _handleFlags();
   _initBoundaryconditions();
 
   _checkCellType();
@@ -365,13 +275,90 @@ startInit()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+void FemModule ::
+_handleFlags()
+{
+  ParameterList parameter_list = this->subDomain()->application()->applicationInfo().commandLineArguments().parameters();
+  info() << "-----------------------------------------------------------------------------------------";
+  info() << "The time will be registered by arcane in the output/listing/logs.0 file, and will be added to (or will create) the time.csv (with time for the various bilinear assembly phases) and timeNoBuild.csv (with time without the building part of COO and CSR for the various bilinear assembly phases) fil";
+  if (parameter_list.getParameterOrNull("REGISTER_TIME") == "TRUE") {
+    m_register_time = true;
+    info() << "REGISTER_TIME: The time will also be registered in the timer.txt, with_build.csv and timer.csv file";
+  }
+  String cache_warm = parameter_list.getParameterOrNull("CACHE_WARMING");
+  if (cache_warm != NULL) {
+    auto tmp = Convert::Type<Integer>::tryParse(cache_warm);
+    m_cache_warming = *tmp;
+    info() << "CACHE_WARMING: A cache warming of " << m_cache_warming << " iterations will happen";
+  }
+  if (cache_warm == NULL) {
+    m_cache_warming = options()->cacheWarming();
+    if (m_cache_warming != 1)
+      info() << "CACHE_WARMING: A cache warming of " << m_cache_warming << " iterations will happen";
+  }
+  if (parameter_list.getParameterOrNull("COO") == "TRUE" || options()->coo()) {
+    m_use_coo = true;
+    m_use_legacy = false;
+    info() << "COO: The COO datastructure and its associated methods will be used";
+  }
+  if (parameter_list.getParameterOrNull("COO_SORT") == "TRUE" || options()->cooSorting()) {
+    m_use_coo_sort = true;
+    m_use_legacy = false;
+    info() << "COO_SORT: The COO with sorting datastructure and its associated methods will be used";
+  }
+  if (parameter_list.getParameterOrNull("CSR") == "TRUE" || options()->csr()) {
+    m_use_csr = true;
+    m_use_legacy = false;
+    info() << "CSR: The CSR datastructure and its associated methods will be used";
+  }
+#ifdef ARCANE_HAS_ACCELERATOR
+  if (parameter_list.getParameterOrNull("CSR_GPU") == "TRUE" || options()->csrGpu()) {
+    m_use_csr_gpu = true;
+    m_use_legacy = false;
+    info() << "CSR_GPU: The CSR datastructure GPU compatible and its associated methods will be used";
+  }
+#endif
+  if (parameter_list.getParameterOrNull("NWCSR") == "TRUE" || options()->nwcsr()) {
+    m_use_nodewise_csr = true;
+    m_use_legacy = false;
+    info() << "NWCSR: The Csr datastructure (GPU compatible) and its associated methods will be used with computation in a nodewise manner";
+  }
+  if (parameter_list.getParameterOrNull("BLCSR") == "TRUE" || options()->blcsr()) {
+    m_use_buildless_csr = true;
+    m_use_legacy = false;
+    info() << "BLCSR: The Csr datastructure (GPU compatible) and its associated methods will be used with computation in a nodewise manner with the building phases incorporated in the computation";
+  }
+#ifdef ARCANE_HAS_ACCELERATOR
+  if (parameter_list.getParameterOrNull("CUSPARSE_ADD") == "TRUE" || options()->cusparseAdd()) {
+    m_use_cusparse_add = true;
+    m_use_legacy = false;
+    info() << "CUSPARSE_ADD: CUSPARSE and its associated methods will be used";
+  }
+#endif
+  if (parameter_list.getParameterOrNull("LEGACY") == "TRUE" || m_use_legacy || options()->legacy()) {
+    m_use_legacy = true;
+    info() << "LEGACY: The Legacy datastructure and its associated methods will be used";
+  }
+  else if (parameter_list.getParameterOrNull("LEGACY") == "FALSE" || options()->legacy()) {
+    m_use_legacy = false;
+  }
+  if (parameter_list.getParameterOrNull("AcceleratorRuntime") == "cuda") {
+    m_running_on_gpu = true;
+    info() << "CUDA: The methods able to use GPU will use it";
+  }
+  info() << "-----------------------------------------------------------------------------------------";
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 void FemModule::
 _doStationarySolve()
 {
-
-#ifdef REGISTER_TIME
-  auto fem_start = std::chrono::high_resolution_clock::now();
-#endif
+  Timer::Action timer_action(m_time_stats, "StationarySolve");
+  std::chrono::_V2::system_clock::time_point fem_start;
+  if (m_register_time && m_cache_warming)
+    fem_start = std::chrono::high_resolution_clock::now();
 
   // # get material parameters
   _getMaterialParameters();
@@ -385,49 +372,140 @@ _doStationarySolve()
   else {
 
 #ifdef USE_CUSPARSE_ADD
-    _assembleCusparseBilinearOperatorTRIA3();
+    if (m_use_cusparse_add) {
+      cusparseHandle_t handle;
+      _assembleCusparseBilinearOperatorTRIA3();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleCusparseBilinearOperator");
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+          _assembleCusparseBilinearOperatorTRIA3();
+        }
+      }
+    }
+
 #endif
-#ifdef USE_COO
-    _assembleCooBilinearOperatorTRIA3();
-    m_coo_matrix.translateToLinearSystem(m_linear_system);
-#endif
+    if (m_use_coo) {
+      m_linear_system.clearValues();
+      _assembleCooBilinearOperatorTRIA3();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleCooBilinearOperatorTria3");
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+          m_linear_system.clearValues();
+          _assembleCooBilinearOperatorTRIA3();
+        }
+      }
+      m_coo_matrix.translateToLinearSystem(m_linear_system);
+    }
+    if (m_use_coo_sort) {
+      m_linear_system.clearValues();
+      _assembleCooSortBilinearOperatorTRIA3();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleCooSortBilinearOperatorTria3");
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+          m_linear_system.clearValues();
+          _assembleCooSortBilinearOperatorTRIA3();
+        }
+      }
+      m_coo_matrix.translateToLinearSystem(m_linear_system);
+    }
 #ifdef USE_COO_GPU
-    _assembleCooGPUBilinearOperatorTRIA3();
+    for (i = 0; i < 3; i++) {
+      m_linear_system.clearValues();
+      _assembleCooGPUBilinearOperatorTRIA3();
+    }
     m_coo_matrix.translateToLinearSystem(m_linear_system);
 #endif
-#ifdef USE_CSR_GPU
-    _assembleCsrGPUBilinearOperatorTRIA3();
-    m_csr_matrix.translateToLinearSystem(m_linear_system);
+    if (m_use_csr) {
+      m_linear_system.clearValues();
+      _assembleCsrBilinearOperatorTRIA3();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleCsrBilinearOperatorTria3");
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+          m_linear_system.clearValues();
+          _assembleCsrBilinearOperatorTRIA3();
+        }
+      }
+      m_csr_matrix.translateToLinearSystem(m_linear_system);
+    }
+    if (m_use_legacy) {
+      m_linear_system.clearValues();
+      _assembleBilinearOperatorTRIA3();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleLegacyBilinearOperatorTria3");
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+          m_linear_system.clearValues();
+          _assembleBilinearOperatorTRIA3();
+        }
+      }
+    }
+
+#ifdef ARCANE_HAS_ACCELERATOR
+    if (m_use_csr_gpu) {
+      m_linear_system.clearValues();
+      _assembleCsrGPUBilinearOperatorTRIA3();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleCsrGpuBilinearOperatorTria3");
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+          m_linear_system.clearValues();
+          _assembleCsrGPUBilinearOperatorTRIA3();
+        }
+      }
+
+      m_csr_matrix.translateToLinearSystem(m_linear_system);
+    }
 #endif
-#ifdef USE_CSR
-    _assembleCsrBilinearOperatorTRIA3();
-    m_csr_matrix.translateToLinearSystem(m_linear_system);
-#endif
-#ifdef USE_LEGACY
-    _assembleBilinearOperatorTRIA3();
-#endif
+    if (m_use_nodewise_csr) {
+      m_linear_system.clearValues();
+      _assembleNodeWiseCsrBilinearOperatorTria3();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleNodeWiseCsrBilinearOperatorTria3");
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+          m_linear_system.clearValues();
+          _assembleNodeWiseCsrBilinearOperatorTria3();
+        }
+      }
+      m_csr_matrix.translateToLinearSystem(m_linear_system);
+    }
+    if (m_use_buildless_csr) {
+      m_linear_system.clearValues();
+      _assembleBuildLessCsrBilinearOperatorTria3();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleBuildLessCsrBilinearOperatorTria3");
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+          m_linear_system.clearValues();
+          _assembleBuildLessCsrBilinearOperatorTria3();
+        }
+      }
+      m_csr_matrix.translateToLinearSystem(m_linear_system);
+    }
+
+    // Assemble the FEM linear operator (RHS - vector b)
+    if (m_use_buildless_csr) {
+      m_linear_system.clearValues();
+      _assembleCsrGpuLinearOperator();
+      //_assembleCsrLinearOperator();
+      m_csr_matrix.translateToLinearSystem(m_linear_system);
+      _translateRhs();
+    }
+    else {
+      _assembleLinearOperator();
+    }
+
+    _solve();
+
+    // Check results
+    _checkResultFile();
+    if (m_register_time) {
+      auto fem_stop = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> fem_duration = fem_stop - fem_start;
+      double total_duration = fem_duration.count();
+      logger << "FEM total duration : " << fem_duration.count() << "\n"
+             << "LHS time in total duration : " << lhs_time / total_duration * 100 << "%\n"
+             << "RHS time in total duration : " << rhs_time / total_duration * 100 << "%\n"
+             << "Solver time in total duration : " << solver_time / total_duration * 100 << "%\n";
+      logger.close();
+    }
   }
-
-  // Assemble the FEM linear operator (RHS - vector b)
-  _assembleLinearOperator();
-
-  // # T=linalg.solve(K,RHS)
-  _solve();
-
-  // Check results
-  _checkResultFile();
-
-#ifdef REGISTER_TIME
-  auto fem_stop = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> fem_duration = fem_stop - fem_start;
-  double total_duration = fem_duration.count();
-  logger << "FEM total duration : " << fem_duration.count() << "\n"
-         << "LHS time in total duration : " << lhs_time / total_duration * 100 << "%\n"
-         << "RHS time in total duration : " << rhs_time / total_duration * 100 << "%\n"
-         << "Solver time in total duration : " << solver_time / total_duration * 100 << "%\n";
-
-  logger.close();
-#endif
 }
 
 /*---------------------------------------------------------------------------*/
@@ -460,6 +538,62 @@ _initBoundaryconditions()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
+_applyDirichletBoundaryConditionsGpu()
+{
+  // Handle all the Dirichlet boundary conditions.
+  // In the 'arc' file, there are in the following format:
+  //   <dirichlet-boundary-condition>
+  //   <surface>Haut</surface>
+  //   <value>21.0</value>
+  // </dirichlet-boundary-condition>
+
+  for (const auto& bs : options()->dirichletBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    Real value = bs->value();
+    info() << "Apply Dirichlet boundary condition surface=" << group.name() << " v=" << value;
+
+    RunQueue* queue = acceleratorMng()->defaultQueue();
+    auto command = makeCommand(queue);
+
+    UnstructuredMeshConnectivityView m_connectivity_view;
+    auto in_node_coord = ax::viewIn(command, m_node_coord);
+    m_connectivity_view.setMesh(this->mesh());
+    auto fnc = m_connectivity_view.faceNode();
+    auto out_u_dirichlet = ax::viewOut(command, m_u_dirichlet);
+    auto out_u = ax::viewOut(command, m_u);
+
+    command << RUNCOMMAND_ENUMERATE(Face, iface, group)
+    {
+      for (NodeLocalId node : fnc.nodes(iface)) {
+        out_u[node] = value;
+        out_u_dirichlet[node] = true;
+      }
+    };
+  }
+
+  for (const auto& bs : options()->dirichletPointCondition()) {
+
+    RunQueue* queue = acceleratorMng()->defaultQueue();
+    auto command = makeCommand(queue);
+
+    auto out_u = ax::viewOut(command, m_u);
+    auto out_u_dirichlet = ax::viewOut(command, m_u_dirichlet);
+
+    NodeGroup group = bs->node();
+    Real value = bs->value();
+    info() << "Apply Dirichlet point condition node=" << group.name() << " v=" << value;
+    command << RUNCOMMAND_ENUMERATE(Node, inode, group)
+    {
+      out_u[inode] = value;
+      out_u_dirichlet[inode] = true;
+    };
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
 _applyDirichletBoundaryConditions()
 {
   // Handle all the Dirichlet boundary conditions.
@@ -475,6 +609,7 @@ _applyDirichletBoundaryConditions()
     info() << "Apply Dirichlet boundary condition surface=" << group.name() << " v=" << value;
     ENUMERATE_ (Face, iface, group) {
       for (Node node : iface->nodes()) {
+        //Original Code
         m_u[node] = value;
         m_u_dirichlet[node] = true;
       }
@@ -533,13 +668,17 @@ _assembleLinearOperator()
   info() << "Assembly of FEM linear operator ";
   info() << "Applying Dirichlet boundary condition via  penalty method ";
 
-#ifdef REGISTER_TIME
-  auto rhs_start = std::chrono::high_resolution_clock::now();
+  // time registration
+  std::chrono::_V2::system_clock::time_point rhs_start;
   double penalty_time = 0;
   double wpenalty_time = 0;
   double sassembly_time = 0;
   double fassembly_time = 0;
-#endif
+  if (m_register_time) {
+    rhs_start = std::chrono::high_resolution_clock::now();
+  }
+
+  Timer::Action timer_action(m_time_stats, "AssembleLinearOperator");
 
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
@@ -548,6 +687,600 @@ _assembleLinearOperator()
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   if (options()->enforceDirichletMethod() == "Penalty") {
+
+    Timer::Action timer_action(m_time_stats, "Penalty");
+
+    //----------------------------------------------
+    // penalty method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
+    //  Dirichlet condition needs to be applied
+    //
+    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
+    //           a_{i,i} = 1. * P
+    //
+    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
+    //           b_{i} = b_{i} * P
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    Real Penalty = options()->penalty(); // 1.0e30 is the default
+    std::chrono::_V2::system_clock::time_point penalty_start;
+    if (m_register_time) {
+      penalty_start = std::chrono::high_resolution_clock::now();
+    }
+
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      NodeLocalId node_id = *inode;
+      if (m_u_dirichlet[node_id]) {
+        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
+        // This SetValue should be updated in the acoording format we have (such as COO or CSR)
+        m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
+        Real u_g = Penalty * m_u[node_id];
+        // This should be changed for a numArray
+        rhs_values[dof_id] = u_g;
+      }
+    }
+    std::chrono::_V2::system_clock::time_point penalty_stop;
+    if (m_register_time) {
+      penalty_stop = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> penalty_duration = penalty_stop - penalty_start;
+      penalty_time = penalty_duration.count();
+      logger << "Penalty duration : " << penalty_time << "\n";
+    }
+  }
+  else if (options()->enforceDirichletMethod() == "WeakPenalty") {
+    Timer::Action timer_action(m_time_stats, "WeakPenalty");
+
+    //----------------------------------------------
+    // weak penalty method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
+    //  Dirichlet condition needs to be applied
+    //
+    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
+    //           a_{i,i} = a_{i,i} + P
+    //
+    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
+    //           b_{i} = b_{i} * P
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    Real Penalty = options()->penalty(); // 1.0e30 is the default
+    std::chrono::_V2::system_clock::time_point wpenalty_start;
+    if (m_register_time) {
+      wpenalty_start = std::chrono::high_resolution_clock::now();
+    }
+
+    // The same as before
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      NodeLocalId node_id = *inode;
+      if (m_u_dirichlet[node_id]) {
+        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
+        m_linear_system.matrixAddValue(dof_id, dof_id, Penalty);
+        Real u_g = Penalty * m_u[node_id];
+        rhs_values[dof_id] = u_g;
+      }
+    }
+    std::chrono::_V2::system_clock::time_point wpenalty_stop;
+    if (m_register_time) {
+      wpenalty_stop = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> wpenalty_duration = wpenalty_stop - wpenalty_start;
+      wpenalty_time = wpenalty_duration.count();
+      logger << "Weak Penalty duration : " << wpenalty_time << "\n";
+    }
+  }
+  else if (options()->enforceDirichletMethod() == "RowElimination") {
+
+    //----------------------------------------------
+    // Row elimination method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
+    //
+    //  to apply the Dirichlet on 'i'th DOF
+    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
+    //           a_{i,j} = 0.  : i!=j
+    //           a_{i,j} = 1.  : i==j
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+    // The same as before
+    // TODO
+  }
+  else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
+
+    //----------------------------------------------
+    // Row elimination method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
+    //
+    //  to apply the Dirichlet on 'i'th DOF
+    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
+    //           a_{i,j} = 0.  : i!=j  for all j
+    //           a_{i,j} = 1.  : i==j
+    //    also the column terms corresponding to the Dirichlet DOF
+    //           a_{i,j} = 0.  : i!=j  for all i
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    // The same as before
+    // TODO
+  }
+  else {
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " is not supported \n"
+           << "enforce-Dirichlet-method only supports:\n"
+           << "  - Penalty\n"
+           << "  - WeakPenalty\n"
+           << "  - RowElimination\n"
+           << "  - RowColumnElimination\n";
+  }
+  std::chrono::_V2::system_clock::time_point sassemby_start;
+  if (m_register_time) {
+    sassemby_start = std::chrono::high_resolution_clock::now();
+  }
+
+  std::chrono::_V2::system_clock::time_point fassemby_start;
+  {
+    Timer::Action timer_action(m_time_stats, "ConstantSourceTermAssembly");
+    //----------------------------------------------
+    // Constant source term assembly
+    //----------------------------------------------
+    //
+    //  $int_{Omega}(f*v^h)$
+    //  only for noded that are non-Dirichlet
+    //----------------------------------------------
+    ENUMERATE_ (Cell, icell, allCells()) {
+      Cell cell = *icell;
+
+      Real area = _computeAreaTriangle3(cell);
+      for (Node node : cell.nodes()) {
+        if (!(m_u_dirichlet[node]) && node.isOwn()) {
+          // Original code
+          rhs_values[node_dof.dofId(node, 0)] += f * area / ElementNodes;
+        }
+      }
+    }
+
+    std::chrono::_V2::system_clock::time_point sassemby_stop;
+    if (m_register_time) {
+      sassemby_stop = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> sassembly_duration = sassemby_stop - sassemby_start;
+      sassembly_time = sassembly_duration.count();
+      logger << "Constant source term assembly duration : " << sassembly_time << "\n";
+      fassemby_start = std::chrono::high_resolution_clock::now();
+    }
+  }
+  {
+    Timer::Action timer_action(m_time_stats, "ConstantSourceTermAssembly");
+
+    //----------------------------------------------
+    // Constant flux term assembly
+    //----------------------------------------------
+    //
+    //  only for noded that are non-Dirichlet
+    //  $int_{dOmega_N}((q.n)*v^h)$
+    // or
+    //  $int_{dOmega_N}((n_x*q_x + n_y*q_y)*v^h)$
+    //----------------------------------------------
+    for (const auto& bs : options()->neumannBoundaryCondition()) {
+      FaceGroup group = bs->surface();
+
+      if (bs->value.isPresent()) {
+        Real value = bs->value();
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2(face);
+          for (Node node : iface->nodes()) {
+            if (!(m_u_dirichlet[node]) && node.isOwn())
+              // must replace rhs_values with numArray
+              rhs_values[node_dof.dofId(node, 0)] += value * length / 2.;
+          }
+        }
+        continue;
+      }
+
+      if (bs->valueX.isPresent() && bs->valueY.isPresent()) {
+        Real valueX = bs->valueX();
+        Real valueY = bs->valueY();
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2(face);
+          Real2 Normal = _computeEdgeNormal2(face);
+          for (Node node : iface->nodes()) {
+            if (!(m_u_dirichlet[node]) && node.isOwn())
+              // must replace rhs_values with numArray
+              rhs_values[node_dof.dofId(node, 0)] += (Normal.x * valueX + Normal.y * valueY) * length / 2.;
+          }
+        }
+        continue;
+      }
+
+      if (bs->valueX.isPresent()) {
+        Real valueX = bs->valueX();
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2(face);
+          Real2 Normal = _computeEdgeNormal2(face);
+          for (Node node : iface->nodes()) {
+            if (!(m_u_dirichlet[node]) && node.isOwn())
+              // must replace rhs_values with numArray
+              rhs_values[node_dof.dofId(node, 0)] += (Normal.x * valueX) * length / 2.;
+          }
+        }
+        continue;
+      }
+
+      if (bs->valueY.isPresent()) {
+        Real valueY = bs->valueY();
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2(face);
+          Real2 Normal = _computeEdgeNormal2(face);
+          for (Node node : iface->nodes()) {
+            if (!(m_u_dirichlet[node]) && node.isOwn())
+              // must replace rhs_values with numArray
+              rhs_values[node_dof.dofId(node, 0)] += (Normal.y * valueY) * length / 2.;
+          }
+        }
+        continue;
+      }
+    }
+    std::chrono::_V2::system_clock::time_point fassemby_stop;
+    if (m_register_time) {
+
+      fassemby_stop = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> fassembly_duration = fassemby_stop - fassemby_start;
+      fassembly_time = fassembly_duration.count();
+      logger << "Constant flux term assembly duration : " << fassembly_time << "\n";
+      auto rhs_end = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> duration = rhs_end - rhs_start;
+      rhs_time = duration.count();
+      logger << "RHS total duration : " << duration.count() << "\n";
+      if (penalty_time != 0)
+        logger << "Penalty time in rhs : " << penalty_time / rhs_time * 100 << "%\n";
+      else
+        logger << "Weak Penalty time in rhs : " << wpenalty_time / rhs_time * 100 << "%\n";
+      logger << "Constant source term assembly time in rhs : " << sassembly_time / rhs_time * 100 << "%\n"
+             << "Constant flux term assembly time in rhs : " << fassembly_time / rhs_time * 100 << "%\n\n"
+             << "-------------------------------------------------------------------------------------\n\n";
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleCsrLinearOperator()
+{
+  info() << "Assembly of FEM linear operator ";
+  info() << "Applying Dirichlet boundary condition via  penalty method for Csr";
+
+  // time registration
+  std::chrono::_V2::system_clock::time_point rhs_start;
+  double penalty_time = 0;
+  double wpenalty_time = 0;
+  double sassembly_time = 0;
+  double fassembly_time = 0;
+  if (m_register_time) {
+    rhs_start = std::chrono::high_resolution_clock::now();
+  }
+
+  Timer::Action timer_action(m_time_stats, "CsrAssembleLinearOperator");
+
+  m_rhs_vect.resize(nbNode());
+  m_rhs_vect.fill(0.0);
+
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  if (options()->enforceDirichletMethod() == "Penalty") {
+
+    Timer::Action timer_action(m_time_stats, "CsrPenalty");
+
+    //----------------------------------------------
+    // penalty method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
+    //  Dirichlet condition needs to be applied
+    //
+    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
+    //           a_{i,i} = 1. * P
+    //
+    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
+    //           b_{i} = b_{i} * P
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    Real Penalty = options()->penalty(); // 1.0e30 is the default
+    std::chrono::_V2::system_clock::time_point penalty_start;
+    if (m_register_time) {
+      penalty_start = std::chrono::high_resolution_clock::now();
+    }
+
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      NodeLocalId node_id = *inode;
+      if (m_u_dirichlet[node_id]) {
+        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
+        m_csr_matrix.matrixSetValue(dof_id, dof_id, Penalty);
+        Real u_g = Penalty * m_u[node_id];
+        m_rhs_vect[dof_id] = u_g;
+      }
+    }
+    std::chrono::_V2::system_clock::time_point penalty_stop;
+    if (m_register_time) {
+      penalty_stop = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> penalty_duration = penalty_stop - penalty_start;
+      penalty_time = penalty_duration.count();
+      logger << "Penalty duration for CSR : " << penalty_time << "\n";
+    }
+  }
+  else if (options()->enforceDirichletMethod() == "WeakPenalty") {
+    Timer::Action timer_action(m_time_stats, "CsrWeakPenalty");
+
+    //----------------------------------------------
+    // weak penalty method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
+    //  Dirichlet condition needs to be applied
+    //
+    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
+    //           a_{i,i} = a_{i,i} + P
+    //
+    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
+    //           b_{i} = b_{i} * P
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    Real Penalty = options()->penalty(); // 1.0e30 is the default
+    std::chrono::_V2::system_clock::time_point wpenalty_start;
+    if (m_register_time) {
+      wpenalty_start = std::chrono::high_resolution_clock::now();
+    }
+
+    // The same as before
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      NodeLocalId node_id = *inode;
+      if (m_u_dirichlet[node_id]) {
+        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
+        m_csr_matrix.matrixAddValue(dof_id, dof_id, Penalty);
+        Real u_g = Penalty * m_u[node_id];
+        m_rhs_vect[dof_id] = u_g;
+      }
+    }
+    std::chrono::_V2::system_clock::time_point wpenalty_stop;
+    if (m_register_time) {
+      wpenalty_stop = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> wpenalty_duration = wpenalty_stop - wpenalty_start;
+      wpenalty_time = wpenalty_duration.count();
+      logger << "Weak Penalty duration for CSR: " << wpenalty_time << "\n";
+    }
+  }
+  else if (options()->enforceDirichletMethod() == "RowElimination") {
+
+    //----------------------------------------------
+    // Row elimination method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
+    //
+    //  to apply the Dirichlet on 'i'th DOF
+    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
+    //           a_{i,j} = 0.  : i!=j
+    //           a_{i,j} = 1.  : i==j
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+    // The same as before
+    // TODO
+  }
+  else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
+
+    //----------------------------------------------
+    // Row elimination method to enforce Dirichlet BC
+    //----------------------------------------------
+    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
+    //
+    //  to apply the Dirichlet on 'i'th DOF
+    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
+    //           a_{i,j} = 0.  : i!=j  for all j
+    //           a_{i,j} = 1.  : i==j
+    //    also the column terms corresponding to the Dirichlet DOF
+    //           a_{i,j} = 0.  : i!=j  for all i
+    //----------------------------------------------
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " method ";
+
+    // The same as before
+    // TODO
+  }
+  else {
+
+    info() << "Applying Dirichlet boundary condition via "
+           << options()->enforceDirichletMethod() << " is not supported \n"
+           << "enforce-Dirichlet-method only supports:\n"
+           << "  - Penalty\n"
+           << "  - WeakPenalty\n"
+           << "  - RowElimination\n"
+           << "  - RowColumnElimination\n";
+  }
+  std::chrono::_V2::system_clock::time_point sassemby_start;
+  if (m_register_time) {
+    sassemby_start = std::chrono::high_resolution_clock::now();
+  }
+
+  std::chrono::_V2::system_clock::time_point fassemby_start;
+  {
+    Timer::Action timer_action(m_time_stats, "CsrConstantSourceTermAssembly");
+    //----------------------------------------------
+    // Constant source term assembly
+    //----------------------------------------------
+    //
+    //  $int_{Omega}(f*v^h)$
+    //  only for noded that are non-Dirichlet
+    //----------------------------------------------
+
+    ENUMERATE_ (Cell, icell, allCells()) {
+      Cell cell = *icell;
+
+      Real area = _computeAreaTriangle3(cell);
+      for (Node node : cell.nodes()) {
+        if (!(m_u_dirichlet[node]) && node.isOwn()) {
+          // Original code
+          m_rhs_vect[node_dof.dofId(node, 0)] += f * area / ElementNodes;
+        }
+      }
+    }
+    std::chrono::_V2::system_clock::time_point sassemby_stop;
+    if (m_register_time) {
+      sassemby_stop = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> sassembly_duration = sassemby_stop - sassemby_start;
+      sassembly_time = sassembly_duration.count();
+      logger << "Constant source term assembly duration  for CSR: " << sassembly_time << "\n";
+      fassemby_start = std::chrono::high_resolution_clock::now();
+    }
+  }
+  {
+    Timer::Action timer_action(m_time_stats, "CsrConstantFluxTermAssembly");
+
+    //----------------------------------------------
+    // Constant flux term assembly
+    //----------------------------------------------
+    //
+    //  only for noded that are non-Dirichlet
+    //  $int_{dOmega_N}((q.n)*v^h)$
+    // or
+    //  $int_{dOmega_N}((n_x*q_x + n_y*q_y)*v^h)$
+    //----------------------------------------------
+    for (const auto& bs : options()->neumannBoundaryCondition()) {
+      FaceGroup group = bs->surface();
+
+      if (bs->value.isPresent()) {
+        Real value = bs->value();
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2(face);
+          for (Node node : iface->nodes()) {
+            if (!(m_u_dirichlet[node]) && node.isOwn())
+              m_rhs_vect[node_dof.dofId(node, 0)] += value * length / 2.;
+          }
+        }
+        continue;
+      }
+
+      if (bs->valueX.isPresent() && bs->valueY.isPresent()) {
+        Real valueX = bs->valueX();
+        Real valueY = bs->valueY();
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2(face);
+          Real2 Normal = _computeEdgeNormal2(face);
+          for (Node node : iface->nodes()) {
+            if (!(m_u_dirichlet[node]) && node.isOwn())
+              m_rhs_vect[node_dof.dofId(node, 0)] += (Normal.x * valueX + Normal.y * valueY) * length / 2.;
+          }
+        }
+        continue;
+      }
+
+      if (bs->valueX.isPresent()) {
+        Real valueX = bs->valueX();
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2(face);
+          Real2 Normal = _computeEdgeNormal2(face);
+          for (Node node : iface->nodes()) {
+            if (!(m_u_dirichlet[node]) && node.isOwn())
+              m_rhs_vect[node_dof.dofId(node, 0)] += (Normal.x * valueX) * length / 2.;
+          }
+        }
+        continue;
+      }
+
+      if (bs->valueY.isPresent()) {
+        Real valueY = bs->valueY();
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = _computeEdgeLength2(face);
+          Real2 Normal = _computeEdgeNormal2(face);
+          for (Node node : iface->nodes()) {
+            if (!(m_u_dirichlet[node]) && node.isOwn())
+              m_rhs_vect[node_dof.dofId(node, 0)] += (Normal.y * valueY) * length / 2.;
+          }
+        }
+        continue;
+      }
+    }
+    std::chrono::_V2::system_clock::time_point fassemby_stop;
+    if (m_register_time) {
+
+      fassemby_stop = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> fassembly_duration = fassemby_stop - fassemby_start;
+      fassembly_time = fassembly_duration.count();
+      logger << "Constant flux term assembly duration for CSR: " << fassembly_time << "\n";
+      auto rhs_end = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> duration = rhs_end - rhs_start;
+      rhs_time = duration.count();
+      logger << "RHS total duration for CSR: " << duration.count() << "\n";
+      if (penalty_time != 0)
+        logger << "Penalty time in rhs for CSR: " << penalty_time / rhs_time * 100 << "%\n";
+      else
+        logger << "Weak Penalty time in rhs for CSR: " << wpenalty_time / rhs_time * 100 << "%\n";
+      logger << "Constant source term assembly time in rhs for CSR: " << sassembly_time / rhs_time * 100 << "%\n"
+             << "Constant flux term assembly time in rhs for CSR: " << fassembly_time / rhs_time * 100 << "%\n\n"
+             << "-------------------------------------------------------------------------------------\n\n";
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE
+Int32 FemModule::
+_getValIndexCsrGpu(Int32 begin, Int32 end, DoFLocalId col, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> csr_col)
+{
+  Int32 i = begin;
+  while (i < end && col != csr_col(i)) {
+    i++;
+  }
+  // The value has not been found
+  if (i == end) {
+    return -1;
+  }
+  // The value as been found
+  return i;
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleCsrGpuLinearOperator()
+{
+  info() << "Assembly of FEM linear operator ";
+  info() << "Applying Dirichlet boundary condition via penalty method for Csr, designed for GPU";
+
+  Timer::Action timer_action(m_time_stats, "CsrGpuAssembleLinearOperator");
+
+  m_rhs_vect.resize(nbNode());
+  m_rhs_vect.fill(0.0);
+
+  if (options()->enforceDirichletMethod() == "Penalty") {
+
+    Timer::Action timer_action(m_time_stats, "CsrGpuPenalty");
 
     //----------------------------------------------
     // penalty method to enforce Dirichlet BC
@@ -567,28 +1300,45 @@ _assembleLinearOperator()
 
     Real Penalty = options()->penalty(); // 1.0e30 is the default
 
-#ifdef REGISTER_TIME
-    auto penalty_start = std::chrono::high_resolution_clock::now();
-#endif
+    RunQueue* queue = acceleratorMng()->defaultQueue();
+    auto command = makeCommand(queue);
 
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u_dirichlet[node_id]) {
-        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-        m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
-        Real u_g = Penalty * m_u[node_id];
-        rhs_values[dof_id] = u_g;
+    auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
+    auto in_csr_row = ax::viewIn(command, m_csr_matrix.m_matrix_row);
+    auto in_csr_col = ax::viewIn(command, m_csr_matrix.m_matrix_column);
+    auto in_out_csr_val = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
+    Int32 row_csr_size = m_csr_matrix.m_matrix_row.dim1Size();
+    Int32 col_csr_size = m_csr_matrix.m_matrix_column.dim1Size();
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+    auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+    auto in_m_u = ax::viewIn(command, m_u);
+    // In this loop :
+    // m_u_dirichlet must be adapted -> module variable, just need a view
+    // m_u must be adapted
+    // Set value must be replaced
+    // m_rhs_vect must also be replaced
+    command << RUNCOMMAND_ENUMERATE(Node, inode, ownNodes())
+    {
+      if (in_m_u_dirichlet(inode)) {
+        DoFLocalId dof_id = node_dof.dofId(inode, 0);
+        Int32 begin = in_csr_row(dof_id);
+        Int32 end = 0;
+        if (begin == row_csr_size - 1) {
+          end = col_csr_size;
+        }
+        else {
+          end = in_csr_row(dof_id + 1);
+        }
+        Int32 index = _getValIndexCsrGpu(begin, end, dof_id, in_csr_col);
+        in_out_csr_val(index) = Penalty;
+        Real u_g = Penalty * in_m_u(inode);
+        in_out_rhs_vect(dof_id) = u_g;
       }
-    }
-
-#ifdef REGISTER_TIME
-    auto penalty_stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> penalty_duration = penalty_stop - penalty_start;
-    penalty_time = penalty_duration.count();
-    logger << "Penalty duration : " << penalty_time << "\n";
-#endif
+    };
   }
   else if (options()->enforceDirichletMethod() == "WeakPenalty") {
+    Timer::Action timer_action(m_time_stats, "CsrGpuWeakPenalty");
 
     //----------------------------------------------
     // weak penalty method to enforce Dirichlet BC
@@ -608,25 +1358,44 @@ _assembleLinearOperator()
 
     Real Penalty = options()->penalty(); // 1.0e30 is the default
 
-#ifdef REGISTER_TIME
-    auto wpenalty_start = std::chrono::high_resolution_clock::now();
-#endif
+    RunQueue* queue = acceleratorMng()->defaultQueue();
+    auto command = makeCommand(queue);
 
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u_dirichlet[node_id]) {
-        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-        m_linear_system.matrixAddValue(dof_id, dof_id, Penalty);
-        Real u_g = Penalty * m_u[node_id];
-        rhs_values[dof_id] = u_g;
+    auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
+    auto in_csr_row = ax::viewIn(command, m_csr_matrix.m_matrix_row);
+    auto in_csr_col = ax::viewIn(command, m_csr_matrix.m_matrix_column);
+    auto in_out_csr_val = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
+    Int32 row_csr_size = m_csr_matrix.m_matrix_row.dim1Size();
+    Int32 col_csr_size = m_csr_matrix.m_matrix_column.dim1Size();
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+    auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+    auto in_m_u = ax::viewIn(command, m_u);
+    // In this loop :
+    // m_u_dirichlet must be adapted
+    // m_u must have a view
+    // Set value must be replaced
+    // m_rhs_vect must also be replaced
+    command << RUNCOMMAND_ENUMERATE(Node, inode, ownNodes())
+    {
+      if (in_m_u_dirichlet(inode)) {
+        DoFLocalId dof_id = node_dof.dofId(inode, 0);
+        Int32 begin = in_csr_row(dof_id);
+        Int32 end = 0;
+        if (begin == row_csr_size - 1) {
+          end = col_csr_size;
+        }
+        else {
+          end = in_csr_row(dof_id + 1);
+        }
+        Int32 index = _getValIndexCsrGpu(begin, end, dof_id, in_csr_col);
+        ax::doAtomic<ax::eAtomicOperation::Add>(in_out_csr_val(index), Penalty);
+        //in_out_csr_val(index) += Penalty;
+
+        Real u_g = Penalty * in_m_u(inode);
+        in_out_rhs_vect(dof_id) = u_g;
       }
-    }
-#ifdef REGISTER_TIME
-    auto wpenalty_stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> wpenalty_duration = wpenalty_stop - wpenalty_start;
-    wpenalty_time = wpenalty_duration.count();
-    logger << "Weak Penalty duration : " << wpenalty_time << "\n";
-#endif
+    };
   }
   else if (options()->enforceDirichletMethod() == "RowElimination") {
 
@@ -643,7 +1412,6 @@ _assembleLinearOperator()
 
     info() << "Applying Dirichlet boundary condition via "
            << options()->enforceDirichletMethod() << " method ";
-
     // TODO
   }
   else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
@@ -677,118 +1445,232 @@ _assembleLinearOperator()
            << "  - RowColumnElimination\n";
   }
 
-#ifdef REGISTER_TIME
-  auto sassemby_start = std::chrono::high_resolution_clock::now();
-#endif
+  {
+    Timer::Action timer_action(m_time_stats, "CsrGpuConstantSourceTermAssembly");
+    //----------------------------------------------
+    // Constant source term assembly
+    //----------------------------------------------
+    //
+    //  $int_{Omega}(f*v^h)$
+    //  only for noded that are non-Dirichlet
+    //----------------------------------------------
 
-  //----------------------------------------------
-  // Constant source term assembly
-  //----------------------------------------------
-  //
-  //  $int_{Omega}(f*v^h)$
-  //  only for noded that are non-Dirichlet
-  //----------------------------------------------
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-    Real area = _computeAreaTriangle3(cell);
-    for (Node node : cell.nodes()) {
-      if (!(m_u_dirichlet[node]) && node.isOwn())
-        rhs_values[node_dof.dofId(node, 0)] += f * area / ElementNodes;
+    RunQueue* queue = acceleratorMng()->defaultQueue();
+    auto command = makeCommand(queue);
+
+    auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
+
+    auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+
+    Real tmp_f = f;
+    Real tmp_ElementNodes = ElementNodes;
+
+    UnstructuredMeshConnectivityView m_connectivity_view;
+    auto in_node_coord = ax::viewIn(command, m_node_coord);
+    m_connectivity_view.setMesh(this->mesh());
+    auto cnc = m_connectivity_view.cellNode();
+    Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    // In this loop :
+    // m_u_dirichlet must be adapted
+    // node.isOwn must be adapted
+    // m_rhs_vect must also be replaced
+    // f and Element nodes must be put in local variable
+    // computeArea must be replaced
+
+    command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
+    {
+      Real area = _computeAreaTriangle3Gpu(icell, cnc, in_node_coord);
+      for (NodeLocalId node : cnc.nodes(icell)) {
+        if (!(in_m_u_dirichlet(node)) && nodes_infos.isOwn(node)) {
+          // Original code
+          Real val = tmp_f * area / tmp_ElementNodes;
+          ax::doAtomic<ax::eAtomicOperation::Add>(in_out_rhs_vect(node_dof.dofId(node, 0)), val);
+        }
+      }
+    };
+  }
+  {
+    Timer::Action timer_action(m_time_stats, "CsrGpuConstantFluxTermAssembly");
+
+    //----------------------------------------------
+    // Constant flux term assembly
+    //----------------------------------------------
+    //
+    //  only for noded that are non-Dirichlet
+    //  $int_{dOmega_N}((q.n)*v^h)$
+    // or
+    //  $int_{dOmega_N}((n_x*q_x + n_y*q_y)*v^h)$
+    //----------------------------------------------
+    for (const auto& bs : options()->neumannBoundaryCondition()) {
+      FaceGroup group = bs->surface();
+
+      if (bs->value.isPresent()) {
+        Real value = bs->value();
+
+        RunQueue* queue = acceleratorMng()->defaultQueue();
+        auto command = makeCommand(queue);
+
+        auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
+
+        auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+
+        UnstructuredMeshConnectivityView m_connectivity_view;
+        auto in_node_coord = ax::viewIn(command, m_node_coord);
+        m_connectivity_view.setMesh(this->mesh());
+        auto fnc = m_connectivity_view.faceNode();
+        Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+        auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+        // In this loop :
+        // m_u_dirichlet must be adapted
+        // node.isOwn must be adapted
+        // m_rhs_vect must also be replaced
+        // computeEdgeLength2 must be reimplemented
+        command << RUNCOMMAND_ENUMERATE(Face, iface, group)
+        {
+          Real length = _computeEdgeLength2Gpu(iface, fnc, in_node_coord);
+          for (NodeLocalId node : fnc.nodes(iface)) {
+            if (!(in_m_u_dirichlet[node]) && nodes_infos.isOwn(node))
+              ax::doAtomic<ax::eAtomicOperation::Add>(in_out_rhs_vect[node_dof.dofId(node, 0)], value * length / 2.);
+            //in_out_rhs_vect[node_dof.dofId(node, 0)] += value * length / 2.;
+          }
+        };
+        continue;
+      }
+
+      if (bs->valueX.isPresent() && bs->valueY.isPresent()) {
+        Real valueX = bs->valueX();
+        Real valueY = bs->valueY();
+
+        RunQueue* queue = acceleratorMng()->defaultQueue();
+        auto command = makeCommand(queue);
+
+        auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
+
+        auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+
+        UnstructuredMeshConnectivityView m_connectivity_view;
+        auto in_node_coord = ax::viewIn(command, m_node_coord);
+        m_connectivity_view.setMesh(this->mesh());
+        auto fnc = m_connectivity_view.faceNode();
+        Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+        Arcane::FaceInfoListView faces_infos(this->mesh()->nodeFamily());
+        auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+        // In this loop :
+        // m_u_dirichlet must be adapted
+        // node.isOwn must be adapted
+        // m_rhs_vect must also be replaced
+        // computeEdgeLength2 must be reimplemented
+        // computeEdgeNormal2 must be reimplemented
+        command << RUNCOMMAND_ENUMERATE(Face, iface, group)
+        {
+          Real length = _computeEdgeLength2Gpu(iface, fnc, in_node_coord);
+          Real2 Normal = _computeEdgeNormal2Gpu(iface, fnc, in_node_coord, faces_infos);
+          for (NodeLocalId node : fnc.nodes(iface)) {
+            if (!(in_m_u_dirichlet[node]) && nodes_infos.isOwn(node)) {
+              Real value = (Normal.x * valueX + Normal.y * valueY) * length / 2.;
+              ax::doAtomic<ax::eAtomicOperation::Add>(in_out_rhs_vect[node_dof.dofId(node, 0)], value);
+              //in_out_rhs_vect[node_dof.dofId(node, 0)] += value;
+            }
+          }
+        };
+        continue;
+      }
+
+      if (bs->valueX.isPresent()) {
+        Real valueX = bs->valueX();
+
+        RunQueue* queue = acceleratorMng()->defaultQueue();
+        auto command = makeCommand(queue);
+
+        auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
+
+        auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+
+        UnstructuredMeshConnectivityView m_connectivity_view;
+        auto in_node_coord = ax::viewIn(command, m_node_coord);
+        m_connectivity_view.setMesh(this->mesh());
+        auto fnc = m_connectivity_view.faceNode();
+        Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+        Arcane::FaceInfoListView faces_infos(this->mesh()->nodeFamily());
+        auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+        // In this loop :
+        // m_u_dirichlet must be adapted
+        // node.isOwn must be adapted
+        // m_rhs_vect must also be replaced
+        // computeEdgeLength2 must be reimplemented
+        // computeEdgeNormal2 must be reimplemented
+        command << RUNCOMMAND_ENUMERATE(Face, iface, group)
+        {
+          Real length = _computeEdgeLength2Gpu(iface, fnc, in_node_coord);
+          Real2 Normal = _computeEdgeNormal2Gpu(iface, fnc, in_node_coord, faces_infos);
+          for (NodeLocalId node : fnc.nodes(iface)) {
+            if (!(in_m_u_dirichlet[node]) && nodes_infos.isOwn(node)) {
+              Real value = (Normal.x * valueX) * length / 2.;
+              ax::doAtomic<ax::eAtomicOperation::Add>(in_out_rhs_vect[node_dof.dofId(node, 0)], value);
+              //in_out_rhs_vect[node_dof.dofId(node, 0)] += value;
+            }
+          }
+        };
+        continue;
+      }
+
+      if (bs->valueY.isPresent()) {
+        Real valueY = bs->valueY();
+
+        RunQueue* queue = acceleratorMng()->defaultQueue();
+        auto command = makeCommand(queue);
+
+        auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
+
+        auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+
+        UnstructuredMeshConnectivityView m_connectivity_view;
+        auto in_node_coord = ax::viewIn(command, m_node_coord);
+        m_connectivity_view.setMesh(this->mesh());
+        auto fnc = m_connectivity_view.faceNode();
+        Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+        Arcane::FaceInfoListView faces_infos(this->mesh()->nodeFamily());
+        auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+        // In this loop :
+        // m_u_dirichlet must be adapted
+        // node.isOwn must be adapted
+        // m_rhs_vect must also be replaced
+        // computeEdgeLength2 must be reimplemented
+        // computeEdgeNormal2 must be reimplemented
+        command << RUNCOMMAND_ENUMERATE(Face, iface, group)
+        {
+          Real length = _computeEdgeLength2Gpu(iface, fnc, in_node_coord);
+          Real2 Normal = _computeEdgeNormal2Gpu(iface, fnc, in_node_coord, faces_infos);
+          for (NodeLocalId node : fnc.nodes(iface)) {
+            if (!(in_m_u_dirichlet[node]) && nodes_infos.isOwn(node)) {
+              Real value = (Normal.y * valueY) * length / 2.;
+              ax::doAtomic<ax::eAtomicOperation::Add>(in_out_rhs_vect[node_dof.dofId(node, 0)], value);
+              //in_out_rhs_vect[node_dof.dofId(node, 0)] += (Normal.y * valueY) * length / 2.;
+            }
+          }
+        };
+        continue;
+      }
     }
   }
-#ifdef REGISTER_TIME
-  auto sassemby_stop = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> sassembly_duration = sassemby_stop - sassemby_start;
-  sassembly_time = sassembly_duration.count();
-  logger << "Constant source term assembly duration : " << sassembly_time << "\n";
-  auto fassemby_start = std::chrono::high_resolution_clock::now();
-#endif
+}
 
-  //----------------------------------------------
-  // Constant flux term assembly
-  //----------------------------------------------
-  //
-  //  only for noded that are non-Dirichlet
-  //  $int_{dOmega_N}((q.n)*v^h)$
-  // or
-  //  $int_{dOmega_N}((n_x*q_x + n_y*q_y)*v^h)$
-  //----------------------------------------------
-  for (const auto& bs : options()->neumannBoundaryCondition()) {
-    FaceGroup group = bs->surface();
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+void FemModule::
+_translateRhs()
+{
+  VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
+  rhs_values.fill(0.0);
+  for (Int32 i = 0; i < m_rhs_vect.dim1Size(); i++) {
 
-    if (bs->value.isPresent()) {
-      Real value = bs->value();
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real length = _computeEdgeLength2(face);
-        for (Node node : iface->nodes()) {
-          if (!(m_u_dirichlet[node]) && node.isOwn())
-            rhs_values[node_dof.dofId(node, 0)] += value * length / 2.;
-        }
-      }
-      continue;
-    }
-
-    if (bs->valueX.isPresent() && bs->valueY.isPresent()) {
-      Real valueX = bs->valueX();
-      Real valueY = bs->valueY();
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real length = _computeEdgeLength2(face);
-        Real2 Normal = _computeEdgeNormal2(face);
-        for (Node node : iface->nodes()) {
-          if (!(m_u_dirichlet[node]) && node.isOwn())
-            rhs_values[node_dof.dofId(node, 0)] += (Normal.x * valueX + Normal.y * valueY) * length / 2.;
-        }
-      }
-      continue;
-    }
-
-    if (bs->valueX.isPresent()) {
-      Real valueX = bs->valueX();
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real length = _computeEdgeLength2(face);
-        Real2 Normal = _computeEdgeNormal2(face);
-        for (Node node : iface->nodes()) {
-          if (!(m_u_dirichlet[node]) && node.isOwn())
-            rhs_values[node_dof.dofId(node, 0)] += (Normal.x * valueX) * length / 2.;
-        }
-      }
-      continue;
-    }
-
-    if (bs->valueY.isPresent()) {
-      Real valueY = bs->valueY();
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real length = _computeEdgeLength2(face);
-        Real2 Normal = _computeEdgeNormal2(face);
-        for (Node node : iface->nodes()) {
-          if (!(m_u_dirichlet[node]) && node.isOwn())
-            rhs_values[node_dof.dofId(node, 0)] += (Normal.y * valueY) * length / 2.;
-        }
-      }
-      continue;
-    }
+    rhs_values[DoFLocalId(i)] = m_rhs_vect[DoFLocalId(i)];
   }
-#ifdef REGISTER_TIME
-  auto fassemby_stop = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> fassembly_duration = fassemby_stop - fassemby_start;
-  fassembly_time = fassembly_duration.count();
-  logger << "Constant flux term assembly duration : " << fassembly_time << "\n";
-  auto rhs_end = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> duration = rhs_end - rhs_start;
-  rhs_time = duration.count();
-  logger << "RHS total duration : " << duration.count() << "\n";
-  if (penalty_time != 0)
-    logger << "Penalty time in rhs : " << penalty_time / rhs_time * 100 << "%\n";
-  else
-    logger << "Weak Penalty time in rhs : " << wpenalty_time / rhs_time * 100 << "%\n";
-  logger << "Constant source term assembly time in rhs : " << sassembly_time / rhs_time * 100 << "%\n"
-         << "Constant flux term assembly time in rhs : " << fassembly_time / rhs_time * 100 << "%\n\n"
-         << "-------------------------------------------------------------------------------------\n\n";
-#endif
 }
 
 /*---------------------------------------------------------------------------*/
@@ -807,6 +1689,20 @@ _computeAreaQuad4(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+ARCCORE_HOST_DEVICE
+Real FemModule::
+_computeAreaTriangle3Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord)
+{
+  Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
+  Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
+  Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
+
+  return 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 Real FemModule::
 _computeAreaTriangle3(Cell cell)
 {
@@ -819,12 +1715,47 @@ _computeAreaTriangle3(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*----------------------------#endif-----------------------------------------------*/
 
+ARCCORE_HOST_DEVICE
+Real FemModule::
+_computeEdgeLength2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc, ax::VariableNodeReal3InView in_node_coord)
+{
+  Real3 m0 = in_node_coord[fnc.nodeId(iface, 0)];
+  Real3 m1 = in_node_coord[fnc.nodeId(iface, 1)];
+  return math::sqrt((m1.x - m0.x) * (m1.x - m0.x) + (m1.y - m0.y) * (m1.y - m0.y));
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 Real FemModule::
 _computeEdgeLength2(Face face)
 {
   Real3 m0 = m_node_coord[face.nodeId(0)];
   Real3 m1 = m_node_coord[face.nodeId(1)];
   return math::sqrt((m1.x - m0.x) * (m1.x - m0.x) + (m1.y - m0.y) * (m1.y - m0.y));
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE
+Real2 FemModule::
+_computeEdgeNormal2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc,
+                       ax::VariableNodeReal3InView in_node_coord, Arcane::FaceInfoListView faces_infos)
+{
+  Real3 m0 = in_node_coord[fnc.nodeId(iface, 0)];
+  Real3 m1 = in_node_coord[fnc.nodeId(iface, 1)];
+  // We need to access this information on GPU
+  if (!faces_infos.isSubDomainBoundaryOutside(iface)) {
+    Real3 tmp = m0;
+    m0 = m1;
+    m1 = tmp;
+  }
+  Real2 N;
+  Real norm_N = math::sqrt((m1.y - m0.y) * (m1.y - m0.y) + (m1.x - m0.x) * (m1.x - m0.x)); // for normalizing
+  N.x = (m1.y - m0.y) / norm_N;
+  N.y = (m0.x - m1.x) / norm_N;
+  return N;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -982,8 +1913,6 @@ _assembleBilinearOperatorQUAD4()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#if defined(USE_CSR_GPU) || defined(USE_COO_GPU)
-
 ARCCORE_HOST_DEVICE void FemModule::
 _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord, Real K_e[9])
 {
@@ -995,11 +1924,12 @@ _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView
   //                 .     .
   //              1 o . . . o 2
   //------------------------------------------------
+  // We might want to replace the next 4 lines of codes with _computeAreaTriangle3Gpu()
   Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
   Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
   Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
 
-  Real area = 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y)); // calculate area
+  Real area = 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));//_computeAreaTriangle3Gpu(icell, cnc, in_node_coord);
 
   Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
   Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
@@ -1007,25 +1937,26 @@ _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView
 
   //We will want to replace fixed matrix by some numarray ? Will not work because NumArray function are host functions
   //NumArray<Real, ExtentsV<2, 3>> b_matrix(eMemoryRessource::Device);
-  Real b_matrix[2][3] = { 0 };
-  b_matrix[0][0] = dPhi0.x * (1.0 / (2.0 * area));
-  b_matrix[0][1] = dPhi1.x * (1.0 / (2.0 * area));
-  b_matrix[0][2] = dPhi2.x * (1.0 / (2.0 * area));
 
-  b_matrix[1][0] = dPhi0.y * (1.0 / (2.0 * area));
-  b_matrix[1][1] = dPhi1.y * (1.0 / (2.0 * area));
-  b_matrix[1][2] = dPhi2.y * (1.0 / (2.0 * area));
+  Real A2 = 2.0 * area;
+  Real b_matrix[2][3] = { {dPhi0.x / A2, dPhi1.x / A2, dPhi2.x / A2} ,
+                          {dPhi0.y / A2, dPhi1.y / A2, dPhi2.y / A2}  };
+
 
   //NumArray<Real, ExtentsV<3, 3>> int_cdPi_dPj;
 
   //Multiplying b_matrix by its transpose, and doing the mult in place in the same loop
-  for (Int32 i = 0; i < 3; i++) {
-    for (Int32 j = 0; j < 3; j++) {
-      Real x = 0.0;
-      for (Int32 k = 0; k < 2; k++) {
-        x += b_matrix[k][i] * b_matrix[k][j];
+  // Compute the upper triangular part of the matrix
+  for (Int32 i = 0; i < 3; ++i) {
+    for (Int32 j = i; j < 3; ++j) {
+      for (Int32 k = 0; k < 2; ++k) {
+        K_e[i * 3 + j] += b_matrix[k][i] * b_matrix[k][j];
       }
-      K_e[i * 3 + j] = x * area;
+      // Multiply by A2 to complete the matrix
+      K_e[i * 3 + j] *= area;
+
+      // Mirror to the lower triangular part
+      K_e[j * 3 + i] = K_e[i * 3 + j];
     }
   }
 
@@ -1037,174 +1968,6 @@ _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView
   //No need to return anymore
   //return int_cdPi_dPj;
 }
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-#endif
-
-#ifdef USE_CSR_GPU
-
-/**
- * @brief Initialization of the coo matrix. It only works for p=1 since there is
- * one node per Edge. Currently, there is no difference between buildMatrixCsr and this method.
- * 
- * 
- */
-void FemModule::
-_buildMatrixCsrGPU()
-{
-  //Initialization of the csr matrix;
-  //This formula only works in p=1
-
-  /*
-  //Create a connection between nodes through the faces
-  //Useless here because we only need this information once
-  IItemFamily* node_family = mesh()->nodeFamily();
-  NodeGroup nodes = node_family->allItems();
-  auto idx_cn = mesh()->indexedConnectivityMng()->findOrCreateConnectivity(node_family, node_family, "NodeToNeighbourFaceNodes");
-  auto* cn = idx_cn->connectivity();
-  ENUMERATE_NODE (node, allNodes()) {
-  }
-  */
-
-  Int32 nnz = nbFace() * 2 + nbNode();
-  m_csr_matrix.initialize(m_dof_family, nnz, nbNode());
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-  //We iterate through the node, and we do not sort anymore : we assume the nodes ID are sorted, and we will iterate throught the column to avoid making < and > comparison
-  ENUMERATE_NODE (inode, allNodes()) {
-    Node node = *inode;
-
-    m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
-
-    for (Face face : node.faces()) {
-      if (face.nodeId(0) == node.localId())
-        m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(1), 0));
-      else
-        m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
-    }
-  }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_assembleCsrGPUBilinearOperatorTRIA3()
-{
-#ifdef REGISTER_TIME
-  logger << "-------------------------------------------------------------------------------------\n"
-         << "Using GPU csr with NumArray format\n";
-  auto lhs_start = std::chrono::high_resolution_clock::now();
-  double global_build_average = 0;
-  double build_time = 0;
-#endif
-  // Build the csr matrix
-  _buildMatrixCsrGPU();
-#ifdef REGISTER_TIME
-  auto build_stop = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> build_duration = build_stop - lhs_start;
-  build_time = build_duration.count();
-  auto var_init_start = std::chrono::high_resolution_clock::now();
-#endif
-
-  RunQueue* queue = acceleratorMng()->defaultQueue();
-  // Boucle sur les mailles déportée sur accélérateur
-  auto command = makeCommand(queue);
-
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-  auto in_row_csr = ax::viewIn(command, m_csr_matrix.m_matrix_row);
-  Int32 row_csr_size = m_csr_matrix.m_matrix_row.dim1Size();
-  auto in_col_csr = ax::viewIn(command, m_csr_matrix.m_matrix_column);
-  Int32 col_csr_size = m_csr_matrix.m_matrix_column.dim1Size();
-  auto in_out_val_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
-  UnstructuredMeshConnectivityView m_connectivity_view;
-  auto in_node_coord = ax::viewIn(command, m_node_coord);
-  m_connectivity_view.setMesh(this->mesh());
-  auto cnc = m_connectivity_view.cellNode();
-  Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
-  Arcane::ItemGenericInfoListView cells_infos(this->mesh()->cellFamily());
-
-#ifdef REGISTER_TIME
-  auto var_init_stop = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> var_init_duration = var_init_stop - var_init_start;
-  double var_init_time = var_init_duration.count();
-  auto loop_start = std::chrono::high_resolution_clock::now();
-#endif
-  command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
-  {
-
-    Real K_e[9] = { 0 };
-
-    _computeElementMatrixTRIA3GPU(icell, cnc, in_node_coord, K_e); // element stifness matrix
-
-    //             # assemble elementary matrix into the global one
-    //             # elementary terms are positionned into K according
-    //             # to the rank of associated node in the mesh.nodes list
-    //             for node1 in elem.nodes:
-    //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
-    //                 for node2 in elem.nodes:
-    //                     inode2=elem.nodes.index(node2)
-    //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-    Int32 n1_index = 0;
-    for (NodeLocalId node1 : cnc.nodes(icell)) {
-      Int32 n2_index = 0;
-      for (NodeLocalId node2 : cnc.nodes(icell)) {
-        // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-        double v = K_e[n1_index * 3 + n2_index];
-        // m_k_matrix(node1.localId(), node2.localId()) += v;
-        if (nodes_infos.isOwn(node1)) {
-          Int32 row = node_dof.dofId(node1, 0).localId();
-          Int32 col = node_dof.dofId(node2, 0).localId();
-          Int32 begin = in_row_csr[row];
-          Int32 end;
-          if (row == row_csr_size - 1) {
-            end = col_csr_size;
-          }
-          else {
-            end = in_row_csr[row + 1];
-          }
-          while (begin < end) {
-            if (in_col_csr[begin] == col) {
-// t is necessary to get the right type for the atomicAdd (but that means that we have more operations ?)
-// The Macro is there to avoid compilation error if not in c++ 20
-#ifdef ARCCORE_DEVICE_CODE
-              double* t = in_out_val_csr.to1DSpan().ptrAt(begin);
-              atomicAdd(t, v);
-#else
-              in_out_val_csr[begin] += v;
-#endif
-              break;
-            }
-            begin++;
-          }
-        }
-        ++n2_index;
-      }
-      ++n1_index;
-    }
-  };
-#ifdef REGISTER_TIME
-  auto lhs_end = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> duration = lhs_end - lhs_start;
-  std::chrono::duration<double> loop_duration = lhs_end - loop_start;
-
-  double loop_time = loop_duration.count();
-  double lhs_loc_time = duration.count();
-  logger << "Building time of the coo matrix :" << build_time << "\n"
-         << "Variable initialisation time : " << var_init_time << "\n"
-         << "Computation and Addition time : " << loop_time << "\n"
-         << "LHS Total time : " << lhs_loc_time << "\n"
-         << "Build matrix time in lhs :" << build_time / lhs_loc_time * 100 << "%\n"
-         << "Variable initialisation time in lhs : " << var_init_time / lhs_loc_time * 100 << "%\n"
-         << "Computation and Addition time in lhs : " << loop_time / lhs_loc_time * 100 << "%\n\n"
-         << "-------------------------------------------------------------------------------------\n\n";
-  lhs_time += lhs_loc_time;
-#endif
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-#endif
 
 #ifdef USE_COO_GPU
 //Currently, this code does not work
@@ -1278,7 +2041,7 @@ _buildMatrixGPU()
 void FemModule::
 _assembleCooGPUBilinearOperatorTRIA3()
 {
-#ifdef REGISTER_TIME
+#if defined(m_register_time) && defined(m_cache_warming)
   logger << "-------------------------------------------------------------------------------------\n"
          << "Using CPU coo with NumArray format\n";
   auto lhs_start = std::chrono::high_resolution_clock::now();
@@ -1288,7 +2051,7 @@ _assembleCooGPUBilinearOperatorTRIA3()
 #endif
   // Build the coo matrix
   _buildMatrixGPU();
-#ifdef REGISTER_TIME
+#if defined(m_register_time) && defined(m_cache_warming)
   auto build_stop = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> build_duration = build_stop - lhs_start;
   build_time = build_duration.count();
@@ -1341,21 +2104,23 @@ _assembleCooGPUBilinearOperatorTRIA3()
     }
   };
 
-#ifdef REGISTER_TIME
-  auto lhs_end = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> duration = lhs_end - lhs_start;
-  double lhs_loc_time = duration.count();
-  logger << "Building time of the coo matrix :" << build_time << "\n"
-         << "Compute Elements average time : " << compute_average / nbCell() << "\n"
-         << "Compute Elements total time : " << compute_average << "\n"
-         << "Add in global matrix average time : " << global_build_average / nbCell() << "\n"
-         << "Add in global matrix total time : " << global_build_average << "\n"
-         << "LHS Total time : " << lhs_loc_time << "\n"
-         << "Build matrix time in lhs :" << build_time / lhs_loc_time * 100 << "%\n"
-         << "Compute element time in lhs : " << compute_average / lhs_loc_time * 100 << "%\n"
-         << "Add in global matrix time in lhs : " << global_build_average / lhs_loc_time * 100 << "%\n\n"
-         << "-------------------------------------------------------------------------------------\n\n";
-  lhs_time += lhs_loc_time;
+#if defined(m_register_time) && defined(m_cache_warming)
+  if (i == 3) {
+    auto lhs_end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration = lhs_end - lhs_start;
+    double lhs_loc_time = duration.count();
+    logger << "Building time of the coo matrix :" << build_time << "\n"
+           << "Compute Elements average time : " << compute_average / nbCell() << "\n"
+           << "Compute Elements total time : " << compute_average << "\n"
+           << "Add in global matrix average time : " << global_build_average / nbCell() << "\n"
+           << "Add in global matrix total time : " << global_build_average << "\n"
+           << "LHS Total time : " << lhs_loc_time << "\n"
+           << "Build matrix time in lhs :" << build_time / lhs_loc_time * 100 << "%\n"
+           << "Compute element time in lhs : " << compute_average / lhs_loc_time * 100 << "%\n"
+           << "Add in global matrix time in lhs : " << global_build_average / lhs_loc_time * 100 << "%\n\n"
+           << "-------------------------------------------------------------------------------------\n\n";
+    lhs_time += lhs_loc_time;
+  }
 #endif
 }
 
@@ -1363,864 +2128,32 @@ _assembleCooGPUBilinearOperatorTRIA3()
 /*---------------------------------------------------------------------------*/
 
 #endif
-
-#ifdef USE_CSR
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Initialization of the coo matrix. It only works for p=1 since there is
- * one node per Edge.
- * 
- * 
- */
-void FemModule::
-_buildMatrixCsr()
-{
-  //Initialization of the coo matrix;
-  //This formula only works in p=1
-
-  /*
-  //Create a connection between nodes through the faces
-  //Useless here because we only need this information once
-  IItemFamily* node_family = mesh()->nodeFamily();
-  NodeGroup nodes = node_family->allItems();
-  auto idx_cn = mesh()->indexedConnectivityMng()->findOrCreateConnectivity(node_family, node_family, "NodeToNeighbourFaceNodes");
-  auto* cn = idx_cn->connectivity();
-  ENUMERATE_NODE (node, allNodes()) {
-  }
-  */
-
-  Int32 nnz = nbFace() * 2 + nbNode();
-  m_csr_matrix.initialize(m_dof_family, nnz, nbNode());
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-  //We iterate through the node, and we do not sort anymore : we assume the nodes ID are sorted, and we will iterate throught the column to avoid making < and > comparison
-  ENUMERATE_NODE (inode, allNodes()) {
-    Node node = *inode;
-
-    m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
-
-    for (Face face : node.faces()) {
-      if (face.nodeId(0) == node.localId())
-        m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(1), 0));
-      else
-        m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
-    }
-  }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_assembleCsrBilinearOperatorTRIA3()
-{
-#ifdef REGISTER_TIME
-  logger << "-------------------------------------------------------------------------------------\n"
-         << "Using CPU CSR with NumArray format\n";
-  auto lhs_start = std::chrono::high_resolution_clock::now();
-  double compute_average = 0;
-  double global_build_average = 0;
-  double build_time = 0;
-#endif
-  // Build the coo matrix
-  _buildMatrixCsr();
-#ifdef REGISTER_TIME
-  auto build_stop = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> build_duration = build_stop - lhs_start;
-  build_time = build_duration.count();
-#endif
-
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-
-#ifdef REGISTER_TIME
-    auto compute_El_start = std::chrono::high_resolution_clock::now();
-#endif
-
-    auto K_e = _computeElementMatrixTRIA3(cell); // element stifness matrix
-
-#ifdef REGISTER_TIME
-    auto compute_El_stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> compute_duration = compute_El_stop - compute_El_start;
-    compute_average += compute_duration.count();
-#endif
-
-//             # assemble elementary matrix into the global one
-//             # elementary terms are positionned into K according
-//             # to the rank of associated node in the mesh.nodes list
-//             for node1 in elem.nodes:
-//                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
-//                 for node2 in elem.nodes:
-//                     inode2=elem.nodes.index(node2)
-//                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-#ifdef REGISTER_TIME
-    auto global_build_start = std::chrono::high_resolution_clock::now();
-#endif
-    Int32 n1_index = 0;
-    for (Node node1 : cell.nodes()) {
-      Int32 n2_index = 0;
-      for (Node node2 : cell.nodes()) {
-        // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-        Real v = K_e(n1_index, n2_index);
-        // m_k_matrix(node1.localId(), node2.localId()) += v;
-        if (node1.isOwn()) {
-          m_csr_matrix.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
-        }
-        ++n2_index;
-      }
-      ++n1_index;
-    }
-
-#ifdef REGISTER_TIME
-    auto global_build_stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> global_build_duration = global_build_stop - global_build_start;
-    global_build_average += global_build_duration.count();
-#endif
-  }
-
-#ifdef REGISTER_TIME
-  auto lhs_end = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> duration = lhs_end - lhs_start;
-  double lhs_loc_time = duration.count();
-  logger << "Building time of the csr matrix :" << build_time << "\n"
-         << "Compute Elements average time : " << compute_average / nbCell() << "\n"
-         << "Compute Elements total time : " << compute_average << "\n"
-         << "Add in global matrix average time : " << global_build_average / nbCell() << "\n"
-         << "Add in global matrix total time : " << global_build_average << "\n"
-         << "LHS Total time : " << lhs_loc_time << "\n"
-         << "Build matrix time in lhs :" << build_time / lhs_loc_time * 100 << "%\n"
-         << "Compute element time in lhs : " << compute_average / lhs_loc_time * 100 << "%\n"
-         << "Add in global matrix time in lhs : " << global_build_average / lhs_loc_time * 100 << "%\n\n"
-         << "-------------------------------------------------------------------------------------\n\n";
-  lhs_time += lhs_loc_time;
-#endif
-}
-
-#endif
-
-#ifdef USE_COO
-/**
- * @brief Initialization of the coo matrix. It only works for p=1 since there is
- * one node per Edge.
- * 
- * 
- */
-void FemModule::
-_buildMatrix()
-{
-  //Initialization of the coo matrix;
-  //This formula only works in p=1
-
-  /*
-  //Create a connection between nodes through the faces
-  //Useless here because we only need this information once
-  IItemFamily* node_family = mesh()->nodeFamily();
-  NodeGroup nodes = node_family->allItems();
-  auto idx_cn = mesh()->indexedConnectivityMng()->findOrCreateConnectivity(node_family, node_family, "NodeToNeighbourFaceNodes");
-  auto* cn = idx_cn->connectivity();
-  ENUMERATE_NODE (node, allNodes()) {
-  }
-  */
-
-  Int32 nnz = nbFace() * 2 + nbNode();
-  m_coo_matrix.initialize(m_dof_family, nnz);
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-  /*
-  //We iterate through the node, and we do not sort anymore : we assume the nodes ID are sorted, and we will iterate throught the column to avoid making < and > comparison
-  ENUMERATE_NODE (inode, allNodes()) {
-    Node node = *inode;
-
-    m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
-
-    for (Face face : node.faces()) {
-      if (face.nodeId(0) == node.localId())
-        m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(1), 0));
-      else
-        m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
-    }
-  }
-*/
-  //In this commented code, we begin by filling the diagonal before filling what's left by iterating through the nodes. It corresponds to the COO-sort method in the diagrams
-
-  //In this one, we begin by filling the diagonal before filling what's left by iterating through the nodes
-
-  //Fill the diagonal
-  ENUMERATE_NODE (inode, allNodes()) {
-    Node node = *inode;
-    m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
-  }
-
-  //Fill what is left
-  ENUMERATE_FACE (iface, allFaces()) {
-    Face face = *iface;
-    auto nodes = face.nodes();
-    for (Int32 i = 0; i < nodes.size() - i - 1; i++) {
-      m_coo_matrix.setCoordinates(node_dof.dofId(nodes[i], 0), node_dof.dofId(nodes[nodes.size() - i - 1], 0));
-      m_coo_matrix.setCoordinates(node_dof.dofId(nodes[nodes.size() - i - 1], 0), node_dof.dofId(nodes[i], 0));
-    }
-  }
-
-  //Sort the matrix
-  m_coo_matrix.sort();
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_assembleCooBilinearOperatorTRIA3()
-{
-#ifdef REGISTER_TIME
-  logger << "-------------------------------------------------------------------------------------\n"
-         << "Using CPU coo with NumArray format\n";
-  auto lhs_start = std::chrono::high_resolution_clock::now();
-  double compute_average = 0;
-  double global_build_average = 0;
-  double build_time = 0;
-#endif
-  // Build the coo matrix
-  _buildMatrix();
-#ifdef REGISTER_TIME
-  auto build_stop = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> build_duration = build_stop - lhs_start;
-  build_time = build_duration.count();
-#endif
-
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-
-#ifdef REGISTER_TIME
-    auto compute_El_start = std::chrono::high_resolution_clock::now();
-#endif
-
-    auto K_e = _computeElementMatrixTRIA3(cell); // element stifness matrix
-
-#ifdef REGISTER_TIME
-    auto compute_El_stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> compute_duration = compute_El_stop - compute_El_start;
-    compute_average += compute_duration.count();
-#endif
-
-//             # assemble elementary matrix into the global one
-//             # elementary terms are positionned into K according
-//             # to the rank of associated node in the mesh.nodes list
-//             for node1 in elem.nodes:
-//                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
-//                 for node2 in elem.nodes:
-//                     inode2=elem.nodes.index(node2)
-//                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-#ifdef REGISTER_TIME
-    auto global_build_start = std::chrono::high_resolution_clock::now();
-#endif
-    Int32 n1_index = 0;
-    for (Node node1 : cell.nodes()) {
-      Int32 n2_index = 0;
-      for (Node node2 : cell.nodes()) {
-        // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-        Real v = K_e(n1_index, n2_index);
-        // m_k_matrix(node1.localId(), node2.localId()) += v;
-        if (node1.isOwn()) {
-          m_coo_matrix.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
-        }
-        ++n2_index;
-      }
-      ++n1_index;
-    }
-#ifdef REGISTER_TIME
-    auto global_build_stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> global_build_duration = global_build_stop - global_build_start;
-    global_build_average += global_build_duration.count();
-#endif
-  }
-
-#ifdef REGISTER_TIME
-  auto lhs_end = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> duration = lhs_end - lhs_start;
-  double lhs_loc_time = duration.count();
-  logger << "Building time of the coo matrix :" << build_time << "\n"
-         << "Compute Elements average time : " << compute_average / nbCell() << "\n"
-         << "Compute Elements total time : " << compute_average << "\n"
-         << "Add in global matrix average time : " << global_build_average / nbCell() << "\n"
-         << "Add in global matrix total time : " << global_build_average << "\n"
-         << "LHS Total time : " << lhs_loc_time << "\n"
-         << "Build matrix time in lhs :" << build_time / lhs_loc_time * 100 << "%\n"
-         << "Compute element time in lhs : " << compute_average / lhs_loc_time * 100 << "%\n"
-         << "Add in global matrix time in lhs : " << global_build_average / lhs_loc_time * 100 << "%\n\n"
-         << "-------------------------------------------------------------------------------------\n\n";
-  lhs_time += lhs_loc_time;
-#endif
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-#endif
-
-#ifdef USE_CUSPARSE_ADD
-void FemModule::
-printCsrMatrix(std::string fileName, cusparseCsr csr, bool is_coo)
-{
-  ofstream file(fileName);
-  file << "size :" << csr.nnz << "\n";
-  for (auto i = 0; i < (is_coo ? csr.nnz : nbNode()); i++) {
-    file << csr.csrRow[i] << " ";
-  }
-  file << "\n";
-  for (auto i = 0; i < csr.nnz; i++) {
-    file << csr.csrCol[i] << " ";
-  }
-  file << "\n";
-  for (auto i = 0; i < csr.nnz; i++) {
-    file << csr.csrVal[i] << " ";
-  }
-  file.close();
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cell, cusparseHandle_t handle, IndexedNodeDoFConnectivityView node_dof
-#ifdef REGISTER_TIME
-                              ,
-                              computeTimer& timer
-#endif
-)
-{
-
-#ifdef REGISTER_TIME
-  auto compute_start = std::chrono::high_resolution_clock::now();
-#endif
-  /*-------------------------------------------------------------------------------------------------------------------------------*/
-  //First part : compute element matrix
-  // Get coordiantes of the triangle element  TRI3
-  //------------------------------------------------
-  //                  0 o
-  //                   . .
-  //                  .   .
-  //                 .     .
-  //              1 o . . . o 2
-  //------------------------------------------------
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-
-  Real area = _computeAreaTriangle3(cell); // calculate area
-
-  Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
-  Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
-  Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
-
-  FixedMatrix<2, 3> b_matrix;
-  b_matrix(0, 0) = dPhi0.x;
-  b_matrix(0, 1) = dPhi1.x;
-  b_matrix(0, 2) = dPhi2.x;
-
-  b_matrix(1, 0) = dPhi0.y;
-  b_matrix(1, 1) = dPhi1.y;
-  b_matrix(1, 2) = dPhi2.y;
-
-  b_matrix.multInPlace(1.0 / (2.0 * area));
-
-  FixedMatrix<3, 3> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
-  int_cdPi_dPj.multInPlace(area);
-
-#ifdef REGISTER_TIME
-  auto compute_el_stop = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> compute_el_duration = compute_el_stop - compute_start;
-  timer.compute_el += compute_el_duration.count();
-  auto convert_coo = std::chrono::high_resolution_clock::now();
-#endif
-  /*-------------------------------------------------------------------------------------------------------------------------------*/
-  //Second part : putting the matrix in COO format (might want to optimsie that part by doing it earlier) before converting it to csr
-
-  //Must change int_cdPi_dPj in a COO matrix (before converting it to csr);
-  void* row_void;
-  CHECK_CUDA(cudaMallocManaged(&row_void, 9 * sizeof(Int32)));
-  Int32* row_indexes = (Int32*)row_void;
-  void* col_void;
-  CHECK_CUDA(cudaMallocManaged(&col_void, 9 * sizeof(Int32)));
-  Int32* col_indexes = (Int32*)col_void;
-  void* vals_void;
-  CHECK_CUDA(cudaMallocManaged(&vals_void, 9 * sizeof(float)));
-  float* vals = (float*)vals_void;
-
-  cusparseMatDescr_t local_mat;
-  CHECK_CUSPARSE(cusparseCreateMatDescr(&local_mat));
-  cusparseCsr local;
-  local.desc = local_mat;
-  local.csrRow = row_indexes;
-  local.csrCol = col_indexes;
-  local.csrVal = (float*)vals;
-  local.nnz = 9;
-
-  int i = 0;
-  int j = 0;
-  for (NodeLocalId node1 : cell.nodes()) {
-    j = 0;
-    for (NodeLocalId node2 : cell.nodes()) {
-      vals[i * 3 + j] = int_cdPi_dPj(i, j);
-      row_indexes[i * 3 + j] = node_dof.dofId(node1, 0);
-      col_indexes[i * 3 + j] = node_dof.dofId(node2, 0);
-      j++;
-    }
-    i++;
-  }
-
-#ifdef REGISTER_TIME
-  auto convert_coo_stop = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> convert_coo_time = convert_coo_stop - convert_coo;
-  timer.convert_coo += convert_coo_time.count();
-  auto sort_coo = std::chrono::high_resolution_clock::now();
-#endif
-  //Sorting of the COO values with an insertion sort
-  Int32 rj = 0;
-  Int32 cj = 0;
-  float vj = 0;
-  for (i = 1; i < 9; i++) {
-    rj = row_indexes[i];
-    cj = col_indexes[i];
-    vj = vals[i];
-    j = i - 1;
-    while (j >= 0 && row_indexes[j] > rj) {
-      row_indexes[j + 1] = row_indexes[j];
-      col_indexes[j + 1] = col_indexes[j];
-      vals[j + 1] = vals[j];
-      j--;
-    }
-    row_indexes[j + 1] = rj;
-    col_indexes[j + 1] = cj;
-    vals[j + 1] = vj;
-    Int32 k = j - 1;
-    Int32 rk, ck;
-    float vk;
-    if (j > 0) {
-      rk = row_indexes[j];
-      ck = col_indexes[j];
-      vk = vals[j];
-      while (k >= 0 && row_indexes[k] == rk && col_indexes[k] > ck) {
-        col_indexes[k + 1] = col_indexes[k];
-        vals[k + 1] = vals[k];
-        k--;
-      }
-      col_indexes[k + 1] = ck;
-      vals[k + 1] = vk;
-    }
-  }
-#ifdef REGISTER_TIME
-  auto sort_coo_stop = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> sort_coo_time = sort_coo_stop - sort_coo;
-  std::chrono::duration<double> convert_coo_tot = sort_coo_stop - convert_coo;
-  timer.sort_coo += sort_coo_time.count();
-  timer.convert_coo_tot += convert_coo_tot.count();
-  auto convert_csr = std::chrono::high_resolution_clock::now();
-#endif
-
-  //conversion from COO to CSR
-  void* csrRowPtr_void;
-  CHECK_CUDA(cudaMallocManaged(&csrRowPtr_void, nbNode() * sizeof(Int32)));
-  Int32* csrRowPtr = (Int32*)csrRowPtr_void;
-  CHECK_CUSPARSE(cusparseXcoo2csr(handle, row_indexes, 9, nbNode(), csrRowPtr, CUSPARSE_INDEX_BASE_ZERO));
-  local.csrRow = csrRowPtr;
-  CHECK_CUDA(cudaFree(row_indexes));
-
-#ifdef REGISTER_TIME
-  auto convert_csr_stop = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> convert_csr_time = convert_csr_stop - convert_csr;
-  std::chrono::duration<double> convert_tot = convert_csr_stop - convert_coo;
-  timer.convert_csr_tot += convert_coo_time.count();
-  timer.convert_tot += convert_tot.count();
-  auto adding_global = std::chrono::high_resolution_clock::now();
-#endif
-  /*-------------------------------------------------------------------------------------------------------------------------------*/
-  // Third part : adding the local and global, storing result in the res
-
-  //Adding the CSR local matrix to the global one using cusparsecsrgeam2
-  //see https://docs.nvidia.com/cuda/cusparse/index.html?highlight=cusparseScsrgeam#cusparse-t-csrgeam2 for the example code
-  Int32 baseC,
-  nnzC;
-  size_t bufferSizeInBytes;
-  char* buffer = NULL;
-  void* buffer_void = NULL;
-  Int32* nnzTotalDevHostPtr = &nnzC;
-  CHECK_CUSPARSE(cusparseSetPointerMode(handle, CUSPARSE_POINTER_MODE_HOST));
-  //Int32* csrRowPtrC;
-  //CHECK_CUDA(cudaMallocManaged(&csrRowPtrC, nbNode() + 1 * sizeof(Int32)));
-  float alpha = 1.0;
-  float beta = 1.0;
-  Int32 m = nbNode();
-  CHECK_CUSPARSE(cusparseScsrgeam2_bufferSizeExt(handle, m, m,
-                                                 &alpha,
-                                                 global.desc, global.nnz,
-                                                 global.csrVal, global.csrRow, global.csrCol,
-                                                 &beta,
-                                                 local.desc, local.nnz,
-                                                 local.csrVal, local.csrRow, local.csrCol,
-                                                 result.desc,
-                                                 result.csrVal, result.csrRow, result.csrCol, &bufferSizeInBytes));
-  CHECK_CUDA(cudaMallocManaged(&buffer_void, bufferSizeInBytes * sizeof(char)));
-  buffer = (char*)buffer_void;
-
-  CHECK_CUSPARSE(cusparseXcsrgeam2Nnz(handle, m, m,
-                                      local.desc, local.nnz, local.csrRow, local.csrCol,
-                                      global.desc, global.nnz, global.csrRow, global.csrCol,
-                                      result.desc, result.csrRow, nnzTotalDevHostPtr,
-                                      buffer));
-  if (NULL != nnzTotalDevHostPtr)
-    nnzC = *nnzTotalDevHostPtr;
-  else {
-    CHECK_CUDA(cudaMemcpy(&nnzC, result.csrRow + m, sizeof(int), cudaMemcpyDeviceToHost));
-    CHECK_CUDA(cudaMemcpy(&baseC, result.csrRow, sizeof(int), cudaMemcpyDeviceToHost));
-    nnzC -= baseC;
-  }
-  result.nnz = nnzC;
-  void* res_col_void;
-  void* res_val_void;
-
-  CHECK_CUDA(cudaMallocManaged(&res_col_void, sizeof(Int32) * nnzC));
-  CHECK_CUDA(cudaMallocManaged(&res_val_void, sizeof(float) * nnzC));
-  result.csrCol = (Int32*)res_col_void;
-  result.csrVal = (float*)res_val_void;
-  CHECK_CUSPARSE(cusparseScsrgeam2(handle, m, m,
-                                   &alpha,
-                                   local.desc, local.nnz,
-                                   local.csrVal, local.csrRow, local.csrCol,
-                                   &beta,
-                                   global.desc, global.nnz,
-                                   global.csrVal, global.csrRow, global.csrCol,
-                                   result.desc,
-                                   result.csrVal, result.csrRow, result.csrCol,
-                                   buffer));
-
-  CHECK_CUDA(cudaFree(local.csrVal));
-  CHECK_CUDA(cudaFree(local.csrCol));
-  CHECK_CUDA(cudaFree(local.csrRow));
-  CHECK_CUSPARSE(cusparseDestroyMatDescr(local.desc));
-
-#ifdef REGISTER_TIME
-  auto adding_global_stop = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> adding_tot = adding_global_stop - adding_global;
-  std::chrono::duration<double> compute_tot = adding_global_stop - compute_start;
-  timer.add_glob += adding_tot.count();
-  timer.compute_tot += compute_tot.count();
-#endif
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-/**
- * @brief Assemble Bilinear TRIA3 with cusparse help. It only works for p=1 since there is
- * one node per Edge.
- * 
- * 
- */
-void FemModule::
-_assembleCusparseBilinearOperatorTRIA3()
-{
-
-#ifdef REGISTER_TIME
-  logger << "-------------------------------------------------------------------------------------\n"
-         << "Using Cusparse for Bilinear assembly\n";
-  auto lhs_s = std::chrono::high_resolution_clock::now();
-  computeTimer timer = {};
-#endif
-  //Initialization of the CSR matrix;
-  //This formula only works in p=1
-#ifdef REGISTER_TIME
-  auto cuda_init_start = std::chrono::high_resolution_clock::now();
-#endif
-  CHECK_CUDA(cudaFree(0));
-
-#ifdef REGISTER_TIME
-  auto cuda_init_stop = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> cuda_init_time = cuda_init_stop - cuda_init_start;
-  double cuda_init = cuda_init_time.count();
-#endif
-
-  Int32 nnz = nbFace() * 2 + nbNode();
-  //Initialize the global matrix. Everything is in the unified memory
-  void* res1_row_void;
-  void* res2_row_void;
-  CHECK_CUDA(cudaMallocManaged(&res1_row_void, sizeof(Int32) * nbNode()));
-  Int32* res1_row = (Int32*)res1_row_void;
-  CHECK_CUDA(cudaMallocManaged(&res2_row_void, sizeof(Int32) * nbNode()));
-  Int32* res2_row = (Int32*)res2_row_void;
-
-  cusparseHandle_t handle;
-  CHECK_CUSPARSE(cusparseCreate(&handle));
-  //The number of Node must be changed when p != 1
-
-  //init result matrix
-  cusparseCsr res1;
-  cusparseCsr res2;
-
-  cusparseMatDescr_t res1_desc;
-  cusparseMatDescr_t res2_desc;
-  CHECK_CUSPARSE(cusparseCreateMatDescr(&res1_desc));
-  CHECK_CUSPARSE(cusparseCreateMatDescr(&res2_desc));
-
-  res1.desc = res1_desc;
-  res2.desc = res2_desc;
-  res1.csrRow = res1_row;
-  res2.csrRow = res2_row;
-  res1.csrCol = NULL;
-  res2.csrCol = NULL;
-
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  Int32 i = 0;
-
-  ENUMERATE_CELL (icell, allCells()) {
-    Cell cell = *icell;
-
-    if (i % 2 == 0)
-      //computation of the local matrix and adding it in the global one
-      _computeCusparseElementMatrix(res1, res2, cell, handle, node_dof
-#ifdef REGISTER_TIME
-                                    ,
-                                    timer
-#endif
-      );
-    else
-      _computeCusparseElementMatrix(res2, res1, cell, handle, node_dof
-#ifdef REGISTER_TIME
-                                    ,
-                                    timer
-#endif
-      );
-    i++;
-  }
-  /*
-  if (nbNode() % 2 == 0)
-    printCsrMatrix("csrTest.txt", res1, false);
-  else
-    printCsrMatrix("csrTest.txt", res2, false);
-
-*/
-  CHECK_CUSPARSE(cusparseDestroyMatDescr(res1.desc));
-  CHECK_CUSPARSE(cusparseDestroyMatDescr(res2.desc));
-
-  //Must free the resulting vectors, not done there yet
-#ifdef REGISTER_TIME
-  auto lhs_end = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> duration = lhs_end - cuda_init_stop;
-  double lhs_loc_time = duration.count();
-  logger << "Average Time to compute element matrix : " << timer.compute_el / nbCell() << "\n"
-         << "Total Time to compute element matrix : " << timer.compute_el << "\n"
-         << "Percentage time to compute element matrix : " << timer.compute_el / lhs_loc_time * 100 << "%\n"
-         << "Average Time to convert to coo : " << timer.convert_coo / nbCell() << "\n"
-         << "Total Time to convert to coo : " << timer.convert_coo << "\n"
-         << "Percentage Time to convert to coo : " << timer.convert_coo / lhs_loc_time * 100 << "%\n"
-         << "Average Time to sort the coo : " << timer.sort_coo / nbCell() << "\n"
-         << "Total Time to sort the coo : " << timer.sort_coo << "\n"
-         << "Percentage Time to sort the coo : " << timer.sort_coo / lhs_loc_time * 100 << "%\n"
-         << "Average Time to convert and sort to coo : " << timer.convert_coo_tot / nbCell() << "\n"
-         << "Total Time to convert and sort to coo : " << timer.convert_coo_tot << "\n"
-         << "Percentage Time to convert and sort to coo : " << timer.convert_coo_tot / lhs_loc_time * 100 << "%\n"
-         << "Average Time to convert to csr : " << timer.convert_csr_tot / nbCell() << "\n"
-         << "Total Time to convert to csr : " << timer.convert_csr_tot << "\n"
-         << "Percentage Time to convert to csr : " << timer.convert_csr_tot / lhs_loc_time * 100 << "%\n"
-         << "Average Time to convert the computed matrix : " << timer.convert_tot / nbCell() << "\n"
-         << "Total Time to convert the computed matrix : " << timer.convert_tot << "\n"
-         << "Percentage Time to convert the computed matrix : " << timer.convert_tot / lhs_loc_time * 100 << "%\n"
-         << "Average Time to add to the global matrix : " << timer.add_glob / nbCell() << "\n"
-         << "Total Time to add to the global matrix : " << timer.add_glob << "\n"
-         << "Percentage Time to add to the global matrix : " << timer.add_glob / lhs_loc_time * 100 << "%\n"
-         << "Average Time to make the computation operation : " << timer.compute_tot / nbCell() << "\n"
-         << "Total Time to make the computation operation : " << timer.compute_tot << "\n"
-         << "Percentage Time to make the computation operation : " << timer.compute_tot / lhs_loc_time * 100 << "%\n"
-         << "Total time for the lhs computation : " << lhs_loc_time << "\n"
-         << "Total time of the cuda init : " << cuda_init << "\n"
-         << "Total time of lhs with the init : " << cuda_init + lhs_loc_time << "\n"
-         << "-------------------------------------------------------------------------------------\n\n";
-  lhs_time += lhs_loc_time;
-#endif
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-#endif
-
-#ifdef USE_BLCSR
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::_buildMatrixBuildLessCsr()
-{
-
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  // Compute the number of nnz and initialize the memory space
-  Int32 nnz = nbFace() * 2 + nbNode();
-  m_csr_matrix.initialize(m_dof_family, nnz, nbNode());
-
-  // Creating a connectivity from node to their neighbouring nodes
-  IItemFamily* node_family = mesh()->nodeFamily();
-  NodeGroup nodes = node_family->allItems();
-  idx_cn = mesh()->indexedConnectivityMng()->findOrCreateConnectivity(node_family, node_family, "NodeToNeighbourFaceNodes");
-  cn = idx_cn->connectivity();
-  ENUMERATE_NODE (inode, allNodes()) {
-
-    //Since we compute the neighbouring connectivity here, we also fill the csr matrix
-
-    Node node = *inode;
-
-    m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
-
-    for (Face face : node.faces()) {
-      if (face.nodeId(0) == node.localId()) {
-        cn->addConnectedItem(node, face.node(0));
-        m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(1), 0));
-      }
-      else {
-        cn->addConnectedItem(node, face.node(1));
-        m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
-      }
-    }
-  }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-ARCCORE_HOST_DEVICE
-void FemModule::_computeElementVectorTRIA3(NodeLocalId inode, IndexedNodeNodeConnectivityView nnc, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> row_csr, ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> col_csr, ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> val_csr)
-{
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::_assembleBLCsrBilinearOperatorTria3()
-{
-
-  // Build the csr matrix
-  _buildMatrixBuildLessCsr();
-
-  RunQueue* queue = acceleratorMng()->defaultQueue();
-  // Boucle sur les mailles déportée sur accélérateur
-  auto command = makeCommand(queue);
-
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-  auto in_row_csr = ax::viewIn(command, m_csr_matrix.m_matrix_row);
-  Int32 row_csr_size = m_csr_matrix.m_matrix_row.dim1Size();
-  auto in_out_col_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_column);
-  Int32 col_csr_size = m_csr_matrix.m_matrix_column.dim1Size();
-  auto in_out_val_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
-
-  IndexedNodeNodeConnectivityView nnc_view(idx_cn->view());
-
-  command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
-  {
-
-    _computeElementVectorTRIA3(inode, nnc_view, in_row_csr, in_out_col_csr, in_out_val_csr); // element stifness matrix
-  };
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-#endif
-
-void FemModule::
-_assembleBilinearOperatorTRIA3()
-{
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-#ifdef REGISTER_TIME
-  logger << "-------------------------------------------------------------------------------------\n"
-         << "Using hashmap legacy format\n";
-  auto lhs_start = std::chrono::high_resolution_clock::now();
-  double compute_average = 0;
-  double global_build_average = 0;
-#endif
-
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-
-#ifdef REGISTER_TIME
-    auto compute_El_start = std::chrono::high_resolution_clock::now();
-#endif
-
-    auto K_e = _computeElementMatrixTRIA3(cell); // element stifness matrix
-
-#ifdef REGISTER_TIME
-    auto compute_El_stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> compute_duration = compute_El_stop - compute_El_start;
-    compute_average += compute_duration.count();
-#endif
-
-//             # assemble elementary matrix into the global one
-//             # elementary terms are positionned into K according
-//             # to the rank of associated node in the mesh.nodes list
-//             for node1 in elem.nodes:
-//                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
-//                 for node2 in elem.nodes:
-//                     inode2=elem.nodes.index(node2)
-//                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-#ifdef REGISTER_TIME
-    auto global_build_start = std::chrono::high_resolution_clock::now();
-#endif
-    Int32 n1_index = 0;
-    for (Node node1 : cell.nodes()) {
-      Int32 n2_index = 0;
-      for (Node node2 : cell.nodes()) {
-        // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-        Real v = K_e(n1_index, n2_index);
-        // m_k_matrix(node1.localId(), node2.localId()) += v;
-        if (node1.isOwn()) {
-          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
-        }
-        ++n2_index;
-      }
-      ++n1_index;
-    }
-#ifdef REGISTER_TIME
-    auto global_build_stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> global_build_duration = global_build_stop - global_build_start;
-    global_build_average += global_build_duration.count();
-#endif
-  }
-
-#ifdef REGISTER_TIME
-  auto lhs_end = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> duration = lhs_end - lhs_start;
-  double lhs_loc_time = duration.count();
-  logger << "compute elements average time : " << compute_average / nbCell() << "\n"
-         << "compute elements total time : " << compute_average << "\n"
-         << "add in global matrix average time : " << global_build_average / nbCell() << "\n"
-         << "add in global matrix total time : " << global_build_average << "\n"
-         << "lhs total time : " << lhs_loc_time << "\n"
-         << "compute element time in lhs : " << compute_average / lhs_loc_time * 100 << "%\n"
-         << "add in global matrix time in lhs : " << global_build_average / lhs_loc_time * 100 << "%\n\n"
-         << "-------------------------------------------------------------------------------------\n\n";
-  lhs_time += lhs_loc_time;
-#endif
-}
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
 
 void FemModule::
 _solve()
 {
+  ITimeStats* tstat = m_time_stats;
+  Timer::Action timer_action(tstat, "Solving");
 
-#ifdef REGISTER_TIME
-  auto solve_start = std::chrono::high_resolution_clock::now();
-#endif
+  std::chrono::_V2::system_clock::time_point solve_start;
+  if (m_register_time) {
+    solve_start = std::chrono::high_resolution_clock::now();
+  }
 
-  m_linear_system.solve();
+  {
+    Timer::Action ta1(tstat, "LinearSystemSolve");
+    // # T=linalg.solve(K,RHS)
+    m_linear_system.solve();
+  }
 
   // Re-Apply boundary conditions because the solver has modified the value
   // of u on all nodes
-  _applyDirichletBoundaryConditions();
-
   {
+    Timer::Action ta1(tstat, "ApplyBoundaryConditions");
+    _applyDirichletBoundaryConditions();
+  }
+  {
+    Timer::Action ta1(tstat, "CopySolution");
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
     // Copy RHS DoF to Node u
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -2233,6 +2166,7 @@ _solve()
 
   //test
   m_u.synchronize();
+
   // def update_T(self,T):
   //     """Update u value on nodes after the FE resolution"""
   //     for i in range(0,len(self.mesh.nodes)):
@@ -2252,12 +2186,12 @@ _solve()
     }
   }
 
-#ifdef REGISTER_TIME
-  auto solve_end = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> solve_duration = solve_end - solve_start;
-  solver_time = solve_duration.count();
-  logger << "Solver duration : " << solver_time << "\n";
-#endif
+  if (m_register_time) {
+    auto solve_end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> solve_duration = solve_end - solve_start;
+    solver_time = solve_duration.count();
+    logger << "Solver duration : " << solver_time << "\n";
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2281,3 +2215,31 @@ ARCANE_REGISTER_MODULE_FEM(FemModule);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+
+void FemModule::fileNumArray(bool ref, NumArray<Real, MDDim1> numarray)
+{
+  ofstream file;
+  if (ref)
+    file.open("ref.txt");
+  else
+    file.open("test.txt");
+  for (auto i = 0; i < numarray.dim1Size(); i++) {
+    file << numarray(i) << " ";
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+#include "CsrBiliAssembly.hxx"
+#include "CooBiliAssembly.hxx"
+#include "CooSortBiliAssembly.hxx"
+#include "LegacyBiliAssembly.hxx"
+#include "CsrGpuBiliAssembly.hxx"
+
+#ifdef USE_CUSPARSE_ADD
+#include "CusparseBiliAssembly.hxx"
+#endif
+
+#include "NodeWiseCsrBiliAssembly.hxx"
+#include "BlCsrBiliAssembly.hxx"

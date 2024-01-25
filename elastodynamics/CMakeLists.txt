@@ -1,8 +1,3 @@
-cmake_minimum_required(VERSION 3.21)
-project(Elastodynamics LANGUAGES C CXX)
-
-find_package(Arcane REQUIRED)
-
 add_executable(Elastodynamics
   FemModule.cc
   main.cc

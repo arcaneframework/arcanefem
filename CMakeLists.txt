@@ -1,7 +1,19 @@
 cmake_minimum_required(VERSION 3.21)
-project(FemTest1Main LANGUAGES NONE)
+project(ArcaneFem LANGUAGES C CXX)
+
+find_package(Arcane REQUIRED)
+arcane_accelerator_enable()
+
+if(ARCANE_HAS_ACCELERATOR)
+  message(STATUS "Arcane has been compiled with cuda. Enabling features that need CUDA.")
+endif()
+
 enable_testing()
+
 set(MSH_DIR ${CMAKE_SOURCE_DIR}/meshes/msh)
+
+# Needed for dynamic loading of services
+set(BUILD_SHARED_LIBS TRUE)
 
 add_subdirectory(femutils)
 add_subdirectory(aerodynamics)

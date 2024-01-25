@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* DoFLinearSystem.h                                           (C) 2022-2023 */
+/* DoFLinearSystem.h                                           (C) 2022-2024 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b wit DoFs.          */
 /*---------------------------------------------------------------------------*/
@@ -14,6 +14,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+#include <arcane/utils/ArrayView.h>
 #include <arcane/ItemTypes.h>
 #include <arcane/VariableTypedef.h>
 
@@ -23,6 +24,42 @@
 namespace Arcane::FemUtils
 {
 class IDoFLinearSystemFactory;
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*!
+ * \brief Vue au format CSR pour le solveur linéaire.
+ */
+class CSRFormatView
+{
+ public:
+
+  CSRFormatView() = default;
+  CSRFormatView(Span<const Int32> rows,
+                Span<const Int32> matrix_rows_nb_column,
+                Span<const Int32> columns,
+                Span<const Real> values)
+  : m_matrix_rows(rows)
+  , m_matrix_rows_nb_column(matrix_rows_nb_column)
+  , m_matrix_columns(columns)
+  , m_values(values)
+  {
+  }
+
+ public:
+
+  Span<const Int32> rows() const { return m_matrix_rows; }
+  Span<const Int32> rowsNbColumn() const { return m_matrix_rows_nb_column; }
+  Span<const Int32> columns() const { return m_matrix_columns; }
+  Span<const Real> values() const { return m_values; }
+
+ private:
+
+  Span<const Int32> m_matrix_rows;
+  Span<const Int32> m_matrix_rows_nb_column;
+  Span<const Int32> m_matrix_columns;
+  Span<const Real> m_values;
+};
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -47,6 +84,10 @@ class DoFLinearSystemImpl
   virtual VariableDoFReal& rhsVariable() = 0;
   virtual void setSolverCommandLineArguments(const CommandLineArguments& args) = 0;
   virtual void clearValues() = 0;
+  virtual void setCSRValues(const CSRFormatView& csr_view) = 0;
+  virtual bool hasSetCSRValues() const = 0;
+  virtual void setRunner(Runner* r) =0;
+  virtual Runner* runner() const =0;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -78,11 +119,15 @@ class DoFLinearSystem
 
   /*
    * \brief Initialize the instance.
-   *
-   * The variable dof_variable will be filled with the solution value after
-   * the call to the method solve().
    */
   void initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name);
+
+  /*
+   * \brief Initialize the instance.
+   *
+   * \a runner may be null.
+   */
+  void initialize(ISubDomain* sd, Runner* runner, IItemFamily* dof_family, const String& solver_name);
 
   //! Indicate if method initialize() has been called
   bool isInitialized() const;
@@ -184,6 +229,18 @@ class DoFLinearSystem
    */
   void setSolverCommandLineArguments(const CommandLineArguments& args);
 
+  /*!
+   * \brief Positionne directement les valeurs de la matrice.
+   *
+   * Positionne les valeurs de la matrice en considérant le format comme
+   * étant au format CSR. Les vues doivent rester valides jusqu'à la
+   * résolution du système linéaire (appel à solve()).
+   */
+  void setCSRValues(const CSRFormatView& csr_view);
+
+  //! Indique si l'implémentation supporte d'utiliser setCSRValue()
+  bool hasSetCSRValues() const;
+
  public:
 
   IDoFLinearSystemFactory* linearSystemFactory() const
@@ -200,13 +257,13 @@ class DoFLinearSystem
 
  private:
 
-  void _checkInit();
+  void _checkInit() const;
 };
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-}
+} // namespace Arcane::FemUtils
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

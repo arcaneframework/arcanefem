@@ -327,6 +327,15 @@ class AlephDoFLinearSystemImpl
     _computeMatrixInfo();
   }
 
+  void setCSRValues(const CSRFormatView& csr_view) override
+  {
+    ARCANE_THROW(NotImplementedException,"");
+  }
+
+  bool hasSetCSRValues() const { return false; }
+  void setRunner(Runner* r) override { m_runner = r; }
+  Runner* runner() const { return m_runner; }
+
  private:
 
   AlephParams* _createAlephParam()
@@ -398,6 +407,8 @@ class AlephDoFLinearSystemImpl
 
   //! True is we need to manually destroy the matrix/vector
   bool m_need_destroy_matrix_and_vector = true;
+
+  Runner* m_runner = nullptr;
 
  private:
 
