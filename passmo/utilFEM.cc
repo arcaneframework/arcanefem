@@ -1162,12 +1162,12 @@ Real HexaWeight(const Integer3& indices,const Integer3& ordre){
 
 /*---------------------------------------------------------------------------*/
 
-Real3 TetraRefPosition(const Integer3& indices,const Integer3& ordre){
+Real3 TetraRefPosition(const Integer3& indices,const Integer3& /*ordre*/){
 	Integer i = indices[0];
 	return {xit[i],yit[i],zit[i]};
 }
 
-Real TetraWeight(const Integer3& indices,const Integer3& ordre){
+Real TetraWeight(const Integer3& indices,const Integer3& /*ordre*/){
 	return wgtetra;
 }
 

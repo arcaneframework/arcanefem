@@ -189,7 +189,7 @@ const Real yit[4] = { 0.13819660, 0.58541020, 0.13819660, 0.13819660 };
 const Real zit[4] = { 0.13819660, 0.13819660, 0.58541020, 0.13819660 };
 
 // Integration weight
-const Real wgtetra = 0.04166666666667;
+const Real wgtetra = 1./24.;
 
 const Integer maxnint = 9;
 

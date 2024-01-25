@@ -47,10 +47,6 @@ startInit(){
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
 
-  _initDofs();
-
-  m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
-
   integ_order.m_i = options()->getNint1();
   integ_order.m_j = options()->getNint2();
   integ_order.m_k = options()->getNint3();
@@ -88,6 +84,10 @@ startInit(){
     gamma = 0.5 + alfaf - alfam;
     beta = 0.5*pow(0.5 + gamma,2);
   }
+  else{
+    alfam = 0.;
+    alfaf = 0.;
+  }
 
   if (options()->getAnalysisType() == TypesElastodynamic::ThreeD)
     NDIM = 3;
@@ -113,6 +113,9 @@ startInit(){
 
     ARCANE_FATAL("Dirichlet boundary conditions will not be applied ");
   }
+
+  _initDofs();
+  m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
   /* Initializing all nodal variables to zero*/
   ENUMERATE_NODE(inode, allNodes()){
@@ -1486,7 +1489,7 @@ _computeMFParax2D(const Face& face, const Int32& ig, const RealUniqueArray& vec,
                   const Real& rhocs, const Real& rhocp){
 
   auto dt = m_global_deltat();
-  auto alfa{ gamma / beta / dt };
+  auto alfa{ (1. - alfaf)*gamma / beta / dt };
   auto alfa1{ beta * dt / gamma };
   Real3 ex{ 1., 0., 0. }, ey{ 0., 1., 0. };
 
@@ -1577,6 +1580,8 @@ _assembleLinearLHS3D()
       // Loop on the cell Gauss points to compute integrals terms
       Int32 ngauss{ 0 };
       auto vec = cell_fem.getGaussData(cell, integ_order, ngauss);
+      auto cm{(1 - alfam)/beta/dt2};
+      auto ck{(1 - alfaf)};
 
       for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4*(1 + nb_nodes)) {
 
@@ -1609,7 +1614,7 @@ _assembleLinearLHS3D()
                 auto jj = 3 * n2_index + jddl;
                 auto mij = Me(ii, jj);
                 auto kij = Ke(ii, jj);
-                auto aij = mij / beta / dt2 + kij;
+                auto aij = cm * mij + ck * kij;
 
                 if (node1.isOwn())
                   m_linear_system.matrixAddValue(node1_dofi, node2_dofj, aij);
@@ -1655,6 +1660,7 @@ _assembleLinearRHS3D(){
       // Loop on the cell Gauss points to compute integrals terms
       Int32 ngauss{ 0 };
       auto vec = cell_fem.getGaussData(cell, integ_order, ngauss);
+      auto cm = (1 - alfam)/beta/dt2;
 
       for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4*(1 + nb_nodes)) {
         auto jacobian {0.};
@@ -1681,7 +1687,8 @@ _assembleLinearRHS3D(){
             if (node1.isOwn() && !is_node1_dofi_set) {
 
               /*----------------------------------------------------------
-              // Mass contribution to the RHS: Mij/(beta*dt2)*uj_pred
+              // Mass contribution to the RHS:
+              // (1 - alfm)*Mij/(beta*dt2)*uj_pred - alfm*aj_n
               //----------------------------------------------------------*/
               Int32 n2_index{ 0 };
               for (Node node2 : cell.nodes()) {
@@ -1691,7 +1698,7 @@ _assembleLinearRHS3D(){
                 auto u_iddl_pred = dn + dt * vn + dt2 * (0.5 - beta) * an;
                 auto jj = 3 * n2_index + iddl;
                 auto mij = Me(ii, jj);
-                rhs_i += mij / beta / dt2 * u_iddl_pred;
+                rhs_i += mij * (cm * u_iddl_pred - alfam * an);
                 ++n2_index;
               }
 
@@ -1728,6 +1735,7 @@ _assembleLinearRHS3D(){
     // Looking for Dirichlet boundary nodes & modify linear operators accordingly
     ENUMERATE_ (Node, inode, ownNodes()) {
       auto node = *inode;
+      auto num = node.uniqueId().asInt32();
 
       for (Int32 iddl = 0; iddl < 3; ++iddl) {
         bool is_node_dof_set = (bool)m_imposed_displ[node][iddl];
@@ -1802,6 +1810,8 @@ _assembleLinearLHS2D()
       // Loop on the cell Gauss points to compute integrals terms
       Int32 ngauss{ 0 };
       auto vec = cell_fem.getGaussData(cell, integ_order, ngauss);
+      auto cm{(1 - alfam)/beta/dt2};
+      auto ck{(1 - alfaf)};
 
       for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4*(1 + nb_nodes)) {
 
@@ -1832,7 +1842,7 @@ _assembleLinearLHS2D()
                 auto jj = 2 * n2_index + jddl;
                 auto mij = Me(ii, jj);
                 auto kij = Ke(ii, jj);
-                auto aij = mij / beta / dt2 + kij;
+                auto aij = cm * mij + ck * kij;
 
                 if (node1.isOwn())
                   m_linear_system.matrixAddValue(node1_dofi, node2_dofj, aij);
@@ -1876,6 +1886,7 @@ _assembleLinearRHS2D(){
       // Loop on the cell Gauss points to compute integrals terms
       Int32 ngauss{ 0 };
       auto vec = cell_fem.getGaussData(cell, integ_order, ngauss);
+      auto cm = (1 - alfam)/beta/dt2;
 
       for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4*(1 + nb_nodes)) {
         auto jacobian {0.};
@@ -1901,7 +1912,8 @@ _assembleLinearRHS2D(){
             if (node1.isOwn() && !is_node1_dofi_set) {
 
               /*----------------------------------------------------------
-              // Mass contribution to the RHS: Mij/(beta*dt2)*uj_pred
+              // Mass contribution to the RHS:
+              // (1 - alfm)*Mij/(beta*dt2)*uj_pred - alfm*aj_n
               //----------------------------------------------------------*/
               Int32 n2_index{ 0 };
               for (Node node2 : cell.nodes()) {
@@ -1911,7 +1923,7 @@ _assembleLinearRHS2D(){
                 auto u_iddl_pred = dn + dt * vn + dt2 * (0.5 - beta) * an;
                 auto jj = 2 * n2_index + iddl;
                 auto mij = Me(ii, jj);
-                rhs_i += mij / beta / dt2 * u_iddl_pred;
+                rhs_i += mij * (cm * u_iddl_pred - alfam * an);
                 ++n2_index;
               }
 
@@ -1995,6 +2007,7 @@ _getParaxialContribution3D(Arcane::VariableDoFReal& rhs_values){
 
     auto dt = m_global_deltat();
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    auto ndim{3};
 
     for (const auto& bs : options()->paraxialBoundaryCondition()) {
 
@@ -2057,7 +2070,7 @@ _getParaxialContribution3D(Arcane::VariableDoFReal& rhs_values){
 
           // In 3D, a quadratic face element has max 9 nodes (27 dofs)
           auto nb_nodes{face.nbNode()};
-          auto size{ 3 * nb_nodes};
+          auto size{ ndim * nb_nodes};
           FixedMatrix<27, 27> Me;
           FixedVector<27> Fe;
 
@@ -2085,10 +2098,10 @@ _getParaxialContribution3D(Arcane::VariableDoFReal& rhs_values){
             auto iig{ 4 };
             for (Node node1 : face.nodes()) {
 
-              for (Int32 iddl = 0; iddl < 3; ++iddl) {
+              for (Int32 iddl = 0; iddl < ndim; ++iddl) {
 
                 DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
-                auto ii = 3 * n1_index + iddl;
+                auto ii = ndim * n1_index + iddl;
 
                 bool is_node1_dofi_set = (bool)m_imposed_displ[node1][iddl];
                 auto rhs_i{ 0. };
@@ -2102,9 +2115,9 @@ _getParaxialContribution3D(Arcane::VariableDoFReal& rhs_values){
                   //----------------------------------------------
                   Int32 n2_index{ 0 };
                   for (Node node2 : face.nodes()) {
-                    for (Int32 jddl = 0; jddl < 3; ++jddl) {
+                    for (Int32 jddl = 0; jddl < ndim; ++jddl) {
                       auto node2_dofj = node_dof.dofId(node2, jddl);
-                      auto jj = 3 * n2_index + iddl;
+                      auto jj = ndim * n2_index + iddl;
                       auto mij = Me(ii, jj) / beta / dt2;
                       m_linear_system.matrixAddValue(node1_dofi, node2_dofj, mij);
                     }
@@ -2112,7 +2125,6 @@ _getParaxialContribution3D(Arcane::VariableDoFReal& rhs_values){
                   }
                 }
               }
-
               ++n1_index;
             }
           }
