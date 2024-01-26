@@ -480,7 +480,6 @@ _doStationarySolve()
     }
 
     // Assemble the FEM linear operator (RHS - vector b)
-#ifdef ARCANE_HAS_ACCELERATOR
     if (m_use_buildless_csr || m_use_csr_gpu || m_use_nodewise_csr || m_use_csr) {
       m_linear_system.clearValues();
       _assembleCsrGpuLinearOperator();
@@ -489,7 +488,6 @@ _doStationarySolve()
       _translateRhs();
     }
     else
-#endif
       _assembleLinearOperator();
 
 
