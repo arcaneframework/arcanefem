@@ -62,24 +62,10 @@ _assembleCooBilinearOperatorTRIA3()
 
   Timer::Action timer_coo_bili(m_time_stats, "AssembleCooBilinearOperatorTria3");
 
-  double compute_average = 0;
-  double global_build_average = 0;
-  double build_time = 0;
-  std::chrono::_V2::system_clock::time_point lhs_start;
-  if (m_register_time) {
-    logger << "-------------------------------------------------------------------------------------\n"
-           << "Using CPU coo with NumArray format\n";
-    lhs_start = std::chrono::high_resolution_clock::now();
-  }
   {
     Timer::Action timer_coo_build(m_time_stats, "CooBuildMatrix");
     // Build the coo matrix
     _buildMatrix();
-  }
-  if (m_register_time) {
-    auto build_stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> build_duration = build_stop - lhs_start;
-    build_time = build_duration.count();
   }
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -87,21 +73,10 @@ _assembleCooBilinearOperatorTRIA3()
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    std::chrono::_V2::system_clock::time_point compute_El_start;
-    if (m_register_time) {
-      compute_El_start = std::chrono::high_resolution_clock::now();
-    }
-
     FixedMatrix<3, 3> K_e;
     {
       //Timer::Action timer_coo_compute(m_time_stats, "CooComputeElementMatrix");
       K_e = _computeElementMatrixTRIA3(cell); // element stifness matrix
-    }
-
-    if (m_register_time) {
-      auto compute_El_stop = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> compute_duration = compute_El_stop - compute_El_start;
-      compute_average += compute_duration.count();
     }
 
     //             # assemble elementary matrix into the global one
@@ -113,10 +88,6 @@ _assembleCooBilinearOperatorTRIA3()
     //                     inode2=elem.nodes.index(node2)
     //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
 
-    std::chrono::_V2::system_clock::time_point global_build_start;
-    if (m_register_time) {
-      auto global_build_start = std::chrono::high_resolution_clock::now();
-    }
     //Timer::Action timer_coo_add(m_time_stats, "CooAddToGlobalMatrix");
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
@@ -132,30 +103,6 @@ _assembleCooBilinearOperatorTRIA3()
       }
       ++n1_index;
     }
-    if (m_register_time) {
-      auto global_build_stop = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> global_build_duration = global_build_stop - global_build_start;
-      global_build_average += global_build_duration.count();
-    }
-  }
-
-  if (m_register_time) {
-    auto lhs_end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> duration = lhs_end - lhs_start;
-    double lhs_loc_time = duration.count();
-    logger << "Building time of the coo matrix :" << build_time << "\n"
-           << "Compute Elements average time : " << compute_average / nbCell() << "\n"
-           << "Compute Elements total time : " << compute_average << "\n"
-           << "Add in global matrix average time : " << global_build_average / nbCell() << "\n"
-           << "Add in global matrix total time : " << global_build_average << "\n"
-           << "LHS Total time : " << lhs_loc_time << "\n"
-           << "Build matrix time in lhs :" << build_time / lhs_loc_time * 100 << "%\n"
-           << "Compute element time in lhs : " << compute_average / lhs_loc_time * 100 << "%\n"
-           << "Add in global matrix time in lhs : " << global_build_average / lhs_loc_time * 100 << "%\n\n"
-           << "-------------------------------------------------------------------------------------\n\n";
-    lhs_time += lhs_loc_time;
-    wbuild << lhs_loc_time << ",";
-    timer << compute_average + global_build_average << ",";
   }
 }
 
