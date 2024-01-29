@@ -284,7 +284,7 @@ solve()
   hypreCheck("HYPRE_SetExecutionPolicy", HYPRE_SetExecutionPolicy(hypre_exec_policy));
 
   if (is_use_device) {
-#if HYPRE_RELEASE_NUMBER >= 22300
+#if HYPRE_RELEASE_NUMBER >= 22700
     /* use hypre's SpGEMM instead of vendor implementation */
     HYPRE_SetSpGemmUseVendor(false);
 #endif
