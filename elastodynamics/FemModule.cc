@@ -1505,9 +1505,6 @@ _solve()
   info() << "Solving Linear system";
   m_linear_system.solve();
 
-  // Re-Apply boundary conditions because the solver has modified the value
-  _applyDirichletBoundaryConditions();  // ************ CHECK
-
   {
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -1523,6 +1520,9 @@ _solve()
       info() << "Node: " << node.localId() << " U1=" << u1_val << " U2=" << u2_val;
     }
   }
+
+  // Re-Apply boundary conditions because the solver has modified the value
+  _applyDirichletBoundaryConditions();
 
   m_dU.synchronize();
   m_U.synchronize();
