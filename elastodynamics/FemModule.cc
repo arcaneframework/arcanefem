@@ -830,6 +830,8 @@ $$
       if (node.isOwn()) {
         DoFLocalId dof_id1 = node_dof.dofId(node, 0);
         DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+
+        if (!(m_u1_fixed[node]))
         rhs_values[dof_id1] +=   (m_U[node].x) * (area / 3) * c0
                                + (m_V[node].x) * (area / 3) * c3
                                + (m_A[node].x) * (area / 3) * c4
@@ -841,6 +843,7 @@ $$
                                + ( (DXA1.x * DXV(0,i) * area ) +   0.5 * ( DXA1.y + DXA2.x) * DYV(0,i) * area    )*c10
                                ;
 
+        if (!(m_u2_fixed[node]))
         rhs_values[dof_id2] +=   (m_U[node].y)  * (area / 3) * c0
                                + (m_V[node].y)  * (area / 3) * c3
                                + (m_A[node].y)  * (area / 3) * c4
