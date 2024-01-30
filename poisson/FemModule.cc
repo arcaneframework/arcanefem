@@ -18,6 +18,8 @@
 void FemModule::
 _writeInJson()
 {
+  if (!_isMasterRank())
+    return;
   ofstream jsonFile("time.json");
   JSONWriter json_writer(JSONWriter::FormatFlags::None);
   json_writer.beginObject();
@@ -102,12 +104,13 @@ void FemModule::
 _saveTimeInCSV()
 {
   std::ofstream csv_save;
-  if (!fs::exists("time.csv")) {
-    csv_save.open("time.csv");
+  String csv_file_name = String::format("time.{0}.csv",parallelMng()->commRank());
+  if (!fs::exists(csv_file_name.localstr())) {
+    csv_save.open(csv_file_name.localstr());
     csv_save << "Number of Nodes,Legacy,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU,CusparseAdd\n";
   }
   else {
-    csv_save.open("time.csv", std::ios_base::app);
+    csv_save.open(csv_file_name.localstr(), std::ios_base::app);
   }
   Integer denume = m_cache_warming;
   if (denume > 1)
@@ -140,12 +143,13 @@ void FemModule::
 _saveNoBuildTimeInCSV()
 {
   std::ofstream csv_save;
-  if (!fs::exists("timeNoBuild.csv")) {
-    csv_save.open("timeNoBuild.csv");
+  String csv_file_name = String::format("timeNoBuild.{0}.csv",parallelMng()->commRank());
+  if (!fs::exists(csv_file_name.localstr())) {
+    csv_save.open(csv_file_name.localstr());
     csv_save << "Number of Nodes,Legacy,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU,CusparseAdd\n";
   }
   else {
-    csv_save.open("timeNoBuild.csv", std::ios_base::app);
+    csv_save.open(csv_file_name.localstr(), std::ios_base::app);
   }
   Integer denume = m_cache_warming;
   if (denume > 1)
@@ -175,12 +179,13 @@ void FemModule::
 _benchBuildRow()
 {
   std::ofstream csv_save;
-  if (!fs::exists("buildRow.csv")) {
-    csv_save.open("buildRow.csv");
+  String csv_file_name = String::format("buildRow.{0}.csv",parallelMng()->commRank());
+  if (!fs::exists(csv_file_name.localstr())) {
+    csv_save.open(csv_file_name.localstr());
     csv_save << "Number of Nodes,Build on CPU,Build on GPU\n";
   }
   else {
-    csv_save.open("buildRow.csv", std::ios_base::app);
+    csv_save.open(csv_file_name.localstr(), std::ios_base::app);
   }
   csv_save << nbNode() << ",";
   csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrBuildMatrix") / m_cache_warming << ",";
@@ -243,7 +248,7 @@ startInit()
 {
   info() << "Module Fem INIT";
 
-  if (m_register_time) {
+  if (m_register_time && _isMasterRank()) {
     logger = ofstream("timer.txt");
     wbuild = ofstream("with_build.csv", std::ios_base::app);
     wbuild << nbNode() << ",";
@@ -2206,6 +2211,15 @@ _checkResultFile()
     return;
   const double epsilon = 1.0e-4;
   checkNodeResultFile(traceMng(), filename, m_u, epsilon);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+bool FemModule::
+_isMasterRank() const
+{
+  return parallelMng()->isMasterIO();
 }
 
 /*---------------------------------------------------------------------------*/

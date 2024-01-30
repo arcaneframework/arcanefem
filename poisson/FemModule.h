@@ -347,4 +347,5 @@ class FemModule
 
   void _assembleCsrLinearOperator();
   void _translateRhs();
+  bool _isMasterRank() const;
 };
