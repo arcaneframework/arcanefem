@@ -175,6 +175,9 @@ class AlephDoFLinearSystemImpl
       //info() << "ROW=" << row;
       m_dof_matrix_indexes[dof] = row;
     }
+    // Do not print informations about setting matrix if matrix is too big
+    if (own_dofs.size()>200)
+      m_do_print_filling = false;
 
     m_aleph_matrix = m_aleph_kernel->createSolverMatrix();
     m_aleph_rhs_vector = m_aleph_kernel->createSolverVector();
@@ -258,7 +261,7 @@ class AlephDoFLinearSystemImpl
     auto* aleph_solution_vector = m_aleph_solution_vector;
     DoFGroup own_dofs = m_dof_family->allItems().own();
     const Int32 nb_dof = own_dofs.size();
-    m_vector_zero(nb_dof);
+    m_vector_zero.resize(nb_dof);
     m_vector_zero.fill(0.0);
 
     aleph_solution_vector->setLocalComponents(m_vector_zero);
