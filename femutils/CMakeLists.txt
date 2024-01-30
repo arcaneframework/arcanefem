@@ -3,8 +3,6 @@ option(ENABLE_DEBUG_MATRIX "Enable Debug matrix instead of a sparse one" OFF)
 add_library(FemUtils
   FemUtils.h
   FemUtils.cc
-  NodeLinearSystem.h
-  NodeLinearSystem.cc
   DoFLinearSystem.h
   DoFLinearSystem.cc
   CooFormatMatrix.h
@@ -12,7 +10,6 @@ add_library(FemUtils
   CsrFormatMatrix.cc
   FemDoFsOnNodes.h
   FemDoFsOnNodes.cc
-  AlephNodeLinearSystem.cc
   AlephDoFLinearSystem.cc
   IDoFLinearSystemFactory.h
   AlephDoFLinearSystemFactory_axl.h
