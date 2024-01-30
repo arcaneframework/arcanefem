@@ -36,7 +36,10 @@ endif()
 
 enable_testing()
 
-add_test(NAME [laplace]laplace COMMAND Laplace Test.laplace.arc)
+if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
+  add_test(NAME [laplace]laplace COMMAND Laplace Test.laplace.arc)
+endif()
+
 add_test(NAME [laplace]laplace_pointDirichlet COMMAND Laplace Test.laplace.PointDirichlet.arc)
 
 # If parallel part is available, add some tests

@@ -15,7 +15,9 @@ target_link_libraries(aerodynamics PUBLIC FemUtils)
 
 enable_testing()
 
-add_test(NAME [aerodynamics]Joukowski COMMAND aerodynamics Test.Joukowski.arc)
+if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
+  add_test(NAME [aerodynamics]Joukowski COMMAND aerodynamics Test.Joukowski.arc)
+endif()
 
 # If parallel part is available, add some tests
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)

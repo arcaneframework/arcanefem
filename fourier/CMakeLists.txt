@@ -44,14 +44,11 @@ endif()
 
 enable_testing()
 
-add_test(NAME [Fourier]conduction COMMAND Fourier Test.conduction.arc)
-add_test(NAME [Fourier]conduction_heterogeneous COMMAND Fourier Test.conduction.heterogeneous.arc)
-add_test(NAME [Fourier]conduction_quad COMMAND Fourier Test.conduction.quad4.arc)
-
-#if(FEMTEST_HAS_GMSH_TEST)
-#  add_test(NAME [Fourier]conduction_10k COMMAND ./Fourier Test.conduction.10k.arc)
-#  add_test(NAME [Fourier]conduction_heterogeneous_10k COMMAND ./Fourier Test.conduction.heterogeneous.10k.arc)
-#endif()
+if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
+  add_test(NAME [Fourier]conduction COMMAND Fourier Test.conduction.arc)
+  add_test(NAME [Fourier]conduction_heterogeneous COMMAND Fourier Test.conduction.heterogeneous.arc)
+  add_test(NAME [Fourier]conduction_quad COMMAND Fourier Test.conduction.quad4.arc)
+endif()
 
 
 # If parallel part is available, add some tests

@@ -20,5 +20,6 @@ configure_file(${MSH_DIR}/bilap.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 target_link_libraries(Bilaplacian PUBLIC FemUtils)
 
 enable_testing()
+
 add_test(NAME [bilaplacian]direct_solver COMMAND Bilaplacian Test.Bilaplacian.direct.arc)
 add_test(NAME [bilaplacian]internal_PCG_solver COMMAND Bilaplacian Test.Bilaplacian.internal_pcg.arc)

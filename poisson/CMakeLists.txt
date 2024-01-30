@@ -77,13 +77,14 @@ file(COPY "tests/" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 enable_testing()
 
-add_test(NAME [poisson]poisson COMMAND Poisson Test.poisson.arc)
+
 add_test(NAME [poisson]poisson_direct COMMAND Poisson Test.poisson.direct.arc)
-add_test(NAME [poisson]poisson_neumann COMMAND Poisson Test.poisson.neumann.arc)
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_TRILINOS)
   add_test(NAME [poisson]poisson_trilinos COMMAND Poisson Test.poisson.trilinos.arc)
 endif()
+
+
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   add_test(NAME [poisson]poisson_hypre COMMAND Poisson Test.poisson.hypre.arc)
   add_test(NAME [poisson]poisson_hypre_direct COMMAND Poisson Test.poisson.hypre_direct.arc)
@@ -92,8 +93,12 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     add_test(NAME [poisson]poisson_hypre_direct_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Poisson Test.poisson.hypre_direct.arc)
   endif()
 endif()
+
+
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
+  add_test(NAME [poisson]poisson COMMAND Poisson Test.poisson.arc)
   add_test(NAME [poisson]poisson_petsc COMMAND Poisson Test.poisson.petsc.arc)
+  add_test(NAME [poisson]poisson_neumann COMMAND Poisson Test.poisson.neumann.arc)
 endif()
 
 

@@ -21,6 +21,9 @@ target_link_libraries(Soildynamics PUBLIC FemUtils)
 file(COPY "data/" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 enable_testing()
-add_test(NAME [soildynamics]soildynamics COMMAND Soildynamics Test.Soildynamics.arc)
-add_test(NAME [soildynamics]soildynamics_const_traction COMMAND Soildynamics Test.constant-traction.arc)
-add_test(NAME [soildynamics]soildynamics_transient_traction COMMAND Soildynamics Test.transient-traction.arc)
+
+if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
+  add_test(NAME [soildynamics]soildynamics COMMAND Soildynamics Test.Soildynamics.arc)
+  add_test(NAME [soildynamics]soildynamics_const_traction COMMAND Soildynamics Test.constant-traction.arc)
+  add_test(NAME [soildynamics]soildynamics_transient_traction COMMAND Soildynamics Test.transient-traction.arc)
+endif()

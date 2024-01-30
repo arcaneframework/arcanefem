@@ -18,11 +18,14 @@ configure_file(${MSH_DIR}/bar.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 target_link_libraries(Elasticity PUBLIC FemUtils)
 
 enable_testing()
-add_test(NAME [elasticity] COMMAND Elasticity Test.Elasticity.arc)
-add_test(NAME [elasticity]Dirichlet_traction COMMAND Elasticity Test.Elasticity.traction.arc)
-add_test(NAME [elasticity]Dirichlet_pointBC COMMAND Elasticity Test.Elasticity.PointDirichlet.arc)
-add_test(NAME [elasticity]Dirichlet_via_RowElimination COMMAND Elasticity Test.Elasticity.DirichletViaRowElimination.arc)
-add_test(NAME [elasticity]Dirichlet_via_RowColElimination COMMAND Elasticity Test.Elasticity.DirichletViaRowColumnElimination.arc)
+
+if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
+  add_test(NAME [elasticity] COMMAND Elasticity Test.Elasticity.arc)
+  add_test(NAME [elasticity]Dirichlet_traction COMMAND Elasticity Test.Elasticity.traction.arc)
+  add_test(NAME [elasticity]Dirichlet_pointBC COMMAND Elasticity Test.Elasticity.PointDirichlet.arc)
+  add_test(NAME [elasticity]Dirichlet_via_RowElimination COMMAND Elasticity Test.Elasticity.DirichletViaRowElimination.arc)
+  add_test(NAME [elasticity]Dirichlet_via_RowColElimination COMMAND Elasticity Test.Elasticity.DirichletViaRowColumnElimination.arc)
+endif()
 
 # If parallel part is available, add some tests
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
