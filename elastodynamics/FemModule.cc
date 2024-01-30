@@ -769,9 +769,13 @@ _assembleLinearOperator()
     DXU1.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
     DXU1.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
 
+    Real Uold1 = f0 + f1 + f2;
+
     f0 = m_U[cell.nodeId(0)].y;
     f1 = m_U[cell.nodeId(1)].y;
     f2 = m_U[cell.nodeId(2)].y;
+
+    Real Uold2 = f0 + f1 + f2;
 
     DXU2.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
     DXU2.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
@@ -780,12 +784,16 @@ _assembleLinearOperator()
     f1 = m_V[cell.nodeId(1)].x;
     f2 = m_V[cell.nodeId(2)].x;
 
+    Real Vold1 = f0 + f1 + f2;
+
     DXV1.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
     DXV1.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
 
     f0 = m_V[cell.nodeId(0)].y;
     f1 = m_V[cell.nodeId(1)].y;
     f2 = m_V[cell.nodeId(2)].y;
+
+    Real Vold2 = f0 + f1 + f2;
 
     DXV2.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
     DXV2.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
@@ -794,6 +802,8 @@ _assembleLinearOperator()
     f1 = m_A[cell.nodeId(1)].x;
     f2 = m_A[cell.nodeId(2)].x;
 
+    Real Aold1 = f0 + f1 + f2;
+
     DXA1.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
     DXA1.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
 
@@ -801,8 +811,11 @@ _assembleLinearOperator()
     f1 = m_A[cell.nodeId(1)].y;
     f2 = m_A[cell.nodeId(2)].y;
 
+    Real Aold2 = f0 + f1 + f2;
+
     DXA2.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
     DXA2.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
+
 
 /*
 $$
@@ -832,9 +845,9 @@ $$
         DoFLocalId dof_id2 = node_dof.dofId(node, 1);
 
         if (!(m_u1_fixed[node]))
-        rhs_values[dof_id1] +=   (m_U[node].x) * (area / 3) * c0
-                               + (m_V[node].x) * (area / 3) * c3
-                               + (m_A[node].x) * (area / 3) * c4
+        rhs_values[dof_id1] +=   (Uold1 + m_U[node].x) * (area / 12.) * c0
+                               + (Vold1 + m_V[node].x) * (area / 12.) * c3
+                               + (Aold1 + m_A[node].x) * (area / 12.) * c4
                                - ( (DXU1.x + DXU2.y) *DXV(0,i) * area )* c5
                                - ( (DXU1.x * DXV(0,i) * area ) +   0.5 * ( DXU1.y + DXU2.x) * DYV(0,i) * area    )*c6
                                + ( (DXV1.x +  DXV2.y) * DXV(0,i)* area  )* c7
@@ -844,9 +857,9 @@ $$
                                ;
 
         if (!(m_u2_fixed[node]))
-        rhs_values[dof_id2] +=   (m_U[node].y)  * (area / 3) * c0
-                               + (m_V[node].y)  * (area / 3) * c3
-                               + (m_A[node].y)  * (area / 3) * c4
+        rhs_values[dof_id2] +=   (Uold2 + m_U[node].y) * (area / 12.) * c0
+                               + (Vold2 + m_V[node].y) * (area / 12.) * c3
+                               + (Aold2 + m_A[node].y) * (area / 12.) * c4
                                - ( (DXU1.x + DXU2.y)  * DYV(0,i) * area )* c5
                                - ( (DXU2.y * DYV(0,i) * area) +   0.5 * ( DXU1.y + DXU2.x) * DXV(0,i) * area  )*c6
                                + ( (DXV1.x +  DXV2.y) * DYV(0,i) * area)* c7
