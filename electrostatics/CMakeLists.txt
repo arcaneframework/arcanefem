@@ -22,8 +22,10 @@ file(COPY "tests/" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 enable_testing()
 
-add_test(NAME [electrostatics] COMMAND Electrostatics Test.Electrostatics.arc)
-add_test(NAME [electrostatics]rod-circle COMMAND Electrostatics Test.Electrostatics.rod-circle.arc)
+if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
+  add_test(NAME [electrostatics] COMMAND Electrostatics Test.Electrostatics.arc)
+  add_test(NAME [electrostatics]rod-circle COMMAND Electrostatics Test.Electrostatics.rod-circle.arc)
+endif()
 
 # If parallel part is available, add some tests
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)

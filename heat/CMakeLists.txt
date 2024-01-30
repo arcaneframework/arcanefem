@@ -33,10 +33,14 @@ endif()
 
 enable_testing()
 
-add_test(NAME [heat]conduction COMMAND heat Test.conduction.arc)
-add_test(NAME [heat]conduction_RowElimination_Dirichlet COMMAND heat Test.conduction.DirichletViaRowElimination.arc)
-add_test(NAME [heat]conduction_RowColElimination_Dirichlet COMMAND heat Test.conduction.DirichletViaRowColumnElimination.arc)
-add_test(NAME [heat]conduction_convection COMMAND heat Test.conduction.convection.arc)
+
+if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
+  add_test(NAME [heat]conduction COMMAND heat Test.conduction.arc)
+  add_test(NAME [heat]conduction_RowElimination_Dirichlet COMMAND heat Test.conduction.DirichletViaRowElimination.arc)
+  add_test(NAME [heat]conduction_RowColElimination_Dirichlet COMMAND heat Test.conduction.DirichletViaRowColumnElimination.arc)
+  add_test(NAME [heat]conduction_convection COMMAND heat Test.conduction.convection.arc)
+endif()
+
 
 # If parallel part is available, add some tests
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
