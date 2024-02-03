@@ -248,6 +248,7 @@ class FemModule
   void _checkCellType();
   void _assembleBilinearOperatorTRIA3();
   void _assembleBilinearOperatorQUAD4();
+  void _assembleBilinearOperatorTETRA4();
   void _solve();
   void _initBoundaryconditions();
   void _assembleLinearOperator();
@@ -259,8 +260,10 @@ class FemModule
   void _benchBuildRow();
   Real _readTimeFromJson(String main_time, String sub_time);
   FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
+  FixedMatrix<4, 4> _computeElementMatrixTETRA4(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
+  Real _computeAreaTetra4(Cell cell);
   Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
   Real2 _computeEdgeNormal2(Face face);
