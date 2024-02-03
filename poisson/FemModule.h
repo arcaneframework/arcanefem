@@ -147,18 +147,6 @@ struct cusparseCsr
   float* csrVal;
 };
 
-struct computeTimer
-{
-  double add_glob = 0;
-  double compute_el = 0;
-  double sort_coo = 0;
-  double convert_coo = 0;
-  double convert_coo_tot = 0;
-  double convert_csr_tot = 0;
-  double convert_tot = 0;
-  double iter_time = 0;
-  double compute_tot = 0;
-};
 #endif
 
 /*---------------------------------------------------------------------------*/
@@ -231,10 +219,6 @@ class FemModule
   std::ofstream wbuild;
   std::ofstream timer;
 
-  double lhs_time = 0;
-  double rhs_time = 0;
-  double solver_time = 0;
-
   Integer cache_index;
 
  private:
@@ -292,8 +276,7 @@ class FemModule
 
 #ifdef USE_CUSPARSE_ADD
   void printCsrMatrix(std::string fileName, cusparseCsr csr, bool is_coo);
-  void _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell icell, cusparseHandle_t handle, IndexedNodeDoFConnectivityView node_dof,
-                                     computeTimer& timer);
+  void _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell icell, cusparseHandle_t handle, IndexedNodeDoFConnectivityView node_dof);
   void _assembleCusparseBilinearOperatorTRIA3();
 #endif
   void _buildMatrix();

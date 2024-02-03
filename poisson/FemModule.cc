@@ -361,9 +361,6 @@ void FemModule::
 _doStationarySolve()
 {
   Timer::Action timer_action(m_time_stats, "StationarySolve");
-  std::chrono::_V2::system_clock::time_point fem_start;
-  if (m_register_time && m_cache_warming)
-    fem_start = std::chrono::high_resolution_clock::now();
 
   // # get material parameters
   _getMaterialParameters();
@@ -523,16 +520,6 @@ _doStationarySolve()
 
     // Check results
     _checkResultFile();
-    if (m_register_time) {
-      auto fem_stop = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> fem_duration = fem_stop - fem_start;
-      double total_duration = fem_duration.count();
-      logger << "FEM total duration : " << fem_duration.count() << "\n"
-             << "LHS time in total duration : " << lhs_time / total_duration * 100 << "%\n"
-             << "RHS time in total duration : " << rhs_time / total_duration * 100 << "%\n"
-             << "Solver time in total duration : " << solver_time / total_duration * 100 << "%\n";
-      logger.close();
-    }
   }
 }
 
@@ -700,15 +687,6 @@ _assembleLinearOperator()
   info() << "Applying Dirichlet boundary condition via  penalty method ";
 
   // time registration
-  std::chrono::_V2::system_clock::time_point rhs_start;
-  double penalty_time = 0;
-  double wpenalty_time = 0;
-  double sassembly_time = 0;
-  double fassembly_time = 0;
-  if (m_register_time) {
-    rhs_start = std::chrono::high_resolution_clock::now();
-  }
-
   Timer::Action timer_action(m_time_stats, "AssembleLinearOperator");
 
   // Temporary variable to keep values for the RHS part of the linear system
@@ -738,10 +716,6 @@ _assembleLinearOperator()
            << options()->enforceDirichletMethod() << " method ";
 
     Real Penalty = options()->penalty(); // 1.0e30 is the default
-    std::chrono::_V2::system_clock::time_point penalty_start;
-    if (m_register_time) {
-      penalty_start = std::chrono::high_resolution_clock::now();
-    }
 
     ENUMERATE_ (Node, inode, ownNodes()) {
       NodeLocalId node_id = *inode;
@@ -753,13 +727,6 @@ _assembleLinearOperator()
         // This should be changed for a numArray
         rhs_values[dof_id] = u_g;
       }
-    }
-    std::chrono::_V2::system_clock::time_point penalty_stop;
-    if (m_register_time) {
-      penalty_stop = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> penalty_duration = penalty_stop - penalty_start;
-      penalty_time = penalty_duration.count();
-      logger << "Penalty duration : " << penalty_time << "\n";
     }
   }
   else if (options()->enforceDirichletMethod() == "WeakPenalty") {
@@ -782,10 +749,6 @@ _assembleLinearOperator()
            << options()->enforceDirichletMethod() << " method ";
 
     Real Penalty = options()->penalty(); // 1.0e30 is the default
-    std::chrono::_V2::system_clock::time_point wpenalty_start;
-    if (m_register_time) {
-      wpenalty_start = std::chrono::high_resolution_clock::now();
-    }
 
     // The same as before
     ENUMERATE_ (Node, inode, ownNodes()) {
@@ -796,13 +759,6 @@ _assembleLinearOperator()
         Real u_g = Penalty * m_u[node_id];
         rhs_values[dof_id] = u_g;
       }
-    }
-    std::chrono::_V2::system_clock::time_point wpenalty_stop;
-    if (m_register_time) {
-      wpenalty_stop = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> wpenalty_duration = wpenalty_stop - wpenalty_start;
-      wpenalty_time = wpenalty_duration.count();
-      logger << "Weak Penalty duration : " << wpenalty_time << "\n";
     }
   }
   else if (options()->enforceDirichletMethod() == "RowElimination") {
@@ -854,12 +810,7 @@ _assembleLinearOperator()
            << "  - RowElimination\n"
            << "  - RowColumnElimination\n";
   }
-  std::chrono::_V2::system_clock::time_point sassemby_start;
-  if (m_register_time) {
-    sassemby_start = std::chrono::high_resolution_clock::now();
-  }
 
-  std::chrono::_V2::system_clock::time_point fassemby_start;
   {
     Timer::Action timer_action(m_time_stats, "ConstantSourceTermAssembly");
     //----------------------------------------------
@@ -891,15 +842,6 @@ _assembleLinearOperator()
           }
         }
       }
-    }
-
-    std::chrono::_V2::system_clock::time_point sassemby_stop;
-    if (m_register_time) {
-      sassemby_stop = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> sassembly_duration = sassemby_stop - sassemby_start;
-      sassembly_time = sassembly_duration.count();
-      logger << "Constant source term assembly duration : " << sassembly_time << "\n";
-      fassemby_start = std::chrono::high_resolution_clock::now();
     }
   }
   {
@@ -977,25 +919,6 @@ _assembleLinearOperator()
         continue;
       }
     }
-    std::chrono::_V2::system_clock::time_point fassemby_stop;
-    if (m_register_time) {
-
-      fassemby_stop = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> fassembly_duration = fassemby_stop - fassemby_start;
-      fassembly_time = fassembly_duration.count();
-      logger << "Constant flux term assembly duration : " << fassembly_time << "\n";
-      auto rhs_end = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> duration = rhs_end - rhs_start;
-      rhs_time = duration.count();
-      logger << "RHS total duration : " << duration.count() << "\n";
-      if (penalty_time != 0)
-        logger << "Penalty time in rhs : " << penalty_time / rhs_time * 100 << "%\n";
-      else
-        logger << "Weak Penalty time in rhs : " << wpenalty_time / rhs_time * 100 << "%\n";
-      logger << "Constant source term assembly time in rhs : " << sassembly_time / rhs_time * 100 << "%\n"
-             << "Constant flux term assembly time in rhs : " << fassembly_time / rhs_time * 100 << "%\n\n"
-             << "-------------------------------------------------------------------------------------\n\n";
-    }
   }
 }
 
@@ -1009,15 +932,6 @@ _assembleCsrLinearOperator()
   info() << "Applying Dirichlet boundary condition via  penalty method for Csr";
 
   // time registration
-  std::chrono::_V2::system_clock::time_point rhs_start;
-  double penalty_time = 0;
-  double wpenalty_time = 0;
-  double sassembly_time = 0;
-  double fassembly_time = 0;
-  if (m_register_time) {
-    rhs_start = std::chrono::high_resolution_clock::now();
-  }
-
   Timer::Action timer_action(m_time_stats, "CsrAssembleLinearOperator");
 
   m_rhs_vect.resize(nbNode());
@@ -1046,10 +960,6 @@ _assembleCsrLinearOperator()
            << options()->enforceDirichletMethod() << " method ";
 
     Real Penalty = options()->penalty(); // 1.0e30 is the default
-    std::chrono::_V2::system_clock::time_point penalty_start;
-    if (m_register_time) {
-      penalty_start = std::chrono::high_resolution_clock::now();
-    }
 
     ENUMERATE_ (Node, inode, ownNodes()) {
       NodeLocalId node_id = *inode;
@@ -1059,13 +969,6 @@ _assembleCsrLinearOperator()
         Real u_g = Penalty * m_u[node_id];
         m_rhs_vect[dof_id] = u_g;
       }
-    }
-    std::chrono::_V2::system_clock::time_point penalty_stop;
-    if (m_register_time) {
-      penalty_stop = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> penalty_duration = penalty_stop - penalty_start;
-      penalty_time = penalty_duration.count();
-      logger << "Penalty duration for CSR : " << penalty_time << "\n";
     }
   }
   else if (options()->enforceDirichletMethod() == "WeakPenalty") {
@@ -1088,10 +991,6 @@ _assembleCsrLinearOperator()
            << options()->enforceDirichletMethod() << " method ";
 
     Real Penalty = options()->penalty(); // 1.0e30 is the default
-    std::chrono::_V2::system_clock::time_point wpenalty_start;
-    if (m_register_time) {
-      wpenalty_start = std::chrono::high_resolution_clock::now();
-    }
 
     // The same as before
     ENUMERATE_ (Node, inode, ownNodes()) {
@@ -1102,13 +1001,6 @@ _assembleCsrLinearOperator()
         Real u_g = Penalty * m_u[node_id];
         m_rhs_vect[dof_id] = u_g;
       }
-    }
-    std::chrono::_V2::system_clock::time_point wpenalty_stop;
-    if (m_register_time) {
-      wpenalty_stop = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> wpenalty_duration = wpenalty_stop - wpenalty_start;
-      wpenalty_time = wpenalty_duration.count();
-      logger << "Weak Penalty duration for CSR: " << wpenalty_time << "\n";
     }
   }
   else if (options()->enforceDirichletMethod() == "RowElimination") {
@@ -1160,12 +1052,7 @@ _assembleCsrLinearOperator()
            << "  - RowElimination\n"
            << "  - RowColumnElimination\n";
   }
-  std::chrono::_V2::system_clock::time_point sassemby_start;
-  if (m_register_time) {
-    sassemby_start = std::chrono::high_resolution_clock::now();
-  }
 
-  std::chrono::_V2::system_clock::time_point fassemby_start;
   {
     Timer::Action timer_action(m_time_stats, "CsrConstantSourceTermAssembly");
     //----------------------------------------------
@@ -1186,14 +1073,6 @@ _assembleCsrLinearOperator()
           m_rhs_vect[node_dof.dofId(node, 0)] += f * area / ElementNodes;
         }
       }
-    }
-    std::chrono::_V2::system_clock::time_point sassemby_stop;
-    if (m_register_time) {
-      sassemby_stop = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> sassembly_duration = sassemby_stop - sassemby_start;
-      sassembly_time = sassembly_duration.count();
-      logger << "Constant source term assembly duration  for CSR: " << sassembly_time << "\n";
-      fassemby_start = std::chrono::high_resolution_clock::now();
     }
   }
   {
@@ -1266,25 +1145,6 @@ _assembleCsrLinearOperator()
         }
         continue;
       }
-    }
-    std::chrono::_V2::system_clock::time_point fassemby_stop;
-    if (m_register_time) {
-
-      fassemby_stop = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> fassembly_duration = fassemby_stop - fassemby_start;
-      fassembly_time = fassembly_duration.count();
-      logger << "Constant flux term assembly duration for CSR: " << fassembly_time << "\n";
-      auto rhs_end = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> duration = rhs_end - rhs_start;
-      rhs_time = duration.count();
-      logger << "RHS total duration for CSR: " << duration.count() << "\n";
-      if (penalty_time != 0)
-        logger << "Penalty time in rhs for CSR: " << penalty_time / rhs_time * 100 << "%\n";
-      else
-        logger << "Weak Penalty time in rhs for CSR: " << wpenalty_time / rhs_time * 100 << "%\n";
-      logger << "Constant source term assembly time in rhs for CSR: " << sassembly_time / rhs_time * 100 << "%\n"
-             << "Constant flux term assembly time in rhs for CSR: " << fassembly_time / rhs_time * 100 << "%\n\n"
-             << "-------------------------------------------------------------------------------------\n\n";
     }
   }
 }
@@ -2210,21 +2070,8 @@ _buildMatrixGPU()
 void FemModule::
 _assembleCooGPUBilinearOperatorTRIA3()
 {
-#if defined(m_register_time) && defined(m_cache_warming)
-  logger << "-------------------------------------------------------------------------------------\n"
-         << "Using CPU coo with NumArray format\n";
-  auto lhs_start = std::chrono::high_resolution_clock::now();
-  double compute_average = 0;
-  double global_build_average = 0;
-  double build_time = 0;
-#endif
   // Build the coo matrix
   _buildMatrixGPU();
-#if defined(m_register_time) && defined(m_cache_warming)
-  auto build_stop = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> build_duration = build_stop - lhs_start;
-  build_time = build_duration.count();
-#endif
 
   RunQueue* queue = acceleratorMng()->defaultQueue();
   // Boucle sur les mailles déportée sur accélérateur
@@ -2272,25 +2119,6 @@ _assembleCooGPUBilinearOperatorTRIA3()
       ++n1_index;
     }
   };
-
-#if defined(m_register_time) && defined(m_cache_warming)
-  if (i == 3) {
-    auto lhs_end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> duration = lhs_end - lhs_start;
-    double lhs_loc_time = duration.count();
-    logger << "Building time of the coo matrix :" << build_time << "\n"
-           << "Compute Elements average time : " << compute_average / nbCell() << "\n"
-           << "Compute Elements total time : " << compute_average << "\n"
-           << "Add in global matrix average time : " << global_build_average / nbCell() << "\n"
-           << "Add in global matrix total time : " << global_build_average << "\n"
-           << "LHS Total time : " << lhs_loc_time << "\n"
-           << "Build matrix time in lhs :" << build_time / lhs_loc_time * 100 << "%\n"
-           << "Compute element time in lhs : " << compute_average / lhs_loc_time * 100 << "%\n"
-           << "Add in global matrix time in lhs : " << global_build_average / lhs_loc_time * 100 << "%\n\n"
-           << "-------------------------------------------------------------------------------------\n\n";
-    lhs_time += lhs_loc_time;
-  }
-#endif
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2303,11 +2131,6 @@ _solve()
 {
   ITimeStats* tstat = m_time_stats;
   Timer::Action timer_action(tstat, "Solving");
-
-  std::chrono::_V2::system_clock::time_point solve_start;
-  if (m_register_time) {
-    solve_start = std::chrono::high_resolution_clock::now();
-  }
 
   {
     Timer::Action ta1(tstat, "LinearSystemSolve");
@@ -2348,19 +2171,13 @@ _solve()
   if (do_print) {
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      info() << "T[" << node.localId() << "][" << node.uniqueId() << "] = "
+      info() << "u[" << node.localId() << "][" << node.uniqueId() << "] = "
              << m_u[node];
-      //info() << "T[]" << node.uniqueId() << " "
+      //info() << "u[]" << node.uniqueId() << " "
       //       << m_u[node];
     }
   }
 
-  if (m_register_time) {
-    auto solve_end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> solve_duration = solve_end - solve_start;
-    solver_time = solve_duration.count();
-    logger << "Solver duration : " << solver_time << "\n";
-  }
 }
 
 /*---------------------------------------------------------------------------*/
