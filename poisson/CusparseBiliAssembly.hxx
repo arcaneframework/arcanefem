@@ -1,6 +1,6 @@
 // -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2023 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
@@ -43,17 +43,12 @@ printCsrMatrix(std::string fileName, cusparseCsr csr, bool is_coo)
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cell, cusparseHandle_t handle, IndexedNodeDoFConnectivityView node_dof,
-                              computeTimer& timer)
+_computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cell, cusparseHandle_t handle, IndexedNodeDoFConnectivityView node_dof)
 {
 
   Timer::Action timer_action(m_time_stats, "ComputeCusparseElementMatrix");
 
-  std::chrono::_V2::system_clock::time_point compute_start;
-  if (m_register_time) {
-    compute_start = std::chrono::high_resolution_clock::now();
-  }
-  /*-------------------------------------------------------------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
   //First part : compute element matrix
   // Get coordiantes of the triangle element  TRI3
   //------------------------------------------------
@@ -87,13 +82,6 @@ _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cel
   FixedMatrix<3, 3> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
   int_cdPi_dPj.multInPlace(area);
 
-  std::chrono::_V2::system_clock::time_point convert_coo;
-  if (m_register_time) {
-    auto compute_el_stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> compute_el_duration = compute_el_stop - compute_start;
-    timer.compute_el += compute_el_duration.count();
-    convert_coo = std::chrono::high_resolution_clock::now();
-  }
   /*-------------------------------------------------------------------------------------------------------------------------------*/
   //Second part : putting the matrix in COO format (might want to optimsie that part by doing it earlier) before converting it to csr
 
@@ -130,14 +118,6 @@ _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cel
     i++;
   }
 
-  std::chrono::_V2::system_clock::time_point sort_coo;
-  std::chrono::duration<double> convert_coo_time;
-  if (m_register_time) {
-    auto convert_coo_stop = std::chrono::high_resolution_clock::now();
-    convert_coo_time = convert_coo_stop - convert_coo;
-    timer.convert_coo += convert_coo_time.count();
-    sort_coo = std::chrono::high_resolution_clock::now();
-  }
   //Sorting of the COO values with an insertion sort
   Int32 rj = 0;
   Int32 cj = 0;
@@ -172,15 +152,6 @@ _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cel
       vals[k + 1] = vk;
     }
   }
-  std::chrono::_V2::system_clock::time_point convert_csr;
-  if (m_register_time) {
-    auto sort_coo_stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> sort_coo_time = sort_coo_stop - sort_coo;
-    std::chrono::duration<double> convert_coo_tot = sort_coo_stop - convert_coo;
-    timer.sort_coo += sort_coo_time.count();
-    timer.convert_coo_tot += convert_coo_tot.count();
-    convert_csr = std::chrono::high_resolution_clock::now();
-  }
 
   //conversion from COO to CSR
   void* csrRowPtr_void;
@@ -190,15 +161,6 @@ _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cel
   local.csrRow = csrRowPtr;
   CHECK_CUDA(cudaFree(row_indexes));
 
-  std::chrono::_V2::system_clock::time_point adding_global;
-  if (m_register_time) {
-    auto convert_csr_stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> convert_csr_time = convert_csr_stop - convert_csr;
-    std::chrono::duration<double> convert_tot = convert_csr_stop - convert_coo;
-    timer.convert_csr_tot += convert_coo_time.count();
-    timer.convert_tot += convert_tot.count();
-    adding_global = std::chrono::high_resolution_clock::now();
-  }
   /*-------------------------------------------------------------------------------------------------------------------------------*/
   // Third part : adding the local and global, storing result in the res
 
@@ -266,13 +228,6 @@ _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cel
   CHECK_CUDA(cudaFree(local.csrRow));
   CHECK_CUSPARSE(cusparseDestroyMatDescr(local.desc));
 
-  if (m_register_time) {
-    auto adding_global_stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> adding_tot = adding_global_stop - adding_global;
-    std::chrono::duration<double> compute_tot = adding_global_stop - compute_start;
-    timer.add_glob += adding_tot.count();
-    timer.compute_tot += compute_tot.count();
-  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -290,28 +245,9 @@ _assembleCusparseBilinearOperatorTRIA3()
 
   Timer::Action timer_action(m_time_stats, "AssembleCusparseBilinearOperator");
 
-  computeTimer t = {};
-  std::chrono::_V2::system_clock::time_point lhs_s;
-  if (m_register_time) {
-    logger << "-------------------------------------------------------------------------------------\n"
-           << "Using Cusparse for Bilinear assembly\n";
-    lhs_s = std::chrono::high_resolution_clock::now();
-  }
   //Initialization of the CSR matrix;
   //This formula only works in p=1
-  std::chrono::_V2::system_clock::time_point cuda_init_start;
-  if (m_register_time) {
-    cuda_init_start = std::chrono::high_resolution_clock::now();
-  }
   CHECK_CUDA(cudaFree(0));
-
-  double cuda_init = 0;
-  std::chrono::_V2::system_clock::time_point cuda_init_stop;
-  if (m_register_time) {
-    cuda_init_stop = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> cuda_init_time = cuda_init_stop - cuda_init_start;
-    cuda_init = cuda_init_time.count();
-  }
 
   Int32 nnz = nbFace() * 2 + nbNode();
   cusparseHandle_t handle;
@@ -387,41 +323,6 @@ _assembleCusparseBilinearOperatorTRIA3()
   CHECK_CUDA(cudaFree(res2.csrCol));
   CHECK_CUDA(cudaFree(res2.csrVal));
   CHECK_CUSPARSE(cusparseDestroy(handle));
-  if (m_register_time) {
-    auto lhs_end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> duration = lhs_end - cuda_init_stop;
-    double lhs_loc_time = duration.count();
-    logger << "Average Time to compute element matrix : " << t.compute_el / nbCell() << "\n"
-           << "Total Time to compute element matrix : " << t.compute_el << "\n"
-           << "Percentage time to compute element matrix : " << t.compute_el / lhs_loc_time * 100 << "%\n"
-           << "Average Time to convert to coo : " << t.convert_coo / nbCell() << "\n"
-           << "Total Time to convert to coo : " << t.convert_coo << "\n"
-           << "Percentage Time to convert to coo : " << t.convert_coo / lhs_loc_time * 100 << "%\n"
-           << "Average Time to sort the coo : " << t.sort_coo / nbCell() << "\n"
-           << "Total Time to sort the coo : " << t.sort_coo << "\n"
-           << "Percentage Time to sort the coo : " << t.sort_coo / lhs_loc_time * 100 << "%\n"
-           << "Average Time to convert and sort to coo : " << t.convert_coo_tot / nbCell() << "\n"
-           << "Total Time to convert and sort to coo : " << t.convert_coo_tot << "\n"
-           << "Percentage Time to convert and sort to coo : " << t.convert_coo_tot / lhs_loc_time * 100 << "%\n"
-           << "Average Time to convert to csr : " << t.convert_csr_tot / nbCell() << "\n"
-           << "Total Time to convert to csr : " << t.convert_csr_tot << "\n"
-           << "Percentage Time to convert to csr : " << t.convert_csr_tot / lhs_loc_time * 100 << "%\n"
-           << "Average Time to convert the computed matrix : " << t.convert_tot / nbCell() << "\n"
-           << "Total Time to convert the computed matrix : " << t.convert_tot << "\n"
-           << "Percentage Time to convert the computed matrix : " << t.convert_tot / lhs_loc_time * 100 << "%\n"
-           << "Average Time to add to the global matrix : " << t.add_glob / nbCell() << "\n"
-           << "Total Time to add to the global matrix : " << t.add_glob << "\n"
-           << "Percentage Time to add to the global matrix : " << t.add_glob / lhs_loc_time * 100 << "%\n"
-           << "Average Time to make the computation operation : " << t.compute_tot / nbCell() << "\n"
-           << "Total Time to make the computation operation : " << t.compute_tot << "\n"
-           << "Percentage Time to make the computation operation : " << t.compute_tot / lhs_loc_time * 100 << "%\n"
-           << "Total time for the lhs computation : " << lhs_loc_time << "\n"
-           << "Total time of the cuda init : " << cuda_init << "\n"
-           << "Total time of lhs with the init : " << cuda_init + lhs_loc_time << "\n"
-           << "-------------------------------------------------------------------------------------\n\n";
-    wbuild << lhs_loc_time << ",";
-    lhs_time += lhs_loc_time;
-  }
 }
 
 /*---------------------------------------------------------------------------*/
