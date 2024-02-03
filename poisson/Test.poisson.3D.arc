@@ -19,7 +19,9 @@
   </meshes>
 
   <fem>
-    <result-file>test_3D_L-shape.txt</result-file>
+    <legacy>true</legacy>
+    <f>1.0</f>
+    <result-file>test_3D_L-shape_poisson.txt</result-file>
     <mesh-type>TETRA4</mesh-type>
     <dirichlet-boundary-condition>
       <surface>bot</surface>
@@ -29,5 +31,8 @@
       <surface>bc</surface>
       <value>10.0</value>
     </dirichlet-boundary-condition>
+    <linear-system>
+      <solver-backend>petsc</solver-backend>
+    </linear-system>
   </fem>
 </case>

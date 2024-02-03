@@ -231,7 +231,7 @@ compute()
     string_list.add("draw");
     string_list.add("-draw_pause");
     string_list.add("-10");
-*/
+    */
     CommandLineArguments args(string_list);
     m_linear_system.setSolverCommandLineArguments(args);
   }
@@ -372,11 +372,43 @@ _doStationarySolve()
   _updateBoundayConditions();
 
   // Assemble the FEM bilinear operator (LHS - matrix A)
-  if (options()->meshType == "QUAD4")
+  if (options()->meshType == "QUAD4"){
     _assembleBilinearOperatorQUAD4();
-  else if (options()->meshType == "TETRA4")
-    _assembleBilinearOperatorTETRA4();
+  }
+
+/*
+    if (m_use_csr){
+      m_linear_system.clearValues();
+      _assembleCsrBilinearOperatorTETRA4();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleCsrBilinearOperatorTria3");
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++){
+          m_linear_system.clearValues();
+          _assembleCsrBilinearOperatorTETRA4();
+        }
+      }
+      m_csr_matrix.translateToLinearSystem(m_linear_system);
+    }
+*/
   else {
+
+    if (m_use_legacy) {
+      m_linear_system.clearValues();
+      if (options()->meshType == "TETRA4")
+        _assembleBilinearOperatorTETRA4();
+      else if (options()->meshType == "TRIA3")
+        _assembleBilinearOperatorTRIA3();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleLegacyBilinearOperatorTria3");
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+          m_linear_system.clearValues();
+          if (options()->meshType == "TETRA4")
+            _assembleBilinearOperatorTETRA4();
+          else if (options()->meshType == "TRIA3")
+            _assembleBilinearOperatorTRIA3();
+        }
+      }
+    }
 
 #ifdef USE_CUSPARSE_ADD
     if (m_use_cusparse_add) {
@@ -434,17 +466,6 @@ _doStationarySolve()
       }
       m_csr_matrix.translateToLinearSystem(m_linear_system);
     }
-    if (m_use_legacy) {
-      m_linear_system.clearValues();
-      _assembleBilinearOperatorTRIA3();
-      if (m_cache_warming != 1) {
-        m_time_stats->resetStats("AssembleLegacyBilinearOperatorTria3");
-        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-          m_linear_system.clearValues();
-          _assembleBilinearOperatorTRIA3();
-        }
-      }
-    }
 
 #ifdef ARCANE_HAS_ACCELERATOR
     if (m_use_csr_gpu) {
@@ -494,9 +515,9 @@ _doStationarySolve()
       m_csr_matrix.translateToLinearSystem(m_linear_system);
       _translateRhs();
     }
-    else
+    else{
       _assembleLinearOperator();
-
+    }
 
     _solve();
 
@@ -675,7 +696,7 @@ _updateBoundayConditions()
 void FemModule::
 _assembleLinearOperator()
 {
-  info() << "Assembly of FEM linear operator ";
+  info() << "Assembly of FEM linear operator  ";
   info() << "Applying Dirichlet boundary condition via  penalty method ";
 
   // time registration
@@ -848,14 +869,26 @@ _assembleLinearOperator()
     //  $int_{Omega}(f*v^h)$
     //  only for noded that are non-Dirichlet
     //----------------------------------------------
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
+    if (options()->meshType == "TRIA3"){
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real area = _computeAreaTriangle3(cell);
+        for (Node node : cell.nodes()) {
+          if (!(m_u_dirichlet[node]) && node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += f * area / ElementNodes;
+          }
+        }
+      }
+    }
 
-      Real area = _computeAreaTriangle3(cell);
-      for (Node node : cell.nodes()) {
-        if (!(m_u_dirichlet[node]) && node.isOwn()) {
-          // Original code
-          rhs_values[node_dof.dofId(node, 0)] += f * area / ElementNodes;
+    if (options()->meshType == "TETRA4"){
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real area = _computeAreaTetra4(cell);
+        for (Node node : cell.nodes()) {
+          if (!(m_u_dirichlet[node]) && node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += f * area / ElementNodes;
+          }
         }
       }
     }

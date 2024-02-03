@@ -267,7 +267,7 @@ class FemModule
   Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
   Real2 _computeEdgeNormal2(Face face);
-  //#ifdef ARCANE_HAS_ACCELERATOR
+
  public:
 
   void _applyDirichletBoundaryConditionsGpu();
@@ -289,7 +289,7 @@ class FemModule
 
  private:
 
-  //#endif
+
 #ifdef USE_CUSPARSE_ADD
   void printCsrMatrix(std::string fileName, cusparseCsr csr, bool is_coo);
   void _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell icell, cusparseHandle_t handle, IndexedNodeDoFConnectivityView node_dof,
@@ -329,6 +329,7 @@ class FemModule
 
 #endif
   void _assembleCsrBilinearOperatorTRIA3();
+  void _assembleCsrBilinearOperatorTETRA4();
   void _buildMatrixCsr();
  public:
 
