@@ -9,10 +9,12 @@ arcane_add_arcane_libraries_to_target(Laplace)
 target_include_directories(Laplace PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
 configure_file(Laplace.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.laplace.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Test.laplace.3D.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.laplace.PointDirichlet.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.laplace.PointDirichlet.10K.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/ring.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/plancher.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/L-shape-3D.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Laplace PUBLIC FemUtils)
 
@@ -40,11 +42,13 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [laplace]laplace COMMAND Laplace Test.laplace.arc)
 endif()
 
+add_test(NAME [laplace]laplace_3D_Dirichlet COMMAND Laplace Test.laplace.3D.arc)
 add_test(NAME [laplace]laplace_pointDirichlet COMMAND Laplace Test.laplace.PointDirichlet.arc)
 
 # If parallel part is available, add some tests
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
   add_test(NAME [laplace]laplace_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Laplace Test.laplace.arc)
+  add_test(NAME [laplace]laplace_3D_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Laplace Test.laplace.3D.arc)
   if(FEMTEST_HAS_GMSH_TEST)
     add_test(NAME [laplace]laplace_pointDirichlet_10k_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Laplace Test.laplace.PointDirichlet.10K.arc)
   endif()

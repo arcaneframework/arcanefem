@@ -231,7 +231,7 @@ compute()
     string_list.add("draw");
     string_list.add("-draw_pause");
     string_list.add("-10");
-*/
+    */
     CommandLineArguments args(string_list);
     m_linear_system.setSolverCommandLineArguments(args);
   }
@@ -372,9 +372,43 @@ _doStationarySolve()
   _updateBoundayConditions();
 
   // Assemble the FEM bilinear operator (LHS - matrix A)
-  if (options()->meshType == "QUAD4")
+  if (options()->meshType == "QUAD4"){
     _assembleBilinearOperatorQUAD4();
+  }
+
+/*
+    if (m_use_csr){
+      m_linear_system.clearValues();
+      _assembleCsrBilinearOperatorTETRA4();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleCsrBilinearOperatorTria3");
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++){
+          m_linear_system.clearValues();
+          _assembleCsrBilinearOperatorTETRA4();
+        }
+      }
+      m_csr_matrix.translateToLinearSystem(m_linear_system);
+    }
+*/
   else {
+
+    if (m_use_legacy) {
+      m_linear_system.clearValues();
+      if (options()->meshType == "TETRA4")
+        _assembleBilinearOperatorTETRA4();
+      else if (options()->meshType == "TRIA3")
+        _assembleBilinearOperatorTRIA3();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleLegacyBilinearOperatorTria3");
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+          m_linear_system.clearValues();
+          if (options()->meshType == "TETRA4")
+            _assembleBilinearOperatorTETRA4();
+          else if (options()->meshType == "TRIA3")
+            _assembleBilinearOperatorTRIA3();
+        }
+      }
+    }
 
 #ifdef USE_CUSPARSE_ADD
     if (m_use_cusparse_add) {
@@ -432,17 +466,6 @@ _doStationarySolve()
       }
       m_csr_matrix.translateToLinearSystem(m_linear_system);
     }
-    if (m_use_legacy) {
-      m_linear_system.clearValues();
-      _assembleBilinearOperatorTRIA3();
-      if (m_cache_warming != 1) {
-        m_time_stats->resetStats("AssembleLegacyBilinearOperatorTria3");
-        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-          m_linear_system.clearValues();
-          _assembleBilinearOperatorTRIA3();
-        }
-      }
-    }
 
 #ifdef ARCANE_HAS_ACCELERATOR
     if (m_use_csr_gpu) {
@@ -492,9 +515,9 @@ _doStationarySolve()
       m_csr_matrix.translateToLinearSystem(m_linear_system);
       _translateRhs();
     }
-    else
+    else{
       _assembleLinearOperator();
-
+    }
 
     _solve();
 
@@ -523,7 +546,7 @@ _getMaterialParameters()
   f = options()->f();
   ElementNodes = 3.;
 
-  if (options()->meshType == "QUAD4")
+  if (options()->meshType == "QUAD4" || options()->meshType == "TETRA4")
     ElementNodes = 4.;
 }
 
@@ -643,6 +666,9 @@ _checkCellType()
   if (options()->meshType == "QUAD4") {
     type = IT_Quad4;
   }
+  else if (options()->meshType == "TETRA4") {
+    type = IT_Tetraedron4;
+  }
   else {
     type = IT_Triangle3;
   }
@@ -670,7 +696,7 @@ _updateBoundayConditions()
 void FemModule::
 _assembleLinearOperator()
 {
-  info() << "Assembly of FEM linear operator ";
+  info() << "Assembly of FEM linear operator  ";
   info() << "Applying Dirichlet boundary condition via  penalty method ";
 
   // time registration
@@ -843,14 +869,26 @@ _assembleLinearOperator()
     //  $int_{Omega}(f*v^h)$
     //  only for noded that are non-Dirichlet
     //----------------------------------------------
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
+    if (options()->meshType == "TRIA3"){
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real area = _computeAreaTriangle3(cell);
+        for (Node node : cell.nodes()) {
+          if (!(m_u_dirichlet[node]) && node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += f * area / ElementNodes;
+          }
+        }
+      }
+    }
 
-      Real area = _computeAreaTriangle3(cell);
-      for (Node node : cell.nodes()) {
-        if (!(m_u_dirichlet[node]) && node.isOwn()) {
-          // Original code
-          rhs_values[node_dof.dofId(node, 0)] += f * area / ElementNodes;
+    if (options()->meshType == "TETRA4"){
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real area = _computeAreaTetra4(cell);
+        for (Node node : cell.nodes()) {
+          if (!(m_u_dirichlet[node]) && node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += f * area / ElementNodes;
+          }
         }
       }
     }
@@ -1743,6 +1781,27 @@ _computeEdgeLength2(Face face)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+
+Real FemModule::
+_computeAreaTetra4(Cell cell)
+{
+  Real3 m0 = m_node_coord[cell.nodeId(0)];
+  Real3 m1 = m_node_coord[cell.nodeId(1)];
+  Real3 m2 = m_node_coord[cell.nodeId(2)];
+  Real3 m3 = m_node_coord[cell.nodeId(3)];
+
+  // Calculate vectors representing edges of the tetrahedron
+  Real3 v0 = m1 - m0;
+  Real3 v1 = m2 - m0;
+  Real3 v2 = m3 - m0;
+
+  // Compute volume using scalar triple product
+  return std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2))) / 6.0;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 ARCCORE_HOST_DEVICE
 Real2 FemModule::
 _computeEdgeNormal2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc,
@@ -1874,6 +1933,111 @@ _computeElementMatrixQUAD4(Cell cell)
   //std::cout << "\n";
 
   return int_cdPi_dPj;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+FixedMatrix<4, 4> FemModule::
+_computeElementMatrixTETRA4(Cell cell)
+{
+  // Get coordinates of the triangle element  TETRA4
+  //------------------------------------------------
+  //                3 o
+  //                 /|\
+  //                / | \
+  //               /  |  \
+  //              /   o 2 \
+  //             / .    .  \
+  //            o-----------o
+  //            0           1
+  //------------------------------------------------
+  Real3 m0 = m_node_coord[cell.nodeId(0)];
+  Real3 m1 = m_node_coord[cell.nodeId(1)];
+  Real3 m2 = m_node_coord[cell.nodeId(2)];
+  Real3 m3 = m_node_coord[cell.nodeId(3)];
+
+  Real volume = _computeAreaTetra4(cell);
+
+  // Compute gradients of shape functions
+  Real3 dPhi0 = Arcane::math::cross(m2 - m1, m1 - m3) ;
+  Real3 dPhi1 = Arcane::math::cross(m3 - m0, m0 - m2) ;
+  Real3 dPhi2 = Arcane::math::cross(m1 - m0, m0 - m3) ;
+  Real3 dPhi3 = Arcane::math::cross(m0 - m1, m1 - m2) ;
+
+  // Construct the B-matrix
+  FixedMatrix<3, 4> b_matrix;
+  b_matrix(0, 0) = dPhi0.x;
+  b_matrix(1, 0) = dPhi0.y;
+  b_matrix(2, 0) = dPhi0.z;
+
+  b_matrix(0, 1) = dPhi1.x;
+  b_matrix(1, 1) = dPhi1.y;
+  b_matrix(2, 1) = dPhi1.z;
+
+  b_matrix(0, 2) = dPhi2.x;
+  b_matrix(1, 2) = dPhi2.y;
+  b_matrix(2, 2) = dPhi2.z;
+
+  b_matrix(0, 3) = dPhi3.x;
+  b_matrix(1, 3) = dPhi3.y;
+  b_matrix(2, 3) = dPhi3.z;
+
+  b_matrix.multInPlace(1.0 / (6.0 * volume));
+
+  // Compute the element matrix
+  FixedMatrix<4, 4> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
+  int_cdPi_dPj.multInPlace(volume);
+
+/*
+  cout << " Ae \n"
+       << "\t" << int_cdPi_dPj(0,0)<<"\t"<< int_cdPi_dPj(0,1)<<"\t"<< int_cdPi_dPj(0,2)<<"\t"<< int_cdPi_dPj(0,3)<<"\n"
+       << "\t" << int_cdPi_dPj(1,0)<<"\t"<< int_cdPi_dPj(1,1)<<"\t"<< int_cdPi_dPj(1,2)<<"\t"<< int_cdPi_dPj(1,3)<<"\n"
+       << "\t" << int_cdPi_dPj(2,0)<<"\t"<< int_cdPi_dPj(2,1)<<"\t"<< int_cdPi_dPj(2,2)<<"\t"<< int_cdPi_dPj(2,3)<<"\n"
+       << "\t" << int_cdPi_dPj(3,0)<<"\t"<< int_cdPi_dPj(3,1)<<"\t"<< int_cdPi_dPj(3,2)<<"\t"<< int_cdPi_dPj(3,3)<<"\n"
+       << endl;
+*/
+
+  return int_cdPi_dPj;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleBilinearOperatorTETRA4()
+{
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+
+    auto K_e = _computeElementMatrixTETRA4(cell);  // element stiffness matrix
+
+    //             # assemble elementary matrix into the global one
+    //             # elementary terms are positioned into K according
+    //             # to the rank of associated node in the mesh.nodes list
+    //             for node1 in elem.nodes:
+    //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
+    //                 for node2 in elem.nodes:
+    //                     inode2=elem.nodes.index(node2)
+    //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
+    Int32 n1_index = 0;
+    for (Node node1 : cell.nodes()) {
+      Int32 n2_index = 0;
+      for (Node node2 : cell.nodes()) {
+        // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
+        Real v = K_e(n1_index, n2_index);
+        // m_k_matrix(node1.localId(), node2.localId()) += v;
+        if (node1.isOwn()) {
+          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+        }
+        ++n2_index;
+      }
+      ++n1_index;
+    }
+  }
+
 }
 
 /*---------------------------------------------------------------------------*/

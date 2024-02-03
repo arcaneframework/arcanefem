@@ -248,6 +248,7 @@ class FemModule
   void _checkCellType();
   void _assembleBilinearOperatorTRIA3();
   void _assembleBilinearOperatorQUAD4();
+  void _assembleBilinearOperatorTETRA4();
   void _solve();
   void _initBoundaryconditions();
   void _assembleLinearOperator();
@@ -259,12 +260,14 @@ class FemModule
   void _benchBuildRow();
   Real _readTimeFromJson(String main_time, String sub_time);
   FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
+  FixedMatrix<4, 4> _computeElementMatrixTETRA4(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
+  Real _computeAreaTetra4(Cell cell);
   Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
   Real2 _computeEdgeNormal2(Face face);
-  //#ifdef ARCANE_HAS_ACCELERATOR
+
  public:
 
   void _applyDirichletBoundaryConditionsGpu();
@@ -286,7 +289,7 @@ class FemModule
 
  private:
 
-  //#endif
+
 #ifdef USE_CUSPARSE_ADD
   void printCsrMatrix(std::string fileName, cusparseCsr csr, bool is_coo);
   void _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell icell, cusparseHandle_t handle, IndexedNodeDoFConnectivityView node_dof,
@@ -326,6 +329,7 @@ class FemModule
 
 #endif
   void _assembleCsrBilinearOperatorTRIA3();
+  void _assembleCsrBilinearOperatorTETRA4();
   void _buildMatrixCsr();
  public:
 

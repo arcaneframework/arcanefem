@@ -43,6 +43,7 @@ arcane_add_arcane_libraries_to_target(Poisson)
 target_include_directories(Poisson PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
 configure_file(Poisson.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.poisson.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Test.poisson.3D.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.poisson.direct.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.poisson.neumann.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.poisson.trilinos.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
@@ -51,6 +52,7 @@ configure_file(Test.poisson.hypre_direct.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONL
 configure_file(Test.poisson.petsc.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/L-shape.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/random.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/L-shape-3D.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Poisson PUBLIC FemUtils)
 
@@ -77,7 +79,7 @@ file(COPY "tests/" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 enable_testing()
 
-
+add_test(NAME [poisson]poisson_3D_Dirichlet COMMAND Poisson Test.poisson.3D.arc)
 add_test(NAME [poisson]poisson_direct COMMAND Poisson Test.poisson.direct.arc)
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_TRILINOS)
