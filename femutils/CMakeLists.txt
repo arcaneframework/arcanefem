@@ -55,7 +55,16 @@ if (TARGET Arcane::arcane_aleph_hypre)
   message(STATUS "HYPRE backend is available")
   set(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE TRUE)
   find_package(Hypre)
-  target_link_libraries(FemUtils PRIVATE arcconpkg_Hypre)
+  # There is several target for Hypre depending on how Hypre is compiled
+  # We try 'HYPRE::HYPRE' which is available with recents versions and
+  # if it is not available, we try with arccon
+  if (TARGET HYPRE::HYPRE)
+    target_link_libraries(FemUtils PRIVATE HYPRE::HYPRE)
+  elseif (TARGET arccon::Hypre)
+    target_link_libraries(FemUtils PRIVATE arccon::Hypre)
+  else()
+    message(WARNING "Do not find a valid target for Hypre. This may produce link errors")
+  endif()
   target_sources(FemUtils PRIVATE HypreDoFLinearSystem.cc)
 endif()
 
