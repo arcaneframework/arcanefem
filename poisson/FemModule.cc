@@ -407,6 +407,25 @@ _doStationarySolve()
       }
     }
 
+    if (m_use_csr) {
+      m_linear_system.clearValues();
+      if (options()->meshType == "TRIA3")
+        _assembleCsrBilinearOperatorTRIA3();
+      else if (options()->meshType == "TETRA4")
+        _assembleCsrBilinearOperatorTETRA4();
+      if (m_cache_warming != 1) {
+        m_time_stats->resetStats("AssembleCsrBilinearOperatorTria3");
+        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+          m_linear_system.clearValues();
+          if (options()->meshType == "TRIA3")
+            _assembleCsrBilinearOperatorTRIA3();
+          else if (options()->meshType == "TETRA4")
+            _assembleCsrBilinearOperatorTETRA4();
+        }
+      }
+      m_csr_matrix.translateToLinearSystem(m_linear_system);
+    }
+
 #ifdef USE_CUSPARSE_ADD
     if (m_use_cusparse_add) {
       cusparseHandle_t handle;
@@ -451,18 +470,6 @@ _doStationarySolve()
     }
     m_coo_matrix.translateToLinearSystem(m_linear_system);
 #endif
-    if (m_use_csr) {
-      m_linear_system.clearValues();
-      _assembleCsrBilinearOperatorTRIA3();
-      if (m_cache_warming != 1) {
-        m_time_stats->resetStats("AssembleCsrBilinearOperatorTria3");
-        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-          m_linear_system.clearValues();
-          _assembleCsrBilinearOperatorTRIA3();
-        }
-      }
-      m_csr_matrix.translateToLinearSystem(m_linear_system);
-    }
 
 #ifdef ARCANE_HAS_ACCELERATOR
     if (m_use_csr_gpu) {
