@@ -409,7 +409,6 @@ _doStationarySolve()
 
 #ifdef USE_CUSPARSE_ADD
     if (m_use_cusparse_add) {
-      cusparseHandle_t handle;
       _assembleCusparseBilinearOperatorTRIA3();
       if (m_cache_warming != 1) {
         m_time_stats->resetStats("AssembleCusparseBilinearOperator");
@@ -418,8 +417,8 @@ _doStationarySolve()
         }
       }
     }
-
 #endif
+
     if (m_use_coo) {
       m_linear_system.clearValues();
       _assembleCooBilinearOperatorTRIA3();

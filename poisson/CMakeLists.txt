@@ -1,11 +1,11 @@
 set (USE_CUSPARSE_ADD OFF)
 
 if (ARCANE_HAS_CUDA)
-  find_library(CUSPARSE_LIB cusparse HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64)
-  if(CUSPARSE_LIB)
-    message(STATUS "CUSPARSE found: ${CUSPARSE_LIB}. Arcane installation has CUDA. Enabling features that depends of Cusparse.")
-    message(STATUS "Arcane has been compiled with cuda. Enabling features that need CUDA.")
+  if (TARGET CUDA::cusparse)
+    message(STATUS "cuSPARSE is available. Enabling cusparse assembly")
     set(USE_CUSPARSE_ADD ON)
+  else()
+    message(STATUS "cuSPARSE is not available")
   endif()
 endif()
 
@@ -32,11 +32,7 @@ target_sources(Poisson PRIVATE
 arcane_accelerator_add_to_target(Poisson)
 
 if(USE_CUSPARSE_ADD)
-  target_link_libraries(Poisson PRIVATE ${CUSPARSE_LIB})
 endif()
-
-set_target_properties(Poisson PROPERTIES CUDA_ARCHITECTURES "72")
-
 
 arcane_generate_axl(Fem)
 arcane_add_arcane_libraries_to_target(Poisson)
@@ -56,7 +52,10 @@ configure_file(${MSH_DIR}/L-shape-3D.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Poisson PUBLIC FemUtils)
 
-target_compile_definitions(Poisson PRIVATE $<$<BOOL:${USE_CUSPARSE_ADD}>:USE_CUSPARSE_ADD>)
+if (USE_CUSPARSE_ADD)
+  target_compile_definitions(Poisson PRIVATE USE_CUSPARSE_ADD)
+  target_link_libraries(Poisson PRIVATE CUDA::cusparse)
+endif()
 target_compile_definitions(Poisson PRIVATE $<$<BOOL:${ARCANE_HAS_ACCELERATOR}>:ARCANE_HAS_ACCELERATOR>)
 
 find_program(GMSH NAMES gmsh)
