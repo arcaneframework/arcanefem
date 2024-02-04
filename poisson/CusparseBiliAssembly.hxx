@@ -1,4 +1,4 @@
-// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
 // Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
@@ -227,7 +227,6 @@ _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cel
   CHECK_CUDA(cudaFree(local.csrCol));
   CHECK_CUDA(cudaFree(local.csrRow));
   CHECK_CUSPARSE(cusparseDestroyMatDescr(local.desc));
-
 }
 
 /*---------------------------------------------------------------------------*/
@@ -293,15 +292,13 @@ _assembleCusparseBilinearOperatorTRIA3()
 
       CHECK_CUDA(cudaFree(res1.csrCol));
       CHECK_CUDA(cudaFree(res1.csrVal));
-      _computeCusparseElementMatrix(res1, res2, cell, handle, node_dof,
-                                    t);
+      _computeCusparseElementMatrix(res1, res2, cell, handle, node_dof);
     }
     //computation of the local matrix and adding it in the global one
     else {
       CHECK_CUDA(cudaFree(res2.csrCol));
       CHECK_CUDA(cudaFree(res2.csrVal));
-      _computeCusparseElementMatrix(res2, res1, cell, handle, node_dof,
-                                    t);
+      _computeCusparseElementMatrix(res2, res1, cell, handle, node_dof);
     }
     i++;
   }
