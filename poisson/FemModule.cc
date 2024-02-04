@@ -500,12 +500,18 @@ _doStationarySolve()
     }
     if (m_use_buildless_csr) {
       m_linear_system.clearValues();
-      _assembleBuildLessCsrBilinearOperatorTria3();
+      if (options()->meshType == "TRIA3")
+        _assembleBuildLessCsrBilinearOperatorTria3();
+      if (options()->meshType == "TETRA4")
+      _assembleBuildLessCsrBilinearOperatorTetra4();
       if (m_cache_warming != 1) {
         m_time_stats->resetStats("AssembleBuildLessCsrBilinearOperatorTria3");
         for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
           m_linear_system.clearValues();
-          _assembleBuildLessCsrBilinearOperatorTria3();
+          if (options()->meshType == "TRIA3")
+            _assembleBuildLessCsrBilinearOperatorTria3();
+          if (options()->meshType == "TETRA4")
+          _assembleBuildLessCsrBilinearOperatorTetra4();
         }
       }
       m_csr_matrix.translateToLinearSystem(m_linear_system);
@@ -1355,6 +1361,7 @@ _assembleCsrGpuLinearOperator()
            << "  - RowColumnElimination\n";
   }
 
+  if (options()->meshType == "TRIA3")
   {
     Timer::Action timer_action(m_time_stats, "CsrGpuConstantSourceTermAssembly");
     //----------------------------------------------
@@ -1400,6 +1407,54 @@ _assembleCsrGpuLinearOperator()
       }
     };
   }
+
+  if (options()->meshType == "TETRA4")
+  {
+    Timer::Action timer_action(m_time_stats, "CsrGpuConstantSourceTermAssembly");
+    //----------------------------------------------
+    // Constant source term assembly
+    //----------------------------------------------
+    //
+    //  $int_{Omega}(f*v^h)$
+    //  only for noded that are non-Dirichlet
+    //----------------------------------------------
+
+    RunQueue* queue = acceleratorMng()->defaultQueue();
+    auto command = makeCommand(queue);
+
+    auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
+
+    auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+
+    Real tmp_f = f;
+    Real tmp_ElementNodes = ElementNodes;
+
+    UnstructuredMeshConnectivityView m_connectivity_view;
+    auto in_node_coord = ax::viewIn(command, m_node_coord);
+    m_connectivity_view.setMesh(this->mesh());
+    auto cnc = m_connectivity_view.cellNode();
+    Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    // In this loop :
+    // m_u_dirichlet must be adapted
+    // node.isOwn must be adapted
+    // m_rhs_vect must also be replaced
+    // f and Element nodes must be put in local variable
+    // computeArea must be replaced
+
+    command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
+    {
+      Real area = _computeAreaTetra4Gpu(icell, cnc, in_node_coord);
+      for (NodeLocalId node : cnc.nodes(icell)) {
+        if (!(in_m_u_dirichlet(node)) && nodes_infos.isOwn(node)) {
+          // Original code
+          Real val = tmp_f * area / tmp_ElementNodes;
+          ax::doAtomic<ax::eAtomicOperation::Add>(in_out_rhs_vect(node_dof.dofId(node, 0)), val);
+        }
+      }
+    };
+  }
+
   {
     Timer::Action timer_action(m_time_stats, "CsrGpuConstantFluxTermAssembly");
 
@@ -1594,6 +1649,28 @@ _computeAreaQuad4(Cell cell)
   Real3 m2 = m_node_coord[cell.nodeId(2)];
   Real3 m3 = m_node_coord[cell.nodeId(3)];
   return 0.5 * ((m1.x * m2.y + m2.x * m3.y + m3.x * m0.y + m0.x * m1.y) - (m2.x * m1.y + m3.x * m2.y + m0.x * m3.y + m1.x * m0.y));
+}
+
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE
+Real FemModule::
+_computeAreaTetra4Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord)
+{
+  Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
+  Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
+  Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
+  Real3 m3 = in_node_coord[cnc.nodeId(icell, 3)];
+
+  // Calculate vectors representing edges of the tetrahedron
+  Real3 v0 = m1 - m0;
+  Real3 v1 = m2 - m0;
+  Real3 v2 = m3 - m0;
+
+  // Compute volume using scalar triple product
+  return std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2))) / 6.0;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2151,6 +2228,7 @@ _solve()
     Timer::Action ta1(tstat, "ApplyBoundaryConditions");
     _applyDirichletBoundaryConditions();
   }
+
   {
     Timer::Action ta1(tstat, "CopySolution");
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());

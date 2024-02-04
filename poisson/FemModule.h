@@ -260,6 +260,9 @@ class FemModule
   _getValIndexCsrGpu(Int32 begin, Int32 end, DoFLocalId col, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> csr_col);
 
   static ARCCORE_HOST_DEVICE Real
+  _computeAreaTetra4Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
+                           ax::VariableNodeReal3InView in_node_coord);
+  static ARCCORE_HOST_DEVICE Real
   _computeAreaTriangle3Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
                            ax::VariableNodeReal3InView in_node_coord);
   static ARCCORE_HOST_DEVICE Real
@@ -322,6 +325,9 @@ class FemModule
   void _buildMatrixBuildLessCsr();
   void _buildMatrixGpuBuildLessCsr();
   static ARCCORE_HOST_DEVICE Real
+  _computeCellMatrixGpuTETRA4(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
+                             ax::VariableNodeReal3InView in_node_coord, Real b_matrix[12]);
+  static ARCCORE_HOST_DEVICE Real
   _computeCellMatrixGpuTRIA3(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
                              ax::VariableNodeReal3InView in_node_coord, Real b_matrix[6]);
   static ARCCORE_HOST_DEVICE void
@@ -329,6 +335,7 @@ class FemModule
                                   ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> in_out_col_csr,
                                   ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> in_out_val_csr, Real x);
   void _assembleBuildLessCsrBilinearOperatorTria3();
+  void _assembleBuildLessCsrBilinearOperatorTetra4();
 
  private:
 
