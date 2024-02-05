@@ -10,8 +10,10 @@ target_include_directories(Electrostatics PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
 configure_file(Electrostatics.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.Electrostatics.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.Electrostatics.rod-circle.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Test.Electrostatics.Capacitor.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/box-rods.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/box-rod-circle.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/interdigital_capacitor.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Electrostatics PUBLIC FemUtils)
 
@@ -24,6 +26,7 @@ enable_testing()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [electrostatics] COMMAND Electrostatics Test.Electrostatics.arc)
+  add_test(NAME [electrostatics]Capacitor COMMAND Electrostatics Test.Electrostatics.Capacitor.arc)
   add_test(NAME [electrostatics]rod-circle COMMAND Electrostatics Test.Electrostatics.rod-circle.arc)
 endif()
 
