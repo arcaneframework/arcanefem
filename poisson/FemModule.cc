@@ -365,161 +365,150 @@ _doStationarySolve()
   // # get material parameters
   _getMaterialParameters();
 
-  // # update BCs
-  _updateBoundayConditions();
-
   // Assemble the FEM bilinear operator (LHS - matrix A)
-  if (options()->meshType == "QUAD4"){
-    _assembleBilinearOperatorQUAD4();
+  if (m_use_legacy) {
+    m_linear_system.clearValues();
+    if (options()->meshType == "TETRA4")
+      _assembleBilinearOperatorTETRA4();
+    else if (options()->meshType == "TRIA3")
+      _assembleBilinearOperatorTRIA3();
+    if (m_cache_warming != 1) {
+      m_time_stats->resetStats("AssembleLegacyBilinearOperatorTria3");
+      for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+        m_linear_system.clearValues();
+        if (options()->meshType == "TETRA4")
+          _assembleBilinearOperatorTETRA4();
+        else if (options()->meshType == "TRIA3")
+          _assembleBilinearOperatorTRIA3();
+      }
+    }
   }
 
-/*
-    if (m_use_csr){
-      m_linear_system.clearValues();
+  if (m_use_csr) {
+    m_linear_system.clearValues();
+    if (options()->meshType == "TRIA3")
+      _assembleCsrBilinearOperatorTRIA3();
+    else if (options()->meshType == "TETRA4")
       _assembleCsrBilinearOperatorTETRA4();
-      if (m_cache_warming != 1) {
-        m_time_stats->resetStats("AssembleCsrBilinearOperatorTria3");
-        for (cache_index = 1; cache_index < m_cache_warming; cache_index++){
-          m_linear_system.clearValues();
+    if (m_cache_warming != 1) {
+      m_time_stats->resetStats("AssembleCsrBilinearOperatorTria3");
+      for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+        m_linear_system.clearValues();
+        if (options()->meshType == "TRIA3")
+          _assembleCsrBilinearOperatorTRIA3();
+        else if (options()->meshType == "TETRA4")
           _assembleCsrBilinearOperatorTETRA4();
-        }
-      }
-      m_csr_matrix.translateToLinearSystem(m_linear_system);
-    }
-*/
-  else {
-
-    if (m_use_legacy) {
-      m_linear_system.clearValues();
-      if (options()->meshType == "TETRA4")
-        _assembleBilinearOperatorTETRA4();
-      else if (options()->meshType == "TRIA3")
-        _assembleBilinearOperatorTRIA3();
-      if (m_cache_warming != 1) {
-        m_time_stats->resetStats("AssembleLegacyBilinearOperatorTria3");
-        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-          m_linear_system.clearValues();
-          if (options()->meshType == "TETRA4")
-            _assembleBilinearOperatorTETRA4();
-          else if (options()->meshType == "TRIA3")
-            _assembleBilinearOperatorTRIA3();
-        }
       }
     }
+    m_csr_matrix.translateToLinearSystem(m_linear_system);
+  }
 
 #ifdef USE_CUSPARSE_ADD
-    if (m_use_cusparse_add) {
-      _assembleCusparseBilinearOperatorTRIA3();
-      if (m_cache_warming != 1) {
-        m_time_stats->resetStats("AssembleCusparseBilinearOperator");
-        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-          _assembleCusparseBilinearOperatorTRIA3();
-        }
+  if (m_use_cusparse_add) {
+    cusparseHandle_t handle;
+    _assembleCusparseBilinearOperatorTRIA3();
+    if (m_cache_warming != 1) {
+      m_time_stats->resetStats("AssembleCusparseBilinearOperator");
+      for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+        _assembleCusparseBilinearOperatorTRIA3();
       }
     }
-#endif
+  }
 
-    if (m_use_coo) {
-      m_linear_system.clearValues();
-      _assembleCooBilinearOperatorTRIA3();
-      if (m_cache_warming != 1) {
-        m_time_stats->resetStats("AssembleCooBilinearOperatorTria3");
-        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-          m_linear_system.clearValues();
-          _assembleCooBilinearOperatorTRIA3();
-        }
+#endif
+  if (m_use_coo) {
+    m_linear_system.clearValues();
+    _assembleCooBilinearOperatorTRIA3();
+    if (m_cache_warming != 1) {
+      m_time_stats->resetStats("AssembleCooBilinearOperatorTria3");
+      for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+        m_linear_system.clearValues();
+        _assembleCooBilinearOperatorTRIA3();
       }
-      m_coo_matrix.translateToLinearSystem(m_linear_system);
-    }
-    if (m_use_coo_sort) {
-      m_linear_system.clearValues();
-      _assembleCooSortBilinearOperatorTRIA3();
-      if (m_cache_warming != 1) {
-        m_time_stats->resetStats("AssembleCooSortBilinearOperatorTria3");
-        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-          m_linear_system.clearValues();
-          _assembleCooSortBilinearOperatorTRIA3();
-        }
-      }
-      m_coo_matrix.translateToLinearSystem(m_linear_system);
-    }
-#ifdef USE_COO_GPU
-    for (i = 0; i < 3; i++) {
-      m_linear_system.clearValues();
-      _assembleCooGPUBilinearOperatorTRIA3();
     }
     m_coo_matrix.translateToLinearSystem(m_linear_system);
-#endif
-    if (m_use_csr) {
-      m_linear_system.clearValues();
-      _assembleCsrBilinearOperatorTRIA3();
-      if (m_cache_warming != 1) {
-        m_time_stats->resetStats("AssembleCsrBilinearOperatorTria3");
-        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-          m_linear_system.clearValues();
-          _assembleCsrBilinearOperatorTRIA3();
-        }
+  }
+  if (m_use_coo_sort) {
+    m_linear_system.clearValues();
+    _assembleCooSortBilinearOperatorTRIA3();
+    if (m_cache_warming != 1) {
+      m_time_stats->resetStats("AssembleCooSortBilinearOperatorTria3");
+      for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+        m_linear_system.clearValues();
+        _assembleCooSortBilinearOperatorTRIA3();
       }
-      m_csr_matrix.translateToLinearSystem(m_linear_system);
     }
+    m_coo_matrix.translateToLinearSystem(m_linear_system);
+  }
+#ifdef USE_COO_GPU
+  for (i = 0; i < 3; i++) {
+    m_linear_system.clearValues();
+    _assembleCooGPUBilinearOperatorTRIA3();
+  }
+  m_coo_matrix.translateToLinearSystem(m_linear_system);
+#endif
 
 #ifdef ARCANE_HAS_ACCELERATOR
-    if (m_use_csr_gpu) {
-      m_linear_system.clearValues();
-      _assembleCsrGPUBilinearOperatorTRIA3();
-      if (m_cache_warming != 1) {
-        m_time_stats->resetStats("AssembleCsrGpuBilinearOperatorTria3");
-        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-          m_linear_system.clearValues();
-          _assembleCsrGPUBilinearOperatorTRIA3();
-        }
+  if (m_use_csr_gpu) {
+    m_linear_system.clearValues();
+    _assembleCsrGPUBilinearOperatorTRIA3();
+    if (m_cache_warming != 1) {
+      m_time_stats->resetStats("AssembleCsrGpuBilinearOperatorTria3");
+      for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+        m_linear_system.clearValues();
+        _assembleCsrGPUBilinearOperatorTRIA3();
       }
-
-      m_csr_matrix.translateToLinearSystem(m_linear_system);
     }
-#endif
-    if (m_use_nodewise_csr) {
-      m_linear_system.clearValues();
-      _assembleNodeWiseCsrBilinearOperatorTria3();
-      if (m_cache_warming != 1) {
-        m_time_stats->resetStats("AssembleNodeWiseCsrBilinearOperatorTria3");
-        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-          m_linear_system.clearValues();
-          _assembleNodeWiseCsrBilinearOperatorTria3();
-        }
-      }
-      m_csr_matrix.translateToLinearSystem(m_linear_system);
-    }
-    if (m_use_buildless_csr) {
-      m_linear_system.clearValues();
-      _assembleBuildLessCsrBilinearOperatorTria3();
-      if (m_cache_warming != 1) {
-        m_time_stats->resetStats("AssembleBuildLessCsrBilinearOperatorTria3");
-        for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-          m_linear_system.clearValues();
-          _assembleBuildLessCsrBilinearOperatorTria3();
-        }
-      }
-      m_csr_matrix.translateToLinearSystem(m_linear_system);
-    }
-
-    // Assemble the FEM linear operator (RHS - vector b)
-    if (m_use_buildless_csr || m_use_csr_gpu || m_use_nodewise_csr || m_use_csr) {
-      m_linear_system.clearValues();
-      _assembleCsrGpuLinearOperator();
-      //_assembleCsrLinearOperator();
-      m_csr_matrix.translateToLinearSystem(m_linear_system);
-      _translateRhs();
-    }
-    else{
-      _assembleLinearOperator();
-    }
-
-    _solve();
-
-    // Check results
-    _checkResultFile();
+     m_csr_matrix.translateToLinearSystem(m_linear_system);
   }
+#endif
+  if (m_use_nodewise_csr) {
+    m_linear_system.clearValues();
+    _assembleNodeWiseCsrBilinearOperatorTria3();
+    if (m_cache_warming != 1) {
+      m_time_stats->resetStats("AssembleNodeWiseCsrBilinearOperatorTria3");
+      for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+        m_linear_system.clearValues();
+        _assembleNodeWiseCsrBilinearOperatorTria3();
+      }
+    }
+    m_csr_matrix.translateToLinearSystem(m_linear_system);
+  }
+  if (m_use_buildless_csr) {
+    m_linear_system.clearValues();
+    if (options()->meshType == "TRIA3")
+      _assembleBuildLessCsrBilinearOperatorTria3();
+    if (options()->meshType == "TETRA4")
+      _assembleBuildLessCsrBilinearOperatorTetra4();
+    if (m_cache_warming != 1) {
+      m_time_stats->resetStats("AssembleBuildLessCsrBilinearOperatorTria3");
+      for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+        m_linear_system.clearValues();
+        if (options()->meshType == "TRIA3")
+          _assembleBuildLessCsrBilinearOperatorTria3();
+        if (options()->meshType == "TETRA4")
+        _assembleBuildLessCsrBilinearOperatorTetra4();
+      }
+    }
+    m_csr_matrix.translateToLinearSystem(m_linear_system);
+  }
+
+  // Assemble the FEM linear operator (RHS - vector b)
+  if (m_use_buildless_csr || m_use_csr_gpu || m_use_nodewise_csr || m_use_csr) {
+    m_linear_system.clearValues();
+    _assembleCsrGpuLinearOperator();
+    //_assembleCsrLinearOperator();
+    m_csr_matrix.translateToLinearSystem(m_linear_system);
+    _translateRhs();
+  }
+  else{
+    _assembleLinearOperator();
+  }
+
+  _solve();
+
+  // Check results
+  _checkResultFile();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -532,7 +521,7 @@ _getMaterialParameters()
   f = options()->f();
   ElementNodes = 3.;
 
-  if (options()->meshType == "QUAD4" || options()->meshType == "TETRA4")
+  if (options()->meshType == "TETRA4")
     ElementNodes = 4.;
 }
 
@@ -649,10 +638,7 @@ void FemModule::
 _checkCellType()
 {
   Int16 type = 0;
-  if (options()->meshType == "QUAD4") {
-    type = IT_Quad4;
-  }
-  else if (options()->meshType == "TETRA4") {
+  if (options()->meshType == "TETRA4") {
     type = IT_Tetraedron4;
   }
   else {
@@ -663,12 +649,6 @@ _checkCellType()
     if (cell.type() != type)
       ARCANE_FATAL("Only Triangle3 cell type is supported");
   }
-}
-
-void FemModule::
-_updateBoundayConditions()
-{
-  info() << "TODO " << A_FUNCINFO;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1347,6 +1327,7 @@ _assembleCsrGpuLinearOperator()
            << "  - RowColumnElimination\n";
   }
 
+  if (options()->meshType == "TRIA3")
   {
     Timer::Action timer_action(m_time_stats, "CsrGpuConstantSourceTermAssembly");
     //----------------------------------------------
@@ -1392,6 +1373,54 @@ _assembleCsrGpuLinearOperator()
       }
     };
   }
+
+  if (options()->meshType == "TETRA4")
+  {
+    Timer::Action timer_action(m_time_stats, "CsrGpuConstantSourceTermAssembly");
+    //----------------------------------------------
+    // Constant source term assembly
+    //----------------------------------------------
+    //
+    //  $int_{Omega}(f*v^h)$
+    //  only for noded that are non-Dirichlet
+    //----------------------------------------------
+
+    RunQueue* queue = acceleratorMng()->defaultQueue();
+    auto command = makeCommand(queue);
+
+    auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
+
+    auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+
+    Real tmp_f = f;
+    Real tmp_ElementNodes = ElementNodes;
+
+    UnstructuredMeshConnectivityView m_connectivity_view;
+    auto in_node_coord = ax::viewIn(command, m_node_coord);
+    m_connectivity_view.setMesh(this->mesh());
+    auto cnc = m_connectivity_view.cellNode();
+    Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    // In this loop :
+    // m_u_dirichlet must be adapted
+    // node.isOwn must be adapted
+    // m_rhs_vect must also be replaced
+    // f and Element nodes must be put in local variable
+    // computeArea must be replaced
+
+    command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
+    {
+      Real area = _computeAreaTetra4Gpu(icell, cnc, in_node_coord);
+      for (NodeLocalId node : cnc.nodes(icell)) {
+        if (!(in_m_u_dirichlet(node)) && nodes_infos.isOwn(node)) {
+          // Original code
+          Real val = tmp_f * area / tmp_ElementNodes;
+          ax::doAtomic<ax::eAtomicOperation::Add>(in_out_rhs_vect(node_dof.dofId(node, 0)), val);
+        }
+      }
+    };
+  }
+
   {
     Timer::Action timer_action(m_time_stats, "CsrGpuConstantFluxTermAssembly");
 
@@ -1578,14 +1607,22 @@ _translateRhs()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+ARCCORE_HOST_DEVICE
 Real FemModule::
-_computeAreaQuad4(Cell cell)
+_computeAreaTetra4Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord)
 {
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-  Real3 m3 = m_node_coord[cell.nodeId(3)];
-  return 0.5 * ((m1.x * m2.y + m2.x * m3.y + m3.x * m0.y + m0.x * m1.y) - (m2.x * m1.y + m3.x * m2.y + m0.x * m3.y + m1.x * m0.y));
+  Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
+  Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
+  Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
+  Real3 m3 = in_node_coord[cnc.nodeId(icell, 3)];
+
+  // Calculate vectors representing edges of the tetrahedron
+  Real3 v0 = m1 - m0;
+  Real3 v1 = m2 - m0;
+  Real3 v2 = m3 - m0;
+
+  // Compute volume using scalar triple product
+  return std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2))) / 6.0;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1748,56 +1785,6 @@ _computeElementMatrixTRIA3(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 FixedMatrix<4, 4> FemModule::
-_computeElementMatrixQUAD4(Cell cell)
-{
-  // Get coordiantes of the quadrangular element  QUAD4
-  //------------------------------------------------
-  //             1 o . . . . o 0
-  //               .         .
-  //               .         .
-  //               .         .
-  //             2 o . . . . o 3
-  //------------------------------------------------
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-  Real3 m3 = m_node_coord[cell.nodeId(3)];
-
-  Real area = _computeAreaQuad4(cell); // calculate area
-
-  Real2 dPhi0(m2.y - m3.y, m3.x - m2.x);
-  Real2 dPhi1(m3.y - m0.y, m0.x - m3.x);
-  Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
-  Real2 dPhi3(m1.y - m2.y, m2.x - m1.x);
-
-  FixedMatrix<2, 4> b_matrix;
-  b_matrix(0, 0) = dPhi0.x;
-  b_matrix(0, 1) = dPhi1.x;
-  b_matrix(0, 2) = dPhi2.x;
-  b_matrix(0, 3) = dPhi3.x;
-
-  b_matrix(1, 0) = dPhi0.y;
-  b_matrix(1, 1) = dPhi1.y;
-  b_matrix(1, 2) = dPhi2.y;
-  b_matrix(1, 3) = dPhi3.y;
-
-  b_matrix.multInPlace(1.0 / (2.0 * area));
-
-  FixedMatrix<4, 4> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
-  int_cdPi_dPj.multInPlace(area);
-
-  //info() << "Cell=" << cell.localId();
-  //std::cout << " int_cdPi_dPj=";
-  //int_cdPi_dPj.dump(std::cout);
-  //std::cout << "\n";
-
-  return int_cdPi_dPj;
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-FixedMatrix<4, 4> FemModule::
 _computeElementMatrixTETRA4(Cell cell)
 {
   // Get coordinates of the triangle element  TETRA4
@@ -1897,45 +1884,6 @@ _assembleBilinearOperatorTETRA4()
     }
   }
 
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_assembleBilinearOperatorQUAD4()
-{
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-    if (cell.type() != IT_Quad4)
-      ARCANE_FATAL("Only Quad4 cell type is supported");
-
-    auto K_e = _computeElementMatrixQUAD4(cell); // element stifness matrix
-    //             # assemble elementary matrix into the global one
-    //             # elementary terms are positionned into K according
-    //             # to the rank of associated node in the mesh.nodes list
-    //             for node1 in elem.nodes:
-    //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
-    //                 for node2 in elem.nodes:
-    //                     inode2=elem.nodes.index(node2)
-    //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-    Int32 n1_index = 0;
-    for (Node node1 : cell.nodes()) {
-      Int32 n2_index = 0;
-      for (Node node2 : cell.nodes()) {
-        // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-        Real v = K_e(n1_index, n2_index);
-        // m_k_matrix(node1.localId(), node2.localId()) += v;
-        if (node1.isOwn()) {
-          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
-        }
-        ++n2_index;
-      }
-      ++n1_index;
-    }
-  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2143,6 +2091,7 @@ _solve()
     Timer::Action ta1(tstat, "ApplyBoundaryConditions");
     _applyDirichletBoundaryConditions();
   }
+
   {
     Timer::Action ta1(tstat, "CopySolution");
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());

@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2023 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemModule.cc                                                (C) 2022-2023 */
+/* FemModule.cc                                                (C) 2022-2024 */
 /*                                                                           */
 /* Simple module to test simple FEM mechanism.                               */
 /*---------------------------------------------------------------------------*/
@@ -79,9 +79,7 @@ class FemModule
 
   void _doStationarySolve();
   void _getMaterialParameters();
-  void _updateBoundayConditions();
   void _assembleBilinearOperatorTRIA3();
-  void _assembleBilinearOperatorQUAD4();
   void _solve();
   void _getE();
   void _initBoundaryconditions();
@@ -147,9 +145,6 @@ _doStationarySolve()
 {
   // # get material parameters
   _getMaterialParameters();
-
-  // # update BCs
-  _updateBoundayConditions();
 
   // Assemble the FEM bilinear operator (LHS - matrix A)
   _assembleBilinearOperatorTRIA3();
@@ -223,15 +218,6 @@ _applyDirichletBoundaryConditions()
       m_phi_dirichlet[node] = true;
       }
     }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_updateBoundayConditions()
-{
-  info() << "TODO " << A_FUNCINFO;
 }
 
 /*---------------------------------------------------------------------------*/

@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2023 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemModule.cc                                                (C) 2022-2023 */
+/* FemModule.cc                                                (C) 2022-2024 */
 /*                                                                           */
 /* Simple module to test simple FEM mechanism.                               */
 /*---------------------------------------------------------------------------*/
@@ -74,9 +74,7 @@ class FemModule
 
   void _doStationarySolve();
   void _getMaterialParameters();
-  void _updateBoundayConditions();
   void _assembleBilinearOperatorTRIA3();
-  void _assembleBilinearOperatorQUAD4();
   void _solve();
   void _initBoundaryconditions();
   void _assembleLinearOperator();
@@ -151,9 +149,6 @@ _doStationarySolve()
   // # get material parameters
   _getMaterialParameters();
 
-  // # update BCs
-  _updateBoundayConditions();
-
   // Assemble the FEM bilinear operator (LHS - matrix A)
   _assembleBilinearOperatorTRIA3();
 
@@ -225,15 +220,6 @@ _applyDirichletBoundaryConditions()
       }
     }
   }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_updateBoundayConditions()
-{
-  info() << "TODO " << A_FUNCINFO;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -489,11 +475,11 @@ _solve()
   _applyDirichletBoundaryConditions();
 
   {
-    VariableDoFReal& dof_temperature(m_linear_system.solutionVariable());
+    VariableDoFReal& dof_u(m_linear_system.solutionVariable());
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
-      Real v = dof_temperature[node_dof.dofId(node, 0)];
+      Real v = dof_u[node_dof.dofId(node, 0)];
       m_u[node] = v;
     }
   }

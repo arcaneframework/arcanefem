@@ -36,24 +36,63 @@ _buildMatrixCsr()
 
   Int32 nnz;
   if (options()->meshType == "TETRA4")
-    nnz = nbFace() * 18 + nbNode()*4;
+    nnz = nbFace() * 2 + nbNode() + 2;   // For testing only 
   else if (options()->meshType == "TRIA3")
     nnz = nbFace() * 2 + nbNode();
+  else
+    ARCANE_THROW(NotImplementedException, "");
 
   m_csr_matrix.initialize(m_dof_family, nnz, nbNode());
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   //We iterate through the node, and we do not sort anymore : we assume the nodes ID are sorted, and we will iterate throught the column to avoid making < and > comparison
-  ENUMERATE_NODE (inode, allNodes()) {
-    Node node = *inode;
+  if (options()->meshType == "TRIA3"){
+    ENUMERATE_NODE (inode, allNodes()) {
+      Node node = *inode;
 
-    m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
+      //info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(node, 0) << " )";
+      m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
 
-    for (Face face : node.faces()) {
-      if (face.nodeId(0) == node.localId())
-        m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(1), 0));
-      else
-        m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
+      for (Face face : node.faces()) {
+        if (face.nodeId(0) == node.localId()){
+          //info() << "DEBUG Add: 0 (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(face.nodeId(1), 0) << " )";
+          m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(1), 0));
+        }else{
+          //info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(face.nodeId(0), 0) << " )";
+          m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
+        }
+      }
     }
+  }
+  else if (options()->meshType == "TETRA"){
+    ENUMERATE_NODE (inode, allNodes()) {
+      Node node = *inode;
+
+      m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
+
+      for (Face face : node.faces()) {
+        if (face.nodeId(0) == node.localId()){
+          info() << "DEBUG Add: 0 (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(face.nodeId(1), 0) << " )";
+          info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(face.nodeId(2), 0) << " )";
+        //m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(1), 0));
+        //m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(2), 0));
+        }
+        else if (face.nodeId(1) == node.localId()){
+          info() << "DEBUG Add: 1 (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(face.nodeId(0), 0) << " )";
+          info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(face.nodeId(2), 0) << " )";
+        //m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
+        //m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(2), 0));
+        }
+        else if (face.nodeId(2) == node.localId()){
+          info() << "DEBUG Add: 2 (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(face.nodeId(0), 0) << " )";
+          info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(face.nodeId(1), 0) << " )";
+        //m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
+        //m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(1), 0));
+        }
+      }
+    }
+  }
+  else{
+    ARCANE_THROW(NotImplementedException, "");
   }
 }
 
@@ -115,12 +154,11 @@ void FemModule::
 _assembleCsrBilinearOperatorTETRA4()
 {
 
-
+  Timer::Action timer_csr_bili(m_time_stats, "AssembleCsrBilinearOperatorTetra4");
   {
-    // Build the csr matrix
     _buildMatrixCsr();
   }
-
+/*
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
@@ -146,8 +184,8 @@ _assembleCsrBilinearOperatorTETRA4()
       }
       ++n1_index;
     }
-
   }
+*/
 }
 
 /*---------------------------------------------------------------------------*/

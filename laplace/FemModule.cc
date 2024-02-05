@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemModule.cc                                                (C) 2022-2023 */
+/* FemModule.cc                                                (C) 2022-2024 */
 /*                                                                           */
 /* Simple module to test simple FEM mechanism.                               */
 /*---------------------------------------------------------------------------*/
@@ -77,9 +77,7 @@ class FemModule
 
   void _doStationarySolve();
   void _getMaterialParameters();
-  void _updateBoundayConditions();
   void _assembleBilinearOperatorTRIA3();
-  void _assembleBilinearOperatorQUAD4();
   void _assembleBilinearOperatorTETRA4();
   void _solve();
   void _initBoundaryconditions();
@@ -88,10 +86,8 @@ class FemModule
   void _checkResultFile();
   FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixTETRA4(Cell cell);
-  FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
   Real _computeAreaTetra4(Cell cell);
-  Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
   Real2 _computeEdgeNormal2(Face face);
 
@@ -160,13 +156,8 @@ _doStationarySolve()
   // # get material parameters
   _getMaterialParameters();
 
-  // # update BCs
-  _updateBoundayConditions();
-
   // Assemble the FEM bilinear operator (LHS - matrix A)
-  if (options()->meshType == "QUAD4")
-    _assembleBilinearOperatorQUAD4();
-  else if (options()->meshType == "TETRA4")
+  if (options()->meshType == "TETRA4")
     _assembleBilinearOperatorTETRA4();
   else
     _assembleBilinearOperatorTRIA3();
@@ -190,7 +181,7 @@ _getMaterialParameters()
   info() << "Get material parameters...";
   ElementNodes = 3.;
 
-  if (options()->meshType == "QUAD4" || options()->meshType == "TETRA4")
+  if (options()->meshType == "TETRA4")
     ElementNodes = 4.;
 }
 
@@ -243,20 +234,11 @@ _applyDirichletBoundaryConditions()
 }
 
 /*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_updateBoundayConditions()
-{
-  info() << "TODO " << A_FUNCINFO;
-}
-
-/*---------------------------------------------------------------------------*/
 // Assemble the FEM linear operator
 //  - This function enforces a Dirichlet boundary condition in a weak sense
 //    via the penalty method
 //  - The method also adds source term
-//  - TODO: external fluxes
+//  - Also adds external fluxes
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -444,23 +426,7 @@ _assembleLinearOperator()
       }
       continue;
     }
-
   }
-
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real FemModule::
-_computeAreaQuad4(Cell cell)
-{
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-  Real3 m3 = m_node_coord[cell.nodeId(3)];
-  return 0.5 * (  (m1.x*m2.y + m2.x*m3.y + m3.x*m0.y + m0.x*m1.y)
-                 -(m2.x*m1.y + m3.x*m2.y + m0.x*m3.y + m1.x*m0.y) );
 }
 
 /*---------------------------------------------------------------------------*/
@@ -628,90 +594,6 @@ _computeElementMatrixTRIA3(Cell cell)
   int_cdPi_dPj.multInPlace(area);
 
   return int_cdPi_dPj;
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-FixedMatrix<4, 4> FemModule::
-_computeElementMatrixQUAD4(Cell cell)
-{
-  // Get coordinates of the quadrangular element  QUAD4
-  //------------------------------------------------
-  //             1 o . . . . o 0
-  //               .         .
-  //               .         .
-  //               .         .
-  //             2 o . . . . o 3
-  //------------------------------------------------
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-  Real3 m3 = m_node_coord[cell.nodeId(3)];
-
-  Real area = _computeAreaQuad4(cell);    // calculate area
-
-  Real2 dPhi0(m2.y - m3.y, m3.x - m2.x);
-  Real2 dPhi1(m3.y - m0.y, m0.x - m3.x);
-  Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
-  Real2 dPhi3(m1.y - m2.y, m2.x - m1.x);
-
-  FixedMatrix<2, 4> b_matrix;
-  b_matrix(0, 0) = dPhi0.x;
-  b_matrix(0, 1) = dPhi1.x;
-  b_matrix(0, 2) = dPhi2.x;
-  b_matrix(0, 3) = dPhi3.x;
-
-  b_matrix(1, 0) = dPhi0.y;
-  b_matrix(1, 1) = dPhi1.y;
-  b_matrix(1, 2) = dPhi2.y;
-  b_matrix(1, 3) = dPhi3.y;
-
-  b_matrix.multInPlace(1.0 / (2.0 * area));
-
-  FixedMatrix<4, 4> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
-  int_cdPi_dPj.multInPlace(area);
-
-  return int_cdPi_dPj;
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_assembleBilinearOperatorQUAD4()
-{
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-    if (cell.type() != IT_Quad4)
-      ARCANE_FATAL("Only Quad4 cell type is supported");
-
-    auto K_e = _computeElementMatrixQUAD4(cell);  // element stifness matrix
-    //             # assemble elementary matrix into the global one
-    //             # elementary terms are positionned into K according
-    //             # to the rank of associated node in the mesh.nodes list
-    //             for node1 in elem.nodes:
-    //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
-    //                 for node2 in elem.nodes:
-    //                     inode2=elem.nodes.index(node2)
-    //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-    Int32 n1_index = 0;
-    for (Node node1 : cell.nodes()) {
-      Int32 n2_index = 0;
-      for (Node node2 : cell.nodes()) {
-        // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-        Real v = K_e(n1_index, n2_index);
-        // m_k_matrix(node1.localId(), node2.localId()) += v;
-        if (node1.isOwn()) {
-          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
-        }
-        ++n2_index;
-      }
-      ++n1_index;
-    }
-  }
 }
 
 /*---------------------------------------------------------------------------*/

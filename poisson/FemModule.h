@@ -231,7 +231,6 @@ class FemModule
   void _updateBoundayConditions();
   void _checkCellType();
   void _assembleBilinearOperatorTRIA3();
-  void _assembleBilinearOperatorQUAD4();
   void _assembleBilinearOperatorTETRA4();
   void _solve();
   void _initBoundaryconditions();
@@ -245,10 +244,8 @@ class FemModule
   Real _readTimeFromJson(String main_time, String sub_time);
   FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixTETRA4(Cell cell);
-  FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
   Real _computeAreaTetra4(Cell cell);
-  Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
   Real2 _computeEdgeNormal2(Face face);
 
@@ -259,6 +256,9 @@ class FemModule
   static ARCCORE_HOST_DEVICE Int32
   _getValIndexCsrGpu(Int32 begin, Int32 end, DoFLocalId col, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> csr_col);
 
+  static ARCCORE_HOST_DEVICE Real
+  _computeAreaTetra4Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
+                           ax::VariableNodeReal3InView in_node_coord);
   static ARCCORE_HOST_DEVICE Real
   _computeAreaTriangle3Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
                            ax::VariableNodeReal3InView in_node_coord);
@@ -322,6 +322,9 @@ class FemModule
   void _buildMatrixBuildLessCsr();
   void _buildMatrixGpuBuildLessCsr();
   static ARCCORE_HOST_DEVICE Real
+  _computeCellMatrixGpuTETRA4(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
+                             ax::VariableNodeReal3InView in_node_coord, Real b_matrix[12]);
+  static ARCCORE_HOST_DEVICE Real
   _computeCellMatrixGpuTRIA3(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
                              ax::VariableNodeReal3InView in_node_coord, Real b_matrix[6]);
   static ARCCORE_HOST_DEVICE void
@@ -329,6 +332,7 @@ class FemModule
                                   ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> in_out_col_csr,
                                   ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> in_out_val_csr, Real x);
   void _assembleBuildLessCsrBilinearOperatorTria3();
+  void _assembleBuildLessCsrBilinearOperatorTetra4();
 
  private:
 
