@@ -114,3 +114,10 @@ If needed, the Neumann  boundary conditions  can also be provided in `Test.Elect
 #### Post Process ####
 
 For post processing the `ensight.case` file is outputted, which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
+
+
+## Gallery ## 
+- E-type interdigital capacitor
+![image](https://github.com/arcaneframework/arcanefem/assets/52162083/822a3b8c-5a55-4a5b-8450-74224d2a257d)
+
+![image](https://github.com/arcaneframework/arcanefem/assets/52162083/f38a3390-56ad-498d-867d-d830116957e3)
