@@ -9,30 +9,29 @@ if (ARCANE_HAS_CUDA)
   endif()
 endif()
 
-arcane_accelerator_add_source_files(
+set(ACCELERATOR_SOURCES
   FemModule.cc
+  CooBiliAssembly.cc
+  CsrBiliAssembly.cc
+  CooSortBiliAssembly.cc
+  BlCsrBiliAssembly.cc
+  CsrGpuBiliAssembly.cc
+  NodeWiseCsrBiliAssembly.cc
 )
 
 add_executable(Poisson
+  ${ACCELERATOR_SOURCES}
   FemModule.h
-  CooBiliAssembly.hxx
-  CooSortBiliAssembly.hxx
-  CsrBiliAssembly.hxx
-  LegacyBiliAssembly.hxx
+  LegacyBiliAssembly.cc
   FemModule.cc
   main.cc
   Fem_axl.h
-)
-target_sources(Poisson PRIVATE
-  NodeWiseCsrBiliAssembly.hxx
-  BlCsrBiliAssembly.hxx
-  CsrGpuBiliAssembly.hxx
   CusparseBiliAssembly.hxx
 )
-arcane_accelerator_add_to_target(Poisson)
 
-if(USE_CUSPARSE_ADD)
-endif()
+arcane_accelerator_add_source_files(${ACCELERATOR_SOURCES})
+
+arcane_accelerator_add_to_target(Poisson)
 
 arcane_generate_axl(Fem)
 arcane_add_arcane_libraries_to_target(Poisson)

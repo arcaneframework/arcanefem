@@ -13,7 +13,10 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_buildMatrixBuildLessCsr()
+#include "FemModule.h"
+
+void FemModule::
+_buildMatrixBuildLessCsr()
 {
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
