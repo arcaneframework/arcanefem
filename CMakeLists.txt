@@ -4,11 +4,8 @@ project(ArcaneFem LANGUAGES C CXX)
 find_package(Arcane REQUIRED)
 arcane_accelerator_enable()
 
-if(ARCANE_HAS_ACCELERATOR)
-  message(STATUS "Arcane has been compiled with cuda. Enabling features that need CUDA.")
-endif()
-
 enable_testing()
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Utils.cmake)
 
 set(MSH_DIR ${CMAKE_SOURCE_DIR}/meshes/msh)
 

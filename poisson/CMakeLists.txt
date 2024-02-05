@@ -106,13 +106,11 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 endif()
 
 
-if(ARCANE_HAS_ACCELERATOR)
-  add_test(NAME [poisson]poisson_gpu COMMAND ./Poisson -A,AcceleratorRuntime=cuda Test.poisson.petsc.arc)
-  if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-    add_test(NAME [poisson]poisson_hypre_direct_gpu COMMAND ./Poisson -A,AcceleratorRuntime=cuda Test.poisson.hypre_direct.arc)
-    if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-      add_test(NAME [poisson]poisson_hypre_direct_gpu_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Poisson -A,AcceleratorRuntime=cuda Test.poisson.hypre_direct.arc)
-    endif()
+arcanefem_add_gpu_test(NAME [poisson]poisson_gpu COMMAND ./Poisson ARGS Test.poisson.petsc.arc)
+if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
+  arcanefem_add_gpu_test(NAME [poisson]poisson_hypre_direct_gpu COMMAND ./Poisson ARGS Test.poisson.hypre_direct.arc)
+  if(FEMUTILS_HAS_PARALLEL_SOLVER)
+    arcanefem_add_gpu_test(NAME [poisson]poisson_hypre_direct_gpu_4pe NB_MPI 4 COMMAND ./Poisson ARGS Test.poisson.hypre_direct.arc)
   endif()
 endif()
 
