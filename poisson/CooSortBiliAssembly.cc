@@ -1,4 +1,4 @@
-// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
 // Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
@@ -11,6 +11,8 @@
 /* followed by a sort                                                        */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+
+#include "FemModule.h"
 
 /**
  * @brief Initialization of the coo matrix. It only works for p=1 since there is

@@ -10,6 +10,7 @@
 /* Simple module to test simple FEM mechanism.                               */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+
 #include "FemModule.h"
 
 /*---------------------------------------------------------------------------*/
@@ -405,7 +406,6 @@ _doStationarySolve()
 
 #ifdef USE_CUSPARSE_ADD
   if (m_use_cusparse_add) {
-    cusparseHandle_t handle;
     _assembleCusparseBilinearOperatorTRIA3();
     if (m_cache_warming != 1) {
       m_time_stats->resetStats("AssembleCusparseBilinearOperator");
@@ -1886,66 +1886,6 @@ _assembleBilinearOperatorTETRA4()
 
 }
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-ARCCORE_HOST_DEVICE void FemModule::
-_computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord, Real K_e[9])
-{
-  // Get coordiantes of the triangle element  TRI3
-  //------------------------------------------------
-  //                  0 o
-  //                   . .
-  //                  .   .
-  //                 .     .
-  //              1 o . . . o 2
-  //------------------------------------------------
-  // We might want to replace the next 4 lines of codes with _computeAreaTriangle3Gpu()
-  Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
-  Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
-  Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
-
-  Real area = 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));//_computeAreaTriangle3Gpu(icell, cnc, in_node_coord);
-
-  Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
-  Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
-  Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
-
-  //We will want to replace fixed matrix by some numarray ? Will not work because NumArray function are host functions
-  //NumArray<Real, ExtentsV<2, 3>> b_matrix(eMemoryRessource::Device);
-
-  Real A2 = 2.0 * area;
-  Real b_matrix[2][3] = { {dPhi0.x / A2, dPhi1.x / A2, dPhi2.x / A2} ,
-                          {dPhi0.y / A2, dPhi1.y / A2, dPhi2.y / A2}  };
-
-
-  //NumArray<Real, ExtentsV<3, 3>> int_cdPi_dPj;
-
-  //Multiplying b_matrix by its transpose, and doing the mult in place in the same loop
-  // Compute the upper triangular part of the matrix
-  for (Int32 i = 0; i < 3; ++i) {
-    for (Int32 j = i; j < 3; ++j) {
-      for (Int32 k = 0; k < 2; ++k) {
-        K_e[i * 3 + j] += b_matrix[k][i] * b_matrix[k][j];
-      }
-      // Multiply by A2 to complete the matrix
-      K_e[i * 3 + j] *= area;
-
-      // Mirror to the lower triangular part
-      K_e[j * 3 + i] = K_e[i * 3 + j];
-    }
-  }
-
-  //info() << "Cell=" << cell.localId();
-  //std::cout << " int_cdPi_dPj=";
-  //int_cdPi_dPj.dump(std::cout);
-  //std::cout << "\n";
-
-  //No need to return anymore
-  //return int_cdPi_dPj;
-}
-
-#ifdef USE_COO_GPU
 //Currently, this code does not work
 /**
  * @brief Initialization of the coo matrix. It only works for p=1 since there is
@@ -2055,7 +1995,7 @@ _assembleCooGPUBilinearOperatorTRIA3()
       Int32 n2_index = 0;
       for (NodeLocalId node2 : cnc.nodes(icell)) {
         // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-        Real v = K_e[n1_index * 3 + n2_index];
+        //Real v = K_e[n1_index * 3 + n2_index];
         // m_k_matrix(node1.localId(), node2.localId()) += v;
         //replacing the isOwn (probably with a nice view)
         if (nodes_infos.isOwn(node1)) {
@@ -2070,8 +2010,6 @@ _assembleCooGPUBilinearOperatorTRIA3()
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
-#endif
 
 void FemModule::
 _solve()
@@ -2174,15 +2112,6 @@ void FemModule::fileNumArray(bool ref, NumArray<Real, MDDim1> numarray)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include "CsrBiliAssembly.hxx"
-#include "CooBiliAssembly.hxx"
-#include "CooSortBiliAssembly.hxx"
-#include "LegacyBiliAssembly.hxx"
-#include "CsrGpuBiliAssembly.hxx"
-
 #ifdef USE_CUSPARSE_ADD
 #include "CusparseBiliAssembly.hxx"
 #endif
-
-#include "NodeWiseCsrBiliAssembly.hxx"
-#include "BlCsrBiliAssembly.hxx"

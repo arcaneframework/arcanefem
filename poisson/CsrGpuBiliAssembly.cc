@@ -12,6 +12,8 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+#include "FemModule.h"
+
 /**
  * @brief Initialization of the csr matrix. It only works for p=1 since there is
  * one node per Edge. Currently, there is no difference between buildMatrixCsr and this method.
