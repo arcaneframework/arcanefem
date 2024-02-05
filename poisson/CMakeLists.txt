@@ -41,13 +41,16 @@ configure_file(Test.poisson.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.poisson.3D.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.poisson.direct.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.poisson.neumann.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Test.poisson.porous.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.poisson.trilinos.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.poisson.hypre.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.poisson.hypre_direct.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.poisson.petsc.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/L-shape.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/random.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/porous-medium.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/L-shape-3D.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+
 
 target_link_libraries(Poisson PUBLIC FemUtils)
 
@@ -99,6 +102,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [poisson]poisson COMMAND Poisson Test.poisson.arc)
   add_test(NAME [poisson]poisson_petsc COMMAND Poisson Test.poisson.petsc.arc)
   add_test(NAME [poisson]poisson_neumann COMMAND Poisson Test.poisson.neumann.arc)
+  add_test(NAME [poisson]poisson_porous COMMAND Poisson Test.poisson.porous.arc)
 endif()
 
 
