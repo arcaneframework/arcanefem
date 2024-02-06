@@ -417,8 +417,8 @@ _applyDirichletBoundaryConditions()
       info() << "Apply Dirichlet boundary condition surface=" << group.name() << " u1= " << u1_val << " u2= " << u2_val;
       ENUMERATE_ (Face, iface, group) {
         for (Node node : iface->nodes()) {
-          m_U[node].x = u1_val;
-          m_U[node].y = u2_val;
+          m_dU[node].x = u1_val;
+          m_dU[node].y = u2_val;
           m_u1_fixed[node] = true;
           m_u2_fixed[node] = true;
         }
@@ -430,7 +430,7 @@ _applyDirichletBoundaryConditions()
       info() << "Apply Dirichlet boundary condition surface=" << group.name() << " u1=" << u1_val;
       ENUMERATE_ (Face, iface, group) {
         for (Node node : iface->nodes()) {
-          m_U[node].x = u1_val;
+          m_dU[node].x = u1_val;
           m_u1_fixed[node] = true;
         }
       }
@@ -441,7 +441,7 @@ _applyDirichletBoundaryConditions()
       info() << "Apply Dirichlet boundary condition surface=" << group.name() << " u2=" << u2_val;
       ENUMERATE_ (Face, iface, group) {
         for (Node node : iface->nodes()) {
-          m_U[node].y = u2_val;
+          m_dU[node].y = u2_val;
           m_u2_fixed[node] = true;
         }
       }
@@ -466,8 +466,8 @@ _applyDirichletBoundaryConditions()
       info() << "Apply Dirichlet point condition on node=" << group.name() << " u1= " << u1_val << " u2= " << u2_val;
       ENUMERATE_ (Node, inode, group) {
         Node node = *inode;
-        m_U[node].x = u1_val;
-        m_U[node].y = u2_val;
+        m_dU[node].x = u1_val;
+        m_dU[node].y = u2_val;
         m_u1_fixed[node] = true;
         m_u2_fixed[node] = true;
       }
@@ -478,7 +478,7 @@ _applyDirichletBoundaryConditions()
       info() << "Apply Dirichlet point condition on node=" << group.name() << " u1=" << u1_val;
       ENUMERATE_ (Node, inode, group) {
         Node node = *inode;
-        m_U[node].x = u1_val;
+        m_dU[node].x = u1_val;
         m_u1_fixed[node] = true;
       }
       continue;
@@ -488,7 +488,7 @@ _applyDirichletBoundaryConditions()
       info() << "Apply Dirichlet point condition on node=" << group.name() << " u2=" << u2_val;
       ENUMERATE_ (Node, inode, group) {
         Node node = *inode;
-        m_U[node].y = u2_val;
+        m_dU[node].y = u2_val;
         m_u2_fixed[node] = true;
       }
       continue;
@@ -574,7 +574,7 @@ _assembleLinearOperator()
         DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
         m_linear_system.matrixSetValue(dof_id1, dof_id1, Penalty);
         {
-          Real u1_dirichlet = Penalty * m_U[node_id].x;
+          Real u1_dirichlet = Penalty * m_dU[node_id].x;
           rhs_values[dof_id1] = u1_dirichlet;
         }
       }
@@ -582,7 +582,7 @@ _assembleLinearOperator()
         DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
         m_linear_system.matrixSetValue(dof_id2, dof_id2, Penalty);
         {
-          Real u2_dirichlet = Penalty * m_U[node_id].y;
+          Real u2_dirichlet = Penalty * m_dU[node_id].y;
           rhs_values[dof_id2] = u2_dirichlet;
         }
       }
@@ -613,7 +613,7 @@ _assembleLinearOperator()
         DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
         m_linear_system.matrixAddValue(dof_id1, dof_id1, Penalty);
         {
-          Real u1_dirichlet = Penalty * m_U[node_id].x;
+          Real u1_dirichlet = Penalty * m_dU[node_id].x;
           rhs_values[dof_id1] = u1_dirichlet;
         }
       }
@@ -621,7 +621,7 @@ _assembleLinearOperator()
         DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
         m_linear_system.matrixAddValue(dof_id2, dof_id2, Penalty);
         {
-          Real u2_dirichlet = Penalty * m_U[node_id].y;
+          Real u2_dirichlet = Penalty * m_dU[node_id].y;
           rhs_values[dof_id2] = u2_dirichlet;
         }
       }
@@ -649,14 +649,14 @@ _assembleLinearOperator()
       if (m_u1_fixed[node_id]) {
         DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
 
-        Real u1_dirichlet = m_U[node_id].x;
+        Real u1_dirichlet = m_dU[node_id].x;
         m_linear_system.eliminateRow(dof_id1, u1_dirichlet);
 
       }
       if (m_u2_fixed[node_id]) {
         DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
 
-        Real u2_dirichlet = m_U[node_id].y;
+        Real u2_dirichlet = m_dU[node_id].y;
         m_linear_system.eliminateRow(dof_id2, u2_dirichlet);
 
       }
@@ -684,14 +684,14 @@ _assembleLinearOperator()
       if (m_u1_fixed[node_id]) {
         DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
 
-        Real u1_dirichlet = m_U[node_id].x;
+        Real u1_dirichlet = m_dU[node_id].x;
         m_linear_system.eliminateRowColumn(dof_id1, u1_dirichlet);
 
       }
       if (m_u2_fixed[node_id]) {
         DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
 
-        Real u2_dirichlet = m_U[node_id].y;
+        Real u2_dirichlet = m_dU[node_id].y;
         m_linear_system.eliminateRowColumn(dof_id2, u2_dirichlet);
 
       }
@@ -747,6 +747,18 @@ _assembleLinearOperator()
     Cell cell = *icell;
     Real area = _computeAreaTriangle3(cell);
 
+    Real3 m0 = m_node_coord[cell.nodeId(0)];
+    Real3 m1 = m_node_coord[cell.nodeId(1)];
+    Real3 m2 = m_node_coord[cell.nodeId(2)];
+
+    Real Uold1 = m_U[cell.nodeId(0)].x + m_U[cell.nodeId(1)].x + m_U[cell.nodeId(2)].x;
+    Real Uold2 = m_U[cell.nodeId(0)].y + m_U[cell.nodeId(1)].y + m_U[cell.nodeId(2)].y;
+
+    Real Vold1 = m_V[cell.nodeId(0)].x + m_V[cell.nodeId(1)].x + m_V[cell.nodeId(2)].x;
+    Real Vold2 = m_V[cell.nodeId(0)].y + m_V[cell.nodeId(1)].y + m_V[cell.nodeId(2)].y;
+
+    Real Aold1 = m_A[cell.nodeId(0)].x + m_A[cell.nodeId(1)].x + m_A[cell.nodeId(2)].x;
+    Real Aold2 = m_A[cell.nodeId(0)].y + m_A[cell.nodeId(1)].y + m_A[cell.nodeId(2)].y;
 
 /*
 $$
@@ -768,14 +780,17 @@ $$
       if (node.isOwn()) {
         DoFLocalId dof_id1 = node_dof.dofId(node, 0);
         DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-        rhs_values[dof_id1] +=   (m_U[node].x) * (area / 3.) * c0
-                               + (m_V[node].x) * (area / 3.) * c3
-                               + (m_A[node].x) * (area / 3.) * c4   // TODO add c5 and c6 contribution for Galpha
+        
+        if (!(m_u1_fixed[node]))
+        rhs_values[dof_id1] +=   (Uold1 + m_U[node].x) * (area / 12.) * c0
+                               + (Vold1 + m_V[node].x) * (area / 12.) * c3
+                               + (Aold1 + m_A[node].x) * (area / 12.) * c4   // TODO add c5 and c6 contribution for Galpha
                                ;
 
-        rhs_values[dof_id2] +=   (m_U[node].y)  * (area / 3.) * c0
-                               + (m_V[node].y)  * (area / 3.) * c3
-                               + (m_A[node].y)  * (area / 3.) * c4  // TODO add c5 and c6 contribution for Galpha
+        if (!(m_u2_fixed[node]))
+        rhs_values[dof_id2] +=   (Uold2 + m_U[node].y) * (area / 12.) * c0
+                               + (Vold2 + m_V[node].y) * (area / 12.) * c3
+                               + (Aold2 + m_A[node].y) * (area / 12.) * c4  // TODO add c5 and c6 contribution for Galpha
                                ;
       }
       i++;
@@ -914,31 +929,33 @@ $$
       Real2 Normal = _computeEdgeNormal2(face);
 
       for (Node node : iface->nodes()) {
-        if (!(m_u1_fixed[node]) && node.isOwn()) {
-          DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-          rhs_values[dof_id1] += (  c7*( cp*( Normal.x*Normal.x*m_U[node].x + Normal.x*Normal.y*m_U[node].y ) +
-                                         cs*( Normal.y*Normal.y*m_U[node].x - Normal.x*Normal.y*m_U[node].y )
-                                       )
-                                  - c8*( cp*( Normal.x*Normal.x*m_V[node].x + Normal.x*Normal.y*m_V[node].y ) +
-                                         cs*( Normal.y*Normal.y*m_V[node].x - Normal.x*Normal.y*m_V[node].y )
-                                       )
-                                  - c9*( cp*( Normal.x*Normal.x*m_A[node].x + Normal.x*Normal.y*m_A[node].y ) +
-                                         cs*( Normal.y*Normal.y*m_A[node].x - Normal.x*Normal.y*m_A[node].y )
-                                       )
-                                  ) * length / 2.;
-        }
-        if (!(m_u2_fixed[node]) && node.isOwn()) {
-          DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-          rhs_values[dof_id2] += (  c7*( cp*( Normal.x*Normal.y*m_U[node].x + Normal.y*Normal.y*m_U[node].y ) +
-                                         cs*(-Normal.x*Normal.y*m_U[node].x + Normal.x*Normal.x*m_U[node].y )
-                                       )
-                                  - c8*( cp*( Normal.x*Normal.y*m_V[node].x + Normal.y*Normal.y*m_V[node].y ) +
-                                         cs*(-Normal.x*Normal.y*m_V[node].x + Normal.x*Normal.x*m_V[node].y )
-                                       )
-                                  - c9*( cp*( Normal.x*Normal.y*m_A[node].x + Normal.y*Normal.y*m_A[node].y ) +
-                                         cs*(-Normal.x*Normal.y*m_A[node].x + Normal.x*Normal.x*m_A[node].y )
-                                       )
-                                 ) * length / 2.;
+        if (node.isOwn()) {
+          if (!(m_u1_fixed[node])) {
+            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+            rhs_values[dof_id1] += (  c7*( cp*( Normal.x*Normal.x*m_U[node].x + Normal.x*Normal.y*m_U[node].y ) +
+                                           cs*( Normal.y*Normal.y*m_U[node].x - Normal.x*Normal.y*m_U[node].y )
+                                         )
+                                    - c8*( cp*( Normal.x*Normal.x*m_V[node].x + Normal.x*Normal.y*m_V[node].y ) +
+                                           cs*( Normal.y*Normal.y*m_V[node].x - Normal.x*Normal.y*m_V[node].y )
+                                         )
+                                    - c9*( cp*( Normal.x*Normal.x*m_A[node].x + Normal.x*Normal.y*m_A[node].y ) +
+                                           cs*( Normal.y*Normal.y*m_A[node].x - Normal.x*Normal.y*m_A[node].y )
+                                         )
+                                    ) * length / 2.;
+          }
+          if (!(m_u2_fixed[node])) {
+            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+            rhs_values[dof_id2] += (  c7*( cp*( Normal.x*Normal.y*m_U[node].x + Normal.y*Normal.y*m_U[node].y ) +
+                                           cs*(-Normal.x*Normal.y*m_U[node].x + Normal.x*Normal.x*m_U[node].y )
+                                         )
+                                    - c8*( cp*( Normal.x*Normal.y*m_V[node].x + Normal.y*Normal.y*m_V[node].y ) +
+                                           cs*(-Normal.x*Normal.y*m_V[node].x + Normal.x*Normal.x*m_V[node].y )
+                                         )
+                                    - c9*( cp*( Normal.x*Normal.y*m_A[node].x + Normal.y*Normal.y*m_A[node].y ) +
+                                           cs*(-Normal.x*Normal.y*m_A[node].x + Normal.x*Normal.x*m_A[node].y )
+                                         )
+                                   ) * length / 2.;
+          }
         }
       }
     }
@@ -1619,9 +1636,6 @@ _solve()
   info() << "Solving Linear system";
   m_linear_system.solve();
 
-  // Re-Apply boundary conditions because the solver has modified the value
-  _applyDirichletBoundaryConditions();  // ************ CHECK
-
   {
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -1637,6 +1651,9 @@ _solve()
       info() << "Node: " << node.localId() << " U1=" << u1_val << " U2=" << u2_val;
     }
   }
+
+  // Re-Apply boundary conditions because the solver has modified the value
+  _applyDirichletBoundaryConditions();  // ************ CHECK
 
   m_dU.synchronize();
   m_U.synchronize();
