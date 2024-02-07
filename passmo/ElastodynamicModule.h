@@ -111,10 +111,8 @@ private:
  void _applyInitialNodeConditions();
  void _applyInitialCellConditions();
 // void _applyInputMotion();
- void _assembleLinearLHS2D();
- void _assembleLinearRHS2D();
- void _assembleLinearLHS3D();
- void _assembleLinearRHS3D();
+ void _assembleLinearLHS();
+ void _assembleLinearRHS();
  void _doSolve();
  void _initBoundaryConditions();
  void _applyDirichletBoundaryConditions();
@@ -129,14 +127,15 @@ private:
 /*  Update nodal dofs vector for the Newmark or Generalized-alfa time integration schemes */
  void _updateNewmark();
 
- void _computeK3D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real3x3& jac, FixedMatrix<60,60>& Ke);
- void _computeM3D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, FixedMatrix<60,60>& Me);
- void _computeK2D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real2x2& jac, FixedMatrix<18,18>& Ke);
- void _computeM2D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, FixedMatrix<18,18>& Me);
+ void _computeK3D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real3x3& jac, RealUniqueArray2& Ke);
+ void _computeM3D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, RealUniqueArray2& Me);
+ void _computeElemMass(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, RealUniqueArray2& Me);
+ void _computeK2D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real2x2& jac, RealUniqueArray2& Ke);
+ void _computeM2D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, RealUniqueArray2& Me);
  void _computeMFParax3D(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
-                        FixedMatrix<27,27>& Me, FixedVector<27>& Fe,const Real& rhocs, const Real& rhocp);
+                        RealUniqueArray2& Me, RealUniqueArray& Fe,const Real& rhocs, const Real& rhocp);
  void _computeMFParax2D(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
-                        FixedMatrix<6,6>& Me, FixedVector<6>& Fe,const Real& rhocs, const Real& rhocp);
+                        RealUniqueArray2& Me, RealUniqueArray& Fe,const Real& rhocs, const Real& rhocp);
 };
 
  /*---------------------------------------------------------------------------*/

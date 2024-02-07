@@ -341,8 +341,10 @@ compute(){
   auto t0 = options()->getStart();
   dt2 = dt * dt;
 
-  if (t > tf)
+/*
+  if (t+dt > tf)
     subDomain()->timeLoopMng()->stopComputeLoop(true);
+*/
 
   info() << "Time (s) = " << t;
 
@@ -367,6 +369,7 @@ compute(){
   info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
 
   // Assemble the FEM global operators (LHS matrix/RHS vector b)
+/*
   if (NDIM <= 2) {
     _assembleLinearLHS2D();
     _assembleLinearRHS2D();
@@ -375,6 +378,9 @@ compute(){
     _assembleLinearLHS3D();
     _assembleLinearRHS3D();
   }
+*/
+  _assembleLinearLHS();
+  _assembleLinearRHS();
 
   // Solve the linear system AX = B
   _doSolve();
@@ -385,10 +391,15 @@ compute(){
   // Save/Check results
 //  _checkResultFile();
 
-  if (t < tf && t + dt > tf) {
-    dt = tf - t;
-    m_global_deltat = dt;
+//  if (t < tf && t + dt > tf) {
+  if (t < tf) {
+    if (t + dt > tf) {
+        dt = tf - t;
+        m_global_deltat = dt;
+    }
   }
+  else
+    subDomain()->timeLoopMng()->stopComputeLoop(true);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -687,17 +698,49 @@ _applyDirichletBoundaryConditions(){
         auto coord = m_node_coord[node];
         auto num = node.uniqueId();
 
-        if (is_acc_imp)
-          m_acc[node] = acc;
+        if (is_acc_imp){
+          if ((bool)m_imposed_acc[node].x)
+            m_acc[node].x = acc.x;
 
-        if (is_vel_imp)
-          m_vel[node] = vel;
+          if ((bool)m_imposed_acc[node].y)
+            m_acc[node].y = acc.y;
 
-        if (is_displ_imp)
-          m_displ[node] = displ;
+          if ((bool)m_imposed_acc[node].z)
+            m_acc[node].z = acc.z;
+        }
 
-        if (is_force_imp)
-          m_force[node] = force;
+        if (is_vel_imp){
+          if ((bool)m_imposed_vel[node].x)
+            m_vel[node].x = vel.x;
+
+          if ((bool)m_imposed_vel[node].y)
+            m_vel[node].y = vel.y;
+
+          if ((bool)m_imposed_vel[node].z)
+            m_vel[node].z = vel.z;
+        }
+
+        if (is_displ_imp) {
+          if ((bool)m_imposed_displ[node].x)
+            m_displ[node].x = displ.x;
+
+          if ((bool)m_imposed_displ[node].y)
+            m_displ[node].y = displ.y;
+
+          if ((bool)m_imposed_displ[node].z)
+            m_displ[node].z = displ.z;
+        }
+
+        if (is_force_imp){
+          if ((bool)m_imposed_force[node].x)
+            m_force[node].x = force.x;
+
+          if ((bool)m_imposed_force[node].y)
+            m_force[node].y = force.y;
+
+          if ((bool)m_imposed_force[node].z)
+            m_force[node].z = force.z;
+        }
      }
     }
   }
@@ -1093,9 +1136,43 @@ _computeKMF3D(const Cell& cell,FixedMatrix<24,24>& Ke, FixedMatrix<24,24>& Me, F
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+// ! Compute elementary mass matrix in 2D at a given Gauss point
+void ElastodynamicModule::
+_computeElemMass(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, RealUniqueArray2& Me){
+
+  Int32 nb_nodes = cell.nbNode();
+  auto rho = m_rho(cell);
+
+  auto wt = vec[ig] * jacobian;
+  for (Int32 inod = 0, iig = 4; inod < nb_nodes; ++inod) {
+
+    auto rhoPhi_i = wt*rho*vec[ig + iig];
+
+    //----------------------------------------------
+    // Elementary Mass (Me) Matrix assembly
+    //----------------------------------------------
+    for (Int32 jnod = inod, jig = 4*(1+inod) ; jnod < nb_nodes; ++jnod) {
+
+      auto Phi_j = vec[ig + jig];
+      auto mij = rhoPhi_i*Phi_j;
+
+      for (Int32 l = 0; l < NDIM; ++l){
+        auto ii = NDIM*inod + l;
+        auto jj = NDIM*jnod + l;
+        Me(ii,jj) = mij;
+        Me(jj,ii) = mij;
+      }
+      jig += 4;
+    }
+    iig += 4;
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 // ! Compute elementary stiffness matrix in 3D at a given Gauss point
 void ElastodynamicModule::
-_computeK3D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real3x3& jac, FixedMatrix<60,60>& Ke){
+_computeK3D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real3x3& jac, /*FixedMatrix<60,60>*/RealUniqueArray2& Ke){
 
   Int32 nb_nodes = cell.nbNode();
   auto size{3 * nb_nodes};
@@ -1242,7 +1319,7 @@ _computeK3D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const 
 /*---------------------------------------------------------------------------*/
 // ! Compute elementary mass matrix in 3D at a given Gauss point
 void ElastodynamicModule::
-_computeM3D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, FixedMatrix<60,60>& Me){
+_computeM3D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, /*FixedMatrix<60,60>*/RealUniqueArray2& Me){
 
   Int32 nb_nodes = cell.nbNode();
   auto rho = m_rho(cell);
@@ -1276,7 +1353,7 @@ _computeM3D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const 
 /*---------------------------------------------------------------------------*/
 // ! Compute elementary stiffness matrix in 2D at a given Gauss point
 void ElastodynamicModule::
-_computeK2D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real2x2& jac, FixedMatrix<18,18>& Ke){
+_computeK2D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real2x2& jac, /*FixedMatrix<18,18>*/RealUniqueArray2& Ke){
 
     Int32 nb_nodes = cell.nbNode();
     auto size{2 * nb_nodes};
@@ -1382,7 +1459,7 @@ _computeK2D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const 
 /*---------------------------------------------------------------------------*/
 // ! Compute elementary mass matrix in 2D at a given Gauss point
 void ElastodynamicModule::
-_computeM2D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, FixedMatrix<18,18>& Me){
+_computeM2D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, /*FixedMatrix<18,18>*/RealUniqueArray2& Me){
 
     Int32 nb_nodes = cell.nbNode();
     auto rho = m_rho(cell);
@@ -1416,7 +1493,7 @@ _computeM2D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const 
 /*---------------------------------------------------------------------------*/
 void ElastodynamicModule::
 _computeMFParax3D(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
-                FixedMatrix<27,27>& Me, FixedVector<27>& Fe,
+                  RealUniqueArray2& Me, RealUniqueArray& Fe,
                 const Real& rhocs, const Real& rhocp){
 
   auto dt = m_global_deltat();
@@ -1485,7 +1562,7 @@ _computeMFParax3D(const Face& face, const Int32& ig, const RealUniqueArray& vec,
 /*---------------------------------------------------------------------------*/
 void ElastodynamicModule::
 _computeMFParax2D(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
-                  FixedMatrix<6,6>& Me, FixedVector<6>& Fe,
+                  RealUniqueArray2& Me, RealUniqueArray& Fe,
                   const Real& rhocs, const Real& rhocp){
 
   auto dt = m_global_deltat();
@@ -1549,254 +1626,25 @@ _computeMFParax2D(const Face& face, const Int32& ig, const RealUniqueArray& vec,
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-// ! Assemble the 3D bilinear operator (Left Hand Side A matrix)
+// ! Assemble the 2D or 3D bilinear operator (Left Hand Side A matrix)
 void ElastodynamicModule::
-_assembleLinearLHS3D()
+_assembleLinearLHS()
 {
-    VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
-    rhs_values.fill(0.0);
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-    info() << "Assembly of the 3D FEM bilinear (LHS - matrix A) operator ";
-
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-      auto nb_nodes{ cell.nbNode() };
-      // Setting the elementary matrices sizes for the max number of nodes
-      // a lin element can have max 8 nodes and a quadratic one, 20
-      auto size{3 * nb_nodes};
-      FixedMatrix<60,60> Me;
-      FixedMatrix<60,60> Ke;
-
-      for (Int32 i = 0; i < size; ++i) {
-      for (Int32 j = i; j < size; ++j) {
-        Me(i,j) = 0.;
-        Me(j,i) = 0.;
-        Ke(i,j) = 0.;
-        Ke(j,i) = 0.;
-      }
-      }
-
-      // Loop on the cell Gauss points to compute integrals terms
-      Int32 ngauss{ 0 };
-      auto vec = cell_fem.getGaussData(cell, integ_order, ngauss);
-      auto cm{(1 - alfam)/beta/dt2};
-      auto ck{(1 - alfaf)};
-
-      for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4*(1 + nb_nodes)) {
-
-        auto jacobian {0.};
-        auto jac = _computeJacobian3D(cell, ig, vec, jacobian);
-
-        // Computing elementary mass matrix at Gauss point ig
-        _computeM3D(cell, ig, vec, jacobian, Me);
-
-        // Computing elementary stiffness matrix at Gauss point ig
-        _computeK3D(cell, ig, vec, jac, Ke);
-
-        // Considering a simple Newmark scheme here (Generalized-alfa will be done later)
-        // Computing Me/beta/dt^2 + Ke
-        Int32 n1_index{ 0 };
-        for (Node node1 : cell.nodes()) {
-
-          for (Int32 iddl = 0; iddl < 3; ++iddl) {
-            DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
-            auto ind1 = node1_dofi.asInt32();
-            auto ii = 3 * n1_index + iddl;
-
-            // Assemble global bilinear operator (LHS)
-            Int32 n2_index{ 0 };
-            for (Node node2 : cell.nodes()) {
-
-              for (Int32 jddl = 0; jddl < 3; ++jddl) {
-                auto node2_dofj = node_dof.dofId(node2, jddl);
-                auto ind2 = node2_dofj.asInt32();
-                auto jj = 3 * n2_index + jddl;
-                auto mij = Me(ii, jj);
-                auto kij = Ke(ii, jj);
-                auto aij = cm * mij + ck * kij;
-
-                if (node1.isOwn())
-                  m_linear_system.matrixAddValue(node1_dofi, node2_dofj, aij);
-              }
-              ++n2_index;
-            }
-          }
-          ++n1_index;
-        }
-      }
-    }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-// ! Assemble the 3D linear operator (Right Hand Side B vector)
-void ElastodynamicModule::
-_assembleLinearRHS3D(){
-    info() << "Assembly of the FEM 3D linear operator (RHS - vector B) ";
-
-    VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
-    rhs_values.fill(0.0);
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    auto dt = m_global_deltat();
-
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-      auto rho = m_rho(cell);
-      auto nb_nodes{ cell.nbNode() };
-
-      // Setting the elementary matrices + force vector sizes for the max number of nodes
-      // a lin element can have in 2D (=4 nodes)
-      auto size{3 * nb_nodes};
-      FixedMatrix<60,60> Me;
-
-      for (Int32 i = 0; i < size; ++i) {
-        for (Int32 j = i; j < size; ++j) {
-          Me(i,j) = 0.;
-          Me(j,i) = 0.;
-        }
-      }
-
-      // Loop on the cell Gauss points to compute integrals terms
-      Int32 ngauss{ 0 };
-      auto vec = cell_fem.getGaussData(cell, integ_order, ngauss);
-      auto cm = (1 - alfam)/beta/dt2;
-
-      for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4*(1 + nb_nodes)) {
-        auto jacobian {0.};
-        auto jac = _computeJacobian3D(cell, ig, vec, jacobian);
-
-        // Computing elementary mass matrix at Gauss point ig
-        _computeM3D(cell, ig, vec, jacobian, Me);
-
-        // Considering a simple Newmark scheme here (Generalized-alfa will be done later)
-        // Computing Me/beta/dt^2 + Ke
-        Int32 n1_index{ 0 };
-        auto iig{4};
-        auto wt = vec[ig] * jacobian;
-
-        for (Node node1 : cell.nodes()) {
-          for (Int32 iddl = 0; iddl < 3; ++iddl) {
-            DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
-            auto ind1 = node1_dofi.asInt32();
-            auto ii = 3 * n1_index + iddl;
-
-            bool is_node1_dofi_set = (bool)m_imposed_displ[node1][iddl];
-            auto rhs_i{ 0. };
-
-            if (node1.isOwn() && !is_node1_dofi_set) {
-
-              /*----------------------------------------------------------
-              // Mass contribution to the RHS:
-              // (1 - alfm)*Mij/(beta*dt2)*uj_pred - alfm*aj_n
-              //----------------------------------------------------------*/
-              Int32 n2_index{ 0 };
-              for (Node node2 : cell.nodes()) {
-                auto an = m_prev_acc[node2][iddl];
-                auto vn = m_prev_vel[node2][iddl];
-                auto dn = m_prev_displ[node2][iddl];
-                auto u_iddl_pred = dn + dt * vn + dt2 * (0.5 - beta) * an;
-                auto jj = 3 * n2_index + iddl;
-                auto mij = Me(ii, jj);
-                rhs_i += mij * (cm * u_iddl_pred - alfam * an);
-                ++n2_index;
-              }
-
-              /*-------------------------------------------------
-              //! Other forces (imposed nodal forces, body forces)
-              --------------------------------------------------*/
-              {
-                if (options()->hasBodyf()) {
-                  //----------------------------------------------
-                  // Body force terms
-                  //----------------------------------------------
-                  auto rhoPhi_i = wt*rho*vec[ig + iig];
-                  rhs_i += rhoPhi_i * gravity[iddl];
-                }
-
-                //----------------------------------------------
-                // Imposed nodal forces
-                //----------------------------------------------
-                if ((bool)m_imposed_force[node1][iddl])
-                  rhs_i += m_force[node1][iddl];
-              }
-              rhs_values[node1_dofi] += rhs_i;
-            }
-          }
-          ++n1_index;
-        }
-      }
-    }
-
-    String dirichletMethod = options()->enforceDirichletMethod();
-    info() << "Applying Dirichlet boundary condition via "
-           << dirichletMethod << " method ";
-
-    // Looking for Dirichlet boundary nodes & modify linear operators accordingly
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      auto node = *inode;
-      auto num = node.uniqueId().asInt32();
-
-      for (Int32 iddl = 0; iddl < 3; ++iddl) {
-        bool is_node_dof_set = (bool)m_imposed_displ[node][iddl];
-
-        if (is_node_dof_set) {
-          /*----------------------------------------------------------
-              // if Dirichlet node, modify operators (LHS+RHS) allowing to
-              // Dirichlet method selected by user
-              //----------------------------------------------------------*/
-          auto node_dofi = node_dof.dofId(node, iddl);
-          auto u_iddl = m_displ[node][iddl];
-          if (dirichletMethod == "Penalty") {
-            m_linear_system.matrixSetValue(node_dofi, node_dofi, penalty);
-            rhs_values[node_dofi] = u_iddl * penalty;
-          }
-          else if (dirichletMethod == "WeakPenalty") {
-            m_linear_system.matrixAddValue(node_dofi, node_dofi, penalty);
-            rhs_values[node_dofi] = u_iddl * penalty;
-          }
-          else if (dirichletMethod == "RowElimination") {
-            m_linear_system.eliminateRow(node_dofi, u_iddl);
-          }
-          else if (dirichletMethod == "RowColumnElimination") {
-            m_linear_system.eliminateRowColumn(node_dofi, u_iddl);
-          }
-        }
-      }
-    }
-
-    //----------------------------------------------
-    // Traction terms assembly
-    //----------------------------------------------
-    _getTractionContribution(rhs_values);
-
-    //----------------------------------------------
-    // Paraxial terms assembly
-    //----------------------------------------------
-    _getParaxialContribution3D(rhs_values);
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-// ! Assemble the 2D bilinear operator (Left Hand Side A matrix)
-void ElastodynamicModule::
-_assembleLinearLHS2D()
-{
-    VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
-    rhs_values.fill(0.0);
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-    info() << "Assembly of the FEM 2D bilinear (LHS - matrix A) operator ";
+    if (NDIM == 3)
+      info() << "Assembly of the FEM 3D bilinear operator (LHS - matrix A) ";
+    else
+      info() << "Assembly of the FEM 2D bilinear operator (LHS - matrix A) ";
 
     ENUMERATE_ (Cell, icell, allCells()) {
       Cell cell = *icell;
       auto nb_nodes{ cell.nbNode() };
 
-      // Setting the 2D elementary matrices sizes for the max number of nodes * 2 dofs per node
-      // a lin element can have max 4 nodes and a quadratic element, 9 nodes
-      auto size{2*nb_nodes};
-      FixedMatrix<18,18> Me;
-      FixedMatrix<18,18> Ke;
+      // Setting the elementary matrices sizes for the max number of nodes * 2 or 3 dofs per node
+      auto size{NDIM*nb_nodes};
+      RealUniqueArray2 Me(size,size);
+      RealUniqueArray2 Ke(size,size);
 
       for (Int32 i = 0; i < size; ++i) {
         for (Int32 j = i; j < size; ++j) {
@@ -1816,30 +1664,37 @@ _assembleLinearLHS2D()
       for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4*(1 + nb_nodes)) {
 
         auto jacobian {0.};
-        auto jac = _computeJacobian2D(cell, ig, vec, jacobian);
+        if (NDIM == 2) {
+          auto jac = _computeJacobian2D(cell, ig, vec, jacobian);
 
+          // Computing elementary stiffness matrix at Gauss point ig
+          _computeK2D(cell, ig, vec, jac, Ke);
+        }
+        else{
+          auto jac = _computeJacobian3D(cell, ig, vec, jacobian);
+
+          // Computing elementary stiffness matrix at Gauss point ig
+          _computeK3D(cell, ig, vec, jac, Ke);
+        }
         // Computing elementary mass matrix at Gauss point ig
-        _computeM2D(cell, ig, vec, jacobian, Me);
-
-        // Computing elementary stiffness matrix at Gauss point ig
-        _computeK2D(cell, ig, vec, jac, Ke);
+        _computeElemMass(cell, ig, vec, jacobian, Me);
 
         // Considering a simple Newmark scheme here (Generalized-alfa will be done later)
         // Computing Me/beta/dt^2 + Ke
         Int32 n1_index{ 0 };
         for (Node node1 : cell.nodes()) {
 
-          for (Int32 iddl = 0; iddl < 2; ++iddl) {
+          for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
             DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
-            auto ii = 2 * n1_index + iddl;
+            auto ii = NDIM * n1_index + iddl;
 
             // Assemble global bilinear operator (LHS)
             Int32 n2_index{ 0 };
             for (Node node2 : cell.nodes()) {
 
-              for (Int32 jddl = 0; jddl < 2; ++jddl) {
+              for (Int32 jddl = 0; jddl < NDIM; ++jddl) {
                 auto node2_dofj = node_dof.dofId(node2, jddl);
-                auto jj = 2 * n2_index + jddl;
+                auto jj = NDIM * n2_index + jddl;
                 auto mij = Me(ii, jj);
                 auto kij = Ke(ii, jj);
                 auto aij = cm * mij + ck * kij;
@@ -1855,13 +1710,15 @@ _assembleLinearLHS2D()
       }
     }
 }
-
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-// ! Assemble the 2D linear operator (Right Hand Side B vector)
+// ! Assemble the 2D or 3D linear operator (Right Hand Side B vector)
 void ElastodynamicModule::
-_assembleLinearRHS2D(){
-    info() << "Assembly of the FEM 2D linear operator (RHS - vector B) ";
+_assembleLinearRHS(){
+    if (NDIM == 3)
+      info() << "Assembly of the FEM 3D linear operator (RHS - vector B) ";
+    else
+      info() << "Assembly of the FEM 2D linear operator (RHS - vector B) ";
 
     VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
     rhs_values.fill(0.0);
@@ -1873,8 +1730,8 @@ _assembleLinearRHS2D(){
       auto rho = m_rho(cell);
       auto nb_nodes{ cell.nbNode() };
 
-      auto size{2*nb_nodes};
-      FixedMatrix<18,18> Me;
+      auto size{NDIM*nb_nodes};
+      RealUniqueArray2 Me(size,size);
 
       for (Int32 i = 0; i < size; ++i) {
         for (Int32 j = i; j < size; ++j) {
@@ -1889,11 +1746,16 @@ _assembleLinearRHS2D(){
       auto cm = (1 - alfam)/beta/dt2;
 
       for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4*(1 + nb_nodes)) {
-        auto jacobian {0.};
-        auto jac = _computeJacobian2D(cell, ig, vec, jacobian);
 
+        auto jacobian {0.};
+        if (NDIM == 2) {
+          auto jac = _computeJacobian2D(cell, ig, vec, jacobian);
+        }
+        else {
+          auto jac = _computeJacobian3D(cell, ig, vec, jacobian);
+        }
         // Computing elementary mass matrix at Gauss point ig
-        _computeM2D(cell, ig, vec, jacobian, Me);
+        _computeElemMass(cell, ig, vec, jacobian, Me);
 
         // Considering a simple Newmark scheme here (Generalized-alfa will be done later)
         // Computing Me/beta/dt^2 + Ke
@@ -1902,9 +1764,9 @@ _assembleLinearRHS2D(){
         auto wt = vec[ig] * jacobian;
 
         for (Node node1 : cell.nodes()) {
-          for (Int32 iddl = 0; iddl < 2; ++iddl) {
+          for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
             DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
-            auto ii = 2 * n1_index + iddl;
+            auto ii = NDIM * n1_index + iddl;
 
             bool is_node1_dofi_set = (bool)m_imposed_displ[node1][iddl];
             auto rhs_i{ 0. };
@@ -1921,7 +1783,7 @@ _assembleLinearRHS2D(){
                 auto vn = m_prev_vel[node2][iddl];
                 auto dn = m_prev_displ[node2][iddl];
                 auto u_iddl_pred = dn + dt * vn + dt2 * (0.5 - beta) * an;
-                auto jj = 2 * n2_index + iddl;
+                auto jj = NDIM * n2_index + iddl;
                 auto mij = Me(ii, jj);
                 rhs_i += mij * (cm * u_iddl_pred - alfam * an);
                 ++n2_index;
@@ -1961,7 +1823,7 @@ _assembleLinearRHS2D(){
     ENUMERATE_ (Node, inode, ownNodes()) {
       auto node = *inode;
 
-      for (Int32 iddl = 0; iddl < 2; ++iddl) {
+      for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
         bool is_node_dof_set = (bool)m_imposed_displ[node][iddl];
 
         if (is_node_dof_set) {
@@ -1997,7 +1859,10 @@ _assembleLinearRHS2D(){
     //----------------------------------------------
     // Paraxial terms assembly
     //----------------------------------------------
-    _getParaxialContribution2D(rhs_values);
+    if (NDIM == 2)
+      _getParaxialContribution2D(rhs_values);
+    else
+      _getParaxialContribution3D(rhs_values);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2071,8 +1936,8 @@ _getParaxialContribution3D(Arcane::VariableDoFReal& rhs_values){
           // In 3D, a quadratic face element has max 9 nodes (27 dofs)
           auto nb_nodes{face.nbNode()};
           auto size{ ndim * nb_nodes};
-          FixedMatrix<27, 27> Me;
-          FixedVector<27> Fe;
+          RealUniqueArray2 Me(size,size);
+          RealUniqueArray Fe(size);
 
           for (Int32 i = 0; i < size; ++i) {
             Fe(i) = 0.;
@@ -2203,8 +2068,8 @@ _getParaxialContribution2D(Arcane::VariableDoFReal& rhs_values){
           // In 2D, a quadratic edge element has max 3 nodes (6 dofs)
           auto nb_nodes{face.nbNode()};
           auto size{ 2 * nb_nodes};
-          FixedMatrix<6, 6> Me;
-          FixedVector<6> Fe;
+          RealUniqueArray2 Me(size,size);
+          RealUniqueArray Fe(size);
 
           for (Int32 i = 0; i < size; ++i) {
             Fe(i) = 0.;
@@ -2339,9 +2204,7 @@ _doSolve(){
   info() << "Solving Linear system";
   m_linear_system.solve();
 
-  // Re-Apply Dirichlet boundary conditions because the solver has modified the values
-  // on all nodes
-  _applyDirichletBoundaryConditions(); // ************ CHECK
+
 
   {
     VariableDoFReal& dof_d(m_linear_system.solutionVariable());
@@ -2362,10 +2225,17 @@ _doSolve(){
     }
   }
 
+  // Re-Apply Dirichlet boundary conditions because the solver has modified the values
+  // on all nodes
+  _applyDirichletBoundaryConditions();
+
+
   m_displ.synchronize();
   m_vel.synchronize();
   m_acc.synchronize();
+/*
   const bool do_print = (allNodes().size() < 200);
+
   if (do_print) {
     int p = std::cout.precision();
     std::cout.precision(17);
@@ -2377,6 +2247,7 @@ _doSolve(){
     }
     std::cout.precision(p);
   }
+*/
 
 }
 

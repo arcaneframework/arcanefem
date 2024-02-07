@@ -128,7 +128,7 @@
     <simple name = "gy" type = "real" default="0.0" optional="true">
       <description> Gravity along Y direction </description>
     </simple>
-    <simple name = "gz" type = "real" default="-9.81" optional="true">
+    <simple name = "gz" type = "real" default="0.0" optional="true">
       <description> Gravity along Z direction </description>
     </simple>
 

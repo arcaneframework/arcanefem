@@ -422,17 +422,16 @@ Integer3 Line3Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
 /*---------------------------------------------------------------------------*/
 
 Real Tri3Surface(const ItemWithNodes& item,const VariableNodeReal3& n){
-  Real3 n0 = n[item.node(0)];
-  Real3 n1 = n[item.node(1)];
-  Real3 n2 = n[item.node(2)];
+  const Real3& n0 = n[item.node(0)];
+  const Real3& n1 = n[item.node(1)];
+  const Real3& n2 = n[item.node(2)];
 
-  Real x1 = n1.x - n0.x;
-  Real y1 = n1.y - n0.y;
-  Real x2 = n2.x - n0.x;
-  Real y2 = n2.y - n0.y;
+  auto v1 = n1 - n0;
+  auto v2 = n2 - n0;
+  auto v = math::cross(v1,v2);
 
-//  return (x1 * y2 - y1 * x2);
-  return 0.5*(x1 * y2 - y1 * x2);
+  auto norm = v.normL2();
+  return 0.5*norm;
 }
 
 Real Tri3ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
@@ -852,7 +851,7 @@ Integer3 Hexa20Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
 /*---------------------------------------------------------------------------*/
 // Tetra4: linear tetrahedral finite-element
 //
-//    (0,0,1)                     0
+//    (0,0,1)                     3
 //       .                        *.*
 //       .                        * . *
 //       .                        *  .  *
@@ -863,7 +862,7 @@ Integer3 Hexa20Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
 //       .  Y                     *  .        .   *
 //       . .                      * .            .  *
 //       ..           (1,0,0)     *.                . *
-//       --------X------>         3********************1
+//       --------X------>         0********************1
 //
 // direct : 0,1,2,3 (local numbering)
 /*---------------------------------------------------------------------------*/
@@ -881,20 +880,20 @@ Real Tetra4ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 	assert(inod >= 0 && inod < 4);
 #endif
 
-	auto	ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2]; // default is first node (index 0)
+	auto	ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2]; // default is first node (index 3)
 
 	switch(inod){
 		default: break;
 		case 1:	return ri;
 		case 2:	return si;
-		case 3:	return (1. - ri - si - ti);
+    case 0:	return (1. - ri - si - ti);
 	}
 	return ti;
 }
 
 Real3 Tetra4ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
 
-  if (!inod) return {0.,0.,1.};
+  if (inod == 3) return {0.,0.,1.};
   if (inod == 1) return {1.,0.,0.};
   if (inod == 2) return {0.,1.,0.};
   return {-1.,-1.,-1.};
