@@ -895,6 +895,7 @@ _applyNeumannBoundaryConditions(){
   // boundary conditions (e.g., plane wave, etc.), not only an absorbing condition
   // Not implemented yet...
 }
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 // ! Computes the Jacobian Matrix of a 3D finite-element at Gauss Point ig
@@ -1859,20 +1860,16 @@ _assembleLinearRHS(){
     //----------------------------------------------
     // Paraxial terms assembly
     //----------------------------------------------
-    if (NDIM == 2)
-      _getParaxialContribution2D(rhs_values);
-    else
-      _getParaxialContribution3D(rhs_values);
+    _getParaxialContribution(rhs_values);
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void ElastodynamicModule::
-_getParaxialContribution3D(Arcane::VariableDoFReal& rhs_values){
+_getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
 
     auto dt = m_global_deltat();
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    auto ndim{3};
 
     for (const auto& bs : options()->paraxialBoundaryCondition()) {
 
@@ -1935,7 +1932,7 @@ _getParaxialContribution3D(Arcane::VariableDoFReal& rhs_values){
 
           // In 3D, a quadratic face element has max 9 nodes (27 dofs)
           auto nb_nodes{face.nbNode()};
-          auto size{ ndim * nb_nodes};
+          auto size{ NDIM * nb_nodes};
           RealUniqueArray2 Me(size,size);
           RealUniqueArray Fe(size);
 
@@ -1954,19 +1951,25 @@ _getParaxialContribution3D(Arcane::VariableDoFReal& rhs_values){
           for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4 * (1 + nb_nodes)) {
 
             auto jacobian{ 0. };
-            auto jac = _computeJacobian3D(face, ig, vec, jacobian);
 
-            _computeMFParax3D(face, ig, vec, jacobian, Me, Fe, rhocs, rhocp);
+            if (NDIM == 3){
+              auto jac = _computeJacobian3D(face, ig, vec, jacobian);
+              _computeMFParax3D(face, ig, vec, jacobian, Me, Fe, rhocs, rhocp);
+            }
+            else{
+              auto jac = _computeJacobian2D(face, ig, vec, jacobian);
+              _computeMFParax2D(face, ig, vec, jacobian, Me, Fe, rhocs, rhocp);
+            }
 
             // Loop on nodes of the face (with no Dirichlet condition)
             Int32 n1_index{ 0 };
             auto iig{ 4 };
             for (Node node1 : face.nodes()) {
 
-              for (Int32 iddl = 0; iddl < ndim; ++iddl) {
+              for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
 
                 DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
-                auto ii = ndim * n1_index + iddl;
+                auto ii = NDIM * n1_index + iddl;
 
                 bool is_node1_dofi_set = (bool)m_imposed_displ[node1][iddl];
                 auto rhs_i{ 0. };
@@ -1980,141 +1983,9 @@ _getParaxialContribution3D(Arcane::VariableDoFReal& rhs_values){
                   //----------------------------------------------
                   Int32 n2_index{ 0 };
                   for (Node node2 : face.nodes()) {
-                    for (Int32 jddl = 0; jddl < ndim; ++jddl) {
+                    for (Int32 jddl = 0; jddl < NDIM; ++jddl) {
                       auto node2_dofj = node_dof.dofId(node2, jddl);
-                      auto jj = ndim * n2_index + iddl;
-                      auto mij = Me(ii, jj) / beta / dt2;
-                      m_linear_system.matrixAddValue(node1_dofi, node2_dofj, mij);
-                    }
-                    ++n2_index;
-                  }
-                }
-              }
-              ++n1_index;
-            }
-          }
-        }
-      }
-    }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-void ElastodynamicModule::
-_getParaxialContribution2D(Arcane::VariableDoFReal& rhs_values){
-
-    auto dt = m_global_deltat();
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-    for (const auto& bs : options()->paraxialBoundaryCondition()) {
-
-      FaceGroup face_group = bs->surface();
-      auto rho = bs->getRhopar();
-      Real cs, cp;
-      bool is_inner{ false };
-
-      if (bs->hasEPar() && bs->hasNuPar()) {
-
-        auto E = bs->getEPar();
-        auto nu = bs->getNuPar();
-        auto lambda = nu * E / (1. + nu) / (1. - 2. * nu);
-        auto mu = E / 2. / (1. + nu);
-        cp = math::sqrt((lambda + 2. * mu) / rho);
-        cs = math::sqrt(mu / rho);
-      }
-      else if (bs->hasCp() && bs->hasCs()) {
-
-        cp = bs->getCp();
-        cs = bs->getCp();
-      }
-      else if (bs->hasLambdaPar() && bs->hasMuPar()) {
-
-        auto mu = bs->getMuPar();
-        cp = math::sqrt((bs->getLambdaPar() + 2. * mu) / rho);
-        cs = math::sqrt(mu / rho);
-      }
-      else {
-        info() << "Elastic properties expected for "
-               << "Paraxial boundary condition on FaceGroup "
-               << face_group.name() << ": \n"
-               << "  - (E-par, nu-par) or\n"
-               << "  - (lambda-par, mu-par) or\n"
-               << "  - (cp, cs)\n";
-        info() << "When not specified, taking elastic properties from inner domain. ";
-        is_inner = true;
-
-        //      ARCANE_FATAL("Paraxial boundary has no elastic properties ");
-      }
-
-      info() << "Applying constant paraxial boundary conditions for surface " << face_group.name();
-
-      // Loop on the faces (=edges in 2D) concerned with the paraxial condition
-      ENUMERATE_FACE (iface, face_group) {
-
-        const Face& face = *iface;
-
-        if (face.isSubDomainBoundary() && face.isOwn()) {
-
-          if (is_inner) {
-            const Cell& cell = face.boundaryCell();
-            rho = m_rho[cell];
-            cs = m_vs[cell];
-            cp = m_vp[cell];
-          }
-
-          auto rhocs{ rho * cs };
-          auto rhocp{ rho * cp };
-
-          // In 2D, a quadratic edge element has max 3 nodes (6 dofs)
-          auto nb_nodes{face.nbNode()};
-          auto size{ 2 * nb_nodes};
-          RealUniqueArray2 Me(size,size);
-          RealUniqueArray Fe(size);
-
-          for (Int32 i = 0; i < size; ++i) {
-            Fe(i) = 0.;
-            for (Int32 j = i; j < size; ++j) {
-              Me(i, j) = 0.;
-              Me(j, i) = 0.;
-            }
-          }
-
-          // Loop on the cell Gauss points to compute integrals terms
-          Int32 ngauss{ 0 };
-          auto vec = cell_fem.getGaussData(face, integ_order, ngauss);
-
-          for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4 * (1 + nb_nodes)) {
-
-            auto jacobian{ 0. };
-            auto jac = _computeJacobian2D(face, ig, vec, jacobian);
-
-            _computeMFParax2D(face, ig, vec, jacobian, Me, Fe, rhocs, rhocp);
-
-            // Loop on nodes of the face (with no Dirichlet condition)
-            Int32 n1_index{ 0 };
-            auto iig{ 4 };
-            for (Node node1 : face.nodes()) {
-
-              for (Int32 iddl = 0; iddl < 2; ++iddl) {
-
-                DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
-                auto ii = 2 * n1_index + iddl;
-
-                bool is_node1_dofi_set = (bool)m_imposed_displ[node1][iddl];
-                auto rhs_i{ 0. };
-
-                if (node1.isOwn() && !is_node1_dofi_set) {
-                  rhs_i += Fe(ii);
-                  rhs_values[node1_dofi] += rhs_i;
-
-                  //----------------------------------------------
-                  // Elementary contribution to LHS
-                  //----------------------------------------------
-                  Int32 n2_index{ 0 };
-                  for (Node node2 : face.nodes()) {
-                    for (Int32 jddl = 0; jddl < 2; ++jddl) {
-                      auto node2_dofj = node_dof.dofId(node2, jddl);
-                      auto jj = 2 * n2_index + iddl;
+                      auto jj = NDIM * n2_index + iddl;
                       auto mij = Me(ii, jj) / beta / dt2;
                       m_linear_system.matrixAddValue(node1_dofi, node2_dofj, mij);
                     }

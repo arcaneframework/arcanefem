@@ -116,8 +116,7 @@ private:
  void _doSolve();
  void _initBoundaryConditions();
  void _applyDirichletBoundaryConditions();
- void _getParaxialContribution3D(VariableDoFReal& rhs_values);
- void _getParaxialContribution2D(VariableDoFReal& rhs_values);
+ void _getParaxialContribution(VariableDoFReal& rhs_values);
  void _getTractionContribution(Arcane::VariableDoFReal& rhs_values);
  void _applyNeumannBoundaryConditions();
  Real3x3 _computeJacobian3D(const ItemWithNodes& cell, const Int32& ig, const RealUniqueArray& vec, Real& jac);
