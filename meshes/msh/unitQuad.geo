@@ -28,3 +28,6 @@ Physical Curve("left", 8) = {4};
 Physical Surface("surface", 9) = {1};
 Physical Point("left", 10) = {1, 3};
 Physical Point("right", 11) = {2, 4};
+
+Mesh.MshFileVersion = 4.1;
+Mesh 2;
