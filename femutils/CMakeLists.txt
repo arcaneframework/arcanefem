@@ -49,7 +49,7 @@ if (TARGET Arcane::arcane_aleph_petsc)
   set(FEMUTILS_HAS_SOLVER_BACKEND_PETSC TRUE)
 endif()
 
-if(0)
+
 if (TARGET Arcane::arcane_aleph_hypre)
   set(FEMUTILS_HAS_PARALLEL_SOLVER TRUE)
   target_link_libraries(FemUtils PRIVATE Arcane::arcane_aleph_hypre)
@@ -68,7 +68,7 @@ if (TARGET Arcane::arcane_aleph_hypre)
   endif()
   target_sources(FemUtils PRIVATE HypreDoFLinearSystem.cc)
 endif()
-endif()
+
 
 if(NOT FEMUTILS_HAS_PARALLEL_SOLVER)
   message(STATUS "WARNING: No Arcane parallel solver is available. Parallel linear solver system is disabled")
