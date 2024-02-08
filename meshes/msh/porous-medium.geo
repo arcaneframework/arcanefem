@@ -89,6 +89,10 @@ Physical Curve("pore10",43) = {14};
 Physical Curve("pore11",44) = {15};
 Physical Surface("medium", 45) = {1};
 
+//==============================================================================
+// ---- msh version imposed ----
+//==============================================================================
+
 Mesh.MeshSizeFromCurvature = 13;
 Mesh.MshFileVersion = 4.1;
 Mesh 2;

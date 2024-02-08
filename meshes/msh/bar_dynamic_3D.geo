@@ -72,5 +72,9 @@ Physical Surface("bot-sur") = {20};
 Physical Surface("side-surfaces") = {16, 24};
 Physical Volume("vol") = {26};
 
+//==============================================================================
+// ---- msh version imposed ----
+//==============================================================================
+
 Mesh.MshFileVersion = 4.1;
-Mesh 2;
+Mesh 3;

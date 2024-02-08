@@ -48,5 +48,9 @@ Physical Curve("surface-top") = {3};
 Physical Curve("surface-right") = {2};
 Physical Curve("surface-bottom") = {1};
 
+//==============================================================================
+// ---- msh version imposed ----
+//==============================================================================
+
 Mesh.MshFileVersion = 4.1;
 Mesh 2;

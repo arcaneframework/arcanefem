@@ -118,3 +118,10 @@ Physical Point("DcNorthPointCord", 8) = {6};
 Physical Point("DcSouthPointCord", 9) = {5};
 Physical Point("DcEastPointCord", 10) = {8};
 Physical Point("DcWestPointCord", 11) = {7};
+
+//==============================================================================
+// ---- msh version imposed ----
+//==============================================================================
+
+Mesh.MshFileVersion = 4.1;
+Mesh 2;

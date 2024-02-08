@@ -77,3 +77,10 @@ Physical Curve("lower", 8) = {1, 2};
 Physical Curve("top", 9) = {6, 3};
 Physical Curve("input", 10) = {5, 4};
 Physical Point("source", 11) = {1};
+
+//==============================================================================
+// ---- msh version imposed ----
+//==============================================================================
+
+Mesh.MshFileVersion = 4.1;
+Mesh 2;

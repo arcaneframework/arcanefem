@@ -70,3 +70,10 @@ Physical Point("source", 5) = {1};
 Physical Curve("boderCircle", 6) = {1};
 Physical Curve("boderTop", 7) = {4, 3};
 Physical Surface("surface", 8) = {1};
+
+//==============================================================================
+// ---- msh version imposed ----
+//==============================================================================
+
+Mesh.MshFileVersion = 4.1;
+Mesh 2;

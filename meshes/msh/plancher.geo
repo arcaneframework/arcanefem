@@ -33,18 +33,23 @@ Circle(newl) = {6, 5, 7};
 Line(newl) = {6, 1};
 
 Curve Loop(1) = {6, 1, 2, 3, 4, -5};
-
 Plane Surface(1) = {1};
 
+//labels
 Physical Surface("Planchere", 7) = {1};
-
 Physical Curve("Gauche", 8) = {6, 4};
 Physical Curve("Droite", 9) = {2};
 Physical Curve("Bas", 10) = {1};
 Physical Curve("Haut", 11) = {3};
 Physical Curve("Cercle", 12) = {5};
-
 Physical Point("topLeftCorner", 13) = {4};
 Physical Point("topRightCorner", 14) = {3};
 Physical Point("botRightCorner", 15) = {2};
 Physical Point("botLeftCorner", 16) = {1};
+
+//==============================================================================
+// ---- msh version imposed ----
+//==============================================================================
+
+Mesh.MshFileVersion = 4.1;
+Mesh 2;

@@ -30,3 +30,10 @@ Physical Point("botLeft", 6) = {1};
 Physical Point("topLeft", 7) = {4};
 Physical Point("topRight", 8) = {3};
 Physical Point("botRight", 9) = {2};
+
+//==============================================================================
+// ---- msh version imposed ----
+//==============================================================================
+
+Mesh.MshFileVersion = 4.1;
+Mesh 2;

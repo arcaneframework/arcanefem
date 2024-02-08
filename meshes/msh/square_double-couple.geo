@@ -70,18 +70,20 @@ Physical Point("botLeft", 6) = {1};
 Physical Point("topLeft", 7) = {4};
 Physical Point("topRight", 8) = {3};
 Physical Point("botRight", 9) = {2};
-//+
 
-//+
 Physical Point("sourceB", 10) = {5};
 Physical Point("sourceT", 11) = {6};
 Physical Point("sourceR", 12) = {7};
 Physical Point("sourceL", 13) = {8};
-//+
+
 Line(5) = {6, 8};
-//+
 Line(6) = {7, 5};
-//+
 Line(7) = {8, 5};
-//+
 Line(8) = {6, 7};
+
+//==============================================================================
+// ---- msh version imposed ----
+//==============================================================================
+
+Mesh.MshFileVersion = 4.1;
+Mesh 2;
