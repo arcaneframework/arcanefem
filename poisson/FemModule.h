@@ -22,6 +22,7 @@
 #include <arcane/IItemFamily.h>
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
+#include <arcane/Connectivity.h>
 
 #include "CooFormatMatrix.h"
 
@@ -162,6 +163,7 @@ class FemModule
 {
  public:
 
+
   explicit FemModule(const ModuleBuildInfo& mbi)
   : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
@@ -172,6 +174,11 @@ class FemModule
     ICaseMng* cm = mbi.subDomain()->caseMng();
     cm->setTreatWarningAsError(true);
     cm->setAllowUnkownRootElelement(false);
+
+    addEntryPoint(this,"Build",
+                &FemModule::_build,
+                IEntryPoint::WBuild,
+                IEntryPoint::PAutoLoadBegin);
   }
 
  public:
@@ -251,6 +258,7 @@ class FemModule
   Real _computeAreaTetra4(Cell cell);
   Real _computeEdgeLength2(Face face);
   Real2 _computeEdgeNormal2(Face face);
+
 
  public:
 
@@ -335,6 +343,7 @@ class FemModule
 
  private:
 
+  void  _build();
   void _assembleCsrLinearOperator();
   void _translateRhs();
   bool _isMasterRank() const;

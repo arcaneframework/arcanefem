@@ -2063,7 +2063,19 @@ _solve()
       //       << m_u[node];
     }
   }
+}
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_build()
+{
+  Connectivity c(mesh()->connectivity());
+  if (options()->meshType == "TETRA4"){
+    info() << "Adding edge connectivity";
+    c.enableConnectivity(Connectivity::CT_HasEdge);
+  }
 }
 
 /*---------------------------------------------------------------------------*/
