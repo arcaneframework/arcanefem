@@ -117,24 +117,25 @@ private:
  void _initBoundaryConditions();
  void _applyDirichletBoundaryConditions();
  void _getParaxialContribution(VariableDoFReal& rhs_values);
+ void _assembleLHSParaxialContribution();
  void _getTractionContribution(Arcane::VariableDoFReal& rhs_values);
  void _applyNeumannBoundaryConditions();
  Real3x3 _computeJacobian3D(const ItemWithNodes& cell, const Int32& ig, const RealUniqueArray& vec, Real& jac);
+ Real3x3 _computeJacobian(const ItemWithNodes& cell, const Int32& ig, const RealUniqueArray& vec, Real& jac);
  Real2x2  _computeJacobian2D(const ItemWithNodes& cell, const Int32& ig, const RealUniqueArray& vec, Real& jac);
  Real _computeFacLengthOrArea(const Face& face);
 
 /*  Update nodal dofs vector for the Newmark or Generalized-alfa time integration schemes */
  void _updateNewmark();
 
+ void _computeK(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real3x3& jac, RealUniqueArray2& Ke);
  void _computeK3D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real3x3& jac, RealUniqueArray2& Ke);
- void _computeM3D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, RealUniqueArray2& Me);
  void _computeElemMass(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, RealUniqueArray2& Me);
  void _computeK2D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real2x2& jac, RealUniqueArray2& Ke);
- void _computeM2D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, RealUniqueArray2& Me);
- void _computeMFParax3D(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
-                        RealUniqueArray2& Me, RealUniqueArray& Fe,const Real& rhocs, const Real& rhocp);
- void _computeMFParax2D(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
-                        RealUniqueArray2& Me, RealUniqueArray& Fe,const Real& rhocs, const Real& rhocp);
+ void _computeElemMassParax(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
+                        RealUniqueArray2& Me, const Real3& RhoC);
+ void _computeForceParax(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
+                         RealUniqueArray& Fe, const Real3& RhoC);
 };
 
  /*---------------------------------------------------------------------------*/

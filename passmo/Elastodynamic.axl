@@ -56,6 +56,12 @@
     <variable field-name="e3_boundary" name="E3Boundary" data-type="real3" item-kind="face" dim="0">
       <description>3rd normalized vector (normal in 3D only) of the local face referential</description>
     </variable>
+    <variable field-name="rho_parax" name="RhoParax" data-type="real" item-kind="face" dim="0">
+      <description>Paraxial element density stored at initialization (on face or edge)</description>
+    </variable>
+    <variable field-name="vel_parax" name="VelParax" data-type="real3" item-kind="face" dim="0">
+      <description>Paraxial element wave velocity vector stored at initialization (on face or edge)</description>
+    </variable>
 
     <!-- - - - - - elastic properties - - - - -->
     <variable field-name="rho" name="Rho" data-type="real" item-kind="cell" dim="0">

@@ -576,6 +576,41 @@ _initBoundaryConditions()
 
     FaceGroup face_group = bs->surface();
 
+    auto rho = bs->getRhopar();
+    Real cs, cp;
+    bool is_inner{ false };
+
+    if (bs->hasEPar() && bs->hasNuPar()) {
+
+      auto E = bs->getEPar();
+      auto nu = bs->getNuPar();
+      auto lambda = nu * E / (1. + nu) / (1. - 2. * nu);
+      auto mu = E / 2. / (1. + nu);
+      cp = math::sqrt((lambda + 2. * mu) / rho);
+      cs = math::sqrt(mu / rho);
+    }
+    else if (bs->hasCp() && bs->hasCs()) {
+
+      cp = bs->getCp();
+      cs = bs->getCp();
+    }
+    else if (bs->hasLambdaPar() && bs->hasMuPar()) {
+
+      auto mu = bs->getMuPar();
+      cp = math::sqrt((bs->getLambdaPar() + 2. * mu) / rho);
+      cs = math::sqrt(mu / rho);
+    }
+    else {
+      info() << "Elastic properties expected for "
+             << "Paraxial boundary condition on FaceGroup "
+             << face_group.name() << ": \n"
+             << "  - (E-par, nu-par) or\n"
+             << "  - (lambda-par, mu-par) or\n"
+             << "  - (cp, cs)\n";
+      info() << "When not specified, taking elastic properties from inner domain. ";
+      is_inner = true;
+    }
+
     // Loop on the faces (=edges in 2D) concerned with the paraxial condition
     // Initializing the local referential per face (just done once) for further use
     ENUMERATE_FACE (iface, face_group) {
@@ -589,6 +624,25 @@ _initBoundaryConditions()
         m_e1_boundary[face] = e1;
         m_e2_boundary[face] = e2;
         m_e3_boundary[face] = e3;
+
+        if (is_inner) {
+          const Cell& cell = face.boundaryCell();
+          rho = m_rho[cell];
+          cs = m_vs[cell];
+          cp = m_vp[cell];
+        }
+
+        m_rho_parax[face] = rho;
+        m_vel_parax[face].x = cs;
+
+        if (NDIM == 3){
+          m_vel_parax[face].y = cs;
+          m_vel_parax[face].z = cp;
+        }
+        else{
+          m_vel_parax[face].y = cp;
+          m_vel_parax[face].z = 0.;
+        }
       }
     }
   }
@@ -900,6 +954,52 @@ _applyNeumannBoundaryConditions(){
 /*---------------------------------------------------------------------------*/
 // ! Computes the Jacobian Matrix of a 3D finite-element at Gauss Point ig
 Real3x3 ElastodynamicModule::
+_computeJacobian(const ItemWithNodes& cell,const Int32& ig, const RealUniqueArray& vec, Real& jacobian) {
+
+  auto	n = cell.nbNode();
+
+  // Jacobian matrix computed at the integration point
+  Real3x3	jac;
+
+  for (Int32 inod = 0, indx = 4; inod < n; ++inod) {
+
+    // vector of local derivatives at this integration point, for node inod
+    Real3 dPhi {vec[ig + indx + 1], vec[ig + indx + 2], vec[ig + indx + 3]};
+    auto coord_nod = m_node_coord[cell.node(inod)];
+
+    for (int i = 0; i < NDIM; ++i){
+      for (int j = 0; j < NDIM; ++j){
+        jac[i][j] += dPhi[i] * coord_nod[j];
+      }
+    }
+/*
+    jac.x.x += dPhi.x * coord_nod.x;
+    jac.x.y += dPhi.x * coord_nod.y;
+    jac.x.z += dPhi.x * coord_nod.z;
+    jac.y.x += dPhi.y * coord_nod.x;
+    jac.y.y += dPhi.y * coord_nod.y;
+    jac.y.z += dPhi.y * coord_nod.z;
+    jac.z.x += dPhi.z * coord_nod.x;
+    jac.z.y += dPhi.z * coord_nod.y;
+    jac.z.z += dPhi.z * coord_nod.z;
+*/
+    indx += 4;
+  }
+  if (NDIM == 3)
+    jacobian = math::matrixDeterminant(jac);
+  else
+    jacobian = jac.x.x * jac.y.y - jac.x.y * jac.y.x;
+
+  if (fabs(jacobian) < REL_PREC) {
+    ARCANE_FATAL("Cell jacobian is null");
+  }
+  return jac;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+// ! Computes the Jacobian Matrix of a 3D finite-element at Gauss Point ig
+Real3x3 ElastodynamicModule::
 _computeJacobian3D(const ItemWithNodes& cell,const Int32& ig, const RealUniqueArray& vec, Real& jacobian) {
 
   auto	n = cell.nbNode();
@@ -961,182 +1061,6 @@ _computeJacobian2D(const ItemWithNodes& cell,const Int32& ig, const RealUniqueAr
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-// ! Compute stiffness and mass matrix (only in 2D/3D) and cell forces
-/*
-void ElastodynamicModule::
-_computeKMF3D(const Cell& cell,FixedMatrix<24,24>& Ke, FixedMatrix<24,24>& Me, FixedVector<24>& Fe){
-
-  Integer nb_nodes = cell.nbNode();
-//  Integer nk{3*nb_nodes};
-  Real rho = m_rho(cell);
-  Real nu = m_nu(cell);
-  Real young = m_young(cell);
-//  Integer nb{6};
-
-  // Setting the "B" matrix size for the max number of nodes a lin element can have in 3D (=8 nodes)
-  FixedMatrix<3,8> Bmat;
-  ElastTensor D(young,nu,3);
-
-  // Loop on the cell Gauss points to compute integrals terms
-  Int32 ngauss{ 0 };
-  auto vec = cell_fem.getGaussData(cell, integ_order, ngauss);
-
-  for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += (4+nb_nodes) ) {
-
-    auto wt = vec[ig];
-    Real3 pos { vec[ig+1], vec[ig+2], vec[ig+3]};
-    auto ijac = _computeInverseJacobian3D(cell,pos);
-
-    //------------------------------------------------------
-    // Elementary Derivation Matrix B at current Gauss point
-    //------------------------------------------------------
-    for (Int32 inod = 0; inod < nb_nodes; ++inod) {
-      auto dPhi = cell_fem.getShapeFuncDeriv(cell.type(), inod, pos);
-      Bmat(0, inod) += ijac.x.x * dPhi.x + ijac.x.y * dPhi.y + ijac.x.z * dPhi.z;
-      Bmat(1, inod) += ijac.y.x * dPhi.x + ijac.y.y * dPhi.y + ijac.y.z * dPhi.z;
-      Bmat(2, inod) += ijac.z.x * dPhi.x + ijac.z.y * dPhi.y + ijac.z.z * dPhi.z;
-    }
-
-    for (Int32 inod = 0, iig = 4; inod < nb_nodes; ++inod, ++iig) {
-
-      auto rhoPhi_i = wt*rho*vec[ig + iig];
-
-      //----------------------------------------------
-      // Elementary Force vector Fe assembly
-      //----------------------------------------------
-      if (options()->hasBodyf()) {
-        //----------------------------------------------
-        // Body force terms
-        //----------------------------------------------
-        Fe(3 * inod + 0) += rhoPhi_i * gravity.x;
-        Fe(3 * inod + 1) += rhoPhi_i * gravity.y;
-        Fe(3 * inod + 2) += rhoPhi_i * gravity.z;
-      }
-
-      //----------------------------------------------
-      // Imposed nodal forces
-      //----------------------------------------------
-      {
-        const Node& nodei = cell.node(inod);
-        if ((bool)m_imposed_force[nodei].x)
-          Fe(3 * inod + 0) += m_force[nodei].x;
-        if ((bool)m_imposed_force[nodei].y)
-          Fe(3 * inod + 1) += m_force[nodei].y;
-        if ((bool)m_imposed_force[nodei].z)
-          Fe(3 * inod + 1) += m_force[nodei].z;
-      }
-
-      //----------------------------------------------
-      // Elementary Mass (Me) Matrix assembly
-      //----------------------------------------------
-      for (Int32 jnod = 0, jig = 4; jnod < nb_nodes; ++jnod, ++jig) {
-
-        auto Phij = vec[ig + jig];
-        auto mij = rhoPhi_i*Phij;
-
-        for (Int32 l = 0; l < 3; ++l){
-          int ii = 3 * inod + l;
-          int jj = 3 * jnod + l;
-          Me(ii,jj) += mij;
-
-          //----------------------------------------------
-          // Elementary Stiffness (Ke) Matrix assembly
-          //----------------------------------------------
-          FixedVector<6> Bii;
-
-          auto ir = ii%3;
-
-          if (!ir) {
-            auto i3{ (Int32)(ii / 3) };
-            Bii(0) = Bmat(0, i3);
-            Bii(1) = 0.;
-            Bii(2) = 0.;
-            Bii(3) = Bmat(1, i3);
-            Bii(4) = Bmat(2, i3);
-            Bii(5) = 0.;
-
-          }
-          else if (ir == 1) {
-            auto i3{ (Int32)((ii - 1) / 3) };
-            Bii(0) = 0.;
-            Bii(1) = Bmat(1, i3);
-            Bii(2) = 0.;
-            Bii(3) = Bmat(0, i3);
-            Bii(4) = 0.;
-            Bii(5) = Bmat(2, i3);
-
-          }
-          else if (ir == 2) {
-            auto i3{ (Int32)((ii - 2) / 3) };
-            Bii(0) = 0.;
-            Bii(1) = 0.;
-            Bii(2) = Bmat(2, i3);
-            Bii(3) = 0.;
-            Bii(4) = Bmat(0, i3);
-            Bii(5) = Bmat(1, i3);
-          }
-
-          for (Int32 ll = 0; ll < 3; ++ll) {
-
-            jj = 3 * jnod + ll;
-            FixedVector<6> Bjj;
-
-            auto jr = jj%3;
-
-            if (!jr) {
-              auto j3{ (Int32)(jj / 3) };
-              Bjj(0) = Bmat(0, j3);
-              Bjj(1) = 0.;
-              Bjj(2) = 0.;
-              Bjj(3) = Bmat(1, j3);
-              Bjj(4) = Bmat(2, j3);
-              Bjj(5) = 0.;
-
-            }
-            else if (jr == 1) {
-              auto j3{ (Int32)((jj - 1) / 3) };
-              Bjj(0) = 0.;
-              Bjj(1) = Bmat(1, j3);
-              Bjj(2) = 0.;
-              Bjj(3) = Bmat(0, j3);
-              Bjj(4) = 0.;
-              Bjj(5) = Bmat(2, j3);
-
-            }
-            else if (jr == 2) {
-              auto j3{ (Int32)((jj - 2) / 3) };
-              Bjj(0) = 0.;
-              Bjj(1) = 0.;
-              Bjj(2) = Bmat(2, j3);
-              Bjj(3) = 0.;
-              Bjj(4) = Bmat(0, j3);
-              Bjj(5) = Bmat(1, j3);
-            }
-
-            Ke(ii, jj) += wt * (  Bii(0) * (D(0, 0) * Bjj(0) + D(0, 1) * Bjj(1) + D(0, 2) * Bjj(2)
-                                          + D(0, 3) * Bjj(3) + D(0, 4) * Bjj(4) + D(0, 5) * Bjj(5))
-                                + Bii(1) * (D(1, 0) * Bjj(0) + D(1, 1) * Bjj(1) + D(1, 2) * Bjj(2)
-                                          + D(1, 3) * Bjj(3) + D(1, 4) * Bjj(4) + D(1, 5) * Bjj(5))
-                                + Bii(2) * (D(2, 0) * Bjj(0) + D(2, 1) * Bjj(1) + D(2, 2) * Bjj(2)
-                                          + D(2, 3) * Bjj(3) + D(2, 4) * Bjj(4) + D(2, 5) * Bjj(5))
-                                + Bii(3) * (D(3, 0) * Bjj(0) + D(3, 1) * Bjj(1) + D(3, 2) * Bjj(2)
-                                          + D(3, 3) * Bjj(3) + D(3, 4) * Bjj(4) + D(3, 5) * Bjj(5))
-                                + Bii(4) * (D(4, 0) * Bjj(0) + D(4, 1) * Bjj(1) + D(4, 2) * Bjj(2)
-                                          + D(4, 3) * Bjj(3) + D(4, 4) * Bjj(4) + D(4, 5) * Bjj(5))
-                                + Bii(5) * (D(5, 0) * Bjj(0) + D(5, 1) * Bjj(1) + D(5, 2) * Bjj(2)
-                                          + D(5, 3) * Bjj(3) + D(5, 4) * Bjj(4) + D(5, 5) * Bjj(5))
-                               );
-          }
-        }
-      }
-    }
-    ig += 4 + nb_nodes;
-  }
-}
-*/
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
 // ! Compute elementary mass matrix in 2D at a given Gauss point
 void ElastodynamicModule::
 _computeElemMass(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, RealUniqueArray2& Me){
@@ -1173,6 +1097,227 @@ _computeElemMass(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, c
 /*---------------------------------------------------------------------------*/
 // ! Compute elementary stiffness matrix in 3D at a given Gauss point
 void ElastodynamicModule::
+_computeK(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real3x3& jac, RealUniqueArray2& Ke){
+
+  Int32 nb_nodes = cell.nbNode();
+  auto size{NDIM * nb_nodes};
+
+  // Setting the "B" matrix size for the max number of nodes in 3D:
+  // 8 nodes for a lin element/20 nodes for a quadratic one
+  RealUniqueArray2 Bmat(NDIM, size);
+
+  auto lambda = m_lambda(cell);
+  auto mu = m_mu(cell);
+  auto a{ lambda + 2.*mu };
+
+  for (int i = 0; i <  NDIM; ++i)
+    for (int j = 0; j < size; ++j) {
+      Bmat(i, j) = 0.;
+    }
+
+  // ! Computes the Inverse Jacobian Matrix of a 2D or 3D finite-element
+  auto jacobian {0.};
+  Real3x3 ijac;
+
+  if (NDIM == 3) {
+    jacobian = math::matrixDeterminant(jac);
+    ijac = math::inverseMatrix(jac);
+  }
+  else {
+    jacobian = jac.x.x * jac.y.y - jac.x.y * jac.y.x;
+    ijac.x.x = jac.y.y / jacobian;
+    ijac.x.y = -jac.x.y / jacobian;
+    ijac.y.x = -jac.y.x / jacobian;
+    ijac.y.y = jac.x.x / jacobian;
+  }
+
+  auto wt = vec[ig] * jacobian;
+
+  //------------------------------------------------------
+  // Elementary Derivation Matrix B at current Gauss point
+  //------------------------------------------------------
+  for (Int32 inod = 0, iig = 4; inod < nb_nodes; ++inod) {
+    Real3 dPhi {vec[ig + iig + 1], vec[ig + iig + 2], vec[ig + iig + 3]};
+    for (int i = 0; i < NDIM; ++i){
+      auto bi{0.};
+      for (int j = 0; j < NDIM; ++j) {
+        bi += ijac[i][j] * dPhi[j];
+      }
+      Bmat(i, inod) = bi;
+    }
+/*
+    auto b1 = ijac.x.x * dPhi.x + ijac.x.y * dPhi.y + ijac.x.z * dPhi.z;
+    auto b2 = ijac.y.x * dPhi.x + ijac.y.y * dPhi.y + ijac.y.z * dPhi.z;
+    auto b3 = ijac.z.x * dPhi.x + ijac.z.y * dPhi.y + ijac.z.z * dPhi.z;
+
+    Bmat(0, inod) = b1;
+    Bmat(1, inod) = b2;
+    Bmat(2, inod) = b3;
+*/
+    iig += 4;
+  }
+
+  //----------------------------------------------
+  // Elementary Stiffness (Ke) Matrix assembly
+  //----------------------------------------------
+  if (NDIM == 3) {
+    for (Int32 inod = 0; inod < nb_nodes; ++inod) {
+      for (Int32 l = 0; l < 3; ++l) {
+
+        auto ii = 3 * inod + l;
+        FixedVector<6> Bii;
+
+        if (!l) {
+          Bii(0) = Bmat(0, inod);
+          Bii(1) = 0.;
+          Bii(2) = 0.;
+          Bii(3) = Bmat(1, inod);
+          Bii(4) = Bmat(2, inod);
+          Bii(5) = 0.;
+        }
+        else if (l == 1) {
+          Bii(0) = 0.;
+          Bii(1) = Bmat(1, inod);
+          Bii(2) = 0.;
+          Bii(3) = Bmat(0, inod);
+          Bii(4) = 0.;
+          Bii(5) = Bmat(2, inod);
+        }
+        else if (l == 2) {
+          Bii(0) = 0.;
+          Bii(1) = 0.;
+          Bii(2) = Bmat(2, inod);
+          Bii(3) = 0.;
+          Bii(4) = Bmat(0, inod);
+          Bii(5) = Bmat(1, inod);
+        }
+
+        for (Int32 jj = ii; jj < size; ++jj) {
+
+          auto ll = jj % 3;
+          FixedVector<6> Bjj;
+
+          if (!ll) {
+            auto jnod{ (Int32)(jj / 3) };
+            Bjj(0) = Bmat(0, jnod);
+            Bjj(1) = 0.;
+            Bjj(2) = 0.;
+            Bjj(3) = Bmat(1, jnod);
+            Bjj(4) = Bmat(2, jnod);
+            Bjj(5) = 0.;
+          }
+          else if (ll == 1) {
+            auto jnod{ (Int32)((jj - 1) / 3) };
+            Bjj(0) = 0.;
+            Bjj(1) = Bmat(1, jnod);
+            Bjj(2) = 0.;
+            Bjj(3) = Bmat(0, jnod);
+            Bjj(4) = 0.;
+            Bjj(5) = Bmat(2, jnod);
+          }
+          else if (ll == 2) {
+            auto jnod{ (Int32)((jj - 2) / 3) };
+            Bjj(0) = 0.;
+            Bjj(1) = 0.;
+            Bjj(2) = Bmat(2, jnod);
+            Bjj(3) = 0.;
+            Bjj(4) = Bmat(0, jnod);
+            Bjj(5) = Bmat(1, jnod);
+          }
+
+/*------------------------------------------------------------------------------------
+// ! Stiffness term (ii,jj) at Gauss point (weight wt) is expressed as:
+  Ke(ii, jj) = wt * (Bii(0) * (D(0,0) * Bjj(0) + D(0,1) * Bjj(1) + D(0,2) * Bjj(2)
+                            +  D(0,3) * Bjj(3) + D(0,4) * Bjj(4) + D(0,5) * Bjj(5))
+                  +  Bii(1) * (D(1,0) * Bjj(0) + D(1,1) * Bjj(1) + D(1,2) * Bjj(2)
+                            +  D(1,3) * Bjj(3) + D(1,4) * Bjj(4) + D(1,5) * Bjj(5))
+                  +  Bii(2) * (D(2,0) * Bjj(0) + D(2,1) * Bjj(1) + D(2,2) * Bjj(2)
+                            +  D(2,3) * Bjj(3) + D(2,4) * Bjj(4) + D(2,5) * Bjj(5))
+                  +  Bii(3) * (D(3,0) * Bjj(0) + D(3,1) * Bjj(1) + D(3,2) * Bjj(2)
+                            +  D(3,3) * Bjj(3) + D(3,4) * Bjj(4) + D(3,5) * Bjj(5))
+                  +  Bii(4) * (D(4,0) * Bjj(0) + D(4,1) * Bjj(1) + D(4,2) * Bjj(2)
+                            +  D(4,3) * Bjj(3) + D(4,4) * Bjj(4) + D(4,5) * Bjj(5))
+                  +  Bii(5) * (D(5,0) * Bjj(0) + D(5,1) * Bjj(1) + D(5,2) * Bjj(2)
+                            +  D(5,3) * Bjj(3) + D(5,4) * Bjj(4) + D(5,5) * Bjj(5)) )
+
+     with elastic tensor D (Dij = Dji):
+      D(0,0) = D(1,1) = D(2,2) = lambda + 2.*mu (= a)
+      D(3,3) = D(4,4) = D(5,5) = mu
+      D(0,1) = D(0,2) = D(1,2) = lambda
+      All other terms = 0.
+------------------------------------------------------------------------------------*/
+          auto kij = wt * (Bii(0) * (a * Bjj(0) + lambda * Bjj(1) + lambda * Bjj(2)) + Bii(1) * (lambda * Bjj(0) + a * Bjj(1) + lambda * Bjj(2)) + Bii(2) * (lambda * Bjj(0) + lambda * Bjj(1) + a * Bjj(2)) + Bii(3) * (mu * Bjj(3)) + Bii(4) * (mu * Bjj(4)) + Bii(5) * (mu * Bjj(5)));
+
+          Ke(ii, jj) = kij;
+          Ke(jj, ii) = kij;
+        }
+      }
+    }
+  }
+  else{
+    for (Int32 inod = 0; inod < nb_nodes; ++inod) {
+      for (Int32 l = 0; l < 2; ++l){
+
+        auto ii = 2*inod + l;
+        Real3 Bii{};
+
+        if (!l){
+          Bii.x = Bmat(0, inod);
+          Bii.y = 0.;
+          Bii.z = Bmat(1, inod);
+        } else {
+          Bii.x = 0.;
+          Bii.y = Bmat(1, inod);
+          Bii.z = Bmat(0, inod);
+        }
+
+        for (Int32 jj = ii ; jj < size; ++jj) {
+
+          auto ll = jj%2;
+          Real3 Bjj{};
+
+          if (!ll){
+            auto jnod{ (Int32)(jj / 2) };
+            Bjj.x = Bmat(0, jnod);
+            Bjj.y = 0.;
+            Bjj.z = Bmat(1, jnod);
+          }
+          else {
+            auto jnod{ (Int32)((jj-1) / 2) };
+            Bjj.x = 0.;
+            Bjj.y = Bmat(1, jnod);
+            Bjj.z = Bmat(0, jnod);
+          }
+
+/*------------------------------------------------------------------------------------
+// ! Stiffness term (ii,jj) at Gauss point (weight wt) is expressed as:
+     Ke(ii, jj) = wt * (Bii.x * (D(0,0) * Bjj.x + D(0,1) * Bjj.y + D(0,2) * Bjj.z)
+                     +  Bii.y * (D(1,0) * Bjj.x + D(1,1) * Bjj.y + D(1,2) * Bjj.z)
+                     +  Bii.z * (D(2,0) * Bjj.x + D(2,1) * Bjj.y + D(2,2) * Bjj.z) )
+
+     with elastic tensor D (Dij = Dji):
+      D(0,0) = D(1,1) = lambda + 2.*mu (= a)
+      D(2,2) = mu
+      D(0,1) = D(1,0) = lambda
+      All other terms = 0.
+------------------------------------------------------------------------------------*/
+
+          auto kij = wt * ( Bii.x * (a * Bjj.x + lambda * Bjj.y)
+                           +   Bii.y * (lambda * Bjj.x + a * Bjj.y)
+                           +   Bii.z * mu * Bjj.z );
+
+          Ke(ii,jj) = kij;
+          Ke(jj,ii) = kij;
+        }
+      }
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+// ! Compute elementary stiffness matrix in 3D at a given Gauss point
+void ElastodynamicModule::
 _computeK3D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real3x3& jac, /*FixedMatrix<60,60>*/RealUniqueArray2& Ke){
 
   Int32 nb_nodes = cell.nbNode();
@@ -1193,7 +1338,7 @@ _computeK3D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const 
 
   // ! Computes the Inverse Jacobian Matrix of a 3D finite-element
   auto jacobian = math::matrixDeterminant(jac);
-  Real3x3 ijac = math::inverseMatrix(jac);
+  auto ijac = math::inverseMatrix(jac);
 
   auto wt = vec[ig] * jacobian;
 
@@ -1318,40 +1463,6 @@ _computeK3D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const 
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-// ! Compute elementary mass matrix in 3D at a given Gauss point
-void ElastodynamicModule::
-_computeM3D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, /*FixedMatrix<60,60>*/RealUniqueArray2& Me){
-
-  Int32 nb_nodes = cell.nbNode();
-  auto rho = m_rho(cell);
-
-  auto wt = vec[ig] * jacobian;
-  for (Int32 inod = 0, iig = 4; inod < nb_nodes; ++inod) {
-
-    auto rhoPhi_i = wt*rho*vec[ig + iig];
-
-    //----------------------------------------------
-    // Elementary Mass (Me) Matrix assembly
-    //----------------------------------------------
-    for (Int32 jnod = inod, jig = 4*(1+inod) ; jnod < nb_nodes; ++jnod) {
-
-      auto Phi_j = vec[ig + jig];
-      auto mij = rhoPhi_i*Phi_j;
-
-      for (Int32 l = 0; l < 3; ++l){
-        auto ii = 3*inod + l;
-        auto jj = 3*jnod + l;
-        Me(ii,jj) = mij;
-        Me(jj,ii) = mij;
-      }
-      jig += 4;
-    }
-    iig += 4;
-  }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
 // ! Compute elementary stiffness matrix in 2D at a given Gauss point
 void ElastodynamicModule::
 _computeK2D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real2x2& jac, /*FixedMatrix<18,18>*/RealUniqueArray2& Ke){
@@ -1458,171 +1569,100 @@ _computeK2D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const 
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-// ! Compute elementary mass matrix in 2D at a given Gauss point
 void ElastodynamicModule::
-_computeM2D(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, /*FixedMatrix<18,18>*/RealUniqueArray2& Me){
+_computeElemMassParax(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
+                  RealUniqueArray2& Me, const Real3& RhoC){
 
-    Int32 nb_nodes = cell.nbNode();
-    auto rho = m_rho(cell);
+    auto dt = m_global_deltat();
+    auto alfa{ gamma / beta / dt };
+    Real3 ex{ 1., 0., 0. }, ey{ 0., 1., 0. }, ez{ 0., 0., 1. };
 
+    Real3 e1{ m_e1_boundary[face] }, e2{ m_e2_boundary[face] }, e3{ m_e3_boundary[face] };
+    Real3x3 Rot({ math::dot(ex, e1), math::dot(ey, e1), math::dot(ez, e1) },
+                { math::dot(ex, e2), math::dot(ey, e2), math::dot(ez, e2) },
+                { math::dot(ex, e3), math::dot(ey, e3), math::dot(ez, e3) });
+    Real3x3 CRot(RhoC.x * Rot.x, RhoC.y * Rot.y, RhoC.z * Rot.z);
+
+    // Loop on the face/edge Gauss points to compute surface integrals terms on the boundary
+    Int32 ngauss{ 0 };
     auto wt = vec[ig] * jacobian;
+
+    Int32 nb_nodes = face.nbNode();
+    auto size{NDIM * nb_nodes};
+
+    // Loop on nodes of the face or edge (with no Dirichlet condition)
     for (Int32 inod = 0, iig = 4; inod < nb_nodes; ++inod) {
 
-    auto rhoPhi_i = wt*rho*vec[ig + iig];
+      auto wtPhi_i = wt*vec[ig + iig];
+      Node node1 = face.node(inod);
 
-    //----------------------------------------------
-    // Elementary Mass (Me) Matrix assembly
-    //----------------------------------------------
-    for (Int32 jnod = inod, jig = 4*(1+inod) ; jnod < nb_nodes; ++jnod) {
+      //----------------------------------------------
+      // Elementary contribution to mass matrix
+      //----------------------------------------------
+      for (Int32 jnod = inod, jig = 4*(1+inod); jnod < nb_nodes; ++jnod) {
 
-      auto Phi_j = vec[ig + jig];
-      auto mij = rhoPhi_i*Phi_j;
+        auto Phi_j = vec[ig + jig];
 
-      for (Int32 l = 0; l < 2; ++l){
-        auto ii = 2*inod + l;
-        auto jj = 2*jnod + l;
-        Me(ii,jj) = mij;
-        Me(jj,ii) = mij;
+        for (int l = 0; l < NDIM; ++l) {
+            auto ii = NDIM * inod + l;
+            auto jj = NDIM * jnod + l;
+            auto mij = - alfa * wtPhi_i * Phi_j * CRot[l][l];
+            Me(ii, jj) = mij;
+            Me(jj, ii) = mij;
+        }
+        jig += 4;
       }
-      jig += 4;
+      iig += 4;
     }
-    iig += 4;
-  }
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void ElastodynamicModule::
-_computeMFParax3D(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
-                  RealUniqueArray2& Me, RealUniqueArray& Fe,
-                const Real& rhocs, const Real& rhocp){
+_computeForceParax(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
+                   RealUniqueArray& Fe, const Real3& RhoC)
+{
 
-  auto dt = m_global_deltat();
-  auto alfa{ gamma / beta / dt };
-  auto alfa1{ beta * dt / gamma };
-  Real3 ex{ 1., 0., 0. }, ey{ 0., 1., 0. }, ez{ 0., 0., 1. };
+    auto dt = m_global_deltat();
+    auto alfa{ gamma / beta / dt };
+    auto alfa1{ beta * dt / gamma };
+    Real3 ex{ 1., 0., 0. }, ey{ 0., 1., 0. }, ez{ 0., 0., 1. };
 
-  Real3 e1{ m_e1_boundary[face] }, e2{ m_e2_boundary[face] }, e3{ m_e3_boundary[face] };
-  Real3x3 Rot({ math::dot(ex, e1), math::dot(ey, e1), math::dot(ez, e1) },
-              { math::dot(ex, e2), math::dot(ey, e2), math::dot(ez, e2) },
-              { math::dot(ex, e3), math::dot(ey, e3), math::dot(ez, e3) });
-  Real3 RhoC{ rhocs, rhocs, rhocp };
-  Real3x3 CRot(rhocs * Rot.x, rhocs * Rot.y, rhocp * Rot.z);
+    Real3 e1{ m_e1_boundary[face] }, e2{ m_e2_boundary[face] }, e3{ m_e3_boundary[face] };
+    Real3x3 Rot({ math::dot(ex, e1), math::dot(ey, e1), math::dot(ez, e1) },
+                { math::dot(ex, e2), math::dot(ey, e2), math::dot(ez, e2) },
+                { math::dot(ex, e3), math::dot(ey, e3), math::dot(ez, e3) });
 
-  // Loop on the face/edge Gauss points to compute surface integrals terms on the boundary
-  Int32 ngauss{ 0 };
-  auto wt = vec[ig] * jacobian;
+    Real3x3 CRot(RhoC.x * Rot.x, RhoC.y * Rot.y, RhoC.z * Rot.z);
 
-  Int32 nb_nodes = face.nbNode();
-  auto size{3 * nb_nodes};
+    // Loop on the face/edge Gauss points to compute surface integrals terms on the boundary
+    Int32 ngauss{ 0 };
+    auto wt = vec[ig] * jacobian;
 
-  // Loop on nodes of the face or edge (with no Dirichlet condition)
-  for (Int32 inod = 0, iig = 4; inod < nb_nodes; ++inod) {
+    Int32 nb_nodes = face.nbNode();
+    auto size{ NDIM * nb_nodes };
 
-    auto wtPhi_i = wt*vec[ig + iig];
-    Node node1 = face.node(inod);
-    auto an = m_prev_acc[node1];
-    auto vn = m_prev_vel[node1];
-    auto dn = m_prev_displ[node1];
+    // Loop on nodes of the face or edge (with no Dirichlet condition)
+    for (Int32 inod = 0, iig = 4; inod < nb_nodes; ++inod) {
 
-    auto up1 = dn + (1. - alfa1) * vn + (0.5 - alfa1) * dt * an;
-    auto alfa_upp1 = alfa * math::multiply(Rot, up1);
+      auto wtPhi_i = wt * vec[ig + iig];
+      Node node1 = face.node(inod);
+      auto an = m_prev_acc[node1];
+      auto vn = m_prev_vel[node1];
+      auto dn = m_prev_displ[node1];
 
-    //----------------------------------------------
-    // Elementary contribution to force vector
-    //----------------------------------------------
-    auto ii{3 * inod};
-    auto fi0 = - wtPhi_i * rhocs * alfa_upp1.x;
-    auto fi1 = - wtPhi_i * rhocs * alfa_upp1.y;
-    auto fi2 = - wtPhi_i * rhocp * alfa_upp1.z;
-    Fe(ii) += fi0;
-    Fe(ii + 1) += fi1;
-    Fe(ii + 2) += fi2;
+      auto up1 = dn + (1. - alfa1) * vn + (0.5 - alfa1) * dt * an;
+      auto alfa_upp1 = alfa * math::multiply(Rot, up1);
 
-    //----------------------------------------------
-    // Elementary contribution to mass matrix
-    //----------------------------------------------
-    for (Int32 jnod = inod, jig = 4*(1+inod); jnod < nb_nodes; ++jnod) {
-
-      auto Phi_j = vec[ig + jig];
-
-      for (Int32 l = 0; l < 3; ++l) {
-        ii = 3 * inod + l;
-        auto jj = 3 * jnod + l;
-        auto mij = - alfa * wtPhi_i * Phi_j * CRot[l][l];
-        Me(ii, jj) = mij;
-        Me(jj, ii) = mij;
+      //----------------------------------------------
+      // Elementary contribution to force vector
+      //----------------------------------------------
+      auto ii{ NDIM * inod };
+      for (int i = 0; i < NDIM; ++i) {
+        auto fi = -wtPhi_i * RhoC[i] * alfa_upp1[i];
+        Fe(ii + i) += fi;
       }
-      jig += 4;
     }
-    iig += 4;
-  }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-void ElastodynamicModule::
-_computeMFParax2D(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
-                  RealUniqueArray2& Me, RealUniqueArray& Fe,
-                  const Real& rhocs, const Real& rhocp){
-
-  auto dt = m_global_deltat();
-  auto alfa{ (1. - alfaf)*gamma / beta / dt };
-  auto alfa1{ beta * dt / gamma };
-  Real3 ex{ 1., 0., 0. }, ey{ 0., 1., 0. };
-
-  Real3 e1{ m_e1_boundary[face] }, e2{ m_e2_boundary[face] };
-  Real2x2 Rot({ math::dot(ex, e1), math::dot(ey, e1) },
-              { math::dot(ex, e2), math::dot(ey, e2) });
-
-  Real2x2 CRot(rhocs * Rot.x, rhocp * Rot.y);
-
-  // Loop on the face/edge Gauss points to compute surface integrals terms on the boundary
-  auto wt = vec[ig] * jacobian;
-
-  Int32 nb_nodes = face.nbNode();
-  auto size{2 * nb_nodes};
-
-  // Loop on nodes of the face or edge (with no Dirichlet condition)
-  for (Int32 inod = 0, iig = 4; inod < nb_nodes; ++inod) {
-
-    auto wtPhi_i = wt*vec[ig + iig];
-    Node node1 = face.node(inod);
-    auto an = m_prev_acc[node1];
-    auto vn = m_prev_vel[node1];
-    auto dn = m_prev_displ[node1];
-
-    auto up1 = dn + (1. - alfa1) * vn + (0.5 - alfa1) * dt * an;
-    Real2 alfa_upp1;
-    alfa_upp1.x = alfa * (Rot.x.x * up1.x + Rot.x.y * up1.y);
-    alfa_upp1.y = alfa * (Rot.y.x * up1.x + Rot.y.y * up1.y);
-
-    //----------------------------------------------
-    // Elementary contribution to force vector
-    //----------------------------------------------
-    auto ii{2 * inod};
-    auto fi0 = - wtPhi_i * rhocs * alfa_upp1.x;
-    auto fi1 = - wtPhi_i * rhocp * alfa_upp1.y;
-    Fe(ii) += fi0;
-    Fe(ii + 1) += fi1;
-    //----------------------------------------------
-    // Elementary contribution to mass matrix
-    //----------------------------------------------
-    for (Int32 jnod = inod, jig = 4*(1+inod); jnod < nb_nodes; ++jnod) {
-
-      auto Phi_j = vec[ig + jig];
-
-      for (Int32 l = 0; l < 2; ++l) {
-        ii = 2 * inod + l;
-        auto jj = 2 * jnod + l;
-        auto mij = - alfa * wtPhi_i * Phi_j * CRot[l][l];
-        Me(ii, jj) = mij;
-        Me(jj, ii) = mij;
-      }
-      jig += 4;
-    }
-    iig += 4;
-  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1665,6 +1705,8 @@ _assembleLinearLHS()
       for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4*(1 + nb_nodes)) {
 
         auto jacobian {0.};
+        auto jac = _computeJacobian(cell, ig, vec, jacobian);
+/*
         if (NDIM == 2) {
           auto jac = _computeJacobian2D(cell, ig, vec, jacobian);
 
@@ -1677,6 +1719,10 @@ _assembleLinearLHS()
           // Computing elementary stiffness matrix at Gauss point ig
           _computeK3D(cell, ig, vec, jac, Ke);
         }
+*/
+        // Computing elementary stiffness matrix at Gauss point ig
+        _computeK(cell, ig, vec, jac, Ke);
+
         // Computing elementary mass matrix at Gauss point ig
         _computeElemMass(cell, ig, vec, jacobian, Me);
 
@@ -1710,6 +1756,8 @@ _assembleLinearLHS()
         }
       }
     }
+    // Assemble paraxial mass contribution if any
+    _assembleLHSParaxialContribution();
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -1749,12 +1797,16 @@ _assembleLinearRHS(){
       for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4*(1 + nb_nodes)) {
 
         auto jacobian {0.};
+/*
         if (NDIM == 2) {
           auto jac = _computeJacobian2D(cell, ig, vec, jacobian);
         }
         else {
           auto jac = _computeJacobian3D(cell, ig, vec, jacobian);
         }
+*/
+        _computeJacobian(cell, ig, vec, jacobian);
+
         // Computing elementary mass matrix at Gauss point ig
         _computeElemMass(cell, ig, vec, jacobian, Me);
 
@@ -1853,12 +1905,12 @@ _assembleLinearRHS(){
     }
 
     //----------------------------------------------
-    // Traction terms assembly
+    // Traction contribution to RHS if any
     //----------------------------------------------
     _getTractionContribution(rhs_values);
 
     //----------------------------------------------
-    // Paraxial terms assembly
+    // Paraxial contribution to RHS if any
     //----------------------------------------------
     _getParaxialContribution(rhs_values);
 }
@@ -1874,44 +1926,7 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
     for (const auto& bs : options()->paraxialBoundaryCondition()) {
 
       FaceGroup face_group = bs->surface();
-      auto rho = bs->getRhopar();
-      Real cs, cp;
-      bool is_inner{ false };
-
-      if (bs->hasEPar() && bs->hasNuPar()) {
-
-        auto E = bs->getEPar();
-        auto nu = bs->getNuPar();
-        auto lambda = nu * E / (1. + nu) / (1. - 2. * nu);
-        auto mu = E / 2. / (1. + nu);
-        cp = math::sqrt((lambda + 2. * mu) / rho);
-        cs = math::sqrt(mu / rho);
-      }
-      else if (bs->hasCp() && bs->hasCs()) {
-
-        cp = bs->getCp();
-        cs = bs->getCp();
-      }
-      else if (bs->hasLambdaPar() && bs->hasMuPar()) {
-
-        auto mu = bs->getMuPar();
-        cp = math::sqrt((bs->getLambdaPar() + 2. * mu) / rho);
-        cs = math::sqrt(mu / rho);
-      }
-      else {
-        info() << "Elastic properties expected for "
-               << "Paraxial boundary condition on FaceGroup "
-               << face_group.name() << ": \n"
-               << "  - (E-par, nu-par) or\n"
-               << "  - (lambda-par, mu-par) or\n"
-               << "  - (cp, cs)\n";
-        info() << "When not specified, taking elastic properties from inner domain. ";
-        is_inner = true;
-
-        //      ARCANE_FATAL("Paraxial boundary has no elastic properties ");
-      }
-
-      info() << "Applying constant paraxial boundary conditions for surface " << face_group.name();
+//      info() << "Applying constant paraxial boundary conditions for surface " << face_group.name();
 
       // Loop on the faces (=edges in 2D) concerned with the paraxial condition
       ENUMERATE_FACE (iface, face_group) {
@@ -1920,29 +1935,13 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
 
         if (face.isSubDomainBoundary() && face.isOwn()) {
 
-          if (is_inner) {
-            const Cell& cell = face.boundaryCell();
-            rho = m_rho[cell];
-            cs = m_vs[cell];
-            cp = m_vp[cell];
-          }
-
-          auto rhocs{ rho * cs };
-          auto rhocp{ rho * cp };
+          auto rho = m_rho_parax[face];
+          auto RhoC{ rho * m_vel_parax[face] };
 
           // In 3D, a quadratic face element has max 9 nodes (27 dofs)
           auto nb_nodes{face.nbNode()};
           auto size{ NDIM * nb_nodes};
-          RealUniqueArray2 Me(size,size);
-          RealUniqueArray Fe(size);
-
-          for (Int32 i = 0; i < size; ++i) {
-            Fe(i) = 0.;
-            for (Int32 j = i; j < size; ++j) {
-              Me(i, j) = 0.;
-              Me(j, i) = 0.;
-            }
-          }
+          RealUniqueArray Fe(size, 0.);
 
           // Loop on the cell Gauss points to compute integrals terms
           Int32 ngauss{ 0 };
@@ -1952,14 +1951,16 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
 
             auto jacobian{ 0. };
 
+/*
             if (NDIM == 3){
               auto jac = _computeJacobian3D(face, ig, vec, jacobian);
-              _computeMFParax3D(face, ig, vec, jacobian, Me, Fe, rhocs, rhocp);
             }
             else{
               auto jac = _computeJacobian2D(face, ig, vec, jacobian);
-              _computeMFParax2D(face, ig, vec, jacobian, Me, Fe, rhocs, rhocp);
             }
+*/
+            _computeJacobian(face, ig, vec, jacobian);
+            _computeForceParax(face, ig, vec, jacobian, Fe, RhoC);
 
             // Loop on nodes of the face (with no Dirichlet condition)
             Int32 n1_index{ 0 };
@@ -1977,6 +1978,83 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
                 if (node1.isOwn() && !is_node1_dofi_set) {
                   rhs_i += Fe(ii);
                   rhs_values[node1_dofi] += rhs_i;
+                }
+              }
+              ++n1_index;
+            }
+          }
+        }
+      }
+    }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+void ElastodynamicModule::
+_assembleLHSParaxialContribution(){
+
+    auto dt = m_global_deltat();
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+    for (const auto& bs : options()->paraxialBoundaryCondition()) {
+
+      FaceGroup face_group = bs->surface();
+      //      info() << "Applying constant paraxial boundary conditions for surface " << face_group.name();
+
+      // Loop on the faces (=edges in 2D) concerned with the paraxial condition
+      ENUMERATE_FACE (iface, face_group) {
+
+        const Face& face = *iface;
+
+        if (face.isSubDomainBoundary() && face.isOwn()) {
+
+          auto rho = m_rho_parax[face];
+          auto RhoC{ rho * m_vel_parax[face] };
+
+          // In 3D, a quadratic face element has max 9 nodes (27 dofs)
+          auto nb_nodes{face.nbNode()};
+          auto size{ NDIM * nb_nodes};
+          RealUniqueArray2 Me(size,size);
+
+          for (Int32 i = 0; i < size; ++i) {
+            for (Int32 j = i; j < size; ++j) {
+              Me(i, j) = 0.;
+              Me(j, i) = 0.;
+            }
+          }
+
+          // Loop on the cell Gauss points to compute integrals terms
+          Int32 ngauss{ 0 };
+          auto vec = cell_fem.getGaussData(face, integ_order, ngauss);
+
+          for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4 * (1 + nb_nodes)) {
+
+            auto jacobian{ 0. };
+/*
+            if (NDIM == 3){
+              auto jac = _computeJacobian3D(face, ig, vec, jacobian);
+            }
+            else{
+              auto jac = _computeJacobian2D(face, ig, vec, jacobian);
+            }
+*/
+            _computeJacobian(face, ig, vec, jacobian);
+            _computeElemMassParax(face, ig, vec, jacobian, Me, RhoC);
+
+            // Loop on nodes of the face (with no Dirichlet condition)
+            Int32 n1_index{ 0 };
+            auto iig{ 4 };
+            for (Node node1 : face.nodes()) {
+
+              for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
+
+                DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
+                auto ii = NDIM * n1_index + iddl;
+
+                bool is_node1_dofi_set = (bool)m_imposed_displ[node1][iddl];
+                auto rhs_i{ 0. };
+
+                if (node1.isOwn() && !is_node1_dofi_set) {
 
                   //----------------------------------------------
                   // Elementary contribution to LHS
