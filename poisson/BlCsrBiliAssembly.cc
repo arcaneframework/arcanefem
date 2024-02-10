@@ -28,7 +28,7 @@ _buildMatrixBuildLessCsr()
   if (options()->meshType == "TETRA4")
     nedge = nbEdge();
   else if (options()->meshType == "TRIA3")
-    nedge = nbEdge();
+    nedge = nbFace();
   else
     ARCANE_THROW(NotImplementedException, "");
 
@@ -70,7 +70,7 @@ void FemModule::_buildMatrixGpuBuildLessCsr()
   if (options()->meshType == "TETRA4")
     nedge = nbEdge();
   else if (options()->meshType == "TRIA3")
-    nedge = nbEdge();
+    nedge = nbFace();
   else
     ARCANE_THROW(NotImplementedException, "");
 
