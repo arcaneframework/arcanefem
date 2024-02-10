@@ -19,7 +19,7 @@
   </meshes>
 
   <fem>
-    <legacy>true</legacy>
+    <blcsr>true</blcsr>
     <f>1.0</f>
     <result-file>test_3D_L-shape_poisson.txt</result-file>
     <mesh-type>TETRA4</mesh-type>
