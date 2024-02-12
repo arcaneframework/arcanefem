@@ -2153,8 +2153,6 @@ _doSolve(){
   info() << "Solving Linear system";
   m_linear_system.solve();
 
-
-
   {
     VariableDoFReal& dof_d(m_linear_system.solutionVariable());
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -2177,7 +2175,6 @@ _doSolve(){
   // Re-Apply Dirichlet boundary conditions because the solver has modified the values
   // on all nodes
   _applyDirichletBoundaryConditions();
-
 
   m_displ.synchronize();
   m_vel.synchronize();

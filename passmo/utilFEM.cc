@@ -692,20 +692,23 @@ Integer3 Quad8Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
 
 /*---------------------------------------------------------------------------*/
 // Hexa8: linear hexaedron finite-element
-//
-//         1-----------0
-//        /|          /|y=1
-//      /  |  z=1   /  |   z
-//    2----|-- ---3    |   |    y
-//    |    |      |    |   |  /
-//    |    |      |    |   |---->x
-//    |    |      |    |
-//x=-1|    |      |x=1 |
-//    |    5------|----4
-//    |  /        |  /
-//    |/          |/
-//    6-----------7
-//      y=-1,z=-1
+//  Normalized coordinates (triplets): x, y, z varying between -1/+1
+//     (-1, 1,1)
+//         1-------------0 (1,1,1)
+//        /|            /|
+//       / |           / |
+//     /   |          /  |
+//    2----|---------3   |   z   y
+//  (-1,-1,1)        |   |   | /
+//    |    |         |   |   |/--->x
+//    |    |         |   |
+//    |    |         |   |
+//    |    5---------|---4 (1,1,-1)
+//    |  /           |  /
+//    | /            | /
+//    |/             |/
+//    6--------------7 (1,-1,-1)
+// (-1,-1,-1)
 // direct : 0,1,2,3,...,7 (local numbering)
 /*---------------------------------------------------------------------------*/
 
@@ -729,34 +732,52 @@ Real Hexa8ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 #ifdef _DEBUG
 	assert(inod >= 0 && inod < 8);
 #endif
+  auto	x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] };
+  auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
 
-	auto	ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2]; // default is first node (index 0)
+  switch(inod){
+    default: break;
+    case 1:
+    case 5:	ri = -1; break;
+    case 2:
+    case 6: ri = -1; si = -1;
+      break;
+    case 3:
+    case 7: si = -1;
+      break;
+  }
+  if (inod > 3) ti = -1;
 
-	switch(inod){
-		default: break;
-		case 1:	ri *= -1; break;
-		case 2:	ri *= -1; si *= -1; break;
-		case 3:	si *= -1; break;
-		case 4:	ti *= -1; break;
-		case 5:	ri *= -1; ti *= -1; break;
-		case 6:	ri *= -1; si *= -1; ti *= -1; break;
-		case 7:	si *= -1; ti *= -1; break;
-	}
-	return (0.125*(1 + ri)*(1 + si)*(1 + ti));
+  auto r0 {x*ri}, s0 {y*si}, t0 {z*ti};
+  auto Phi = (1 + r0) * (1 + s0) * (1 + t0) / 8.;
+
+  return Phi;
+
 }
 
 Real3 Hexa8ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
-	Real	rp = 1.+ ref_coord[0],sp = 1. + ref_coord[1],tp = 1. + ref_coord[2],
-			rm = 1.- ref_coord[0],sm = 1. - ref_coord[1],tm = 1. - ref_coord[2];
 
-  if (!inod) return {0.125*sp*tp,0.125*rp*tp, 0.125*rp*sp};
-  if (inod == 1) return {-0.125*sp*tp,0.125*rm*tp, 0.125*rm*sp};
-  if (inod == 2) return {-0.125*sm*tp,-0.125*rm*tp, 0.125*rm*sm};
-  if (inod == 3) return {0.125*sm*tp,-0.125*rp*tp, 0.125*rp*sm};
-  if (inod == 4) return {0.125*sp*tm,-0.125*rp*tm, -0.125*rp*sp};
-  if (inod == 5) return {-0.125*sp*tm,0.125*rm*tm, -0.125*rm*sp};
-  if (inod == 6) return {-0.125*sm*tm,-0.125*rm*tm, -0.125*rm*sm};
-  return {0.125*sm*tm,-0.125*rp*tm, -0.125*rp*sm};
+  auto	x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] };
+  auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
+
+  switch(inod){
+    default: break;
+    case 1:
+    case 5:	ri = -1; break;
+    case 2:
+    case 6: ri = -1; si = -1;
+      break;
+    case 3:
+    case 7: si = -1;
+      break;
+  }
+  if (inod > 3) ti = -1;
+  auto r0 {x*ri}, s0 {y*si}, t0 {z*ti};
+  Real3 dPhi;
+  dPhi.x =  ri * (1 + s0) * (1 + t0) / 8.;
+  dPhi.y =  si * (1 + r0) * (1 + t0) / 8.;
+  dPhi.z =  ti * (1 + r0) * (1 + s0) / 8.;
+  return dPhi;
 }
 
 Integer3 Hexa8Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
@@ -765,20 +786,23 @@ Integer3 Hexa8Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
 
 /*---------------------------------------------------------------------------*/
 // Hexa20: quadratic hexaedron finite-element
-//
-//         1-----------0
-//        /|          /|y=1
-//      /  |  z=1   /  |   z
-//    2----|-- ---3    |   |    y
-//    |    |      |    |   |  /
-//    |    |      |    |   |---->x
-//    |    |      |    |
-//x=-1|    |      |x=1 |
-//    |    5------|----4
-//    |  /        |  /
-//    |/          |/
-//    6-----------7
-//      y=-1,z=-1
+//  Normalized coordinates (triplets): x, y, z varying between -1/+1
+//    (-1, 1, 1)
+//         1------8------0 (1, 1,1)
+//        /|            /|
+//       9 |           11|
+//     /   |          /  |
+//    2----|-10------3   |   z   y
+//  (-1,-1,1)        |   |   | /
+//    |   16         |  19   |/--->x
+//    |    |         |   |
+//   17    |        18   |
+//    |    5-----12--|---4 (1,1,-1)
+//    |   /          |  /
+//    | 13           | 15
+//    |/             |/
+//    6------14------7 (1,-1,-1)
+// (-1,-1,-1)
 // direct : 0,1,2,3,...,7 (local numbering)
 /*---------------------------------------------------------------------------*/
 
@@ -790,6 +814,7 @@ Real Hexa20ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 #ifdef _DEBUG
     assert(inod >= 0 && inod < 20);
 #endif
+/*
 
     auto	wi = 0.,ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2],
             rm = 1. - ri,rp = 1. + ri,
@@ -815,13 +840,62 @@ Real Hexa20ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
         case 19: wi = 0.25*rp*sm*t2; break;
     }
     return wi;
+*/
+    auto	x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] };
+    auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
+
+    switch(inod){
+      default: break;
+
+      case 5:	ti = -1.;
+      case 1: ri = -1; break;
+
+      case 6: ti = -1.;
+      case 2: ri = -1; si = -1; break;
+
+      case 7: ti = -1.;
+      case 3: si = -1; break;
+
+      case 4:	ti = -1.; break;
+
+      case 9: ri = -1.;
+      case 11: si = 0.; break;
+
+      case 10: si = -1.;
+      case 8: ri = 0.; break;
+
+      case 14: si = -1.;
+      case 12: ri = 0.; ti = -1.; break;
+
+      case 17: si = -1.;
+      case 16: ri = -1.; ti = 0.; break;
+
+      case 18: si = -1.;
+      case 19: ti = 0.; break;
+    }
+
+    auto r0 {x*ri}, s0 {y*si}, t0 {z*ti};
+    Real Phi{0.};
+    auto t{ r0 + s0 + t0 - 2. };
+    if (inod < 8)
+      Phi = (1 + r0) * (1 + s0) * (1 + t0) * t / 8.;
+    else{
+      if (fabs(ri) < REL_PREC)
+        Phi = (1 - x*x) * (1 + s0) * (1 + t0) / 4.;
+      else if (fabs(si) < REL_PREC)
+        Phi = (1 - y*y) * (1 + r0) * (1 + t0) / 4.;
+      else if (fabs(ti) < REL_PREC)
+        Phi = (1 - z*z) * (1 + r0) * (1 + s0) / 4.;
+    }
+    return Phi;
 }
 
 Real3 Hexa20ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
 
-  if (inod < 8) return Hexa8ShapeFuncDeriv(inod,ref_coord);
+/*
+    if (inod < 8) return Hexa8ShapeFuncDeriv(inod, ref_coord);
 
-  auto ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2],
+    auto ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2],
        rm = 1. - ri,rp = 1. + ri,
        sm = 1. - si,sp = 1. + si,
        tm = 1. - ti,tp = 1. + ti,
@@ -829,19 +903,82 @@ Real3 Hexa20ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
        s2 = 1. - si*si,
        t2 = 1. - ti*ti;
 
-  if (inod == 8) return { -0.5*ri*sp*tp,0.25*r2*tp,0.25*r2*sp };
-  if (inod == 9) return { -0.25*s2*tp,-0.5*si*rm*tp,0.25*s2*rm };
-  if (inod == 10) return { -0.5*ri*sm*tp,-0.25*r2*tp,0.25*r2*sm };
-  if (inod == 11) return { 0.25*s2*tp,-0.5*si*rp*tp,0.25*s2*rp };
-  if (inod == 12) return { -0.5*ri*sp*tm,0.25*r2*tm,-0.25*r2*sp };
-  if (inod == 13) return { -0.25*s2*tm,-0.5*si*rm*tm,-0.25*s2*rm };
-  if (inod == 14) return { -0.5*ri*sm*tm,-0.25*r2*tm,-0.25*r2*sm };
-  if (inod == 15) return { 0.25*s2*tm,-0.5*si*rp*tm,-0.25*s2*rp };
-  if (inod == 16) return { 0.25*t2*sp,0.25*t2*rp,-0.5*ti*rp*sp };
-  if (inod == 17) return { -0.25*t2*sp,0.25*t2*rm,-0.5*ti*rm*sp };
-  if (inod == 18) return { -0.25*t2*sm,-0.25*t2*rm,-0.5*ti*rm*sm };
-  if (inod == 19) return { 0.25*t2*sm,-0.25*t2*rp,-0.5*ti*rp*sm };
-  return {};
+    if (inod == 8) return { -0.5*ri*sp*tp,0.25*r2*tp,0.25*r2*sp };
+    if (inod == 9) return { -0.25*s2*tp,-0.5*si*rm*tp,0.25*s2*rm };
+    if (inod == 10) return { -0.5*ri*sm*tp,-0.25*r2*tp,0.25*r2*sm };
+    if (inod == 11) return { 0.25*s2*tp,-0.5*si*rp*tp,0.25*s2*rp };
+    if (inod == 12) return { -0.5*ri*sp*tm,0.25*r2*tm,-0.25*r2*sp };
+    if (inod == 13) return { -0.25*s2*tm,-0.5*si*rm*tm,-0.25*s2*rm };
+    if (inod == 14) return { -0.5*ri*sm*tm,-0.25*r2*tm,-0.25*r2*sm };
+    if (inod == 15) return { 0.25*s2*tm,-0.5*si*rp*tm,-0.25*s2*rp };
+    if (inod == 16) return { 0.25*t2*sp,0.25*t2*rp,-0.5*ti*rp*sp };
+    if (inod == 17) return { -0.25*t2*sp,0.25*t2*rm,-0.5*ti*rm*sp };
+    if (inod == 18) return { -0.25*t2*sm,-0.25*t2*rm,-0.5*ti*rm*sm };
+    if (inod == 19) return { 0.25*t2*sm,-0.25*t2*rp,-0.5*ti*rp*sm };
+    return {};
+*/
+    auto	x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] };
+    auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
+
+    switch(inod){
+      default: break;
+
+      case 5:	ti = -1.;
+      case 1: ri = -1; break;
+
+      case 6: ti = -1.;
+      case 2: ri = -1; si = -1; break;
+
+      case 7: ti = -1.;
+      case 3: si = -1; break;
+
+      case 4:	ti = -1.; break;
+
+      case 9: ri = -1.;
+      case 11: si = 0.; break;
+
+      case 10: si = -1.;
+      case 8: ri = 0.; break;
+
+      case 14: si = -1.;
+      case 12: ri = 0.; ti = -1.; break;
+
+      case 17: si = -1.;
+      case 16: ri = -1.; ti = 0.; break;
+
+      case 18: si = -1.;
+      case 19: ti = 0.; break;
+    }
+
+    auto r0 {x*ri}, s0 {y*si}, t0 {z*ti};
+    auto t{ r0 + s0 + t0 - 2. };
+    Real3 dPhi;
+
+    if (inod < 8) { // Corner nodes
+      dPhi = Hexa8ShapeFuncDeriv(inod, ref_coord);
+      dPhi.x *= (t + 1. + r0);
+      dPhi.y *= (t + 1. + s0);
+      dPhi.z *= (t + 1. + t0);
+    }
+    else { // Middle nodes
+      auto x2{ x * x }, y2{ y * y }, z2{ z * z };
+      if (fabs(ri) < REL_PREC) {
+        dPhi.x = -x * (1 + s0) * (1 + t0) / 2.;
+        dPhi.y = si * (1 - x2) * (1 + t0) / 4.;
+        dPhi.z = ti * (1 - x2) * (1 + s0) / 4.;
+      }
+      else if (fabs(si) < REL_PREC) {
+        dPhi.x = ri * (1 - y2) * (1 + t0) / 4.;
+        dPhi.y = -y * (1 + r0) * (1 + t0) / 2.;
+        dPhi.z = ti * (1 - y2) * (1 + r0) / 4.;
+      }
+      else if (fabs(ti) < REL_PREC) {
+        dPhi.x = ri * (1 - z2) * (1 + s0) / 4.;
+        dPhi.y = si * (1 - z2) * (1 + r0) / 4.;
+        dPhi.z = -z * (1 + r0) * (1 + s0) / 2.;
+      }
+    }
+    return dPhi;
 }
 
 Integer3 Hexa20Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
@@ -907,18 +1044,18 @@ Integer3 Tetra4Orientation(const ItemWithNodes& item,const VariableNodeReal3& n)
 // Tetra10: quadratic tetrahedral finite-element
 //
 //
-//    (0,0,1)                     x0
+//    (0,0,1)                     x3
 //       .                        *.*
 //       .                        * . *
 //       .                        *  .  *
-//       .                        *   o8  *
-//       Z   (0,1,0)              *    .    o7
-//       .    .                  9o     x2    *
+//       .                        *   9   *
+//       Z   (0,1,0)              *    .     8
+//       .    .                   7      x2    *
 //       .   .                    *   .    .    *
-//       .  Y                     *  o5      4o   *
+//       .  Y                     *  6        5   *
 //       . .                      * .            .  *
 //       ..           (1,0,0)     *.                . *
-//       --------X------>        3x*******o6***********x1
+//       --------X------>        0x****** 4 ***********x1
 //
 // direct : 0,1,2,...,9 (local numbering)
 /*---------------------------------------------------------------------------*/
@@ -940,39 +1077,49 @@ Real Tetra10ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
         default: break;
 
         // Corner nodes
-        case 0:	wi = (1. - 2*t - 2*x - 2*y)*z;break;
-        case 1:	wi = (1. - 2*t - 2*y - 2*z)*x;break;
-        case 2:	wi = (1. - 2*x - 2*t - 2*z)*y;break;
-        case 3:	wi = (1. - 2*x - 2*y - 2*z)*t;break;
+        case 0:	wi = t * (2*t - 1.); break;//=(1. - 2*x - 2*y - 2*z) * t
+        case 1:	wi = x * (2*x - 1.); break;//=(1. - 2*t - 2*y - 2*z)*x
+        case 2:	wi = y * (2*y - 1.); break;//=(1. - 2*x - 2*t - 2*z)*y
+        case 3:	wi = z * (2*z - 1.);break;//=(1. - 2*t - 2*x - 2*y)*z
 
         // Middle nodes
-        case 4:	wi = 4*x*y;break;
-        case 5:	wi = 4*y*t;break;
-        case 6:	wi = 4*x*t;break;
-        case 7:	wi = 4*z*x;break;
-        case 8:	wi = 4*z*y;break;
-        case 9:	wi = 4*z*t;break;
+        case 4:	wi = 4*x*t;break;
+        case 5:	wi = 4*x*y;break;
+        case 6:	wi = 4*y*t;break;
+        case 7:	wi = 4*z*t;break;
+        case 8:	wi = 4*z*x;break;
+        case 9:	wi = 4*z*y;break;
     }
     return wi;
 }
 
 Real3 Tetra10ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
-    auto x = ref_coord[0],y = ref_coord[1],z = ref_coord[2],
-         t = 1. - x - y - z;
+    auto  x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] },
+          t{ 1. - x - y - z },
+          x4{ 4 * x },
+          y4{ 4 * y },
+          z4{ 4 * z },
+          t4{ 4 * t };
 
     // Corner nodes
-    if (!inod) return {0.,0.,1. - 2*t - 2*x - 2*y + 2*z};
+/*
+    if (inod == 3) return {0.,0.,1. + 2*t - 2*x - 2*y + 2*z};
     if (inod == 1) return {1. - 2*t - 2*y - 2*z + 2*x,0.,0.};
     if (inod == 2) return {0.,1. - 2*x - 2*t - 2*z + 2*y,0.};
-    if (inod == 3) return {-1. - 2*t + 2*x + 2*y + 2*z,-1. - 2*t+ 2*x + 2*y + 2*z,-1. - 2*t + 2*x + 2*y + 2*z};
+    if (!inod) return {-1. - 2*t + 2*x + 2*y + 2*z,-1. - 2*t+ 2*x + 2*y + 2*z,-1. - 2*t + 2*x + 2*y + 2*z};
+*/
+    if (!inod) return {1. - t4, 1. - t4, 1. - t4};
+    if (inod == 1) return {x4 - 1., 0.,0.};
+    if (inod == 2) return {0., y4 - 1., 0.};
+    if (inod == 3) return {0., 0., z4 - 1.};
 
     // Middle nodes
-    if (inod == 4) return {4*y,4*x,0.};
-    if (inod == 5) return {-4*y,4*(t - y),-4*y};
-    if (inod == 6) return {4*(t - x),-4*x,-4*x};
-    if (inod == 7) return {4*z,0.,4*x};
-    if (inod == 8) return {0.,4*z,4*y};
-    return {-4*z,-4*z,4*(t - z)};
+    if (inod == 4) return {t4 - x4, -x4, -x4};
+    if (inod == 5) return {y4, x4, 0.};
+    if (inod == 6) return {-y4, t4 - y4, -y4};
+    if (inod == 8) return {z4, 0., x4};
+    if (inod == 9) return {0., z4, y4};
+    return {-z4, -z4, t4 - z4};//inod == 7
 }
 
 Integer3 Tetra10Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
