@@ -181,6 +181,7 @@ getGaussData(const ItemWithNodes& item, const Integer3& nint, Int32& ngauss){
           vec[index++] = pos.z;
 
           for (Int32 inod = 0; inod < item.nbNode(); ++inod) {
+            auto num = item.node(inod).uniqueId();
             auto Phi_i = getShapeFuncVal(item.type(), inod, pos);
             vec[index++] = Phi_i;
             auto dPhi = getShapeFuncDeriv(item.type(), inod, pos);
@@ -558,8 +559,16 @@ Real Quad4Surface(const ItemWithNodes& item,const VariableNodeReal3& n){
   surface += x1 * y2 - y1 * x2;
   return surface;
 */
+/*
   return 0.5 * (  (n1.x * n2.y + n2.x * n3.y + n3.x * n0.y + n0.x * n1.y)
                 -(n2.x * n1.y + n3.x * n2.y + n0.x * n3.y + n1.x * n0.y) );
+*/
+  auto v1 = n1 - n0;
+  auto v2 = n2 - n0;
+  auto v = math::cross(v1,v2);
+
+  auto norm = v.normL2();
+  return norm;
 }
 
 Real Quad4ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
@@ -733,10 +742,12 @@ Real Hexa8ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 	assert(inod >= 0 && inod < 8);
 #endif
   auto	x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] };
-  auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
+//  auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
+  auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 7 = (1,1,1)
 
   switch(inod){
     default: break;
+/*
     case 1:
     case 5:	ri = -1; break;
     case 2:
@@ -744,9 +755,18 @@ Real Hexa8ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
       break;
     case 3:
     case 7: si = -1;
+*/
+    case 3:
+    case 2:	ri = -1; break;
+    case 0:
+    case 1: ri = -1; si = -1;
+    break;
+    case 4:
+    case 5: si = -1;
       break;
   }
-  if (inod > 3) ti = -1;
+//  if (inod > 3) ti = -1;
+  if (inod == 1 || inod == 2 || inod == 5 || inod == 6) ti = -1;
 
   auto r0 {x*ri}, s0 {y*si}, t0 {z*ti};
   auto Phi = (1 + r0) * (1 + s0) * (1 + t0) / 8.;
@@ -758,10 +778,12 @@ Real Hexa8ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 Real3 Hexa8ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
 
   auto	x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] };
-  auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
+//  auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
+  auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 7 = (1,1,1)
 
   switch(inod){
     default: break;
+/*
     case 1:
     case 5:	ri = -1; break;
     case 2:
@@ -770,8 +792,19 @@ Real3 Hexa8ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
     case 3:
     case 7: si = -1;
       break;
+*/
+    case 3:
+    case 2:	ri = -1; break;
+    case 0:
+    case 1: ri = -1; si = -1;
+      break;
+    case 4:
+    case 5: si = -1;
+      break;
   }
-  if (inod > 3) ti = -1;
+  //  if (inod > 3) ti = -1;
+  if (inod == 1 || inod == 2 || inod == 5 || inod == 6) ti = -1;
+
   auto r0 {x*ri}, s0 {y*si}, t0 {z*ti};
   Real3 dPhi;
   dPhi.x =  ri * (1 + s0) * (1 + t0) / 8.;
