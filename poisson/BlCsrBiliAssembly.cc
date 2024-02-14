@@ -23,19 +23,38 @@ _buildMatrixBuildLessCsr()
 
   // Compute the number of nnz and initialize the memory space
   Integer nbnde = nbNode();
-  Int32 nnz = nbFace() * 2 + nbnde;
+  Int64   nedge;
+
+  if (options()->meshType == "TETRA4")
+    nedge = nbEdge();
+  else if (options()->meshType == "TRIA3")
+    nedge = nbFace();
+  else
+    ARCANE_THROW(NotImplementedException, "");
+
+  Int32 nnz = nedge * 2 + nbnde;
   m_csr_matrix.initialize(m_dof_family, nnz, nbnde);
 
   Integer index = 1;
   m_csr_matrix.m_matrix_row(0) = 0;
-  ENUMERATE_NODE (inode, allNodes()) {
 
-    Node node = *inode;
-    if (index < nbnde) {
-      m_csr_matrix.m_matrix_row(index) = node.nbFace() + m_csr_matrix.m_matrix_row(index - 1) + 1;
-      index++;
+  if (options()->meshType == "TETRA4")
+    ENUMERATE_NODE (inode, allNodes()) {
+      Node node = *inode;
+      if (index < nbnde) {
+        m_csr_matrix.m_matrix_row(index) = node.nbEdge() + m_csr_matrix.m_matrix_row(index - 1) + 1;
+        index++;
+      }
     }
-  }
+  else if (options()->meshType == "TRIA3")
+    ENUMERATE_NODE (inode, allNodes()) {
+      Node node = *inode;
+      if (index < nbnde) {
+        m_csr_matrix.m_matrix_row(index) = node.nbFace() + m_csr_matrix.m_matrix_row(index - 1) + 1;
+        index++;
+      }
+    }
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -46,7 +65,16 @@ void FemModule::_buildMatrixGpuBuildLessCsr()
 
   // Compute the number of nnz and initialize the memory space
   Integer nbnde = nbNode();
-  Int32 nnz = nbFace() * 2 + nbnde;
+  Int64   nedge;
+
+  if (options()->meshType == "TETRA4")
+    nedge = nbEdge();
+  else if (options()->meshType == "TRIA3")
+    nedge = nbFace();
+  else
+    ARCANE_THROW(NotImplementedException, "");
+
+  Int32 nnz = nedge * 2 + nbnde;
 
   NumArray<Int32, MDDim1> tmp_row;
   tmp_row.resize(nbnde);
@@ -58,13 +86,24 @@ void FemModule::_buildMatrixGpuBuildLessCsr()
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   UnstructuredMeshConnectivityView connectivity_view;
   connectivity_view.setMesh(this->mesh());
-  auto nfc = connectivity_view.nodeFace();
 
-  command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
-  {
+  if (options()->meshType == "TETRA4"){
+    auto nfc = connectivity_view.nodeEdge();
+    command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
+    {
+    Int64 index = node_dof.dofId(inode, 0).localId();
+    in_out_tmp_row[index] = nfc.nbEdge(inode) + 1;
+    };
+  }
+  else if (options()->meshType == "TRIA3"){
+    auto nfc = connectivity_view.nodeFace();
+    command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
+    {
     Int64 index = node_dof.dofId(inode, 0).localId();
     in_out_tmp_row[index] = nfc.nbFace(inode) + 1;
-  };
+    };
+  }
+
   ax::Scanner<Int32> scanner;
   scanner.exclusiveSum(queue, tmp_row, m_csr_matrix.m_matrix_row);
 }

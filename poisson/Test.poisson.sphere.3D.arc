@@ -14,25 +14,22 @@
 
   <meshes>
     <mesh>
-      <filename>L-shape-3D.msh</filename>
+      <filename>sphere_cut.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
     <blcsr>true</blcsr>
-    <f>1.0</f>
-    <result-file>test_3D_L-shape_poisson.txt</result-file>
+    <f>-0.01</f>
     <mesh-type>TETRA4</mesh-type>
     <dirichlet-boundary-condition>
-      <surface>bot</surface>
-      <value>50.0</value>
+      <surface>sphere</surface>
+      <value>0.0</value>
     </dirichlet-boundary-condition>
     <dirichlet-boundary-condition>
-      <surface>bc</surface>
+      <surface>Cut</surface>
       <value>10.0</value>
     </dirichlet-boundary-condition>
-    <linear-system>
-      <solver-backend>petsc</solver-backend>
-    </linear-system>
+    <linear-system name="HypreLinearSystem"/>
   </fem>
 </case>

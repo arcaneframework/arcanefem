@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* CsrBiliAssembly.hxx                                         (C) 2022-2023 */
+/* CsrBiliAssembly.hxx                                         (C) 2022-2024 */
 /*                                                                           */
 /* Methods of the bilinear assembly phase using the csr data structure       */
 /*---------------------------------------------------------------------------*/
@@ -36,13 +36,16 @@ _buildMatrixCsr()
   }
   */
 
-  Int32 nnz;
+  Int64   nedge;
+  Int64   nbnde = nbNode();
   if (options()->meshType == "TETRA4")
-    nnz = nbFace() * 2 + nbNode() + 2;   // For testing only 
+    nedge = nbEdge();
   else if (options()->meshType == "TRIA3")
-    nnz = nbFace() * 2 + nbNode();
+    nedge = nbFace();
   else
     ARCANE_THROW(NotImplementedException, "");
+
+  Int32 nnz = nedge * 2 + nbnde;
 
   m_csr_matrix.initialize(m_dof_family, nnz, nbNode());
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -69,33 +72,21 @@ _buildMatrixCsr()
     ENUMERATE_NODE (inode, allNodes()) {
       Node node = *inode;
 
+      //info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(node, 0) << " )";
       m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
 
-      for (Face face : node.faces()) {
-        if (face.nodeId(0) == node.localId()){
-          info() << "DEBUG Add: 0 (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(face.nodeId(1), 0) << " )";
-          info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(face.nodeId(2), 0) << " )";
-        //m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(1), 0));
-        //m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(2), 0));
-        }
-        else if (face.nodeId(1) == node.localId()){
-          info() << "DEBUG Add: 1 (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(face.nodeId(0), 0) << " )";
-          info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(face.nodeId(2), 0) << " )";
-        //m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
-        //m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(2), 0));
-        }
-        else if (face.nodeId(2) == node.localId()){
-          info() << "DEBUG Add: 2 (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(face.nodeId(0), 0) << " )";
-          info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(face.nodeId(1), 0) << " )";
-        //m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
-        //m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(1), 0));
+      for (Edge edge : node.edges()) {
+        if (edge.nodeId(0) == node.localId()){
+          //info() << "DEBUG Add: 0 (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(edge.nodeId(1), 0) << " )";
+          m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(edge.nodeId(1), 0));
+        }else{
+          //info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(edge.nodeId(0), 0) << " )";
+          m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(edge.nodeId(0), 0));
         }
       }
     }
   }
-  else{
-    ARCANE_THROW(NotImplementedException, "");
-  }
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -160,7 +151,7 @@ _assembleCsrBilinearOperatorTETRA4()
   {
     _buildMatrixCsr();
   }
-/*
+
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
@@ -187,7 +178,7 @@ _assembleCsrBilinearOperatorTETRA4()
       ++n1_index;
     }
   }
-*/
+
 }
 
 /*---------------------------------------------------------------------------*/
