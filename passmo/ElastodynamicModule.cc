@@ -450,6 +450,7 @@ _initBoundaryConditions()
 
   for (const auto& bd : options()->dirichletBoundaryCondition()) {
     FaceGroup face_group = bd->surface();
+
     if (bd->hasACurve()) {
       String file_name = bd->ACurve();
       if (!file_name.empty()) {
@@ -459,7 +460,7 @@ _initBoundaryConditions()
     }
 
     if (bd->hasUCurve()) {
-      String file_name = bd->ACurve();
+      String file_name = bd->UCurve();
       if (!file_name.empty()) {
         auto case_table = readFileAsCaseTable(pm, file_name, 3);
         m_sdispl_case_table_list.add(CaseTableInfo{ file_name, case_table });
@@ -467,7 +468,7 @@ _initBoundaryConditions()
     }
 
     if (bd->hasVCurve()) {
-      String file_name = bd->ACurve();
+      String file_name = bd->VCurve();
       if (!file_name.empty()) {
         auto case_table = readFileAsCaseTable(pm, file_name, 3);
         m_svel_case_table_list.add(CaseTableInfo{ file_name, case_table });
@@ -475,12 +476,20 @@ _initBoundaryConditions()
     }
 
     if (bd->hasFCurve()) {
-      String file_name = bd->ACurve();
+      String file_name = bd->FCurve();
       if (!file_name.empty()) {
         auto case_table = readFileAsCaseTable(pm, file_name, 3);
         m_sforce_case_table_list.add(CaseTableInfo{ file_name, case_table });
       }
     }
+
+    auto hasUcurve{bd->hasUCurve()};
+    auto hasVcurve{bd->hasVCurve()};
+    auto hasAcurve{bd->hasACurve()};
+    auto hasFcurve{bd->hasFCurve()};
+    auto xdir{bd->getXAxis()};
+    auto ydir{bd->getYAxis()};
+    auto zdir{bd->getZAxis()};
 
     // Loop on faces of the surface
     ENUMERATE_FACE (j, face_group) {
@@ -492,18 +501,22 @@ _initBoundaryConditions()
         const Node& node = face.node(k);
         auto coord = m_node_coord[node];
         auto num = node.uniqueId();
-        m_imposed_displ[node].x = bd->hasUx();
-        m_imposed_displ[node].y = bd->hasUy();
-        m_imposed_displ[node].z = bd->hasUz();
-        m_imposed_acc[node].x = bd->hasAx();
-        m_imposed_acc[node].y = bd->hasAy();
-        m_imposed_acc[node].z = bd->hasAz();
-        m_imposed_vel[node].x = bd->hasVx();
-        m_imposed_vel[node].y = bd->hasVy();
-        m_imposed_vel[node].z = bd->hasVz();
-        m_imposed_force[node].x = bd->hasFx();
-        m_imposed_force[node].y = bd->hasFy();
-        m_imposed_force[node].z = bd->hasFz();
+
+        m_imposed_displ[node].x = (bd->hasUx() || (hasUcurve && xdir) ? 1 : 0);
+        m_imposed_displ[node].y = (bd->hasUy() || (hasUcurve && ydir) ? 1 : 0);
+        m_imposed_displ[node].z = (bd->hasUz() || (hasUcurve && zdir) ? 1 : 0);
+
+        m_imposed_acc[node].x = (bd->hasAx() || (hasAcurve && xdir) ? 1 : 0);
+        m_imposed_acc[node].y = (bd->hasAy() || (hasAcurve && ydir) ? 1 : 0);
+        m_imposed_acc[node].z = (bd->hasAz() || (hasAcurve && zdir) ? 1 : 0);
+
+        m_imposed_vel[node].x = (bd->hasVx() || (hasVcurve && xdir) ? 1 : 0);
+        m_imposed_vel[node].y = (bd->hasVy() || (hasVcurve && ydir) ? 1 : 0);
+        m_imposed_vel[node].z = (bd->hasVz() || (hasVcurve && zdir) ? 1 : 0);
+
+        m_imposed_force[node].x = (bd->hasFx() || (hasFcurve && xdir) ? 1 : 0);
+        m_imposed_force[node].y = (bd->hasFy() || (hasFcurve && ydir) ? 1 : 0);
+        m_imposed_force[node].z = (bd->hasFz() || (hasFcurve && zdir) ? 1 : 0);
       }
     }
   }
@@ -520,7 +533,7 @@ _initBoundaryConditions()
     }
 
     if (bd->hasUCurve()) {
-      String file_name = bd->ACurve();
+      String file_name = bd->UCurve();
       if (!file_name.empty()) {
         auto case_table = readFileAsCaseTable(pm, file_name, 3);
         m_displ_case_table_list.add(CaseTableInfo{ file_name, case_table });
@@ -528,7 +541,7 @@ _initBoundaryConditions()
     }
 
     if (bd->hasVCurve()) {
-      String file_name = bd->ACurve();
+      String file_name = bd->VCurve();
       if (!file_name.empty()) {
         auto case_table = readFileAsCaseTable(pm, file_name, 3);
         m_vel_case_table_list.add(CaseTableInfo{ file_name, case_table });
@@ -536,30 +549,42 @@ _initBoundaryConditions()
     }
 
     if (bd->hasFCurve()) {
-      String file_name = bd->ACurve();
+      String file_name = bd->FCurve();
       if (!file_name.empty()) {
         auto case_table = readFileAsCaseTable(pm, file_name, 3);
         m_force_case_table_list.add(CaseTableInfo{ file_name, case_table });
       }
     }
 
+    auto hasUcurve{bd->hasUCurve()};
+    auto hasVcurve{bd->hasVCurve()};
+    auto hasAcurve{bd->hasACurve()};
+    auto hasFcurve{bd->hasFCurve()};
+    auto xdir{bd->getXAxis()};
+    auto ydir{bd->getYAxis()};
+    auto zdir{bd->getZAxis()};
+
     // Loop on nodes
     ENUMERATE_NODE (inode, nodes) {
       const Node& node = *inode;
       auto coord = m_node_coord[node];
       auto num = node.uniqueId();
-      m_imposed_displ[node].x = bd->hasUx();
-      m_imposed_displ[node].y = bd->hasUy();
-      m_imposed_displ[node].z = bd->hasUz();
-      m_imposed_acc[node].x = bd->hasAx();
-      m_imposed_acc[node].y = bd->hasAy();
-      m_imposed_acc[node].z = bd->hasAz();
-      m_imposed_vel[node].x = bd->hasVx();
-      m_imposed_vel[node].y = bd->hasVy();
-      m_imposed_vel[node].z = bd->hasVz();
-      m_imposed_force[node].x = bd->hasFx();
-      m_imposed_force[node].y = bd->hasFy();
-      m_imposed_force[node].z = bd->hasFz();
+
+      m_imposed_displ[node].x = (bd->hasUx() || (hasUcurve && xdir) ? 1 : 0);
+      m_imposed_displ[node].y = (bd->hasUy() || (hasUcurve && ydir) ? 1 : 0);
+      m_imposed_displ[node].z = (bd->hasUz() || (hasUcurve && zdir) ? 1 : 0);
+
+      m_imposed_acc[node].x = (bd->hasAx() || (hasAcurve && xdir) ? 1 : 0);
+      m_imposed_acc[node].y = (bd->hasAy() || (hasAcurve && ydir) ? 1 : 0);
+      m_imposed_acc[node].z = (bd->hasAz() || (hasAcurve && zdir) ? 1 : 0);
+
+      m_imposed_vel[node].x = (bd->hasVx() || (hasVcurve && xdir) ? 1 : 0);
+      m_imposed_vel[node].y = (bd->hasVy() || (hasVcurve && ydir) ? 1 : 0);
+      m_imposed_vel[node].z = (bd->hasVz() || (hasVcurve && zdir) ? 1 : 0);
+
+      m_imposed_force[node].x = (bd->hasFx() || (hasFcurve && xdir) ? 1 : 0);
+      m_imposed_force[node].y = (bd->hasFy() || (hasFcurve && ydir) ? 1 : 0);
+      m_imposed_force[node].z = (bd->hasFz() || (hasFcurve && zdir) ? 1 : 0);
     }
   }
 
@@ -663,7 +688,7 @@ _applyDirichletBoundaryConditions(){
       const CaseTableInfo& table_info = m_sacc_case_table_list[sac_index++];
       String file_name = bd->ACurve();
       info() << "Applying acceleration boundary conditions for surface " << face_group.name()
-             << " via CaseTable" << file_name;
+             << " via CaseTable " << file_name;
       CaseTable* inn = table_info.case_table;
 
       if (inn != nullptr)
@@ -684,7 +709,7 @@ _applyDirichletBoundaryConditions(){
       const CaseTableInfo& table_info = m_svel_case_table_list[svc_index++];
       String file_name = bd->VCurve();
       info() << "Applying velocity boundary conditions for surface " << face_group.name()
-             << " via CaseTable" << file_name;
+             << " via CaseTable " << file_name;
       CaseTable* inn = table_info.case_table;
 
       if (inn != nullptr)
@@ -705,7 +730,7 @@ _applyDirichletBoundaryConditions(){
       const CaseTableInfo& table_info = m_sdispl_case_table_list[suc_index++];
       String file_name = bd->UCurve();
       info() << "Applying displacement boundary conditions for surface " << face_group.name()
-             << " via CaseTable" << file_name;
+             << " via CaseTable " << file_name;
       CaseTable* inn = table_info.case_table;
 
       if (inn != nullptr)
@@ -724,9 +749,9 @@ _applyDirichletBoundaryConditions(){
     bool is_force_imp{bd->hasFCurve() || bd->hasFx() || bd->hasFy() || bd->hasFz()};
     if (bd->hasFCurve()) {
       const CaseTableInfo& table_info = m_sforce_case_table_list[sfc_index++];
-      String file_name = bd->UCurve();
+      String file_name = bd->FCurve();
       info() << "Applying force boundary conditions for surface " << face_group.name()
-             << " via CaseTable" << file_name;
+             << " via CaseTable " << file_name;
       CaseTable* inn = table_info.case_table;
 
       if (inn != nullptr)
@@ -810,7 +835,7 @@ _applyDirichletBoundaryConditions(){
       const CaseTableInfo& table_info = m_acc_case_table_list[ac_index++];
       String file_name = bd->ACurve();
       info() << "Applying acceleration boundary conditions for nodes " << nodes.name()
-             << " via CaseTable" << file_name;
+             << " via CaseTable " << file_name;
       CaseTable* inn = table_info.case_table;
 
       if (inn != nullptr)
@@ -831,7 +856,7 @@ _applyDirichletBoundaryConditions(){
       const CaseTableInfo& table_info = m_vel_case_table_list[vc_index++];
       String file_name = bd->VCurve();
       info() << "Applying velocity boundary conditions for nodes " << nodes.name()
-             << " via CaseTable" << file_name;
+             << " via CaseTable " << file_name;
       CaseTable* inn = table_info.case_table;
 
       if (inn != nullptr)
@@ -852,7 +877,7 @@ _applyDirichletBoundaryConditions(){
       const CaseTableInfo& table_info = m_displ_case_table_list[uc_index++];
       String file_name = bd->UCurve();
       info() << "Applying displacement boundary conditions for nodes " << nodes.name()
-             << " via CaseTable" << file_name;
+             << " via CaseTable " << file_name;
       CaseTable* inn = table_info.case_table;
 
       if (inn != nullptr)
@@ -871,9 +896,9 @@ _applyDirichletBoundaryConditions(){
     bool is_force_imp{bd->hasFCurve() || bd->hasFx() || bd->hasFy() || bd->hasFz()};
     if (bd->hasFCurve()) {
       const CaseTableInfo& table_info = m_force_case_table_list[fc_index++];
-      String file_name = bd->UCurve();
+      String file_name = bd->FCurve();
       info() << "Applying force boundary conditions for nodes " << nodes.name()
-             << " via CaseTable" << file_name;
+             << " via CaseTable " << file_name;
       CaseTable* inn = table_info.case_table;
 
       if (inn != nullptr)
@@ -894,17 +919,49 @@ _applyDirichletBoundaryConditions(){
       auto coord = m_node_coord[node];
       auto num = node.uniqueId();
 
-      if (is_acc_imp)
-        m_acc[node] = acc;
+      if (is_acc_imp){
+        if ((bool)m_imposed_acc[node].x)
+          m_acc[node].x = acc.x;
 
-      if (is_vel_imp)
-        m_vel[node] = vel;
+        if ((bool)m_imposed_acc[node].y)
+          m_acc[node].y = acc.y;
 
-      if (is_displ_imp)
-        m_displ[node] = displ;
+        if ((bool)m_imposed_acc[node].z)
+          m_acc[node].z = acc.z;
+      }
 
-      if (is_force_imp)
-        m_force[node] = force;
+      if (is_vel_imp){
+        if ((bool)m_imposed_vel[node].x)
+          m_vel[node].x = vel.x;
+
+        if ((bool)m_imposed_vel[node].y)
+          m_vel[node].y = vel.y;
+
+        if ((bool)m_imposed_vel[node].z)
+          m_vel[node].z = vel.z;
+      }
+
+      if (is_displ_imp) {
+        if ((bool)m_imposed_displ[node].x)
+          m_displ[node].x = displ.x;
+
+        if ((bool)m_imposed_displ[node].y)
+          m_displ[node].y = displ.y;
+
+        if ((bool)m_imposed_displ[node].z)
+          m_displ[node].z = displ.z;
+      }
+
+      if (is_force_imp){
+        if ((bool)m_imposed_force[node].x)
+          m_force[node].x = force.x;
+
+        if ((bool)m_imposed_force[node].y)
+          m_force[node].y = force.y;
+
+        if ((bool)m_imposed_force[node].z)
+          m_force[node].z = force.z;
+      }
     }
   }
 }
