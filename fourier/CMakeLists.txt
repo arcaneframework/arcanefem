@@ -19,6 +19,15 @@ configure_file(${MSH_DIR}/plancher.quad4.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONL
 
 target_link_libraries(Fourier PUBLIC FemUtils)
 
+
+# Command to compile C# file for functions
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctions.dll"
+  COMMAND ${ARCANE_PREFIX_DIR}/bin/arcane_dotnet_compile "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctions.cs"
+  DEPENDS "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctions.cs"
+  WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+add_custom_target(external_functions DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctions.dll")
+add_dependencies(Fourier external_functions)
+
 # Copy the tests files in the binary directory
 # The '/' after 'tests' is needed because we want to copy the files
 # inside the 'tests' directory but not the directory itself.

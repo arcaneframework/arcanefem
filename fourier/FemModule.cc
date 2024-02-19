@@ -20,6 +20,7 @@
 #include <arcane/IItemFamily.h>
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
+#include <arcane/core/IStandardFunction.h>
 
 #include "IDoFLinearSystemFactory.h"
 #include "Fem_axl.h"
@@ -93,6 +94,7 @@ class FemModule
   Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
   Real2 _computeEdgeNormal2(Face face);
+  IBinaryMathFunctor<Real, Real3, Real3>* m_n_coord_functor = nullptr;
 
 };
 
@@ -731,6 +733,12 @@ _solve()
       Node node = *inode;
       Real v = dof_u[node_dof.dofId(node, 0)];
       m_u[node] = v;
+      
+      Real3 test = {1.,1.,1.};
+      Real timedummy = 2.0;
+      Real3 pos = {1.,2.,3.};
+      test=m_n_coord_functor->apply(timedummy, pos);
+      //info() << "USERFUNC " << test.x << "  " << test.y << "  " << test.z;
     }
   }
 
