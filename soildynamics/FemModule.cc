@@ -928,10 +928,45 @@ $$
       Real  length = _computeEdgeLength2(face);
       Real2 Normal = _computeEdgeNormal2(face);
 
+      Real f0 = m_U[face.nodeId(0)].x;
+      Real f1 = m_U[face.nodeId(1)].x;
+      Real Uold1 = f0 + f1;
+
+      f0 = m_U[face.nodeId(0)].y;
+      f1 = m_U[face.nodeId(1)].y;
+      Real Uold2 = f0 + f1;
+
+      f0 = m_V[face.nodeId(0)].x;
+      f1 = m_V[face.nodeId(1)].x;
+      Real Vold1 = f0 + f1;
+
+      f0 = m_V[face.nodeId(0)].y;
+      f1 = m_V[face.nodeId(1)].y;
+      Real Vold2 = f0 + f1;
+
+      f0 = m_A[face.nodeId(0)].x;
+      f1 = m_A[face.nodeId(1)].x;
+      Real Aold1 = f0 + f1;
+
+      f0 = m_A[face.nodeId(0)].y;
+      f1 = m_A[face.nodeId(1)].y;
+      Real Aold2 = f0 + f1;
+
       for (Node node : iface->nodes()) {
         if (node.isOwn()) {
           if (!(m_u1_fixed[node])) {
             DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+             rhs_values[dof_id1] += (  c7*( cp*( Normal.x*Normal.x*(Uold1+m_U[node].x) + Normal.x*Normal.y*(Uold2+m_U[node].y) ) +
+                                           cs*( Normal.y*Normal.y*(Uold1+m_U[node].x) - Normal.x*Normal.y*(Uold2+m_U[node].y) )
+                                         )
+                                    - c8*( cp*( Normal.x*Normal.x*(Vold1+m_V[node].x) + Normal.x*Normal.y*(Vold2+m_V[node].y) ) +
+                                           cs*( Normal.y*Normal.y*(Vold1+m_V[node].x) - Normal.x*Normal.y*(Vold2+m_V[node].y) )
+                                         )
+                                    - c9*( cp*( Normal.x*Normal.x*(Aold1+m_A[node].x) + Normal.x*Normal.y*(Aold2+m_A[node].y) ) +
+                                           cs*( Normal.y*Normal.y*(Aold1+m_A[node].x) - Normal.x*Normal.y*(Aold2+m_A[node].y) )
+                                         )
+                                    ) * length / 6.;
+            /*
             rhs_values[dof_id1] += (  c7*( cp*( Normal.x*Normal.x*m_U[node].x + Normal.x*Normal.y*m_U[node].y ) +
                                            cs*( Normal.y*Normal.y*m_U[node].x - Normal.x*Normal.y*m_U[node].y )
                                          )
@@ -942,9 +977,21 @@ $$
                                            cs*( Normal.y*Normal.y*m_A[node].x - Normal.x*Normal.y*m_A[node].y )
                                          )
                                     ) * length / 2.;
+                                    */
           }
           if (!(m_u2_fixed[node])) {
             DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+             rhs_values[dof_id2] += (  c7*( cp*( Normal.x*Normal.y*m_U[node].x + Normal.y*Normal.y*m_U[node].y ) +
+                                           cs*(-Normal.x*Normal.y*m_U[node].x + Normal.x*Normal.x*m_U[node].y )
+                                         )
+                                    - c8*( cp*( Normal.x*Normal.y*(Vold1+m_V[node].x) + Normal.y*Normal.y*(Vold2+m_V[node].y) ) +
+                                           cs*(-Normal.x*Normal.y*(Vold1+m_V[node].x) + Normal.x*Normal.x*(Vold2+m_V[node].y) )
+                                         )
+                                    - c9*( cp*( Normal.x*Normal.y*(Aold1+m_A[node].x) + Normal.y*Normal.y*(Aold2+m_A[node].y) ) +
+                                           cs*(-Normal.x*Normal.y*(Aold1+m_A[node].x) + Normal.x*Normal.x*(Aold2+m_A[node].y) )
+                                         )
+                                   ) * length / 6.;
+            /*
             rhs_values[dof_id2] += (  c7*( cp*( Normal.x*Normal.y*m_U[node].x + Normal.y*Normal.y*m_U[node].y ) +
                                            cs*(-Normal.x*Normal.y*m_U[node].x + Normal.x*Normal.x*m_U[node].y )
                                          )
@@ -955,6 +1002,7 @@ $$
                                            cs*(-Normal.x*Normal.y*m_A[node].x + Normal.x*Normal.x*m_A[node].y )
                                          )
                                    ) * length / 2.;
+                                   */
           }
         }
       }
