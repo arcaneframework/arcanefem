@@ -207,6 +207,10 @@ getGaussData(const ItemWithNodes& item, const Integer3& nint, Int32& ngauss){
         for (Int32 inod = 0; inod < item.nbNode(); ++inod) {
          auto Phi_i = getShapeFuncVal(item.type(), inod, { pos, 0., 0. });
          vec[index++] = Phi_i;
+         auto dPhi = getShapeFuncDeriv(item.type(), inod, { pos, 0., 0. });
+         vec[index++] = dPhi.x;
+         vec[index++] = 0.;
+         vec[index++] = 0.;
         }
       }
     }
@@ -332,7 +336,7 @@ void DirVectors(const Face& face,const VariableNodeReal3& n, const Int32& ndim, 
 /*---------------------------------------------------------------------------*/
 // Line2: linear edge finite-element
 //
-// 1           0
+// 0           1
 // o-----------o---> x
 //-1           1
 // direct : 0->1 (local numbering)
@@ -341,7 +345,8 @@ void DirVectors(const Face& face,const VariableNodeReal3& n, const Int32& ndim, 
 Real Line2Length(const ItemWithNodes& item,const VariableNodeReal3& n){
   const Real3& n0 = n[item.node(0)];
   const Real3& n1 = n[item.node(1)];
-  return (n0-n1).normL2();
+//  return (n0-n1).normL2();
+  return (n1-n0).normL2();
 }
 
 Real Line2ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
@@ -350,12 +355,14 @@ Real Line2ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 #endif
 
 	Real r = ref_coord[0];
-	if (!inod) return (0.5*(1 + r));
+//	if (!inod) return (0.5*(1 + r));
+	if (inod == 1) return (0.5*(1 + r));
 	return (0.5*(1 - r));
 }
 
 Real3 Line2ShapeFuncDeriv(const Integer& inod,const Real3&){
-  if (!inod) return { 0.5,0.,0. };
+//  if (!inod) return { 0.5,0.,0. };
+  if (inod == 1) return { 0.5,0.,0. };
   return { -0.5,0.,0. };
 }
 
