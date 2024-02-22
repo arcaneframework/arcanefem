@@ -95,7 +95,8 @@ class FemModule
   Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
   Real2 _computeEdgeNormal2(Face face);
-  IBinaryMathFunctor<Real, Real3, Real3>* m_n_coord_functor = nullptr;
+  IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_dirichlet = nullptr;
+  IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_source = nullptr;
 
 };
 
@@ -118,8 +119,7 @@ compute()
   // This is only used for the first call.
   {
     StringList string_list;
-    string_list.add("-trmalloc");
-    string_list.add("-log_trace");
+    string_list.add("-ksp_monitor");
     CommandLineArguments args(string_list);
     m_linear_system.setSolverCommandLineArguments(args);
   }
@@ -140,28 +140,25 @@ startInit()
 
   // Check we have user function for node coord boundary condition
   {
-    ICaseFunction* opt_function = options()->nodeCoordBoundaryCondition.function();
-    IStandardFunction* scf = options()->nodeCoordBoundaryCondition.standardFunction();
+    ICaseFunction* opt_function = options()->manufacturedDirichletCondition.function();
+    IStandardFunction* scf = options()->manufacturedDirichletCondition.standardFunction();
     if (!scf)
-      ARCANE_FATAL("No standard case function for option 'node-coord-boundary-condition'");
-    auto* functor = scf->getFunctorRealReal3ToReal3();
+      ARCANE_FATAL("No standard case function for option 'manufactured-dirichlet-condition'");
+    auto* functor  = scf->getFunctorRealReal3ToReal();
     if (!functor)
-      ARCANE_FATAL("Standard function '{0}' is not convertible to f(Real,Real3) -> Real3", opt_function->name());
-    m_n_coord_functor = functor;
+      ARCANE_FATAL("Standard function '{0}' is not convertible to f(Real,Real3) -> Real", opt_function->name());
+    m_manufactured_dirichlet = functor;
+
+    ICaseFunction* opt_function_source = options()->manufacturedSourceCondition.function();
+    IStandardFunction* scf_source = options()->manufacturedSourceCondition.standardFunction();
+    if (!scf_source)
+      ARCANE_FATAL("No standard case function for option 'manufactured-source-condition'");
+    auto* functorS = scf_source->getFunctorRealReal3ToReal();
+    if (!functorS)
+      ARCANE_FATAL("Standard function '{0}' is not convertible to f(Real,Real3) -> Real", opt_function_source->name());
+    m_manufactured_source = functorS;
   }
 
-  //_buildDoFOnNodes();
-  //Int32 nb_node = allNodes().size();
-  //m_k_matrix.resize(nb_node, nb_node);
-  //m_k_matrix.fill(0.0);
-
-  //m_rhs_vector.resize(nb_node);
-  //m_rhs_vector.fill(0.0);
-
-  // # init mesh
-  // # init behavior
-  // # init behavior on mesh entities
-  // # init BCs
   _initBoundaryconditions();
 }
 
@@ -271,6 +268,18 @@ _applyDirichletBoundaryConditions()
       m_u_dirichlet[node] = true;
       }
     }
+
+  if(options()->manufacturedDirichletCondition()){
+    cout << " DEBUG -- MANUFACTURED TEST CASE " <<  endl;
+    info() << "Apply manufactured Dirichlet boundary condition to all surface";
+    ENUMERATE_ (Edge, iedge, allEdges()) {
+      for (Node node : iedge->nodes()) {
+        m_u[node] = m_manufactured_dirichlet->apply(lambda, m_node_coord[node]);;
+        m_u_dirichlet[node] = true;
+      }
+    }
+  }
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -415,15 +424,39 @@ _assembleLinearOperator()
   //  $int_{Omega}(qdot*v^h)$
   //  only for noded that are non-Dirichlet
   //----------------------------------------------
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-    Real area = _computeAreaTriangle3(cell);
-    for (Node node : cell.nodes()) {
-      if (!(m_u_dirichlet[node]) && node.isOwn())
-        rhs_values[node_dof.dofId(node, 0)] += qdot * area / ElementNodes;
-    }
-  }
+  if(options()->manufacturedSourceCondition()){
+    ARCANE_CHECK_POINTER(m_manufactured_source);
+    info() << "Apply manufactured Source condition to all cells";
+    ENUMERATE_ (Cell, icell, allCells()) {
+     Cell cell = *icell;
 
+     Real area = _computeAreaTriangle3(cell);
+
+     Real3 m0 = m_node_coord[cell.nodeId(0)];
+     Real3 m1 = m_node_coord[cell.nodeId(1)];
+     Real3 m2 = m_node_coord[cell.nodeId(2)];
+
+     Real Center_x = (m0.x + m1.x + m2.x)/3;
+     Real Center_y = (m0.y + m1.y + m2.y)/3;
+     Real3 bcenter = {Center_x , Center_y, 0};
+
+     for (Node node : cell.nodes()) {
+       if (!(m_u_dirichlet[node]) && node.isOwn()){
+         rhs_values[node_dof.dofId(node, 0)] += m_manufactured_source->apply(area / ElementNodes, bcenter);
+         cout << "DEBUG cell node " << Center_x << "  " << Center_y << "  " << rhs_values[node_dof.dofId(node, 0)] << endl;
+       }
+     }
+   }
+  }else{
+    ENUMERATE_ (Cell, icell, allCells()) {
+     Cell cell = *icell;
+     Real area = _computeAreaTriangle3(cell);
+     for (Node node : cell.nodes()) {
+       if (!(m_u_dirichlet[node]) && node.isOwn())
+         rhs_values[node_dof.dofId(node, 0)] += qdot * area / ElementNodes;
+     }
+   }
+  }
   //----------------------------------------------
   // Constant flux term assembly
   //----------------------------------------------
@@ -738,7 +771,6 @@ _solve()
   // of u on all nodes
   _applyDirichletBoundaryConditions();
 
-  ARCANE_CHECK_POINTER(m_n_coord_functor);
   {
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
     // Copy RHS DoF to Node u
@@ -748,12 +780,8 @@ _solve()
       Real v = dof_u[node_dof.dofId(node, 0)];
       m_u[node] = v;
       
-      Real3 test = {1.,1.,1.};
-      Real timedummy = 2.0;
-      Real3 pos = {1.,2.,3.};
-      test=m_n_coord_functor->apply(timedummy, pos);
-      //info() << "USERFUNC " << test.x << "  " << test.y << "  " << test.z;
     }
+    
   }
 
   m_u.synchronize();

@@ -1,3 +1,23 @@
+//----------------------------------------------------------------
+// manufactured solution
+// u(x,y) = lambda *  ( sin(x) + cos(y) )
+//
+// for this case the manufactured dirichlet will be
+// the same as manufactured solution
+//
+// u_D(x,y) = lambda *  ( sin(x) + cos(y) )
+//
+// this is given by function
+//    Real manufacturedDirichlet( )
+//
+// manufactured source term f(x,y) will be d^2(u):
+//
+// f(x,y) = - lambda * ( sin(x) + cos(y) ) * A/3
+//
+// this is given by function
+//    Real manufacturedSource( )
+//----------------------------------------------------------------
+
 using System;
 using Arcane;
 using Real = System.Double;
@@ -6,26 +26,16 @@ namespace FemModule
 {
   public class CaseFunctions
   {
-    Real3 m_origin;
-
-    // Constructor to initialize instance
-    public CaseFunctions()
+    public
+    Real manufacturedDirichlet(Real lambda, Real3 position)
     {
-      m_origin = new Real3(0.2,0.3,0.0);
+      return lambda * (System.Math.Sin(position.x)  +  System.Math.Cos(position.y));
     }
+    public
 
-    // User Function.
-    public Real3 NCoordFunc(Real global_time,Real3 position)
+    Real manufacturedSource(Real alpha, Real3 position)
     {
-      Real3 delta = position - m_origin;
-      Real dx = delta.x;
-      Real dy = delta.y;
-      Real dz = delta.z;
-      Real norm = 0.3 * System.Math.Sqrt(dx*dx+dy*dy+dz*dz);
-      Real vx = global_time * norm * dx;
-      Real vy = global_time * norm * dy;
-      Real vz = global_time * norm * dz;
-      return new Real3(vx,vy,vz);
+      return alpha * (System.Math.Sin(position.x)  +  System.Math.Cos(position.y));
     }
   }
 }

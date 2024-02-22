@@ -42,9 +42,14 @@
         Penalty value for enforcing Dirichlet condition
       </description>
     </simple>
-    <simple name="node-coord-boundary-condition" type="real3">
+    <simple name="manufactured-dirichlet-condition" type="bool"  default="false" optional="true">
       <description>
-        Function for boundary condition
+        Function for Dirichlet boundary condition
+      </description>
+    </simple>
+    <simple name="manufactured-source-condition" type="bool"  default="false" optional="true">
+      <description>
+        Function for Source condition
       </description>
     </simple>
 
@@ -142,7 +147,7 @@
         </description>
       </simple>
     </complex>
-  
+
     <service-instance name = "linear-system"
                       type = "Arcane::FemUtils::IDoFLinearSystemFactory"
                       default = "AlephLinearSystem"
