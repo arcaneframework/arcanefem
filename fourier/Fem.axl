@@ -42,6 +42,11 @@
         Penalty value for enforcing Dirichlet condition
       </description>
     </simple>
+    <simple name="node-coord-boundary-condition" type="real3">
+      <description>
+        Function for boundary condition
+      </description>
+    </simple>
 
     <!-- - - - - - dirichlet-boundary-condition - - - - -->
     <complex name  = "dirichlet-boundary-condition"

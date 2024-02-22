@@ -14,6 +14,7 @@
 #include <arcane/utils/NumArray.h>
 #include <arcane/utils/CommandLineArguments.h>
 #include <arcane/utils/StringList.h>
+#include <arcane/utils/Real3.h>
 
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IMesh.h>
@@ -136,6 +137,18 @@ startInit()
 
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
+
+  // Check we have user function for node coord boundary condition
+  {
+    ICaseFunction* opt_function = options()->nodeCoordBoundaryCondition.function();
+    IStandardFunction* scf = options()->nodeCoordBoundaryCondition.standardFunction();
+    if (!scf)
+      ARCANE_FATAL("No standard case function for option 'node-coord-boundary-condition'");
+    auto* functor = scf->getFunctorRealReal3ToReal3();
+    if (!functor)
+      ARCANE_FATAL("Standard function '{0}' is not convertible to f(Real,Real3) -> Real3", opt_function->name());
+    m_n_coord_functor = functor;
+  }
 
   //_buildDoFOnNodes();
   //Int32 nb_node = allNodes().size();
@@ -725,6 +738,7 @@ _solve()
   // of u on all nodes
   _applyDirichletBoundaryConditions();
 
+  ARCANE_CHECK_POINTER(m_n_coord_functor);
   {
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
     // Copy RHS DoF to Node u

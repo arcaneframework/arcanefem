@@ -26,6 +26,7 @@
   </functions>
 
   <fem>
+    <node-coord-boundary-condition function="NCoordFunc">0.0 0.0 0.0</node-coord-boundary-condition>
     <lambda>1.75</lambda>
     <qdot>1e5</qdot>
     <result-file>test1_results.txt</result-file>

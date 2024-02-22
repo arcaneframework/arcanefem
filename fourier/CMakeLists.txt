@@ -13,6 +13,7 @@ configure_file(Test.conduction.heterogeneous.arc ${CMAKE_CURRENT_BINARY_DIR} COP
 configure_file(Test.conduction.heterogeneous.10k.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.conduction.10k.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.conduction.quad4.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Test.manufacture.solution.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/plancher.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/multi-material.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/plancher.quad4.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
@@ -57,6 +58,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [Fourier]conduction COMMAND Fourier Test.conduction.arc)
   add_test(NAME [Fourier]conduction_heterogeneous COMMAND Fourier Test.conduction.heterogeneous.arc)
   add_test(NAME [Fourier]conduction_quad COMMAND Fourier Test.conduction.quad4.arc)
+  add_test(NAME [Fourier]manufacture_solution COMMAND Fourier -A,UsingDotNet=1 Test.manufacture.solution.arc)
 endif()
 
 
