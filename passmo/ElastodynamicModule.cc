@@ -1249,7 +1249,7 @@ _computeK(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Re
       for (Int32 l = 0; l < 2; ++l){
 
         auto ii = 2*inod + l;
-        Real3 Bii{};
+        Real3 Bii;
 
         if (!l){
           Bii.x = Bmat(0, inod);
@@ -1352,8 +1352,6 @@ _computeKParax(const Face& face, const Int32& ig, const RealUniqueArray& vec, co
         //----------------------------------------------
         // Elementary contribution c1 * <A0(un+1),v>
         //----------------------------------------------
-
-//        for (Int32 jnod = inod, jig = 4*(1+inod); jnod < nb_nodes; ++jnod) {
         for (Int32 jnod = 0, jig = 4; jnod < nb_nodes; ++jnod) {
 
             auto Phi_j = vec[ig + jig];
@@ -1361,14 +1359,11 @@ _computeKParax(const Face& face, const Int32& ig, const RealUniqueArray& vec, co
             for (int ll = 0; ll < NDIM; ++ll) {
               auto jj = NDIM * jnod + ll;
 
-            //            auto mij = - alfa * wtPhi_i * Phi_j * CRot[l][l];
-
               auto aij{ rhocpcs * nxn[l][ll] };
               if (l == ll) aij += rhocs;
               auto kij{ c1 * aij * wtPhi_i * Phi_j };
 
               Ke(ii, jj) = kij;
-//              Ke(jj, ii) = kij;
             }
             jig += 4;
         }
@@ -1613,14 +1608,6 @@ _assembleLinearRHS(){
       for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4*(1 + nb_nodes)) {
 
         auto jacobian {0.};
-/*
-        if (NDIM == 2) {
-          auto jac = _computeJacobian2D(cell, ig, vec, jacobian);
-        }
-        else {
-          auto jac = _computeJacobian3D(cell, ig, vec, jacobian);
-        }
-*/
         _computeJacobian(cell, ig, vec, jacobian);
 
         // Computing elementary mass matrix at Gauss point ig
@@ -1757,18 +1744,25 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
           auto rho = m_rho_parax[face];
           auto RhoC{ rho * m_vel_parax[face] };
 
+          Real3 e1{ m_e1_boundary[face] }, e2{ m_e2_boundary[face] }, e3{ m_e3_boundary[face] };
+          // In 2D, paraxial = edge => e1 = tangential vector, e2 = outbound normal vector
+          // In 3D, paraxial = face => e1, e2 = on tangential plane, e3 = outbound normal vector
+          Real3 nvec{e3};
+          if (NDIM < 3) nvec = e2;
+
+          Int32 ndim = getGeomDimension(face);
+          auto rhocp{RhoC[ndim]};
+          auto rhocs{RhoC[0]};
+          auto rhocpcs{rhocp - rhocs};
+
+          // Tensorial product on normal vector nvec:
+          Real3x3 nxn({ nvec.x * nvec.x, nvec.x * nvec.y, nvec.x * nvec.z },
+                      { nvec.y * nvec.x, nvec.y * nvec.y, nvec.y * nvec.z },
+                      { nvec.z * nvec.x, nvec.z * nvec.y, nvec.z * nvec.z });
+
           // In 3D, a quadratic face element has max 9 nodes (27 dofs)
           auto nb_nodes{ face.nbNode() };
           auto size{ NDIM * nb_nodes };
-          //          RealUniqueArray Fe(size, 0.);
-          RealUniqueArray2 Ke(size, size);
-
-          for (Int32 i = 0; i < size; ++i) {
-            for (Int32 j = i; j < size; ++j) {
-              Ke(i, j) = 0.;
-              Ke(j, i) = 0.;
-            }
-          }
 
           // Loop on the cell Gauss points to compute integrals terms
           Int32 ngauss{ 0 };
@@ -1777,49 +1771,36 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
           for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4 * (1 + nb_nodes)) {
 
             auto jacobian{ 0. };
-
-            /*
-            if (NDIM == 3){
-              auto jac = _computeJacobian3D(face, ig, vec, jacobian);
-            }
-            else{
-              auto jac = _computeJacobian2D(face, ig, vec, jacobian);
-            }
-*/
             _computeJacobian(face, ig, vec, jacobian);
-            //            _computeTracParax(face, ig, vec, jacobian, Fe, RhoC);
-            _computeKParax(face, ig, vec, jacobian, Ke, RhoC);
 
-            // Loop on nodes of the face (with no Dirichlet condition)
+            // Loop on nodes of the paraxial face (with no Dirichlet condition)
             Int32 n1_index{ 0 };
             auto iig{ 4 };
+            auto wt = vec[ig] * jacobian;
+            auto wtPhi_i = wt*vec[ig + iig];
+
             for (Node node1 : face.nodes()) {
 
               for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
 
                 DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
-                auto ii = NDIM * n1_index + iddl;
 
                 bool is_node1_dofi_set = (bool)m_imposed_displ[node1][iddl];
                 auto rhs_i{ 0. };
 
                 if (node1.isOwn() && !is_node1_dofi_set) {
-                  /*
-                  rhs_i = Fe(ii);
-                  rhs_values[node1_dofi] += rhs_i;
-*/
-                  Int32 n2_index{ 0 };
-                  for (Node node2 : face.nodes()) {
-                    auto an = m_prev_acc[node2][iddl];
-                    auto vn = m_prev_vel[node2][iddl];
-                    auto dn = m_prev_displ[node2][iddl];
-                    auto jj = NDIM * n2_index + iddl;
-                    auto kij = Ke(ii, jj);
-                    rhs_i += kij * (c1 * dn + c2 * an + c3 * vn);
-                    ++n2_index;
+
+                  for (Int32 jddl = 0; jddl < NDIM; ++jddl) {
+
+                    auto an = m_prev_acc[node1][jddl];
+                    auto vn = m_prev_vel[node1][jddl];
+                    auto dn = m_prev_displ[node1][jddl];
+                    auto aij{ rhocpcs * nxn[iddl][jddl] };
+                    if (iddl == jddl) aij += rhocs;
+                    rhs_i += aij * wtPhi_i * (c1 * dn + c2 * an + c3 * vn);
                   }
-                  rhs_values[node1_dofi] += rhs_i;
                 }
+                rhs_values[node1_dofi] += rhs_i;
               }
               ++n1_index;
             }
