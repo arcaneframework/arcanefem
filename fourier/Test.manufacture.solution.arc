@@ -9,6 +9,7 @@
    <output-period>1</output-period>
    <output>
      <variable>U</variable>
+     <variable>UExact</variable>
    </output>
   </arcane-post-processing>
 
@@ -28,6 +29,6 @@
   <fem>
     <manufactured-dirichlet-condition function="manufacturedDirichlet">true</manufactured-dirichlet-condition>
     <manufactured-source-condition function="manufacturedSource">true</manufactured-source-condition>
-    <lambda>1.75</lambda>
+    <lambda>1.0</lambda>
   </fem>
 </case>

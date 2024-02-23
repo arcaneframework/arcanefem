@@ -768,6 +768,8 @@ _solve()
   }
 
   m_u.synchronize();
+  if(options()->manufacturedDirichletCondition())
+     m_u_exact.synchronize();
   // def update_T(self,T):
   //     """Update u value on nodes after the FE resolution"""
   //     for i in range(0,len(self.mesh.nodes)):
