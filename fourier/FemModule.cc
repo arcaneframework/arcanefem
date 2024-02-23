@@ -137,7 +137,7 @@ startInit()
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
   // Check we have user function for manufactured boundary/source condition
-  {
+  if(options()->manufacturedDirichletCondition()){
     ICaseFunction* opt_function = options()->manufacturedDirichletCondition.function();
     IStandardFunction* scf = options()->manufacturedDirichletCondition.standardFunction();
     if (!scf)
@@ -146,7 +146,9 @@ startInit()
     if (!functor)
       ARCANE_FATAL("Standard function '{0}' is not convertible to f(Real,Real3) -> Real", opt_function->name());
     m_manufactured_dirichlet = functor;
+  }
 
+  if(options()->manufacturedSourceCondition()){
     ICaseFunction* opt_function_source = options()->manufacturedSourceCondition.function();
     IStandardFunction* scf_source = options()->manufacturedSourceCondition.standardFunction();
     if (!scf_source)
