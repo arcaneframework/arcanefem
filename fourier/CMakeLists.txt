@@ -13,11 +13,22 @@ configure_file(Test.conduction.heterogeneous.arc ${CMAKE_CURRENT_BINARY_DIR} COP
 configure_file(Test.conduction.heterogeneous.10k.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.conduction.10k.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.conduction.quad4.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Test.manufacture.solution.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/plancher.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/multi-material.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/plancher.quad4.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/square_-2pi_to_2pi.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Fourier PUBLIC FemUtils)
+
+
+# Command to compile C# file for functions
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctions.dll"
+  COMMAND ${ARCANE_PREFIX_DIR}/bin/arcane_dotnet_compile "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctions.cs"
+  DEPENDS "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctions.cs"
+  WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+add_custom_target(external_functions DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctions.dll")
+add_dependencies(Fourier external_functions)
 
 # Copy the tests files in the binary directory
 # The '/' after 'tests' is needed because we want to copy the files
@@ -48,6 +59,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [Fourier]conduction COMMAND Fourier Test.conduction.arc)
   add_test(NAME [Fourier]conduction_heterogeneous COMMAND Fourier Test.conduction.heterogeneous.arc)
   add_test(NAME [Fourier]conduction_quad COMMAND Fourier Test.conduction.quad4.arc)
+  add_test(NAME [Fourier]manufacture_solution COMMAND Fourier -A,UsingDotNet=1 Test.manufacture.solution.arc)
 endif()
 
 
@@ -55,6 +67,7 @@ endif()
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
   add_test(NAME [Fourier]conduction_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Fourier Test.conduction.arc)
   add_test(NAME [Fourier]conduction_heterogeneous_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Fourier Test.conduction.heterogeneous.arc)
+  add_test(NAME [Fourier]manufacture_solution_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Fourier -A,UsingDotNet=1  Test.manufacture.solution.arc)
   if(FEMTEST_HAS_GMSH_TEST)
     add_test(NAME [Fourier]conduction_10k_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Fourier Test.conduction.10k.arc)
     add_test(NAME [Fourier]conduction_heterogeneous_10k_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Fourier Test.conduction.heterogeneous.10k.arc)

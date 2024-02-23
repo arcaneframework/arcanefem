@@ -14,12 +14,14 @@
 #include <arcane/utils/NumArray.h>
 #include <arcane/utils/CommandLineArguments.h>
 #include <arcane/utils/StringList.h>
+#include <arcane/utils/Real3.h>
 
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IMesh.h>
 #include <arcane/IItemFamily.h>
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
+#include <arcane/core/IStandardFunction.h>
 
 #include "IDoFLinearSystemFactory.h"
 #include "Fem_axl.h"
@@ -79,11 +81,9 @@ class FemModule
 
   void _doStationarySolve();
   void _getMaterialParameters();
-  void _updateBoundayConditions();
   void _assembleBilinearOperatorTRIA3();
   void _assembleBilinearOperatorQUAD4();
   void _solve();
-  void _initBoundaryconditions();
   void _assembleLinearOperator();
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
@@ -93,6 +93,8 @@ class FemModule
   Real _computeAreaQuad4(Cell cell);
   Real _computeEdgeLength2(Face face);
   Real2 _computeEdgeNormal2(Face face);
+  IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_dirichlet = nullptr;
+  IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_source = nullptr;
 
 };
 
@@ -115,8 +117,7 @@ compute()
   // This is only used for the first call.
   {
     StringList string_list;
-    string_list.add("-trmalloc");
-    string_list.add("-log_trace");
+    string_list.add("-ksp_monitor");
     CommandLineArguments args(string_list);
     m_linear_system.setSolverCommandLineArguments(args);
   }
@@ -135,19 +136,30 @@ startInit()
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
-  //_buildDoFOnNodes();
-  //Int32 nb_node = allNodes().size();
-  //m_k_matrix.resize(nb_node, nb_node);
-  //m_k_matrix.fill(0.0);
+  // Check we have user function for manufactured boundary/source condition
+  if(options()->manufacturedDirichletCondition()){
+    ICaseFunction* opt_function = options()->manufacturedDirichletCondition.function();
+    IStandardFunction* scf = options()->manufacturedDirichletCondition.standardFunction();
+    if (!scf)
+      ARCANE_FATAL("No standard case function for option 'manufactured-dirichlet-condition'");
+    auto* functor  = scf->getFunctorRealReal3ToReal();
+    if (!functor)
+      ARCANE_FATAL("Standard function '{0}' is not convertible to f(Real,Real3) -> Real", opt_function->name());
+    m_manufactured_dirichlet = functor;
+  }
 
-  //m_rhs_vector.resize(nb_node);
-  //m_rhs_vector.fill(0.0);
+  if(options()->manufacturedSourceCondition()){
+    ICaseFunction* opt_function_source = options()->manufacturedSourceCondition.function();
+    IStandardFunction* scf_source = options()->manufacturedSourceCondition.standardFunction();
+    if (!scf_source)
+      ARCANE_FATAL("No standard case function for option 'manufactured-source-condition'");
+    auto* functorS = scf_source->getFunctorRealReal3ToReal();
+    if (!functorS)
+      ARCANE_FATAL("Standard function '{0}' is not convertible to f(Real,Real3) -> Real", opt_function_source->name());
+    m_manufactured_source = functorS;
+  }
 
-  // # init mesh
-  // # init behavior
-  // # init behavior on mesh entities
-  // # init BCs
-  _initBoundaryconditions();
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -156,11 +168,11 @@ startInit()
 void FemModule::
 _doStationarySolve()
 {
-  // # get material parameters
+  // get material parameters
   _getMaterialParameters();
 
-  // # update BCs
-  _updateBoundayConditions();
+  // apply Dirichlet BC
+  _applyDirichletBoundaryConditions();
 
   // Assemble the FEM bilinear operator (LHS - matrix A)
   if (options()->meshType == "QUAD4")
@@ -209,17 +221,6 @@ _getMaterialParameters()
     }
 }
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_initBoundaryconditions()
-{
-  info() << "Init boundary conditions...";
-
-  info() << "Apply boundary conditions";
-  _applyDirichletBoundaryConditions();
-}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -256,15 +257,17 @@ _applyDirichletBoundaryConditions()
       m_u_dirichlet[node] = true;
       }
     }
-}
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
+  if(options()->manufacturedDirichletCondition()){
+    info() << "Apply manufactured Dirichlet boundary condition to all surface";
+    ENUMERATE_ (Face, iface, outerFaces()) {
+      for (Node node : iface->nodes()) {
+        m_u[node] = m_manufactured_dirichlet->apply(lambda, m_node_coord[node]);
+        m_u_dirichlet[node] = true;
+      }
+    }
+  }
 
-void FemModule::
-_updateBoundayConditions()
-{
-  info() << "TODO " << A_FUNCINFO;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -279,7 +282,7 @@ void FemModule::
 _assembleLinearOperator()
 {
   info() << "Assembly of FEM linear operator ";
-  info() << "Applying Dirichlet boundary condition via  penalty method ";
+
 
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
@@ -400,15 +403,38 @@ _assembleLinearOperator()
   //  $int_{Omega}(qdot*v^h)$
   //  only for noded that are non-Dirichlet
   //----------------------------------------------
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-    Real area = _computeAreaTriangle3(cell);
-    for (Node node : cell.nodes()) {
-      if (!(m_u_dirichlet[node]) && node.isOwn())
-        rhs_values[node_dof.dofId(node, 0)] += qdot * area / ElementNodes;
-    }
-  }
+  if(options()->manufacturedSourceCondition()){
+    ARCANE_CHECK_POINTER(m_manufactured_source);
+    info() << "Apply manufactured Source condition to all cells";
+    ENUMERATE_ (Cell, icell, allCells()) {
+     Cell cell = *icell;
 
+     Real area = _computeAreaTriangle3(cell);
+
+     Real3 m0 = m_node_coord[cell.nodeId(0)];
+     Real3 m1 = m_node_coord[cell.nodeId(1)];
+     Real3 m2 = m_node_coord[cell.nodeId(2)];
+
+     Real Center_x = (m0.x + m1.x + m2.x)/3;
+     Real Center_y = (m0.y + m1.y + m2.y)/3;
+     Real3 bcenter = {Center_x , Center_y, 0};
+
+     for (Node node : cell.nodes()) {
+       if (!(m_u_dirichlet[node]) && node.isOwn()){
+         rhs_values[node_dof.dofId(node, 0)] += m_manufactured_source->apply(area / ElementNodes, bcenter);
+       }
+     }
+   }
+  }else{
+    ENUMERATE_ (Cell, icell, allCells()) {
+     Cell cell = *icell;
+     Real area = _computeAreaTriangle3(cell);
+     for (Node node : cell.nodes()) {
+       if (!(m_u_dirichlet[node]) && node.isOwn())
+         rhs_values[node_dof.dofId(node, 0)] += qdot * area / ElementNodes;
+     }
+   }
+  }
   //----------------------------------------------
   // Constant flux term assembly
   //----------------------------------------------
@@ -421,6 +447,7 @@ _assembleLinearOperator()
   for (const auto& bs : options()->neumannBoundaryCondition()) {
     FaceGroup group = bs->surface();
 
+    info() << "Apply Neumann boundary condition to all edges on surface" << group.name();
     if(bs->value.isPresent()) {
       Real value = bs->value();
       ENUMERATE_ (Face, iface, group) {
@@ -645,9 +672,9 @@ _assembleBilinearOperatorQUAD4()
       ARCANE_FATAL("Only Quad4 cell type is supported");
 
     lambda = m_cell_lambda[cell];                 // lambda is always considered cell constant
-    auto K_e = _computeElementMatrixQUAD4(cell);  // element stifness matrix
+    auto K_e = _computeElementMatrixQUAD4(cell);  // element stiffness matrix
     //             # assemble elementary matrix into the global one
-    //             # elementary terms are positionned into K according
+    //             # elementary terms are positioned into K according
     //             # to the rank of associated node in the mesh.nodes list
     //             for node1 in elem.nodes:
     //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
@@ -685,9 +712,9 @@ _assembleBilinearOperatorTRIA3()
       ARCANE_FATAL("Only Triangle3 cell type is supported");
 
     lambda = m_cell_lambda[cell];                 // lambda is always considered cell constant
-    auto K_e = _computeElementMatrixTRIA3(cell);  // element stifness matrix
+    auto K_e = _computeElementMatrixTRIA3(cell);  // element stiffness matrix
     //             # assemble elementary matrix into the global one
-    //             # elementary terms are positionned into K according
+    //             # elementary terms are positioned into K according
     //             # to the rank of associated node in the mesh.nodes list
     //             for node1 in elem.nodes:
     //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
@@ -732,9 +759,17 @@ _solve()
       Real v = dof_u[node_dof.dofId(node, 0)];
       m_u[node] = v;
     }
+    if(options()->manufacturedDirichletCondition()){
+      ENUMERATE_ (Node, inode, ownNodes()) {
+        Node node = *inode;
+        m_u_exact[node] = m_manufactured_dirichlet->apply(lambda, m_node_coord[node]);
+      }
+    }
   }
 
   m_u.synchronize();
+  if(options()->manufacturedDirichletCondition())
+     m_u_exact.synchronize();
   // def update_T(self,T):
   //     """Update u value on nodes after the FE resolution"""
   //     for i in range(0,len(self.mesh.nodes)):
