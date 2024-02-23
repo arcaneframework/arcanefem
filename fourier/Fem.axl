@@ -12,6 +12,9 @@
     <variable field-name="u" name="U" data-type="real" item-kind="node" dim="0">
       <description>FEM variable u on nodes</description>
     </variable>
+    <variable field-name="u_exact" name="UExact" data-type="real" item-kind="node" dim="0" optional="true">
+      <description>manufactured FEM solution on nodes</description>
+    </variable>
     <variable field-name="u_dirichlet" name="UDirichlet" data-type="bool" item-kind="node" dim="0">
       <description>Boolean which is true if Dirichlet node</description>
     </variable>

@@ -17,6 +17,7 @@ configure_file(Test.manufacture.solution.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONL
 configure_file(${MSH_DIR}/plancher.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/multi-material.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/plancher.quad4.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/square_-2pi_to_2pi.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Fourier PUBLIC FemUtils)
 

@@ -270,10 +270,9 @@ _applyDirichletBoundaryConditions()
     }
 
   if(options()->manufacturedDirichletCondition()){
-    cout << " DEBUG -- MANUFACTURED TEST CASE " <<  endl;
     info() << "Apply manufactured Dirichlet boundary condition to all surface";
-    ENUMERATE_ (Edge, iedge, allEdges()) {
-      for (Node node : iedge->nodes()) {
+    ENUMERATE_ (Face, iface, outerFaces()) {
+      for (Node node : iface->nodes()) {
         m_u[node] = m_manufactured_dirichlet->apply(lambda, m_node_coord[node]);;
         m_u_dirichlet[node] = true;
       }
@@ -303,7 +302,7 @@ void FemModule::
 _assembleLinearOperator()
 {
   info() << "Assembly of FEM linear operator ";
-  info() << "Applying Dirichlet boundary condition via  penalty method ";
+
 
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
@@ -443,7 +442,6 @@ _assembleLinearOperator()
      for (Node node : cell.nodes()) {
        if (!(m_u_dirichlet[node]) && node.isOwn()){
          rhs_values[node_dof.dofId(node, 0)] += m_manufactured_source->apply(area / ElementNodes, bcenter);
-         cout << "DEBUG cell node " << Center_x << "  " << Center_y << "  " << rhs_values[node_dof.dofId(node, 0)] << endl;
        }
      }
    }
@@ -469,6 +467,7 @@ _assembleLinearOperator()
   for (const auto& bs : options()->neumannBoundaryCondition()) {
     FaceGroup group = bs->surface();
 
+    info() << "Apply Neumann boundary condition to all edges on surface" << group.name();
     if(bs->value.isPresent()) {
       Real value = bs->value();
       ENUMERATE_ (Face, iface, group) {
@@ -779,9 +778,13 @@ _solve()
       Node node = *inode;
       Real v = dof_u[node_dof.dofId(node, 0)];
       m_u[node] = v;
-      
     }
-    
+    if(options()->manufacturedDirichletCondition()){
+      ENUMERATE_ (Node, inode, ownNodes()) {
+        Node node = *inode;
+        m_u_exact[node] = m_manufactured_dirichlet->apply(lambda, m_node_coord[node]);
+      }
+    }
   }
 
   m_u.synchronize();

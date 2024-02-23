@@ -14,7 +14,7 @@
 
   <meshes>
     <mesh>
-      <filename>plancher.msh</filename>
+      <filename>square_-2pi_to_2pi.msh</filename>
     </mesh>
   </meshes>
 
@@ -26,31 +26,8 @@
   </functions>
 
   <fem>
-    <node-coord-boundary-condition function="NCoordFunc">0.0 0.0 0.0</node-coord-boundary-condition>
+    <manufactured-dirichlet-condition function="manufacturedDirichlet">true</manufactured-dirichlet-condition>
+    <manufactured-source-condition function="manufacturedSource">true</manufactured-source-condition>
     <lambda>1.75</lambda>
-    <qdot>1e5</qdot>
-    <result-file>test1_results.txt</result-file>
-    <enforce-Dirichlet-method>WeakPenalty</enforce-Dirichlet-method>
-    <penalty>1.e12</penalty>
-    <dirichlet-boundary-condition>
-      <surface>Cercle</surface>
-      <value>50.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Bas</surface>
-      <value>5.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Haut</surface>
-      <value>21.0</value>
-    </dirichlet-boundary-condition>
-    <neumann-boundary-condition>
-      <surface>Droite</surface>
-      <value>15.0</value>
-    </neumann-boundary-condition>
-    <neumann-boundary-condition>
-      <surface>Gauche</surface>
-      <value>0.0</value>
-    </neumann-boundary-condition>
   </fem>
 </case>
