@@ -3,12 +3,8 @@ name: 'Test all modules'
 on:
   push:
     branches: [ main ]
-    paths:
-      - femutils/**
   pull_request:
     branches: [ main ]
-    paths:
-      - femutils/**
   workflow_dispatch:
 
 env:
@@ -34,7 +30,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: ${{ env.SOURCE_DIR }}
 
@@ -58,7 +54,7 @@ jobs:
           ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }}
 
       - name: Upload test artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: test-all-modules-artifact
