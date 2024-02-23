@@ -81,11 +81,9 @@ class FemModule
 
   void _doStationarySolve();
   void _getMaterialParameters();
-  void _updateBoundayConditions();
   void _assembleBilinearOperatorTRIA3();
   void _assembleBilinearOperatorQUAD4();
   void _solve();
-  void _initBoundaryconditions();
   void _assembleLinearOperator();
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
@@ -138,7 +136,7 @@ startInit()
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
-  // Check we have user function for node coord boundary condition
+  // Check we have user function for manufactured boundary/source condition
   {
     ICaseFunction* opt_function = options()->manufacturedDirichletCondition.function();
     IStandardFunction* scf = options()->manufacturedDirichletCondition.standardFunction();
@@ -159,7 +157,7 @@ startInit()
     m_manufactured_source = functorS;
   }
 
-  _initBoundaryconditions();
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -168,11 +166,11 @@ startInit()
 void FemModule::
 _doStationarySolve()
 {
-  // # get material parameters
+  // get material parameters
   _getMaterialParameters();
 
-  // # update BCs
-  _updateBoundayConditions();
+  // apply Dirichlet BC
+  _applyDirichletBoundaryConditions();
 
   // Assemble the FEM bilinear operator (LHS - matrix A)
   if (options()->meshType == "QUAD4")
@@ -221,17 +219,6 @@ _getMaterialParameters()
     }
 }
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_initBoundaryconditions()
-{
-  info() << "Init boundary conditions...";
-
-  info() << "Apply boundary conditions";
-  _applyDirichletBoundaryConditions();
-}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -273,21 +260,12 @@ _applyDirichletBoundaryConditions()
     info() << "Apply manufactured Dirichlet boundary condition to all surface";
     ENUMERATE_ (Face, iface, outerFaces()) {
       for (Node node : iface->nodes()) {
-        m_u[node] = m_manufactured_dirichlet->apply(lambda, m_node_coord[node]);;
+        m_u[node] = m_manufactured_dirichlet->apply(lambda, m_node_coord[node]);
         m_u_dirichlet[node] = true;
       }
     }
   }
 
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_updateBoundayConditions()
-{
-  info() << "TODO " << A_FUNCINFO;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -692,9 +670,9 @@ _assembleBilinearOperatorQUAD4()
       ARCANE_FATAL("Only Quad4 cell type is supported");
 
     lambda = m_cell_lambda[cell];                 // lambda is always considered cell constant
-    auto K_e = _computeElementMatrixQUAD4(cell);  // element stifness matrix
+    auto K_e = _computeElementMatrixQUAD4(cell);  // element stiffness matrix
     //             # assemble elementary matrix into the global one
-    //             # elementary terms are positionned into K according
+    //             # elementary terms are positioned into K according
     //             # to the rank of associated node in the mesh.nodes list
     //             for node1 in elem.nodes:
     //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
@@ -732,9 +710,9 @@ _assembleBilinearOperatorTRIA3()
       ARCANE_FATAL("Only Triangle3 cell type is supported");
 
     lambda = m_cell_lambda[cell];                 // lambda is always considered cell constant
-    auto K_e = _computeElementMatrixTRIA3(cell);  // element stifness matrix
+    auto K_e = _computeElementMatrixTRIA3(cell);  // element stiffness matrix
     //             # assemble elementary matrix into the global one
-    //             # elementary terms are positionned into K according
+    //             # elementary terms are positioned into K according
     //             # to the rank of associated node in the mesh.nodes list
     //             for node1 in elem.nodes:
     //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
