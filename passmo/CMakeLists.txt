@@ -7,7 +7,7 @@ add_executable(Passmo
   Integer3std.h
   utilFEM.h
   utilFEM.cc
-  )
+        analytic_func.cpp analytical_func.h)
 
 arcane_generate_axl(Elastodynamic)
 arcane_add_arcane_libraries_to_target(Passmo)
