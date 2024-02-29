@@ -78,69 +78,92 @@ void _convertNumArrayToCSRMatrix(Matrix& out_matrix, MDSpan<const Real, MDDim2> 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void checkNodeResultFile(ITraceMng* tm, const String& filename,
-                         const VariableNodeReal& node_values, double epsilon)
+namespace
 {
-  ARCANE_CHECK_POINTER(tm);
 
-  tm->info() << "CheckNodeResultFile filename=" << filename;
-  if (filename.empty())
-    ARCANE_FATAL("Invalid empty filename");
-  IItemFamily* node_family = node_values.variable()->itemFamily();
-  if (!node_family)
-    ARCANE_FATAL("Variable '{0}' is not allocated", node_values.name());
-
-  std::map<Int64, double> item_reference_values;
+  inline bool
+  _isDifferent(Real ref_v, Real v, Real epsilon)
   {
-    std::ifstream sbuf(filename.localstr());
-    double read_value = 0.0;
-    Int64 read_uid = 0;
-    if (!sbuf.eof())
-      sbuf >> ws;
-    while (!sbuf.eof()) {
-      sbuf >> read_uid >> ws >> read_value;
-      if (sbuf.fail() || sbuf.bad())
-        ARCANE_FATAL("Error during parsing of file '{0}'", filename);
-      item_reference_values.insert(std::make_pair(read_uid, read_value));
-      sbuf >> ws;
-    }
+    return !TypeEqualT<Real>::isNearlyEqualWithEpsilon(ref_v, v, epsilon);
+  }
+  inline bool
+  _isDifferent(Real2 ref_v, Real2 v, Real epsilon)
+  {
+    return _isDifferent(ref_v.x, v.x, epsilon) || _isDifferent(ref_v.y, v.y, epsilon);
+  }
+  inline bool
+  _isDifferent(Real3 ref_v, Real3 v, Real epsilon)
+  {
+    return _isDifferent(ref_v.x, v.x, epsilon) || _isDifferent(ref_v.y, v.y, epsilon)
+    || _isDifferent(ref_v.z, v.z, epsilon);
   }
 
-  tm->info() << "NB_Values=" << item_reference_values.size();
+  template <typename VariableType> inline void
+  _checkNodeResultFile(ITraceMng* tm, const String& filename,
+                       const VariableType& node_values, double epsilon)
+  {
+    ARCANE_CHECK_POINTER(tm);
+    using DataType = typename VariableType::DataType;
+    tm->info() << "CheckNodeResultFile filename=" << filename;
+    if (filename.empty())
+      ARCANE_FATAL("Invalid empty filename");
+    IItemFamily* node_family = node_values.variable()->itemFamily();
+    if (!node_family)
+      ARCANE_FATAL("Variable '{0}' is not allocated", node_values.name());
 
-  // Get Max UID
-  Int64 max_uid = 0;
-  ENUMERATE_ (Node, inode, node_family->allItems()) {
-    Node node = *inode;
-    if (node.uniqueId() > max_uid)
-      max_uid = node.uniqueId();
-  }
-
-  std::map<Int64, double> item_current_values;
-
-  ENUMERATE_ (Node, inode, node_family->allItems()) {
-    Node node = *inode;
-    item_current_values[node.uniqueId()] = node_values[node];
-  }
-
-  Int64 nb_error = 0;
-  for (const auto& x : item_current_values) {
-    Int64 uid = x.first;
-    Real v = x.second;
-    auto x_ref = item_reference_values.find(uid);
-    if (x_ref != item_reference_values.end()) {
-      Real ref_v = x_ref->second;
-      if (!TypeEqualT<double>::isNearlyEqualWithEpsilon(ref_v, v, epsilon)) {
-        ++nb_error;
-        if (nb_error < 50)
-          tm->info() << String::format("ERROR: uid={0} ref={1} v={2} diff={3}",
-                                       uid, ref_v, v, ref_v - v);
+    std::map<Int64, DataType> item_reference_values;
+    {
+      std::ifstream sbuf(filename.localstr());
+      DataType read_value{};
+      Int64 read_uid = 0;
+      if (!sbuf.eof())
+        sbuf >> ws;
+      while (!sbuf.eof()) {
+        sbuf >> read_uid >> ws >> read_value;
+        //tm->info() << " R uid=" << read_uid << " v=" << read_value;
+        if (sbuf.fail() || sbuf.bad())
+          ARCANE_FATAL("Error during parsing of file '{0}'", filename);
+        item_reference_values.insert(std::make_pair(read_uid, read_value));
+        sbuf >> ws;
       }
     }
+
+    tm->info() << "NB_Values=" << item_reference_values.size();
+
+    // Get Max UID
+    Int64 max_uid = 0;
+    ENUMERATE_ (Node, inode, node_family->allItems()) {
+      Node node = *inode;
+      if (node.uniqueId() > max_uid)
+        max_uid = node.uniqueId();
+    }
+
+    std::map<Int64, DataType> item_current_values;
+
+    ENUMERATE_ (Node, inode, node_family->allItems()) {
+      Node node = *inode;
+      item_current_values[node.uniqueId()] = node_values[node];
+    }
+
+    Int64 nb_error = 0;
+    for (const auto& x : item_current_values) {
+      Int64 uid = x.first;
+      DataType v = x.second;
+      auto x_ref = item_reference_values.find(uid);
+      if (x_ref != item_reference_values.end()) {
+        DataType ref_v = x_ref->second;
+        if (_isDifferent(ref_v, v, epsilon)) {
+          ++nb_error;
+          if (nb_error < 50)
+            tm->info() << String::format("ERROR: uid={0} ref={1} v={2} diff={3}",
+                                         uid, ref_v, v, ref_v - v);
+        }
+      }
+    }
+    if (nb_error > 0)
+      ARCANE_FATAL("Error checking values nb_error={0}", nb_error);
   }
-  if (nb_error > 0)
-    ARCANE_FATAL("Error checking values nb_error={0}", nb_error);
-}
+} // namespace
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -197,6 +220,36 @@ CaseTable* readFileAsCaseTable(IParallelMng* pm, const String& filename, const I
     table->appendElement(func_param, func_value);
   }
   return table;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void
+checkNodeResultFile(ITraceMng* tm, const String& filename,
+                    const VariableNodeReal& node_values, double epsilon)
+{
+  _checkNodeResultFile(tm,filename,node_values,epsilon);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void
+checkNodeResultFile(ITraceMng* tm, const String& filename,
+                    const VariableNodeReal2& node_values, double epsilon)
+{
+  _checkNodeResultFile(tm,filename,node_values,epsilon);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void
+checkNodeResultFile(ITraceMng* tm, const String& filename,
+                    const VariableNodeReal3& node_values, double epsilon)
+{
+  _checkNodeResultFile(tm,filename,node_values,epsilon);
 }
 
 /*---------------------------------------------------------------------------*/

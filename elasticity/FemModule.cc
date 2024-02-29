@@ -139,8 +139,8 @@ _doStationarySolve()
   // Solve for [u1,u2]
   _solve();
 
-  // Check results TODO
-  // _checkResultFile();
+  // Check results
+  _checkResultFile();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -923,12 +923,11 @@ _solve()
       Node node = *inode;
       Real u1_val = dof_u[node_dof.dofId(node, 0)];
       Real u2_val = dof_u[node_dof.dofId(node, 1)];
-      Real3 u_disp;
+      Real2 u_disp;
       u_disp.x = u1_val;
       u_disp.y = u2_val;
-      u_disp.z = 0.0;
       m_U[node] = u_disp;
-      info() << "Node: " << node.localId() << " U1=" << u1_val << " U2=" << u2_val;
+      info() << "Node: " << node.uniqueId() << " " << u1_val << " " << u2_val;
     }
   }
 
@@ -960,8 +959,7 @@ _checkResultFile()
   if (filename.empty())
     return;
   const double epsilon = 1.0e-4;
-  // TODO
-  //Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_U.x, epsilon);
+  Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_U, epsilon);
 }
 
 /*---------------------------------------------------------------------------*/

@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2023 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemUtils.h                                                  (C) 2022-2023 */
+/* FemUtils.h                                                  (C) 2022-2024 */
 /*                                                                           */
 /* Utilitary classes for FEM.                                                */
 /*---------------------------------------------------------------------------*/
@@ -169,6 +169,38 @@ extern "C++" void
 checkNodeResultFile(ITraceMng* tm, const String& filename,
                     const VariableNodeReal& node_values, double epsilon);
 
+/*!
+ * \brief Check the values of the variable against a reference file.
+ *
+ * The reference file \a filename is an ASCII file containing \a N \a Real2
+ * values where \a N is the number of nodes in the mesh (so there will be
+ * \a N*2 real in the file). The file should have the following format:
+ * uid1 x1 y1 uid2 x2 y2 ... uidN xN yN.
+ *
+ * For each item the current value of \a node_values is compared to the
+ * reference value and if the relative difference is greater than \a epsilon
+ * this is an error.
+ */
+extern "C++" void
+checkNodeResultFile(ITraceMng* tm, const String& filename,
+                    const VariableNodeReal2& node_values, double epsilon);
+
+/*!
+ * \brief Check the values of the variable against a reference file.
+ *
+ * The reference file \a filename is an ASCII file containing \a N \a Real3
+ * values where \a N is the number of nodes in the mesh (so there will be
+ * \a N*3 real in the file). The file should have the following format:
+ * uid1 x1 y1 z1 uid2 x2 y2 z2 ... uidN xN yN zN.
+ *
+ * For each item the current value of \a node_values is compared to the
+ * reference value and if the relative difference is greater than \a epsilon
+ * this is an error.
+ */
+extern "C++" void
+checkNodeResultFile(ITraceMng* tm, const String& filename,
+                    const VariableNodeReal3& node_values, double epsilon);
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
@@ -179,7 +211,12 @@ checkNodeResultFile(ITraceMng* tm, const String& filename,
  */
 extern "C++" CaseTable*
 readFileAsCaseTable(IParallelMng* pm, const String& filename, const Int32& ndim);
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 } // namespace Arcane::FemUtils
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
