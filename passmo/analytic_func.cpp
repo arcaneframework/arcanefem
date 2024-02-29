@@ -12,15 +12,6 @@
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-void AnalyticFunc::setTp(const Real& tp) { m_tp = tp; }
-void AnalyticFunc::setTs(const Real& ts) { m_ts = ts; }
-void AnalyticFunc::setAmplit(const Real& amplit) { m_amplit = amplit; }
-void AnalyticFunc::setCoef(const Real& coef) { m_coef = coef; }
-void AnalyticFunc::setPhase(const Real& phase) { m_phase = phase; }
-void AnalyticFunc::setOrder(const Int32& order){ m_order = order; }
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
 /*!
  * \brief Ricker analytical function.
  */

@@ -334,8 +334,8 @@ compute(){
   }
 
   // Apply other Dirichlet/Neumann conditions if any (constant values assumed at present)
-  _applyDirichletBoundaryConditions();
-  _applyNeumannBoundaryConditions();
+  _applyBoundaryConditions();
+
   info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
 
   // Assemble the FEM global operators (LHS matrix/RHS vector b)
@@ -581,6 +581,30 @@ _initBoundaryConditions()
 
     FaceGroup face_group = bs->surface();
 
+    if (bs->getInputMotionType() == 6) {
+      if (bs->hasUInput()) {
+        String file_name = bs->getUInput();
+        if (!file_name.empty()) {
+          auto case_table = readFileAsCaseTable(pm, file_name, 3);
+          m_uin_case_table_list.add(CaseTableInfo{ file_name, case_table });
+        }
+      }
+      if (bs->hasVInput()) {
+        String file_name = bs->getVInput();
+        if (!file_name.empty()) {
+          auto case_table = readFileAsCaseTable(pm, file_name, 3);
+          m_vin_case_table_list.add(CaseTableInfo{ file_name, case_table });
+        }
+      }
+      if (bs->hasAInput()) {
+        String file_name = bs->getAInput();
+        if (!file_name.empty()) {
+          auto case_table = readFileAsCaseTable(pm, file_name, 3);
+          m_ain_case_table_list.add(CaseTableInfo{ file_name, case_table });
+        }
+      }
+    }
+
     auto rho = bs->getRhopar();
     Real cs, cp;
     bool is_inner{ false };
@@ -656,8 +680,9 @@ _initBoundaryConditions()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void ElastodynamicModule::
-_applyDirichletBoundaryConditions(){
+_applyBoundaryConditions(){
 
+  Real time = globalTime();
   Int32 sac_index{ 0 }, svc_index{ 0 }, suc_index{ 0 }, sfc_index{ 0 };
   for (const auto& bd : options()->dirichletSurfaceCondition()) {
     FaceGroup face_group = bd->surface();
@@ -672,7 +697,7 @@ _applyDirichletBoundaryConditions(){
       CaseTable* inn = table_info.case_table;
 
       if (inn != nullptr)
-        inn->value(m_global_time(), acc);
+        inn->value(time, acc);
     }
     else if (is_acc_imp) {
       if (bd->hasAx())
@@ -693,7 +718,7 @@ _applyDirichletBoundaryConditions(){
       CaseTable* inn = table_info.case_table;
 
       if (inn != nullptr)
-        inn->value(m_global_time(), vel);
+        inn->value(time, vel);
     }
     else if (is_vel_imp){
       if (bd->hasVx())
@@ -714,7 +739,7 @@ _applyDirichletBoundaryConditions(){
       CaseTable* inn = table_info.case_table;
 
       if (inn != nullptr)
-        inn->value(m_global_time(), displ);
+        inn->value(time, displ);
     }
     else if (is_displ_imp){
       if (bd->hasUx())
@@ -735,7 +760,7 @@ _applyDirichletBoundaryConditions(){
       CaseTable* inn = table_info.case_table;
 
       if (inn != nullptr)
-        inn->value(m_global_time(), force);
+        inn->value(time, force);
     }
     else if (is_force_imp){
       if (bd->hasFx())
@@ -819,7 +844,7 @@ _applyDirichletBoundaryConditions(){
       CaseTable* inn = table_info.case_table;
 
       if (inn != nullptr)
-        inn->value(m_global_time(), acc);
+        inn->value(time, acc);
     }
     else if (is_acc_imp) {
       if (bd->hasAx())
@@ -840,7 +865,7 @@ _applyDirichletBoundaryConditions(){
       CaseTable* inn = table_info.case_table;
 
       if (inn != nullptr)
-        inn->value(m_global_time(), vel);
+        inn->value(time, vel);
     }
     else if (is_vel_imp){
       if (bd->hasVx())
@@ -861,7 +886,7 @@ _applyDirichletBoundaryConditions(){
       CaseTable* inn = table_info.case_table;
 
       if (inn != nullptr)
-        inn->value(m_global_time(), displ);
+        inn->value(time, displ);
     }
     else if (is_displ_imp){
       if (bd->hasUx())
@@ -882,7 +907,7 @@ _applyDirichletBoundaryConditions(){
       CaseTable* inn = table_info.case_table;
 
       if (inn != nullptr)
-        inn->value(m_global_time(), force);
+        inn->value(time, force);
     }
     else if (is_force_imp){
       if (bd->hasFx())
@@ -944,28 +969,27 @@ _applyDirichletBoundaryConditions(){
       }
     }
   }
-}
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-void ElastodynamicModule::
-_applyNeumannBoundaryConditions(){
   Int32 bc_index{ 0 };
   for (const auto& bs : options()->neumannCondition()) {
     FaceGroup face_group = bs->surface();
+/*
     const CaseTableInfo& case_table_info = m_traction_case_table_list[bc_index];
     ++bc_index;
+*/
 
     Real3 trac{};
 
-    if (bs->curve.isPresent()) {
+    if (bs->hasCurve()) {
+//      if (bs->curve.isPresent()) {
+      const CaseTableInfo& case_table_info = m_traction_case_table_list[bc_index++];
       String file_name = bs->getCurve();
       info() << "Applying traction boundary conditions for surface " << face_group.name()
              << " via CaseTable" << file_name;
       CaseTable* inn = case_table_info.case_table;
 
       if (inn != nullptr)
-        inn->value(m_global_time(), trac);
+        inn->value(time, trac);
     }
     else {
       if (bs->hasXVal())
@@ -982,9 +1006,108 @@ _applyNeumannBoundaryConditions(){
       m_imposed_traction[face] = trac;
     }
   }
-  // ***TO DO: we may need to add an incident transient wave field for paraxial
-  // boundary conditions (e.g., plane wave, etc.), not only an absorbing condition
-  // Not implemented yet...
+
+  // Looking for an input motion defined on the paraxial boundary
+  Int32 ui_index{ 0 }, vi_index{ 0 }, ai_index{ 0 };
+  for (const auto& bs : options()->paraxialBoundaryCondition()) {
+
+    FaceGroup face_group = bs->surface();
+    Int32 typ{bs->getInputMotionType()};
+
+    Real3 uin{}, vin{}, ain{};
+    if (typ > 0){
+
+      bool is_u = bs->hasUInput();
+      bool is_v = bs->hasVInput();
+      bool is_a = bs->hasAInput();
+
+      if (typ == 6) {
+        if (is_u) {
+          const CaseTableInfo& table_info = m_uin_case_table_list[ui_index++];
+          String file_name = bs->getUInput();
+          info() << "Applying input displacement for paraxial element " << face_group.name()
+                 << " via CaseTable " << file_name;
+          CaseTable* inn = table_info.case_table;
+
+          if (inn != nullptr)
+            inn->value(time, uin);
+        }
+        if (is_v) {
+          const CaseTableInfo& table_info = m_uin_case_table_list[vi_index++];
+          String file_name = bs->getVInput();
+          info() << "Applying input velocity for paraxial element " << face_group.name()
+                 << " via CaseTable " << file_name;
+          CaseTable* inn = table_info.case_table;
+
+          if (inn != nullptr)
+            inn->value(time, vin);
+        }
+        if (is_a) {
+          const CaseTableInfo& table_info = m_uin_case_table_list[ai_index++];
+          String file_name = bs->getAInput();
+          info() << "Applying input acceleration for paraxial element " << face_group.name()
+                 << " via CaseTable " << file_name;
+          CaseTable* inn = table_info.case_table;
+
+          if (inn != nullptr)
+            inn->value(time, ain);
+        }
+
+      }
+      else{ // For analytical input motions, assuming input displacements
+        is_u = true;
+        m_inputfunc.m_amplit = bs->getAmplit();
+        m_inputfunc.m_coef = bs->getCoef();
+        m_inputfunc.m_order = bs->getOrder();
+        m_inputfunc.m_tp = bs->getTp();
+        m_inputfunc.m_ts = bs->getTs();
+        m_inputfunc.m_phase = bs->getPhase();
+
+        auto val{0.};
+
+        switch (typ){
+        case 1: val = m_inputfunc.getHarmonic(time); break;
+        case 2: val = m_inputfunc.getRicker(time); break;
+        case 3: val = m_inputfunc.getDecay(time); break;
+        case 4: val = m_inputfunc.getTsang(time); break;
+        case 5: val = m_inputfunc.getDirac(time); break;
+        default: break; // if user-defined input, do nothing here
+        }
+
+        auto norm_angle = bs->getNormalAngle();
+        auto plane_angle = bs->getInPlaneAngle();
+        auto PI{acos(-1.)};
+        auto RAD{PI/180.};
+        auto cosan {cos(norm_angle*RAD)};
+        auto sinan {sin(norm_angle*RAD)};
+        auto cosat {cos(plane_angle*RAD)};
+        auto sinat {sin(plane_angle*RAD)};
+
+        if (NDIM == 3) {
+          uin.x = sinan*cosat*val;
+          uin.y = sinan*sinat*val;
+          uin.z = cosan*val;
+        }
+        else {
+          uin.x = sinan*val;
+          uin.y = cosan*val;
+          uin.z = 0.;
+        }
+      }
+
+      // Loop on the faces (=edges in 2D) concerned with an input motion condition
+      ENUMERATE_FACE (iface, face_group) {
+
+        const Face& face = *iface;
+
+        if (face.isSubDomainBoundary() && face.isOwn()) {
+            if (is_u) m_uin_parax[face] = uin;
+            if (is_v) m_vin_parax[face] = vin;
+            if (is_a) m_ain_parax[face] = ain;
+        }
+      }
+    }
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1354,110 +1477,6 @@ _computeKParax(const Face& face, const Int32& ig, const RealUniqueArray& vec, co
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-void ElastodynamicModule::
-_computeTracParax(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
-                  RealUniqueArray& Fe, const Real3& RhoC)
-{
-  auto dt = m_global_deltat();
-  auto alfa{ gamma / beta / dt };
-  auto alfa1{ beta * dt / gamma };
-
-  auto c1{(1. - alfaf) * gamma / beta / dt};
-  auto c2{dt * (1. - alfaf) * (gamma / 2. / beta - 1.)};
-  auto c3{ (1. - alfaf) * gamma / beta - 1.};
-  Real3 ex{ 1., 0., 0. }, ey{ 0., 1., 0. }, ez{ 0., 0., 1. };
-
-  Real3 e1{ m_e1_boundary[face] }, e2{ m_e2_boundary[face] }, e3{ m_e3_boundary[face] };
-  // In 2D, paraxial = edge => e1 = tangential vector, e2 = outbound normal vector
-  // In 3D, paraxial = face => e1, e2 = on tangential plane, e3 = outbound normal vector
-  Real3 nvec{e3};
-  if (NDIM < 3)
-    nvec = e2;
-
-  Int32 ndim = getGeomDimension(face);
-  auto rhocp{RhoC[ndim]};
-  auto rhocs{RhoC[0]};
-  auto rhocpcs{rhocp - rhocs};
-
-  // Tensorial product on normal vector nvec:
-  Real3x3 nxn({ nvec.x * nvec.x, nvec.x * nvec.y, nvec.x * nvec.z },
-              { nvec.y * nvec.x, nvec.y * nvec.y, nvec.y * nvec.z },
-              { nvec.z * nvec.x, nvec.z * nvec.y, nvec.z * nvec.z });
-
-  // Loop on the face/edge Gauss points to compute surface integrals terms on the boundary
-  Int32 ngauss{ 0 };
-  auto wt = vec[ig] * jacobian;
-
-  Int32 nb_nodes = face.nbNode();
-  auto size{ NDIM * nb_nodes };
-
-  // Loop on nodes of the face or edge (with no Dirichlet condition)
-  for (Int32 inod = 0, iig = 4; inod < nb_nodes; ++inod) {
-
-    auto wtPhi_i = wt * vec[ig + iig];
-    Node node = face.node(inod);
-    auto an = m_prev_acc[node];
-    auto vn = m_prev_vel[node];
-    auto dn = m_prev_displ[node];
-    auto u_pred = dn + dt * vn + dt2 * (0.5 - beta) * an;
-    auto v_pred = vn + dt * (1.0 - gamma) * an;
-
-    /*
-      //---------------------------------------------------------------------------------------
-      // A0=0th order paraxial operator applying on a vector u:
-      // A0(u)_i = (rho*(cp-cs) * [nxn]ij + rho*cs*dij)*uj with dij = 1 if i=j, 0 otherwise
-      // Contribution to RHS for paraxial element:
-      // No incident wave: RHS = c1 * <A0(un),v> + c2 * <A0(an),v> + c3 * <A0(vn),v>
-      // With incident wave (u_in, v_in: displacement/velocity incident fields, te = traction):
-      // RHS += <A0(v_in),v> - <te(u_in),v>
-      //---------------------------------------------------------------------------------------
-*/
-
-    for (int i = 0; i < NDIM; ++i) {
-
-      auto ii{ NDIM * inod + i };
-      auto rhs_i{0.};
-
-      for (Int32 jnod = 0, jig = 4; jnod < nb_nodes; ++jnod) {
-
-        auto Phi_j = vec[ig + jig];
-        for (int j = 0; j < NDIM; ++j) {
-
-          //-----------------------------------------------------
-          // c1 * <A0(un),v> + c2 * <A0(an),v> + c3 * <A0(vn),v>
-          // c1 * <A0(upred),v> - <A0(vpred),v>
-          //-----------------------------------------------------
-          auto aij{ rhocpcs * nxn[i][j] };
-          if (i == j) aij += rhocs;
-          auto kij{ aij * wtPhi_i * Phi_j };
-          auto bj{ c1 * dn[j] + c2 * an[j] + c3 * vn[j] };
-          //            auto bj{ c1 * u_pred[j] - v_pred[j] };
-
-          rhs_i += kij * bj;
-        }
-        jig += 4;
-      }
-
-      {
-        /*
-            //----------------------------------------------
-            // Contribution from incident waves only
-            // <A0(v_in),v> - <te(u_in),v>
-            // ----------------------------------------------
-//      auto up1 = un + (1. - alfa1) * vn + (0.5 - alfa1) * dt * an;
-//      auto alfa_upp1 = alfa * math::multiply(CRot, up1);
-               auto fi = -wtPhi_i * alfa_upp1[i];
-               rhs_i += fi;
-*/
-      }
-      Fe(ii) += rhs_i;
-    }
-    iig += 4;
-  }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
 // ! Assemble the 2D or 3D bilinear operator (Left Hand Side A matrix)
 void ElastodynamicModule::
 _assembleLinearLHS()
@@ -1707,15 +1726,26 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
   for (const auto& bs : options()->paraxialBoundaryCondition()) {
 
     FaceGroup face_group = bs->surface();
-    //      info() << "Applying constant paraxial boundary conditions for surface " << face_group.name();
+
+    bool is_u = bs->hasUInput();
+    bool is_v = bs->hasVInput();
+    bool is_a = bs->hasAInput();
+    Int32 typ{bs->getInputMotionType()};
 
     // Loop on the faces (=edges in 2D) concerned with the paraxial condition
     ENUMERATE_FACE (iface, face_group) {
 
       const Face& face = *iface;
 
+      Real3 uin{},vin{}, ain{};
       if (face.isSubDomainBoundary() && face.isOwn()) {
 
+        if (typ > 0){
+          // An input motion has been defined
+          if (is_u) uin = m_uin_parax[face];
+          if (is_v) vin = m_vin_parax[face];
+          if (is_a) ain = m_ain_parax[face];
+        }
         auto rho = m_rho_parax[face];
         auto RhoC{ rho * m_vel_parax[face] };
 
@@ -1789,14 +1819,6 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
               if (node.isOwn() && !is_node_dofi_set) {
 
                 for (Int32 j = 0; j < NDIM; ++j) {
-
-                  /*                      auto an = m_prev_acc[node][j];
-                    auto vn = m_prev_vel[node][j];
-                    auto dn = m_prev_displ[node][j];
-                    auto aij{ rhocpcs * nxn[iddl][j] };
-                    if (iddl == j) aij += rhocs;
-                    rhs_i += aij * wtPhi_i * (c1 * dn + c2 * an + c3 * vn);
-*/
                   rhs_i += ROT[iddl][j] * a0[j];
                 }
               }
@@ -1987,7 +2009,7 @@ _doSolve(){
 
   // Re-Apply Dirichlet boundary conditions because the solver has modified the values
   // on all nodes
-  _applyDirichletBoundaryConditions();
+  _applyBoundaryConditions();
 
   m_displ.synchronize();
   m_vel.synchronize();

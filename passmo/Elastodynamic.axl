@@ -237,6 +237,16 @@
         <simple name="Fz" type="real" default="0.0" optional="true">
           <description>Constant force imposed along z axis</description>
         </simple>
+        <!-- Directions for curves only: if not specified, none is imposed -->
+        <simple name="x-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose this condition along X axis</description>
+        </simple>
+        <simple name="y-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose this condition along Y axis</description>
+        </simple>
+        <simple name="z-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose this condition along Z axis</description>
+        </simple>
         <simple name="U-curve" type="string" optional="true">
           <description>Time history curve for displacements to impose (4 columns: time, ux, uy, uz)</description>
         </simple>
@@ -291,6 +301,16 @@
         </simple>
         <simple name="Fz" type="real" default="0.0" optional="true">
           <description>Constant force imposed along z axis</description>
+        </simple>
+        <!-- Directions for curves only: if not specified, none is imposed -->
+        <simple name="x-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose this condition along X axis</description>
+        </simple>
+        <simple name="y-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose this condition along Y axis</description>
+        </simple>
+        <simple name="z-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose this condition along Z axis</description>
         </simple>
         <simple name="U-curve" type="string" optional="true">
           <description>Time history curve for displacements to impose (4 columns: time, ux, uy, uz)</description>
@@ -362,7 +382,7 @@
         </simple>
 
         <!-- - - - - - input-motion - - - - -->
-        <simple name = "input-motion-type" type = "int" default="0" optional="true">
+        <simple name = "input-motion-type" type = "integer" default="0" optional="true">
           <description>Indicator for the type of incoming wave motion (1 to 5 = analytical, 6= file):
                         0=none, 1=Harmonic, 2=Ricker, 3=Decay, 4=Tsang, 5=Dirac, 6=user-defined
           </description>
@@ -382,23 +402,23 @@
         <simple name = "phase" type = "real" default="0.0" optional="true">
           <description>Phase if analytical input motion (Harmonic/Tsang)</description>
         </simple>
-        <simple name = "order" type = "int" default="2" optional="true">
+        <simple name = "order" type = "integer" default="2" optional="true">
           <description>Order if analytical input motion (Ricker)</description>
         </simple>
-        <simple name = "displ" type = "bool" default="false" optional="true">
-          <description>Indicator for input displacements</description>
+        <simple name = "a-input" type = "string"  optional="true">
+          <description>For type=6, filename containing the input acceleration history (4 columns: time, ax, ay, az)</description>
         </simple>
-        <simple name = "vel" type = "bool" default="false" optional="true">
-          <description>Indicator for input velocity</description>
+        <simple name = "v-input" type = "string"  optional="true">
+          <description>For type=6, filename containing the input velocity history (4 columns: time, vx, vy, vz)</description>
         </simple>
-        <simple name = "acc" type = "bool" default="true" optional="true">
-          <description>Indicator for input acceleration</description>
+        <simple name = "u-input" type = "string"  optional="true">
+          <description>For type=6, filename containing the input displacement history (4 columns: time, ux, uy, uz)</description>
         </simple>
-        <simple name = "user-input" type = "string"  optional="true">
-          <description>Filename containing the input motion history (4 columns: time, tx, ty, tz)</description>
+        <simple name = "normal-angle" type = "real" default="0.0" optional="true">
+          <description>Angle w.r.t. the boundary normal (0.0 = normal to the boundary)</description>
         </simple>
-        <simple name = "incident-angle" type = "real" default="0.0" optional="true">
-          <description>Incident angle to the boundary (0.0 = normal to the boundary)</description>
+        <simple name = "in-plane-angle" type = "real" default="0.0" optional="true">
+          <description>Angle w.r.t. the boundary plane (0.0 = along e1)</description>
         </simple>
     </complex>
 

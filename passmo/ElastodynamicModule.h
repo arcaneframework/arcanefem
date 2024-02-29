@@ -5,6 +5,7 @@
 #include "Elastodynamic_axl.h"
 #include "FemUtils.h"
 #include "utilFEM.h"
+#include "analytical_func.h"
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
 
@@ -85,9 +86,10 @@ class ElastodynamicModule
   UniqueArray<CaseTableInfo> m_vel_case_table_list;
   UniqueArray<CaseTableInfo> m_force_case_table_list;
 
-  // List of CaseTable for paraxial boundary conditions
-  // (if incident transient wave fields are defined)
-  // TO DO ***   UniqueArray<CaseTableInfo> m_paraxial_case_table_list;
+  // List of CaseTable for input motions set on paraxial boundaries
+  UniqueArray<CaseTableInfo> m_ain_case_table_list;
+  UniqueArray<CaseTableInfo> m_vin_case_table_list;
+  UniqueArray<CaseTableInfo> m_uin_case_table_list;
 
   Integer3 integ_order{2, 2, 2};
   Int32 NDIM{2};
@@ -104,6 +106,7 @@ class ElastodynamicModule
   Int32 linop_nstep{1000}, linop_nstep_counter{0};
   TypesElastodynamic::eElastType elast_type{TypesElastodynamic::NoElastPropType};
   TypesElastodynamic::eAnalysisType analysis_type{TypesElastodynamic::PlaneStrain};
+  AnalyticFunc m_inputfunc{};
 
  private:
 
@@ -111,16 +114,14 @@ class ElastodynamicModule
   void _initCells();
   void _applyInitialNodeConditions();
   void _applyInitialCellConditions();
-  // void _applyInputMotion();
   void _assembleLinearLHS();
   void _assembleLinearRHS();
   void _doSolve();
   void _initBoundaryConditions();
-  void _applyDirichletBoundaryConditions();
+  void _applyBoundaryConditions();
   void _getParaxialContribution(VariableDoFReal& rhs_values);
   void _assembleLHSParaxialContribution();
   void _getTractionContribution(Arcane::VariableDoFReal& rhs_values);
-  void _applyNeumannBoundaryConditions();
   Real3x3 _computeJacobian(const ItemWithNodes& cell, const Int32& ig, const RealUniqueArray& vec, Real& jac);
   Real _computeFacLengthOrArea(const Face& face);
 
@@ -131,8 +132,6 @@ class ElastodynamicModule
   void _computeElemMass(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, RealUniqueArray2& Me);
   void _computeKParax(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
                       RealUniqueArray2& Ke, const Real3& RhoC);
-  void _computeTracParax(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
-                         RealUniqueArray& Fe, const Real3& RhoC);
 };
 
 /*---------------------------------------------------------------------------*/

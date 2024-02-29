@@ -28,22 +28,14 @@ extern Real	REL_PREC;
 class AnalyticFunc{
 
  public:
-  void setTp(const Real& tp);
-  void setTs(const Real& ts);
-  void setAmplit(const Real& amplit);
-  void setCoef(const Real& coef);
-  void setPhase(const Real& phase);
-  void setOrder(const Int32& order);
-
   Real getRicker(const Real& time);
   Real getHarmonic(const Real& time);
   Real getTsang(const Real& time);
   Real getDecay(const Real& time);
   Real getDirac(const Real& time);
 
- private:
-  Real m_tp{0.}, m_ts{0.}, m_phase{0.}, m_coef{0.}, m_amplit{0.};
-  Int32 m_order{0};
+  Real m_tp{1.}, m_ts{1.}, m_phase{0.}, m_coef{1.}, m_amplit{1.};
+  Int32 m_order{2};
 };
 
 #endif //ARCANEFEM_ANALYTICAL_FUNC_H
