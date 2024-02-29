@@ -120,18 +120,23 @@ getGaussData(const ItemWithNodes& item, const Integer3& nint, Int32& ngauss){
   auto cell_type = item.type();
   auto nint1 {nint.m_i};
   auto nint2 {nint.m_j};
+  auto nint3 {nint.m_k};
 
   if (ndim >= 2) {
     if (cell_type == IT_Triangle3 || cell_type == IT_Triangle6) {
       nint2 = 1;
       nint1 = nptg[nint.m_i-1];
-      ngauss = nint1;
     }
-    else
-      ngauss *= nint2;
+    else if (cell_type == IT_Tetraedron4 || cell_type == IT_Tetraedron10){
+      nint2 = 1;
+      nint3 = 1;
+      nint1 = 4;
+    }
+
+    ngauss = nint1*nint2;
 
     if (ndim == 3)
-      ngauss *= nint.m_k;
+      ngauss *= nint3;
   }
 
   // Vector of double containing:

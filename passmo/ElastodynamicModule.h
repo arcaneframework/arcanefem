@@ -93,16 +93,17 @@ private:
    Int32 NDIM{2};
    CellFEMDispatcher cell_fem{};
    GaussPointDispatcher gausspt{};
-   Real3 gravity{0.,0.,-9.81};
-   Real penalty{1.e30};
+   Real3 gravity{0.,0.,0.};
+   Real penalty{1.e64};
    Real gamma{0.5};
    Real beta{0.25};
    Real alfam{0.};
    Real alfaf{0.};
    bool is_alfa_method{false},keep_constop{false};
    Real dt2{0.};
-   Int32 linop_nstep{100}, linop_nstep_counter{0};
+   Int32 linop_nstep{1000}, linop_nstep_counter{0};
    TypesElastodynamic::eElastType elast_type{TypesElastodynamic::NoElastPropType};
+   TypesElastodynamic::eAnalysisType analysis_type{TypesElastodynamic::PlaneStrain};
 
 private:
 

@@ -47,9 +47,9 @@ startInit(){
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
 
-  integ_order.m_i = options()->getNint1();
-  integ_order.m_j = options()->getNint2();
-  integ_order.m_k = options()->getNint3();
+  integ_order.m_i = options()->getGaussNint1();
+  integ_order.m_j = options()->getGaussNint2();
+  integ_order.m_k = options()->getGaussNint3();
   gravity.x = options()->getGx();
   gravity.y = options()->getGy();
   gravity.z = options()->getGz();
@@ -89,7 +89,8 @@ startInit(){
     alfaf = 0.;
   }
 
-  if (options()->getAnalysisType() == TypesElastodynamic::ThreeD)
+  analysis_type = options()->getAnalysisType();
+  if (analysis_type == TypesElastodynamic::ThreeD)
     NDIM = 3;
   else
     NDIM = 2;
@@ -194,49 +195,25 @@ _applyInitialNodeConditions(){
   for (Int32 i = 0, nb = options()->initialNodeCondition().size(); i < nb; ++i) {
 
     NodeGroup node_group = options()->initialNodeCondition[i]->nodeGroup();
-    TypesElastodynamic::eNodeCondition type = options()->initialNodeCondition[i]->type();
-    Real3 values = options()->initialNodeCondition[i]->vector();
 
     // Loop on nodes with this initial condition
     ENUMERATE_NODE(inode, node_group) {
       const Node & node = *inode;
-      switch (type) {
 
-      case TypesElastodynamic::Acc:
-        m_prev_acc[node] = values;
-        break;
-      case TypesElastodynamic::Displ:
-        m_prev_displ[node] = values;
-        break;
-      case TypesElastodynamic::Vel:
-        m_prev_vel[node] = values;
-      case TypesElastodynamic::Force:
-        m_force[node] = values;
-      case TypesElastodynamic::UnknownCond:
-        break;
+      if (options()->initialNodeCondition[i]->hasA())
+        m_prev_acc[node] = options()->initialNodeCondition[i]->A();
 
-      }
+      if (options()->initialNodeCondition[i]->hasV())
+        m_prev_vel[node] = options()->initialNodeCondition[i]->V();
+
+      if (options()->initialNodeCondition[i]->hasU())
+        m_prev_displ[node] = options()->initialNodeCondition[i]->U();
+
+      if (options()->initialNodeCondition[i]->hasF())
+        m_force[node] = options()->initialNodeCondition[i]->F();
     }
   }
-/*  if (!options()->inputMotion().empty()) {
-    // Loop on nodes with this initial condition
-    ENUMERATE_NODE (inode, m_input.m_node_group) {
-      const Node& node = *inode;
-      Real3 val;
-      Real time = options()->getStart();
-      m_input.m_acc->value(time, val);
-      m_prev_acceleration[node] = val.mul(m_input.m_ampli_factors);
-
-      if (m_input.m_is_vel) {
-        m_input.m_vel->value(time, val);
-        m_prev_velocity[node] = val.mul(m_input.m_ampli_factors);
-      }
-      if (m_input.m_is_displ) {
-        m_input.m_displ->value(time, val);
-        m_prev_displacement[node] = val.mul(m_input.m_ampli_factors);
-      }
-    }*/
-  }
+}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -296,32 +273,25 @@ _applyInitialCellConditions(){
   for (Integer i = 0, nb = options()->initCellCondition().size(); i < nb; ++i) {
 
     CellGroup cell_group = options()->initCellCondition[i]->cellGroup();
-    TypesElastodynamic::eCellCondition type = options()->initCellCondition[i]->type();
 
     // In the future, we will have to find a way to impose different initial
     // properties (stress/strain tensors, densities...) per element from a file
     // (e.g., coming from a previous computation)
-    auto values = options()->initCellCondition[i]->constVolPart();
-    if (type == TypesElastodynamic::Stress) {
 
-        // Loop on cells with this initial condition
-        ENUMERATE_CELL (icell, cell_group) {
-          const Cell& cell = *icell;
+    // Loop on cells with this initial condition
+    ENUMERATE_CELL (icell, cell_group) {
+      const Cell& cell = *icell;
 
-          // Initialize the stress tensor for the concerned cell
-          m_stress[cell].x = Real3(values.x, 0., 0.);
-          m_stress[cell].y = Real3(0., values.y, 0.);
-          m_stress[cell].z = Real3(0., 0., values.z);
-        }
-    } else if (type == TypesElastodynamic::Strain) {
+      // Initialize the stress tensor for the concerned cell
+      if (options()->initCellCondition[i]->hasDevStrain())
+        m_strain_dev[cell] = options()->initCellCondition[i]->devStrain();
+      if (options()->initCellCondition[i]->hasVolStrain())
+        m_strain_vol[cell] = options()->initCellCondition[i]->volStrain();
+      if (options()->initCellCondition[i]->hasDevStress())
+        m_stress_dev[cell] = options()->initCellCondition[i]->devStress();
+      if (options()->initCellCondition[i]->hasVolStrain())
+        m_stress_vol[cell] = options()->initCellCondition[i]->volStress();
 
-        ENUMERATE_CELL (icell, cell_group) {
-          const Cell& cell = *icell;
-          // Initialize the strain tensor for the concerned cell
-          m_strain[cell].x = Real3(values.x, 0., 0.);
-          m_strain[cell].y = Real3(0., values.y, 0.);
-          m_strain[cell].z = Real3(0., 0., values.z);
-        }
     }
   }
 }
@@ -427,6 +397,8 @@ _updateNewmark(){
 
         if (!ba)
           m_acc[node][i] = (dn1[i] - ui)/beta/dt2;
+        else
+          m_displ[node][i] = ui + beta * dt2 * m_acc[node][i];
 
         if (!bv)
           m_vel[node][i] = vi + dt*gamma*m_acc[node][i];
@@ -448,7 +420,7 @@ _initBoundaryConditions()
 {
   IParallelMng* pm = subDomain()->parallelMng();
 
-  for (const auto& bd : options()->dirichletBoundaryCondition()) {
+  for (const auto& bd : options()->dirichletSurfaceCondition()) {
     FaceGroup face_group = bd->surface();
 
     if (bd->hasACurve()) {
@@ -570,10 +542,6 @@ _initBoundaryConditions()
       auto coord = m_node_coord[node];
       auto num = node.uniqueId();
 
-      m_imposed_displ[node].x = (bd->hasUx() || (hasUcurve && xdir) ? 1 : 0);
-      m_imposed_displ[node].y = (bd->hasUy() || (hasUcurve && ydir) ? 1 : 0);
-      m_imposed_displ[node].z = (bd->hasUz() || (hasUcurve && zdir) ? 1 : 0);
-
       m_imposed_acc[node].x = (bd->hasAx() || (hasAcurve && xdir) ? 1 : 0);
       m_imposed_acc[node].y = (bd->hasAy() || (hasAcurve && ydir) ? 1 : 0);
       m_imposed_acc[node].z = (bd->hasAz() || (hasAcurve && zdir) ? 1 : 0);
@@ -585,10 +553,22 @@ _initBoundaryConditions()
       m_imposed_force[node].x = (bd->hasFx() || (hasFcurve && xdir) ? 1 : 0);
       m_imposed_force[node].y = (bd->hasFy() || (hasFcurve && ydir) ? 1 : 0);
       m_imposed_force[node].z = (bd->hasFz() || (hasFcurve && zdir) ? 1 : 0);
+
+      if ((bool)m_imposed_acc[node].x || (bool)m_imposed_vel[node].x
+          || bd->hasUx() || (hasUcurve && xdir))
+        m_imposed_displ[node].x = 1;
+
+      if ((bool)m_imposed_acc[node].y || (bool)m_imposed_vel[node].y
+            || bd->hasUy() || (hasUcurve && ydir))
+          m_imposed_displ[node].y = 1;
+
+      if ((bool)m_imposed_acc[node].z || (bool)m_imposed_vel[node].z
+          || bd->hasUz() || (hasUcurve && zdir))
+          m_imposed_displ[node].z = 1;
     }
   }
 
-  for (const auto& bs : options()->neumannBoundaryCondition()) {
+  for (const auto& bs : options()->neumannCondition()) {
     FaceGroup face_group = bs->surface();
     String file_name = bs->getCurve();
     if (!file_name.empty()) {
@@ -679,7 +659,7 @@ void ElastodynamicModule::
 _applyDirichletBoundaryConditions(){
 
   Int32 sac_index{ 0 }, svc_index{ 0 }, suc_index{ 0 }, sfc_index{ 0 };
-  for (const auto& bd : options()->dirichletBoundaryCondition()) {
+  for (const auto& bd : options()->dirichletSurfaceCondition()) {
     FaceGroup face_group = bd->surface();
 
     Real3 acc{};
@@ -971,7 +951,7 @@ _applyDirichletBoundaryConditions(){
 void ElastodynamicModule::
 _applyNeumannBoundaryConditions(){
   Int32 bc_index{ 0 };
-  for (const auto& bs : options()->neumannBoundaryCondition()) {
+  for (const auto& bs : options()->neumannCondition()) {
     FaceGroup face_group = bs->surface();
     const CaseTableInfo& case_table_info = m_traction_case_table_list[bc_index];
     ++bc_index;
@@ -1517,20 +1497,7 @@ _assembleLinearLHS()
 
         auto jacobian {0.};
         auto jac = _computeJacobian(cell, ig, vec, jacobian);
-/*
-        if (NDIM == 2) {
-          auto jac = _computeJacobian2D(cell, ig, vec, jacobian);
 
-          // Computing elementary stiffness matrix at Gauss point ig
-          _computeK2D(cell, ig, vec, jac, Ke);
-        }
-        else{
-          auto jac = _computeJacobian3D(cell, ig, vec, jacobian);
-
-          // Computing elementary stiffness matrix at Gauss point ig
-          _computeK3D(cell, ig, vec, jac, Ke);
-        }
-*/
         // Computing elementary stiffness matrix at Gauss point ig
         _computeK(cell, ig, vec, jac, Ke);
 
@@ -1542,6 +1509,8 @@ _assembleLinearLHS()
         Int32 n1_index{ 0 };
         for (Node node1 : cell.nodes()) {
 
+          auto num1 = node1.uniqueId().asInt32();
+
           for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
             DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
             auto ii = NDIM * n1_index + iddl;
@@ -1550,6 +1519,7 @@ _assembleLinearLHS()
             Int32 n2_index{ 0 };
             for (Node node2 : cell.nodes()) {
 
+            auto num2 = node2.uniqueId().asInt32();
               for (Int32 jddl = 0; jddl < NDIM; ++jddl) {
                 auto node2_dofj = node_dof.dofId(node2, jddl);
                 auto jj = NDIM * n2_index + jddl;
@@ -1620,6 +1590,8 @@ _assembleLinearRHS(){
         auto wt = vec[ig] * jacobian;
 
         for (Node node1 : cell.nodes()) {
+          auto num1 = node1.uniqueId().asInt32();
+
           for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
             DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
             auto ii = NDIM * n1_index + iddl;
@@ -1635,6 +1607,7 @@ _assembleLinearRHS(){
               //----------------------------------------------------------*/
               Int32 n2_index{ 0 };
               for (Node node2 : cell.nodes()) {
+                auto num2 = node2.uniqueId().asInt32();
                 auto an = m_prev_acc[node2][iddl];
                 auto vn = m_prev_vel[node2][iddl];
                 auto dn = m_prev_displ[node2][iddl];
@@ -1649,14 +1622,14 @@ _assembleLinearRHS(){
               // Other forces (imposed nodal forces, body forces)
               //-------------------------------------------------*/
               {
-                if (options()->hasBodyf()) {
-                  //----------------------------------------------
-                  // Body force terms
-                  //----------------------------------------------
+                //----------------------------------------------
+                // Body force terms
+                //----------------------------------------------
                   auto rhoPhi_i = wt*rho*vec[ig + iig];
                   rhs_i += rhoPhi_i * gravity[iddl];
-                }
+              }
 
+              {
                 //----------------------------------------------
                 // Imposed nodal forces
                 //----------------------------------------------
@@ -1725,9 +1698,11 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
 
     auto dt = m_global_deltat();
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    auto c1{(1. - alfaf) * gamma / beta / dt};
-    auto c2{dt * (1. - alfaf) * (gamma / 2. / beta - 1.)};
-    auto c3{ (1. - alfaf) * gamma / beta - 1.};
+    auto c0{1. - alfaf};
+    auto cgb{gamma / beta};
+    auto c1{c0 * cgb / dt};
+    auto c2{dt * c0 * (cgb / 2. - 1.)};
+    auto c3{ c0 * cgb - 1.};
 
     for (const auto& bs : options()->paraxialBoundaryCondition()) {
 
@@ -1759,6 +1734,9 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
           Real3x3 nxn({ nvec.x * nvec.x, nvec.x * nvec.y, nvec.x * nvec.z },
                       { nvec.y * nvec.x, nvec.y * nvec.y, nvec.y * nvec.z },
                       { nvec.z * nvec.x, nvec.z * nvec.y, nvec.z * nvec.z });
+          Real3x3 ROT({ e1.x, e1.y, e1.z },
+                      { e2.x, e2.y, e2.z },
+                      { e3.x, e3.y, e3.z });
 
           // In 3D, a quadratic face element has max 9 nodes (27 dofs)
           auto nb_nodes{ face.nbNode() };
@@ -1777,32 +1755,54 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
             Int32 n1_index{ 0 };
             auto iig{ 4 };
             auto wt = vec[ig] * jacobian;
-            auto wtPhi_i = wt*vec[ig + iig];
+            Real3 a0{};
 
-            for (Node node1 : face.nodes()) {
+            for (Node node : face.nodes()) {
 
+              auto Phi_i = vec[ig + iig];
+              auto vi_pred = m_prev_vel[node] + (1. - gamma) * dt * m_prev_acc[node];
+              auto ui_pred = m_prev_displ[node] + dt * m_prev_vel[node] + (0.5 - beta) * dt2 * m_prev_acc[node];
+              auto vni = m_prev_vel[node];
+
+              for (Int32 i = 0; i < NDIM; ++i) {
+                auto vi{ 0. };
+
+                for (Int32 j = 0; j < NDIM; ++j) {
+                  vi += ROT[i][j] * (-c0 * vi_pred[j] + c1 * ui_pred[j] - alfaf * vni[j]);
+                }
+                a0[i] += Phi_i * RhoC[i] * vi;
+              }
+              iig += 4;
+            }
+
+            iig = 4;
+            for (Node node : face.nodes()) {
+
+              auto Phi_i = vec[ig + iig];
+              auto wtPhi_i = wt * Phi_i;
               for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
+                DoFLocalId node_dofi = node_dof.dofId(node, iddl);
 
-                DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
-
-                bool is_node1_dofi_set = (bool)m_imposed_displ[node1][iddl];
+                bool is_node_dofi_set = (bool)m_imposed_displ[node][iddl];
                 auto rhs_i{ 0. };
 
-                if (node1.isOwn() && !is_node1_dofi_set) {
+                if (node.isOwn() && !is_node_dofi_set) {
 
-                  for (Int32 jddl = 0; jddl < NDIM; ++jddl) {
+                  for (Int32 j = 0; j < NDIM; ++j) {
 
-                    auto an = m_prev_acc[node1][jddl];
-                    auto vn = m_prev_vel[node1][jddl];
-                    auto dn = m_prev_displ[node1][jddl];
-                    auto aij{ rhocpcs * nxn[iddl][jddl] };
-                    if (iddl == jddl) aij += rhocs;
+                    /*                      auto an = m_prev_acc[node][j];
+                    auto vn = m_prev_vel[node][j];
+                    auto dn = m_prev_displ[node][j];
+                    auto aij{ rhocpcs * nxn[iddl][j] };
+                    if (iddl == j) aij += rhocs;
                     rhs_i += aij * wtPhi_i * (c1 * dn + c2 * an + c3 * vn);
+*/
+                    rhs_i += ROT[iddl][j] * a0[j];
                   }
                 }
-                rhs_values[node1_dofi] += rhs_i;
+                rhs_values[node_dofi] += wtPhi_i * rhs_i;
               }
-              ++n1_index;
+              iig += 4;
             }
           }
         }
@@ -1853,14 +1853,7 @@ _assembleLHSParaxialContribution(){
           for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4 * (1 + nb_nodes)) {
 
             auto jacobian{ 0. };
-/*
-            if (NDIM == 3){
-              auto jac = _computeJacobian3D(face, ig, vec, jacobian);
-            }
-            else{
-              auto jac = _computeJacobian2D(face, ig, vec, jacobian);
-            }
-*/
+
             _computeJacobian(face, ig, vec, jacobian);
             _computeKParax(face, ig, vec, jacobian, Ke, RhoC);
 
@@ -1906,7 +1899,7 @@ _getTractionContribution(Arcane::VariableDoFReal& rhs_values){
 
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-    for (const auto& bs : options()->neumannBoundaryCondition()) {
+    for (const auto& bs : options()->neumannCondition()) {
       FaceGroup face_group = bs->surface();
 
       // Loop on the faces (=edges in 2D) concerned with the traction condition
