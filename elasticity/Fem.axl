@@ -6,7 +6,7 @@
     <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
   </entry-points>
   <variables>
-    <variable field-name="U" name="U" data-type="real3" item-kind="node" dim="0">
+    <variable field-name="U" name="U" data-type="real2" item-kind="node" dim="0">
       <description>U vector from Arcane variable</description>
     </variable>
     <variable field-name="u1_fixed" name="u1Fixed" data-type="bool" item-kind="node" dim="0">
