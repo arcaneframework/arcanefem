@@ -971,8 +971,8 @@ $$
           }
           if (!(m_u2_fixed[node])) {
             DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-             rhs_values[dof_id2] += (  c7*( cp*( Normal.x*Normal.y*m_U[node].x + Normal.y*Normal.y*m_U[node].y ) +
-                                           cs*(-Normal.x*Normal.y*m_U[node].x + Normal.x*Normal.x*m_U[node].y )
+             rhs_values[dof_id2] += (  c7*( cp*( Normal.x*Normal.y*(Uold1+m_U[node].x) + Normal.y*Normal.y*(Uold2+m_U[node].y)) +
+                                           cs*(-Normal.x*Normal.y*(Uold1+m_U[node].x) + Normal.x*Normal.x*(Uold2+m_U[node].y) )
                                          )
                                     - c8*( cp*( Normal.x*Normal.y*(Vold1+m_V[node].x) + Normal.y*Normal.y*(Vold2+m_V[node].y) ) +
                                            cs*(-Normal.x*Normal.y*(Vold1+m_V[node].x) + Normal.x*Normal.x*(Vold2+m_V[node].y) )
