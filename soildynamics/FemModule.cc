@@ -209,7 +209,7 @@ startInit()
   _getParameters();
 
   t    = dt;
-  tmax = tmax - dt;
+  tmax = tmax;
   m_global_deltat.assign(dt);
 
   _readCaseTables();
