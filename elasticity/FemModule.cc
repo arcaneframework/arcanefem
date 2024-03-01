@@ -923,10 +923,7 @@ _solve()
       Node node = *inode;
       Real u1_val = dof_u[node_dof.dofId(node, 0)];
       Real u2_val = dof_u[node_dof.dofId(node, 1)];
-      Real2 u_disp;
-      u_disp.x = u1_val;
-      u_disp.y = u2_val;
-      m_U[node] = u_disp;
+      m_U[node] = Real3(u1_val, u2_val, 0.0);
       info() << "Node: " << node.uniqueId() << " " << u1_val << " " << u2_val;
     }
   }
