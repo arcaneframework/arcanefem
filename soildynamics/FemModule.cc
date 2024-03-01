@@ -240,9 +240,10 @@ _doStationarySolve()
 {
 
   // Assemble the FEM bilinear operator (LHS - matrix A)
-  _assembleBilinearOperatorTRIA3();
-
-  _assembleBilinearOperatorEDGE2();
+  if(t<=dt){
+    _assembleBilinearOperatorTRIA3();
+    _assembleBilinearOperatorEDGE2();
+  }
 
   // Assemble the FEM linear operator (RHS - vector b)
   _assembleLinearOperator();
@@ -407,14 +408,6 @@ _applyDirichletBoundaryConditions()
 
   info() << "Apply boundary conditions";
 
-  // Handle all the Dirichlet boundary conditions.
-  // In the 'arc' file, there are in the following format:
-  //   <dirichlet-boundary-condition>
-  //   <surface>Left</surface>
-  //   <u1>1.0</u1>
-  //   <u1>0.0</u2>
-  // </dirichlet-boundary-condition>
-
   for (const auto& bs : options()->dirichletBoundaryCondition()) {
     FaceGroup group = bs->surface();
     Real u1_val = bs->u1();
@@ -455,14 +448,6 @@ _applyDirichletBoundaryConditions()
       continue;
     }
   }
-
-  // Handle all the Dirichlet point conditions.
-  // In the 'arc' file, there are in the following format:
-  //   <dirichlet-point-condition>
-  //   <surface>Left</surface>
-  //   <u1>1.0</u1>
-  //   <u1>0.0</u2>
-  // </dirichlet-point-condition>
 
   for (const auto& bs : options()->dirichletPointCondition()) {
     NodeGroup group = bs->node();

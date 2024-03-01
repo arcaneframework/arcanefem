@@ -31,6 +31,7 @@
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     <penalty>1.e64</penalty>
     <time-discretization>Newmark-beta</time-discretization>
+    <result-file>test_soildynamics_results.txt</result-file>
     <dirichlet-boundary-condition>
       <surface>surfaceleft</surface>
       <u1>0.0</u1>
