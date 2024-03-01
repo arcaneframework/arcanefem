@@ -191,6 +191,13 @@ compute()
   _updateTime();
 
   info() << " \n\n***[WIP] this is module is not working yet please dont trust the results***[\n\n";
+
+  // At the last time stepp check error
+  if (t > tmax + dt - 1e-8){
+    info() << "Perfroming check";
+    _checkResultFile();
+  }
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1689,14 +1696,14 @@ _solve()
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
-      Real u1_val = dof_u[node_dof.dofId(node, 0)];
-      Real u2_val = dof_u[node_dof.dofId(node, 1)];
+      Real  u1_val = dof_u[node_dof.dofId(node, 0)];
+      Real  u2_val = dof_u[node_dof.dofId(node, 1)];
       Real3 u_disp;
       u_disp.x = u1_val;
       u_disp.y = u2_val;
-      u_disp.z = 0.0;
+      u_disp.z = 0.;
       m_dU[node] = u_disp;
-      info() << "Node: " << node.localId() << " U1=" << u1_val << " U2=" << u2_val;
+      //info() << "Node: " << node.uniqueId() << " U1=" << u1_val << " U2=" << u2_val;
     }
   }
 
@@ -1714,10 +1721,10 @@ _solve()
     std::cout.precision(17);
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      std::cout << "U1[" << node.localId() << "][" << node.uniqueId() << "] = "
-                << m_dU[node].x << " U2[" << node.localId() << "][" << node.uniqueId() << "] = "
-                << m_dU[node].y << "\n";
-      //std::cout << "U1[]" << node.uniqueId() << " " << m_u1[node] << "\n";
+      //std::cout << "U1[" << node.localId() << "][" << node.uniqueId() << "] = "
+      //          << m_dU[node].x << " U2[" << node.localId() << "][" << node.uniqueId() << "] = "
+      //          << m_dU[node].y << "\n";
+      info() << "Node: " << node.uniqueId() << " U1=" << m_dU[node].x << " U2=" << m_dU[node].y << " U3=0.0";
     }
     std::cout.precision(p);
   }
@@ -1734,8 +1741,7 @@ _checkResultFile()
   if (filename.empty())
     return;
   const double epsilon = 1.0e-4;
-  // TODO
-  //Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_U.x, epsilon);
+  Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_dU, epsilon);
 }
 
 /*---------------------------------------------------------------------------*/
