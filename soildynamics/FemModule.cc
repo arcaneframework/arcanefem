@@ -191,6 +191,13 @@ compute()
   _updateTime();
 
   info() << " \n\n***[WIP] this is module is not working yet please dont trust the results***[\n\n";
+
+  // At the last time stepp check error
+  if (t > tmax + dt - 1e-8){
+    info() << "Perfroming check";
+    _checkResultFile();
+  }
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -203,16 +210,16 @@ startInit()
 
   m_dofs_on_nodes.initialize(mesh(), 2);
 
-  _applyDirichletBoundaryConditions();
-
   // # get parameters
   _getParameters();
 
   t    = dt;
-  tmax = tmax - dt;
+  tmax = tmax;
   m_global_deltat.assign(dt);
 
   _readCaseTables();
+
+  _applyDirichletBoundaryConditions();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -233,9 +240,10 @@ _doStationarySolve()
 {
 
   // Assemble the FEM bilinear operator (LHS - matrix A)
-  _assembleBilinearOperatorTRIA3();
-
-  _assembleBilinearOperatorEDGE2();
+  if(t<=dt){
+    _assembleBilinearOperatorTRIA3();
+    _assembleBilinearOperatorEDGE2();
+  }
 
   // Assemble the FEM linear operator (RHS - vector b)
   _assembleLinearOperator();
@@ -243,8 +251,6 @@ _doStationarySolve()
   // Solve for [u1,u2]
   _solve();
 
-  // Check results TODO
-  // _checkResultFile();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -400,14 +406,6 @@ _applyDirichletBoundaryConditions()
 
   info() << "Apply boundary conditions";
 
-  // Handle all the Dirichlet boundary conditions.
-  // In the 'arc' file, there are in the following format:
-  //   <dirichlet-boundary-condition>
-  //   <surface>Left</surface>
-  //   <u1>1.0</u1>
-  //   <u1>0.0</u2>
-  // </dirichlet-boundary-condition>
-
   for (const auto& bs : options()->dirichletBoundaryCondition()) {
     FaceGroup group = bs->surface();
     Real u1_val = bs->u1();
@@ -448,14 +446,6 @@ _applyDirichletBoundaryConditions()
       continue;
     }
   }
-
-  // Handle all the Dirichlet point conditions.
-  // In the 'arc' file, there are in the following format:
-  //   <dirichlet-point-condition>
-  //   <surface>Left</surface>
-  //   <u1>1.0</u1>
-  //   <u1>0.0</u2>
-  // </dirichlet-point-condition>
 
   for (const auto& bs : options()->dirichletPointCondition()) {
     NodeGroup group = bs->node();
@@ -981,8 +971,8 @@ $$
           }
           if (!(m_u2_fixed[node])) {
             DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-             rhs_values[dof_id2] += (  c7*( cp*( Normal.x*Normal.y*m_U[node].x + Normal.y*Normal.y*m_U[node].y ) +
-                                           cs*(-Normal.x*Normal.y*m_U[node].x + Normal.x*Normal.x*m_U[node].y )
+             rhs_values[dof_id2] += (  c7*( cp*( Normal.x*Normal.y*(Uold1+m_U[node].x) + Normal.y*Normal.y*(Uold2+m_U[node].y)) +
+                                           cs*(-Normal.x*Normal.y*(Uold1+m_U[node].x) + Normal.x*Normal.x*(Uold2+m_U[node].y) )
                                          )
                                     - c8*( cp*( Normal.x*Normal.y*(Vold1+m_V[node].x) + Normal.y*Normal.y*(Vold2+m_V[node].y) ) +
                                            cs*(-Normal.x*Normal.y*(Vold1+m_V[node].x) + Normal.x*Normal.x*(Vold2+m_V[node].y) )
@@ -1689,14 +1679,14 @@ _solve()
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
-      Real u1_val = dof_u[node_dof.dofId(node, 0)];
-      Real u2_val = dof_u[node_dof.dofId(node, 1)];
+      Real  u1_val = dof_u[node_dof.dofId(node, 0)];
+      Real  u2_val = dof_u[node_dof.dofId(node, 1)];
       Real3 u_disp;
       u_disp.x = u1_val;
       u_disp.y = u2_val;
-      u_disp.z = 0.0;
+      u_disp.z = 0.;
       m_dU[node] = u_disp;
-      info() << "Node: " << node.localId() << " U1=" << u1_val << " U2=" << u2_val;
+      //info() << "Node: " << node.uniqueId() << " U1=" << u1_val << " U2=" << u2_val;
     }
   }
 
@@ -1711,13 +1701,13 @@ _solve()
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {
     int p = std::cout.precision();
-    std::cout.precision(17);
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      std::cout << "U1[" << node.localId() << "][" << node.uniqueId() << "] = "
-                << m_dU[node].x << " U2[" << node.localId() << "][" << node.uniqueId() << "] = "
-                << m_dU[node].y << "\n";
-      //std::cout << "U1[]" << node.uniqueId() << " " << m_u1[node] << "\n";
+      //std::cout.precision(17);
+      //std::cout << "U1[" << node.localId() << "][" << node.uniqueId() << "] = "
+      //          << m_dU[node].x << " U2[" << node.localId() << "][" << node.uniqueId() << "] = "
+      //          << m_dU[node].y << "\n";
+      info() << "Node: " << node.uniqueId() << " U1=" << m_dU[node].x << " U2=" << m_dU[node].y << " U3=0.0";
     }
     std::cout.precision(p);
   }
@@ -1734,8 +1724,7 @@ _checkResultFile()
   if (filename.empty())
     return;
   const double epsilon = 1.0e-4;
-  // TODO
-  //Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_U.x, epsilon);
+  Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_dU, epsilon);
 }
 
 /*---------------------------------------------------------------------------*/
