@@ -210,8 +210,6 @@ startInit()
 
   m_dofs_on_nodes.initialize(mesh(), 2);
 
-  _applyDirichletBoundaryConditions();
-
   // # get parameters
   _getParameters();
 
@@ -220,6 +218,8 @@ startInit()
   m_global_deltat.assign(dt);
 
   _readCaseTables();
+
+  _applyDirichletBoundaryConditions();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -251,8 +251,6 @@ _doStationarySolve()
   // Solve for [u1,u2]
   _solve();
 
-  // Check results TODO
-  // _checkResultFile();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1703,9 +1701,9 @@ _solve()
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {
     int p = std::cout.precision();
-    std::cout.precision(17);
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
+      //std::cout.precision(17);
       //std::cout << "U1[" << node.localId() << "][" << node.uniqueId() << "] = "
       //          << m_dU[node].x << " U2[" << node.localId() << "][" << node.uniqueId() << "] = "
       //          << m_dU[node].y << "\n";
