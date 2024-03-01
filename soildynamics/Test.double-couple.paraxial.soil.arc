@@ -40,9 +40,6 @@
       <surface>surfaceLeft</surface>
     </paraxial-boundary-condition>
     <paraxial-boundary-condition>
-      <surface>surfaceTop</surface>
-    </paraxial-boundary-condition>
-    <paraxial-boundary-condition>
       <surface>surfaceRight</surface>
     </paraxial-boundary-condition>
     <paraxial-boundary-condition>
