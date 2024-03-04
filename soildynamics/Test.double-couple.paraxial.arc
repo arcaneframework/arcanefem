@@ -21,7 +21,7 @@
   </meshes>
 
   <fem>
-    <tmax>2.0</tmax>
+    <tmax>0.2</tmax>
     <dt>0.01</dt>
     <cs>2</cs>
     <cp>4</cp>
