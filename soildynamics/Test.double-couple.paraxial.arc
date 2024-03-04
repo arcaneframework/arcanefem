@@ -35,7 +35,7 @@
       <east-node-name>sourceR</east-node-name>
       <west-node-name>sourceL</west-node-name>
       <method>force-based</method>
-      <double-couple-input-file>force_loading_dc</double-couple-input-file>
+      <double-couple-input-file>force_loading_dc_north.txt</double-couple-input-file>
     </double-couple>
     <paraxial-boundary-condition>
       <surface>left</surface>

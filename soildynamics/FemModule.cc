@@ -52,13 +52,7 @@ class FemModule
   {
     for( const CaseTableInfo&  t : m_traction_case_table_list )
       delete t.case_table;
-    for( const CaseTableInfo&  t : m_double_couple_case_table_list_north )
-      delete t.case_table;
-    for( const CaseTableInfo&  t : m_double_couple_case_table_list_south )
-      delete t.case_table;
-    for( const CaseTableInfo&  t : m_double_couple_case_table_list_east )
-      delete t.case_table;
-    for( const CaseTableInfo&  t : m_double_couple_case_table_list_west )
+    for( const CaseTableInfo&  t : m_double_couple_case_table_list )
       delete t.case_table;
   }
 
@@ -123,10 +117,7 @@ class FemModule
 
   // List of CaseTable for traction boundary conditions
   UniqueArray<CaseTableInfo> m_traction_case_table_list;
-  UniqueArray<CaseTableInfo> m_double_couple_case_table_list_north;
-  UniqueArray<CaseTableInfo> m_double_couple_case_table_list_south;
-  UniqueArray<CaseTableInfo> m_double_couple_case_table_list_east;
-  UniqueArray<CaseTableInfo> m_double_couple_case_table_list_west;
+  UniqueArray<CaseTableInfo> m_double_couple_case_table_list;
 
  private:
 
@@ -356,33 +347,13 @@ _readCaseTables()
   }
 
   for (const auto& bs : options()->doubleCouple()) {
-    CaseTable* case_table_north = nullptr;
-    CaseTable* case_table_south = nullptr;
-    CaseTable* case_table_east  = nullptr;
-    CaseTable* case_table_west = nullptr;
-
-    String file_name_north;
-    String file_name_south;
-    String file_name_east;
-    String file_name_west;
+    CaseTable* case_table = nullptr;
 
     if(bs->doubleCoupleInputFile.isPresent()){
-
-      file_name_north = bs->doubleCoupleInputFile()+"_north.txt";
-      file_name_south = bs->doubleCoupleInputFile()+"_south.txt";
-      file_name_east  = bs->doubleCoupleInputFile()+"_east.txt";
-      file_name_west  = bs->doubleCoupleInputFile()+"_west.txt";
-
-      case_table_north = readFileAsCaseTable(pm, file_name_north, 3);
-      case_table_south = readFileAsCaseTable(pm, file_name_south, 3);
-      case_table_east  = readFileAsCaseTable(pm, file_name_east, 3);
-      case_table_west  = readFileAsCaseTable(pm, file_name_west, 3);
+      case_table = readFileAsCaseTable(pm, bs->doubleCoupleInputFile(), 1);
     }
 
-    m_double_couple_case_table_list_north.add(CaseTableInfo{file_name_north,case_table_north});
-    m_double_couple_case_table_list_south.add(CaseTableInfo{file_name_south,case_table_south});
-    m_double_couple_case_table_list_east.add(CaseTableInfo{file_name_east,case_table_east});
-    m_double_couple_case_table_list_west.add(CaseTableInfo{file_name_west,case_table_west});
+    m_double_couple_case_table_list.add(CaseTableInfo{bs->doubleCoupleInputFile(),case_table});
   }
 }
 
@@ -998,69 +969,50 @@ $$
 
   for (const auto& bs : options()->doubleCouple()) {
 
+    const CaseTableInfo& case_table_dc_info = m_double_couple_case_table_list[boundary_condition_index_dc];
 
-    const CaseTableInfo& case_table_dc_info_north = m_double_couple_case_table_list_north[boundary_condition_index_dc];
-    const CaseTableInfo& case_table_dc_info_south = m_double_couple_case_table_list_south[boundary_condition_index_dc];
-    const CaseTableInfo& case_table_dc_info_east  = m_double_couple_case_table_list_east[boundary_condition_index_dc];
-    const CaseTableInfo& case_table_dc_info_west  = m_double_couple_case_table_list_west[boundary_condition_index_dc];
     ++boundary_condition_index_dc;
 
-      Real3 trac_north; // values in x, y and z
-      Real3 trac_south; // values in x, y and z
-      Real3 trac_east;  // values in x, y and z
-      Real3 trac_west;  // values in x, y and z
+    Real dc_force; // double-couple force
 
-      String file_name = bs->doubleCoupleInputFile();
-      info() << "Applying boundary conditions for surface via CaseTable" <<  file_name;
+    String file_name = bs->doubleCoupleInputFile();
+    info() << "Applying boundary conditions for surface via CaseTable" <<  file_name;
 
-      CaseTable* inn_north = case_table_dc_info_north.case_table;
-      CaseTable* inn_south = case_table_dc_info_south.case_table;
-      CaseTable* inn_east  = case_table_dc_info_east.case_table;
-      CaseTable* inn_west  = case_table_dc_info_west.case_table;
+    CaseTable* dc_case_table_inn = case_table_dc_info.case_table;
 
-      //if (!inn_north)
-      //  ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _readCaseTables()");
+    //if (!dc_case_table_inn)
+    //  ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _readCaseTables()");
 
-      //if (file_name!=case_table_dc_info_north.file_name)
-      //  ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'",case_table_dc_info_north.file_name);
+    //if (file_name!=case_table_dc_info.file_name)
+    //  ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'",case_table_dc_info.file_name);
 
-      inn_north->value(t, trac_north);
-      inn_south->value(t, trac_south);
-      inn_east->value(t, trac_east);
-      inn_west->value(t, trac_west);
-
-      //cout << "ArcFemDebug north "<< trac_north.x <<  "  " << trac_north.y <<  "  " << trac_north.z << endl;
-      //cout << "ArcFemDebug south "<< trac_south.x <<  "  " << trac_south.y <<  "  " << trac_south.z << endl;
-      //cout << "ArcFemDebug east "<< trac_east.x  <<  "  " << trac_east.y <<  "  " << trac_east.z << endl;
-      //cout << "ArcFemDebug west "<< trac_west.x  <<  "  " << trac_west.y <<  "  " << trac_west.z << endl;
+    dc_case_table_inn->value(t, dc_force);
 
     NodeGroup north = bs->northNodeName();
     NodeGroup south = bs->southNodeName();
     NodeGroup east  = bs->eastNodeName();
     NodeGroup west  = bs->westNodeName();
 
-
-
-       ENUMERATE_ (Node, inode, north) {
-        Node node = *inode;
-        DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-        rhs_values[dof_id1] = trac_north.x;
-      }
-       ENUMERATE_ (Node, inode, south) {
-        Node node = *inode;
-        DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-        rhs_values[dof_id1] = trac_south.x;
-      }
-       ENUMERATE_ (Node, inode, east) {
-        Node node = *inode;
-        DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-        rhs_values[dof_id2] = trac_east.y;
-      }
-       ENUMERATE_ (Node, inode, west) {
-        Node node = *inode;
-        DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-        rhs_values[dof_id2] = trac_west.y;
-      }
+    ENUMERATE_ (Node, inode, north) {
+      Node node = *inode;
+      DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+      rhs_values[dof_id1] = dc_force;
+    }
+    ENUMERATE_ (Node, inode, south) {
+      Node node = *inode;
+      DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+      rhs_values[dof_id1] = -dc_force;
+    }
+    ENUMERATE_ (Node, inode, east) {
+      Node node = *inode;
+      DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+      rhs_values[dof_id2] = -dc_force;
+    }
+    ENUMERATE_ (Node, inode, west) {
+      Node node = *inode;
+      DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+      rhs_values[dof_id2] = dc_force;
+    }
 
   }
 }
