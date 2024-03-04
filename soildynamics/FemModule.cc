@@ -916,18 +916,6 @@ $$
                                            cs*( Normal.y*Normal.y*(Aold1+m_A[node].x) - Normal.x*Normal.y*(Aold2+m_A[node].y) )
                                          )
                                     ) * length / 6.;
-            /*
-            rhs_values[dof_id1] += (  c7*( cp*( Normal.x*Normal.x*m_U[node].x + Normal.x*Normal.y*m_U[node].y ) +
-                                           cs*( Normal.y*Normal.y*m_U[node].x - Normal.x*Normal.y*m_U[node].y )
-                                         )
-                                    - c8*( cp*( Normal.x*Normal.x*m_V[node].x + Normal.x*Normal.y*m_V[node].y ) +
-                                           cs*( Normal.y*Normal.y*m_V[node].x - Normal.x*Normal.y*m_V[node].y )
-                                         )
-                                    - c9*( cp*( Normal.x*Normal.x*m_A[node].x + Normal.x*Normal.y*m_A[node].y ) +
-                                           cs*( Normal.y*Normal.y*m_A[node].x - Normal.x*Normal.y*m_A[node].y )
-                                         )
-                                    ) * length / 2.;
-                                    */
           }
           if (!(m_u2_fixed[node])) {
             DoFLocalId dof_id2 = node_dof.dofId(node, 1);
@@ -941,18 +929,6 @@ $$
                                            cs*(-Normal.x*Normal.y*(Aold1+m_A[node].x) + Normal.x*Normal.x*(Aold2+m_A[node].y) )
                                          )
                                    ) * length / 6.;
-            /*
-            rhs_values[dof_id2] += (  c7*( cp*( Normal.x*Normal.y*m_U[node].x + Normal.y*Normal.y*m_U[node].y ) +
-                                           cs*(-Normal.x*Normal.y*m_U[node].x + Normal.x*Normal.x*m_U[node].y )
-                                         )
-                                    - c8*( cp*( Normal.x*Normal.y*m_V[node].x + Normal.y*Normal.y*m_V[node].y ) +
-                                           cs*(-Normal.x*Normal.y*m_V[node].x + Normal.x*Normal.x*m_V[node].y )
-                                         )
-                                    - c9*( cp*( Normal.x*Normal.y*m_A[node].x + Normal.y*Normal.y*m_A[node].y ) +
-                                           cs*(-Normal.x*Normal.y*m_A[node].x + Normal.x*Normal.x*m_A[node].y )
-                                         )
-                                   ) * length / 2.;
-                                   */
           }
         }
       }
@@ -979,12 +955,6 @@ $$
     info() << "Applying boundary conditions for surface via CaseTable" <<  file_name;
 
     CaseTable* dc_case_table_inn = case_table_dc_info.case_table;
-
-    //if (!dc_case_table_inn)
-    //  ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _readCaseTables()");
-
-    //if (file_name!=case_table_dc_info.file_name)
-    //  ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'",case_table_dc_info.file_name);
 
     dc_case_table_inn->value(t, dc_force);
 
@@ -1627,7 +1597,6 @@ _solve()
       u_disp.y = u2_val;
       u_disp.z = 0.;
       m_dU[node] = u_disp;
-      //info() << "Node: " << node.uniqueId() << " U1=" << u1_val << " U2=" << u2_val;
     }
   }
 
