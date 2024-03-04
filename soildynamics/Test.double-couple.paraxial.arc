@@ -21,13 +21,14 @@
   </meshes>
 
   <fem>
-    <tmax>4.0</tmax>
+    <tmax>2.0</tmax>
     <dt>0.01</dt>
-    <cs>2300</cs>
-    <cp>4000</cp>
-    <rho>2500.0</rho>
+    <cs>2</cs>
+    <cp>4</cp>
+    <rho>1</rho>
     <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
     <time-discretization>Newmark-beta</time-discretization>
+    <result-file>test_paraxial_results.txt</result-file>
     <double-couple>
       <north-node-name>sourceT</north-node-name>
       <south-node-name>sourceB</south-node-name>
