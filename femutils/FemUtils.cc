@@ -82,25 +82,29 @@ namespace
 {
 
   inline bool
-  _isDifferent(Real ref_v, Real v, Real epsilon)
+  _isDifferent(Real ref_v, Real v, Real epsilon, Real min_value)
   {
+    if (math::abs(ref_v) < min_value && math::abs(v) < min_value)
+      return false;
     return !TypeEqualT<Real>::isNearlyEqualWithEpsilon(ref_v, v, epsilon);
   }
   inline bool
-  _isDifferent(Real2 ref_v, Real2 v, Real epsilon)
+  _isDifferent(Real2 ref_v, Real2 v, Real epsilon, Real min_value)
   {
-    return _isDifferent(ref_v.x, v.x, epsilon) || _isDifferent(ref_v.y, v.y, epsilon);
+    return _isDifferent(ref_v.x, v.x, epsilon, min_value) || _isDifferent(ref_v.y, v.y, epsilon, min_value);
   }
   inline bool
-  _isDifferent(Real3 ref_v, Real3 v, Real epsilon)
+  _isDifferent(Real3 ref_v, Real3 v, Real epsilon, Real min_value)
   {
-    return _isDifferent(ref_v.x, v.x, epsilon) || _isDifferent(ref_v.y, v.y, epsilon)
-    || _isDifferent(ref_v.z, v.z, epsilon);
+    return _isDifferent(ref_v.x, v.x, epsilon, min_value) ||
+    _isDifferent(ref_v.y, v.y, epsilon, min_value) ||
+    _isDifferent(ref_v.z, v.z, epsilon, min_value);
   }
 
   template <typename VariableType> inline void
   _checkNodeResultFile(ITraceMng* tm, const String& filename,
-                       const VariableType& node_values, double epsilon)
+                       const VariableType& node_values,
+                       double epsilon, double min_value)
   {
     ARCANE_CHECK_POINTER(tm);
     using DataType = typename VariableType::DataType;
@@ -152,7 +156,7 @@ namespace
       auto x_ref = item_reference_values.find(uid);
       if (x_ref != item_reference_values.end()) {
         DataType ref_v = x_ref->second;
-        if (_isDifferent(ref_v, v, epsilon)) {
+        if (_isDifferent(ref_v, v, epsilon, min_value)) {
           ++nb_error;
           if (nb_error < 50)
             tm->info() << String::format("ERROR: uid={0} ref={1} v={2} diff={3}",
@@ -225,31 +229,31 @@ CaseTable* readFileAsCaseTable(IParallelMng* pm, const String& filename, const I
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void
-checkNodeResultFile(ITraceMng* tm, const String& filename,
-                    const VariableNodeReal& node_values, double epsilon)
+void checkNodeResultFile(ITraceMng* tm, const String& filename,
+                         const VariableNodeReal& node_values, double epsilon,
+                         double min_value)
 {
-  _checkNodeResultFile(tm,filename,node_values,epsilon);
+  _checkNodeResultFile(tm, filename, node_values, epsilon, min_value);
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void
-checkNodeResultFile(ITraceMng* tm, const String& filename,
-                    const VariableNodeReal2& node_values, double epsilon)
+void checkNodeResultFile(ITraceMng* tm, const String& filename,
+                         const VariableNodeReal2& node_values, double epsilon,
+                         double min_value)
 {
-  _checkNodeResultFile(tm,filename,node_values,epsilon);
+  _checkNodeResultFile(tm, filename, node_values, epsilon, min_value);
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void
-checkNodeResultFile(ITraceMng* tm, const String& filename,
-                    const VariableNodeReal3& node_values, double epsilon)
+void checkNodeResultFile(ITraceMng* tm, const String& filename,
+                         const VariableNodeReal3& node_values, double epsilon,
+                         double min_value)
 {
-  _checkNodeResultFile(tm,filename,node_values,epsilon);
+  _checkNodeResultFile(tm, filename, node_values, epsilon, min_value);
 }
 
 /*---------------------------------------------------------------------------*/

@@ -164,10 +164,14 @@ _convertNumArrayToCSRMatrix(Arcane::MatVec::Matrix& out_matrix,
  * For each item the current value of \a node_values is compared to the
  * reference value and if the relative difference is greater than \a epsilon
  * this is an error.
+ *
+ * Only values greater whose absolute value is greater than \a min_value are
+ * checked.
  */
 extern "C++" void
 checkNodeResultFile(ITraceMng* tm, const String& filename,
-                    const VariableNodeReal& node_values, double epsilon);
+                    const VariableNodeReal& node_values, double epsilon,
+                    double min_value = 0.0);
 
 /*!
  * \brief Check the values of the variable against a reference file.
@@ -180,10 +184,14 @@ checkNodeResultFile(ITraceMng* tm, const String& filename,
  * For each item the current value of \a node_values is compared to the
  * reference value and if the relative difference is greater than \a epsilon
  * this is an error.
+ *
+ * Only values greater whose absolute value is greater than \a min_value are
+ * checked.
  */
 extern "C++" void
 checkNodeResultFile(ITraceMng* tm, const String& filename,
-                    const VariableNodeReal2& node_values, double epsilon);
+                    const VariableNodeReal2& node_values, double epsilon,
+                    double min_value = 0.0);
 
 /*!
  * \brief Check the values of the variable against a reference file.
@@ -196,10 +204,14 @@ checkNodeResultFile(ITraceMng* tm, const String& filename,
  * For each item the current value of \a node_values is compared to the
  * reference value and if the relative difference is greater than \a epsilon
  * this is an error.
+ *
+ * Only values greater whose absolute value is greater than \a min_value are
+ * checked.
  */
 extern "C++" void
 checkNodeResultFile(ITraceMng* tm, const String& filename,
-                    const VariableNodeReal3& node_values, double epsilon);
+                    const VariableNodeReal3& node_values, double epsilon,
+                    double min_value = 0.0);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
