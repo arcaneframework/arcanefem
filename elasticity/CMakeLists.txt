@@ -35,7 +35,7 @@ endif()
 # If parallel part is available, add some tests
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
   # Temporarely remove this test because there is a difference on node 37
-  #  add_test(NAME [elasticity]parallel_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity Test.Elasticity.arc)
+  add_test(NAME [elasticity]parallel_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity Test.Elasticity.arc)
   add_test(NAME [elasticity]parallel_Dirichlet_RowElimination_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity Test.Elasticity.DirichletViaRowElimination.arc)
   add_test(NAME [elasticity]parallel_Dirichlet_RowColElimination_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity Test.Elasticity.DirichletViaRowColumnElimination.arc)
 endif()
