@@ -37,6 +37,36 @@ VersionInfo ElastodynamicModule::versionInfo() const {
   return {1, 0, 0};
 }
 
+ElastodynamicModule::~ElastodynamicModule()
+{
+  for( const CaseTableInfo&  t : m_traction_case_table_list )
+    delete t.case_table;
+  for( const CaseTableInfo&  t : m_dc_case_table_list )
+    delete t.case_table;
+  for( const CaseTableInfo&  t : m_sacc_case_table_list )
+    delete t.case_table;
+  for( const CaseTableInfo&  t : m_sdispl_case_table_list )
+    delete t.case_table;
+  for( const CaseTableInfo&  t : m_sforce_case_table_list )
+    delete t.case_table;
+  for( const CaseTableInfo&  t : m_svel_case_table_list )
+    delete t.case_table;
+  for( const CaseTableInfo&  t : m_acc_case_table_list )
+    delete t.case_table;
+  for( const CaseTableInfo&  t : m_displ_case_table_list )
+    delete t.case_table;
+  for( const CaseTableInfo&  t : m_force_case_table_list )
+    delete t.case_table;
+  for( const CaseTableInfo&  t : m_vel_case_table_list )
+    delete t.case_table;
+  for( const CaseTableInfo&  t : m_ain_case_table_list )
+    delete t.case_table;
+  for( const CaseTableInfo&  t : m_vin_case_table_list )
+    delete t.case_table;
+  for( const CaseTableInfo&  t : m_uin_case_table_list )
+    delete t.case_table;
+}
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void ElastodynamicModule::
@@ -132,6 +162,7 @@ startInit(){
   _applyInitialNodeConditions();
   _initCells();
   _initBoundaryConditions();
+  _initDCConditions();
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -333,8 +364,15 @@ compute(){
     linop_nstep_counter = 0;
   }
 
-  // Apply other Dirichlet/Neumann conditions if any (constant values assumed at present)
-  _applyBoundaryConditions();
+  // Apply Dirichlet/Neumann conditions if any
+  _applyDirichletBoundaryConditions();
+  _applyNeumannBoundaryConditions();
+
+  // Apply Paraxial conditions if any
+  _applyParaxialBoundaryConditions();
+
+  // Apply double-couple conditions if any => to be checked: how to assemble imposed force to RHS...
+//  _applyDCConditions();
 
   info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
 
@@ -680,7 +718,83 @@ _initBoundaryConditions()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void ElastodynamicModule::
-_applyBoundaryConditions(){
+_initDCConditions()
+{
+  IParallelMng* pm = subDomain()->parallelMng();
+
+  for (const auto& bd : options()->doubleCouple()) {
+    NodeGroup east = bd->getEastNode();
+    NodeGroup west = bd->getWestNode();
+    NodeGroup north = bd->getNorthNode();
+    NodeGroup south = bd->getSouthNode();
+
+    auto hasMoment = bd->hasSeismicMomentFile();
+    auto hasLoading = bd->hasLoadingFile();
+    String file_name;
+
+    if (hasMoment || hasLoading) {
+       if (hasMoment) file_name = bd->getSeismicMomentFile();
+       else file_name = bd->getLoadingFile();
+
+      auto case_table = readFileAsCaseTable(pm, file_name, 1);
+      m_dc_case_table_list.add(CaseTableInfo{ file_name, case_table });
+    }
+    else
+      ARCANE_FATAL("ERROR Double-Couple Condition: seismic moment or loading time history missing!");
+
+    auto iplane = bd->getSourcePlane();
+    Int32 i1{0}, i2{0};
+
+    if (!iplane) i2 = 1;
+    else if (iplane == 1){
+      i1 = 1;
+      i2 = 2;
+    }
+    else
+      i2 = 2;
+
+    Real3 coord_west, coord_east, coord_north, coord_south;
+    Real2 dist;
+
+    // Setting imposed force indicators to concerned nodes
+    ENUMERATE_NODE (inode, west) {
+      const Node& node = *inode;
+      coord_west = m_node_coord[node];
+      auto num = node.uniqueId();//--- For debug only
+      m_imposed_force[node][i2] = 1;
+    }
+    ENUMERATE_NODE (inode, east) {
+      const Node& node = *inode;
+      coord_east = m_node_coord[node];
+      auto num = node.uniqueId();//--- For debug only
+      m_imposed_force[node][i2] = 1;
+    }
+    ENUMERATE_NODE (inode, north) {
+      const Node& node = *inode;
+      coord_north = m_node_coord[node];
+      auto num = node.uniqueId();//--- For debug only
+      m_imposed_force[node][i1] = 1;
+    }
+    ENUMERATE_NODE (inode, south) {
+      const Node& node = *inode;
+      coord_south = m_node_coord[node];
+      auto num = node.uniqueId();//--- For debug only
+      m_imposed_force[node][i1] = 1;
+    }
+
+    // Distance used to compute forces from seimic moment inputs
+    auto rew{ coord_west - coord_east };
+    auto rns{ coord_north - coord_south };
+    auto d1 = rew.normL2(); // East-West distance
+    auto d2 = rns.normL2();
+    m_dc_dist.add(Real2(d1, d2));
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+void ElastodynamicModule::
+_applyDirichletBoundaryConditions(){
 
   Real time = globalTime();
   Int32 sac_index{ 0 }, svc_index{ 0 }, suc_index{ 0 }, sfc_index{ 0 };
@@ -779,51 +893,54 @@ _applyBoundaryConditions(){
       // Loop on nodes of the face
       for (Integer k = 0; k < nb_node; ++k) {
         const Node& node = face.node(k);
-        auto coord = m_node_coord[node];
-        auto num = node.uniqueId();
 
-        if (is_acc_imp){
-          if ((bool)m_imposed_acc[node].x)
-            m_acc[node].x = acc.x;
+        if (node.isOwn()) {
+          auto coord = m_node_coord[node];
+          auto num = node.uniqueId();
 
-          if ((bool)m_imposed_acc[node].y)
-            m_acc[node].y = acc.y;
+          if (is_acc_imp) {
+            if ((bool)m_imposed_acc[node].x)
+              m_acc[node].x = acc.x;
 
-          if ((bool)m_imposed_acc[node].z)
-            m_acc[node].z = acc.z;
-        }
+            if ((bool)m_imposed_acc[node].y)
+              m_acc[node].y = acc.y;
 
-        if (is_vel_imp){
-          if ((bool)m_imposed_vel[node].x)
-            m_vel[node].x = vel.x;
+            if ((bool)m_imposed_acc[node].z)
+              m_acc[node].z = acc.z;
+          }
 
-          if ((bool)m_imposed_vel[node].y)
-            m_vel[node].y = vel.y;
+          if (is_vel_imp) {
+            if ((bool)m_imposed_vel[node].x)
+              m_vel[node].x = vel.x;
 
-          if ((bool)m_imposed_vel[node].z)
-            m_vel[node].z = vel.z;
-        }
+            if ((bool)m_imposed_vel[node].y)
+              m_vel[node].y = vel.y;
 
-        if (is_displ_imp) {
-          if ((bool)m_imposed_displ[node].x)
-            m_displ[node].x = displ.x;
+            if ((bool)m_imposed_vel[node].z)
+              m_vel[node].z = vel.z;
+          }
 
-          if ((bool)m_imposed_displ[node].y)
-            m_displ[node].y = displ.y;
+          if (is_displ_imp) {
+            if ((bool)m_imposed_displ[node].x)
+              m_displ[node].x = displ.x;
 
-          if ((bool)m_imposed_displ[node].z)
-            m_displ[node].z = displ.z;
-        }
+            if ((bool)m_imposed_displ[node].y)
+              m_displ[node].y = displ.y;
 
-        if (is_force_imp){
-          if ((bool)m_imposed_force[node].x)
-            m_force[node].x = force.x;
+            if ((bool)m_imposed_displ[node].z)
+              m_displ[node].z = displ.z;
+          }
 
-          if ((bool)m_imposed_force[node].y)
-            m_force[node].y = force.y;
+          if (is_force_imp) {
+            if ((bool)m_imposed_force[node].x)
+              m_force[node].x = force.x;
 
-          if ((bool)m_imposed_force[node].z)
-            m_force[node].z = force.z;
+            if ((bool)m_imposed_force[node].y)
+              m_force[node].y = force.y;
+
+            if ((bool)m_imposed_force[node].z)
+              m_force[node].z = force.z;
+          }
         }
       }
     }
@@ -924,56 +1041,66 @@ _applyBoundaryConditions(){
       auto coord = m_node_coord[node];
       auto num = node.uniqueId();
 
-      if (is_acc_imp){
-        if ((bool)m_imposed_acc[node].x)
-          m_acc[node].x = acc.x;
+      if (node.isOwn()) {
 
-        if ((bool)m_imposed_acc[node].y)
-          m_acc[node].y = acc.y;
+        if (is_acc_imp) {
+          if ((bool)m_imposed_acc[node].x)
+            m_acc[node].x = acc.x;
 
-        if ((bool)m_imposed_acc[node].z)
-          m_acc[node].z = acc.z;
-      }
+          if ((bool)m_imposed_acc[node].y)
+            m_acc[node].y = acc.y;
 
-      if (is_vel_imp){
-        if ((bool)m_imposed_vel[node].x)
-          m_vel[node].x = vel.x;
+          if ((bool)m_imposed_acc[node].z)
+            m_acc[node].z = acc.z;
+        }
 
-        if ((bool)m_imposed_vel[node].y)
-          m_vel[node].y = vel.y;
+        if (is_vel_imp) {
+          if ((bool)m_imposed_vel[node].x)
+            m_vel[node].x = vel.x;
 
-        if ((bool)m_imposed_vel[node].z)
-          m_vel[node].z = vel.z;
-      }
+          if ((bool)m_imposed_vel[node].y)
+            m_vel[node].y = vel.y;
 
-      if (is_displ_imp) {
-        if ((bool)m_imposed_displ[node].x)
-          m_displ[node].x = displ.x;
+          if ((bool)m_imposed_vel[node].z)
+            m_vel[node].z = vel.z;
+        }
 
-        if ((bool)m_imposed_displ[node].y)
-          m_displ[node].y = displ.y;
+        if (is_displ_imp) {
+          if ((bool)m_imposed_displ[node].x)
+            m_displ[node].x = displ.x;
 
-        if ((bool)m_imposed_displ[node].z)
-          m_displ[node].z = displ.z;
-      }
+          if ((bool)m_imposed_displ[node].y)
+            m_displ[node].y = displ.y;
 
-      if (is_force_imp){
-        if ((bool)m_imposed_force[node].x)
-          m_force[node].x = force.x;
+          if ((bool)m_imposed_displ[node].z)
+            m_displ[node].z = displ.z;
+        }
 
-        if ((bool)m_imposed_force[node].y)
-          m_force[node].y = force.y;
+        if (is_force_imp) {
+          if ((bool)m_imposed_force[node].x)
+            m_force[node].x = force.x;
 
-        if ((bool)m_imposed_force[node].z)
-          m_force[node].z = force.z;
+          if ((bool)m_imposed_force[node].y)
+            m_force[node].y = force.y;
+
+          if ((bool)m_imposed_force[node].z)
+            m_force[node].z = force.z;
+        }
       }
     }
   }
+}
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+void ElastodynamicModule::
+_applyNeumannBoundaryConditions(){
+
+  Real time = globalTime();
   Int32 bc_index{ 0 };
   for (const auto& bs : options()->neumannCondition()) {
     FaceGroup face_group = bs->surface();
-/*
+    /*
     const CaseTableInfo& case_table_info = m_traction_case_table_list[bc_index];
     ++bc_index;
 */
@@ -981,7 +1108,7 @@ _applyBoundaryConditions(){
     Real3 trac{};
 
     if (bs->hasCurve()) {
-//      if (bs->curve.isPresent()) {
+      //      if (bs->curve.isPresent()) {
       const CaseTableInfo& case_table_info = m_traction_case_table_list[bc_index++];
       String file_name = bs->getCurve();
       info() << "Applying traction boundary conditions for surface " << face_group.name()
@@ -1006,6 +1133,14 @@ _applyBoundaryConditions(){
       m_imposed_traction[face] = trac;
     }
   }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+void ElastodynamicModule::
+_applyParaxialBoundaryConditions(){
+
+  Real time = globalTime();
 
   // Looking for an input motion defined on the paraxial boundary
   Int32 ui_index{ 0 }, vi_index{ 0 }, ai_index{ 0 };
@@ -1023,33 +1158,33 @@ _applyBoundaryConditions(){
 
       if (typ == 6) {
         if (is_u) {
-          const CaseTableInfo& table_info = m_uin_case_table_list[ui_index++];
-          String file_name = bs->getUInput();
-          info() << "Applying input displacement for paraxial element " << face_group.name()
-                 << " via CaseTable " << file_name;
-          CaseTable* inn = table_info.case_table;
+            const CaseTableInfo& table_info = m_uin_case_table_list[ui_index++];
+            String file_name = bs->getUInput();
+            info() << "Applying input displacement for paraxial element " << face_group.name()
+                   << " via CaseTable " << file_name;
+            CaseTable* inn = table_info.case_table;
 
-          if (inn != nullptr)
+            if (inn != nullptr)
             inn->value(time, uin);
         }
         if (is_v) {
-          const CaseTableInfo& table_info = m_uin_case_table_list[vi_index++];
-          String file_name = bs->getVInput();
-          info() << "Applying input velocity for paraxial element " << face_group.name()
-                 << " via CaseTable " << file_name;
-          CaseTable* inn = table_info.case_table;
+            const CaseTableInfo& table_info = m_uin_case_table_list[vi_index++];
+            String file_name = bs->getVInput();
+            info() << "Applying input velocity for paraxial element " << face_group.name()
+                   << " via CaseTable " << file_name;
+            CaseTable* inn = table_info.case_table;
 
-          if (inn != nullptr)
+            if (inn != nullptr)
             inn->value(time, vin);
         }
         if (is_a) {
-          const CaseTableInfo& table_info = m_uin_case_table_list[ai_index++];
-          String file_name = bs->getAInput();
-          info() << "Applying input acceleration for paraxial element " << face_group.name()
-                 << " via CaseTable " << file_name;
-          CaseTable* inn = table_info.case_table;
+            const CaseTableInfo& table_info = m_uin_case_table_list[ai_index++];
+            String file_name = bs->getAInput();
+            info() << "Applying input acceleration for paraxial element " << face_group.name()
+                   << " via CaseTable " << file_name;
+            CaseTable* inn = table_info.case_table;
 
-          if (inn != nullptr)
+            if (inn != nullptr)
             inn->value(time, ain);
         }
 
@@ -1084,14 +1219,14 @@ _applyBoundaryConditions(){
         auto sinat {sin(plane_angle*RAD)};
 
         if (NDIM == 3) {
-          uin.x = sinan*cosat*val;
-          uin.y = sinan*sinat*val;
-          uin.z = cosan*val;
+            uin.x = sinan*cosat*val;
+            uin.y = sinan*sinat*val;
+            uin.z = cosan*val;
         }
         else {
-          uin.x = sinan*val;
-          uin.y = cosan*val;
-          uin.z = 0.;
+            uin.x = sinan*val;
+            uin.y = cosan*val;
+            uin.z = 0.;
         }
       }
 
@@ -1107,6 +1242,99 @@ _applyBoundaryConditions(){
         }
       }
     }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+void ElastodynamicModule::
+_applyDCConditions(){
+
+  Real time = globalTime();
+  Int32 bd_index{ 0 };
+  for (const auto& bd : options()->doubleCouple()) {
+
+    NodeGroup east = bd->getEastNode();
+    NodeGroup west = bd->getWestNode();
+    NodeGroup north = bd->getNorthNode();
+    NodeGroup south = bd->getSouthNode();
+
+    Real Ft{0.};
+    auto hasMoment = bd->hasSeismicMomentFile();
+    auto hasLoading = bd->hasLoadingFile();
+
+    if (hasMoment || hasLoading) {
+      const CaseTableInfo& table_info = m_dc_case_table_list[bd_index];
+
+      if (hasMoment) {
+        String file_name = bd->getSeismicMomentFile();
+        info() << "Applying the seismic moment for double-couple condition via CaseTable " << file_name;
+      }
+      else if (hasLoading){
+        String file_name = bd->getLoadingFile();
+        info() << "Applying the loading time history for double-couple condition via CaseTable " << file_name;
+      }
+      CaseTable* inn = table_info.case_table;
+      if (inn != nullptr)
+        inn->value(time, Ft);
+    }
+
+    auto iplane = bd->getSourcePlane();
+    Int32 i1{0}, i2{0};
+
+    if (!iplane) i2 = 1;
+    else if (iplane == 1){
+      i1 = 1;
+      i2 = 2;
+    }
+    else
+      i2 = 2;
+
+    Node dc_node_south, dc_node_west, dc_node_north, dc_node_east;
+
+    ENUMERATE_NODE (inode, west) {
+      dc_node_west = *inode;
+      auto num = dc_node_west.uniqueId();//--- For debug only
+    }
+    ENUMERATE_NODE (inode, east) {
+      dc_node_east = *inode;
+      auto num = dc_node_east.uniqueId();//--- For debug only
+    }
+    ENUMERATE_NODE (inode, north) {
+      dc_node_north = *inode;
+      auto num = dc_node_north.uniqueId();//--- For debug only
+    }
+    ENUMERATE_NODE (inode, south) {
+      dc_node_south = *inode;
+      auto num = dc_node_south.uniqueId();//--- For debug only
+    }
+
+    auto dist = m_dc_dist[bd_index];
+    if (hasMoment) {
+
+      if (dist != Real2::null()) {
+        m_force[dc_node_south][i1] = -Ft / dist.y;
+        m_force[dc_node_north][i1] = Ft / dist.y;
+        m_force[dc_node_east][i2] = -Ft / dist.x;
+        m_force[dc_node_west][i2] = Ft / dist.x;
+      }
+      else{
+        info() << "Warning: distance between double-couple nodes is zero!";
+        info() << "Applying the seismic moment as a simple loading time history";
+        m_force[dc_node_south][i1] = -Ft;
+        m_force[dc_node_north][i1] = Ft;
+        m_force[dc_node_east][i2] = -Ft;
+        m_force[dc_node_west][i2] = Ft;
+      }
+    } else if (hasLoading){
+
+      m_force[dc_node_south][i1] = -Ft;
+      m_force[dc_node_north][i1] = Ft;
+      m_force[dc_node_east][i2] = -Ft;
+      m_force[dc_node_west][i2] = +Ft;
+
+    }
+    ++bd_index;
   }
 }
 
@@ -1589,6 +1817,8 @@ _assembleLinearRHS(){
       }
     }
 
+    auto nc = cell.uniqueId().asInt32();
+
     // Loop on the cell Gauss points to compute integrals terms
     Int32 ngauss{ 0 };
     auto vec = cell_fem.getGaussData(cell, integ_order, ngauss);
@@ -1609,6 +1839,9 @@ _assembleLinearRHS(){
       auto wt = vec[ig] * jacobian;
 
       for (Node node1 : cell.nodes()) {
+
+        //---- For debug only !!!
+        auto coord1 = m_node_coord[node1];
         auto num1 = node1.uniqueId().asInt32();
 
         for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
@@ -1626,7 +1859,10 @@ _assembleLinearRHS(){
               //----------------------------------------------------------*/
             Int32 n2_index{ 0 };
             for (Node node2 : cell.nodes()) {
+              //---- For debug only !!!
+              auto coord2 = m_node_coord[node2];
               auto num2 = node2.uniqueId().asInt32();
+
               auto an = m_prev_acc[node2][iddl];
               auto vn = m_prev_vel[node2][iddl];
               auto dn = m_prev_displ[node2][iddl];
@@ -1708,6 +1944,114 @@ _assembleLinearRHS(){
   // Paraxial contribution to RHS if any
   //----------------------------------------------
   _getParaxialContribution(rhs_values);
+
+  //----------------------------------------------
+  // Looking for double-couple contributions if any
+  //----------------------------------------------
+  {
+    Real time = globalTime();
+    Int32 bd_index{ 0 };
+    for (const auto& bd : options()->doubleCouple()) {
+
+      NodeGroup east = bd->getEastNode();
+      NodeGroup west = bd->getWestNode();
+      NodeGroup north = bd->getNorthNode();
+      NodeGroup south = bd->getSouthNode();
+
+      Real Ft{0.};
+      auto hasMoment = bd->hasSeismicMomentFile();
+      auto hasLoading = bd->hasLoadingFile();
+
+      if (hasMoment || hasLoading) {
+        const CaseTableInfo& table_info = m_dc_case_table_list[bd_index];
+
+        if (hasMoment) {
+          String file_name = bd->getSeismicMomentFile();
+          info() << "Applying the seismic moment for double-couple condition via CaseTable " << file_name;
+        }
+        else if (hasLoading){
+          String file_name = bd->getLoadingFile();
+          info() << "Applying the loading time history for double-couple condition via CaseTable " << file_name;
+        }
+        CaseTable* inn = table_info.case_table;
+        if (inn != nullptr)
+          inn->value(time, Ft);
+      }
+
+      auto iplane = bd->getSourcePlane();
+      Int32 i1{0}, i2{0};
+
+      if (!iplane) i2 = 1;
+      else if (iplane == 1){
+        i1 = 1;
+        i2 = 2;
+      }
+      else
+        i2 = 2;
+
+      Node dc_node_south, dc_node_west, dc_node_north, dc_node_east;
+
+      ENUMERATE_NODE (inode, west) {
+        dc_node_west = *inode;
+
+        //---- For debug only !!!
+        auto coords = m_node_coord[dc_node_west];
+        auto num = dc_node_west.uniqueId().asInt32();
+      }
+      ENUMERATE_NODE (inode, east) {
+        dc_node_east = *inode;
+
+        //---- For debug only !!!
+        auto coords = m_node_coord[dc_node_east];
+        auto num = dc_node_east.uniqueId().asInt32();
+      }
+      ENUMERATE_NODE (inode, north) {
+        dc_node_north = *inode;
+
+        //---- For debug only !!!
+        auto coords = m_node_coord[dc_node_north];
+        auto num = dc_node_north.uniqueId().asInt32();
+      }
+      ENUMERATE_NODE (inode, south) {
+        dc_node_south = *inode;
+        //---- For debug only !!!
+        auto coords = m_node_coord[dc_node_south];
+        auto num = dc_node_south.uniqueId().asInt32();
+      }
+
+      auto dist = m_dc_dist[bd_index];
+      DoFLocalId node_north_dof = node_dof.dofId(dc_node_north, i1);
+      DoFLocalId node_south_dof = node_dof.dofId(dc_node_south, i1);
+      DoFLocalId node_east_dof = node_dof.dofId(dc_node_east, i2);
+      DoFLocalId node_west_dof = node_dof.dofId(dc_node_west, i2);
+
+      if (hasMoment) {
+
+        if (dist != Real2::null()) {
+          rhs_values[node_south_dof] = -Ft / dist.y;
+          rhs_values[node_north_dof] = Ft / dist.y;
+          rhs_values[node_east_dof] = -Ft / dist.x;
+          rhs_values[node_west_dof] = Ft / dist.x;
+        }
+        else{
+          info() << "Warning: distance between double-couple nodes is zero!";
+          info() << "Applying the seismic moment as a simple loading time history";
+          rhs_values[node_south_dof] = -Ft;
+          rhs_values[node_north_dof] = Ft;
+          rhs_values[node_east_dof] = -Ft;
+          rhs_values[node_west_dof] = Ft;
+        }
+      } else if (hasLoading){
+
+        rhs_values[node_south_dof] = -Ft;
+        rhs_values[node_north_dof] = Ft;
+        rhs_values[node_east_dof] = -Ft;
+        rhs_values[node_west_dof] = Ft;
+
+      }
+      ++bd_index;
+    }
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1749,26 +2093,15 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
         auto rho = m_rho_parax[face];
         auto RhoC{ rho * m_vel_parax[face] };
 
-        Real3 e1{ m_e1_boundary[face] }, e2{ m_e2_boundary[face] }, e3{ m_e3_boundary[face] };
         // In 2D, paraxial = edge => e1 = tangential vector, e2 = outbound normal vector
         // In 3D, paraxial = face => e1, e2 = on tangential plane, e3 = outbound normal vector
-        Real3 nvec{e3};
-        if (NDIM < 3) nvec = e2;
+        Real3 e1{ m_e1_boundary[face] }, e2{ m_e2_boundary[face] }, e3{ m_e3_boundary[face] };
 
-        Int32 ndim = getGeomDimension(face);
-        auto rhocp{RhoC[ndim]};
-        auto rhocs{RhoC[0]};
-        auto rhocpcs{rhocp - rhocs};
-
-        // Tensorial product on normal vector nvec:
-        Real3x3 nxn({ nvec.x * nvec.x, nvec.x * nvec.y, nvec.x * nvec.z },
-                    { nvec.y * nvec.x, nvec.y * nvec.y, nvec.y * nvec.z },
-                    { nvec.z * nvec.x, nvec.z * nvec.y, nvec.z * nvec.z });
+        // Rotation matrix between global and local (paraxial) axes
         Real3x3 ROT({ e1.x, e1.y, e1.z },
                     { e2.x, e2.y, e2.z },
                     { e3.x, e3.y, e3.z });
 
-        // In 3D, a quadratic face element has max 9 nodes (27 dofs)
         auto nb_nodes{ face.nbNode() };
         auto size{ NDIM * nb_nodes };
 
@@ -1789,6 +2122,7 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
 
           for (Node node : face.nodes()) {
 
+
             auto Phi_i = vec[ig + iig];
             auto vi_pred = m_prev_vel[node] + (1. - gamma) * dt * m_prev_acc[node];
             auto ui_pred = m_prev_displ[node] + dt * m_prev_vel[node] + (0.5 - beta) * dt2 * m_prev_acc[node];
@@ -1808,23 +2142,29 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
           iig = 4;
           for (Node node : face.nodes()) {
 
-            auto Phi_i = vec[ig + iig];
-            auto wtPhi_i = wt * Phi_i;
-            for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
-              DoFLocalId node_dofi = node_dof.dofId(node, iddl);
+            if (node.isOwn()) {
+              //---- For debug only !!!
+              auto num = node.uniqueId().asInt32();
+              auto coords = m_node_coord[node];
 
-              bool is_node_dofi_set = (bool)m_imposed_displ[node][iddl];
-              auto rhs_i{ 0. };
+              auto Phi_i = vec[ig + iig];
+              auto wtPhi_i = wt * Phi_i;
+              for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
+                DoFLocalId node_dofi = node_dof.dofId(node, iddl);
 
-              if (node.isOwn() && !is_node_dofi_set) {
+                bool is_node_dofi_set = (bool)m_imposed_displ[node][iddl];
+                auto rhs_i{ 0. };
 
-                for (Int32 j = 0; j < NDIM; ++j) {
-                  rhs_i += ROT[iddl][j] * a0[j];
+                if (!is_node_dofi_set) {
+
+                  for (Int32 j = 0; j < NDIM; ++j) {
+                    rhs_i += ROT[iddl][j] * a0[j];
+                  }
                 }
+                rhs_values[node_dofi] += wtPhi_i * rhs_i;
               }
-              rhs_values[node_dofi] += wtPhi_i * rhs_i;
+              iig += 4;
             }
-            iig += 4;
           }
         }
       }
@@ -1994,6 +2334,9 @@ _doSolve(){
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
 
+      auto num = node.uniqueId().asInt32();
+      auto coord = m_node_coord[node];
+
       auto ux = dof_d[node_dof.dofId(node, 0)];
       auto uy = dof_d[node_dof.dofId(node, 1)];
       auto uz{0.};
@@ -2009,7 +2352,7 @@ _doSolve(){
 
   // Re-Apply Dirichlet boundary conditions because the solver has modified the values
   // on all nodes
-  _applyBoundaryConditions();
+  _applyDirichletBoundaryConditions();// --- Check if it is required (re-apply paraxial conditions too?)
 
   m_displ.synchronize();
   m_vel.synchronize();

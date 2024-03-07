@@ -48,6 +48,7 @@ class ElastodynamicModule
 : public ArcaneElastodynamicObject {
  public:
   explicit ElastodynamicModule(const ModuleBuildInfo &mbi);
+  ~ElastodynamicModule();
 
  public:
 
@@ -91,6 +92,9 @@ class ElastodynamicModule
   UniqueArray<CaseTableInfo> m_vin_case_table_list;
   UniqueArray<CaseTableInfo> m_uin_case_table_list;
 
+  // List of CaseTable for double couple conditions (seismic moments or loadings)
+  UniqueArray<CaseTableInfo> m_dc_case_table_list;
+
   Integer3 integ_order{2, 2, 2};
   Int32 NDIM{2};
   CellFEMDispatcher cell_fem{};
@@ -102,6 +106,8 @@ class ElastodynamicModule
   Real alfam{0.};
   Real alfaf{0.};
   bool is_alfa_method{false},keep_constop{false};
+  UniqueArray<Real2> m_dc_dist;
+
   Real dt2{0.};
   Int32 linop_nstep{1000}, linop_nstep_counter{0};
   TypesElastodynamic::eElastType elast_type{TypesElastodynamic::NoElastPropType};
@@ -118,7 +124,11 @@ class ElastodynamicModule
   void _assembleLinearRHS();
   void _doSolve();
   void _initBoundaryConditions();
-  void _applyBoundaryConditions();
+  void _initDCConditions();
+  void _applyDirichletBoundaryConditions();
+  void _applyParaxialBoundaryConditions();
+  void _applyNeumannBoundaryConditions();
+  void _applyDCConditions();
   void _getParaxialContribution(VariableDoFReal& rhs_values);
   void _assembleLHSParaxialContribution();
   void _getTractionContribution(Arcane::VariableDoFReal& rhs_values);

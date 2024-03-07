@@ -13,6 +13,12 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
+ * \brief Class to define analytical functions useful to define incident wave motions
+ * on paraxial boundaries
+ */
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*!
  * \brief Ricker analytical function.
  */
 Real AnalyticFunc::getRicker(const Real& time){
@@ -89,3 +95,4 @@ Real AnalyticFunc::getDirac(const Real& time){
   if (time != m_tp) return 0.;
   return m_amplit;
 }
+

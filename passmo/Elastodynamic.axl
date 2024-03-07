@@ -486,6 +486,36 @@
       <description>Boolean which is true if Newmark Generalized alfa-method is used</description>
     </simple>
 
+    <!-- - - - - - double-couple - - - - -->
+    <complex name  = "double-couple"
+             type  = "DoubleCouple"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>Double-Couple force condition applied on 4 nodes of a source plane</description>
+      <extended name = "north-node" type = "Arcane::NodeGroup">
+        <description>Physical name in the mesh for node located North on the source plane</description>
+      </extended>
+      <extended name = "south-node" type = "Arcane::NodeGroup">
+        <description>Physical name in the mesh for node located South on the source plane</description>
+      </extended>
+      <extended name = "east-node" type = "Arcane::NodeGroup">
+        <description>Physical name in the mesh for node located East on the source plane</description>
+      </extended>
+      <extended name = "west-node" type = "Arcane::NodeGroup">
+        <description>Physical name in the mesh for node located West on the source plane</description>
+      </extended>
+    <simple name = "source-plane" type = "integer" default="0">
+      <description>Fault plane to impose double couple condition: 0=xy, 1=yz, 2=xz</description>
+    </simple>
+    <simple name="seismic-moment-file" type="string" optional="true">
+      <description>Seismic moment time-history M0(t) to be given (if no loading provided)</description>
+    </simple>
+    <simple name="loading-file" type="string" optional="true">
+      <description>Loading time history to impose on double couple nodes (if no seismic moment time history provided)</description>
+    </simple>
+    </complex>
+
     <!-- - - - - - linear-system - - - - -->
     <service-instance name = "linear-system"
                       type = "Arcane::FemUtils::IDoFLinearSystemFactory"
