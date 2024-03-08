@@ -84,7 +84,8 @@ startInit(){
   gravity.y = options()->getGy();
   gravity.z = options()->getGz();
 
-  if (options()->enforceDirichletMethod() == "Penalty") {
+  auto opt_penalty = options()->enforceDirichletMethod().lower();
+  if (opt_penalty.contains("penalty") || opt_penalty.contains("weak")) {
     penalty = options()->getPenalty();
   }
   gamma = options()->getGamma();
@@ -103,9 +104,14 @@ startInit(){
   if (szType.contains("young")) elast_type = TypesElastodynamic::YoungNu;
   else if (szType.contains("lame")) elast_type = TypesElastodynamic::Lame;
   else if (szType.contains("vel")) elast_type = TypesElastodynamic::Veloc;
-  else
-    ARCANE_FATAL("Type for elastic properties is undefined!");
+  else {
 
+    info() << "init-elast-type keywords must include (not case dependent):\n"
+           << "  - Young\n"
+           << "  - Lame\n"
+           << "  - Velocity or Vel\n";
+    ARCANE_FATAL("Type for elastic properties is undefined!");
+  }
   auto nsteps = (int)((tf - t)/dt);
   if (linop_nstep > nsteps) keep_constop = true;
 
@@ -129,18 +135,19 @@ startInit(){
   cell_fem.set_node_coords(m_node_coord);
   gausspt.init_order(integ_order);
 
-  String dirichletMethod = options()->enforceDirichletMethod();
+  auto dirichletMethod = options()->enforceDirichletMethod();
+  auto dirichletMethodl = dirichletMethod.lower();
 
-  if (dirichletMethod != "Penalty" && dirichletMethod != "WeakPenalty"
-      && dirichletMethod != "RowElimination"
-      && !dirichletMethod.contains("RowColumnElimination")) {
+  if (!dirichletMethodl.contains("penalty") && !dirichletMethodl.contains("weak")
+      && !dirichletMethodl.contains("rowelim")
+      && !dirichletMethodl.contains("rowcolumnelim")) {
     info() << "Dirichlet boundary condition via "
            << dirichletMethod << " is not supported \n"
-           << "enforce-Dirichlet-method only supports:\n"
+           << "enforce-Dirichlet-method only supports (not case dependent):\n"
            << "  - Penalty\n"
-           << "  - WeakPenalty\n"
-           << "  - RowElimination\n"
-           << "  - RowColumnElimination\n";
+           << "  - WeakPenalty or Weak\n"
+           << "  - RowElimination or RowElim\n"
+           << "  - RowColumnElimination or RowColumnElim\n";
 
     ARCANE_FATAL("Dirichlet boundary conditions will not be applied ");
   }
@@ -226,6 +233,7 @@ _applyInitialNodeConditions(){
   for (Int32 i = 0, nb = options()->initialNodeCondition().size(); i < nb; ++i) {
 
     NodeGroup node_group = options()->initialNodeCondition[i]->nodeGroup();
+    info() << "Applying init-node-condition for node group " << node_group.name();
 
     // Loop on nodes with this initial condition
     ENUMERATE_NODE(inode, node_group) {
@@ -304,6 +312,7 @@ _applyInitialCellConditions(){
   for (Integer i = 0, nb = options()->initCellCondition().size(); i < nb; ++i) {
 
     CellGroup cell_group = options()->initCellCondition[i]->cellGroup();
+    info() << "Applying init-cell-condition for cell group " << cell_group.name();
 
     // In the future, we will have to find a way to impose different initial
     // properties (stress/strain tensors, densities...) per element from a file
@@ -374,19 +383,7 @@ compute(){
   // Apply double-couple conditions if any => to be checked: how to assemble imposed force to RHS...
 //  _applyDCConditions();
 
-  info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
-
   // Assemble the FEM global operators (LHS matrix/RHS vector b)
-  /*
-  if (NDIM <= 2) {
-    _assembleLinearLHS2D();
-    _assembleLinearRHS2D();
-  }
-  else {
-    _assembleLinearLHS3D();
-    _assembleLinearRHS3D();
-  }
-*/
   _assembleLinearLHS();
   _assembleLinearRHS();
 
@@ -460,6 +457,7 @@ _initBoundaryConditions()
 
   for (const auto& bd : options()->dirichletSurfaceCondition()) {
     FaceGroup face_group = bd->surface();
+    info() << "Initializing Dirichlet Surface Boundary Conditions for face group " << face_group.name();
 
     if (bd->hasACurve()) {
       String file_name = bd->ACurve();
@@ -533,6 +531,7 @@ _initBoundaryConditions()
 
   for (const auto& bd : options()->dirichletPointCondition()) {
     NodeGroup nodes = bd->node();
+    info() << "Initializing Dirichlet Point Conditions for node group " << nodes.name();
 
     if (bd->hasACurve()) {
       String file_name = bd->ACurve();
@@ -608,6 +607,7 @@ _initBoundaryConditions()
 
   for (const auto& bs : options()->neumannCondition()) {
     FaceGroup face_group = bs->surface();
+    info() << "Initializing Neumann (traction) Conditions for face group " << face_group.name();
     String file_name = bs->getCurve();
     if (!file_name.empty()) {
       auto case_table = readFileAsCaseTable(pm, file_name, 3);
@@ -618,6 +618,7 @@ _initBoundaryConditions()
   for (const auto& bs : options()->paraxialBoundaryCondition()) {
 
     FaceGroup face_group = bs->surface();
+    info() << "Initializing Paraxial Boundary Conditions for face group " << face_group.name();
 
     if (bs->getInputMotionType() == 6) {
       if (bs->hasUInput()) {
@@ -728,6 +729,12 @@ _initDCConditions()
     NodeGroup north = bd->getNorthNode();
     NodeGroup south = bd->getSouthNode();
 
+    info() << "Initializing Double-Couple Conditions for nodes:\n"
+           << "  - North = " << north.name() << "\n"
+           << "  - South = " << south.name() << "\n"
+           << "  - East = " << east.name() << "\n"
+           << "  - West = " << west.name() << "\n";
+
     auto hasMoment = bd->hasSeismicMomentFile();
     auto hasLoading = bd->hasLoadingFile();
     String file_name;
@@ -739,9 +746,10 @@ _initDCConditions()
       auto case_table = readFileAsCaseTable(pm, file_name, 1);
       m_dc_case_table_list.add(CaseTableInfo{ file_name, case_table });
     }
-    else
-      ARCANE_FATAL("ERROR Double-Couple Condition: seismic moment or loading time history missing!");
-
+    else {
+      info() << "Double-Couple Error: seismic moment or user loading not provided! ";
+      ARCANE_FATAL("Double-Couple conditions cannot be applied");
+    }
     auto iplane = bd->getSourcePlane();
     Int32 i1{0}, i2{0};
 
@@ -756,37 +764,40 @@ _initDCConditions()
     Real3 coord_west, coord_east, coord_north, coord_south;
     Real2 dist;
 
-    // Setting imposed force indicators to concerned nodes
     ENUMERATE_NODE (inode, west) {
       const Node& node = *inode;
       coord_west = m_node_coord[node];
-      auto num = node.uniqueId();//--- For debug only
-      m_imposed_force[node][i2] = 1;
+//      auto num = node.uniqueId();//--- For debug only
+//      m_imposed_force[node][i2] = 1;
     }
     ENUMERATE_NODE (inode, east) {
       const Node& node = *inode;
       coord_east = m_node_coord[node];
-      auto num = node.uniqueId();//--- For debug only
-      m_imposed_force[node][i2] = 1;
+//      auto num = node.uniqueId();//--- For debug only
+//      m_imposed_force[node][i2] = 1;
     }
     ENUMERATE_NODE (inode, north) {
       const Node& node = *inode;
       coord_north = m_node_coord[node];
-      auto num = node.uniqueId();//--- For debug only
-      m_imposed_force[node][i1] = 1;
+//      auto num = node.uniqueId();//--- For debug only
+//      m_imposed_force[node][i1] = 1;
     }
     ENUMERATE_NODE (inode, south) {
       const Node& node = *inode;
       coord_south = m_node_coord[node];
-      auto num = node.uniqueId();//--- For debug only
-      m_imposed_force[node][i1] = 1;
+//      auto num = node.uniqueId();//--- For debug only
+//      m_imposed_force[node][i1] = 1;
     }
 
-    // Distance used to compute forces from seimic moment inputs
+    /*---------------------------------------------------------
+     * To compute the nodal force F of a pair of nodes {N1, N2}
+     * from a seismic moment M0:
+     * F = M0/d with d = distance between the pair of nodes
+    //--------------------------------------------------------*/
     auto rew{ coord_west - coord_east };
     auto rns{ coord_north - coord_south };
     auto d1 = rew.normL2(); // East-West distance
-    auto d2 = rns.normL2();
+    auto d2 = rns.normL2(); // North-South distance
     m_dc_dist.add(Real2(d1, d2));
   }
 }
@@ -886,68 +897,63 @@ _applyDirichletBoundaryConditions(){
     }
 
     // Loop on faces of the surface
-    ENUMERATE_FACE (j, face_group) {
-      const Face& face = *j;
-      Integer nb_node = face.nbNode();
+    ENUMERATE_FACE (iface, face_group) {
 
       // Loop on nodes of the face
-      for (Integer k = 0; k < nb_node; ++k) {
-        const Node& node = face.node(k);
+      for (Node node : iface->nodes()) {
 
-        if (node.isOwn()) {
-          auto coord = m_node_coord[node];
-          auto num = node.uniqueId();
+        //--- For debug only!!!
+        auto coord = m_node_coord[node];
+        auto num = node.uniqueId();
 
-          if (is_acc_imp) {
-            if ((bool)m_imposed_acc[node].x)
-              m_acc[node].x = acc.x;
+        if (is_acc_imp) {
+          if ((bool)m_imposed_acc[node].x)
+            m_acc[node].x = acc.x;
 
-            if ((bool)m_imposed_acc[node].y)
-              m_acc[node].y = acc.y;
+          if ((bool)m_imposed_acc[node].y)
+            m_acc[node].y = acc.y;
 
-            if ((bool)m_imposed_acc[node].z)
-              m_acc[node].z = acc.z;
-          }
+          if ((bool)m_imposed_acc[node].z)
+            m_acc[node].z = acc.z;
+        }
 
-          if (is_vel_imp) {
-            if ((bool)m_imposed_vel[node].x)
-              m_vel[node].x = vel.x;
+        if (is_vel_imp) {
+          if ((bool)m_imposed_vel[node].x)
+            m_vel[node].x = vel.x;
 
-            if ((bool)m_imposed_vel[node].y)
-              m_vel[node].y = vel.y;
+          if ((bool)m_imposed_vel[node].y)
+            m_vel[node].y = vel.y;
 
-            if ((bool)m_imposed_vel[node].z)
-              m_vel[node].z = vel.z;
-          }
+          if ((bool)m_imposed_vel[node].z)
+            m_vel[node].z = vel.z;
+        }
 
-          if (is_displ_imp) {
-            if ((bool)m_imposed_displ[node].x)
-              m_displ[node].x = displ.x;
+        if (is_displ_imp) {
+          if ((bool)m_imposed_displ[node].x)
+            m_displ[node].x = displ.x;
 
-            if ((bool)m_imposed_displ[node].y)
-              m_displ[node].y = displ.y;
+          if ((bool)m_imposed_displ[node].y)
+            m_displ[node].y = displ.y;
 
-            if ((bool)m_imposed_displ[node].z)
-              m_displ[node].z = displ.z;
-          }
+          if ((bool)m_imposed_displ[node].z)
+            m_displ[node].z = displ.z;
+        }
 
-          if (is_force_imp) {
-            if ((bool)m_imposed_force[node].x)
-              m_force[node].x = force.x;
+        if (is_force_imp) {
+          if ((bool)m_imposed_force[node].x)
+            m_force[node].x = force.x;
 
-            if ((bool)m_imposed_force[node].y)
-              m_force[node].y = force.y;
+          if ((bool)m_imposed_force[node].y)
+            m_force[node].y = force.y;
 
-            if ((bool)m_imposed_force[node].z)
-              m_force[node].z = force.z;
-          }
+          if ((bool)m_imposed_force[node].z)
+            m_force[node].z = force.z;
         }
       }
     }
   }
 
   Int32 ac_index{ 0 }, vc_index{ 0 }, uc_index{ 0 }, fc_index{ 0 };
-
   for (const auto& bd : options()->dirichletPointCondition()) {
     NodeGroup nodes = bd->node();
 
@@ -1038,54 +1044,53 @@ _applyDirichletBoundaryConditions(){
     // Loop on nodes
     ENUMERATE_NODE (inode, nodes) {
       const Node& node = *inode;
+
+      //--- For debug only!!!
       auto coord = m_node_coord[node];
       auto num = node.uniqueId();
 
-      if (node.isOwn()) {
+      if (is_acc_imp) {
+        if ((bool)m_imposed_acc[node].x)
+          m_acc[node].x = acc.x;
 
-        if (is_acc_imp) {
-          if ((bool)m_imposed_acc[node].x)
-            m_acc[node].x = acc.x;
+        if ((bool)m_imposed_acc[node].y)
+          m_acc[node].y = acc.y;
 
-          if ((bool)m_imposed_acc[node].y)
-            m_acc[node].y = acc.y;
+        if ((bool)m_imposed_acc[node].z)
+          m_acc[node].z = acc.z;
+      }
 
-          if ((bool)m_imposed_acc[node].z)
-            m_acc[node].z = acc.z;
-        }
+      if (is_vel_imp) {
+        if ((bool)m_imposed_vel[node].x)
+          m_vel[node].x = vel.x;
 
-        if (is_vel_imp) {
-          if ((bool)m_imposed_vel[node].x)
-            m_vel[node].x = vel.x;
+        if ((bool)m_imposed_vel[node].y)
+          m_vel[node].y = vel.y;
 
-          if ((bool)m_imposed_vel[node].y)
-            m_vel[node].y = vel.y;
+        if ((bool)m_imposed_vel[node].z)
+          m_vel[node].z = vel.z;
+      }
 
-          if ((bool)m_imposed_vel[node].z)
-            m_vel[node].z = vel.z;
-        }
+      if (is_displ_imp) {
+        if ((bool)m_imposed_displ[node].x)
+          m_displ[node].x = displ.x;
 
-        if (is_displ_imp) {
-          if ((bool)m_imposed_displ[node].x)
-            m_displ[node].x = displ.x;
+        if ((bool)m_imposed_displ[node].y)
+          m_displ[node].y = displ.y;
 
-          if ((bool)m_imposed_displ[node].y)
-            m_displ[node].y = displ.y;
+        if ((bool)m_imposed_displ[node].z)
+          m_displ[node].z = displ.z;
+      }
 
-          if ((bool)m_imposed_displ[node].z)
-            m_displ[node].z = displ.z;
-        }
+      if (is_force_imp) {
+        if ((bool)m_imposed_force[node].x)
+          m_force[node].x = force.x;
 
-        if (is_force_imp) {
-          if ((bool)m_imposed_force[node].x)
-            m_force[node].x = force.x;
+        if ((bool)m_imposed_force[node].y)
+          m_force[node].y = force.y;
 
-          if ((bool)m_imposed_force[node].y)
-            m_force[node].y = force.y;
-
-          if ((bool)m_imposed_force[node].z)
-            m_force[node].z = force.z;
-        }
+        if ((bool)m_imposed_force[node].z)
+          m_force[node].z = force.z;
       }
     }
   }
@@ -1100,15 +1105,11 @@ _applyNeumannBoundaryConditions(){
   Int32 bc_index{ 0 };
   for (const auto& bs : options()->neumannCondition()) {
     FaceGroup face_group = bs->surface();
-    /*
-    const CaseTableInfo& case_table_info = m_traction_case_table_list[bc_index];
-    ++bc_index;
-*/
 
     Real3 trac{};
 
     if (bs->hasCurve()) {
-      //      if (bs->curve.isPresent()) {
+
       const CaseTableInfo& case_table_info = m_traction_case_table_list[bc_index++];
       String file_name = bs->getCurve();
       info() << "Applying traction boundary conditions for surface " << face_group.name()
@@ -1142,11 +1143,13 @@ _applyParaxialBoundaryConditions(){
 
   Real time = globalTime();
 
-  // Looking for an input motion defined on the paraxial boundary
   Int32 ui_index{ 0 }, vi_index{ 0 }, ai_index{ 0 };
   for (const auto& bs : options()->paraxialBoundaryCondition()) {
 
     FaceGroup face_group = bs->surface();
+
+    // Looking for an input motion defined on the paraxial boundary
+    // default = none (typ = 0)
     Int32 typ{bs->getInputMotionType()};
 
     Real3 uin{}, vin{}, ain{};
@@ -1250,6 +1253,7 @@ _applyParaxialBoundaryConditions(){
 void ElastodynamicModule::
 _applyDCConditions(){
 
+/*
   Real time = globalTime();
   Int32 bd_index{ 0 };
   for (const auto& bd : options()->doubleCouple()) {
@@ -1336,6 +1340,7 @@ _applyDCConditions(){
     }
     ++bd_index;
   }
+*/
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1758,26 +1763,28 @@ _assembleLinearLHS()
 
         auto num1 = node1.uniqueId().asInt32();
 
-        for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
-          DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
-          auto ii = NDIM * n1_index + iddl;
+        if (node1.isOwn()) {
+          for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
+            DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
+            auto ii = NDIM * n1_index + iddl;
 
-          // Assemble global bilinear operator (LHS)
-          Int32 n2_index{ 0 };
-          for (Node node2 : cell.nodes()) {
+            // Assemble global bilinear operator (LHS)
+            Int32 n2_index{ 0 };
+            for (Node node2 : cell.nodes()) {
 
-            auto num2 = node2.uniqueId().asInt32();
-            for (Int32 jddl = 0; jddl < NDIM; ++jddl) {
-              auto node2_dofj = node_dof.dofId(node2, jddl);
-              auto jj = NDIM * n2_index + jddl;
-              auto mij = Me(ii, jj);
-              auto kij = Ke(ii, jj);
-              auto aij = cm * mij + ck * kij;
+              auto num2 = node2.uniqueId().asInt32();
+              for (Int32 jddl = 0; jddl < NDIM; ++jddl) {
+                auto node2_dofj = node_dof.dofId(node2, jddl);
+                auto jj = NDIM * n2_index + jddl;
+                auto mij = Me(ii, jj);
+                auto kij = Ke(ii, jj);
+                auto aij = cm * mij + ck * kij;
 
-              if (node1.isOwn())
+                //              if (node1.isOwn())
                 m_linear_system.matrixAddValue(node1_dofi, node2_dofj, aij);
+              }
+              ++n2_index;
             }
-            ++n2_index;
           }
         }
         ++n1_index;
@@ -1840,58 +1847,63 @@ _assembleLinearRHS(){
 
       for (Node node1 : cell.nodes()) {
 
-        //---- For debug only !!!
-        auto coord1 = m_node_coord[node1];
-        auto num1 = node1.uniqueId().asInt32();
+        if (node1.isOwn()) {
+          //---- For debug only !!!
+          auto coord1 = m_node_coord[node1];
+          auto num1 = node1.uniqueId().asInt32();
 
-        for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
-          DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
-          auto ii = NDIM * n1_index + iddl;
+          for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
+            DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
+            auto ii = NDIM * n1_index + iddl;
 
-          bool is_node1_dofi_set = (bool)m_imposed_displ[node1][iddl];
-          auto rhs_i{ 0. };
+            bool is_node1_dofi_set = (bool)m_imposed_displ[node1][iddl];
+            auto rhs_i{ 0. };
 
-          if (node1.isOwn() && !is_node1_dofi_set) {
+            //          if (node1.isOwn() && !is_node1_dofi_set) {
+            if (!is_node1_dofi_set) {
 
-            /*----------------------------------------------------------
-              // Mass contribution to the RHS:
-              // (1 - alfm)*Mij/(beta*dt2)*uj_pred - alfm*aj_n
-              //----------------------------------------------------------*/
-            Int32 n2_index{ 0 };
-            for (Node node2 : cell.nodes()) {
-              //---- For debug only !!!
-              auto coord2 = m_node_coord[node2];
-              auto num2 = node2.uniqueId().asInt32();
+              /*----------------------------------------------------------
+            // Mass contribution to the RHS:
+            // (1 - alfm)*Mij/(beta*dt2)*uj_pred - alfm*aj_n
+            //----------------------------------------------------------*/
 
-              auto an = m_prev_acc[node2][iddl];
-              auto vn = m_prev_vel[node2][iddl];
-              auto dn = m_prev_displ[node2][iddl];
-              auto u_iddl_pred = dn + dt * vn + dt2 * (0.5 - beta) * an;
-              auto jj = NDIM * n2_index + iddl;
-              auto mij = Me(ii, jj);
-              rhs_i += mij * (cm * u_iddl_pred - alfam * an);
-              ++n2_index;
-            }
+              Int32 n2_index{ 0 };
+              for (Node node2 : cell.nodes()) {
+                //---- For debug only !!!
+                auto coord2 = m_node_coord[node2];
+                auto num2 = node2.uniqueId().asInt32();
+
+                auto an = m_prev_acc[node2][iddl];
+                auto vn = m_prev_vel[node2][iddl];
+                auto dn = m_prev_displ[node2][iddl];
+                auto u_iddl_pred = dn + dt * vn + dt2 * (0.5 - beta) * an;
+                auto jj = NDIM * n2_index + iddl;
+                auto mij = Me(ii, jj);
+                rhs_i += mij * (cm * u_iddl_pred - alfam * an);
+                ++n2_index;
+              }
 
             /*-------------------------------------------------
-              // Other forces (imposed nodal forces, body forces)
-              //-------------------------------------------------*/
-            {
-              //----------------------------------------------
-              // Body force terms
-              //----------------------------------------------
-              auto rhoPhi_i = wt*rho*vec[ig + iig];
-              rhs_i += rhoPhi_i * gravity[iddl];
-            }
+            // Other forces (imposed nodal forces, body forces)
+            //-------------------------------------------------*/
 
-            {
-              //----------------------------------------------
-              // Imposed nodal forces
-              //----------------------------------------------
-              if ((bool)m_imposed_force[node1][iddl])
-                rhs_i += m_force[node1][iddl];
+              {
+                //----------------------------------------------
+                // Body force terms
+                //----------------------------------------------
+                auto rhoPhi_i = wt * rho * vec[ig + iig];
+                rhs_i += rhoPhi_i * gravity[iddl];
+              }
+
+              {
+                //----------------------------------------------
+                // Imposed nodal forces
+                //----------------------------------------------
+                if ((bool)m_imposed_force[node1][iddl])
+                  rhs_i += m_force[node1][iddl];
+              }
+              rhs_values[node1_dofi] += rhs_i;
             }
-            rhs_values[node1_dofi] += rhs_i;
           }
         }
         ++n1_index;
@@ -1903,6 +1915,7 @@ _assembleLinearRHS(){
   info() << "Applying Dirichlet boundary condition via "
          << dirichletMethod << " method ";
 
+  dirichletMethod = dirichletMethod.lower();
   // Looking for Dirichlet boundary nodes & modify linear operators accordingly
   ENUMERATE_ (Node, inode, ownNodes()) {
     auto node = *inode;
@@ -1917,18 +1930,18 @@ _assembleLinearRHS(){
             //----------------------------------------------------------*/
         auto node_dofi = node_dof.dofId(node, iddl);
         auto u_iddl = m_displ[node][iddl];
-        if (dirichletMethod == "Penalty") {
+        if (dirichletMethod == "penalty") {
           m_linear_system.matrixSetValue(node_dofi, node_dofi, penalty);
           rhs_values[node_dofi] = u_iddl * penalty;
         }
-        else if (dirichletMethod == "WeakPenalty") {
+        else if (dirichletMethod.contains("weak")) {
           m_linear_system.matrixAddValue(node_dofi, node_dofi, penalty);
           rhs_values[node_dofi] = u_iddl * penalty;
         }
-        else if (dirichletMethod == "RowElimination") {
+        else if (dirichletMethod.contains("rowelim")) {
           m_linear_system.eliminateRow(node_dofi, u_iddl);
         }
-        else if (dirichletMethod == "RowColumnElimination") {
+        else if (dirichletMethod.contains("rowcolumnelim")) {
           m_linear_system.eliminateRowColumn(node_dofi, u_iddl);
         }
       }
@@ -1971,7 +1984,7 @@ _assembleLinearRHS(){
         }
         else if (hasLoading){
           String file_name = bd->getLoadingFile();
-          info() << "Applying the loading time history for double-couple condition via CaseTable " << file_name;
+          info() << "Applying the user loading for double-couple condition via CaseTable " << file_name;
         }
         CaseTable* inn = table_info.case_table;
         if (inn != nullptr)
@@ -1997,6 +2010,7 @@ _assembleLinearRHS(){
         //---- For debug only !!!
         auto coords = m_node_coord[dc_node_west];
         auto num = dc_node_west.uniqueId().asInt32();
+
       }
       ENUMERATE_NODE (inode, east) {
         dc_node_east = *inode;
@@ -2004,6 +2018,7 @@ _assembleLinearRHS(){
         //---- For debug only !!!
         auto coords = m_node_coord[dc_node_east];
         auto num = dc_node_east.uniqueId().asInt32();
+
       }
       ENUMERATE_NODE (inode, north) {
         dc_node_north = *inode;
@@ -2011,12 +2026,14 @@ _assembleLinearRHS(){
         //---- For debug only !!!
         auto coords = m_node_coord[dc_node_north];
         auto num = dc_node_north.uniqueId().asInt32();
+
       }
       ENUMERATE_NODE (inode, south) {
         dc_node_south = *inode;
         //---- For debug only !!!
         auto coords = m_node_coord[dc_node_south];
         auto num = dc_node_south.uniqueId().asInt32();
+
       }
 
       auto dist = m_dc_dist[bd_index];
@@ -2034,8 +2051,9 @@ _assembleLinearRHS(){
           rhs_values[node_west_dof] = Ft / dist.x;
         }
         else{
-          info() << "Warning: distance between double-couple nodes is zero!";
-          info() << "Applying the seismic moment as a simple loading time history";
+          info() << "Distance between pair of double-couple nodes is zero! "
+                 << "Applying the seismic moment as a user loading";
+
           rhs_values[node_south_dof] = -Ft;
           rhs_values[node_north_dof] = Ft;
           rhs_values[node_east_dof] = -Ft;
@@ -2122,20 +2140,21 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
 
           for (Node node : face.nodes()) {
 
+//            if (node.isOwn()) {
+              auto Phi_i = vec[ig + iig];
+              auto vi_pred = m_prev_vel[node] + (1. - gamma) * dt * m_prev_acc[node];
+              auto ui_pred = m_prev_displ[node] + dt * m_prev_vel[node] + (0.5 - beta) * dt2 * m_prev_acc[node];
+              auto vni = m_prev_vel[node];
 
-            auto Phi_i = vec[ig + iig];
-            auto vi_pred = m_prev_vel[node] + (1. - gamma) * dt * m_prev_acc[node];
-            auto ui_pred = m_prev_displ[node] + dt * m_prev_vel[node] + (0.5 - beta) * dt2 * m_prev_acc[node];
-            auto vni = m_prev_vel[node];
+              for (Int32 i = 0; i < NDIM; ++i) {
+                auto vi{ 0. };
 
-            for (Int32 i = 0; i < NDIM; ++i) {
-              auto vi{ 0. };
-
-              for (Int32 j = 0; j < NDIM; ++j) {
-                vi += ROT[i][j] * (-c0 * vi_pred[j] + c1 * ui_pred[j] - alfaf * vni[j]);
+                for (Int32 j = 0; j < NDIM; ++j) {
+                  vi += ROT[i][j] * (-c0 * vi_pred[j] + c1 * ui_pred[j] - alfaf * vni[j]);
+                }
+                a0[i] += Phi_i * RhoC[i] * vi;
               }
-              a0[i] += Phi_i * RhoC[i] * vi;
-            }
+//            }
             iig += 4;
           }
 
@@ -2224,13 +2243,13 @@ _assembleLHSParaxialContribution(){
           auto iig{ 4 };
           for (Node node1 : face.nodes()) {
 
+//            if (node1.isOwn()){
             for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
 
               DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
               auto ii = NDIM * n1_index + iddl;
 
-              if (node1.isOwn()) {
-
+              if (node1.isOwn()){
                 //----------------------------------------------
                 // Elementary contribution to LHS
                 //----------------------------------------------
@@ -2357,22 +2376,15 @@ _doSolve(){
   m_displ.synchronize();
   m_vel.synchronize();
   m_acc.synchronize();
-  /*
   const bool do_print = (allNodes().size() < 200);
-
   if (do_print) {
     int p = std::cout.precision();
-    std::cout.precision(17);
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      std::cout << "U[" << node.localId() << "][" << node.uniqueId() << "] = "
-                << m_displ[node].x << "  " << m_displ[node].y
-                << "  " << m_displ[node].z << "\n";
+      info() << "Node: " << node.uniqueId() << " Ux=" << m_displ[node].x << " Uy=" << m_displ[node].y << " Uz=" << m_displ[node].z;
     }
     std::cout.precision(p);
   }
-*/
-
 }
 
 /*---------------------------------------------------------------------------*/
