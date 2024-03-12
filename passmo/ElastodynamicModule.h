@@ -106,7 +106,6 @@ class ElastodynamicModule
   Real alfam{0.};
   Real alfaf{0.};
   bool is_alfa_method{false},keep_constop{false};
-  UniqueArray<Real2> m_dc_dist;
 
   Real dt2{0.};
   Int32 linop_nstep{1000}, linop_nstep_counter{0};

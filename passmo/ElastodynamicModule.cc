@@ -750,55 +750,6 @@ _initDCConditions()
       info() << "Double-Couple Error: seismic moment or user loading not provided! ";
       ARCANE_FATAL("Double-Couple conditions cannot be applied");
     }
-    auto iplane = bd->getSourcePlane();
-    Int32 i1{0}, i2{0};
-
-    if (!iplane) i2 = 1;
-    else if (iplane == 1){
-      i1 = 1;
-      i2 = 2;
-    }
-    else
-      i2 = 2;
-
-    Real3 coord_west, coord_east, coord_north, coord_south;
-    Real2 dist;
-
-    ENUMERATE_NODE (inode, west) {
-      const Node& node = *inode;
-      coord_west = m_node_coord[node];
-//      auto num = node.uniqueId();//--- For debug only
-//      m_imposed_force[node][i2] = 1;
-    }
-    ENUMERATE_NODE (inode, east) {
-      const Node& node = *inode;
-      coord_east = m_node_coord[node];
-//      auto num = node.uniqueId();//--- For debug only
-//      m_imposed_force[node][i2] = 1;
-    }
-    ENUMERATE_NODE (inode, north) {
-      const Node& node = *inode;
-      coord_north = m_node_coord[node];
-//      auto num = node.uniqueId();//--- For debug only
-//      m_imposed_force[node][i1] = 1;
-    }
-    ENUMERATE_NODE (inode, south) {
-      const Node& node = *inode;
-      coord_south = m_node_coord[node];
-//      auto num = node.uniqueId();//--- For debug only
-//      m_imposed_force[node][i1] = 1;
-    }
-
-    /*---------------------------------------------------------
-     * To compute the nodal force F of a pair of nodes {N1, N2}
-     * from a seismic moment M0:
-     * F = M0/d with d = distance between the pair of nodes
-    //--------------------------------------------------------*/
-    auto rew{ coord_west - coord_east };
-    auto rns{ coord_north - coord_south };
-    auto d1 = rew.normL2(); // East-West distance
-    auto d2 = rns.normL2(); // North-South distance
-    m_dc_dist.add(Real2(d1, d2));
   }
 }
 
@@ -2002,7 +1953,10 @@ _assembleLinearRHS(){
       else
         i2 = 2;
 
-      auto dist = m_dc_dist[bd_index];
+      auto is_dew = bd->hasDistEwSeismicMoment();
+      auto is_dns = bd->hasDistNsSeismicMoment();
+      auto dew = bd->getDistEwSeismicMoment();// East-West distance
+      auto dns = bd->getDistNsSeismicMoment();// North-South distance
 
       ENUMERATE_NODE (inode, west) {
 
@@ -2014,19 +1968,16 @@ _assembleLinearRHS(){
           auto coords = m_node_coord[dc_node_west];
           auto num = dc_node_west.uniqueId().asInt32();
 
+          rhs_values[node_dof_id] = Ft; // default = hasLoading
           if (hasMoment) {
-
-            if (dist != Real2::null()) {
-              rhs_values[node_dof_id] = Ft / dist.x;
+            if (is_dew && dew != 0.) {
+              rhs_values[node_dof_id] /= dew;
             }
             else{
-              info() << "Distance between pair of double-couple nodes is zero! "
+              info() << "EW distance for seismic moment implementation is missing or equal to 0.0! "
                      << "Applying the seismic moment as a user loading";
 
-              rhs_values[node_dof_id] = Ft;
             }
-          } else if (hasLoading){
-           rhs_values[node_dof_id] = Ft;
           }
         }
       }
@@ -2039,19 +1990,16 @@ _assembleLinearRHS(){
           auto coords = m_node_coord[dc_node_east];
           auto num = dc_node_east.uniqueId().asInt32();
 
+          rhs_values[node_dof_id] = -Ft;// default = hasLoading
           if (hasMoment) {
-
-           if (dist != Real2::null()) {
-              rhs_values[node_dof_id] = -Ft / dist.x;
+           if (is_dew && dew != 0.) {
+              rhs_values[node_dof_id] /= dew;
            }
            else{
-              info() << "Distance between pair of double-couple nodes is zero! "
+              info() << "EW distance for seismic moment implementation is missing or equal to 0.0! "
                      << "Applying the seismic moment as a user loading";
 
-              rhs_values[node_dof_id] = -Ft;
            }
-          } else if (hasLoading){
-           rhs_values[node_dof_id] = -Ft;
           }
         }
       }
@@ -2064,19 +2012,15 @@ _assembleLinearRHS(){
           auto coords = m_node_coord[dc_node_north];
           auto num = dc_node_north.uniqueId().asInt32();
 
-         if (hasMoment) {
-
-           if (dist != Real2::null()) {
-              rhs_values[node_dof_id] = Ft / dist.y;
+          rhs_values[node_dof_id] = Ft;// default = hasLoading
+          if (hasMoment) {
+           if (is_dns && dns != 0.) {
+              rhs_values[node_dof_id] /= dns;
            }
            else{
-              info() << "Distance between pair of double-couple nodes is zero! "
+              info() << "NS distance for seismic moment implementation is missing or equal to 0.0! "
                      << "Applying the seismic moment as a user loading";
-
-              rhs_values[node_dof_id] = Ft;
            }
-          } else if (hasLoading){
-           rhs_values[node_dof_id] = Ft;
           }
         }
       }
@@ -2089,19 +2033,15 @@ _assembleLinearRHS(){
           auto coords = m_node_coord[dc_node_south];
           auto num = dc_node_south.uniqueId().asInt32();
 
+          rhs_values[node_dof_id] = -Ft;// default = hasLoading
           if (hasMoment) {
-
-           if (dist != Real2::null()) {
-              rhs_values[node_dof_id] = -Ft / dist.y;
+           if (is_dns && dns != 0.) {
+              rhs_values[node_dof_id] /= dns;
            }
            else{
-              info() << "Distance between pair of double-couple nodes is zero! "
+              info() << "NS distance for seismic moment implementation is missing or equal to 0.0! "
                      << "Applying the seismic moment as a user loading";
-
-              rhs_values[node_dof_id] = -Ft;
            }
-          } else if (hasLoading){
-           rhs_values[node_dof_id] = -Ft;
           }
         }
       }

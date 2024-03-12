@@ -511,6 +511,12 @@
     <simple name="seismic-moment-file" type="string" optional="true">
       <description>Seismic moment time-history M0(t) to be given (if no loading provided)</description>
     </simple>
+    <simple name="dist-ew-seismic-moment" type="real" default = "1.0" optional="true">
+      <description>Distance between East and West nodes for the seismic moment implementation</description>
+    </simple>
+    <simple name="dist-ns-seismic-moment" type="real" default = "1.0" optional="true">
+      <description>Distance between North and South nodes for the seismic moment implementation</description>
+    </simple>
     <simple name="loading-file" type="string" optional="true">
       <description>Loading time history to impose on double couple nodes (if no seismic moment time history provided)</description>
     </simple>
