@@ -109,7 +109,9 @@ class HypreDoFLinearSystemImpl
 
   void build()
   {
+#if HYPRE_RELEASE_NUMBER >= 22700
     HYPRE_Init(); /* must be the first HYPRE function call */
+#endif
   }
 
  public:
@@ -239,8 +241,10 @@ _computeMatrixNumerotation()
 void HypreDoFLinearSystemImpl::
 solve()
 {
+#if HYPRE_RELEASE_NUMBER >= 22700
   HYPRE_MemoryLocation hypre_memory = HYPRE_MEMORY_HOST;
   HYPRE_ExecutionPolicy hypre_exec_policy = HYPRE_EXEC_HOST;
+#endif
 
   // Récupère le communicateur MPI associé
   IParallelMng* pm = m_dof_family->parallelMng();
@@ -273,6 +277,7 @@ solve()
     info() << "Hypre is not compiled with GPU support. Using host backend";
 #endif
 
+#if HYPRE_RELEASE_NUMBER >= 22700
   if (is_use_device) {
     m_runner->setAsCurrentDevice();
     hypre_memory = HYPRE_MEMORY_DEVICE;
@@ -284,13 +289,12 @@ solve()
   hypreCheck("HYPRE_SetExecutionPolicy", HYPRE_SetExecutionPolicy(hypre_exec_policy));
 
   if (is_use_device) {
-#if HYPRE_RELEASE_NUMBER >= 22700
     /* use hypre's SpGEMM instead of vendor implementation */
     HYPRE_SetSpGemmUseVendor(false);
-#endif
     /* use GPU RNG */
     HYPRE_SetUseGpuRand(true);
   }
+#endif
 
   /* use hypre's GPU memory pool */
   //HYPRE_SetGPUMemoryPoolSize(bin_growth, min_bin, max_bin, max_bytes);
@@ -324,8 +328,11 @@ solve()
 
   Real m1 = platform::getRealTime();
   HYPRE_IJMatrixSetObjectType(ij_A, HYPRE_PARCSR);
+#if HYPRE_RELEASE_NUMBER >= 22700
   HYPRE_IJMatrixInitialize_v2(ij_A, hypre_memory);
-
+#else
+  HYPRE_IJMatrixInitialize(ij_A);
+#endif
   // m_csr_view.columns() use matrix coordinates local to sub-domain
   // We need to translate them to global matrix coordinates
   Span<const Int32> columns_index_span = m_csr_view.columns();
@@ -418,11 +425,19 @@ solve()
 
   hypreCheck("IJVectorCreate", HYPRE_IJVectorCreate(mpi_comm, first_row, last_row, &ij_vector_b));
   hypreCheck("IJVectorSetObjectType", HYPRE_IJVectorSetObjectType(ij_vector_b, HYPRE_PARCSR));
+#if HYPRE_RELEASE_NUMBER >= 22700
   HYPRE_IJVectorInitialize_v2(ij_vector_b, hypre_memory);
+#else
+  HYPRE_IJVectorInitialize(ij_vector_b);
+#endif
 
   hypreCheck("IJVectorCreate", HYPRE_IJVectorCreate(mpi_comm, first_row, last_row, &ij_vector_x));
   hypreCheck("IJVectorSetObjectType", HYPRE_IJVectorSetObjectType(ij_vector_x, HYPRE_PARCSR));
+#if HYPRE_RELEASE_NUMBER >= 22700
   HYPRE_IJVectorInitialize_v2(ij_vector_x, hypre_memory);
+#else
+  HYPRE_IJVectorInitialize(ij_vector_x);
+#endif
 
   Real v1 = platform::getRealTime();
   hypreCheck("HYPRE_IJVectorSetValues",
