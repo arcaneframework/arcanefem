@@ -2002,71 +2002,110 @@ _assembleLinearRHS(){
       else
         i2 = 2;
 
-      Node dc_node_south, dc_node_west, dc_node_north, dc_node_east;
+      auto dist = m_dc_dist[bd_index];
 
       ENUMERATE_NODE (inode, west) {
-        dc_node_west = *inode;
 
-        //---- For debug only !!!
-        auto coords = m_node_coord[dc_node_west];
-        auto num = dc_node_west.uniqueId().asInt32();
+        if (!inode->null() && inode->isOwn()) {
+          const Node& dc_node_west = *inode;
+          DoFLocalId node_dof_id = node_dof.dofId(dc_node_west, i2);
 
+          //---- For debug only !!!
+          auto coords = m_node_coord[dc_node_west];
+          auto num = dc_node_west.uniqueId().asInt32();
+
+          if (hasMoment) {
+
+            if (dist != Real2::null()) {
+              rhs_values[node_dof_id] = Ft / dist.x;
+            }
+            else{
+              info() << "Distance between pair of double-couple nodes is zero! "
+                     << "Applying the seismic moment as a user loading";
+
+              rhs_values[node_dof_id] = Ft;
+            }
+          } else if (hasLoading){
+           rhs_values[node_dof_id] = Ft;
+          }
+        }
       }
       ENUMERATE_NODE (inode, east) {
-        dc_node_east = *inode;
+        if (!inode->null() && inode->isOwn()) {
+          const Node& dc_node_east = *inode;
+          DoFLocalId node_dof_id = node_dof.dofId(dc_node_east, i2);
 
-        //---- For debug only !!!
-        auto coords = m_node_coord[dc_node_east];
-        auto num = dc_node_east.uniqueId().asInt32();
+          //---- For debug only !!!
+          auto coords = m_node_coord[dc_node_east];
+          auto num = dc_node_east.uniqueId().asInt32();
 
+          if (hasMoment) {
+
+           if (dist != Real2::null()) {
+              rhs_values[node_dof_id] = -Ft / dist.x;
+           }
+           else{
+              info() << "Distance between pair of double-couple nodes is zero! "
+                     << "Applying the seismic moment as a user loading";
+
+              rhs_values[node_dof_id] = -Ft;
+           }
+          } else if (hasLoading){
+           rhs_values[node_dof_id] = -Ft;
+          }
+        }
       }
       ENUMERATE_NODE (inode, north) {
-        dc_node_north = *inode;
+        if (!inode->null() && inode->isOwn()) {
+          const Node& dc_node_north = *inode;
+          DoFLocalId node_dof_id = node_dof.dofId(dc_node_north, i1);
 
-        //---- For debug only !!!
-        auto coords = m_node_coord[dc_node_north];
-        auto num = dc_node_north.uniqueId().asInt32();
+          //---- For debug only !!!
+          auto coords = m_node_coord[dc_node_north];
+          auto num = dc_node_north.uniqueId().asInt32();
 
+         if (hasMoment) {
+
+           if (dist != Real2::null()) {
+              rhs_values[node_dof_id] = Ft / dist.y;
+           }
+           else{
+              info() << "Distance between pair of double-couple nodes is zero! "
+                     << "Applying the seismic moment as a user loading";
+
+              rhs_values[node_dof_id] = Ft;
+           }
+          } else if (hasLoading){
+           rhs_values[node_dof_id] = Ft;
+          }
+        }
       }
       ENUMERATE_NODE (inode, south) {
-        dc_node_south = *inode;
-        //---- For debug only !!!
-        auto coords = m_node_coord[dc_node_south];
-        auto num = dc_node_south.uniqueId().asInt32();
+        if (!inode->null() && inode->isOwn()) {
+          const Node& dc_node_south = *inode;
+          DoFLocalId node_dof_id = node_dof.dofId(dc_node_south, i1);
 
+          //---- For debug only !!!
+          auto coords = m_node_coord[dc_node_south];
+          auto num = dc_node_south.uniqueId().asInt32();
+
+          if (hasMoment) {
+
+           if (dist != Real2::null()) {
+              rhs_values[node_dof_id] = -Ft / dist.y;
+           }
+           else{
+              info() << "Distance between pair of double-couple nodes is zero! "
+                     << "Applying the seismic moment as a user loading";
+
+              rhs_values[node_dof_id] = -Ft;
+           }
+          } else if (hasLoading){
+           rhs_values[node_dof_id] = -Ft;
+          }
+        }
       }
 
-      auto dist = m_dc_dist[bd_index];
-      DoFLocalId node_north_dof = node_dof.dofId(dc_node_north, i1);
-      DoFLocalId node_south_dof = node_dof.dofId(dc_node_south, i1);
-      DoFLocalId node_east_dof = node_dof.dofId(dc_node_east, i2);
-      DoFLocalId node_west_dof = node_dof.dofId(dc_node_west, i2);
-
-      if (hasMoment) {
-
-        if (dist != Real2::null()) {
-          rhs_values[node_south_dof] = -Ft / dist.y;
-          rhs_values[node_north_dof] = Ft / dist.y;
-          rhs_values[node_east_dof] = -Ft / dist.x;
-          rhs_values[node_west_dof] = Ft / dist.x;
-        }
-        else{
-          info() << "Distance between pair of double-couple nodes is zero! "
-                 << "Applying the seismic moment as a user loading";
-
-          rhs_values[node_south_dof] = -Ft;
-          rhs_values[node_north_dof] = Ft;
-          rhs_values[node_east_dof] = -Ft;
-          rhs_values[node_west_dof] = Ft;
-        }
-      } else if (hasLoading){
-
-        rhs_values[node_south_dof] = -Ft;
-        rhs_values[node_north_dof] = Ft;
-        rhs_values[node_east_dof] = -Ft;
-        rhs_values[node_west_dof] = Ft;
-
-      }
       ++bd_index;
     }
   }
