@@ -47,6 +47,8 @@ CellFEMDispatcher::CellFEMDispatcher(){
  m_geomfunc[IT_Quad4] = Quad4Surface;
  m_geomfunc[IT_Tetraedron4] = Tetra4Volume;
  m_geomfunc[IT_Hexaedron8] = Hexa8Volume;
+ m_geomfunc[IT_Pentaedron6] = Penta6Volume;
+ m_geomfunc[IT_Pyramid5] = Pyramid5Volume;
 
  // Quadratic elements
  m_geomfunc[IT_Line3] = Line3Length;
@@ -62,6 +64,8 @@ CellFEMDispatcher::CellFEMDispatcher(){
  m_shapefunc[IT_Quad4] = Quad4ShapeFuncVal;
  m_shapefunc[IT_Tetraedron4] = Tetra4ShapeFuncVal;
  m_shapefunc[IT_Hexaedron8] = Hexa8ShapeFuncVal;
+ m_shapefunc[IT_Pentaedron6] = Penta6ShapeFuncVal;
+ m_shapefunc[IT_Pyramid5] = Pyramid5ShapeFuncVal;
 
  // Quadratic elements
  m_shapefunc[IT_Line3] = Line3ShapeFuncVal;
@@ -78,6 +82,8 @@ CellFEMDispatcher::CellFEMDispatcher(){
  m_shapefuncderiv[IT_Quad4] = Quad4ShapeFuncDeriv;
  m_shapefuncderiv[IT_Tetraedron4] = Tetra4ShapeFuncDeriv;
  m_shapefuncderiv[IT_Hexaedron8] = Hexa8ShapeFuncDeriv;
+ m_shapefuncderiv[IT_Pentaedron6] = Penta6ShapeFuncDeriv;
+ m_shapefuncderiv[IT_Pyramid5] = Pyramid5ShapeFuncDeriv;
 
  // Quadratic elements
  m_shapefuncderiv[IT_Line3] = Line3ShapeFuncDeriv;
@@ -88,18 +94,22 @@ CellFEMDispatcher::CellFEMDispatcher(){
 
  // Gives functions to compute orientation vector of the finite-element in global axes (x, y or z)
  // Linear elements
+/*
  m_orientfunc[IT_Line2] = Line2Orientation;
  m_orientfunc[IT_Triangle3] = Tri3Orientation;
  m_orientfunc[IT_Quad4] = Quad4Orientation;
  m_orientfunc[IT_Tetraedron4] = Tetra4Orientation;
  m_orientfunc[IT_Hexaedron8] = Hexa8Orientation;
+*/
 
  // Quadratic elements
+/*
  m_orientfunc[IT_Line3] = Line3Orientation;
  m_orientfunc[IT_Triangle6] = Tri6Orientation;
  m_orientfunc[IT_Quad8] = Quad8Orientation;
  m_orientfunc[IT_Tetraedron10] = Tetra10Orientation;
  m_orientfunc[IT_Hexaedron20] = Hexa20Orientation;
+*/
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -223,6 +233,7 @@ getGaussData(const ItemWithNodes& item, const Integer3& nint, Int32& ngauss){
 }
 
 // ! Compute Length, Area or Volume of an element
+/*
 Real CellFEMDispatcher::
 getMeasure(const ItemWithNodes& item)
 {
@@ -232,8 +243,10 @@ getMeasure(const ItemWithNodes& item)
    return f(item,*m_node_coords);
  return (0.0);
 }
+*/
 
 // ! Computes the barycenter of a Cell
+/*
 Real3 CellFEMDispatcher::
 getBarycenter(const ItemWithNodes& item)
 {
@@ -248,6 +261,7 @@ getBarycenter(const ItemWithNodes& item)
  if (nnod) sum /= nnod;
  return sum;
 }
+*/
 
 // ! Computes the value of the nodal shape functions of a given FE element at a given Gauss point (allowing to the element type)
 Real CellFEMDispatcher::
@@ -272,6 +286,7 @@ getShapeFuncDeriv(const Int16& item_type,const Int32& inod,const Real3& ref_coor
 // ! Computes the cartesian directions of a finite-element (used for derivation of shape functions)
 // ! For instance, assuming the returned Integer3 vector=idir,
 // idir = (0,-1,-1) means there will be derivation along x only
+/*
 Integer3 CellFEMDispatcher::
 getOrientation(const ItemWithNodes& cell){
  Int32 item_type = cell.type();
@@ -280,6 +295,7 @@ getOrientation(const ItemWithNodes& cell){
    return f(cell,*m_node_coords);
  return Integer3::zero();
 }
+*/
 
 /*---------------------------------------------------------------------------*/
 /* Functions used for geometric transformations (rotations, projections, ...)*/
@@ -350,7 +366,6 @@ void DirVectors(const Face& face,const VariableNodeReal3& n, const Int32& ndim, 
 Real Line2Length(const ItemWithNodes& item,const VariableNodeReal3& n){
  const Real3& n0 = n[item.node(0)];
  const Real3& n1 = n[item.node(1)];
- //  return (n0-n1).normL2();
  return (n1-n0).normL2();
 }
 
@@ -360,13 +375,11 @@ Real Line2ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 #endif
 
  Real r = ref_coord[0];
- //	if (!inod) return (0.5*(1 + r));
  if (inod == 1) return (0.5*(1 + r));
  return (0.5*(1 - r));
 }
 
 Real3 Line2ShapeFuncDeriv(const Integer& inod,const Real3&){
- //  if (!inod) return { 0.5,0.,0. };
  if (inod == 1) return { 0.5,0.,0. };
  return { -0.5,0.,0. };
 }
@@ -464,6 +477,7 @@ Real3 Tri3ShapeFuncDeriv(const Integer& inod,const Real3&){
  return {0., 1., 0.};
 }
 
+/*
 Integer3 Tri3Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
  const Real3& p0 = n[item.node(0)];
  Real3 u1 = p0 - n[item.node(1)];
@@ -477,6 +491,7 @@ Integer3 Tri3Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
  }
  return dir;
 }
+*/
 
 /*---------------------------------------------------------------------------*/
 // Tri6: quadratic triangle finite-element
@@ -507,11 +522,8 @@ Real Tri6ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
  auto	wi = 0.,ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2];
  switch(inod) {
  default: break;
-
  case 3:	wi = 4.*ri*si; break;
-
  case 4:	wi = 4.*si*ti; break;
-
  case 5:	wi = 4.*ri*ti; break;
  }
  return wi;
@@ -528,9 +540,11 @@ Real3 Tri6ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
  return {4.*(ti - ri), -4.*ri,0.};
 }
 
+/*
 Integer3 Tri6Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
  return Tri3Orientation(item,n);
 }
+*/
 
 /*---------------------------------------------------------------------------*/
 // Quad4: linear quadrangle finite-element
@@ -539,7 +553,7 @@ Integer3 Tri6Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
 //        1|
 //  1o-----|-----o0
 //   |     |     |
-//   |     |     |quadratic
+//   |     |     |
 //   |     |     |
 //   |-----|---------> x
 // -1|     |     |1
@@ -551,36 +565,12 @@ Integer3 Tri6Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
 /*---------------------------------------------------------------------------*/
 
 Real Quad4Surface(const ItemWithNodes& item,const VariableNodeReal3& n){
- Real3 n0 = n[item.node(0)];
- Real3 n1 = n[item.node(1)];
- Real3 n2 = n[item.node(2)];
- Real3 n3 = n[item.node(3)];
+ const Real3& n0 = n[item.node(0)];
+ const Real3& n1 = n[item.node(1)];
+ const Real3& n2 = n[item.node(2)];
 
- /*
- Real x1 = n1.x - n0.x;
- Real y1 = n1.y - n0.y;
- Real x2 = n2.x - n1.x;
- Real y2 = n2.y - n1.y;
- Real surface = x1 * y2 - y1 * x2;
-
- x1 = n2.x - n0.x;
- y1 = n2.y - n0.y;
- x2 = n3.x - n2.x;
- y2 = n3.y - n2.y;
-
- surface += x1 * y2 - y1 * x2;
- return surface;
-*/
- /*
- return 0.5 * (  (n1.x * n2.y + n2.x * n3.y + n3.x * n0.y + n0.x * n1.y)
-               -(n2.x * n1.y + n3.x * n2.y + n0.x * n3.y + n1.x * n0.y) );
-*/
- auto v1 = n1 - n0;
- auto v2 = n2 - n0;
- auto v = math::cross(v1,v2);
-
- auto norm = v.normL2();
- return norm;
+ auto v = math::cross(n1 - n0,n2 - n0);
+ return v.normL2();
 }
 
 Real Quad4ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
@@ -588,29 +578,38 @@ Real Quad4ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
  assert(inod >= 0 && inod < 4);
 #endif
 
- Real	ri = ref_coord[0],si = ref_coord[1]; // default is first node (index 0)
+ auto	r{ ref_coord[0] },s{ ref_coord[1] };
+ auto	ri{1.},si{1.};
 
  switch(inod){
- default: break;
- case 1:	ri *= -1; break;
- case 2:	ri *= -1; si *= -1; break;
- case 3:	si *= -1; break;
+ default: break;// default is first node (index 0)
+ case 2:	si = -1;
+ case 1:	ri = -1; break;
+
+ case 3:	si = -1; break;
  }
- return ( 0.25*(1 + ri)*(1 + si) );
+ return ( (1 + ri*r)*(1 + si*s) / 4. );
 }
 
 Real3 Quad4ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
 #ifdef _DEBUG
- assert (idir >= 0 && idir < 2);
+ assert(inod >= 0 && inod < 4);
 #endif
 
- auto ri{ref_coord[0]}, si{ref_coord[1]};
- if (!inod) return {0.25*(1 + si),0.25*(1 + ri),0.};
- if (inod == 1) return {-0.25*(1 + si),0.25*(1 - ri),0.};
- if (inod == 2) return {-0.25*(1 - si),-0.25*(1 - ri),0.};
- return {0.25*(1 - si),-0.25*(1 + ri),0.};
+ auto	r{ ref_coord[0] },s{ ref_coord[1] };
+ auto	ri{1.},si{1.}; // Normalized coordinates (=+-1) =>node index 7 = (1,1,1)
+
+ switch(inod){
+ default: break;// default is first node (index 0)
+ case 2:	si = -1;
+ case 1:	ri = -1; break;
+
+ case 3:	si = -1; break;
+ }
+ return {0.25 * ri * (1 + si*s), 0.25 * si * (1 + ri*r), 0.};
 }
 
+/*
 Integer3 Quad4Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
  const Real3& p0 = n[item.node(0)];
  Real3 u1 = p0 - n[item.node(1)];
@@ -624,6 +623,7 @@ Integer3 Quad4Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
  }
  return dir;
 }
+*/
 
 /*---------------------------------------------------------------------------*/
 // Quad8: quadratic quadrangle finite-element
@@ -653,63 +653,86 @@ Real Quad8ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
  assert(inod >= 0 && inod < 8);
 #endif
 
- auto	wi{0.},
- r = ref_coord[0],s = ref_coord[1],
- ri{ r },si{ s }; // default is first node (index 0)
+ auto	r{ ref_coord[0] },s{ ref_coord[1] };
+ auto	ri{1.},si{1.};
 
  switch(inod){
- default: break;
+ default: break;// default is first node (index 0)
+ case 2:	si = -1;
+ case 1:	ri = -1; break;
 
- case 1:	ri *= -1; break;
+ case 3:	si = -1; break;
 
- case 2:	ri *= -1; si *= -1; break;
-
- case 3:	si *= -1; break;
-
+ case 6:	si = -1;
  case 4:	ri = 0; break;
 
- case 5:	ri *= -1; si = 0; break;
-
- case 6:	ri = 0; si *= -1; break;
-
+ case 5:	ri = -1;
  case 7:	si = 0; break;
  }
 
- if (inod < 4) wi = 0.25*(1 + ri)*(1 + si)*(ri + si - 1);
- else if (ri == 0.) wi = 0.5*(1 - r*r)*(1 + si);
- else if (si == 0.) wi = 0.5*(1 - s*s)*(1 + ri);
+ auto r0 {r*ri}, s0 {s*si};
+ Real Phi{0.};
+ auto t0{ r0 + s0 - 1. };
 
- return wi;
+ if (inod < 4) // Corner nodes
+   Phi = (1 + r0) * (1 + s0) * t0 / 4.;
+
+ else { // Middle nodes
+   if (fabs(ri) < REL_PREC)
+     Phi = (1 - r * r) * (1 + s0) / 2.;
+   else if (fabs(si) < REL_PREC)
+     Phi = (1 - s * s) * (1 + r0) / 2.;
+ }
+ return Phi;
 }
 
 Real3 Quad8ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
 
- RealUniqueArray r(8),s(8);
- r[0] = 1; s[0] = 1;
- r[1] = -1; s[1] = 1;
- r[2] = -1; s[2] = -1;
- r[3] = 1; s[3] = -1;
- r[4] = 0; s[4] = 1;
- r[5] = -1; s[5] = 0;
- r[6] = 0; s[6] = -1;
- r[7] = 1; s[7] = 0;
- auto wi = Quad4ShapeFuncVal(inod,ref_coord),
-      ri = r[inod]*ref_coord[0],
-      si = s[inod]*ref_coord[1],
-      r2 = ref_coord[0]*ref_coord[0],
-      s2 = ref_coord[1]*ref_coord[1];
+ auto	r{ ref_coord[0] },s{ ref_coord[1] };
+ auto	ri{1.},si{1.};
 
- // derivatives on corner nodes
- if (inod < 4) return {r[inod]*(0.25*(1 + si)*(ri + si - 1) + wi),s[inod]*(0.25*(1 + ri)*(ri + si - 1) + wi), 0.};
+ switch(inod){
+ default: break;// default is first node (index 0)
+ case 2:	si = -1;
+ case 1:	ri = -1; break;
 
- // derivatives on middle nodes
- if (r[inod] != 0.) return {-ref_coord[0]*(1 + si), 0.5*si*(1 - r2),0.};
- return {0.5*ri*(1 - s2), -ref_coord[1]*(1 + ri),0.};
+ case 3:	si = -1; break;
+
+ case 6:	si = -1;
+ case 4:	ri = 0; break;
+
+ case 5:	ri = -1;
+ case 7:	si = 0; break;
+ }
+
+ auto r0 {r*ri}, s0 {s*si};
+ Real Phi{0.};
+ Real3 dPhi;
+ auto t0{ r0 + s0 - 1. };
+
+ if (inod < 4) { // Corner nodes
+   dPhi.x = ri * (1 + s0) * (t0 + 1. + r0) / 4.;
+   dPhi.y = si * (1 + r0) * (t0 + 1. + s0) / 4.;
+ }
+ else { // Middle nodes
+   if (fabs(ri) < REL_PREC) {
+     dPhi.x = -r * (1 + s0);
+     dPhi.y = si * (1 - r * r) / 2.;
+   }
+   else if (fabs(si) < REL_PREC) {
+     dPhi.x = -s * (1 + r0);
+     dPhi.y = ri * (1 - s * s) / 2.;
+   }
+ }
+ dPhi.z = 0.;
+ return dPhi;
 }
 
+/*
 Integer3 Quad8Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
  return Quad4Orientation(item,n);
 }
+*/
 
 /*---------------------------------------------------------------------------*/
 // Hexa8: linear hexaedron finite-element
@@ -746,7 +769,7 @@ Real Hexa8Volume(const ItemWithNodes& item,const VariableNodeReal3& n){
  Real v1 = math::matDet((n6 - n1) + (n7 - n0), n6 - n3, n2 - n0);
  Real v2 = math::matDet(n7 - n0, (n6 - n3) + (n5 - n0), n6 - n4);
  Real v3 = math::matDet(n6 - n1, n5 - n0, (n6 - n4) + (n2 - n0));
- return (v1 + v2 + v3) / 12.0;
+ return (v1 + v2 + v3) / 12.;
 }
 
 Real Hexa8ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
@@ -754,20 +777,10 @@ Real Hexa8ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
  assert(inod >= 0 && inod < 8);
 #endif
  auto	x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] };
- //  auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
  auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 7 = (1,1,1)
 
  switch(inod){
  default: break;
-   /*
-   case 1:
-   case 5:	ri = -1; break;
-   case 2:
-   case 6: ri = -1; si = -1;
-     break;
-   case 3:
-   case 7: si = -1;
-*/
  case 3:
  case 2:	ri = -1; break;
  case 0:
@@ -777,7 +790,6 @@ Real Hexa8ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
  case 5: si = -1;
    break;
  }
- //  if (inod > 3) ti = -1;
  if (inod == 1 || inod == 2 || inod == 5 || inod == 6) ti = -1;
 
  auto r0 {x*ri}, s0 {y*si}, t0 {z*ti};
@@ -790,21 +802,10 @@ Real Hexa8ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 Real3 Hexa8ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
 
  auto	x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] };
- //  auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
  auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 7 = (1,1,1)
 
  switch(inod){
  default: break;
-   /*
-   case 1:
-   case 5:	ri = -1; break;
-   case 2:
-   case 6: ri = -1; si = -1;
-     break;
-   case 3:
-   case 7: si = -1;
-     break;
-*/
  case 3:
  case 2:	ri = -1; break;
  case 0:
@@ -814,20 +815,21 @@ Real3 Hexa8ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
  case 5: si = -1;
    break;
  }
- //  if (inod > 3) ti = -1;
  if (inod == 1 || inod == 2 || inod == 5 || inod == 6) ti = -1;
 
  auto r0 {x*ri}, s0 {y*si}, t0 {z*ti};
  Real3 dPhi;
- dPhi.x =  ri * (1 + s0) * (1 + t0) / 8.;
- dPhi.y =  si * (1 + r0) * (1 + t0) / 8.;
- dPhi.z =  ti * (1 + r0) * (1 + s0) / 8.;
+ dPhi.x = ri * (1 + s0) * (1 + t0) / 8.;
+ dPhi.y = si * (1 + r0) * (1 + t0) / 8.;
+ dPhi.z = ti * (1 + r0) * (1 + s0) / 8.;
  return dPhi;
 }
 
+/*
 Integer3 Hexa8Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
  return {1,1,1};
 }
+*/
 
 /*---------------------------------------------------------------------------*/
 // Hexa20: quadratic hexaedron finite-element
@@ -859,33 +861,6 @@ Real Hexa20ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 #ifdef _DEBUG
  assert(inod >= 0 && inod < 20);
 #endif
- /*
-
-   auto	wi = 0.,ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2],
-           rm = 1. - ri,rp = 1. + ri,
-           sm = 1. - si,sp = 1. + si,
-           tm = 1. - ti,tp = 1. + ti,
-           r2 = 1. - ri*ri,s2 = 1. - si*si,t2 = 1. - ti*ti;
-
-   if (inod < 8) return Hexa8ShapeFuncVal(inod,ref_coord);
-
-   switch(inod){
-       default: break;
-       case 8: wi = 0.25*r2*sp*tp; break;
-       case 9: wi = 0.25*rm*s2*tp; break;
-       case 10: wi = 0.25*r2*sm*tp; break;
-       case 11: wi = 0.25*rp*s2*tp; break;
-       case 12: wi = 0.25*r2*sp*tm; break;
-       case 13: wi = 0.25*rm*s2*tm; break;
-       case 14: wi = 0.25*r2*sm*tm; break;
-       case 15: wi = 0.25*rp*s2*tm; break;
-       case 16: wi = 0.25*rp*sp*t2; break;
-       case 17: wi = 0.25*rm*sp*t2; break;
-       case 18: wi = 0.25*rm*sm*t2; break;
-       case 19: wi = 0.25*rp*sm*t2; break;
-   }
-   return wi;
-*/
  auto	x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] };
  auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
 
@@ -922,9 +897,11 @@ Real Hexa20ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
  auto r0 {x*ri}, s0 {y*si}, t0 {z*ti};
  Real Phi{0.};
  auto t{ r0 + s0 + t0 - 2. };
- if (inod < 8)
+
+ if (inod < 8)  // Corner nodes
    Phi = (1 + r0) * (1 + s0) * (1 + t0) * t / 8.;
- else{
+
+ else{  // Middle nodes
    if (fabs(ri) < REL_PREC)
      Phi = (1 - x*x) * (1 + s0) * (1 + t0) / 4.;
    else if (fabs(si) < REL_PREC)
@@ -937,31 +914,6 @@ Real Hexa20ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
 
 Real3 Hexa20ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
 
- /*
-   if (inod < 8) return Hexa8ShapeFuncDeriv(inod, ref_coord);
-
-   auto ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2],
-      rm = 1. - ri,rp = 1. + ri,
-      sm = 1. - si,sp = 1. + si,
-      tm = 1. - ti,tp = 1. + ti,
-      r2 = 1. - ri*ri,
-      s2 = 1. - si*si,
-      t2 = 1. - ti*ti;
-
-   if (inod == 8) return { -0.5*ri*sp*tp,0.25*r2*tp,0.25*r2*sp };
-   if (inod == 9) return { -0.25*s2*tp,-0.5*si*rm*tp,0.25*s2*rm };
-   if (inod == 10) return { -0.5*ri*sm*tp,-0.25*r2*tp,0.25*r2*sm };
-   if (inod == 11) return { 0.25*s2*tp,-0.5*si*rp*tp,0.25*s2*rp };
-   if (inod == 12) return { -0.5*ri*sp*tm,0.25*r2*tm,-0.25*r2*sp };
-   if (inod == 13) return { -0.25*s2*tm,-0.5*si*rm*tm,-0.25*s2*rm };
-   if (inod == 14) return { -0.5*ri*sm*tm,-0.25*r2*tm,-0.25*r2*sm };
-   if (inod == 15) return { 0.25*s2*tm,-0.5*si*rp*tm,-0.25*s2*rp };
-   if (inod == 16) return { 0.25*t2*sp,0.25*t2*rp,-0.5*ti*rp*sp };
-   if (inod == 17) return { -0.25*t2*sp,0.25*t2*rm,-0.5*ti*rm*sp };
-   if (inod == 18) return { -0.25*t2*sm,-0.25*t2*rm,-0.5*ti*rm*sm };
-   if (inod == 19) return { 0.25*t2*sm,-0.25*t2*rp,-0.5*ti*rp*sm };
-   return {};
-*/
  auto	x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] };
  auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
 
@@ -1026,9 +978,11 @@ Real3 Hexa20ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
  return dPhi;
 }
 
+/*
 Integer3 Hexa20Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
  return {1,1,1};
 }
+*/
 
 /*---------------------------------------------------------------------------*/
 // Tetra4: linear tetrahedral finite-element
@@ -1081,9 +1035,11 @@ Real3 Tetra4ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
  return {-1.,-1.,-1.};
 }
 
+/*
 Integer3 Tetra4Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
  return {1,1,1};
 }
+*/
 
 /*---------------------------------------------------------------------------*/
 // Tetra10: quadratic tetrahedral finite-element
@@ -1167,8 +1123,191 @@ Real3 Tetra10ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
  return {-z4, -z4, t4 - z4};//inod == 7
 }
 
+/*
 Integer3 Tetra10Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
  return {1,1,1};
+}
+*/
+
+/*---------------------------------------------------------------------------*/
+// Penta6: linear pentaedron (wedge or triangular prism) finite-element
+//  Normalized coordinates (triplets): x, y, z varying between -1/+1
+//
+//                     5 (0,1,1)
+//                   . |  .
+//                  .  |     .
+//                 .   Z        .
+//                .    |           .
+//               .     |             .
+//       (0,0,1) 3 ------------------ 4 (1,0,1)
+//               |     |              |
+//               |     |              |
+//               |     |              |
+//               |     |              |
+//               |     2 (0,1,-1)     |
+//               |   .    .           |
+//               |  Y        .        |
+//               | .            .     |
+//               |.                .  |
+//      (0,0,-1) 0 -------- X ------- 1 (1,0,-1)
+//
+// direct : 0,1,2,3,...,6 (local numbering)
+/*---------------------------------------------------------------------------*/
+
+Real Penta6Volume(const ItemWithNodes& item,const VariableNodeReal3& n){
+ const Real3& n0 = n[item.node(0)];
+ const Real3& n1 = n[item.node(1)];
+ const Real3& n2 = n[item.node(2)];
+ const Real3& n3 = n[item.node(3)];
+ const Real3& n4 = n[item.node(4)];
+ const Real3& n5 = n[item.node(5)];
+
+ auto v = math::cross(n1 - n0,n2 - n0);
+ auto base = 0.5*v.normL2();
+ auto h1 = (n3 - n0).normL2();
+ auto h2 = (n4 - n1).normL2();
+ auto h3 = (n5 - n2).normL2();
+
+ return base * (h1 + h2 + h3)/3.0;
+}
+
+Real Penta6ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
+#ifdef _DEBUG
+ assert(inod >= 0 && inod < 6);
+#endif
+ auto	r{ ref_coord[0] },s{ ref_coord[1] },t{ ref_coord[2] };
+ auto	r0{1.},s0{1.}, ti{-1.};
+ auto rs {1.- r - s};
+
+ if (inod >= 3) ti = 1.;
+ auto t0{1 + ti*t};
+
+ switch(inod){
+   default: break;// Node 0
+   case 4:
+   case 1:	r0 = r; rs = 1.; break;
+   case 5:
+   case 2:	s0 = s; rs = 1.; break;
+ }
+
+ return 0.5 * r0 * s0 * rs * t0;
+}
+
+Real3 Penta6ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
+
+#ifdef _DEBUG
+ assert(inod >= 0 && inod < 6);
+#endif
+ auto	r{ ref_coord[0] },s{ ref_coord[1] },t{ ref_coord[2] };
+ auto	ri{1.},si{1.};
+ auto	r0{1.},s0{1.}, ti{-1.};
+ auto rs {1.- r - s};
+
+ if (inod >= 3) ti = 1.;
+ auto t0{1 + ti*t};
+
+ switch(inod){
+ default: break;
+ case 3:
+ case 0:	ri = -1.; si = -1.; break;
+ case 4:
+ case 1:	r0 = r; si = 0.; rs = 1.; break;
+ case 5:
+ case 2:	s0 = s; rs = 1.; break;
+ }
+
+ Real3 dPhi;
+ dPhi.x =  0.5 * ri * t0;
+ dPhi.y =  0.5 * si * t0;
+ dPhi.z =  0.5 * ti * rs * r0 * s0;
+ return dPhi;
+}
+
+/*---------------------------------------------------------------------------*/
+// Pyramid5: linear pyramid finite-element
+//  Normalized coordinates (triplets): x, y, z varying between -1/+1
+//
+//                          ^
+//                          |
+//                          Z
+//                          |
+//                          4 (0,0,1)
+//                          *
+//                         ** *
+//                        *  *  *
+//                       *    *   *
+//                      *      *     *
+//                     *        *       *
+//          (-1,1,-1) 3 ---------*-------- 2 (1,1,-1)
+//                   .            *     .
+//                  Y              *    .
+//                 .                *  .
+//                .                  *.
+//   (-1,-1,-1)  0 -------- X ------- 1 (1,-1,-1)
+//
+// direct : 0,1,2,3,...,6 (local numbering)
+/*---------------------------------------------------------------------------*/
+
+Real Pyramid5Volume(const ItemWithNodes& item,const VariableNodeReal3& n){
+ const Real3& n0 = n[item.node(0)];
+ const Real3& n1 = n[item.node(1)];
+ const Real3& n2 = n[item.node(2)];
+ const Real3& n4 = n[item.node(4)];
+
+ auto v = math::cross(n1 - n0,n2 - n0);
+ auto base = v.normL2();
+ v.normalize();
+ auto h = fabs(math::dot(v, n4 - n0));
+ return base * h / 3.0;
+}
+
+Real Pyramid5ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
+#ifdef _DEBUG
+ assert(inod >= 0 && inod < 5);
+#endif
+ auto	r{ ref_coord[0] },s{ ref_coord[1] },t{ ref_coord[2] } ;
+ auto	ri{-1.},si{-1.};
+
+ switch(inod){
+ default: break;// default is first node (index 0)
+ case 2:	si = 1;
+ case 1:	ri = 1; break;
+ case 3:	si = 1; break;
+ }
+
+ if (inod == 4)
+   return (1. + t) / 2.;
+
+ return (1. + ri*r) * (1. + si*s) * (1. - t) / 8.;
+}
+
+Real3 Pyramid5ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
+
+#ifdef _DEBUG
+ assert(inod >= 0 && inod < 5);
+#endif
+ auto	r{ ref_coord[0] },s{ ref_coord[1] },t{ ref_coord[2] } ;
+ auto	ri{-1.},si{-1.};
+
+ switch(inod){
+ default: break;// default is first node (index 0)
+ case 2:	si = 1;
+ case 1:	ri = 1; break;
+ case 3:	si = 1; break;
+ }
+
+ Real3 dPhi;
+ if (inod == 4) {
+   dPhi.x = dPhi.y = 0.;
+   dPhi.z = 0.5;
+ }
+ else{
+   dPhi.x = ri * (1. + si*s) * (1. - t) / 8.;
+   dPhi.y = si * (1. + ri*r) * (1. - t) / 8.;
+   dPhi.z = - (1. + ri*r) * (1. + si*s) / 8.;
+ }
+
+ return dPhi;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1217,6 +1356,7 @@ GaussPointDispatcher::GaussPointDispatcher(){
  m_weightfunc[IT_Quad4] = QuadWeight;
  m_weightfunc[IT_Tetraedron4] = TetraWeight;
  m_weightfunc[IT_Hexaedron8] = HexaWeight;
+ m_weightfunc[IT_Pentaedron6] = PentaWeight;
 
  // Quadratic elements
  m_weightfunc[IT_Line3] = LineWeight;
@@ -1232,6 +1372,7 @@ GaussPointDispatcher::GaussPointDispatcher(){
  m_refpositionfunc[IT_Quad4] = QuadRefPosition;
  m_refpositionfunc[IT_Tetraedron4] = TetraRefPosition;
  m_refpositionfunc[IT_Hexaedron8] = HexaRefPosition;
+ m_refpositionfunc[IT_Pentaedron6] = PentaRefPosition;
 
  // Quadratic elements
  m_refpositionfunc[IT_Line3] = LineRefPosition;
@@ -1315,7 +1456,6 @@ Real LineWeight(const Integer3& indices,const Integer3& ordre){
 Real3 TriRefPosition(const Integer3& indices,const Integer3& ordre){
  Integer o = ordre[0]-1;
  Integer i = indices[0];
- //  return {xg1[o][i],xg2[o][i],xg3[o][i]};
  return {xg1[o][i],xg2[o][i],0.};
 }
 
@@ -1360,6 +1500,26 @@ Real3 TetraRefPosition(const Integer3& indices,const Integer3& /*ordre*/){
 
 Real TetraWeight(const Integer3& indices,const Integer3& /*ordre*/){
  return wgtetra;
+}
+
+/*---------------------------------------------------------------------------*/
+
+Real3 PentaRefPosition(const Integer3& indices,const Integer3& ordre){
+
+ // Same as TriRefPosition on reference coordinate plane (r,s)
+ // and LineRefPosition along reference coordinate t (vertical)
+ auto pos = TriRefPosition(indices,ordre);
+ pos.z = getRefPosition(indices[2],ordre[2]);
+
+ return pos;
+}
+
+Real PentaWeight(const Integer3& indices,const Integer3& ordre){
+
+ // Same as TriWeight on reference coordinate plane (r,s)
+ // and LineWeight with ordre[2] to account for reference coordinate t (vertical)
+ Real wgpenta = TriWeight(indices,ordre)*getWeight(indices[2],ordre[2]);
+ return wgpenta;
 }
 
 /*---------------------------------------------------------------------------*/

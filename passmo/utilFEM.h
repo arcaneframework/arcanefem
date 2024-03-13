@@ -203,52 +203,60 @@ extern void DirVectors(const Face& face,const VariableNodeReal3& n, const Int32&
 extern Real Line2Length(const ItemWithNodes& item, const VariableNodeReal3& n);
 extern Real Line2ShapeFuncVal(const Integer& inod, const Real3& coord);
 extern Real3 Line2ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-extern Integer3 Line2Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
+//extern Integer3 Line2Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
 
 extern Real Line3Length(const ItemWithNodes& item, const VariableNodeReal3& n);
 extern Real Line3ShapeFuncVal(const Integer& inod, const Real3& coord);
 extern Real3 Line3ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-extern Integer3 Line3Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
+//extern Integer3 Line3Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
 
 extern Real Tri3Surface(const ItemWithNodes& item, const VariableNodeReal3& n);
 extern Real Tri3ShapeFuncVal(const Integer& inod, const Real3& coord);
 extern Real3 Tri3ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-extern Integer3 Tri3Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
+//extern Integer3 Tri3Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
 
 extern Real Tri6Surface(const ItemWithNodes& item, const VariableNodeReal3& n);
 extern Real Tri6ShapeFuncVal(const Integer& inod, const Real3& coord);
 extern Real3 Tri6ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-extern Integer3 Tri6Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
+//extern Integer3 Tri6Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
 
 extern Real Quad4Surface(const ItemWithNodes& item, const VariableNodeReal3& n);
 extern Real Quad4ShapeFuncVal(const Integer& inod, const Real3& coord);
 extern Real3 Quad4ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-extern Integer3 Quad4Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
+//extern Integer3 Quad4Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
 
 extern Real Quad8Surface(const ItemWithNodes& item, const VariableNodeReal3& n);
 extern Real Quad8ShapeFuncVal(const Integer& inod, const Real3& coord);
 extern Real3 Quad8ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-extern Integer3 Quad8Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
+//extern Integer3 Quad8Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
 
 extern Real Hexa8Volume(const ItemWithNodes& item, const VariableNodeReal3& n);
 extern Real Hexa8ShapeFuncVal(const Integer& inod, const Real3& coord);
 extern Real3 Hexa8ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-extern Integer3 Hexa8Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
+//extern Integer3 Hexa8Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
 
 extern Real Hexa20Volume(const ItemWithNodes& item, const VariableNodeReal3& n);
 extern Real Hexa20ShapeFuncVal(const Integer& inod, const Real3& coord);
 extern Real3 Hexa20ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-extern Integer3 Hexa20Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
+//extern Integer3 Hexa20Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
 
 extern Real Tetra4Volume(const ItemWithNodes& item, const VariableNodeReal3& n);
 extern Real Tetra4ShapeFuncVal(const Integer& inod, const Real3& coord);
 extern Real3 Tetra4ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-extern Integer3 Tetra4Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
+//extern Integer3 Tetra4Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
 
 extern Real Tetra10Volume(const ItemWithNodes& item, const VariableNodeReal3& n);
 extern Real Tetra10ShapeFuncVal(const Integer& inod, const Real3& coord);
 extern Real3 Tetra10ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-extern Integer3 Tetra10Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
+//extern Integer3 Tetra10Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
+
+extern Real Penta6Volume(const ItemWithNodes& item, const VariableNodeReal3& n);
+extern Real Penta6ShapeFuncVal(const Integer& inod, const Real3& coord);
+extern Real3 Penta6ShapeFuncDeriv(const Integer& inod, const Real3& coord);
+
+extern Real Pyramid5Volume(const ItemWithNodes& item, const VariableNodeReal3& n);
+extern Real Pyramid5ShapeFuncVal(const Integer& inod, const Real3& coord);
+extern Real3 Pyramid5ShapeFuncDeriv(const Integer& inod, const Real3& coord);
 
 extern Int32 getGeomDimension(const ItemWithNodes& item);
 
@@ -265,16 +273,16 @@ class CellFEMDispatcher
 
   void set_node_coords(VariableNodeReal3& /*node_coords*/);
 
-  Real getMeasure(const ItemWithNodes& /*cell*/);
+//  Real getMeasure(const ItemWithNodes& /*cell*/);
 
-  Real3 getBarycenter(const ItemWithNodes& /*cell*/);
+//  Real3 getBarycenter(const ItemWithNodes& /*cell*/);
 
   Real getShapeFuncVal(const Int16& /*item_type*/, const Int32& /*inod*/, const Real3& /*ref coord*/);
 
   //  RealUniqueArray getShapeFuncDeriv(const Int16& /*item_type*/,const Integer& /*idir*/,const Real3& /*ref coord*/);
   Real3 getShapeFuncDeriv(const Int16& /*item_type*/, const Int32& /*inod*/, const Real3& /*ref coord*/);
 
-  Integer3 getOrientation(const ItemWithNodes& /*cell*/);
+//  Integer3 getOrientation(const ItemWithNodes& /*cell*/);
   RealUniqueArray getGaussData(const ItemWithNodes& item, const Integer3& nint, Int32& ngauss);
 
  private:
@@ -307,6 +315,9 @@ extern Real HexaWeight(const Integer3& indices, const Integer3& ordre);
 
 extern Real3 TetraRefPosition(const Integer3& indices, const Integer3& ordre);
 extern Real TetraWeight(const Integer3& indices, const Integer3& ordre);
+
+extern Real3 PentaRefPosition(const Integer3& indices, const Integer3& ordre);
+extern Real PentaWeight(const Integer3& indices, const Integer3& ordre);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
