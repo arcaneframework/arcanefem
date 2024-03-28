@@ -1,12 +1,23 @@
-#include <arcane/utils/FatalErrorException.h>
+// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+//-----------------------------------------------------------------------------
+// Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// See the top-level COPYRIGHT file for details.
+// SPDX-License-Identifier: Apache-2.0
+//-----------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
+/* ElastodynamicModule.cc                                      (C) 2022-2024 */
+/*                                                                           */
+/* PASSMO : Performant Assessment for Seismic Site Modelling with finite-    */
+/* element (FEM) numerical modelling approach                                */
+/* Created by : E. Foerster                                                  */
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 #include "arcane/MathUtils.h"
-#include <arcane/utils/NumArray.h>
 #include <arcane/utils/MultiArray2.h>
 #include "arcane/utils/ArgumentException.h"
 #include <arcane/IParallelMng.h>
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IMesh.h>
-#include <arcane/IItemFamily.h>
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 #include <arcane/geometry/IGeometry.h>
@@ -14,7 +25,6 @@
 #include <arcane/CaseTable.h>
 
 #include "IDoFLinearSystemFactory.h"
-#include "Integer3std.h"
 #include "ElastodynamicModule.h"
 #include "utilFEM.h"
 
@@ -27,6 +37,7 @@ using namespace Arcane::FemUtils;
 ElastodynamicModule::ElastodynamicModule(const ModuleBuildInfo& mbi)
 : ArcaneElastodynamicObject(mbi)
 , m_dofs_on_nodes(mbi.subDomain()->traceMng())
+, m_gauss_on_cells(mbi.subDomain()->traceMng())
 {
   ICaseMng *cm = mbi.subDomain()->caseMng();
   cm->setTreatWarningAsError(true);
@@ -77,9 +88,7 @@ startInit(){
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
 
-  integ_order.m_i = options()->getGaussNint1();
-  integ_order.m_j = options()->getGaussNint2();
-  integ_order.m_k = options()->getGaussNint3();
+  ninteg = options()->getGaussNint();
   gravity.x = options()->getGx();
   gravity.y = options()->getGy();
   gravity.z = options()->getGz();
@@ -130,10 +139,6 @@ startInit(){
     NDIM = 3;
   else
     NDIM = 2;
-  if (NDIM == 2) integ_order.m_k = 0;
-
-  cell_fem.set_node_coords(m_node_coord);
-  gausspt.init_order(integ_order);
 
   auto dirichletMethod = options()->enforceDirichletMethod();
   auto dirichletMethodl = dirichletMethod.lower();
@@ -166,6 +171,7 @@ startInit(){
     m_displ[node] = Real3::zero();
   }
 
+  _startInitGauss();
   _applyInitialNodeConditions();
   _initCells();
   _initBoundaryConditions();
@@ -178,6 +184,48 @@ _initDofs(){
   m_dofs_on_nodes.initialize(mesh(),NDIM);
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+void ElastodynamicModule::
+_startInitGauss(){
+  Integer max_gauss_per_cell{0};
+
+  ENUMERATE_CELL (icell, allCells()) {
+    const Cell& cell = *icell;
+    auto cell_type = cell.type();
+    auto nbgauss = getNbGaussPointsfromOrder(cell_type, ninteg);
+    m_nb_gauss[cell] = nbgauss;
+    max_gauss_per_cell = math::max(nbgauss,max_gauss_per_cell);
+  }
+  m_gauss_on_cells.initialize(mesh(),max_gauss_per_cell);
+
+  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
+  VariableDoFReal& gauss_weight(m_gauss_on_cells.gaussWeight());
+  VariableDoFReal3& gauss_refpos(m_gauss_on_cells.gaussRefPosition());
+  VariableDoFArrayReal& gauss_shape(m_gauss_on_cells.gaussShape());
+  VariableDoFArrayReal3& gauss_shapederiv(m_gauss_on_cells.gaussShapeDeriv());
+
+  ENUMERATE_CELL (icell, allCells()) {
+    const Cell& cell = *icell;
+    auto cell_type = cell.type();
+    auto cell_nbnod = cell.nbNode();
+    auto cell_nbgauss = getNbGaussPointsfromOrder(cell_type, ninteg);
+    Int32 ndim = getGeomDimension(cell);
+
+    for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
+      DoFLocalId gauss_pti = gauss_point.dofId(cell,ig);
+      gauss_weight[gauss_pti] = getGaussWeight(cell,ninteg,ig);
+      Real3 refpos = getGaussRefPosition(cell,ninteg,ig);
+      if (ndim <= 2) {
+        refpos.z = 0.;
+        if (ndim == 1) refpos.y = 0.;
+      }
+      gauss_refpos[gauss_pti] = refpos;
+      gauss_shape[gauss_pti] = RealUniqueArray(cell_nbnod);
+      gauss_shapederiv[gauss_pti] = Real3UniqueArray(cell_nbnod);
+    }
+  }
+}
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void ElastodynamicModule::
@@ -339,6 +387,68 @@ _applyInitialCellConditions(){
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void ElastodynamicModule::
+_initGaussStep()
+{
+  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
+
+  VariableDoFReal& gauss_jacobian(m_gauss_on_cells.gaussJacobian());
+  VariableDoFReal3& gauss_refpos(m_gauss_on_cells.gaussRefPosition());
+  VariableDoFReal3x3& gauss_jacobmat(m_gauss_on_cells.gaussJacobMat());
+  VariableDoFArrayReal& gauss_shape(m_gauss_on_cells.gaussShape());
+  VariableDoFArrayReal3& gauss_shapederiv(m_gauss_on_cells.gaussShapeDeriv());
+
+  ENUMERATE_CELL (icell, allCells()) {
+    const Cell& cell = *icell;
+    auto cell_type = cell.type();
+    auto cell_nbnod = cell.nbNode();
+    Int32 ndim = getGeomDimension(cell);
+    auto cell_nbgauss = getNbGaussPointsfromOrder(cell_type, ninteg);
+
+    for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
+      DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
+      Real3 refpos = gauss_refpos[gauss_pti];
+
+      Real3x3	jac;
+      Real jacobian;
+      for (Int32 inod = 0; inod < cell_nbnod; ++inod) {
+        auto Phi_i = cell_fem.getShapeFuncVal(cell_type, inod, refpos);
+        gauss_shape[gauss_pti][inod] = Phi_i;
+
+        auto dPhi = cell_fem.getShapeFuncDeriv(cell_type, inod, refpos);
+        if (ndim <= 2) {
+          dPhi.z = 0.;
+          if (ndim == 1)
+            dPhi.y = 0.;
+        }
+        gauss_shapederiv[gauss_pti][inod] = dPhi;
+        auto coord_nod = m_node_coord[cell.node(inod)];
+        for (int i = 0; i < NDIM; ++i){
+          for (int j = 0; j < NDIM; ++j){
+            jac[i][j] += dPhi[i] * coord_nod[j];
+          }
+        }
+      }
+
+      if (ndim == 3)
+        jacobian = math::matrixDeterminant(jac);
+
+      else if (ndim == 2)
+        jacobian = jac.x.x * jac.y.y - jac.x.y * jac.y.x;
+      else
+        jacobian = Line2Length(cell, m_node_coord) / 2.;
+
+      if (fabs(jacobian) < REL_PREC) {
+        ARCANE_FATAL("Cell jacobian is null");
+      }
+      gauss_jacobian[gauss_pti] = jacobian;
+      gauss_jacobmat[gauss_pti] = jac;
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+void ElastodynamicModule::
 compute(){
 
   info() << "Module PASSMO COMPUTE";
@@ -372,6 +482,9 @@ compute(){
     // Reset the counter when the linear operator is reset
     linop_nstep_counter = 0;
   }
+
+  // Update Gauss shape functions and their derivatives for this step
+  _initGaussStep();
 
   // Apply Dirichlet/Neumann conditions if any
   _applyDirichletBoundaryConditions();
@@ -1340,22 +1453,27 @@ _computeJacobian(const ItemWithNodes& cell,const Int32& ig, const RealUniqueArra
 /*---------------------------------------------------------------------------*/
 // ! Compute elementary mass matrix in 2D at a given Gauss point
 void ElastodynamicModule::
-_computeElemMass(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, RealUniqueArray2& Me){
+_computeElemMass(const Real& rho, const DoFLocalId& igauss, const Int32& nb_nodes, RealUniqueArray2& Me){
 
-  Int32 nb_nodes = cell.nbNode();
-  auto rho = m_rho(cell);
+  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
+  VariableDoFReal& gauss_weight(m_gauss_on_cells.gaussWeight());
+  VariableDoFArrayReal& gauss_shape(m_gauss_on_cells.gaussShape());
+  VariableDoFReal& gauss_jacobian(m_gauss_on_cells.gaussJacobian());
 
-  auto wt = vec[ig] * jacobian;
-  for (Int32 inod = 0, iig = 4; inod < nb_nodes; ++inod) {
+  auto jacobian = gauss_jacobian[igauss];
 
-    auto rhoPhi_i = wt*rho*vec[ig + iig];
+  auto wt = gauss_weight[igauss] * jacobian;
+  for (Int32 inod = 0; inod < nb_nodes; ++inod) {
+
+    auto Phi_i = gauss_shape[igauss][inod];
+    auto rhoPhi_i = wt*rho*Phi_i;
 
     //----------------------------------------------
     // Elementary Mass (Me) Matrix assembly
     //----------------------------------------------
-    for (Int32 jnod = inod, jig = 4*(1+inod) ; jnod < nb_nodes; ++jnod) {
+    for (Int32 jnod = inod ; jnod < nb_nodes; ++jnod) {
 
-      auto Phi_j = vec[ig + jig];
+      auto Phi_j = gauss_shape[igauss][jnod];
       auto mij = rhoPhi_i*Phi_j;
 
       for (Int32 l = 0; l < NDIM; ++l){
@@ -1364,9 +1482,7 @@ _computeElemMass(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, c
         Me(ii,jj) = mij;
         Me(jj,ii) = mij;
       }
-      jig += 4;
     }
-    iig += 4;
   }
 }
 
@@ -1374,17 +1490,22 @@ _computeElemMass(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, c
 /*---------------------------------------------------------------------------*/
 // ! Compute elementary stiffness matrix in 3D at a given Gauss point
 void ElastodynamicModule::
-_computeK(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real3x3& jac, RealUniqueArray2& Ke){
+_computeK(const Real& lambda, const Real& mu, const DoFLocalId& igauss, const Int32& nb_nodes, RealUniqueArray2& Ke){
 
-  Int32 nb_nodes = cell.nbNode();
+  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
+  VariableDoFReal& gauss_weight(m_gauss_on_cells.gaussWeight());
+  VariableDoFArrayReal3& gauss_shapederiv(m_gauss_on_cells.gaussShapeDeriv());
+  VariableDoFReal3x3& gauss_jacobmat(m_gauss_on_cells.gaussJacobMat());
+  VariableDoFReal& gauss_jacobian(m_gauss_on_cells.gaussJacobian());
+
+  auto jacobian = gauss_jacobian[igauss];
+
   auto size{NDIM * nb_nodes};
 
   // Setting the "B" matrix size for the max number of nodes in 3D:
   // 8 nodes for a lin element/20 nodes for a quadratic one
   RealUniqueArray2 Bmat(NDIM, size);
 
-  auto lambda = m_lambda(cell);
-  auto mu = m_mu(cell);
   auto a{ lambda + 2.*mu };
 
   for (int i = 0; i <  NDIM; ++i)
@@ -1393,28 +1514,26 @@ _computeK(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Re
     }
 
   // ! Computes the Inverse Jacobian Matrix of a 2D or 3D finite-element
-  auto jacobian {0.};
+  auto jac = gauss_jacobmat[igauss];
   Real3x3 ijac;
 
   if (NDIM == 3) {
-    jacobian = math::matrixDeterminant(jac);
     ijac = math::inverseMatrix(jac);
   }
   else {
-    jacobian = jac.x.x * jac.y.y - jac.x.y * jac.y.x;
     ijac.x.x = jac.y.y / jacobian;
     ijac.x.y = -jac.x.y / jacobian;
     ijac.y.x = -jac.y.x / jacobian;
     ijac.y.y = jac.x.x / jacobian;
   }
 
-  auto wt = vec[ig] * jacobian;
+  auto wt = gauss_weight[igauss] * jacobian;
 
   //------------------------------------------------------
   // Elementary Derivation Matrix B at current Gauss point
   //------------------------------------------------------
-  for (Int32 inod = 0, iig = 4; inod < nb_nodes; ++inod) {
-    Real3 dPhi {vec[ig + iig + 1], vec[ig + iig + 2], vec[ig + iig + 3]};
+  for (Int32 inod = 0; inod < nb_nodes; ++inod) {
+    auto dPhi = gauss_shapederiv[igauss][inod];
     for (int i = 0; i < NDIM; ++i){
       auto bi{0.};
       for (int j = 0; j < NDIM; ++j) {
@@ -1422,16 +1541,6 @@ _computeK(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Re
       }
       Bmat(i, inod) = bi;
     }
-    /*
-    auto b1 = ijac.x.x * dPhi.x + ijac.x.y * dPhi.y + ijac.x.z * dPhi.z;
-    auto b2 = ijac.y.x * dPhi.x + ijac.y.y * dPhi.y + ijac.y.z * dPhi.z;
-    auto b3 = ijac.z.x * dPhi.x + ijac.z.y * dPhi.y + ijac.z.z * dPhi.z;
-
-    Bmat(0, inod) = b1;
-    Bmat(1, inod) = b2;
-    Bmat(2, inod) = b3;
-*/
-    iig += 4;
   }
 
   //----------------------------------------------
@@ -1666,6 +1775,7 @@ void ElastodynamicModule::
 _assembleLinearLHS()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
 
   if (NDIM == 3)
     info() << "Assembly of the FEM 3D bilinear operator (LHS - matrix A) ";
@@ -1674,7 +1784,9 @@ _assembleLinearLHS()
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
+    auto cell_type = cell.type();
     auto nb_nodes{ cell.nbNode() };
+    auto nbgauss = m_nb_gauss[cell];
 
     // Setting the elementary matrices sizes for the max number of nodes * 2 or 3 dofs per node
     auto size{NDIM*nb_nodes};
@@ -1691,21 +1803,21 @@ _assembleLinearLHS()
     }
 
     // Loop on the cell Gauss points to compute integrals terms
-    Int32 ngauss{ 0 };
-    auto vec = cell_fem.getGaussData(cell, integ_order, ngauss);
     auto cm{(1 - alfam)/beta/dt2};
     auto ck{(1 - alfaf)};
+    auto lambda = m_lambda(cell);
+    auto mu = m_mu(cell);
+    auto rho = m_rho(cell);
 
-    for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4*(1 + nb_nodes)) {
+    for (Int32 igauss = 0; igauss < nbgauss; ++igauss) {
 
-      auto jacobian {0.};
-      auto jac = _computeJacobian(cell, ig, vec, jacobian);
+      DoFLocalId gauss_pti = gauss_point.dofId(cell, igauss);
 
       // Computing elementary stiffness matrix at Gauss point ig
-      _computeK(cell, ig, vec, jac, Ke);
+      _computeK(lambda, mu, gauss_pti, nb_nodes, Ke);
 
       // Computing elementary mass matrix at Gauss point ig
-      _computeElemMass(cell, ig, vec, jacobian, Me);
+      _computeElemMass(rho, gauss_pti, nb_nodes, Me);
 
       // Considering a simple Newmark scheme here (Generalized-alfa will be done later)
       // Computing Me/beta/dt^2 + Ke
@@ -1745,6 +1857,7 @@ _assembleLinearLHS()
   // Assemble paraxial mass contribution if any
   _assembleLHSParaxialContribution();
 }
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 // ! Assemble the 2D or 3D linear operator (Right Hand Side B vector)
@@ -1760,10 +1873,17 @@ _assembleLinearRHS(){
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   auto dt = m_global_deltat();
 
+  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
+  VariableDoFReal& gauss_weight(m_gauss_on_cells.gaussWeight());
+  VariableDoFReal& gauss_jacobian(m_gauss_on_cells.gaussJacobian());
+  VariableDoFArrayReal& gauss_shape(m_gauss_on_cells.gaussShape());
+
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
+    auto cell_type = cell.type();
     auto rho = m_rho(cell);
     auto nb_nodes{ cell.nbNode() };
+    auto nbgauss = m_nb_gauss[cell];
 
     auto size{NDIM*nb_nodes};
     RealUniqueArray2 Me(size,size);
@@ -1778,23 +1898,20 @@ _assembleLinearRHS(){
     auto nc = cell.uniqueId().asInt32();
 
     // Loop on the cell Gauss points to compute integrals terms
-    Int32 ngauss{ 0 };
-    auto vec = cell_fem.getGaussData(cell, integ_order, ngauss);
     auto cm = (1 - alfam)/beta/dt2;
 
-    for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4*(1 + nb_nodes)) {
+    for (Int32 igauss = 0; igauss < nbgauss; ++igauss) {
 
-      auto jacobian {0.};
-      _computeJacobian(cell, ig, vec, jacobian);
+      DoFLocalId gauss_pti = gauss_point.dofId(cell, igauss);
+      auto jacobian = gauss_jacobian[gauss_pti];
 
       // Computing elementary mass matrix at Gauss point ig
-      _computeElemMass(cell, ig, vec, jacobian, Me);
+      _computeElemMass(rho, gauss_pti, nb_nodes, Me);
 
       // Considering a simple Newmark scheme here (Generalized-alfa will be done later)
       // Computing Me/beta/dt^2 + Ke
       Int32 n1_index{ 0 };
-      auto iig{4};
-      auto wt = vec[ig] * jacobian;
+      auto wt = gauss_weight[gauss_pti] * jacobian;
 
       for (Node node1 : cell.nodes()) {
 
@@ -1804,14 +1921,14 @@ _assembleLinearRHS(){
           auto num1 = node1.uniqueId().asInt32();
 
           for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
-            DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
-            auto ii = NDIM * n1_index + iddl;
+           DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
+           auto ii = NDIM * n1_index + iddl;
 
-            bool is_node1_dofi_set = (bool)m_imposed_displ[node1][iddl];
-            auto rhs_i{ 0. };
+           bool is_node1_dofi_set = (bool)m_imposed_displ[node1][iddl];
+           auto rhs_i{ 0. };
 
-            //          if (node1.isOwn() && !is_node1_dofi_set) {
-            if (!is_node1_dofi_set) {
+           //          if (node1.isOwn() && !is_node1_dofi_set) {
+           if (!is_node1_dofi_set) {
 
               /*----------------------------------------------------------
             // Mass contribution to the RHS:
@@ -1834,7 +1951,7 @@ _assembleLinearRHS(){
                 ++n2_index;
               }
 
-            /*-------------------------------------------------
+              /*-------------------------------------------------
             // Other forces (imposed nodal forces, body forces)
             //-------------------------------------------------*/
 
@@ -1842,7 +1959,8 @@ _assembleLinearRHS(){
                 //----------------------------------------------
                 // Body force terms
                 //----------------------------------------------
-                auto rhoPhi_i = wt * rho * vec[ig + iig];
+                auto Phi_i = gauss_shape[gauss_pti][n1_index];
+                auto rhoPhi_i = wt * rho * Phi_i;
                 rhs_i += rhoPhi_i * gravity[iddl];
               }
 
@@ -1854,7 +1972,7 @@ _assembleLinearRHS(){
                   rhs_i += m_force[node1][iddl];
               }
               rhs_values[node1_dofi] += rhs_i;
-            }
+           }
           }
         }
         ++n1_index;
@@ -1970,14 +2088,14 @@ _assembleLinearRHS(){
 
           rhs_values[node_dof_id] = Ft; // default = hasLoading
           if (hasMoment) {
-            if (is_dew && dew != 0.) {
+           if (is_dew && dew != 0.) {
               rhs_values[node_dof_id] /= dew;
-            }
-            else{
+           }
+           else{
               info() << "EW distance for seismic moment implementation is missing or equal to 0.0! "
                      << "Applying the seismic moment as a user loading";
 
-            }
+           }
           }
         }
       }
@@ -2050,7 +2168,6 @@ _assembleLinearRHS(){
     }
   }
 }
-
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void ElastodynamicModule::
@@ -2058,11 +2175,14 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
 
   auto dt = m_global_deltat();
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
   auto c0{1. - alfaf};
   auto cgb{gamma / beta};
   auto c1{c0 * cgb / dt};
+/*
   auto c2{dt * c0 * (cgb / 2. - 1.)};
-  auto c3{ c0 * cgb - 1.};
+  auto cc3{ c0 * cgb - 1.};
+*/
 
   for (const auto& bs : options()->paraxialBoundaryCondition()) {
 
@@ -2104,9 +2224,10 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
 
         // Loop on the cell Gauss points to compute integrals terms
         Int32 ngauss{ 0 };
-        auto vec = cell_fem.getGaussData(face, integ_order, ngauss);
+        auto vec = cell_fem.getGaussData(face, ninteg, ngauss);
 
-        for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4 * (1 + nb_nodes)) {
+        Int32 ng{4 * (1 + nb_nodes)};
+        for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += ng) {
 
           auto jacobian{ 0. };
           _computeJacobian(face, ig, vec, jacobian);
@@ -2119,7 +2240,6 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
 
           for (Node node : face.nodes()) {
 
-//            if (node.isOwn()) {
               auto Phi_i = vec[ig + iig];
               auto vi_pred = m_prev_vel[node] + (1. - gamma) * dt * m_prev_acc[node];
               auto ui_pred = m_prev_displ[node] + dt * m_prev_vel[node] + (0.5 - beta) * dt2 * m_prev_acc[node];
@@ -2133,7 +2253,6 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
                 }
                 a0[i] += Phi_i * RhoC[i] * vi;
               }
-//            }
             iig += 4;
           }
 
@@ -2208,12 +2327,13 @@ _assembleLHSParaxialContribution(){
 
         // Loop on the cell Gauss points to compute integrals terms
         Int32 ngauss{ 0 };
-        auto vec = cell_fem.getGaussData(face, integ_order, ngauss);
+        auto vec = cell_fem.getGaussData(face, ninteg, ngauss);
 
-        for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += 4 * (1 + nb_nodes)) {
+        Int32 ng{ 4 * (1 + nb_nodes) };
+        for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += ng) {
+
 
           auto jacobian{ 0. };
-
           _computeJacobian(face, ig, vec, jacobian);
           _computeKParax(face, ig, vec, jacobian, Ke, RhoC);
 
@@ -2222,7 +2342,6 @@ _assembleLHSParaxialContribution(){
           auto iig{ 4 };
           for (Node node1 : face.nodes()) {
 
-//            if (node1.isOwn()){
             for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
 
               DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
@@ -2357,7 +2476,7 @@ _doSolve(){
   m_acc.synchronize();
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {
-    int p = std::cout.precision();
+    long p = std::cout.precision();
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
       info() << "Node: " << node.uniqueId() << " Ux=" << m_displ[node].x << " Uy=" << m_displ[node].y << " Uz=" << m_displ[node].z;

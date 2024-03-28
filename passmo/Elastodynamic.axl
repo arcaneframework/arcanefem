@@ -100,6 +100,9 @@
     <variable field-name="vp" name="Vp" data-type="real" item-kind="cell" dim="0">
       <description>P-wave (compression) velocity value per cell</description>
     </variable>
+    <variable field-name="nb_gauss" name="NbGauss" data-type="integer" item-kind="cell" dim="0">
+      <description>Number of Gauss integration points per cell</description>
+    </variable>
   </variables>
 
   <entry-points>
@@ -442,14 +445,8 @@
         </simple>
     </complex>
 
-    <simple name = "gauss-nint1" type = "integer" default="2" optional = "true">
-    <description>Gauss-Legendre integration order along the 1st local cell direction </description>
-    </simple>
-    <simple name = "gauss-nint2" type = "integer" default="2" optional = "true">
-    <description>Gauss-Legendre integration order along the 2nd local cell direction </description>
-    </simple>
-    <simple name = "gauss-nint3" type = "integer" default="2" optional = "true">
-    <description>Gauss-Legendre integration order along the 3rd local cell direction </description>
+    <simple name = "gauss-nint" type = "integer" default="2" optional = "true">
+    <description>Gauss-Legendre quadrature order</description>
     </simple>
 
     <!-- - - - - - analysis-type - - - - -->

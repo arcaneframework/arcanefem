@@ -1,3 +1,17 @@
+// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+//-----------------------------------------------------------------------------
+// Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// See the top-level COPYRIGHT file for details.
+// SPDX-License-Identifier: Apache-2.0
+//-----------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
+/* ElastodynamicModule.h                                       (C) 2022-2024 */
+/*                                                                           */
+/* PASSMO : Performant Assessment for Seismic Site Modelling with finite-    */
+/* element (FEM) numerical modelling approach                                */
+/* Created by : E. Foerster                                                  */
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 #ifndef PASSMO_ELASTODYNAMICMODULE_H
 #define PASSMO_ELASTODYNAMICMODULE_H
 
@@ -8,6 +22,7 @@
 #include "analytical_func.h"
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
+#include "GaussDoFsOnCells.h"
 
 
 /*---------------------------------------------------------------------------*/
@@ -64,6 +79,7 @@ class ElastodynamicModule
 
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
+  GaussDoFsOnCells m_gauss_on_cells;
 
   // Struct to make sure we are using a CaseTable associated
   // to the right file
@@ -95,10 +111,9 @@ class ElastodynamicModule
   // List of CaseTable for double couple conditions (seismic moments or loadings)
   UniqueArray<CaseTableInfo> m_dc_case_table_list;
 
-  Integer3 integ_order{2, 2, 2};
+  Integer ninteg{2};
   Int32 NDIM{2};
   CellFEMDispatcher cell_fem{};
-  GaussPointDispatcher gausspt{};
   Real3 gravity{0.,0.,0.};
   Real penalty{1.e64};
   Real gamma{0.5};
@@ -116,6 +131,8 @@ class ElastodynamicModule
  private:
 
   void _initDofs();
+  void _startInitGauss();
+  void _initGaussStep();
   void _initCells();
   void _applyInitialNodeConditions();
   void _applyInitialCellConditions();
@@ -137,8 +154,8 @@ class ElastodynamicModule
   /*  Update nodal dofs vector for the Newmark or Generalized-alfa time integration schemes */
   void _updateNewmark();
 
-  void _computeK(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real3x3& jac, RealUniqueArray2& Ke);
-  void _computeElemMass(const Cell& cell,const Int32& ig, const RealUniqueArray& vec, const Real& jacobian, RealUniqueArray2& Me);
+  void _computeK(const Real& lambda, const Real& mu, const DoFLocalId& igauss, const Int32& nb_nodes, RealUniqueArray2& Ke);
+  void _computeElemMass(const Real& rho, const DoFLocalId& igauss, const Int32& nb_nodes, RealUniqueArray2& Me);
   void _computeKParax(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
                       RealUniqueArray2& Ke, const Real3& RhoC);
 };

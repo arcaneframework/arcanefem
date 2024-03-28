@@ -1,47 +1,44 @@
-/*
-* PASSMO : Performant Assessment for Seismic Site Modelling
-*
-* Definition of classes to implement finite-element cells and related shape functions
-* and their derivatives
-*
-* utilFEM.cc: declarations
-*
-*  Created on: December 2019
-*      Author: E. Foerster
-*/
-
+// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+//-----------------------------------------------------------------------------
+// Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// See the top-level COPYRIGHT file for details.
+// SPDX-License-Identifier: Apache-2.0
+//-----------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
+/* utilFEM.cc                                                  (C) 2022-2024 */
+/*                                                                           */
+/* PASSMO : Performant Assessment for Seismic Site Modelling with finite-    */
+/* element (FEM) numerical modelling approach                                */
+/* Created by : E. Foerster                                                  */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 #include "arcane/MathUtils.h"
 #include <arcane/utils/NumArray.h>
-#include "arcane/utils/ArgumentException.h"
 #include <arcane/IParallelMng.h>
 #include <arcane/IMesh.h>
 #include <arcane/IItemFamily.h>
-#include <arcane/ItemGroup.h>
 #include <arcane/geometry/IGeometry.h>
 #include <arcane/VariableTypes.h>
 
-#include "Integer3std.h"
 #include "utilFEM.h"
 
 using namespace Arcane;
 using namespace Arcane::FemUtils;
-/////////////////////////////////////////////////////////////////////////////
-// class CellFEMDispatcher: constructor
-//CellFEMDispatcher::CellFEMDispatcher(VariableNodeReal3& node_coords): m_node_coords(node_coords)
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 CellFEMDispatcher::CellFEMDispatcher(){
  // Setting to null default value
  for(int i = 0; i < NB_BASIC_ITEM_TYPE; ++i )
  {
-   m_geomfunc[i] = nullptr;
+//   m_geomfunc[i] = nullptr;
    m_shapefunc[i] = nullptr;
    m_shapefuncderiv[i] = nullptr;
-   m_orientfunc[i] = nullptr;
+//   m_orientfunc[i] = nullptr;
  }
 
  // Gives functions to compute geometric properties (length, surface or volume)
  // Linear elements
+/*
  m_geomfunc[IT_Line2] = Line2Length;
  m_geomfunc[IT_Triangle3] = Tri3Surface;
  m_geomfunc[IT_Quad4] = Quad4Surface;
@@ -49,13 +46,16 @@ CellFEMDispatcher::CellFEMDispatcher(){
  m_geomfunc[IT_Hexaedron8] = Hexa8Volume;
  m_geomfunc[IT_Pentaedron6] = Penta6Volume;
  m_geomfunc[IT_Pyramid5] = Pyramid5Volume;
+*/
 
  // Quadratic elements
+/*
  m_geomfunc[IT_Line3] = Line3Length;
  m_geomfunc[IT_Triangle6] = Tri6Surface;
  m_geomfunc[IT_Quad8] = Quad8Surface;
  m_geomfunc[IT_Tetraedron10] = Tetra10Volume;
  m_geomfunc[IT_Hexaedron20] = Hexa20Volume;
+*/
 
  // Gives functions to compute shape function value in finite-element reference coordinate system
  // Linear elements
@@ -118,36 +118,17 @@ CellFEMDispatcher::CellFEMDispatcher(){
 // ! Computes the Jacobian = geometric size (length, surface or volume) of any finite-element
 // aligned with the coordinate axes (otherwise, jacobian to be computed by the
 // general Jacobian matrix)
+/*
 void CellFEMDispatcher::
 set_node_coords(VariableNodeReal3& node_coords){  m_node_coords = &node_coords; }
+*/
 
 RealUniqueArray CellFEMDispatcher::
-getGaussData(const ItemWithNodes& item, const Integer3& nint, Int32& ngauss){
+getGaussData(const ItemWithNodes& item, const Integer& nint, Int32& ngauss){
 
- Int32 ndim = getGeomDimension(item);
  const Int32& nnod = item.nbNode();
- ngauss = nint.m_i;
  auto cell_type = item.type();
- auto nint1 {nint.m_i};
- auto nint2 {nint.m_j};
- auto nint3 {nint.m_k};
-
- if (ndim >= 2) {
-   if (cell_type == IT_Triangle3 || cell_type == IT_Triangle6) {
-     nint2 = 1;
-     nint1 = nptg[nint.m_i-1];
-   }
-   else if (cell_type == IT_Tetraedron4 || cell_type == IT_Tetraedron10){
-     nint2 = 1;
-     nint3 = 1;
-     nint1 = 4;
-   }
-
-   ngauss = nint1*nint2;
-
-   if (ndim == 3)
-     ngauss *= nint3;
- }
+ ngauss = getNbGaussPointsfromOrder(cell_type,nint);
 
  // Vector of double containing:
  // ngauss points * [weight, gauss ref coord [Real3], nnod * (shapefunc values, 3*shapefunc deriv
@@ -155,78 +136,22 @@ getGaussData(const ItemWithNodes& item, const Integer3& nint, Int32& ngauss){
  Int32 nsize = ngauss * 4 * (1 + nnod);
  RealUniqueArray vec(nsize);
 
- GaussPointDispatcher gausspt;
- gausspt.init_order(nint);
-
  Int32 index{ 0 };
+ for (Int32 ig = 0; ig < ngauss; ++ig) {
+   auto wt = getGaussWeight(item, nint, ig);
+   auto pos = getGaussRefPosition(item, nint, ig);
+   vec[index++] = wt;
+   vec[index++] = pos.x;
+   vec[index++] = pos.y;
+   vec[index++] = pos.z;
 
- if (ndim == 2) {
-   for (Int32 i1 = 0; i1 < nint1; ++i1) {
-     for (Int32 i2 = 0; i2 < nint2; ++i2) {
-
-       Integer3 indices{ i1, i2, -1 };
-       auto wt = gausspt.getWeight(item, indices);
-       auto pos = gausspt.getRefPosition(item, indices);
-       vec[index++] = wt;
-       vec[index++] = pos.x;
-       vec[index++] = pos.y;
-       vec[index++] = 0.;
-
-       for (Int32 inod = 0; inod < item.nbNode(); ++inod) {
-         auto Phi_i = getShapeFuncVal(item.type(), inod, pos);
-         vec[index++] = Phi_i;
-         auto dPhi = getShapeFuncDeriv(item.type(), inod, pos);
-         vec[index++] = dPhi.x;
-         vec[index++] = dPhi.y;
-         vec[index++] = 0.;
-       }
-     }
-   }
- } else if (ndim == 3) {
-
-   for (Int32 i1 = 0; i1 < nint.m_i; ++i1) {
-     for (Int32 i2 = 0; i2 < nint.m_j; ++i2) {
-       for (Int32 i3 = 0; i3 < nint.m_k; ++i3) {
-         Integer3 indices{ i1, i2, i3 };
-         auto wt = gausspt.getWeight(item, indices);
-         auto pos = gausspt.getRefPosition(item, indices);
-         vec[index++] = wt;
-         vec[index++] = pos.x;
-         vec[index++] = pos.y;
-         vec[index++] = pos.z;
-
-         for (Int32 inod = 0; inod < item.nbNode(); ++inod) {
-           auto num = item.node(inod).uniqueId();
-           auto Phi_i = getShapeFuncVal(item.type(), inod, pos);
-           vec[index++] = Phi_i;
-           auto dPhi = getShapeFuncDeriv(item.type(), inod, pos);
-           vec[index++] = dPhi.x;
-           vec[index++] = dPhi.y;
-           vec[index++] = dPhi.z;
-         }
-       }
-     }
-   }
- } else {
-
-   for (Int32 i1 = 0; i1 < nint.m_i; ++i1) {
-
-     Integer3 indices{ i1, -1, -1 };
-     auto wt = getWeight(i1, nint.m_i);
-     Real pos{ getRefPosition(i1, nint.m_i) };
-     vec[index++] = wt;
-     vec[index++] = pos;
-     vec[index++] = 0.;
-     vec[index++] = 0.;
-
-     for (Int32 inod = 0; inod < item.nbNode(); ++inod) {
-       auto Phi_i = getShapeFuncVal(item.type(), inod, { pos, 0., 0. });
-       vec[index++] = Phi_i;
-       auto dPhi = getShapeFuncDeriv(item.type(), inod, { pos, 0., 0. });
-       vec[index++] = dPhi.x;
-       vec[index++] = 0.;
-       vec[index++] = 0.;
-     }
+   for (Int32 inod = 0; inod < nnod; ++inod) {
+     auto Phi_i = getShapeFuncVal(cell_type, inod, pos);
+     vec[index++] = Phi_i;
+     auto dPhi = getShapeFuncDeriv(cell_type, inod, pos);
+     vec[index++] = dPhi.x;
+     vec[index++] = dPhi.y;
+     vec[index++] = dPhi.z;
    }
  }
  return vec;
@@ -384,6 +309,7 @@ Real3 Line2ShapeFuncDeriv(const Integer& inod,const Real3&){
  return { -0.5,0.,0. };
 }
 
+/*
 Integer3 Line2Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
  const Real3& n0 = n[item.node(0)];
  const Real3& n1 = n[item.node(1)];
@@ -396,6 +322,7 @@ Integer3 Line2Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
  }
  return dir;
 }
+*/
 
 /*---------------------------------------------------------------------------*/
 // Line3: quadratic edge finite-element
@@ -428,9 +355,11 @@ Real3 Line3ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
  return {-2.*ref_coord[0], 0.,0.};
 }
 
+/*
 Integer3 Line3Orientation(const ItemWithNodes& item,const VariableNodeReal3& n){
  return Line2Orientation(item,n);
 }
+*/
 
 /*---------------------------------------------------------------------------*/
 // Tri3: linear triangle finite-element
@@ -706,7 +635,6 @@ Real3 Quad8ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
  }
 
  auto r0 {r*ri}, s0 {s*si};
- Real Phi{0.};
  Real3 dPhi;
  auto t0{ r0 + s0 - 1. };
 
@@ -1027,7 +955,7 @@ Real Tetra4ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
  return ti;
 }
 
-Real3 Tetra4ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
+Real3 Tetra4ShapeFuncDeriv(const Integer& inod,const Real3& /*ref_coord*/){
 
  if (inod == 3) return {0.,0.,1.};
  if (inod == 1) return {1.,0.,0.};
@@ -1227,25 +1155,27 @@ Real3 Penta6ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
 // Pyramid5: linear pyramid finite-element
 //  Normalized coordinates (triplets): x, y, z varying between -1/+1
 //
-//                          ^
-//                          |
-//                          Z
-//                          |
-//                          4 (0,0,1)
-//                          *
-//                         ** *
-//                        *  *  *
-//                       *    *   *
-//                      *      *     *
-//                     *        *       *
-//          (-1,1,-1) 3 ---------*-------- 2 (1,1,-1)
-//                   .            *     .
-//                  Y              *    .
-//                 .                *  .
-//                .                  *.
-//   (-1,-1,-1)  0 -------- X ------- 1 (1,-1,-1)
+//                               ^
+//                               |
+//                               Z
+//                               |
+//                               4 (0,0,1)
+//                              *
+//                             * **
+//                            ** *  *
+//                           * * |*   *
+//                          * *  | *    *
+//                         * *   |  *     *
+//                        * *    |   *      *      .Y
+//                       * *     |    *       *  .
+//            (-1,0,0)  * 2 -----|-----*------ 1 (0,1,0)
+//                     * .       |      *  .  .
+//                    * .        |     . *   .
+//                   *.             .     * .
+//                  *                  X . *
+//        (0,-1,0) 3 --------------------- 0 (1,0,0)
 //
-// direct : 0,1,2,3,...,6 (local numbering)
+// direct : 0,1,2,3,4 (local numbering)
 /*---------------------------------------------------------------------------*/
 
 Real Pyramid5Volume(const ItemWithNodes& item,const VariableNodeReal3& n){
@@ -1266,19 +1196,25 @@ Real Pyramid5ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
  assert(inod >= 0 && inod < 5);
 #endif
  auto	r{ ref_coord[0] },s{ ref_coord[1] },t{ ref_coord[2] } ;
- auto	ri{-1.},si{-1.};
+ auto	r1{-1.},s1{1.}, r2{-1.},s2{-1.};
+
+ if (inod == 4) return t;
+ auto ti{t - 1.};
+ auto t0{0.};
+
+ if (fabs(ti) < REL_PREC)
+   ti = 0.;
+ else
+   t0 = -1./ti / 4.;
 
  switch(inod){
- default: break;// default is first node (index 0)
- case 2:	si = 1;
- case 1:	ri = 1; break;
- case 3:	si = 1; break;
+ case 1:	s1 = -1.; r2 = 1.; break;
+ case 2:	r1 = 1.; r2 = 1.; break;
+ case 3:	r1 = 1.; s2 = 1.; break;
+ default: break;// default is for node 0
  }
 
- if (inod == 4)
-   return (1. + t) / 2.;
-
- return (1. + ri*r) * (1. + si*s) * (1. - t) / 8.;
+ return (r1*r + s1*s + ti) * (r2*r + s2*s + ti) * t0;
 }
 
 Real3 Pyramid5ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
@@ -1287,25 +1223,34 @@ Real3 Pyramid5ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
  assert(inod >= 0 && inod < 5);
 #endif
  auto	r{ ref_coord[0] },s{ ref_coord[1] },t{ ref_coord[2] } ;
- auto	ri{-1.},si{-1.};
+ auto	r1{-1.},s1{1.}, r2{-1.},s2{-1.};
+
+ auto ti{t - 1.};
+ auto t0{0.};
+
+ if (fabs(ti) < REL_PREC)
+   ti = 0.;
+ else
+   t0 = -1./ti / 4.;
 
  switch(inod){
- default: break;// default is first node (index 0)
- case 2:	si = 1;
- case 1:	ri = 1; break;
- case 3:	si = 1; break;
+ case 1:	s1 = -1.; r2 = 1.; break;
+ case 2:	r1 = 1.; r2 = 1.; break;
+ case 3:	r1 = 1.; s2 = 1.; break;
+ default: break;// default is for node 0
  }
 
+ if (inod == 4) return {0.,0.,1.};
+
  Real3 dPhi;
- if (inod == 4) {
-   dPhi.x = dPhi.y = 0.;
-   dPhi.z = 0.5;
- }
- else{
-   dPhi.x = ri * (1. + si*s) * (1. - t) / 8.;
-   dPhi.y = si * (1. + ri*r) * (1. - t) / 8.;
-   dPhi.z = - (1. + ri*r) * (1. + si*s) / 8.;
- }
+ auto r12{r1+r2}, rr{2.*r1*r2}, s12{s1+s2}, ss{2.*s1*s2}, rs{r1*s2 + r2*s1}, ti2{4.*ti*ti};
+
+ dPhi.x = t0 * (rr*r + rs*s + r12*ti);
+ dPhi.y = t0 * (rs*r + ss*s + s12*ti);
+
+ if (ti < REL_PREC) dPhi.z = 0.;
+ else
+   dPhi.z = t0*(r12*r + s12*s + 2.*ti) + (r1*r + s1*s + ti) * (r2*r + s2*s + ti) /ti2;
 
  return dPhi;
 }
@@ -1334,192 +1279,6 @@ Int32 getGeomDimension(const ItemWithNodes& item){
 
  }
  return dim;
-}
-
-/*---------------------------------------------------------------------------*/
-/////////////////////////////////////////////////////////////////////////////
-// class GaussPointDispatcher: construction methods
-
-//GaussPointDispatcher::GaussPointDispatcher(const Integer3& indices,const Integer3& int_order):
-// m_indices(indices),m_integ_order(int_order){
-GaussPointDispatcher::GaussPointDispatcher(){
- // Setting to null default value
- for(Integer i = 0; i < NB_BASIC_ITEM_TYPE; ++i ){
-   m_weightfunc[i] = nullptr;
-   m_refpositionfunc[i] = nullptr;
- }
-
- // Gives functions to compute weight for a Gauss Point in finite-element reference coordinate system
- // Linear elements
- m_weightfunc[IT_Line2] = LineWeight;
- m_weightfunc[IT_Triangle3] = TriWeight;
- m_weightfunc[IT_Quad4] = QuadWeight;
- m_weightfunc[IT_Tetraedron4] = TetraWeight;
- m_weightfunc[IT_Hexaedron8] = HexaWeight;
- m_weightfunc[IT_Pentaedron6] = PentaWeight;
-
- // Quadratic elements
- m_weightfunc[IT_Line3] = LineWeight;
- m_weightfunc[IT_Triangle6] = TriWeight;
- m_weightfunc[IT_Quad8] = QuadWeight;
- m_weightfunc[IT_Tetraedron10] = TetraWeight;
- m_weightfunc[IT_Hexaedron20] = HexaWeight;
-
- // Gives functions to compute position of a Gauss Point in finite-element reference coordinate system
- // Linear elements
- m_refpositionfunc[IT_Line2] = LineRefPosition;
- m_refpositionfunc[IT_Triangle3] = TriRefPosition;
- m_refpositionfunc[IT_Quad4] = QuadRefPosition;
- m_refpositionfunc[IT_Tetraedron4] = TetraRefPosition;
- m_refpositionfunc[IT_Hexaedron8] = HexaRefPosition;
- m_refpositionfunc[IT_Pentaedron6] = PentaRefPosition;
-
- // Quadratic elements
- m_refpositionfunc[IT_Line3] = LineRefPosition;
- m_refpositionfunc[IT_Triangle6] = TriRefPosition;
- m_refpositionfunc[IT_Quad8] = QuadRefPosition;
- m_refpositionfunc[IT_Tetraedron10] = TetraRefPosition;
- m_refpositionfunc[IT_Hexaedron20] = HexaRefPosition;
-
-}
-
-/////////////////////////////////////////////////////////////////////////////
-// class GaussPointDispatcher: implementation methods
-void GaussPointDispatcher::init_order(const Integer3& int_order) { m_integ_order = int_order; }
-
-Real3 GaussPointDispatcher::getRefPosition(const ItemWithNodes& item, const Integer3& indices){
- Int32 item_type = item.type();
- auto f = m_refpositionfunc[item_type];
- if (f!=nullptr)
-   return f(indices,m_integ_order);
- return Real3::zero();
-}
-
-Real GaussPointDispatcher::getWeight(const ItemWithNodes& item, const Integer3& indices){
- Int32 item_type = item.type();
- auto f = m_weightfunc[item_type];
- if (f!=nullptr)
-   return f(indices,m_integ_order);
- return 0.;
-}
-
-/*---------------------------------------------------------------------------*/
-/////////////////////////////////////////////////////////////////////////////
-// Functions useful for class GaussPointDispatcher
-
-Real getRefPosition(const Integer& indx,const Integer& ordre){
- Real x = xgauss1; // default is order 1
-
- switch(ordre){
- case 2: x = xgauss2[indx]; break;
- case 3: x = xgauss3[indx]; break;
- case 4: x = xgauss4[indx]; break;
- case 5: x = xgauss5[indx]; break;
- case 6: x = xgauss6[indx]; break;
- case 7: x = xgauss7[indx]; break;
- case 8: x = xgauss8[indx]; break;
- case 9: x = xgauss9[indx]; break;
- default: break;
- }
- return x;
-}
-
-Real getWeight(const Integer& indx,const Integer& ordre){
- Real w = wgauss1; // default is order 1
-
- switch(ordre){
- case 2: w = wgauss2[indx]; break;
- case 3: w = wgauss3[indx]; break;
- case 4: w = wgauss4[indx]; break;
- case 5: w = wgauss5[indx]; break;
- case 6: w = wgauss6[indx]; break;
- case 7: w = wgauss7[indx]; break;
- case 8: w = wgauss8[indx]; break;
- case 9: w = wgauss9[indx]; break;
- default: break;
- }
- return w;
-}
-
-/*---------------------------------------------------------------------------*/
-
-Real3 LineRefPosition(const Integer3& indices,const Integer3& ordre){
- return {getRefPosition(indices[0],ordre[0]),0.,0.};
-}
-
-Real LineWeight(const Integer3& indices,const Integer3& ordre){
- return getWeight(indices[0],ordre[0]);
-}
-
-/*---------------------------------------------------------------------------*/
-
-Real3 TriRefPosition(const Integer3& indices,const Integer3& ordre){
- Integer o = ordre[0]-1;
- Integer i = indices[0];
- return {xg1[o][i],xg2[o][i],0.};
-}
-
-Real TriWeight(const Integer3& indices,const Integer3& ordre){
- return wg[ordre[0]-1][indices[0]];
-}
-
-/*---------------------------------------------------------------------------*/
-
-Real3 QuadRefPosition(const Integer3& indices,const Integer3& ordre){
- Real3 pos;
- for (Integer i = 0; i < 2; i++) pos[i] = getRefPosition(indices[i],ordre[i]);
- return pos;
-}
-
-Real QuadWeight(const Integer3& indices,const Integer3& ordre){
- Real w = 1.;
- for (Integer i = 0; i < 2; i++) w *= getWeight(indices[i],ordre[i]);
- return w;
-}
-
-/*---------------------------------------------------------------------------*/
-
-Real3 HexaRefPosition(const Integer3& indices,const Integer3& ordre){
- Real3 pos;
- for (Integer i = 0; i < 3; i++) pos[i] = getRefPosition(indices[i],ordre[i]);
- return pos;
-}
-
-Real HexaWeight(const Integer3& indices,const Integer3& ordre){
- Real w = 1.;
- for (Integer i = 0; i < 3; i++) w *= getWeight(indices[i],ordre[i]);
- return w;
-}
-
-/*---------------------------------------------------------------------------*/
-
-Real3 TetraRefPosition(const Integer3& indices,const Integer3& /*ordre*/){
- Integer i = indices[0];
- return {xit[i],yit[i],zit[i]};
-}
-
-Real TetraWeight(const Integer3& indices,const Integer3& /*ordre*/){
- return wgtetra;
-}
-
-/*---------------------------------------------------------------------------*/
-
-Real3 PentaRefPosition(const Integer3& indices,const Integer3& ordre){
-
- // Same as TriRefPosition on reference coordinate plane (r,s)
- // and LineRefPosition along reference coordinate t (vertical)
- auto pos = TriRefPosition(indices,ordre);
- pos.z = getRefPosition(indices[2],ordre[2]);
-
- return pos;
-}
-
-Real PentaWeight(const Integer3& indices,const Integer3& ordre){
-
- // Same as TriWeight on reference coordinate plane (r,s)
- // and LineWeight with ordre[2] to account for reference coordinate t (vertical)
- Real wgpenta = TriWeight(indices,ordre)*getWeight(indices[2],ordre[2]);
- return wgpenta;
 }
 
 /*---------------------------------------------------------------------------*/

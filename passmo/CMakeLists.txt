@@ -4,10 +4,15 @@ add_executable(Passmo
   ElastodynamicModule.h
   ElastodynamicModule.cc
   main.cc
-  Integer3std.h
   utilFEM.h
   utilFEM.cc
-        analytic_func.cpp analytical_func.h)
+  Integer3std.h
+  analytic_func.cc
+  analytical_func.h
+  GaussDoFsOnCells.h
+  GaussDoFsOnCells.cc
+  GaussQuadrature.h
+  GaussQuadrature.cc )
 
 arcane_generate_axl(Elastodynamic)
 arcane_add_arcane_libraries_to_target(Passmo)
