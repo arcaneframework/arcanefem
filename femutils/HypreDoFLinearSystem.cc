@@ -102,7 +102,9 @@ class HypreDoFLinearSystemImpl
   ~HypreDoFLinearSystemImpl()
   {
     info() << "Calling HYPRE_Finalize";
+#if HYPRE_RELEASE_NUMBER >= 21500
     HYPRE_Finalize(); /* must be the last HYPRE function call */
+#endif
   }
 
  public:
