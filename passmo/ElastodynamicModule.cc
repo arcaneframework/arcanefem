@@ -223,6 +223,19 @@ _startInitGauss(){
       gauss_refpos[gauss_pti] = refpos;
       gauss_shape[gauss_pti] = RealUniqueArray(cell_nbnod);
       gauss_shapederiv[gauss_pti] = Real3UniqueArray(cell_nbnod);
+
+      for (Int32 inod = 0; inod < cell_nbnod; ++inod) {
+        auto Phi_i = cell_fem.getShapeFuncVal(cell_type, inod, refpos);
+        gauss_shape[gauss_pti][inod] = Phi_i;
+
+        auto dPhi = cell_fem.getShapeFuncDeriv(cell_type, inod, refpos);
+        if (ndim <= 2) {
+          dPhi.z = 0.;
+          if (ndim == 1)
+            dPhi.y = 0.;
+        }
+        gauss_shapederiv[gauss_pti][inod] = dPhi;
+      }
     }
   }
 }
@@ -411,16 +424,8 @@ _initGaussStep()
       Real3x3	jac;
       Real jacobian;
       for (Int32 inod = 0; inod < cell_nbnod; ++inod) {
-        auto Phi_i = cell_fem.getShapeFuncVal(cell_type, inod, refpos);
-        gauss_shape[gauss_pti][inod] = Phi_i;
 
-        auto dPhi = cell_fem.getShapeFuncDeriv(cell_type, inod, refpos);
-        if (ndim <= 2) {
-          dPhi.z = 0.;
-          if (ndim == 1)
-            dPhi.y = 0.;
-        }
-        gauss_shapederiv[gauss_pti][inod] = dPhi;
+        auto dPhi = gauss_shapederiv[gauss_pti][inod];
         auto coord_nod = m_node_coord[cell.node(inod)];
         for (int i = 0; i < NDIM; ++i){
           for (int j = 0; j < NDIM; ++j){
