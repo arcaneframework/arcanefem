@@ -466,20 +466,17 @@ compute(){
   auto t0 = options()->getStart();
   dt2 = dt * dt;
 
-  /*
-  if (t+dt > tf)
-    subDomain()->timeLoopMng()->stopComputeLoop(true);
-*/
-
   info() << "Time (s) = " << t;
 
   // Set if we want to keep the matrix structure between calls
   // the rate is a user input (linop_nstep)
   // The matrix has to have the same structure (same structure for non-zero)
+
   if (m_linear_system.isInitialized() && (linop_nstep_counter < linop_nstep || keep_constop)){
     m_linear_system.clearValues();
   }
   else {
+
     m_linear_system.reset();
     m_linear_system.setLinearSystemFactory(options()->linearSystem());
     m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
@@ -514,7 +511,6 @@ compute(){
   // Save/Check results
   //  _checkResultFile();
 
-  //  if (t < tf && t + dt > tf) {
   if (t < tf) {
     if (t + dt > tf) {
       dt = tf - t;
@@ -1319,101 +1315,6 @@ _applyParaxialBoundaryConditions(){
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-void ElastodynamicModule::
-_applyDCConditions(){
-
-/*
-  Real time = globalTime();
-  Int32 bd_index{ 0 };
-  for (const auto& bd : options()->doubleCouple()) {
-
-    NodeGroup east = bd->getEastNode();
-    NodeGroup west = bd->getWestNode();
-    NodeGroup north = bd->getNorthNode();
-    NodeGroup south = bd->getSouthNode();
-
-    Real Ft{0.};
-    auto hasMoment = bd->hasSeismicMomentFile();
-    auto hasLoading = bd->hasLoadingFile();
-
-    if (hasMoment || hasLoading) {
-      const CaseTableInfo& table_info = m_dc_case_table_list[bd_index];
-
-      if (hasMoment) {
-        String file_name = bd->getSeismicMomentFile();
-        info() << "Applying the seismic moment for double-couple condition via CaseTable " << file_name;
-      }
-      else if (hasLoading){
-        String file_name = bd->getLoadingFile();
-        info() << "Applying the loading time history for double-couple condition via CaseTable " << file_name;
-      }
-      CaseTable* inn = table_info.case_table;
-      if (inn != nullptr)
-        inn->value(time, Ft);
-    }
-
-    auto iplane = bd->getSourcePlane();
-    Int32 i1{0}, i2{0};
-
-    if (!iplane) i2 = 1;
-    else if (iplane == 1){
-      i1 = 1;
-      i2 = 2;
-    }
-    else
-      i2 = 2;
-
-    Node dc_node_south, dc_node_west, dc_node_north, dc_node_east;
-
-    ENUMERATE_NODE (inode, west) {
-      dc_node_west = *inode;
-      auto num = dc_node_west.uniqueId();//--- For debug only
-    }
-    ENUMERATE_NODE (inode, east) {
-      dc_node_east = *inode;
-      auto num = dc_node_east.uniqueId();//--- For debug only
-    }
-    ENUMERATE_NODE (inode, north) {
-      dc_node_north = *inode;
-      auto num = dc_node_north.uniqueId();//--- For debug only
-    }
-    ENUMERATE_NODE (inode, south) {
-      dc_node_south = *inode;
-      auto num = dc_node_south.uniqueId();//--- For debug only
-    }
-
-    auto dist = m_dc_dist[bd_index];
-    if (hasMoment) {
-
-      if (dist != Real2::null()) {
-        m_force[dc_node_south][i1] = -Ft / dist.y;
-        m_force[dc_node_north][i1] = Ft / dist.y;
-        m_force[dc_node_east][i2] = -Ft / dist.x;
-        m_force[dc_node_west][i2] = Ft / dist.x;
-      }
-      else{
-        info() << "Warning: distance between double-couple nodes is zero!";
-        info() << "Applying the seismic moment as a simple loading time history";
-        m_force[dc_node_south][i1] = -Ft;
-        m_force[dc_node_north][i1] = Ft;
-        m_force[dc_node_east][i2] = -Ft;
-        m_force[dc_node_west][i2] = Ft;
-      }
-    } else if (hasLoading){
-
-      m_force[dc_node_south][i1] = -Ft;
-      m_force[dc_node_north][i1] = Ft;
-      m_force[dc_node_east][i2] = -Ft;
-      m_force[dc_node_west][i2] = +Ft;
-
-    }
-    ++bd_index;
-  }
-*/
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
 // ! Computes the Jacobian Matrix of a 3D finite-element at Gauss Point ig
 Real3x3 ElastodynamicModule::
 _computeJacobian(const ItemWithNodes& cell,const Int32& ig, const RealUniqueArray& vec, Real& jacobian) {
@@ -2184,10 +2085,8 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
   auto c0{1. - alfaf};
   auto cgb{gamma / beta};
   auto c1{c0 * cgb / dt};
-/*
-  auto c2{dt * c0 * (cgb / 2. - 1.)};
-  auto cc3{ c0 * cgb - 1.};
-*/
+  auto c2{(1. - gamma) * dt};
+  auto cc3{(0.5 - beta) * dt2};
 
   for (const auto& bs : options()->paraxialBoundaryCondition()) {
 
@@ -2246,8 +2145,8 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
           for (Node node : face.nodes()) {
 
               auto Phi_i = vec[ig + iig];
-              auto vi_pred = m_prev_vel[node] + (1. - gamma) * dt * m_prev_acc[node];
-              auto ui_pred = m_prev_displ[node] + dt * m_prev_vel[node] + (0.5 - beta) * dt2 * m_prev_acc[node];
+              auto vi_pred = m_prev_vel[node] + c2 * m_prev_acc[node];
+              auto ui_pred = m_prev_displ[node] + dt * m_prev_vel[node] + cc3 * m_prev_acc[node];
               auto vni = m_prev_vel[node];
 
               for (Int32 i = 0; i < NDIM; ++i) {

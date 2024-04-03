@@ -144,7 +144,6 @@ class ElastodynamicModule
   void _applyDirichletBoundaryConditions();
   void _applyParaxialBoundaryConditions();
   void _applyNeumannBoundaryConditions();
-  void _applyDCConditions();
   void _getParaxialContribution(VariableDoFReal& rhs_values);
   void _assembleLHSParaxialContribution();
   void _getTractionContribution(Arcane::VariableDoFReal& rhs_values);
