@@ -7,8 +7,7 @@
 /*---------------------------------------------------------------------------*/
 /* GaussQuadrature.cpp                                         (C) 2022-2024 */
 /*                                                                           */
-/* PASSMO : Performant Assessment for Seismic Site Modelling with finite-    */
-/* element (FEM) numerical modelling approach                                */
+/* Gauss quadrature utilities for FEM numerical modelling approach           */
 /* Created by : E. Foerster                                                  */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

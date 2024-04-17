@@ -15,7 +15,11 @@ add_library(FemUtils
   AlephDoFLinearSystemFactory_axl.h
   SequentialBasicDoFLinearSystemFactory_axl.h
   HypreDoFLinearSystemFactory_axl.h
-)
+  Integer3std.h
+  GaussDoFsOnCells.h
+  GaussDoFsOnCells.cc
+  GaussQuadrature.h
+  GaussQuadrature.cc )
 
 arcane_generate_axl(AlephDoFLinearSystemFactory)
 arcane_generate_axl(SequentialBasicDoFLinearSystemFactory)

@@ -7,13 +7,12 @@
 /*---------------------------------------------------------------------------*/
 /* GaussQuadrature.h                                           (C) 2022-2024 */
 /*                                                                           */
-/* PASSMO : Performant Assessment for Seismic Site Modelling with finite-    */
-/* element (FEM) numerical modelling approach                                */
+/* Gauss quadrature utilities for FEM numerical modelling approach           */
 /* Created by : E. Foerster                                                  */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-#ifndef PASSMO_GAUSSQUADRATURE_H_
-#define PASSMO_GAUSSQUADRATURE_H_
+#ifndef GAUSSQUADRATURE_H_
+#define GAUSSQUADRATURE_H_
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -345,4 +344,4 @@ extern Integer getNbGaussPointsfromOrder(const Int16& /*cell_type*/, const Integ
 extern Real3 getGaussRefPosition(const ItemWithNodes& /*cell*/, const Integer& /*ninteg*/, const Int32& /*rank*/);
 extern Real getGaussWeight(const ItemWithNodes& /*cell*/, const Integer& /*ninteg*/, const Int32& /*rank*/);
 /*---------------------------------------------------------------------------*/
-#endif // PASSMO_GAUSSQUADRATURE_H_
+#endif // GAUSSQUADRATURE_H_

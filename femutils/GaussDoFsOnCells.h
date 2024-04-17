@@ -7,13 +7,12 @@
 /*---------------------------------------------------------------------------*/
 /* GaussDoFsOnCells.h                                          (C) 2022-2024 */
 /*                                                                           */
-/* PASSMO : Performant Assessment for Seismic Site Modelling with finite-    */
-/* element (FEM) numerical modelling approach                                */
+/* Gauss quadrature utilities for FEM numerical modelling approach           */
 /* Created by : E. Foerster                                                  */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-#ifndef PASSMO_GAUSSDOFSONCELLS_H
-#define PASSMO_GAUSSDOFSONCELLS_H
+#ifndef GAUSSDOFSONCELLS_H
+#define GAUSSDOFSONCELLS_H
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -91,4 +90,4 @@ class GaussDoFsOnCells
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#endif //PASSMO_GAUSSDOFSONCELLS_H
+#endif //GAUSSDOFSONCELLS_H

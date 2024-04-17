@@ -1,0 +1,318 @@
+<?xml version="1.0" ?>
+<module name="Mechanics" version="1.0">
+  <description>Mechanics module</description>
+  <variables>
+    <variable field-name="u" name="U" data-type="real3" item-kind="node" dim="0">
+      <description>Displacements on nodes at current step</description>
+    </variable>
+    <variable field-name="du" name="dU" data-type="real3" item-kind="node" dim="0">
+      <description>Increments of displacements on nodes at current step or iteration</description>
+    </variable>
+    <variable field-name="prev_u" name="PrevU" data-type="real3" item-kind="node" dim="0">
+      <description>Displacements on nodes at previous step</description>
+    </variable>
+    <variable field-name="f" name="F" data-type="real3" item-kind="node" dim="0">
+      <description>Nodal forces at current step</description>
+    </variable>
+    <variable field-name="u_imp" name="UImp" data-type="real3" item-kind="node" dim="0">
+      <description>Nodal imposed displacements: spatial vector component = 1 if true, 0 otherwise </description>
+    </variable>
+    <variable field-name="f_imp" name="FImp" data-type="real3" item-kind="node" dim="0">
+      <description>Nodal imposed forces: spatial vector component = 1 if true, 0 otherwise </description>
+    </variable>
+    <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
+      <description>NodeCoord from Arcane variable</description>
+    </variable>
+    <variable field-name="epsvol" name="Epsvol" data-type="real3" item-kind="cell" dim="0">
+      <description>Total volumetric strain values (xx yy zz) at cells</description>
+    </variable>
+    <variable field-name="epsdev" name="Epsdev" data-type="real3" item-kind="cell" dim="0">
+      <description>Total deviatoric strain values (xy yz xz) at cells</description>
+    </variable>
+    <variable field-name="sigvol" name="Sigvol" data-type="real3" item-kind="cell" dim="0">
+      <description>Total volumetric stress values (xx yy zz) at cells</description>
+    </variable>
+    <variable field-name="sigdev" name="Sigdev" data-type="real3" item-kind="cell" dim="0">
+      <description>Total deviatoric stress values (xy yz xz) at cells</description>
+    </variable>
+    <variable field-name="t_imp" name="TImp" data-type="real3" item-kind="face" dim="0">
+      <description>Imposed traction vector on cell face</description>
+    </variable>
+    <variable field-name="e1_boundary" name="E1Boundary" data-type="real3" item-kind="face" dim="0">
+      <description>1st normalized vector (in-plane) of the local face referential</description>
+    </variable>
+    <variable field-name="e2_boundary" name="E2Boundary" data-type="real3" item-kind="face" dim="0">
+      <description>2nd normalized vector (in-plane in 3D and normal in 2D) of the local face referential</description>
+    </variable>
+    <variable field-name="e3_boundary" name="E3Boundary" data-type="real3" item-kind="face" dim="0">
+      <description>3rd normalized vector (normal in 3D only) of the local face referential</description>
+    </variable>
+
+    <!-- - - - - - elastic properties - - - - -->
+    <variable field-name="rho" name="Rho" data-type="real" item-kind="cell" dim="0">
+      <description>Bulk density value per cell</description>
+    </variable>
+    <variable field-name="young" name="Young" data-type="real" item-kind="cell" dim="0">
+      <description>Young Modulus value per cell</description>
+    </variable>
+    <variable field-name="nu" name="Nu" data-type="real" item-kind="cell" dim="0">
+      <description>Poisson Ratio value per cell</description>
+    </variable>
+    <variable field-name="lambda" name="Lambda" data-type="real" item-kind="cell" dim="0">
+      <description>1st Lame coefficient per cell</description>
+    </variable>
+    <variable field-name="mu" name="Mu" data-type="real" item-kind="cell" dim="0">
+      <description>Shear modulus (=2nd Lame coefficient) per cell</description>
+    </variable>
+    <variable field-name="k" name="K" data-type="real" item-kind="cell" dim="0">
+      <description>Bulk modulus per cell</description>
+    </variable>
+    <variable field-name="nb_gauss" name="NbGauss" data-type="integer" item-kind="cell" dim="0">
+      <description>Number of Gauss integration points per cell</description>
+    </variable>
+  </variables>
+
+  <entry-points>
+    <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
+    <entry-point method-name="compute" name="Compute" where="compute-loop" property="none" />
+  </entry-points>
+
+  <options>
+
+    <simple name="init-elast-type" type="string" optional="false">
+      <description>Type of elastic properties provided by user on mesh cells (=string containing "young", "lame" or "bulk")</description>
+    </simple>
+    <simple name = "stress-results" type = "string" default="stress-result.txt" optional = "true">
+      <description>Filename containing the solution stresses per Cell</description>
+    </simple>
+    <simple name = "strain-results" type = "string" default="strain-result.txt" optional = "true">
+      <description>Filename containing the solution strains per Cell</description>
+    </simple>
+
+    <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
+      <description>Method via which Dirichlet boundary condition is imposed</description>
+    </simple>
+    <simple name = "penalty" type = "real" default="1.e64" optional="true">
+      <description> Penalty value for enforcing Dirichlet conditions </description>
+    </simple>
+    <simple name = "linop-nstep" type = "integer" default="1000" optional = "true">
+      <description>Reform the operator of the linear system every nstep</description>
+    </simple>
+
+    <simple name = "gx" type = "real" default="0.0" optional="true">
+      <description> Gravity along X direction </description>
+    </simple>
+    <simple name = "gy" type = "real" default="0.0" optional="true">
+      <description> Gravity along Y direction </description>
+    </simple>
+    <simple name = "gz" type = "real" default="0.0" optional="true">
+      <description> Gravity along Z direction </description>
+    </simple>
+
+    <!-- - - - - - init-elast-properties - - - - -->
+    <complex name="init-elast-properties"
+             type="InitElastProperties"
+             minOccurs="0"
+             maxOccurs="unbounded">
+
+        <description>Definition of initial elastic properties on a cell group</description>
+          <extended name="cell-group" type="Arcane::CellGroup">
+            <description>Cell group on which to apply this condition</description>
+          </extended>
+          <simple name="rho" type="real" default="2500.0" optional="true">
+            <description>Initial constant bulk density</description>
+          </simple>
+          <simple name="young" type="real" default="0.0" optional="true">
+            <description>Initial Young modulus</description>
+          </simple>
+          <simple name="nu" type="real" default="0.0" optional="true">
+            <description>Initial Poisson ratio</description>
+          </simple>
+          <simple name="lambda" type="real" default="0.0" optional="true">
+            <description>Initial 1st Lame coefficient</description>
+          </simple>
+          <simple name="mu" type="real" default="0.0" optional="true">
+            <description>Initial shear modulus (=2nd Lame coefficient)</description>
+          </simple>
+          <simple name="k" type="real" default="0.0" optional="true">
+            <description>Initial Bulk modulus (compression)</description>
+          </simple>
+    </complex>
+      <!-- - - - - - init-cell-condition - - - - -->
+      <complex name="init-cell-condition"
+               type="InitCellCondition"
+               minOccurs="0"
+               maxOccurs="unbounded">
+
+        <description>Definition of initial strain or stress tensors (xx yy zz xy yz xz) on a cell group</description>
+          <extended name="cell-group" type="Arcane::CellGroup">
+            <description>Cell group on which to apply this condition</description>
+          </extended>
+          <simple name="sigvol" type="real3" default="0.0" optional="true">
+            <description>Initial constant volumetric stress values (xx yy zz)</description>
+          </simple>
+          <simple name="epsvol" type="real3" default="0.0" optional="true">
+            <description>Initial constant volumetric strain values (xx yy zz)</description>
+          </simple>
+          <simple name="sigdev" type="real3" default="0.0" optional="true">
+            <description>Initial constant deviatoric stress values (xy yz xz)</description>
+          </simple>
+          <simple name="epsdev" type="real3" default="0.0" optional="true">
+            <description>Initial constant deviatoric strain values (xy yz xz)</description>
+          </simple>
+    </complex>
+
+    <!-- - - - - - dirichlet-surface-condition - - - - -->
+    <complex name="dirichlet-surface-condition" type="DirichletSurfaceCondition" minOccurs="0" maxOccurs="unbounded">
+      <description>Definition of a Dirichlet (nodal) condition on a cell group (edges or surfaces)</description>
+        <extended name="surface" type="Arcane::FaceGroup">
+          <description>Surface on which to apply this condition</description>
+        </extended>
+        <simple name="Ux" type="real" default="0.0" optional="true">
+          <description>Constant displacement imposed along x axis</description>
+        </simple>
+        <simple name="Uy" type="real" default="0.0" optional="true">
+          <description>Constant displacement imposed along y axis</description>
+        </simple>
+        <simple name="Uz" type="real" default="0.0" optional="true">
+          <description>Constant displacement imposed along z axis</description>
+        </simple>
+        <simple name="Fx" type="real" default="0.0" optional="true">
+          <description>Constant force imposed along x axis</description>
+        </simple>
+        <simple name="Fy" type="real" default="0.0" optional="true">
+          <description>Constant force imposed along y axis</description>
+        </simple>
+        <simple name="Fz" type="real" default="0.0" optional="true">
+          <description>Constant force imposed along z axis</description>
+        </simple>
+        <!-- Directions for curves only: if not specified, none is imposed -->
+        <simple name="x-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose this condition along X axis</description>
+        </simple>
+        <simple name="y-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose this condition along Y axis</description>
+        </simple>
+        <simple name="z-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose this condition along Z axis</description>
+        </simple>
+        <simple name="U-curve" type="string" optional="true">
+          <description>Time history curve for displacements to impose (4 columns: time, ux, uy, uz)</description>
+        </simple>
+        <simple name="F-curve" type="string" optional="true">
+          <description>Time history curve for forces to impose (4 columns: time, fx, fy, fz)</description>
+        </simple>
+    </complex>
+    <!-- - - - - - dirichlet-point-condition - - - - -->
+    <complex name="dirichlet-point-condition" type="DirichletPointCondition" minOccurs="0" maxOccurs="unbounded">
+      <description>Definition of Dirichlet (nodal) conditions on a node group</description>
+        <extended name="node" type="Arcane::NodeGroup">
+          <description>Node(s) on which to apply this condition</description>
+        </extended>
+        <simple name="Ux" type="real" default="0.0" optional="true">
+          <description>Constant displacement imposed along x axis</description>
+        </simple>
+        <simple name="Uy" type="real" default="0.0" optional="true">
+          <description>Constant displacement imposed along y axis</description>
+        </simple>
+        <simple name="Uz" type="real" default="0.0" optional="true">
+          <description>Constant displacement imposed along z axis</description>
+        </simple>
+        <simple name="Fx" type="real" default="0.0" optional="true">
+          <description>Constant force imposed along x axis</description>
+        </simple>
+        <simple name="Fy" type="real" default="0.0" optional="true">
+          <description>Constant force imposed along y axis</description>
+        </simple>
+        <simple name="Fz" type="real" default="0.0" optional="true">
+          <description>Constant force imposed along z axis</description>
+        </simple>
+        <!-- Directions for curves only: if not specified, none is imposed -->
+        <simple name="x-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose this condition along X axis</description>
+        </simple>
+        <simple name="y-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose this condition along Y axis</description>
+        </simple>
+        <simple name="z-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose this condition along Z axis</description>
+        </simple>
+        <simple name="U-curve" type="string" optional="true">
+          <description>Time history curve for displacements to impose (4 columns: time, ux, uy, uz)</description>
+        </simple>
+        <simple name="F-curve" type="string" optional="true">
+          <description>Time history curve for forces to impose (4 columns: time, fx, fy, fz)</description>
+        </simple>
+    </complex>
+
+    <!-- - - - - - neumann-condition - - - - -->
+    <complex name="neumann-condition"
+             type="NeumannCondition"
+             minOccurs="0"
+             maxOccurs="unbounded">
+
+      <description>Definition of a Neumann (traction) condition on a cell group (edges or surfaces)</description>
+        <extended name="surface" type="Arcane::FaceGroup">
+          <description>Surface on which to apply this condition</description>
+        </extended>
+        <simple name="X-val" type="real" default="0.0" optional="true">
+          <description>Constant traction along x axis</description>
+        </simple>
+        <simple name="Y-val" type="real" default="0.0" optional="true">
+          <description>Constant traction along y axis</description>
+        </simple>
+        <simple name="Z-val" type="real" default="0.0" optional="true">
+          <description>Constant traction along z axis</description>
+        </simple>
+        <simple name = "curve" type = "string"  optional="true">
+          <description>Filename containing the traction time history (4 columns: time, tx, ty, tz)</description>
+        </simple>
+    </complex>
+
+    <!-- - - - - - initial-node-condition - - - - -->
+    <complex name="initial-node-condition" type="InitialNodeCondition" minOccurs="0" maxOccurs="unbounded">
+      <description>Definition of initial conditions on a node group</description>
+        <extended name="node-group" type="Arcane::NodeGroup">
+          <description>NodeGroup on which initial node conditions will be applied</description>
+        </extended>
+        <simple name="U" type="real3" default="0." optional = "true">
+          <description>Initial nodal constant displacement vector</description>
+        </simple>
+        <simple name="F" type="real3" default="0." optional = "true">
+          <description>Initial nodal constant force vector</description>
+        </simple>
+    </complex>
+
+    <simple name = "gauss-nint" type = "integer" default="2" optional = "true">
+    <description>Gauss-Legendre quadrature order</description>
+    </simple>
+
+    <!-- - - - - - analysis-type - - - - -->
+    <enumeration name="analysis-type" type="TypesElastodynamic::eAnalysisType">
+      <description>Type of analysis</description>
+      <enumvalue genvalue="TypesElastodynamic::PlaneStrain" name="planestrain" />
+      <enumvalue genvalue="TypesElastodynamic::PlaneStress" name="planestress" />
+      <enumvalue genvalue="TypesElastodynamic::Axi" name="axi" />
+      <enumvalue genvalue="TypesElastodynamic::ThreeD" name="3D" />
+    </enumeration>
+
+    <simple name="start" type="real" default="0." optional="true">
+      <description>Start time for simulation</description>
+    </simple>
+    <simple name="final-time" type="real">
+      <description>Final time for simulation</description>
+    </simple>
+    <simple name="deltat" type="real">
+      <description>Timestep value for simulation</description>
+    </simple>
+    <simple name="theta" type="real" default="0.25" optional="true">
+      <description>Theta coefficient</description>
+    </simple>
+
+    <!-- - - - - - linear-system - - - - -->
+    <service-instance name = "linear-system"
+                      type = "Arcane::FemUtils::IDoFLinearSystemFactory"
+                      default = "HypreLinearSystem"/>
+
+  </options>
+</module>
