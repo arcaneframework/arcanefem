@@ -22,7 +22,7 @@ set(ACCELERATOR_SOURCES
 add_executable(Poisson
   ${ACCELERATOR_SOURCES}
   FemModule.h
-  LegacyBiliAssembly.cc
+  DokBiliAssembly.cc
   FemModule.cc
   main.cc
   Fem_axl.h

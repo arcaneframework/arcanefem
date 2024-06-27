@@ -108,7 +108,7 @@ _saveTimeInCSV()
   String csv_file_name = String::format("time.{0}.csv",parallelMng()->commRank());
   if (!fs::exists(csv_file_name.localstr())) {
     csv_save.open(csv_file_name.localstr());
-    csv_save << "Number of Nodes,Legacy,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU,CusparseAdd\n";
+    csv_save << "Number of Nodes,DOK,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU,CusparseAdd\n";
   }
   else {
     csv_save.open(csv_file_name.localstr(), std::ios_base::app);
@@ -117,7 +117,7 @@ _saveTimeInCSV()
   if (denume > 1)
     denume--;
   csv_save << nbNode() << ",";
-  csv_save << _readTimeFromJson("AssembleLegacyBilinearOperatorTria3", "") / denume << ",";
+  csv_save << _readTimeFromJson("AssembleDokBilinearOperatorTria3", "") / denume << ",";
   csv_save << _readTimeFromJson("AssembleCooSortBilinearOperatorTria3", "") / denume << ",";
   csv_save << _readTimeFromJson("AssembleCooBilinearOperatorTria3", "") / denume << ",";
   csv_save << _readTimeFromJson("AssembleCsrBilinearOperatorTria3", "") / denume << ",";
@@ -147,7 +147,7 @@ _saveNoBuildTimeInCSV()
   String csv_file_name = String::format("timeNoBuild.{0}.csv",parallelMng()->commRank());
   if (!fs::exists(csv_file_name.localstr())) {
     csv_save.open(csv_file_name.localstr());
-    csv_save << "Number of Nodes,Legacy,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU,CusparseAdd\n";
+    csv_save << "Number of Nodes,DOK,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU,CusparseAdd\n";
   }
   else {
     csv_save.open(csv_file_name.localstr(), std::ios_base::app);
@@ -156,7 +156,7 @@ _saveNoBuildTimeInCSV()
   if (denume > 1)
     denume--;
   csv_save << nbNode() << ",";
-  csv_save << _readTimeFromJson("AssembleLegacyBilinearOperatorTria3", "") / denume << ",";
+  csv_save << _readTimeFromJson("AssembleDokBilinearOperatorTria3", "") / denume << ",";
   csv_save << (_readTimeFromJson("AssembleCooSortBilinearOperatorTria3", "CooSortComputeElementMatrixTria3") + _readTimeFromJson("AssembleCooSortBilinearOperatorTria3", "CooSortAddToGlobalMatrix")) / denume << ",";
   csv_save << (_readTimeFromJson("AssembleCooBilinearOperatorTria3", "CooComputeElementMatrixTria3") + _readTimeFromJson("AssembleCooBilinearOperatorTria3", "CooAddToGlobalMatrix")) / denume << ",";
   csv_save << (_readTimeFromJson("AssembleCsrBilinearOperatorTria3", "CsrComputeElementMatrixTria3") + _readTimeFromJson("AssembleCsrBilinearOperatorTria3", "CsrAddToGlobalMatrix")) / denume << ",";
@@ -304,49 +304,49 @@ _handleFlags()
   }
   if (parameter_list.getParameterOrNull("COO") == "TRUE" || options()->coo()) {
     m_use_coo = true;
-    m_use_legacy = false;
+    m_use_dok = false;
     info() << "COO: The COO datastructure and its associated methods will be used";
   }
   if (parameter_list.getParameterOrNull("COO_SORT") == "TRUE" || options()->cooSorting()) {
     m_use_coo_sort = true;
-    m_use_legacy = false;
+    m_use_dok = false;
     info() << "COO_SORT: The COO with sorting datastructure and its associated methods will be used";
   }
   if (parameter_list.getParameterOrNull("CSR") == "TRUE" || options()->csr()) {
     m_use_csr = true;
-    m_use_legacy = false;
+    m_use_dok = false;
     info() << "CSR: The CSR datastructure and its associated methods will be used";
   }
 #ifdef ARCANE_HAS_ACCELERATOR
   if (parameter_list.getParameterOrNull("CSR_GPU") == "TRUE" || options()->csrGpu()) {
     m_use_csr_gpu = true;
-    m_use_legacy = false;
+    m_use_dok = false;
     info() << "CSR_GPU: The CSR datastructure GPU compatible and its associated methods will be used";
   }
 #endif
   if (parameter_list.getParameterOrNull("NWCSR") == "TRUE" || options()->nwcsr()) {
     m_use_nodewise_csr = true;
-    m_use_legacy = false;
+    m_use_dok = false;
     info() << "NWCSR: The Csr datastructure (GPU compatible) and its associated methods will be used with computation in a nodewise manner";
   }
   if (parameter_list.getParameterOrNull("BLCSR") == "TRUE" || options()->blcsr()) {
     m_use_buildless_csr = true;
-    m_use_legacy = false;
+    m_use_dok = false;
     info() << "BLCSR: The Csr datastructure (GPU compatible) and its associated methods will be used with computation in a nodewise manner with the building phases incorporated in the computation";
   }
 #ifdef ARCANE_HAS_ACCELERATOR
   if (parameter_list.getParameterOrNull("CUSPARSE_ADD") == "TRUE" || options()->cusparseAdd()) {
     m_use_cusparse_add = true;
-    m_use_legacy = false;
+    m_use_dok = false;
     info() << "CUSPARSE_ADD: CUSPARSE and its associated methods will be used";
   }
 #endif
-  if (parameter_list.getParameterOrNull("LEGACY") == "TRUE" || m_use_legacy || options()->legacy()) {
-    m_use_legacy = true;
-    info() << "LEGACY: The Legacy datastructure and its associated methods will be used";
+  if (parameter_list.getParameterOrNull("DOK") == "TRUE" || m_use_dok || options()->dok()) {
+    m_use_dok = true;
+    info() << "DOK: The DOK datastructure and its associated methods will be used";
   }
-  else if (parameter_list.getParameterOrNull("LEGACY") == "FALSE" || options()->legacy()) {
-    m_use_legacy = false;
+  else if (parameter_list.getParameterOrNull("DOK") == "FALSE" || options()->dok()) {
+    m_use_dok = false;
   }
   if (parameter_list.getParameterOrNull("AcceleratorRuntime") == "cuda") {
     m_running_on_gpu = true;
@@ -367,14 +367,14 @@ _doStationarySolve()
   _getMaterialParameters();
 
   // Assemble the FEM bilinear operator (LHS - matrix A)
-  if (m_use_legacy) {
+  if (m_use_dok) {
     m_linear_system.clearValues();
     if (options()->meshType == "TETRA4")
       _assembleBilinearOperatorTETRA4();
     else if (options()->meshType == "TRIA3")
       _assembleBilinearOperatorTRIA3();
     if (m_cache_warming != 1) {
-      m_time_stats->resetStats("AssembleLegacyBilinearOperatorTria3");
+      m_time_stats->resetStats("AssembleDokBilinearOperatorTria3");
       for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
         m_linear_system.clearValues();
         if (options()->meshType == "TETRA4")

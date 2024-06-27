@@ -23,7 +23,7 @@
     <f>-1.0</f>
     <result-file>test_poisson_results.txt</result-file>
     <blcsr>true</blcsr>
-    <legacy>false</legacy>
+    <dok>false</dok>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
       <value>0.0</value>

@@ -77,9 +77,9 @@
         Boolean to use the cusparse library and its associated methods
       </description>
     </simple>
-    <simple name="legacy" type="bool"  default="false" >
+    <simple name="dok" type="bool"  default="false" >
       <description>
-        Boolean to use the legacy datastructure and its associated methods
+        Boolean to use the DOK datastructure and its associated methods
       </description>
     </simple>
 

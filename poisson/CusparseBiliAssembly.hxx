@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* CsrGpuiBiliAssembly.hxx                                     (C) 2022-2023 */
+/* CsrGpuiBiliAssembly.cc                                      (C) 2022-2024 */
 /*                                                                           */
 /* Methods of the bilinear assembly phase using Cusparse library             */
 /* which build the global matrix by merging local ones                       */

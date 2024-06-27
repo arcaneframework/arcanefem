@@ -17,8 +17,8 @@
 /**
  * @brief Initialization of the coo matrix. It only works for p=1 since there is
  * one node per Edge.
- * 
- * 
+ *
+ *
  */
 void FemModule::
 _buildMatrixSort()

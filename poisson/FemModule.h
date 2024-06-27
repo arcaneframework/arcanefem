@@ -113,7 +113,7 @@ namespace fs = std::filesystem;
 #ifdef USE_CUSPARSE_ADD
 /**
  * @brief Macro for use of cusparse
- * 
+ *
  */
 #define CHECK_CUSPARSE(func) \
   { \
@@ -139,8 +139,8 @@ namespace fs = std::filesystem;
   }
 
 /**
- * @brief struct for the csr of cusparse 
- * 
+ * @brief struct for the csr of cusparse
+ *
  */
 struct cusparseCsr
 {
@@ -215,7 +215,7 @@ class FemModule
   bool m_use_nodewise_csr = false;
   bool m_use_buildless_csr = false;
   bool m_use_cusparse_add = false;
-  bool m_use_legacy = true;
+  bool m_use_dok = true;
   bool m_running_on_gpu = false;
   ITimeStats* m_time_stats;
 

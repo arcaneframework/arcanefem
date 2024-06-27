@@ -5,9 +5,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* LegacyBiliAssembly.hxx                                    (C) 2022-2023   */
+/* DokBiliAssembly.hxx                                       (C) 2022-2024   */
 /*                                                                           */
-/* Methods of the bilinear assembly phase using the legacy data structure    */
+/* Methods of the bilinear assembly phase using the DOK data structure       */
+/* DOK stands for Dictionary Of Keys a matrix storage format.                */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
