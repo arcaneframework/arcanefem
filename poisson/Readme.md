@@ -1,8 +1,8 @@
 # Solving Poisson equation with ArcaneFEM #
 
-<img align="left" width="400" src="https://github.com/arcaneframework/arcanefem/assets/52162083/a8d114e1-5589-4efd-88fd-84b398acab84" alt="poisson_1_large" />
+<img align="left" width="400" src="https://github.com/arcaneframework/arcanefem/assets/52162083/3646fbb9-5c82-4807-b025-7f3b4c899ca7" alt="poisson_1_large" />
 
-Here, we utilize ArcaneFEM to solve the Poisson equation, which is a fundamental elliptic partial differential equation (PDE). The provided code demonstrates a straightforward implementation of a 2D unstructured mesh Galerkin finite element method (FEM) solver on an L-shaped domain.
+Here, we utilize ArcaneFEM to solve the Poisson equation, which is a fundamental elliptic partial differential equation (PDE). The provided code demonstrates a straightforward implementation of a 2D/3D unstructured mesh Galerkin finite element method (FEM) solver on an L-shaped domain. Although we shall explain here only 2D for keping the text simple. 
 
 The Poisson equation is encountered in various physical scenarios, including heat conduction, substance diffusion, membrane elasticity, inviscid fluid flow, electrostatics, twisting of elastic rods, and water waves. It serves as a vital tool for modeling and understanding these phenomena.
 
@@ -68,6 +68,8 @@ The mesh `L-shape.msh` is provided in the `Test.poisson.arc` file
   </meshes>
 ```
 
+Note, here `L-shape.msh` is a 2D mesh, if any other 3D mesh was loaded ArcaneFEM will run 3D calculations it is as simple as that. 
+
 Please not that use version 4.1 `.msh` file from `Gmsh`.
 
 #### Boundary conditions ####
@@ -96,6 +98,8 @@ If needed, the Neumann  boundary conditions  can also be provided in `Test.poiss
 
 #### Post Process ####
 
+<img align="left" width="400" src="https://github.com/arcaneframework/arcanefem/assets/52162083/a8d114e1-5589-4efd-88fd-84b398acab84" alt="poisson_1_large" />
+
 For post processing the `ensight.case` file is outputted, which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
 
 ### Time analysis ###
@@ -110,3 +114,4 @@ SOURCE_PATH=/path/to/sources
 cmake -S ${SOURCE_PATH} -B ${BUILD_DIR} -DCMAKE_PREFIX_PATH=${ARCANE_INSTALL_DIR} -DREGISTER_TIME=ON
 cmake --build ${BUILD_DIR}
 ~~~
+
