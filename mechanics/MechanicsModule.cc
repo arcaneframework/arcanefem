@@ -80,18 +80,18 @@ startInit(){
     penalty = options()->getPenalty();
   }
   theta = options()->getTheta();
-  auto dt = options()->getDeltat();
+  auto dt = options()->getDt();
   m_global_deltat = dt;
   dt2 = dt * dt;
-  auto tf = options()->getFinalTime();
+  auto tf = options()->getTf();
   m_global_final_time = tf;
-  auto t = options()->getStart();
+  auto t = options()->getT0();
   m_global_time = t;
   linop_nstep = options()->getLinopNstep();
   auto szType = options()->initElastType().lower();
-  if (szType.contains("young")) elast_type = TypesElastodynamic::YoungNu;
-  else if (szType.contains("lame")) elast_type = TypesElastodynamic::Lame;
-  else if (szType.contains("bulk")) elast_type = TypesElastodynamic::Bulk;
+  if (szType.contains("young")) elast_type = TypesMechanics::YoungNu;
+  else if (szType.contains("lame")) elast_type = TypesMechanics::Lame;
+  else if (szType.contains("bulk")) elast_type = TypesMechanics::Bulk;
   else {
 
     info() << "init-elast-type keywords must include (not case dependent):\n"
@@ -104,7 +104,7 @@ startInit(){
   if (linop_nstep > nsteps) keep_constop = true;
 
   analysis_type = options()->getAnalysisType();
-  if (analysis_type == TypesElastodynamic::ThreeD)
+  if (analysis_type == TypesMechanics::ThreeD)
     NDIM = 3;
   else
     NDIM = 2;
@@ -212,14 +212,14 @@ _initCells(){
   ENUMERATE_CELL (icell, allCells()) {
     const Cell& cell = *icell;
     auto rho = m_rho[cell];
-    if (elast_type == TypesElastodynamic::YoungNu) {
+    if (elast_type == TypesMechanics::YoungNu) {
       E = m_young[cell];
       nu = m_nu[cell];
       lambda = nu*E/(1. + nu)/(1. - 2.*nu);
       mu = E/2./(1. + nu);
       K = lambda + 2./3. *mu;
 
-    } else if (elast_type == TypesElastodynamic::Lame) {
+    } else if (elast_type == TypesMechanics::Lame) {
       lambda = m_lambda[cell];
       mu = m_mu[cell];
       auto x = lambda/mu;
@@ -227,7 +227,7 @@ _initCells(){
       E = 2.*mu*(1. + nu);
       K = lambda + 2./3. *mu;
 
-    } else if (elast_type == TypesElastodynamic::Bulk) {
+    } else if (elast_type == TypesMechanics::Bulk) {
       K = m_k[cell];
       mu = m_mu[cell];
       lambda = K- 2./3. *mu;
@@ -284,14 +284,14 @@ _applyInitialCellConditions(){
     auto rho = options()->initElastProperties[i]->rho();
     Real vp, vs, E, nu, lambda, mu, K;
 
-    if (elast_type == TypesElastodynamic::YoungNu) {
+    if (elast_type == TypesMechanics::YoungNu) {
       E = options()->initElastProperties[i]->young();
       nu = options()->initElastProperties[i]->nu();
       lambda = nu*E/(1. + nu)/(1. - 2.*nu);
       mu = E/2./(1. + nu);
       K = lambda + 2./3. *mu;
 
-    } else if (elast_type == TypesElastodynamic::Lame) {
+    } else if (elast_type == TypesMechanics::Lame) {
       lambda = options()->initElastProperties[i]->young();
       mu = options()->initElastProperties[i]->nu();
       auto x = lambda/mu;
@@ -299,7 +299,7 @@ _applyInitialCellConditions(){
       E = 2.*mu*(1. + nu);
       K = lambda + 2./3. *mu;
 
-    } else if (elast_type == TypesElastodynamic::Bulk) {
+    } else if (elast_type == TypesMechanics::Bulk) {
       K = options()->initElastProperties[i]->k();
       mu = options()->initElastProperties[i]->nu();
       lambda = K - 2./3. * mu;
@@ -418,7 +418,7 @@ compute(){
   auto tf = m_global_final_time();
   auto t = m_global_time();
   auto dt = m_global_deltat();
-  auto t0 = options()->getStart();
+  auto t0 = options()->getT0();
   dt2 = dt * dt;
 
   info() << "Time (s) = " << t;
@@ -449,6 +449,8 @@ compute(){
 
   // Assemble the FEM global operators (LHS matrix/RHS vector b)
   _assembleLinearLHS();
+
+  // Nonlinear Loop
   _assembleLinearRHS();
 
   // Solve the linear system AX = B
@@ -792,12 +794,12 @@ _applyNeumannBoundaryConditions(){
         inn->value(time, trac);
     }
     else {
-      if (bs->hasXVal())
-        trac.x = bs->getXVal();
-      if (bs->hasYVal())
-        trac.y = bs->getYVal();
-      if (bs->hasZVal())
-        trac.z = bs->getZVal();
+      if (bs->hasTx())
+        trac.x = bs->getTx();
+      if (bs->hasTy())
+        trac.y = bs->getTy();
+      if (bs->hasTz())
+        trac.z = bs->getTz();
     }
 
     // Loop on faces of the surface

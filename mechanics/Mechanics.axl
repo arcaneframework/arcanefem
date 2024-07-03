@@ -229,13 +229,13 @@
         </simple>
         <!-- Directions for curves only: if not specified, none is imposed -->
         <simple name="x-axis" type="bool" default="false" optional="true">
-          <description>Indicates to impose this condition along X axis</description>
+          <description>Indicates to impose x values from given curve file</description>
         </simple>
         <simple name="y-axis" type="bool" default="false" optional="true">
-          <description>Indicates to impose this condition along Y axis</description>
+          <description>Indicates to impose y values from given curve file</description>
         </simple>
         <simple name="z-axis" type="bool" default="false" optional="true">
-          <description>Indicates to impose this condition along Z axis</description>
+          <description>Indicates to impose z values from given curve file</description>
         </simple>
         <simple name="U-curve" type="string" optional="true">
           <description>Time history curve for displacements to impose (4 columns: time, ux, uy, uz)</description>
@@ -255,14 +255,24 @@
         <extended name="surface" type="Arcane::FaceGroup">
           <description>Surface on which to apply this condition</description>
         </extended>
-        <simple name="X-val" type="real" default="0.0" optional="true">
+        <simple name="tx" type="real" default="0.0" optional="true">
           <description>Constant traction along x axis</description>
         </simple>
-        <simple name="Y-val" type="real" default="0.0" optional="true">
+        <simple name="ty" type="real" default="0.0" optional="true">
           <description>Constant traction along y axis</description>
         </simple>
-        <simple name="Z-val" type="real" default="0.0" optional="true">
+        <simple name="tz" type="real" default="0.0" optional="true">
           <description>Constant traction along z axis</description>
+        </simple>
+        <!-- Directions for curves only: if not specified, none is imposed -->
+        <simple name="x-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose x values from given curve file</description>
+        </simple>
+        <simple name="y-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose y values from given curve file</description>
+        </simple>
+        <simple name="z-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose z values from given curve file</description>
         </simple>
         <simple name = "curve" type = "string"  optional="true">
           <description>Filename containing the traction time history (4 columns: time, tx, ty, tz)</description>
@@ -288,26 +298,59 @@
     </simple>
 
     <!-- - - - - - analysis-type - - - - -->
-    <enumeration name="analysis-type" type="TypesElastodynamic::eAnalysisType">
+    <enumeration name="analysis-type" type="TypesMechanics::eAnalysisType">
       <description>Type of analysis</description>
-      <enumvalue genvalue="TypesElastodynamic::PlaneStrain" name="planestrain" />
-      <enumvalue genvalue="TypesElastodynamic::PlaneStress" name="planestress" />
-      <enumvalue genvalue="TypesElastodynamic::Axi" name="axi" />
-      <enumvalue genvalue="TypesElastodynamic::ThreeD" name="3D" />
+      <enumvalue genvalue="TypesMechanics::PlaneStrain" name="planestrain" />
+      <enumvalue genvalue="TypesMechanics::PlaneStress" name="planestress" />
+      <enumvalue genvalue="TypesMechanics::Axi" name="axi" />
+      <enumvalue genvalue="TypesMechanics::ThreeD" name="3D" />
     </enumeration>
 
-    <simple name="start" type="real" default="0." optional="true">
+    <simple name="t0" type="real" default="0." optional="true">
       <description>Start time for simulation</description>
     </simple>
-    <simple name="final-time" type="real">
+    <simple name="tf" type="real">
       <description>Final time for simulation</description>
     </simple>
-    <simple name="deltat" type="real">
+    <simple name="dt" type="real">
       <description>Timestep value for simulation</description>
     </simple>
     <simple name="theta" type="real" default="0.25" optional="true">
       <description>Theta coefficient</description>
     </simple>
+
+    <!-- - - - - - Nonlinear options - - - - - - -->
+    <simple name="tolU" type="real" default="1.e-5" optional = "true">
+      <description>Convergence tolerance on U</description>
+    </simple>
+    <simple name="tolR" type="real" default="1.e-3" optional = "true">
+      <description>Convergence tolerance on R</description>
+    </simple>
+    <simple name="nite-max" type="integer" default="15" optional = "true">
+      <description>Number max of iteration for convergence loop</description>
+    </simple>
+
+    <complex name="nonlinear-options" type="NonlinearOptions" minOccurs="0" maxOccurs="unbounded">
+      <description>Definition of nonlinear parameters</description>
+        <extended name="cell-group" type="Arcane::CellGroup">
+          <description>Cell group on which to apply these parameters</description>
+        </extended>
+        <enumeration name="constitutive-law" type="TypesMechanics::eLawType">
+          <description>Constitutive model type for this cell group</description>
+          <enumvalue genvalue="TypesMechanics::Elastic" name="elastic" />
+          <enumvalue genvalue="TypesMechanics::DruckerP" name="druckerp" />
+          <enumvalue genvalue="TypesMechanics::Hujeux" name="hujeux" />
+        </enumeration>
+        <simple name="law" type="integer" default="1.e-5" optional = "true">
+          <description>Convergence tolerance on U</description>
+        </simple>
+        <simple name="tolR" type="real" default="1.e-3" optional = "true">
+          <description>Convergence tolerance on R</description>
+        </simple>
+        <simple name="nite-max" type="integer" default="15" optional = "true">
+          <description>Number max of iteration for convergence loop</description>
+        </simple>
+    </complex>
 
     <!-- - - - - - linear-system - - - - -->
     <service-instance name = "linear-system"

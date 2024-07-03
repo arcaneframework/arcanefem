@@ -90,8 +90,8 @@ class MechanicsModule
 
   Real dt2{0.};
   Int32 linop_nstep{1000}, linop_nstep_counter{0};
-  TypesElastodynamic::eElastType elast_type{TypesElastodynamic::NoElastPropType};
-  TypesElastodynamic::eAnalysisType analysis_type{TypesElastodynamic::PlaneStrain};
+  TypesMechanics::eElastType elast_type{TypesMechanics::NoElastPropType};
+  TypesMechanics::eAnalysisType analysis_type{TypesMechanics::PlaneStrain};
 
  private:
 

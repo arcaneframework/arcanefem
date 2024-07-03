@@ -6,12 +6,12 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#ifndef PASSMO_TYPESELASTODYNAMIC_H
-#define PASSMO_TYPESELASTODYNAMIC_H
+#ifndef PASSMO_TYPESMECHANICS_H
+#define PASSMO_TYPESMECHANICS_H
 
 #include <arcane/ItemGroup.h>
 
-struct TypesElastodynamic
+struct TypesMechanics
 {
   enum eAnalysisType {
     PlaneStrain = 0, //!< Plane strain analysis (2D)
@@ -19,6 +19,12 @@ struct TypesElastodynamic
     Axi, //!< Axisymmetric analysis (2D)
     ThreeD, //!< 3D analysis
     NoAnalysis //!< Unknown type
+  };
+
+  enum eLawType {
+    Elastic = 0, //!< Hooke constitutive model
+    DruckerP,//!< Drücker-Prager constitutive model
+    Hujeux, //!< Hujeux constitutive model
   };
 
   // Type of elastic properties initialized on mesh cells
@@ -31,4 +37,4 @@ struct TypesElastodynamic
   };
 };
 
-#endif //PASSMO_TYPESELASTODYNAMIC_H
+#endif //PASSMO_TYPESMECHANICS_H
