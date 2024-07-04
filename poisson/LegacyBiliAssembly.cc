@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* LegacyBiliAssembly.hxx                                    (C) 2022-2023   */
+/* LegacyBiliAssembly.hxx                                    (C) 2022-2024   */
 /*                                                                           */
 /* Methods of the bilinear assembly phase using the legacy data structure    */
 /*---------------------------------------------------------------------------*/

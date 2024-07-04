@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* CooSortBiliAssembly.hxx                                     (C) 2022-2023 */
+/* CooSortBiliAssembly.hxx                                     (C) 2022-2024 */
 /*                                                                           */
 /* Methods of the bilinear assembly phase using the coo data structure       */
 /* followed by a sort                                                        */
@@ -17,8 +17,8 @@
 /**
  * @brief Initialization of the coo matrix. It only works for p=1 since there is
  * one node per Edge.
- * 
- * 
+ *
+ *
  */
 void FemModule::
 _buildMatrixSort()

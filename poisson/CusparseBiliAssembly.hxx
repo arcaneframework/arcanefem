@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* CsrGpuiBiliAssembly.hxx                                     (C) 2022-2023 */
+/* CsrGpuiBiliAssembly.hxx                                     (C) 2022-2024 */
 /*                                                                           */
 /* Methods of the bilinear assembly phase using Cusparse library             */
 /* which build the global matrix by merging local ones                       */
@@ -235,8 +235,8 @@ _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell cel
 /**
  * @brief Assemble Bilinear TRIA3 with cusparse help. It only works for p=1 since there is
  * one node per Edge.
- * 
- * 
+ *
+ *
  */
 void FemModule::
 _assembleCusparseBilinearOperatorTRIA3()

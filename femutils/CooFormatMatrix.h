@@ -1,11 +1,11 @@
 // -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2023 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* CsrFormatMatrix.cc                                     (C) 2022-2023 */
+/* CsrFormatMatrix.cc                                     (C) 2022-2024 */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -58,11 +58,11 @@ class CooFormat : TraceAccessor
   }
 
   /**
-  * @brief 
-  * 
-  * @param row 
-  * @param column 
-  * @param value 
+  * @brief
+  *
+  * @param row
+  * @param column
+  * @param value
   */
   void matrixAddValue(DoFLocalId row, DoFLocalId column, Real value)
   {
@@ -77,8 +77,8 @@ class CooFormat : TraceAccessor
 
   /**
  * @brief  Translate to Arcane linear system
- * 
- * @param linear_system 
+ *
+ * @param linear_system
  */
   void translateToLinearSystem(DoFLinearSystem& linear_system)
   {
@@ -88,10 +88,10 @@ class CooFormat : TraceAccessor
   }
 
   /**
- * @brief function to print the current content of the csr matrix 
- * 
- * @param fileName 
- * @param nonzero if set to true, print only the non zero values 
+ * @brief function to print the current content of the csr matrix
+ *
+ * @param fileName
+ * @param nonzero if set to true, print only the non zero values
  */
   void
   printMatrix(std::string fileName, bool nonzero)
@@ -160,9 +160,9 @@ class CooFormat : TraceAccessor
   /**
   * @brief binSearchRow is a binary search through the row to get the
   * leftmost corresponding index.
-  * 
-  * @param row 
-  * @return Int32 
+  *
+  * @param row
+  * @return Int32
   */
   Int32 binSearchRow(Int32 row)
   {
@@ -189,10 +189,10 @@ class CooFormat : TraceAccessor
   /**
   * @brief indexValue is a Binsearch through the row and then the column
   *  to get the index of the corresponding value.
-  * 
-  * @param row 
-  * @param column 
-  * @return Int32 
+  *
+  * @param row
+  * @param column
+  * @return Int32
   */
   Int32 indexValue(Int32 row, Int32 column)
   {
@@ -223,11 +223,11 @@ class CooFormat : TraceAccessor
   }
 
   /**
- * @brief Quicksort algorithm for the CSR Matrix 
- * 
+ * @brief Quicksort algorithm for the CSR Matrix
+ *
  * @param is_row
- * @param start 
- * @param end 
+ * @param start
+ * @param end
  */
   void
   sortMatrix(bool is_row, Int32 start, Int32 end)
@@ -244,12 +244,12 @@ class CooFormat : TraceAccessor
   }
 
   /**
- * @brief Partition helper for the quickSort 
- * 
- * @param is_row 
- * @param start 
- * @param end 
- * @return Int32 
+ * @brief Partition helper for the quickSort
+ *
+ * @param is_row
+ * @param start
+ * @param end
+ * @return Int32
  */
   Int32 partition(bool is_row, Int32 start, Int32 end)
   {
@@ -275,11 +275,11 @@ class CooFormat : TraceAccessor
   }
 
   /**
- * @brief Swap helper for the quickSort 
- * 
- * @param is_row 
- * @param i 
- * @param j 
+ * @brief Swap helper for the quickSort
+ *
+ * @param is_row
+ * @param i
+ * @param j
  */
   void swap(bool is_row, Int32 i, Int32 j)
   {
