@@ -19,6 +19,7 @@
 #include "arcane/IIndexedIncrementalItemConnectivity.h"
 #include "arcane/IndexedItemConnectivityView.h"
 #include <arcane/VariableTypes.h>
+#include "GaussQuadrature.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -84,30 +85,33 @@ GaussDoFsOnCells::
 /*---------------------------------------------------------------------------*/
 
 void GaussDoFsOnCells::Impl::
-initialize(IMesh* mesh, Int32 max_nb_gauss_per_cell)
+initialize(IMesh* mesh, Int32 ninteg)
 {
   IItemFamily* dof_family_interface = mesh->findItemFamily(Arcane::IK_DoF, "GaussCellFamily", true);
   mesh::DoFFamily* dof_family = ARCANE_CHECK_POINTER(dynamic_cast<mesh::DoFFamily*>(dof_family_interface));
   m_gauss_family = dof_family_interface;
 
-  // Create the Gauss points as DoFs
-  Int64UniqueArray uids(mesh->allCells().size() * max_nb_gauss_per_cell);
+  // Create the Gauss points as Arcane "DoFs" attached to cells
+  Int64UniqueArray uids;
   Int64 max_cell_uid = mesh::DoFUids::getMaxItemUid(mesh->cellFamily());
   {
-    Integer gauss_index{ 0 };
     ENUMERATE_CELL (icell, mesh->allCells()) {
       Cell cell = *icell;
+      auto cell_type = cell.type();
+      auto nbgauss = getNbGaussPointsfromOrder(cell_type, ninteg);
       Int64 cell_unique_id = cell.uniqueId().asInt64();
-      for (Integer i = 0; i < max_nb_gauss_per_cell; ++i) {
-        uids[gauss_index++] = cell_unique_id * max_nb_gauss_per_cell + i;
+        for (Integer i = 0; i < nbgauss; ++i) {
+          uids.push_back(cell_unique_id * nbgauss + i);
       }
     }
   }
 
-  Int32UniqueArray gauss_lids(uids.size());
+  Integer uidsize = uids.size();
+  Int32UniqueArray gauss_lids(uidsize);
   dof_family->addDoFs(uids, gauss_lids);
   dof_family->endUpdate();
-  info() << "NB_GAUSS=" << dof_family->allItems().size();
+  Integer nb_gauss = dof_family->allItems().size();
+  info() << "NB_GAUSS=" << nb_gauss;
 
   // Create Cell -> Gauss (DoF) connectivity.
   m_cell_gauss_connectivity = mesh->indexedConnectivityMng()->findOrCreateConnectivity(mesh->cellFamily(), dof_family, "GaussCell");
@@ -116,7 +120,9 @@ initialize(IMesh* mesh, Int32 max_nb_gauss_per_cell)
     Integer gauss_index{ 0 };
     ENUMERATE_CELL (icell, mesh->allCells()) {
       CellLocalId cell = *icell;
-      for (Integer i = 0; i < max_nb_gauss_per_cell; ++i) {
+      auto cell_type = icell->type();
+      auto nbgauss = getNbGaussPointsfromOrder(cell_type, ninteg);
+        for (Integer i = 0; i < nbgauss; ++i) {
         cn->addConnectedItem(cell, DoFLocalId(gauss_lids[gauss_index++]));
       }
     }
@@ -145,9 +151,9 @@ initialize(IMesh* mesh, Int32 max_nb_gauss_per_cell)
 /*---------------------------------------------------------------------------*/
 
 void GaussDoFsOnCells::
-initialize(IMesh* mesh, Int32 max_nb_gauss_per_cell)
+initialize(IMesh* mesh, Int32 ninteg)
 {
-  m_p->initialize(mesh, max_nb_gauss_per_cell);
+  m_p->initialize(mesh, ninteg);
   m_p->m_gauss_refpos = new VariableDoFReal3(VariableBuildInfo(mesh,"GaussRefPos", "GaussCellFamily"));
   m_p->m_gauss_weight = new VariableDoFReal(VariableBuildInfo(mesh,"GaussWeight", "GaussCellFamily"));
   m_p->m_gauss_jacobian = new VariableDoFReal(VariableBuildInfo(mesh,"GaussJacobian", "GaussCellFamily"));
