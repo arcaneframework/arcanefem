@@ -66,7 +66,7 @@ class GaussDoFsOnCells
   /*!
    * \brief Initialize the instance.
    */
-  void initialize(Arcane::IMesh* mesh, Arcane::Int32 ninteg);
+  void initialize(Arcane::IMesh* mesh, Arcane::Int32 max_nb_gauss_per_cell);
 
  public:
 

@@ -201,7 +201,8 @@ _startInitGauss(){
     auto nbnodes = cell.nbNode();
     max_nbnodes_per_cell = math::max(nbnodes,max_gauss_per_cell);
   }
-  m_gauss_on_cells.initialize(mesh(),ninteg);
+//  m_gauss_on_cells.initialize(mesh(),ninteg);
+  m_gauss_on_cells.initialize(mesh(),max_gauss_per_cell);
 
   auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
   VariableDoFReal& gauss_weight(m_gauss_on_cells.gaussWeight());

@@ -85,23 +85,23 @@ GaussDoFsOnCells::
 /*---------------------------------------------------------------------------*/
 
 void GaussDoFsOnCells::Impl::
-initialize(IMesh* mesh, Int32 ninteg)
+initialize(IMesh* mesh, Int32 max_nb_gauss_per_cell)
 {
   IItemFamily* dof_family_interface = mesh->findItemFamily(Arcane::IK_DoF, "GaussCellFamily", true);
   mesh::DoFFamily* dof_family = ARCANE_CHECK_POINTER(dynamic_cast<mesh::DoFFamily*>(dof_family_interface));
   m_gauss_family = dof_family_interface;
 
   // Create the Gauss points as Arcane "DoFs" attached to cells
-  Int64UniqueArray uids;
+  Int64UniqueArray uids(mesh->allCells().size() * max_nb_gauss_per_cell);
   Int64 max_cell_uid = mesh::DoFUids::getMaxItemUid(mesh->cellFamily());
   {
+    Integer gauss_index{ 0 };
     ENUMERATE_CELL (icell, mesh->allCells()) {
       Cell cell = *icell;
       auto cell_type = cell.type();
-      auto nbgauss = getNbGaussPointsfromOrder(cell_type, ninteg);
       Int64 cell_unique_id = cell.uniqueId().asInt64();
-        for (Integer i = 0; i < nbgauss; ++i) {
-          uids.push_back(cell_unique_id * nbgauss + i);
+      for (Integer i = 0; i < max_nb_gauss_per_cell; ++i) {
+        uids[gauss_index++] = cell_unique_id * max_nb_gauss_per_cell + i;
       }
     }
   }
@@ -120,9 +120,7 @@ initialize(IMesh* mesh, Int32 ninteg)
     Integer gauss_index{ 0 };
     ENUMERATE_CELL (icell, mesh->allCells()) {
       CellLocalId cell = *icell;
-      auto cell_type = icell->type();
-      auto nbgauss = getNbGaussPointsfromOrder(cell_type, ninteg);
-        for (Integer i = 0; i < nbgauss; ++i) {
+      for (Integer i = 0; i < max_nb_gauss_per_cell; ++i) {
         cn->addConnectedItem(cell, DoFLocalId(gauss_lids[gauss_index++]));
       }
     }
@@ -151,9 +149,9 @@ initialize(IMesh* mesh, Int32 ninteg)
 /*---------------------------------------------------------------------------*/
 
 void GaussDoFsOnCells::
-initialize(IMesh* mesh, Int32 ninteg)
+initialize(IMesh* mesh, Int32 max_nb_gauss_per_cell)
 {
-  m_p->initialize(mesh, ninteg);
+  m_p->initialize(mesh, max_nb_gauss_per_cell);
   m_p->m_gauss_refpos = new VariableDoFReal3(VariableBuildInfo(mesh,"GaussRefPos", "GaussCellFamily"));
   m_p->m_gauss_weight = new VariableDoFReal(VariableBuildInfo(mesh,"GaussWeight", "GaussCellFamily"));
   m_p->m_gauss_jacobian = new VariableDoFReal(VariableBuildInfo(mesh,"GaussJacobian", "GaussCellFamily"));
