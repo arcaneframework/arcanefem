@@ -28,12 +28,12 @@
 
 DefineConstant[ threads = {4, Min 0, Max 128, Step 1,
                          Name "Parameters/threads threads"} ];
-                         
+
 
 //==============================================================================
 // ---- define geometry ----
 //==============================================================================
-                        
+
 SetFactory("OpenCASCADE");
 Sphere(1) = {0, 0, 0, 0.5, -Pi/2, Pi/2, 2*Pi};
 Box(2) = {0, -0, 0, 1, 1, 1};
@@ -56,7 +56,6 @@ Physical Volume("volume", 12) = {1};
 
 General.NumThreads = threads;
 
-Mesh.Algorithm = 2;
+Mesh.Algorithm = 5;
 Mesh.Algorithm3D = 10;
 Mesh.MshFileVersion = 4.1;
-Mesh 3;
