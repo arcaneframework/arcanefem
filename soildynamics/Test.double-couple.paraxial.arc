@@ -7,6 +7,7 @@
 
   <arcane-post-processing>
    <output-period>5</output-period>
+   <format name="VtkHdfV2PostProcessor" />
    <output>
      <variable>U</variable>
      <variable>V</variable>
