@@ -48,3 +48,5 @@ After running the test cases visualize the results using ParaView:
 ~~~{sh}
 paraview ${BUILD_DIR}/elastcity/output/depouillement/vtkhdfv2/Mesh0.hdf
 ~~~
+
+please note you will need the latest ParaView ( > 5.12) and Arcane framework compiled with mpi support for hdf5. 
