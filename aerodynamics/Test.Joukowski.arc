@@ -7,6 +7,7 @@
 
   <arcane-post-processing>
    <output-period>1</output-period>
+   <format name="VtkHdfV2PostProcessor" />
    <output>
      <variable>u</variable>
      <variable>psi</variable>
