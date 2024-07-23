@@ -116,6 +116,19 @@ If needed, the Neumann  boundary conditions  can also be provided in `Test.Elect
 For post processing the `Mesh0.hdf` file is outputted (in `output/depouillement/vtkhdfv2` folder), which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
 
 
+#### Tests available in this module ####
+
+The tests are present in the form of `.arc` files with a prefix `Test.`:
+
+| Name       | Dimension | Boundary Condition                     | Solver          | Comment                     |
+| ---------- | --------- | -------------------------------------- | --------------- | --------------------------- |
+| box-rods   | 2D        | Dirichlet only<br />Homogeneous Source | PETSc (Default) | - Serves as validation test |
+| rod-circle | 2D        | Dirichlet only<br />Homogeneous Source | PETSc (Default) | - Serves as validation test |
+| Capacitor  | 2D        | Dirichlet only<br />Homogeneous Source | PETSc (Default) |                             |
+|            |           |                                        |                 |                             |
+
+
+
 ## Gallery ##
 - E-type interdigital capacitor
 ![image](https://github.com/arcaneframework/arcanefem/assets/52162083/822a3b8c-5a55-4a5b-8450-74224d2a257d)
