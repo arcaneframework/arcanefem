@@ -7,6 +7,7 @@
 
   <arcane-post-processing>
    <output-period>2</output-period>
+   <format name="VtkHdfV2PostProcessor" />
    <output>
      <variable>NodeTemperature</variable>
      <variable>Flux</variable>
