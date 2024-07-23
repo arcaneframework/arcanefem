@@ -37,4 +37,4 @@ $$\varepsilon_{ij}(\mathbf{u}) = \frac{1}{2}(\frac{\partial{u}_i}{\partial{x}_j}
 
 #### Post Process ####
 
-For post processing the `ensight.case` file is output, which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
+For post processing the `Mesh0.hdf` file is outputted (in `output/depouillement/vtkhdfv2` folder), which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).

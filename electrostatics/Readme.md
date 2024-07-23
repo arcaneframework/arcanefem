@@ -16,11 +16,11 @@ $$\text{curl}\mathbf{E} = 0   \quad \forall (x,y)\in\Omega^h $$
 
 here, $\rho$ and $\epsilon$ are charge density and permittivity of free space, respectively.
 
-Introducing, electrostatic potential $\phi$ such that 
+Introducing, electrostatic potential $\phi$ such that
 
 $$\mathbf{E}=-\nabla\phi$$
 
-we get the following form of equation 
+we get the following form of equation
 
 $$-\nabla\phi=\rho/\epsilon  \quad \forall (x,y)\in\Omega^h$$
 
@@ -28,7 +28,7 @@ To complete the problem description,   first type (Dirichlet) boundary condition
 
 $\phi = 0.0 \quad \forall(x,y)\in\partial\Omega^h_{\text{external}}\subset\partial \Omega^h,$
 
-and internally there are two rods held at +1 and -1 volt receptively,  which is again translated to two Dirichlet boundary conditions 
+and internally there are two rods held at +1 and -1 volt receptively,  which is again translated to two Dirichlet boundary conditions
 
 $\phi = 1.0 \quad \forall(x,y)\in\partial\Omega^h_{\text{rod1}}\subset\partial \Omega^h,$
 
@@ -98,7 +98,7 @@ The Dirichlet boundary conditions  are provided in `Test.Electrostatics.arc` fil
     </dirichlet-boundary-condition>
 ```
 
-So in the snippet above, three Dirichlet condition $\phi=0$ is  applied to border ('external') which is a group of edges in the mesh file `box-rods.msh`. Similar logic applies to other two Dirichlet conditions. 
+So in the snippet above, three Dirichlet condition $\phi=0$ is  applied to border ('external') which is a group of edges in the mesh file `box-rods.msh`. Similar logic applies to other two Dirichlet conditions.
 
 If needed, the Neumann  boundary conditions  can also be provided in `Test.Electrostatics.arc` file
 
@@ -113,10 +113,10 @@ If needed, the Neumann  boundary conditions  can also be provided in `Test.Elect
 
 #### Post Process ####
 
-For post processing the `ensight.case` file is outputted, which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
+For post processing the `Mesh0.hdf` file is outputted (in `output/depouillement/vtkhdfv2` folder), which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
 
 
-## Gallery ## 
+## Gallery ##
 - E-type interdigital capacitor
 ![image](https://github.com/arcaneframework/arcanefem/assets/52162083/822a3b8c-5a55-4a5b-8450-74224d2a257d)
 
