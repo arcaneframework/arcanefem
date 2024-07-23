@@ -45,7 +45,7 @@ $\int_{\Omega^h_{{N}}}(\mathbf{q} \cdot \mathbf{n}) v^h=0$
 
 #### Mesh ####
 
-The mesh `plancher.msh` is provided in the `Test.laplace.arc` file
+The mesh `plancher.msh` is provided in the `Test.ring.arc` file
 
 ```xml
   <meshes>
@@ -59,7 +59,7 @@ Please not that use version 4.1 `.msh` file from `Gmsh`.
 
 #### Boundary conditions ####
 
-The Dirichlet (constant temperature) boundary conditions  are provided in `Test.conduction.arc` file
+The Dirichlet (constant $u$) boundary conditions  are provided in `Test.ring.arc` file
 
 ```xml
     <dirichlet-boundary-condition>
@@ -87,7 +87,21 @@ The Neumann  boundary conditions  are absent but could be provided in such a way
 
 #### Post Process ####
 
-For post processing the `ensight.case` file is outputted, which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
+For post processing the `Mesh0.hdf` file is outputted (in `output/depouillement/vtkhdfv2` folder), which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
+
+
+
+#### Tests available in this module ####
+
+The tests are present in the form of `.arc` files with a prefix `Test.`:
+
+| Name                   | Dimension | Boundary Condition          | Solver               | Comment                     |
+| ---------------------- | --------- | --------------------------- | -------------------- | --------------------------- |
+| L-shape                | 3D        | Dirichlet + Null flux       | Default (PETSc)      | - Serves as validation test |
+| ring                   | 2D        | Dirichlet only              | Default (PETSc)      |                             |
+| PointDirichlet         | 2D        | Point Dirichlet + Null flux | Sequential Direct LU | - Serves as validation test |
+| PointDirichlet-refined | 2D        | Point Dirichlet + Null flux | Default (PETSc)      | - Refined version of test   |
+|                        |           |                             |                      |                             |
 
 ####  Point loading example ####
 

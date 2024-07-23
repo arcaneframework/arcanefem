@@ -2,7 +2,7 @@
 
 <img align="left" width="400" src="https://github.com/arcaneframework/arcanefem/assets/52162083/3646fbb9-5c82-4807-b025-7f3b4c899ca7" alt="poisson_1_large" />
 
-Here, we utilize ArcaneFEM to solve the Poisson equation, which is a fundamental elliptic partial differential equation (PDE). The provided code demonstrates a straightforward implementation of a 2D/3D unstructured mesh Galerkin finite element method (FEM) solver on an L-shaped domain. Although we shall explain here only 2D for keeping the text simple. 
+Here, we utilize ArcaneFEM to solve the Poisson equation, which is a fundamental elliptic partial differential equation (PDE). The provided code demonstrates a straightforward implementation of a 2D/3D unstructured mesh Galerkin finite element method (FEM) solver on an L-shaped domain. Although we shall explain here only 2D for keeping the text simple.
 
 The Poisson equation is encountered in various physical scenarios, including heat conduction, substance diffusion, membrane elasticity, inviscid fluid flow, electrostatics, twisting of elastic rods, and water waves. It serves as a vital tool for modeling and understanding these phenomena.
 
@@ -68,7 +68,7 @@ The mesh `L-shape.msh` is provided in the `Test.L-shape.2D.arc` file
   </meshes>
 ```
 
-Note, here `L-shape.msh` is a 2D mesh, if any other 3D mesh was loaded ArcaneFEM will run 3D calculations it is as simple as that. 
+Note, here `L-shape.msh` is a 2D mesh, if any other 3D mesh was loaded ArcaneFEM will run 3D calculations it is as simple as that.
 
 Please not that use version 4.1 `.msh` file from `Gmsh`.
 
@@ -108,7 +108,7 @@ For post processing the `Mesh0.hdf` file is outputted (in `output/depouillement/
 
 #### Tests available in this module ####
 
-The tests are present in the form of `.arc` files with a prefix `Text.`:
+The tests are present in the form of `.arc` files with a prefix `Test.`:
 
 | Name          | Dimension | Boundary Condition                                   | Solver               | Comment                                                     |
 | ------------- | --------- | ---------------------------------------------------- | -------------------- | ----------------------------------------------------------- |
@@ -138,5 +138,4 @@ SOURCE_PATH=/path/to/sources
 cmake -S ${SOURCE_PATH} -B ${BUILD_DIR} -DCMAKE_PREFIX_PATH=${ARCANE_INSTALL_DIR} -DREGISTER_TIME=ON
 cmake --build ${BUILD_DIR}
 ~~~
-
 
