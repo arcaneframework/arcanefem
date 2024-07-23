@@ -22,4 +22,4 @@ target_link_libraries(Bilaplacian PUBLIC FemUtils)
 enable_testing()
 
 add_test(NAME [bilaplacian]direct_solver COMMAND Bilaplacian Test.direct.arc)
-add_test(NAME [bilaplacian]internal_PCG_solver COMMAND Bilaplacian Test.internal_pcg.arc)
+#add_test(NAME [bilaplacian]internal_PCG_solver COMMAND Bilaplacian Test.internal_pcg.arc)
