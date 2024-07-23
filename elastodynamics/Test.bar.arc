@@ -22,16 +22,14 @@
   </meshes>
 
   <fem>
+    <time-discretization>Newmark-beta</time-discretization>
     <tmax>2.</tmax>
     <dt>0.08</dt>
-    <alpm>0.20</alpm>
-    <alpf>0.40</alpf>
     <rho>1.0</rho>
     <lambda>576.9230769</lambda>
     <mu>384.6153846</mu>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     <penalty>1.e64</penalty>
-    <time-discretization>Newmark-beta</time-discretization>
     <dirichlet-boundary-condition>
       <surface>surfaceleft</surface>
       <u1>0.0</u1>

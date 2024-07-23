@@ -26,7 +26,7 @@ in addition, we are provided with initial conditions:
 
 $T(x,y,0)=30.0$
 
-Finally no  heat-source is present within the domain 
+Finally no  heat-source is present within the domain
 
 $\dot{\mathcal{Q}}=0$
 
@@ -69,9 +69,9 @@ The value of thermal conductivity $\lambda$  and heat source $t_{max}, \delta t$
   </Fem1>
 ```
 
-#### Mesh #### 
+#### Mesh ####
 
-The mesh `plate.msh` is provided in the `Test.conduction.arc` file 
+The mesh `plate.msh` is provided in the `Test.conduction.arc` file
 
 ```xml
   <meshes>
@@ -81,7 +81,7 @@ The mesh `plate.msh` is provided in the `Test.conduction.arc` file
   </meshes>
 ```
 
-Please not that use version 4.1 `.msh` file from `Gmsh`. 
+Please not that use version 4.1 `.msh` file from `Gmsh`.
 
 #### Boundary conditions ####
 
@@ -128,7 +128,7 @@ See `Test.conduction.convection.arc`  for this. Here the 'Left' border has Diric
 
 #### Post Process ####
 
-For post processing the `ensight.case` file is outputted, which can be read by PARAVIS. 
+For post processing the `Mesh0.hdf` file is outputted (in `output/depouillement/vtkhdfv2` folder), which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
 
 The output can be $\mathbb{P}_1$ FE order (on nodes) or $\mathbb{P}_0$ FE order (on cells). In the `Test.conduction.arc` file we post-process both types
 

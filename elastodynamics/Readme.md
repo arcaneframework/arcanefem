@@ -18,7 +18,7 @@ here, $\sigma(\mathbf{x})$ is stress tensor, $\mathbf{f}(\mathbf{x})$ is the bod
 
 $$ \sigma(\mathbf{x}) = \lambda(\nabla\cdot\mathbf{u}(\mathbf{x}))\mathbb{I} + \mu (\nabla\mathbf{u}(\mathbf{x}) + \left(\nabla\mathbf{u}(\mathbf{x})\right)^\text{T}) $$
 
-here, $\lambda\in\mathbb{R}^{+}$ and $\mu\in\mathbb{R}^{+}$ are the Lame's elasticity parameters for the homogeneous material, $\mathbb{I}$ is the identity tensor, and $\mathbf{u}(\mathbf{x})$ is the displacement field vector. This governing PDE iis also knows as Navier's equation. 
+here, $\lambda\in\mathbb{R}^{+}$ and $\mu\in\mathbb{R}^{+}$ are the Lame's elasticity parameters for the homogeneous material, $\mathbb{I}$ is the identity tensor, and $\mathbf{u}(\mathbf{x})$ is the displacement field vector. This governing PDE iis also knows as Navier's equation.
 
 #### Variational formulation ####
 
@@ -28,15 +28,131 @@ $$\int_{\Omega} \rho \ddot{\mathbf{u}}(\mathbf{x})\cdot \mathbf{v}(\mathbf{x}) +
 
 here, $\mathbf{t}(\mathbf{x})$ is the traction vector imposed on Neumann boundary $\Omega_N$, and  $\varepsilon(\mathbf{u}(\mathbf{x})) = \varepsilon_{ij}(\mathbf{u}(\mathbf{x}))$ is the strain tensor given by
 
-$$\varepsilon_{ij}(\mathbf{u}) = \frac{1}{2}(\frac{\partial{u}_i}{\partial{x}_j} + \frac{\partial{u}_j}{\partial{x}_i} )$$  
+$$\varepsilon_{ij}(\mathbf{u}) = \frac{1}{2}(\frac{\partial{u}_i}{\partial{x}_j} + \frac{\partial{u}_j}{\partial{x}_i} )$$
 
 ## The code ##
+
+This XML configuration file is used for setting up an Elastodynamics problem simulation in ArcaneFEM. Below is a detailed explanation of each section in the configuration for one such file `Test.bar.arc`.
+
+###### Mesh Configuration
+
+The mesh configuration section specifies the mesh file to be used in the simulation:
+
+```xml
+<meshes>
+  <mesh>
+    <filename>bar_dynamic.msh</filename>
+  </mesh>
+</meshes>
+```
+
+- **Mesh File:** Defines the mesh file (`bar_dynamic.msh`) to be used in the simulation. Note that this file should be compatible with version 4.1 `.msh` format from `Gmsh`.
+
+###### FEM Configuration
+
+The Finite Element Method (FEM) configuration is provided in the `Test.bar.arc`.
+
+```xml
+<fem>
+  <time-discretization>Newmark-beta</time-discretization>
+  <tmax>2.</tmax>
+  <dt>0.08</dt>
+  <rho>1.0</rho>
+  <lambda>576.9230769</lambda>
+  <mu>384.6153846</mu>
+  <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+  <penalty>1.e64</penalty>
+  <dirichlet-boundary-condition>
+    <surface>surfaceleft</surface>
+    <u1>0.0</u1>
+    <u2>0.0</u2>
+  </dirichlet-boundary-condition>
+  <traction-boundary-condition>
+    <surface>surfaceright</surface>
+    <t2>0.01</t2>
+  </traction-boundary-condition>
+  <linear-system>
+    <solver-backend>petsc</solver-backend>
+    <preconditioner>ilu</preconditioner>
+  </linear-system>
+</fem>
+```
+
+Let us explain this point wise 
+
+- **Time parameters:** The Maximum Time (tmax) time is set to `2.0`. Time Step (dt) for the simulation is set to `0.08`. Time Discretization is set via Newmark-beta
+
+  ```xml
+  <time-discretization>Newmark-beta</time-discretization>
+  <tmax>2.</tmax>
+  <dt>0.08</dt>
+  ```
+
+- **Material Properties:** The Density (rho) of the material is set to `1.0`.   Lame's First Parameter (lambda) is set to `576.9230769`.  The Shear Modulus (mu) is set to `384.6153846`.
+
+  ```xml
+  <rho>1.0</rho>
+  <lambda>576.9230769</lambda>
+  <mu>384.6153846</mu>
+  ```
+
+- **Dirichlet Boundary Condition:** Penalty  method (`Penalty`) for enforcing Dirichlet boundary conditions, with  penalty parameter for enforcing Dirichlet conditions to `1.e64`. And  the boundary condition on the specified surface (`left`) with given values for `u1` and `u2`, which we set to 0 since the end is clamped.  
+
+  ```xml
+  <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+  <penalty>1.e64</penalty>
+  <dirichlet-boundary-condition>
+    <surface>left</surface>
+    <u1>0.0</u1>
+    <u2>0.0</u2>
+  </dirichlet-boundary-condition>
+  ```
+
+- **Traction Boundary Condition:** Defines the traction boundary condition on the specified surface (`surfaceright`) with a given value for `t2`.
+
+  ```xml
+  <traction-boundary-condition>
+    <surface>surfaceright</surface>
+    <t2>0.01</t2>
+  </traction-boundary-condition>
+  ```
+
+- **Linear System Configuration:** Specifies the linear system settings, including the solver backend (`petsc`) and the preconditioner (`ilu`).
+
+  ```xml
+  <linear-system>
+    <solver-backend>petsc</solver-backend>
+    <preconditioner>ilu</preconditioner>
+  </linear-system>
+  ```
+
+  
+
+###### Post-Processing Configuration
+
+The post-processing configuration is specified to control how and when results are saved:
+
+```xml
+<arcane-post-processing>
+  <output-period>1</output-period>
+  <format name="VtkHdfV2PostProcessor" />
+  <output>
+    <variable>U</variable>
+  </output>
+</arcane-post-processing>
+```
+
+- **Output Period:** Sets the interval at which results are saved.
+
+- **Format:** Specifies the format for the output files (`VtkHdfV2PostProcessor`).
+
+- **Output Variables:** Lists the variables (`U`) which is the displacement vector to be included in the output.
 
 
 
 #### Post Process ####
 
-For post processing the `ensight.case` file is outputted, which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
+For post processing the `Mesh0.hdf` file is outputted (in `output/depouillement/vtkhdfv2` folder), which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
 
 
 

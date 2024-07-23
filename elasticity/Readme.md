@@ -33,8 +33,108 @@ $$\varepsilon_{ij}(\mathbf{u}) = \frac{1}{2}(\frac{\partial{u}_i}{\partial{x}_j}
 
 ## The code ##
 
+This XML configuration file is used for setting up an Elasticity problem simulation in ArcaneFEM. Below is a detailed explanation of each section in the configuration for one of the tests `Test.bar.arc`.
+
+###### Mesh Configuration
+
+The mesh configuration section specifies the mesh file to be used in the simulation:
+
+```xml
+<meshes>
+  <mesh>
+    <filename>bar.msh</filename>
+  </mesh>
+</meshes>
+
+```
+
+- **Mesh File:** Defines the mesh file (`bar.msh`) to be used in the simulation. Note that this file should be compatible with version 4.1 `.msh` format from `Gmsh`.
+
+###### FEM Configuration
+
+The Finite Element Method (FEM) configuration is provided in the `Test.bar.arc`.
+
+```xml
+<fem>
+  <result-file>test_elasticity_results.txt</result-file>
+  <E>21.0e5</E>
+  <nu>0.28</nu>
+  <f2>-1.0</f2>
+  <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+  <dirichlet-boundary-condition>
+    <surface>left</surface>
+    <u1>0.0</u1>
+    <u2>0.0</u2>
+  </dirichlet-boundary-condition>
+</fem>
+```
+
+Let us explain this point wise 
+
+- **Result File:** Specifies the file for validation test (OPTIONAL). Use only if you want to compare solutions
+
+  ```xml
+  <result-file>test_elasticity_results.txt</result-file>
+  ```
+
+- **Material Properties:** The Young's Modulus (E) for the material, defined as `21.0e5`.  The Poisson's Ratio (nu) for the material, defined as `0.28`. 
+
+  ```xml
+  <E>21.0e5</E>
+  <nu>0.28</nu>
+  ```
+
+- **Source Term (f2):** The source term in Y direction hence (f2) in the PDE, set to `-1.0`.
+
+  ```xml
+  <f2>-1.0</f2>
+  ```
+
+- **Dirichlet Method:** Specifies the method (`Penalty`) for enforcing Dirichlet boundary conditions. And  the boundary condition on the specified surface (`left`) with given values for `u1` and `u2`, which we set to 0 since the end is clamped.  
+
+  ```xml
+  <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+  <dirichlet-boundary-condition>
+    <surface>left</surface>
+    <u1>0.0</u1>
+    <u2>0.0</u2>
+  </dirichlet-boundary-condition>
+  ```
+
+###### Post-Processing Configuration
+
+The post-processing configuration is specified to control how and when results are saved:
+
+```xml
+<arcane-post-processing>
+  <output-period>1</output-period>
+  <format name="VtkHdfV2PostProcessor" />
+  <output>
+    <variable>U</variable>
+  </output>
+</arcane-post-processing>
+```
+
+- **Output Period:** Sets the interval at which results are saved.
+
+- **Format:** Specifies the format for the output files (`VtkHdfV2PostProcessor`).
+
+- **Output Variables:** Lists the variables (`U`) which is the displacement vector to be included in the output.
+
 
 
 #### Post Process ####
 
-For post processing the `ensight.case` file is output, which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
+For post processing the `Mesh0.hdf` file is outputted (in `output/depouillement/vtkhdfv2` folder), which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
+
+#### Tests available in this module ####
+
+The tests are present in the form of `.arc` files with a prefix `Test.`:
+
+| Name                                 | Dimension | Boundary Condition                                          | Solver          | Comment                                                      |
+| ------------------------------------ | --------- | ----------------------------------------------------------- | --------------- | ------------------------------------------------------------ |
+| bar                                  | 2D        | Clamped Dirichlet + Null flux<br />Body force (Source Term) | Default (PETSc) | - Serves as validation test                                  |
+| bar.DirichletViaRowElimination       | 2D        | Clamped Dirichlet + Null flux<br />Body force (Source Term) | PETSc           | - Row Elimination for BC<br />- GMRES with ILU(0) Solver     |
+| bar.DirichletViaRowColumnElimination | 2D        | Clamped Dirichlet + Null flux<br />Body force (Source Term) | PETSc           | - Row and Column Elimination for BC<br />- CG with AMG Solver |
+| bar.traction                         | 2D        | Clamped Dirichlet<br />Traction (Neumann)                   | Default (PETSc) |                                                              |
+|                                      |           |                                                             |                 |                                                              |

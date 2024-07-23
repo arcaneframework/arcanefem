@@ -71,7 +71,7 @@ $\int_{\Omega^h}\dot{\mathcal{Q}} v^h=1\times10^5$, and
 
 $\lambda=1.75$
 
-Please note that the above equation is often called as the weak formulation of the Fourier equation and in fact the finite element variable $u^h$ is an appoximation of temperature $T$. 
+Please note that the above equation is often called as the weak formulation of the Fourier equation and in fact the finite element variable $u^h$ is an appoximation of temperature $T$.
 
 ## The code ##
 
@@ -138,7 +138,7 @@ The Neumann  boundary conditions  are also provided in `Test.conduction.arc` fil
 
 #### Post Process ####
 
-For post processing the `ensight.case` file is outputted, which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
+For post processing the `Mesh0.hdf` file is outputted (in `output/depouillement/vtkhdfv2` folder), which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
 
 #### multi-material example ####
 
