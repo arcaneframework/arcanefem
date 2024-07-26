@@ -11,6 +11,8 @@ configure_file(Acoustics.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.sub.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/sub.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
+file(COPY "tests/" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
 target_link_libraries(Acoustics PUBLIC FemUtils)
 
 enable_testing()

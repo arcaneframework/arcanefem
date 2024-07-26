@@ -25,5 +25,7 @@
       <value>1.0</value>
     </neumann-boundary-condition>
     <linear-system name="SequentialBasicLinearSystem" />
+
+    <result-file>sub_2D.txt</result-file>
   </fem>
 </case>
