@@ -19,6 +19,7 @@
   </meshes>
 
   <fem>
+    <kc2>.11e1</kc2>
     <neumann-boundary-condition>
       <surface>inner1</surface>
       <value>1.0</value>
