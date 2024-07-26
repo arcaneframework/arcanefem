@@ -9,11 +9,20 @@
 //
 //
 // Usage      : gmsh sub.geo -2 -format msh41 -clmin 1 -clmax 1
+//              gmsh sub.geo -2 -format msh41 -setnumber MeshSize 1.0 -setnumber Rfactor 2.0 
 //
-//
-// Todo       : make this parametric
 //-----------------------------------------------------------------------------
 
+
+//==============================================================================
+// ---- define parameters for commandline ----
+//==============================================================================
+
+DefineConstant[ meshSize  = {1.0, Min 1e-8, Max 100, Step 1,
+                         Name "Parameters/MeshSize MeshSize"} ];
+
+DefineConstant[ Rfactor  = {1.0, Min 1, Max 100, Step 1,
+                         Name "Parameters/Rfactor Rfactor"} ];
 
 //==============================================================================
 // ---- outer water circle ----
@@ -24,18 +33,20 @@ Circle(1) = {-0, -0, 0, 10, 0, 2*Pi};
 //==============================================================================
 // ---- submarine geometry ----
 //==============================================================================
-Point(2) = {-2.7, 0, 0, 1.0};
-Point(3) = {-2.3, 0.4, 0, 1.0};
-Point(4) = {-1.1, 0.4, 0, 1.0};
-Point(5) = {-1, 0.7, 0, 1.0};
-Point(6) = {-0.8, 0.7, 0, 1.0};
-Point(7) = {-0.7, 0.4, 0, 1.0};
-Point(8) = {0.3, 0.3, 0, 1.0};
-Point(9) = {0.6, 0.2, 0, 1.0};
-Point(10) = {0.7, 0.4, 0, 1.0};
-Point(11) = {0.9, 0.4, 0, 1.0};
-Point(12) = {0.9, -0, 0, 1.0};
-Point(13) = {-6.2, -2.3, 0, 1.0};
+meshSize /= Rfactor;
+
+Point(2) = {-2.7, 0, 0, meshSize};
+Point(3) = {-2.3, 0.4, 0, meshSize};
+Point(4) = {-1.1, 0.4, 0, meshSize};
+Point(5) = {-1, 0.7, 0, meshSize};
+Point(6) = {-0.8, 0.7, 0, meshSize};
+Point(7) = {-0.7, 0.4, 0, meshSize};
+Point(8) = {0.3, 0.3, 0, meshSize};
+Point(9) = {0.6, 0.2, 0, meshSize};
+Point(10) = {0.7, 0.4, 0, meshSize};
+Point(11) = {0.9, 0.4, 0, meshSize};
+Point(12) = {0.9, -0, 0, meshSize};
+Point(13) = {-6.2, -2.3, 0, meshSize};
 
 Spline(2) = {2, 3, 4};
 Line(3) = {4, 5};
@@ -46,9 +57,8 @@ Line(7) = {8, 9};
 Line(8) = {9, 10};
 Line(9) = {10, 11};
 Line(10) = {11, 12};
-Point(14) = {-0.9, -0.2, 0, 1.0};
+Point(14) = {-0.9, -0.2, 0, meshSize};
 Spline(11) = {2, 14, 12};
-
 
 //==============================================================================
 // ---- water volume ----
