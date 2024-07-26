@@ -13,6 +13,7 @@ set(MSH_DIR ${CMAKE_SOURCE_DIR}/meshes/msh)
 set(BUILD_SHARED_LIBS TRUE)
 
 add_subdirectory(femutils)
+add_subdirectory(acoustics)
 add_subdirectory(aerodynamics)
 add_subdirectory(poisson)
 add_subdirectory(laplace)
