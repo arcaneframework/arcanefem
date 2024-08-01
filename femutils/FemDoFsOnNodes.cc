@@ -77,7 +77,6 @@ initialize(IMesh* mesh, Int32 nb_dof_per_node)
 
   // Create the DoFs
   Int64UniqueArray uids(mesh->allNodes().size() * nb_dof_per_node);
-  Int64 max_node_uid = mesh::DoFUids::getMaxItemUid(mesh->nodeFamily());
   {
     Integer dof_index = 0;
     ENUMERATE_NODE (inode, mesh->allNodes()) {

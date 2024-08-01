@@ -68,7 +68,6 @@ class FemModule
  private:
 
   Real kc2;
-  Real ElementNodes;
 
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
@@ -159,9 +158,7 @@ _getMaterialParameters()
   info() << "Get material parameters...";
   kc2 = options()->kc2();
 
-  ElementNodes = 3.;
 }
-
 
 /*---------------------------------------------------------------------------*/
 // Assemble the FEM linear operator
