@@ -1,10 +1,16 @@
 <?xml version="1.0" ?>
 <module name="Fem" version="1.0">
   <description>FEM module description</description>
+
+
+  <!-- Define entry points for the module -->
   <entry-points>
     <entry-point method-name="compute" name="Compute" where="compute-loop" property="none" />
     <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
   </entry-points>
+
+
+  <!-- Declare variables used in the module -->
   <variables>
     <variable field-name="u" name="U" data-type="real" item-kind="node" dim="0">
       <description>FEM variable u on nodes</description>
@@ -13,51 +19,47 @@
       <description>Node coordinates from Arcane variable</description>
     </variable>
   </variables>
+
+
+  <!-- Define module options -->
   <options>
+    <!-- File for result validation -->
     <simple name="result-file" type="string" optional="true">
       <description>File name of a file containing the values of the solution vector to check the results</description>
     </simple>
+
+    <!-- Material property k/c squared -->
     <simple name="kc2" type="real" default="0.4">
       <description>k/c square of the material.</description>
     </simple>
+
+    <!-- Mesh type used by the solver -->
     <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
       <description>Type of mesh provided to the solver</description>
     </simple>
 
     <!-- - - - - - neumann-boundary-condition - - - - -->
-    <complex name  = "neumann-boundary-condition"
-             type  = "NeumannBoundaryCondition"
-             minOccurs = "0"
-             maxOccurs = "unbounded"
-      >
-      <description>
-        Neumann boundary condition
-      </description>
-      <extended name = "surface" type = "Arcane::FaceGroup">
-        <description>
-          FaceGroup on which to apply these boundary condition
-        </description>
+    <complex name="neumann-boundary-condition" type="NeumannBoundaryCondition" minOccurs="0" maxOccurs="unbounded">
+      <description>Neumann boundary condition</description>
+
+      <extended name="surface" type="Arcane::FaceGroup">
+        <description>FaceGroup on which to apply the boundary condition</description>
       </extended>
-      <simple name = "value" type = "real" optional = "true">
-        <description>
-          Value of the boundary condition
-        </description>
+
+      <simple name="value" type="real" optional="true">
+        <description>Value of the boundary condition</description>
       </simple>
-      <simple name = "valueX" type = "real" optional = "true">
-        <description>
-          Value of the Neumann load in x
-        </description>
+
+      <simple name="valueX" type="real" optional="true">
+        <description>Neumann load value in x-direction</description>
       </simple>
-      <simple name = "valueY" type = "real" optional = "true">
-        <description>
-          Value of the Neumann load in y
-        </description>
+
+      <simple name="valueY" type="real" optional="true">
+        <description>Neumann load value in y-direction</description>
       </simple>
     </complex>
 
-    <service-instance name = "linear-system"
-                      type = "Arcane::FemUtils::IDoFLinearSystemFactory"
-                      default = "AlephLinearSystem"
-                      />
+    <!-- Linear system service instance -->
+    <service-instance name="linear-system" type="Arcane::FemUtils::IDoFLinearSystemFactory" default="AlephLinearSystem" />
   </options>
 </module>

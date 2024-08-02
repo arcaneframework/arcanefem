@@ -57,23 +57,16 @@ class FemModule
     cm->setAllowUnkownRootElelement(false);
   }
 
-  //! Method called at each iteration
-  void compute() override;
-
-  //! Method called at the beginning of the simulation
-  void startInit() override;
-
-  VersionInfo versionInfo() const override
-  {
-    return VersionInfo(1, 0, 0);
-  }
+  void compute() override;   //! Method called at each iteration 
+  void startInit() override; //! Method called at the beginning of the simulation
+  VersionInfo versionInfo() const override { return VersionInfo(1, 0, 0); }
 
  private:
 
   Real m_kc2;
 
   DoFLinearSystem m_linear_system;
-  IItemFamily* m_dof_family;
+  IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;
 
   void _doStationarySolve();
@@ -82,13 +75,23 @@ class FemModule
   void _solve();
   void _assembleLinearOperator();
   void _validateResults();
+
   FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
+
   Real _computeAreaTriangle3(Cell cell);
   Real _computeEdgeLength2(Face face);
   Real2 _computeEdgeNormal2(Face face);
 };
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Performs the main computation for the FemModule.
+ *
+ * This method:
+ *   1. Stops the time loop after 1 iteration since the equation is steady state.
+ *   2. Resets, configures, and initializes the linear system.
+ *   3. Executes the stationary solve.
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -96,24 +99,34 @@ compute()
 {
   info() << "Module Fem COMPUTE";
 
-  // Stop code after computations
+  // step 1
   if (m_global_iteration() > 0)
     subDomain()->timeLoopMng()->stopComputeLoop(true);
 
+  // step 2
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
+
   info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
+
+  // step 3
   _doStationarySolve();
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Initializes the FemModule at the start of the simulation.
+ *
+ * This method initializes degrees of freedom (DoFs) on nodes.
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
 startInit()
 {
   info() << "Module Fem INIT";
+
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 }
@@ -165,7 +178,8 @@ _getMaterialParameters()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleLinearOperator()
+void FemModule::
+_assembleLinearOperator()
 {
   info() << "Assembly of FEM linear operator ";
 
@@ -250,6 +264,7 @@ _computeAreaTriangle3(Cell cell)
  * This method calculates Euclidean distance between the two nodes of the face.
  */
 /*---------------------------------------------------------------------------*/
+
 Real FemModule::
 _computeEdgeLength2(Face face)
 {
@@ -270,6 +285,7 @@ _computeEdgeLength2(Face face)
  * normalizes it, and ensures the correct orientation.
  */
 /*---------------------------------------------------------------------------*/
+
 Real2 FemModule::
 _computeEdgeNormal2(Face face)
 {
@@ -435,6 +451,7 @@ _solve()
  * @note The result comparison uses a tolerance of 1.0e-4.
  */
 /*---------------------------------------------------------------------------*/
+
 void FemModule::
 _validateResults()
 {
