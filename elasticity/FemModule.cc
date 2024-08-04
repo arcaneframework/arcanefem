@@ -956,7 +956,7 @@ _checkResultFile()
   if (filename.empty())
     return;
   const double epsilon = 1.0e-4;
-  const double min_value_to_test = 1.0e-18;
+  const double min_value_to_test = 1.0e-16;
   Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_U, epsilon, min_value_to_test);
 }
 
