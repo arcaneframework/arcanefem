@@ -84,6 +84,42 @@ class FixedMatrix
     }
   }
 
+  //! Define the addition operator
+  FixedMatrix<N, M> operator+(const FixedMatrix<N, M>& other) const
+  {
+    FixedMatrix<N, M> result;
+    for (Arcane::Int32 i = 0; i < N; ++i) {
+      for (Arcane::Int32 j = 0; j < M; ++j) {
+        result(i, j) = (*this)(i, j) + other(i, j);
+      }
+    }
+    return result;
+  }
+
+  //! Define the subtraction operator
+  FixedMatrix<N, M> operator-(const FixedMatrix<N, M>& other) const
+  {
+    FixedMatrix<N, M> result;
+    for (Arcane::Int32 i = 0; i < N; ++i) {
+      for (Arcane::Int32 j = 0; j < M; ++j) {
+        result(i, j) = (*this)(i, j) - other(i, j);
+      }
+    }
+    return result;
+  }
+
+  //! Define the unary negation operator
+  FixedMatrix<N, M> operator-() const
+  {
+    FixedMatrix<N, M> result;
+    for (Arcane::Int32 i = 0; i < N; ++i) {
+      for (Arcane::Int32 j = 0; j < M; ++j) {
+        result(i, j) = -(*this)(i, j);
+      }
+    }
+    return result;
+  }
+
  private:
 
   std::array<Arcane::Real, totalNbElement()> m_values = {};
