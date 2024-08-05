@@ -11,7 +11,6 @@ add_library(FemUtils
   FemDoFsOnNodes.h
   FemDoFsOnNodes.cc
   ArcaneFemFunctions.h
-  ArcaneFemFunctions.cc
   AlephDoFLinearSystem.cc
   IDoFLinearSystemFactory.h
   AlephDoFLinearSystemFactory_axl.h
