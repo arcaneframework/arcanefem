@@ -22,6 +22,8 @@
 #include <arcane/IIOMng.h>
 #include <arcane/CaseTable.h>
 
+#include <arcane/utils/Real3.h>
+
 #include <array>
 
 /*---------------------------------------------------------------------------*/
@@ -120,10 +122,48 @@ class FixedMatrix
     return result;
   }
 
+  //! Scalar multiplication: FixedMatrix * scalar
+  FixedMatrix<N, M> operator*(Real scalar) const
+  {
+    FixedMatrix<N, M> result;
+    for (Arcane::Int32 i = 0; i < N; ++i) {
+      for (Arcane::Int32 j = 0; j < M; ++j) {
+        result(i, j) = (*this)(i, j) * scalar;
+      }
+    }
+    return result;
+  }
+
+  //! Friend function for scalar multiplication: scalar * FixedMatrix
+  friend FixedMatrix<N, M> operator*(Real scalar, const FixedMatrix<N, M>& matrix)
+  {
+    FixedMatrix<N, M> result;
+    for (Arcane::Int32 i = 0; i < N; ++i) {
+      for (Arcane::Int32 j = 0; j < M; ++j) {
+        result(i, j) = scalar * matrix(i, j);
+      }
+    }
+    return result;
+  }
+
  private:
 
   std::array<Arcane::Real, totalNbElement()> m_values = {};
 };
+
+/*---------------------------------------------------------------------------*/
+//  Outer product of two Real3 vectors to produce a FixedMatrix<3, 3>
+/*---------------------------------------------------------------------------*/
+inline FixedMatrix<3, 3> operator^(const Arcane::Real3& lhs, const Arcane::Real3& rhs)
+{
+  FixedMatrix<3, 3> result;
+  for (Arcane::Int32 i = 0; i < 3; ++i) {
+    for (Arcane::Int32 j = 0; j < 3; ++j) {
+      result(i, j) = lhs[i] * rhs[j];
+    }
+  }
+  return result;
+}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
