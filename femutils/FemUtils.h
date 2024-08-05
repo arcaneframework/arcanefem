@@ -23,6 +23,7 @@
 #include <arcane/CaseTable.h>
 
 #include <arcane/utils/Real3.h>
+#include <arcane/utils/Real3x3.h>
 
 #include <array>
 
@@ -163,6 +164,38 @@ inline FixedMatrix<3, 3> operator^(const Arcane::Real3& lhs, const Arcane::Real3
     }
   }
   return result;
+}
+
+/*---------------------------------------------------------------------------*/
+// Define the conversion from Real3x3 to FixedMatrix<3, 3>
+/*---------------------------------------------------------------------------*/
+inline FixedMatrix<3, 3> convertReal3x3ToFixedMatrix(const Arcane::Real3x3& rhs)
+{
+  FixedMatrix<3, 3> result;
+  for (Arcane::Int32 i = 0; i < 3; ++i) {
+    for (Arcane::Int32 j = 0; j < 3; ++j) {
+      result(i, j) = rhs(i, j);
+    }
+  }
+  return result;
+}
+
+/*---------------------------------------------------------------------------*/
+// Overload operator+ to handle FixedMatrix<3, 3> + Real3x3
+/*---------------------------------------------------------------------------*/
+inline FixedMatrix<3, 3> operator+(const FixedMatrix<3, 3>& lhs, const Arcane::Real3x3& rhs)
+{
+  FixedMatrix<3, 3> converted_rhs = convertReal3x3ToFixedMatrix(rhs);
+  return lhs + converted_rhs;
+}
+
+/*---------------------------------------------------------------------------*/
+// Overload operator+ to handle Real3x3 + FixedMatrix<3, 3>
+/*---------------------------------------------------------------------------*/
+inline FixedMatrix<3, 3> operator+(const Arcane::Real3x3& lhs, const FixedMatrix<3, 3>& rhs)
+{
+  FixedMatrix<3, 3> converted_lhs = convertReal3x3ToFixedMatrix(lhs);
+  return converted_lhs + rhs;
 }
 
 /*---------------------------------------------------------------------------*/
