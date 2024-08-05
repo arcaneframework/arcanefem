@@ -244,43 +244,26 @@ _assembleLinearOperator()
  *
  * Steps involved:
  * 1. Calculate the area of the triangle.
- * 2. Compute the gradients of the shape functions.
- * 3. Compute the element matrix:
- *    4.1 first compute -(u.dx * v.dx + u.dy * v.dy) terms
- *    4.2 then (kc2 * u * v) term adjusted
+ * 2. Compute the integral U*V term.
+ * 3. Compute the gradients of the shape functions.
+ * 4. Return -(u.dx * v.dx + u.dy * v.dy) + kc2 * u * v ;
  */
 /*---------------------------------------------------------------------------*/
 
 FixedMatrix<3, 3> FemModule::
 _computeElementMatrixTRIA3(Cell cell)
 {
-
   // step 1
   Real area = ArcaneFemFunctions::computeAreaTriangle3(cell, m_node_coord);
 
   // step 2
-  Real3x3 gradN = ArcaneFemFunctions::computeGradientTria3(cell, m_node_coord);
+  Real3x3 UV = ArcaneFemFunctions::computeUVTria3(cell, m_node_coord);
 
   // step 3
-  Real3 dxU = {gradN[0][0], gradN[1][0], gradN[2][0]};
-  Real3 dyU = {gradN[0][1], gradN[1][1], gradN[2][1]};
+  Real3 dxU = ArcaneFemFunctions::computeGradientXTria3(cell, m_node_coord);
+  Real3 dyU = ArcaneFemFunctions::computeGradientYTria3(cell, m_node_coord);
 
-  FixedMatrix<3, 3> elementMatrixB;
-  // step 4.2
-  Real uvTerm = m_kc2 * area / 12.0;
-  elementMatrixB(0, 0) = uvTerm * 2.;
-  elementMatrixB(0, 1) = uvTerm;
-  elementMatrixB(0, 2) = uvTerm;
-
-  elementMatrixB(1, 0) = uvTerm;
-  elementMatrixB(1, 1) = uvTerm * 2.;
-  elementMatrixB(1, 2) = uvTerm;
-
-  elementMatrixB(2, 0) = uvTerm;
-  elementMatrixB(2, 1) = uvTerm;
-  elementMatrixB(2, 2) = uvTerm * 2.;
-
-  return -area* (dxU ^ dxU) - area* (dyU ^ dyU) + elementMatrixB;
+  return -area * (dxU ^ dxU) - area * (dyU ^ dyU) + m_kc2 * area * UV;
 }
 
 /*---------------------------------------------------------------------------*/
