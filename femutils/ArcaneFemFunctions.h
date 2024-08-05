@@ -99,9 +99,79 @@ class ArcaneFemFunctions
 
     Real A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
 
-    return Real3x3(Real3((vertex1.y - vertex2.y)/A2, (vertex2.x - vertex1.x)/A2, 0),
-                   Real3((vertex2.y - vertex0.y)/A2, (vertex0.x - vertex2.x)/A2, 0),
-                   Real3((vertex0.y - vertex1.y)/A2, (vertex1.x - vertex0.x)/A2, 0));
+    return Real3x3(Real3((vertex1.y - vertex2.y) / A2, (vertex2.x - vertex1.x) / A2, 0),
+                   Real3((vertex2.y - vertex0.y) / A2, (vertex0.x - vertex2.x) / A2, 0),
+                   Real3((vertex0.y - vertex1.y) / A2, (vertex1.x - vertex0.x) / A2, 0));
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Computes the X gradients of basis functions N for P1 triangles.
+   *
+   * This method calculates gradient operator ∂/∂x of Ni for a given P1
+   * cell with i = 1,..,3 for the three shape function  Ni  hence output
+   * is a vector of size 3
+   *
+   *         ∂N/∂x = [ ∂N1/∂x  ∂N1/∂x  ∂N3/∂x ]
+   *
+   *         ∂N/∂x = 1/(2A) [ y2​−y3  y3−y1  y1−y2 ]
+   */
+  /*---------------------------------------------------------------------------*/
+
+  static inline Real3 computeGradientXTria3(Cell cell, VariableNodeReal3& node_coord)
+  {
+    Real3 vertex0 = node_coord[cell.nodeId(0)];
+    Real3 vertex1 = node_coord[cell.nodeId(1)];
+    Real3 vertex2 = node_coord[cell.nodeId(2)];
+
+    Real A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
+
+    return Real3((vertex1.y - vertex2.y) / A2, (vertex2.y - vertex0.y) / A2, (vertex0.y - vertex1.y) / A2);
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Computes the Y gradients of basis functions N for P1 triangles.
+   *
+   * This method calculates gradient operator ∂/∂y of Ni for a given P1
+   * cell with i = 1,..,3 for the three shape function  Ni  hence output
+   * is a vector of size 3
+   *
+   *         ∂N/∂x = [ ∂N1/∂y  ∂N1/∂y  ∂N3/∂y ]
+   *
+   *         ∂N/∂x = 1/(2A) [ x3​−x2  x1−x3  x2−x1 ]
+   */
+  /*---------------------------------------------------------------------------*/
+
+  static inline Real3 computeGradientYTria3(Cell cell, VariableNodeReal3& node_coord)
+  {
+    Real3 vertex0 = node_coord[cell.nodeId(0)];
+    Real3 vertex1 = node_coord[cell.nodeId(1)];
+    Real3 vertex2 = node_coord[cell.nodeId(2)];
+
+    Real A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
+
+    return Real3((vertex2.x - vertex1.x) / A2, (vertex0.x - vertex2.x) / A2, (vertex1.x - vertex0.x) / A2);
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Computes the integral (u*v) for P1 triangles.
+   *
+   * here the element matrix will read
+   *
+   *              [ 1/6     1/12   1/12 ]
+   *         a  = [ 1/12    1/6    1/12 ]
+   *              [ 1/12    1/12   1/6  ]
+   *
+   */
+  /*---------------------------------------------------------------------------*/
+
+  static inline Real3x3 computeUVTria3(Cell cell, VariableNodeReal3& node_coord)
+  {
+    Real aii = 1. / 6.;
+    Real aij = 1. / 12.;
+    return Real3x3(Real3(aii, aij, aij), Real3(aij, aii, aij), Real3(aij, aij, aii));
   }
 };
 
