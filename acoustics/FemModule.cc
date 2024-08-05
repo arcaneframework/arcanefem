@@ -245,8 +245,7 @@ _assembleLinearOperator()
  * Steps involved:
  * 1. Calculate the area of the triangle.
  * 2. Compute the gradients of the shape functions.
- * 3. Normalize the gradients by the area.
- * 4. Compute the element matrix:
+ * 3. Compute the element matrix:
  *    4.1 first compute -(u.dx * v.dx + u.dy * v.dy) terms
  *    4.2 then (kc2 * u * v) term adjusted
  */
@@ -263,40 +262,25 @@ _computeElementMatrixTRIA3(Cell cell)
   Real3x3 gradN = ArcaneFemFunctions::computeGradientTria3(cell, m_node_coord);
 
   // step 3
-  Real A2 = 2.0 * area;
-  gradN /= A2;
+  Real3 dxU = {gradN[0][0], gradN[1][0], gradN[2][0]};
+  Real3 dyU = {gradN[0][1], gradN[1][1], gradN[2][1]};
 
-  // step 4
-  FixedMatrix<3, 3> elementMatrix;
-
-  // step 4.1
-  elementMatrix(0, 0) = -area * Arcane::math::dot(gradN[0], gradN[0]);
-  elementMatrix(0, 1) = -area * Arcane::math::dot(gradN[0], gradN[1]);
-  elementMatrix(0, 2) = -area * Arcane::math::dot(gradN[0], gradN[2]);
-
-  elementMatrix(1, 0) = -area * Arcane::math::dot(gradN[1], gradN[0]);
-  elementMatrix(1, 1) = -area * Arcane::math::dot(gradN[1], gradN[1]);
-  elementMatrix(1, 2) = -area * Arcane::math::dot(gradN[1], gradN[2]);
-
-  elementMatrix(2, 0) = -area * Arcane::math::dot(gradN[2], gradN[0]);
-  elementMatrix(2, 1) = -area * Arcane::math::dot(gradN[2], gradN[1]);
-  elementMatrix(2, 2) = -area * Arcane::math::dot(gradN[2], gradN[2]);
-
+  FixedMatrix<3, 3> elementMatrixB;
   // step 4.2
   Real uvTerm = m_kc2 * area / 12.0;
-  elementMatrix(0, 0) += uvTerm * 2.;
-  elementMatrix(0, 1) += uvTerm;
-  elementMatrix(0, 2) += uvTerm;
+  elementMatrixB(0, 0) = uvTerm * 2.;
+  elementMatrixB(0, 1) = uvTerm;
+  elementMatrixB(0, 2) = uvTerm;
 
-  elementMatrix(1, 0) += uvTerm;
-  elementMatrix(1, 1) += uvTerm * 2.;
-  elementMatrix(1, 2) += uvTerm;
+  elementMatrixB(1, 0) = uvTerm;
+  elementMatrixB(1, 1) = uvTerm * 2.;
+  elementMatrixB(1, 2) = uvTerm;
 
-  elementMatrix(2, 0) += uvTerm;
-  elementMatrix(2, 1) += uvTerm;
-  elementMatrix(2, 2) += uvTerm * 2.;
+  elementMatrixB(2, 0) = uvTerm;
+  elementMatrixB(2, 1) = uvTerm;
+  elementMatrixB(2, 2) = uvTerm * 2.;
 
-  return elementMatrix;
+  return -area* (dxU ^ dxU) - area* (dyU ^ dyU) + elementMatrixB;
 }
 
 /*---------------------------------------------------------------------------*/
