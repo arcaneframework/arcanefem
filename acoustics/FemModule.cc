@@ -11,74 +11,24 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/utils/NumArray.h>
-#include <arcane/utils/CommandLineArguments.h>
-#include <arcane/utils/StringList.h>
-
-#include <arcane/ITimeLoopMng.h>
-#include <arcane/IMesh.h>
-#include <arcane/IItemFamily.h>
-#include <arcane/ItemGroup.h>
-#include <arcane/ICaseMng.h>
-
-#include "IDoFLinearSystemFactory.h"
-#include "Fem_axl.h"
-#include "FemUtils.h"
-#include "DoFLinearSystem.h"
-#include "FemDoFsOnNodes.h"
-#include "ArcaneFemFunctions.h"
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-using namespace Arcane;
-using namespace Arcane::FemUtils;
+#include "FemModule.h"
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief A module for finite element method.
+ * @brief Initializes the FemModule at the start of the simulation.
  *
- * This class handles the initialization and computation for finite element
- * method (FEM) simulations, providing methods to  set  up and solve linear
- * systems, assemble FEM operators, and perform result checks.
+ * This method initializes degrees of freedom (DoFs) on nodes.
  */
 /*---------------------------------------------------------------------------*/
 
-class FemModule
-: public ArcaneFemObject
+void FemModule::
+startInit()
 {
- public:
+  info() << "Module Fem INIT";
 
-  explicit FemModule(const ModuleBuildInfo& mbi)
-  : ArcaneFemObject(mbi)
-  , m_dofs_on_nodes(mbi.subDomain()->traceMng())
-  {
-    ICaseMng* cm = mbi.subDomain()->caseMng();
-    cm->setTreatWarningAsError(true);
-    cm->setAllowUnkownRootElelement(false);
-  }
-
-  void compute() override; //! Method called at each iteration
-  void startInit() override; //! Method called at the beginning of the simulation
-  VersionInfo versionInfo() const override { return VersionInfo(1, 0, 0); }
-
- private:
-
-  Real m_kc2;
-
-  DoFLinearSystem m_linear_system;
-  IItemFamily* m_dof_family = nullptr;
-  FemDoFsOnNodes m_dofs_on_nodes;
-
-  void _doStationarySolve();
-  void _getMaterialParameters();
-  void _assembleBilinearOperatorTRIA3();
-  void _solve();
-  void _assembleLinearOperator();
-  void _validateResults();
-
-  FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
-};
+  m_dofs_on_nodes.initialize(mesh(), 1);
+  m_dof_family = m_dofs_on_nodes.dofFamily();
+}
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -109,23 +59,6 @@ compute()
 
   // step 3
   _doStationarySolve();
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Initializes the FemModule at the start of the simulation.
- *
- * This method initializes degrees of freedom (DoFs) on nodes.
- */
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-startInit()
-{
-  info() << "Module Fem INIT";
-
-  m_dofs_on_nodes.initialize(mesh(), 1);
-  m_dof_family = m_dofs_on_nodes.dofFamily();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -346,7 +279,6 @@ _solve()
 void FemModule::
 _validateResults()
 {
-
   // setp 1
   if (allNodes().size() < 200) {
     ENUMERATE_ (Node, inode, allNodes()) {
