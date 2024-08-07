@@ -1,9 +1,18 @@
 #ifndef ARCANE_FEM_FUNCTIONS_H
 #define ARCANE_FEM_FUNCTIONS_H
 
-#include <arcane/VariableTypes.h>
-
 using namespace Arcane;
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Contains various functions & operations related to FEM calculations.
+ *
+ * The class provides methods organized into different nested classes for:
+ * - MeshOperation: Mesh related operations.
+ * - FeOperation2D: Finite element operations at element level.
+ * - BoundaryConditions2D: Boundary condition realated operations.
+ */
+/*---------------------------------------------------------------------------*/
 
 class ArcaneFemFunctions
 {
@@ -11,68 +20,96 @@ class ArcaneFemFunctions
 
   /*---------------------------------------------------------------------------*/
   /**
-   * @brief Computes the area of a triangle defined by three nodes.
+   * @brief Provides methods for various mesh-related operations.
    *
-   * This method calculates the area using the determinant formula for a triangle.
-   * The area is computed as half the value of the determinant of the matrix
-   * formed by the coordinates of the triangle's vertices.
+   * This class includes static methods for computing geometric properties
+   * of mesh elements, such as the area of triangles, the length of edges,
+   * and the normal vectors of edges.
    */
   /*---------------------------------------------------------------------------*/
-
-  static inline Real computeAreaTriangle3(Cell cell, VariableNodeReal3& node_coord)
+  class MeshOperation
   {
-    Real3 vertex0 = node_coord[cell.nodeId(0)];
-    Real3 vertex1 = node_coord[cell.nodeId(1)];
-    Real3 vertex2 = node_coord[cell.nodeId(2)];
 
-    return 0.5 * ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
-  }
+   public:
 
-  /*---------------------------------------------------------------------------*/
-  /**
-   * @brief Computes the length of the edge defined by a given face.
-   *
-   * This method calculates Euclidean distance between the two nodes of the face.
-   */
-  /*---------------------------------------------------------------------------*/
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Computes the area of a triangle defined by three nodes.
+     *
+     * This method calculates the area using the determinant formula for a triangle.
+     * The area is computed as half the value of the determinant of the matrix
+     * formed by the coordinates of the triangle's vertices.
+     */
+    /*---------------------------------------------------------------------------*/
+  
+    static inline Real computeAreaTriangle3(Cell cell, const VariableNodeReal3& node_coord)
+    {
+      Real3 vertex0 = node_coord[cell.nodeId(0)];
+      Real3 vertex1 = node_coord[cell.nodeId(1)];
+      Real3 vertex2 = node_coord[cell.nodeId(2)];
 
-  static inline Real computeEdgeLength2(Face face, VariableNodeReal3& node_coord)
-  {
-    Real3 vertex0 = node_coord[face.nodeId(0)];
-    Real3 vertex1 = node_coord[face.nodeId(1)];
+      return 0.5 * ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
+    }
 
-    Real dx = vertex1.x - vertex0.x;
-    Real dy = vertex1.y - vertex0.y;
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Computes the length of the edge defined by a given face.
+     *
+     * This method calculates Euclidean distance between the two nodes of the face.
+     */
+    /*---------------------------------------------------------------------------*/
 
-    return math::sqrt(dx * dx + dy * dy);
-  }
+    static inline Real computeEdgeLength2(Face face, const VariableNodeReal3& node_coord)
+    {
+      Real3 vertex0 = node_coord[face.nodeId(0)];
+      Real3 vertex1 = node_coord[face.nodeId(1)];
 
-  /*---------------------------------------------------------------------------*/
-  /**
+      Real dx = vertex1.x - vertex0.x;
+      Real dy = vertex1.y - vertex0.y;
+
+      return math::sqrt(dx * dx + dy * dy);
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Computes the normalized edge normal for a given face.
    *
    * This method calculates normal vector to the edge defined by nodes of the face,
    * normalizes it, and ensures the correct orientation.
    */
-  /*---------------------------------------------------------------------------*/
+    /*---------------------------------------------------------------------------*/
 
-  static inline Real2 computeEdgeNormal2(Face face, VariableNodeReal3& node_coord)
-  {
-    Real3 vertex0 = node_coord[face.nodeId(0)];
-    Real3 vertex1 = node_coord[face.nodeId(1)];
+    static inline Real2 computeEdgeNormal2(Face face, const VariableNodeReal3& node_coord)
+    {
+      Real3 vertex0 = node_coord[face.nodeId(0)];
+      Real3 vertex1 = node_coord[face.nodeId(1)];
 
-    if (!face.isSubDomainBoundaryOutside())
-      std::swap(vertex0, vertex1);
+      if (!face.isSubDomainBoundaryOutside())
+        std::swap(vertex0, vertex1);
 
-    Real dx = vertex1.x - vertex0.x;
-    Real dy = vertex1.y - vertex0.y;
-    Real norm_N = math::sqrt(dx * dx + dy * dy);
+      Real dx = vertex1.x - vertex0.x;
+      Real dy = vertex1.y - vertex0.y;
+      Real norm_N = math::sqrt(dx * dx + dy * dy);
 
-    return { dy / norm_N, -dx / norm_N };
-  }
+      return { dy / norm_N, -dx / norm_N };
+    }
+  };
 
   /*---------------------------------------------------------------------------*/
   /**
+ * @brief Provides methods for finite element operations in 2D.
+ *
+ * This class includes static methods for calculating gradients of basis
+ * functions and integrals for P1 triangles in 2D finite element analysis.
+ */
+  /*---------------------------------------------------------------------------*/
+  class FeOperation2D
+  {
+
+   public:
+
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Computes the gradients of basis functions N for P1 triangles.
    *
    * This method calculates gradient operator ∇ Ni for a given P1 cell
@@ -89,23 +126,23 @@ class ArcaneFemFunctions
    *
    * @note we can adapt the same for 3D by filling the third component
    */
-  /*---------------------------------------------------------------------------*/
+    /*---------------------------------------------------------------------------*/
 
-  static inline Real3x3 computeGradientTria3(Cell cell, VariableNodeReal3& node_coord)
-  {
-    Real3 vertex0 = node_coord[cell.nodeId(0)];
-    Real3 vertex1 = node_coord[cell.nodeId(1)];
-    Real3 vertex2 = node_coord[cell.nodeId(2)];
+    static inline Real3x3 computeGradientTria3(Cell cell, const VariableNodeReal3& node_coord)
+    {
+      Real3 vertex0 = node_coord[cell.nodeId(0)];
+      Real3 vertex1 = node_coord[cell.nodeId(1)];
+      Real3 vertex2 = node_coord[cell.nodeId(2)];
 
-    Real A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
+      Real A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
 
-    return Real3x3(Real3((vertex1.y - vertex2.y) / A2, (vertex2.x - vertex1.x) / A2, 0),
-                   Real3((vertex2.y - vertex0.y) / A2, (vertex0.x - vertex2.x) / A2, 0),
-                   Real3((vertex0.y - vertex1.y) / A2, (vertex1.x - vertex0.x) / A2, 0));
-  }
+      return Real3x3(Real3((vertex1.y - vertex2.y) / A2, (vertex2.x - vertex1.x) / A2, 0),
+                     Real3((vertex2.y - vertex0.y) / A2, (vertex0.x - vertex2.x) / A2, 0),
+                     Real3((vertex0.y - vertex1.y) / A2, (vertex1.x - vertex0.x) / A2, 0));
+    }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Computes the X gradients of basis functions N for P1 triangles.
    *
    * This method calculates gradient operator ∂/∂x of Ni for a given P1
@@ -116,21 +153,21 @@ class ArcaneFemFunctions
    *
    *         ∂N/∂x = 1/(2A) [ y2​−y3  y3−y1  y1−y2 ]
    */
-  /*---------------------------------------------------------------------------*/
+    /*---------------------------------------------------------------------------*/
 
-  static inline Real3 computeGradientXTria3(Cell cell, VariableNodeReal3& node_coord)
-  {
-    Real3 vertex0 = node_coord[cell.nodeId(0)];
-    Real3 vertex1 = node_coord[cell.nodeId(1)];
-    Real3 vertex2 = node_coord[cell.nodeId(2)];
+    static inline Real3 computeGradientXTria3(Cell cell, const VariableNodeReal3& node_coord)
+    {
+      Real3 vertex0 = node_coord[cell.nodeId(0)];
+      Real3 vertex1 = node_coord[cell.nodeId(1)];
+      Real3 vertex2 = node_coord[cell.nodeId(2)];
 
-    Real A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
+      Real A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
 
-    return Real3((vertex1.y - vertex2.y) / A2, (vertex2.y - vertex0.y) / A2, (vertex0.y - vertex1.y) / A2);
-  }
+      return Real3((vertex1.y - vertex2.y) / A2, (vertex2.y - vertex0.y) / A2, (vertex0.y - vertex1.y) / A2);
+    }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Computes the Y gradients of basis functions N for P1 triangles.
    *
    * This method calculates gradient operator ∂/∂y of Ni for a given P1
@@ -141,21 +178,21 @@ class ArcaneFemFunctions
    *
    *         ∂N/∂x = 1/(2A) [ x3​−x2  x1−x3  x2−x1 ]
    */
-  /*---------------------------------------------------------------------------*/
+    /*---------------------------------------------------------------------------*/
 
-  static inline Real3 computeGradientYTria3(Cell cell, VariableNodeReal3& node_coord)
-  {
-    Real3 vertex0 = node_coord[cell.nodeId(0)];
-    Real3 vertex1 = node_coord[cell.nodeId(1)];
-    Real3 vertex2 = node_coord[cell.nodeId(2)];
+    static inline Real3 computeGradientYTria3(Cell cell, const VariableNodeReal3& node_coord)
+    {
+      Real3 vertex0 = node_coord[cell.nodeId(0)];
+      Real3 vertex1 = node_coord[cell.nodeId(1)];
+      Real3 vertex2 = node_coord[cell.nodeId(2)];
 
-    Real A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
+      Real A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
 
-    return Real3((vertex2.x - vertex1.x) / A2, (vertex0.x - vertex2.x) / A2, (vertex1.x - vertex0.x) / A2);
-  }
+      return Real3((vertex2.x - vertex1.x) / A2, (vertex0.x - vertex2.x) / A2, (vertex1.x - vertex0.x) / A2);
+    }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Computes the integral (u*v) for P1 triangles.
    *
    * here the element matrix will read
@@ -165,14 +202,87 @@ class ArcaneFemFunctions
    *              [ 1/12    1/12   1/6  ]
    *
    */
-  /*---------------------------------------------------------------------------*/
+    /*---------------------------------------------------------------------------*/
 
-  static inline Real3x3 computeUVTria3(Cell cell, VariableNodeReal3& node_coord)
+    static inline Real3x3 computeUVTria3(Cell cell, const VariableNodeReal3& node_coord)
+    {
+      Real aii = 1. / 6.;
+      Real aij = 1. / 12.;
+      return Real3x3(Real3(aii, aij, aij), Real3(aij, aii, aij), Real3(aij, aij, aii));
+    }
+  };
+
+  /*---------------------------------------------------------------------------*/
+  /**
+ * @brief Provides methods for applying boundary conditions in 2D FEM problems.
+ *
+ * This class includes static methods for applying Neumann boundary conditions
+ * to the right-hand side (RHS) of finite element method equations in 2D.
+ */
+  /*---------------------------------------------------------------------------*/
+  class BoundaryConditions2D
   {
-    Real aii = 1. / 6.;
-    Real aij = 1. / 12.;
-    return Real3x3(Real3(aii, aij, aij), Real3(aij, aii, aij), Real3(aij, aij, aii));
-  }
+   public:
+
+    /*---------------------------------------------------------------------------*/
+    /**
+ * @brief Applies Neumann conditions to the right-hand side (RHS) values.
+ *
+ * This method updates the RHS values of the finite element method equations
+ * based on the provided Neumann boundary condition. The boundary condition
+ * can specify a value or its components along the x and y directions.
+ *
+ * @param [IN]  bs         : The Neumann boundary condition values.
+ * @param [IN]  node_dof   : Connectivity view for degrees of freedom at nodes.
+ * @param [IN]  node_coord : Coordinates of the nodes in the mesh.
+ * @param [OUT] rhs_values : The right-hand side values to be updated.
+ */
+    /*---------------------------------------------------------------------------*/
+
+    static inline void applyNeumannToRhs(const CaseOptionsFem::CaseOptionNeumannBoundaryConditionValue* bs, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, Arcane::VariableDoFReal& rhs_values)
+    {
+      FaceGroup group = bs->surface();
+
+      Real value = 0.0;
+      Real valueX = 0.0;
+      Real valueY = 0.0;
+      bool hasValue = bs->value.isPresent();
+      bool hasValueX = bs->valueX.isPresent();
+      bool hasValueY = bs->valueY.isPresent();
+
+      if (hasValue) {
+        value = bs->value();
+      }
+      else {
+        if (hasValueX)
+          valueX = bs->valueX();
+        if (hasValueY)
+          valueY = bs->valueY();
+      }
+
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+
+        Real length = ArcaneFemFunctions::MeshOperation::computeEdgeLength2(face, node_coord);
+        Real2 normal = ArcaneFemFunctions::MeshOperation::computeEdgeNormal2(face, node_coord);
+
+        for (Node node : iface->nodes()) {
+          if (!node.isOwn())
+            continue;
+          Real rhs_value = 0.0;
+
+          if (hasValue) {
+            rhs_value = value * length / 2.0;
+          }
+          else {
+            rhs_value = (normal.x * valueX + normal.y * valueY) * length / 2.0;
+          }
+
+          rhs_values[node_dof.dofId(node, 0)] += rhs_value;
+        }
+      }
+    }
+  };
 };
 
 #endif // ARCANE_FEM_FUNCTIONS_H

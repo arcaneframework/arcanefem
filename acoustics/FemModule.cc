@@ -100,11 +100,7 @@ _getMaterialParameters()
  *
  * This method assembles the RHS 'b' of the linear system by:
  *   1. Initializing the RHS values to zero.
- *   2. Iterating over Neumann boundary conditions to apply constant flux terms.
- *      2.1 The integral of the flux term is computed over the boundary faces.
- *      2.2 Handles both scalar and vector flux components.
- *   3. For each boundary face, the edge length and normal are computed.
- *   4. The contribution to the RHS is calculated and accumulated for each node.
+ *   2. Iterating over Neumann boundary conditions to apply it to RHS.
  */
 /*---------------------------------------------------------------------------*/
 
@@ -117,54 +113,11 @@ _assembleLinearOperator()
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable()); // Temporary variable for RHS values
   rhs_values.fill(0.0);
 
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  const auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   // setp 2
   for (const auto& bs : options()->neumannBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-
-    Real value = 0.0;
-    Real valueX = 0.0;
-    Real valueY = 0.0;
-    bool hasValue = bs->value.isPresent();
-    bool hasValueX = bs->valueX.isPresent();
-    bool hasValueY = bs->valueY.isPresent();
-
-    if (hasValue) {
-      value = bs->value();
-    }
-    else {
-      if (hasValueX)
-        valueX = bs->valueX();
-      if (hasValueY)
-        valueY = bs->valueY();
-    }
-
-    // setp 2.1
-    ENUMERATE_ (Face, iface, group) {
-      Face face = *iface;
-
-      // step 3.
-      Real length = ArcaneFemFunctions::computeEdgeLength2(face, m_node_coord);
-      Real2 normal = ArcaneFemFunctions::computeEdgeNormal2(face, m_node_coord);
-
-      // step 4
-      for (Node node : iface->nodes()) {
-        if (!node.isOwn())
-          continue;
-        Real rhs_value = 0.0;
-
-        // step 2.2
-        if (hasValue) {
-          rhs_value = value * length / 2.0;
-        }
-        else {
-          rhs_value = (normal.x * valueX + normal.y * valueY) * length / 2.0;
-        }
-
-        rhs_values[node_dof.dofId(node, 0)] += rhs_value;
-      }
-    }
+    ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
   }
 }
 
@@ -187,14 +140,14 @@ FixedMatrix<3, 3> FemModule::
 _computeElementMatrixTRIA3(Cell cell)
 {
   // step 1
-  Real area = ArcaneFemFunctions::computeAreaTriangle3(cell, m_node_coord);
+  Real area = ArcaneFemFunctions::MeshOperation::computeAreaTriangle3(cell, m_node_coord);
 
   // step 2
-  Real3x3 UV = ArcaneFemFunctions::computeUVTria3(cell, m_node_coord);
+  Real3x3 UV = ArcaneFemFunctions::FeOperation2D::computeUVTria3(cell, m_node_coord);
 
   // step 3
-  Real3 dxU = ArcaneFemFunctions::computeGradientXTria3(cell, m_node_coord);
-  Real3 dyU = ArcaneFemFunctions::computeGradientYTria3(cell, m_node_coord);
+  Real3 dxU = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
+  Real3 dyU = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
 
   return -area * (dxU ^ dxU) - area * (dyU ^ dyU) + m_kc2 * area * UV;
 }
