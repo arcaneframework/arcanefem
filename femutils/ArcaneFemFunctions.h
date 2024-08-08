@@ -53,14 +53,30 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
+     * @brief Computes the area of a quadrilateral defined by four nodes.
+     *
+     * This method calculates the area of a quadrilateral by breaking it down 
+     * into two triangles and using the determinant formula. The area is computed 
+     * as half the value of the determinant of the matrix formed by the coordinates 
+     * of the quadrilateral's vertices.
+     */
+    /*---------------------------------------------------------------------------*/
+    static inline Real computeAreaQuad4(Cell cell, const VariableNodeReal3& node_coord)
+    {
+      Real3 vertex0 = node_coord[cell.nodeId(0)];
+      Real3 vertex1 = node_coord[cell.nodeId(1)];
+      Real3 vertex2 = node_coord[cell.nodeId(2)];
+      Real3 vertex3 = node_coord[cell.nodeId(3)];
+
+      return 0.5 * ((vertex1.x * vertex2.y + vertex2.x * vertex3.y + vertex3.x * vertex0.y + vertex0.x * vertex1.y) - (vertex2.x * vertex1.y + vertex3.x * vertex2.y + vertex0.x * vertex3.y + vertex1.x * vertex0.y));
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
      * @brief Computes the barycenter (centroid) of a triangle.
      *
      * This method calculates the barycenter of a triangle defined by three nodes.
      * The barycenter is computed as the average of the vertices' coordinates.
-     *
-     * @param cell The triangle cell.
-     * @param node_coord The coordinates of the nodes.
-     * @return The 2D barycenter coordinates as a `Real3` object.
      */
     /*---------------------------------------------------------------------------*/
 
@@ -251,6 +267,64 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
+     * @brief Applies a constant source term to the RHS vector.
+     *
+     * This method adds a constant source term `qdot` to the RHS vector for each 
+     * node in the mesh. The contribution to each node is weighted by the area of 
+     * the triangle cell and evenly distributed among the three nodes of the cell.
+     *
+     * @param [IN]  qdot       : The constant source term.
+     * @param [IN]  mesh       : The mesh containing all cells.
+     * @param [IN]  node_dof   : DOF connectivity view.
+     * @param [IN]  node_coord : The coordinates of the nodes.
+     * @param [OUT] rhs_values : The RHS values to update.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline void applyTria3ConstantSourceToRhs(const Real& qdot, IMesh* mesh, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, Arcane::VariableDoFReal& rhs_values)
+    {
+      ENUMERATE_ (Cell, icell, mesh->allCells()) {
+        Cell cell = *icell;
+        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTriangle3(cell, node_coord);
+        for (Node node : cell.nodes()) {
+          if (node.isOwn())
+            rhs_values[node_dof.dofId(node, 0)] += qdot * area / 3.;
+        }
+      }
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Applies a manufactured source term to the RHS vector.
+     *
+     * This method adds a manufactured source term to the RHS vector for each 
+     * node in the mesh. The contribution to each node is weighted by the area of 
+     * the triangle cell and evenly distributed among the three nodes of the cell.
+     *
+     * @param [IN]  qdot       : The constant source term.
+     * @param [IN]  mesh       : The mesh containing all cells.
+     * @param [IN]  node_dof   : DOF connectivity view.
+     * @param [IN]  node_coord : The coordinates of the nodes.
+     * @param [OUT] rhs_values : The RHS values to update.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline void applyTria3ManufacturedSourceToRhs(IBinaryMathFunctor<Real, Real3, Real>* manufactured_source, IMesh* mesh, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, Arcane::VariableDoFReal& rhs_values)
+    {
+      ENUMERATE_ (Cell, icell, mesh->allCells()) {
+        Cell cell = *icell;
+        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTriangle3(cell, node_coord);
+        Real3 bcenter = ArcaneFemFunctions::MeshOperation::computeBaryCenterTriangle3(cell, node_coord);
+
+        for (Node node : cell.nodes()) {
+          if (node.isOwn())
+            rhs_values[node_dof.dofId(node, 0)] += manufactured_source->apply(area / 3., bcenter);
+        }
+      }
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
      * @brief Applies Neumann conditions to the right-hand side (RHS) values.
      *
      * This method updates the RHS values of the finite element method equations
@@ -313,7 +387,7 @@ class ArcaneFemFunctions
      * @brief Applies Dirichlet boundary conditions to RHS and LHS.
      *
      * Updates the LHS matrix and RHS vector to enforce Dirichlet conditions.
-     * 
+     *
      * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
      * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
      *
@@ -335,6 +409,72 @@ class ArcaneFemFunctions
           if (node.isOwn()) {
             m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), Penalty);
             Real u_g = Penalty * value;
+            rhs_values[node_dof.dofId(node, 0)] = u_g;
+          }
+        }
+      }
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Applies Point Dirichlet boundary conditions to RHS and LHS.
+     *
+     * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
+     *
+     * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
+     * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+     *
+     * @param [IN]  bs              : Boundary condition values.
+     * @param [IN]  node_dof        : DOF connectivity view.
+     * @param [IN]  node_coord      : Node coordinates.
+     * @param [OUT] m_linear_system : Linear system for LHS.
+     * @param [OUT] rhs_values RHS  : RHS values to update.
+     */
+    /*---------------------------------------------------------------------------*/
+    static inline void applyPointDirichletToLhsAndRhs(const CaseOptionsFem::CaseOptionDirichletPointConditionValue* bs, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, FemUtils::DoFLinearSystem& m_linear_system, Arcane::VariableDoFReal& rhs_values)
+    {
+      NodeGroup group = bs->node();
+      Real value = bs->value();
+      Real Penalty = bs->penalty();
+
+      ENUMERATE_ (Node, inode, group) {
+        Node node = *inode;
+        if (node.isOwn()) {
+          m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), Penalty);
+          Real u_g = Penalty * value;
+          rhs_values[node_dof.dofId(node, 0)] = u_g;
+        }
+      }
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Applies Manufactured Dirichlet boundary conditions to RHS and LHS.
+     *
+     * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
+     *
+     * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
+     * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+     *
+     * @param [IN]  manufactured_dirichlet   : External function for Dirichlet.
+     * @param [IN]  group           : Group of all external faces.
+     * @param [IN]  bs              : Boundary condition values.
+     * @param [IN]  node_dof        : DOF connectivity view.
+     * @param [IN]  node_coord      : Node coordinates.
+     * @param [OUT] m_linear_system : Linear system for LHS.
+     * @param [OUT] rhs_values RHS  : RHS values to update.
+     */
+    /*---------------------------------------------------------------------------*/
+    static inline void applyManufacturedDirichletToLhsAndRhs(IBinaryMathFunctor<Real, Real3, Real>* manufactured_dirichlet, const Arcane::Real& lambda, const Arcane::FaceGroup& group, const CaseOptionsFem::CaseOptionMmanufacturedDirichletConditionValue* bs, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, FemUtils::DoFLinearSystem& m_linear_system, Arcane::VariableDoFReal& rhs_values)
+    {
+      Real Penalty = bs->penalty();
+
+      ENUMERATE_ (Face, iface, group) {
+        for (Node node : iface->nodes()) {
+          if (node.isOwn()) {
+            m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), Penalty);
+            double tt = 1.;
+            Real u_g = Penalty * manufactured_dirichlet->apply(tt, node_coord[node]);
             rhs_values[node_dof.dofId(node, 0)] = u_g;
           }
         }
