@@ -30,6 +30,17 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+struct Real4
+{
+    Arcane::Real data[4];
+    
+    Arcane::Real& operator[](std::size_t i) { return data[i]; }
+    const Arcane::Real& operator[](std::size_t i) const { return data[i]; }
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 namespace Arcane::FemUtils
 {
 
@@ -164,6 +175,20 @@ inline FixedMatrix<3, 3> operator^(const Arcane::Real3& lhs, const Arcane::Real3
     }
   }
   return result;
+}
+
+/*---------------------------------------------------------------------------*/
+//  Outer product of two Real4 vectors to produce a FixedMatrix<4, 4>
+/*---------------------------------------------------------------------------*/
+inline FixedMatrix<4, 4> operator^(const Real4& lhs, const Real4& rhs)
+{
+    FixedMatrix<4, 4> result;
+    for (Arcane::Int32 i = 0; i < 4; ++i) {
+        for (Arcane::Int32 j = 0; j < 4; ++j) {
+            result(i, j) = lhs[i] * rhs[j];
+        }
+    }
+    return result;
 }
 
 /*---------------------------------------------------------------------------*/
