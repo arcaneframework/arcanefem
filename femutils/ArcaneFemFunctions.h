@@ -339,7 +339,7 @@ class ArcaneFemFunctions
      *
      * This method adds a constant source term `qdot` to the RHS vector for each 
      * node in the mesh. The contribution to each node is weighted by the area of 
-     * the triangle cell and evenly distributed among the three nodes of the cell.
+     * the cell and evenly distributed among the number of nodes of the cell.
      *
      * @param [IN]  qdot       : The constant source term.
      * @param [IN]  mesh       : The mesh containing all cells.
@@ -349,14 +349,14 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline void applyTria3ConstantSourceToRhs(const Real& qdot, IMesh* mesh, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, Arcane::VariableDoFReal& rhs_values)
+    static inline void applyConstantSourceToRhs(const Real& qdot, IMesh* mesh, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, Arcane::VariableDoFReal& rhs_values)
     {
       ENUMERATE_ (Cell, icell, mesh->allCells()) {
         Cell cell = *icell;
         Real area = ArcaneFemFunctions::MeshOperation::computeAreaTriangle3(cell, node_coord);
         for (Node node : cell.nodes()) {
           if (node.isOwn())
-            rhs_values[node_dof.dofId(node, 0)] += qdot * area / 3.;
+            rhs_values[node_dof.dofId(node, 0)] += qdot * area / cell.nbNode();
         }
       }
     }
@@ -367,7 +367,7 @@ class ArcaneFemFunctions
      *
      * This method adds a manufactured source term to the RHS vector for each 
      * node in the mesh. The contribution to each node is weighted by the area of 
-     * the triangle cell and evenly distributed among the three nodes of the cell.
+     * the cell and evenly distributed among the nodes of the cell.
      *
      * @param [IN]  qdot       : The constant source term.
      * @param [IN]  mesh       : The mesh containing all cells.
@@ -377,7 +377,7 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline void applyTria3ManufacturedSourceToRhs(IBinaryMathFunctor<Real, Real3, Real>* manufactured_source, IMesh* mesh, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, Arcane::VariableDoFReal& rhs_values)
+    static inline void applyManufacturedSourceToRhs(IBinaryMathFunctor<Real, Real3, Real>* manufactured_source, IMesh* mesh, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, Arcane::VariableDoFReal& rhs_values)
     {
       ENUMERATE_ (Cell, icell, mesh->allCells()) {
         Cell cell = *icell;
@@ -386,7 +386,7 @@ class ArcaneFemFunctions
 
         for (Node node : cell.nodes()) {
           if (node.isOwn())
-            rhs_values[node_dof.dofId(node, 0)] += manufactured_source->apply(area / 3., bcenter);
+            rhs_values[node_dof.dofId(node, 0)] += manufactured_source->apply(area / cell.nbNode(), bcenter);
         }
       }
     }
@@ -533,7 +533,7 @@ class ArcaneFemFunctions
      * @param [OUT] rhs_values RHS  : RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
-    static inline void applyManufacturedDirichletToLhsAndRhs(IBinaryMathFunctor<Real, Real3, Real>* manufactured_dirichlet, const Arcane::Real& lambda, const Arcane::FaceGroup& group, const CaseOptionsFem::CaseOptionMmanufacturedDirichletConditionValue* bs, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, FemUtils::DoFLinearSystem& m_linear_system, Arcane::VariableDoFReal& rhs_values)
+    static inline void applyManufacturedDirichletToLhsAndRhs(IBinaryMathFunctor<Real, Real3, Real>* manufactured_dirichlet, const Arcane::Real& lambda, const Arcane::FaceGroup& group, const CaseOptionsFem::CaseOptionManufacturedSolutionValue* bs, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, FemUtils::DoFLinearSystem& m_linear_system, Arcane::VariableDoFReal& rhs_values)
     {
       Real Penalty = bs->penalty();
 
