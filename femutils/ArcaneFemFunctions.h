@@ -1,6 +1,8 @@
 #ifndef ARCANE_FEM_FUNCTIONS_H
 #define ARCANE_FEM_FUNCTIONS_H
 
+#include <arcane/core/IStandardFunction.h>
+
 using namespace Arcane;
 
 /*---------------------------------------------------------------------------*/
@@ -230,6 +232,72 @@ class ArcaneFemFunctions
       Real A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
 
       return Real3((vertex2.x - vertex1.x) / A2, (vertex0.x - vertex2.x) / A2, (vertex1.x - vertex0.x) / A2);
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Computes the X gradients of basis functions N for P1 Quad.
+     *
+     * This method calculates gradient operator ∂/∂x of Ni for a given P1
+     * cell with i = 1,..,4 for the four shape function  Ni  hence output
+     * is a vector of size 4
+     *
+     *         ∂N/∂x = [ ∂N1/∂x  ∂N1/∂x  ∂N3/∂x  ∂N4/∂x ]
+     *
+     *         ∂N/∂x = 1/(2A) [ y2​−y3  y3−y0  y0−y1  y1−y2 ]
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline  Real4 computeGradientXQuad4(Cell cell, const VariableNodeReal3& node_coord)
+    {
+      Real3 vertex0 = node_coord[cell.nodeId(0)];
+      Real3 vertex1 = node_coord[cell.nodeId(1)];
+      Real3 vertex2 = node_coord[cell.nodeId(2)];
+      Real3 vertex3 = node_coord[cell.nodeId(3)];
+
+      Real A2 = ((vertex1.x * vertex2.y + vertex2.x * vertex3.y + vertex3.x * vertex0.y + vertex0.x * vertex1.y) - (vertex2.x * vertex1.y + vertex3.x * vertex2.y + vertex0.x * vertex3.y + vertex1.x * vertex0.y));
+
+      Real4 dx;
+
+      dx[0] = (vertex2.y - vertex3.y) / A2;
+      dx[1] = (vertex3.y - vertex0.y) / A2;
+      dx[2] = (vertex0.y - vertex1.y) / A2;
+      dx[3] = (vertex1.y - vertex2.y) / A2;  
+
+      return dx;
+    }
+
+    /*---------------------------------------------------------------------------*
+    /**
+     * @brief Computes the Y gradients of basis functions N for P1 Quad.
+     *
+     * This method calculates gradient operator ∂/∂y of Ni for a given P1
+     * cell with i = 1,..,4 for the three shape function  Ni  hence output
+     * is a vector of size 4
+     *
+     *         ∂N/∂x = [ ∂N1/∂y  ∂N1/∂y  ∂N3/∂y  ∂N4/∂y ]
+     *
+     *         ∂N/∂x = 1/(2A) [ x3​−x2  x0−x3  x1−x0  x2−x1 ]
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline  Real4 computeGradientYQuad4(Cell cell, const VariableNodeReal3& node_coord)
+    {
+      Real3 vertex0 = node_coord[cell.nodeId(0)];
+      Real3 vertex1 = node_coord[cell.nodeId(1)];
+      Real3 vertex2 = node_coord[cell.nodeId(2)];
+      Real3 vertex3 = node_coord[cell.nodeId(3)];
+
+      Real A2 = ((vertex1.x * vertex2.y + vertex2.x * vertex3.y + vertex3.x * vertex0.y + vertex0.x * vertex1.y) - (vertex2.x * vertex1.y + vertex3.x * vertex2.y + vertex0.x * vertex3.y + vertex1.x * vertex0.y));
+
+      Real4 dy;
+      
+      dy[0] = (vertex3.x - vertex2.x) / A2;
+      dy[1] = (vertex0.x - vertex3.x) / A2;
+      dy[2] = (vertex1.x - vertex0.x) / A2;
+      dy[3] = (vertex2.x - vertex1.x) / A2;
+
+      return dy;
     }
 
     /*---------------------------------------------------------------------------*/
