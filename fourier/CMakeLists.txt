@@ -1,4 +1,5 @@
 add_executable(Fourier
+  FemModule.h
   FemModule.cc
   main.cc
   Fem_axl.h
