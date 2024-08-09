@@ -38,6 +38,100 @@
       <description>Type of mesh provided to the solver</description>
     </simple>
 
+
+    <!-- - - - - - dirichlet-boundary-condition - - - - -->
+    <complex name  = "dirichlet-boundary-condition"
+             type  = "DirichletBoundaryCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Dirichlet boundary condition
+      </description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>
+          FaceGroup on which to apply these boundary condition
+        </description>
+      </extended>
+      <simple name = "value" type = "real">
+        <description>
+          Value of the boundary condition
+        </description>
+      </simple>
+      <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
+        <description>
+          Method via which Dirichlet boundary condition is imposed
+        </description>
+      </simple>
+      <simple name = "penalty" type = "real" default="1.e30" optional="true">
+        <description>
+          Penalty value for enforcing Dirichlet condition
+        </description>
+      </simple>
+    </complex>
+
+    <!-- - - - - - manufactured-solution - - - - -->
+    <complex name  = "manufactured-solution"
+             type  = "ManufacturedSolution"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Dirichlet boundary condition
+      </description>
+      <simple name="manufactured-dirichlet" type="bool"  default="false" optional="true">
+        <description>
+          Function for Dirichlet boundary condition
+        </description>
+      </simple>
+      <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
+        <description>
+          Method via which Dirichlet boundary condition is imposed
+        </description>
+      </simple>
+      <simple name = "penalty" type = "real" default="1.e30" optional="true">
+        <description>
+          Penalty value for enforcing Dirichlet condition
+        </description>
+      </simple>
+      <simple name="manufactured-source" type="bool"  default="false" optional="true">
+        <description>
+          Function for manufactured source term condition
+        </description>
+      </simple>
+    </complex>
+
+    <!-- - - - - - dirichlet-point-condition - - - - -->
+    <complex name  = "dirichlet-point-condition"
+             type  = "DirichletPointCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Dirichlet point condition
+      </description>
+      <extended name = "node" type = "Arcane::NodeGroup">
+        <description>
+          NodeGroup on which to apply these point Dirichlet condition
+        </description>
+      </extended>
+      <simple name = "value" type = "real">
+        <description>
+          Value of the point Dirichlet condition
+        </description>
+      </simple>
+      <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
+        <description>
+          Method via which Dirichlet boundary condition is imposed
+        </description>
+      </simple>
+      <simple name = "penalty" type = "real" default="1.e30" optional="true">
+        <description>
+          Penalty value for enforcing Dirichlet condition
+        </description>
+      </simple>
+    </complex>
+
     <!-- - - - - - neumann-boundary-condition - - - - -->
     <complex name="neumann-boundary-condition" type="NeumannBoundaryCondition" minOccurs="0" maxOccurs="unbounded">
       <description>Neumann boundary condition</description>

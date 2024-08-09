@@ -28,8 +28,11 @@
   </functions>
 
   <fem>
-    <manufactured-dirichlet-condition function="manufacturedDirichlet">true</manufactured-dirichlet-condition>
-    <manufactured-source-condition function="manufacturedSource">true</manufactured-source-condition>
+    <manufactured-solution>
+      <manufactured-dirichlet function="manufacturedDirichlet">true</manufactured-dirichlet>
+      <manufactured-source function="manufacturedSource">true</manufactured-source>
+      <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+    </manufactured-solution>
     <lambda>1.0</lambda>
   </fem>
 </case>
