@@ -36,6 +36,32 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
+     * @brief Computes the volume of a tetrahedra defined by four nodes.
+     *
+     * This method calculates the volume using the scalar triple product formula.
+     * We do the following:
+     *   1. get the four nodes
+     *   2. ge the vector representing the edges of tetrahedron
+     *   3. compute volume using scalar triple product
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline Real computeVolumeTetra4(Cell cell, const VariableNodeReal3& node_coord)
+    {
+      Real3 vertex0 = node_coord[cell.nodeId(0)];
+      Real3 vertex1 = node_coord[cell.nodeId(1)];
+      Real3 vertex2 = node_coord[cell.nodeId(2)];
+      Real3 vertex3 = node_coord[cell.nodeId(3)];
+
+      Real3 v0 = vertex1 - vertex0;
+      Real3 v1 = vertex2 - vertex0;
+      Real3 v2 = vertex3 - vertex0;
+
+      return std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2))) / 6.0;
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
      * @brief Computes the area of a triangle defined by three nodes.
      *
      * This method calculates the area using the determinant formula for a triangle.
@@ -63,6 +89,7 @@ class ArcaneFemFunctions
      * of the quadrilateral's vertices.
      */
     /*---------------------------------------------------------------------------*/
+
     static inline Real computeAreaQuad4(Cell cell, const VariableNodeReal3& node_coord)
     {
       Real3 vertex0 = node_coord[cell.nodeId(0)];
@@ -319,6 +346,21 @@ class ArcaneFemFunctions
       Real aij = 1. / 12.;
       return Real3x3(Real3(aii, aij, aij), Real3(aij, aii, aij), Real3(aij, aij, aii));
     }
+  };
+
+  /*---------------------------------------------------------------------------*/
+  /**
+  * @brief Provides methods for finite element operations in 3D.
+  *
+  * This class includes static methods for calculating gradients of basis
+  * functions and integrals for P1 triangles in 3D finite element analysis.
+  */
+  /*---------------------------------------------------------------------------*/
+  class FeOperation3D
+  {
+
+   public:
+    // TO DO
   };
 
   /*---------------------------------------------------------------------------*/
