@@ -81,8 +81,7 @@ class FemModule
 
   void _doStationarySolve();
   void _getMaterialParameters();
-  void _assembleBilinearOperatorTRIA3();
-  void _assembleBilinearOperatorQUAD4();
+  void _assembleBilinearOperator();
   void _solve();
   void _assembleLinearOperator();
   void _validateResults();
@@ -92,6 +91,9 @@ class FemModule
 
   IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_dirichlet = nullptr;
   IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_source = nullptr;
+
+  template<int N>
+  void _assembleBilinear( const std::function<FixedMatrix<N, N>(const Cell&)>& compute_element_matrix);
 };
 
 #endif

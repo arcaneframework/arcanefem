@@ -99,7 +99,7 @@ compute()
  *
  * This method follows a sequence of steps to solve FEM system:
  *   1. _getMaterialParameters()          Retrieves material parameters via
- *   2. _assembleBilinearOperatorTRIA3()  Assembles the FEM  matrix A
+ *   2. _assembleBilinearOperator()       Assembles the FEM  matrix A
  *   3. _assembleLinearOperator()         Assembles the FEM RHS vector b
  *   4.  _solve()                         Solves for solution vector u = A^-1*b
  *   5. _validateResults()                Regression test
@@ -110,10 +110,7 @@ void FemModule::
 _doStationarySolve()
 {
   _getMaterialParameters();
-  if (options()->meshType == "QUAD4")
-    _assembleBilinearOperatorQUAD4();
-  else
-    _assembleBilinearOperatorTRIA3();
+  _assembleBilinearOperator();
   _assembleLinearOperator();
   _solve();
   _validateResults();
@@ -164,10 +161,11 @@ _getMaterialParameters()
  * and  RHS vector, applying various boundary conditions and source terms.
  *
  * - The RHS vector is initialized to zero before applying any conditions.
- * - Manufactured or constant source conditions are applied to all cells.
- * - Neumann BC are applied to the RHS.
- * - Dirichlet BC are applied to both the LHS and RHS using penalty method. 
- * - If a manufactured Dirichlet condition is specified, it is applied.
+ * - If a constant source term is specified (`qdot`), apply it to the RHS.
+ * - If Neumann BC are specified applied to the RHS.
+ * - If Dirichlet BC are specified apply to the LHS & RHS. 
+ * - If manufactured source conditions is specified, apply to RHS.
+ * - If  manufactured Dirichlet BC are specified apply to the LHS & RHS. 
  */
 /*---------------------------------------------------------------------------*/
 
@@ -250,51 +248,43 @@ _computeElementMatrixQUAD4(Cell cell)
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Assembles the bilinear operator matrix for Quad elements.
+ * @brief Assembles the bilinear operator matrix for the FEM linear system.
  *
- * This method computes and assembles the global  matrix A for the FEM linear
- * system. For each cell (Quad),  it  calculates  the  local element matrix &
- * adds the contributions to the global matrix based on the nodes of the cell.
+ * The method calls the right function for RHS assembly given as mesh type.
  */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleBilinearOperatorQUAD4()
+_assembleBilinearOperator()
 {
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-
-    lambda = m_cell_lambda[cell]; // lambda is always considered cell constant
-    auto K_e = _computeElementMatrixQUAD4(cell); // element stiffness matrix
-    Int32 n1_index = 0;
-    for (Node node1 : cell.nodes()) {
-      Int32 n2_index = 0;
-      for (Node node2 : cell.nodes()) {
-        Real v = K_e(n1_index, n2_index);
-        if (node1.isOwn()) {
-          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
-        }
-        ++n2_index;
-      }
-      ++n1_index;
-    }
-  }
+  if (options()->meshType == "QUAD4")
+    _assembleBilinear<4>([this](const Cell& cell) {
+      return _computeElementMatrixQUAD4(cell);
+    });
+  else if (options()->meshType == "TRIA3")
+    _assembleBilinear<3>([this](const Cell& cell) {
+      return _computeElementMatrixTRIA3(cell);
+    });
+  else
+    ARCANE_FATAL("Non supported meshType");
 }
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Assembles the bilinear operator matrix for triangular elements.
+ * @brief Assembles the bilinear operator matrix for the FEM linear system.
  *
- * This method computes and assembles the global  matrix A for the FEM linear
- * system. For each cell (triangle), it calculates the local element matrix &
- * adds the contributions to the global matrix based on the nodes of the cell.
+ * The method performs the following steps:
+ * - Iterates over all cells in the mesh.
+ * - For each cell, retrieves the cell-specific constant `lambda`.
+ * - Computes the element matrix using the provided `compute_element_matrix` function.
+ * - Assembles the global matrix by adding the contributions from each cell's element 
+ *   matrix to the corresponding entries in the global matrix.
  */
 /*---------------------------------------------------------------------------*/
 
+template <int N>
 void FemModule::
-_assembleBilinearOperatorTRIA3()
+_assembleBilinear(const std::function<FixedMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
@@ -302,7 +292,7 @@ _assembleBilinearOperatorTRIA3()
     Cell cell = *icell;
 
     lambda = m_cell_lambda[cell]; // lambda is always considered cell constant
-    auto K_e = _computeElementMatrixTRIA3(cell); // element matrix
+    auto K_e = compute_element_matrix(cell); // element matrix based on the provided function
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
@@ -317,6 +307,7 @@ _assembleBilinearOperatorTRIA3()
     }
   }
 }
+
 
 /*---------------------------------------------------------------------------*/
 /**
