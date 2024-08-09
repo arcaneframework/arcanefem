@@ -17,7 +17,6 @@
 /**
  * @brief Initializes the FemModule at the start of the simulation.
  *
- * This method:
  *  - initializes degrees of freedom (DoFs) on nodes.
  *  - builds support for manufactured test case (optional).
  */
@@ -62,10 +61,9 @@ startInit()
 /**
  * @brief Performs the main computation for the FemModule.
  *
- * This method:
- *   1. Stops the time loop after 1 iteration since the equation is steady state.
- *   2. Resets, configures, and initializes the linear system.
- *   3. Executes the stationary solve.
+ * - Stops the time loop after 1 iteration since the equation is steady state.
+ * - Resets, configures, and initializes the linear system.
+ * - Executes the stationary solve.
  */
 /*---------------------------------------------------------------------------*/
 
@@ -132,7 +130,8 @@ _doStationarySolve()
 void FemModule::
 _getMaterialParameters()
 {
-  info() << "Get material parameters...";
+  info() << "Get material parameters ";
+
   lambda = options()->lambda();
   qdot = options()->qdot();
 
@@ -144,7 +143,7 @@ _getMaterialParameters()
   for (const auto& bs : options()->materialProperty()) {
     CellGroup group = bs->volume();
     Real value = bs->lambda();
-    info() << "Lambda for group=" << group.name() << " v=" << value;
+    info() << "Lambda for group= " << group.name() << " v=" << value;
 
     ENUMERATE_ (Cell, icell, group) {
       Cell cell = *icell;
@@ -160,22 +159,22 @@ _getMaterialParameters()
  * This method constructs the linear  system by  assembling the LHS matrix 
  * and  RHS vector, applying various boundary conditions and source terms.
  *
- * - The RHS vector is initialized to zero before applying any conditions.
- * - If a constant source term is specified (`qdot`), apply it to the RHS.
- * - If Neumann BC are specified applied to the RHS.
- * - If Dirichlet BC are specified apply to the LHS & RHS. 
- * - If manufactured source conditions is specified, apply to RHS.
- * - If  manufactured Dirichlet BC are specified apply to the LHS & RHS. 
+ * Steps involved:
+ *  1. The RHS vector is initialized to zero before applying any conditions.
+ *  2. If a constant source term is specified (`qdot`), apply it to the RHS.
+ *  3. If Neumann BC are specified applied to the RHS.
+ *  4. If Dirichlet BC are specified apply to the LHS & RHS. 
+ *  5. If manufactured source conditions is specified, apply to RHS.
+ *  6. If  manufactured Dirichlet BC are specified apply to the LHS & RHS. 
  */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
 _assembleLinearOperator()
 {
-  info() << "Assembly of FEM linear operator ";
+  info() << "Assembly of FEM linear operator";
 
-  // Temporary variable to keep values for the RHS part of the linear system
-  VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
+  VariableDoFReal& rhs_values(m_linear_system.rhsVariable()); // Temporary variable to keep values for the RHS
   rhs_values.fill(0.0);
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -248,9 +247,7 @@ _computeElementMatrixQUAD4(Cell cell)
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Assembles the bilinear operator matrix for the FEM linear system.
- *
- * The method calls the right function for RHS assembly given as mesh type.
+ * @brief Calls the right function for LHS assembly given as mesh type.
  */
 /*---------------------------------------------------------------------------*/
 
@@ -274,11 +271,10 @@ _assembleBilinearOperator()
  * @brief Assembles the bilinear operator matrix for the FEM linear system.
  *
  * The method performs the following steps:
- * - Iterates over all cells in the mesh.
- * - For each cell, retrieves the cell-specific constant `lambda`.
- * - Computes the element matrix using the provided `compute_element_matrix` function.
- * - Assembles the global matrix by adding the contributions from each cell's element 
- *   matrix to the corresponding entries in the global matrix.
+ *   1. For each cell, retrieves the cell-specific constant `lambda`.
+ *   2. Computes element matrix using provided `compute_element_matrix` function.
+ *   3. Assembles global matrix by addingcontributions from each cell's element 
+ *      matrix to the corresponding entries in the global matrix.
  */
 /*---------------------------------------------------------------------------*/
 
@@ -307,7 +303,6 @@ _assembleBilinear(const std::function<FixedMatrix<N, N>(const Cell&)>& compute_e
     }
   }
 }
-
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -364,12 +359,11 @@ _solve()
 void FemModule::
 _validateResults()
 {
-  if (allNodes().size() < 200) {
+  if (allNodes().size() < 200)
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
       info() << "u[" << node.localId() << "][" << node.uniqueId() << "] = " << m_u[node];
     }
-  }
 
   String filename = options()->resultFile();
   info() << "ValidateResultFile filename=" << filename;
