@@ -34,6 +34,37 @@
       </description>
     </simple>
 
+    <!-- - - - - - manufactured-solution - - - - -->
+    <complex name  = "manufactured-solution"
+             type  = "ManufacturedSolution"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Dirichlet boundary condition
+      </description>
+      <simple name="manufactured-dirichlet" type="bool"  default="false" optional="true">
+        <description>
+          Function for Dirichlet boundary condition
+        </description>
+      </simple>
+      <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
+        <description>
+          Method via which Dirichlet boundary condition is imposed
+        </description>
+      </simple>
+      <simple name = "penalty" type = "real" default="1.e30" optional="true">
+        <description>
+          Penalty value for enforcing Dirichlet condition
+        </description>
+      </simple>
+      <simple name="manufactured-source" type="bool"  default="false" optional="true">
+        <description>
+          Function for manufactured source term condition
+        </description>
+      </simple>
+    </complex>
+
     <!-- - - - - - dirichlet-boundary-condition - - - - -->
     <complex name  = "dirichlet-boundary-condition"
              type  = "DirichletBoundaryCondition"
@@ -53,38 +84,39 @@
           Value of the boundary condition
         </description>
       </simple>
+      <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
+        <description>
+          Method via which Dirichlet boundary condition is imposed
+        </description>
+      </simple>
+      <simple name = "penalty" type = "real" default="1.e30" optional="true">
+        <description>
+          Penalty value for enforcing Dirichlet condition
+        </description>
+      </simple>
     </complex>
 
     <!-- - - - - - neumann-boundary-condition - - - - -->
-    <complex name  = "neumann-boundary-condition"
-             type  = "NeumannBoundaryCondition"
-             minOccurs = "0"
-             maxOccurs = "unbounded"
-      >
-      <description>
-        Neumann boundary condition
-      </description>
-      <extended name = "surface" type = "Arcane::FaceGroup">
-        <description>
-          FaceGroup on which to apply these boundary condition
-        </description>
+    <complex name="neumann-boundary-condition" type="NeumannBoundaryCondition" minOccurs="0" maxOccurs="unbounded">
+      <description>Neumann boundary condition</description>
+
+      <extended name="surface" type="Arcane::FaceGroup">
+        <description>FaceGroup on which to apply the boundary condition</description>
       </extended>
-      <simple name = "value" type = "real" optional = "true">
-        <description>
-          Value of the boundary condition
-        </description>
+
+      <simple name="value" type="real" optional="true">
+        <description>Value of the boundary condition</description>
       </simple>
-      <simple name = "valueX" type = "real" optional = "true">
-        <description>
-          Value of the Neumann load in x
-        </description>
+
+      <simple name="valueX" type="real" optional="true">
+        <description>Neumann load value in x-direction</description>
       </simple>
-      <simple name = "valueY" type = "real" optional = "true">
-        <description>
-          Value of the Neumann load in y
-        </description>
+
+      <simple name="valueY" type="real" optional="true">
+        <description>Neumann load value in y-direction</description>
       </simple>
     </complex>
+
 
 
     <!-- - - - - - dirichlet-point-condition - - - - -->
@@ -104,6 +136,16 @@
       <simple name = "value" type = "real">
         <description>
           Value of the point Dirichlet condition
+        </description>
+      </simple>
+      <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
+        <description>
+          Method via which Dirichlet boundary condition is imposed
+        </description>
+      </simple>
+      <simple name = "penalty" type = "real" default="1.e30" optional="true">
+        <description>
+          Penalty value for enforcing Dirichlet condition
         </description>
       </simple>
     </complex>

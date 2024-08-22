@@ -68,20 +68,22 @@ class FemModule
 
  private:
 
-  Real m_kc2;
-
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;
 
   void _doStationarySolve();
   void _getMaterialParameters();
-  void _assembleBilinearOperatorTria3();
+  void _assembleBilinearOperator();
   void _solve();
   void _assembleLinearOperator();
   void _validateResults();
 
   FixedMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
+  FixedMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);
+
+  template<int N>
+  void _assembleBilinear( const std::function<FixedMatrix<N, N>(const Cell&)>& compute_element_matrix);
 };
 
 #endif

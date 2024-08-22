@@ -171,6 +171,14 @@ class ArcaneFemFunctions
   *
   * This class includes static methods for calculating gradients of basis
   * functions and integrals for P1 triangles in 2D finite element analysis.
+  *
+  * Reference Tri3 and Quad4 element in Arcane
+  *
+  *               0 o                    1 o . . . . o 0
+  *                . .                     .         .
+  *               .   .                    .         .
+  *              .     .                   .         .
+  *           1 o  . .  o 2              2 o . . . . o 3
   */
   /*---------------------------------------------------------------------------*/
   class FeOperation2D
@@ -354,13 +362,156 @@ class ArcaneFemFunctions
   *
   * This class includes static methods for calculating gradients of basis
   * functions and integrals for P1 triangles in 3D finite element analysis.
+  *
+  * Reference Tetra4 element in Arcane
+  *
+  *               3 o
+  *                /|\
+  *               / | \
+  *              /  |  \
+  *             /   o 2 \
+  *            / .    .  \
+  *         0 o-----------o 1
   */
   /*---------------------------------------------------------------------------*/
   class FeOperation3D
   {
-
    public:
-    // TO DO
+    /*-------------------------------------------------------------------------*/
+    /**
+     * @brief Computes the X gradients of basis functions N for P1 Tetrahedron.
+     *
+     * This method calculates gradient operator ∂/∂x of Ni for a given P1
+     * cell with i = 1,..,4 for the four shape function  Ni  hence output
+     * is a vector of size 4
+     *
+     *         ∂N/∂x = [ ∂N1/∂x  ∂N2/∂x  ∂N3/∂x  ∂N4/∂x ]
+     *
+     *         ∂N/∂x = 1/(6V) [ b0  b1  b2  b3 ]
+     *
+     * where:
+     *    b0 = (m1.y * (m3.z - m2.z) + m2.y * (m1.z - m3.z) + m3.y * (m2.z - m1.z)),
+     *    b1 = (m0.y * (m2.z - m3.z) + m2.y * (m3.z - m0.z) + m3.y * (m0.z - m2.z)),
+     *    b2 = (m0.y * (m3.z - m1.z) + m1.y * (m0.z - m3.z) + m3.y * (m1.z - m0.z)),
+     *    b3 = (m0.y * (m1.z - m2.z) + m1.y * (m2.z - m0.z) + m2.y * (m0.z - m1.z)).
+     *
+     */
+    /*-------------------------------------------------------------------------*/
+
+    static inline  Real4 computeGradientXTetra4(Cell cell, const VariableNodeReal3& node_coord)
+    {
+      Real3 vertex0 = node_coord[cell.nodeId(0)];
+      Real3 vertex1 = node_coord[cell.nodeId(1)];
+      Real3 vertex2 = node_coord[cell.nodeId(2)];
+      Real3 vertex3 = node_coord[cell.nodeId(3)];
+
+      Real3 v0 = vertex1 - vertex0;
+      Real3 v1 = vertex2 - vertex0;
+      Real3 v2 = vertex3 - vertex0;
+
+      // 6 x Volume of tetrahedron
+      Real V6 =  std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
+
+      Real4 dx;
+
+      dx[0] = (vertex1.y * (vertex3.z - vertex2.z) + vertex2.y * (vertex1.z - vertex3.z) + vertex3.y * (vertex2.z - vertex1.z))/V6;
+      dx[1] = (vertex0.y * (vertex2.z - vertex3.z) + vertex2.y * (vertex3.z - vertex0.z) + vertex3.y * (vertex0.z - vertex2.z))/V6;
+      dx[2] = (vertex0.y * (vertex3.z - vertex1.z) + vertex1.y * (vertex0.z - vertex3.z) + vertex3.y * (vertex1.z - vertex0.z))/V6;
+      dx[3] = (vertex0.y * (vertex1.z - vertex2.z) + vertex1.y * (vertex2.z - vertex0.z) + vertex2.y * (vertex0.z - vertex1.z))/V6; 
+
+      return dx;
+    }
+
+    /*-------------------------------------------------------------------------*/
+/**
+ * @brief Computes the Y gradients of basis functions N for P1 Tetrahedron.
+ *
+ * This method calculates gradient operator ∂/∂y of Ni for a given P1
+ * cell with i = 1,..,4 for the four shape functions Ni, hence the output
+ * is a vector of size 4.
+ *
+ *         ∂N/∂y = [ ∂N1/∂y  ∂N2/∂y  ∂N3/∂y  ∂N4/∂y ]
+ *
+ *         ∂N/∂y = 1/(6V) [ c0  c1  c2  c3 ]
+ *
+ * where:
+ *    c0 = (m1.z * (m3.x - m2.x) + m2.z * (m1.x - m3.x) + m3.z * (m2.x - m1.x)),
+ *    c1 = (m0.z * (m2.x - m3.x) + m2.z * (m3.x - m0.x) + m3.z * (m0.x - m2.x)),
+ *    c2 = (m0.z * (m3.x - m1.x) + m1.z * (m0.x - m3.x) + m3.z * (m1.x - m0.x)),
+ *    c3 = (m0.z * (m1.x - m2.x) + m1.z * (m2.x - m0.x) + m2.z * (m0.x - m1.x)).
+ *
+ */
+/*-------------------------------------------------------------------------*/
+
+static inline Real4 computeGradientYTetra4(Cell cell, const VariableNodeReal3& node_coord)
+{
+  Real3 vertex0 = node_coord[cell.nodeId(0)];
+  Real3 vertex1 = node_coord[cell.nodeId(1)];
+  Real3 vertex2 = node_coord[cell.nodeId(2)];
+  Real3 vertex3 = node_coord[cell.nodeId(3)];
+
+  Real3 v0 = vertex1 - vertex0;
+  Real3 v1 = vertex2 - vertex0;
+  Real3 v2 = vertex3 - vertex0;
+
+  // 6 x Volume of tetrahedron
+  Real V6 = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
+
+  Real4 dy;
+
+  dy[0] = (vertex1.z * (vertex3.x - vertex2.x) + vertex2.z * (vertex1.x - vertex3.x) + vertex3.z * (vertex2.x - vertex1.x))/V6;
+  dy[1] = (vertex0.z * (vertex2.x - vertex3.x) + vertex2.z * (vertex3.x - vertex0.x) + vertex3.z * (vertex0.x - vertex2.x))/V6;
+  dy[2] = (vertex0.z * (vertex3.x - vertex1.x) + vertex1.z * (vertex0.x - vertex3.x) + vertex3.z * (vertex1.x - vertex0.x))/V6;
+  dy[3] = (vertex0.z * (vertex1.x - vertex2.x) + vertex1.z * (vertex2.x - vertex0.x) + vertex2.z * (vertex0.x - vertex1.x))/V6;
+
+  return dy;
+}
+
+/*-------------------------------------------------------------------------*/
+/**
+ * @brief Computes the Z gradients of basis functions N for P1 Tetrahedron.
+ *
+ * This method calculates gradient operator ∂/∂z of Ni for a given P1
+ * cell with i = 1,..,4 for the four shape functions Ni, hence the output
+ * is a vector of size 4.
+ *
+ *         ∂N/∂z = [ ∂N1/∂z  ∂N2/∂z  ∂N3/∂z  ∂N4/∂z ]
+ *
+ *         ∂N/∂z = 1/(6V) [ d0  d1  d2  d3 ]
+ *
+ * where:
+ *    d0 = (m1.x * (m3.y - m2.y) + m2.x * (m1.y - m3.y) + m3.x * (m2.y - m1.y)),
+ *    d1 = (m0.x * (m2.y - m3.y) + m2.x * (m3.y - m0.y) + m3.x * (m0.y - m2.y)),
+ *    d2 = (m0.x * (m3.y - m1.y) + m1.x * (m0.y - m3.y) + m3.x * (m1.y - m0.y)),
+ *    d3 = (m0.x * (m1.y - m2.y) + m1.x * (m2.y - m0.y) + m2.x * (m0.y - m1.y)).
+ *
+ */
+/*-------------------------------------------------------------------------*/
+
+static inline Real4 computeGradientZTetra4(Cell cell, const VariableNodeReal3& node_coord)
+{
+  Real3 vertex0 = node_coord[cell.nodeId(0)];
+  Real3 vertex1 = node_coord[cell.nodeId(1)];
+  Real3 vertex2 = node_coord[cell.nodeId(2)];
+  Real3 vertex3 = node_coord[cell.nodeId(3)];
+
+  Real3 v0 = vertex1 - vertex0;
+  Real3 v1 = vertex2 - vertex0;
+  Real3 v2 = vertex3 - vertex0;
+
+  // 6 x Volume of tetrahedron
+  Real V6 = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
+
+  Real4 dz;
+
+  dz[0] = (vertex1.x * (vertex3.y - vertex2.y) + vertex2.x * (vertex1.y - vertex3.y) + vertex3.x * (vertex2.y - vertex1.y))/V6;
+  dz[1] = (vertex0.x * (vertex2.y - vertex3.y) + vertex2.x * (vertex3.y - vertex0.y) + vertex3.x * (vertex0.y - vertex2.y))/V6;
+  dz[2] = (vertex0.x * (vertex3.y - vertex1.y) + vertex1.x * (vertex0.y - vertex3.y) + vertex3.x * (vertex1.y - vertex0.y))/V6;
+  dz[3] = (vertex0.x * (vertex1.y - vertex2.y) + vertex1.x * (vertex2.y - vertex0.y) + vertex2.x * (vertex0.y - vertex1.y))/V6;
+
+  return dz;
+}
+
   };
 
   /*---------------------------------------------------------------------------*/
