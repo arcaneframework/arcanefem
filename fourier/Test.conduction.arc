@@ -23,17 +23,21 @@
     <lambda>1.75</lambda>
     <qdot>1e5</qdot>
     <result-file>test1_results.txt</result-file>
-    <enforce-Dirichlet-method>WeakPenalty</enforce-Dirichlet-method>
-    <penalty>1.e12</penalty>
     <dirichlet-boundary-condition>
+      <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+      <penalty>1.e12</penalty>
       <surface>Cercle</surface>
       <value>50.0</value>
     </dirichlet-boundary-condition>
     <dirichlet-boundary-condition>
+      <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+      <penalty>1.e12</penalty>
       <surface>Bas</surface>
       <value>5.0</value>
     </dirichlet-boundary-condition>
     <dirichlet-boundary-condition>
+      <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+      <penalty>1.e12</penalty>
       <surface>Haut</surface>
       <value>21.0</value>
     </dirichlet-boundary-condition>

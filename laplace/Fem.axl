@@ -9,9 +9,6 @@
     <variable field-name="u" name="U" data-type="real" item-kind="node" dim="0">
       <description>FEM variable u on nodes</description>
     </variable>
-    <variable field-name="u_dirichlet" name="UDirichlet" data-type="bool" item-kind="node" dim="0">
-      <description>Boolean which is true if Dirichlet node</description>
-    </variable>
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
       <description>Node coordinates from Arcane variable</description>
     </variable>
@@ -22,16 +19,6 @@
     </simple>
     <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
       <description>Type of mesh provided to the solver</description>
-    </simple>
-    <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
-      <description>
-        Method via which Dirichlet boundary condition is imposed
-      </description>
-    </simple>
-    <simple name = "penalty" type = "real" default="1.e30" optional="true">
-      <description>
-        Penalty value for enforcing Dirichlet condition
-      </description>
     </simple>
 
     <!-- - - - - - manufactured-solution - - - - -->

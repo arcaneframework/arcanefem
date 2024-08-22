@@ -32,16 +32,6 @@
     <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
       <description>Type of mesh provided to the solver</description>
     </simple>
-    <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
-      <description>
-        Method via which Dirichlet boundary condition is imposed
-      </description>
-    </simple>
-    <simple name = "penalty" type = "real" default="1.e30" optional="true">
-      <description>
-        Penalty value for enforcing Dirichlet condition
-      </description>
-    </simple>
 
     <!-- - - - - - dirichlet-boundary-condition - - - - -->
     <complex name  = "dirichlet-boundary-condition"
