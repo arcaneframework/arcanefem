@@ -86,8 +86,8 @@ class FemModule
   void _assembleLinearOperator();
   void _validateResults();
 
-  FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
-  FixedMatrix<4, 4> _computeElementMatrixQUAD4(Cell cell);
+  FixedMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
+  FixedMatrix<4, 4> _computeElementMatrixQuad4(Cell cell);
 
   IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_dirichlet = nullptr;
   IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_source = nullptr;

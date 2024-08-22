@@ -76,12 +76,12 @@ class FemModule
 
   void _doStationarySolve();
   void _getMaterialParameters();
-  void _assembleBilinearOperatorTRIA3();
+  void _assembleBilinearOperatorTria3();
   void _solve();
   void _assembleLinearOperator();
   void _validateResults();
 
-  FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
+  FixedMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
 };
 
 #endif

@@ -221,9 +221,9 @@ _assembleLinearOperator()
 /*---------------------------------------------------------------------------*/
 
 FixedMatrix<3, 3> FemModule::
-_computeElementMatrixTRIA3(Cell cell)
+_computeElementMatrixTria3(Cell cell)
 {
-  Real area = ArcaneFemFunctions::MeshOperation::computeAreaTriangle3(cell, m_node_coord);
+  Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
 
   Real3 dxU = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
   Real3 dyU = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
@@ -235,7 +235,7 @@ _computeElementMatrixTRIA3(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 FixedMatrix<4, 4> FemModule::
-_computeElementMatrixQUAD4(Cell cell)
+_computeElementMatrixQuad4(Cell cell)
 {
   Real area = ArcaneFemFunctions::MeshOperation::computeAreaQuad4(cell, m_node_coord);
 
@@ -256,11 +256,11 @@ _assembleBilinearOperator()
 {
   if (options()->meshType == "QUAD4")
     _assembleBilinear<4>([this](const Cell& cell) {
-      return _computeElementMatrixQUAD4(cell);
+      return _computeElementMatrixQuad4(cell);
     });
   else if (options()->meshType == "TRIA3")
     _assembleBilinear<3>([this](const Cell& cell) {
-      return _computeElementMatrixTRIA3(cell);
+      return _computeElementMatrixTria3(cell);
     });
   else
     ARCANE_FATAL("Non supported meshType");
@@ -273,7 +273,7 @@ _assembleBilinearOperator()
  * The method performs the following steps:
  *   1. For each cell, retrieves the cell-specific constant `lambda`.
  *   2. Computes element matrix using provided `compute_element_matrix` function.
- *   3. Assembles global matrix by addingcontributions from each cell's element 
+ *   3. Assembles global matrix by adding contributions from each cell's element 
  *      matrix to the corresponding entries in the global matrix.
  */
 /*---------------------------------------------------------------------------*/

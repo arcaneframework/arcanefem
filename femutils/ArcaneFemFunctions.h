@@ -12,7 +12,7 @@ using namespace Arcane;
  * The class provides methods organized into different nested classes for:
  * - MeshOperation: Mesh related operations.
  * - FeOperation2D: Finite element operations at element level.
- * - BoundaryConditions2D: Boundary condition realated operations.
+ * - BoundaryConditions2D: Boundary condition related operations.
  */
 /*---------------------------------------------------------------------------*/
 
@@ -70,7 +70,7 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real computeAreaTriangle3(Cell cell, const VariableNodeReal3& node_coord)
+    static inline Real computeAreaTria3(Cell cell, const VariableNodeReal3& node_coord)
     {
       Real3 vertex0 = node_coord[cell.nodeId(0)];
       Real3 vertex1 = node_coord[cell.nodeId(1)];
@@ -109,7 +109,7 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real3 computeBaryCenterTriangle3(Cell cell, const VariableNodeReal3& node_coord)
+    static inline Real3 computeBaryCenterTria3(Cell cell, const VariableNodeReal3& node_coord)
     {
       Real3 vertex0 = node_coord[cell.nodeId(0)];
       Real3 vertex1 = node_coord[cell.nodeId(1)];
@@ -129,7 +129,7 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real computeEdgeLength2(Face face, const VariableNodeReal3& node_coord)
+    static inline Real computeLengthEdge2(Face face, const VariableNodeReal3& node_coord)
     {
       Real3 vertex0 = node_coord[face.nodeId(0)];
       Real3 vertex1 = node_coord[face.nodeId(1)];
@@ -149,7 +149,7 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real2 computeEdgeNormal2(Face face, const VariableNodeReal3& node_coord)
+    static inline Real2 computeNormalEdge2(Face face, const VariableNodeReal3& node_coord)
     {
       Real3 vertex0 = node_coord[face.nodeId(0)];
       Real3 vertex1 = node_coord[face.nodeId(1)];
@@ -395,7 +395,7 @@ class ArcaneFemFunctions
     {
       ENUMERATE_ (Cell, icell, mesh->allCells()) {
         Cell cell = *icell;
-        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTriangle3(cell, node_coord);
+        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, node_coord);
         for (Node node : cell.nodes()) {
           if (node.isOwn())
             rhs_values[node_dof.dofId(node, 0)] += qdot * area / cell.nbNode();
@@ -423,8 +423,8 @@ class ArcaneFemFunctions
     {
       ENUMERATE_ (Cell, icell, mesh->allCells()) {
         Cell cell = *icell;
-        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTriangle3(cell, node_coord);
-        Real3 bcenter = ArcaneFemFunctions::MeshOperation::computeBaryCenterTriangle3(cell, node_coord);
+        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, node_coord);
+        Real3 bcenter = ArcaneFemFunctions::MeshOperation::computeBaryCenterTria3(cell, node_coord);
 
         for (Node node : cell.nodes()) {
           if (node.isOwn())
@@ -472,8 +472,8 @@ class ArcaneFemFunctions
       ENUMERATE_ (Face, iface, group) {
         Face face = *iface;
 
-        Real length = ArcaneFemFunctions::MeshOperation::computeEdgeLength2(face, node_coord);
-        Real2 normal = ArcaneFemFunctions::MeshOperation::computeEdgeNormal2(face, node_coord);
+        Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, node_coord);
+        Real2 normal = ArcaneFemFunctions::MeshOperation::computeNormalEdge2(face, node_coord);
 
         for (Node node : iface->nodes()) {
           if (!node.isOwn())

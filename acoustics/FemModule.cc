@@ -67,7 +67,7 @@ compute()
  *
  * This method follows a sequence of steps to solve FEM system:
  *   1. _getMaterialParameters()          Retrieves material parameters via
- *   2. _assembleBilinearOperatorTRIA3()  Assembles the FEM  matrix A
+ *   2. _assembleBilinearOperatorTria3()  Assembles the FEM  matrix A
  *   3. _assembleLinearOperator()         Assembles the FEM RHS vector b
  *   4.  _solve()                         Solves for solution vector u = A^-1*b
  *   5. _validateResults()                Regression test
@@ -78,7 +78,7 @@ void FemModule::
 _doStationarySolve()
 {
   _getMaterialParameters();
-  _assembleBilinearOperatorTRIA3();
+  _assembleBilinearOperatorTria3();
   _assembleLinearOperator();
   _solve();
   _validateResults();
@@ -137,10 +137,10 @@ _assembleLinearOperator()
 /*---------------------------------------------------------------------------*/
 
 FixedMatrix<3, 3> FemModule::
-_computeElementMatrixTRIA3(Cell cell)
+_computeElementMatrixTria3(Cell cell)
 {
   // step 1
-  Real area = ArcaneFemFunctions::MeshOperation::computeAreaTriangle3(cell, m_node_coord);
+  Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
 
   // step 2
   Real3x3 UV = ArcaneFemFunctions::FeOperation2D::computeUVTria3(cell, m_node_coord);
@@ -163,14 +163,14 @@ _computeElementMatrixTRIA3(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleBilinearOperatorTRIA3()
+_assembleBilinearOperatorTria3()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    auto K_e = _computeElementMatrixTRIA3(cell); // element matrix
+    auto K_e = _computeElementMatrixTria3(cell); // element matrix
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
