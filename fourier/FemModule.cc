@@ -121,9 +121,7 @@ _doStationarySolve()
  * This method initializes:
  *  - material properties:
  *       # thermal conductivity coefficient (`lambda`)
- *       # heat source term (`qdot`) 
- *  - mesh properties: 
- *       # number of cell nodes per element based on the mesh (quad or tria)
+ *       # heat source term (`qdot`)
  */
 /*---------------------------------------------------------------------------*/
 
