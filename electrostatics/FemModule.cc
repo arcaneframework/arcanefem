@@ -92,10 +92,9 @@ _doStationarySolve()
 /**
  * @brief Retrieves and sets the material parameters for the simulation.
  *
- * This method initializes:
- *  - material properties:
- *       # charge density (`rho`)
- *       # freespace permittivity (`epsilon`)
+ * This method initializes material properties:
+ *   - charge density (`rho`)
+ *   - free space permittivity (`epsilon`)
  */
 /*---------------------------------------------------------------------------*/
 
@@ -103,15 +102,23 @@ void FemModule::
 _getMaterialParameters()
 {
   info() << "Get material parameters...";
-  rho          = options()->rho();      // charge density
-  epsilon      = options()->epsilon();  // freespace permittivity
+  rho = options()->rho();
+  epsilon = options()->epsilon();
 }
 
 /*---------------------------------------------------------------------------*/
-// Assemble the FEM linear operator
-//  - This function enforces a Dirichlet boundary condition in a weak sense
-//    via the penalty method
-//  - The method also adds source term
+/**
+ * @brief FEM linear operator for the current simulation step.      
+ *
+ * This method constructs the linear  system by  assembling the LHS matrix 
+ * and  RHS vector, applying various boundary conditions and source terms.
+ *
+ * Steps involved:
+ *  1. The RHS vector is initialized to zero before applying any conditions.
+ *  2. If a constant source term is specified (`rho`), apply it to the RHS.
+ *  3. If Neumann BC are specified applied to the RHS.
+ *  4. If Dirichlet BC are specified apply to the LHS & RHS. 
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -124,8 +131,8 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  if (options()->rho.isPresent()){
-    Real qdot = - rho /epsilon;
+  if (options()->rho.isPresent()) {
+    Real qdot = -rho / epsilon;
     ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhs(qdot, mesh(), node_dof, m_node_coord, rhs_values);
   }
 
@@ -137,6 +144,9 @@ _assembleLinearOperator()
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Computes the Electric Field which is gradient of ∇ Phi = E 
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -144,38 +154,12 @@ _getE()
 {
   info() << "Postprocessing E";
 
-      ENUMERATE_ (Cell, icell, allCells()) {
-        Cell cell = *icell;
-        Real2 DX = _computeDxDyOfRealTria3(cell);
-        m_E[cell].x =  -DX.x  ;
-        m_E[cell].y =  -DX.y  ;
-        m_E[cell].z =  0.0   ;
-      }
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    m_E[cell] = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_phi);
+  }
 
-      m_E.synchronize();
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real2 FemModule::
-_computeDxDyOfRealTria3(Cell cell)
-{
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-
-  Real f0 = m_phi[cell.nodeId(0)];
-  Real f1 = m_phi[cell.nodeId(1)];
-  Real f2 = m_phi[cell.nodeId(2)];
-
-  Real detA = ( m0.x*(m1.y - m2.y) - m0.y*(m1.x - m2.x) + (m1.x*m2.y - m2.x*m1.y) );
-
-  Real2 DX;
-        DX.y = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / detA;
-        DX.x = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / detA;
-
-  return DX ;
+  m_E.synchronize();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -200,9 +184,8 @@ _computeElementMatrixTria3(Cell cell)
   Real3 dxU = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
   Real3 dyU = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
 
-  return area  * (dxU ^ dxU) + area  * (dyU ^ dyU);
+  return area * (dxU ^ dxU) + area * (dyU ^ dyU);
 }
-
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -222,7 +205,6 @@ _assembleBilinearOperator()
   else
     ARCANE_FATAL("Non supported meshType");
 }
-
 
 /*---------------------------------------------------------------------------*/
 /**

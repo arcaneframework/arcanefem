@@ -90,8 +90,6 @@ class FemModule
 
   FixedMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
 
-  Real2 _computeDxDyOfRealTria3(Cell cell);
-
   template<int N>
   void _assembleBilinear( const std::function<FixedMatrix<N, N>(const Cell&)>& compute_element_matrix);
 };
