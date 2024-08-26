@@ -15,9 +15,6 @@
     <variable field-name="u_exact" name="UExact" data-type="real" item-kind="node" dim="0" optional="true">
       <description>manufactured FEM solution on nodes</description>
     </variable>
-    <variable field-name="u_dirichlet" name="UDirichlet" data-type="bool" item-kind="node" dim="0">
-      <description>Boolean which is true if Dirichlet node</description>
-    </variable>
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
       <description>Node Coordinates from Arcane variable</description>
     </variable>
@@ -34,26 +31,6 @@
     </simple>
     <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
       <description>Type of mesh provided to the solver</description>
-    </simple>
-    <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
-      <description>
-        Method via which Dirichlet boundary condition is imposed
-      </description>
-    </simple>
-    <simple name = "penalty" type = "real" default="1.e30" optional="true">
-      <description>
-        Penalty value for enforcing Dirichlet condition
-      </description>
-    </simple>
-    <simple name="manufactured-dirichlet-condition" type="bool"  default="false" optional="true">
-      <description>
-        Function for Dirichlet boundary condition
-      </description>
-    </simple>
-    <simple name="manufactured-source-condition" type="bool"  default="false" optional="true">
-      <description>
-        Function for Source condition
-      </description>
     </simple>
 
     <!-- - - - - - dirichlet-boundary-condition - - - - -->
@@ -73,6 +50,47 @@
       <simple name = "value" type = "real">
         <description>
           Value of the boundary condition
+        </description>
+      </simple>
+      <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
+        <description>
+          Method via which Dirichlet boundary condition is imposed
+        </description>
+      </simple>
+      <simple name = "penalty" type = "real" default="1.e30" optional="true">
+        <description>
+          Penalty value for enforcing Dirichlet condition
+        </description>
+      </simple>
+    </complex>
+
+    <!-- - - - - - manufactured-solution - - - - -->
+    <complex name  = "manufactured-solution"
+             type  = "ManufacturedSolution"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        Dirichlet boundary condition
+      </description>
+      <simple name="manufactured-dirichlet" type="bool"  default="false" optional="true">
+        <description>
+          Function for Dirichlet boundary condition
+        </description>
+      </simple>
+      <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
+        <description>
+          Method via which Dirichlet boundary condition is imposed
+        </description>
+      </simple>
+      <simple name = "penalty" type = "real" default="1.e30" optional="true">
+        <description>
+          Penalty value for enforcing Dirichlet condition
+        </description>
+      </simple>
+      <simple name="manufactured-source" type="bool"  default="false" optional="true">
+        <description>
+          Function for manufactured source term condition
         </description>
       </simple>
     </complex>
@@ -126,6 +144,16 @@
       <simple name = "value" type = "real">
         <description>
           Value of the point Dirichlet condition
+        </description>
+      </simple>
+      <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
+        <description>
+          Method via which Dirichlet boundary condition is imposed
+        </description>
+      </simple>
+      <simple name = "penalty" type = "real" default="1.e30" optional="true">
+        <description>
+          Penalty value for enforcing Dirichlet condition
         </description>
       </simple>
     </complex>

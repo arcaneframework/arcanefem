@@ -22,7 +22,21 @@
 #include <arcane/IIOMng.h>
 #include <arcane/CaseTable.h>
 
+#include <arcane/utils/Real3.h>
+#include <arcane/utils/Real3x3.h>
+
 #include <array>
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+struct Real4
+{
+    Arcane::Real data[4];
+    
+    Arcane::Real& operator[](std::size_t i) { return data[i]; }
+    const Arcane::Real& operator[](std::size_t i) const { return data[i]; }
+};
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -84,10 +98,130 @@ class FixedMatrix
     }
   }
 
+  //! Define the addition operator
+  FixedMatrix<N, M> operator+(const FixedMatrix<N, M>& other) const
+  {
+    FixedMatrix<N, M> result;
+    for (Arcane::Int32 i = 0; i < N; ++i) {
+      for (Arcane::Int32 j = 0; j < M; ++j) {
+        result(i, j) = (*this)(i, j) + other(i, j);
+      }
+    }
+    return result;
+  }
+
+  //! Define the subtraction operator
+  FixedMatrix<N, M> operator-(const FixedMatrix<N, M>& other) const
+  {
+    FixedMatrix<N, M> result;
+    for (Arcane::Int32 i = 0; i < N; ++i) {
+      for (Arcane::Int32 j = 0; j < M; ++j) {
+        result(i, j) = (*this)(i, j) - other(i, j);
+      }
+    }
+    return result;
+  }
+
+  //! Define the unary negation operator
+  FixedMatrix<N, M> operator-() const
+  {
+    FixedMatrix<N, M> result;
+    for (Arcane::Int32 i = 0; i < N; ++i) {
+      for (Arcane::Int32 j = 0; j < M; ++j) {
+        result(i, j) = -(*this)(i, j);
+      }
+    }
+    return result;
+  }
+
+  //! Scalar multiplication: FixedMatrix * scalar
+  FixedMatrix<N, M> operator*(Real scalar) const
+  {
+    FixedMatrix<N, M> result;
+    for (Arcane::Int32 i = 0; i < N; ++i) {
+      for (Arcane::Int32 j = 0; j < M; ++j) {
+        result(i, j) = (*this)(i, j) * scalar;
+      }
+    }
+    return result;
+  }
+
+  //! Friend function for scalar multiplication: scalar * FixedMatrix
+  friend FixedMatrix<N, M> operator*(Real scalar, const FixedMatrix<N, M>& matrix)
+  {
+    FixedMatrix<N, M> result;
+    for (Arcane::Int32 i = 0; i < N; ++i) {
+      for (Arcane::Int32 j = 0; j < M; ++j) {
+        result(i, j) = scalar * matrix(i, j);
+      }
+    }
+    return result;
+  }
+
  private:
 
   std::array<Arcane::Real, totalNbElement()> m_values = {};
 };
+
+/*---------------------------------------------------------------------------*/
+//  Outer product of two Real3 vectors to produce a FixedMatrix<3, 3>
+/*---------------------------------------------------------------------------*/
+inline FixedMatrix<3, 3> operator^(const Arcane::Real3& lhs, const Arcane::Real3& rhs)
+{
+  FixedMatrix<3, 3> result;
+  for (Arcane::Int32 i = 0; i < 3; ++i) {
+    for (Arcane::Int32 j = 0; j < 3; ++j) {
+      result(i, j) = lhs[i] * rhs[j];
+    }
+  }
+  return result;
+}
+
+/*---------------------------------------------------------------------------*/
+//  Outer product of two Real4 vectors to produce a FixedMatrix<4, 4>
+/*---------------------------------------------------------------------------*/
+inline FixedMatrix<4, 4> operator^(const Real4& lhs, const Real4& rhs)
+{
+    FixedMatrix<4, 4> result;
+    for (Arcane::Int32 i = 0; i < 4; ++i) {
+        for (Arcane::Int32 j = 0; j < 4; ++j) {
+            result(i, j) = lhs[i] * rhs[j];
+        }
+    }
+    return result;
+}
+
+/*---------------------------------------------------------------------------*/
+// Define the conversion from Real3x3 to FixedMatrix<3, 3>
+/*---------------------------------------------------------------------------*/
+inline FixedMatrix<3, 3> convertReal3x3ToFixedMatrix(const Arcane::Real3x3& rhs)
+{
+  FixedMatrix<3, 3> result;
+  for (Arcane::Int32 i = 0; i < 3; ++i) {
+    for (Arcane::Int32 j = 0; j < 3; ++j) {
+      result(i, j) = rhs(i, j);
+    }
+  }
+  return result;
+}
+
+/*---------------------------------------------------------------------------*/
+// Overload operator+ to handle FixedMatrix<3, 3> + Real3x3
+/*---------------------------------------------------------------------------*/
+inline FixedMatrix<3, 3> operator+(const FixedMatrix<3, 3>& lhs, const Arcane::Real3x3& rhs)
+{
+  FixedMatrix<3, 3> converted_rhs = convertReal3x3ToFixedMatrix(rhs);
+  return lhs + converted_rhs;
+}
+
+/*---------------------------------------------------------------------------*/
+// Overload operator+ to handle Real3x3 + FixedMatrix<3, 3>
+/*---------------------------------------------------------------------------*/
+inline FixedMatrix<3, 3> operator+(const Arcane::Real3x3& lhs, const FixedMatrix<3, 3>& rhs)
+{
+  FixedMatrix<3, 3> converted_lhs = convertReal3x3ToFixedMatrix(lhs);
+  return converted_lhs + rhs;
+}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

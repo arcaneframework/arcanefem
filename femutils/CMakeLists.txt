@@ -10,6 +10,7 @@ add_library(FemUtils
   CsrFormatMatrix.cc
   FemDoFsOnNodes.h
   FemDoFsOnNodes.cc
+  ArcaneFemFunctions.h
   AlephDoFLinearSystem.cc
   IDoFLinearSystemFactory.h
   AlephDoFLinearSystemFactory_axl.h
