@@ -23,22 +23,24 @@
     <lambda>0.0</lambda>
     <qdot>15.</qdot>
     <result-file>test2_results.txt</result-file>
-    <dirichlet-boundary-condition>
-      <surface>Left</surface>
-      <value>50.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Right</surface>
-      <value>5.0</value>
-    </dirichlet-boundary-condition>
-    <neumann-boundary-condition>
-      <surface>Top</surface>
-      <value>0.0</value>
-    </neumann-boundary-condition>
-    <neumann-boundary-condition>
-      <surface>Bot</surface>
-      <value>0.0</value>
-    </neumann-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>Left</surface>
+        <value>50.0</value>
+      </dirichlet>
+      <dirichlet>
+        <surface>Right</surface>
+        <value>5.0</value>
+      </dirichlet>
+      <neumann>
+        <surface>Top</surface>
+        <value>0.0</value>
+      </neumann>
+      <neumann>
+        <surface>Bot</surface>
+        <value>0.0</value>
+      </neumann>
+    </boundary-conditions>
     <material-property>
       <volume>Mat1</volume>
       <lambda>100.0</lambda>

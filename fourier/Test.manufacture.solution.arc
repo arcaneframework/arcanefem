@@ -31,8 +31,14 @@
     <manufactured-solution>
       <manufactured-dirichlet function="manufacturedDirichlet">true</manufactured-dirichlet>
       <manufactured-source function="manufacturedSource">true</manufactured-source>
-      <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     </manufactured-solution>
+    <boundary-conditions>
+      <manufactured-solution>
+       <manufactured-dirichlet function="manufacturedDirichlet">true</manufactured-dirichlet>
+       <manufactured-source function="manufacturedSource">true</manufactured-source>
+       <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+      </manufactured-solution>
+    </boundary-conditions>
     <lambda>1.0</lambda>
   </fem>
 </case>

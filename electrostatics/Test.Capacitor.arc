@@ -23,17 +23,20 @@
   <fem>
     <rho>0.0</rho>
     <epsilon>1.0</epsilon>
-    <dirichlet-boundary-condition>
-      <surface>capacitor1</surface>
-      <value>-1.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>capacitor2</surface>
-      <value>1.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Outer</surface>
-      <value>0.0</value>
-    </dirichlet-boundary-condition>
+
+    <boundary-conditions>
+      <dirichlet>
+        <surface>capacitor1</surface>
+        <value>-1.0</value>
+      </dirichlet>
+      <dirichlet>
+        <surface>capacitor2</surface>
+        <value>1.0</value>
+      </dirichlet>
+      <dirichlet>
+        <surface>Outer</surface>
+        <value>0.0</value>
+      </dirichlet>
+    </boundary-conditions>
   </fem>
 </case>

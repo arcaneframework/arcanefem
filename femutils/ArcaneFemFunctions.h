@@ -633,25 +633,25 @@ static inline Real4 computeGradientZTetra4(Cell cell, const VariableNodeReal3& n
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline void applyNeumannToRhs(const CaseOptionsFem::CaseOptionNeumannBoundaryConditionValue* bs, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, Arcane::VariableDoFReal& rhs_values)
+    static inline void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, Arcane::VariableDoFReal& rhs_values)
     {
-      FaceGroup group = bs->surface();
+      FaceGroup group = bs->getSurface();
 
       Real value = 0.0;
       Real valueX = 0.0;
       Real valueY = 0.0;
-      bool hasValue = bs->value.isPresent();
-      bool hasValueX = bs->valueX.isPresent();
-      bool hasValueY = bs->valueY.isPresent();
+      bool hasValue = bs->hasValue();
+      bool hasValueX = bs->getValueX();
+      bool hasValueY = bs->getValueY();
 
       if (hasValue) {
-        value = bs->value();
+        value = bs->getValue();
       }
       else {
         if (hasValueX)
-          valueX = bs->valueX();
+          valueX = bs->getValueX();
         if (hasValueY)
-          valueY = bs->valueY();
+          valueY = bs->getValueY();
       }
 
       ENUMERATE_ (Face, iface, group) {
@@ -693,11 +693,11 @@ static inline Real4 computeGradientZTetra4(Cell cell, const VariableNodeReal3& n
      * @param [OUT] rhs_values RHS  : RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
-    static inline void applyDirichletToLhsAndRhs(const CaseOptionsFem::CaseOptionDirichletBoundaryConditionValue* bs, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, FemUtils::DoFLinearSystem& m_linear_system, Arcane::VariableDoFReal& rhs_values)
+    static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, FemUtils::DoFLinearSystem& m_linear_system, Arcane::VariableDoFReal& rhs_values)
     {
-      FaceGroup group = bs->surface();
-      Real value = bs->value();
-      Real Penalty = bs->penalty();
+      FaceGroup group = bs->getSurface();
+      Real value = bs->getValue();
+      Real Penalty = bs->getPenalty();
 
       ENUMERATE_ (Face, iface, group) {
         for (Node node : iface->nodes()) {
@@ -726,11 +726,11 @@ static inline Real4 computeGradientZTetra4(Cell cell, const VariableNodeReal3& n
      * @param [OUT] rhs_values RHS  : RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
-    static inline void applyPointDirichletToLhsAndRhs(const CaseOptionsFem::CaseOptionDirichletPointConditionValue* bs, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, FemUtils::DoFLinearSystem& m_linear_system, Arcane::VariableDoFReal& rhs_values)
+    static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, FemUtils::DoFLinearSystem& m_linear_system, Arcane::VariableDoFReal& rhs_values)
     {
-      NodeGroup group = bs->node();
-      Real value = bs->value();
-      Real Penalty = bs->penalty();
+      NodeGroup group = bs->getNode();
+      Real value = bs->getValue();
+      Real Penalty = bs->getPenalty();
 
       ENUMERATE_ (Node, inode, group) {
         Node node = *inode;
@@ -760,9 +760,9 @@ static inline Real4 computeGradientZTetra4(Cell cell, const VariableNodeReal3& n
      * @param [OUT] rhs_values RHS  : RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
-    static inline void applyManufacturedDirichletToLhsAndRhs(IBinaryMathFunctor<Real, Real3, Real>* manufactured_dirichlet, const Arcane::Real& lambda, const Arcane::FaceGroup& group, const CaseOptionsFem::CaseOptionManufacturedSolutionValue* bs, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, FemUtils::DoFLinearSystem& m_linear_system, Arcane::VariableDoFReal& rhs_values)
+    static inline void applyManufacturedDirichletToLhsAndRhs(IBinaryMathFunctor<Real, Real3, Real>* manufactured_dirichlet, const Arcane::Real& lambda, const Arcane::FaceGroup& group, BC::IManufacturedSolution* bs, const Arcane::IndexedNodeDoFConnectivityView& node_dof, const Arcane::VariableNodeReal3& node_coord, FemUtils::DoFLinearSystem& m_linear_system, Arcane::VariableDoFReal& rhs_values)
     {
-      Real Penalty = bs->penalty();
+      Real Penalty = bs->getPenalty();
 
       ENUMERATE_ (Face, iface, group) {
         for (Node node : iface->nodes()) {

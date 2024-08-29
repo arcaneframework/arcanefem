@@ -20,21 +20,23 @@
   </meshes>
 
   <fem>
-    <dirichlet-point-condition>
-      <node>topLeftCorner</node>
-      <value>50.0</value>
-    </dirichlet-point-condition>
-    <dirichlet-point-condition>
-      <node>topRightCorner</node>
-      <value>20.0</value>
-    </dirichlet-point-condition>
-    <dirichlet-point-condition>
-      <node>botLeftCorner</node>
-      <value>20.0</value>
-    </dirichlet-point-condition>
-    <dirichlet-point-condition>
-      <node>botRightCorner</node>
-      <value>50.0</value>
-    </dirichlet-point-condition>
+    <boundary-conditions>
+      <dirichlet-point>
+        <node>topLeftCorner</node>
+        <value>50.0</value>
+      </dirichlet-point>
+      <dirichlet-point>
+        <node>topRightCorner</node>
+        <value>20.0</value>
+      </dirichlet-point>
+      <dirichlet-point>
+        <node>botLeftCorner</node>
+        <value>20.0</value>
+      </dirichlet-point>
+      <dirichlet-point>
+        <node>botRightCorner</node>
+        <value>50.0</value>
+      </dirichlet-point>
+    </boundary-conditions>
   </fem>
 </case>
