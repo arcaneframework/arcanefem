@@ -9,6 +9,7 @@
 
 #include <arcane/ItemTypes.h>
 #include <arcane/VariableTypedef.h>
+#include <arcane/core/IStandardFunction.h>
 
 using namespace Arcane;
 
@@ -52,6 +53,10 @@ class IManufacturedSolution
   virtual bool getManufacturedDirichlet() =0;
   virtual Real getPenalty() =0;
   virtual String getEnforceDirichletMethod() =0;
+  virtual ICaseFunction* getManufacturedDirichletFunction() =0;
+  virtual IStandardFunction* getManufacturedDirichletStandardFunction() =0;
+  virtual ICaseFunction* getManufacturedSourceFunction() =0;
+  virtual IStandardFunction* getManufacturedSourceStandardFunction() =0;
 };
 
 class IArcaneFemBC

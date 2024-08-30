@@ -30,12 +30,12 @@ startInit()
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
-  if (options()->manufacturedSolution.isPresent()) {
-    const auto& bs = options()->manufacturedSolution()[0];
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
-    if (bs->manufacturedSource.isPresent()) {
-      ICaseFunction* opt_function_source = bs->manufacturedSource.function();
-      IStandardFunction* scf_source = bs->manufacturedSource.standardFunction();
+  for (BC::IManufacturedSolution* bs : bc->manufacturedSolutions()) {
+    if (bs->getManufacturedSource()) {
+      ICaseFunction* opt_function_source = bs->getManufacturedSourceFunction();
+      IStandardFunction* scf_source = bs->getManufacturedSourceStandardFunction();
       if (!scf_source)
         ARCANE_FATAL("No standard case function for option 'manufactured-source-condition'");
       auto* functorS = scf_source->getFunctorRealReal3ToReal();
@@ -44,9 +44,9 @@ startInit()
       m_manufactured_source = functorS;
     }
 
-    if (bs->manufacturedDirichlet.isPresent()) {
-      ICaseFunction* opt_function = bs->manufacturedDirichlet.function();
-      IStandardFunction* scf = bs->manufacturedDirichlet.standardFunction();
+    if (bs->getManufacturedDirichlet()) {
+      ICaseFunction* opt_function = bs->getManufacturedDirichletFunction();
+      IStandardFunction* scf = bs->getManufacturedDirichletStandardFunction();
       if (!scf)
         ARCANE_FATAL("No standard case function for option 'manufactured-dirichlet-condition'");
       auto* functor = scf->getFunctorRealReal3ToReal();
@@ -180,23 +180,22 @@ _assembleLinearOperator()
   if (options()->qdot.isPresent())
     ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhs(qdot, mesh(), node_dof, m_node_coord, rhs_values);
 
-
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
-  if(bc){
+  if (bc) {
     for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
       ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
 
     for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
       ArcaneFemFunctions::BoundaryConditions2D::applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
 
-    for (BC::IManufacturedSolution* bs : bc->manufacturedSolutions()){
-      if (bs->getManufacturedSource()){
+    for (BC::IManufacturedSolution* bs : bc->manufacturedSolutions()) {
+      if (bs->getManufacturedSource()) {
         ARCANE_CHECK_POINTER(m_manufactured_source);
         info() << "Apply manufactured Source condition to all cells";
-        ArcaneFemFunctions::BoundaryConditions2D::applyManufacturedSourceToRhs(m_manufactured_source, mesh(), node_dof, m_node_coord, rhs_values);      
+        ArcaneFemFunctions::BoundaryConditions2D::applyManufacturedSourceToRhs(m_manufactured_source, mesh(), node_dof, m_node_coord, rhs_values);
       }
-      if (bs->getManufacturedDirichlet()){
+      if (bs->getManufacturedDirichlet()) {
         ARCANE_CHECK_POINTER(m_manufactured_dirichlet);
         info() << "Apply manufactured dirichlet condition to all borders";
         FaceGroup group = mesh()->outerFaces();

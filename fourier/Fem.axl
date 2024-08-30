@@ -33,37 +33,6 @@
       <description>Type of mesh provided to the solver</description>
     </simple>
 
-    <!-- - - - - - manufactured-solution - - - - -->
-    <complex name  = "manufactured-solution"
-             type  = "ManufacturedSolution"
-             minOccurs = "0"
-             maxOccurs = "unbounded"
-      >
-      <description>
-        Dirichlet boundary condition
-      </description>
-      <simple name="manufactured-dirichlet" type="bool"  default="false" optional="true">
-        <description>
-          Function for Dirichlet boundary condition
-        </description>
-      </simple>
-      <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
-        <description>
-          Method via which Dirichlet boundary condition is imposed
-        </description>
-      </simple>
-      <simple name = "penalty" type = "real" default="1.e30" optional="true">
-        <description>
-          Penalty value for enforcing Dirichlet condition
-        </description>
-      </simple>
-      <simple name="manufactured-source" type="bool"  default="false" optional="true">
-        <description>
-          Function for manufactured source term condition
-        </description>
-      </simple>
-    </complex>
-
     <!-- - - - - - material-property - - - - -->
     <complex name  = "material-property"
              type  = "MaterialProperty"

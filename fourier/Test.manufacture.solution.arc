@@ -28,10 +28,6 @@
   </functions>
 
   <fem>
-    <manufactured-solution>
-      <manufactured-dirichlet function="manufacturedDirichlet">true</manufactured-dirichlet>
-      <manufactured-source function="manufacturedSource">true</manufactured-source>
-    </manufactured-solution>
     <boundary-conditions>
       <manufactured-solution>
        <manufactured-dirichlet function="manufacturedDirichlet">true</manufactured-dirichlet>
