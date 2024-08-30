@@ -329,16 +329,16 @@ _solve()
       m_u[node] = v;
     }
 
-    if (options()->manufacturedSolution.isPresent()) {
+    for (BC::IManufacturedSolution* bs : options()->boundaryConditions()->manufacturedSolutions())
       ENUMERATE_ (Node, inode, ownNodes()) {
         Node node = *inode;
         m_u_exact[node] = m_manufactured_dirichlet->apply(lambda, m_node_coord[node]);
       }
-    }
   }
 
   m_u.synchronize();
-  if (options()->manufacturedSolution.isPresent())
+
+  for (BC::IManufacturedSolution* bs : options()->boundaryConditions()->manufacturedSolutions())
     m_u_exact.synchronize();
 }
 
