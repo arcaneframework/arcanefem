@@ -20,13 +20,15 @@
   </meshes>
 
   <fem>
-    <dirichlet-boundary-condition>
-      <surface>inner</surface>
-      <value>50.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>outer</surface>
-      <value>20.0</value>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>inner</surface>
+        <value>50.0</value>
+      </dirichlet>
+      <dirichlet>
+        <surface>outer</surface>
+        <value>20.0</value>
+      </dirichlet>
+    </boundary-conditions>
   </fem>
 </case>

@@ -22,13 +22,15 @@
   <fem>
     <result-file>test_3D_L-shape.txt</result-file>
     <mesh-type>TETRA4</mesh-type>
-    <dirichlet-boundary-condition>
-      <surface>bot</surface>
-      <value>50.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>bc</surface>
-      <value>10.0</value>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>bot</surface>
+        <value>50.0</value>
+      </dirichlet>
+      <dirichlet>
+        <surface>bc</surface>
+        <value>10.0</value>
+      </dirichlet>
+    </boundary-conditions>
   </fem>
 </case>

@@ -24,17 +24,20 @@
     <rho>0.0</rho>
     <epsilon>1.0</epsilon>
     <result-file>test_2.txt</result-file>
-    <dirichlet-boundary-condition>
-      <surface>rod1</surface>
-      <value>-1.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>circle</surface>
-      <value>1.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>external</surface>
-      <value>0.0</value>
-    </dirichlet-boundary-condition>
+
+    <boundary-conditions>
+      <dirichlet>
+        <surface>rod1</surface>
+        <value>-1.0</value>
+      </dirichlet>
+      <dirichlet>
+        <surface>circle</surface>
+        <value>1.0</value>
+      </dirichlet>
+      <dirichlet>
+        <surface>external</surface>
+        <value>0.0</value>
+      </dirichlet>
+    </boundary-conditions>
   </fem>
 </case>

@@ -28,6 +28,7 @@
 #include <arcane/ICaseMng.h>
 #include <arcane/core/IStandardFunction.h>
 
+#include "IArcaneFemBC.h"
 #include "IDoFLinearSystemFactory.h"
 #include "Fem_axl.h"
 #include "FemUtils.h"

@@ -1,0 +1,136 @@
+<?xml version="1.0" ?>
+<service name="FemBoundaryConditions" version="1.0" type="caseoption">
+  <description>Service to apply Dirichlet BC</description>
+  <interface name="BC::IArcaneFemBC" />
+  <options>
+
+    <complex name  = "neumann"
+             type  = "Neumann"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+             interface ="BC::INeumannBoundaryCondition"
+      >
+      <description>
+        Neumann boundary condition
+      </description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>
+          FaceGroup on which to apply these boundary condition
+        </description>
+      </extended>
+      <simple name = "value" type = "real" optional = "true">
+        <description>
+          Value of the boundary condition
+        </description>
+      </simple>
+      <simple name = "valueX" type = "real" optional = "true">
+        <description>
+          Value of the Neumann load in x
+        </description>
+      </simple>
+      <simple name = "valueY" type = "real" optional = "true">
+        <description>
+          Value of the Neumann load in y
+        </description>
+      </simple>
+    </complex>
+
+    <complex name  = "dirichlet-point"
+             type  = "DirichletPoint"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+             interface ="BC::IDirichletPointCondition"
+      >
+      <description>
+        Dirichlet point condition
+      </description>
+      <extended name = "node" type = "Arcane::NodeGroup">
+        <description>
+          NodeGroup on which to apply these point Dirichlet condition
+        </description>
+      </extended>
+      <simple name = "value" type = "real">
+        <description>
+          Value of the point Dirichlet condition
+        </description>
+      </simple>
+      <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
+        <description>
+          Method via which Dirichlet boundary condition is imposed
+        </description>
+      </simple>
+      <simple name = "penalty" type = "real" default="1.e30" optional="true">
+        <description>
+          Penalty value for enforcing Dirichlet condition
+        </description>
+      </simple>
+    </complex>
+
+     <complex name  = "dirichlet"
+             type  = "Dirichlet"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+             interface ="BC::IDirichletBoundaryCondition"
+      >
+      <description>
+        Dirichlet boundary condition
+      </description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>
+          NodeGroup on which to apply these point Dirichlet condition
+        </description>
+      </extended>
+      <simple name = "value" type = "real">
+        <description>
+          Value of the point Dirichlet condition
+        </description>
+      </simple>
+      <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
+        <description>
+          Method via which Dirichlet boundary condition is imposed
+        </description>
+      </simple>
+      <simple name = "penalty" type = "real" default="1.e30" optional="true">
+        <description>
+          Penalty value for enforcing Dirichlet condition
+        </description>
+      </simple>
+    </complex>
+
+    <complex name  = "manufactured-solution"
+             type  = "ManufacturedSolution"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+             interface ="BC::IManufacturedSolution"
+      >
+      <description>
+        Dirichlet boundary condition
+      </description>
+      <simple name="manufactured-dirichlet" type="bool"  default="false" optional="true">
+        <description>
+          Function for Dirichlet boundary condition
+        </description>
+      </simple>
+      <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
+        <description>
+          Method via which Dirichlet boundary condition is imposed
+        </description>
+      </simple>
+      <simple name = "penalty" type = "real" default="1.e30" optional="true">
+        <description>
+          Penalty value for enforcing Dirichlet condition
+        </description>
+      </simple>
+      <simple name="manufactured-source" type="bool"  default="false" optional="true">
+        <description>
+          Function for manufactured source term condition
+        </description>
+      </simple>
+    </complex>
+
+    <simple name="handler" type="string" default="ArcaneFEM">
+      <description>handler of boundary conditions</description>
+    </simple>
+
+  </options>
+</service>

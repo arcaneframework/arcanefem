@@ -10,17 +10,20 @@ add_library(FemUtils
   CsrFormatMatrix.cc
   FemDoFsOnNodes.h
   FemDoFsOnNodes.cc
+  FemBoundaryConditions.cc
   ArcaneFemFunctions.h
   AlephDoFLinearSystem.cc
   IDoFLinearSystemFactory.h
   AlephDoFLinearSystemFactory_axl.h
   SequentialBasicDoFLinearSystemFactory_axl.h
   HypreDoFLinearSystemFactory_axl.h
+  FemBoundaryConditions_axl.h
 )
 
 arcane_generate_axl(AlephDoFLinearSystemFactory)
 arcane_generate_axl(SequentialBasicDoFLinearSystemFactory)
 arcane_generate_axl(HypreDoFLinearSystemFactory)
+arcane_generate_axl(FemBoundaryConditions)
 
 target_compile_definitions(FemUtils PRIVATE $<$<BOOL:${ENABLE_DEBUG_MATRIX}>:ENABLE_DEBUG_MATRIX>)
 

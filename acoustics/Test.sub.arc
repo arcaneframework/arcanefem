@@ -34,16 +34,18 @@
   <!--
     FEM (Finite Element Method) settings:
       - kc2: Coefficient used in the FEM calculations.
-      - neumann-boundary-condition: Defines boundary conditions for the simulation.
+      - boundary-conditions: Defines neumann boundary conditions for the simulation.
       - linear-system: Specifies the linear system solver to use.
       - result-file: File for validation (optional)
   -->
   <fem>
     <kc2>.11e1</kc2>
-    <neumann-boundary-condition>
-      <surface>inner1</surface>
-      <value>1.0</value>
-    </neumann-boundary-condition>
+    <boundary-conditions>
+      <neumann>
+        <surface>inner1</surface>
+        <value>1.0</value>
+      </neumann>
+    </boundary-conditions>
     <linear-system name="SequentialBasicLinearSystem" />
     <result-file>sub_2D.txt</result-file>
   </fem>

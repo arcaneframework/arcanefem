@@ -136,10 +136,13 @@ _assembleLinearOperator()
     ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhs(qdot, mesh(), node_dof, m_node_coord, rhs_values);
   }
 
-  for (const auto& bs : options()->neumannBoundaryCondition())
-    ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
-  for (const auto& bs : options()->dirichletBoundaryCondition())
+  for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions()){
+    ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+  }
+
+  for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
     ArcaneFemFunctions::BoundaryConditions2D::applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
 }
 

@@ -116,8 +116,11 @@ _assembleLinearOperator()
   const auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   // setp 2
-  for (const auto& bs : options()->neumannBoundaryCondition()) {
-    ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
+  if(bc){
+    for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions()){
+      ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+    }
   }
 }
 
