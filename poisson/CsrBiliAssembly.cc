@@ -68,7 +68,7 @@ _buildMatrixCsr()
       }
     }
   }
-  else if (options()->meshType == "TETRA"){
+  else if (options()->meshType == "TETRA4"){
     ENUMERATE_NODE (inode, allNodes()) {
       Node node = *inode;
 
