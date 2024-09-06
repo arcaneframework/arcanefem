@@ -20,7 +20,6 @@
   </meshes>
 
   <fem>
-    <blcsr>true</blcsr>
     <f>-0.01</f>
     <mesh-type>TETRA4</mesh-type>
     <dirichlet-boundary-condition>
