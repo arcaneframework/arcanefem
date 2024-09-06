@@ -63,19 +63,6 @@ if (USE_CUSPARSE_ADD)
 endif()
 target_compile_definitions(Poisson PRIVATE $<$<BOOL:${ARCANE_HAS_ACCELERATOR}>:ARCANE_HAS_ACCELERATOR>)
 
-find_program(GMSH NAMES gmsh)
-if (GMSH)
-  message(STATUS "GMSH found: ${GMSH}")
-  add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/L-100-shape.msh
-    COMMAND ${GMSH} -2 ${MSH_DIR}/L-shape.geo -setnumber rfactor 100 -format msh41 -o ${CMAKE_CURRENT_BINARY_DIR}/L-100-shape.msh
-    DEPENDS ${MSH_DIR}/L-shape.geo
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  )
-  add_custom_target(gmsh_files_poisson DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/L-100-shape.msh)
-  add_dependencies(Poisson gmsh_files_poisson)
-  set(FEMTEST_HAS_GMSH_TEST TRUE)
-endif()
-
 # Copy the tests files in the binary directory
 # The '/' after 'tests' is needed because we want to copy the files
 # inside the 'tests' directory but not the directory itself.
