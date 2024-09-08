@@ -22,6 +22,7 @@
 void FemModule::
 _buildMatrixCsr()
 {
+  //ARCANE_FATAL("BUILD_CSR");
   //Initialization of the coo matrix;
   //This formula only works in p=1
 
@@ -35,22 +36,25 @@ _buildMatrixCsr()
   ENUMERATE_NODE (node, allNodes()) {
   }
   */
-
-  Int64   nedge;
-  Int64   nbnde = nbNode();
-  if (options()->meshType == "TETRA4")
-    nedge = nbEdge();
-  else if (options()->meshType == "TRIA3")
+  IMesh* mesh = defaultMesh();
+  Int64 nedge = 0;
+  Int64 nbnde = nbNode();
+  Int32 mesh_dim = mesh->dimension();
+  if (mesh_dim == 3) {
+    // m_nb_edge should have been computed in startInit()
+    nedge = m_nb_edge;
+  }
+  else if (mesh_dim == 2)
     nedge = nbFace();
   else
-    ARCANE_THROW(NotImplementedException, "");
+    ARCANE_THROW(NotSupportedException, "Only mesh of dimension 2 or 3 are supported");
 
   Int32 nnz = nedge * 2 + nbnde;
 
   m_csr_matrix.initialize(m_dof_family, nnz, nbNode());
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   //We iterate through the node, and we do not sort anymore : we assume the nodes ID are sorted, and we will iterate throught the column to avoid making < and > comparison
-  if (options()->meshType == "TRIA3"){
+  if (mesh_dim == 2) {
     ENUMERATE_NODE (inode, allNodes()) {
       Node node = *inode;
 
@@ -58,35 +62,51 @@ _buildMatrixCsr()
       m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
 
       for (Face face : node.faces()) {
-        if (face.nodeId(0) == node.localId()){
+        if (face.nodeId(0) == node.localId()) {
           //info() << "DEBUG Add: 0 (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(face.nodeId(1), 0) << " )";
           m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(1), 0));
-        }else{
+        }
+        else {
           //info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(face.nodeId(0), 0) << " )";
           m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
         }
       }
     }
   }
-  else if (options()->meshType == "TETRA4"){
+  else if (mesh_dim == 3) {
+    bool use_edges = options()->createEdges();
+
+    IndexedNodeNodeConnectivityView nn_cv;
+    if (!use_edges) {
+      // Connectivity should have been build during init (in startInit() entry point)
+      auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
+      ARCANE_CHECK_POINTER(connectivity_ptr);
+      nn_cv = connectivity_ptr->view();
+    }
+
     ENUMERATE_NODE (inode, allNodes()) {
       Node node = *inode;
-
+      DoFLocalId dof = node_dof.dofId(node, 0);
       //info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(node, 0) << " )";
-      m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
+      m_csr_matrix.setCoordinates(dof, node_dof.dofId(node, 0));
 
-      for (Edge edge : node.edges()) {
-        if (edge.nodeId(0) == node.localId()){
-          //info() << "DEBUG Add: 0 (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(edge.nodeId(1), 0) << " )";
-          m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(edge.nodeId(1), 0));
-        }else{
-          //info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(edge.nodeId(0), 0) << " )";
-          m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(edge.nodeId(0), 0));
+      if (use_edges) {
+        for (Edge edge : node.edges()) {
+          if (edge.nodeId(0) == node.localId()) {
+            //info() << "DEBUG Add: 0 (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(edge.nodeId(1), 0) << " )" << "  edge_uid=" << edge.uniqueId();
+            m_csr_matrix.setCoordinates(dof, node_dof.dofId(edge.nodeId(1), 0));
+          }
+          else {
+            //info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(edge.nodeId(0), 0) << " )" << "  edge_uid=" << edge.uniqueId();
+            m_csr_matrix.setCoordinates(dof, node_dof.dofId(edge.nodeId(0), 0));
+          }
         }
       }
+      else
+        for (NodeLocalId other_node : nn_cv.nodeIds(node))
+          m_csr_matrix.setCoordinates(dof, node_dof.dofId(other_node, 0));
     }
   }
-
 }
 
 /*---------------------------------------------------------------------------*/
@@ -146,7 +166,6 @@ _assembleCsrBilinearOperatorTRIA3()
 void FemModule::
 _assembleCsrBilinearOperatorTETRA4()
 {
-
   Timer::Action timer_csr_bili(m_time_stats, "AssembleCsrBilinearOperatorTetra4");
   {
     _buildMatrixCsr();
