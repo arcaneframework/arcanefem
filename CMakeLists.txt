@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 project(ArcaneFem LANGUAGES C CXX)
 
-find_package(Arcane REQUIRED)
+find_package(Arcane 3.14.4 REQUIRED)
 arcane_accelerator_enable()
 
 enable_testing()
