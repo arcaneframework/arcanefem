@@ -231,6 +231,16 @@ class FemModule
 
   Integer cache_index;
 
+  /*!
+   * \brief List of nodes connected to an another node via a edge of the a cell.
+   *
+   * This is only used for 3D mesh and only if the option 'create-edges' is not set.
+   */
+  Ref<IIndexedIncrementalItemConnectivity> m_node_node_via_edge_connectivity;
+
+  //! Number of edges (only for 3D meshes)
+  Int64 m_nb_edge = -1;
+
  private:
 
   void fileNumArray(bool ref, NumArray<Real, MDDim1> numarray);

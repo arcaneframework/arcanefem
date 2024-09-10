@@ -82,6 +82,11 @@
         Boolean to use the legacy datastructure and its associated methods
       </description>
     </simple>
+    <simple name="create-edges" type="bool"  default="true">
+      <description>
+        If true, Edges are created for 3D meshes.
+      </description>
+    </simple>
 
     <!-- - - - - - dirichlet-boundary-condition - - - - -->
     <complex name  = "dirichlet-boundary-condition"

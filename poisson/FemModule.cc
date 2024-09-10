@@ -12,6 +12,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
+#include <arcane/core/MeshUtils.h>
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -255,6 +256,29 @@ startInit()
     wbuild << nbNode() << ",";
     timer = ofstream("timer.csv", std::ios_base::app);
     timer << nbNode() << ",";
+  }
+
+  {
+    IMesh* mesh = defaultMesh();
+    // If we do not create edges, we need to create custom connectivity
+    // to store the neighbours node of a node
+    if (mesh->dimension()==3 && !options()->createEdges()){
+      m_node_node_via_edge_connectivity = MeshUtils::computeNodeNodeViaEdgeConnectivity(defaultMesh(), "NodeNodeViaEdge");
+      m_node_node_via_edge_connectivity->connectivity()->dumpStats(std::cout);
+      std::cout << "\n";
+      IndexedNodeNodeConnectivityView nn_cv = m_node_node_via_edge_connectivity->view();
+      Int64 nb_edge = 0;
+      ENUMERATE_NODE (inode, allNodes()) {
+        Node node = *inode;
+        nb_edge += nn_cv.nbNode(node);
+      }
+      m_nb_edge = nb_edge / 2;
+      info() << "Using custom node-node via edge connectivity: nb_edge=" << m_nb_edge;
+    }
+    else{
+      m_nb_edge = mesh->nbEdge();
+      info() << "Number of edge: nb_edge=" << m_nb_edge;
+    }
   }
 
   m_dofs_on_nodes.initialize(mesh(), 1);
@@ -2072,7 +2096,7 @@ void FemModule::
 _build()
 {
   Connectivity c(mesh()->connectivity());
-  if (options()->meshType == "TETRA4"){
+  if (options()->meshType == "TETRA4" && options()->createEdges()){
     info() << "Adding edge connectivity";
     c.enableConnectivity(Connectivity::CT_HasEdge);
   }
