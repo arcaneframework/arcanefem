@@ -20,6 +20,7 @@
   </meshes>
 
   <fem>
+    <result-file>test_sphere_3D_results.txt</result-file>
     <blcsr>true</blcsr>
     <f>-0.01</f>
     <mesh-type>TETRA4</mesh-type>
