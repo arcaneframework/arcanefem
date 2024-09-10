@@ -21,6 +21,7 @@
   </meshes>
 
   <fem>
+    <result-file>test_sphere_3D_csr_results.txt</result-file>
     <f>-0.01</f>
     <mesh-type>TETRA4</mesh-type>
     <dirichlet-boundary-condition>
