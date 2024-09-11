@@ -2113,7 +2113,8 @@ _checkResultFile()
   if (filename.empty())
     return;
   const double epsilon = 1.0e-4;
-  checkNodeResultFile(traceMng(), filename, m_u, epsilon);
+  const double skipValuesMinLim = 1.0e-16;
+  checkNodeResultFile(traceMng(), filename, m_u, epsilon, skipValuesMinLim);
 }
 
 /*---------------------------------------------------------------------------*/

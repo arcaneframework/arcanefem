@@ -478,8 +478,8 @@ solve()
 
     /* Set some parameters (See Reference Manual for more parameters) */
     HYPRE_PCGSetMaxIter(solver, 1000); /* max iterations */
-    HYPRE_PCGSetTol(solver, 1e-7); /* conv. tolerance */
-    HYPRE_PCGSetTwoNorm(solver, 1); /* use the two norm as the stopping criteria */
+    HYPRE_PCGSetTol(solver, 1e-30); /* conv. tolerance */
+    HYPRE_PCGSetTwoNorm(solver, 0); /* use the two norm as the stopping criteria */
     HYPRE_PCGSetPrintLevel(solver, 2); /* print solve info */
     HYPRE_PCGSetLogging(solver, 1); /* needed to get run info later */
 

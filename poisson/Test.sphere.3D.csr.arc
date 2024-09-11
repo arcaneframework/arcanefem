@@ -23,6 +23,8 @@
     <result-file>test_sphere_3D_results.txt</result-file>
     <f>-0.01</f>
     <mesh-type>TETRA4</mesh-type>
+    <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+    <penalty>1.e31</penalty>
     <dirichlet-boundary-condition>
       <surface>sphere</surface>
       <value>0.0</value>
