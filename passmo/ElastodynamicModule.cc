@@ -171,11 +171,12 @@ startInit(){
     m_displ[node] = Real3::zero();
   }
 
-  _startInitGauss();
+//  _startInitGauss();
   _applyInitialNodeConditions();
   _initCells();
   _initBoundaryConditions();
   _initDCConditions();
+  _startInitGauss();
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -189,6 +190,7 @@ _initDofs(){
 void ElastodynamicModule::
 _startInitGauss(){
   Integer max_gauss_per_cell{0};
+  Integer max_nbnodes_per_cell{0};
 
   ENUMERATE_CELL (icell, allCells()) {
     const Cell& cell = *icell;
@@ -196,7 +198,10 @@ _startInitGauss(){
     auto nbgauss = getNbGaussPointsfromOrder(cell_type, ninteg);
     m_nb_gauss[cell] = nbgauss;
     max_gauss_per_cell = math::max(nbgauss,max_gauss_per_cell);
+    auto nbnodes = cell.nbNode();
+    max_nbnodes_per_cell = math::max(nbnodes,max_gauss_per_cell);
   }
+//  m_gauss_on_cells.initialize(mesh(),ninteg);
   m_gauss_on_cells.initialize(mesh(),max_gauss_per_cell);
 
   auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
@@ -205,15 +210,20 @@ _startInitGauss(){
   VariableDoFArrayReal& gauss_shape(m_gauss_on_cells.gaussShape());
   VariableDoFArrayReal3& gauss_shapederiv(m_gauss_on_cells.gaussShapeDeriv());
 
+  gauss_shape.resize(max_nbnodes_per_cell);
+  gauss_shapederiv.resize(max_nbnodes_per_cell);
+
   ENUMERATE_CELL (icell, allCells()) {
     const Cell& cell = *icell;
     auto cell_type = cell.type();
     auto cell_nbnod = cell.nbNode();
+    Int32 numcell = cell.localId();
     auto cell_nbgauss = getNbGaussPointsfromOrder(cell_type, ninteg);
     Int32 ndim = getGeomDimension(cell);
 
     for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
       DoFLocalId gauss_pti = gauss_point.dofId(cell,ig);
+      Int32 gaussnum = gauss_pti.localId();
       gauss_weight[gauss_pti] = getGaussWeight(cell,ninteg,ig);
       Real3 refpos = getGaussRefPosition(cell,ninteg,ig);
       if (ndim <= 2) {
@@ -221,10 +231,9 @@ _startInitGauss(){
         if (ndim == 1) refpos.y = 0.;
       }
       gauss_refpos[gauss_pti] = refpos;
-      gauss_shape[gauss_pti] = RealUniqueArray(cell_nbnod);
-      gauss_shapederiv[gauss_pti] = Real3UniqueArray(cell_nbnod);
 
       for (Int32 inod = 0; inod < cell_nbnod; ++inod) {
+        auto coord_nod = m_node_coord[cell.node(inod)];
         auto Phi_i = cell_fem.getShapeFuncVal(cell_type, inod, refpos);
         gauss_shape[gauss_pti][inod] = Phi_i;
 
@@ -414,11 +423,13 @@ _initGaussStep()
     const Cell& cell = *icell;
     auto cell_type = cell.type();
     auto cell_nbnod = cell.nbNode();
+    Int32 numcell = cell.localId();
     Int32 ndim = getGeomDimension(cell);
     auto cell_nbgauss = getNbGaussPointsfromOrder(cell_type, ninteg);
 
     for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
       DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
+      Int32 gaussnum = gauss_pti.localId();
       Real3 refpos = gauss_refpos[gauss_pti];
 
       Real3x3	jac;

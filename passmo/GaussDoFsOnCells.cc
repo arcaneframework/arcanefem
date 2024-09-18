@@ -19,6 +19,7 @@
 #include "arcane/IIndexedIncrementalItemConnectivity.h"
 #include "arcane/IndexedItemConnectivityView.h"
 #include <arcane/VariableTypes.h>
+#include "GaussQuadrature.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -90,13 +91,14 @@ initialize(IMesh* mesh, Int32 max_nb_gauss_per_cell)
   mesh::DoFFamily* dof_family = ARCANE_CHECK_POINTER(dynamic_cast<mesh::DoFFamily*>(dof_family_interface));
   m_gauss_family = dof_family_interface;
 
-  // Create the Gauss points as DoFs
+  // Create the Gauss points as Arcane "DoFs" attached to cells
   Int64UniqueArray uids(mesh->allCells().size() * max_nb_gauss_per_cell);
   Int64 max_cell_uid = mesh::DoFUids::getMaxItemUid(mesh->cellFamily());
   {
     Integer gauss_index{ 0 };
     ENUMERATE_CELL (icell, mesh->allCells()) {
       Cell cell = *icell;
+      auto cell_type = cell.type();
       Int64 cell_unique_id = cell.uniqueId().asInt64();
       for (Integer i = 0; i < max_nb_gauss_per_cell; ++i) {
         uids[gauss_index++] = cell_unique_id * max_nb_gauss_per_cell + i;
@@ -104,10 +106,12 @@ initialize(IMesh* mesh, Int32 max_nb_gauss_per_cell)
     }
   }
 
-  Int32UniqueArray gauss_lids(uids.size());
+  Integer uidsize = uids.size();
+  Int32UniqueArray gauss_lids(uidsize);
   dof_family->addDoFs(uids, gauss_lids);
   dof_family->endUpdate();
-  info() << "NB_GAUSS=" << dof_family->allItems().size();
+  Integer nb_gauss = dof_family->allItems().size();
+  info() << "NB_GAUSS=" << nb_gauss;
 
   // Create Cell -> Gauss (DoF) connectivity.
   m_cell_gauss_connectivity = mesh->indexedConnectivityMng()->findOrCreateConnectivity(mesh->cellFamily(), dof_family, "GaussCell");

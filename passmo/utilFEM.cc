@@ -1243,14 +1243,14 @@ Real3 Pyramid5ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
  if (inod == 4) return {0.,0.,1.};
 
  Real3 dPhi;
- auto r12{r1+r2}, rr{2.*r1*r2}, s12{s1+s2}, ss{2.*s1*s2}, rs{r1*s2 + r2*s1}, ti2{4.*ti*ti};
+ auto r12{r1+r2}, rr{2.*r1*r2}, s12{s1+s2}, ss{2.*s1*s2}, rs{r1*s2 + r2*s1}, t02{4.*t0*t0};
 
  dPhi.x = t0 * (rr*r + rs*s + r12*ti);
  dPhi.y = t0 * (rs*r + ss*s + s12*ti);
 
- if (ti < REL_PREC) dPhi.z = 0.;
+ if (fabs(ti) < REL_PREC) dPhi.z = 0.;
  else
-   dPhi.z = t0*(r12*r + s12*s + 2.*ti) + (r1*r + s1*s + ti) * (r2*r + s2*s + ti) /ti2;
+   dPhi.z = t0 * (r12*r + s12*s + 2.*ti) + t02 * (r1*r + s1*s + ti) * (r2*r + s2*s + ti);
 
  return dPhi;
 }
@@ -1273,7 +1273,10 @@ Int32 getGeomDimension(const ItemWithNodes& item){
  case IT_Tetraedron4:
  case IT_Hexaedron8:
  case IT_Tetraedron10:
- case IT_Hexaedron20: dim = 3; break;
+ case IT_Hexaedron20:
+ case IT_Pentaedron6:
+ case IT_Pyramid5:
+   dim = 3; break;
 
  default: break;
 
