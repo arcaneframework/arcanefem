@@ -1,8 +1,8 @@
 Welcome to the repository showcasing Finite Element Method (FEM) based solvers developed using the Arcane Framework. The FEM solvers/algorithms here are optimized for both CPU and GPU-based parallel computing environments.
 
-Before diving into the samples provided, please ensure you have installed a recent version (3.7+) of the Arcane Framework.
+Before diving into the samples provided, please ensure you have installed a recent version (3.14.4) of the Arcane Framework.
 
-## How to test a solver  ##
+## How to test  ##
 
 It is simple **compile**$\rightarrow$**execute**$\rightarrow$**visualize**
 
@@ -25,7 +25,7 @@ cmake --build ${BUILD_DIR}
 
 ### Execute ###
 
-Once compiled, execute an example from the elasticity solver. Navigate to the appropriate directory: 
+Once compiled, execute any module of your choice. For example for the elasticity solver. Navigate to the appropriate directory: 
 
 ~~~{sh}
 cd ${BUILD_DIR}/elasticity
@@ -35,7 +35,14 @@ Then run the executable with the desired input file:
 ./Elasticity Test.Elasticity.arc
 ~~~
 
+for parallel run (domain-decompostion) e.g:
+
+```sh
+mpirun -n 4 ./Elasticity Test.Elasticity.arc
+```
+
 Alternatively, you can provide command-line arguments to run the solver:
+
 ~~~{sh}
 ./Elasticity -A,CaseDatasetFileName=Test.Elasticity.arc
 ~~~
