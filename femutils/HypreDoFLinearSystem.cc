@@ -173,6 +173,7 @@ class HypreDoFLinearSystemImpl
   void setVerbosityLevel(Int32 v) { m_verbosity = v; }
   void setRelTolerance(Real v) { m_rtol = v; }
   void setAbsTolerance(Real v) { m_atol = v; }
+  void setAmgThreshold(Real v) { m_atol = v; }
 
  private:
 
@@ -195,6 +196,7 @@ class HypreDoFLinearSystemImpl
   Int32 m_max_iter = 1000;
   Int32 m_verbosity = 2;
 
+  Real m_amg_threshold = 0.25;
   Real m_rtol = 1.0e-7;
   Real m_atol = 0.;
 
@@ -496,14 +498,18 @@ solve()
 
     hypreCheck("HYPRE_BoomerAMGCreate", HYPRE_BoomerAMGCreate(&precond));
 
+    /* Set Boomer AMG precoditioner Note we try to add only GPU-CPU compatible ones*/
     HYPRE_BoomerAMGCreate(&precond);
     HYPRE_BoomerAMGSetPrintLevel(precond, 1); /* print amg solution info */
-    HYPRE_BoomerAMGSetCoarsenType(precond, 6);
+    HYPRE_BoomerAMGSetCoarsenType(precond, 8); /* GPU supported: 8(PMIS) */
+    HYPRE_BoomerAMGSetInterpType(precond, 6); /* GPU supported: 3, 15, extended+i 6, 14, 18 */
     HYPRE_BoomerAMGSetOldDefault(precond);
-    HYPRE_BoomerAMGSetRelaxType(precond, 6); /* Sym G.S./Jacobi hybrid */
+    HYPRE_BoomerAMGSetRelaxType(precond, 6); /* GPU support: 3, 4, 6 Sym G.S./Jacobi hybrid, 7, 18, 11, 12*/
+    HYPRE_BoomerAMGSetRelaxOrder(precond, 0); /* must be false */
     HYPRE_BoomerAMGSetNumSweeps(precond, 1);
     HYPRE_BoomerAMGSetTol(precond, 0.0); /* conv. tolerance zero */
     HYPRE_BoomerAMGSetMaxIter(precond, 1); /* do only one iteration! */
+    HYPRE_BoomerAMGSetStrongThreshold(precond, m_amg_threshold); /* amg threshold strength */
 
     hypreCheck("HYPRE_ParCSRPCGSetPrecond",
                HYPRE_ParCSRPCGSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
