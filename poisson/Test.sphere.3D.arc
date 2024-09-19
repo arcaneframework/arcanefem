@@ -35,7 +35,8 @@
       <value>10.0</value>
     </dirichlet-boundary-condition>
     <linear-system name="HypreLinearSystem">
-      <epsilon>1e-20</epsilon>
+      <rtol>0.</rtol>
+      <atol>1e-5</atol>
     </linear-system>
   </fem>
 </case>

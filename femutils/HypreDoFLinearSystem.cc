@@ -168,7 +168,11 @@ class HypreDoFLinearSystemImpl
 
   void setRunner(Runner* r) override { m_runner = r; }
   Runner* runner() const { return m_runner; }
-  void setEpsilon(Real v) { m_epsilon = v; }
+
+  void setMaxIter(Int32 v) { m_max_iter = v; }
+  void setVerbosityLevel(Int32 v) { m_verbosity = v; }
+  void setRelTolerance(Real v) { m_rtol = v; }
+  void setAbsTolerance(Real v) { m_atol = v; }
 
  private:
 
@@ -188,8 +192,11 @@ class HypreDoFLinearSystemImpl
   CSRFormatView m_csr_view;
   Int32 m_first_own_row = -1;
   Int32 m_nb_own_row = -1;
+  Int32 m_max_iter = 1000;
+  Int32 m_verbosity = 2;
 
-  Real m_epsilon = 1.0e-7;
+  Real m_rtol = 1.0e-7;
+  Real m_atol = 0.;
 
  private:
 
@@ -480,10 +487,11 @@ solve()
     HYPRE_ParCSRPCGCreate(mpi_comm, &solver);
 
     /* Set some parameters (See Reference Manual for more parameters) */
-    HYPRE_PCGSetMaxIter(solver, 1000); /* max iterations */
-    HYPRE_PCGSetTol(solver, m_epsilon); /* conv. tolerance */
-    HYPRE_PCGSetTwoNorm(solver, 0); /* use the two norm as the stopping criteria */
-    HYPRE_PCGSetPrintLevel(solver, 2); /* print solve info */
+    HYPRE_PCGSetMaxIter(solver, m_max_iter); /* max iterations */
+    HYPRE_PCGSetTol(solver, m_rtol); /* relative conv. tolerance */
+    HYPRE_PCGSetAbsoluteTol(solver, m_atol); /* absolute conv. tolerance */
+    HYPRE_PCGSetTwoNorm(solver, 1); /* use the two norm as the stopping criteria */
+    HYPRE_PCGSetPrintLevel(solver, m_verbosity); /* print solve info */
     HYPRE_PCGSetLogging(solver, 1); /* needed to get run info later */
 
     hypreCheck("HYPRE_BoomerAMGCreate", HYPRE_BoomerAMGCreate(&precond));
@@ -552,7 +560,10 @@ class HypreDoFLinearSystemFactoryService
     auto* x = new HypreDoFLinearSystemImpl(dof_family, solver_name);
 
     x->build();
-    x->setEpsilon(options()->epsilon());
+    x->setRelTolerance(options()->rtol());
+    x->setAbsTolerance(options()->atol());
+    x->setMaxIter(options()->maxIter());
+    x->setVerbosityLevel(options()->verbosity());
     return x;
   }
 };
