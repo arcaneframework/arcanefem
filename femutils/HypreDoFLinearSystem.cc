@@ -510,6 +510,7 @@ solve()
     HYPRE_BoomerAMGSetTol(precond, 0.0); /* conv. tolerance zero */
     HYPRE_BoomerAMGSetMaxIter(precond, 1); /* do only one iteration! */
     HYPRE_BoomerAMGSetStrongThreshold(precond, m_amg_threshold); /* amg threshold strength */
+    HYPRE_BoomerAMGSetKeepTranspose(precond, 1); /* for GPU the local interp. trnsp saved*/
 
     hypreCheck("HYPRE_ParCSRPCGSetPrecond",
                HYPRE_ParCSRPCGSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
