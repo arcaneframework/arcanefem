@@ -34,7 +34,9 @@
       <surface>Cut</surface>
       <value>10.0</value>
     </dirichlet-boundary-condition>
-    <linear-system name="HypreLinearSystem"/>
+    <linear-system name="HypreLinearSystem">
+      <epsilon>1e-20</epsilon>
+    </linear-system>
     <csr>true</csr>
     <create-edges>false</create-edges>
   </fem>

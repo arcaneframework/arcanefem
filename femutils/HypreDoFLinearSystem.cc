@@ -168,6 +168,7 @@ class HypreDoFLinearSystemImpl
 
   void setRunner(Runner* r) override { m_runner = r; }
   Runner* runner() const { return m_runner; }
+  void setEpsilon(Real v) { m_epsilon = v; }
 
  private:
 
@@ -187,6 +188,8 @@ class HypreDoFLinearSystemImpl
   CSRFormatView m_csr_view;
   Int32 m_first_own_row = -1;
   Int32 m_nb_own_row = -1;
+
+  Real m_epsilon = 1.0e-7;
 
  private:
 
@@ -478,7 +481,7 @@ solve()
 
     /* Set some parameters (See Reference Manual for more parameters) */
     HYPRE_PCGSetMaxIter(solver, 1000); /* max iterations */
-    HYPRE_PCGSetTol(solver, 1e-30); /* conv. tolerance */
+    HYPRE_PCGSetTol(solver, m_epsilon); /* conv. tolerance */
     HYPRE_PCGSetTwoNorm(solver, 0); /* use the two norm as the stopping criteria */
     HYPRE_PCGSetPrintLevel(solver, 2); /* print solve info */
     HYPRE_PCGSetLogging(solver, 1); /* needed to get run info later */
@@ -547,7 +550,9 @@ class HypreDoFLinearSystemFactoryService
   createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
   {
     auto* x = new HypreDoFLinearSystemImpl(dof_family, solver_name);
+
     x->build();
+    x->setEpsilon(options()->epsilon());
     return x;
   }
 };

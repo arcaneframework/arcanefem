@@ -29,6 +29,8 @@
       <surface>boundary</surface>
       <value>0.0</value>
     </dirichlet-boundary-condition>
-    <linear-system name="HypreLinearSystem"/>
+    <linear-system name="HypreLinearSystem">
+      <epsilon>1e-7</epsilon>
+    </linear-system>
   </fem>
 </case>
