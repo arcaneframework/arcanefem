@@ -171,9 +171,13 @@ class HypreDoFLinearSystemImpl
 
   void setMaxIter(Int32 v) { m_max_iter = v; }
   void setVerbosityLevel(Int32 v) { m_verbosity = v; }
+  void setAmgCoarsener(Int32 v) { m_amg_coarsener = v; }
+  void setAmgInterpType(Int32 v) { m_amg_interp_type = v; }
+  void setAmgSmoother(Int32 v) { m_amg_smoother = v; }
+
   void setRelTolerance(Real v) { m_rtol = v; }
   void setAbsTolerance(Real v) { m_atol = v; }
-  void setAmgThreshold(Real v) { m_atol = v; }
+  void setAmgThreshold(Real v) { m_amg_threshold = v; }
 
  private:
 
@@ -195,6 +199,9 @@ class HypreDoFLinearSystemImpl
   Int32 m_nb_own_row = -1;
   Int32 m_max_iter = 1000;
   Int32 m_verbosity = 2;
+  Int32 m_amg_coarsener = 8;
+  Int32 m_amg_interp_type = 6;
+  Int32 m_amg_smoother = 6;
 
   Real m_amg_threshold = 0.25;
   Real m_rtol = 1.0e-7;
@@ -501,10 +508,10 @@ solve()
     /* Set Boomer AMG precoditioner Note we try to add only GPU-CPU compatible ones*/
     HYPRE_BoomerAMGCreate(&precond);
     HYPRE_BoomerAMGSetPrintLevel(precond, 1); /* print amg solution info */
-    HYPRE_BoomerAMGSetCoarsenType(precond, 8); /* GPU supported: 8(PMIS) */
-    HYPRE_BoomerAMGSetInterpType(precond, 6); /* GPU supported: 3, 15, extended+i 6, 14, 18 */
-    HYPRE_BoomerAMGSetOldDefault(precond);
-    HYPRE_BoomerAMGSetRelaxType(precond, 6); /* GPU support: 3, 4, 6 Sym G.S./Jacobi hybrid, 7, 18, 11, 12*/
+    HYPRE_BoomerAMGSetCoarsenType(precond, m_amg_coarsener); /* GPU supported: 8(PMIS) */
+    HYPRE_BoomerAMGSetInterpType(precond, m_amg_interp_type); /* GPU supported: 3, 15, extended+i 6, 14, 18 */
+    //HYPRE_BoomerAMGSetOldDefault(precond);
+    HYPRE_BoomerAMGSetRelaxType(precond, m_amg_smoother); /* GPU support: 3, 4, 6 Sym G.S./Jacobi hybrid, 7, 18, 11, 12*/
     HYPRE_BoomerAMGSetRelaxOrder(precond, 0); /* must be false */
     HYPRE_BoomerAMGSetNumSweeps(precond, 1);
     HYPRE_BoomerAMGSetTol(precond, 0.0); /* conv. tolerance zero */
@@ -570,6 +577,9 @@ class HypreDoFLinearSystemFactoryService
     x->setRelTolerance(options()->rtol());
     x->setAbsTolerance(options()->atol());
     x->setMaxIter(options()->maxIter());
+    x->setAmgCoarsener(options()->amgCoarsener());
+    x->setAmgInterpType(options()->amgInterpType());
+    x->setAmgSmoother(options()->amgSmoother());
     x->setVerbosityLevel(options()->verbosity());
     return x;
   }
