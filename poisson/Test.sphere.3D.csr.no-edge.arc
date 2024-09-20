@@ -37,8 +37,10 @@
     <linear-system name="HypreLinearSystem">
       <rtol>0.</rtol>
       <atol>1e-5</atol>
-      <amg-threshold>0.55</amg-threshold>
       <max-iter>10</max-iter>
+      <amg-threshold>0.55</amg-threshold>
+      <verbosity>4</verbosity>
+      <amg-coarsener>8</amg-coarsener>    
     </linear-system>
     <csr>true</csr>
     <create-edges>false</create-edges>
