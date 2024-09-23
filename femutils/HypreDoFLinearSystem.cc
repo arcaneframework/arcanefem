@@ -169,6 +169,16 @@ class HypreDoFLinearSystemImpl
   void setRunner(Runner* r) override { m_runner = r; }
   Runner* runner() const { return m_runner; }
 
+  void setMaxIter(Int32 v) { m_max_iter = v; }
+  void setVerbosityLevel(Int32 v) { m_verbosity = v; }
+  void setAmgCoarsener(Int32 v) { m_amg_coarsener = v; }
+  void setAmgInterpType(Int32 v) { m_amg_interp_type = v; }
+  void setAmgSmoother(Int32 v) { m_amg_smoother = v; }
+
+  void setRelTolerance(Real v) { m_rtol = v; }
+  void setAbsTolerance(Real v) { m_atol = v; }
+  void setAmgThreshold(Real v) { m_amg_threshold = v; }
+
  private:
 
   IItemFamily* m_dof_family = nullptr;
@@ -187,6 +197,15 @@ class HypreDoFLinearSystemImpl
   CSRFormatView m_csr_view;
   Int32 m_first_own_row = -1;
   Int32 m_nb_own_row = -1;
+  Int32 m_max_iter = 1000;
+  Int32 m_verbosity = 2;
+  Int32 m_amg_coarsener = 8;
+  Int32 m_amg_interp_type = 6;
+  Int32 m_amg_smoother = 6;
+
+  Real m_amg_threshold = 0.25;
+  Real m_rtol = 1.0e-7;
+  Real m_atol = 0.;
 
  private:
 
@@ -477,22 +496,28 @@ solve()
     HYPRE_ParCSRPCGCreate(mpi_comm, &solver);
 
     /* Set some parameters (See Reference Manual for more parameters) */
-    HYPRE_PCGSetMaxIter(solver, 1000); /* max iterations */
-    HYPRE_PCGSetTol(solver, 1e-30); /* conv. tolerance */
-    HYPRE_PCGSetTwoNorm(solver, 0); /* use the two norm as the stopping criteria */
-    HYPRE_PCGSetPrintLevel(solver, 2); /* print solve info */
+    HYPRE_PCGSetMaxIter(solver, m_max_iter); /* max iterations */
+    HYPRE_PCGSetTol(solver, m_rtol); /* relative conv. tolerance */
+    HYPRE_PCGSetAbsoluteTol(solver, m_atol); /* absolute conv. tolerance */
+    HYPRE_PCGSetTwoNorm(solver, 1); /* use the two norm as the stopping criteria */
+    HYPRE_PCGSetPrintLevel(solver, m_verbosity); /* print solve info */
     HYPRE_PCGSetLogging(solver, 1); /* needed to get run info later */
 
     hypreCheck("HYPRE_BoomerAMGCreate", HYPRE_BoomerAMGCreate(&precond));
 
+    /* Set Boomer AMG precoditioner Note we try to add only GPU-CPU compatible ones*/
     HYPRE_BoomerAMGCreate(&precond);
     HYPRE_BoomerAMGSetPrintLevel(precond, 1); /* print amg solution info */
-    HYPRE_BoomerAMGSetCoarsenType(precond, 6);
-    HYPRE_BoomerAMGSetOldDefault(precond);
-    HYPRE_BoomerAMGSetRelaxType(precond, 6); /* Sym G.S./Jacobi hybrid */
+    HYPRE_BoomerAMGSetCoarsenType(precond, m_amg_coarsener); /* GPU supported: 8(PMIS) */
+    HYPRE_BoomerAMGSetInterpType(precond, m_amg_interp_type); /* GPU supported: 3, 15, extended+i 6, 14, 18 */
+    //HYPRE_BoomerAMGSetOldDefault(precond);
+    HYPRE_BoomerAMGSetRelaxType(precond, m_amg_smoother); /* GPU support: 3, 4, 6 Sym G.S./Jacobi hybrid, 7, 18, 11, 12*/
+    HYPRE_BoomerAMGSetRelaxOrder(precond, 0); /* must be false */
     HYPRE_BoomerAMGSetNumSweeps(precond, 1);
     HYPRE_BoomerAMGSetTol(precond, 0.0); /* conv. tolerance zero */
     HYPRE_BoomerAMGSetMaxIter(precond, 1); /* do only one iteration! */
+    HYPRE_BoomerAMGSetStrongThreshold(precond, m_amg_threshold); /* amg threshold strength */
+    HYPRE_BoomerAMGSetKeepTranspose(precond, 1); /* for GPU the local interp. trnsp saved*/
 
     hypreCheck("HYPRE_ParCSRPCGSetPrecond",
                HYPRE_ParCSRPCGSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
@@ -547,7 +572,15 @@ class HypreDoFLinearSystemFactoryService
   createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
   {
     auto* x = new HypreDoFLinearSystemImpl(dof_family, solver_name);
+
     x->build();
+    x->setRelTolerance(options()->rtol());
+    x->setAbsTolerance(options()->atol());
+    x->setMaxIter(options()->maxIter());
+    x->setAmgCoarsener(options()->amgCoarsener());
+    x->setAmgInterpType(options()->amgInterpType());
+    x->setAmgSmoother(options()->amgSmoother());
+    x->setVerbosityLevel(options()->verbosity());
     return x;
   }
 };

@@ -33,7 +33,11 @@
       <surface>Cut</surface>
       <value>10.0</value>
     </dirichlet-boundary-condition>
-    <linear-system name="HypreLinearSystem"/>
+    <linear-system name="HypreLinearSystem">
+      <rtol>0.</rtol>
+      <atol>1e-5</atol>
+      <amg-threshold>0.55</amg-threshold>
+    </linear-system>
     <csr>true</csr>
   </fem>
 </case>
