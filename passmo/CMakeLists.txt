@@ -26,6 +26,7 @@ configure_file(Test.bar2d_tria.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Passmo PUBLIC FemUtils)
 
+file(COPY "tests/" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 enable_testing()
 add_test(NAME [passmo]2D_hybrid_T3-Q4 COMMAND Passmo Test.Passmo.bar2d_hybridpar.arc)

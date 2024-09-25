@@ -519,8 +519,6 @@ compute(){
   // Update the nodal variable according to the integration scheme (e.g. Newmark)
   _updateNewmark();
 
-  // Save/Check results
-  //  _checkResultFile();
 
   if (t < tf) {
     if (t + dt > tf) {
@@ -528,10 +526,27 @@ compute(){
       m_global_deltat = dt;
     }
   }
-  else
+  else {
+    // Save/Check results
+    _checkResultFile();
     subDomain()->timeLoopMng()->stopComputeLoop(true);
+  }
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void ElastodynamicModule::
+_checkResultFile()
+{
+  String filename = options()->resultFile();
+  info() << "CheckResultFile filename=" << filename;
+  if (filename.empty())
+    return;
+  const double epsilon = 1.0e-4;
+  const double min_value_to_test = 1.0e-16;
+  Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_displ, epsilon, min_value_to_test);
+}
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void ElastodynamicModule::
@@ -2395,6 +2410,7 @@ _doSolve(){
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
       info() << "Node: " << node.uniqueId() << " Ux=" << m_displ[node].x << " Uy=" << m_displ[node].y << " Uz=" << m_displ[node].z;
+//      info() << node.uniqueId() << " " << m_displ[node].x << " " << m_displ[node].y << " " << m_displ[node].z;
     }
     std::cout.precision(p);
   }

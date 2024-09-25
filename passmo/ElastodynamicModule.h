@@ -153,6 +153,8 @@ class ElastodynamicModule
   /*  Update nodal dofs vector for the Newmark or Generalized-alfa time integration schemes */
   void _updateNewmark();
 
+  void _checkResultFile();
+
   void _computeK(const Real& lambda, const Real& mu, const DoFLocalId& igauss, const Int32& nb_nodes, RealUniqueArray2& Ke);
   void _computeElemMass(const Real& rho, const DoFLocalId& igauss, const Int32& nb_nodes, RealUniqueArray2& Me);
   void _computeKParax(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,

@@ -41,6 +41,8 @@
       <surface>surfaceright</surface>
       <Ux>1.0</Ux>
     </dirichlet-surface-condition>
+    
+    <result-file>bar2d-tria.txt</result-file>
 
   </elastodynamic>
 </case>

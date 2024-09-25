@@ -482,6 +482,9 @@
     <simple name="alfa_method" type="bool" default="false" optional="true">
       <description>Boolean which is true if Newmark Generalized alfa-method is used</description>
     </simple>
+    <simple name="result-file" type="string" optional="true">
+      <description>File name of a file containing the values of the solution vector to check the results</description>
+    </simple>
 
     <!-- - - - - - double-couple - - - - -->
     <complex name  = "double-couple"
