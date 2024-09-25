@@ -21,17 +21,18 @@ target_include_directories(Passmo PUBLIC . ../fem1 ${CMAKE_CURRENT_BINARY_DIR})
 configure_file(Passmo.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/bar_hybrid_quad_tria.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/bar_dynamic.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.Passmo.bar2d_hybridpar.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.bar2d_tria.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Passmo PUBLIC FemUtils)
 
 file(COPY "tests/" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY "inputs/" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 enable_testing()
-add_test(NAME [passmo]2D_hybrid_T3-Q4 COMMAND Passmo Test.Passmo.bar2d_hybridpar.arc)
-add_test(NAME [passmo]2D_T3 COMMAND Passmo Test.bar2d_tria.arc)
+if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
+  add_test(NAME [passmo]2D_hybrid_T3-Q4 COMMAND Passmo bar2d_tria_quad.arc)
+  add_test(NAME [passmo]2D_T3 COMMAND Passmo bar2d_tria.arc)
+endif ()
 
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-  add_test(NAME [passmo]2D_T3_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Passmo Test.bar2d_tria.arc)
+  add_test(NAME [passmo]2D_T3_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Passmo bar2d_tria.arc)
 endif()
