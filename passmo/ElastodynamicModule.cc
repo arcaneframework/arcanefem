@@ -1,4 +1,4 @@
-// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
 // Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
@@ -201,7 +201,13 @@ _startInitGauss(){
     auto nbnodes = cell.nbNode();
     max_nbnodes_per_cell = math::max(nbnodes,max_gauss_per_cell);
   }
-//  m_gauss_on_cells.initialize(mesh(),ninteg);
+
+  // Make sure all sub-domains have the same number of maximum values
+  IParallelMng* pm = defaultMesh()->parallelMng();
+  max_gauss_per_cell = pm->reduce(Parallel::ReduceMax,max_gauss_per_cell);
+  max_nbnodes_per_cell = pm->reduce(Parallel::ReduceMax,max_nbnodes_per_cell);
+
+    //  m_gauss_on_cells.initialize(mesh(),ninteg);
   m_gauss_on_cells.initialize(mesh(),max_gauss_per_cell);
 
   auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
