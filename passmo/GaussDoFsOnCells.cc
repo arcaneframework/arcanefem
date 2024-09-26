@@ -111,7 +111,7 @@ initialize(IMesh* mesh, Int32 max_nb_gauss_per_cell)
   dof_family->addDoFs(uids, gauss_lids);
   dof_family->endUpdate();
   Integer nb_gauss = dof_family->allItems().size();
-  info() << "NB_GAUSS=" << nb_gauss;
+  info() << "NB_GAUSS=" << nb_gauss << " max_per_cell=" << max_nb_gauss_per_cell;
 
   // Create Cell -> Gauss (DoF) connectivity.
   m_cell_gauss_connectivity = mesh->indexedConnectivityMng()->findOrCreateConnectivity(mesh->cellFamily(), dof_family, "GaussCell");
