@@ -34,5 +34,6 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 endif ()
 
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
+  add_test(NAME [passmo]2D_hybrid_T3-Q4_4pu COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Passmo bar2d_tria_quad.arc)
   add_test(NAME [passmo]2D_T3_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Passmo bar2d_tria.arc)
 endif()
