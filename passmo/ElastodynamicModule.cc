@@ -1,4 +1,4 @@
-﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
 // Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
@@ -201,13 +201,12 @@ _startInitGauss(){
     auto nbnodes = cell.nbNode();
     max_nbnodes_per_cell = math::max(nbnodes,max_gauss_per_cell);
   }
-
   // Make sure all sub-domains have the same number of maximum values
   IParallelMng* pm = defaultMesh()->parallelMng();
   max_gauss_per_cell = pm->reduce(Parallel::ReduceMax,max_gauss_per_cell);
   max_nbnodes_per_cell = pm->reduce(Parallel::ReduceMax,max_nbnodes_per_cell);
 
-    //  m_gauss_on_cells.initialize(mesh(),ninteg);
+//  m_gauss_on_cells.initialize(mesh(),ninteg);
   m_gauss_on_cells.initialize(mesh(),max_gauss_per_cell);
 
   auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
@@ -2399,7 +2398,7 @@ _doSolve(){
 
       m_displ[node] = Real3(ux,uy,uz);
 
-      info() << "Node: " << node.localId() << " Ux=" << ux << " Uy=" << uy << " Uz=" << uz;
+//      info() << "Node: " << node.localId() << " Ux=" << ux << " Uy=" << uy << " Uz=" << uz;
     }
   }
 
@@ -2415,8 +2414,8 @@ _doSolve(){
     long p = std::cout.precision();
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      info() << "Node: " << node.uniqueId() << " Ux=" << m_displ[node].x << " Uy=" << m_displ[node].y << " Uz=" << m_displ[node].z;
-//      info() << node.uniqueId() << " " << m_displ[node].x << " " << m_displ[node].y << " " << m_displ[node].z;
+//      info() << "Node: " << node.uniqueId() << " Ux=" << m_displ[node].x << " Uy=" << m_displ[node].y << " Uz=" << m_displ[node].z;
+      info() << node.uniqueId() << " " << m_displ[node].x << " " << m_displ[node].y << " " << m_displ[node].z;
     }
     std::cout.precision(p);
   }
