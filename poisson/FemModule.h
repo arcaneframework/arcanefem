@@ -42,11 +42,6 @@
 #include "arcane/core/IIndexedIncrementalItemConnectivityMng.h"
 #include "arcane/core/IIndexedIncrementalItemConnectivity.h"
 
-#if defined(USE_CUSPARSE_ADD)
-//include for cusparse
-#include <cusparse_v2.h>
-#endif
-
 //include for GPU use
 #include "arcane/accelerator/core/IAcceleratorMng.h"
 #include "arcane/accelerator/Accelerator.h"
@@ -110,51 +105,6 @@ namespace fs = std::filesystem;
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#ifdef USE_CUSPARSE_ADD
-/**
- * @brief Macro for use of cusparse
- * 
- */
-#define CHECK_CUSPARSE(func) \
-  { \
-    cusparseStatus_t status = (func); \
-    if (status != CUSPARSE_STATUS_SUCCESS) { \
-      printf("CUSPARSE API failed at line %d with error: %s (%d)\n", \
-             __LINE__, cusparseGetErrorString(status), status); \
-      printf("CUSPARSE STATUS INTERNAL ERROR : %d\n", status == CUSPARSE_STATUS_INTERNAL_ERROR); \
-      printf("CUSPARSE STATUS EXECUTION FAILED : %d\n", status == CUSPARSE_STATUS_EXECUTION_FAILED); \
-      printf("CUSPARSE STATUS INSUFFICENT RESOURCES: %d\n", status == CUSPARSE_STATUS_INSUFFICIENT_RESOURCES); \
-      return; \
-    } \
-  }
-
-#define CHECK_CUDA(func) \
-  { \
-    cudaError_t status = (func); \
-    if (status != cudaSuccess) { \
-      printf("CUDA API failed at line %d with error: %s (%d)\n", \
-             __LINE__, cudaGetErrorString(status), status); \
-      return; \
-    } \
-  }
-
-/**
- * @brief struct for the csr of cusparse 
- * 
- */
-struct cusparseCsr
-{
-  cusparseMatDescr_t desc;
-  Int32 nnz = 0;
-  Int32* csrRow;
-  Int32* csrCol;
-  float* csrVal;
-};
-
-#endif
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
 /*!
  * \brief Module Fem.
  */
@@ -214,7 +164,6 @@ class FemModule
   bool m_use_csr_gpu = false;
   bool m_use_nodewise_csr = false;
   bool m_use_buildless_csr = false;
-  bool m_use_cusparse_add = false;
   bool m_use_legacy = true;
   bool m_running_on_gpu = false;
   ITimeStats* m_time_stats;
@@ -294,11 +243,6 @@ class FemModule
 
  private:
 
-#ifdef USE_CUSPARSE_ADD
-  void printCsrMatrix(std::string fileName, cusparseCsr csr, bool is_coo);
-  void _computeCusparseElementMatrix(cusparseCsr& result, cusparseCsr& global, Cell icell, cusparseHandle_t handle, IndexedNodeDoFConnectivityView node_dof);
-  void _assembleCusparseBilinearOperatorTRIA3();
-#endif
   void _buildMatrix();
   void _assembleCooBilinearOperatorTRIA3();
 

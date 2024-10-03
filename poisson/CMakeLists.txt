@@ -1,14 +1,3 @@
-set (USE_CUSPARSE_ADD OFF)
-
-if (ARCANE_HAS_CUDA)
-  if (TARGET CUDA::cusparse)
-    message(STATUS "cuSPARSE is available. Enabling cusparse assembly")
-    set(USE_CUSPARSE_ADD ON)
-  else()
-    message(STATUS "cuSPARSE is not available")
-  endif()
-endif()
-
 set(ACCELERATOR_SOURCES
   FemModule.cc
   CooBiliAssembly.cc
@@ -26,7 +15,6 @@ add_executable(Poisson
   FemModule.cc
   main.cc
   Fem_axl.h
-  CusparseBiliAssembly.hxx
 )
 
 arcane_accelerator_add_source_files(${ACCELERATOR_SOURCES})
@@ -58,10 +46,6 @@ configure_file(${MSH_DIR}/sphere_cut.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Poisson PUBLIC FemUtils)
 
-if (USE_CUSPARSE_ADD)
-  target_compile_definitions(Poisson PRIVATE USE_CUSPARSE_ADD)
-  target_link_libraries(Poisson PRIVATE CUDA::cusparse)
-endif()
 target_compile_definitions(Poisson PRIVATE $<$<BOOL:${ARCANE_HAS_ACCELERATOR}>:ARCANE_HAS_ACCELERATOR>)
 
 # Copy the tests files in the binary directory
