@@ -72,11 +72,6 @@
         Boolean to use the CSR datastructure Gpu compatible and its associated methods will be used with computation in a nodewise manner, without computation of the sparsity (preprocessing step)
       </description>
     </simple>
-    <simple name="cusparse-add" type="bool"  default="false" >
-      <description>
-        Boolean to use the cusparse library and its associated methods
-      </description>
-    </simple>
     <simple name="legacy" type="bool"  default="false" >
       <description>
         Boolean to use the legacy datastructure and its associated methods

@@ -109,7 +109,7 @@ _saveTimeInCSV()
   String csv_file_name = String::format("time.{0}.csv",parallelMng()->commRank());
   if (!fs::exists(csv_file_name.localstr())) {
     csv_save.open(csv_file_name.localstr());
-    csv_save << "Number of Nodes,Legacy,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU,CusparseAdd\n";
+    csv_save << "Number of Nodes,Legacy,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU\n";
   }
   else {
     csv_save.open(csv_file_name.localstr(), std::ios_base::app);
@@ -126,15 +126,15 @@ _saveTimeInCSV()
     csv_save << "0,0,0,";
     csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "") / denume << ",";
     csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "") / denume << ",";
-    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "") / denume << ",";
+    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "") / denume;
   }
   else {
     csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "") / (m_cache_warming == 1 ? 1 : m_cache_warming - 1) << ",";
     csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "") / denume << ",";
     csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "") / denume << ",";
-    csv_save << "0,0,0,";
+    csv_save << "0,0,0";
   }
-  csv_save << _readTimeFromJson("AssembleCusparseBilinearOperator", "") / denume << "\n";
+  csv_save << "\n";
   csv_save.close();
 }
 
@@ -148,7 +148,7 @@ _saveNoBuildTimeInCSV()
   String csv_file_name = String::format("timeNoBuild.{0}.csv",parallelMng()->commRank());
   if (!fs::exists(csv_file_name.localstr())) {
     csv_save.open(csv_file_name.localstr());
-    csv_save << "Number of Nodes,Legacy,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU,CusparseAdd\n";
+    csv_save << "Number of Nodes,Legacy,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU\n";
   }
   else {
     csv_save.open(csv_file_name.localstr(), std::ios_base::app);
@@ -165,15 +165,15 @@ _saveNoBuildTimeInCSV()
     csv_save << "0,0,0,";
     csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "CsrGpuAddComputeLoop") / denume << ",";
     csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "NodeWiseCsrAddAndCompute") / denume << ",";
-    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrAddAndCompute") / denume << ",";
+    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrAddAndCompute") / denume;
   }
   else {
     csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "CsrGpuAddComputeLoop") / denume << ",";
     csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "NodeWiseCsrAddAndCompute") / denume << ",";
     csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrAddAndCompute") / denume << ",";
-    csv_save << "0,0,0,";
+    csv_save << "0,0,0";
   }
-  csv_save << _readTimeFromJson("AssembleCusparseBilinearOperator", "") / denume << "\n";
+  csv_save << "\n";
   csv_save.close();
 }
 
@@ -358,13 +358,6 @@ _handleFlags()
     m_use_legacy = false;
     info() << "BLCSR: The Csr datastructure (GPU compatible) and its associated methods will be used with computation in a nodewise manner with the building phases incorporated in the computation";
   }
-#ifdef ARCANE_HAS_ACCELERATOR
-  if (parameter_list.getParameterOrNull("CUSPARSE_ADD") == "TRUE" || options()->cusparseAdd()) {
-    m_use_cusparse_add = true;
-    m_use_legacy = false;
-    info() << "CUSPARSE_ADD: CUSPARSE and its associated methods will be used";
-  }
-#endif
   if (parameter_list.getParameterOrNull("LEGACY") == "TRUE" || m_use_legacy || options()->legacy()) {
     m_use_legacy = true;
     info() << "LEGACY: The Legacy datastructure and its associated methods will be used";
@@ -428,18 +421,6 @@ _doStationarySolve()
     m_csr_matrix.translateToLinearSystem(m_linear_system);
   }
 
-#ifdef USE_CUSPARSE_ADD
-  if (m_use_cusparse_add) {
-    _assembleCusparseBilinearOperatorTRIA3();
-    if (m_cache_warming != 1) {
-      m_time_stats->resetStats("AssembleCusparseBilinearOperator");
-      for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-        _assembleCusparseBilinearOperatorTRIA3();
-      }
-    }
-  }
-
-#endif
   if (m_use_coo) {
     m_linear_system.clearValues();
     _assembleCooBilinearOperatorTRIA3();
@@ -2148,7 +2129,3 @@ void FemModule::fileNumArray(bool ref, NumArray<Real, MDDim1> numarray)
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
-#ifdef USE_CUSPARSE_ADD
-#include "CusparseBiliAssembly.hxx"
-#endif
