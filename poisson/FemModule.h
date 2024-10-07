@@ -223,6 +223,7 @@ class FemModule
 
   void _applyDirichletBoundaryConditionsGpu();
   void _assembleCsrGpuLinearOperator();
+
   static ARCCORE_HOST_DEVICE Int32
   _getValIndexCsrGpu(Int32 begin, Int32 end, DoFLocalId col, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> csr_col);
 
@@ -255,6 +256,10 @@ class FemModule
   _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
                                 ax::VariableNodeReal3InView in_node_coord, Real K_e[9]);
 
+  static ARCCORE_HOST_DEVICE inline void
+  _computeElementMatrixTETRA4GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
+                                 ax::VariableNodeReal3InView in_node_coord, Real K_e[12]);
+
  private:
 
 
@@ -262,6 +267,7 @@ class FemModule
 
   void _buildMatrixCsrGPU();
   void _assembleCsrGPUBilinearOperatorTRIA3();
+  void _assembleCsrGPUBilinearOperatorTETRA4();
 
  private:
 
@@ -363,5 +369,78 @@ _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView
   //No need to return anymore
   //return int_cdPi_dPj;
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE inline void FemModule::
+_computeElementMatrixTETRA4GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
+                               ax::VariableNodeReal3InView in_node_coord, Real K_e[16])
+{
+  // Get coordinates of the triangle element  TETRA4
+  //------------------------------------------------
+  //                3 o
+  //                 /|\
+  //                / | \
+  //               /  |  \
+  //              /   o 2 \
+  //             / .    .  \
+  //            o-----------o
+  //            0           1
+  //------------------------------------------------
+  Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
+  Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
+  Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
+  Real3 m3 = in_node_coord[cnc.nodeId(icell, 3)];
+
+  Real3 v0 = m1 - m0;
+  Real3 v1 = m2 - m0;
+  Real3 v2 = m3 - m0;
+
+  Real volume = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2))) / 6.0;
+
+  // Compute gradients of shape functions
+  Real3 dPhi0 = Arcane::math::cross(m2 - m1, m1 - m3);
+  Real3 dPhi1 = Arcane::math::cross(m3 - m0, m0 - m2);
+  Real3 dPhi2 = Arcane::math::cross(m1 - m0, m0 - m3);
+  Real3 dPhi3 = Arcane::math::cross(m0 - m1, m1 - m2);
+
+  Real mul = 1.0 / (6.0 * volume);
+
+  // Construct the B-matrix
+  Real b_matrix[3][4];
+  b_matrix[0][0] = dPhi0.x;
+  b_matrix[1][0] = dPhi0.y;
+  b_matrix[2][0] = dPhi0.z;
+
+  b_matrix[0][1] = dPhi1.x;
+  b_matrix[1][1] = dPhi1.y;
+  b_matrix[2][1] = dPhi1.z;
+
+  b_matrix[0][2] = dPhi2.x;
+  b_matrix[1][2] = dPhi2.y;
+  b_matrix[2][2] = dPhi2.z;
+
+  b_matrix[0][3] = dPhi3.x;
+  b_matrix[1][3] = dPhi3.y;
+  b_matrix[2][3] = dPhi3.z;
+
+  for (Int32 i = 0; i < 3; ++i)
+    for (Int32 j = 0; j < 4; ++j)
+      b_matrix[i][j] *= mul;
+
+  // Compute the element matrix
+  for (Int32 i = 0; i < 4; ++i) {
+    for (Int32 j = i; j < 4; ++j) {
+      for (Int32 k = 0; k < 3; ++k)
+        K_e[i * 4 + j] += b_matrix[k][i] * b_matrix[k][j];
+      K_e[i * 4 + j] *= volume;
+      K_e[j * 4 + i] = K_e[i * 4 + j];
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 #endif

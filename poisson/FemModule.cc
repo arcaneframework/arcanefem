@@ -456,12 +456,19 @@ _doStationarySolve()
 #ifdef ARCANE_HAS_ACCELERATOR
   if (m_use_csr_gpu) {
     m_linear_system.clearValues();
-    _assembleCsrGPUBilinearOperatorTRIA3();
+    if (options()->meshType == "TRIA3")
+      _assembleCsrGPUBilinearOperatorTRIA3();
+    if (options()->meshType == "TETRA4")
+      _assembleCsrGPUBilinearOperatorTETRA4();
     if (m_cache_warming != 1) {
       m_time_stats->resetStats("AssembleCsrGpuBilinearOperatorTria3");
+      m_time_stats->resetStats("AssembleCsrGpuBilinearOperatorTetra4");
       for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
         m_linear_system.clearValues();
-        _assembleCsrGPUBilinearOperatorTRIA3();
+        if (options()->meshType == "TRIA3")
+          _assembleCsrGPUBilinearOperatorTRIA3();
+        if (options()->meshType == "TETRA4")
+          _assembleCsrGPUBilinearOperatorTETRA4();
       }
     }
      m_csr_matrix.translateToLinearSystem(m_linear_system);
