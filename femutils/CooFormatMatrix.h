@@ -40,7 +40,7 @@ class CooFormat : TraceAccessor
   CooFormat(ISubDomain* sd)
   : TraceAccessor(sd->traceMng())
   {
-    info() << "Creating CSR Matrix";
+    info() << "Creating COO Matrix";
   }
 
   void initialize(IItemFamily* dof_family, Int32 nnz)
