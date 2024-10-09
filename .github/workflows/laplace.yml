@@ -38,7 +38,7 @@ jobs:
           echo "CT_RESULT_DIR=${GITHUB_WORKSPACE}/test" >> $GITHUB_ENV
 
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: ${{ env.SOURCE_DIR }}
 
@@ -62,7 +62,7 @@ jobs:
           ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }} -R '\[${{ env.MODULE_DIR }}\]'
 
       - name: Upload test artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: tests-${{ env.MODULE_DIR }}-artifact
