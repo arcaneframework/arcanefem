@@ -31,7 +31,7 @@ jobs:
     name: 'Build and Test'
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/arcaneframework/arcane_ubuntu-2204:gcc-12_full_check_latest
+      image: ghcr.io/arcaneframework/arcane_ubuntu-2404:gcc-14_full_check_latest
 
     steps:
       - name: Checkout repo
