@@ -12,13 +12,9 @@ on:
   workflow_dispatch:
 
 env:
-
-  SOURCE_DIR: '/__w/arcanefem/arcanefem/src'
-  BUILD_DIR: '/__w/arcanefem/arcanefem/build'
   MODULE_DIR: 'aerodynamics'
 
   # CTest
-  CT_RESULT_DIR: '/__w/arcanefem/arcanefem/test'
   CT_OPTS: "--timeout 300 --output-on-failure"
 
   # MPI
@@ -31,11 +27,18 @@ jobs:
     name: 'Build and Test'
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/arcaneframework/arcane_ubuntu-2204:gcc-12_full_check_latest
+      image: ghcr.io/arcaneframework/arcane_ubuntu-2404:gcc-14_full_check_latest
 
     steps:
+      - name: Define environment paths
+        shell: bash
+        run: |
+          echo "SOURCE_DIR=${GITHUB_WORKSPACE}/src" >> $GITHUB_ENV
+          echo "BUILD_DIR=${GITHUB_WORKSPACE}/build" >> $GITHUB_ENV
+          echo "CT_RESULT_DIR=${GITHUB_WORKSPACE}/test" >> $GITHUB_ENV
+
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: ${{ env.SOURCE_DIR }}
 
@@ -59,7 +62,7 @@ jobs:
           ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }} -R '\[${{ env.MODULE_DIR }}\]'
 
       - name: Upload test artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: tests-${{ env.MODULE_DIR }}-artifact
