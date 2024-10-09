@@ -44,6 +44,7 @@ jobs:
           cmake \
           -S ${{ env.SOURCE_DIR }} \
           -B ${{ env.BUILD_DIR }} \
+          -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_CXX_FLAGS_RELEASE="-O2 -g --coverage -fprofile-abs-path -ftest-coverage" \
           -GNinja
 
