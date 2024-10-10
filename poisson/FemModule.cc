@@ -336,6 +336,11 @@ _handleFlags()
     m_use_legacy = false;
     info() << "COO_SORT: The COO with sorting datastructure and its associated methods will be used";
   }
+  if (parameter_list.getParameterOrNull("COO_GPU") == "TRUE" || options()->cooGpu()) {
+    m_use_coo_gpu = true;
+    m_use_legacy = false;
+    info() << "COO_GPU: The COO datastructure GPU comptaible and its associated methods will be used";
+  }
   if (parameter_list.getParameterOrNull("CSR") == "TRUE" || options()->csr()) {
     m_use_csr = true;
     m_use_legacy = false;
@@ -461,15 +466,27 @@ _doStationarySolve()
     m_coo_matrix.translateToLinearSystem(m_linear_system);
   }
 
-#ifdef USE_COO_GPU
-  for (i = 0; i < 3; i++) {
-    m_linear_system.clearValues();
-    _assembleCooGPUBilinearOperatorTRIA3();
-  }
-  m_coo_matrix.translateToLinearSystem(m_linear_system);
-#endif
-
 #ifdef ARCANE_HAS_ACCELERATOR
+  if (m_use_coo_gpu) {
+    m_linear_system.clearValues();
+    if (options()->meshType == "TRIA3")
+      _assembleCooGPUBilinearOperatorTRIA3();
+    if (options()->meshType == "TETRA4")
+      _assembleCooGPUBilinearOperatorTETRA4();
+    if (m_cache_warming != 1) {
+      m_time_stats->resetStats("AssembleCooGpuBilinearOperatorTria3");
+      m_time_stats->resetStats("AssembleCooGpuBilinearOperatorTetra4");
+      for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
+        m_linear_system.clearValues();
+        if (options()->meshType == "TRIA3")
+          _assembleCooGPUBilinearOperatorTRIA3();
+        if (options()->meshType == "TETRA4")
+          _assembleCooGPUBilinearOperatorTETRA4();
+      }
+    }
+    m_coo_matrix.translateToLinearSystem(m_linear_system);
+  }
+
   if (m_use_csr_gpu) {
     m_linear_system.clearValues();
     if (options()->meshType == "TRIA3")
@@ -490,6 +507,7 @@ _doStationarySolve()
      m_csr_matrix.translateToLinearSystem(m_linear_system);
   }
 #endif
+
   if (m_use_nodewise_csr) {
     m_linear_system.clearValues();
     _assembleNodeWiseCsrBilinearOperatorTria3();
@@ -1912,128 +1930,6 @@ _assembleBilinearOperatorTETRA4()
     }
   }
 
-}
-
-//Currently, this code does not work
-/**
- * @brief Initialization of the coo matrix. It only works for p=1 since there is
- * one node per Edge. There is no difference with buildMatrix() and this method currently.
- * 
- * 
- */
-void FemModule::
-_buildMatrixGPU()
-{
-  //Initialization of the coo matrix;
-  //This formula only works in p=1
-
-  /*
-  //Create a connection between nodes through the faces
-  //Useless here because we only need this information once
-  IItemFamily* node_family = mesh()->nodeFamily();
-  NodeGroup nodes = node_family->allItems();
-  auto idx_cn = mesh()->indexedConnectivityMng()->findOrCreateConnectivity(node_family, node_family, "NodeToNeighbourFaceNodes");
-  auto* cn = idx_cn->connectivity();
-  ENUMERATE_NODE (node, allNodes()) {
-  }
-  */
-
-  Int32 nnz = nbFace() * 2 + nbNode();
-  m_coo_matrix.initialize(m_dof_family, nnz);
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  //We iterate through the node, and we do not sort anymore : we assume the nodes ID are sorted, and we will iterate throught the column to avoid making < and > comparison
-  ENUMERATE_NODE (inode, allNodes()) {
-    Node node = *inode;
-
-    m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
-
-    for (Face face : node.faces()) {
-      if (face.nodeId(0) == node.localId())
-        m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(1), 0));
-      else
-        m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
-    }
-  }
-
-  //In this commented code, we begin by filling the diagonal before filling what's left by iterating through the nodes. It corresponds to the COO-sort method in the diagrams
-  /*
-  //Fill the diagonal
-  ENUMERATE_NODE (inode, allNodes()) {
-    Node node = *inode;
-    m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
-  }
-
-  //Fill what is left
-  ENUMERATE_FACE (iface, allFaces()) {
-    Face face = *iface;
-    auto nodes = face.nodes();
-    for (Int32 i = 0; i < nodes.size() - i - 1; i++) {
-      m_coo_matrix.setCoordinates(node_dof.dofId(nodes[i], 0), node_dof.dofId(nodes[nodes.size() - i - 1], 0));
-      m_coo_matrix.setCoordinates(node_dof.dofId(nodes[nodes.size() - i - 1], 0), node_dof.dofId(nodes[i], 0));
-    }
-  }
-
-  //Sort the matrix
-  m_coo_matrix.sort();
-  */
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_assembleCooGPUBilinearOperatorTRIA3()
-{
-  // Build the coo matrix
-  _buildMatrixGPU();
-
-  RunQueue* queue = acceleratorMng()->defaultQueue();
-  // Boucle sur les mailles déportée sur accélérateur
-  auto command = makeCommand(queue);
-
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-  auto in_row_coo = ax::viewIn(command, m_coo_matrix.m_matrix_row);
-  auto in_col_coo = ax::viewIn(command, m_coo_matrix.m_matrix_column);
-  auto in_out_val_coo = ax::viewInOut(command, m_coo_matrix.m_matrix_value);
-  UnstructuredMeshConnectivityView m_connectivity_view;
-  auto in_node_coord = ax::viewIn(command, m_node_coord);
-  m_connectivity_view.setMesh(this->mesh());
-  auto cnc = m_connectivity_view.cellNode();
-  Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
-  Arcane::ItemGenericInfoListView cells_infos(this->mesh()->cellFamily());
-
-  command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
-  {
-
-    Real K_e[9] = { 0 };
-
-    _computeElementMatrixTRIA3GPU(icell, cnc, in_node_coord, K_e); // element stifness matrix
-
-    //             # assemble elementary matrix into the global one
-    //             # elementary terms are positionned into K according
-    //             # to the rank of associated node in the mesh.nodes list
-    //             for node1 in elem.nodes:
-    //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
-    //                 for node2 in elem.nodes:
-    //                     inode2=elem.nodes.index(node2)
-    //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-    Int32 n1_index = 0;
-    for (NodeLocalId node1 : cnc.nodes(icell)) {
-      Int32 n2_index = 0;
-      for (NodeLocalId node2 : cnc.nodes(icell)) {
-        // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-        //Real v = K_e[n1_index * 3 + n2_index];
-        // m_k_matrix(node1.localId(), node2.localId()) += v;
-        //replacing the isOwn (probably with a nice view)
-        if (nodes_infos.isOwn(node1)) {
-          //m_coo_matrix.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
-        }
-        ++n2_index;
-      }
-      ++n1_index;
-    }
-  };
 }
 
 /*---------------------------------------------------------------------------*/
