@@ -39,7 +39,7 @@ void FemModule::_buildMatrixNodeWiseCsr()
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   // Compute the number of nnz and initialize the memory space
-  Integer nbnde = nbNode();
+  Int64 nbnde = nbNode();
   Int64 nedge = options()->meshType == "TETRA4" ? nbEdge() : nbFace();
   Int32 nnz = nedge * 2 + nbnde;
   m_csr_matrix.initialize(m_dof_family, nnz, nbnde);
