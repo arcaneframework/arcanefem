@@ -244,11 +244,13 @@ class FemModule
 
  private:
 
-  void _buildMatrix();
+  void _buildMatrixCoo();
   void _assembleCooBilinearOperatorTRIA3();
+  void _assembleCooBilinearOperatorTETRA4();
 
-  void _buildMatrixSort();
+  void _buildMatrixCooSort();
   void _assembleCooSortBilinearOperatorTRIA3();
+  void _assembleCooSortBilinearOperatorTETRA4();
 
  public:
 

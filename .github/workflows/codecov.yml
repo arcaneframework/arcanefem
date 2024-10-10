@@ -1,19 +1,13 @@
-name: 'Module poisson'
+name: 'Codecov Scan'
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - poisson/**
+  schedule:
+    - cron: '24 0 * * *'
   pull_request:
     branches: [ main ]
-    paths:
-      - poisson/**
   workflow_dispatch:
 
 env:
-  MODULE_DIR: 'poisson'
-
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"
 
@@ -27,13 +21,15 @@ jobs:
     name: 'Build and Test'
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/arcaneframework/arcane_ubuntu-2404:gcc-14_full_check_latest
+      image: ghcr.io/arcaneframework/arcane_ubuntu-2404:gcc-14_full_release_latest
 
     steps:
+      # On place la source à la racine pour éviter
+      # un sous-répertoire en plus dans Codecov.
       - name: Define environment paths
         shell: bash
         run: |
-          echo "SOURCE_DIR=${GITHUB_WORKSPACE}/src" >> $GITHUB_ENV
+          echo "SOURCE_DIR=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
           echo "BUILD_DIR=${GITHUB_WORKSPACE}/build" >> $GITHUB_ENV
           echo "CT_RESULT_DIR=${GITHUB_WORKSPACE}/test" >> $GITHUB_ENV
 
@@ -48,6 +44,8 @@ jobs:
           cmake \
           -S ${{ env.SOURCE_DIR }} \
           -B ${{ env.BUILD_DIR }} \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_CXX_FLAGS_RELEASE="-O2 -g --coverage -fprofile-abs-path -ftest-coverage" \
           -GNinja
 
       - name: Build
@@ -59,12 +57,31 @@ jobs:
         shell: bash
         run: |
           mkdir -p ${{ env.CT_RESULT_DIR }}
-          ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }} -R '\[${{ env.MODULE_DIR }}\]'
+          ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }}
+
+      - name: Apply coverage
+        shell: bash
+        continue-on-error: true
+        run: |
+          gcov -p $(find . -name "*.gcno" -o -name "*.gcda")
+
+      - name: Remove gcov files for generated axl .h
+        shell: bash
+        run: |
+          rm -v -f *_axl.h.gcov
+
+      - name: Upload coverage files to Codecov
+        uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN : ${{ secrets.CODECOV_TOKEN }}
+        with:
+          verbose: true
+          fail_ci_if_error: true
 
       - name: Upload test artifact
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: tests-${{ env.MODULE_DIR }}-artifact
+          name: test-all-modules-artifact
           path: ${{ env.CT_RESULT_DIR }}
           retention-days: 7

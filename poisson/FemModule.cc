@@ -428,24 +428,39 @@ _doStationarySolve()
 
   if (m_use_coo) {
     m_linear_system.clearValues();
-    _assembleCooBilinearOperatorTRIA3();
+    if (options()->meshType == "TRIA3")
+      _assembleCooBilinearOperatorTRIA3();
+    if (options()->meshType == "TETRA4")
+      _assembleCooBilinearOperatorTETRA4();
     if (m_cache_warming != 1) {
       m_time_stats->resetStats("AssembleCooBilinearOperatorTria3");
+      m_time_stats->resetStats("AssembleCooBilinearOperatorTetra4");
       for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
         m_linear_system.clearValues();
-        _assembleCooBilinearOperatorTRIA3();
+        if (options()->meshType == "TRIA3")
+          _assembleCooBilinearOperatorTRIA3();
+        if (options()->meshType == "TETRA4")
+          _assembleCooBilinearOperatorTETRA4();
       }
     }
     m_coo_matrix.translateToLinearSystem(m_linear_system);
   }
+
   if (m_use_coo_sort) {
     m_linear_system.clearValues();
-    _assembleCooSortBilinearOperatorTRIA3();
+    if (options()->meshType == "TRIA3")
+      _assembleCooSortBilinearOperatorTRIA3();
+    if (options()->meshType == "TETRA4")
+      _assembleCooSortBilinearOperatorTETRA4();
     if (m_cache_warming != 1) {
       m_time_stats->resetStats("AssembleCooSortBilinearOperatorTria3");
+      m_time_stats->resetStats("AssembleCooSortBilinearOperatorTetra4");
       for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
         m_linear_system.clearValues();
-        _assembleCooSortBilinearOperatorTRIA3();
+        if (options()->meshType == "TRIA3")
+          _assembleCooSortBilinearOperatorTRIA3();
+        if (options()->meshType == "TETRA4")
+          _assembleCooSortBilinearOperatorTETRA4();
       }
     }
     m_coo_matrix.translateToLinearSystem(m_linear_system);
