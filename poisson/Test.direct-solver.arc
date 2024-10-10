@@ -20,10 +20,11 @@
   </meshes>
 
   <fem>
-    <f>-1.0</f>
+    <f>-5.5</f>
+    <result-file>poisson_test_ref_L-shape_2D.txt</result-file>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
-      <value>0.0</value>
+      <value>0.5</value>
     </dirichlet-boundary-condition>
     <linear-system name="SequentialBasicLinearSystem" />
   </fem>
