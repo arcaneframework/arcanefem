@@ -260,7 +260,7 @@ class FemModule
 
   static ARCCORE_HOST_DEVICE inline void
   _computeElementMatrixTETRA4GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
-                                 ax::VariableNodeReal3InView in_node_coord, Real K_e[12]);
+                                 ax::VariableNodeReal3InView in_node_coord, Real K_e[16]);
 
  private:
 
