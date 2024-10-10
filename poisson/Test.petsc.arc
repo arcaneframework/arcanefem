@@ -20,11 +20,11 @@
   </meshes>
 
   <fem>
-    <f>-1.0</f>
-    <result-file>test_poisson_results.txt</result-file>
+    <f>-5.5</f>
+    <result-file>poisson_test_ref_L-shape_2D.txt</result-file>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
-      <value>0.0</value>
+      <value>0.5</value>
     </dirichlet-boundary-condition>
     <linear-system>
       <solver-backend>petsc</solver-backend>

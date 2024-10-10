@@ -21,8 +21,8 @@
 
   <fem>
     <blcsr>true</blcsr>
-    <f>1.0</f>
-    <result-file>test_3D_L-shape_poisson.txt</result-file>
+    <result-file>poisson_test_ref_L-shape_3D.txt</result-file>
+    <f>5.5</f>
     <mesh-type>TETRA4</mesh-type>
     <dirichlet-boundary-condition>
       <surface>bot</surface>
