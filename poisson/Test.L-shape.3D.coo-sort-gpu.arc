@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Poisson" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>L-Shape 3D with COO sparse matrix format Gpu compatible. The result of this test is compared with poisson_test_ref_L-shape_3D.txt.</title>
+    <title>L-Shape 3D with COO sparse matrix format Gpu compatible with sorting phase. The result of this test is compared with poisson_test_ref_L-shape_3D.txt.</title>
     <timeloop>PoissonLoop</timeloop>
   </arcane>
 
@@ -20,7 +20,7 @@
   </meshes>
 
   <fem>
-    <coo-gpu>true</coo-gpu>
+    <coo-sorting-gpu>true</coo-sorting-gpu>
     <f>5.5</f>
     <result-file>poisson_test_ref_L-shape_3D.txt</result-file>
     <mesh-type>TETRA4</mesh-type>

@@ -113,7 +113,6 @@ class FemModule
 {
  public:
 
-
   explicit FemModule(const ModuleBuildInfo& mbi)
   : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
@@ -161,6 +160,7 @@ class FemModule
   bool m_use_coo = false;
   bool m_use_coo_sort = false;
   bool m_use_coo_gpu = false;
+  bool m_use_coo_sort_gpu = false;
   bool m_use_csr = false;
   bool m_use_csr_gpu = false;
   bool m_use_nodewise_csr = false;
@@ -218,7 +218,6 @@ class FemModule
   Real _computeAreaTetra4(Cell cell);
   Real _computeEdgeLength2(Face face);
   Real2 _computeEdgeNormal2(Face face);
-
 
  public:
 

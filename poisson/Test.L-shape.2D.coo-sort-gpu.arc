@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Poisson" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>L-shape 2D with CSR sparse matrix format Gpu compatible and node wise technique. The result of this test is compared with poisson_test_ref_L-shape-2D.txt</title>
+    <title>L-Shape 2D with COO sparse matrix format GPU compatible with sorting phase. The result of this test is compared with poisson_test_ref_L-shape_2D.txt</title>
     <timeloop>PoissonLoop</timeloop>
   </arcane>
 
@@ -20,7 +20,7 @@
   </meshes>
 
   <fem>
-    <nwcsr>true</nwcsr>
+    <coo-sorting-gpu>true</coo-sorting-gpu>
     <result-file>poisson_test_ref_L-shape_2D.txt</result-file>
     <f>-5.5</f>
     <dirichlet-boundary-condition>

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Poisson" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>L-Shape 2D with COO sparse matrix format GPU compatible. The result of this test is compared with test_poisson_results.txt.</title>
+    <title>L-Shape 2D with COO sparse matrix format GPU compatible. The result of this test is compared with poisson_test_ref_L-shape_2D.txt</title>
     <timeloop>PoissonLoop</timeloop>
   </arcane>
 
@@ -21,11 +21,11 @@
 
   <fem>
     <coo-gpu>true</coo-gpu>
-    <result-file>test_poisson_results.txt</result-file>
-    <f>-1.0</f>
+    <result-file>poisson_test_ref_L-shape_2D.txt</result-file>
+    <f>-5.5</f>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
-      <value>0.0</value>
+      <value>0.5</value>
     </dirichlet-boundary-condition>
   </fem>
 </case>
