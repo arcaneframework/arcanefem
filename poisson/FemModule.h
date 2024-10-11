@@ -224,6 +224,7 @@ class FemModule
 
   void _applyDirichletBoundaryConditionsGpu();
   void _assembleCsrGpuLinearOperator();
+
   static ARCCORE_HOST_DEVICE Int32
   _getValIndexCsrGpu(Int32 begin, Int32 end, DoFLocalId col, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> csr_col);
 
@@ -262,11 +263,13 @@ class FemModule
   _computeElementMatrixTETRA4GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
                                  ax::VariableNodeReal3InView in_node_coord, Real K_e[16]);
 
+
  private:
  public:
 
   void _buildMatrixCsrGPU();
   void _assembleCsrGPUBilinearOperatorTRIA3();
+  void _assembleCsrGPUBilinearOperatorTETRA4();
 
  private:
  public:
@@ -437,6 +440,7 @@ _computeElementMatrixTETRA4GPU(CellLocalId icell, IndexedCellNodeConnectivityVie
     }
   }
 }
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 

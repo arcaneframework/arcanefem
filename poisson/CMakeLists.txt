@@ -37,6 +37,7 @@ configure_file(Test.L-shape.3D.coo-sort.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY
 configure_file(Test.sphere.3D.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.sphere.3D.csr.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.sphere.3D.csr.no-edge.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Test.sphere.3D.csr-gpu.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.direct-solver.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.neumann.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.porous.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
@@ -105,6 +106,7 @@ endif()
 
 
 arcanefem_add_gpu_test(NAME [poisson]gpu COMMAND ./Poisson ARGS Test.petsc.arc)
+arcanefem_add_gpu_test(NAME [poisson]hypre_direct_3D_csr-gpu COMMAND ./Poisson ARGS Test.sphere.3D.csr-gpu.arc)
 arcanefem_add_gpu_test(NAME [poisson]L-shape_2D_petsc_coo-gpu COMMAND ./Poisson ARGS Test.L-shape.2D.coo-gpu.arc)
 arcanefem_add_gpu_test(NAME [poisson]L-shape_3D_petsc_coo-gpu COMMAND ./Poisson ARGS Test.L-shape.3D.coo-gpu.arc)
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
