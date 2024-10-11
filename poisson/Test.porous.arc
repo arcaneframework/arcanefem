@@ -20,10 +20,10 @@
   </meshes>
 
   <fem>
-    <f>-1.0</f>
+    <f>-5.5</f>
     <dirichlet-boundary-condition>
       <surface>wall</surface>
-      <value>0.0</value>
+      <value>0.5</value>
     </dirichlet-boundary-condition>
     <dirichlet-boundary-condition>
       <surface>pore1</surface>
