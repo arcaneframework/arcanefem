@@ -510,16 +510,24 @@ _doStationarySolve()
 
   if (m_use_nodewise_csr) {
     m_linear_system.clearValues();
-    _assembleNodeWiseCsrBilinearOperatorTria3();
+    if (options()->meshType == "TRIA3")
+      _assembleNodeWiseCsrBilinearOperatorTria3();
+    if (options()->meshType == "TETRA4")
+      _assembleNodeWiseCsrBilinearOperatorTetra4();
     if (m_cache_warming != 1) {
       m_time_stats->resetStats("AssembleNodeWiseCsrBilinearOperatorTria3");
+      m_time_stats->resetStats("AssembleNodeWiseCsrBilinearOperatorTetra4");
       for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
         m_linear_system.clearValues();
-        _assembleNodeWiseCsrBilinearOperatorTria3();
+        if (options()->meshType == "TRIA3")
+          _assembleNodeWiseCsrBilinearOperatorTria3();
+        if (options()->meshType == "TETRA4")
+          _assembleNodeWiseCsrBilinearOperatorTetra4();
       }
     }
     m_csr_matrix.translateToLinearSystem(m_linear_system);
   }
+
   if (m_use_buildless_csr) {
     m_linear_system.clearValues();
     if (options()->meshType == "TRIA3")

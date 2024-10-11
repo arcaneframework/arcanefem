@@ -288,6 +288,7 @@ class FemModule
 
   void _buildMatrixNodeWiseCsr();
   void _assembleNodeWiseCsrBilinearOperatorTria3();
+  void _assembleNodeWiseCsrBilinearOperatorTetra4();
 
   void _buildMatrixBuildLessCsr();
   void _buildMatrixGpuBuildLessCsr();
