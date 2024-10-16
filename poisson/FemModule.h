@@ -262,11 +262,11 @@ class FemModule
   _computeElementMatrixTETRA4GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
                                  ax::VariableNodeReal3InView in_node_coord, Real K_e[16]);
 
-
  private:
  public:
 
   void _buildMatrixCsrGPU();
+  void _fillDiagonal(Int64 nb_edge, NodeGroup nodes);
   void _assembleCsrGPUBilinearOperatorTRIA3();
   void _assembleCsrGPUBilinearOperatorTETRA4();
 

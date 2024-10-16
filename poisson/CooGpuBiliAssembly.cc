@@ -18,6 +18,7 @@
 #include "arcane/accelerator/RunCommandEnumerate.h"
 #include "arcane/core/IndexedItemConnectivityView.h"
 #include "arcane/core/Item.h"
+#include "arcane/core/ItemEnumerator.h"
 #include "arcane/core/ItemGenericInfoListView.h"
 #include "arcane/core/ItemLocalId.h"
 #include "arcane/core/ItemLocalIdListView.h"
@@ -36,7 +37,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE void _fillMatrix(Int32 id, Int64 nb_items,
+ARCCORE_HOST_DEVICE void _fillMatrix(Int32 id, Int64 nb_edge,
                                      auto nodes,
                                      auto inout_m_matrix_row,
                                      auto inout_m_matrix_column)
@@ -50,8 +51,24 @@ ARCCORE_HOST_DEVICE void _fillMatrix(Int32 id, Int64 nb_items,
 
   // Matrix is symmetrical in Poisson
   // Lower triangular part
-  inout_m_matrix_row[nb_items + id] = node2_idx;
-  inout_m_matrix_column[nb_items + id] = node1_idx;
+  inout_m_matrix_row[nb_edge + id] = node2_idx;
+  inout_m_matrix_column[nb_edge + id] = node1_idx;
+}
+
+void FemModule::_fillDiagonal(Int64 nb_edge, NodeGroup nodes)
+{
+  RunQueue* queue = acceleratorMng()->defaultQueue();
+  auto command = makeCommand(queue);
+
+  auto inout_m_matrix_row = viewInOut(command, m_coo_matrix.m_matrix_row);
+  auto inout_m_matrix_column = viewInOut(command, m_coo_matrix.m_matrix_column);
+
+  Int32 offset = 2 * nb_edge;
+  command << RUNCOMMAND_ENUMERATE(Node, node_id, nodes)
+  {
+    inout_m_matrix_row(offset + node_id) = node_id;
+    inout_m_matrix_column(offset + node_id) = node_id;
+  };
 }
 
 void FemModule::_buildMatrixCooGPU()
@@ -82,8 +99,10 @@ void FemModule::_buildMatrixCooGPU()
       auto nodes = face_node_connectivity_view.nodes(face_id);
       _fillMatrix(face_id, nb_edge, nodes, inout_m_matrix_row, inout_m_matrix_column);
     };
+
+    _fillDiagonal(nb_edge, allNodes());
   }
-  else { // mesh_dim == 3
+  else if (options()->createEdges()) { // 3D mesh without node-node connectivity
     IndexedEdgeNodeConnectivityView edge_node_connectivity_view = m_connectivity_view.edgeNode();
 
     command << RUNCOMMAND_ENUMERATE(Edge, edge_id, allEdges())
@@ -91,15 +110,26 @@ void FemModule::_buildMatrixCooGPU()
       auto nodes = edge_node_connectivity_view.nodes(edge_id);
       _fillMatrix(edge_id, nb_edge, nodes, inout_m_matrix_row, inout_m_matrix_column);
     };
-  }
 
-  // Diagonal part
-  Int32 offset = 2 * nb_edge;
-  command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
-  {
-    inout_m_matrix_row(offset + node_id) = node_id;
-    inout_m_matrix_column(offset + node_id) = node_id;
-  };
+    _fillDiagonal(nb_edge, allNodes());
+  }
+  else { // 3D mesh with node-node connectivity
+    IndexedNodeNodeConnectivityView nn_cv;
+    auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
+    ARCANE_CHECK_POINTER(connectivity_ptr);
+    nn_cv = connectivity_ptr->view();
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+    ENUMERATE_NODE (inode, allNodes()) {
+      Node node = *inode;
+      DoFLocalId dof = node_dof.dofId(node, 0);
+
+      m_csr_matrix.setCoordinates(dof, node_dof.dofId(node, 0));
+
+      for (NodeLocalId other_node : nn_cv.nodeIds(node))
+        m_csr_matrix.setCoordinates(dof, node_dof.dofId(other_node, 0));
+    }
+  }
 
   if (m_use_coo_sort_gpu) {
     Timer::Action timer_coo_sorting_gpu(m_time_stats, "SortingCooMatrixGpu");
