@@ -5,15 +5,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* GaussDoFsOnCells.h                                          (C) 2022-2024 */
-/*                                                                           */
 /* PASSMO : Performant Assessment for Seismic Site Modelling with finite-    */
 /* element (FEM) numerical modelling approach                                */
 /* Created by : E. Foerster                                                  */
 /*---------------------------------------------------------------------------*/
+/* GaussDoFsOnCells.h                                          (C) 2022-2024 */
+/* Manage one or more Gauss points for FEM integration on Cells              */
+/*                                                                           */
 /*---------------------------------------------------------------------------*/
-#ifndef PASSMO_GAUSSDOFSONCELLS_H
-#define PASSMO_GAUSSDOFSONCELLS_H
+/*---------------------------------------------------------------------------*/
+#ifndef GAUSSDOFSONCELLS_H
+#define GAUSSDOFSONCELLS_H
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -25,25 +27,13 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
+namespace Arcane::FemUtils
+{
 /*!
- * \brief Manage one or more DoFs on Nodes.
+ * \brief Manage one or more Gauss Points on Cells through the Arcane DoFs mechanism.
  *
  * Before using an instance of this class you need to call method
  * initialize().
- *
- * After initialization, you can access DoFs like that:
- *
- * \code
- * FemDoFsOnNodes dofs_on_nodes = ...;
- * auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
- * Node node = ...
- * DoFLocalId dof0 = node_dof.dofId(node, 0); //< First DoF of the node
- * DoFLocalId dof1 = node_dof.dofId(node, 1); //< Second DoF of the node
- * \endcode
  */
 class GaussDoFsOnCells
 {
@@ -51,7 +41,7 @@ class GaussDoFsOnCells
 
  public:
 
-  GaussDoFsOnCells(Arcane::ITraceMng* tm);
+  explicit GaussDoFsOnCells(Arcane::ITraceMng* tm);
   ~GaussDoFsOnCells();
 
  public:
@@ -83,7 +73,7 @@ class GaussDoFsOnCells
 
   Impl* m_p = nullptr;
 };
-
+}
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -91,4 +81,4 @@ class GaussDoFsOnCells
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#endif //PASSMO_GAUSSDOFSONCELLS_H
+#endif //GAUSSDOFSONCELLS_H
