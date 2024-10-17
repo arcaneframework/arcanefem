@@ -5,15 +5,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* GaussQuadrature.h                                           (C) 2022-2024 */
-/*                                                                           */
 /* PASSMO : Performant Assessment for Seismic Site Modelling with finite-    */
 /* element (FEM) numerical modelling approach                                */
 /* Created by : E. Foerster                                                  */
 /*---------------------------------------------------------------------------*/
+/* GaussQuadrature.h                                           (C) 2022-2024 */
+/*                                                                           */
 /*---------------------------------------------------------------------------*/
-#ifndef PASSMO_GAUSSQUADRATURE_H_
-#define PASSMO_GAUSSQUADRATURE_H_
+/*---------------------------------------------------------------------------*/
+#ifndef GAUSSQUADRATURE_H_
+#define GAUSSQUADRATURE_H_
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -22,9 +23,9 @@
 #include "Integer3std.h"
 
 using namespace Arcane;
-using namespace Arcane::FemUtils;
-
-extern Real	REL_PREC;
+//using namespace Arcane::FemUtils;
+namespace Arcane::FemUtils
+{
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -138,19 +139,19 @@ const Real wgauss9[9] = {
 
 // Local (reference) coordinates on the 1st edge of the triangle
 const Real xg1[4][7] = {
-  { 1./3., 0., 0., 0., 0., 0., 0. },
+  { 1. / 3., 0., 0., 0., 0., 0., 0. },
   { xh, 0., xh, 0., 0., 0., 0. },
-  { 1./3., 3./5., 1./5., 1./5., 0., 0., 0. },
-  { 1./3., (9. - 2. * sqrt(15.)) / 21., (6. + sqrt(15.)) / 21., (6. + sqrt(15.)) / 21.,
+  { 1. / 3., 3. / 5., 1. / 5., 1. / 5., 0., 0., 0. },
+  { 1. / 3., (9. - 2. * sqrt(15.)) / 21., (6. + sqrt(15.)) / 21., (6. + sqrt(15.)) / 21.,
     (9. + 2. * sqrt(15.)) / 21., (6. - sqrt(15.)) / 21., (6. - sqrt(15.)) / 21. }
 };
 
 // Local (reference) coordinates on the 2nd edge of the triangle
 const Real xg2[4][7] = {
-  { 1./3., 0., 0., 0., 0., 0., 0. },
+  { 1. / 3., 0., 0., 0., 0., 0., 0. },
   { xh, xh, 0., 0., 0., 0., 0. },
-  { 1./3., 1./5., 3./5., 1./5., 0., 0., 0. },
-  { 1./3., (6. + sqrt(15.)) / 21., (9. - 2. * sqrt(15.)) / 21., (6. + sqrt(15.)) / 21., (6. - sqrt(15.)) / 21.,
+  { 1. / 3., 1. / 5., 3. / 5., 1. / 5., 0., 0., 0. },
+  { 1. / 3., (6. + sqrt(15.)) / 21., (9. - 2. * sqrt(15.)) / 21., (6. + sqrt(15.)) / 21., (6. - sqrt(15.)) / 21.,
     (9. + 2. * sqrt(15.)) / 21., (6. - sqrt(15.)) / 21. }
 };
 
@@ -168,8 +169,8 @@ const Real xg3[4][7] = {
 // Integration weights
 const Real wg[4][7] = {
   { xh, 0., 0., 0., 0., 0., 0. },
-  { 1./6., 1./6., 1./6., 0., 0., 0., 0. },
-  { -27./96., 25./96., 25./96., 25./96., 0., 0., 0. },
+  { 1. / 6., 1. / 6., 1. / 6., 0., 0., 0., 0. },
+  { -27. / 96., 25. / 96., 25. / 96., 25. / 96., 0., 0., 0. },
   { 0.112500000000000, (155. + sqrt(15.)) / 2400., (155. + sqrt(15.)) / 2400., (155. + sqrt(15.)) / 2400.,
     (155. - sqrt(15.)) / 2400., (155. - sqrt(15.)) / 2400., (155. - sqrt(15.)) / 2400. }
 };
@@ -196,50 +197,50 @@ const Real yit[4] = { 0.13819660, 0.58541020, 0.13819660, 0.13819660 };
 const Real zit[4] = { 0.13819660, 0.13819660, 0.58541020, 0.13819660 };
 
 // Integration weight
-const Real wgtetra = 1./24.;
+const Real wgtetra = 1. / 24.;
 
-const Real a2{(5. - sqrt(5.))/20.}, b2{(5. + 3.*sqrt(5.))/20.};
-const Real a1{1./4.}, b3{1./6.}, c3{1./2.};
-const Real b41{(7. + sqrt(15.))/34.}, b42{(7. - sqrt(15.))/34.};
-const Real c41{(13. - 3.*sqrt(15.))/34.}, c42{(13. + 3.* sqrt(15.))/34.};
-const Real d4{(5. - sqrt(15.))/20.}, e4{(5. + sqrt(15.))/20.};
+const Real a2{ (5. - sqrt(5.)) / 20. }, b2{ (5. + 3. * sqrt(5.)) / 20. };
+const Real a1{ 1. / 4. }, b3{ 1. / 6. }, c3{ 1. / 2. };
+const Real b41{ (7. + sqrt(15.)) / 34. }, b42{ (7. - sqrt(15.)) / 34. };
+const Real c41{ (13. - 3. * sqrt(15.)) / 34. }, c42{ (13. + 3. * sqrt(15.)) / 34. };
+const Real d4{ (5. - sqrt(15.)) / 20. }, e4{ (5. + sqrt(15.)) / 20. };
 
 // Local (reference) coordinates along x axis
 const Real xtet[4][15] = {
-  { a1, 0., 0., 0.,  //order 1
-    0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.},
-  { a2, a2, a2, b2,  //order 2
-    0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.},
-  { a1, b3, b3, b3, c3,  //order 3
-    0., 0., 0., 0., 0., 0., 0., 0., 0., 0.},
-  { a1, b41, b41, b41, c41, b42, b42, b42, c42, d4, d4, e4, d4, e4, e4}  //order 4
+  { a1, 0., 0., 0., //order 1
+    0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0. },
+  { a2, a2, a2, b2, //order 2
+    0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0. },
+  { a1, b3, b3, b3, c3, //order 3
+    0., 0., 0., 0., 0., 0., 0., 0., 0., 0. },
+  { a1, b41, b41, b41, c41, b42, b42, b42, c42, d4, d4, e4, d4, e4, e4 } //order 4
 };
 
 // Local (reference) coordinates along y axis
 const Real ytet[4][15] = {
-  { a1, 0., 0., 0.,  //order 1
-    0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.},
-  { a2, a2, b2, a2,  //order 2
-    0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.},
-  { a1, b3, b3, c3, b3,  //order 3
-    0., 0., 0., 0., 0., 0., 0., 0., 0., 0.},
-  { a1, b41, b41, c41, b41, b42, b42, c42, b42, d4, e4, d4, e4, d4, e4}  //order 4
+  { a1, 0., 0., 0., //order 1
+    0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0. },
+  { a2, a2, b2, a2, //order 2
+    0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0. },
+  { a1, b3, b3, c3, b3, //order 3
+    0., 0., 0., 0., 0., 0., 0., 0., 0., 0. },
+  { a1, b41, b41, c41, b41, b42, b42, c42, b42, d4, e4, d4, e4, d4, e4 } //order 4
 };
 
 // Local (reference) coordinates along z axis
 const Real ztet[4][15] = {
-  { a1, 0., 0., 0.,  //order 1
-    0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.},
-  { a2, b2, a2, a2,  //order 2
-    0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.},
-  { a1, b3, c3, b3, b3,  //order 3
-    0., 0., 0., 0., 0., 0., 0., 0., 0., 0.},
-  { a1, b41, c41, b41, b41, b42, c42, b42, b42, e4, d4, d4, e4, e4, d4}  //order 4
+  { a1, 0., 0., 0., //order 1
+    0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0. },
+  { a2, b2, a2, a2, //order 2
+    0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0. },
+  { a1, b3, c3, b3, b3, //order 3
+    0., 0., 0., 0., 0., 0., 0., 0., 0., 0. },
+  { a1, b41, c41, b41, b41, b42, c42, b42, b42, e4, d4, d4, e4, e4, d4 } //order 4
 };
-const Real wgtet1{ 1./6. };
-const Real wgtet2{ 1./24. };
-const Real wgtet3[2] = { -2./15., 3./40. };
-const Real wgtet4[4] = { 8./405., (2665 - 14.*sqrt(15))/226800., (2665 + 4.*sqrt(15))/226800., 5./567.};
+const Real wgtet1{ 1. / 6. };
+const Real wgtet2{ 1. / 24. };
+const Real wgtet3[2] = { -2. / 15., 3. / 40. };
+const Real wgtet4[4] = { 8. / 405., (2665 - 14. * sqrt(15)) / 226800., (2665 + 4. * sqrt(15)) / 226800., 5. / 567. };
 
 //  Correspondence between weight / gauss point indices for order 3
 const Integer npwgtet3[5] = { 0, 1, 1, 1 };
@@ -258,27 +259,27 @@ const Integer npwgtet4[15] = { 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3 };
 // Local (reference) coordinates along x axis
 const Real ap1{ 0.5702963741068025 };
 const Real hp21{ 0.1531754163448146 }, hp22{ 0.6372983346207416 };
-const Real hp31{1./6.}, hp32{ 0.08063183038464675 }, hp33{ 0.6098484849057127 };
+const Real hp31{ 1. / 6. }, hp32{ 0.08063183038464675 }, hp33{ 0.6098484849057127 };
 const Real xpyr[2][6] = {
-  { xh, 0., -xh, 0., 0., 0. },  //order 2
-  { ap1, 0., -ap1, 0., 0., 0. }  //order 3
+  { xh, 0., -xh, 0., 0., 0. }, //order 2
+  { ap1, 0., -ap1, 0., 0., 0. } //order 3
 };
 
 // Local (reference) coordinates along y axis
 const Real ypyr[2][6] = {
-  { 0., xh, 0., -xh, 0., 0.},  //order 2
-  { 0., ap1, 0., -ap1, 0., 0.} //order 3
+  { 0., xh, 0., -xh, 0., 0. }, //order 2
+  { 0., ap1, 0., -ap1, 0., 0. } //order 3
 };
 
 // Local (reference) coordinates along z axis
 const Real zpyr[2][6] = {
-  { hp21, hp21, hp21, hp21, hp22, 0.},  //order 2
-  { hp31, hp31, hp31, hp31, hp32, hp33 }  //order 3
+  { hp21, hp21, hp21, hp21, hp22, 0. }, //order 2
+  { hp31, hp31, hp31, hp31, hp32, hp33 } //order 3
 };
 
 // Integration weight
-const Real wgpyr2 { 2./15. };
-const Real wgpyr3[3] { 0.1024890634400000, 0.1100000000000000, 0.1467104129066667 };
+const Real wgpyr2{ 2. / 15. };
+const Real wgpyr3[3]{ 0.1024890634400000, 0.1100000000000000, 0.1467104129066667 };
 
 //  Correspondence between weight / gauss point indices for order 3
 const Integer npwgpyr3[6] = { 0, 0, 0, 0, 1, 2 };
@@ -292,57 +293,32 @@ const Integer npwgpyr3[6] = { 0, 0, 0, 0, 1, 2 };
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 // Local (reference) coordinates along x axis
-const Real apt1{1./sqrt(3.)}, apt2{ 0.577350269189626 };
+const Real apt1{ 1. / sqrt(3.) }, apt2{ 0.577350269189626 };
 const Real xpent[2][8] = {
-  { -apt1, -apt1, -apt1, apt1, apt1, apt1, 0., 0. },  //order 2
-  { -apt2, -apt2, -apt2, -apt2, apt2, apt2, apt2, apt2 }  //order 3
+  { -apt1, -apt1, -apt1, apt1, apt1, apt1, 0., 0. }, //order 2
+  { -apt2, -apt2, -apt2, -apt2, apt2, apt2, apt2, apt2 } //order 3
 };
 
 // Local (reference) coordinates along y axis
 const Real ypent[2][8] = {
-  { xh, 0., xh, xh, 0., xh, 0., 0.},  //order 2
-  { 1./3., 3./5., 1./5., 1./5., 1./3., 3./5., 1./5., 1./5. }  //order 3
+  { xh, 0., xh, xh, 0., xh, 0., 0. }, //order 2
+  { 1. / 3., 3. / 5., 1. / 5., 1. / 5., 1. / 3., 3. / 5., 1. / 5., 1. / 5. } //order 3
 };
 
 // Local (reference) coordinates along z axis
 const Real zpent[2][8] = {
-  { xh, xh, 0., xh, xh, 0., 0., 0.},  //order 2
-  { 1./3., 1./5., 3./5., 1./5., 1./3., 1./5., 3./5., 1./5. }  //order 3
+  { xh, xh, 0., xh, xh, 0., 0., 0. }, //order 2
+  { 1. / 3., 1. / 5., 3. / 5., 1. / 5., 1. / 3., 1. / 5., 3. / 5., 1. / 5. } //order 3
 };
 
 // Integration weight
-const Real wgpent2 { 1./6.};
-const Real wgpent3[2] { -27./96., 25./96. };
+const Real wgpent2{ 1. / 6. };
+const Real wgpent3[2]{ -27. / 96., 25. / 96. };
 
 //  Correspondence between weight / gauss point indices for order 3
 const Integer npwgpent3[8] = { 0, 1, 1, 1, 0, 1, 1, 1 };
 
 const Integer maxnint = 9;
-
+}
 /*---------------------------------------------------------------------------*/
-extern Real getRefPosition(const Integer& indx, const Integer& ordre);
-extern Real getWeight(const Integer& indx, const Integer& ordre);
-
-extern Real3 LineRefPosition(const Integer3& indices, const Integer3& ordre);
-extern Real LineWeight(const Integer3& indices, const Integer3& ordre);
-
-extern Real3 TriRefPosition(const Integer3& indices, const Integer3& ordre);
-extern Real TriWeight(const Integer3& indices, const Integer3& ordre);
-
-extern Real3 QuadRefPosition(const Integer3& indices, const Integer3& ordre);
-extern Real QuadWeight(const Integer3& indices, const Integer3& ordre);
-
-extern Real3 HexaRefPosition(const Integer3& indices, const Integer3& ordre);
-extern Real HexaWeight(const Integer3& indices, const Integer3& ordre);
-
-extern Real3 TetraRefPosition(const Integer3& indices, const Integer3& ordre);
-extern Real TetraWeight(const Integer3& indices, const Integer3& ordre);
-
-extern Real3 PentaRefPosition(const Integer3& indices, const Integer3& ordre);
-extern Real PentaWeight(const Integer3& indices, const Integer3& ordre);
-
-extern Integer getNbGaussPointsfromOrder(const Int16& /*cell_type*/, const Integer& /*ninteg*/);
-extern Real3 getGaussRefPosition(const ItemWithNodes& /*cell*/, const Integer& /*ninteg*/, const Int32& /*rank*/);
-extern Real getGaussWeight(const ItemWithNodes& /*cell*/, const Integer& /*ninteg*/, const Int32& /*rank*/);
-/*---------------------------------------------------------------------------*/
-#endif // PASSMO_GAUSSQUADRATURE_H_
+#endif // GAUSSQUADRATURE_H_

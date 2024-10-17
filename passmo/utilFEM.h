@@ -19,106 +19,10 @@
 /*---------------------------------------------------------------------------*/
 #include "FemUtils.h"
 #include <arcane/Assertion.h>
-#include "GaussQuadrature.h"
+#include "ArcaneFemFunctions.h"
 
 using namespace Arcane;
 using namespace Arcane::FemUtils;
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-// Functions useful for class CellFEMDispatcher
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-extern void DirVectors(const Face& face,const VariableNodeReal3& n, const Int32& ndim, Real3& e1, Real3& e2, Real3& e3);
-
-extern Real Line2Length(const ItemWithNodes& item, const VariableNodeReal3& n);
-extern Real Line2ShapeFuncVal(const Integer& inod, const Real3& coord);
-extern Real3 Line2ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-//extern Integer3 Line2Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
-
-extern Real Line3Length(const ItemWithNodes& item, const VariableNodeReal3& n);
-extern Real Line3ShapeFuncVal(const Integer& inod, const Real3& coord);
-extern Real3 Line3ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-//extern Integer3 Line3Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
-
-extern Real Tri3Surface(const ItemWithNodes& item, const VariableNodeReal3& n);
-extern Real Tri3ShapeFuncVal(const Integer& inod, const Real3& coord);
-extern Real3 Tri3ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-//extern Integer3 Tri3Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
-
-extern Real Tri6Surface(const ItemWithNodes& item, const VariableNodeReal3& n);
-extern Real Tri6ShapeFuncVal(const Integer& inod, const Real3& coord);
-extern Real3 Tri6ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-//extern Integer3 Tri6Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
-
-extern Real Quad4Surface(const ItemWithNodes& item, const VariableNodeReal3& n);
-extern Real Quad4ShapeFuncVal(const Integer& inod, const Real3& coord);
-extern Real3 Quad4ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-//extern Integer3 Quad4Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
-
-extern Real Quad8Surface(const ItemWithNodes& item, const VariableNodeReal3& n);
-extern Real Quad8ShapeFuncVal(const Integer& inod, const Real3& coord);
-extern Real3 Quad8ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-//extern Integer3 Quad8Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
-
-extern Real Hexa8Volume(const ItemWithNodes& item, const VariableNodeReal3& n);
-extern Real Hexa8ShapeFuncVal(const Integer& inod, const Real3& coord);
-extern Real3 Hexa8ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-//extern Integer3 Hexa8Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
-
-extern Real Hexa20Volume(const ItemWithNodes& item, const VariableNodeReal3& n);
-extern Real Hexa20ShapeFuncVal(const Integer& inod, const Real3& coord);
-extern Real3 Hexa20ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-//extern Integer3 Hexa20Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
-
-extern Real Tetra4Volume(const ItemWithNodes& item, const VariableNodeReal3& n);
-extern Real Tetra4ShapeFuncVal(const Integer& inod, const Real3& coord);
-extern Real3 Tetra4ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-//extern Integer3 Tetra4Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
-
-extern Real Tetra10Volume(const ItemWithNodes& item, const VariableNodeReal3& n);
-extern Real Tetra10ShapeFuncVal(const Integer& inod, const Real3& coord);
-extern Real3 Tetra10ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-//extern Integer3 Tetra10Orientation(const ItemWithNodes& item, const VariableNodeReal3& n);
-
-extern Real Penta6Volume(const ItemWithNodes& item, const VariableNodeReal3& n);
-extern Real Penta6ShapeFuncVal(const Integer& inod, const Real3& coord);
-extern Real3 Penta6ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-
-extern Real Pyramid5Volume(const ItemWithNodes& item, const VariableNodeReal3& n);
-extern Real Pyramid5ShapeFuncVal(const Integer& inod, const Real3& coord);
-extern Real3 Pyramid5ShapeFuncDeriv(const Integer& inod, const Real3& coord);
-
-extern Int32 getGeomDimension(const ItemWithNodes& item);
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-class CellFEMDispatcher
-{
- public:
-  CellFEMDispatcher();
-
- public:
-
-//  void set_node_coords(VariableNodeReal3& /*node_coords*/);
-
-//  Real3 getBarycenter(const ItemWithNodes& /*cell*/);
-
-  Real getShapeFuncVal(const Int16& /*item_type*/, const Int32& /*inod*/, const Real3& /*ref coord*/);
-  Real3 getShapeFuncDeriv(const Int16& /*item_type*/, const Int32& /*inod*/, const Real3& /*ref coord*/);
-
-//  Integer3 getOrientation(const ItemWithNodes& /*cell*/);
-  RealUniqueArray getGaussData(const ItemWithNodes& item, const Integer& nint, Int32& ngauss);
-
- private:
-
-//  std::function<Real(const ItemWithNodes& item, const VariableNodeReal3& n)> m_geomfunc[NB_BASIC_ITEM_TYPE];
-  std::function<Real(const Int32& inod, const Real3& coord)> m_shapefunc[NB_BASIC_ITEM_TYPE];
-  std::function<Real3(const Int32& inod, const Real3& coord)> m_shapefuncderiv[NB_BASIC_ITEM_TYPE];
-//  std::function<Integer3(const ItemWithNodes& item, const VariableNodeReal3& n)> m_orientfunc[NB_BASIC_ITEM_TYPE];
-//  VariableNodeReal3 *m_node_coords{ nullptr};
-};
-
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 // class ElastTensor: 4th-order elastic tensor

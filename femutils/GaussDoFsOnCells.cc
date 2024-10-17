@@ -5,11 +5,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* GaussDoFsOnCells.cc                                         (C) 2022-2024 */
-/*                                                                           */
 /* PASSMO : Performant Assessment for Seismic Site Modelling with finite-    */
 /* element (FEM) numerical modelling approach                                */
 /* Created by : E. Foerster                                                  */
+/*---------------------------------------------------------------------------*/
+/* GaussDoFsOnCells.cc                                         (C) 2022-2024 */
+/*                                                                           */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -19,22 +20,23 @@
 #include "arcane/IIndexedIncrementalItemConnectivity.h"
 #include "arcane/IndexedItemConnectivityView.h"
 #include <arcane/VariableTypes.h>
-#include "GaussQuadrature.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 using namespace Arcane;
 using namespace Arcane::mesh;
-using namespace Arcane::FemUtils;
+//using namespace Arcane::FemUtils;
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+namespace Arcane::FemUtils
+{
 class GaussDoFsOnCells::Impl
 : public TraceAccessor
 {
  public:
 
-  Impl(ITraceMng* tm)
+  explicit Impl(ITraceMng* tm)
   : TraceAccessor(tm)
   {
   }
@@ -46,7 +48,7 @@ class GaussDoFsOnCells::Impl
  public:
 
   Ref<IIndexedIncrementalItemConnectivity> m_cell_gauss_connectivity;
-  IItemFamily* m_gauss_family = nullptr;//treated as DoFFamily
+  IItemFamily* m_gauss_family = nullptr; //treated as DoFFamily
 
   VariableDoFArrayReal* m_gauss_shape = nullptr;
   VariableDoFArrayReal3* m_gauss_shapederiv = nullptr;
@@ -54,7 +56,6 @@ class GaussDoFsOnCells::Impl
   VariableDoFReal3x3* m_gauss_jacobmat = nullptr;
   VariableDoFReal* m_gauss_weight = nullptr;
   VariableDoFReal* m_gauss_jacobian = nullptr;
-
 };
 
 /*---------------------------------------------------------------------------*/
@@ -63,8 +64,7 @@ class GaussDoFsOnCells::Impl
 GaussDoFsOnCells::
 GaussDoFsOnCells(ITraceMng* tm)
 : m_p(new Impl(tm))
-{
-}
+{}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -72,13 +72,13 @@ GaussDoFsOnCells(ITraceMng* tm)
 GaussDoFsOnCells::
 ~GaussDoFsOnCells()
 {
-    delete m_p->m_gauss_refpos;
-    delete m_p->m_gauss_weight;
-    delete m_p->m_gauss_jacobian;
-    delete m_p->m_gauss_jacobmat;
-    delete m_p->m_gauss_shape;
-    delete m_p->m_gauss_shapederiv;
-    delete m_p;
+  delete m_p->m_gauss_refpos;
+  delete m_p->m_gauss_weight;
+  delete m_p->m_gauss_jacobian;
+  delete m_p->m_gauss_jacobmat;
+  delete m_p->m_gauss_shape;
+  delete m_p->m_gauss_shapederiv;
+  delete m_p;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -152,12 +152,12 @@ void GaussDoFsOnCells::
 initialize(IMesh* mesh, Int32 max_nb_gauss_per_cell)
 {
   m_p->initialize(mesh, max_nb_gauss_per_cell);
-  m_p->m_gauss_refpos = new VariableDoFReal3(VariableBuildInfo(mesh,"GaussRefPos", "GaussCellFamily"));
-  m_p->m_gauss_weight = new VariableDoFReal(VariableBuildInfo(mesh,"GaussWeight", "GaussCellFamily"));
-  m_p->m_gauss_jacobian = new VariableDoFReal(VariableBuildInfo(mesh,"GaussJacobian", "GaussCellFamily"));
-  m_p->m_gauss_jacobmat = new VariableDoFReal3x3(VariableBuildInfo(mesh,"GaussJacobMat", "GaussCellFamily"));
-  m_p->m_gauss_shape = new VariableDoFArrayReal(VariableBuildInfo(mesh,"GaussShape", "GaussCellFamily"));
-  m_p->m_gauss_shapederiv = new VariableDoFArrayReal3(VariableBuildInfo(mesh,"GaussShapeDeriv", "GaussCellFamily"));
+  m_p->m_gauss_refpos = new VariableDoFReal3(VariableBuildInfo(mesh, "GaussRefPos", "GaussCellFamily"));
+  m_p->m_gauss_weight = new VariableDoFReal(VariableBuildInfo(mesh, "GaussWeight", "GaussCellFamily"));
+  m_p->m_gauss_jacobian = new VariableDoFReal(VariableBuildInfo(mesh, "GaussJacobian", "GaussCellFamily"));
+  m_p->m_gauss_jacobmat = new VariableDoFReal3x3(VariableBuildInfo(mesh, "GaussJacobMat", "GaussCellFamily"));
+  m_p->m_gauss_shape = new VariableDoFArrayReal(VariableBuildInfo(mesh, "GaussShape", "GaussCellFamily"));
+  m_p->m_gauss_shapederiv = new VariableDoFArrayReal3(VariableBuildInfo(mesh, "GaussShapeDeriv", "GaussCellFamily"));
 }
 
 /*---------------------------------------------------------------------------*/
@@ -226,6 +226,6 @@ gaussFamily() const
 {
   return m_p->m_gauss_family;
 }
-
+}
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

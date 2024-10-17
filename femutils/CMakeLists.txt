@@ -12,8 +12,14 @@ add_library(FemUtils
   FemDoFsOnNodes.cc
   FemBoundaryConditions.cc
   ArcaneFemFunctions.h
+  ArcaneFemFunctions.cc
   AlephDoFLinearSystem.cc
+  GaussQuadrature.h
+  GaussDoFsOnCells.h
+  GaussDoFsOnCells.cc
+  Integer3std.h
   IDoFLinearSystemFactory.h
+  IArcaneFemBC.h
   AlephDoFLinearSystemFactory_axl.h
   SequentialBasicDoFLinearSystemFactory_axl.h
   HypreDoFLinearSystemFactory_axl.h

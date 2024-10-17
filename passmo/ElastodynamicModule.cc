@@ -17,16 +17,13 @@
 #include "arcane/utils/ArgumentException.h"
 #include <arcane/IParallelMng.h>
 #include <arcane/ITimeLoopMng.h>
-#include <arcane/IMesh.h>
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
-#include <arcane/geometry/IGeometry.h>
 #include <arcane/IIOMng.h>
 #include <arcane/CaseTable.h>
-
 #include "IDoFLinearSystemFactory.h"
+#include "ArcaneFemFunctions.h"
 #include "ElastodynamicModule.h"
-#include "utilFEM.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -195,7 +192,7 @@ _startInitGauss(){
   ENUMERATE_CELL (icell, allCells()) {
     const Cell& cell = *icell;
     auto cell_type = cell.type();
-    auto nbgauss = getNbGaussPointsfromOrder(cell_type, ninteg);
+    auto nbgauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, ninteg);
     m_nb_gauss[cell] = nbgauss;
     max_gauss_per_cell = math::max(nbgauss,max_gauss_per_cell);
     auto nbnodes = cell.nbNode();
@@ -223,14 +220,14 @@ _startInitGauss(){
     auto cell_type = cell.type();
     auto cell_nbnod = cell.nbNode();
     Int32 numcell = cell.localId();
-    auto cell_nbgauss = getNbGaussPointsfromOrder(cell_type, ninteg);
-    Int32 ndim = getGeomDimension(cell);
+    auto cell_nbgauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, ninteg);
+    Int32 ndim = ArcaneFemFunctions::MeshOperation::getGeomDimension(cell);
 
     for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
       DoFLocalId gauss_pti = gauss_point.dofId(cell,ig);
       Int32 gaussnum = gauss_pti.localId();
-      gauss_weight[gauss_pti] = getGaussWeight(cell,ninteg,ig);
-      Real3 refpos = getGaussRefPosition(cell,ninteg,ig);
+      gauss_weight[gauss_pti] = ArcaneFemFunctions::FemGaussQuadrature::getGaussWeight(cell,ninteg,ig);
+      Real3 refpos = ArcaneFemFunctions::FemGaussQuadrature::getGaussRefPosition(cell,ninteg,ig);
       if (ndim <= 2) {
         refpos.z = 0.;
         if (ndim == 1) refpos.y = 0.;
@@ -429,8 +426,8 @@ _initGaussStep()
     auto cell_type = cell.type();
     auto cell_nbnod = cell.nbNode();
     Int32 numcell = cell.localId();
-    Int32 ndim = getGeomDimension(cell);
-    auto cell_nbgauss = getNbGaussPointsfromOrder(cell_type, ninteg);
+    Int32 ndim = ArcaneFemFunctions::MeshOperation::getGeomDimension(cell);
+    auto cell_nbgauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, ninteg);
 
     for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
       DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
@@ -456,7 +453,7 @@ _initGaussStep()
       else if (ndim == 2)
         jacobian = jac.x.x * jac.y.y - jac.x.y * jac.y.x;
       else
-        jacobian = Line2Length(cell, m_node_coord) / 2.;
+        jacobian = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(cell, m_node_coord) / 2.;
 
       if (fabs(jacobian) < REL_PREC) {
         ARCANE_FATAL("Cell jacobian is null");
@@ -833,7 +830,7 @@ _initBoundaryConditions()
       if (face.isSubDomainBoundary() && face.isOwn()) {
 
         Real3 e1{ 0. }, e2{ 0. }, e3{ 0. };
-        DirVectors(face, m_node_coord, NDIM, e1, e2, e3);
+        ArcaneFemFunctions::MeshOperation::DirVectors(face, m_node_coord, NDIM, e1, e2, e3);
         m_e1_boundary[face] = e1;
         m_e2_boundary[face] = e2;
         m_e3_boundary[face] = e3;
@@ -1369,7 +1366,7 @@ _computeJacobian(const ItemWithNodes& cell,const Int32& ig, const RealUniqueArra
     indx += 4;
   }
 
-  Int32 ndim = getGeomDimension(cell);
+  Int32 ndim = ArcaneFemFunctions::MeshOperation::getGeomDimension(cell);
   //  if (NDIM == 3)
   if (ndim == 3)
     jacobian = math::matrixDeterminant(jac);
@@ -1378,7 +1375,7 @@ _computeJacobian(const ItemWithNodes& cell,const Int32& ig, const RealUniqueArra
   else if (ndim == 2)
     jacobian = jac.x.x * jac.y.y - jac.x.y * jac.y.x;
   else
-    jacobian = Line2Length(cell, m_node_coord) / 2.;
+    jacobian = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(cell, m_node_coord) / 2.;
 
   if (fabs(jacobian) < REL_PREC) {
     ARCANE_FATAL("Cell jacobian is null");
@@ -1656,7 +1653,7 @@ _computeKParax(const Face& face, const Int32& ig, const RealUniqueArray& vec, co
   if (NDIM < 3)
     nvec = e2;
 
-  Int32 ndim = getGeomDimension(face);
+  Int32 ndim = ArcaneFemFunctions::MeshOperation::getGeomDimension(face);
   auto rhocp{RhoC[ndim]};
   auto rhocs{RhoC[0]};
   auto rhocpcs{rhocp - rhocs};
@@ -2321,7 +2318,7 @@ _getTractionContribution(Arcane::VariableDoFReal& rhs_values){
       const Face& face = *j;
 
       Real3 trac = m_imposed_traction[face];
-      auto facint = _computeFacLengthOrArea(face);
+      auto facint = ArcaneFemFunctions::MeshOperation::computeFacLengthOrArea(face,m_node_coord);
 
       // Loop on nodes of the face or edge (with no Dirichlet condition)
       ENUMERATE_NODE (k, face.nodes()){
@@ -2338,39 +2335,6 @@ _getTractionContribution(Arcane::VariableDoFReal& rhs_values){
       }
     }
   }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-Real ElastodynamicModule::
-_computeFacLengthOrArea(const Face& face)
-{
-  Int32 item_type = face.type();
-  Real fac_el{0.};
-
-  switch (item_type) {
-
-  // Lines
-  case IT_Line2:
-  case IT_Line3:
-    fac_el = Line2Length(face, m_node_coord) / 2.;
-    break;
-
-  // Faces
-  case IT_Triangle3:
-  case IT_Triangle6:
-    fac_el = Tri3Surface(face, m_node_coord) / 3.;
-    break;
-
-  case IT_Quad4:
-  case IT_Quad8:
-    fac_el = Quad4Surface(face, m_node_coord) / 4.;
-    break;
-
-  default:
-    break;
-  }
-  return fac_el;
 }
 
 /*---------------------------------------------------------------------------*/

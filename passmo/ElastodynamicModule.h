@@ -18,7 +18,7 @@
 #include "TypesElastodynamic.h"
 #include "Elastodynamic_axl.h"
 #include "FemUtils.h"
-#include "utilFEM.h"
+//#include "utilFEM.h"
 #include "analytical_func.h"
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
@@ -29,7 +29,6 @@
 /*---------------------------------------------------------------------------*/
 using namespace Arcane;
 using namespace Arcane::FemUtils;
-Real REL_PREC{1.0e-15};
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -113,7 +112,7 @@ class ElastodynamicModule
 
   Integer ninteg{2};
   Int32 NDIM{2};
-  CellFEMDispatcher cell_fem{};
+  ArcaneFemFunctions::CellFEMDispatcher cell_fem{};
   Real3 gravity{0.,0.,0.};
   Real penalty{1.e64};
   Real gamma{0.5};
@@ -148,7 +147,6 @@ class ElastodynamicModule
   void _assembleLHSParaxialContribution();
   void _getTractionContribution(Arcane::VariableDoFReal& rhs_values);
   Real3x3 _computeJacobian(const ItemWithNodes& cell, const Int32& ig, const RealUniqueArray& vec, Real& jac);
-  Real _computeFacLengthOrArea(const Face& face);
 
   /*  Update nodal dofs vector for the Newmark or Generalized-alfa time integration schemes */
   void _updateNewmark();
