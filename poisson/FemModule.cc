@@ -341,6 +341,11 @@ _handleFlags()
     m_use_legacy = false;
     info() << "COO_GPU: The COO datastructure GPU comptaible and its associated methods will be used";
   }
+  if (parameter_list.getParameterOrNull("COO_SORT_GPU") == "TRUE" || options()->cooSortingGpu()) {
+    m_use_coo_sort_gpu = true;
+    m_use_legacy = false;
+    info() << "COO_SORT_GPU: The COO with sorting datastructure GPU comptaible and its associated methods will be used";
+  }
   if (parameter_list.getParameterOrNull("CSR") == "TRUE" || options()->csr()) {
     m_use_csr = true;
     m_use_legacy = false;
@@ -467,15 +472,21 @@ _doStationarySolve()
   }
 
 #ifdef ARCANE_HAS_ACCELERATOR
-  if (m_use_coo_gpu) {
+  if (m_use_coo_gpu || m_use_coo_sort_gpu) {
     m_linear_system.clearValues();
     if (options()->meshType == "TRIA3")
       _assembleCooGPUBilinearOperatorTRIA3();
     if (options()->meshType == "TETRA4")
       _assembleCooGPUBilinearOperatorTETRA4();
     if (m_cache_warming != 1) {
-      m_time_stats->resetStats("AssembleCooGpuBilinearOperatorTria3");
-      m_time_stats->resetStats("AssembleCooGpuBilinearOperatorTetra4");
+      if (m_use_coo_gpu) {
+        m_time_stats->resetStats("AssembleCooGpuBilinearOperatorTria3");
+        m_time_stats->resetStats("AssembleCooGpuBilinearOperatorTetra4");
+      }
+      else { // m_use_coo_sort_gpu
+        m_time_stats->resetStats("AssembleCooSortGpuBilinearOperatorTria3");
+        m_time_stats->resetStats("AssembleCooSortGpuBilinearOperatorTetra4");
+      }
       for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
         m_linear_system.clearValues();
         if (options()->meshType == "TRIA3")

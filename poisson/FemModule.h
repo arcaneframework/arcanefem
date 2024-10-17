@@ -113,7 +113,6 @@ class FemModule
 {
  public:
 
-
   explicit FemModule(const ModuleBuildInfo& mbi)
   : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
@@ -161,6 +160,7 @@ class FemModule
   bool m_use_coo = false;
   bool m_use_coo_sort = false;
   bool m_use_coo_gpu = false;
+  bool m_use_coo_sort_gpu = false;
   bool m_use_csr = false;
   bool m_use_csr_gpu = false;
   bool m_use_nodewise_csr = false;
@@ -219,7 +219,6 @@ class FemModule
   Real _computeEdgeLength2(Face face);
   Real2 _computeEdgeNormal2(Face face);
 
-
  public:
 
   void _applyDirichletBoundaryConditionsGpu();
@@ -263,11 +262,11 @@ class FemModule
   _computeElementMatrixTETRA4GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
                                  ax::VariableNodeReal3InView in_node_coord, Real K_e[16]);
 
-
  private:
  public:
 
   void _buildMatrixCsrGPU();
+  void _fillDiagonal(Int64 nb_edge, NodeGroup nodes);
   void _assembleCsrGPUBilinearOperatorTRIA3();
   void _assembleCsrGPUBilinearOperatorTETRA4();
 

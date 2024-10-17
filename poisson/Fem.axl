@@ -57,6 +57,11 @@
         Boolean to use the COO datastructure Gpu compatible and its associated methods
       </description>
     </simple>
+    <simple name="coo-sorting-gpu" type="bool"  default="false">
+      <description>
+        Boolean to use the COO datastructure Gpu compatible with a sorting phase during preprocessing and its associated methods
+      </description>
+    </simple>
     <simple name="csr" type="bool"  default="false">
       <description>
         Boolean to use the CSR datastructure and its associated methods

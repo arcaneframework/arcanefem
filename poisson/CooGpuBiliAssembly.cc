@@ -15,15 +15,17 @@
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
+#include "arcane/accelerator/RunCommandEnumerate.h"
+#include "arcane/core/IndexedItemConnectivityView.h"
+#include "arcane/core/Item.h"
+#include "arcane/core/ItemEnumerator.h"
+#include "arcane/core/ItemGenericInfoListView.h"
+#include "arcane/core/ItemLocalId.h"
+#include "arcane/core/ItemLocalIdListView.h"
+#include "arcane/utils/UtilsTypes.h"
 
 /*---------------------------------------------------------------------------*/
 /**
- * 
- * !!!! Whereas this function is called GPU, it is not actually executed on the GPU.
- * It is only used in the GPU version of the bilinear assembly to build the matrix,
- * this function is in fact the same as in CooBiliAssembly, it is used here only to
- * reiterate the old terminology and structure of the code !!!!
- * 
  * @brief Builds the coordinate (COO) matrix for the finite element method (FEM) module.
  *
  * This function initializes and populates the COO matrix based on the mesh's nodes and their connectivity.
@@ -35,31 +37,103 @@
  */
 /*---------------------------------------------------------------------------*/
 
+ARCCORE_HOST_DEVICE void _fillMatrix(Int32 id, Int64 nb_edge,
+                                     auto nodes,
+                                     auto inout_m_matrix_row,
+                                     auto inout_m_matrix_column)
+{
+  Int32 node1_idx = nodes[0];
+  Int32 node2_idx = nodes[1];
+
+  // Upper triangular part
+  inout_m_matrix_row[id] = node1_idx;
+  inout_m_matrix_column[id] = node2_idx;
+
+  // Matrix is symmetrical in Poisson
+  // Lower triangular part
+  inout_m_matrix_row[nb_edge + id] = node2_idx;
+  inout_m_matrix_column[nb_edge + id] = node1_idx;
+}
+
+void FemModule::_fillDiagonal(Int64 nb_edge, NodeGroup nodes)
+{
+  RunQueue* queue = acceleratorMng()->defaultQueue();
+  auto command = makeCommand(queue);
+
+  auto inout_m_matrix_row = viewInOut(command, m_coo_matrix.m_matrix_row);
+  auto inout_m_matrix_column = viewInOut(command, m_coo_matrix.m_matrix_column);
+
+  Int32 offset = 2 * nb_edge;
+  command << RUNCOMMAND_ENUMERATE(Node, node_id, nodes)
+  {
+    inout_m_matrix_row(offset + node_id) = node_id;
+    inout_m_matrix_column(offset + node_id) = node_id;
+  };
+}
+
 void FemModule::_buildMatrixCooGPU()
 {
   Int8 mesh_dim = mesh()->dimension();
-  Int64 nbEdge = mesh_dim == 3 ? m_nb_edge : nbFace();
-  Int32 nnz = nbEdge * 2 + nbNode();
-  m_coo_matrix.initialize(m_dof_family, nnz);
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  ENUMERATE_NODE (inode, allNodes()) {
-    Node node = *inode;
+  if (mesh_dim != 2 && mesh_dim != 3)
+    ARCANE_THROW(NotSupportedException, "Only mesh of dimension 2 or 3 are supported");
 
-    m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
+  Int64 nb_edge = (mesh_dim == 2) ? nbFace() : m_nb_edge;
+  Int32 nb_non_zero = nb_edge * 2 + nbNode();
+  m_coo_matrix.initialize(m_dof_family, nb_non_zero);
 
-    if (mesh_dim == 2) {
-      for (Face face : node.faces()) {
-        Node other_node = (face.nodeId(0) == node.localId()) ? face.node(1) : face.node(0);
-        m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(other_node, 0));
-      }
+  RunQueue* queue = acceleratorMng()->defaultQueue();
+  auto command = makeCommand(queue);
+
+  UnstructuredMeshConnectivityView m_connectivity_view;
+  m_connectivity_view.setMesh(mesh());
+
+  auto inout_m_matrix_row = viewInOut(command, m_coo_matrix.m_matrix_row);
+  auto inout_m_matrix_column = viewInOut(command, m_coo_matrix.m_matrix_column);
+
+  if (mesh_dim == 2) {
+    IndexedFaceNodeConnectivityView face_node_connectivity_view = m_connectivity_view.faceNode();
+
+    command << RUNCOMMAND_ENUMERATE(Face, face_id, allFaces())
+    {
+      auto nodes = face_node_connectivity_view.nodes(face_id);
+      _fillMatrix(face_id, nb_edge, nodes, inout_m_matrix_row, inout_m_matrix_column);
+    };
+
+    _fillDiagonal(nb_edge, allNodes());
+  }
+  else if (options()->createEdges()) { // 3D mesh without node-node connectivity
+    IndexedEdgeNodeConnectivityView edge_node_connectivity_view = m_connectivity_view.edgeNode();
+
+    command << RUNCOMMAND_ENUMERATE(Edge, edge_id, allEdges())
+    {
+      auto nodes = edge_node_connectivity_view.nodes(edge_id);
+      _fillMatrix(edge_id, nb_edge, nodes, inout_m_matrix_row, inout_m_matrix_column);
+    };
+
+    _fillDiagonal(nb_edge, allNodes());
+  }
+  else { // 3D mesh with node-node connectivity
+    IndexedNodeNodeConnectivityView nn_cv;
+    auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
+    ARCANE_CHECK_POINTER(connectivity_ptr);
+    nn_cv = connectivity_ptr->view();
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+    ENUMERATE_NODE (inode, allNodes()) {
+      Node node = *inode;
+      DoFLocalId dof = node_dof.dofId(node, 0);
+
+      m_csr_matrix.setCoordinates(dof, node_dof.dofId(node, 0));
+
+      for (NodeLocalId other_node : nn_cv.nodeIds(node))
+        m_csr_matrix.setCoordinates(dof, node_dof.dofId(other_node, 0));
     }
-    else {
-      for (Edge edge : node.edges()) {
-        Node other_node = (edge.nodeId(0) == node.localId()) ? edge.node(1) : edge.node(0);
-        m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(other_node, 0));
-      }
-    }
+  }
+
+  if (m_use_coo_sort_gpu) {
+    Timer::Action timer_coo_sorting_gpu(m_time_stats, "SortingCooMatrixGpu");
+    m_coo_matrix.sort();
   }
 }
 
@@ -71,10 +145,17 @@ _assembleCooGPUBilinearOperatorTRIA3()
 {
   info() << "Assembling COO GPU Bilinear Operator for TRIA3 elements";
 
-  Timer::Action timer_coo_gpu_bili(m_time_stats, "AssembleCooGpuBilinearOperatorTria3");
+  if (m_use_coo_sort)
+    Timer::Action timer_coo_gpu_bili(m_time_stats, "AssembleCooGpuBilinearOperatorTria3");
+  else // m_use_coo_sort_gpu
+    Timer::Action timer_coo_sort_gpu_bili(m_time_stats, "AssembleCooSortGpuBilinearOperatorTria3");
 
   {
-    Timer::Action timer_coo_gpu_build(m_time_stats, "BuildMatrixCooGpu");
+    if (m_use_coo_gpu)
+      Timer::Action timer_coo_gpu_build(m_time_stats, "BuildMatrixCooGpu");
+    else // m_use_coo_sort_gpu
+      Timer::Action timer_coo_sort_gpu_build(m_time_stats, "BuildMatrixCooSortGpu");
+
     _buildMatrixCooGPU();
   }
 
@@ -134,10 +215,16 @@ void FemModule::
 _assembleCooGPUBilinearOperatorTETRA4() {
   info() << "Assembling COO GPU Bilinear Operator for TETRA4 elements";
 
-  Timer::Action timer_coo_gpu_bili(m_time_stats, "AssembleCooGpuBilinearOperatorTetra4");
+  if (m_use_coo_gpu)
+    Timer::Action timer_coo_gpu_bili(m_time_stats, "AssembleCooGpuBilinearOperatorTetra4");
+  else // m_use_coo_sort_gpu
+    Timer::Action timer_coo_sort_gpu_bili(m_time_stats, "AssembleCooSortGpuBilinearOperatorTetra4");
 
   {
-    Timer::Action timer_coo_gpu_build(m_time_stats, "BuildMatrixCooGpu");
+    if (m_use_coo_gpu)
+      Timer::Action timer_coo_gpu_build(m_time_stats, "BuildMatrixCooGpu");
+    else // m_use_coo_sort_gpu
+      Timer::Action timer_coo_sort_gpu_build(m_time_stats, "BuildMatrixCooSortGpu");
     _buildMatrixCooGPU();
   }
 
