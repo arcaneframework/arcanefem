@@ -121,9 +121,13 @@ void FemModule::_buildMatrixCooGPU()
 
     auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
     ARCANE_CHECK_POINTER(connectivity_ptr);
-    IndexedNodeNodeConnectivityView nn_cv{ connectivity_ptr->view() };
+    IndexedNodeNodeConnectivityView nn_cv = connectivity_ptr->view();
 
-    NumArray<Int32, MDDim1> nb_neighbor_arr{ nbNode() };
+#ifdef ARCANE_HAS_ACCELERATOR
+    // This array will contain the number of neighbors of each node
+    // (type uint is enough for counting neighbors).
+    NumArray<uint, MDDim1> nb_neighbor_arr;
+    nb_neighbor_arr.resize(nbNode());
     auto inout_nb_neighbor_arr = viewInOut(command, nb_neighbor_arr);
 
     command << RUNCOMMAND_ENUMERATE(Node, node_idx, allNodes())
@@ -132,11 +136,15 @@ void FemModule::_buildMatrixCooGPU()
       // We add 1 to count the node's relation with itself.
     };
 
-    SmallSpan<Int32> input = nb_neighbor_arr.to1DSmallSpan();
-    SmallSpan<Int32> output{ input };
-    Accelerator::Scanner<Int32> scanner;
+    // Do the exclusive cumulative sum of the neighbors array
+    SmallSpan<uint> input = nb_neighbor_arr.to1DSmallSpan();
+    NumArray<uint, MDDim1> tmp_output;
+    tmp_output.resize(nbNode());
+    SmallSpan<uint> output = tmp_output.to1DSmallSpan();
+    Accelerator::Scanner<uint> scanner;
     scanner.exclusiveSum(queue, input, output);
 
+    // Fill the neighbors relation (including node with itself) into the matrix
     command << RUNCOMMAND_ENUMERATE(Node, node_idx, allNodes())
     {
       Int32 offset = output[node_idx];
@@ -150,6 +158,19 @@ void FemModule::_buildMatrixCooGPU()
       inout_m_matrix_row[offset] = node_idx;
       inout_m_matrix_column[offset] = node_idx;
     };
+#else
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+    ENUMERATE_NODE (inode, allNodes()) {
+      Node node = *inode;
+      DoFLocalId dof = node_dof.dofId(node, 0);
+
+      m_coo_matrix.setCoordinates(dof, node_dof.dofId(node, 0));
+
+      for (NodeLocalId other_node : nn_cv.nodeIds(node))
+        m_coo_matrix.setCoordinates(dof, node_dof.dofId(other_node, 0));
+    }
+#endif
   }
 
   if (m_use_coo_sort_gpu) {
