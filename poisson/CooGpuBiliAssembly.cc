@@ -123,54 +123,59 @@ void FemModule::_buildMatrixCooGPU()
     ARCANE_CHECK_POINTER(connectivity_ptr);
     IndexedNodeNodeConnectivityView nn_cv = connectivity_ptr->view();
 
-#ifdef ARCANE_HAS_ACCELERATOR
-    // This array will contain the number of neighbors of each node
-    // (type uint is enough for counting neighbors).
-    NumArray<uint, MDDim1> nb_neighbor_arr;
-    nb_neighbor_arr.resize(nbNode());
-    auto inout_nb_neighbor_arr = viewInOut(command, nb_neighbor_arr);
+    if (queue->isAcceleratorPolicy()) {
+      info() << "Using accelerated version of _buildMatrixCooGPU";
 
-    command << RUNCOMMAND_ENUMERATE(Node, node_idx, allNodes())
-    {
-      inout_nb_neighbor_arr[node_idx] = nn_cv.nbNode(node_idx) + 1;
-      // We add 1 to count the node's relation with itself.
-    };
+      // This array will contain the number of neighbors of each node
+      // (type uint is enough for counting neighbors).
+      NumArray<uint, MDDim1> nb_neighbor_arr;
+      nb_neighbor_arr.resize(nbNode());
+      auto inout_nb_neighbor_arr = viewInOut(command, nb_neighbor_arr);
 
-    // Do the exclusive cumulative sum of the neighbors array
-    SmallSpan<uint> input = nb_neighbor_arr.to1DSmallSpan();
-    NumArray<uint, MDDim1> tmp_output;
-    tmp_output.resize(nbNode());
-    SmallSpan<uint> output = tmp_output.to1DSmallSpan();
-    Accelerator::Scanner<uint> scanner;
-    scanner.exclusiveSum(queue, input, output);
+      command << RUNCOMMAND_ENUMERATE(Node, node_idx, allNodes())
+      {
+        inout_nb_neighbor_arr[node_idx] = nn_cv.nbNode(node_idx) + 1;
+        // We add 1 to count the node's relation with itself.
+      };
 
-    // Fill the neighbors relation (including node with itself) into the matrix
-    command << RUNCOMMAND_ENUMERATE(Node, node_idx, allNodes())
-    {
-      Int32 offset = output[node_idx];
+      // Do the exclusive cumulative sum of the neighbors array
+      SmallSpan<uint> input = nb_neighbor_arr.to1DSmallSpan();
+      NumArray<uint, MDDim1> tmp_output;
+      tmp_output.resize(nbNode());
+      SmallSpan<uint> output = tmp_output.to1DSmallSpan();
+      Accelerator::Scanner<uint> scanner;
+      scanner.exclusiveSum(queue, input, output);
 
-      for (NodeLocalId other_node_idx : nn_cv.nodeIds(node_idx)) {
+      // Fill the neighbors relation (including node with itself) into the matrix
+      command << RUNCOMMAND_ENUMERATE(Node, node_idx, allNodes())
+      {
+        Int32 offset = output[node_idx];
+
+        for (NodeLocalId other_node_idx : nn_cv.nodeIds(node_idx)) {
+          inout_m_matrix_row[offset] = node_idx;
+          inout_m_matrix_column[offset] = other_node_idx;
+          ++offset;
+        }
+
         inout_m_matrix_row[offset] = node_idx;
-        inout_m_matrix_column[offset] = other_node_idx;
-        ++offset;
-      }
-
-      inout_m_matrix_row[offset] = node_idx;
-      inout_m_matrix_column[offset] = node_idx;
-    };
-#else
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-    ENUMERATE_NODE (inode, allNodes()) {
-      Node node = *inode;
-      DoFLocalId dof = node_dof.dofId(node, 0);
-
-      m_coo_matrix.setCoordinates(dof, node_dof.dofId(node, 0));
-
-      for (NodeLocalId other_node : nn_cv.nodeIds(node))
-        m_coo_matrix.setCoordinates(dof, node_dof.dofId(other_node, 0));
+        inout_m_matrix_column[offset] = node_idx;
+      };
     }
-#endif
+    else {
+      info() << "Using unaccelerated version of _buildMatrixCooGPU";
+
+      auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+      ENUMERATE_NODE (inode, allNodes()) {
+        Node node = *inode;
+        DoFLocalId dof = node_dof.dofId(node, 0);
+
+        m_coo_matrix.setCoordinates(dof, node_dof.dofId(node, 0));
+
+        for (NodeLocalId other_node : nn_cv.nodeIds(node))
+          m_coo_matrix.setCoordinates(dof, node_dof.dofId(other_node, 0));
+      }
+    }
   }
 
   if (m_use_coo_sort_gpu) {
