@@ -830,7 +830,7 @@ _initBoundaryConditions()
       if (face.isSubDomainBoundary() && face.isOwn()) {
 
         Real3 e1{ 0. }, e2{ 0. }, e3{ 0. };
-        ArcaneFemFunctions::MeshOperation::DirVectors(face, m_node_coord, NDIM, e1, e2, e3);
+        ArcaneFemFunctions::MeshOperation::dirVectors(face, m_node_coord, NDIM, e1, e2, e3);
         m_e1_boundary[face] = e1;
         m_e2_boundary[face] = e2;
         m_e3_boundary[face] = e3;
