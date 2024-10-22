@@ -15,8 +15,6 @@
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
-#include "arcane/accelerator/RunCommandEnumerate.h"
-#include "arcane/accelerator/Scan.h"
 #include "arcane/core/IndexedItemConnectivityView.h"
 #include "arcane/core/Item.h"
 #include "arcane/core/ItemGenericInfoListView.h"
