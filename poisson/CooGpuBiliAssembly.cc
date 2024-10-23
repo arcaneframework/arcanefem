@@ -15,13 +15,10 @@
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
-#include "arcane/accelerator/RunCommandEnumerate.h"
 #include "arcane/core/IndexedItemConnectivityView.h"
 #include "arcane/core/Item.h"
-#include "arcane/core/ItemEnumerator.h"
 #include "arcane/core/ItemGenericInfoListView.h"
 #include "arcane/core/ItemLocalId.h"
-#include "arcane/core/ItemLocalIdListView.h"
 #include "arcane/utils/UtilsTypes.h"
 
 /*---------------------------------------------------------------------------*/
@@ -92,6 +89,8 @@ void FemModule::_buildMatrixCooGPU()
   auto inout_m_matrix_column = viewInOut(command, m_coo_matrix.m_matrix_column);
 
   if (mesh_dim == 2) {
+    info() << "_buildMatrixCooGPU for 2D mesh with edge-node connectivity";
+
     IndexedFaceNodeConnectivityView face_node_connectivity_view = m_connectivity_view.faceNode();
 
     command << RUNCOMMAND_ENUMERATE(Face, face_id, allFaces())
@@ -103,6 +102,8 @@ void FemModule::_buildMatrixCooGPU()
     _fillDiagonal(nb_edge, allNodes());
   }
   else if (options()->createEdges()) { // 3D mesh without node-node connectivity
+    info() << "_buildMatrixCooGPU for 3D mesh with edge-node connectivity";
+
     IndexedEdgeNodeConnectivityView edge_node_connectivity_view = m_connectivity_view.edgeNode();
 
     command << RUNCOMMAND_ENUMERATE(Edge, edge_id, allEdges())
@@ -114,20 +115,64 @@ void FemModule::_buildMatrixCooGPU()
     _fillDiagonal(nb_edge, allNodes());
   }
   else { // 3D mesh with node-node connectivity
-    IndexedNodeNodeConnectivityView nn_cv;
+    info() << "_buildMatrixCooGPU for 3D mesh with node-node connectivity";
+
     auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
     ARCANE_CHECK_POINTER(connectivity_ptr);
-    nn_cv = connectivity_ptr->view();
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    IndexedNodeNodeConnectivityView nn_cv = connectivity_ptr->view();
 
-    ENUMERATE_NODE (inode, allNodes()) {
-      Node node = *inode;
-      DoFLocalId dof = node_dof.dofId(node, 0);
+    if (queue->isAcceleratorPolicy()) {
+      info() << "Using accelerated version of _buildMatrixCooGPU";
 
-      m_csr_matrix.setCoordinates(dof, node_dof.dofId(node, 0));
+      // This array will contain the number of neighbors of each node
+      // (type uint is enough for counting neighbors).
+      NumArray<uint, MDDim1> nb_neighbor_arr;
+      nb_neighbor_arr.resize(nbNode());
+      auto inout_nb_neighbor_arr = viewInOut(command, nb_neighbor_arr);
 
-      for (NodeLocalId other_node : nn_cv.nodeIds(node))
-        m_csr_matrix.setCoordinates(dof, node_dof.dofId(other_node, 0));
+      command << RUNCOMMAND_ENUMERATE(Node, node_idx, allNodes())
+      {
+        inout_nb_neighbor_arr[node_idx] = nn_cv.nbNode(node_idx) + 1;
+        // We add 1 to count the node's relation with itself.
+      };
+
+      // Do the exclusive cumulative sum of the neighbors array
+      SmallSpan<uint> input = nb_neighbor_arr.to1DSmallSpan();
+      NumArray<uint, MDDim1> tmp_output;
+      tmp_output.resize(nbNode());
+      SmallSpan<uint> output = tmp_output.to1DSmallSpan();
+      Accelerator::Scanner<uint> scanner;
+      scanner.exclusiveSum(queue, input, output);
+
+      // Fill the neighbors relation (including node with itself) into the matrix
+      command << RUNCOMMAND_ENUMERATE(Node, node_idx, allNodes())
+      {
+        Int32 offset = output[node_idx];
+
+        for (NodeLocalId other_node_idx : nn_cv.nodeIds(node_idx)) {
+          inout_m_matrix_row[offset] = node_idx;
+          inout_m_matrix_column[offset] = other_node_idx;
+          ++offset;
+        }
+
+        inout_m_matrix_row[offset] = node_idx;
+        inout_m_matrix_column[offset] = node_idx;
+      };
+    }
+    else {
+      info() << "Using unaccelerated version of _buildMatrixCooGPU";
+
+      auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+      ENUMERATE_NODE (inode, allNodes()) {
+        Node node = *inode;
+        DoFLocalId dof = node_dof.dofId(node, 0);
+
+        m_coo_matrix.setCoordinates(dof, node_dof.dofId(node, 0));
+
+        for (NodeLocalId other_node : nn_cv.nodeIds(node))
+          m_coo_matrix.setCoordinates(dof, node_dof.dofId(other_node, 0));
+      }
     }
   }
 
