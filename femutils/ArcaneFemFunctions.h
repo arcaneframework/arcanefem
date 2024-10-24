@@ -125,9 +125,11 @@ class ArcaneFemFunctions
       Real3 n0 = node_coord[item.nodeId(0)];
       Real3 n1 = node_coord[item.nodeId(1)];
       Real3 n2 = node_coord[item.nodeId(2)];
+      Real3 n3 = node_coord[item.nodeId(3)];
 
-      auto v = math::cross(n1 - n0,n2 - n0);
-      return v.normL2();
+      auto tri1x2 = math::cross(n1 - n0,n2 - n0);
+      auto tri2x2 = math::cross(n0 - n3,n2 - n3);
+      return 0.5*(tri1x2.normL2() + tri2x2.normL2());
     }
 
     /*---------------------------------------------------------------------------*/
