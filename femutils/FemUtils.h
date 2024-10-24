@@ -281,6 +281,151 @@ matrixTranspose(const FixedMatrix<N, M>& a)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
+ * \brief Vector N de taille fixe.
+ */
+template <int N>
+class FixedVector{
+  using ThatClass = FixedVector<N>;
+
+ public:
+
+  static constexpr Arcane::Int32 totalNbElement() { return N; }
+
+ public:
+
+  Arcane::Real& operator()(Arcane::Int32 i)  {
+    ARCANE_CHECK_AT(i, N);
+    return m_values[i];
+  }
+
+  Arcane::Real operator()(Arcane::Int32 i) const  {
+    ARCANE_CHECK_AT(i, N);
+    return m_values[i];
+  }
+
+ public:
+
+  //! Multiply all the components by \a v
+  void multInPlace(Arcane::Real v)  {
+    for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
+      m_values[i] *= v;
+  }
+
+  //! Add \a v to all the components
+  void addInPlace(Arcane::Real v)  {
+    for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
+      m_values[i] += v;
+  }
+
+  //! Dump values
+  void dump(std::ostream& o) const  {
+    const ThatClass& values = *this;
+    for (Arcane::Int32 i = 0; i < N; ++i) {
+      o << "[ ";
+      o << values(i);
+      o << "]\n";
+    }
+  }
+
+  //! Set this vector equal to b
+  void setEqualTo(const FixedVector<N>& b)  {
+    ARCANE_CHECK_AT(totalNbElement(), N);
+    for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
+      m_values[i] = b[i];
+  }
+
+  //! Add b to this vector
+  void add(const FixedVector<N>& b)  {
+    ARCANE_CHECK_AT(totalNbElement(), N);
+    for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
+      m_values[i] += b[i];
+  }
+
+  //! Substract b to this vector
+  void sub(const FixedVector<N>& b)  {
+    ARCANE_CHECK_AT(totalNbElement(), N);
+    for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
+      m_values[i] -= b[i];
+  }
+
+ private:
+
+  std::array<Arcane::Real, totalNbElement()> m_values = {};
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+// Tensor: used for symmetric 2nd-order tensors (useful for stresses, strains)
+// Storage in vectorial form (xx yy zz xy yz zx)
+using Tensor= FixedVector<6>;
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+inline Real
+trace(const Tensor& b){
+  return  (b(0) + b(1) + b(3));
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+inline Tensor
+operator+(const Tensor& t1,const Tensor& t2) {
+  Tensor new_vector;
+
+  for (Int32 i = 0; i < 6; ++i) {
+    new_vector(i) = t1(i) + t2(i);
+  }
+  return new_vector;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+inline Tensor
+operator-(const Tensor& t1,const Tensor& t2) {
+  Tensor new_vector;
+
+  for (Int32 i = 0; i < 6; ++i) {
+    new_vector(i) = t1(i) - t2(i);
+  }
+  return new_vector;
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+inline Real3
+tensorDiagonal(const Tensor& m) { // xx yy zz
+  return {m(0), m(1), m(2) };
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+inline Real3
+tensorOutDiagonal(const Tensor& m) { // xy yz xz
+  return {m(3), m(4), m(5) };
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+inline Real3x3
+tensorToMatrix3x3(const Tensor& m){
+  Real3x3 mat;
+  for (Int32 i = 0; i < 3; ++i) mat[i][i] = m(i);
+  mat[0][1] = mat[1][0] = m(3);
+  mat[0][2] = mat[2][0] = m(4);
+  mat[1][2] = mat[2][1] = m(5);
+  return mat;
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+inline Tensor
+matrix3x3ToTensor(const Real3x3& m){
+  Tensor t;
+  for (Int32 i = 0; i < 3; ++i) t(i) = m[i][i];
+  t(3) = m[0][1];
+  t(4) = m[0][2];
+  t(5) = m[2][1];
+  return t;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*!
  * \brief Convert a dense matrix to an Arcane sequential CSR Matrix.
  */
 extern "C++" void
