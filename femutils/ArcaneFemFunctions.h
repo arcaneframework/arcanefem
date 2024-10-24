@@ -56,24 +56,18 @@ class ArcaneFemFunctions
 
     /* ef: needing to compute with different entity inputs (face or cell) */
     /* static inline Real computeVolumeTetra4(Cell cell, const VariableNodeReal3& node_coord)*/
-    static inline Real computeVolumeTetra4(const ItemWithNodes& item, const VariableNodeReal3& node_coord)
+    static inline Real computeVolumeTetra4(ItemWithNodes item, const VariableNodeReal3& node_coord)
     {
-/*
-      Real3 vertex0 = node_coord[cell.node(0)];
-      Real3 vertex1 = node_coord[cell.node(1)];
-      Real3 vertex2 = node_coord[cell.node(2)];
-      Real3 vertex3 = node_coord[cell.node(3)];
-*/
-      const Real3& vertex0 = node_coord[item.node(0)];
-      const Real3& vertex1 = node_coord[item.node(1)];
-      const Real3& vertex2 = node_coord[item.node(2)];
-      const Real3& vertex3 = node_coord[item.node(3)];
+      Real3 vertex0 = node_coord[item.nodeId(0)];
+      Real3 vertex1 = node_coord[item.nodeId(1)];
+      Real3 vertex2 = node_coord[item.nodeId(2)];
+      Real3 vertex3 = node_coord[item.nodeId(3)];
 
       Real3 v0 = vertex1 - vertex0;
       Real3 v1 = vertex2 - vertex0;
       Real3 v2 = vertex3 - vertex0;
 
-      return std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2))) / 6.0;
+      return math::abs(math::dot(v0, math::cross(v1, v2))) / 6.0;
     }
 
     /*---------------------------------------------------------------------------*/
@@ -88,18 +82,18 @@ class ArcaneFemFunctions
 
     static inline Real computeAreaTria3(Cell cell, const VariableNodeReal3& node_coord)
     {
-      Real3 vertex0 = node_coord[cell.node(0)];
-      Real3 vertex1 = node_coord[cell.node(1)];
-      Real3 vertex2 = node_coord[cell.node(2)];
+      Real3 vertex0 = node_coord[cell.nodeId(0)];
+      Real3 vertex1 = node_coord[cell.nodeId(1)];
+      Real3 vertex2 = node_coord[cell.nodeId(2)];
 
       return 0.5 * ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
     }
 
     // ef: needing to compute with different entity inputs (face or cell)
-    static inline Real Tri3Surface(const ItemWithNodes& item,const VariableNodeReal3& node_coord){
-      const Real3& n0 = node_coord[item.node(0)];
-      const Real3& n1 = node_coord[item.node(1)];
-      const Real3& n2 = node_coord[item.node(2)];
+    static inline Real tri3Surface(ItemWithNodes item, const VariableNodeReal3& node_coord){
+      Real3 n0 = node_coord[item.nodeId(0)];
+      Real3 n1 = node_coord[item.nodeId(1)];
+      Real3 n2 = node_coord[item.nodeId(2)];
 
       auto v = math::cross(n1 - n0,n2 - n0);
       return  0.5*v.normL2();
@@ -109,9 +103,9 @@ class ArcaneFemFunctions
     /**
      * @brief Computes the area of a quadrilateral defined by four nodes.
      *
-     * This method calculates the area of a quadrilateral by breaking it down 
-     * into two triangles and using the determinant formula. The area is computed 
-     * as half the value of the determinant of the matrix formed by the coordinates 
+     * This method calculates the area of a quadrilateral by breaking it down
+     * into two triangles and using the determinant formula. The area is computed
+     * as half the value of the determinant of the matrix formed by the coordinates
      * of the quadrilateral's vertices.
      */
     /*---------------------------------------------------------------------------*/
@@ -127,10 +121,10 @@ class ArcaneFemFunctions
     }
 
     // ef: needing to compute with different entity inputs (face or cell)
-    static inline Real Quad4Surface(const ItemWithNodes& item,const VariableNodeReal3& n){
-      const Real3& n0 = n[item.node(0)];
-      const Real3& n1 = n[item.node(1)];
-      const Real3& n2 = n[item.node(2)];
+    static inline Real quad4Surface(ItemWithNodes item, const VariableNodeReal3& node_coord){
+      Real3 n0 = node_coord[item.nodeId(0)];
+      Real3 n1 = node_coord[item.nodeId(1)];
+      Real3 n2 = node_coord[item.nodeId(2)];
 
       auto v = math::cross(n1 - n0,n2 - n0);
       return v.normL2();
@@ -142,15 +136,15 @@ class ArcaneFemFunctions
      *
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real Hexa8Volume(const ItemWithNodes& item,const VariableNodeReal3& n){
-      const Real3& n0 = n[item.node(0)];
-      const Real3& n1 = n[item.node(1)];
-      const Real3& n2 = n[item.node(2)];
-      const Real3& n3 = n[item.node(3)];
-      const Real3& n4 = n[item.node(4)];
-      const Real3& n5 = n[item.node(5)];
-      const Real3& n6 = n[item.node(6)];
-      const Real3& n7 = n[item.node(7)];
+    static inline Real hexa8Volume(ItemWithNodes item, const VariableNodeReal3& node_coord){
+      Real3 n0 = node_coord[item.nodeId(0)];
+      Real3 n1 = node_coord[item.nodeId(1)];
+      Real3 n2 = node_coord[item.nodeId(2)];
+      Real3 n3 = node_coord[item.nodeId(3)];
+      Real3 n4 = node_coord[item.nodeId(4)];
+      Real3 n5 = node_coord[item.nodeId(5)];
+      Real3 n6 = node_coord[item.nodeId(6)];
+      Real3 n7 = node_coord[item.nodeId(7)];
 
       Real v1 = math::matDet((n6 - n1) + (n7 - n0), n6 - n3, n2 - n0);
       Real v2 = math::matDet(n7 - n0, (n6 - n3) + (n5 - n0), n6 - n4);
@@ -166,13 +160,13 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real Penta6Volume(const ItemWithNodes& item,const VariableNodeReal3& n){
-      const Real3& n0 = n[item.node(0)];
-      const Real3& n1 = n[item.node(1)];
-      const Real3& n2 = n[item.node(2)];
-      const Real3& n3 = n[item.node(3)];
-      const Real3& n4 = n[item.node(4)];
-      const Real3& n5 = n[item.node(5)];
+    static inline Real penta6Volume(ItemWithNodes item, const VariableNodeReal3& node_coord){
+      Real3 n0 = node_coord[item.nodeId(0)];
+      Real3 n1 = node_coord[item.nodeId(1)];
+      Real3 n2 = node_coord[item.nodeId(2)];
+      Real3 n3 = node_coord[item.nodeId(3)];
+      Real3 n4 = node_coord[item.nodeId(4)];
+      Real3 n5 = node_coord[item.nodeId(5)];
 
       auto v = math::cross(n1 - n0,n2 - n0);
       auto base = 0.5*v.normL2();
@@ -190,13 +184,13 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real Pyramid5Volume(const ItemWithNodes& item,const VariableNodeReal3& n){
-      const Real3& n0 = n[item.node(0)];
-      const Real3& n1 = n[item.node(1)];
-      const Real3& n2 = n[item.node(2)];
-      const Real3& n3 = n[item.node(3)];
-      const Real3& n4 = n[item.node(4)];
-      const Real3& n5 = n[item.node(5)];
+    static inline Real pyramid5Volume(ItemWithNodes item, const VariableNodeReal3& node_coord){
+      Real3 n0 = node_coord[item.nodeId(0)];
+      Real3 n1 = node_coord[item.nodeId(1)];
+      Real3 n2 = node_coord[item.nodeId(2)];
+      Real3 n3 = node_coord[item.nodeId(3)];
+      Real3 n4 = node_coord[item.nodeId(4)];
+      Real3 n5 = node_coord[item.nodeId(5)];
 
       auto v = math::cross(n1 - n0,n2 - n0);
       auto base = 0.5*v.normL2();
@@ -249,10 +243,10 @@ class ArcaneFemFunctions
 
       return math::sqrt(dx * dx + dy * dy);
       }*/
-    static inline Real computeLengthEdge2(const ItemWithNodes& item, const VariableNodeReal3& node_coord)
+    static inline Real computeLengthEdge2(ItemWithNodes item, const VariableNodeReal3& node_coord)
     {
-      const Real3& vertex0 = node_coord[item.node(0)];
-      const Real3& vertex1 = node_coord[item.node(1)];
+      Real3 vertex0 = node_coord[item.nodeId(0)];
+      Real3 vertex1 = node_coord[item.nodeId(1)];
       return (vertex1-vertex0).normL2();
     }
 
@@ -265,10 +259,10 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real2 computeNormalEdge2(const Face& face, const VariableNodeReal3& node_coord)
+    static inline Real2 computeNormalEdge2(Face face, const VariableNodeReal3& node_coord)
     {
-      Real3 vertex0 = node_coord[face.node(0)];
-      Real3 vertex1 = node_coord[face.node(1)];
+      Real3 vertex0 = node_coord[face.nodeId(0)];
+      Real3 vertex1 = node_coord[face.nodeId(1)];
 
       if (!face.isSubDomainBoundaryOutside())
         std::swap(vertex0, vertex1);
@@ -288,7 +282,7 @@ class ArcaneFemFunctions
      * the associated factor for elementary integrals.
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real computeFacLengthOrArea(const Face& face, const VariableNodeReal3& node_coord)
+    static inline Real computeFacLengthOrArea(Face face, const VariableNodeReal3& node_coord)
     {
       Int32 item_type = face.type();
       Real fac_el{0.};
@@ -304,12 +298,12 @@ class ArcaneFemFunctions
       // Faces
       case IT_Triangle3:
       case IT_Triangle6:
-        fac_el = Tri3Surface(face, node_coord) / 3.;
+        fac_el = tri3Surface(face, node_coord) / 3.;
         break;
 
       case IT_Quad4:
       case IT_Quad8:
-        fac_el = Quad4Surface(face, node_coord) / 4.;
+        fac_el = quad4Surface(face, node_coord) / 4.;
         break;
 
       default:
@@ -325,9 +319,10 @@ class ArcaneFemFunctions
      * for jacobians & elementary matrices computations
      */
     /*---------------------------------------------------------------------------*/
-    static inline Int32 getGeomDimension(const ItemWithNodes& item){
-      Int32 item_type = item.type();
-      Int32 dim = 1; // default geometric dimension is 1D (Line2 and Line3 finite-elements)
+    static inline Int32 getGeomDimension(ItemWithNodes item){
+      /*
+      Int16 item_type = item.type();
+      Integer dim = 1; // default geometric dimension is 1D (Line2 and Line3 finite-elements)
 
       switch(item_type) {
 
@@ -350,6 +345,8 @@ class ArcaneFemFunctions
 
       }
       return dim;
+*/
+      return item.typeInfo()->dimension();
     }
 
     /*---------------------------------------------------------------------------*/
@@ -360,10 +357,10 @@ class ArcaneFemFunctions
      * In 2D, it assumes the edge lies in x-y plane (z coord = 0.)
      */
     /*---------------------------------------------------------------------------*/
-    static inline void DirVectors(const Face& face,const VariableNodeReal3& n, const Int32& ndim, Real3& e1, Real3& e2, Real3& e3){
+    static inline void dirVectors(Face face, const VariableNodeReal3& node_coord, Integer ndim, Real3& e1, Real3& e2, Real3& e3){
 
-      Real3 n0 = n[face.node(0)];
-      Real3 n1 = n[face.node(1)];
+      Real3 n0 = node_coord[face.nodeId(0)];
+      Real3 n1 = node_coord[face.nodeId(1)];
 
       if (!face.isSubDomainBoundaryOutside())
         std::swap(n0, n1);
@@ -373,7 +370,7 @@ class ArcaneFemFunctions
 
       if (ndim == 3) {
 
-        const Real3& n2 = n[face.node(2)];
+        Real3 n2 = node_coord[face.nodeId(2)];
 
         // out Normal to the face plane
         e3 = math::cross(e1, n2 - n0);
@@ -397,7 +394,7 @@ class ArcaneFemFunctions
         // Out Normal to the edge
         e2 = { -e1.y, e1.x, 0. };
 
-        const Real3& n2 = n[nod];
+        Real3 n2 = node_coord[nod];
         auto sgn = math::dot(e2,n2 - n0);
         if (sgn > 0.) e2 *= -1.;
       }
@@ -446,7 +443,7 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real3 computeGradientTria3(Cell cell, const VariableNodeReal3& node_coord, const VariableNodeReal& u)
+    static inline Real3 computeGradientTria3(Cell cell, const VariableNodeReal3& node_coord, VariableNodeReal u)
     {
       Real3 n0 = node_coord[cell.nodeId(0)];
       Real3 n1 = node_coord[cell.nodeId(1)];
@@ -481,7 +478,7 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real3x3 computeGradientTria3(const Cell& cell, const VariableNodeReal3& node_coord)
+    static inline Real3x3 computeGradientTria3(Cell cell, const VariableNodeReal3& node_coord)
     {
       Real3 vertex0 = node_coord[cell.nodeId(0)];
       Real3 vertex1 = node_coord[cell.nodeId(1)];
@@ -490,8 +487,8 @@ class ArcaneFemFunctions
       Real A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
 
       return {Real3((vertex1.y - vertex2.y) / A2, (vertex2.x - vertex1.x) / A2, 0),
-                     Real3((vertex2.y - vertex0.y) / A2, (vertex0.x - vertex2.x) / A2, 0),
-                     Real3((vertex0.y - vertex1.y) / A2, (vertex1.x - vertex0.x) / A2, 0)};
+               Real3((vertex2.y - vertex0.y) / A2, (vertex0.x - vertex2.x) / A2, 0),
+               Real3((vertex0.y - vertex1.y) / A2, (vertex1.x - vertex0.x) / A2, 0)};
     }
 
     /*---------------------------------------------------------------------------*/
@@ -508,11 +505,11 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real3 computeGradientXTria3(const Cell& cell, const VariableNodeReal3& node_coord)
+    static inline Real3 computeGradientXTria3(Cell cell, const VariableNodeReal3& node_coord)
     {
-      const Real3& vertex0 = node_coord[cell.node(0)];
-      const Real3& vertex1 = node_coord[cell.node(1)];
-      const Real3& vertex2 = node_coord[cell.node(2)];
+      Real3 vertex0 = node_coord[cell.nodeId(0)];
+      Real3 vertex1 = node_coord[cell.nodeId(1)];
+      Real3 vertex2 = node_coord[cell.nodeId(2)];
 
       auto A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
 
@@ -533,11 +530,11 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real3 computeGradientYTria3(const Cell& cell, const VariableNodeReal3& node_coord)
+    static inline Real3 computeGradientYTria3(Cell cell, VariableNodeReal3 node_coord)
     {
-      const Real3& vertex0 = node_coord[cell.node(0)];
-      const Real3& vertex1 = node_coord[cell.node(1)];
-      const Real3& vertex2 = node_coord[cell.node(2)];
+      Real3 vertex0 = node_coord[cell.nodeId(0)];
+      Real3 vertex1 = node_coord[cell.nodeId(1)];
+      Real3 vertex2 = node_coord[cell.nodeId(2)];
 
       auto A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
 
@@ -558,12 +555,12 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline  Real4 computeGradientXQuad4(const Cell& cell, const VariableNodeReal3& node_coord)
+    static inline  Real4 computeGradientXQuad4(Cell cell, const VariableNodeReal3& node_coord)
     {
-      const Real3& vertex0 = node_coord[cell.node(0)];
-      const Real3& vertex1 = node_coord[cell.node(1)];
-      const Real3& vertex2 = node_coord[cell.node(2)];
-      const Real3& vertex3 = node_coord[cell.node(3)];
+      Real3 vertex0 = node_coord[cell.nodeId(0)];
+      Real3 vertex1 = node_coord[cell.nodeId(1)];
+      Real3 vertex2 = node_coord[cell.nodeId(2)];
+      Real3 vertex3 = node_coord[cell.nodeId(3)];
 
       auto A2 = ((vertex1.x * vertex2.y + vertex2.x * vertex3.y + vertex3.x * vertex0.y + vertex0.x * vertex1.y) - (vertex2.x * vertex1.y + vertex3.x * vertex2.y + vertex0.x * vertex3.y + vertex1.x * vertex0.y));
 
@@ -572,13 +569,13 @@ class ArcaneFemFunctions
       dx[0] = (vertex2.y - vertex3.y) / A2;
       dx[1] = (vertex3.y - vertex0.y) / A2;
       dx[2] = (vertex0.y - vertex1.y) / A2;
-      dx[3] = (vertex1.y - vertex2.y) / A2;  
+      dx[3] = (vertex1.y - vertex2.y) / A2;
 
       return dx;
     }
 
-    /*---------------------------------------------------------------------------*
-    /**
+    /*---------------------------------------------------------------------------*/
+    /*
      * @brief Computes the Y gradients of basis functions N for P1 Quad.
      *
      * This method calculates gradient operator ∂/∂y of Ni for a given P1
@@ -591,17 +588,17 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline  Real4 computeGradientYQuad4(const Cell& cell, const VariableNodeReal3& node_coord)
+    static inline  Real4 computeGradientYQuad4(Cell cell, const VariableNodeReal3& node_coord)
     {
-      const Real3& vertex0 = node_coord[cell.nodeId(0)];
-      const Real3& vertex1 = node_coord[cell.nodeId(1)];
-      const Real3& vertex2 = node_coord[cell.nodeId(2)];
-      const Real3& vertex3 = node_coord[cell.nodeId(3)];
+      Real3 vertex0 = node_coord[cell.nodeId(0)];
+      Real3 vertex1 = node_coord[cell.nodeId(1)];
+      Real3 vertex2 = node_coord[cell.nodeId(2)];
+      Real3 vertex3 = node_coord[cell.nodeId(3)];
 
       Real A2 = ((vertex1.x * vertex2.y + vertex2.x * vertex3.y + vertex3.x * vertex0.y + vertex0.x * vertex1.y) - (vertex2.x * vertex1.y + vertex3.x * vertex2.y + vertex0.x * vertex3.y + vertex1.x * vertex0.y));
 
       Real4 dy{};
-      
+
       dy[0] = (vertex3.x - vertex2.x) / A2;
       dy[1] = (vertex0.x - vertex3.x) / A2;
       dy[2] = (vertex1.x - vertex0.x) / A2;
@@ -623,7 +620,7 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real3x3 computeUVTria3(const Cell& cell, const VariableNodeReal3& node_coord)
+    static inline Real3x3 computeUVTria3(Cell /*cell*/, const VariableNodeReal3& /*node_coord*/)
     {
       Real aii = 1. / 6.;
       Real aij = 1. / 12.;
@@ -692,13 +689,13 @@ class ArcaneFemFunctions
       dx[0] = (vertex1.y * (vertex3.z - vertex2.z) + vertex2.y * (vertex1.z - vertex3.z) + vertex3.y * (vertex2.z - vertex1.z))/V6;
       dx[1] = (vertex0.y * (vertex2.z - vertex3.z) + vertex2.y * (vertex3.z - vertex0.z) + vertex3.y * (vertex0.z - vertex2.z))/V6;
       dx[2] = (vertex0.y * (vertex3.z - vertex1.z) + vertex1.y * (vertex0.z - vertex3.z) + vertex3.y * (vertex1.z - vertex0.z))/V6;
-      dx[3] = (vertex0.y * (vertex1.z - vertex2.z) + vertex1.y * (vertex2.z - vertex0.z) + vertex2.y * (vertex0.z - vertex1.z))/V6; 
+      dx[3] = (vertex0.y * (vertex1.z - vertex2.z) + vertex1.y * (vertex2.z - vertex0.z) + vertex2.y * (vertex0.z - vertex1.z))/V6;
 
       return dx;
     }
 
     /*-------------------------------------------------------------------------*/
-/**
+    /**
  * @brief Computes the Y gradients of basis functions N for P1 Tetrahedron.
  *
  * This method calculates gradient operator ∂/∂y of Ni for a given P1
@@ -716,34 +713,34 @@ class ArcaneFemFunctions
  *    c3 = (m0.z * (m1.x - m2.x) + m1.z * (m2.x - m0.x) + m2.z * (m0.x - m1.x)).
  *
  */
-/*-------------------------------------------------------------------------*/
+    /*-------------------------------------------------------------------------*/
 
-static inline Real4 computeGradientYTetra4(Cell cell, const VariableNodeReal3& node_coord)
-{
-  Real3 vertex0 = node_coord[cell.nodeId(0)];
-  Real3 vertex1 = node_coord[cell.nodeId(1)];
-  Real3 vertex2 = node_coord[cell.nodeId(2)];
-  Real3 vertex3 = node_coord[cell.nodeId(3)];
+    static inline Real4 computeGradientYTetra4(Cell cell, const VariableNodeReal3& node_coord)
+    {
+      Real3 vertex0 = node_coord[cell.nodeId(0)];
+      Real3 vertex1 = node_coord[cell.nodeId(1)];
+      Real3 vertex2 = node_coord[cell.nodeId(2)];
+      Real3 vertex3 = node_coord[cell.nodeId(3)];
 
-  Real3 v0 = vertex1 - vertex0;
-  Real3 v1 = vertex2 - vertex0;
-  Real3 v2 = vertex3 - vertex0;
+      Real3 v0 = vertex1 - vertex0;
+      Real3 v1 = vertex2 - vertex0;
+      Real3 v2 = vertex3 - vertex0;
 
-  // 6 x Volume of tetrahedron
-  Real V6 = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
+      // 6 x Volume of tetrahedron
+      Real V6 = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
 
-  Real4 dy{};
+      Real4 dy{};
 
-  dy[0] = (vertex1.z * (vertex3.x - vertex2.x) + vertex2.z * (vertex1.x - vertex3.x) + vertex3.z * (vertex2.x - vertex1.x))/V6;
-  dy[1] = (vertex0.z * (vertex2.x - vertex3.x) + vertex2.z * (vertex3.x - vertex0.x) + vertex3.z * (vertex0.x - vertex2.x))/V6;
-  dy[2] = (vertex0.z * (vertex3.x - vertex1.x) + vertex1.z * (vertex0.x - vertex3.x) + vertex3.z * (vertex1.x - vertex0.x))/V6;
-  dy[3] = (vertex0.z * (vertex1.x - vertex2.x) + vertex1.z * (vertex2.x - vertex0.x) + vertex2.z * (vertex0.x - vertex1.x))/V6;
+      dy[0] = (vertex1.z * (vertex3.x - vertex2.x) + vertex2.z * (vertex1.x - vertex3.x) + vertex3.z * (vertex2.x - vertex1.x))/V6;
+      dy[1] = (vertex0.z * (vertex2.x - vertex3.x) + vertex2.z * (vertex3.x - vertex0.x) + vertex3.z * (vertex0.x - vertex2.x))/V6;
+      dy[2] = (vertex0.z * (vertex3.x - vertex1.x) + vertex1.z * (vertex0.x - vertex3.x) + vertex3.z * (vertex1.x - vertex0.x))/V6;
+      dy[3] = (vertex0.z * (vertex1.x - vertex2.x) + vertex1.z * (vertex2.x - vertex0.x) + vertex2.z * (vertex0.x - vertex1.x))/V6;
 
-  return dy;
-}
+      return dy;
+    }
 
-/*-------------------------------------------------------------------------*/
-/**
+    /*-------------------------------------------------------------------------*/
+    /**
  * @brief Computes the Z gradients of basis functions N for P1 Tetrahedron.
  *
  * This method calculates gradient operator ∂/∂z of Ni for a given P1
@@ -761,31 +758,31 @@ static inline Real4 computeGradientYTetra4(Cell cell, const VariableNodeReal3& n
  *    d3 = (m0.x * (m1.y - m2.y) + m1.x * (m2.y - m0.y) + m2.x * (m0.y - m1.y)).
  *
  */
-/*-------------------------------------------------------------------------*/
+    /*-------------------------------------------------------------------------*/
 
-static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeReal3& node_coord)
-{
-  const Real3& vertex0 = node_coord[cell.nodeId(0)];
-  const Real3& vertex1 = node_coord[cell.nodeId(1)];
-  const Real3& vertex2 = node_coord[cell.nodeId(2)];
-  const Real3& vertex3 = node_coord[cell.nodeId(3)];
+    static inline Real4 computeGradientZTetra4(Cell cell, const VariableNodeReal3& node_coord)
+    {
+      Real3 vertex0 = node_coord[cell.nodeId(0)];
+      Real3 vertex1 = node_coord[cell.nodeId(1)];
+      Real3 vertex2 = node_coord[cell.nodeId(2)];
+      Real3 vertex3 = node_coord[cell.nodeId(3)];
 
-  auto v0 = vertex1 - vertex0;
-  auto v1 = vertex2 - vertex0;
-  auto v2 = vertex3 - vertex0;
+      auto v0 = vertex1 - vertex0;
+      auto v1 = vertex2 - vertex0;
+      auto v2 = vertex3 - vertex0;
 
-  // 6 x Volume of tetrahedron
-  Real V6 = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
+      // 6 x Volume of tetrahedron
+      Real V6 = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
 
-  Real4 dz{};
+      Real4 dz{};
 
-  dz[0] = (vertex1.x * (vertex3.y - vertex2.y) + vertex2.x * (vertex1.y - vertex3.y) + vertex3.x * (vertex2.y - vertex1.y))/V6;
-  dz[1] = (vertex0.x * (vertex2.y - vertex3.y) + vertex2.x * (vertex3.y - vertex0.y) + vertex3.x * (vertex0.y - vertex2.y))/V6;
-  dz[2] = (vertex0.x * (vertex3.y - vertex1.y) + vertex1.x * (vertex0.y - vertex3.y) + vertex3.x * (vertex1.y - vertex0.y))/V6;
-  dz[3] = (vertex0.x * (vertex1.y - vertex2.y) + vertex1.x * (vertex2.y - vertex0.y) + vertex2.x * (vertex0.y - vertex1.y))/V6;
+      dz[0] = (vertex1.x * (vertex3.y - vertex2.y) + vertex2.x * (vertex1.y - vertex3.y) + vertex3.x * (vertex2.y - vertex1.y))/V6;
+      dz[1] = (vertex0.x * (vertex2.y - vertex3.y) + vertex2.x * (vertex3.y - vertex0.y) + vertex3.x * (vertex0.y - vertex2.y))/V6;
+      dz[2] = (vertex0.x * (vertex3.y - vertex1.y) + vertex1.x * (vertex0.y - vertex3.y) + vertex3.x * (vertex1.y - vertex0.y))/V6;
+      dz[3] = (vertex0.x * (vertex1.y - vertex2.y) + vertex1.x * (vertex2.y - vertex0.y) + vertex2.x * (vertex0.y - vertex1.y))/V6;
 
-  return dz;
-}
+      return dz;
+    }
 
   };
 
@@ -805,8 +802,8 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
     /**
      * @brief Applies a constant source term to the RHS vector.
      *
-     * This method adds a constant source term `qdot` to the RHS vector for each 
-     * node in the mesh. The contribution to each node is weighted by the area of 
+     * This method adds a constant source term `qdot` to the RHS vector for each
+     * node in the mesh. The contribution to each node is weighted by the area of
      * the cell and evenly distributed among the number of nodes of the cell.
      *
      * @param [IN]  qdot       : The constant source term.
@@ -817,7 +814,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline void applyConstantSourceToRhs(const Real& qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    static inline void applyConstantSourceToRhs(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
     {
       ENUMERATE_ (Cell, icell, mesh->allCells()) {
         Cell cell = *icell;
@@ -833,8 +830,8 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
     /**
      * @brief Applies a manufactured source term to the RHS vector.
      *
-     * This method adds a manufactured source term to the RHS vector for each 
-     * node in the mesh. The contribution to each node is weighted by the area of 
+     * This method adds a manufactured source term to the RHS vector for each
+     * node in the mesh. The contribution to each node is weighted by the area of
      * the cell and evenly distributed among the nodes of the cell.
      *
      * @param [IN]  qdot       : The constant source term.
@@ -882,8 +879,12 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       Real valueX = 0.0;
       Real valueY = 0.0;
       bool hasValue = bs->hasValue();
+      /*
       bool hasValueX = bs->getValueX();
       bool hasValueY = bs->getValueY();
+*/
+      bool hasValueX = bs->hasValueX();
+      bool hasValueY = bs->hasValueY();
 
       if (hasValue) {
         value = bs->getValue();
@@ -904,7 +905,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
         for (Node node : iface->nodes()) {
           if (!node.isOwn())
             continue;
-          Real rhs_value = 0.0;
+          Real rhs_value;
 
           if (hasValue) {
             rhs_value = value * length / 2.0;
@@ -934,7 +935,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
      * @param [OUT] rhs_values RHS  : RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
-    static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
+    static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& /*node_coord*/, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
     {
       FaceGroup group = bs->getSurface();
       Real value = bs->getValue();
@@ -967,7 +968,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
      * @param [OUT] rhs_values RHS  : RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
-    static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
+    static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& /*node_coord*/, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
     {
       NodeGroup group = bs->getNode();
       Real value = bs->getValue();
@@ -1001,7 +1002,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
      * @param [OUT] rhs_values RHS  : RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
-    static inline void applyManufacturedDirichletToLhsAndRhs(IBinaryMathFunctor<Real, Real3, Real>* manufactured_dirichlet, const Real& lambda, const FaceGroup& group, BC::IManufacturedSolution* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
+    static inline void applyManufacturedDirichletToLhsAndRhs(IBinaryMathFunctor<Real, Real3, Real>* manufactured_dirichlet, Real /*lambda*/, const FaceGroup& group, BC::IManufacturedSolution* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
     {
       Real Penalty = bs->getPenalty();
 
@@ -1030,17 +1031,17 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
 
    public:
 
-    Real getShapeFuncVal(const Int16& /*item_type*/, const Int32& /*inod*/, const Real3& /*ref coord*/);
-    Real3 getShapeFuncDeriv(const Int16& /*item_type*/, const Int32& /*inod*/, const Real3& /*ref coord*/);
+    Real getShapeFuncVal(Int16 /*item_type*/, Integer /*inod*/, Real3 /*ref coord*/);
+    Real3 getShapeFuncDeriv(Int16 /*item_type*/, Integer /*inod*/, Real3 /*ref coord*/);
 
-    RealUniqueArray getGaussData(const ItemWithNodes& item, const Integer& nint, Int32& ngauss);
+    RealUniqueArray getGaussData(ItemWithNodes item, Integer nint, Integer ngauss);
 
     CellFEMDispatcher();
 
    private:
 
-    std::function<Real(const Int32& inod, const Real3& coord)> m_shapefunc[NB_BASIC_ITEM_TYPE];
-    std::function<Real3(const Int32& inod, const Real3& coord)> m_shapefuncderiv[NB_BASIC_ITEM_TYPE];
+    std::function<Real(Integer inod, Real3 coord)> m_shapefunc[NB_BASIC_ITEM_TYPE];
+    std::function<Real3(Integer inod, Real3 coord)> m_shapefuncderiv[NB_BASIC_ITEM_TYPE];
   };
 
   /*---------------------------------------------------------------------------*/
@@ -1065,9 +1066,9 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
      * direct local numbering : 0->1
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real Line2ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
+    static inline Real line2ShapeFuncVal(Integer inod, Real3 ref_coord){
 #ifdef _DEBUG
-      assert(inod >= 0 && inod < 2);
+      ARCANE_ASSERT(inod >= 0 && inod < 2);
 #endif
 
       Real r = ref_coord[0];
@@ -1075,7 +1076,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       return (0.5*(1 - r));
     }
 
-    static inline Real3 Line2ShapeFuncDeriv(const Integer& inod,const Real3&){
+    static inline Real3 line2ShapeFuncDeriv(Integer inod,Real3){
       if (inod == 1) return { 0.5,0.,0. };
       return { -0.5,0.,0. };
     }
@@ -1090,9 +1091,9 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
      * direct local numbering : 0->1->2
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real Line3ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
+    static inline Real line3ShapeFuncVal(Integer inod, Real3 ref_coord){
 #ifdef _DEBUG
-      assert(inod >= 0 && inod < 3);
+      ARCANE_ASSERT(inod >= 0 && inod < 3);
 #endif
 
       Real ri = ref_coord[0];
@@ -1102,7 +1103,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       return (1 - ri*ri); // middle node
     }
 
-    static inline Real3 Line3ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
+    static inline Real3 line3ShapeFuncDeriv(Integer inod, Real3 ref_coord){
       Real ri = ref_coord[0];
       if (!inod) return {-0.5 + ri, 0.,0.};
       if (inod == 1) return {0.5 + ri, 0.,0.};
@@ -1125,9 +1126,9 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
      * direct local numbering : 0->1->2
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real Tri3ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
+    static inline Real tri3ShapeFuncVal(Integer inod, Real3 ref_coord){
 #ifdef _DEBUG
-      assert(inod >= 0 && inod < 3);
+      ARCANE_ASSERT(inod >= 0 && inod < 3);
 #endif
       Real r = ref_coord[0];
       Real s = ref_coord[1];
@@ -1136,7 +1137,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       return s;
     }
 
-    static inline Real3 Tri3ShapeFuncDeriv(const Integer& inod,const Real3&){
+    static inline Real3 tri3ShapeFuncDeriv(Integer inod, Real3){
       if (!inod) return {-1., -1.,0.};
       if (inod==1) return {1., 0.,0.};
       return {0., 1., 0.};
@@ -1158,9 +1159,9 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
      * direct local numbering : 0->1->2->3->4->5
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real Tri6ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
+    static inline Real tri6ShapeFuncVal(Integer inod, Real3 ref_coord){
 #ifdef _DEBUG
-      assert(inod >= 0 && inod < 6);
+      ARCANE_ASSERT(inod >= 0 && inod < 6);
 #endif
 
       if (inod < 3) return ref_coord[inod];
@@ -1175,7 +1176,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       return wi;
     }
 
-    static inline Real3 Tri6ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
+    static inline Real3 tri6ShapeFuncDeriv(Integer inod, Real3 ref_coord){
       if (!inod) return {1., 0.,0.};
       if (inod==1) return {0., 1., 0.};
       if (inod == 2) return {-1., -1.,0.};
@@ -1205,9 +1206,9 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
      * direct local numbering : 0->1->2->3
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real Quad4ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
+    static inline Real quad4ShapeFuncVal(Integer inod, Real3 ref_coord){
 #ifdef _DEBUG
-      assert(inod >= 0 && inod < 4);
+      ARCANE_ASSERT(inod >= 0 && inod < 4);
 #endif
 
       auto	r{ ref_coord[0] },s{ ref_coord[1] };
@@ -1215,7 +1216,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
 
       switch(inod){
       default: break;// default is first node (index 0)
-      case 2:	si = -1;
+      case 2:	si = -1; [[fallthrough]];
       case 1:	ri = -1; break;
 
       case 3:	si = -1; break;
@@ -1223,9 +1224,9 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       return ( (1 + ri*r)*(1 + si*s) / 4. );
     }
 
-    static inline Real3 Quad4ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
+    static inline Real3 quad4ShapeFuncDeriv(Integer inod, Real3 ref_coord){
 #ifdef _DEBUG
-      assert(inod >= 0 && inod < 4);
+      ARCANE_ASSERT(inod >= 0 && inod < 4);
 #endif
 
       auto	r{ ref_coord[0] },s{ ref_coord[1] };
@@ -1233,7 +1234,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
 
       switch(inod){
       default: break;// default is first node (index 0)
-      case 2:	si = -1;
+      case 2:	si = -1; [[fallthrough]];
       case 1:	ri = -1; break;
 
       case 3:	si = -1; break;
@@ -1263,9 +1264,9 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
      * direct local numbering :  0->1->2->...->5->6->7
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real Quad8ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
+    static inline Real quad8ShapeFuncVal(Integer inod, Real3 ref_coord){
 #ifdef _DEBUG
-      assert(inod >= 0 && inod < 8);
+      ARCANE_ASSERT(inod >= 0 && inod < 8);
 #endif
 
       auto	r{ ref_coord[0] },s{ ref_coord[1] };
@@ -1273,15 +1274,15 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
 
       switch(inod){
       default: break;// default is first node (index 0)
-      case 2:	si = -1;
+      case 2:	si = -1; [[fallthrough]];
       case 1:	ri = -1; break;
 
       case 3:	si = -1; break;
 
-      case 6:	si = -1;
+      case 6:	si = -1; [[fallthrough]];
       case 4:	ri = 0; break;
 
-      case 5:	ri = -1;
+      case 5:	ri = -1; [[fallthrough]];
       case 7:	si = 0; break;
       }
 
@@ -1301,22 +1302,22 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       return Phi;
     }
 
-    static inline Real3 Quad8ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
+    static inline Real3 quad8ShapeFuncDeriv(Integer inod, Real3 ref_coord){
 
       auto	r{ ref_coord[0] },s{ ref_coord[1] };
       auto	ri{1.},si{1.};
 
       switch(inod){
       default: break;// default is first node (index 0)
-      case 2:	si = -1;
+      case 2:	si = -1; [[fallthrough]];
       case 1:	ri = -1; break;
 
       case 3:	si = -1; break;
 
-      case 6:	si = -1;
+      case 6:	si = -1; [[fallthrough]];
       case 4:	ri = 0; break;
 
-      case 5:	ri = -1;
+      case 5:	ri = -1; [[fallthrough]];
       case 7:	si = 0; break;
       }
 
@@ -1366,9 +1367,9 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
      * direct local numbering : 0->1->2->3->4->5->6->7
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real Hexa8ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
+    static inline Real hexa8ShapeFuncVal(Integer inod, Real3 ref_coord){
 #ifdef _DEBUG
-      assert(inod >= 0 && inod < 8);
+      ARCANE_ASSERT(inod >= 0 && inod < 8);
 #endif
       auto	x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] };
       auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 7 = (1,1,1)
@@ -1393,7 +1394,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
 
     }
 
-    static inline Real3 Hexa8ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
+    static inline Real3 hexa8ShapeFuncDeriv(Integer inod, Real3 ref_coord){
 
       auto	x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] };
       auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 7 = (1,1,1)
@@ -1444,9 +1445,9 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real Hexa20ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
+    static inline Real hexa20ShapeFuncVal(Integer inod, Real3 ref_coord){
 #ifdef _DEBUG
-      assert(inod >= 0 && inod < 20);
+      ARCANE_ASSERT(inod >= 0 && inod < 20);
 #endif
       auto	x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] };
       auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
@@ -1454,30 +1455,30 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       switch(inod){
       default: break;
 
-      case 5:	ti = -1.;
+      case 5:	ti = -1.; [[fallthrough]];
       case 1: ri = -1; break;
 
-      case 6: ti = -1.;
+      case 6: ti = -1.; [[fallthrough]];
       case 2: ri = -1; si = -1; break;
 
-      case 7: ti = -1.;
+      case 7: ti = -1.; [[fallthrough]];
       case 3: si = -1; break;
 
       case 4:	ti = -1.; break;
 
-      case 9: ri = -1.;
+      case 9: ri = -1.; [[fallthrough]];
       case 11: si = 0.; break;
 
-      case 10: si = -1.;
+      case 10: si = -1.; [[fallthrough]];
       case 8: ri = 0.; break;
 
-      case 14: si = -1.;
+      case 14: si = -1.; [[fallthrough]];
       case 12: ri = 0.; ti = -1.; break;
 
-      case 17: si = -1.;
+      case 17: si = -1.; [[fallthrough]];
       case 16: ri = -1.; ti = 0.; break;
 
-      case 18: si = -1.;
+      case 18: si = -1.; [[fallthrough]];
       case 19: ti = 0.; break;
       }
 
@@ -1489,17 +1490,17 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
         Phi = (1 + r0) * (1 + s0) * (1 + t0) * t / 8.;
 
       else{  // Middle nodes
-        if (fabs(ri) < REL_PREC)
+        if (math::abs(ri) < REL_PREC)
           Phi = (1 - x*x) * (1 + s0) * (1 + t0) / 4.;
-        else if (fabs(si) < REL_PREC)
+        else if (math::abs(si) < REL_PREC)
           Phi = (1 - y*y) * (1 + r0) * (1 + t0) / 4.;
-        else if (fabs(ti) < REL_PREC)
+        else if (math::abs(ti) < REL_PREC)
           Phi = (1 - z*z) * (1 + r0) * (1 + s0) / 4.;
       }
       return Phi;
     }
 
-    static inline Real3 Hexa20ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
+    static inline Real3 hexa20ShapeFuncDeriv(Integer inod, Real3 ref_coord){
 
       auto	x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] };
       auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
@@ -1539,24 +1540,24 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       Real3 dPhi;
 
       if (inod < 8) { // Corner nodes
-        dPhi = Hexa8ShapeFuncDeriv(inod, ref_coord);
+        dPhi = hexa8ShapeFuncDeriv(inod, ref_coord);
         dPhi.x *= (t + 1. + r0);
         dPhi.y *= (t + 1. + s0);
         dPhi.z *= (t + 1. + t0);
       }
       else { // Middle nodes
         auto x2{ x * x }, y2{ y * y }, z2{ z * z };
-        if (fabs(ri) < REL_PREC) {
+        if (math::abs(ri) < REL_PREC) {
           dPhi.x = -x * (1 + s0) * (1 + t0) / 2.;
           dPhi.y = si * (1 - x2) * (1 + t0) / 4.;
           dPhi.z = ti * (1 - x2) * (1 + s0) / 4.;
         }
-        else if (fabs(si) < REL_PREC) {
+        else if (math::abs(si) < REL_PREC) {
           dPhi.x = ri * (1 - y2) * (1 + t0) / 4.;
           dPhi.y = -y * (1 + r0) * (1 + t0) / 2.;
           dPhi.z = ti * (1 - y2) * (1 + r0) / 4.;
         }
-        else if (fabs(ti) < REL_PREC) {
+        else if (math::abs(ti) < REL_PREC) {
           dPhi.x = ri * (1 - z2) * (1 + s0) / 4.;
           dPhi.y = si * (1 - z2) * (1 + r0) / 4.;
           dPhi.z = -z * (1 + r0) * (1 + s0) / 2.;
@@ -1587,9 +1588,9 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real Tetra4ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
+    static inline Real tetra4ShapeFuncVal(Integer inod, Real3 ref_coord){
 #ifdef _DEBUG
-      assert(inod >= 0 && inod < 4);
+      ARCANE_ASSERT(inod >= 0 && inod < 4);
 #endif
 
       auto	ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2]; // default is first node (index 3)
@@ -1603,7 +1604,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       return ti;
     }
 
-    static inline Real3 Tetra4ShapeFuncDeriv(const Integer& inod,const Real3& /*ref_coord*/){
+    static inline Real3 tetra4ShapeFuncDeriv(Integer inod, Real3 /*ref_coord*/){
 
       if (inod == 3) return {0.,0.,1.};
       if (inod == 1) return {1.,0.,0.};
@@ -1633,9 +1634,9 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real Tetra10ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
+    static inline Real tetra10ShapeFuncVal(Integer inod, Real3 ref_coord){
 #ifdef _DEBUG
-      assert(inod >= 0 && inod < 10);
+      ARCANE_ASSERT(inod >= 0 && inod < 10);
 #endif
 
       auto x = ref_coord[0],y = ref_coord[1],z = ref_coord[2],
@@ -1662,7 +1663,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       return wi;
     }
 
-    static inline Real3 Tetra10ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
+    static inline Real3 tetra10ShapeFuncDeriv(Integer inod, Real3 ref_coord){
       auto  x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] },
       t{ 1. - x - y - z },
       x4{ 4 * x },
@@ -1718,9 +1719,9 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real Penta6ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
+    static inline Real penta6ShapeFuncVal(Integer inod, Real3 ref_coord){
 #ifdef _DEBUG
-      assert(inod >= 0 && inod < 6);
+      ARCANE_ASSERT(inod >= 0 && inod < 6);
 #endif
       auto	r{ ref_coord[0] },s{ ref_coord[1] },t{ ref_coord[2] };
       auto	r0{1.},s0{1.}, ti{-1.};
@@ -1740,10 +1741,10 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       return 0.5 * r0 * s0 * rs * t0;
     }
 
-    static inline Real3 Penta6ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
+    static inline Real3 penta6ShapeFuncDeriv(Integer inod, Real3 ref_coord){
 
 #ifdef _DEBUG
-      assert(inod >= 0 && inod < 6);
+      ARCANE_ASSERT(inod >= 0 && inod < 6);
 #endif
       auto	r{ ref_coord[0] },s{ ref_coord[1] },t{ ref_coord[2] };
       auto	ri{1.},si{1.};
@@ -1799,9 +1800,9 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real Pyramid5ShapeFuncVal(const Integer& inod,const Real3& ref_coord){
+    static inline Real pyramid5ShapeFuncVal(Integer inod, Real3 ref_coord){
 #ifdef _DEBUG
-      assert(inod >= 0 && inod < 5);
+      ARCANE_ASSERT(inod >= 0 && inod < 5);
 #endif
       auto	r{ ref_coord[0] },s{ ref_coord[1] },t{ ref_coord[2] } ;
       auto	r1{-1.},s1{1.}, r2{-1.},s2{-1.};
@@ -1810,7 +1811,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       auto ti{t - 1.};
       auto t0{0.};
 
-      if (fabs(ti) < REL_PREC)
+      if (math::abs(ti) < REL_PREC)
         ti = 0.;
       else
         t0 = -1./ti / 4.;
@@ -1825,10 +1826,10 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       return (r1*r + s1*s + ti) * (r2*r + s2*s + ti) * t0;
     }
 
-    static inline Real3 Pyramid5ShapeFuncDeriv(const Integer& inod,const Real3& ref_coord){
+    static inline Real3 pyramid5ShapeFuncDeriv(Integer inod, Real3 ref_coord){
 
 #ifdef _DEBUG
-      assert(inod >= 0 && inod < 5);
+      ARCANE_ASSERT(inod >= 0 && inod < 5);
 #endif
       auto	r{ ref_coord[0] },s{ ref_coord[1] },t{ ref_coord[2] } ;
       auto	r1{-1.},s1{1.}, r2{-1.},s2{-1.};
@@ -1836,7 +1837,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       auto ti{t - 1.};
       auto t0{0.};
 
-      if (fabs(ti) < REL_PREC)
+      if (math::abs(ti) < REL_PREC)
         ti = 0.;
       else
         t0 = -1./ti / 4.;
@@ -1856,7 +1857,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       dPhi.x = t0 * (rr*r + rs*s + r12*ti);
       dPhi.y = t0 * (rs*r + ss*s + s12*ti);
 
-      if (fabs(ti) < REL_PREC) dPhi.z = 0.;
+      if (math::abs(ti) < REL_PREC) dPhi.z = 0.;
       else
         dPhi.z = t0 * (r12*r + s12*s + 2.*ti) + t02 * (r1*r + s1*s + ti) * (r2*r + s2*s + ti);
 
@@ -1878,13 +1879,13 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
   class FemGaussQuadrature {
 
    public:
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Provides the number of Gauss Points for a given finite element type,
    * depending on the integration order chosen by user (coming fro PASSMO).
    */
-  /*---------------------------------------------------------------------------*/
-  static inline Integer getNbGaussPointsfromOrder(const Int16& cell_type, const Integer& ninteg){
+    /*---------------------------------------------------------------------------*/
+    static inline Integer getNbGaussPointsfromOrder(Int16 cell_type, Integer ninteg){
       Integer nbgauss{0};
       auto ninteg2{ ninteg * ninteg };
       auto ninteg3{ ninteg2 * ninteg };
@@ -1958,14 +1959,14 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       return nbgauss;
     }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Provides the position of a Gauss Point in the reference (local) element
    * for a given finite element, depending on the rank of the point in the
    * element loop (coming fro PASSMO).
    */
-  /*---------------------------------------------------------------------------*/
-  static inline Real3 getGaussRefPosition(const ItemWithNodes& cell, const Integer& ninteg, const Int32& rank)
+    /*---------------------------------------------------------------------------*/
+    static inline Real3 getGaussRefPosition(ItemWithNodes cell, Integer ninteg, Integer rank)
     {
       auto cell_type = cell.type();
       Integer nint{ninteg};
@@ -1974,7 +1975,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
         nint = 1;
 
       if (cell_type == IT_Line2 || cell_type == IT_Line3)
-        return LineRefPosition({rank,-1,-1},{nint,0,0});
+        return lineRefPosition({rank,-1,-1},{nint,0,0});
 
       if (cell_type == IT_Quad4 || cell_type == IT_Quad8) {
         auto in{0};
@@ -1982,7 +1983,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
           for (Int32 i2 = 0; i2 < nint; ++i2) {
 
             if (rank == in)
-              return QuadRefPosition({i1,i2,-1},{nint,nint,0});
+              return quadRefPosition({i1,i2,-1},{nint,nint,0});
 
             ++in;
           }
@@ -1996,7 +1997,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
             for (Int32 i3 = 0; i3 < nint; ++i3) {
 
               if (rank == in)
-                return HexaRefPosition({ i1, i2, i3 }, { nint, nint, nint });
+                return hexaRefPosition({ i1, i2, i3 }, { nint, nint, nint });
 
               ++in;
             }
@@ -2038,14 +2039,14 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       return {};
     }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Provides the integration weight of a Gauss Point for a given
    * finite element, depending on the rank of the point in the element loop
    * (coming fro PASSMO).
    */
-  /*---------------------------------------------------------------------------*/
-  static inline Real getGaussWeight(const ItemWithNodes& cell, const Integer& ninteg, const Int32& rank)
+    /*---------------------------------------------------------------------------*/
+    static inline Real getGaussWeight(ItemWithNodes cell, Integer ninteg, Integer rank)
     {
       auto cell_type = cell.type();
       Integer nint{ninteg};
@@ -2054,7 +2055,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
         nint = 1;
 
       if (cell_type == IT_Line2 || cell_type == IT_Line3)
-        return LineWeight({rank,-1,-1},{nint,0,0});
+        return lineWeight({rank,-1,-1},{nint,0,0});
 
       if (cell_type == IT_Quad4 || cell_type == IT_Quad8) {
         auto in{0};
@@ -2062,7 +2063,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
           for (Int32 i2 = 0; i2 < nint; ++i2) {
 
             if (rank == in)
-              return QuadWeight({i1,i2,-1},{nint,nint,0});
+              return quadWeight({i1,i2,-1},{nint,nint,0});
 
             ++in;
           }
@@ -2076,7 +2077,7 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
             for (Int32 i3 = 0; i3 < nint; ++i3) {
 
               if (rank == in)
-                return HexaWeight({ i1, i2, i3 }, { nint, nint, nint });
+                return hexaWeight({ i1, i2, i3 }, { nint, nint, nint });
 
               ++in;
             }
@@ -2127,16 +2128,16 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       return 1.;
     }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Provides the position of a Gauss Point in the reference (local) element
    * coordinates, depending on the index of the Gauss Point and integration order
    * chosen by user (coming fro PASSMO).
    * This method is generic (not depending on the finite element type) and is called
    * by specialized methods (depending on FE type)
    */
-  /*---------------------------------------------------------------------------*/
-  static inline Real getRefPosition(const Integer& indx,const Integer& ordre){
+    /*---------------------------------------------------------------------------*/
+    static inline Real getRefPosition(Integer indx, Integer ordre){
       Real x = xgauss1; // default is order 1
 
       switch(ordre){
@@ -2153,15 +2154,15 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       return x;
     }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Provides the integration weight depending on the index of the Gauss Point
    * and integration order chosen by user (coming fro PASSMO).
    * This method is generic (not depending on the finite element type) and is called
    * by specialized methods (depending on FE type)
    */
-  /*---------------------------------------------------------------------------*/
-  static inline Real getWeight(const Integer& indx,const Integer& ordre){
+    /*---------------------------------------------------------------------------*/
+    static inline Real getWeight(Integer indx, Integer ordre){
       Real w = wgauss1; // default is order 1
 
       switch(ordre){
@@ -2178,173 +2179,173 @@ static inline Real4 computeGradientZTetra4(const Cell& cell, const VariableNodeR
       return w;
     }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Provides the reference coordinates of a Gauss Point for edge elements
    * (coming fro PASSMO).
    * This method takes the indices and integration orders chosen
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
-  /*---------------------------------------------------------------------------*/
+    /*---------------------------------------------------------------------------*/
 
-  static inline Real3 LineRefPosition(const Integer3& indices,const Integer3& ordre){
-    return {getRefPosition(indices[0],ordre[0]),0.,0.};
-  }
+    static inline Real3 lineRefPosition(Integer3 indices, Integer3 ordre){
+      return {getRefPosition(indices[0],ordre[0]),0.,0.};
+    }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Provides the reference coordinates of a Gauss Point for triangle elements
    * (coming fro PASSMO).
    * This method takes the indices and integration orders chosen
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
-  /*---------------------------------------------------------------------------*/
-  static inline Real3 TriRefPosition(const Integer3& indices,const Integer3& ordre){
-    Integer o = ordre[0]-1;
-    Integer i = indices[0];
-    return {xg1[o][i],xg2[o][i],0.};
-  }
+    /*---------------------------------------------------------------------------*/
+    static inline Real3 triRefPosition(Integer3 indices, Integer3 ordre){
+      Integer o = ordre[0]-1;
+      Integer i = indices[0];
+      return {xg1[o][i],xg2[o][i],0.};
+    }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Provides the reference coordinates of a Gauss Point for quadrangle elements
    * (coming fro PASSMO).
    * This method takes the indices and integration orders chosen
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
-  /*---------------------------------------------------------------------------*/
-  static inline Real3 QuadRefPosition(const Integer3& indices,const Integer3& ordre){
-    Real3 pos;
-    for (Integer i = 0; i < 2; i++) pos[i] = getRefPosition(indices[i],ordre[i]);
-    return pos;
-  }
+    /*---------------------------------------------------------------------------*/
+    static inline Real3 quadRefPosition(Integer3 indices, Integer3 ordre){
+      Real3 pos;
+      for (Integer i = 0; i < 2; i++) pos[i] = getRefPosition(indices[i],ordre[i]);
+      return pos;
+    }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Provides the reference coordinates of a Gauss Point for hexaedron elements
    * (coming fro PASSMO).
    * This method takes the indices and integration orders chosen
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
-  /*---------------------------------------------------------------------------*/
-  static inline Real3 HexaRefPosition(const Integer3& indices,const Integer3& ordre){
-    Real3 pos;
-    for (Integer i = 0; i < 3; i++) pos[i] = getRefPosition(indices[i],ordre[i]);
-    return pos;
-  }
+    /*---------------------------------------------------------------------------*/
+    static inline Real3 hexaRefPosition(Integer3 indices, Integer3 ordre){
+      Real3 pos;
+      for (Integer i = 0; i < 3; i++) pos[i] = getRefPosition(indices[i],ordre[i]);
+      return pos;
+    }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Provides the reference coordinates of a Gauss Point for tetraedron elements
    * (coming fro PASSMO).
    * This method takes the indices and integration orders chosen
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
-  /*---------------------------------------------------------------------------*/
-  static inline Real3 TetraRefPosition(const Integer3& indices,const Integer3& /*ordre*/){
-    Integer i = indices[0];
-    return {xit[i],yit[i],zit[i]};
-  }
+    /*---------------------------------------------------------------------------*/
+    [[maybe_unused]] static inline Real3 tetraRefPosition(Integer3 indices, Integer3 /*ordre*/){
+      Integer i = indices[0];
+      return {xit[i],yit[i],zit[i]};
+    }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Provides the reference coordinates of a Gauss Point for wedge (pentaedron)
    * elements (coming fro PASSMO).
    * This method takes the indices and integration orders chosen
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
-  /*---------------------------------------------------------------------------*/
-  static inline Real3 PentaRefPosition(const Integer3& indices,const Integer3& ordre){
+    /*---------------------------------------------------------------------------*/
+    [[maybe_unused]] static inline Real3 pentaRefPosition(Integer3 indices, Integer3 ordre){
 
-    // Same as TriRefPosition on reference coordinate plane (r,s)
-    // and LineRefPosition along reference coordinate t (vertical)
-    auto pos = TriRefPosition(indices,ordre);
-    pos.z = getRefPosition(indices[2],ordre[2]);
+      // Same as TriRefPosition on reference coordinate plane (r,s)
+      // and LineRefPosition along reference coordinate t (vertical)
+      auto pos = triRefPosition(indices,ordre);
+      pos.z = getRefPosition(indices[2],ordre[2]);
 
-    return pos;
-  }
+      return pos;
+    }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Provides the integration weight of a Gauss Point for edge elements
    * (coming fro PASSMO).
    * This method takes the indices and integration orders chosen
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
-  /*---------------------------------------------------------------------------*/
-  static inline Real LineWeight(const Integer3& indices,const Integer3& ordre){
-    return getWeight(indices[0],ordre[0]);
-  }
+    /*---------------------------------------------------------------------------*/
+    static inline Real lineWeight(Integer3 indices, Integer3 ordre){
+      return getWeight(indices[0],ordre[0]);
+    }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Provides the integration weight of a Gauss Point for triangle elements
    * (coming fro PASSMO).
    * This method takes the indices and integration orders chosen
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
-  /*---------------------------------------------------------------------------*/
-  static inline Real TriWeight(const Integer3& indices,const Integer3& ordre){
-    return wg[ordre[0]-1][indices[0]];
-  }
+    /*---------------------------------------------------------------------------*/
+    static inline Real triWeight(Integer3 indices, Integer3 ordre){
+      return wg[ordre[0]-1][indices[0]];
+    }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Provides the integration weight of a Gauss Point for quadrangle elements
    * (coming fro PASSMO).
    * This method takes the indices and integration orders chosen
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
-  /*---------------------------------------------------------------------------*/
-  static inline Real QuadWeight(const Integer3& indices,const Integer3& ordre){
-    Real w = 1.;
-    for (Integer i = 0; i < 2; i++) w *= getWeight(indices[i],ordre[i]);
-    return w;
-  }
+    /*---------------------------------------------------------------------------*/
+    static inline Real quadWeight(Integer3 indices, Integer3 ordre){
+      Real w = 1.;
+      for (Integer i = 0; i < 2; i++) w *= getWeight(indices[i],ordre[i]);
+      return w;
+    }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Provides the integration weight of a Gauss Point for hexadron elements
    * (coming fro PASSMO).
    * This method takes the indices and integration orders chosen
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
-  /*---------------------------------------------------------------------------*/
-  static inline Real HexaWeight(const Integer3& indices,const Integer3& ordre){
-    Real w = 1.;
-    for (Integer i = 0; i < 3; i++) w *= getWeight(indices[i],ordre[i]);
-    return w;
-  }
+    /*---------------------------------------------------------------------------*/
+    static inline Real hexaWeight(Integer3 indices, Integer3 ordre){
+      Real w = 1.;
+      for (Integer i = 0; i < 3; i++) w *= getWeight(indices[i],ordre[i]);
+      return w;
+    }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Provides the integration weight of a Gauss Point for tetraedron elements
    * (coming fro PASSMO).
    * This method takes the indices and integration orders chosen
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
-  /*---------------------------------------------------------------------------*/
-  static inline Real TetraWeight(const Integer3& indices,const Integer3& /*ordre*/){
-    return wgtetra;
-  }
+    /*---------------------------------------------------------------------------*/
+    [[maybe_unused]] static inline Real tetraWeight(Integer3 /*indices*/, Integer3 /*ordre*/){
+      return wgtetra;
+    }
 
-  /*---------------------------------------------------------------------------*/
-  /**
+    /*---------------------------------------------------------------------------*/
+    /**
    * @brief Provides the integration weight of a Gauss Point for wedge (pentaedron)
    * elements (coming fro PASSMO).
    * This method takes the indices and integration orders chosen
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
-  /*---------------------------------------------------------------------------*/
-  static inline Real PentaWeight(const Integer3& indices,const Integer3& ordre){
+    /*---------------------------------------------------------------------------*/
+    [[maybe_unused]] static inline Real pentaWeight(Integer3 indices, Integer3 ordre){
 
-    // Same as TriWeight on reference coordinate plane (r,s)
-    // and LineWeight with ordre[2] to account for reference coordinate t (vertical)
-    Real wgpenta = TriWeight(indices,ordre)*getWeight(indices[2],ordre[2]);
-    return wgpenta;
-  }
+      // Same as TriWeight on reference coordinate plane (r,s)
+      // and LineWeight with ordre[2] to account for reference coordinate t (vertical)
+      Real wgpenta = triWeight(indices,ordre)*getWeight(indices[2],ordre[2]);
+      return wgpenta;
+    }
 
-  /*---------------------------------------------------------------------------*/
+    /*---------------------------------------------------------------------------*/
 
   };
 

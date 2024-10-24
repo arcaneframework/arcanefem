@@ -24,38 +24,38 @@ ArcaneFemFunctions::CellFEMDispatcher::CellFEMDispatcher(){
 
  // Gives functions to compute shape function value in finite-element reference coordinate system
  // Linear elements
- m_shapefunc[IT_Line2] = ArcaneFemFunctions::FemShapeMethods::Line2ShapeFuncVal;
- m_shapefunc[IT_Triangle3] = ArcaneFemFunctions::FemShapeMethods::Tri3ShapeFuncVal;
- m_shapefunc[IT_Quad4] = ArcaneFemFunctions::FemShapeMethods::Quad4ShapeFuncVal;
- m_shapefunc[IT_Tetraedron4] = ArcaneFemFunctions::FemShapeMethods::Tetra4ShapeFuncVal;
- m_shapefunc[IT_Hexaedron8] = ArcaneFemFunctions::FemShapeMethods::Hexa8ShapeFuncVal;
- m_shapefunc[IT_Pentaedron6] = ArcaneFemFunctions::FemShapeMethods::Penta6ShapeFuncVal;
- m_shapefunc[IT_Pyramid5] = ArcaneFemFunctions::FemShapeMethods::Pyramid5ShapeFuncVal;
+ m_shapefunc[IT_Line2] = ArcaneFemFunctions::FemShapeMethods::line2ShapeFuncVal;
+ m_shapefunc[IT_Triangle3] = ArcaneFemFunctions::FemShapeMethods::tri3ShapeFuncVal;
+ m_shapefunc[IT_Quad4] = ArcaneFemFunctions::FemShapeMethods::quad4ShapeFuncVal;
+ m_shapefunc[IT_Tetraedron4] = ArcaneFemFunctions::FemShapeMethods::tetra4ShapeFuncVal;
+ m_shapefunc[IT_Hexaedron8] = ArcaneFemFunctions::FemShapeMethods::hexa8ShapeFuncVal;
+ m_shapefunc[IT_Pentaedron6] = ArcaneFemFunctions::FemShapeMethods::penta6ShapeFuncVal;
+ m_shapefunc[IT_Pyramid5] = ArcaneFemFunctions::FemShapeMethods::pyramid5ShapeFuncVal;
 
  // Quadratic elements
- m_shapefunc[IT_Line3] = ArcaneFemFunctions::FemShapeMethods::Line3ShapeFuncVal;
- m_shapefunc[IT_Triangle6] = ArcaneFemFunctions::FemShapeMethods::Tri6ShapeFuncVal;
- m_shapefunc[IT_Quad8] = ArcaneFemFunctions::FemShapeMethods::Quad8ShapeFuncVal;
- m_shapefunc[IT_Tetraedron10] = ArcaneFemFunctions::FemShapeMethods::Tetra10ShapeFuncVal;
- m_shapefunc[IT_Hexaedron20] = ArcaneFemFunctions::FemShapeMethods::Hexa20ShapeFuncVal;
+ m_shapefunc[IT_Line3] = ArcaneFemFunctions::FemShapeMethods::line3ShapeFuncVal;
+ m_shapefunc[IT_Triangle6] = ArcaneFemFunctions::FemShapeMethods::tri6ShapeFuncVal;
+ m_shapefunc[IT_Quad8] = ArcaneFemFunctions::FemShapeMethods::quad8ShapeFuncVal;
+ m_shapefunc[IT_Tetraedron10] = ArcaneFemFunctions::FemShapeMethods::tetra10ShapeFuncVal;
+ m_shapefunc[IT_Hexaedron20] = ArcaneFemFunctions::FemShapeMethods::hexa20ShapeFuncVal;
 
  // Gives functions to compute shape function derivate vector at all nodes of a finite-element
  // along a local direction (in reference coordinate system)
  // Linear elements
- m_shapefuncderiv[IT_Line2] = ArcaneFemFunctions::FemShapeMethods::Line2ShapeFuncDeriv;
- m_shapefuncderiv[IT_Triangle3] = ArcaneFemFunctions::FemShapeMethods::Tri3ShapeFuncDeriv;
- m_shapefuncderiv[IT_Quad4] = ArcaneFemFunctions::FemShapeMethods::Quad4ShapeFuncDeriv;
- m_shapefuncderiv[IT_Tetraedron4] = ArcaneFemFunctions::FemShapeMethods::Tetra4ShapeFuncDeriv;
- m_shapefuncderiv[IT_Hexaedron8] = ArcaneFemFunctions::FemShapeMethods::Hexa8ShapeFuncDeriv;
- m_shapefuncderiv[IT_Pentaedron6] = ArcaneFemFunctions::FemShapeMethods::Penta6ShapeFuncDeriv;
- m_shapefuncderiv[IT_Pyramid5] = ArcaneFemFunctions::FemShapeMethods::Pyramid5ShapeFuncDeriv;
+ m_shapefuncderiv[IT_Line2] = ArcaneFemFunctions::FemShapeMethods::line2ShapeFuncDeriv;
+ m_shapefuncderiv[IT_Triangle3] = ArcaneFemFunctions::FemShapeMethods::tri3ShapeFuncDeriv;
+ m_shapefuncderiv[IT_Quad4] = ArcaneFemFunctions::FemShapeMethods::quad4ShapeFuncDeriv;
+ m_shapefuncderiv[IT_Tetraedron4] = ArcaneFemFunctions::FemShapeMethods::tetra4ShapeFuncDeriv;
+ m_shapefuncderiv[IT_Hexaedron8] = ArcaneFemFunctions::FemShapeMethods::hexa8ShapeFuncDeriv;
+ m_shapefuncderiv[IT_Pentaedron6] = ArcaneFemFunctions::FemShapeMethods::penta6ShapeFuncDeriv;
+ m_shapefuncderiv[IT_Pyramid5] = ArcaneFemFunctions::FemShapeMethods::pyramid5ShapeFuncDeriv;
 
  // Quadratic elements
- m_shapefuncderiv[IT_Line3] = ArcaneFemFunctions::FemShapeMethods::Line3ShapeFuncDeriv;
- m_shapefuncderiv[IT_Triangle6] = ArcaneFemFunctions::FemShapeMethods::Tri6ShapeFuncDeriv;
- m_shapefuncderiv[IT_Quad8] = ArcaneFemFunctions::FemShapeMethods::Quad8ShapeFuncDeriv;
- m_shapefuncderiv[IT_Tetraedron10] = ArcaneFemFunctions::FemShapeMethods::Tetra10ShapeFuncDeriv;
- m_shapefuncderiv[IT_Hexaedron20] = ArcaneFemFunctions::FemShapeMethods::Hexa20ShapeFuncDeriv;
+ m_shapefuncderiv[IT_Line3] = ArcaneFemFunctions::FemShapeMethods::line3ShapeFuncDeriv;
+ m_shapefuncderiv[IT_Triangle6] = ArcaneFemFunctions::FemShapeMethods::tri6ShapeFuncDeriv;
+ m_shapefuncderiv[IT_Quad8] = ArcaneFemFunctions::FemShapeMethods::quad8ShapeFuncDeriv;
+ m_shapefuncderiv[IT_Tetraedron10] = ArcaneFemFunctions::FemShapeMethods::tetra10ShapeFuncDeriv;
+ m_shapefuncderiv[IT_Hexaedron20] = ArcaneFemFunctions::FemShapeMethods::hexa20ShapeFuncDeriv;
 
 }
 
@@ -67,20 +67,20 @@ ArcaneFemFunctions::CellFEMDispatcher::CellFEMDispatcher(){
  */
 /*---------------------------------------------------------------------------*/
 RealUniqueArray ArcaneFemFunctions::CellFEMDispatcher::
-getGaussData(const ItemWithNodes& item, const Integer& nint, Int32& ngauss){
+getGaussData(ItemWithNodes item, Integer nint, Integer ngauss){
 
- const Int32& nnod = item.nbNode();
+ auto nnod = item.nbNode();
  auto cell_type = item.type();
  ngauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type,nint);
 
  // Vector of double containing:
  // ngauss points * [weight, gauss ref coord [Real3], nnod * (shapefunc values, 3*shapefunc deriv
  // in ref. coord system)]
- Int32 nsize = ngauss * 4 * (1 + nnod);
+ Integer nsize = ngauss * 4 * (1 + nnod);
  RealUniqueArray vec(nsize);
 
- Int32 index{ 0 };
- for (Int32 ig = 0; ig < ngauss; ++ig) {
+ Integer index{ 0 };
+ for (Integer ig = 0; ig < ngauss; ++ig) {
    auto wt = ArcaneFemFunctions::FemGaussQuadrature::getGaussWeight(item, nint, ig);
    auto pos = ArcaneFemFunctions::FemGaussQuadrature::getGaussRefPosition(item, nint, ig);
    vec[index++] = wt;
@@ -108,7 +108,7 @@ getGaussData(const ItemWithNodes& item, const Integer& nint, Int32& ngauss){
  */
 /*---------------------------------------------------------------------------*/
 Real ArcaneFemFunctions::CellFEMDispatcher::
-getShapeFuncVal(const Int16& item_type,const Int32& inod,const Real3& coord)
+getShapeFuncVal(Int16 item_type, Integer inod, Real3 coord)
 {
  auto f = m_shapefunc[item_type];
  if (f!=nullptr)
@@ -125,7 +125,7 @@ getShapeFuncVal(const Int16& item_type,const Int32& inod,const Real3& coord)
  */
 /*---------------------------------------------------------------------------*/
 Real3 ArcaneFemFunctions::CellFEMDispatcher::
-getShapeFuncDeriv(const Int16& item_type,const Int32& inod,const Real3& ref_coord){
+getShapeFuncDeriv(Int16 item_type, Integer inod, Real3 ref_coord){
  auto f = m_shapefuncderiv[item_type];
  if (f!=nullptr)
    return f(inod,ref_coord);
