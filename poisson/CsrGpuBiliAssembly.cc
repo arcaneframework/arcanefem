@@ -13,6 +13,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
+#include "arcane/accelerator/core/RunQueue.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -20,6 +21,63 @@
 void FemModule::
 _buildMatrixCsrGPU()
 {
+
+  Int8 mesh_dim = mesh()->dimension();
+  if (false && mesh_dim == 3 && !options()->createEdges()) {
+    info() << "_buildMatrixCsrGPU: 3D mesh without edge";
+
+    Accelerator::RunQueue* queue = acceleratorMng()->defaultQueue();
+
+    auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
+    ARCANE_CHECK_POINTER(connectivity_ptr);
+    IndexedNodeNodeConnectivityView nn_cv = connectivity_ptr->view();
+
+    Int32 nb_node = nbNode();
+    Int32 nb_non_zero = m_nb_edge * 2 + nb_node;
+    m_csr_matrix.initialize(m_dof_family, nb_non_zero, nb_node);
+
+    NumArray<uint, MDDim1> neighbors(nb_node + 1);
+    NumArray<uint, MDDim1> offsets(nb_node + 1);
+    SmallSpan<uint> in_data = neighbors.to1DSmallSpan();
+    SmallSpan<uint> out_data = offsets.to1DSmallSpan();
+
+    {
+      auto command = makeCommand(queue);
+      command << RUNCOMMAND_ENUMERATE(Node, node_idx, allNodes())
+      {
+        in_data[node_idx + 1] = nn_cv.nbNode(node_idx) + 1;
+      };
+    }
+    queue->barrier();
+
+    Accelerator::Scanner<uint> scanner;
+    scanner.inclusiveSum(queue, in_data, out_data);
+
+    {
+      auto command = makeCommand(queue);
+
+      auto out_m_matrix_row = viewInOut(command, m_csr_matrix.m_matrix_row);
+      auto out_m_matrix_column = viewInOut(command, m_csr_matrix.m_matrix_column);
+
+      command << RUNCOMMAND_ENUMERATE(Node, node_idx, allNodes())
+      {
+        auto offset = out_data[node_idx];
+        out_m_matrix_row[node_idx] = offset;
+        for (auto neighbor_idx : nn_cv.nodeIds(node_idx)) {
+          out_m_matrix_column[offset] = neighbor_idx;
+          ++offset;
+        }
+        out_m_matrix_column[offset] = node_idx;
+      };
+    }
+    queue->barrier();
+
+    m_csr_matrix.printMatrix("matrix_dump.txt");
+    ARCANE_THROW(NotSupportedException, "Controlled stop");
+
+    return;
+  }
+
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   Int32 nnz = (options()->meshType == "TRIA3" ? nbFace() : nbEdge() * 2) + nbNode();
@@ -28,42 +86,43 @@ _buildMatrixCsrGPU()
 
   //We iterate through the node, and we do not sort anymore : we assume the nodes ID are sorted, and we will iterate throught the column to avoid making < and > comparison
   if (options()->meshType == "TRIA3") {
-  ENUMERATE_NODE (inode, allNodes()) {
-    Node node = *inode;
-    Int32 node_dof_id = node_dof.dofId(node, 0);
-    ItemLocalIdT<DoF> diagonal_entry(node_dof_id);
+    ENUMERATE_NODE (inode, allNodes()) {
+      Node node = *inode;
+      Int32 node_dof_id = node_dof.dofId(node, 0);
+      ItemLocalIdT<DoF> diagonal_entry(node_dof_id);
 
-    m_csr_matrix.setCoordinates(diagonal_entry, diagonal_entry);
+      m_csr_matrix.setCoordinates(diagonal_entry, diagonal_entry);
 
-    for (Face face : node.faces()) {
-      if (face.nodeId(0) == node.localId())
-        m_csr_matrix.setCoordinates(diagonal_entry, node_dof.dofId(face.nodeId(1), 0));
-      else
-        m_csr_matrix.setCoordinates(diagonal_entry, node_dof.dofId(face.nodeId(0), 0));
+      for (Face face : node.faces()) {
+        if (face.nodeId(0) == node.localId())
+          m_csr_matrix.setCoordinates(diagonal_entry, node_dof.dofId(face.nodeId(1), 0));
+        else
+          m_csr_matrix.setCoordinates(diagonal_entry, node_dof.dofId(face.nodeId(0), 0));
+      }
     }
-  }
   }
   else if (options()->meshType == "TETRA4") {
-  ENUMERATE_NODE (inode, allNodes()) {
-    Node node = *inode;
-    Int32 node_dof_id = node_dof.dofId(node, 0);
-    ItemLocalIdT<DoF> diagonal_entry(node_dof_id);
+    ENUMERATE_NODE (inode, allNodes()) {
+      Node node = *inode;
+      Int32 node_dof_id = node_dof.dofId(node, 0);
+      ItemLocalIdT<DoF> diagonal_entry(node_dof_id);
 
-    m_csr_matrix.setCoordinates(diagonal_entry, diagonal_entry);
+      m_csr_matrix.setCoordinates(diagonal_entry, diagonal_entry);
 
-    for (Edge edge : node.edges()) {
-      if (edge.nodeId(0) == node.localId())
-        m_csr_matrix.setCoordinates(diagonal_entry, node_dof.dofId(edge.nodeId(1), 0));
-      else
-        m_csr_matrix.setCoordinates(diagonal_entry, node_dof.dofId(edge.nodeId(0), 0));
+      for (Edge edge : node.edges()) {
+        if (edge.nodeId(0) == node.localId())
+          m_csr_matrix.setCoordinates(diagonal_entry, node_dof.dofId(edge.nodeId(1), 0));
+        else
+          m_csr_matrix.setCoordinates(diagonal_entry, node_dof.dofId(edge.nodeId(0), 0));
+      }
     }
-  }
+    m_csr_matrix.printMatrix("matrix_dump_withedge.txt");
   }
 }
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Assembles the bilinear operator matrix for the FEM linear system with
+* @brief Assembles the bilinear operator matrix for the FEM linear system with
  * the CSR sparse matrix format for TRIA3 elements.
  *
  * The method performs the following steps:
