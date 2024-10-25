@@ -18,136 +18,53 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_buildMatrixCsrGPUNodeNodeConnectivity()
+void FemModule::_buildOffsets(const SmallSpan<uint>& offsets_smallspan)
 {
-  info() << "_buildMatrixCsrGPU: 3D mesh with node-node connectivity";
-
-  Timer::Action timer_gpu_build_nncv(m_time_stats, "BuildMatrixCsrGPUNodeNodeConnectivity");
-
   Accelerator::RunQueue* queue = acceleratorMng()->defaultQueue();
 
-  auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
-  ARCANE_CHECK_POINTER(connectivity_ptr);
-  IndexedNodeNodeConnectivityView nn_cv = connectivity_ptr->view();
-
-  Int32 nb_node = nbNode();
-  NumArray<uint, MDDim1> neighbors(nb_node + 1);
+  // We shift the array by one to the right (because csr row array contains the
+  // index of the beginning of the row)
+  NumArray<uint, MDDim1> neighbors(nbNode() + 1);
   neighbors[0] = 0;
-  NumArray<uint, MDDim1> offsets(nb_node + 1);
   SmallSpan<uint> in_data = neighbors.to1DSmallSpan();
-  SmallSpan<uint> out_data = offsets.to1DSmallSpan();
 
-  {
+  // Calculate the number of neighbors for each node
+  if (mesh()->dimension() == 2) { // 2D mesh via node-face connectivity
+    UnstructuredMeshConnectivityView connectivity_view(mesh());
+    auto node_face_connectivity_view = connectivity_view.nodeFace();
+
     auto command = makeCommand(queue);
     command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
     {
-      in_data[node_id + 1] = nn_cv.nbNode(node_id) + 1;
+      in_data[node_id + 1] = node_face_connectivity_view.nbFace(node_id) + 1;
     };
   }
-  queue->barrier();
+  else if (options()->createEdges) { // 3D mesh via node-edge connectivity
+    UnstructuredMeshConnectivityView connectivity_view(mesh());
+    auto node_edge_connectivity_view = connectivity_view.nodeEdge();
 
-  Accelerator::Scanner<uint> scanner;
-  scanner.inclusiveSum(queue, in_data, out_data);
-
-  {
-    auto command = makeCommand(queue);
-
-    auto out_m_matrix_row = viewInOut(command, m_csr_matrix.m_matrix_row);
-    auto out_m_matrix_column = viewInOut(command, m_csr_matrix.m_matrix_column);
-
-    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
-    {
-      auto offset = out_data[node_id];
-      out_m_matrix_row[node_id] = offset;
-      for (auto neighbor_idx : nn_cv.nodeIds(node_id)) {
-        out_m_matrix_column[offset] = neighbor_idx;
-        ++offset;
-      }
-      out_m_matrix_column[offset] = node_id;
-    };
-  }
-  queue->barrier();
-}
-
-void FemModule::_buildMatrixCsrGPUNodeEdgeConnectivity()
-{
-  info() << "_buildMatrixCsrGPU: 3D mesh with node-edge connectivity";
-
-  Timer::Action timer_gpu_build_necv(m_time_stats, "BuildMatrixCsrGPUNodeEdgeConnectivity");
-
-  Accelerator::RunQueue* queue = acceleratorMng()->defaultQueue();
-
-  Int32 nb_node = nbNode();
-  NumArray<uint, MDDim1> neighbors(nb_node + 1);
-  neighbors[0] = 0;
-  NumArray<uint, MDDim1> offsets(nb_node + 1);
-  SmallSpan<uint> in_data = neighbors.to1DSmallSpan();
-  SmallSpan<uint> out_data = offsets.to1DSmallSpan();
-
-  UnstructuredMeshConnectivityView m_connectivity_view;
-  m_connectivity_view.setMesh(mesh());
-
-  ItemGenericInfoListView nodes_infos(mesh()->nodeFamily());
-  IndexedNodeEdgeConnectivityView node_edge_connectivity_view = m_connectivity_view.nodeEdge();
-
-  {
     auto command = makeCommand(queue);
     command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
     {
       in_data[node_id + 1] = node_edge_connectivity_view.nbEdge(node_id) + 1;
     };
   }
-  queue->barrier();
+  else { // 3D mesh via node-node connectivity
+    auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
+    ARCANE_CHECK_POINTER(connectivity_ptr);
+    IndexedNodeNodeConnectivityView node_node_connectivity_view = connectivity_ptr->view();
 
-  Accelerator::Scanner<uint> scanner;
-  scanner.inclusiveSum(queue, in_data, out_data);
-
-  {
     auto command = makeCommand(queue);
-
-    auto out_m_matrix_column = viewInOut(command, m_csr_matrix.m_matrix_column);
-    auto out_m_matrix_row = viewInOut(command, m_csr_matrix.m_matrix_row);
-
-    IndexedEdgeNodeConnectivityView edge_node_connectivity_view = m_connectivity_view.edgeNode();
-
     command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
     {
-      // Insertion sort: array is always sorted and small (max number is the neighbor of a node) so its linear in time
-      auto offset = out_data[node_id];
-      out_m_matrix_row[node_id] = offset;
-
-      out_m_matrix_column[offset] = node_id;
-
-      auto size = offset + 1;
-      for (auto edge_id : node_edge_connectivity_view.edgeIds(node_id))
-        for (auto neighbor_id : edge_node_connectivity_view.nodeIds(edge_id))
-          if (neighbor_id != node_id) {
-            auto position = size;
-            for (auto i = offset; i < size; ++i)
-              if (out_m_matrix_column[i] > neighbor_id || out_m_matrix_column[i] == -1) {
-                position = i;
-                break;
-              }
-
-            for (auto j = size - 1; j >= position; --j)
-              out_m_matrix_column[j + 1] = out_m_matrix_column[j];
-
-            out_m_matrix_column[position] = neighbor_id;
-            size++;
-          }
-
-      /* auto offset = out_data[node_id];
-      out_m_matrix_row[node_id] = offset;
-      for (auto edge_id : node_edge_connectivity_view.edgeIds(node_id))
-        for (auto neighbor_id : edge_node_connectivity_view.nodeIds(edge_id))
-          if (neighbor_id != node_id) {
-            out_m_matrix_column[offset] = neighbor_id;
-            ++offset;
-          }
-      out_m_matrix_column[offset] = node_id; */
+      in_data[node_id + 1] = node_node_connectivity_view.nbNode(node_id) + 1;
     };
   }
   queue->barrier();
+
+  // Do the inclusive sum (will be the csr row array)
+  Accelerator::Scanner<uint> scanner;
+  scanner.inclusiveSum(queue, in_data, offsets_smallspan);
 }
 
 void FemModule::
@@ -156,32 +73,85 @@ _buildMatrixCsrGPU()
   Int8 mesh_dim = mesh()->dimension();
 
   Int32 nb_node = nbNode();
-  Int32 nb_non_zero = m_nb_edge * 2 + nb_node;
+  Int32 nb_non_zero = nb_node + 2 * (mesh_dim == 2 ? nbFace() : m_nb_edge);
   m_csr_matrix.initialize(m_dof_family, nb_non_zero, nb_node);
 
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  NumArray<uint, MDDim1> offsets_numarray(nb_node + 1);
+  SmallSpan<uint> offsets_smallspan = offsets_numarray.to1DSmallSpan();
 
-  if (mesh_dim == 2) {
-    ENUMERATE_NODE (inode, allNodes()) {
-      Node node = *inode;
-      Int32 node_dof_id = node_dof.dofId(node, 0);
-      ItemLocalIdT<DoF> diagonal_entry(node_dof_id);
+  // Compute the array of offsets on Gpu
+  _buildOffsets(offsets_smallspan);
 
-      m_csr_matrix.setCoordinates(diagonal_entry, diagonal_entry);
+  RunQueue* queue = acceleratorMng()->defaultQueue();
+  auto command = makeCommand(queue);
 
-      for (Face face : node.faces()) {
-        if (face.nodeId(0) == node.localId())
-          m_csr_matrix.setCoordinates(diagonal_entry, node_dof.dofId(face.nodeId(1), 0));
-        else
-          m_csr_matrix.setCoordinates(diagonal_entry, node_dof.dofId(face.nodeId(0), 0));
+  auto out_m_matrix_row = viewOut(command, m_csr_matrix.m_matrix_row);
+  auto inout_m_matrix_column = viewInOut(command, m_csr_matrix.m_matrix_column);
+
+  if (mesh_dim == 2) { // 2D mesh via node-face & face-node connectivity
+    UnstructuredMeshConnectivityView connectivity_view(mesh());
+
+    auto node_face_connectivity_view = connectivity_view.nodeFace();
+    auto face_node_connectivity_view = connectivity_view.faceNode();
+
+    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
+    {
+      // Retrieve the offset from the inclusive sum
+      auto offset = offsets_smallspan[node_id];
+
+      // Put the offset into the row csr array
+      out_m_matrix_row[node_id] = offset;
+
+      for (auto face_id : node_face_connectivity_view.faceIds(node_id)) {
+        auto nodes = face_node_connectivity_view.nodes(face_id);
+
+        // Put the neighbor of the current node into the column csr array
+        inout_m_matrix_column[offset] = nodes[0] == node_id ? nodes[1] : nodes[0];
+
+        ++offset;
       }
-    }
+
+      // Add the node's relation with itself
+      inout_m_matrix_column[offset] = node_id;
+    };
   }
-  else if (options()->createEdges()) {
-    _buildMatrixCsrGPUNodeEdgeConnectivity();
+  else if (options()->createEdges()) { // 3D mesh via node-edge & edge-node connectivity
+    UnstructuredMeshConnectivityView connectivity_view(mesh());
+
+    auto node_edge_connectivity_view = connectivity_view.nodeEdge();
+    auto edge_node_connectivity_view = connectivity_view.edgeNode();
+
+    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
+    {
+      auto offset = offsets_smallspan[node_id];
+      out_m_matrix_row[node_id] = offset;
+
+      for (auto edge_id : node_edge_connectivity_view.edgeIds(node_id)) {
+        auto nodes = edge_node_connectivity_view.nodes(edge_id);
+        inout_m_matrix_column[offset] = nodes[0] == node_id ? nodes[1] : nodes[0];
+        ++offset;
+      }
+
+      inout_m_matrix_column[offset] = node_id;
+    };
   }
-  else {
-    _buildMatrixCsrGPUNodeNodeConnectivity();
+  else { // 3D mesh via node-node connectivity
+    auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
+    ARCANE_CHECK_POINTER(connectivity_ptr);
+    IndexedNodeNodeConnectivityView node_node_connectivity_view = connectivity_ptr->view();
+
+    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
+    {
+      auto offset = offsets_smallspan[node_id];
+      out_m_matrix_row[node_id] = offset;
+
+      for (auto neighbor_idx : node_node_connectivity_view.nodeIds(node_id)) {
+        inout_m_matrix_column[offset] = neighbor_idx;
+        ++offset;
+      }
+
+      inout_m_matrix_column[offset] = node_id;
+    };
   }
 }
 
@@ -296,79 +266,63 @@ _assembleCsrGPUBilinearOperatorTETRA4()
     _buildMatrixCsrGPU();
   }
 
-  RunQueue* queue = acceleratorMng()->defaultQueue();
-  auto command = makeCommand(queue);
-
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-  auto in_row_csr = ax::viewIn(command, m_csr_matrix.m_matrix_row);
-  Int32 row_csr_size = m_csr_matrix.m_matrix_row.dim1Size();
-  auto in_col_csr = ax::viewIn(command, m_csr_matrix.m_matrix_column);
-  Int32 col_csr_size = m_csr_matrix.m_matrix_column.dim1Size();
-  auto in_out_val_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
-  UnstructuredMeshConnectivityView m_connectivity_view;
-  auto in_node_coord = ax::viewIn(command, m_node_coord);
-  m_connectivity_view.setMesh(this->mesh());
-  auto cnc = m_connectivity_view.cellNode();
-  Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
-
-  info() << "Start Add Compute Long";
-
-  Timer::Action timer_add_compute(m_time_stats, "CsrGpuAddComputeLoop");
-
-  command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
   {
+    RunQueue* queue = acceleratorMng()->defaultQueue();
+    auto command = makeCommand(queue);
 
-    Real K_e[16] = { 0 };
-    _computeElementMatrixTETRA4GPU(icell, cnc, in_node_coord, K_e);
+    Int32 row_csr_size = m_csr_matrix.m_matrix_row.extent0();
+    Int32 col_csr_size = m_csr_matrix.m_matrix_column.extent0();
 
-    Int32 node1_idx_in_cell = 0;
-    for (NodeLocalId node1_id : cnc.nodes(icell)) {
+    auto in_row_csr = ax::viewIn(command, m_csr_matrix.m_matrix_row);
+    auto in_col_csr = ax::viewIn(command, m_csr_matrix.m_matrix_column);
+    auto inout_val_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
 
-      Int32 node2_idx_in_cell = 0;
-      for (NodeLocalId node2_id : cnc.nodes(icell)) {
+    auto in_node_coord = ax::viewIn(command, m_node_coord);
 
-        if (nodes_infos.isOwn(node1_id)) {
-          double v = K_e[node1_idx_in_cell * 4 + node2_idx_in_cell];
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cell_node_connectivity_view = m_connectivity_view.cellNode();
 
-          Int32 row = node1_id.localId();
-          Int32 col = node2_id.localId();
-          Int32 begin = in_row_csr[row];
-          Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
+    ItemGenericInfoListView nodes_infos(mesh()->nodeFamily());
 
-          // Binary search
-          bool found = false;
-          Int32 position = -1;
-          while (!found && begin <= end) {
-            Int32 mid = begin + (end - begin) / 2;
-            if (col == in_col_csr(mid)) {
-              found = true;
-              position = mid;
-            }
-            if (col > in_col_csr(mid)) {
-              begin = mid + 1;
-            }
-            if (col < in_col_csr(mid)) {
-              end = mid - 1;
+    Timer::Action timer_add_compute(m_time_stats, "CsrGpuAddComputeLoop");
+
+    command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
+    {
+
+      Real K_e[16]{};
+      _computeElementMatrixTETRA4GPU(icell, cell_node_connectivity_view, in_node_coord, K_e);
+
+      Int32 node1_idx_in_cell = 0;
+      for (NodeLocalId node1_id : cell_node_connectivity_view.nodes(icell)) {
+
+        Int32 node2_idx_in_cell = 0;
+        for (NodeLocalId node2_id : cell_node_connectivity_view.nodes(icell)) {
+
+          if (nodes_infos.isOwn(node1_id)) {
+            double v = K_e[node1_idx_in_cell * 4 + node2_idx_in_cell];
+
+            Int32 row = node1_id.localId();
+            Int32 col = node2_id.localId();
+            Int32 begin = in_row_csr[row];
+
+            // Can an input view be read by two gpu cores ? (for the in_row_csr[row + 1])
+            Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
+
+            // Naive search, in the worst case we iterate over the whole column array
+            while (begin < end) {
+              if (in_col_csr[begin] == col) {
+                ax::doAtomic<ax::eAtomicOperation::Add>(inout_val_csr(begin), v);
+                break;
+              }
+              begin++;
             }
           }
-
-          if (position != -1)
-            ax::doAtomic<ax::eAtomicOperation::Add>(in_out_val_csr(position), v);
-
-          // while (begin < end) {
-          //   if (in_col_csr[begin] == col) {
-          //     ax::doAtomic<ax::eAtomicOperation::Add>(in_out_val_csr(begin), v);
-          //     break;
-          //   }
-          //   begin++;
-          // }
+          ++node2_idx_in_cell;
         }
-        ++node2_idx_in_cell;
+        ++node1_idx_in_cell;
       }
-      ++node1_idx_in_cell;
-    }
-  };
-  queue->barrier();
+    };
+  }
 }
 
 /*---------------------------------------------------------------------------*/
