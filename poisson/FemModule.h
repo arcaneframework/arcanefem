@@ -266,6 +266,7 @@ class FemModule
  public:
 
   void _buildMatrixCsrGPU();
+  void _buildOffsets(const SmallSpan<uint>& offsets_smallspan);
   void _fillDiagonal(Int64 nb_edge, NodeGroup nodes);
   void _assembleCsrGPUBilinearOperatorTRIA3();
   void _assembleCsrGPUBilinearOperatorTETRA4();
