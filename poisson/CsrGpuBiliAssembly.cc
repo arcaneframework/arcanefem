@@ -22,13 +22,12 @@ void FemModule::_buildOffsets(const SmallSpan<uint>& offsets_smallspan)
 {
   Accelerator::RunQueue* queue = acceleratorMng()->defaultQueue();
 
-  // We shift the array by one to the right (because csr row array contains the
-  // index of the beginning of the row)
+  // Initialize the neighbors array and shift right by one for CSR format
   NumArray<uint, MDDim1> neighbors(nbNode() + 1);
   neighbors[0] = 0;
   SmallSpan<uint> in_data = neighbors.to1DSmallSpan();
 
-  // Calculate the number of neighbors for each node
+  // Select and execute the appropriate offset update based on mesh type
   if (mesh()->dimension() == 2) { // 2D mesh via node-face connectivity
     UnstructuredMeshConnectivityView connectivity_view(mesh());
     auto node_face_connectivity_view = connectivity_view.nodeFace();
@@ -62,7 +61,7 @@ void FemModule::_buildOffsets(const SmallSpan<uint>& offsets_smallspan)
   }
   queue->barrier();
 
-  // Do the inclusive sum (will be the csr row array)
+  // Do the inclusive sum for CSR row array (in_data)
   Accelerator::Scanner<uint> scanner;
   scanner.inclusiveSum(queue, in_data, offsets_smallspan);
 }
@@ -88,6 +87,7 @@ _buildMatrixCsrGPU()
   auto out_m_matrix_row = viewOut(command, m_csr_matrix.m_matrix_row);
   auto inout_m_matrix_column = viewInOut(command, m_csr_matrix.m_matrix_column);
 
+  // Select and execute the CSR matrix population based on mesh type
   if (mesh_dim == 2) { // 2D mesh via node-face & face-node connectivity
     UnstructuredMeshConnectivityView connectivity_view(mesh());
 
@@ -99,20 +99,19 @@ _buildMatrixCsrGPU()
       // Retrieve the offset from the inclusive sum
       auto offset = offsets_smallspan[node_id];
 
-      // Put the offset into the row csr array
+      // Put the offset into CSR row array
       out_m_matrix_row[node_id] = offset;
 
       for (auto face_id : node_face_connectivity_view.faceIds(node_id)) {
         auto nodes = face_node_connectivity_view.nodes(face_id);
 
-        // Put the neighbor of the current node into the column csr array
+        // Put the neighbor of the current node into CSR column array
         inout_m_matrix_column[offset] = nodes[0] == node_id ? nodes[1] : nodes[0];
 
         ++offset;
       }
 
-      // Add the node's relation with itself
-      inout_m_matrix_column[offset] = node_id;
+      inout_m_matrix_column[offset] = node_id; // Self-relation
     };
   }
   else if (options()->createEdges()) { // 3D mesh via node-edge & edge-node connectivity
@@ -305,10 +304,8 @@ _assembleCsrGPUBilinearOperatorTETRA4()
             Int32 col = node2_id.localId();
             Int32 begin = in_row_csr[row];
 
-            // Can an input view be read by two gpu cores ? (for the in_row_csr[row + 1])
             Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
 
-            // Naive search, in the worst case we iterate over the whole column array
             while (begin < end) {
               if (in_col_csr[begin] == col) {
                 ax::doAtomic<ax::eAtomicOperation::Add>(inout_val_csr(begin), v);
