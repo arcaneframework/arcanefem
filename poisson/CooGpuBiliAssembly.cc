@@ -15,11 +15,18 @@
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
-#include "arcane/core/IndexedItemConnectivityView.h"
 #include "arcane/core/Item.h"
 #include "arcane/core/ItemGenericInfoListView.h"
 #include "arcane/core/ItemLocalId.h"
 #include "arcane/utils/UtilsTypes.h"
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE Int32 findIndexBinarySearch(Int32 row, Int32 col,
+                                                const auto& in_row_coo,
+                                                const auto& in_col_coo,
+                                                Int32 row_length);
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -51,6 +58,9 @@ ARCCORE_HOST_DEVICE void _fillMatrix(Int32 id, Int64 nb_edge,
   inout_m_matrix_row[nb_edge + id] = node2_idx;
   inout_m_matrix_column[nb_edge + id] = node1_idx;
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 void FemModule::_fillDiagonal(Int64 nb_edge, NodeGroup nodes)
 {
@@ -89,40 +99,145 @@ void FemModule::_buildMatrixCooGPU()
   auto inout_m_matrix_column = viewInOut(command, m_coo_matrix.m_matrix_column);
 
   if (mesh_dim == 2) {
-    info() << "_buildMatrixCooGPU for 2D mesh with edge-node connectivity";
 
-    IndexedFaceNodeConnectivityView face_node_connectivity_view = m_connectivity_view.faceNode();
+    if (m_use_coo_sort_gpu) {
+      info()
+      << "_buildMatrixCooSortGPU for 2D mesh with face-node connectivity";
+      NumArray<uint, MDDim1> neighbors(nbNode());
+      SmallSpan<uint> in_data = neighbors.to1DSmallSpan();
 
-    command << RUNCOMMAND_ENUMERATE(Face, face_id, allFaces())
-    {
-      auto nodes = face_node_connectivity_view.nodes(face_id);
-      _fillMatrix(face_id, nb_edge, nodes, inout_m_matrix_row, inout_m_matrix_column);
-    };
+      UnstructuredMeshConnectivityView connectivity_view(mesh());
+      auto node_face_connectivity_view = connectivity_view.nodeFace();
 
-    _fillDiagonal(nb_edge, allNodes());
+      {
+        auto command = makeCommand(queue);
+        command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
+        {
+          in_data[node_id] = node_face_connectivity_view.nbFace(node_id) + 1;
+        };
+      }
+      queue->barrier();
+
+      NumArray<uint, MDDim1> copy_output_data(nbNode());
+      SmallSpan<uint> out_data = copy_output_data.to1DSmallSpan();
+      Accelerator::Scanner<uint> scanner;
+      scanner.exclusiveSum(queue, in_data, out_data);
+
+      auto face_node_connectivity_view = connectivity_view.faceNode();
+
+      {
+        auto command = makeCommand(queue);
+        // Fill the neighbors relation (including node with itself) into the
+        // matrix
+        command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
+        {
+          Int32 offset = out_data[node_id];
+
+          for (auto edge_id : node_face_connectivity_view.faceIds(node_id)) {
+            auto nodes = face_node_connectivity_view.nodes(edge_id);
+            inout_m_matrix_row[offset] = node_id;
+            inout_m_matrix_column[offset] =
+            nodes[0] == node_id ? nodes[1] : nodes[0];
+            ++offset;
+          }
+
+          inout_m_matrix_row[offset] = node_id;
+          inout_m_matrix_column[offset] = node_id;
+        };
+      }
+    }
+    else {
+      info() << "_buildMatrixCooGPU for 2D mesh with edge-node connectivity";
+
+      IndexedFaceNodeConnectivityView face_node_connectivity_view =
+      m_connectivity_view.faceNode();
+
+      command << RUNCOMMAND_ENUMERATE(Face, face_id, allFaces())
+      {
+        auto nodes = face_node_connectivity_view.nodes(face_id);
+        _fillMatrix(face_id, nb_edge, nodes, inout_m_matrix_row,
+                    inout_m_matrix_column);
+      };
+
+      _fillDiagonal(nb_edge, allNodes());
+    }
   }
-  else if (options()->createEdges()) { // 3D mesh without node-node connectivity
-    info() << "_buildMatrixCooGPU for 3D mesh with edge-node connectivity";
+  else if (options()
+           ->createEdges()) { // 3D mesh without node-node connectivity
 
-    IndexedEdgeNodeConnectivityView edge_node_connectivity_view = m_connectivity_view.edgeNode();
+    if (m_use_coo_sort_gpu) {
+      info()
+      << "_buildMatrixCooSortGPU for 3D mesh with edge-node connectivity";
+      NumArray<uint, MDDim1> neighbors(nbNode());
+      SmallSpan<uint> in_data = neighbors.to1DSmallSpan();
 
-    command << RUNCOMMAND_ENUMERATE(Edge, edge_id, allEdges())
-    {
-      auto nodes = edge_node_connectivity_view.nodes(edge_id);
-      _fillMatrix(edge_id, nb_edge, nodes, inout_m_matrix_row, inout_m_matrix_column);
-    };
+      UnstructuredMeshConnectivityView connectivity_view(mesh());
+      auto node_edge_connectivity_view = connectivity_view.nodeEdge();
 
-    _fillDiagonal(nb_edge, allNodes());
+      {
+        auto command = makeCommand(queue);
+        command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
+        {
+          in_data[node_id] = node_edge_connectivity_view.nbEdge(node_id) + 1;
+        };
+      }
+      queue->barrier();
+
+      NumArray<uint, MDDim1> copy_output_data(nbNode());
+      SmallSpan<uint> out_data = copy_output_data.to1DSmallSpan();
+      Accelerator::Scanner<uint> scanner;
+      scanner.exclusiveSum(queue, in_data, out_data);
+
+      auto edge_node_connectivity_view = connectivity_view.edgeNode();
+
+      {
+        auto command = makeCommand(queue);
+        // Fill the neighbors relation (including node with itself) into the
+        // matrix
+        command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
+        {
+          Int32 offset = out_data[node_id];
+
+          for (auto edge_id : node_edge_connectivity_view.edgeIds(node_id)) {
+            auto nodes = edge_node_connectivity_view.nodes(edge_id);
+            inout_m_matrix_row[offset] = node_id;
+            inout_m_matrix_column[offset] =
+            nodes[0] == node_id ? nodes[1] : nodes[0];
+            ++offset;
+          }
+
+          inout_m_matrix_row[offset] = node_id;
+          inout_m_matrix_column[offset] = node_id;
+        };
+      }
+    }
+    else {
+      info() << "_buildMatrixCooGPU for 3D mesh with edge-node connectivity";
+      IndexedEdgeNodeConnectivityView edge_node_connectivity_view =
+      m_connectivity_view.edgeNode();
+
+      command << RUNCOMMAND_ENUMERATE(Edge, edge_id, allEdges())
+      {
+        auto nodes = edge_node_connectivity_view.nodes(edge_id);
+        _fillMatrix(edge_id, nb_edge, nodes, inout_m_matrix_row,
+                    inout_m_matrix_column);
+      };
+
+      _fillDiagonal(nb_edge, allNodes());
+    }
   }
   else { // 3D mesh with node-node connectivity
-    info() << "_buildMatrixCooGPU for 3D mesh with node-node connectivity";
 
     auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
     ARCANE_CHECK_POINTER(connectivity_ptr);
     IndexedNodeNodeConnectivityView nn_cv = connectivity_ptr->view();
 
+    // We allow the use of the accelerated algorithm only if the user provides
+    // an accelerator runtime. On Cpu, the not-accelerated version is faster.
+
     if (queue->isAcceleratorPolicy()) {
-      info() << "Using accelerated version of _buildMatrixCooGPU";
+      info() << "Using accelerated version of _buildMatrixCooGPU for 3D mesh "
+                "with node-node connectivity";
 
       // This array will contain the number of neighbors of each node
       // (type uint is enough for counting neighbors).
@@ -160,7 +275,8 @@ void FemModule::_buildMatrixCooGPU()
       };
     }
     else {
-      info() << "Using unaccelerated version of _buildMatrixCooGPU";
+      info() << "Using unaccelerated version of _buildMatrixCooGPU for 3D mesh "
+                "with node-node connectivity";
 
       auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
@@ -175,11 +291,6 @@ void FemModule::_buildMatrixCooGPU()
       }
     }
   }
-
-  if (m_use_coo_sort_gpu) {
-    Timer::Action timer_coo_sorting_gpu(m_time_stats, "SortingCooMatrixGpu");
-    m_coo_matrix.sort();
-  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -190,17 +301,13 @@ _assembleCooGPUBilinearOperatorTRIA3()
 {
   info() << "Assembling COO GPU Bilinear Operator for TRIA3 elements";
 
-  if (m_use_coo_sort)
-    Timer::Action timer_coo_gpu_bili(m_time_stats, "AssembleCooGpuBilinearOperatorTria3");
-  else // m_use_coo_sort_gpu
-    Timer::Action timer_coo_sort_gpu_bili(m_time_stats, "AssembleCooSortGpuBilinearOperatorTria3");
+  Timer::Action timer_coo_gpu_bili(
+  m_time_stats, m_use_coo_gpu ? "AssembleCooGpuBilinearOperatorTria3" : "AssembleCooSortGpuBilinearOperatorTria3");
 
   {
-    if (m_use_coo_gpu)
-      Timer::Action timer_coo_gpu_build(m_time_stats, "BuildMatrixCooGpu");
-    else // m_use_coo_sort_gpu
-      Timer::Action timer_coo_sort_gpu_build(m_time_stats, "BuildMatrixCooSortGpu");
-
+    Timer::Action timer_coo_gpu_build(m_time_stats,
+                                      m_use_coo_gpu ? "BuildMatrixCooGpu"
+                                                    : "BuildMatrixCooSortGpu");
     _buildMatrixCooGPU();
   }
 
@@ -220,11 +327,15 @@ _assembleCooGPUBilinearOperatorTRIA3()
   Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
   Arcane::ItemGenericInfoListView cells_infos(this->mesh()->cellFamily());
 
+  bool is_row_array_sorted = m_use_coo_sort_gpu || (mesh()->dimension() == 3 && !options()->createEdges());
+
+  Timer::Action timer_coo_gpu_compute_add(m_time_stats, "CooGpuComputeAndAdd");
+
   command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
   {
     Real K_e[9] = { 0 };
     {
-        _computeElementMatrixTRIA3GPU(icell, cnc, in_node_coord, K_e);
+      _computeElementMatrixTRIA3GPU(icell, cnc, in_node_coord, K_e);
     }
 
     Int32 n1_index = 0;
@@ -236,13 +347,24 @@ _assembleCooGPUBilinearOperatorTRIA3()
         if (nodes_infos.isOwn(node1)) {
           Int32 row_index = node_dof.dofId(node1, 0);
           Int32 col_index = node_dof.dofId(node2, 0);
-          Int32 value_index;
 
           // Find the index of the value in the coo matrix
-          for (value_index = 0; value_index < row_length; value_index++) {
-            if (in_row_coo(value_index) == row_index && in_col_coo(value_index) == col_index) {
-              ax::doAtomic<ax::eAtomicOperation::Add>(in_out_val_coo(value_index), v);
-              break;
+          if (is_row_array_sorted) {
+            auto value_index = findIndexBinarySearch(
+            row_index, col_index, in_row_coo, in_col_coo, row_length);
+
+            ax::doAtomic<ax::eAtomicOperation::Add>(in_out_val_coo(value_index),
+                                                    v);
+          }
+          else {
+            for (auto value_index = 0; value_index < row_length;
+                 value_index++) {
+              if (in_row_coo(value_index) == row_index &&
+                  in_col_coo(value_index) == col_index) {
+                ax::doAtomic<ax::eAtomicOperation::Add>(
+                in_out_val_coo(value_index), v);
+                break;
+              }
             }
           }
         }
@@ -257,19 +379,17 @@ _assembleCooGPUBilinearOperatorTRIA3()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleCooGPUBilinearOperatorTETRA4() {
+_assembleCooGPUBilinearOperatorTETRA4()
+{
   info() << "Assembling COO GPU Bilinear Operator for TETRA4 elements";
 
-  if (m_use_coo_gpu)
-    Timer::Action timer_coo_gpu_bili(m_time_stats, "AssembleCooGpuBilinearOperatorTetra4");
-  else // m_use_coo_sort_gpu
-    Timer::Action timer_coo_sort_gpu_bili(m_time_stats, "AssembleCooSortGpuBilinearOperatorTetra4");
+  Timer::Action timer_coo_gpu_bili(
+  m_time_stats, m_use_coo_gpu ? "AssembleCooGpuBilinearOperatorTetra4" : "AssembleCooSortGpuBilinearOperatorTetra4");
 
   {
-    if (m_use_coo_gpu)
-      Timer::Action timer_coo_gpu_build(m_time_stats, "BuildMatrixCooGpu");
-    else // m_use_coo_sort_gpu
-      Timer::Action timer_coo_sort_gpu_build(m_time_stats, "BuildMatrixCooSortGpu");
+    Timer::Action timer_coo_gpu_build(m_time_stats,
+                                      m_use_coo_gpu ? "BuildMatrixCooGpu"
+                                                    : "BuildMatrixCooSortGpu");
     _buildMatrixCooGPU();
   }
 
@@ -289,11 +409,15 @@ _assembleCooGPUBilinearOperatorTETRA4() {
   Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
   Arcane::ItemGenericInfoListView cells_infos(this->mesh()->cellFamily());
 
+  bool is_row_array_sorted = m_use_coo_sort_gpu || (mesh()->dimension() == 3 && !options()->createEdges());
+
+  Timer::Action timer_coo_gpu_compute_add(m_time_stats, "CooGpuComputeAndAdd");
+
   command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
   {
     Real K_e[16] = { 0 };
     {
-        _computeElementMatrixTETRA4GPU(icell, cnc, in_node_coord, K_e);
+      _computeElementMatrixTETRA4GPU(icell, cnc, in_node_coord, K_e);
     }
 
     Int32 n1_index = 0;
@@ -304,13 +428,24 @@ _assembleCooGPUBilinearOperatorTETRA4() {
           Real v = K_e[n1_index * 4 + n2_index];
           Int32 row_index = node_dof.dofId(node1, 0);
           Int32 col_index = node_dof.dofId(node2, 0);
-          Int32 value_index;
 
           // Find the index of the value in the coo matrix
-          for (value_index = 0; value_index < row_length; value_index++) {
-            if (in_row_coo(value_index) == row_index && in_col_coo(value_index) == col_index) {
-              ax::doAtomic<ax::eAtomicOperation::Add>(in_out_val_coo(value_index), v);
-              break;
+          if (is_row_array_sorted) {
+            auto value_index = findIndexBinarySearch(
+            row_index, col_index, in_row_coo, in_col_coo, row_length);
+
+            ax::doAtomic<ax::eAtomicOperation::Add>(in_out_val_coo(value_index),
+                                                    v);
+          }
+          else {
+            for (auto value_index = 0; value_index < row_length;
+                 value_index++) {
+              if (in_row_coo(value_index) == row_index &&
+                  in_col_coo(value_index) == col_index) {
+                ax::doAtomic<ax::eAtomicOperation::Add>(
+                in_out_val_coo(value_index), v);
+                break;
+              }
             }
           }
         }
@@ -319,6 +454,56 @@ _assembleCooGPUBilinearOperatorTETRA4() {
       ++n1_index;
     }
   };
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE Int32 findIndexBinarySearch(Int32 row, Int32 col,
+                                                const auto& in_row_coo,
+                                                const auto& in_col_coo,
+                                                Int32 row_length)
+{
+  Int32 begin = 0;
+  Int32 end = row_length - 1;
+  Int32 i = -1; // Default value in case the index is not found
+
+  // Binary search to find the first occurrence of `row`
+  while (begin <= end) {
+    Int32 mid = begin + (end - begin) / 2;
+
+    if (row == in_row_coo(mid)) {
+      // Move back to the first occurrence of the row
+      while (mid > 0 && in_row_coo(mid - 1) == row) {
+        mid--;
+      }
+      i = mid;
+      break;
+    }
+
+    if (row > in_row_coo(mid)) {
+      begin = mid + 1;
+    }
+    else {
+      end = mid - 1;
+    }
+  }
+
+  // If no occurrence of the row was found, return -1
+  if (i == -1) {
+    return -1;
+  }
+
+  // Search for the matching column in the found row's block
+  while (i < row_length && in_row_coo(i) == row) {
+    if (in_col_coo(i) == col) {
+      return i;
+    }
+    i++;
+  }
+
+  // If no matching column is found, return -1
+  return -1;
 }
 
 /*---------------------------------------------------------------------------*/
