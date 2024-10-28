@@ -15,13 +15,6 @@
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
-// <<<<<<< HEAD
-// #include "arcane/core/Item.h"
-// #include "arcane/core/ItemGenericInfoListView.h"
-// #include "arcane/core/ItemLocalId.h"
-// #include "arcane/utils/UtilsTypes.h"
-// =======
-// >>>>>>> main
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
