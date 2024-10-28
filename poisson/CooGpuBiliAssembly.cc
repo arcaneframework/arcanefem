@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* CooGpuiBiliAssembly.hxx                                     (C) 2022-2023 */
+/* CooGpuiBiliAssembly.hxx                                     (C) 2022-2024 */
 /*                                                                           */
 /* Methods of the bilinear assembly phase using the coo data structure       */
 /* which handle the parallelization on GPU using Arcane accelerator API and  */
@@ -15,11 +15,6 @@
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
-#include "arcane/core/IndexedItemConnectivityView.h"
-#include "arcane/core/Item.h"
-#include "arcane/core/ItemGenericInfoListView.h"
-#include "arcane/core/ItemLocalId.h"
-#include "arcane/utils/UtilsTypes.h"
 
 /*---------------------------------------------------------------------------*/
 /**
