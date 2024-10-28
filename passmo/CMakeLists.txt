@@ -22,8 +22,9 @@ file(COPY "inputs/" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 enable_testing()
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
-  add_test(NAME [passmo]bar2D_T3-Q4 COMMAND Passmo bar2d_tria_quad.arc)
   add_test(NAME [passmo]bar2D_T3 COMMAND Passmo bar2d_tria.arc)
+  add_test(NAME [passmo]bar2D_Q4 COMMAND Passmo bar2d_quad.arc)
+  add_test(NAME [passmo]bar2D_T3-Q4 COMMAND Passmo bar2d_tria_quad.arc)
 endif ()
 
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)

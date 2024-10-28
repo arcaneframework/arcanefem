@@ -127,7 +127,7 @@ class ArcaneFemFunctions
       Real3 n2 = node_coord[item.nodeId(2)];
       Real3 n3 = node_coord[item.nodeId(3)];
 
-      auto tri1x2 = math::cross(n1 - n0,n2 - n0);
+      auto tri1x2 = math::cross(n2 - n1,n0 - n1);
       auto tri2x2 = math::cross(n0 - n3,n2 - n3);
       return 0.5*(tri1x2.normL2() + tri2x2.normL2());
     }
@@ -1116,15 +1116,19 @@ class ArcaneFemFunctions
     /**
      * @brief Provides methods for reference linear (P1) triangle finite-element
      * The "Tri3" reference element is assumed as follows:
-     *        0 o
-     *         . .
-     *        .   .
-     *       .     .
-     *      .       .
-     *     .         .
-     *    .           .
-     *   o-------------o
-     *  1               2
+     *
+     *   ^ s
+     *   |
+     *  2 (1,0)
+     *   o
+     *   . .
+     *   .   .
+     *   .     .
+     *   .       .
+     *   .         .
+     *   .           .
+     *   o-------------o---------> r
+     *  0 (0,0)         1 (1,0)
      * direct local numbering : 0->1->2
      */
     /*---------------------------------------------------------------------------*/
@@ -1149,15 +1153,19 @@ class ArcaneFemFunctions
     /**
      * @brief Provides methods for reference quadratic (P2) triangle finite-element
      * The "Tri6" reference element is assumed as follows:
-     *        0 o
-     *         . .
-     *        .   .
-     *     3 o     o 5
-     *      .       .
-     *     .         .
-     *    .           .
-     *   o------o------o
-     *  1       4       2
+     *   ^ s
+     *   |
+     *  2 (1,0)
+     *   o
+     *   .  .
+     *   .    .
+     *   .      .
+     *   o 6      o 5(0.5;0.5)
+     *   .(0;0.5)   .
+     *   .            .
+     *   .              .
+     *   o-------o-------o---------> r
+     * 0(0,0)  4(0.5;0)  1(1,0)
      * direct local numbering : 0->1->2->3->4->5
      */
     /*---------------------------------------------------------------------------*/
@@ -1165,28 +1173,37 @@ class ArcaneFemFunctions
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 6);
 #endif
+      auto	wi = 0.,ri = ref_coord[0],si = ref_coord[1];
+      auto ri2 = 2.*ri - 1.;
+      auto si2 = 2.*si - 1.;
+      auto ti = 1. - ri - si, ti2 = 2.*ti - 1.;
 
-      if (inod < 3) return ref_coord[inod];
-
-      auto	wi = 0.,ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2];
       switch(inod) {
-      default: break;
-      case 3:	wi = 4.*ri*si; break;
-      case 4:	wi = 4.*si*ti; break;
-      case 5:	wi = 4.*ri*ti; break;
+        default: break;
+        case 0:	wi = ti*ti2; break;
+        case 1:	wi = ri*ri2; break;
+        case 2:	wi = si*si2; break;
+        case 3:	wi = 4.*ri*ti; break;
+        case 4:	wi = 4.*ri*si; break;
+        case 5:	wi = 4.*si*ti; break;
       }
       return wi;
     }
 
     static inline Real3 tri6ShapeFuncDeriv(Integer inod, Real3 ref_coord){
-      if (!inod) return {1., 0.,0.};
-      if (inod==1) return {0., 1., 0.};
-      if (inod == 2) return {-1., -1.,0.};
+      auto	ri = ref_coord[0],si = ref_coord[1];
+      auto ti = 1. - ri - si;
 
-      auto	ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2];
-      if (inod == 3) return {4.*si, 4.*ri,0.};
-      if (inod == 4) return {-4.*si, 4.*(ti - si),0.};
-      return {4.*(ti - ri), -4.*ri,0.};
+      if (!inod) {
+        auto wi = -3. + 4.*(ri + si);
+        return { wi, wi, 0. };
+      }
+      if (inod==1) return { -1. + 4.*ri, 0., 0. };
+      if (inod == 2) return { 0., -1. + 4.*si, 0. };
+
+      if (inod == 3) return { 4.*(ti - ri), -4.*ri, 0. };
+      if (inod == 4) return { 4.*si, 4.*ri, 0.};
+      return { -4.*si, 4.*(ti - si), 0. };
     }
 
     /*---------------------------------------------------------------------------*/
