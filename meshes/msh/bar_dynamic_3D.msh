@@ -3,12 +3,12 @@ $MeshFormat
 $EndMeshFormat
 $PhysicalNames
 6
-2 1 "left-sur"
-2 2 "right-sur"
-2 3 "top-sur"
-2 4 "bot-sur"
-2 5 "side-surfaces"
-3 6 "vol"
+2 1 "surfaceleft"
+2 2 "surfaceright"
+2 3 "surfacetop"
+2 4 "surfacebottom"
+2 5 "sidesurfaces"
+3 6 "volume"
 $EndPhysicalNames
 $Entities
 8 12 6 1

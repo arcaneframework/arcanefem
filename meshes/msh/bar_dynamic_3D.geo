@@ -65,12 +65,12 @@ Plane Surface(24) = {23};
 Surface Loop(25) = {18, 14, 16, 22, 24, 20};
 Volume(26) = {25};
 
-Physical Surface("left-sur") = {18};
-Physical Surface("right-sur") = {22};
-Physical Surface("top-sur") = {14};
-Physical Surface("bot-sur") = {20};
-Physical Surface("side-surfaces") = {16, 24};
-Physical Volume("vol") = {26};
+Physical Surface("surfaceleft") = {18};
+Physical Surface("surfaceright") = {22};
+Physical Surface("surfacetop") = {14};
+Physical Surface("surfacebottom") = {20};
+Physical Surface("sidesurfaces") = {16, 24};
+Physical Volume("volume") = {26};
 
 //==============================================================================
 // ---- msh version imposed ----
