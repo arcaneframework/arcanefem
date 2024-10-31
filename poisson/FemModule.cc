@@ -379,6 +379,10 @@ _handleFlags()
     m_running_on_gpu = true;
     info() << "CUDA: The methods able to use GPU will use it";
   }
+  if (parameter_list.getParameterOrNull("AcceleratorRuntime") == "hip") {
+    m_running_on_gpu = true;
+    info() << "HIP: The methods able to use GPU will use it";
+  }
   info() << "-----------------------------------------------------------------------------------------";
 }
 
