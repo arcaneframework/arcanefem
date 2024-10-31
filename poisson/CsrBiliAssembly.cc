@@ -8,6 +8,7 @@
 /* CsrBiliAssembly.hxx                                         (C) 2022-2024 */
 /*                                                                           */
 /* Methods of the bilinear assembly phase using the csr data structure       */
+/* which handle the parallelization on CPU's                                 */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -16,8 +17,8 @@
 /**
  * @brief Initialization of the csr matrix. It only works for p=1 since there is
  * one node per Edge.
- * 
- * 
+ *
+ *
  */
 void FemModule::
 _buildMatrixCsr()
@@ -119,11 +120,12 @@ _assembleCsrBilinearOperatorTRIA3()
   Timer::Action timer_csr_bili(m_time_stats, "AssembleCsrBilinearOperatorTria3");
   {
     Timer::Action timer_csr_build(m_time_stats, "CsrBuildMatrix");
-    // Build the csr matrix
     _buildMatrixCsr();
   }
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  Timer::Action timer_add_compute(m_time_stats, "CsrAddComputeLoop");
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
@@ -142,7 +144,6 @@ _assembleCsrBilinearOperatorTRIA3()
     //                     inode2=elem.nodes.index(node2)
     //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
 
-    //Timer::Action timer_action(m_time_stats, "CsrAddToGlobalMatrix");
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
@@ -168,10 +169,13 @@ _assembleCsrBilinearOperatorTETRA4()
 {
   Timer::Action timer_csr_bili(m_time_stats, "AssembleCsrBilinearOperatorTetra4");
   {
+    Timer::Action timer_gpu_build(m_time_stats, "CsrBuildMatrix");
     _buildMatrixCsr();
   }
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  Timer::Action timer_add_compute(m_time_stats, "CsrAddComputeLoop");
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
@@ -181,7 +185,6 @@ _assembleCsrBilinearOperatorTETRA4()
       K_e = _computeElementMatrixTETRA4(cell); // element stifness matrix
     }
 
-    //Timer::Action timer_action(m_time_stats, "CsrAddToGlobalMatrix");
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
