@@ -94,6 +94,8 @@
 
 #include "arcane/utils/ValueConvert.h"
 
+#include <arcane/core/MeshUtils.h>
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -193,8 +195,6 @@ class FemModule
 
  private:
 
-  void fileNumArray(bool ref, NumArray<Real, MDDim1> numarray);
-
   void _handleFlags();
   void _doStationarySolve();
   void _getMaterialParameters();
@@ -210,7 +210,6 @@ class FemModule
   void _writeInJson();
   void _saveTimeInCSV();
   void _saveNoBuildTimeInCSV();
-  void _benchBuildRow();
   Real _readTimeFromJson(String main_time, String sub_time);
   FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixTETRA4(Cell cell);

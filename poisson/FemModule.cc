@@ -12,7 +12,6 @@
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
-#include <arcane/core/MeshUtils.h>
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -177,24 +176,6 @@ _saveNoBuildTimeInCSV()
   csv_save.close();
 }
 
-void FemModule::
-_benchBuildRow()
-{
-  std::ofstream csv_save;
-  String csv_file_name = String::format("buildRow.{0}.csv",parallelMng()->commRank());
-  if (!fs::exists(csv_file_name.localstr())) {
-    csv_save.open(csv_file_name.localstr());
-    csv_save << "Number of Nodes,Build on CPU,Build on GPU\n";
-  }
-  else {
-    csv_save.open(csv_file_name.localstr(), std::ios_base::app);
-  }
-  csv_save << nbNode() << ",";
-  csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrBuildMatrix") / m_cache_warming << ",";
-  csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrBuildMatrixGPU") / m_cache_warming << "\n";
-  csv_save.close();
-}
-
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -204,7 +185,6 @@ endModule()
   _writeInJson();
   _saveTimeInCSV();
   _saveNoBuildTimeInCSV();
-  //_benchBuildRow();
 }
 
 void FemModule::
@@ -893,7 +873,7 @@ _assembleLinearOperator()
     }
   }
   {
-    Timer::Action timer_action(m_time_stats, "ConstantSourceTermAssembly");
+    Timer::Action timer_action(m_time_stats, "ConstantFluxTermAssembly");
 
     //----------------------------------------------
     // Constant flux term assembly
@@ -2053,21 +2033,6 @@ _isMasterRank() const
 /*---------------------------------------------------------------------------*/
 
 ARCANE_REGISTER_MODULE_FEM(FemModule);
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::fileNumArray(bool ref, NumArray<Real, MDDim1> numarray)
-{
-  ofstream file;
-  if (ref)
-    file.open("ref.txt");
-  else
-    file.open("test.txt");
-  for (auto i = 0; i < numarray.dim1Size(); i++) {
-    file << numarray(i) << " ";
-  }
-}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
