@@ -177,10 +177,6 @@ class FemModule
 
   NumArray<Real, MDDim1> m_rhs_vect;
 
-  std::ofstream logger;
-  std::ofstream wbuild;
-  std::ofstream timer;
-
   Integer cache_index;
 
   /*!
@@ -207,10 +203,7 @@ class FemModule
   void _assembleLinearOperator();
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
-  void _writeInJson();
-  void _saveTimeInCSV();
-  void _saveNoBuildTimeInCSV();
-  Real _readTimeFromJson(String main_time, String sub_time);
+  void _dumpTimeStats();
   FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixTETRA4(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
@@ -366,7 +359,6 @@ _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView
   //std::cout << " int_cdPi_dPj=";
   //int_cdPi_dPj.dump(std::cout);
   //std::cout << "\n";
-
 }
 
 /*---------------------------------------------------------------------------*/
