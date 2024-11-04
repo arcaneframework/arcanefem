@@ -18,7 +18,7 @@ _assembleBilinearOperatorTRIA3()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  Timer::Action timer_action(m_time_stats, "AssembleLegacyBilinearOperatorTria3");
+  Timer::Action timer_action(m_time_stats, "AssembleBilinearOperator_Legacy");
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
@@ -54,6 +54,35 @@ _assembleBilinearOperatorTRIA3()
         }
         ++n1_index;
       }
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleBilinearOperatorTETRA4()
+{
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  Timer::Action timer_action(m_time_stats, "AssembleBilinearOperator_Legacy");
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+
+    auto K_e = _computeElementMatrixTETRA4(cell); // element stiffness matrix
+    Int32 n1_index = 0;
+    for (Node node1 : cell.nodes()) {
+      Int32 n2_index = 0;
+      for (Node node2 : cell.nodes()) {
+        Real v = K_e(n1_index, n2_index);
+        if (node1.isOwn()) {
+          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+        }
+        ++n2_index;
+      }
+      ++n1_index;
     }
   }
 }

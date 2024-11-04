@@ -71,25 +71,24 @@ void FemModule::_assembleCooBilinearOperatorTRIA3()
 {
   info() << "Assembling COO Bilinear Operator TRIA3";
 
-  Timer::Action timer_coo_bili(m_time_stats, "AssembleCooBilinearOperatorTria3");
+  Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_Coo");
 
   {
-    Timer::Action timer_coo_build(m_time_stats, "BuildMatrixCoo");
+    Timer::Action timer_build(m_time_stats, "BuildMatrix");
     _buildMatrixCoo();
   }
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
+  Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
     FixedMatrix<3, 3> K_e;
     {
-      Timer::Action timer_coo_compute(m_time_stats, "CooComputeElementMatrixTria3");
       K_e = _computeElementMatrixTRIA3(cell);
     }
 
-    Timer::Action timer_coo_add(m_time_stats, "CooAddToGlobalMatrix");
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
@@ -123,25 +122,24 @@ void FemModule::_assembleCooBilinearOperatorTETRA4()
 {
   info() << "Assembling COO Bilinear Operator TETRA4";
 
-  Timer::Action timer_coo_bili(m_time_stats, "AssembleCooBilinearOperatorTetra4");
+  Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_Coo");
 
   {
-    Timer::Action timer_coo_build(m_time_stats, "BuildMatrixCoo");
+    Timer::Action timer_build(m_time_stats, "BuildMatrix");
     _buildMatrixCoo();
   }
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
+  Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
     FixedMatrix<4, 4> K_e;
     {
-      Timer::Action timer_coo_compute(m_time_stats, "CooComputeElementMatrixTetra4");
       K_e = _computeElementMatrixTETRA4(cell);
     }
 
-    Timer::Action timer_coo_add(m_time_stats, "CooAddToGlobalMatrix");
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;

@@ -297,13 +297,11 @@ _assembleCooGPUBilinearOperatorTRIA3()
 {
   info() << "Assembling COO GPU Bilinear Operator for TRIA3 elements";
 
-  Timer::Action timer_coo_gpu_bili(
-  m_time_stats, m_use_coo_gpu ? "AssembleCooGpuBilinearOperatorTria3" : "AssembleCooSortGpuBilinearOperatorTria3");
+  Timer::Action timer_bili(
+  m_time_stats, m_use_coo_gpu ? "AssembleBilinearOperator_Coo_Gpu" : "AssembleBilinearOperator_CooSort_Gpu");
 
   {
-    Timer::Action timer_coo_gpu_build(m_time_stats,
-                                      m_use_coo_gpu ? "BuildMatrixCooGpu"
-                                                    : "BuildMatrixCooSortGpu");
+    Timer::Action timer_build(m_time_stats, "BuildMatrix");
     _buildMatrixCooGPU();
   }
 
@@ -325,7 +323,7 @@ _assembleCooGPUBilinearOperatorTRIA3()
 
   bool is_row_array_sorted = m_use_coo_sort_gpu || (mesh()->dimension() == 3 && !options()->createEdges());
 
-  Timer::Action timer_coo_gpu_compute_add(m_time_stats, "CooGpuComputeAndAdd");
+  Timer::Action timer_add_compute(m_time_stats, "ComputeAndAdd");
 
   command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
   {
@@ -379,13 +377,11 @@ _assembleCooGPUBilinearOperatorTETRA4()
 {
   info() << "Assembling COO GPU Bilinear Operator for TETRA4 elements";
 
-  Timer::Action timer_coo_gpu_bili(
-  m_time_stats, m_use_coo_gpu ? "AssembleCooGpuBilinearOperatorTetra4" : "AssembleCooSortGpuBilinearOperatorTetra4");
+  Timer::Action timer_bili(
+  m_time_stats, m_use_coo_gpu ? "AssembleBilinearOperator_Coo_Gpu" : "AssembleBilinearOperator_CooSort_Gpu");
 
   {
-    Timer::Action timer_coo_gpu_build(m_time_stats,
-                                      m_use_coo_gpu ? "BuildMatrixCooGpu"
-                                                    : "BuildMatrixCooSortGpu");
+    Timer::Action timer_build(m_time_stats, "BuildMatrix");
     _buildMatrixCooGPU();
   }
 
@@ -407,7 +403,7 @@ _assembleCooGPUBilinearOperatorTETRA4()
 
   bool is_row_array_sorted = m_use_coo_sort_gpu || (mesh()->dimension() == 3 && !options()->createEdges());
 
-  Timer::Action timer_coo_gpu_compute_add(m_time_stats, "CooGpuComputeAndAdd");
+  Timer::Action timer_add_compute(m_time_stats, "ComputeAndAdd");
 
   command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
   {

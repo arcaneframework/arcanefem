@@ -171,10 +171,10 @@ void FemModule::
 _assembleCsrGPUBilinearOperatorTRIA3()
 {
 
-  Timer::Action timer_gpu_bili(m_time_stats, "AssembleCsrGpuBilinearOperatorTria3");
+  Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_Csr_Gpu");
 
   {
-    Timer::Action timer_gpu_build(m_time_stats, "CsrGpuBuildMatrix");
+    Timer::Action timer_build(m_time_stats, "BuildMatrix");
     // Build the csr matrix
     _buildMatrixCsrGPU();
   }
@@ -195,7 +195,7 @@ _assembleCsrGPUBilinearOperatorTRIA3()
   auto cnc = m_connectivity_view.cellNode();
   Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
 
-  Timer::Action timer_add_compute(m_time_stats, "CsrGpuAddComputeLoop");
+  Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
 
   command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
   {
@@ -258,10 +258,10 @@ _assembleCsrGPUBilinearOperatorTRIA3()
 void FemModule::
 _assembleCsrGPUBilinearOperatorTETRA4()
 {
-  Timer::Action timer_gpu_bili(m_time_stats, "AssembleCsrGpuBilinearOperatorTetra4");
+  Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_Csr_Gpu");
 
   {
-    Timer::Action timer_gpu_build(m_time_stats, "CsrGpuBuildMatrix");
+    Timer::Action timer_build(m_time_stats, "BuildMatrix");
     _buildMatrixCsrGPU();
   }
 
@@ -283,7 +283,7 @@ _assembleCsrGPUBilinearOperatorTETRA4()
 
     ItemGenericInfoListView nodes_infos(mesh()->nodeFamily());
 
-    Timer::Action timer_add_compute(m_time_stats, "CsrGpuAddComputeLoop");
+    Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
 
     command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
     {
