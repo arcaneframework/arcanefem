@@ -56,7 +56,8 @@ _buildMatrixCooSort()
     ENUMERATE_FACE (iface, allFaces()) {
       fillMatrix(*iface);
     }
-  } else {
+  }
+  else {
     ENUMERATE_EDGE (iedge, allEdges()) {
       fillMatrix(*iedge);
     }
@@ -103,7 +104,7 @@ _assembleCooSortBilinearOperatorTRIA3()
 
     FixedMatrix<3, 3> K_e;
     {
-      Timer::Action timer_element_coosort(m_time_stats,"CooSortComputeElementMatrixTria3");
+      Timer::Action timer_element_coosort(m_time_stats, "CooSortComputeElementMatrixTria3");
       K_e = _computeElementMatrixTRIA3(cell);
     }
 
@@ -141,7 +142,8 @@ _assembleCooSortBilinearOperatorTRIA3()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleCooSortBilinearOperatorTETRA4() {
+void FemModule::_assembleCooSortBilinearOperatorTETRA4()
+{
   info() << "Assembling COO Sort Bilinear Operator TETRA4";
 
   Timer::Action timer_coosort_bili(m_time_stats, "AssembleCooSortBilinearOperatorTetra4");
@@ -158,7 +160,7 @@ void FemModule::_assembleCooSortBilinearOperatorTETRA4() {
 
     FixedMatrix<4, 4> K_e;
     {
-      Timer::Action timer_element_coosort(m_time_stats,"CooSortComputeElementMatrixTetra4");
+      Timer::Action timer_element_coosort(m_time_stats, "CooSortComputeElementMatrixTetra4");
       K_e = _computeElementMatrixTETRA4(cell);
     }
 

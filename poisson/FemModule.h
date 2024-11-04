@@ -126,10 +126,10 @@ class FemModule
     cm->setTreatWarningAsError(true);
     cm->setAllowUnkownRootElelement(false);
 
-    addEntryPoint(this,"Build",
-                &FemModule::_build,
-                IEntryPoint::WBuild,
-                IEntryPoint::PAutoLoadBegin);
+    addEntryPoint(this, "Build",
+                  &FemModule::_build,
+                  IEntryPoint::WBuild,
+                  IEntryPoint::PAutoLoadBegin);
   }
 
  public:
@@ -228,7 +228,7 @@ class FemModule
 
   static ARCCORE_HOST_DEVICE Real
   _computeAreaTetra4Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
-                           ax::VariableNodeReal3InView in_node_coord);
+                        ax::VariableNodeReal3InView in_node_coord);
   static ARCCORE_HOST_DEVICE Real
   _computeAreaTriangle3Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
                            ax::VariableNodeReal3InView in_node_coord);
@@ -367,8 +367,6 @@ _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView
   //int_cdPi_dPj.dump(std::cout);
   //std::cout << "\n";
 
-  //No need to return anymore
-  //return int_cdPi_dPj;
 }
 
 /*---------------------------------------------------------------------------*/

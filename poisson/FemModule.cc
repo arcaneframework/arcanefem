@@ -264,18 +264,6 @@ startInit()
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
-  //_buildDoFOnNodes();
-  //Int32 nb_node = allNodes().size();
-  //m_k_matrix.resize(nb_node, nb_node);
-  //m_k_matrix.fill(0.0);
-
-  //m_rhs_vector.resize(nb_node);
-  //m_rhs_vector.fill(0.0);
-
-  // # init mesh
-  // # init behavior
-  // # init behavior on mesh entities
-  // # init BCs
   _handleFlags();
   _initBoundaryconditions();
 
@@ -386,6 +374,7 @@ _doStationarySolve()
       _assembleBilinearOperatorTRIA3();
     if (m_cache_warming != 1) {
       m_time_stats->resetStats("AssembleLegacyBilinearOperatorTria3");
+      m_time_stats->resetStats("AssembleLegacyBilinearOperatorTetra4");
       for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
         m_linear_system.clearValues();
         if (options()->meshType == "TETRA4")
@@ -404,6 +393,7 @@ _doStationarySolve()
       _assembleCsrBilinearOperatorTETRA4();
     if (m_cache_warming != 1) {
       m_time_stats->resetStats("AssembleCsrBilinearOperatorTria3");
+      m_time_stats->resetStats("AssembleCsrBilinearOperatorTetra4");
       for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
         m_linear_system.clearValues();
         if (options()->meshType == "TRIA3")
@@ -531,6 +521,7 @@ _doStationarySolve()
       _assembleBuildLessCsrBilinearOperatorTetra4();
     if (m_cache_warming != 1) {
       m_time_stats->resetStats("AssembleBuildLessCsrBilinearOperatorTria3");
+      m_time_stats->resetStats("AssembleBuildLessCsrBilinearOperatorTetra4");
       for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
         m_linear_system.clearValues();
         if (options()->meshType == "TRIA3")
@@ -1897,44 +1888,6 @@ _computeElementMatrixTETRA4(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleBilinearOperatorTETRA4()
-{
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-
-    auto K_e = _computeElementMatrixTETRA4(cell); // element stiffness matrix
-
-    //             # assemble elementary matrix into the global one
-    //             # elementary terms are positioned into K according
-    //             # to the rank of associated node in the mesh.nodes list
-    //             for node1 in elem.nodes:
-    //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
-    //                 for node2 in elem.nodes:
-    //                     inode2=elem.nodes.index(node2)
-    //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-    Int32 n1_index = 0;
-    for (Node node1 : cell.nodes()) {
-      Int32 n2_index = 0;
-      for (Node node2 : cell.nodes()) {
-        // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-        Real v = K_e(n1_index, n2_index);
-        // m_k_matrix(node1.localId(), node2.localId()) += v;
-        if (node1.isOwn()) {
-          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
-        }
-        ++n2_index;
-      }
-      ++n1_index;
-    }
-  }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
 _solve()
 {
   ITimeStats* tstat = m_time_stats;
@@ -1965,16 +1918,7 @@ _solve()
     }
   }
 
-  //test
   m_u.synchronize();
-
-  // def update_T(self,T):
-  //     """Update u value on nodes after the FE resolution"""
-  //     for i in range(0,len(self.mesh.nodes)):
-  //         node=self.mesh.nodes[i]
-  //         # don't update T imposed by Dirichlet BC
-  //         if not node.is_T_fixed:
-  //             self.mesh.nodes[i].T=T[i]
 
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {

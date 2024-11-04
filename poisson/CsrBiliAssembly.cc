@@ -182,16 +182,14 @@ _assembleCsrBilinearOperatorTETRA4()
 
     FixedMatrix<4, 4> K_e;
     {
-      K_e = _computeElementMatrixTETRA4(cell); // element stifness matrix
+      K_e = _computeElementMatrixTETRA4(cell); // element stiffness matrix
     }
 
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
       for (Node node2 : cell.nodes()) {
-        // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
         Real v = K_e(n1_index, n2_index);
-        // m_k_matrix(node1.localId(), node2.localId()) += v;
         if (node1.isOwn()) {
           m_csr_matrix.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
         }
@@ -200,7 +198,6 @@ _assembleCsrBilinearOperatorTETRA4()
       ++n1_index;
     }
   }
-
 }
 
 /*---------------------------------------------------------------------------*/
