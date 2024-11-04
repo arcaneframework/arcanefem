@@ -23,10 +23,21 @@ void FemModule::_dumpTimeStats()
     return;
 
   ofstream dump_file("./output/listing/time_stats.json");
-
   JSONWriter json_writer(JSONWriter::FormatFlags::None);
+  int mesh_dim = defaultMesh()->dimension();
 
   json_writer.beginObject();
+  json_writer.write("nbParallelInstance", parallelMng()->commSize());
+
+  ParameterList parameter_list = this->subDomain()->application()->applicationInfo().commandLineArguments().parameters();
+  if (m_running_on_gpu)
+    json_writer.write("acceleratorRuntime", parameter_list.getParameterOrNull("AcceleratorRuntime"));
+
+  json_writer.write("meshDim", mesh_dim);
+  json_writer.write("nbNode", nbNode());
+  json_writer.write("nbEdge", mesh_dim == 2 ? nbFace() : m_nb_edge);
+  json_writer.write("nbCell", nbCell());
+
   m_time_stats->dumpStatsJSON(json_writer);
   json_writer.endObject();
 
