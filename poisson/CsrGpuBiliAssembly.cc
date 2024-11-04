@@ -5,15 +5,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* CsrGpuiBiliAssembly.hxx                                     (C) 2022-2024 */
+/* CsrGpuBiliAssembly.hxx                                      (C) 2022-2024 */
 /*                                                                           */
 /* Methods of the bilinear assembly phase using the csr data structure       */
-/* which handle the parallelization on Nvidia GPU                            */
+/* which handle the parallelization on GPU's or CPU's                        */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
-#include "arcane/core/IndexedItemConnectivityView.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

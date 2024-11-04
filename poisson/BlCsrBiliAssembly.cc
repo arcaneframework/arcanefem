@@ -149,31 +149,6 @@ Real FemModule::_computeCellMatrixGpuTETRA4(CellLocalId icell, IndexedCellNodeCo
   b_matrix[10] = dPhi3.y * mul;
   b_matrix[11] = dPhi3.z * mul;
 
-  /*
-  FixedMatrix<3, 4> b_matrix;
-  b_matrix(0, 0) = dPhi0.x;
-  b_matrix(1, 0) = dPhi0.y;
-  b_matrix(2, 0) = dPhi0.z;
-
-  b_matrix(0, 1) = dPhi1.x;
-  b_matrix(1, 1) = dPhi1.y;
-  b_matrix(2, 1) = dPhi1.z;
-
-  b_matrix(0, 2) = dPhi2.x;
-  b_matrix(1, 2) = dPhi2.y;
-  b_matrix(2, 2) = dPhi2.z;
-
-  b_matrix(0, 3) = dPhi3.x;
-  b_matrix(1, 3) = dPhi3.y;
-  b_matrix(2, 3) = dPhi3.z;
-
-  b_matrix.multInPlace(1.0 / (6.0 * volume));
-
-  // Compute the element matrix
-  FixedMatrix<4, 4> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
-  int_cdPi_dPj.multInPlace(volume);
-*/
-
   return area;
 }
 

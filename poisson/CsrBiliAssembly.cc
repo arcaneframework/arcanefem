@@ -8,6 +8,7 @@
 /* CsrBiliAssembly.hxx                                         (C) 2022-2024 */
 /*                                                                           */
 /* Methods of the bilinear assembly phase using the csr data structure       */
+/* which handle the parallelization on CPU's                                 */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -16,8 +17,8 @@
 /**
  * @brief Initialization of the csr matrix. It only works for p=1 since there is
  * one node per Edge.
- * 
- * 
+ *
+ *
  */
 void FemModule::
 _buildMatrixCsr()
@@ -125,6 +126,7 @@ _assembleCsrBilinearOperatorTRIA3()
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
+
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
@@ -142,7 +144,6 @@ _assembleCsrBilinearOperatorTRIA3()
     //                     inode2=elem.nodes.index(node2)
     //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
 
-    //Timer::Action timer_action(m_time_stats, "CsrAddToGlobalMatrix");
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
@@ -168,30 +169,35 @@ _assembleCsrBilinearOperatorTETRA4()
 {
   Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_Csr");
   {
+<<<<<<< HEAD
     Timer::Action timer_build(m_time_stats, "BuildMatrix");
+=======
+    Timer::Action timer_gpu_build(m_time_stats, "CsrBuildMatrix");
+>>>>>>> main
     _buildMatrixCsr();
   }
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
+<<<<<<< HEAD
   Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
+=======
+  Timer::Action timer_add_compute(m_time_stats, "CsrAddComputeLoop");
+>>>>>>> main
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
     FixedMatrix<4, 4> K_e;
     {
-      K_e = _computeElementMatrixTETRA4(cell); // element stifness matrix
+      K_e = _computeElementMatrixTETRA4(cell); // element stiffness matrix
     }
 
-    //Timer::Action timer_action(m_time_stats, "CsrAddToGlobalMatrix");
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
       for (Node node2 : cell.nodes()) {
-        // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
         Real v = K_e(n1_index, n2_index);
-        // m_k_matrix(node1.localId(), node2.localId()) += v;
         if (node1.isOwn()) {
           m_csr_matrix.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
         }

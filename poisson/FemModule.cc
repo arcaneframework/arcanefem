@@ -12,7 +12,6 @@
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
-#include <arcane/core/MeshUtils.h>
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -106,7 +105,7 @@ void FemModule::
 _saveTimeInCSV()
 {
   std::ofstream csv_save;
-  String csv_file_name = String::format("time.{0}.csv",parallelMng()->commRank());
+  String csv_file_name = String::format("time.{0}.csv", parallelMng()->commRank());
   if (!fs::exists(csv_file_name.localstr())) {
     csv_save.open(csv_file_name.localstr());
     csv_save << "Number of Nodes,Legacy,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU\n";
@@ -145,7 +144,7 @@ void FemModule::
 _saveNoBuildTimeInCSV()
 {
   std::ofstream csv_save;
-  String csv_file_name = String::format("timeNoBuild.{0}.csv",parallelMng()->commRank());
+  String csv_file_name = String::format("timeNoBuild.{0}.csv", parallelMng()->commRank());
   if (!fs::exists(csv_file_name.localstr())) {
     csv_save.open(csv_file_name.localstr());
     csv_save << "Number of Nodes,Legacy,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU\n";
@@ -177,24 +176,6 @@ _saveNoBuildTimeInCSV()
   csv_save.close();
 }
 
-void FemModule::
-_benchBuildRow()
-{
-  std::ofstream csv_save;
-  String csv_file_name = String::format("buildRow.{0}.csv",parallelMng()->commRank());
-  if (!fs::exists(csv_file_name.localstr())) {
-    csv_save.open(csv_file_name.localstr());
-    csv_save << "Number of Nodes,Build on CPU,Build on GPU\n";
-  }
-  else {
-    csv_save.open(csv_file_name.localstr(), std::ios_base::app);
-  }
-  csv_save << nbNode() << ",";
-  csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrBuildMatrix") / m_cache_warming << ",";
-  csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrBuildMatrixGPU") / m_cache_warming << "\n";
-  csv_save.close();
-}
-
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -204,7 +185,6 @@ endModule()
   _writeInJson();
   _saveTimeInCSV();
   _saveNoBuildTimeInCSV();
-  //_benchBuildRow();
 }
 
 void FemModule::
@@ -262,7 +242,7 @@ startInit()
     IMesh* mesh = defaultMesh();
     // If we do not create edges, we need to create custom connectivity
     // to store the neighbours node of a node
-    if (mesh->dimension()==3 && !options()->createEdges()){
+    if (mesh->dimension() == 3 && !options()->createEdges()) {
       m_node_node_via_edge_connectivity = MeshUtils::computeNodeNodeViaEdgeConnectivity(defaultMesh(), "NodeNodeViaEdge");
       m_node_node_via_edge_connectivity->connectivity()->dumpStats(std::cout);
       std::cout << "\n";
@@ -275,7 +255,7 @@ startInit()
       m_nb_edge = nb_edge / 2;
       info() << "Using custom node-node via edge connectivity: nb_edge=" << m_nb_edge;
     }
-    else{
+    else {
       m_nb_edge = mesh->nbEdge();
       info() << "Number of edge: nb_edge=" << m_nb_edge;
     }
@@ -284,18 +264,6 @@ startInit()
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
-  //_buildDoFOnNodes();
-  //Int32 nb_node = allNodes().size();
-  //m_k_matrix.resize(nb_node, nb_node);
-  //m_k_matrix.fill(0.0);
-
-  //m_rhs_vector.resize(nb_node);
-  //m_rhs_vector.fill(0.0);
-
-  // # init mesh
-  // # init behavior
-  // # init behavior on mesh entities
-  // # init BCs
   _handleFlags();
   _initBoundaryconditions();
 
@@ -378,6 +346,10 @@ _handleFlags()
   if (parameter_list.getParameterOrNull("AcceleratorRuntime") == "cuda") {
     m_running_on_gpu = true;
     info() << "CUDA: The methods able to use GPU will use it";
+  }
+  if (parameter_list.getParameterOrNull("AcceleratorRuntime") == "hip") {
+    m_running_on_gpu = true;
+    info() << "HIP: The methods able to use GPU will use it";
   }
   info() << "-----------------------------------------------------------------------------------------";
 }
@@ -776,7 +748,7 @@ _assembleLinearOperator()
     //  $int_{Omega}(f*v^h)$
     //  only for noded that are non-Dirichlet
     //----------------------------------------------
-    if (options()->meshType == "TRIA3"){
+    if (options()->meshType == "TRIA3") {
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
         Real area = _computeAreaTriangle3(cell);
@@ -788,7 +760,7 @@ _assembleLinearOperator()
       }
     }
 
-    if (options()->meshType == "TETRA4"){
+    if (options()->meshType == "TETRA4") {
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
         Real area = _computeAreaTetra4(cell);
@@ -801,7 +773,7 @@ _assembleLinearOperator()
     }
   }
   {
-    Timer::Action timer_action(m_time_stats, "ConstantSourceTermAssembly");
+    Timer::Action timer_action(m_time_stats, "ConstantFluxTermAssembly");
 
     //----------------------------------------------
     // Constant flux term assembly
@@ -1304,8 +1276,7 @@ _assembleCsrGpuLinearOperator()
            << "  - RowColumnElimination\n";
   }
 
-  if (options()->meshType == "TRIA3")
-  {
+  if (options()->meshType == "TRIA3") {
     Timer::Action timer_action(m_time_stats, "CsrGpuConstantSourceTermAssembly");
     //----------------------------------------------
     // Constant source term assembly
@@ -1351,8 +1322,7 @@ _assembleCsrGpuLinearOperator()
     };
   }
 
-  if (options()->meshType == "TETRA4")
-  {
+  if (options()->meshType == "TETRA4") {
     Timer::Action timer_action(m_time_stats, "CsrGpuConstantSourceTermAssembly");
     //----------------------------------------------
     // Constant source term assembly
@@ -1654,7 +1624,6 @@ _computeEdgeLength2(Face face)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-
 Real FemModule::
 _computeAreaTetra4(Cell cell)
 {
@@ -1783,10 +1752,10 @@ _computeElementMatrixTETRA4(Cell cell)
   Real volume = _computeAreaTetra4(cell);
 
   // Compute gradients of shape functions
-  Real3 dPhi0 = Arcane::math::cross(m2 - m1, m1 - m3) ;
-  Real3 dPhi1 = Arcane::math::cross(m3 - m0, m0 - m2) ;
-  Real3 dPhi2 = Arcane::math::cross(m1 - m0, m0 - m3) ;
-  Real3 dPhi3 = Arcane::math::cross(m0 - m1, m1 - m2) ;
+  Real3 dPhi0 = Arcane::math::cross(m2 - m1, m1 - m3);
+  Real3 dPhi1 = Arcane::math::cross(m3 - m0, m0 - m2);
+  Real3 dPhi2 = Arcane::math::cross(m1 - m0, m0 - m3);
+  Real3 dPhi3 = Arcane::math::cross(m0 - m1, m1 - m2);
 
   // Construct the B-matrix
   FixedMatrix<3, 4> b_matrix;
@@ -1812,7 +1781,7 @@ _computeElementMatrixTETRA4(Cell cell)
   FixedMatrix<4, 4> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
   int_cdPi_dPj.multInPlace(volume);
 
-/*
+  /*
   cout << " Ae \n"
        << "\t" << int_cdPi_dPj(0,0)<<"\t"<< int_cdPi_dPj(0,1)<<"\t"<< int_cdPi_dPj(0,2)<<"\t"<< int_cdPi_dPj(0,3)<<"\n"
        << "\t" << int_cdPi_dPj(1,0)<<"\t"<< int_cdPi_dPj(1,1)<<"\t"<< int_cdPi_dPj(1,2)<<"\t"<< int_cdPi_dPj(1,3)<<"\n"
@@ -1822,45 +1791,6 @@ _computeElementMatrixTETRA4(Cell cell)
 */
 
   return int_cdPi_dPj;
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_assembleBilinearOperatorTETRA4()
-{
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-
-    auto K_e = _computeElementMatrixTETRA4(cell);  // element stiffness matrix
-
-    //             # assemble elementary matrix into the global one
-    //             # elementary terms are positioned into K according
-    //             # to the rank of associated node in the mesh.nodes list
-    //             for node1 in elem.nodes:
-    //                 inode1=elem.nodes.index(node1) # get position of node1 in nodes list
-    //                 for node2 in elem.nodes:
-    //                     inode2=elem.nodes.index(node2)
-    //                     K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-    Int32 n1_index = 0;
-    for (Node node1 : cell.nodes()) {
-      Int32 n2_index = 0;
-      for (Node node2 : cell.nodes()) {
-        // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
-        Real v = K_e(n1_index, n2_index);
-        // m_k_matrix(node1.localId(), node2.localId()) += v;
-        if (node1.isOwn()) {
-          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
-        }
-        ++n2_index;
-      }
-      ++n1_index;
-    }
-  }
-
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1897,16 +1827,7 @@ _solve()
     }
   }
 
-  //test
   m_u.synchronize();
-
-  // def update_T(self,T):
-  //     """Update u value on nodes after the FE resolution"""
-  //     for i in range(0,len(self.mesh.nodes)):
-  //         node=self.mesh.nodes[i]
-  //         # don't update T imposed by Dirichlet BC
-  //         if not node.is_T_fixed:
-  //             self.mesh.nodes[i].T=T[i]
 
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {
@@ -1927,7 +1848,7 @@ void FemModule::
 _build()
 {
   Connectivity c(mesh()->connectivity());
-  if (options()->meshType == "TETRA4" && options()->createEdges()){
+  if (options()->meshType == "TETRA4" && options()->createEdges()) {
     info() << "Adding edge connectivity";
     c.enableConnectivity(Connectivity::CT_HasEdge);
   }
@@ -1961,21 +1882,6 @@ _isMasterRank() const
 /*---------------------------------------------------------------------------*/
 
 ARCANE_REGISTER_MODULE_FEM(FemModule);
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::fileNumArray(bool ref, NumArray<Real, MDDim1> numarray)
-{
-  ofstream file;
-  if (ref)
-    file.open("ref.txt");
-  else
-    file.open("test.txt");
-  for (auto i = 0; i < numarray.dim1Size(); i++) {
-    file << numarray(i) << " ";
-  }
-}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

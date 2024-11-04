@@ -576,6 +576,7 @@ class HypreDoFLinearSystemFactoryService
     x->build();
     x->setRelTolerance(options()->rtol());
     x->setAbsTolerance(options()->atol());
+    x->setAmgThreshold(options()->amgThreshold());
     x->setMaxIter(options()->maxIter());
     x->setAmgCoarsener(options()->amgCoarsener());
     x->setAmgInterpType(options()->amgInterpType());

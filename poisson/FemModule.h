@@ -94,6 +94,8 @@
 
 #include "arcane/utils/ValueConvert.h"
 
+#include <arcane/core/MeshUtils.h>
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -124,10 +126,10 @@ class FemModule
     cm->setTreatWarningAsError(true);
     cm->setAllowUnkownRootElelement(false);
 
-    addEntryPoint(this,"Build",
-                &FemModule::_build,
-                IEntryPoint::WBuild,
-                IEntryPoint::PAutoLoadBegin);
+    addEntryPoint(this, "Build",
+                  &FemModule::_build,
+                  IEntryPoint::WBuild,
+                  IEntryPoint::PAutoLoadBegin);
   }
 
  public:
@@ -193,8 +195,6 @@ class FemModule
 
  private:
 
-  void fileNumArray(bool ref, NumArray<Real, MDDim1> numarray);
-
   void _handleFlags();
   void _doStationarySolve();
   void _getMaterialParameters();
@@ -210,7 +210,6 @@ class FemModule
   void _writeInJson();
   void _saveTimeInCSV();
   void _saveNoBuildTimeInCSV();
-  void _benchBuildRow();
   Real _readTimeFromJson(String main_time, String sub_time);
   FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixTETRA4(Cell cell);
@@ -229,7 +228,7 @@ class FemModule
 
   static ARCCORE_HOST_DEVICE Real
   _computeAreaTetra4Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
-                           ax::VariableNodeReal3InView in_node_coord);
+                        ax::VariableNodeReal3InView in_node_coord);
   static ARCCORE_HOST_DEVICE Real
   _computeAreaTriangle3Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
                            ax::VariableNodeReal3InView in_node_coord);
@@ -368,8 +367,6 @@ _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView
   //int_cdPi_dPj.dump(std::cout);
   //std::cout << "\n";
 
-  //No need to return anymore
-  //return int_cdPi_dPj;
 }
 
 /*---------------------------------------------------------------------------*/
