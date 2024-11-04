@@ -105,7 +105,7 @@ void FemModule::
 _saveTimeInCSV()
 {
   std::ofstream csv_save;
-  String csv_file_name = String::format("time.{0}.csv",parallelMng()->commRank());
+  String csv_file_name = String::format("time.{0}.csv", parallelMng()->commRank());
   if (!fs::exists(csv_file_name.localstr())) {
     csv_save.open(csv_file_name.localstr());
     csv_save << "Number of Nodes,Legacy,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU\n";
@@ -144,7 +144,7 @@ void FemModule::
 _saveNoBuildTimeInCSV()
 {
   std::ofstream csv_save;
-  String csv_file_name = String::format("timeNoBuild.{0}.csv",parallelMng()->commRank());
+  String csv_file_name = String::format("timeNoBuild.{0}.csv", parallelMng()->commRank());
   if (!fs::exists(csv_file_name.localstr())) {
     csv_save.open(csv_file_name.localstr());
     csv_save << "Number of Nodes,Legacy,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU\n";
@@ -242,7 +242,7 @@ startInit()
     IMesh* mesh = defaultMesh();
     // If we do not create edges, we need to create custom connectivity
     // to store the neighbours node of a node
-    if (mesh->dimension()==3 && !options()->createEdges()){
+    if (mesh->dimension() == 3 && !options()->createEdges()) {
       m_node_node_via_edge_connectivity = MeshUtils::computeNodeNodeViaEdgeConnectivity(defaultMesh(), "NodeNodeViaEdge");
       m_node_node_via_edge_connectivity->connectivity()->dumpStats(std::cout);
       std::cout << "\n";
@@ -255,7 +255,7 @@ startInit()
       m_nb_edge = nb_edge / 2;
       info() << "Using custom node-node via edge connectivity: nb_edge=" << m_nb_edge;
     }
-    else{
+    else {
       m_nb_edge = mesh->nbEdge();
       info() << "Number of edge: nb_edge=" << m_nb_edge;
     }
@@ -499,7 +499,7 @@ _doStationarySolve()
           _assembleCsrGPUBilinearOperatorTETRA4();
       }
     }
-     m_csr_matrix.translateToLinearSystem(m_linear_system);
+    m_csr_matrix.translateToLinearSystem(m_linear_system);
   }
 #endif
 
@@ -536,7 +536,7 @@ _doStationarySolve()
         if (options()->meshType == "TRIA3")
           _assembleBuildLessCsrBilinearOperatorTria3();
         if (options()->meshType == "TETRA4")
-        _assembleBuildLessCsrBilinearOperatorTetra4();
+          _assembleBuildLessCsrBilinearOperatorTetra4();
       }
     }
     m_csr_matrix.translateToLinearSystem(m_linear_system);
@@ -550,7 +550,7 @@ _doStationarySolve()
     m_csr_matrix.translateToLinearSystem(m_linear_system);
     _translateRhs();
   }
-  else{
+  else {
     _assembleLinearOperator();
   }
 
@@ -848,7 +848,7 @@ _assembleLinearOperator()
     //  $int_{Omega}(f*v^h)$
     //  only for noded that are non-Dirichlet
     //----------------------------------------------
-    if (options()->meshType == "TRIA3"){
+    if (options()->meshType == "TRIA3") {
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
         Real area = _computeAreaTriangle3(cell);
@@ -860,7 +860,7 @@ _assembleLinearOperator()
       }
     }
 
-    if (options()->meshType == "TETRA4"){
+    if (options()->meshType == "TETRA4") {
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
         Real area = _computeAreaTetra4(cell);
@@ -1376,8 +1376,7 @@ _assembleCsrGpuLinearOperator()
            << "  - RowColumnElimination\n";
   }
 
-  if (options()->meshType == "TRIA3")
-  {
+  if (options()->meshType == "TRIA3") {
     Timer::Action timer_action(m_time_stats, "CsrGpuConstantSourceTermAssembly");
     //----------------------------------------------
     // Constant source term assembly
@@ -1423,8 +1422,7 @@ _assembleCsrGpuLinearOperator()
     };
   }
 
-  if (options()->meshType == "TETRA4")
-  {
+  if (options()->meshType == "TETRA4") {
     Timer::Action timer_action(m_time_stats, "CsrGpuConstantSourceTermAssembly");
     //----------------------------------------------
     // Constant source term assembly
@@ -1726,7 +1724,6 @@ _computeEdgeLength2(Face face)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-
 Real FemModule::
 _computeAreaTetra4(Cell cell)
 {
@@ -1855,10 +1852,10 @@ _computeElementMatrixTETRA4(Cell cell)
   Real volume = _computeAreaTetra4(cell);
 
   // Compute gradients of shape functions
-  Real3 dPhi0 = Arcane::math::cross(m2 - m1, m1 - m3) ;
-  Real3 dPhi1 = Arcane::math::cross(m3 - m0, m0 - m2) ;
-  Real3 dPhi2 = Arcane::math::cross(m1 - m0, m0 - m3) ;
-  Real3 dPhi3 = Arcane::math::cross(m0 - m1, m1 - m2) ;
+  Real3 dPhi0 = Arcane::math::cross(m2 - m1, m1 - m3);
+  Real3 dPhi1 = Arcane::math::cross(m3 - m0, m0 - m2);
+  Real3 dPhi2 = Arcane::math::cross(m1 - m0, m0 - m3);
+  Real3 dPhi3 = Arcane::math::cross(m0 - m1, m1 - m2);
 
   // Construct the B-matrix
   FixedMatrix<3, 4> b_matrix;
@@ -1884,7 +1881,7 @@ _computeElementMatrixTETRA4(Cell cell)
   FixedMatrix<4, 4> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
   int_cdPi_dPj.multInPlace(volume);
 
-/*
+  /*
   cout << " Ae \n"
        << "\t" << int_cdPi_dPj(0,0)<<"\t"<< int_cdPi_dPj(0,1)<<"\t"<< int_cdPi_dPj(0,2)<<"\t"<< int_cdPi_dPj(0,3)<<"\n"
        << "\t" << int_cdPi_dPj(1,0)<<"\t"<< int_cdPi_dPj(1,1)<<"\t"<< int_cdPi_dPj(1,2)<<"\t"<< int_cdPi_dPj(1,3)<<"\n"
@@ -1907,7 +1904,7 @@ _assembleBilinearOperatorTETRA4()
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    auto K_e = _computeElementMatrixTETRA4(cell);  // element stiffness matrix
+    auto K_e = _computeElementMatrixTETRA4(cell); // element stiffness matrix
 
     //             # assemble elementary matrix into the global one
     //             # elementary terms are positioned into K according
@@ -1932,7 +1929,6 @@ _assembleBilinearOperatorTETRA4()
       ++n1_index;
     }
   }
-
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1999,7 +1995,7 @@ void FemModule::
 _build()
 {
   Connectivity c(mesh()->connectivity());
-  if (options()->meshType == "TETRA4" && options()->createEdges()){
+  if (options()->meshType == "TETRA4" && options()->createEdges()) {
     info() << "Adding edge connectivity";
     c.enableConnectivity(Connectivity::CT_HasEdge);
   }
