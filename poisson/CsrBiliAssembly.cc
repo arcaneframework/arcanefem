@@ -169,21 +169,13 @@ _assembleCsrBilinearOperatorTETRA4()
 {
   Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_Csr");
   {
-<<<<<<< HEAD
     Timer::Action timer_build(m_time_stats, "BuildMatrix");
-=======
-    Timer::Action timer_gpu_build(m_time_stats, "CsrBuildMatrix");
->>>>>>> main
     _buildMatrixCsr();
   }
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-<<<<<<< HEAD
   Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
-=======
-  Timer::Action timer_add_compute(m_time_stats, "CsrAddComputeLoop");
->>>>>>> main
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
