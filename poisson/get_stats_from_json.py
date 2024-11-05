@@ -54,6 +54,9 @@ def main(file_path, metrics=None, config_path=None):
     output = []
 
     output.append('{0: <30}'.format('Number of parallel instance:') + '{0: >5}'.format(str(obj["nbParallelInstance"])))
+
+    cacheWarming = obj["cacheWarming"]
+    output.append('{0: <30}'.format('CacheWarming:')  + '{0: >5}'.format(str(cacheWarming)))
     
     if 'acceleratorRuntime' in obj:
         output.append('{0: <30}'.format('Accelerator runtime:') + '\"' + '{0: >5}'.format(str(obj["acceleratorRuntime"]) + '\"'))
@@ -69,6 +72,10 @@ def main(file_path, metrics=None, config_path=None):
 
         if format_raw_obj is not None:
             time = format_raw_obj['Cumulative'].split(' ')[0]
+
+            if cacheWarming > 1:
+                time = time / (cacheWarming - 1)
+
             output.append('{0: <50}'.format(f"{metric_name}:") + f"{time}")
 
             for key in metrics:
@@ -85,6 +92,7 @@ def main(file_path, metrics=None, config_path=None):
         print(line)
 
 if __name__ == "__main__":
+    metrics = []
     if len(sys.argv) > 2:
         file_path = sys.argv[1]
         
@@ -95,7 +103,7 @@ if __name__ == "__main__":
         else:
             metrics = load_metrics(sys.argv[2])
         
-        main(file_path, metrics)
-    else:
-        print("Usage: python script.py <json_file_path> <metrics_comma_separated | config_file_path>")
+    main(file_path, metrics)
+    # else:
+        # print("Usage: python script.py <json_file_path> <metrics_comma_separated | config_file_path>")
 

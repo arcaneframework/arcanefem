@@ -37,6 +37,7 @@ void FemModule::_dumpTimeStats()
   json_writer.write("nbNode", nbNode());
   json_writer.write("nbEdge", mesh_dim == 2 ? nbFace() : m_nb_edge);
   json_writer.write("nbCell", nbCell());
+  json_writer.write("cacheWarming", m_cache_warming);
 
   m_time_stats->dumpStatsJSON(json_writer);
   json_writer.endObject();
@@ -222,27 +223,36 @@ _doStationarySolve()
   // Assemble the FEM bilinear operator (LHS - matrix A)
   if (m_use_legacy) {
     void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleBilinearOperatorTRIA3 : &FemModule::_assembleBilinearOperatorTETRA4;
-    for (auto i = 0; i < m_cache_warming; ++i) {
-      m_linear_system.clearValues();
+    m_linear_system.clearValues();
+    (this->*assembly_fun)();
+    if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_Legacy");
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      m_linear_system.clearValues();
       (this->*assembly_fun)();
     }
   }
 
   if (m_use_csr) {
     void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCsrBilinearOperatorTRIA3 : &FemModule::_assembleCsrBilinearOperatorTETRA4;
-    for (auto i = 0; i < m_cache_warming; ++i) {
-      m_linear_system.clearValues();
+    m_linear_system.clearValues();
+    (this->*assembly_fun)();
+    if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_Csr");
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      m_linear_system.clearValues();
       (this->*assembly_fun)();
     }
   }
 
   if (m_use_coo) {
     void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCooBilinearOperatorTRIA3 : &FemModule::_assembleCooBilinearOperatorTETRA4;
-    for (auto i = 0; i < m_cache_warming; ++i) {
-      m_linear_system.clearValues();
+    m_linear_system.clearValues();
+    (this->*assembly_fun)();
+    if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_Coo");
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      m_linear_system.clearValues();
       (this->*assembly_fun)();
     }
     m_coo_matrix.translateToLinearSystem(m_linear_system);
@@ -250,9 +260,12 @@ _doStationarySolve()
 
   if (m_use_coo_sort) {
     void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCooSortBilinearOperatorTRIA3 : &FemModule::_assembleCooSortBilinearOperatorTETRA4;
-    for (auto i = 0; i < m_cache_warming; ++i) {
-      m_linear_system.clearValues();
+    m_linear_system.clearValues();
+    (this->*assembly_fun)();
+    if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_CooSort");
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      m_linear_system.clearValues();
       (this->*assembly_fun)();
     }
     m_coo_matrix.translateToLinearSystem(m_linear_system);
@@ -260,9 +273,12 @@ _doStationarySolve()
 
   if (m_use_coo_gpu) {
     void (FemModule::*assembly_fun)(bool must_sort) = dim == 2 ? &FemModule::_assembleCooGPUBilinearOperatorTRIA3 : &FemModule::_assembleCooGPUBilinearOperatorTETRA4;
-    for (auto i = 0; i < m_cache_warming; ++i) {
-      m_linear_system.clearValues();
+    m_linear_system.clearValues();
+    (this->*assembly_fun)(false);
+    if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_Coo_GPU");
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      m_linear_system.clearValues();
       (this->*assembly_fun)(false);
     }
     m_coo_matrix.translateToLinearSystem(m_linear_system);
@@ -270,9 +286,12 @@ _doStationarySolve()
 
   if (m_use_coo_sort_gpu) {
     void (FemModule::*assembly_fun)(bool must_sort) = dim == 2 ? &FemModule::_assembleCooGPUBilinearOperatorTRIA3 : &FemModule::_assembleCooGPUBilinearOperatorTETRA4;
-    for (auto i = 0; i < m_cache_warming; ++i) {
-      m_linear_system.clearValues();
+    m_linear_system.clearValues();
+    (this->*assembly_fun)(true);
+    if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_CooSort_GPU");
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      m_linear_system.clearValues();
       (this->*assembly_fun)(true);
     }
     m_coo_matrix.translateToLinearSystem(m_linear_system);
@@ -280,27 +299,36 @@ _doStationarySolve()
 
   if (m_use_csr_gpu) {
     void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCsrGPUBilinearOperatorTRIA3 : &FemModule::_assembleCsrGPUBilinearOperatorTETRA4;
-    for (auto i = 0; i < m_cache_warming; ++i) {
-      m_linear_system.clearValues();
+    m_linear_system.clearValues();
+    (this->*assembly_fun)();
+    if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_Csr_GPU");
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      m_linear_system.clearValues();
       (this->*assembly_fun)();
     }
   }
 
   if (m_use_nodewise_csr) {
     void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleNodeWiseCsrBilinearOperatorTria3 : &FemModule::_assembleNodeWiseCsrBilinearOperatorTetra4;
-    for (auto i = 0; i < m_cache_warming; ++i) {
-      m_linear_system.clearValues();
+    m_linear_system.clearValues();
+    (this->*assembly_fun)();
+    if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_CsrNodeWise");
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      m_linear_system.clearValues();
       (this->*assembly_fun)();
     }
   }
 
   if (m_use_buildless_csr) {
     void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleBuildLessCsrBilinearOperatorTria3 : &FemModule::_assembleBuildLessCsrBilinearOperatorTetra4;
-    for (auto i = 0; i < m_cache_warming; ++i) {
-      m_linear_system.clearValues();
+    m_linear_system.clearValues();
+    (this->*assembly_fun)();
+    if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_CsrBuildLess");
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      m_linear_system.clearValues();
       (this->*assembly_fun)();
     }
   }

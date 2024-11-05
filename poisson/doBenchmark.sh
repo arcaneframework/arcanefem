@@ -52,6 +52,9 @@ GPU_FORMATS_MAJ=("Coo_Gpu" "CooSort_Gpu" "Csr_Gpu" "CsrBuildLess" "CsrNodeWise")
 # Number of MPI instances to test for each configuration
 CPU_CORE_NUMBERS=(1)
 
+# Cache warming passed as argument to executable
+CACHE_WARMING=1
+
 #--------------------------------------------------------------------------------------
 # Prepare and run tests
 # The main function loop iterates over all configurations and formats to launch tests.
@@ -75,7 +78,7 @@ launchTestCpu() {
   local res_file=$3
 
   # Run CPU test with MPI and save JSON results if successful
-  if mpirun -n "$instance_num" "$EXECUTABLE" "$test_file" > /dev/null 2>&1; then
+  if mpirun -n "$instance_num" "$EXECUTABLE" "$test_file" "-A,CACHE_WARMING=${CACHE_WARMING}" > /dev/null 2>&1; then
     echo -e "OK ${test_file}"
     mv "./output/listing/time_stats.json" "./time_stats.json"
 
@@ -111,7 +114,7 @@ launchTestGpu() {
   local instance_num=$2
   local res_file=$3
 
-  if mpirun -n "$instance_num" "$EXECUTABLE" "$test_file" "-A,AcceleratorRuntime=cuda" > /dev/null 2>&1; then
+  if mpirun -n "$instance_num" "$EXECUTABLE" "$test_file" "-A,CACHE_WARMING=${CACHE_WARMING}" "-A,AcceleratorRuntime=cuda" > /dev/null 2>&1; then
     echo -e "OK ${test_file}"
     mv "./output/listing/time_stats.json" "./time_stats.json"
 
