@@ -266,9 +266,9 @@ class FemModule
  private:
  public:
 
-  void _buildMatrixCooGPU();
-  void _assembleCooGPUBilinearOperatorTRIA3();
-  void _assembleCooGPUBilinearOperatorTETRA4();
+  void _buildMatrixCooGPU(bool must_sort);
+  void _assembleCooGPUBilinearOperatorTRIA3(bool must_sort);
+  void _assembleCooGPUBilinearOperatorTETRA4(bool must_sort);
 
  private:
 
