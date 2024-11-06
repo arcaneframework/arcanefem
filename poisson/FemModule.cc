@@ -18,15 +18,32 @@
 
 void FemModule::_dumpTimeStats()
 {
-  // Only master sub domain values are representative
+  Int64 nb_node = mesh()->ownNodes().size();
+  Int64 total_nb_node = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_node);
+  Int64 nb_cell = mesh()->ownCells().size();
+  Int64 total_nb_cell = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_cell);
+
+  int mesh_dim = defaultMesh()->dimension();
+  Int64 total_nb_edge;
+  if (mesh_dim == 2) {
+    Int64 nb_face = mesh()->ownFaces().size();
+    total_nb_edge = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_face);
+  }
+  else if (options()->createEdges()) {
+    Int64 nb_edge = mesh()->ownEdges().size();
+    total_nb_edge = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_edge);
+  }
+
+  // Only master sub domain values are representative for time statistics
   if (!_isMasterRank())
     return;
 
   ofstream dump_file("./output/listing/time_stats.json");
   JSONWriter json_writer(JSONWriter::FormatFlags::None);
-  int mesh_dim = defaultMesh()->dimension();
 
   json_writer.beginObject();
+
+  json_writer.write("cacheWarming", m_cache_warming);
   json_writer.write("nbParallelInstance", parallelMng()->commSize());
 
   ParameterList parameter_list = this->subDomain()->application()->applicationInfo().commandLineArguments().parameters();
@@ -34,12 +51,12 @@ void FemModule::_dumpTimeStats()
     json_writer.write("acceleratorRuntime", parameter_list.getParameterOrNull("AcceleratorRuntime"));
 
   json_writer.write("meshDim", mesh_dim);
-  json_writer.write("nbNode", nbNode());
-  json_writer.write("nbEdge", mesh_dim == 2 ? nbFace() : m_nb_edge);
-  json_writer.write("nbCell", nbCell());
-  json_writer.write("cacheWarming", m_cache_warming);
+  json_writer.write("nbNode", total_nb_node);
+  json_writer.write("nbEdge", total_nb_edge);
+  json_writer.write("nbCell", total_nb_cell);
 
   m_time_stats->dumpStatsJSON(json_writer);
+
   json_writer.endObject();
 
   dump_file << json_writer.getBuffer();
