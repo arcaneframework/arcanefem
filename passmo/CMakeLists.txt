@@ -16,6 +16,7 @@ configure_file(${MSH_DIR}/bar_hybrid_quad_tria.msh ${CMAKE_CURRENT_BINARY_DIR} C
 configure_file(${MSH_DIR}/bar_dynamic.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/bar_dynamic_quad.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/bar_dynamic_3D.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/bar_dynamic_3Dhexa.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Passmo PUBLIC FemUtils)
 
@@ -28,6 +29,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [passmo]bar2D_Q4 COMMAND Passmo bar2d_quad.arc)
   add_test(NAME [passmo]bar2D_T3-Q4 COMMAND Passmo bar2d_tria_quad.arc)
   add_test(NAME [passmo]bar3D_T4 COMMAND Passmo bar3d_tetra.arc)
+  add_test(NAME [passmo]bar3D_H8 COMMAND Passmo bar3d_hexa.arc)
 endif ()
 
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
