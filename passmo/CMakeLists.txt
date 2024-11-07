@@ -34,6 +34,8 @@ endif ()
 
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
   add_test(NAME [passmo]bar2D_T3_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Passmo bar2d_tria.arc)
+  add_test(NAME [passmo]bar2D_Q4_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Passmo bar2d_quad.arc)
   add_test(NAME [passmo]bar2D_T3-Q4_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Passmo bar2d_tria_quad.arc)
   add_test(NAME [passmo]bar3D_T4_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Passmo bar3d_tetra.arc)
+  add_test(NAME [passmo]bar3D_H8_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Passmo bar3d_hexa.arc)
 endif()

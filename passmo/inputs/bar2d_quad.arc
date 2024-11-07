@@ -44,5 +44,11 @@
     
     <result-file>bar2d-quad.txt</result-file>
 
+    <linear-system>
+      <solver-backend>petsc</solver-backend>
+      <solver-method>pcg</solver-method>
+      <epsilon>1e-34</epsilon>
+    </linear-system>
+
   </elastodynamic>
 </case>
