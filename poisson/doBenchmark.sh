@@ -79,7 +79,7 @@ launchTestCpu() {
   local res_file=$3
 
   # Run CPU test with MPI and save JSON results if successful
-  if mpirun -n "$instance_num" "$EXECUTABLE" "$test_file" "-A,CACHE_WARMING=${CACHE_WARMING}" > /dev/null 2>&1; then
+  if mpirun -n "$instance_num" "$EXECUTABLE" "$test_file" "-A,CACHE_WARMING=${CACHE_WARMING}" > "stdout.txt" 2> "stderr.txt"; then
     echo -e "OK ${test_file}"
     mv "./output/listing/time_stats.json" "./time_stats.json"
 
@@ -115,7 +115,7 @@ launchTestGpu() {
   local instance_num=$2
   local res_file=$3
 
-  if mpirun -n "$instance_num" "$EXECUTABLE" "$test_file" "-A,CACHE_WARMING=${CACHE_WARMING}" "-A,AcceleratorRuntime=cuda" > /dev/null 2>&1; then
+  if mpirun -n "$instance_num" "$EXECUTABLE" "$test_file" "-A,CACHE_WARMING=${CACHE_WARMING}" "-A,AcceleratorRuntime=cuda" > "stdout.txt" 2> "stderr.txt"; then
     echo -e "OK ${test_file}"
     mv "./output/listing/time_stats.json" "./time_stats.json"
 

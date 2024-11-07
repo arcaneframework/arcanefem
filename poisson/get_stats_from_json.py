@@ -39,8 +39,6 @@ def main(file_path, metrics=None, config_path=None):
     """If there is a format in the metrics given by the user, we only
     search for these specific formats; otherwise, we print for all formats
     present in the JSON file."""
-    
-    # Filter formats if any specified in metrics, else use all
     formats = [fmt for fmt in metrics if fmt in formats] if any(fmt in metrics for fmt in formats) else formats
     
     try:
@@ -86,7 +84,7 @@ def main(file_path, metrics=None, config_path=None):
                     time = key_obj['Cumulative'].split(' ')[0]
                     output.append('{0: <50}'.format(f"  {key}_{format}:") + f"  {time}")
 
-            output.append('') # newline
+            output.append('') # newline between formats
 
     output.pop() # remove last newline
 
@@ -94,18 +92,19 @@ def main(file_path, metrics=None, config_path=None):
         print(line)
 
 if __name__ == "__main__":
-    metrics = []
+    metrics = ["BuildMatrix", "AddAndCompute"] # default sub action metrics to print
+
+    if len(sys.argv) < 2:
+        print("Usage: python script.py <json_file_path> <metrics_comma_separated | config_file_path>")
+        sys.exit(1)
+
+    file_path = sys.argv[1]
+
     if len(sys.argv) > 2:
-        file_path = sys.argv[1]
-        
         # Check for command line metrics or config file path
         if len(sys.argv) > 2 and ',' in sys.argv[2] or not os.path.exists(sys.argv[2]):
             metrics = sys.argv[2].split(',')
-            config_path = None
         else:
             metrics = load_metrics(sys.argv[2])
-        
-    main(file_path, metrics)
-    # else:
-        # print("Usage: python script.py <json_file_path> <metrics_comma_separated | config_file_path>")
 
+    main(file_path, metrics)
