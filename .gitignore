@@ -34,6 +34,7 @@
 /build
 /cmake-build-debug
 /cmake-build-release
+/cmake-build-release-coverage
 .idea
 *~
 .vscode
