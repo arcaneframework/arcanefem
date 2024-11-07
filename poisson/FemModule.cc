@@ -20,19 +20,12 @@ void FemModule::_dumpTimeStats()
 {
   Int64 nb_node = mesh()->ownNodes().size();
   Int64 total_nb_node = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_node);
-  Int64 nb_cell = mesh()->ownCells().size();
-  Int64 total_nb_cell = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_cell);
 
-  int mesh_dim = defaultMesh()->dimension();
-  Int64 total_nb_edge;
-  if (mesh_dim == 2) {
-    Int64 nb_face = mesh()->ownFaces().size();
-    total_nb_edge = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_face);
-  }
-  else if (options()->createEdges()) {
-    Int64 nb_edge = mesh()->ownEdges().size();
-    total_nb_edge = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_edge);
-  }
+  Int64 nb_face = mesh()->ownFaces().size(); // Face in 3D, edge in 2D
+  Int64 total_nb_boundary_elt = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_face);
+
+  Int64 nb_cell = mesh()->ownCells().size();
+  Int64 total_nb_elt = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_cell);
 
   // Only master sub domain values are representative for time statistics
   if (!_isMasterRank())
@@ -50,10 +43,10 @@ void FemModule::_dumpTimeStats()
   if (m_running_on_gpu)
     json_writer.write("acceleratorRuntime", parameter_list.getParameterOrNull("AcceleratorRuntime"));
 
-  json_writer.write("meshDim", mesh_dim);
+  json_writer.write("meshDim", defaultMesh()->dimension());
   json_writer.write("nbNode", total_nb_node);
-  json_writer.write("nbEdge", total_nb_edge);
-  json_writer.write("nbCell", total_nb_cell);
+  json_writer.write("nbBoundaryElement", total_nb_boundary_elt);
+  json_writer.write("nbElement", total_nb_elt);
 
   m_time_stats->dumpStatsJSON(json_writer);
 

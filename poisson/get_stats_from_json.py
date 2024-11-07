@@ -56,15 +56,17 @@ def main(file_path, metrics=None, config_path=None):
     output.append('{0: <30}'.format('Number of parallel instance:') + '{0: >5}'.format(str(obj["nbParallelInstance"])))
 
     cacheWarming = obj["cacheWarming"]
-    output.append('{0: <30}'.format('CacheWarming:')  + '{0: >5}'.format(str(cacheWarming)))
+
+    output.append('{0: <30}'.format('Cache warming:')  + '{0: >5}'.format(str(cacheWarming)))
     
     if 'acceleratorRuntime' in obj:
         output.append('{0: <30}'.format('Accelerator runtime:') + '\"' + '{0: >5}'.format(str(obj["acceleratorRuntime"]) + '\"'))
 
-    output.append('\nDim:    ' + str(obj["meshDim"]))
-    output.append('Node:   ' + str(obj["nbNode"]))
-    output.append('Edge:   ' + str(obj["nbEdge"]))
-    output.append('Cell:   ' + str(obj["nbCell"]) + '\n')
+    output.append('') # newline
+    output.append('{0: <30}'.format(f'Dimension:') + '{0: >5}'.format(str(obj["meshDim"])))
+    output.append('{0: <30}'.format(f'Node:') + '{0: >5}'.format(str(obj["nbNode"])))
+    output.append('{0: <30}'.format(f'Boundary element:') + '{0: >5}'.format(str(obj["nbBoundaryElement"])))
+    output.append('{0: <30}'.format(f'Element:') + '{0: >5}'.format(str(obj["nbElement"])) + '\n')
 
     for format in formats:
         metric_name = f"AssembleBilinearOperator_{format}"

@@ -66,7 +66,8 @@ cd "$WORKING_DIR" || exit 1
 
 #--------------------------------------------------------------------------------------
 # launchTestCpu
-# Runs a CPU test, parses results from the JSON file, and saves relevant data to CSV
+# Runs a CPU test for CPU and GPU formats (with GPU-acceleration disabled), parses results
+# from the JSON file, and saves relevant data to CSV
 # Parameters:
 # - test_file: Path to the XML file with CPU test configuration
 # - instance_num: Number of MPI instances
@@ -86,8 +87,8 @@ launchTestCpu() {
     python "$PYTHON_SCRIPT" "./time_stats.json" "BuildMatrix,AddAndCompute" > "brief.txt"
 
     # Parse execution times for each format and add them to CSV
-    line=$(grep "Cell" "brief.txt" | awk '{print $2}')
-    for format in "${CPU_FORMATS_MAJ[@]}"; do
+    line=$(grep "Element" "brief.txt" | awk '{print $2}')
+    for format in "${CPU_FORMATS_MAJ[@]}" "${GPU_FORMATS_MAJ[@]}"; do
       time=$(grep "AssembleBilinearOperator_${format}:" "brief.txt" | awk '{print $2}')
       line="${line},${time}"
     done
@@ -103,7 +104,7 @@ launchTestCpu() {
 
 #--------------------------------------------------------------------------------------
 # launchTestGpu
-# Similar to launchTestCpu, but runs tests with GPU-acceleration enabled
+# Similar to launchTestCpu, but runs tests for GPU format with GPU-acceleration enabled
 # Parameters:
 # - test_file: Path to the XML file with GPU test configuration
 # - instance_num: Number of MPI instances
@@ -160,8 +161,16 @@ for dim in {2..3}; do
     res_file="${cpu_n}-mpi-instance-results.csv"
 
     # Add columns name in csv file
-    echo "nb-cell" > "$res_file"
-    for format in "${CPU_FORMATS[@]}" "${GPU_FORMATS[@]}"; do
+    echo "nb-elt" > "$res_file"
+    for format in "${CPU_FORMATS[@]}"; do
+      sed -i "1s/$/,${format}/" "$res_file"
+    done
+
+    for format in "${GPU_FORMATS[@]}"; do
+      sed -i "1s/$/,${format}-cpu/" "$res_file"
+    done
+
+    for format in "${GPU_FORMATS[@]}"; do
       sed -i "1s/$/,${format}/" "$res_file"
     done
 
@@ -184,7 +193,7 @@ for dim in {2..3}; do
       test_filename="Test.${dim}D.${cpu_n}-mpi-instance.${size}.cpu-formats.arc"
       sed "s|MESH_FILE|${mesh_file}|g" "${!template_var}" > "$test_filename" # Replace mesh filename in template
 
-      for format in "${CPU_FORMATS[@]}"; do # Add formats in template
+      for format in "${CPU_FORMATS[@]}" "${GPU_FORMATS[@]}"; do # Add formats in template
         sed -i "/<!-- FORMATS -->/a \\
         <${format}>true</$format>" "$test_filename"
       done
