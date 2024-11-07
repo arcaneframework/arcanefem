@@ -220,10 +220,10 @@ void FemModule::_addValueToGlobalMatrixTria3Gpu(Int32 begin, Int32 end, Int32 co
 
 void FemModule::_assembleBuildLessCsrBilinearOperatorTria3()
 {
-  Timer::Action timer_blcsr_bili(m_time_stats, "AssembleBuildLessCsrBilinearOperatorTria3");
+  Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_CsrBuildLess");
 
   {
-    Timer::Action timer_blcsr_build(m_time_stats, "BuildLessCsrBuildMatrixGPU");
+    Timer::Action timer_build(m_time_stats, "BuildMatrix");
     // Build only the row part of the csr matrix on GPU
     // Using scan -> might be improved
     _buildMatrixGpuBuildLessCsr();
@@ -249,7 +249,7 @@ void FemModule::_assembleBuildLessCsrBilinearOperatorTria3()
   auto cnc = m_connectivity_view.cellNode();
   Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
 
-  Timer::Action timer_blcsr_add_compute(m_time_stats, "BuildLessCsrAddAndCompute");
+  Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
 
   command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
   {
@@ -318,10 +318,10 @@ void FemModule::_assembleBuildLessCsrBilinearOperatorTria3()
 
 void FemModule::_assembleBuildLessCsrBilinearOperatorTetra4()
 {
-  Timer::Action timer_blcsr_bili(m_time_stats, "AssembleBuildLessCsrBilinearOperatorTetra4");
+  Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_CsrBuildLess");
 
   {
-    Timer::Action timer_blcsr_build(m_time_stats, "BuildLessCsrBuildMatrixGPU");
+    Timer::Action timer_build(m_time_stats, "BuildMatrix");
     // Build only the row part of the csr matrix on GPU
     // Using scan -> might be improved
     _buildMatrixGpuBuildLessCsr();
@@ -347,7 +347,7 @@ void FemModule::_assembleBuildLessCsrBilinearOperatorTetra4()
   auto cnc = m_connectivity_view.cellNode();
   Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
 
-  Timer::Action timer_blcsr_add_compute(m_time_stats, "BuildLessCsrAddAndCompute");
+  Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
 
   command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
   {

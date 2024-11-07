@@ -16,164 +16,43 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
-_writeInJson()
+void FemModule::_dumpTimeStats()
 {
+  Int64 nb_node = mesh()->ownNodes().size();
+  Int64 total_nb_node = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_node);
+
+  Int64 nb_face = mesh()->ownFaces().size(); // Face in 3D, edge in 2D
+  Int64 total_nb_boundary_elt = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_face);
+
+  Int64 nb_cell = mesh()->ownCells().size();
+  Int64 total_nb_elt = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_cell);
+
+  // Only master sub domain values are representative for time statistics
   if (!_isMasterRank())
     return;
-  ofstream jsonFile("time.json");
+
+  ofstream dump_file("./output/listing/time_stats.json");
   JSONWriter json_writer(JSONWriter::FormatFlags::None);
+
   json_writer.beginObject();
-  {
-    JSONWriter::Object jo(json_writer, "Timer");
-    m_time_stats->dumpStatsJSON(json_writer);
-  }
+
+  json_writer.write("cacheWarming", m_cache_warming);
+  json_writer.write("nbParallelInstance", parallelMng()->commSize());
+
+  ParameterList parameter_list = this->subDomain()->application()->applicationInfo().commandLineArguments().parameters();
+  if (m_running_on_gpu)
+    json_writer.write("acceleratorRuntime", parameter_list.getParameterOrNull("AcceleratorRuntime"));
+
+  json_writer.write("meshDim", defaultMesh()->dimension());
+  json_writer.write("nbNode", total_nb_node);
+  json_writer.write("nbBoundaryElement", total_nb_boundary_elt);
+  json_writer.write("nbElement", total_nb_elt);
+
+  m_time_stats->dumpStatsJSON(json_writer);
+
   json_writer.endObject();
-  jsonFile << json_writer.getBuffer();
-}
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real FemModule::
-_readTimeFromJson(String main_time, String sub_time)
-{
-  UniqueArray<Byte> bytes;
-  IParallelMng* pm = this->mesh()->parallelMng();
-  pm->ioMng()->collectiveRead("time.json", bytes, false);
-  JSONDocument json_doc;
-  json_doc.parse(bytes, "time.json");
-  //Parsing through the JSON
-  JSONValue root = json_doc.root();
-  //From root to the list of subactions in Main
-  JSONValueList main = root.child("Timer").child("Current").child("Main").child("SubActions").valueAsArray();
-  //From the list of subactions in Main to the list of subactions in Loop
-  JSONValueList loop = (main.begin() + 3)->child("SubActions").valueAsArray();
-  //From the list of subactions in Loop to the list of subactions in LoopEntryPoints
-  JSONValueList loopEntryPoint = (loop.begin() + 1)->child("SubActions").valueAsArray();
-  //From the list of subactions in LoopEntryPoints to the list of subactions in Fem
-  JSONValueList fem = (loopEntryPoint.begin() + 7)->child("SubActions").valueAsArray();
-  //From the list of subactions in Fem to the list of subactions in Compute
-  JSONValueList compute = (fem.begin() + 1)->child("SubActions").valueAsArray();
-  //From the list of subactions in Compute to the list of subactions in StationarySolve
-  String prev = "";
-  JSONValueList stationarySolve;
-  for (JSONValue el : compute) {
-    if (prev == "StationarySolve") {
-      stationarySolve = el.child("SubActions").valueAsArray();
-      break;
-    }
-    prev = el.valueAsStringView();
-  }
-  //Selecting the right 'main' action
-  JSONValue function;
-  prev = "";
-  for (JSONValue el : stationarySolve) {
-    if (prev == main_time) {
-      function = el;
-      break;
-    }
-    prev = el.valueAsStringView();
-  }
-  //Selecting the sub action if we want it
-  if (sub_time != "") {
-    prev = "";
-    for (JSONValue el : function.child("SubActions").valueAsArray()) {
-      if (prev == sub_time) {
-        function = el;
-        break;
-      }
-      prev = el.valueAsStringView();
-    }
-  }
-  // The timer has not been found
-  if (prev == "") {
-    return 0;
-  }
-  String val;
-  std::stringstream ss;
-  //Get only the Cumulative value
-  ss << function.child("Cumulative").value();
-  ss >> val;
-  return *Convert::Type<Real>::tryParse(val);
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_saveTimeInCSV()
-{
-  std::ofstream csv_save;
-  String csv_file_name = String::format("time.{0}.csv", parallelMng()->commRank());
-  if (!fs::exists(csv_file_name.localstr())) {
-    csv_save.open(csv_file_name.localstr());
-    csv_save << "Number of Nodes,Legacy,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU\n";
-  }
-  else {
-    csv_save.open(csv_file_name.localstr(), std::ios_base::app);
-  }
-  Integer denume = m_cache_warming;
-  if (denume > 1)
-    denume--;
-  csv_save << nbNode() << ",";
-  csv_save << _readTimeFromJson("AssembleLegacyBilinearOperatorTria3", "") / denume << ",";
-  csv_save << _readTimeFromJson("AssembleCooSortBilinearOperatorTria3", "") / denume << ",";
-  csv_save << _readTimeFromJson("AssembleCooBilinearOperatorTria3", "") / denume << ",";
-  csv_save << _readTimeFromJson("AssembleCsrBilinearOperatorTria3", "") / denume << ",";
-  if (m_running_on_gpu) {
-    csv_save << "0,0,0,";
-    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "") / denume << ",";
-    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "") / denume << ",";
-    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "") / denume;
-  }
-  else {
-    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "") / (m_cache_warming == 1 ? 1 : m_cache_warming - 1) << ",";
-    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "") / denume << ",";
-    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "") / denume << ",";
-    csv_save << "0,0,0";
-  }
-  csv_save << "\n";
-  csv_save.close();
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_saveNoBuildTimeInCSV()
-{
-  std::ofstream csv_save;
-  String csv_file_name = String::format("timeNoBuild.{0}.csv", parallelMng()->commRank());
-  if (!fs::exists(csv_file_name.localstr())) {
-    csv_save.open(csv_file_name.localstr());
-    csv_save << "Number of Nodes,Legacy,COO with sorting,COO,CSR,CSR made for GPU,Node Wise CSR made for GPU,BLCSR made for GPU,CSR GPU,Node Wise CSR GPU,BLCSR GPU\n";
-  }
-  else {
-    csv_save.open(csv_file_name.localstr(), std::ios_base::app);
-  }
-  Integer denume = m_cache_warming;
-  if (denume > 1)
-    denume--;
-  csv_save << nbNode() << ",";
-  csv_save << _readTimeFromJson("AssembleLegacyBilinearOperatorTria3", "") / denume << ",";
-  csv_save << (_readTimeFromJson("AssembleCooSortBilinearOperatorTria3", "CooSortComputeElementMatrixTria3") + _readTimeFromJson("AssembleCooSortBilinearOperatorTria3", "CooSortAddToGlobalMatrix")) / denume << ",";
-  csv_save << (_readTimeFromJson("AssembleCooBilinearOperatorTria3", "CooComputeElementMatrixTria3") + _readTimeFromJson("AssembleCooBilinearOperatorTria3", "CooAddToGlobalMatrix")) / denume << ",";
-  csv_save << (_readTimeFromJson("AssembleCsrBilinearOperatorTria3", "CsrComputeElementMatrixTria3") + _readTimeFromJson("AssembleCsrBilinearOperatorTria3", "CsrAddToGlobalMatrix")) / denume << ",";
-  if (m_running_on_gpu) {
-    csv_save << "0,0,0,";
-    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "CsrGpuAddComputeLoop") / denume << ",";
-    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "NodeWiseCsrAddAndCompute") / denume << ",";
-    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrAddAndCompute") / denume;
-  }
-  else {
-    csv_save << _readTimeFromJson("AssembleCsrGpuBilinearOperatorTria3", "CsrGpuAddComputeLoop") / denume << ",";
-    csv_save << _readTimeFromJson("AssembleNodeWiseCsrBilinearOperatorTria3", "NodeWiseCsrAddAndCompute") / denume << ",";
-    csv_save << _readTimeFromJson("AssembleBuildLessCsrBilinearOperatorTria3", "BuildLessCsrAddAndCompute") / denume << ",";
-    csv_save << "0,0,0";
-  }
-  csv_save << "\n";
-  csv_save.close();
+  dump_file << json_writer.getBuffer();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -182,9 +61,7 @@ _saveNoBuildTimeInCSV()
 void FemModule::
 endModule()
 {
-  _writeInJson();
-  _saveTimeInCSV();
-  _saveNoBuildTimeInCSV();
+  _dumpTimeStats();
 }
 
 void FemModule::
@@ -230,14 +107,6 @@ startInit()
 {
   info() << "Module Fem INIT";
 
-  if (m_register_time && _isMasterRank()) {
-    logger = ofstream("timer.txt");
-    wbuild = ofstream("with_build.csv", std::ios_base::app);
-    wbuild << nbNode() << ",";
-    timer = ofstream("timer.csv", std::ios_base::app);
-    timer << nbNode() << ",";
-  }
-
   {
     IMesh* mesh = defaultMesh();
     // If we do not create edges, we need to create custom connectivity
@@ -278,11 +147,6 @@ _handleFlags()
 {
   ParameterList parameter_list = this->subDomain()->application()->applicationInfo().commandLineArguments().parameters();
   info() << "-----------------------------------------------------------------------------------------";
-  info() << "The time will be registered by arcane in the output/listing/logs.0 file, and will be added to (or will create) the time.csv (with time for the various bilinear assembly phases) and timeNoBuild.csv (with time without the building part of COO and CSR for the various bilinear assembly phases) fil";
-  if (parameter_list.getParameterOrNull("REGISTER_TIME") == "TRUE") {
-    m_register_time = true;
-    info() << "REGISTER_TIME: The time will also be registered in the timer.txt, with_build.csv and timer.csv file";
-  }
   String cache_warm = parameter_list.getParameterOrNull("CACHE_WARMING");
   if (cache_warm != NULL) {
     auto tmp = Convert::Type<Integer>::tryParse(cache_warm);
@@ -362,186 +226,135 @@ _doStationarySolve()
 {
   Timer::Action timer_action(m_time_stats, "StationarySolve");
 
-  // # get material parameters
   _getMaterialParameters();
+
+  auto dim = mesh()->dimension();
 
   // Assemble the FEM bilinear operator (LHS - matrix A)
   if (m_use_legacy) {
+    void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleBilinearOperatorTRIA3 : &FemModule::_assembleBilinearOperatorTETRA4;
     m_linear_system.clearValues();
-    if (options()->meshType == "TETRA4")
-      _assembleBilinearOperatorTETRA4();
-    else if (options()->meshType == "TRIA3")
-      _assembleBilinearOperatorTRIA3();
-    if (m_cache_warming != 1) {
-      m_time_stats->resetStats("AssembleLegacyBilinearOperatorTria3");
-      m_time_stats->resetStats("AssembleLegacyBilinearOperatorTetra4");
-      for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-        m_linear_system.clearValues();
-        if (options()->meshType == "TETRA4")
-          _assembleBilinearOperatorTETRA4();
-        else if (options()->meshType == "TRIA3")
-          _assembleBilinearOperatorTRIA3();
-      }
+    (this->*assembly_fun)();
+    if (m_cache_warming != 1)
+      m_time_stats->resetStats("AssembleBilinearOperator_Legacy");
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      m_linear_system.clearValues();
+      (this->*assembly_fun)();
     }
   }
 
   if (m_use_csr) {
+    void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCsrBilinearOperatorTRIA3 : &FemModule::_assembleCsrBilinearOperatorTETRA4;
     m_linear_system.clearValues();
-    if (options()->meshType == "TRIA3")
-      _assembleCsrBilinearOperatorTRIA3();
-    else if (options()->meshType == "TETRA4")
-      _assembleCsrBilinearOperatorTETRA4();
-    if (m_cache_warming != 1) {
-      m_time_stats->resetStats("AssembleCsrBilinearOperatorTria3");
-      m_time_stats->resetStats("AssembleCsrBilinearOperatorTetra4");
-      for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-        m_linear_system.clearValues();
-        if (options()->meshType == "TRIA3")
-          _assembleCsrBilinearOperatorTRIA3();
-        else if (options()->meshType == "TETRA4")
-          _assembleCsrBilinearOperatorTETRA4();
-      }
+    (this->*assembly_fun)();
+    if (m_cache_warming != 1)
+      m_time_stats->resetStats("AssembleBilinearOperator_Csr");
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      m_linear_system.clearValues();
+      (this->*assembly_fun)();
     }
-    m_csr_matrix.translateToLinearSystem(m_linear_system);
   }
 
   if (m_use_coo) {
+    void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCooBilinearOperatorTRIA3 : &FemModule::_assembleCooBilinearOperatorTETRA4;
     m_linear_system.clearValues();
-    if (options()->meshType == "TRIA3")
-      _assembleCooBilinearOperatorTRIA3();
-    if (options()->meshType == "TETRA4")
-      _assembleCooBilinearOperatorTETRA4();
-    if (m_cache_warming != 1) {
-      m_time_stats->resetStats("AssembleCooBilinearOperatorTria3");
-      m_time_stats->resetStats("AssembleCooBilinearOperatorTetra4");
-      for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-        m_linear_system.clearValues();
-        if (options()->meshType == "TRIA3")
-          _assembleCooBilinearOperatorTRIA3();
-        if (options()->meshType == "TETRA4")
-          _assembleCooBilinearOperatorTETRA4();
-      }
+    (this->*assembly_fun)();
+    if (m_cache_warming != 1)
+      m_time_stats->resetStats("AssembleBilinearOperator_Coo");
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      m_linear_system.clearValues();
+      (this->*assembly_fun)();
     }
-    m_coo_matrix.translateToLinearSystem(m_linear_system);
   }
 
   if (m_use_coo_sort) {
+    void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCooSortBilinearOperatorTRIA3 : &FemModule::_assembleCooSortBilinearOperatorTETRA4;
     m_linear_system.clearValues();
-    if (options()->meshType == "TRIA3")
-      _assembleCooSortBilinearOperatorTRIA3();
-    if (options()->meshType == "TETRA4")
-      _assembleCooSortBilinearOperatorTETRA4();
-    if (m_cache_warming != 1) {
-      m_time_stats->resetStats("AssembleCooSortBilinearOperatorTria3");
-      m_time_stats->resetStats("AssembleCooSortBilinearOperatorTetra4");
-      for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-        m_linear_system.clearValues();
-        if (options()->meshType == "TRIA3")
-          _assembleCooSortBilinearOperatorTRIA3();
-        if (options()->meshType == "TETRA4")
-          _assembleCooSortBilinearOperatorTETRA4();
-      }
+    (this->*assembly_fun)();
+    if (m_cache_warming != 1)
+      m_time_stats->resetStats("AssembleBilinearOperator_CooSort");
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      m_linear_system.clearValues();
+      (this->*assembly_fun)();
     }
-    m_coo_matrix.translateToLinearSystem(m_linear_system);
   }
 
-#ifdef ARCANE_HAS_ACCELERATOR
-  if (m_use_coo_gpu || m_use_coo_sort_gpu) {
+  if (m_use_coo_gpu) {
+    void (FemModule::*assembly_fun)(bool must_sort) = dim == 2 ? &FemModule::_assembleCooGPUBilinearOperatorTRIA3 : &FemModule::_assembleCooGPUBilinearOperatorTETRA4;
     m_linear_system.clearValues();
-    if (options()->meshType == "TRIA3")
-      _assembleCooGPUBilinearOperatorTRIA3();
-    if (options()->meshType == "TETRA4")
-      _assembleCooGPUBilinearOperatorTETRA4();
-    if (m_cache_warming != 1) {
-      if (m_use_coo_gpu) {
-        m_time_stats->resetStats("AssembleCooGpuBilinearOperatorTria3");
-        m_time_stats->resetStats("AssembleCooGpuBilinearOperatorTetra4");
-      }
-      else { // m_use_coo_sort_gpu
-        m_time_stats->resetStats("AssembleCooSortGpuBilinearOperatorTria3");
-        m_time_stats->resetStats("AssembleCooSortGpuBilinearOperatorTetra4");
-      }
-      for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-        m_linear_system.clearValues();
-        if (options()->meshType == "TRIA3")
-          _assembleCooGPUBilinearOperatorTRIA3();
-        if (options()->meshType == "TETRA4")
-          _assembleCooGPUBilinearOperatorTETRA4();
-      }
+    (this->*assembly_fun)(false);
+    if (m_cache_warming != 1)
+      m_time_stats->resetStats("AssembleBilinearOperator_Coo_GPU");
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      m_linear_system.clearValues();
+      (this->*assembly_fun)(false);
     }
-    m_coo_matrix.translateToLinearSystem(m_linear_system);
+  }
+
+  if (m_use_coo_sort_gpu) {
+    void (FemModule::*assembly_fun)(bool must_sort) = dim == 2 ? &FemModule::_assembleCooGPUBilinearOperatorTRIA3 : &FemModule::_assembleCooGPUBilinearOperatorTETRA4;
+    m_linear_system.clearValues();
+    (this->*assembly_fun)(true);
+    if (m_cache_warming != 1)
+      m_time_stats->resetStats("AssembleBilinearOperator_CooSort_GPU");
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      m_linear_system.clearValues();
+      (this->*assembly_fun)(true);
+    }
   }
 
   if (m_use_csr_gpu) {
+    void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCsrGPUBilinearOperatorTRIA3 : &FemModule::_assembleCsrGPUBilinearOperatorTETRA4;
     m_linear_system.clearValues();
-    if (options()->meshType == "TRIA3")
-      _assembleCsrGPUBilinearOperatorTRIA3();
-    if (options()->meshType == "TETRA4")
-      _assembleCsrGPUBilinearOperatorTETRA4();
-    if (m_cache_warming != 1) {
-      m_time_stats->resetStats("AssembleCsrGpuBilinearOperatorTria3");
-      m_time_stats->resetStats("AssembleCsrGpuBilinearOperatorTetra4");
-      for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-        m_linear_system.clearValues();
-        if (options()->meshType == "TRIA3")
-          _assembleCsrGPUBilinearOperatorTRIA3();
-        if (options()->meshType == "TETRA4")
-          _assembleCsrGPUBilinearOperatorTETRA4();
-      }
+    (this->*assembly_fun)();
+    if (m_cache_warming != 1)
+      m_time_stats->resetStats("AssembleBilinearOperator_Csr_GPU");
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      m_linear_system.clearValues();
+      (this->*assembly_fun)();
     }
-    m_csr_matrix.translateToLinearSystem(m_linear_system);
   }
-#endif
 
   if (m_use_nodewise_csr) {
+    void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleNodeWiseCsrBilinearOperatorTria3 : &FemModule::_assembleNodeWiseCsrBilinearOperatorTetra4;
     m_linear_system.clearValues();
-    if (options()->meshType == "TRIA3")
-      _assembleNodeWiseCsrBilinearOperatorTria3();
-    if (options()->meshType == "TETRA4")
-      _assembleNodeWiseCsrBilinearOperatorTetra4();
-    if (m_cache_warming != 1) {
-      m_time_stats->resetStats("AssembleNodeWiseCsrBilinearOperatorTria3");
-      m_time_stats->resetStats("AssembleNodeWiseCsrBilinearOperatorTetra4");
-      for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-        m_linear_system.clearValues();
-        if (options()->meshType == "TRIA3")
-          _assembleNodeWiseCsrBilinearOperatorTria3();
-        if (options()->meshType == "TETRA4")
-          _assembleNodeWiseCsrBilinearOperatorTetra4();
-      }
+    (this->*assembly_fun)();
+    if (m_cache_warming != 1)
+      m_time_stats->resetStats("AssembleBilinearOperator_CsrNodeWise");
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      m_linear_system.clearValues();
+      (this->*assembly_fun)();
     }
-    m_csr_matrix.translateToLinearSystem(m_linear_system);
   }
 
   if (m_use_buildless_csr) {
+    void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleBuildLessCsrBilinearOperatorTria3 : &FemModule::_assembleBuildLessCsrBilinearOperatorTetra4;
     m_linear_system.clearValues();
-    if (options()->meshType == "TRIA3")
-      _assembleBuildLessCsrBilinearOperatorTria3();
-    if (options()->meshType == "TETRA4")
-      _assembleBuildLessCsrBilinearOperatorTetra4();
-    if (m_cache_warming != 1) {
-      m_time_stats->resetStats("AssembleBuildLessCsrBilinearOperatorTria3");
-      m_time_stats->resetStats("AssembleBuildLessCsrBilinearOperatorTetra4");
-      for (cache_index = 1; cache_index < m_cache_warming; cache_index++) {
-        m_linear_system.clearValues();
-        if (options()->meshType == "TRIA3")
-          _assembleBuildLessCsrBilinearOperatorTria3();
-        if (options()->meshType == "TETRA4")
-          _assembleBuildLessCsrBilinearOperatorTetra4();
-      }
+    (this->*assembly_fun)();
+    if (m_cache_warming != 1)
+      m_time_stats->resetStats("AssembleBilinearOperator_CsrBuildLess");
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      m_linear_system.clearValues();
+      (this->*assembly_fun)();
     }
-    m_csr_matrix.translateToLinearSystem(m_linear_system);
   }
 
   // Assemble the FEM linear operator (RHS - vector b)
   if (m_use_buildless_csr || m_use_csr_gpu || m_use_nodewise_csr || m_use_csr) {
-    m_linear_system.clearValues();
-    _assembleCsrGpuLinearOperator();
     //_assembleCsrLinearOperator();
-    m_csr_matrix.translateToLinearSystem(m_linear_system);
+    _assembleCsrGpuLinearOperator();
+    {
+      Timer::Action timer_action(m_time_stats, "TranslateToLinearSystem");
+      m_csr_matrix.translateToLinearSystem(m_linear_system);
+    }
     _translateRhs();
   }
   else {
+    if (m_use_coo || m_use_coo_sort || m_use_coo_gpu || m_use_coo_sort_gpu) {
+      Timer::Action timer_action(m_time_stats, "TranslateToLinearSystem");
+      m_coo_matrix.translateToLinearSystem(m_linear_system);
+    }
+
     _assembleLinearOperator();
   }
 

@@ -74,7 +74,7 @@ void FemModule::_fillDiagonal(Int64 nb_edge, NodeGroup nodes)
   };
 }
 
-void FemModule::_buildMatrixCooGPU()
+void FemModule::_buildMatrixCooGPU(bool must_sort)
 {
   Int8 mesh_dim = mesh()->dimension();
 
@@ -96,7 +96,7 @@ void FemModule::_buildMatrixCooGPU()
 
   if (mesh_dim == 2) {
 
-    if (m_use_coo_sort_gpu) {
+    if (must_sort) {
       info()
       << "_buildMatrixCooSortGPU for 2D mesh with face-node connectivity";
       NumArray<uint, MDDim1> neighbors(nbNode());
@@ -161,7 +161,7 @@ void FemModule::_buildMatrixCooGPU()
   else if (options()
            ->createEdges()) { // 3D mesh without node-node connectivity
 
-    if (m_use_coo_sort_gpu) {
+    if (must_sort) {
       info()
       << "_buildMatrixCooSortGPU for 3D mesh with edge-node connectivity";
       NumArray<uint, MDDim1> neighbors(nbNode());
@@ -293,18 +293,16 @@ void FemModule::_buildMatrixCooGPU()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleCooGPUBilinearOperatorTRIA3()
+_assembleCooGPUBilinearOperatorTRIA3(bool must_sort = false)
 {
   info() << "Assembling COO GPU Bilinear Operator for TRIA3 elements";
 
-  Timer::Action timer_coo_gpu_bili(
-  m_time_stats, m_use_coo_gpu ? "AssembleCooGpuBilinearOperatorTria3" : "AssembleCooSortGpuBilinearOperatorTria3");
+  Timer::Action timer_bili(
+  m_time_stats, must_sort ? "AssembleBilinearOperator_CooSort_Gpu" : "AssembleBilinearOperator_Coo_Gpu");
 
   {
-    Timer::Action timer_coo_gpu_build(m_time_stats,
-                                      m_use_coo_gpu ? "BuildMatrixCooGpu"
-                                                    : "BuildMatrixCooSortGpu");
-    _buildMatrixCooGPU();
+    Timer::Action timer_build(m_time_stats, "BuildMatrix");
+    _buildMatrixCooGPU(must_sort);
   }
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -325,7 +323,7 @@ _assembleCooGPUBilinearOperatorTRIA3()
 
   bool is_row_array_sorted = m_use_coo_sort_gpu || (mesh()->dimension() == 3 && !options()->createEdges());
 
-  Timer::Action timer_coo_gpu_compute_add(m_time_stats, "CooGpuComputeAndAdd");
+  Timer::Action timer_add_compute(m_time_stats, "ComputeAndAdd");
 
   command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
   {
@@ -375,18 +373,16 @@ _assembleCooGPUBilinearOperatorTRIA3()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleCooGPUBilinearOperatorTETRA4()
+_assembleCooGPUBilinearOperatorTETRA4(bool must_sort = false)
 {
   info() << "Assembling COO GPU Bilinear Operator for TETRA4 elements";
 
-  Timer::Action timer_coo_gpu_bili(
-  m_time_stats, m_use_coo_gpu ? "AssembleCooGpuBilinearOperatorTetra4" : "AssembleCooSortGpuBilinearOperatorTetra4");
+  Timer::Action timer_bili(
+  m_time_stats, must_sort ? "AssembleBilinearOperator_CooSort_Gpu" : "AssembleBilinearOperator_Coo_Gpu");
 
   {
-    Timer::Action timer_coo_gpu_build(m_time_stats,
-                                      m_use_coo_gpu ? "BuildMatrixCooGpu"
-                                                    : "BuildMatrixCooSortGpu");
-    _buildMatrixCooGPU();
+    Timer::Action timer_build(m_time_stats, "BuildMatrix");
+    _buildMatrixCooGPU(must_sort);
   }
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -407,7 +403,7 @@ _assembleCooGPUBilinearOperatorTETRA4()
 
   bool is_row_array_sorted = m_use_coo_sort_gpu || (mesh()->dimension() == 3 && !options()->createEdges());
 
-  Timer::Action timer_coo_gpu_compute_add(m_time_stats, "CooGpuComputeAndAdd");
+  Timer::Action timer_add_compute(m_time_stats, "ComputeAndAdd");
 
   command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
   {

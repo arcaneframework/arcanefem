@@ -117,15 +117,15 @@ void FemModule::
 _assembleCsrBilinearOperatorTRIA3()
 {
 
-  Timer::Action timer_csr_bili(m_time_stats, "AssembleCsrBilinearOperatorTria3");
+  Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_Csr");
   {
-    Timer::Action timer_csr_build(m_time_stats, "CsrBuildMatrix");
+    Timer::Action timer_build(m_time_stats, "BuildMatrix");
     _buildMatrixCsr();
   }
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  Timer::Action timer_add_compute(m_time_stats, "CsrAddComputeLoop");
+  Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
@@ -167,15 +167,15 @@ _assembleCsrBilinearOperatorTRIA3()
 void FemModule::
 _assembleCsrBilinearOperatorTETRA4()
 {
-  Timer::Action timer_csr_bili(m_time_stats, "AssembleCsrBilinearOperatorTetra4");
+  Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_Csr");
   {
-    Timer::Action timer_gpu_build(m_time_stats, "CsrBuildMatrix");
+    Timer::Action timer_build(m_time_stats, "BuildMatrix");
     _buildMatrixCsr();
   }
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  Timer::Action timer_add_compute(m_time_stats, "CsrAddComputeLoop");
+  Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;

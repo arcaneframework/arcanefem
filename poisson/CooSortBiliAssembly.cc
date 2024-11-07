@@ -64,7 +64,6 @@ _buildMatrixCooSort()
   }
 
   // Sort the matrix
-  Timer::Action timer_action(m_time_stats, "SortingCooMatrix");
   m_coo_matrix.sort();
 }
 
@@ -90,25 +89,24 @@ _assembleCooSortBilinearOperatorTRIA3()
 {
   info() << "Assembling COO Sort Bilinear Operator TRIA3";
 
-  Timer::Action timer_coosort_bili(m_time_stats, "AssembleCooSortBilinearOperatorTria3");
+  Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_CooSort");
 
   {
-    Timer::Action timer_build_coosort(m_time_stats, "BuildMatrixCooSort");
+    Timer::Action timer_build(m_time_stats, "BuildMatrix");
     _buildMatrixCooSort();
   }
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
+  Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
     FixedMatrix<3, 3> K_e;
     {
-      Timer::Action timer_element_coosort(m_time_stats, "CooSortComputeElementMatrixTria3");
       K_e = _computeElementMatrixTRIA3(cell);
     }
 
-    Timer::Action timer_coosort_add_compute(m_time_stats, "CooSortAddToGlobalMatrix");
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
@@ -146,25 +144,24 @@ void FemModule::_assembleCooSortBilinearOperatorTETRA4()
 {
   info() << "Assembling COO Sort Bilinear Operator TETRA4";
 
-  Timer::Action timer_coosort_bili(m_time_stats, "AssembleCooSortBilinearOperatorTetra4");
+  Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_CooSort");
 
   {
-    Timer::Action timer_build_coosort(m_time_stats, "BuildMatrixCooSort");
+    Timer::Action timer_build(m_time_stats, "BuildMatrix");
     _buildMatrixCooSort();
   }
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
+  Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
     FixedMatrix<4, 4> K_e;
     {
-      Timer::Action timer_element_coosort(m_time_stats, "CooSortComputeElementMatrixTetra4");
       K_e = _computeElementMatrixTETRA4(cell);
     }
 
-    Timer::Action timer_coosort_add_compute(m_time_stats, "CooSortAddToGlobalMatrix");
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
