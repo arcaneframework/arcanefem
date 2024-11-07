@@ -265,7 +265,6 @@ _doStationarySolve()
       m_linear_system.clearValues();
       (this->*assembly_fun)();
     }
-    m_coo_matrix.translateToLinearSystem(m_linear_system);
   }
 
   if (m_use_coo_sort) {
@@ -278,7 +277,6 @@ _doStationarySolve()
       m_linear_system.clearValues();
       (this->*assembly_fun)();
     }
-    m_coo_matrix.translateToLinearSystem(m_linear_system);
   }
 
   if (m_use_coo_gpu) {
@@ -291,7 +289,6 @@ _doStationarySolve()
       m_linear_system.clearValues();
       (this->*assembly_fun)(false);
     }
-    m_coo_matrix.translateToLinearSystem(m_linear_system);
   }
 
   if (m_use_coo_sort_gpu) {
@@ -304,7 +301,6 @@ _doStationarySolve()
       m_linear_system.clearValues();
       (this->*assembly_fun)(true);
     }
-    m_coo_matrix.translateToLinearSystem(m_linear_system);
   }
 
   if (m_use_csr_gpu) {
@@ -345,12 +341,20 @@ _doStationarySolve()
 
   // Assemble the FEM linear operator (RHS - vector b)
   if (m_use_buildless_csr || m_use_csr_gpu || m_use_nodewise_csr || m_use_csr) {
-    _assembleCsrGpuLinearOperator();
     //_assembleCsrLinearOperator();
-    m_csr_matrix.translateToLinearSystem(m_linear_system);
+    _assembleCsrGpuLinearOperator();
+    {
+      Timer::Action timer_action(m_time_stats, "TranslateToLinearSystem");
+      m_csr_matrix.translateToLinearSystem(m_linear_system);
+    }
     _translateRhs();
   }
   else {
+    if (m_use_coo || m_use_coo_sort || m_use_coo_gpu || m_use_coo_sort_gpu) {
+      Timer::Action timer_action(m_time_stats, "TranslateToLinearSystem");
+      m_coo_matrix.translateToLinearSystem(m_linear_system);
+    }
+
     _assembleLinearOperator();
   }
 
