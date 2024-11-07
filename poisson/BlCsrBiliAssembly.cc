@@ -23,7 +23,7 @@ _buildMatrixBuildLessCsr()
 
   // Compute the number of nnz and initialize the memory space
   Integer nbnde = nbNode();
-  Int64   nedge;
+  Int64 nedge;
 
   if (options()->meshType == "TETRA4")
     nedge = nbEdge();
@@ -54,7 +54,6 @@ _buildMatrixBuildLessCsr()
         index++;
       }
     }
-
 }
 
 /*---------------------------------------------------------------------------*/
@@ -65,7 +64,7 @@ void FemModule::_buildMatrixGpuBuildLessCsr()
 
   // Compute the number of nnz and initialize the memory space
   Integer nbnde = nbNode();
-  Int64   nedge;
+  Int64 nedge;
 
   if (options()->meshType == "TETRA4")
     nedge = nbEdge();
@@ -87,20 +86,20 @@ void FemModule::_buildMatrixGpuBuildLessCsr()
   UnstructuredMeshConnectivityView connectivity_view;
   connectivity_view.setMesh(this->mesh());
 
-  if (options()->meshType == "TETRA4"){
+  if (options()->meshType == "TETRA4") {
     auto nfc = connectivity_view.nodeEdge();
     command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
     {
-    Int64 index = node_dof.dofId(inode, 0).localId();
-    in_out_tmp_row[index] = nfc.nbEdge(inode) + 1;
+      Int64 index = node_dof.dofId(inode, 0).localId();
+      in_out_tmp_row[index] = nfc.nbEdge(inode) + 1;
     };
   }
-  else if (options()->meshType == "TRIA3"){
+  else if (options()->meshType == "TRIA3") {
     auto nfc = connectivity_view.nodeFace();
     command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
     {
-    Int64 index = node_dof.dofId(inode, 0).localId();
-    in_out_tmp_row[index] = nfc.nbFace(inode) + 1;
+      Int64 index = node_dof.dofId(inode, 0).localId();
+      in_out_tmp_row[index] = nfc.nbFace(inode) + 1;
     };
   }
 
@@ -127,10 +126,10 @@ Real FemModule::_computeCellMatrixGpuTETRA4(CellLocalId icell, IndexedCellNodeCo
   Real area = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2))) / 6.0;
 
   // Compute gradients of shape functions
-  Real3 dPhi0 = Arcane::math::cross(m2 - m1, m1 - m3) ;
-  Real3 dPhi1 = Arcane::math::cross(m3 - m0, m0 - m2) ;
-  Real3 dPhi2 = Arcane::math::cross(m1 - m0, m0 - m3) ;
-  Real3 dPhi3 = Arcane::math::cross(m0 - m1, m1 - m2) ;
+  Real3 dPhi0 = Arcane::math::cross(m2 - m1, m1 - m3);
+  Real3 dPhi1 = Arcane::math::cross(m3 - m0, m0 - m2);
+  Real3 dPhi2 = Arcane::math::cross(m1 - m0, m0 - m3);
+  Real3 dPhi3 = Arcane::math::cross(m0 - m1, m1 - m2);
 
   // Construct the B-matrix as a vector
   Real mul = 1.0 / (6.0 * area);
@@ -146,38 +145,12 @@ Real FemModule::_computeCellMatrixGpuTETRA4(CellLocalId icell, IndexedCellNodeCo
   b_matrix[7] = dPhi2.y * mul;
   b_matrix[8] = dPhi2.z * mul;
 
-  b_matrix[9]  = dPhi3.x * mul;
+  b_matrix[9] = dPhi3.x * mul;
   b_matrix[10] = dPhi3.y * mul;
   b_matrix[11] = dPhi3.z * mul;
 
-  /*
-  FixedMatrix<3, 4> b_matrix;
-  b_matrix(0, 0) = dPhi0.x;
-  b_matrix(1, 0) = dPhi0.y;
-  b_matrix(2, 0) = dPhi0.z;
-
-  b_matrix(0, 1) = dPhi1.x;
-  b_matrix(1, 1) = dPhi1.y;
-  b_matrix(2, 1) = dPhi1.z;
-
-  b_matrix(0, 2) = dPhi2.x;
-  b_matrix(1, 2) = dPhi2.y;
-  b_matrix(2, 2) = dPhi2.z;
-
-  b_matrix(0, 3) = dPhi3.x;
-  b_matrix(1, 3) = dPhi3.y;
-  b_matrix(2, 3) = dPhi3.z;
-
-  b_matrix.multInPlace(1.0 / (6.0 * volume));
-
-  // Compute the element matrix
-  FixedMatrix<4, 4> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
-  int_cdPi_dPj.multInPlace(volume);
-*/
-
   return area;
 }
-
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -188,7 +161,7 @@ Real FemModule::_computeCellMatrixGpuTRIA3(CellLocalId icell, IndexedCellNodeCon
   Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
   Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
 
-  Real area = 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));//_computeAreaTriangle3Gpu(icell, cnc, in_node_coord);
+  Real area = 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y)); //_computeAreaTriangle3Gpu(icell, cnc, in_node_coord);
 
   Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
   Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
@@ -214,7 +187,7 @@ ARCCORE_HOST_DEVICE
 void FemModule::_addValueToGlobalMatrixTria3Gpu(Int32 begin, Int32 end, Int32 col, ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> in_out_col_csr, ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> in_out_val_csr, Real x)
 {
 
-/*
+  /*
   // Find the right index in the csr matrix
   while (begin < end) {
     if (in_out_col_csr[begin] == -1) {
@@ -235,12 +208,11 @@ void FemModule::_addValueToGlobalMatrixTria3Gpu(Int32 begin, Int32 end, Int32 co
     const Int32 currentCol = in_out_col_csr[begin];
 
     if (currentCol == -1 || currentCol == col) {
-        in_out_col_csr[begin]  = col;
-        in_out_val_csr[begin] += x;
-        break;
+      in_out_col_csr[begin] = col;
+      in_out_val_csr[begin] += x;
+      break;
     }
   }
-
 }
 
 /*---------------------------------------------------------------------------*/
@@ -277,7 +249,6 @@ void FemModule::_assembleBuildLessCsrBilinearOperatorTria3()
   auto cnc = m_connectivity_view.cellNode();
   Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
 
-
   Timer::Action timer_blcsr_add_compute(m_time_stats, "BuildLessCsrAddAndCompute");
 
   command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
@@ -292,7 +263,7 @@ void FemModule::_assembleBuildLessCsrBilinearOperatorTria3()
       auto nodeId2 = cnc.nodeId(cell, 2);
       inode_index = (inode == nodeId1) ? 1 : ((inode == nodeId2) ? 2 : 0);
 
-/*
+      /*
       if (inode == cnc.nodeId(cell, 1)) {
         inode_index = 1;
       }
@@ -312,21 +283,21 @@ void FemModule::_assembleBuildLessCsrBilinearOperatorTria3()
       Int32 begin = in_row_csr[row];
       Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
       for (NodeLocalId node2 : cnc.nodes(cell)) {
-/*
+        /*
         Real x = 0.0;
         for (Int32 k = 0; k < 2; k++) {
           x += b_matrix[inode_index * 2 + k] * b_matrix[i * 2 + k];
         }
 */
-        Real x = b_matrix[inode_index * 2]     * b_matrix[i * 2] +
-                 b_matrix[inode_index * 2 + 1] * b_matrix[i * 2 + 1];
+        Real x = b_matrix[inode_index * 2] * b_matrix[i * 2] +
+        b_matrix[inode_index * 2 + 1] * b_matrix[i * 2 + 1];
 
         x = x * area;
         if (nodes_infos.isOwn(inode)) {
 
           Int32 col = node_dof.dofId(node2, 0).localId();
 
-/*
+          /*
           if (row == row_csr_size - 1) {
             end = col_csr_size;
           }
@@ -376,7 +347,6 @@ void FemModule::_assembleBuildLessCsrBilinearOperatorTetra4()
   auto cnc = m_connectivity_view.cellNode();
   Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
 
-
   Timer::Action timer_blcsr_add_compute(m_time_stats, "BuildLessCsrAddAndCompute");
 
   command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
@@ -409,22 +379,22 @@ void FemModule::_assembleBuildLessCsrBilinearOperatorTetra4()
       Int32 begin = in_row_csr[row];
       Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
       for (NodeLocalId node2 : cnc.nodes(cell)) {
-/*
+        /*
         Real x = 0.0;
         for (Int32 k = 0; k < 2; k++) {
           x += b_matrix[inode_index * 2 + k] * b_matrix[i * 2 + k];
         }
 */
-        Real x = b_matrix[inode_index * 3]     * b_matrix[i * 3]     +
-                 b_matrix[inode_index * 3 + 1] * b_matrix[i * 3 + 1] +
-                 b_matrix[inode_index * 3 + 2] * b_matrix[i * 3 + 2];
+        Real x = b_matrix[inode_index * 3] * b_matrix[i * 3] +
+        b_matrix[inode_index * 3 + 1] * b_matrix[i * 3 + 1] +
+        b_matrix[inode_index * 3 + 2] * b_matrix[i * 3 + 2];
 
         x = x * area;
         if (nodes_infos.isOwn(inode)) {
 
           Int32 col = node_dof.dofId(node2, 0).localId();
 
-/*
+          /*
           if (row == row_csr_size - 1) {
             end = col_csr_size;
           }
