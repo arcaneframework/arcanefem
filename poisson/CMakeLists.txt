@@ -1,10 +1,8 @@
 set(ACCELERATOR_SOURCES
   FemModule.cc
-  CooBiliAssembly.cc
-  CsrBiliAssembly.cc
-  CooSortBiliAssembly.cc
   BlCsrBiliAssembly.cc
   CooGpuBiliAssembly.cc
+  CooSortGpuBiliAssembly.cc
   CsrGpuBiliAssembly.cc
   NodeWiseCsrBiliAssembly.cc
 )
@@ -13,6 +11,9 @@ add_executable(Poisson
   ${ACCELERATOR_SOURCES}
   FemModule.h
   LegacyBiliAssembly.cc
+  CooBiliAssembly.cc
+  CsrBiliAssembly.cc
+  CooSortBiliAssembly.cc
   FemModule.cc
   main.cc
   Fem_axl.h

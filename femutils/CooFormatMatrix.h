@@ -296,4 +296,52 @@ class CooFormat : TraceAccessor
     m_matrix_value(j) = tmp_val;
   }
 };
+
+ARCCORE_HOST_DEVICE Int32 findIndexBinarySearch(Int32 row, Int32 col,
+                                                const auto& in_row_coo,
+                                                const auto& in_col_coo,
+                                                Int32 row_length)
+{
+  Int32 begin = 0;
+  Int32 end = row_length - 1;
+  Int32 i = -1; // Default value in case the index is not found
+
+  // Binary search to find the first occurrence of `row`
+  while (begin <= end) {
+    Int32 mid = begin + (end - begin) / 2;
+
+    if (row == in_row_coo(mid)) {
+      // Move back to the first occurrence of the row
+      while (mid > 0 && in_row_coo(mid - 1) == row) {
+        mid--;
+      }
+      i = mid;
+      break;
+    }
+
+    if (row > in_row_coo(mid)) {
+      begin = mid + 1;
+    }
+    else {
+      end = mid - 1;
+    }
+  }
+
+  // If no occurrence of the row was found, return -1
+  if (i == -1) {
+    return -1;
+  }
+
+  // Search for the matching column in the found row's block
+  while (i < row_length && in_row_coo(i) == row) {
+    if (in_col_coo(i) == col) {
+      return i;
+    }
+    i++;
+  }
+
+  // If no matching column is found, return -1
+  return -1;
+}
+
 } // namespace Arcane::FemUtils
