@@ -280,26 +280,26 @@ _doStationarySolve()
   }
 
   if (m_use_coo_gpu) {
-    void (FemModule::*assembly_fun)(bool must_sort) = dim == 2 ? &FemModule::_assembleCooGPUBilinearOperatorTRIA3 : &FemModule::_assembleCooGPUBilinearOperatorTETRA4;
+    void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCooGPUBilinearOperatorTRIA3 : &FemModule::_assembleCooGPUBilinearOperatorTETRA4;
     m_linear_system.clearValues();
-    (this->*assembly_fun)(false);
+    (this->*assembly_fun)();
     if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_Coo_GPU");
     for (auto i = 1; i < m_cache_warming; ++i) {
       m_linear_system.clearValues();
-      (this->*assembly_fun)(false);
+      (this->*assembly_fun)();
     }
   }
 
   if (m_use_coo_sort_gpu) {
-    void (FemModule::*assembly_fun)(bool must_sort) = dim == 2 ? &FemModule::_assembleCooGPUBilinearOperatorTRIA3 : &FemModule::_assembleCooGPUBilinearOperatorTETRA4;
+    void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCooSortGPUBilinearOperatorTRIA3 : &FemModule::_assembleCooSortGPUBilinearOperatorTETRA4;
     m_linear_system.clearValues();
-    (this->*assembly_fun)(true);
+    (this->*assembly_fun)();
     if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_CooSort_GPU");
     for (auto i = 1; i < m_cache_warming; ++i) {
       m_linear_system.clearValues();
-      (this->*assembly_fun)(true);
+      (this->*assembly_fun)();
     }
   }
 

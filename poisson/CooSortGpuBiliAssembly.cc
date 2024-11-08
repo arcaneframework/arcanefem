@@ -5,9 +5,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* CooGpuiBiliAssembly.cc                                      (C) 2022-2024 */
+/* CooSortGpuiBiliAssembly.cc                                  (C) 2022-2024 */
 /*                                                                           */
-/* Methods of the bilinear assembly phase using the COO data structure       */
+/* Methods of the bilinear assembly phase using the S-COO data structure     */
 /* which handle the parallelization on GPU using Arcane accelerator API and  */
 /* an atomic operation for adding the value into the global matrix           */
 /*                                                                           */
@@ -17,63 +17,17 @@
 /* The building of the sparsity is implemented for 2D mesh, 3D mesh with and */
 /* without edge.                                                             */
 /*                                                                           */
+/* Both ROW and COLUMN arrays of the matrix are then sorted, in all cases.   */
+/* Sort is currently made on CPU.                                            */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
 
 /*---------------------------------------------------------------------------*/
-/**
- * The _fillMatrix and _fillDiagonal functions can be used in association with
- * the dead-code present in _buildMatrixCooGPU to build the sparsity of the 
- * matrix.
- *
- * They are commented as the arrays their produced are not sorted, making the
- * index search of the assembly phase very slow.
- */
 /*---------------------------------------------------------------------------*/
 
-/* ARCCORE_HOST_DEVICE void _fillMatrix(Int32 id, Int64 nb_edge,
-                                     auto nodes,
-                                     auto inout_m_matrix_row,
-                                     auto inout_m_matrix_column)
-{
-  Int32 node1_idx = nodes[0];
-  Int32 node2_idx = nodes[1];
-
-  // Upper triangular part
-  inout_m_matrix_row[id] = node1_idx;
-  inout_m_matrix_column[id] = node2_idx;
-
-  // Matrix is symmetrical in Poisson
-  // Lower triangular part
-  inout_m_matrix_row[nb_edge + id] = node2_idx;
-  inout_m_matrix_column[nb_edge + id] = node1_idx;
-} */
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-/* void FemModule::_fillDiagonal(Int64 nb_edge, NodeGroup nodes)
-{
-  RunQueue* queue = acceleratorMng()->defaultQueue();
-  auto command = makeCommand(queue);
-
-  auto inout_m_matrix_row = viewInOut(command, m_coo_matrix.m_matrix_row);
-  auto inout_m_matrix_column = viewInOut(command, m_coo_matrix.m_matrix_column);
-
-  Int32 offset = 2 * nb_edge;
-  command << RUNCOMMAND_ENUMERATE(Node, node_id, nodes)
-  {
-    inout_m_matrix_row(offset + node_id) = node_id;
-    inout_m_matrix_column(offset + node_id) = node_id;
-  };
-} */
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::_buildMatrixCooGPU()
+void FemModule::_buildMatrixCooSortGPU()
 {
   Int8 mesh_dim = mesh()->dimension();
 
@@ -139,25 +93,6 @@ void FemModule::_buildMatrixCooGPU()
         inout_m_matrix_column[offset] = node_id;
       };
     }
-
-    /**
-     * This dead-code can be used to build the sparsity by iterating of the edges
-     * (see Pull Request #174 of arcaneFEM project on GitHub)
-     *
-     * It is commented as the arrays it produces is not sorted, making the
-     * index search of the assembly phase very slow.
-     */
-    /* IndexedFaceNodeConnectivityView face_node_connectivity_view =
-    m_connectivity_view.faceNode();
-
-    command << RUNCOMMAND_ENUMERATE(Face, face_id, allFaces())
-    {
-      auto nodes = face_node_connectivity_view.nodes(face_id);
-      _fillMatrix(face_id, nb_edge, nodes, inout_m_matrix_row,
-                  inout_m_matrix_column);
-    };
-
-    _fillDiagonal(nb_edge, allNodes()); */
   }
   else if (options()
            ->createEdges()) { // 3D mesh without node-node connectivity
@@ -206,25 +141,6 @@ void FemModule::_buildMatrixCooGPU()
         inout_m_matrix_column[offset] = node_id;
       };
     }
-
-    /**
-     * This dead-code can be used to build the sparsity by iterating of the edges
-     * (see Pull Request #174 of arcaneFEM project on GitHub)
-     *
-     * It is commented as the arrays it produces are not sorted, making the
-     * index search of the assembly phase very slow.
-     */
-    /* IndexedEdgeNodeConnectivityView edge_node_connectivity_view =
-    m_connectivity_view.edgeNode();
-
-    command << RUNCOMMAND_ENUMERATE(Edge, edge_id, allEdges())
-    {
-      auto nodes = edge_node_connectivity_view.nodes(edge_id);
-      _fillMatrix(edge_id, nb_edge, nodes, inout_m_matrix_row,
-                  inout_m_matrix_column);
-    };
-
-    _fillDiagonal(nb_edge, allNodes()); */
   }
   else { // 3D mesh with node-node connectivity
 
@@ -236,7 +152,7 @@ void FemModule::_buildMatrixCooGPU()
     // an accelerator runtime. On Cpu, the not-accelerated version is faster.
 
     if (queue->isAcceleratorPolicy()) {
-      info() << "Using accelerated version of _buildMatrixCooGPU for 3D mesh "
+      info() << "Using accelerated version of _buildMatrixCooSortGPU for 3D mesh "
                 "with node-node connectivity";
 
       // This array will contain the number of neighbors of each node
@@ -275,7 +191,7 @@ void FemModule::_buildMatrixCooGPU()
       };
     }
     else {
-      info() << "Using unaccelerated version of _buildMatrixCooGPU for 3D mesh "
+      info() << "Using unaccelerated version of _buildMatrixCooSortGPU for 3D mesh "
                 "with node-node connectivity";
 
       auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -291,21 +207,24 @@ void FemModule::_buildMatrixCooGPU()
       }
     }
   }
+
+  // Sort both row and column arrays of the matrix
+  m_coo_matrix.sort();
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleCooGPUBilinearOperatorTRIA3()
+_assembleCooSortGPUBilinearOperatorTRIA3()
 {
-  info() << "Assembling COO GPU Bilinear Operator for TRIA3 elements";
+  info() << "Assembling S-COO GPU Bilinear Operator for TRIA3 elements";
 
-  Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_Coo_Gpu");
+  Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_CooSort_Gpu");
 
   {
     Timer::Action timer_build(m_time_stats, "BuildMatrix");
-    _buildMatrixCooGPU();
+    _buildMatrixCooSortGPU();
   }
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -342,7 +261,7 @@ _assembleCooGPUBilinearOperatorTRIA3()
           Int32 row_index = node_dof.dofId(node1, 0);
           Int32 col_index = node_dof.dofId(node2, 0);
 
-          // Find the index of the value using binary search on the ROW array (which is sorted in COO when Arcane sorts the mesh)
+          // Find the index of the value using binary search on the ROW array (which is always sorted in S-COO)
           auto value_index = findIndexBinarySearch(row_index, col_index, in_row_coo, in_col_coo, row_length);
           ax::doAtomic<ax::eAtomicOperation::Add>(in_out_val_coo(value_index), v);
         }
@@ -357,11 +276,11 @@ _assembleCooGPUBilinearOperatorTRIA3()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleCooGPUBilinearOperatorTETRA4()
+_assembleCooSortGPUBilinearOperatorTETRA4()
 {
-  info() << "Assembling COO GPU Bilinear Operator for TETRA4 elements";
+  info() << "Assembling S-COO GPU Bilinear Operator for TETRA4 elements";
 
-  Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_Coo_Gpu");
+  Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_CooSort_Gpu");
 
   {
     Timer::Action timer_build(m_time_stats, "BuildMatrix");
@@ -402,7 +321,7 @@ _assembleCooGPUBilinearOperatorTETRA4()
           Int32 row_index = node_dof.dofId(node1, 0);
           Int32 col_index = node_dof.dofId(node2, 0);
 
-          // Find the index of the value using binary search on the ROW array (which is sorted in COO when Arcane sorts the mesh)
+          // Find the index of the value using binary search on the ROW array (which is always sorted in S-COO)
           auto value_index = findIndexBinarySearch(row_index, col_index, in_row_coo, in_col_coo, row_length);
           ax::doAtomic<ax::eAtomicOperation::Add>(in_out_val_coo(value_index), v);
         }
