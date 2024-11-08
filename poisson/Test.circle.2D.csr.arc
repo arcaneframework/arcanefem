@@ -20,7 +20,7 @@
   </meshes>
 
   <fem>
-    <csr-gpu>true</csr-gpu>
+    <csr>true</csr>
     <result-file>poisson_test_ref_circle_2D.txt</result-file>
     <f>5.5</f>
     <dirichlet-boundary-condition>
