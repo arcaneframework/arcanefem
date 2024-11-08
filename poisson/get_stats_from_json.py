@@ -74,7 +74,7 @@ def main(file_path, metrics=None, config_path=None):
             time = format_raw_obj['Cumulative'].split(' ')[0]
 
             if cacheWarming > 1:
-                time = time / (cacheWarming - 1)
+                time = float(time) / (cacheWarming - 1)
 
             output.append('{0: <50}'.format(f"{metric_name}:") + f"{time}")
 

@@ -30,40 +30,32 @@
 void FemModule::
 _buildMatrixCooSort()
 {
-
   Int8 mesh_dim = mesh()->dimension();
   Int64 nbEdge = mesh_dim == 3 ? m_nb_edge : nbFace();
   Int32 nnz = nbEdge * 2 + nbNode();
   m_coo_matrix.initialize(m_dof_family, nnz);
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  // Fill the diagonal
   ENUMERATE_NODE (inode, allNodes()) {
     Node node = *inode;
+
     m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
-  }
 
-  // Fill what is left
-  auto fillMatrix = [&](auto entity) {
-    auto nodes = entity.nodes();
-    for (Int32 i = 0; i < nodes.size() - i - 1; i++) {
-      m_coo_matrix.setCoordinates(node_dof.dofId(nodes[i], 0), node_dof.dofId(nodes[nodes.size() - i - 1], 0));
-      m_coo_matrix.setCoordinates(node_dof.dofId(nodes[nodes.size() - i - 1], 0), node_dof.dofId(nodes[i], 0));
+    if (mesh_dim == 2) {
+      for (Face face : node.faces()) {
+        Node other_node = (face.nodeId(0) == node.localId()) ? face.node(1) : face.node(0);
+        m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(other_node, 0));
+      }
     }
-  };
-
-  if (mesh_dim == 2) {
-    ENUMERATE_FACE (iface, allFaces()) {
-      fillMatrix(*iface);
-    }
-  }
-  else {
-    ENUMERATE_EDGE (iedge, allEdges()) {
-      fillMatrix(*iedge);
+    else {
+      for (Edge edge : node.edges()) {
+        Node other_node = (edge.nodeId(0) == node.localId()) ? edge.node(1) : edge.node(0);
+        m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(other_node, 0));
+      }
     }
   }
 
-  // Sort the matrix
+  // Sort both row and column arrays of the matrix
   m_coo_matrix.sort();
 }
 
