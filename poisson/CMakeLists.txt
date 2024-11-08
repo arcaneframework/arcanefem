@@ -59,6 +59,11 @@ configure_file(${MSH_DIR}/porous-medium.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY
 configure_file(${MSH_DIR}/L-shape-3D.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/sphere_cut.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
+# For benchmarking
+configure_file(doBenchmark.sh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(get_stats_from_json.py ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(TEST_TEMPLATE_2D.xml ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(TEST_TEMPLATE_3D.xml ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Poisson PUBLIC FemUtils)
 

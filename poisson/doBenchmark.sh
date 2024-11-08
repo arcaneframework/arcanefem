@@ -11,11 +11,11 @@
 WORKING_DIR="benchmark-output"
 
 # Path to the executable for running tests
-EXECUTABLE="$HOME/Git/toutane/arcanefem_forked/build/poisson/Poisson"
+EXECUTABLE="$(pwd)/Poisson"
 
 # Python script that extracts specified metrics from the ArcaneFEM JSON output
 # The metrics can be specified as command line arguments
-PYTHON_SCRIPT="$HOME/Git/toutane/arcanefem_forked/poisson/get_stats_from_json.py"
+PYTHON_SCRIPT="$(pwd)/get_stats_from_json.py"
 
 #--------------------------------------------------------------------------------------
 # Mesh configurations
@@ -25,16 +25,16 @@ PYTHON_SCRIPT="$HOME/Git/toutane/arcanefem_forked/poisson/get_stats_from_json.py
 SIZES=("small" "medium" "large")
 
 # 2D mesh templates and paths for each size
-TEMPLATE_FILENAME_2D="$HOME/Git/toutane/arcanefem_forked/poisson/TEST_TEMPLATE_2D.xml"
-MESH_2D_SMALL="$HOME/Git/toutane/arcanefem_forked/poisson/meshes/L-shape-small.msh"
-MESH_2D_MEDIUM="$HOME/Git/toutane/arcanefem_forked/poisson/meshes/L-shape-medium.msh"
-MESH_2D_LARGE="$HOME/Git/toutane/arcanefem_forked/poisson/meshes/L-shape-large.msh"
+TEMPLATE_FILENAME_2D="$(pwd)/TEST_TEMPLATE_2D.xml"
+MESH_2D_SMALL="$(pwd)/L-shape-small.msh"
+MESH_2D_MEDIUM="$(pwd)/L-shape-medium.msh"
+MESH_2D_LARGE="$(pwd)/L-shape-large.msh"
 
 # 3D mesh templates and paths for each size
-TEMPLATE_FILENAME_3D="$HOME/Git/toutane/arcanefem_forked/poisson/TEST_TEMPLATE_3D.xml"
-MESH_3D_SMALL="$HOME/Git/toutane/arcanefem_forked/poisson/meshes/L-shape-3D-small.msh"
-MESH_3D_MEDIUM="$HOME/Git/toutane/arcanefem_forked/poisson/meshes/L-shape-3D-medium.msh"
-MESH_3D_LARGE="$HOME/Git/toutane/arcanefem_forked/poisson/meshes/L-shape-3D-large.msh"
+TEMPLATE_FILENAME_3D="$(pwd)/TEST_TEMPLATE_3D.xml"
+MESH_3D_SMALL="$(pwd)/L-shape-3D-small.msh"
+MESH_3D_MEDIUM="$(pwd)/L-shape-3D-medium.msh"
+MESH_3D_LARGE="$(pwd)/L-shape-3D-large.msh"
 
 #--------------------------------------------------------------------------------------
 # Format types
@@ -78,6 +78,16 @@ launchTestCpu() {
   local instance_num=$2
   local res_file=$3
 
+  if [ ! -e "$EXECUTABLE" ]; then
+    echo -e "\e[31mExecutable file: \"${EXECUTABLE}\" not found, exit."
+    exit
+  fi
+
+  if [ ! -e "$test_file" ]; then
+    echo -e "\e[31mTest file: \"${test_file}\" not found, exit."
+    exit
+  fi
+
   # Run CPU test with MPI and save JSON results if successful
   if mpirun -n "$instance_num" "$EXECUTABLE" "$test_file" "-A,CACHE_WARMING=${CACHE_WARMING}" > "stdout.txt" 2> "stderr.txt"; then
     echo -e "OK ${test_file}"
@@ -93,13 +103,13 @@ launchTestCpu() {
       line="${line},${time}"
     done
     echo "$line" >> "$res_file"
+
+    mv "./output/listing/logs.0" "./logs.0"
   else
     echo -e "\e[31mFAIL ${test_file}"
     echo -e "command: mpirun -n ${instance_num} ${EXECUTABLE} ${test_file}\e[0m"
+    exit
   fi
-
-  # Move log file for reference
-  mv "./output/listing/logs.0" "./logs.0"
 }
 
 #--------------------------------------------------------------------------------------
@@ -115,6 +125,16 @@ launchTestGpu() {
   local instance_num=$2
   local res_file=$3
 
+  if [ ! -e "$EXECUTABLE" ]; then
+    echo -e "\e[31mExecutable file: \"${EXECUTABLE}\" not found, exit."
+    exit
+  fi
+
+  if [ ! -e "$test_file" ]; then
+    echo -e "\e[31mTest file: \"${test_file}\" not found, exit."
+    exit
+  fi
+
   if mpirun -n "$instance_num" "$EXECUTABLE" "$test_file" "-A,CACHE_WARMING=${CACHE_WARMING}" "-A,AcceleratorRuntime=cuda" > "stdout.txt" 2> "stderr.txt"; then
     echo -e "OK ${test_file}"
     mv "./output/listing/time_stats.json" "./time_stats.json"
@@ -127,12 +147,13 @@ launchTestGpu() {
       line="${line},${time}"
     done
     sed -i "$ s/$/${line}/" "$res_file"
+
+    mv "./output/listing/logs.0" "./logs.0"
   else
     echo -e "\e[31mFAIL ${test_file}"
     echo -e "command: mpirun -n ${instance_num} ${EXECUTABLE} ${test_file} -A,AcceleratorRuntime=cuda\e[0m"
+    exit
   fi
-
-  mv "./output/listing/logs.0" "./logs.0"
 }
 
 #--------------------------------------------------------------------------------------
@@ -145,10 +166,10 @@ clearTest() {
 
 #======================================================================================
 # Main test loop
-# Iterates over 2D and 3D configurations, CPU core counts, and mesh sizes.
+# Iterates over 2D configurations, CPU core counts, and mesh sizes.
 # Runs tests for each size, dimension, and format configuration, then logs results.
 #======================================================================================
-for dim in {2..3}; do
+for dim in 2; do # To run 3D test, replace first line by "for dim in {2..3}; do"
   dim_dir="${dim}D"
   mkdir -p "$dim_dir"
   cd "$dim_dir" || exit 1
@@ -183,6 +204,11 @@ for dim in {2..3}; do
       mesh_var="MESH_${dim}D_${size}"
       mesh_var="${mesh_var^^}" # To upper case
       mesh_file=${!mesh_var}
+
+      if [ ! -e "$mesh_file" ]; then
+        echo -e "\e[31mMeshfile: \"${mesh_file}\" not found, exit."
+        exit
+      fi
 
       template_var="TEMPLATE_FILENAME_${dim}D"
 
