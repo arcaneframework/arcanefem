@@ -6,7 +6,7 @@
 
      Author(s): Mohd Afeef Badri
      Email    : mohd-afeef.badri@cea.fr
-     Date     : 17-07-2024
+     Date     : 08-11-2024
 
      -------------------------------------------------------------------
 
@@ -18,48 +18,50 @@
 
      This is a Gmsh .geo file which produces a 3D sphere with box cut
 
-     compile-run: gmsh -3  -setnumber threads 4 sphere_cut.geo
+     compile-run: gmsh -2 -setnumber h 4  circle_cut.geo
 
 *******************************************************************************/
+
+
+SetFactory("OpenCASCADE");
 
 //==============================================================================
 // ---- define parameters for commandline ----
 //==============================================================================
 
-DefineConstant[ threads = {4, Min 0, Max 128, Step 1,
-                         Name "Parameters/threads threads"} ];
+DefineConstant[ h = {0.2, Min 0, Max 1e10, Step 1,
+                         Name "Parameters/h h"} ];
 
 
 //==============================================================================
 // ---- define geometry ----
 //==============================================================================
 
-SetFactory("OpenCASCADE");
-Sphere(1) = {0, 0, 0, 0.5, -Pi/2, Pi/2, 2*Pi};
-Box(2) = {0, -0, 0, 1, 1, 1};
-
-
-BooleanDifference{ Volume{1}; Delete; }{ Volume{2}; Delete; }
-
+Point(1) = {0, 0, 0,  h};
+Point(2) = {1, 0, 0,  h};
+Point(3) = {0, 1, 0,  h};
+Point(4) = {-1, 0, 0,  h};
+Point(5) = {0, -1, 0,  h};
+Circle(1) = {3, 1, 4};
+Circle(2) = {4, 1, 5};
+Circle(3) = {5, 1, 2};
+Line(4) = {2, 1};
+Line(5) = {1, 3};
+Curve Loop(1) = {5, 1, 2, 3, 4};
+Plane Surface(1) = {1};
 
 //==============================================================================
 // ---- define physical tags ----
 //==============================================================================
 
-//Physical Surface("Cut", 10) = {4, 3, 2};
-Physical Surface("verticalXY", 13) = {3};
-Physical Surface("verticalYZ", 14) = {4};
-Physical Surface("horizontal", 15) = {2};
-Physical Surface("curved", 11) = {1};
-Physical Volume("domain", 12) = {1};
+Physical Surface("domain", 6) = {1};
+Physical Curve("vertical", 7) = {5};
+Physical Curve("horizontal", 8) = {4};
+Physical Curve("curved", 9) = {1, 2, 3};
 
 //==============================================================================
 // ---- msh version/algo imposed ----
 //==============================================================================
 
-General.NumThreads = threads;
-
 Mesh.Algorithm = 5;
-Mesh.Algorithm3D = 10;
 Mesh.MshFileVersion = 4.1;
-
