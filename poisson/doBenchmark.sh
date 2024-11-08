@@ -4,7 +4,7 @@
 # Script Overview:
 # This script runs benchmarks for ArcaneFEM on multiple configurations.
 # It measures execution times for CPU and GPU matrix assembly methods on different mesh sizes.
-# The benchmark results are saved to CSV files for further analysis.
+# The benchmark results are saved to TSV files for further analysis.
 #======================================================================================
 
 # Directory where all benchmark results will be saved
@@ -67,11 +67,11 @@ cd "$WORKING_DIR" || exit 1
 #--------------------------------------------------------------------------------------
 # launchTestCpu
 # Runs a CPU test for CPU and GPU formats (with GPU-acceleration disabled), parses results
-# from the JSON file, and saves relevant data to CSV
+# from the JSON file, and saves relevant data to TSV
 # Parameters:
 # - test_file: Path to the XML file with CPU test configuration
 # - instance_num: Number of MPI instances
-# - res_file: Path to CSV file where results are stored
+# - res_file: Path to TSV file where results are stored
 #--------------------------------------------------------------------------------------
 launchTestCpu() {
   local test_file=$1
@@ -79,12 +79,12 @@ launchTestCpu() {
   local res_file=$3
 
   if [ ! -e "$EXECUTABLE" ]; then
-    echo -e "\e[31mExecutable file: \"${EXECUTABLE}\" not found, shutting down benchmark...\e[0m"
+    echo -e "\e[31mExecutable file: \"${EXECUTABLE}\" not found, stop\e[0m"
     exit
   fi
 
   if [ ! -e "$test_file" ]; then
-    echo -e "\e[31mTest file: \"${test_file}\" not found, shutting down benchmark...\e[0m"
+    echo -e "\e[31mTest file: \"${test_file}\" not found, stop\e[0m"
     exit
   fi
 
@@ -96,21 +96,21 @@ launchTestCpu() {
     # Extract key metrics from JSON using Python script
     if python "$PYTHON_SCRIPT" "./time_stats.json" "BuildMatrix,AddAndCompute" > "brief.txt"; then
 
-      # Parse execution times for each format and add them to CSV
+      # Parse execution times for each format and add them to TSV
       line=$(grep "Element" "brief.txt" | awk '{print $2}')
       for format in "${CPU_FORMATS_MAJ[@]}" "${GPU_FORMATS_MAJ[@]}"; do
         time=$(grep "AssembleBilinearOperator_${format}:" "brief.txt" | awk '{print $2}')
-        line="${line},${time}"
+        line+="\t${time}"
       done
-      echo "$line" >> "$res_file"
+      echo -e "$line" >> "$res_file"
 
       mv "./output/listing/logs.0" "./logs.0"
     else
-      echo -e "\e[31mAn error occured in ${PYTHON_SCRIPT}, shutting down benchmark...\e[0m"
+      echo -e "\e[31mAn error occured in ${PYTHON_SCRIPT}, stop\e[0m"
       exit
     fi
   else
-    echo -e "\e[31mFAIL ${test_file} (command was: mpirun -n ${instance_num} ${EXECUTABLE} ${test_file} \"-A,CACHE_WARMING=${CACHE_WARMING}\"), shutting down benchmark...\e[0m"
+    echo -e "\e[31mFAIL ${test_file} (command was: mpirun -n ${instance_num} ${EXECUTABLE} ${test_file} -A,CACHE_WARMING=${CACHE_WARMING}), stop\e[0m"
     exit
   fi
 }
@@ -121,7 +121,7 @@ launchTestCpu() {
 # Parameters:
 # - test_file: Path to the XML file with GPU test configuration
 # - instance_num: Number of MPI instances
-# - res_file: Path to CSV file where results are stored
+# - res_file: Path to TSV file where results are stored
 #--------------------------------------------------------------------------------------
 launchTestGpu() {
   local test_file=$1
@@ -129,12 +129,12 @@ launchTestGpu() {
   local res_file=$3
 
   if [ ! -e "$EXECUTABLE" ]; then
-    echo -e "\e[31mExecutable file: \"${EXECUTABLE}\" not found, shutting down benchmark...\e[0m"
+    echo -e "\e[31mExecutable file: \"${EXECUTABLE}\" not found, stop\e[0m"
     exit
   fi
 
   if [ ! -e "$test_file" ]; then
-    echo -e "\e[31mTest file: \"${test_file}\" not found, shutting down benchmark...\e[0m"
+    echo -e "\e[31mTest file: \"${test_file}\" not found, stop\e[0m"
     exit
   fi
 
@@ -147,16 +147,16 @@ launchTestGpu() {
       line=""
       for format in "${GPU_FORMATS_MAJ[@]}"; do
         time=$(grep "AssembleBilinearOperator_${format}:" "brief.txt" | awk '{print $2}')
-        line="${line},${time}"
+        line+="\t${time}"
       done
       sed -i "$ s/$/${line}/" "$res_file"
       mv "./output/listing/logs.0" "./logs.0"
     else
-      echo -e "\e[31mAn error occured in ${PYTHON_SCRIPT}, shutting down benchmark...\e[0m"
+      echo -e "\e[31mAn error occured in ${PYTHON_SCRIPT}, stop\e[0m"
       exit
     fi
   else
-    echo -e "\e[31mFAIL ${test_file} (command was: mpirun -n ${instance_num} ${EXECUTABLE} ${test_file} \"-A,CACHE_WARMING=${CACHE_WARMING}\" -A,AcceleratorRuntime=cuda), shutting down benchmark...\e[0m"
+    echo -e "\e[31mFAIL ${test_file} (command was: mpirun -n ${instance_num} ${EXECUTABLE} ${test_file} -A,CACHE_WARMING=${CACHE_WARMING} -A,AcceleratorRuntime=cuda), stop\e[0m"
     exit
   fi
 }
@@ -184,21 +184,20 @@ for dim in 2; do # To run 3D test, replace first line by "for dim in {2..3}; do"
     mkdir -p $cpu_dir
     cd "$cpu_dir" || exit 1
 
-    res_file="${cpu_n}-mpi-instance-results.csv"
+    res_file="${cpu_n}-mpi-instance-results.tsv"
 
-    # Add columns name in csv file
-    echo "nb-elt" > "$res_file"
+    # Add columns name in tsv file
+    output="#nb-elt"
     for format in "${CPU_FORMATS[@]}"; do
-      sed -i "1s/$/,${format}/" "$res_file"
+      output+="\t${format}"
     done
-
     for format in "${GPU_FORMATS[@]}"; do
-      sed -i "1s/$/,${format}-cpu/" "$res_file"
+      output+="\t${format}-cpu"
     done
-
     for format in "${GPU_FORMATS[@]}"; do
-      sed -i "1s/$/,${format}/" "$res_file"
+      output+="\t${format}"
     done
+    echo -e "$output" > "$res_file"
 
     for size in "${SIZES[@]}"; do
       size_dir="$size"
@@ -211,7 +210,7 @@ for dim in 2; do # To run 3D test, replace first line by "for dim in {2..3}; do"
       mesh_file=${!mesh_var}
 
       if [ ! -e "$mesh_file" ]; then
-        echo -e "\e[31mMeshfile: \"${mesh_file}\" not found, shutting down benchmark...\e[0m"
+        echo -e "\e[31mMeshfile: \"${mesh_file}\" not found, stop\e[0m"
         exit
       fi
 
@@ -248,7 +247,7 @@ for dim in 2; do # To run 3D test, replace first line by "for dim in {2..3}; do"
 
       launchTestGpu "$test_filename" "$cpu_n" "../../$res_file"
       clearTest
-       
+
       cd "../" # Back to size directory
       cd "../" # Back to mpi-instance directory
     done
