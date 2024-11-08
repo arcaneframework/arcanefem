@@ -53,7 +53,7 @@ GPU_FORMATS_MAJ=("Coo_Gpu" "CooSort_Gpu" "Csr_Gpu" "CsrBuildLess" "CsrNodeWise")
 CPU_CORE_NUMBERS=(1)
 
 # Cache warming passed as argument to executable
-CACHE_WARMING=1
+CACHE_WARMING=3
 
 #--------------------------------------------------------------------------------------
 # Prepare and run tests
@@ -79,12 +79,12 @@ launchTestCpu() {
   local res_file=$3
 
   if [ ! -e "$EXECUTABLE" ]; then
-    echo -e "\e[31mExecutable file: \"${EXECUTABLE}\" not found, exit."
+    echo -e "\e[31mExecutable file: \"${EXECUTABLE}\" not found, shutting down benchmark...\e[0m"
     exit
   fi
 
   if [ ! -e "$test_file" ]; then
-    echo -e "\e[31mTest file: \"${test_file}\" not found, exit."
+    echo -e "\e[31mTest file: \"${test_file}\" not found, shutting down benchmark...\e[0m"
     exit
   fi
 
@@ -94,20 +94,23 @@ launchTestCpu() {
     mv "./output/listing/time_stats.json" "./time_stats.json"
 
     # Extract key metrics from JSON using Python script
-    python "$PYTHON_SCRIPT" "./time_stats.json" "BuildMatrix,AddAndCompute" > "brief.txt"
+    if python "$PYTHON_SCRIPT" "./time_stats.json" "BuildMatrix,AddAndCompute" > "brief.txt"; then
 
-    # Parse execution times for each format and add them to CSV
-    line=$(grep "Element" "brief.txt" | awk '{print $2}')
-    for format in "${CPU_FORMATS_MAJ[@]}" "${GPU_FORMATS_MAJ[@]}"; do
-      time=$(grep "AssembleBilinearOperator_${format}:" "brief.txt" | awk '{print $2}')
-      line="${line},${time}"
-    done
-    echo "$line" >> "$res_file"
+      # Parse execution times for each format and add them to CSV
+      line=$(grep "Element" "brief.txt" | awk '{print $2}')
+      for format in "${CPU_FORMATS_MAJ[@]}" "${GPU_FORMATS_MAJ[@]}"; do
+        time=$(grep "AssembleBilinearOperator_${format}:" "brief.txt" | awk '{print $2}')
+        line="${line},${time}"
+      done
+      echo "$line" >> "$res_file"
 
-    mv "./output/listing/logs.0" "./logs.0"
+      mv "./output/listing/logs.0" "./logs.0"
+    else
+      echo -e "\e[31mAn error occured in ${PYTHON_SCRIPT}, shutting down benchmark...\e[0m"
+      exit
+    fi
   else
-    echo -e "\e[31mFAIL ${test_file}"
-    echo -e "command: mpirun -n ${instance_num} ${EXECUTABLE} ${test_file}\e[0m"
+    echo -e "\e[31mFAIL ${test_file} (command was: mpirun -n ${instance_num} ${EXECUTABLE} ${test_file} \"-A,CACHE_WARMING=${CACHE_WARMING}\"), shutting down benchmark...\e[0m"
     exit
   fi
 }
@@ -126,12 +129,12 @@ launchTestGpu() {
   local res_file=$3
 
   if [ ! -e "$EXECUTABLE" ]; then
-    echo -e "\e[31mExecutable file: \"${EXECUTABLE}\" not found, exit."
+    echo -e "\e[31mExecutable file: \"${EXECUTABLE}\" not found, shutting down benchmark...\e[0m"
     exit
   fi
 
   if [ ! -e "$test_file" ]; then
-    echo -e "\e[31mTest file: \"${test_file}\" not found, exit."
+    echo -e "\e[31mTest file: \"${test_file}\" not found, shutting down benchmark...\e[0m"
     exit
   fi
 
@@ -139,19 +142,21 @@ launchTestGpu() {
     echo -e "OK ${test_file}"
     mv "./output/listing/time_stats.json" "./time_stats.json"
 
-    python "$PYTHON_SCRIPT" "./time_stats.json" "BuildMatrix,AddAndCompute" > "brief.txt"
+    if python "$PYTHON_SCRIPT" "./time_stats.json" "BuildMatrix,AddAndCompute" > "brief.txt"; then
 
-    line=""
-    for format in "${GPU_FORMATS_MAJ[@]}"; do
-      time=$(grep "AssembleBilinearOperator_${format}:" "brief.txt" | awk '{print $2}')
-      line="${line},${time}"
-    done
-    sed -i "$ s/$/${line}/" "$res_file"
-
-    mv "./output/listing/logs.0" "./logs.0"
+      line=""
+      for format in "${GPU_FORMATS_MAJ[@]}"; do
+        time=$(grep "AssembleBilinearOperator_${format}:" "brief.txt" | awk '{print $2}')
+        line="${line},${time}"
+      done
+      sed -i "$ s/$/${line}/" "$res_file"
+      mv "./output/listing/logs.0" "./logs.0"
+    else
+      echo -e "\e[31mAn error occured in ${PYTHON_SCRIPT}, shutting down benchmark...\e[0m"
+      exit
+    fi
   else
-    echo -e "\e[31mFAIL ${test_file}"
-    echo -e "command: mpirun -n ${instance_num} ${EXECUTABLE} ${test_file} -A,AcceleratorRuntime=cuda\e[0m"
+    echo -e "\e[31mFAIL ${test_file} (command was: mpirun -n ${instance_num} ${EXECUTABLE} ${test_file} \"-A,CACHE_WARMING=${CACHE_WARMING}\" -A,AcceleratorRuntime=cuda), shutting down benchmark...\e[0m"
     exit
   fi
 }
@@ -206,7 +211,7 @@ for dim in 2; do # To run 3D test, replace first line by "for dim in {2..3}; do"
       mesh_file=${!mesh_var}
 
       if [ ! -e "$mesh_file" ]; then
-        echo -e "\e[31mMeshfile: \"${mesh_file}\" not found, exit."
+        echo -e "\e[31mMeshfile: \"${mesh_file}\" not found, shutting down benchmark...\e[0m"
         exit
       fi
 
