@@ -46,9 +46,12 @@ BooleanDifference{ Volume{1}; Delete; }{ Volume{2}; Delete; }
 // ---- define physical tags ----
 //==============================================================================
 
-Physical Surface("Cut", 10) = {4, 3, 2};
-Physical Surface("sphere", 11) = {1};
-Physical Volume("volume", 12) = {1};
+//Physical Surface("Cut", 10) = {4, 3, 2};
+Physical Surface("verticalXY", 13) = {3};
+Physical Surface("verticalYZ", 14) = {4};
+Physical Surface("horizontal", 15) = {2};
+Physical Surface("curved", 11) = {1};
+Physical Volume("domain", 12) = {1};
 
 //==============================================================================
 // ---- msh version/algo imposed ----
@@ -59,3 +62,4 @@ General.NumThreads = threads;
 Mesh.Algorithm = 5;
 Mesh.Algorithm3D = 10;
 Mesh.MshFileVersion = 4.1;
+

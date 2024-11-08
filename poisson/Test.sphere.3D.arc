@@ -22,17 +22,13 @@
   <fem>
     <blcsr>true</blcsr>
     <result-file>poisson_test_ref_sphere_3D.txt</result-file>
-    <f>-0.035</f>
+    <f>5.5</f>
     <mesh-type>TETRA4</mesh-type>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     <penalty>1.e31</penalty>
     <dirichlet-boundary-condition>
-      <surface>sphere</surface>
-      <value>-5.5</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Cut</surface>
-      <value>50.0</value>
+      <surface>horizontal</surface>
+      <value>0.5</value>
     </dirichlet-boundary-condition>
     <linear-system name="HypreLinearSystem">
       <rtol>0.</rtol>
