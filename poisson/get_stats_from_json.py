@@ -80,9 +80,16 @@ def main(file_path, metrics=None, config_path=None):
 
             for key in metrics:
                 key_obj = find_key(format_raw_obj, key)
+
                 if key_obj is not None:
                     time = key_obj['Cumulative'].split(' ')[0]
+
+                    if cacheWarming > 1:
+                        time = float(time) / (cacheWarming - 1)
+
                     output.append('{0: <50}'.format(f"  {key}_{format}:") + f"  {time}")
+                else:
+                    output.append('{0: <50}'.format(f"  {key}_{format}:") + f"  undefined")
 
             output.append('') # newline between formats
 
