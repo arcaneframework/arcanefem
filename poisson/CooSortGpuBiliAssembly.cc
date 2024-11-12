@@ -243,7 +243,7 @@ _assembleCooSortGPUBilinearOperatorTRIA3()
   Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
   Arcane::ItemGenericInfoListView cells_infos(this->mesh()->cellFamily());
 
-  Timer::Action timer_add_compute(m_time_stats, "ComputeAndAdd");
+  Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
 
   command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
   {
@@ -303,7 +303,7 @@ _assembleCooSortGPUBilinearOperatorTETRA4()
   Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
   Arcane::ItemGenericInfoListView cells_infos(this->mesh()->cellFamily());
 
-  Timer::Action timer_add_compute(m_time_stats, "ComputeAndAdd");
+  Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
 
   command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
   {
