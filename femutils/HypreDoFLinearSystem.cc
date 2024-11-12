@@ -27,6 +27,7 @@
 #include <arcane/core/Timer.h>
 
 #include <arcane/accelerator/core/Runner.h>
+#include <arcane/accelerator/core/Memory.h>
 
 #include "FemUtils.h"
 #include "IDoFLinearSystemFactory.h"
@@ -416,6 +417,18 @@ solve()
     }
   }
 
+  // Prefetch the memory to the Device to make sure we are using
+  // Device memory and not host memory when using UVM
+  if (is_use_device){
+    info() << "Prefetching memory for 'Hypre'";
+    RunQueue q = makeQueue(m_runner);
+    q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(m_csr_view.rowsNbColumn())).addAsync());
+    q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(rows_index_span)).addAsync());
+    q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(columns_index_span)).addAsync());
+    q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(matrix_values)).addAsync());
+    q.barrier();
+  }
+
   {
     Timer::Action ta1(tstat, "HypreLinearSystemBuildMatrix");
     /* GPU pointers; efficient in large chunks */
@@ -431,6 +444,8 @@ solve()
     Real m2 = platform::getRealTime();
     info() << "Time to create matrix=" << (m2 - m1);
   }
+
+  pm->traceMng()->flush();
 
   if (do_dump_matrix) {
     String file_name = String("dumpA.") + String::fromNumber(my_rank) + ".txt";
@@ -478,6 +493,7 @@ solve()
   HYPRE_IJVectorGetObject(ij_vector_x, (void**)&parvector_x);
   Real v2 = platform::getRealTime();
   info() << "Time to create vectors=" << (v2 - v1);
+  pm->traceMng()->flush();
 
   if (do_dump_matrix) {
     String file_name_b = String("dumpB.") + String::fromNumber(my_rank) + ".txt";
@@ -503,7 +519,11 @@ solve()
     HYPRE_PCGSetPrintLevel(solver, m_verbosity); /* print solve info */
     HYPRE_PCGSetLogging(solver, 1); /* needed to get run info later */
 
+    v1 = platform::getRealTime();
     hypreCheck("HYPRE_BoomerAMGCreate", HYPRE_BoomerAMGCreate(&precond));
+    v2 = platform::getRealTime();
+    info() << "Time to call 'HYPRE_BoomerAMGCreate' = " << (v2 - v1);
+    pm->traceMng()->flush();
 
     /* Set Boomer AMG precoditioner Note we try to add only GPU-CPU compatible ones*/
     HYPRE_BoomerAMGCreate(&precond);
@@ -528,6 +548,9 @@ solve()
     hypreCheck("HYPRE_PCGSetup",
                HYPRE_ParCSRPCGSetup(solver, parcsr_A, parvector_b, parvector_x));
   }
+  Real a2 = platform::getRealTime();
+  info() << "Time to setup =" << (a2 - a1);
+  pm->traceMng()->flush();
 
   {
     Timer::Action ta1(tstat, "HypreLinearSystemSolve");
@@ -535,7 +558,8 @@ solve()
                HYPRE_ParCSRPCGSolve(solver, parcsr_A, parvector_b, parvector_x));
   }
   Real b1 = platform::getRealTime();
-  info() << "Time to setup and solve=" << (b1 - a1);
+  info() << "Time to solve=" << (b1 - a2);
+  pm->traceMng()->flush();
 
   if (is_parallel) {
     Int32 nb_wanted_row = m_parallel_rows_index.extent0();
