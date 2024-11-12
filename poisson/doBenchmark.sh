@@ -41,13 +41,9 @@ MESH_3D_LARGE="$(pwd)/L-shape-3D-large.msh"
 # List of formats to test on CPU and GPU, along with their display names for reporting
 #--------------------------------------------------------------------------------------
 
-# CPU matrix formats
+# Formats to test
 CPU_FORMATS=("legacy" "coo" "coo-sorting" "csr")
-CPU_FORMATS_MAJ=("Legacy" "Coo" "CooSort" "Csr")
-
-# GPU matrix formats
-GPU_FORMATS=("coo-gpu" "coo-sorting-gpu" "csr-gpu" "blcsr" "nwcsr")
-GPU_FORMATS_MAJ=("Coo_Gpu" "CooSort_Gpu" "Csr_Gpu" "CsrBuildLess" "CsrNodeWise")
+GPU_FORMATS=("coo-gpu" "coo-sorting-gpu" "csr-gpu" "nwcsr" "blcsr")
 
 # Number of MPI instances to test for each configuration
 CPU_CORE_NUMBERS=(1)
@@ -65,7 +61,6 @@ mkdir -p "$WORKING_DIR"
 cd "$WORKING_DIR" || exit 1
 
 #--------------------------------------------------------------------------------------
-# launchTestCpu
 # Runs a CPU test for CPU and GPU formats (with GPU-acceleration disabled), parses results
 # from the JSON file, and saves relevant data to TSV
 # Parameters:
@@ -98,10 +93,25 @@ launchTestCpu() {
 
       # Parse execution times for each format and add them to TSV
       line=$(grep "Element" "brief.txt" | awk '{print $2}')
-      for format in "${CPU_FORMATS_MAJ[@]}" "${GPU_FORMATS_MAJ[@]}"; do
-        time=$(grep "AssembleBilinearOperator_${format}:" "brief.txt" | awk '{print $2}')
-        line+="\t${time}"
+
+      for format in "${ALL_CPU_FORMATS[@]}"; do
+        if contains "$format" "${CPU_FORMATS[@]}"; then
+          time=$(grep "AssembleBilinearOperator_${format}:" "brief.txt" | awk '{print $2}')
+          line+="\t${time}"
+        else
+          line+="\tNaN"
+        fi
       done
+
+      for format in "${ALL_GPU_FORMATS[@]}"; do
+        if contains "$format" "${GPU_FORMATS[@]}"; then
+          time=$(grep "AssembleBilinearOperator_${format}:" "brief.txt" | awk '{print $2}')
+          line+="\t${time}"
+        else
+          line+="\tNaN"
+        fi
+      done
+
       echo -e "$line" >> "$res_file"
 
       mv "./output/listing/logs.0" "./logs.0"
@@ -116,7 +126,6 @@ launchTestCpu() {
 }
 
 #--------------------------------------------------------------------------------------
-# launchTestGpu
 # Similar to launchTestCpu, but runs tests for GPU format with GPU-acceleration enabled
 # Parameters:
 # - test_file: Path to the XML file with GPU test configuration
@@ -145,10 +154,16 @@ launchTestGpu() {
     if python "$PYTHON_SCRIPT" "./time_stats.json" "BuildMatrix,AddAndCompute" > "brief.txt"; then
 
       line=""
-      for format in "${GPU_FORMATS_MAJ[@]}"; do
-        time=$(grep "AssembleBilinearOperator_${format}:" "brief.txt" | awk '{print $2}')
-        line+="\t${time}"
+
+      for format in "${ALL_GPU_FORMATS[@]}"; do
+        if contains "$format" "${GPU_FORMATS[@]}"; then
+          time=$(grep "AssembleBilinearOperator_${format}:" "brief.txt" | awk '{print $2}')
+          line+="\t${time}"
+        else
+          line+="\tNaN"
+        fi
       done
+
       sed -i "$ s/$/${line}/" "$res_file"
       mv "./output/listing/logs.0" "./logs.0"
     else
@@ -162,12 +177,31 @@ launchTestGpu() {
 }
 
 #--------------------------------------------------------------------------------------
-# clearTest
 # Cleans up output directories between tests to avoid data carryover
 #--------------------------------------------------------------------------------------
 clearTest() {
   rm -rf "output" "fatal_4" # fatal_4 file is always empty, maybe an error of ArcaneFEM
 }
+
+#--------------------------------------------------------------------------------------
+# 0：match, 1: failed
+#--------------------------------------------------------------------------------------
+contains() {
+  local element="$1"
+  shift
+  for i in "$@"; do
+    if [[ $i == "$element" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+#--------------------------------------------------------------------------------------
+# All formats supported by ArcaneFEM (do not modify)
+#--------------------------------------------------------------------------------------
+ALL_CPU_FORMATS=("legacy" "coo" "coo-sorting" "csr")
+ALL_GPU_FORMATS=("coo-gpu" "coo-sorting-gpu" "csr-gpu" "blcsr" "nwcsr")
 
 #======================================================================================
 # Main test loop
@@ -184,19 +218,20 @@ for dim in 2; do # To run 3D test, replace first line by "for dim in {2..3}; do"
     mkdir -p $cpu_dir
     cd "$cpu_dir" || exit 1
 
-    res_file="${cpu_n}-mpi-instance-results.tsv"
+    res_file="results.tsv"
 
     # Add columns name in tsv file
     output="#nb-elt"
-    for format in "${CPU_FORMATS[@]}"; do
+
+    for format in "${ALL_CPU_FORMATS[@]}"; do
       output+="\t${format}"
     done
-    for format in "${GPU_FORMATS[@]}"; do
+
+    for format in "${ALL_GPU_FORMATS[@]}"; do
       output+="\t${format}-cpu"
-    done
-    for format in "${GPU_FORMATS[@]}"; do
       output+="\t${format}"
     done
+
     echo -e "$output" > "$res_file"
 
     for size in "${SIZES[@]}"; do
@@ -255,5 +290,3 @@ for dim in 2; do # To run 3D test, replace first line by "for dim in {2..3}; do"
   done
   cd "../" # Back to working directory
 done
-
-
