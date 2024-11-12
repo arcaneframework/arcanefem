@@ -19,6 +19,7 @@ _assembleBilinearOperatorTRIA3()
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   Timer::Action timer_action(m_time_stats, "AssembleBilinearOperator_Legacy");
+  Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
@@ -54,6 +55,7 @@ _assembleBilinearOperatorTETRA4()
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   Timer::Action timer_action(m_time_stats, "AssembleBilinearOperator_Legacy");
+  Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;

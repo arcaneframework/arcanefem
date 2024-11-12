@@ -31,7 +31,8 @@ def load_metrics(config_path):
         sys.exit(1)
 
 def main(file_path, metrics=None, config_path=None):
-    formats = [
+    formats = ["legacy", "coo", "coo-sorting", "coo-gpu", "coo-sorting-gpu", "csr", "csr-gpu", "nwcsr", "blcsr"]
+    formats_maj = [
         "Legacy", "Coo", "CooSort", "Coo_Gpu", "CooSort_Gpu", 
         "Csr", "Csr_Gpu", "CsrNodeWise", "CsrBuildLess"
     ]
@@ -66,8 +67,8 @@ def main(file_path, metrics=None, config_path=None):
     output.append('{0: <30}'.format(f'Boundary element:') + '{0: >5}'.format(str(obj["nbBoundaryElement"])))
     output.append('{0: <30}'.format(f'Element:') + '{0: >5}'.format(str(obj["nbElement"])) + '\n')
 
-    for format in formats:
-        metric_name = f"AssembleBilinearOperator_{format}"
+    for idx, format_maj in enumerate(formats_maj):
+        metric_name = f"AssembleBilinearOperator_{format_maj}"
         format_raw_obj = find_key(obj, metric_name)
 
         if format_raw_obj is not None:
@@ -76,13 +77,20 @@ def main(file_path, metrics=None, config_path=None):
             if cacheWarming > 1:
                 time = float(time) / (cacheWarming - 1)
 
-            output.append('{0: <50}'.format(f"{metric_name}:") + f"{time}")
+            output.append('{0: <50}'.format(f"AssembleBilinearOperator_{formats[idx]}:") + f"{time}")
 
             for key in metrics:
                 key_obj = find_key(format_raw_obj, key)
+
                 if key_obj is not None:
                     time = key_obj['Cumulative'].split(' ')[0]
-                    output.append('{0: <50}'.format(f"  {key}_{format}:") + f"  {time}")
+
+                    if cacheWarming > 1:
+                        time = float(time) / (cacheWarming - 1)
+
+                    output.append('{0: <50}'.format(f"  {key}_{formats[idx]}:") + f"  {time}")
+                else:
+                    output.append('{0: <50}'.format(f"  {key}_{formats[idx]}:") + f"  undefined")
 
             output.append('') # newline between formats
 
