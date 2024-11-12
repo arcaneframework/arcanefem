@@ -20,11 +20,17 @@
   </meshes>
 
   <fem>
-    <f>-5.5</f>
+    <f>5.5</f>
     <dirichlet-boundary-condition>
-      <surface>boundary</surface>
+      <surface>horizontal</surface>
       <value>0.5</value>
     </dirichlet-boundary-condition>
+    <linear-system name="HypreLinearSystem">
+      <rtol>0.</rtol>
+      <atol>1e-5</atol>
+      <amg-threshold>0.25</amg-threshold>
+    </linear-system>
+    <blcsr>true</blcsr>
     <!-- FORMATS -->
   </fem>
 </case>

@@ -26,9 +26,9 @@ SIZES=("small" "medium" "large")
 
 # 2D mesh templates and paths for each size
 TEMPLATE_FILENAME_2D="$(pwd)/TEST_TEMPLATE_2D.xml"
-MESH_2D_SMALL="$(pwd)/L-shape-small.msh"
-MESH_2D_MEDIUM="$(pwd)/L-shape-medium.msh"
-MESH_2D_LARGE="$(pwd)/L-shape-large.msh"
+MESH_2D_SMALL="$(pwd)/circle_cut-small.msh"
+MESH_2D_MEDIUM="$(pwd)/circle_cut-medium.msh"
+MESH_2D_LARGE="$(pwd)/circle_cut-large.msh"
 
 # 3D mesh templates and paths for each size
 TEMPLATE_FILENAME_3D="$(pwd)/TEST_TEMPLATE_3D.xml"
@@ -42,8 +42,10 @@ MESH_3D_LARGE="$(pwd)/L-shape-3D-large.msh"
 #--------------------------------------------------------------------------------------
 
 # Formats to test
-CPU_FORMATS=("legacy" "coo" "coo-sorting" "csr")
-GPU_FORMATS=("coo-gpu" "coo-sorting-gpu" "csr-gpu" "nwcsr" "blcsr")
+# Attention ! When using Hypre linear system, "legacy" format won't work
+# blcsr is the last used format in ArcaneFEM
+CPU_FORMATS=("coo" "csr")
+GPU_FORMATS=("coo-gpu" "csr-gpu" "nwcsr" "blcsr")
 
 # Number of MPI instances to test for each configuration
 CPU_CORE_NUMBERS=(1)
