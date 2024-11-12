@@ -30,7 +30,6 @@
       <atol>1e-5</atol>
       <amg-threshold>0.25</amg-threshold>
     </linear-system>
-    <blcsr>true</blcsr>
     <!-- FORMATS -->
   </fem>
 </case>
