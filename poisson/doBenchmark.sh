@@ -231,6 +231,9 @@ for dim in 2; do # To run 3D test, replace first line by "for dim in {2..3}; do"
 
     for format in "${ALL_GPU_FORMATS[@]}"; do
       output+="\t${format}-cpu"
+    done
+
+    for format in "${ALL_GPU_FORMATS[@]}"; do
       output+="\t${format}"
     done
 
