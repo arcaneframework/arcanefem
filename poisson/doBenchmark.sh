@@ -32,9 +32,9 @@ MESH_2D_LARGE="$(pwd)/circle_cut-large.msh"
 
 # 3D mesh templates and paths for each size
 TEMPLATE_FILENAME_3D="$(pwd)/TEST_TEMPLATE_3D.xml"
-MESH_3D_SMALL="$(pwd)/L-shape-3D-small.msh"
-MESH_3D_MEDIUM="$(pwd)/L-shape-3D-medium.msh"
-MESH_3D_LARGE="$(pwd)/L-shape-3D-large.msh"
+MESH_3D_SMALL="$(pwd)/sphere_cut-small.msh"
+MESH_3D_MEDIUM="$(pwd)/sphere_cut-medium.msh"
+MESH_3D_LARGE="$(pwd)/sphere_cut-large.msh"
 
 #--------------------------------------------------------------------------------------
 # Format types
@@ -44,7 +44,7 @@ MESH_3D_LARGE="$(pwd)/L-shape-3D-large.msh"
 # Formats to test
 # Attention ! When using Hypre linear system, "legacy" format won't work
 # blcsr is the last used format in ArcaneFEM
-CPU_FORMATS=("coo" "csr")
+CPU_FORMATS=("legacy" "coo" "csr")
 GPU_FORMATS=("coo-gpu" "csr-gpu" "nwcsr" "blcsr")
 
 # Number of MPI instances to test for each configuration

@@ -22,13 +22,11 @@
   <fem>
     <f>5.5</f>
     <mesh-type>TETRA4</mesh-type>
+    <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+    <penalty>1.e31</penalty>
     <dirichlet-boundary-condition>
-      <surface>bot</surface>
-      <value>50.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>bc</surface>
-      <value>10.0</value>
+      <surface>horizontal</surface>
+      <value>0.5</value>
     </dirichlet-boundary-condition>
     <!-- FORMATS -->
   </fem>
