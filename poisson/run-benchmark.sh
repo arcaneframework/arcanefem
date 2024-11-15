@@ -7,9 +7,6 @@
 # The benchmark results are saved to TSV files for further analysis.
 #======================================================================================
 
-# Directory where all benchmark results will be saved
-WORKING_DIR="benchmark-output"
-
 # Path to the executable for running tests
 EXECUTABLE="$(pwd)/Poisson"
 
@@ -24,6 +21,8 @@ PYTHON_SCRIPT="$(pwd)/get_stats_from_json.py"
 
 SIZES=("small" "medium" "large")
 
+DIMENSIONS=(2 3)
+
 # 2D mesh templates and paths for each size
 TEMPLATE_FILENAME_2D="$(pwd)/TEST_TEMPLATE_2D.xml"
 MESH_2D_SMALL="$(pwd)/circle_cut-small.msh"
@@ -32,9 +31,9 @@ MESH_2D_LARGE="$(pwd)/circle_cut-large.msh"
 
 # 3D mesh templates and paths for each size
 TEMPLATE_FILENAME_3D="$(pwd)/TEST_TEMPLATE_3D.xml"
-MESH_3D_SMALL="$(pwd)/L-shape-3D-small.msh"
-MESH_3D_MEDIUM="$(pwd)/L-shape-3D-medium.msh"
-MESH_3D_LARGE="$(pwd)/L-shape-3D-large.msh"
+MESH_3D_SMALL="$(pwd)/sphere_cut-small.msh"
+MESH_3D_MEDIUM="$(pwd)/sphere_cut-medium.msh"
+MESH_3D_LARGE="$(pwd)/sphere_cut-large.msh"
 
 #--------------------------------------------------------------------------------------
 # Format types
@@ -44,14 +43,21 @@ MESH_3D_LARGE="$(pwd)/L-shape-3D-large.msh"
 # Formats to test
 # Attention ! When using Hypre linear system, "legacy" format won't work
 # blcsr is the last used format in ArcaneFEM
-CPU_FORMATS=("coo" "csr")
+CPU_FORMATS=("legacy" "coo" "csr")
 GPU_FORMATS=("coo-gpu" "csr-gpu" "nwcsr" "blcsr")
 
 # Number of MPI instances to test for each configuration
-CPU_CORE_NUMBERS=(1)
+CPU_CORE_NUMBERS=(1 2)
 
 # Cache warming passed as argument to executable
-CACHE_WARMING=3
+CACHE_WARMING=10
+
+# Directory where all benchmark results will be saved
+DATE=$(date '+%Y-%m-%d_%H:%M:%S')
+WORKING_DIR="benchmark-output_${CACHE_WARMING}-cw_${DATE}"
+
+# Arcane AcceleratorRuntime passed as argument to executable
+ACCELERATOR_RUNTIME="cuda"
 
 #--------------------------------------------------------------------------------------
 # Prepare and run tests
@@ -86,8 +92,8 @@ launchTestCpu() {
   fi
 
   # Run CPU test with MPI and save JSON results if successful
+  echo "Info: Starting ${test_file}..."
   if mpirun -n "$instance_num" "$EXECUTABLE" "$test_file" "-A,CACHE_WARMING=${CACHE_WARMING}" > "stdout.txt" 2> "stderr.txt"; then
-    echo -e "OK ${test_file}"
     mv "./output/listing/time_stats.json" "./time_stats.json"
 
     # Extract key metrics from JSON using Python script
@@ -117,6 +123,7 @@ launchTestCpu() {
       echo -e "$line" >> "$res_file"
 
       mv "./output/listing/logs.0" "./logs.0"
+      echo -e "Info: Done\n"
     else
       echo -e "\e[31mAn error occured in ${PYTHON_SCRIPT}, stop\e[0m"
       exit
@@ -149,8 +156,8 @@ launchTestGpu() {
     exit
   fi
 
-  if mpirun -n "$instance_num" "$EXECUTABLE" "$test_file" "-A,CACHE_WARMING=${CACHE_WARMING}" "-A,AcceleratorRuntime=cuda" > "stdout.txt" 2> "stderr.txt"; then
-    echo -e "OK ${test_file}"
+  echo "Info: Starting ${test_file}..."
+  if mpirun -n "$instance_num" "$EXECUTABLE" "$test_file" "-A,CACHE_WARMING=${CACHE_WARMING}" "-A,AcceleratorRuntime=${ACCELERATOR_RUNTIME}" > "stdout.txt" 2> "stderr.txt"; then
     mv "./output/listing/time_stats.json" "./time_stats.json"
 
     if python "$PYTHON_SCRIPT" "./time_stats.json" "BuildMatrix,AddAndCompute" > "brief.txt"; then
@@ -168,12 +175,13 @@ launchTestGpu() {
 
       sed -i "$ s/$/${line}/" "$res_file"
       mv "./output/listing/logs.0" "./logs.0"
+      echo -e "Info: Done\n"
     else
       echo -e "\e[31mAn error occured in ${PYTHON_SCRIPT}, stop\e[0m"
       exit
     fi
   else
-    echo -e "\e[31mFAIL ${test_file} (command was: mpirun -n ${instance_num} ${EXECUTABLE} ${test_file} -A,CACHE_WARMING=${CACHE_WARMING} -A,AcceleratorRuntime=cuda), stop\e[0m"
+    echo -e "\e[31mFAIL ${test_file} (command was: mpirun -n ${instance_num} ${EXECUTABLE} ${test_file} -A,CACHE_WARMING=${CACHE_WARMING} -A,AcceleratorRuntime=${ACCELERATOR_RUNTIME}), stop\e[0m"
     exit
   fi
 }
@@ -205,12 +213,33 @@ contains() {
 ALL_CPU_FORMATS=("legacy" "coo" "coo-sorting" "csr")
 ALL_GPU_FORMATS=("coo-gpu" "coo-sorting-gpu" "csr-gpu" "blcsr" "nwcsr")
 
+#--------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------
+
+function printInfo() {
+  echo -n "Info: Formats: "
+  for f in "${CPU_FORMATS[@]}" "${GPU_FORMATS[@]}"; do
+    echo -n "| ${f} "
+  done
+  echo "|"
+  echo "Info: Cache warming: ${CACHE_WARMING}"
+  echo "Info: Output directory: '${WORKING_DIR}'"
+  echo "Info: CT (cpu-thread) and CTG (cpu-thread-gpu) formats will be run without accelerator"
+  echo "Info: CTG formats will be then run with AcceleratorRuntime: '${ACCELERATOR_RUNTIME}'"
+  echo "-----------------------------------------------------------------------------------------"
+}
+
 #======================================================================================
 # Main test loop
 # Iterates over 2D configurations, CPU core counts, and mesh sizes.
 # Runs tests for each size, dimension, and format configuration, then logs results.
 #======================================================================================
-for dim in 2; do # To run 3D test, replace first line by "for dim in {2..3}; do"
+
+printInfo
+
+for dim in "${DIMENSIONS[@]}"; do
+  echo -e "Info: Starting ${dim}D meshes...\n"
+
   dim_dir="${dim}D"
   mkdir -p "$dim_dir"
   cd "$dim_dir" || exit 1
@@ -260,7 +289,7 @@ for dim in 2; do # To run 3D test, replace first line by "for dim in {2..3}; do"
       mkdir -p "cpu"
       cd "cpu" || exit 1
 
-      test_filename="Test.${dim}D.${cpu_n}-mpi-instance.${size}.cpu-formats.arc"
+      test_filename="Test.${dim}D.${cpu_n}-mpi-instance.${size}.accelerator-disable.arc"
       sed "s|MESH_FILE|${mesh_file}|g" "${!template_var}" > "$test_filename" # Replace mesh filename in template
 
       for format in "${CPU_FORMATS[@]}" "${GPU_FORMATS[@]}"; do # Add formats in template
@@ -277,7 +306,7 @@ for dim in 2; do # To run 3D test, replace first line by "for dim in {2..3}; do"
       mkdir -p "gpu"
       cd "gpu" || exit 1
 
-      test_filename="Test.${dim}D.${cpu_n}-mpi-instance.${size}.gpu-formats.arc"
+      test_filename="Test.${dim}D.${cpu_n}-mpi-instance.${size}.accelerator-enable.arc"
       sed "s|MESH_FILE|${mesh_file}|g" "${!template_var}" > "$test_filename"
 
       for format in "${GPU_FORMATS[@]}"; do

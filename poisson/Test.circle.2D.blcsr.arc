@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Poisson" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>Test template</title>
+    <title>Cut circle 2D with BL-CSR sparse matrix format Gpu compatible and node wise technique. The result of this test is compared with poisson_test_ref_circle_2D.txt</title>
     <timeloop>PoissonLoop</timeloop>
   </arcane>
 
@@ -15,16 +15,22 @@
 
   <meshes>
     <mesh>
-      <filename>MESH_FILE</filename>
+      <filename>circle_cut.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
+    <blcsr>true</blcsr>
+    <result-file>poisson_test_ref_circle_2D.txt</result-file>
     <f>5.5</f>
     <dirichlet-boundary-condition>
       <surface>horizontal</surface>
       <value>0.5</value>
     </dirichlet-boundary-condition>
-    <!-- FORMATS -->
+    <linear-system name="HypreLinearSystem">
+      <rtol>0.</rtol>
+      <atol>1e-5</atol>
+      <amg-threshold>0.25</amg-threshold>
+    </linear-system>
   </fem>
 </case>
