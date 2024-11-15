@@ -34,22 +34,43 @@ void FemModule::_buildMatrixCoo()
   m_coo_matrix.initialize(m_dof_family, nnz);
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  ENUMERATE_NODE (inode, allNodes()) {
-    Node node = *inode;
+  if (mesh_dim == 2) {
+    ENUMERATE_NODE (inode, allNodes()) {
+      Node node = *inode;
+      DoFLocalId dof = node_dof.dofId(node, 0);
+      m_coo_matrix.setCoordinates(dof, dof);
 
-    m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
-
-    if (mesh_dim == 2) {
       for (Face face : node.faces()) {
         Node other_node = (face.nodeId(0) == node.localId()) ? face.node(1) : face.node(0);
-        m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(other_node, 0));
+        m_coo_matrix.setCoordinates(dof, node_dof.dofId(other_node, 0));
       }
     }
-    else {
+  }
+  else if (options()->createEdges()) {
+    ENUMERATE_NODE (inode, allNodes()) {
+      Node node = *inode;
+      DoFLocalId dof = node_dof.dofId(node, 0);
+      m_coo_matrix.setCoordinates(dof, dof);
+
       for (Edge edge : node.edges()) {
         Node other_node = (edge.nodeId(0) == node.localId()) ? edge.node(1) : edge.node(0);
-        m_coo_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(other_node, 0));
+        m_coo_matrix.setCoordinates(dof, node_dof.dofId(other_node, 0));
       }
+    }
+  }
+  else {
+    bool use_edges = options()->createEdges();
+    auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
+    ARCANE_CHECK_POINTER(connectivity_ptr);
+    IndexedNodeNodeConnectivityView nn_cv = connectivity_ptr->view();
+
+    ENUMERATE_NODE (inode, allNodes()) {
+      Node node = *inode;
+      DoFLocalId dof = node_dof.dofId(node, 0);
+      m_coo_matrix.setCoordinates(dof, dof);
+
+      for (NodeLocalId other_node : nn_cv.nodeIds(node))
+        m_coo_matrix.setCoordinates(dof, node_dof.dofId(other_node, 0));
     }
   }
 }
