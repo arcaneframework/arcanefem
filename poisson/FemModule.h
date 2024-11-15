@@ -283,6 +283,7 @@ class FemModule
  public:
 
   void _buildMatrixNodeWiseCsr();
+  void _buildOffsetsNodeWiseCsr(const SmallSpan<uint>& offsets_smallspan);
   void _assembleNodeWiseCsrBilinearOperatorTria3();
   void _assembleNodeWiseCsrBilinearOperatorTetra4();
 
@@ -291,13 +292,13 @@ class FemModule
   static ARCCORE_HOST_DEVICE Real
   _computeCellMatrixGpuTETRA4(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
                               ax::VariableNodeReal3InView in_node_coord, Real b_matrix[12]);
-  static ARCCORE_HOST_DEVICE Real
+  static ARCCORE_HOST_DEVICE inline Real
   _computeCellMatrixGpuTRIA3(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
                              ax::VariableNodeReal3InView in_node_coord, Real b_matrix[6]);
   static ARCCORE_HOST_DEVICE void
-  _addValueToGlobalMatrixTria3Gpu(Int32 begin, Int32 end, Int32 col,
-                                  ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> in_out_col_csr,
-                                  ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> in_out_val_csr, Real x);
+  _addValueToGlobalMatrixGpu(Int32 begin, Int32 end, Int32 col,
+                             ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> in_out_col_csr,
+                             ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> in_out_val_csr, Real x);
   void _assembleBuildLessCsrBilinearOperatorTria3();
   void _assembleBuildLessCsrBilinearOperatorTetra4();
 
@@ -433,6 +434,81 @@ _computeElementMatrixTETRA4GPU(CellLocalId icell, IndexedCellNodeConnectivityVie
       K_e[j * 4 + i] = K_e[i * 4 + j];
     }
   }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE
+inline Real FemModule::_computeCellMatrixGpuTRIA3(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord, Real b_matrix[6])
+{
+  Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
+  Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
+  Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
+
+  Real area = 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y)); //_computeAreaTriangle3Gpu(icell, cnc, in_node_coord);
+
+  Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
+  Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
+  Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
+
+  Real mul = 0.5 / area;
+  b_matrix[0] = dPhi0.x * mul;
+  b_matrix[1] = dPhi0.y * mul;
+
+  b_matrix[2] = dPhi1.x * mul;
+  b_matrix[3] = dPhi1.y * mul;
+
+  b_matrix[4] = dPhi2.x * mul;
+  b_matrix[5] = dPhi2.y * mul;
+
+  return area;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE
+inline Real FemModule::_computeCellMatrixGpuTETRA4(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord, Real b_matrix[12])
+{
+  Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
+  Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
+  Real3 m2 = in_node_coord[cnc.nodeId(icell, 2)];
+  Real3 m3 = in_node_coord[cnc.nodeId(icell, 3)];
+
+  // Calculate vectors representing edges of the tetrahedron
+  Real3 v0 = m1 - m0;
+  Real3 v1 = m2 - m0;
+  Real3 v2 = m3 - m0;
+
+  // Compute volume using scalar triple product
+  Real volume = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2))) / 6.0;
+
+  // Compute gradients of shape functions
+  Real3 dPhi0 = Arcane::math::cross(m2 - m1, m1 - m3);
+  Real3 dPhi1 = Arcane::math::cross(m3 - m0, m0 - m2);
+  Real3 dPhi2 = Arcane::math::cross(m1 - m0, m0 - m3);
+  Real3 dPhi3 = Arcane::math::cross(m0 - m1, m1 - m2);
+
+  // Construct the B-matrix as a vector
+  Real mul = 1.0 / (6.0 * volume);
+  b_matrix[0] = dPhi0.x * mul;
+  b_matrix[1] = dPhi0.y * mul;
+  b_matrix[2] = dPhi0.z * mul;
+
+  b_matrix[3] = dPhi1.x * mul;
+  b_matrix[4] = dPhi1.y * mul;
+  b_matrix[5] = dPhi1.z * mul;
+
+  b_matrix[6] = dPhi2.x * mul;
+  b_matrix[7] = dPhi2.y * mul;
+  b_matrix[8] = dPhi2.z * mul;
+
+  b_matrix[9] = dPhi3.x * mul;
+  b_matrix[10] = dPhi3.y * mul;
+  b_matrix[11] = dPhi3.z * mul;
+
+  return volume;
 }
 
 /*---------------------------------------------------------------------------*/

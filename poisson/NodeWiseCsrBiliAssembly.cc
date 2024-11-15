@@ -34,7 +34,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_buildMatrixNodeWiseCsr()
+/* void FemModule::_buildMatrixNodeWiseCsrCPU()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
@@ -43,14 +43,6 @@ void FemModule::_buildMatrixNodeWiseCsr()
   Int64 nedge = options()->meshType == "TETRA4" ? nbEdge() : nbFace();
   Int32 nnz = nedge * 2 + nbnde;
   m_csr_matrix.initialize(m_dof_family, nnz, nbnde);
-
-  /*removing the neoighbouring currently as it is useless
-  // Creating a connectivity from node to their neighbouring nodes
-  IItemFamily* node_family = mesh()->nodeFamily();
-  NodeGroup nodes = node_family->allItems();
-  idx_cn = mesh()->indexedConnectivityMng()->findOrCreateConnectivity(node_family, node_family, "NodeToNeighbourFaceNodes");
-  cn = idx_cn->connectivity();
-  */
 
   if (options()->meshType == "TRIA3") {
     ENUMERATE_NODE (inode, allNodes()) {
@@ -90,6 +82,146 @@ void FemModule::_buildMatrixNodeWiseCsr()
     }
   }
 }
+*/
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::_buildOffsetsNodeWiseCsr(const SmallSpan<uint>& offsets_smallspan)
+{
+  Accelerator::RunQueue* queue = acceleratorMng()->defaultQueue();
+
+  // Initialize the neighbors array and shift right by one for CSR format
+  NumArray<uint, MDDim1> neighbors(nbNode() + 1);
+  neighbors[0] = 0;
+  SmallSpan<uint> in_data = neighbors.to1DSmallSpan();
+
+  // Select and execute the appropriate offset update based on mesh type
+  if (mesh()->dimension() == 2) { // 2D mesh via node-face connectivity
+    UnstructuredMeshConnectivityView connectivity_view(mesh());
+    auto node_face_connectivity_view = connectivity_view.nodeFace();
+
+    auto command = makeCommand(queue);
+    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
+    {
+      in_data[node_id + 1] = node_face_connectivity_view.nbFace(node_id) + 1;
+    };
+  }
+  else if (options()->createEdges) { // 3D mesh via node-edge connectivity
+    UnstructuredMeshConnectivityView connectivity_view(mesh());
+    auto node_edge_connectivity_view = connectivity_view.nodeEdge();
+
+    auto command = makeCommand(queue);
+    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
+    {
+      in_data[node_id + 1] = node_edge_connectivity_view.nbEdge(node_id) + 1;
+    };
+  }
+  else { // 3D mesh via node-node connectivity
+    auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
+    ARCANE_CHECK_POINTER(connectivity_ptr);
+    IndexedNodeNodeConnectivityView node_node_connectivity_view = connectivity_ptr->view();
+
+    auto command = makeCommand(queue);
+    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
+    {
+      in_data[node_id + 1] = node_node_connectivity_view.nbNode(node_id) + 1;
+    };
+  }
+  queue->barrier();
+
+  // Do the inclusive sum for CSR row array (in_data)
+  Accelerator::Scanner<uint> scanner;
+  scanner.inclusiveSum(queue, in_data, offsets_smallspan);
+}
+
+void FemModule::
+_buildMatrixNodeWiseCsr()
+{
+  Int8 mesh_dim = mesh()->dimension();
+
+  Int32 nb_node = nbNode();
+  Int32 nb_non_zero = nb_node + 2 * (mesh_dim == 2 ? nbFace() : m_nb_edge);
+  m_csr_matrix.initialize(m_dof_family, nb_non_zero, nb_node);
+
+  NumArray<uint, MDDim1> offsets_numarray(nb_node + 1);
+  SmallSpan<uint> offsets_smallspan = offsets_numarray.to1DSmallSpan();
+
+  // Compute the array of offsets on Gpu
+  _buildOffsets(offsets_smallspan);
+
+  RunQueue* queue = acceleratorMng()->defaultQueue();
+  auto command = makeCommand(queue);
+
+  auto out_m_matrix_row = viewOut(command, m_csr_matrix.m_matrix_row);
+  auto inout_m_matrix_column = viewInOut(command, m_csr_matrix.m_matrix_column);
+
+  // Select and execute the CSR matrix population based on mesh type
+  if (mesh_dim == 2) { // 2D mesh via node-face & face-node connectivity
+    UnstructuredMeshConnectivityView connectivity_view(mesh());
+
+    auto node_face_connectivity_view = connectivity_view.nodeFace();
+    auto face_node_connectivity_view = connectivity_view.faceNode();
+
+    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
+    {
+      // Retrieve the offset from the inclusive sum
+      auto offset = offsets_smallspan[node_id];
+
+      // Put the offset into CSR row array
+      out_m_matrix_row[node_id] = offset;
+
+      for (auto face_id : node_face_connectivity_view.faceIds(node_id)) {
+        auto nodes = face_node_connectivity_view.nodes(face_id);
+
+        // Put the neighbor of the current node into CSR column array
+        inout_m_matrix_column[offset] = nodes[0] == node_id ? nodes[1] : nodes[0];
+
+        ++offset;
+      }
+
+      inout_m_matrix_column[offset] = node_id; // Self-relation
+    };
+  }
+  else if (options()->createEdges()) { // 3D mesh via node-edge & edge-node connectivity
+    UnstructuredMeshConnectivityView connectivity_view(mesh());
+
+    auto node_edge_connectivity_view = connectivity_view.nodeEdge();
+    auto edge_node_connectivity_view = connectivity_view.edgeNode();
+
+    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
+    {
+      auto offset = offsets_smallspan[node_id];
+      out_m_matrix_row[node_id] = offset;
+
+      for (auto edge_id : node_edge_connectivity_view.edgeIds(node_id)) {
+        auto nodes = edge_node_connectivity_view.nodes(edge_id);
+        inout_m_matrix_column[offset] = nodes[0] == node_id ? nodes[1] : nodes[0];
+        ++offset;
+      }
+
+      inout_m_matrix_column[offset] = node_id;
+    };
+  }
+  else { // 3D mesh via node-node connectivity
+    auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
+    ARCANE_CHECK_POINTER(connectivity_ptr);
+    IndexedNodeNodeConnectivityView node_node_connectivity_view = connectivity_ptr->view();
+
+    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
+    {
+      auto offset = offsets_smallspan[node_id];
+      out_m_matrix_row[node_id] = offset;
+
+      for (auto neighbor_idx : node_node_connectivity_view.nodeIds(node_id)) {
+        inout_m_matrix_column[offset] = neighbor_idx;
+        ++offset;
+      }
+
+      inout_m_matrix_column[offset] = node_id;
+    };
+  }
+}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -103,8 +235,6 @@ void FemModule::_assembleNodeWiseCsrBilinearOperatorTria3()
   }
 
   RunQueue* queue = acceleratorMng()->defaultQueue();
-
-  // Boucle sur les noeuds déportée sur accélérateur
   auto command = makeCommand(queue);
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -121,9 +251,9 @@ void FemModule::_assembleNodeWiseCsrBilinearOperatorTria3()
   auto ncc = m_connectivity_view.nodeCell();
   auto cnc = m_connectivity_view.cellNode();
   Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
-  Arcane::ItemGenericInfoListView cells_infos(this->mesh()->cellFamily());
 
   Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
+
   command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
   {
     Int32 inode_index = 0;
@@ -132,57 +262,26 @@ void FemModule::_assembleNodeWiseCsrBilinearOperatorTria3()
       // How can I know the right index ?
       // By checking in the global id ?
       // Working currently, but maybe only because p = 1 ?
-      if (inode == cnc.nodeId(cell, 1)) {
-        inode_index = 1;
-      }
-      else if (inode == cnc.nodeId(cell, 2)) {
-        inode_index = 2;
-      }
-      else {
-        inode_index = 0;
-      }
-      Real3 m0 = in_node_coord[cnc.nodeId(cell, 0)];
-      Real3 m1 = in_node_coord[cnc.nodeId(cell, 1)];
-      Real3 m2 = in_node_coord[cnc.nodeId(cell, 2)];
+      auto nodeId1 = cnc.nodeId(cell, 1);
+      auto nodeId2 = cnc.nodeId(cell, 2);
+      inode_index = (inode == nodeId1) ? 1 : ((inode == nodeId2) ? 2 : 0);
 
-      Real area = 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y)); // calculate area
-
-      Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
-      Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
-      Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
-
-      Real b_matrix[3][2] = { 0 };
-      Real mul = (1.0 / (2.0 * area));
-      b_matrix[0][0] = dPhi0.x * mul;
-      b_matrix[0][1] = dPhi0.y * mul;
-
-      b_matrix[1][0] = dPhi1.x * mul;
-      b_matrix[1][1] = dPhi1.y * mul;
-
-      b_matrix[2][0] = dPhi2.x * mul;
-      b_matrix[2][1] = dPhi2.y * mul;
+      Real b_matrix[6] = { 0 };
+      Real area = _computeCellMatrixGpuTRIA3(cell, cnc, in_node_coord, b_matrix);
 
       Int32 i = 0;
+      Int32 row = node_dof.dofId(inode, 0).localId();
+      Int32 begin = in_row_csr[row];
+      Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
       for (NodeLocalId node2 : cnc.nodes(cell)) {
-        Real x = 0.0;
-        for (Int32 k = 0; k < 2; k++) {
-          x += b_matrix[inode_index][k] * b_matrix[i][k];
-        }
         if (nodes_infos.isOwn(inode)) {
+          Real x = b_matrix[inode_index * 2] * b_matrix[i * 2] + b_matrix[inode_index * 2 + 1] * b_matrix[i * 2 + 1];
+          x = x * area;
 
-          Int32 row = node_dof.dofId(inode, 0).localId();
           Int32 col = node_dof.dofId(node2, 0).localId();
-          Int32 begin = in_row_csr[row];
-          Int32 end;
-          if (row == row_csr_size - 1) {
-            end = col_csr_size;
-          }
-          else {
-            end = in_row_csr[row + 1];
-          }
           while (begin < end) {
             if (in_col_csr[begin] == col) {
-              in_out_val_csr[begin] += x * area;
+              in_out_val_csr[begin] += x;
               break;
             }
             begin++;
@@ -232,58 +331,41 @@ void FemModule::_assembleNodeWiseCsrBilinearOperatorTetra4()
   Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
   command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
   {
+    Int32 inode_index = 0;
     for (auto cell : ncc.cells(inode)) {
-      Int32 inode_index = 0;
-      for (Int32 i = 0; i < 4; ++i) {
-        if (inode == cnc.nodeId(cell, i)) {
-          inode_index = i;
-          break;
-        }
-      }
 
-      Real3 m0 = in_node_coord[cnc.nodeId(cell, 0)];
-      Real3 m1 = in_node_coord[cnc.nodeId(cell, 1)];
-      Real3 m2 = in_node_coord[cnc.nodeId(cell, 2)];
-      Real3 m3 = in_node_coord[cnc.nodeId(cell, 3)];
+      if (inode == cnc.nodeId(cell, 1))
+        inode_index = 1;
+      else if (inode == cnc.nodeId(cell, 2))
+        inode_index = 2;
+      else if (inode == cnc.nodeId(cell, 3))
+        inode_index = 3;
+      else
+        inode_index = 0;
 
-      Real3 v0 = m1 - m0;
-      Real3 v1 = m2 - m0;
-      Real3 v2 = m3 - m0;
-      Real volume = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2))) / 6.0;
+      Real b_matrix[12] = { 0 };
+      Real volume = _computeCellMatrixGpuTETRA4(cell, cnc, in_node_coord, b_matrix);
 
-      Real3 dPhi[4] = {
-        Arcane::math::cross(m2 - m1, m1 - m3),
-        Arcane::math::cross(m3 - m0, m0 - m2),
-        Arcane::math::cross(m1 - m0, m0 - m3),
-        Arcane::math::cross(m0 - m1, m1 - m2)
-      };
+      Int32 i = 0;
+      Int32 row = node_dof.dofId(inode, 0).localId();
+      Int32 begin = in_row_csr[row];
+      Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
+      for (NodeLocalId node2 : cnc.nodes(cell)) {
 
-      Real b_matrix[4][3] = { 0 };
-      Real mul = (1.0 / (6.0 * volume));
-      for (Int32 i = 0; i < 4; ++i) {
-        b_matrix[i][0] = dPhi[i].x * mul;
-        b_matrix[i][1] = dPhi[i].y * mul;
-        b_matrix[i][2] = dPhi[i].z * mul;
-      }
-
-      for (Int32 i = 0; i < 4; ++i) {
-        Real x = 0.0;
-        for (Int32 k = 0; k < 3; ++k) {
-          x += b_matrix[inode_index][k] * b_matrix[i][k];
-        }
         if (nodes_infos.isOwn(inode)) {
-          Int32 row = node_dof.dofId(inode, 0).localId();
-          Int32 col = node_dof.dofId(cnc.nodeId(cell, i), 0).localId();
-          Int32 begin = in_row_csr[row];
-          Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
+          Real x = b_matrix[inode_index * 3] * b_matrix[i * 3] + b_matrix[inode_index * 3 + 1] * b_matrix[i * 3 + 1] + b_matrix[inode_index * 3 + 2] * b_matrix[i * 3 + 2];
+          x = x * volume;
+
+          Int32 col = node_dof.dofId(node2, 0).localId();
           while (begin < end) {
             if (in_col_csr[begin] == col) {
-              in_out_val_csr[begin] += x * volume;
+              in_out_val_csr[begin] += x;
               break;
             }
             ++begin;
           }
         }
+        i++;
       }
     }
   };
