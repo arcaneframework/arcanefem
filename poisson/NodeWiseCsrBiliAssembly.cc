@@ -148,7 +148,7 @@ _buildMatrixNodeWiseCsr()
   SmallSpan<uint> offsets_smallspan = offsets_numarray.to1DSmallSpan();
 
   // Compute the array of offsets on Gpu
-  _buildOffsets(offsets_smallspan);
+  _buildOffsetsNodeWiseCsr(offsets_smallspan);
 
   RunQueue* queue = acceleratorMng()->defaultQueue();
   auto command = makeCommand(queue);
@@ -270,18 +270,17 @@ void FemModule::_assembleNodeWiseCsrBilinearOperatorTria3()
       Real area = _computeCellMatrixGpuTRIA3(cell, cnc, in_node_coord, b_matrix);
 
       Int32 i = 0;
-      Int32 row = node_dof.dofId(inode, 0).localId();
-      Int32 begin = in_row_csr[row];
-      Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
       for (NodeLocalId node2 : cnc.nodes(cell)) {
-        if (nodes_infos.isOwn(inode)) {
-          Real x = b_matrix[inode_index * 2] * b_matrix[i * 2] + b_matrix[inode_index * 2 + 1] * b_matrix[i * 2 + 1];
-          x = x * area;
+        Real x = b_matrix[inode_index * 2] * b_matrix[i * 2] + b_matrix[inode_index * 2 + 1] * b_matrix[i * 2 + 1];
 
+        if (nodes_infos.isOwn(inode)) {
+          Int32 row = node_dof.dofId(inode, 0).localId();
           Int32 col = node_dof.dofId(node2, 0).localId();
+          Int32 begin = in_row_csr[row];
+          Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
           while (begin < end) {
             if (in_col_csr[begin] == col) {
-              in_out_val_csr[begin] += x;
+              in_out_val_csr[begin] += x * area;
               break;
             }
             begin++;
@@ -347,19 +346,17 @@ void FemModule::_assembleNodeWiseCsrBilinearOperatorTetra4()
       Real volume = _computeCellMatrixGpuTETRA4(cell, cnc, in_node_coord, b_matrix);
 
       Int32 i = 0;
-      Int32 row = node_dof.dofId(inode, 0).localId();
-      Int32 begin = in_row_csr[row];
-      Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
       for (NodeLocalId node2 : cnc.nodes(cell)) {
+        Real x = b_matrix[inode_index * 3] * b_matrix[i * 3] + b_matrix[inode_index * 3 + 1] * b_matrix[i * 3 + 1] + b_matrix[inode_index * 3 + 2] * b_matrix[i * 3 + 2];
 
         if (nodes_infos.isOwn(inode)) {
-          Real x = b_matrix[inode_index * 3] * b_matrix[i * 3] + b_matrix[inode_index * 3 + 1] * b_matrix[i * 3 + 1] + b_matrix[inode_index * 3 + 2] * b_matrix[i * 3 + 2];
-          x = x * volume;
-
+          Int32 row = node_dof.dofId(inode, 0).localId();
           Int32 col = node_dof.dofId(node2, 0).localId();
+          Int32 begin = in_row_csr[row];
+          Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
           while (begin < end) {
             if (in_col_csr[begin] == col) {
-              in_out_val_csr[begin] += x;
+              in_out_val_csr[begin] += x * volume;
               break;
             }
             ++begin;

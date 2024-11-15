@@ -224,8 +224,8 @@ function printInfo() {
   echo "|"
   echo "Info: Cache warming: ${CACHE_WARMING}"
   echo "Info: Output directory: '${WORKING_DIR}'"
-  echo "Info: CT (cpu-thread) and CTG (cpu-thread-gpu) formats will be runned without accelerator"
-  echo "Info: CTG formats will be then runned with AcceleratorRuntime: '${ACCELERATOR_RUNTIME}'"
+  echo "Info: CT (cpu-thread) and CTG (cpu-thread-gpu) formats will be run without accelerator"
+  echo "Info: CTG formats will be then run with AcceleratorRuntime: '${ACCELERATOR_RUNTIME}'"
   echo "-----------------------------------------------------------------------------------------"
 }
 
