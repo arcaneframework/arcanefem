@@ -68,10 +68,11 @@ configure_file(${MSH_DIR}/sphere_cut.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/circle_cut.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 # For benchmarking
-configure_file(doBenchmark.sh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(run-benchmark.sh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(get_stats_from_json.py ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(TEST_TEMPLATE_2D.xml ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(TEST_TEMPLATE_3D.xml ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(plot-results.sh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Poisson PUBLIC FemUtils)
 
