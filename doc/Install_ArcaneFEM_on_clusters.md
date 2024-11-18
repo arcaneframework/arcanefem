@@ -1,5 +1,5 @@
 
-
+The ideia of this document is to share recipies of compiling ArcaneFEM on diffrent clusters that have diffrent architecture. This is written in the sense to help other users not at all verbose or perfect 
 <details>
   <summary>
   
@@ -56,10 +56,10 @@ tar xvzf ./../dotnet-sdk-8.0.401-linux-x64.tar.gz
   <details>
     <summary>
 
-  #### Compile Arcane with GPU support
+  #### Compile Arcane with GPU support on Adastra
   </summary>
  
- - Make sure `dotnet` is installed as it is a prerequiste of Arcane, see section `dotnet Installation`. If it already installed you can proceed.
+ - Make sure `dotnet` is installed as it is a prerequiste of Arcane, see section above on dotnet installation. If it already installed you can proceed.
  - In the following you will need to add your assocatied allocation project in the `ADASTRA_PROJECT` variable.
 
   ```bash
@@ -107,7 +107,7 @@ make -j all install
   <details>
     <summary>
   
-  #### Compile ArcaneFEM with GPU support
+  #### Compile ArcaneFEM with GPU support on Adastra
   </summary>
  - In the following you will need to add your assocatied allocation project in the `ADASTRA_PROJECT` variable.
 
