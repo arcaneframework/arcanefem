@@ -1,5 +1,6 @@
 
-The ideia of this document is to share recipies of compiling ArcaneFEM on diffrent clusters that have diffrent architecture. This is written in the sense to help other users not at all verbose or perfect 
+This document is intended to guide users in compiling ArcaneFEM on various clusters with different architectures. Installing codes on clusters can be challenging, so this serves as a starting point to simplify the process. The focus is on providing practical help rather than being overly detailed or perfect.
+
 <details>
   <summary>
   
@@ -34,7 +35,7 @@ export ADASTRA_PROJECT="YYYYY"
 
 wget https://download.visualstudio.microsoft.com/download/pr/db901b0a-3144-4d07-b8ab-6e7a43e7a791/4d9d1b39b879ad969c6c0ceb6d052381/dotnet-sdk-8.0.401-linux-x64.tar.gz
 
-scp dotnet-sdk-8.0.401-linux-x64.tar.gz ${ADASTRA_USERNAME}@adastra2.cines.fr:/lus/work/RES1/${ADASTRA_PROJECT}/${ADASTRA_USERNAME}/ArcaneFEM/.
+scp dotnet-sdk-8.0.401-linux-x64.tar.gz ${ADASTRA_USERNAME}@adastra2.cines.fr:/lus/work/RES1/${ADASTRA_PROJECT}/${ADASTRA_USERNAME}/.
 ```
 
   - On Adastra create working directory
@@ -49,7 +50,8 @@ cd $ROOT_DIR
 
 ```bash
 cd $ROOT_DIR/dotnet
-tar xvzf ./../dotnet-sdk-8.0.401-linux-x64.tar.gz
+tar xvzf ./../../dotnet-sdk-8.0.401-linux-x64.tar.gz
+rm -rf ./../../dotnet-sdk-8.0.401-linux-x64.tar.gz
 ```
  </details>
  
@@ -149,5 +151,194 @@ cd $BUILD_DIR
 make -j all install
   ```
 </details>
+</details>
+
+<details>
+  <summary>
+  
+  # Topaz 
+</summary>
+Topaz is a French supercomputer hosted at CEA, designed for both CPU and GPU computing. It features 994 CPU nodes, each with 2 AMD EPYC Milan 7763 processors (128 cores per node) and 256 GB of memory, delivering 4.5 Pflops peak performance with InfiniBand HDR-100 interconnects. Additionally, it includes 75 hybrid nodes, each with 2 AMD EPYC Milan 7763 processors, 4 NVIDIA A100 GPUs, 512 GB of memory, and InfiniBand HDR interconnects, achieving 4.3 Pflops peak performance.
+
+To run ArcaneFEM on Topaz, you need to compile dotnet, Arcane, and ArcaneFEM, following the steps detailed below.
+
+<details>
+    <summary>
+
+  #### Compile dotnet on Topaz
+  </summary>
+  
+Arcane depends on `.Net`, this dependencie is not found on Topaz, hence we begin by installaing dotnet. If you have this already installed please skip this section.
+
+  - On your personal PC, locally download dotNet `tar.gz` and move it to move it to Topaz. Note please fill in your `TOPAZ_USERNAME`, and your `TOPAZ_PROJECT`
+
+```bash
+export TOPAZ_USERNAME="XXXXX"
+export TOPAZ_PROJECT="contXXX/XXX"
+
+wget https://download.visualstudio.microsoft.com/download/pr/db901b0a-3144-4d07-b8ab-6e7a43e7a791/4d9d1b39b879ad969c6c0ceb6d052381/dotnet-sdk-8.0.401-linux-x64.tar.gz
+
+scp dotnet-sdk-8.0.401-linux-x64.tar.gz ${TOPAZ_USERNAME}@topaze.ccc.cea.fr:/ccc/work/${TOPAZ_PROJECT}/${TOPAZ_USERNAME}/.
+```
+
+  - On Topaz create working directory
+
+```bash
+export ROOT_DIR=${CCCWORKDIR}/ArcaneFEM
+mkdir -p $ROOT_DIR
+mkdir -p $ROOT_DIR/dotnet
+cd $ROOT_DIR
+```
+- Extract the archive on Topaz
+
+```bash
+cd $ROOT_DIR/dotnet
+tar xvzf ./../../dotnet-sdk-8.0.401-linux-x64.tar.gz
+rm -rf ./../../dotnet-sdk-8.0.401-linux-x64.tar.gz
+```
+</details>
+
+<details>
+    <summary>
+
+  #### Compile Arcane on Topaz
+  </summary>
+  
+  - On your personal PC, locally checkout Arcane from GitHub and move it to Topaz. Note please fill in your `TOPAZ_USERNAME`, and your `TOPAZ_PROJECT`
+
+```bash
+export TOPAZ_USERNAME="XXXXX"
+export TOPAZ_PROJECT="contXXX/XXX"
+
+git clone https://github.com/arcaneframework/framework.git && cd framework && git submodule update --init --recursive && cd ..
+
+scp -r framework ${TOPAZ_USERNAME}@topaze.ccc.cea.fr:/ccc/work/${TOPAZ_PROJECT}/${TOPAZ_USERNAME}/.
+
+rm -rf framework
+```
+
+- On Topaz you will need to do the following. Please note, here the idea is to pick up `hypre` and `parmetis` that was precopiled and add it locally on Topaz, since the locally avaliable packages on Topaz are not compile with CUDA version 12 support on Topaz and this is necessary for C++ 20 that ArcaneFEM absolutely needs.
+  - move framework to `ArcaneFEM` directory
+
+```bash
+export ROOT_DIR=${CCCWORKDIR}/ArcaneFEM
+mkdir -p $ROOT_DIR
+cd $ROOT_DIR
+mv ${CCCWORKDIR}/framework .
+```
+  - configure Arcane framework
+
+```bash
+export TOPAZ_USERNAME="XXXXX"
+export TOPAZ_PROJECT="contXXX/XXX"
+
+export ROOT_DIR=${CCCWORKDIR}/ArcaneFEM
+mkdir -p $ROOT_DIR
+cd $ROOT_DIR
+
+module purge
+
+module load gnu/11 flavor/openmpi/cuda-12.2 mpi/openmpi/4.1.5 cmake/3.26 hdf5/1.12.0 metis/5.1.0
+
+export ROOT_DIR=${CCCWORKDIR}/ArcaneFEM
+export SOURCE_DIR=${ROOT_DIR}/framework
+export BUILD_DIR=${ROOT_DIR}/framework-build-release
+export INSTALL_DIR=${ROOT_DIR}/framework-install
+
+export PATH=/ccc/work/${TOPAZ_PROJECT}/${TOPAZ_USERNAME}/ArcaneFEM/dotnet:$PATH
+
+_HWLOC_PATH="/ccc/products/hwloc-2.2.0/system/default"
+_OTF2_PATH="/ccc/products/otf2-2.3/nvidia--22.2__openmpi--4.0.1/default"
+_PETSC_PATH="/ccc/products/petsc-3.17.4/gcc--11.1.0__openmpi--4.0.1/default"
+
+HYPRE_PATH="/ccc/work/${TOPAZ_PROJECT}/${TOPAZ_USERNAME}/ArcaneFEM/hypre/2.29.0/gpu"
+PARMETIS_PATH="/ccc/work/${TOPAZ_PROJECT}/${TOPAZ_USERNAME}/parmetis/4.0.3-ompi405"
+
+COMMON_CMAKE_PREFIX_PATH="${_HWLOC_PATH};${_OTF2_PATH};${_PARMETIS_PATH};${_PETSC_PATH};${HYPRE_PATH};${PARMETIS_PATH}"
+
+export CXX=`which c++`
+export CC=`which gcc`
+export CXX CC
+
+cmake --preset Arcane -DARCANEFRAMEWORK_BUILD_COMPONENTS=Arcane -DCMAKE_PREFIX_PATH="${COMMON_CMAKE_PREFIX_PATH}" -DARCANE_WANT_CUDA=TRUE -S ${SOURCE_DIR} -B ${BUILD_DIR} -DARCANE_CUSTOM_MPI_DRIVER="/usr/bin/ccc_mprun" -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DCMAKE_BUILD_TYPE=Release -DARCCORE_CXX_STANDARD=20  -DCMAKE_DISABLE_FIND_PACKAGE_SWIG=TRUE
+```
+
+- finally make and make install
+
+```bash
+cd $BUILD_DIR
+make -j all install
+```
+  </details>
+
+<details>
+    <summary>
+
+  #### Compile ArcaneFEM on Topaz
+  </summary>
+
+  - On your personal PC, locally checkout ArcaneFEM from GitHub and move it to Topaz. Note please fill in your `TOPAZ_USERNAME`, and your `TOPAZ_PROJECT`
+
+```bash
+export TOPAZ_USERNAME="XXXXX"
+export TOPAZ_PROJECT="contXXX/XXX"
+
+git clone https://github.com/arcaneframework/arcanefem.git
+
+scp -r arcanefem ${TOPAZ_USERNAME}@topaze.ccc.cea.fr:/ccc/work/${TOPAZ_PROJECT}/${TOPAZ_USERNAME}/.
+
+rm -rf arcanefem
+```
+
+- On Topaz you will need to do the following.
+    - move arcanefem to `ArcaneFEM` directory
+
+```bash
+export ROOT_DIR=${CCCWORKDIR}/ArcaneFEM
+mkdir -p $ROOT_DIR
+cd $ROOT_DIR
+mv ${CCCWORKDIR}/arcanefem .
+```
+  - configure ArcaneFEM framework
+
+```bash
+export TOPAZ_USERNAME="XXXXX"
+export TOPAZ_PROJECT="contXXX/XXX"
+
+export ROOT_DIR=${CCCWORKDIR}/ArcaneFEM
+mkdir -p $ROOT_DIR
+cd $ROOT_DIR
+
+module purge
+module load gnu/11 flavor/openmpi/cuda-12.2 mpi/openmpi/4.1.5 cmake/3.26 hdf5/1.12.0 metis/5.1.0
+
+export ROOT_DIR=${CCCWORKDIR}/ArcaneFEM
+export SOURCE_DIR=${ROOT_DIR}/arcanefem
+export BUILD_DIR=${ROOT_DIR}/arcanefem-build-release
+export ARCANE_DIR=${ROOT_DIR}/framework-install
+
+export PATH=/ccc/work/${TOPAZ_PROJECT}/${TOPAZ_USERNAME}/ArcaneFEM/dotnet:$PATH
+
+_HWLOC_PATH="/ccc/products/hwloc-2.2.0/system/default"
+_OTF2_PATH="/ccc/products/otf2-2.3/nvidia--22.2__openmpi--4.0.1/default"
+_PETSC_PATH="/ccc/products/petsc-3.17.4/gcc--11.1.0__openmpi--4.0.1/default"
+
+HYPRE_PATH="/ccc/work/${TOPAZ_PROJECT}/${TOPAZ_USERNAME}/ArcaneFEM/hypre/2.29.0/gpu"
+PARMETIS_PATH="/ccc/work/${TOPAZ_PROJECT}/${TOPAZ_USERNAME}/parmetis/4.0.3-ompi405"
+
+COMMON_CMAKE_PREFIX_PATH="${_HWLOC_PATH};${_OTF2_PATH};${_PARMETIS_PATH};${_PETSC_PATH};${HYPRE_PATH};${PARMETIS_PATH};${ARCANE_DIR}"
+
+cmake -S ${SOURCE_DIR} -B ${BUILD_DIR}  -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=${COMMON_CMAKE_PREFIX_PATH}
+```
+
+- finally make and make install
+
+```bash
+cd $BUILD_DIR
+make -j all install
+```
 
 </details>
+
+</details>
+
