@@ -215,6 +215,14 @@ _handleFlags()
     m_running_on_gpu = true;
     info() << "HIP: The methods able to use GPU will use it";
   }
+  if (parameter_list.getParameterOrNull("SOLVE_LINEAR_SYSTEM") == "FALSE") {
+    m_solve_linear_system = false;
+    info() << "Linear system assembled but not solved (SOLVE_LINEAR_SYSTEM = FALSE)";
+  }
+  if (parameter_list.getParameterOrNull("CROSS_VALIDATION") == "FALSE") {
+    m_cross_validation = false;
+    info() << "Cross validation disabled (CROSS_VALIDATION = FALSE)";
+  }
   info() << "-----------------------------------------------------------------------------------------";
 }
 
@@ -358,10 +366,12 @@ _doStationarySolve()
     _assembleLinearOperator();
   }
 
-  _solve();
+  if (m_solve_linear_system)
+    _solve();
 
   // Check results
-  _checkResultFile();
+  if (m_solve_linear_system && m_cross_validation)
+    _checkResultFile();
 }
 
 /*---------------------------------------------------------------------------*/

@@ -169,6 +169,9 @@ class FemModule
   bool m_use_buildless_csr = false;
   bool m_use_legacy = true;
   bool m_running_on_gpu = false;
+  bool m_solve_linear_system = true;
+  bool m_cross_validation = true;
+
   ITimeStats* m_time_stats;
 
   CooFormat m_coo_matrix;
