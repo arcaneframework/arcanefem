@@ -77,7 +77,10 @@ if (TARGET Arcane::arcane_aleph_hypre)
     message(WARNING "Do not find a valid target for Hypre. This may produce link errors")
   endif()
   target_sources(FemUtils PRIVATE HypreDoFLinearSystem.cc)
-  target_link_libraries(FemUtils PUBLIC Threads::Threads)
+  find_package(Threads)
+  if (TARGET Threads::Threads)
+    target_link_libraries(FemUtils PUBLIC Threads::Threads)
+  endif()
 endif()
 
 
