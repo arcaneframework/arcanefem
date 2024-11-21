@@ -69,15 +69,15 @@ function isColEmpty() {
   return 1
 }
 
-title_arr=("DOK" "COO_{CT}^{C}" "S-COO_{CT}^{C}" "CSR_{CT}^{C}" "COO_{CTG}^{C}" "S-COO_{CTG}^{C}" "CSR_{CTG}^{C}" "BL-CSR_{CTG}^{C}" "NW-CSR_{CTG}^{C}" "COO_{CTG}^{G}" "S-COO_{CTG}^{G}" "CSR_{CTG}^{G}" "BL-CSR_{CTG}^{G}" "NW-CSR_{CTG}^{G}")
-pt_arr=(1 2 3 4 2 3 4 5 6 2 3 4 5 6)
-dt_arr=(1 1 1 1 2 2 2 2 2 1 1 1 1 1)
 
 if $cpu_flag; then
+  title_arr=("DOK" "COO_{CT}^{C}" "S-COO_{CT}^{C}" "CSR_{CT}^{C}" "COO_{CTG}^{C}" "S-COO_{CTG}^{C}" "CSR_{CTG}^{C}" "BL-CSR_{CTG}^{C}" "NW-CSR_{CTG}^{C}")
+  pt_arr=(1 2 3 4 2 3 4 5 6 )
+  dt_arr=(1 1 1 1 2 2 2 2 2 )
+
   echo "Info: Generating CPU plot..."
 
   cmd="set title 'Format Comparison (Dimension: ${dimension}, CPU runtime, ${mpiNum} MPI instance, ${cacheWarming} cache warming)' \n"
-  cmd+="set terminal wxt size 800,600 \n"
   cmd+="set xlabel '# Elements' \n"
   cmd+="set ylabel 'Execution Time (s)' \n"
   cmd+="set logscale x \n"
@@ -97,10 +97,12 @@ if $cpu_flag; then
 fi
 
 if $gpu_flag; then
+  title_arr=( "COO_{CTG}^{G}" "S-COO_{CTG}^{G}" "CSR_{CTG}^{G}" "BL-CSR_{CTG}^{G}" "NW-CSR_{CTG}^{G}")
+  pt_arr=(2 3 4 5 6)
+  dt_arr=(1 1 1 1 1)
   echo "Info: Generating GPU plot..."
 
   cmd="set title 'Format Comparison (Dimension: ${dimension}, GPU runtime, ${mpiNum} MPI instance, ${cacheWarming} cache warming)' \n"
-  cmd+="set terminal wxt size 800,600 \n"
   cmd+="set xlabel '# Elements' \n"
   cmd+="set ylabel 'Execution Time (s)' \n"
   cmd+="set logscale x \n"
@@ -108,7 +110,7 @@ if $gpu_flag; then
   cmd+="set key outside right \n"
   cmd+="plot "
 
-  for i in $(seq 11 15); do 
+  for i in $(seq 2 6); do 
     if ! isColEmpty "$i"; then
       j=$(($i - 2))
       cmd+="'${file}' using 1:${i} with linespoints lw 2 pt ${pt_arr[$j]} dt ${dt_arr[$j]} title '${title_arr[$j]}',"

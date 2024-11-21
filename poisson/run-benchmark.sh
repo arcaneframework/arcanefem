@@ -1,326 +1,235 @@
 #!/bin/bash
 
 #======================================================================================
-# Script Overview:
 # This script runs benchmarks for ArcaneFEM on multiple configurations.
-# It measures execution times for CPU and GPU matrix assembly methods on different mesh sizes.
-# The benchmark results are saved to TSV files for further analysis.
+# It measures execution times for CPU and GPU bilinear assembly methods on different
+# mesh sizes. The benchmark results are saved to TSV files for further analysis.
 #======================================================================================
 
-# Path to the executable for running tests
 EXECUTABLE="$(pwd)/Poisson"
-
-# Python script that extracts specified metrics from the ArcaneFEM JSON output
-# The metrics can be specified as command line arguments
 PYTHON_SCRIPT="$(pwd)/get_stats_from_json.py"
 
-#--------------------------------------------------------------------------------------
-# Mesh configurations
-# Different mesh sizes (small, medium, large) for 2D and 3D simulations
-#--------------------------------------------------------------------------------------
-
-SIZES=("small" "medium" "large")
-
-DIMENSIONS=(2 3)
-
-# 2D mesh templates and paths for each size
-TEMPLATE_FILENAME_2D="$(pwd)/TEST_TEMPLATE_2D.xml"
-MESH_2D_SMALL="$(pwd)/circle_cut-small.msh"
-MESH_2D_MEDIUM="$(pwd)/circle_cut-medium.msh"
-MESH_2D_LARGE="$(pwd)/circle_cut-large.msh"
-
-# 3D mesh templates and paths for each size
-TEMPLATE_FILENAME_3D="$(pwd)/TEST_TEMPLATE_3D.xml"
-MESH_3D_SMALL="$(pwd)/sphere_cut-small.msh"
-MESH_3D_MEDIUM="$(pwd)/sphere_cut-medium.msh"
-MESH_3D_LARGE="$(pwd)/sphere_cut-large.msh"
-
-#--------------------------------------------------------------------------------------
-# Format types
-# List of formats to test on CPU and GPU, along with their display names for reporting
-#--------------------------------------------------------------------------------------
-
-# Formats to test
-# Attention ! When using Hypre linear system, "legacy" format won't work
-# blcsr is the last used format in ArcaneFEM
-CPU_FORMATS=("legacy" "coo" "csr")
-GPU_FORMATS=("coo-gpu" "csr-gpu" "nwcsr" "blcsr")
-
-# Number of MPI instances to test for each configuration
-CPU_CORE_NUMBERS=(1 2)
-
-# Cache warming passed as argument to executable
-CACHE_WARMING=10
-
-# Directory where all benchmark results will be saved
-DATE=$(date '+%Y-%m-%d_%H:%M:%S')
-WORKING_DIR="benchmark-output_${CACHE_WARMING}-cw_${DATE}"
-
-# Arcane AcceleratorRuntime passed as argument to executable
+CACHE_WARMING=5
+WORKING_DIR_BASE="benchmark-output.${CACHE_WARMING}-cw"
 ACCELERATOR_RUNTIME="cuda"
 
-#--------------------------------------------------------------------------------------
-# Prepare and run tests
-# The main function loop iterates over all configurations and formats to launch tests.
-#--------------------------------------------------------------------------------------
+MPI_N=(1 2 4 8)
+CPU_FORMATS=("legacy" "coo" "csr")
 
-# Ensure the working directory exists and switch to it
-mkdir -p "$WORKING_DIR"
-cd "$WORKING_DIR" || exit 1
+MPI_N_ACCELERATED=(1 2 4 8)
+GPU_FORMATS=("coo-gpu" "csr-gpu" "nwcsr" "blcsr")
 
-#--------------------------------------------------------------------------------------
-# Runs a CPU test for CPU and GPU formats (with GPU-acceleration disabled), parses results
-# from the JSON file, and saves relevant data to TSV
-# Parameters:
-# - test_file: Path to the XML file with CPU test configuration
-# - instance_num: Number of MPI instances
-# - res_file: Path to TSV file where results are stored
-#--------------------------------------------------------------------------------------
-launchTestCpu() {
-  local test_file=$1
-  local instance_num=$2
-  local res_file=$3
+DIMENSIONS=(2 3)
+TEMPLATE_FILENAMES=("$(pwd)/TEST_TEMPLATE_2D.xml" "$(pwd)/TEST_TEMPLATE_3D.xml")
+SIZES=("small" "medium" "large")
 
-  if [ ! -e "$EXECUTABLE" ]; then
-    echo -e "\e[31mExecutable file: \"${EXECUTABLE}\" not found, stop\e[0m"
-    exit
-  fi
+declare -A MESHES_2D=(
+["small"]="$(pwd)/circle_cut-small.msh"
+["medium"]="$(pwd)/circle_cut-medium.msh"
+["large"]="$(pwd)/circle_cut-large.msh"
+)
 
-  if [ ! -e "$test_file" ]; then
-    echo -e "\e[31mTest file: \"${test_file}\" not found, stop\e[0m"
-    exit
-  fi
+declare -A MESHES_3D=(
+["small"]="$(pwd)/sphere_cut-small.msh"
+["medium"]="$(pwd)/sphere_cut-medium.msh"
+["large"]="$(pwd)/sphere_cut-large.msh"
+)
 
-  # Run CPU test with MPI and save JSON results if successful
-  echo "Info: Starting ${test_file}..."
-  if mpirun -n "$instance_num" "$EXECUTABLE" "$test_file" "-A,CACHE_WARMING=${CACHE_WARMING}" > "stdout.txt" 2> "stderr.txt"; then
-    mv "./output/listing/time_stats.json" "./time_stats.json"
+# Adastra configuration
+IS_ADASTRA=false # replace by `true` to apply
+$IS_ADASTRA && ACCELERATOR_RUNTIME="hip"
+CPU_PER_TASK=1 # no effect if -T option is disabled
+THREADS_PER_CORE=1 # disable hyper-threading
+SRUN_ARGS="--cpus-per-task=${CPU_PER_TASK} --threads-per-core=${THREADS_PER_CORE}"
+SRUN_ARGS_TO_ADD_IF_ACCELERATED="--gpus=1"
 
-    # Extract key metrics from JSON using Python script
-    if python "$PYTHON_SCRIPT" "./time_stats.json" "BuildMatrix,AddAndCompute" > "brief.txt"; then
+#======================================================================================
+# Utility Functions
+#======================================================================================
 
-      # Parse execution times for each format and add them to TSV
-      line=$(grep "Element" "brief.txt" | awk '{print $2}')
-
-      for format in "${ALL_CPU_FORMATS[@]}"; do
-        if contains "$format" "${CPU_FORMATS[@]}"; then
-          time=$(grep "AssembleBilinearOperator_${format}:" "brief.txt" | awk '{print $2}')
-          line+="\t${time}"
-        else
-          line+="\tNaN"
-        fi
-      done
-
-      for format in "${ALL_GPU_FORMATS[@]}"; do
-        if contains "$format" "${GPU_FORMATS[@]}"; then
-          time=$(grep "AssembleBilinearOperator_${format}:" "brief.txt" | awk '{print $2}')
-          line+="\t${time}"
-        else
-          line+="\tNaN"
-        fi
-      done
-
-      echo -e "$line" >> "$res_file"
-
-      mv "./output/listing/logs.0" "./logs.0"
-      echo -e "Info: Done\n"
-    else
-      echo -e "\e[31mAn error occured in ${PYTHON_SCRIPT}, stop\e[0m"
-      exit
-    fi
-  else
-    echo -e "\e[31mFAIL ${test_file} (command was: mpirun -n ${instance_num} ${EXECUTABLE} ${test_file} -A,CACHE_WARMING=${CACHE_WARMING}), stop\e[0m"
-    exit
-  fi
-}
-
-#--------------------------------------------------------------------------------------
-# Similar to launchTestCpu, but runs tests for GPU format with GPU-acceleration enabled
-# Parameters:
-# - test_file: Path to the XML file with GPU test configuration
-# - instance_num: Number of MPI instances
-# - res_file: Path to TSV file where results are stored
-#--------------------------------------------------------------------------------------
-launchTestGpu() {
-  local test_file=$1
-  local instance_num=$2
-  local res_file=$3
-
-  if [ ! -e "$EXECUTABLE" ]; then
-    echo -e "\e[31mExecutable file: \"${EXECUTABLE}\" not found, stop\e[0m"
-    exit
-  fi
-
-  if [ ! -e "$test_file" ]; then
-    echo -e "\e[31mTest file: \"${test_file}\" not found, stop\e[0m"
-    exit
-  fi
-
-  echo "Info: Starting ${test_file}..."
-  if mpirun -n "$instance_num" "$EXECUTABLE" "$test_file" "-A,CACHE_WARMING=${CACHE_WARMING}" "-A,AcceleratorRuntime=${ACCELERATOR_RUNTIME}" > "stdout.txt" 2> "stderr.txt"; then
-    mv "./output/listing/time_stats.json" "./time_stats.json"
-
-    if python "$PYTHON_SCRIPT" "./time_stats.json" "BuildMatrix,AddAndCompute" > "brief.txt"; then
-
-      line=""
-
-      for format in "${ALL_GPU_FORMATS[@]}"; do
-        if contains "$format" "${GPU_FORMATS[@]}"; then
-          time=$(grep "AssembleBilinearOperator_${format}:" "brief.txt" | awk '{print $2}')
-          line+="\t${time}"
-        else
-          line+="\tNaN"
-        fi
-      done
-
-      sed -i "$ s/$/${line}/" "$res_file"
-      mv "./output/listing/logs.0" "./logs.0"
-      echo -e "Info: Done\n"
-    else
-      echo -e "\e[31mAn error occured in ${PYTHON_SCRIPT}, stop\e[0m"
-      exit
-    fi
-  else
-    echo -e "\e[31mFAIL ${test_file} (command was: mpirun -n ${instance_num} ${EXECUTABLE} ${test_file} -A,CACHE_WARMING=${CACHE_WARMING} -A,AcceleratorRuntime=${ACCELERATOR_RUNTIME}), stop\e[0m"
-    exit
-  fi
-}
-
-#--------------------------------------------------------------------------------------
-# Cleans up output directories between tests to avoid data carryover
-#--------------------------------------------------------------------------------------
-clearTest() {
-  rm -rf "output" "fatal_4" # fatal_4 file is always empty, maybe an error of ArcaneFEM
-}
-
-#--------------------------------------------------------------------------------------
-# 0：match, 1: failed
-#--------------------------------------------------------------------------------------
-contains() {
-  local element="$1"
-  shift
-  for i in "$@"; do
-    if [[ $i == "$element" ]]; then
-      return 0
-    fi
-  done
-  return 1
-}
-
-#--------------------------------------------------------------------------------------
-# All formats supported by ArcaneFEM (do not modify)
-#--------------------------------------------------------------------------------------
 ALL_CPU_FORMATS=("legacy" "coo" "coo-sorting" "csr")
 ALL_GPU_FORMATS=("coo-gpu" "coo-sorting-gpu" "csr-gpu" "blcsr" "nwcsr")
 
-#--------------------------------------------------------------------------------------
-#--------------------------------------------------------------------------------------
+error_exit() {
+    echo -e "\e[31m$1\e[0m"
+    exit 1
+}
 
-function printInfo() {
-  echo -n "Info: Formats: "
-  for f in "${CPU_FORMATS[@]}" "${GPU_FORMATS[@]}"; do
-    echo -n "| ${f} "
-  done
-  echo "|"
-  echo "Info: Cache warming: ${CACHE_WARMING}"
-  echo "Info: Output directory: '${WORKING_DIR}'"
-  echo "Info: CT (cpu-thread) and CTG (cpu-thread-gpu) formats will be run without accelerator"
-  echo "Info: CTG formats will be then run with AcceleratorRuntime: '${ACCELERATOR_RUNTIME}'"
-  echo "-----------------------------------------------------------------------------------------"
+contains() {
+    local element="$1"; shift
+    for e in "$@"; do [[ "$e" == "$element" ]] && return 0; done
+    return 1
+}
+
+prepare_output_file() {
+    local res_file="$1"; shift
+    local formats=("$@")
+    echo -e "#nb-elt\t${formats[*]// /\\t}" > "$res_file"
+}
+
+replace_placeholders() {
+    local template="$1" mesh="$2" output="$3"
+    sed "s|MESH_FILE|${mesh}|g" "$template" > "$output"
+}
+
+append_formats() {
+    local file="$1"; shift
+    local formats=("$@")
+    for format in "${formats[@]}"; do
+        sed -i "/<!-- FORMATS -->/a <${format}>true</$format>" "$file"
+    done
+}
+
+run_test() {
+    local executable="$1" test_file="$2" mpi_num="$3" accelerated=$4 cache_warming="$5"
+    local args="-A,CACHE_WARMING=${cache_warming}" # "-A,T=8" # for multiple threads
+    $accelerated && args+=" -A,AcceleratorRuntime=${ACCELERATOR_RUNTIME}"
+    if $IS_ADASTRA; then
+      $accelerated && SRUN_ARGS+=" ${SRUN_ARGS_TO_ADD_IF_ACCELERATED}"
+      srun --ntasks="$mpi_num" $SRUN_ARGS -- "$executable" "$test_file" $args > "stdout.txt" 2> "stderr.txt"
+    else
+      mpirun -n "$mpi_num" "$executable" "$test_file" $args > "stdout.txt" 2> "stderr.txt"
+    fi
+}
+
+process_results() {
+    local brief_file="$1" res_file="$2"; shift; shift
+    formats=("$@")
+    local line=$(grep "Element" "$brief_file" | awk '{print $2}')
+    for format in "${formats[@]}"; do
+        local time=$(grep "AssembleBilinearOperator_${format}:" "$brief_file" | awk '{print $2}')
+        line+="\t${time:-NaN}"
+    done
+    echo -e "$line" >> "$res_file"
+}
+
+clear_output() {
+    rm -rf "output/courbes" "output/depouillement" "fatal_4"
+}
+
+unique_directory_name() {
+    local base_name="$1"
+    local dir_name="$base_name"
+    local counter=1
+
+    # Check if the directory exists, and increment the counter until it doesn't
+    while [[ -d "$dir_name" ]]; do
+        dir_name="${base_name}.${counter}"
+        ((counter++))
+    done
+
+    echo "$dir_name"
+}
+
+WORKING_DIR=$(unique_directory_name "$WORKING_DIR_BASE")
+
+log_configuration() {
+    local log_file="configuration.log"
+    echo "Logging benchmark configuration to $log_file"
+    {
+        echo "============================================"
+        echo "Benchmark Configuration"
+        echo "============================================"
+        echo "Executable: $EXECUTABLE"
+        echo "Python Script: $PYTHON_SCRIPT"
+        echo "Cache Warming: $CACHE_WARMING"
+        echo "Working Directory: $WORKING_DIR"
+        echo "Accelerator Runtime: $ACCELERATOR_RUNTIME"
+        echo "MPI Configurations: ${MPI_N[*]}"
+        echo "MPI Accelerated Configurations: ${MPI_N_ACCELERATED[*]}"
+        echo "CPU Formats: ${CPU_FORMATS[*]}"
+        echo "GPU Formats: ${GPU_FORMATS[*]}"
+        echo "Dimensions: ${DIMENSIONS[*]}"
+        echo "Mesh Sizes: ${SIZES[*]}"
+        echo "Adastra Configuration: $IS_ADASTRA"
+        echo "CPU Per Task: $CPU_PER_TASK"
+        echo "Threads Per Core: $THREADS_PER_CORE"
+        echo "\`srun\` Args: $SRUN_ARGS"
+        echo "Additional \`srun\` Args if Accelerated: $SRUN_ARGS_TO_ADD_IF_ACCELERATED"
+        echo "Templates:"
+        for template in "${TEMPLATE_FILENAMES[@]}"; do
+            echo "  - $template"
+        done
+        echo "2D Meshes:"
+        for size in "${!MESHES_2D[@]}"; do
+            echo "  $size: ${MESHES_2D[$size]}"
+        done
+        echo "3D Meshes:"
+        for size in "${!MESHES_3D[@]}"; do
+            echo "  $size: ${MESHES_3D[$size]}"
+        done
+        echo "============================================"
+    } | tee "$log_file"
 }
 
 #======================================================================================
-# Main test loop
-# Iterates over 2D configurations, CPU core counts, and mesh sizes.
-# Runs tests for each size, dimension, and format configuration, then logs results.
+# Benchmarking Logic
 #======================================================================================
 
-printInfo
+mkdir -p "$WORKING_DIR" && cd "$WORKING_DIR" || error_exit "Failed to access working directory."
+
+log_configuration
 
 for dim in "${DIMENSIONS[@]}"; do
-  echo -e "Info: Starting ${dim}D meshes...\n"
-
+  echo "Processing ${dim}D meshes..."
   dim_dir="${dim}D"
-  mkdir -p "$dim_dir"
-  cd "$dim_dir" || exit 1
+  mkdir -p "$dim_dir" && cd "$dim_dir" || error_exit "Failed to enter $dim_dir."
 
-  for cpu_n in "${CPU_CORE_NUMBERS[@]}"; do
-    cpu_dir="${cpu_n}-mpi-instance"
-    mkdir -p $cpu_dir
-    cd "$cpu_dir" || exit 1
+  template_var="TEMPLATE_FILENAMES[$((dim-2))]"
+  meshes_var="MESHES_${dim}D"
 
-    res_file="results.tsv"
+  for accelerated in false true; do
 
-    # Add columns name in tsv file
-    output="#nb-elt"
+    if $accelerated; then
+      mpi_array=("${MPI_N_ACCELERATED[@]}")
+      format_array=("${GPU_FORMATS[@]}")
+      all_format_array=("${ALL_GPU_FORMATS[@]}")
+    else
+      mpi_array=("${MPI_N[@]}")
+      format_array=("${CPU_FORMATS[@]}" "${GPU_FORMATS[@]}")
+      all_format_array=("${ALL_CPU_FORMATS[@]}" "${ALL_GPU_FORMATS[@]}")
+    fi
 
-    for format in "${ALL_CPU_FORMATS[@]}"; do
-      output+="\t${format}"
-    done
+    for mpi_n in "${mpi_array[@]}"; do
+      dir="${mpi_n}-mpi-instance"
+      $accelerated && dir="${ACCELERATOR_RUNTIME}.${dir}"
+      mkdir -p "$dir" && cd "$dir" || error_exit "Failed to enter $dir."
 
-    for format in "${ALL_GPU_FORMATS[@]}"; do
-      output+="\t${format}-cpu"
-    done
+      res_file="results.tsv"
+      prepare_output_file "$res_file" "${all_format_array[@]}"
 
-    for format in "${ALL_GPU_FORMATS[@]}"; do
-      output+="\t${format}"
-    done
+      for size in "${SIZES[@]}"; do
+        mesh_file=$(eval "echo \${${meshes_var}[$size]}")
 
-    echo -e "$output" > "$res_file"
+        if [[ -v ${meshes_var}[$size] ]]; then
+          mesh_file=$(eval "echo \${${meshes_var}[$size]}")
+        else
+          echo "Key \"${size}\" does not exist in ${meshes_var}, skiping it"
+          continue;
+        fi
 
-    for size in "${SIZES[@]}"; do
-      size_dir="$size"
-      mkdir -p "$size_dir"
-      cd "$size_dir" || exit 1
+        [[ -e "$mesh_file" ]] || error_exit "Mesh file $mesh_file not found."
 
-      # Resolve mesh file name
-      mesh_var="MESH_${dim}D_${size}"
-      mesh_var="${mesh_var^^}" # To upper case
-      mesh_file=${!mesh_var}
+        $accelerated &&  test_name="Test.${dim}D.${ACCELERATOR_RUNTIME}.${mpi_n}-mpi-instance.${size}" || test_name="Test.${dim}D.${mpi_n}-mpi-instance.${size}"
+        mkdir -p "$test_name" && cd "$test_name" || error_exit "Failed to enter $test_name."
 
-      if [ ! -e "$mesh_file" ]; then
-        echo -e "\e[31mMeshfile: \"${mesh_file}\" not found, stop\e[0m"
-        exit
-      fi
+        test_file="${test_name}.arc"
+        replace_placeholders "${!template_var}" "$mesh_file" "$test_file"
+        append_formats "$test_file" "${format_array[@]}"
 
-      template_var="TEMPLATE_FILENAME_${dim}D"
+        echo -n "Starting ${test_file}... "
+        run_test "$EXECUTABLE" "$test_file" "$mpi_n" $accelerated "$CACHE_WARMING" || error_exit "\nTest $test_file failed."
+        mv "./output/listing/time_stats.json" "./"
+        python "$PYTHON_SCRIPT" "./time_stats.json" "BuildMatrix,AddAndCompute" > "brief.txt" || error_exit "An error occured in ${PYTHON_SCRIPT}."
+        process_results "./brief.txt" "../$res_file" "${all_format_array[@]}"
+        clear_output
+        echo "Done"
 
-      # Run CPU test
-      mkdir -p "cpu"
-      cd "cpu" || exit 1
-
-      test_filename="Test.${dim}D.${cpu_n}-mpi-instance.${size}.accelerator-disable.arc"
-      sed "s|MESH_FILE|${mesh_file}|g" "${!template_var}" > "$test_filename" # Replace mesh filename in template
-
-      for format in "${CPU_FORMATS[@]}" "${GPU_FORMATS[@]}"; do # Add formats in template
-        sed -i "/<!-- FORMATS -->/a \\
-        <${format}>true</$format>" "$test_filename"
+        cd "../" || error_exit "Failed to return to size directory."
       done
-
-      launchTestCpu "$test_filename" "$cpu_n" "../../$res_file"
-      clearTest
-
-      cd "../" # Back to size directory
-
-      # Run GPU test, do the same as for CPU
-      mkdir -p "gpu"
-      cd "gpu" || exit 1
-
-      test_filename="Test.${dim}D.${cpu_n}-mpi-instance.${size}.accelerator-enable.arc"
-      sed "s|MESH_FILE|${mesh_file}|g" "${!template_var}" > "$test_filename"
-
-      for format in "${GPU_FORMATS[@]}"; do
-        sed -i "/<!-- FORMATS -->/a \\
-        <${format}>true</$format>" "$test_filename"
-      done
-
-      launchTestGpu "$test_filename" "$cpu_n" "../../$res_file"
-      clearTest
-
-      cd "../" # Back to size directory
-      cd "../" # Back to mpi-instance directory
+      cd "../" || error_exit "Failed to return to mpi-instance directory."
     done
-    cd "../" # Back to dimension directory
   done
-  cd "../" # Back to working directory
+  cd "../" || error_exit "Failed to return to dimension directory."
 done
+
