@@ -201,6 +201,13 @@ for dim in "${DIMENSIONS[@]}"; do
       for size in "${SIZES[@]}"; do
         mesh_file=$(eval "echo \${${meshes_var}[$size]}")
 
+        if [[ -v ${meshes_var}[$size] ]]; then
+          mesh_file=$(eval "echo \${${meshes_var}[$size]}")
+        else
+          echo "Key \"${size}\" does not exist in ${meshes_var}, skiping it"
+          continue;
+        fi
+
         [[ -e "$mesh_file" ]] || error_exit "Mesh file $mesh_file not found."
 
         $accelerated &&  test_name="Test.${dim}D.${ACCELERATOR_RUNTIME}.${mpi_n}-mpi-instance.${size}" || test_name="Test.${dim}D.${mpi_n}-mpi-instance.${size}"
