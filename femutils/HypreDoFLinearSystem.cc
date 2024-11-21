@@ -17,6 +17,7 @@
 #include <arcane/utils/NumArray.h>
 #include <arcane/utils/PlatformUtils.h>
 #include <arcane/utils/ITraceMng.h>
+#include <arcane/utils/MemoryUtils.h>
 
 #include <arcane/core/VariableTypes.h>
 #include <arcane/core/IItemFamily.h>
@@ -25,6 +26,7 @@
 #include <arcane/core/IParallelMng.h>
 #include <arcane/core/ItemPrinter.h>
 #include <arcane/core/Timer.h>
+#include <arcane/core/VariableUtils.h>
 
 #include <arcane/accelerator/core/Runner.h>
 #include <arcane/accelerator/core/Memory.h>
@@ -155,7 +157,7 @@ class HypreDoFLinearSystemImpl
   {
   }
 
-  void clearValues()
+  void clearValues() override
   {
     info() << "Clear values";
     m_csr_view = {};
@@ -168,7 +170,7 @@ class HypreDoFLinearSystemImpl
   bool hasSetCSRValues() const override { return true; }
 
   void setRunner(Runner* r) override { m_runner = r; }
-  Runner* runner() const { return m_runner; }
+  Runner* runner() const override { return m_runner; }
 
   void setMaxIter(Int32 v) { m_max_iter = v; }
   void setVerbosityLevel(Int32 v) { m_verbosity = v; }
@@ -257,6 +259,17 @@ _computeMatrixNumerotation()
   m_result_work_values.resize(nb_own_row);
 }
 
+namespace
+{
+template<typename DataType>
+void _doCopy(NumArray<DataType,MDDim1>& num_array,Span<const DataType> rhs,RunQueue* q)
+{
+  num_array.resize(rhs.size());
+  MemoryUtils::copy(num_array.to1DSpan(),rhs,q);
+}
+
+}
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -286,7 +299,7 @@ solve()
   bool is_use_device = false;
   if (m_runner) {
     is_use_device = isAcceleratorPolicy(m_runner->executionPolicy());
-    info() << "Runner for Hypre=" << m_runner->executionPolicy() << " is_device=" << is_use_device;
+    info() << "Runner for Hypre=" << m_runner->executionPolicy() << " wanted_is_device=" << is_use_device;
   }
 
   // Si HYPRE n'est pas compilé avec le support GPU, alors on utilise l'hôte.
@@ -295,8 +308,10 @@ solve()
   // TODO: détecter la cohérence entre le GPU de Hypre et le notre (.i.e les deux
   // utilisent CUDA ou ROCM)
 #ifndef HYPRE_USING_GPU
-  if (is_use_device)
+  if (is_use_device) {
     info() << "Hypre is not compiled with GPU support. Using host backend";
+    is_use_device = false;
+  }
 #endif
 
 #if HYPRE_RELEASE_NUMBER >= 22700
@@ -317,6 +332,19 @@ solve()
     HYPRE_SetUseGpuRand(true);
   }
 #endif
+
+  // Memory ressource used to copy values on device
+  bool is_use_device_memory = false;
+  eMemoryRessource mem_ressource = eMemoryRessource::Host;
+  // Change to 'false' if we do not want to copy to device memory
+  // In this case it will use UVM.
+  const bool want_use_device_memory = true;
+  if (is_use_device && want_use_device_memory) {
+    mem_ressource = eMemoryRessource::Device;
+    is_use_device_memory = true;
+  }
+
+  info() << "HypreInfo: is_device?=" << is_use_device << " use_device_memory?=" << is_use_device_memory;
 
   /* use hypre's GPU memory pool */
   //HYPRE_SetGPUMemoryPoolSize(bin_growth, min_bin, max_bin, max_bytes);
@@ -419,13 +447,38 @@ solve()
 
   // Prefetch the memory to the Device to make sure we are using
   // Device memory and not host memory when using UVM
-  if (is_use_device){
+  NumArray<Int32, MDDim1> na_rows_nb_column_data(mem_ressource);
+  NumArray<Int32, MDDim1> na_rows_index(mem_ressource);
+  NumArray<Int32, MDDim1> na_columns_index(mem_ressource);
+  NumArray<Real, MDDim1> na_matrix_values(mem_ressource);
+
+  const Int32* rows_index_data = rows_index_span.data();
+  const Int32* columns_index_data = columns_index_span.data();
+  const Real* matrix_values_data = matrix_values.data();
+
+  RunQueue q = makeQueue(m_runner);
+
+  if (is_use_device) {
     info() << "Prefetching memory for 'Hypre'";
-    RunQueue q = makeQueue(m_runner);
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(m_csr_view.rowsNbColumn())).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(rows_index_span)).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(columns_index_span)).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(matrix_values)).addAsync());
+
+    VariableUtils::prefetchVariableAsync(m_rhs_variable, &q);
+    VariableUtils::prefetchVariableAsync(m_dof_variable, &q);
+  }
+  if (is_use_device && is_use_device_memory) {
+    _doCopy(na_rows_nb_column_data, m_csr_view.rowsNbColumn(), &q);
+    _doCopy(na_rows_index, rows_index_span, &q);
+    _doCopy(na_columns_index, columns_index_span, &q);
+    _doCopy(na_matrix_values, matrix_values, &q);
+
+    rows_nb_column_data = na_rows_nb_column_data.to1DSpan().data();
+    rows_index_data = na_rows_index.to1DSpan().data();
+    columns_index_data = na_columns_index.to1DSpan().data();
+    matrix_values_data = na_matrix_values.to1DSpan().data();
+
     q.barrier();
   }
 
@@ -435,9 +488,9 @@ solve()
     HYPRE_IJMatrixSetValues(ij_A,
                             nb_local_row,
                             rows_nb_column_data,
-                            rows_index_span.data(),
-                            columns_index_span.data(),
-                            matrix_values.data());
+                            rows_index_data,
+                            columns_index_data,
+                            matrix_values_data);
 
     HYPRE_IJMatrixAssemble(ij_A);
     HYPRE_IJMatrixGetObject(ij_A, (void**)&parcsr_A);
@@ -475,13 +528,23 @@ solve()
   HYPRE_IJVectorInitialize(ij_vector_x);
 #endif
 
+  const Real* rhs_data = m_rhs_variable.asArray().data();
+  const Real* result_data = m_dof_variable.asArray().data();
+  NumArray<Real, MDDim1> na_rhs_values(mem_ressource);
+  NumArray<Real, MDDim1> na_result_values(mem_ressource);
+  if (is_use_device) {
+    _doCopy(na_rhs_values, Span<const Real>(m_rhs_variable.asArray()), &q);
+    rhs_data = na_rhs_values.to1DSpan().data();
+    na_result_values.resize(m_dof_variable.asArray().size());
+  }
+
   Real v1 = platform::getRealTime();
   hypreCheck("HYPRE_IJVectorSetValues",
-             HYPRE_IJVectorSetValues(ij_vector_b, nb_local_row, rows_index_span.data(),
+             HYPRE_IJVectorSetValues(ij_vector_b, nb_local_row, rows_index_data,
                                      m_rhs_variable.asArray().data()));
 
   hypreCheck("HYPRE_IJVectorSetValues",
-             HYPRE_IJVectorSetValues(ij_vector_x, nb_local_row, rows_index_span.data(),
+             HYPRE_IJVectorSetValues(ij_vector_x, nb_local_row, rows_index_data,
                                      m_dof_variable.asArray().data()));
 
   hypreCheck("HYPRE_IJVectorAssemble",
@@ -510,6 +573,10 @@ solve()
     Timer::Action ta1(tstat, "HypreSetPrecond");
     /* setup AMG */
     HYPRE_ParCSRPCGCreate(mpi_comm, &solver);
+
+    info() << "Info Hypre: AmgCoarsener=" << m_amg_coarsener;
+    info() << "Info Hypre: AmgInterpType=" << m_amg_interp_type;
+    info() << "Info Hypre: AmgSmoother=" << m_amg_smoother;
 
     /* Set some parameters (See Reference Manual for more parameters) */
     HYPRE_PCGSetMaxIter(solver, m_max_iter); /* max iterations */
