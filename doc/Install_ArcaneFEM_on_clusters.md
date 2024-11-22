@@ -252,9 +252,9 @@ _OTF2_PATH="/ccc/products/otf2-2.3/nvidia--22.2__openmpi--4.0.1/default"
 _PETSC_PATH="/ccc/products/petsc-3.17.4/gcc--11.1.0__openmpi--4.0.1/default"
 
 HYPRE_PATH="/ccc/work/${TOPAZ_PROJECT}/${TOPAZ_USERNAME}/ArcaneFEM/hypre/2.29.0/gpu"
-PARMETIS_PATH="/ccc/work/${TOPAZ_PROJECT}/${TOPAZ_USERNAME}/parmetis/4.0.3-ompi405"
+PARMETIS_PATH="/ccc/work/${TOPAZ_PROJECT}/${TOPAZ_USERNAME}/ArcaneFEM/parmetis/4.0.3-ompi405"
 
-COMMON_CMAKE_PREFIX_PATH="${_HWLOC_PATH};${_OTF2_PATH};${_PARMETIS_PATH};${_PETSC_PATH};${HYPRE_PATH};${PARMETIS_PATH}"
+COMMON_CMAKE_PREFIX_PATH="${_HWLOC_PATH};${_OTF2_PATH};${_PETSC_PATH};${HYPRE_PATH};${PARMETIS_PATH}"
 
 export CXX=`which c++`
 export CC=`which gcc`
@@ -324,9 +324,9 @@ _OTF2_PATH="/ccc/products/otf2-2.3/nvidia--22.2__openmpi--4.0.1/default"
 _PETSC_PATH="/ccc/products/petsc-3.17.4/gcc--11.1.0__openmpi--4.0.1/default"
 
 HYPRE_PATH="/ccc/work/${TOPAZ_PROJECT}/${TOPAZ_USERNAME}/ArcaneFEM/hypre/2.29.0/gpu"
-PARMETIS_PATH="/ccc/work/${TOPAZ_PROJECT}/${TOPAZ_USERNAME}/parmetis/4.0.3-ompi405"
+PARMETIS_PATH="/ccc/work/${TOPAZ_PROJECT}/${TOPAZ_USERNAME}/ArcaneFEM/parmetis/4.0.3-ompi405"
 
-COMMON_CMAKE_PREFIX_PATH="${_HWLOC_PATH};${_OTF2_PATH};${_PARMETIS_PATH};${_PETSC_PATH};${HYPRE_PATH};${PARMETIS_PATH};${ARCANE_DIR}"
+COMMON_CMAKE_PREFIX_PATH="${_HWLOC_PATH};${_OTF2_PATH};${_PETSC_PATH};${HYPRE_PATH};${PARMETIS_PATH};${ARCANE_DIR}"
 
 cmake -S ${SOURCE_DIR} -B ${BUILD_DIR}  -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=${COMMON_CMAKE_PREFIX_PATH}
 ```
