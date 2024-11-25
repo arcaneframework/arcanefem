@@ -292,7 +292,7 @@ _doStationarySolve()
     m_linear_system.clearValues();
     (this->*assembly_fun)();
     if (m_cache_warming != 1)
-      m_time_stats->resetStats("AssembleBilinearOperator_Coo_GPU");
+      m_time_stats->resetStats("AssembleBilinearOperator_Coo_Gpu");
     for (auto i = 1; i < m_cache_warming; ++i) {
       m_linear_system.clearValues();
       (this->*assembly_fun)();
@@ -304,7 +304,7 @@ _doStationarySolve()
     m_linear_system.clearValues();
     (this->*assembly_fun)();
     if (m_cache_warming != 1)
-      m_time_stats->resetStats("AssembleBilinearOperator_CooSort_GPU");
+      m_time_stats->resetStats("AssembleBilinearOperator_CooSort_Gpu");
     for (auto i = 1; i < m_cache_warming; ++i) {
       m_linear_system.clearValues();
       (this->*assembly_fun)();
@@ -316,7 +316,7 @@ _doStationarySolve()
     m_linear_system.clearValues();
     (this->*assembly_fun)();
     if (m_cache_warming != 1)
-      m_time_stats->resetStats("AssembleBilinearOperator_Csr_GPU");
+      m_time_stats->resetStats("AssembleBilinearOperator_Csr_Gpu");
     for (auto i = 1; i < m_cache_warming; ++i) {
       m_linear_system.clearValues();
       (this->*assembly_fun)();
