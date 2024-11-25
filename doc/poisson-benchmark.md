@@ -13,15 +13,15 @@ $ ./run-benchmark.sh
 
 The results are saved in a `results.tsv` file, which can be visualized using the `plot-results.sh` script. The script's usage is as follows:
 ```bash
-Usage: plot-results.sh <file> <mpi-n> <cache-warming> <dimension> [-cpu | -gpu]
+Usage: plot-results.sh <file>
 ```
 For example, the command
 ```bash
-$ ./plot-results.sh results.tsv 1 10 2D -cpu
+$ ./plot-results.sh benchmark-output/3D/1-mpi-instance/results.tsv
 ```
 Will generate one plot for tests without accelerator support.
 
-Each plot includes a title containing the parameters used for the test (based on the command-line arguments).
+Each plot includes a title containing the parameters used for the test (based on the path of the file).
 
 ### Editing the Benchmark
 
