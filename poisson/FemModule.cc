@@ -183,13 +183,11 @@ _handleFlags()
     m_use_legacy = false;
     info() << "CSR: The CSR datastructure and its associated methods will be used";
   }
-#ifdef ARCANE_HAS_ACCELERATOR
   if (parameter_list.getParameterOrNull("CSR_GPU") == "TRUE" || options()->csrGpu()) {
     m_use_csr_gpu = true;
     m_use_legacy = false;
     info() << "CSR_GPU: The CSR datastructure GPU compatible and its associated methods will be used";
   }
-#endif
   if (parameter_list.getParameterOrNull("NWCSR") == "TRUE" || options()->nwcsr()) {
     m_use_nodewise_csr = true;
     m_use_legacy = false;
