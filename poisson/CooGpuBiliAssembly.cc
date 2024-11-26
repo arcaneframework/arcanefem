@@ -1,4 +1,4 @@
-// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
 // Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
@@ -84,14 +84,14 @@ void FemModule::_buildMatrixCooGPU()
   Int32 nb_non_zero = nb_edge * 2 + nbNode();
   m_coo_matrix.initialize(m_dof_family, nb_non_zero);
 
-  RunQueue* queue = acceleratorMng()->defaultQueue();
-  auto command = makeCommand(queue);
+  RunQueue queue = *(acceleratorMng()->defaultQueue());
+  //auto command = makeCommand(queue);
 
   UnstructuredMeshConnectivityView m_connectivity_view;
   m_connectivity_view.setMesh(mesh());
 
-  auto inout_m_matrix_row = viewInOut(command, m_coo_matrix.m_matrix_row);
-  auto inout_m_matrix_column = viewInOut(command, m_coo_matrix.m_matrix_column);
+  auto inout_m_matrix_row = viewInOut(queue, m_coo_matrix.m_matrix_row);
+  auto inout_m_matrix_column = viewInOut(queue, m_coo_matrix.m_matrix_column);
 
   if (mesh_dim == 2) {
 
@@ -110,12 +110,12 @@ void FemModule::_buildMatrixCooGPU()
         in_data[node_id] = node_face_connectivity_view.nbFace(node_id) + 1;
       };
     }
-    queue->barrier();
+    queue.barrier();
 
     NumArray<uint, MDDim1> copy_output_data(nbNode());
     SmallSpan<uint> out_data = copy_output_data.to1DSmallSpan();
     Accelerator::Scanner<uint> scanner;
-    scanner.exclusiveSum(queue, in_data, out_data);
+    scanner.exclusiveSum(&queue, in_data, out_data);
 
     auto face_node_connectivity_view = connectivity_view.faceNode();
 
@@ -159,11 +159,9 @@ void FemModule::_buildMatrixCooGPU()
 
     _fillDiagonal(nb_edge, allNodes()); */
   }
-  else if (options()
-           ->createEdges()) { // 3D mesh without node-node connectivity
+  else if (options()->createEdges()) { // 3D mesh without node-node connectivity
 
-    info()
-    << "_buildMatrixCooSortGPU for 3D mesh with edge-node connectivity";
+    info() << "_buildMatrixCooSortGPU for 3D mesh with edge-node connectivity";
     NumArray<uint, MDDim1> neighbors(nbNode());
     SmallSpan<uint> in_data = neighbors.to1DSmallSpan();
 
@@ -177,12 +175,12 @@ void FemModule::_buildMatrixCooGPU()
         in_data[node_id] = node_edge_connectivity_view.nbEdge(node_id) + 1;
       };
     }
-    queue->barrier();
+    queue.barrier();
 
     NumArray<uint, MDDim1> copy_output_data(nbNode());
     SmallSpan<uint> out_data = copy_output_data.to1DSmallSpan();
     Accelerator::Scanner<uint> scanner;
-    scanner.exclusiveSum(queue, in_data, out_data);
+    scanner.exclusiveSum(&queue, in_data, out_data);
 
     auto edge_node_connectivity_view = connectivity_view.edgeNode();
 
@@ -235,7 +233,7 @@ void FemModule::_buildMatrixCooGPU()
     // We allow the use of the accelerated algorithm only if the user provides
     // an accelerator runtime. On Cpu, the not-accelerated version is faster.
 
-    if (queue->isAcceleratorPolicy()) {
+    if (queue.isAcceleratorPolicy()) {
       info() << "Using accelerated version of _buildMatrixCooGPU for 3D mesh "
                 "with node-node connectivity";
 
@@ -243,13 +241,16 @@ void FemModule::_buildMatrixCooGPU()
       // (type uint is enough for counting neighbors).
       NumArray<uint, MDDim1> nb_neighbor_arr;
       nb_neighbor_arr.resize(nbNode());
-      auto inout_nb_neighbor_arr = viewInOut(command, nb_neighbor_arr);
-
-      command << RUNCOMMAND_ENUMERATE(Node, node_idx, allNodes())
       {
-        inout_nb_neighbor_arr[node_idx] = nn_cv.nbNode(node_idx) + 1;
-        // We add 1 to count the node's relation with itself.
-      };
+        auto command = makeCommand(queue);
+        auto inout_nb_neighbor_arr = viewInOut(command, nb_neighbor_arr);
+
+        command << RUNCOMMAND_ENUMERATE(Node, node_idx, allNodes())
+        {
+          inout_nb_neighbor_arr[node_idx] = nn_cv.nbNode(node_idx) + 1;
+          // We add 1 to count the node's relation with itself.
+        };
+      }
 
       // Do the exclusive cumulative sum of the neighbors array
       SmallSpan<uint> input = nb_neighbor_arr.to1DSmallSpan();
@@ -257,22 +258,25 @@ void FemModule::_buildMatrixCooGPU()
       tmp_output.resize(nbNode());
       SmallSpan<uint> output = tmp_output.to1DSmallSpan();
       Accelerator::Scanner<uint> scanner;
-      scanner.exclusiveSum(queue, input, output);
+      scanner.exclusiveSum(&queue, input, output);
 
       // Fill the neighbors relation (including node with itself) into the matrix
-      command << RUNCOMMAND_ENUMERATE(Node, node_idx, allNodes())
       {
-        Int32 offset = output[node_idx];
+        auto command = makeCommand(queue);
+        command << RUNCOMMAND_ENUMERATE(Node, node_idx, allNodes())
+        {
+          Int32 offset = output[node_idx];
 
-        for (NodeLocalId other_node_idx : nn_cv.nodeIds(node_idx)) {
+          for (NodeLocalId other_node_idx : nn_cv.nodeIds(node_idx)) {
+            inout_m_matrix_row[offset] = node_idx;
+            inout_m_matrix_column[offset] = other_node_idx;
+            ++offset;
+          }
+
           inout_m_matrix_row[offset] = node_idx;
-          inout_m_matrix_column[offset] = other_node_idx;
-          ++offset;
-        }
-
-        inout_m_matrix_row[offset] = node_idx;
-        inout_m_matrix_column[offset] = node_idx;
-      };
+          inout_m_matrix_column[offset] = node_idx;
+        };
+      }
     }
     else {
       info() << "Using unaccelerated version of _buildMatrixCooGPU for 3D mesh "
