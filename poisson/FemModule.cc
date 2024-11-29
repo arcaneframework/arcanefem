@@ -107,6 +107,12 @@ startInit()
 {
   info() << "Module Fem INIT";
 
+  m_queue = *(acceleratorMng()->defaultQueue());
+  // When everything will be available on the GPU we will be able to
+  // use device memory.
+  //if (m_queue.isAcceleratorPolicy())
+  //m_queue.setMemoryRessource(eMemoryRessource::Device);
+
   {
     IMesh* mesh = defaultMesh();
     // If we do not create edges, we need to create custom connectivity
@@ -231,7 +237,7 @@ void FemModule::
 _doStationarySolve()
 {
   Timer::Action timer_action(m_time_stats, "StationarySolve");
-
+  Accelerator::ProfileRegion ps1(m_queue, "StationarySolve", 0xFF00FF);
   _getMaterialParameters();
 
   auto dim = mesh()->dimension();
@@ -351,7 +357,7 @@ _doStationarySolve()
     _assembleCsrGpuLinearOperator();
     {
       Timer::Action timer_action(m_time_stats, "TranslateToLinearSystem");
-      m_csr_matrix.translateToLinearSystem(m_linear_system);
+      m_csr_matrix.translateToLinearSystem(m_linear_system, m_queue);
     }
     _translateRhs();
   }

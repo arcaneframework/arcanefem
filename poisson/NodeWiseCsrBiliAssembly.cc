@@ -142,7 +142,7 @@ _buildMatrixNodeWiseCsr()
 
   Int32 nb_node = nbNode();
   Int32 nb_non_zero = nb_node + 2 * (mesh_dim == 2 ? nbFace() : m_nb_edge);
-  m_csr_matrix.initialize(m_dof_family, nb_non_zero, nb_node);
+  m_csr_matrix.initialize(m_dof_family, nb_non_zero, nb_node, m_queue);
 
   NumArray<uint, MDDim1> offsets_numarray(nb_node + 1);
   SmallSpan<uint> offsets_smallspan = offsets_numarray.to1DSmallSpan();

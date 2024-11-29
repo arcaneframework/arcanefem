@@ -35,12 +35,14 @@ class CsrFormat
 {
  public:
 
-  CsrFormat(ISubDomain* sd)
-  : TraceAccessor(sd->traceMng())
+  explicit CsrFormat(ITraceMng* tm)
+  : TraceAccessor(tm)
   {
   }
 
-  void initialize(IItemFamily* dof_family, Int32 nnz, Int32 nbRow);
+ public:
+
+  void initialize(IItemFamily* dof_family, Int32 nnz, Int32 nbRow, RunQueue& queue);
 
   /**
    * @brief
@@ -85,7 +87,7 @@ class CsrFormat
    *
    * @param linear_system
    */
-  void translateToLinearSystem(DoFLinearSystem& linear_system);
+  void translateToLinearSystem(DoFLinearSystem& linear_system, const RunQueue& queue);
 
   /**
    * @brief function to print the current content of the csr matrix

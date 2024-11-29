@@ -44,6 +44,7 @@
 
 //include for GPU use
 #include "arcane/accelerator/core/IAcceleratorMng.h"
+#include "arcane/accelerator/core/ProfileRegion.h"
 #include "arcane/accelerator/Accelerator.h"
 #include "arcane/accelerator/core/RunQueue.h"
 #include "arcane/accelerator/Atomic.h"
@@ -119,7 +120,7 @@ class FemModule
   : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
   , m_coo_matrix(mbi.subDomain())
-  , m_csr_matrix(mbi.subDomain())
+  , m_csr_matrix(mbi.subDomain()->traceMng())
   , m_time_stats(mbi.subDomain()->timeStats())
   {
     ICaseMng* cm = mbi.subDomain()->caseMng();
@@ -191,6 +192,9 @@ class FemModule
 
   //! Number of edges (only for 3D meshes)
   Int64 m_nb_edge = -1;
+
+  //! Default queue used for computation.
+  RunQueue m_queue;
 
  private:
 

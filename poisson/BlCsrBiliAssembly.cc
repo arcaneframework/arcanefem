@@ -33,7 +33,7 @@ _buildMatrixBuildLessCsr()
     ARCANE_THROW(NotImplementedException, "");
 
   Int32 nnz = nedge * 2 + nbnde;
-  m_csr_matrix.initialize(m_dof_family, nnz, nbnde);
+  m_csr_matrix.initialize(m_dof_family, nnz, nbnde, m_queue);
 
   Integer index = 1;
   m_csr_matrix.m_matrix_row(0) = 0;
@@ -77,7 +77,7 @@ void FemModule::_buildMatrixGpuBuildLessCsr()
 
   NumArray<Int32, MDDim1> tmp_row;
   tmp_row.resize(nbnde);
-  m_csr_matrix.initialize(m_dof_family, nnz, nbnde);
+  m_csr_matrix.initialize(m_dof_family, nnz, nbnde, m_queue);
 
   RunQueue* queue = acceleratorMng()->defaultQueue();
   auto command = makeCommand(queue);
