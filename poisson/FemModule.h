@@ -119,7 +119,7 @@ class FemModule
   explicit FemModule(const ModuleBuildInfo& mbi)
   : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
-  , m_coo_matrix(mbi.subDomain())
+  , m_coo_matrix(mbi.subDomain()->traceMng())
   , m_csr_matrix(mbi.subDomain()->traceMng())
   , m_time_stats(mbi.subDomain()->timeStats())
   {
