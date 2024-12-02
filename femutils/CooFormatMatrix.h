@@ -16,6 +16,8 @@
 #include <arcane/VariableTypes.h>
 #include <arcane/IItemFamily.h>
 
+#include <arcane/accelerator/core/RunQueue.h>
+
 #include <arcane/aleph/AlephTypesSolver.h>
 #include <arcane/aleph/Aleph.h>
 
@@ -37,20 +39,26 @@ class CooFormat : TraceAccessor
 {
  public:
 
-  CooFormat(ISubDomain* sd)
-  : TraceAccessor(sd->traceMng())
+  explicit CooFormat(ITraceMng* tm)
+  : TraceAccessor(tm)
   {
     info() << "Creating COO Matrix";
   }
 
-  void initialize(IItemFamily* dof_family, Int32 nnz)
+  void initialize(IItemFamily* dof_family, Int32 nnz, RunQueue& queue)
   {
+
+    eMemoryRessource mem_ressource = queue.memoryRessource();
+    m_matrix_row = NumArray<Int32, MDDim1>(mem_ressource);
+    m_matrix_column = NumArray<Int32, MDDim1>(mem_ressource);
+    m_matrix_value = NumArray<Real, MDDim1>(mem_ressource);
+
     m_matrix_row.resize(nnz);
     m_matrix_column.resize(nnz);
     m_matrix_value.resize(nnz);
-    m_matrix_row.fill(0);
-    m_matrix_column.fill(0);
-    m_matrix_value.fill(0);
+    m_matrix_row.fill(0, &queue);
+    m_matrix_column.fill(0, &queue);
+    m_matrix_value.fill(0, &queue);
     m_dof_family = dof_family;
     m_last_value = 0;
     m_nnz = nnz;

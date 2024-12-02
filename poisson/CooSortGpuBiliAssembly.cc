@@ -36,7 +36,7 @@ void FemModule::_buildMatrixCooSortGPU()
 
   Int64 nb_edge = (mesh_dim == 2) ? nbFace() : m_nb_edge;
   Int32 nb_non_zero = nb_edge * 2 + nbNode();
-  m_coo_matrix.initialize(m_dof_family, nb_non_zero);
+  m_coo_matrix.initialize(m_dof_family, nb_non_zero, m_queue);
 
   RunQueue* queue = acceleratorMng()->defaultQueue();
   auto command = makeCommand(queue);

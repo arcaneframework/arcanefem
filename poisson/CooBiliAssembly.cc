@@ -31,7 +31,7 @@ void FemModule::_buildMatrixCoo()
   Int8 mesh_dim = mesh()->dimension();
   Int64 nbEdge = mesh_dim == 3 ? m_nb_edge : nbFace();
   Int32 nnz = nbEdge * 2 + nbNode();
-  m_coo_matrix.initialize(m_dof_family, nnz);
+  m_coo_matrix.initialize(m_dof_family, nnz, m_queue);
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   if (mesh_dim == 2) {
