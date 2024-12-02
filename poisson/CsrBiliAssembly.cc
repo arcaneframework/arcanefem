@@ -52,7 +52,7 @@ _buildMatrixCsr()
 
   Int32 nnz = nedge * 2 + nbnde;
 
-  m_csr_matrix.initialize(m_dof_family, nnz, nbNode());
+  m_csr_matrix.initialize(m_dof_family, nnz, nbNode(), m_queue);
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   //We iterate through the node, and we do not sort anymore : we assume the nodes ID are sorted, and we will iterate throught the column to avoid making < and > comparison
   if (mesh_dim == 2) {

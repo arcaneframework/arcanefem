@@ -72,7 +72,7 @@ _buildMatrixCsrGPU()
 
   Int32 nb_node = nbNode();
   Int32 nb_non_zero = nb_node + 2 * (mesh_dim == 2 ? nbFace() : m_nb_edge);
-  m_csr_matrix.initialize(m_dof_family, nb_non_zero, nb_node);
+  m_csr_matrix.initialize(m_dof_family, nb_non_zero, nb_node, m_queue);
 
   NumArray<uint, MDDim1> offsets_numarray(nb_node + 1);
   SmallSpan<uint> offsets_smallspan = offsets_numarray.to1DSmallSpan();
@@ -265,8 +265,7 @@ _assembleCsrGPUBilinearOperatorTETRA4()
   }
 
   {
-    RunQueue* queue = acceleratorMng()->defaultQueue();
-    auto command = makeCommand(queue);
+    auto command = makeCommand(m_queue);
 
     Int32 row_csr_size = m_csr_matrix.m_matrix_row.extent0();
     Int32 col_csr_size = m_csr_matrix.m_matrix_column.extent0();
@@ -283,7 +282,7 @@ _assembleCsrGPUBilinearOperatorTETRA4()
     ItemGenericInfoListView nodes_infos(mesh()->nodeFamily());
 
     Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
-
+    ax::ProfileRegion ps_region(m_queue,"AddAndComputeBilinearTetra4",0x00FF7F);
     command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
     {
 
