@@ -115,9 +115,7 @@ startInit()
 
   {
     IMesh* mesh = defaultMesh();
-    // If we do not create edges, we need to create custom connectivity
-    // to store the neighbours node of a node
-    if (mesh->dimension() == 3 && !options()->createEdges()) {
+    if (mesh->dimension() == 3) {
       m_node_node_via_edge_connectivity = MeshUtils::computeNodeNodeViaEdgeConnectivity(defaultMesh(), "NodeNodeViaEdge");
       m_node_node_via_edge_connectivity->connectivity()->dumpStats(std::cout);
       std::cout << "\n";
@@ -1765,11 +1763,6 @@ _solve()
 void FemModule::
 _build()
 {
-  Connectivity c(mesh()->connectivity());
-  if (options()->meshType == "TETRA4" && options()->createEdges()) {
-    info() << "Adding edge connectivity";
-    c.enableConnectivity(Connectivity::CT_HasEdge);
-  }
 }
 
 /*---------------------------------------------------------------------------*/
