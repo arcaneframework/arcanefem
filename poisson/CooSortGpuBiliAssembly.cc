@@ -94,56 +94,7 @@ void FemModule::_buildMatrixCooSortGPU()
       };
     }
   }
-  else if (options()
-           ->createEdges()) { // 3D mesh without node-node connectivity
-
-    info()
-    << "_buildMatrixCooSortGPU for 3D mesh with edge-node connectivity";
-    NumArray<uint, MDDim1> neighbors(nbNode());
-    SmallSpan<uint> in_data = neighbors.to1DSmallSpan();
-
-    UnstructuredMeshConnectivityView connectivity_view(mesh());
-    auto node_edge_connectivity_view = connectivity_view.nodeEdge();
-
-    {
-      auto command = makeCommand(queue);
-      command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
-      {
-        in_data[node_id] = node_edge_connectivity_view.nbEdge(node_id) + 1;
-      };
-    }
-    queue->barrier();
-
-    NumArray<uint, MDDim1> copy_output_data(nbNode());
-    SmallSpan<uint> out_data = copy_output_data.to1DSmallSpan();
-    Accelerator::Scanner<uint> scanner;
-    scanner.exclusiveSum(queue, in_data, out_data);
-
-    auto edge_node_connectivity_view = connectivity_view.edgeNode();
-
-    {
-      auto command = makeCommand(queue);
-      // Fill the neighbors relation (including node with itself) into the
-      // matrix
-      command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
-      {
-        Int32 offset = out_data[node_id];
-
-        for (auto edge_id : node_edge_connectivity_view.edgeIds(node_id)) {
-          auto nodes = edge_node_connectivity_view.nodes(edge_id);
-          inout_m_matrix_row[offset] = node_id;
-          inout_m_matrix_column[offset] =
-          nodes[0] == node_id ? nodes[1] : nodes[0];
-          ++offset;
-        }
-
-        inout_m_matrix_row[offset] = node_id;
-        inout_m_matrix_column[offset] = node_id;
-      };
-    }
-  }
   else { // 3D mesh with node-node connectivity
-
     auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
     ARCANE_CHECK_POINTER(connectivity_ptr);
     IndexedNodeNodeConnectivityView nn_cv = connectivity_ptr->view();

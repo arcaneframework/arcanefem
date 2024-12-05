@@ -94,14 +94,6 @@ void FemModule::_buildMatrixGpuBuildLessCsr()
       in_out_tmp_row[index] = nfc.nbFace(inode) + 1;
     };
   }
-  else if (options()->createEdges) { // 3D mesh with node-edge connectivity
-    auto nfc = connectivity_view.nodeEdge();
-    command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
-    {
-      Int64 index = node_dof.dofId(inode, 0).localId();
-      in_out_tmp_row[index] = nfc.nbEdge(inode) + 1;
-    };
-  }
   else { // 3D mesh via node-node connectivity
     auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
     ARCANE_CHECK_POINTER(connectivity_ptr);

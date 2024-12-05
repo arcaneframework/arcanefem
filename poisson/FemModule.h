@@ -185,8 +185,6 @@ class FemModule
 
   /*!
    * \brief List of nodes connected to an another node via a edge of the a cell.
-   *
-   * This is only used for 3D mesh and only if the option 'create-edges' is not set.
    */
   Ref<IIndexedIncrementalItemConnectivity> m_node_node_via_edge_connectivity;
 

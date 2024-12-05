@@ -75,37 +75,18 @@ _buildMatrixCsr()
     }
   }
   else if (mesh_dim == 3) {
-    bool use_edges = options()->createEdges();
-
-    IndexedNodeNodeConnectivityView nn_cv;
-    if (!use_edges) {
-      // Connectivity should have been build during init (in startInit() entry point)
-      auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
-      ARCANE_CHECK_POINTER(connectivity_ptr);
-      nn_cv = connectivity_ptr->view();
-    }
+    // Connectivity should have been build during init (in startInit() entry point)
+    auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
+    ARCANE_CHECK_POINTER(connectivity_ptr);
+    IndexedNodeNodeConnectivityView nn_cv = connectivity_ptr->view();
 
     ENUMERATE_NODE (inode, allNodes()) {
       Node node = *inode;
       DoFLocalId dof = node_dof.dofId(node, 0);
       //info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(node, 0) << " )";
       m_csr_matrix.setCoordinates(dof, node_dof.dofId(node, 0));
-
-      if (use_edges) {
-        for (Edge edge : node.edges()) {
-          if (edge.nodeId(0) == node.localId()) {
-            //info() << "DEBUG Add: 0 (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(edge.nodeId(1), 0) << " )" << "  edge_uid=" << edge.uniqueId();
-            m_csr_matrix.setCoordinates(dof, node_dof.dofId(edge.nodeId(1), 0));
-          }
-          else {
-            //info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(edge.nodeId(0), 0) << " )" << "  edge_uid=" << edge.uniqueId();
-            m_csr_matrix.setCoordinates(dof, node_dof.dofId(edge.nodeId(0), 0));
-          }
-        }
-      }
-      else
-        for (NodeLocalId other_node : nn_cv.nodeIds(node))
-          m_csr_matrix.setCoordinates(dof, node_dof.dofId(other_node, 0));
+      for (NodeLocalId other_node : nn_cv.nodeIds(node))
+        m_csr_matrix.setCoordinates(dof, node_dof.dofId(other_node, 0));
     }
   }
 }
