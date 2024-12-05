@@ -165,46 +165,46 @@ _handleFlags()
   if (parameter_list.getParameterOrNull("COO") == "TRUE" || options()->coo()) {
     m_use_coo = true;
     m_use_legacy = false;
-    info() << "COO: The COO datastructure and its associated methods will be used";
+    info() << "COO: The COOrdinate data structure is used for sparse matrices";
   }
   if (parameter_list.getParameterOrNull("COO_SORT") == "TRUE" || options()->cooSorting()) {
     m_use_coo_sort = true;
     m_use_legacy = false;
-    info() << "COO_SORT: The COO with sorting datastructure and its associated methods will be used";
+    info() << "COO_SORT: The COOrdinate data structure with SORTing is used for sparse matrices";
   }
   if (parameter_list.getParameterOrNull("COO_GPU") == "TRUE" || options()->cooGpu()) {
     m_use_coo_gpu = true;
     m_use_legacy = false;
-    info() << "COO_GPU: The COO datastructure GPU comptaible and its associated methods will be used";
+    info() << "COO_GPU: The GPU-compatible COOrdinate data structure is used for sparse matrices";
   }
   if (parameter_list.getParameterOrNull("COO_SORT_GPU") == "TRUE" || options()->cooSortingGpu()) {
     m_use_coo_sort_gpu = true;
     m_use_legacy = false;
-    info() << "COO_SORT_GPU: The COO with sorting datastructure GPU comptaible and its associated methods will be used";
+    info() << "COO_SORT_GPU: The GPU-compatible COOrdinate data structure with SORTing is used for sparse matrices";
   }
   if (parameter_list.getParameterOrNull("CSR") == "TRUE" || options()->csr()) {
     m_use_csr = true;
     m_use_legacy = false;
-    info() << "CSR: The CSR datastructure and its associated methods will be used";
+    info() << "CSR: The Compressed Sparse Row data structure is used for sparse matrices";
   }
   if (parameter_list.getParameterOrNull("CSR_GPU") == "TRUE" || options()->csrGpu()) {
     m_use_csr_gpu = true;
     m_use_legacy = false;
-    info() << "CSR_GPU: The CSR datastructure GPU compatible and its associated methods will be used";
+    info() << "CSR_GPU: The GPU-compatible Compressed Sparse Row data structure is used for sparse matrices";
   }
   if (parameter_list.getParameterOrNull("NWCSR") == "TRUE" || options()->nwcsr()) {
     m_use_nodewise_csr = true;
     m_use_legacy = false;
-    info() << "NWCSR: The Csr datastructure (GPU compatible) and its associated methods will be used with computation in a nodewise manner";
+    info() << "NWCSR: The GPU-compatible Compressed Sparse Row data structure is used for sparse matrices with Node-Wise computation";
   }
   if (parameter_list.getParameterOrNull("BLCSR") == "TRUE" || options()->blcsr()) {
     m_use_buildless_csr = true;
     m_use_legacy = false;
-    info() << "BLCSR: The Csr datastructure (GPU compatible) and its associated methods will be used with computation in a nodewise manner with the building phases incorporated in the computation";
+    info() << "BLCSR: The GPU-compatible Compressed Sparse Row (CSR) data structure is used for sparse matrices with Node-Wise computation in a Build Less manner";
   }
   if (parameter_list.getParameterOrNull("LEGACY") == "TRUE" || m_use_legacy || options()->legacy()) {
     m_use_legacy = true;
-    info() << "LEGACY: The Legacy datastructure and its associated methods will be used";
+    info() << "DOK: The Dictionary Of Key ata structure is used for sparse matrices";
   }
   else if (parameter_list.getParameterOrNull("LEGACY") == "FALSE" || options()->legacy()) {
     m_use_legacy = false;
