@@ -73,6 +73,7 @@ compute()
   if (m_global_iteration() > 0)
     subDomain()->timeLoopMng()->stopComputeLoop(true);
 
+  Real TimeStart = platform::getRealTime();
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
 
@@ -94,6 +95,8 @@ compute()
     CommandLineArguments args(string_list);
     m_linear_system.setSolverCommandLineArguments(args);
   }
+  info() << "[ArcaneFem-Timer] Time to initialize linear-system = " << (platform::getRealTime() - TimeStart);
+
   info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
 
   _doStationarySolve();
@@ -105,6 +108,7 @@ compute()
 void FemModule::
 startInit()
 {
+  Real TimeStart;
   info() << "Module Fem INIT";
 
   m_queue = *(acceleratorMng()->defaultQueue());
@@ -116,6 +120,7 @@ startInit()
   {
     IMesh* mesh = defaultMesh();
     if (mesh->dimension() == 3) {
+      TimeStart = platform::getRealTime();
       m_node_node_via_edge_connectivity = MeshUtils::computeNodeNodeViaEdgeConnectivity(defaultMesh(), "NodeNodeViaEdge");
       m_node_node_via_edge_connectivity->connectivity()->dumpStats(std::cout);
       std::cout << "\n";
@@ -127,6 +132,7 @@ startInit()
       }
       m_nb_edge = nb_edge / 2;
       info() << "Using custom node-node via edge connectivity: nb_edge=" << m_nb_edge;
+      info() << "[ArcaneFem-Timer] Time to initialize node-node connectivity view = " << (platform::getRealTime() - TimeStart);
     }
     else {
       m_nb_edge = mesh->nbEdge();
@@ -134,11 +140,16 @@ startInit()
     }
   }
 
+  TimeStart = platform::getRealTime();
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
+  info() << "[ArcaneFem-Timer] Time to initialize DOFs = " << (platform::getRealTime() - TimeStart);
 
   _handleFlags();
+
+  TimeStart = platform::getRealTime();
   _initBoundaryconditions();
+  info() << "[ArcaneFem-Timer] Time to initialize boundary conditions = " << (platform::getRealTime() - TimeStart);
 
   _checkCellType();
 }
@@ -234,9 +245,14 @@ _handleFlags()
 void FemModule::
 _doStationarySolve()
 {
+  Real assemblyTimeStart; // Timer variable
+
   Timer::Action timer_action(m_time_stats, "StationarySolve");
   Accelerator::ProfileRegion ps1(m_queue, "StationarySolve", 0xFF00FF);
+
+  assemblyTimeStart = platform::getRealTime();
   _getMaterialParameters();
+  info() << "[ArcaneFem-Timer] Time to get material parameters = " << (platform::getRealTime() - assemblyTimeStart);
 
   auto dim = mesh()->dimension();
 
@@ -244,112 +260,149 @@ _doStationarySolve()
   if (m_use_legacy) {
     void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleBilinearOperatorTRIA3 : &FemModule::_assembleBilinearOperatorTETRA4;
     m_linear_system.clearValues();
+    assemblyTimeStart = platform::getRealTime();
     (this->*assembly_fun)();
+    info() << "[ArcaneFem-Timer] Time to assemble DOK matrix = " << (platform::getRealTime() - assemblyTimeStart);
     if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_Legacy");
     for (auto i = 1; i < m_cache_warming; ++i) {
       m_linear_system.clearValues();
+      assemblyTimeStart = platform::getRealTime();
       (this->*assembly_fun)();
+      info() << "[ArcaneFem-Timer] Time to assemble DOK matrix = " << (platform::getRealTime() - assemblyTimeStart);
     }
   }
 
   if (m_use_csr) {
     void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCsrBilinearOperatorTRIA3 : &FemModule::_assembleCsrBilinearOperatorTETRA4;
     m_linear_system.clearValues();
+    assemblyTimeStart = platform::getRealTime();
     (this->*assembly_fun)();
+    info() << "[ArcaneFem-Timer] Time to assemble CSR matrix = " << (platform::getRealTime() - assemblyTimeStart);
     if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_Csr");
     for (auto i = 1; i < m_cache_warming; ++i) {
       m_linear_system.clearValues();
+      assemblyTimeStart = platform::getRealTime();
       (this->*assembly_fun)();
+      info() << "[ArcaneFem-Timer] Time to assemble CSR matrix = " << (platform::getRealTime() - assemblyTimeStart);
     }
   }
 
   if (m_use_coo) {
     void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCooBilinearOperatorTRIA3 : &FemModule::_assembleCooBilinearOperatorTETRA4;
     m_linear_system.clearValues();
+    assemblyTimeStart = platform::getRealTime();
     (this->*assembly_fun)();
+    info() << "[ArcaneFem-Timer] Time to assemble COO matrix = " << (platform::getRealTime() - assemblyTimeStart);
     if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_Coo");
     for (auto i = 1; i < m_cache_warming; ++i) {
       m_linear_system.clearValues();
+      assemblyTimeStart = platform::getRealTime();
       (this->*assembly_fun)();
+      info() << "[ArcaneFem-Timer] Time to assemble COO matrix = " << (platform::getRealTime() - assemblyTimeStart);
     }
   }
 
   if (m_use_coo_sort) {
     void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCooSortBilinearOperatorTRIA3 : &FemModule::_assembleCooSortBilinearOperatorTETRA4;
     m_linear_system.clearValues();
+    assemblyTimeStart = platform::getRealTime();
     (this->*assembly_fun)();
+    info() << "[ArcaneFem-Timer] Time to assemble S-COO matrix = " << (platform::getRealTime() - assemblyTimeStart);
     if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_CooSort");
     for (auto i = 1; i < m_cache_warming; ++i) {
       m_linear_system.clearValues();
+      assemblyTimeStart = platform::getRealTime();
       (this->*assembly_fun)();
+      info() << "[ArcaneFem-Timer] Time to assemble S-COO matrix = " << (platform::getRealTime() - assemblyTimeStart);
     }
   }
 
   if (m_use_coo_gpu) {
     void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCooGPUBilinearOperatorTRIA3 : &FemModule::_assembleCooGPUBilinearOperatorTETRA4;
     m_linear_system.clearValues();
+    assemblyTimeStart = platform::getRealTime();
     (this->*assembly_fun)();
+    info() << "[ArcaneFem-Timer] Time to assemble COO_GPU matrix = " << (platform::getRealTime() - assemblyTimeStart);
     if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_Coo_Gpu");
     for (auto i = 1; i < m_cache_warming; ++i) {
       m_linear_system.clearValues();
+      assemblyTimeStart = platform::getRealTime();
       (this->*assembly_fun)();
+      info() << "[ArcaneFem-Timer] Time to assemble COO_GPU matrix = " << (platform::getRealTime() - assemblyTimeStart);
     }
   }
 
   if (m_use_coo_sort_gpu) {
     void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCooSortGPUBilinearOperatorTRIA3 : &FemModule::_assembleCooSortGPUBilinearOperatorTETRA4;
     m_linear_system.clearValues();
+    assemblyTimeStart = platform::getRealTime();
     (this->*assembly_fun)();
+    info() << "[ArcaneFem-Timer] Time to assemble S-COO_GPU matrix = " << (platform::getRealTime() - assemblyTimeStart);
     if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_CooSort_Gpu");
     for (auto i = 1; i < m_cache_warming; ++i) {
       m_linear_system.clearValues();
+      assemblyTimeStart = platform::getRealTime();
       (this->*assembly_fun)();
+      info() << "[ArcaneFem-Timer] Time to assemble S-COO_GPU matrix = " << (platform::getRealTime() - assemblyTimeStart);
     }
   }
 
   if (m_use_csr_gpu) {
     void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCsrGPUBilinearOperatorTRIA3 : &FemModule::_assembleCsrGPUBilinearOperatorTETRA4;
     m_linear_system.clearValues();
+    assemblyTimeStart = platform::getRealTime();
     (this->*assembly_fun)();
+    info() << "[ArcaneFem-Timer] Time to assemble CSR_GPU matrix = " << (platform::getRealTime() - assemblyTimeStart);
     if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_Csr_Gpu");
     for (auto i = 1; i < m_cache_warming; ++i) {
       m_linear_system.clearValues();
+      assemblyTimeStart = platform::getRealTime();
       (this->*assembly_fun)();
+      info() << "[ArcaneFem-Timer] Time to assemble CSR_GPU matrix = " << (platform::getRealTime() - assemblyTimeStart);
     }
   }
 
   if (m_use_nodewise_csr) {
     void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleNodeWiseCsrBilinearOperatorTria3 : &FemModule::_assembleNodeWiseCsrBilinearOperatorTetra4;
     m_linear_system.clearValues();
+    assemblyTimeStart = platform::getRealTime();
     (this->*assembly_fun)();
+    info() << "[ArcaneFem-Timer] Time to assemble NW-CSR_GPU matrix = " << (platform::getRealTime() - assemblyTimeStart);
     if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_CsrNodeWise");
     for (auto i = 1; i < m_cache_warming; ++i) {
       m_linear_system.clearValues();
+      assemblyTimeStart = platform::getRealTime();
       (this->*assembly_fun)();
+      info() << "[ArcaneFem-Timer] Time to assemble NW-CSR_GPU matrix = " << (platform::getRealTime() - assemblyTimeStart);
     }
   }
 
   if (m_use_buildless_csr) {
     void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleBuildLessCsrBilinearOperatorTria3 : &FemModule::_assembleBuildLessCsrBilinearOperatorTetra4;
     m_linear_system.clearValues();
+    assemblyTimeStart = platform::getRealTime();
     (this->*assembly_fun)();
+    info() << "[ArcaneFem-Timer] Time to assemble BL-CSR_GPU matrix = " << (platform::getRealTime() - assemblyTimeStart);
     if (m_cache_warming != 1)
       m_time_stats->resetStats("AssembleBilinearOperator_CsrBuildLess");
     for (auto i = 1; i < m_cache_warming; ++i) {
       m_linear_system.clearValues();
+      assemblyTimeStart = platform::getRealTime();
       (this->*assembly_fun)();
+      info() << "[ArcaneFem-Timer] Time to assemble BL-CSR_GPU matrix = " << (platform::getRealTime() - assemblyTimeStart);
     }
   }
 
   // Assemble the FEM linear operator (RHS - vector b)
+  assemblyTimeStart = platform::getRealTime();
   if (m_use_buildless_csr || m_use_csr_gpu || m_use_nodewise_csr || m_use_csr) {
     //_assembleCsrLinearOperator();
     _assembleCsrGpuLinearOperator();
@@ -364,10 +417,11 @@ _doStationarySolve()
       Timer::Action timer_action(m_time_stats, "TranslateToLinearSystem");
       m_coo_matrix.translateToLinearSystem(m_linear_system);
     }
-
     _assembleLinearOperator();
   }
+  info() << "[ArcaneFem-Timer] Time to assemble RHS vector = " << (platform::getRealTime() - assemblyTimeStart);
 
+  // solve linear system
   if (m_solve_linear_system)
     _solve();
 
@@ -396,7 +450,6 @@ _getMaterialParameters()
 void FemModule::
 _initBoundaryconditions()
 {
-  info() << "Init boundary conditions...";
 
   info() << "Apply boundary conditions";
   _applyDirichletBoundaryConditions();
@@ -1715,23 +1768,27 @@ _computeElementMatrixTETRA4(Cell cell)
 void FemModule::
 _solve()
 {
+  Real TimeStart;
   ITimeStats* tstat = m_time_stats;
   Timer::Action timer_action(tstat, "Solving");
 
   {
+    TimeStart = platform::getRealTime();
     Timer::Action ta1(tstat, "LinearSystemSolve");
-    // # T=linalg.solve(K,RHS)
     m_linear_system.solve();
+    info() << "[ArcaneFem-Timer] Time to solve linear system = " << (platform::getRealTime() - TimeStart);
   }
 
   // Re-Apply boundary conditions because the solver has modified the value
-  // of u on all nodes
   {
+    TimeStart = platform::getRealTime();
     Timer::Action ta1(tstat, "ApplyBoundaryConditions");
     _applyDirichletBoundaryConditions();
+    info() << "[ArcaneFem-Timer] Time to Re-Apply boundary conditions = " << (platform::getRealTime() - TimeStart);
   }
 
   {
+    TimeStart = platform::getRealTime();
     Timer::Action ta1(tstat, "CopySolution");
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
     // Copy RHS DoF to Node u
@@ -1741,9 +1798,12 @@ _solve()
       Real v = dof_u[node_dof.dofId(node, 0)];
       m_u[node] = v;
     }
+    info() << "[ArcaneFem-Timer] Time to prepare solution for post-process = " << (platform::getRealTime() - TimeStart);
   }
 
+  TimeStart = platform::getRealTime();
   m_u.synchronize();
+  info() << "[ArcaneFem-Timer] Time to synchronize solution across subdomains = " << (platform::getRealTime() - TimeStart);
 
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {
