@@ -11,7 +11,7 @@
 
 using namespace Arcane;
 using namespace Arcane::FemUtils;
-Real REL_PREC {1.0e-15};
+Real REL_PREC{ 1.0e-15 };
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -90,13 +90,14 @@ class ArcaneFemFunctions
     }
 
     // ef: needing to compute with different entity inputs (face or cell)
-    static inline Real tri3Surface(ItemWithNodes item, const VariableNodeReal3& node_coord){
+    static inline Real tri3Surface(ItemWithNodes item, const VariableNodeReal3& node_coord)
+    {
       Real3 n0 = node_coord[item.nodeId(0)];
       Real3 n1 = node_coord[item.nodeId(1)];
       Real3 n2 = node_coord[item.nodeId(2)];
 
-      auto v = math::cross(n1 - n0,n2 - n0);
-      return  0.5*v.normL2();
+      auto v = math::cross(n1 - n0, n2 - n0);
+      return 0.5 * v.normL2();
     }
 
     /*---------------------------------------------------------------------------*/
@@ -121,15 +122,16 @@ class ArcaneFemFunctions
     }
 
     // ef: needing to compute with different entity inputs (face or cell)
-    static inline Real quad4Surface(ItemWithNodes item, const VariableNodeReal3& node_coord){
+    static inline Real quad4Surface(ItemWithNodes item, const VariableNodeReal3& node_coord)
+    {
       Real3 n0 = node_coord[item.nodeId(0)];
       Real3 n1 = node_coord[item.nodeId(1)];
       Real3 n2 = node_coord[item.nodeId(2)];
       Real3 n3 = node_coord[item.nodeId(3)];
 
-      auto tri1x2 = math::cross(n2 - n1,n0 - n1);
-      auto tri2x2 = math::cross(n0 - n3,n2 - n3);
-      return 0.5*(tri1x2.normL2() + tri2x2.normL2());
+      auto tri1x2 = math::cross(n2 - n1, n0 - n1);
+      auto tri2x2 = math::cross(n0 - n3, n2 - n3);
+      return 0.5 * (tri1x2.normL2() + tri2x2.normL2());
     }
 
     /*---------------------------------------------------------------------------*/
@@ -138,7 +140,8 @@ class ArcaneFemFunctions
      *
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real hexa8Volume(ItemWithNodes item, const VariableNodeReal3& node_coord){
+    static inline Real hexa8Volume(ItemWithNodes item, const VariableNodeReal3& node_coord)
+    {
       Real3 n0 = node_coord[item.nodeId(0)];
       Real3 n1 = node_coord[item.nodeId(1)];
       Real3 n2 = node_coord[item.nodeId(2)];
@@ -162,7 +165,8 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real penta6Volume(ItemWithNodes item, const VariableNodeReal3& node_coord){
+    static inline Real penta6Volume(ItemWithNodes item, const VariableNodeReal3& node_coord)
+    {
       Real3 n0 = node_coord[item.nodeId(0)];
       Real3 n1 = node_coord[item.nodeId(1)];
       Real3 n2 = node_coord[item.nodeId(2)];
@@ -170,13 +174,13 @@ class ArcaneFemFunctions
       Real3 n4 = node_coord[item.nodeId(4)];
       Real3 n5 = node_coord[item.nodeId(5)];
 
-      auto v = math::cross(n1 - n0,n2 - n0);
-      auto base = 0.5*v.normL2();
+      auto v = math::cross(n1 - n0, n2 - n0);
+      auto base = 0.5 * v.normL2();
       auto h1 = (n3 - n0).normL2();
       auto h2 = (n4 - n1).normL2();
       auto h3 = (n5 - n2).normL2();
 
-      return base * (h1 + h2 + h3)/3.0;
+      return base * (h1 + h2 + h3) / 3.0;
     }
 
     /*---------------------------------------------------------------------------*/
@@ -186,7 +190,8 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real pyramid5Volume(ItemWithNodes item, const VariableNodeReal3& node_coord){
+    static inline Real pyramid5Volume(ItemWithNodes item, const VariableNodeReal3& node_coord)
+    {
       Real3 n0 = node_coord[item.nodeId(0)];
       Real3 n1 = node_coord[item.nodeId(1)];
       Real3 n2 = node_coord[item.nodeId(2)];
@@ -194,13 +199,13 @@ class ArcaneFemFunctions
       Real3 n4 = node_coord[item.nodeId(4)];
       Real3 n5 = node_coord[item.nodeId(5)];
 
-      auto v = math::cross(n1 - n0,n2 - n0);
-      auto base = 0.5*v.normL2();
+      auto v = math::cross(n1 - n0, n2 - n0);
+      auto base = 0.5 * v.normL2();
       auto h1 = (n3 - n0).normL2();
       auto h2 = (n4 - n1).normL2();
       auto h3 = (n5 - n2).normL2();
 
-      return base * (h1 + h2 + h3)/3.0;
+      return base * (h1 + h2 + h3) / 3.0;
     }
 
     /*---------------------------------------------------------------------------*/
@@ -249,7 +254,7 @@ class ArcaneFemFunctions
     {
       Real3 vertex0 = node_coord[item.nodeId(0)];
       Real3 vertex1 = node_coord[item.nodeId(1)];
-      return (vertex1-vertex0).normL2();
+      return (vertex1 - vertex0).normL2();
     }
 
     /*---------------------------------------------------------------------------*/
@@ -287,7 +292,7 @@ class ArcaneFemFunctions
     static inline Real computeFacLengthOrArea(Face face, const VariableNodeReal3& node_coord)
     {
       Int32 item_type = face.type();
-      Real fac_el{0.};
+      Real fac_el{ 0. };
 
       switch (item_type) {
 
@@ -321,7 +326,8 @@ class ArcaneFemFunctions
      * for jacobians & elementary matrices computations
      */
     /*---------------------------------------------------------------------------*/
-    static inline Int32 getGeomDimension(ItemWithNodes item){
+    static inline Int32 getGeomDimension(ItemWithNodes item)
+    {
       /*
       Int16 item_type = item.type();
       Integer dim = 1; // default geometric dimension is 1D (Line2 and Line3 finite-elements)
@@ -359,7 +365,8 @@ class ArcaneFemFunctions
      * In 2D, it assumes the edge lies in x-y plane (z coord = 0.)
      */
     /*---------------------------------------------------------------------------*/
-    static inline void dirVectors(Face face, const VariableNodeReal3& node_coord, Integer ndim, Real3& e1, Real3& e2, Real3& e3){
+    static inline void dirVectors(Face face, const VariableNodeReal3& node_coord, Integer ndim, Real3& e1, Real3& e2, Real3& e3)
+    {
 
       Real3 n0 = node_coord[face.nodeId(0)];
       Real3 n1 = node_coord[face.nodeId(1)];
@@ -378,13 +385,13 @@ class ArcaneFemFunctions
         e3 = math::cross(e1, n2 - n0);
 
         // 2nd in-plane vector
-        e2 = math::cross(e3,e1);
+        e2 = math::cross(e3, e1);
 
         e3.normalize();
       }
       else {
 
-        Cell cell {face.boundaryCell()};
+        Cell cell{ face.boundaryCell() };
         Node nod;
         for (Node node : cell.nodes()) {
           if (node != face.node(0) && node != face.node(1)) {
@@ -397,8 +404,9 @@ class ArcaneFemFunctions
         e2 = { -e1.y, e1.x, 0. };
 
         Real3 n2 = node_coord[nod];
-        auto sgn = math::dot(e2,n2 - n0);
-        if (sgn > 0.) e2 *= -1.;
+        auto sgn = math::dot(e2, n2 - n0);
+        if (sgn > 0.)
+          e2 *= -1.;
       }
       e1.normalize();
       e2.normalize();
@@ -457,7 +465,7 @@ class ArcaneFemFunctions
 
       Real A2 = ((n1.x - n0.x) * (n2.y - n0.y) - (n2.x - n0.x) * (n1.y - n0.y));
 
-      return { (u0*(n1.y - n2.y) + u1*(n2.y - n0.y) + u2*(n0.y - n1.y)) / A2 , (u0*(n2.x - n1.x) + u1*(n0.x - n2.x) + u2*(n1.x - n0.x)) / A2 , 0};
+      return { (u0 * (n1.y - n2.y) + u1 * (n2.y - n0.y) + u2 * (n0.y - n1.y)) / A2, (u0 * (n2.x - n1.x) + u1 * (n0.x - n2.x) + u2 * (n1.x - n0.x)) / A2, 0 };
     }
 
     /*---------------------------------------------------------------------------*/
@@ -488,9 +496,9 @@ class ArcaneFemFunctions
 
       Real A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
 
-      return {Real3((vertex1.y - vertex2.y) / A2, (vertex2.x - vertex1.x) / A2, 0),
+      return { Real3((vertex1.y - vertex2.y) / A2, (vertex2.x - vertex1.x) / A2, 0),
                Real3((vertex2.y - vertex0.y) / A2, (vertex0.x - vertex2.x) / A2, 0),
-               Real3((vertex0.y - vertex1.y) / A2, (vertex1.x - vertex0.x) / A2, 0)};
+               Real3((vertex0.y - vertex1.y) / A2, (vertex1.x - vertex0.x) / A2, 0) };
     }
 
     /*---------------------------------------------------------------------------*/
@@ -515,7 +523,7 @@ class ArcaneFemFunctions
 
       auto A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
 
-      return {(vertex1.y - vertex2.y) / A2, (vertex2.y - vertex0.y) / A2, (vertex0.y - vertex1.y) / A2};
+      return { (vertex1.y - vertex2.y) / A2, (vertex2.y - vertex0.y) / A2, (vertex0.y - vertex1.y) / A2 };
     }
 
     /*---------------------------------------------------------------------------*/
@@ -540,7 +548,7 @@ class ArcaneFemFunctions
 
       auto A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
 
-      return {(vertex2.x - vertex1.x) / A2, (vertex0.x - vertex2.x) / A2, (vertex1.x - vertex0.x) / A2};
+      return { (vertex2.x - vertex1.x) / A2, (vertex0.x - vertex2.x) / A2, (vertex1.x - vertex0.x) / A2 };
     }
 
     /*---------------------------------------------------------------------------*/
@@ -557,7 +565,7 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline  Real4 computeGradientXQuad4(Cell cell, const VariableNodeReal3& node_coord)
+    static inline Real4 computeGradientXQuad4(Cell cell, const VariableNodeReal3& node_coord)
     {
       Real3 vertex0 = node_coord[cell.nodeId(0)];
       Real3 vertex1 = node_coord[cell.nodeId(1)];
@@ -590,7 +598,7 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline  Real4 computeGradientYQuad4(Cell cell, const VariableNodeReal3& node_coord)
+    static inline Real4 computeGradientYQuad4(Cell cell, const VariableNodeReal3& node_coord)
     {
       Real3 vertex0 = node_coord[cell.nodeId(0)];
       Real3 vertex1 = node_coord[cell.nodeId(1)];
@@ -626,7 +634,7 @@ class ArcaneFemFunctions
     {
       Real aii = 1. / 6.;
       Real aij = 1. / 12.;
-      return {Real3(aii, aij, aij), Real3(aij, aii, aij), Real3(aij, aij, aii)};
+      return { Real3(aii, aij, aij), Real3(aij, aii, aij), Real3(aij, aij, aii) };
     }
   };
 
@@ -651,6 +659,7 @@ class ArcaneFemFunctions
   class FeOperation3D
   {
    public:
+
     /*-------------------------------------------------------------------------*/
     /**
      * @brief Computes the X gradients of basis functions N for P1 Tetrahedron.
@@ -672,7 +681,7 @@ class ArcaneFemFunctions
      */
     /*-------------------------------------------------------------------------*/
 
-    static inline  Real4 computeGradientXTetra4(Cell cell, const VariableNodeReal3& node_coord)
+    static inline Real4 computeGradientXTetra4(Cell cell, const VariableNodeReal3& node_coord)
     {
       Real3 vertex0 = node_coord[cell.nodeId(0)];
       Real3 vertex1 = node_coord[cell.nodeId(1)];
@@ -684,14 +693,14 @@ class ArcaneFemFunctions
       Real3 v2 = vertex3 - vertex0;
 
       // 6 x Volume of tetrahedron
-      Real V6 =  std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
+      Real V6 = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
 
       Real4 dx{};
 
-      dx[0] = (vertex1.y * (vertex3.z - vertex2.z) + vertex2.y * (vertex1.z - vertex3.z) + vertex3.y * (vertex2.z - vertex1.z))/V6;
-      dx[1] = (vertex0.y * (vertex2.z - vertex3.z) + vertex2.y * (vertex3.z - vertex0.z) + vertex3.y * (vertex0.z - vertex2.z))/V6;
-      dx[2] = (vertex0.y * (vertex3.z - vertex1.z) + vertex1.y * (vertex0.z - vertex3.z) + vertex3.y * (vertex1.z - vertex0.z))/V6;
-      dx[3] = (vertex0.y * (vertex1.z - vertex2.z) + vertex1.y * (vertex2.z - vertex0.z) + vertex2.y * (vertex0.z - vertex1.z))/V6;
+      dx[0] = (vertex1.y * (vertex3.z - vertex2.z) + vertex2.y * (vertex1.z - vertex3.z) + vertex3.y * (vertex2.z - vertex1.z)) / V6;
+      dx[1] = (vertex0.y * (vertex2.z - vertex3.z) + vertex2.y * (vertex3.z - vertex0.z) + vertex3.y * (vertex0.z - vertex2.z)) / V6;
+      dx[2] = (vertex0.y * (vertex3.z - vertex1.z) + vertex1.y * (vertex0.z - vertex3.z) + vertex3.y * (vertex1.z - vertex0.z)) / V6;
+      dx[3] = (vertex0.y * (vertex1.z - vertex2.z) + vertex1.y * (vertex2.z - vertex0.z) + vertex2.y * (vertex0.z - vertex1.z)) / V6;
 
       return dx;
     }
@@ -733,10 +742,10 @@ class ArcaneFemFunctions
 
       Real4 dy{};
 
-      dy[0] = (vertex1.z * (vertex3.x - vertex2.x) + vertex2.z * (vertex1.x - vertex3.x) + vertex3.z * (vertex2.x - vertex1.x))/V6;
-      dy[1] = (vertex0.z * (vertex2.x - vertex3.x) + vertex2.z * (vertex3.x - vertex0.x) + vertex3.z * (vertex0.x - vertex2.x))/V6;
-      dy[2] = (vertex0.z * (vertex3.x - vertex1.x) + vertex1.z * (vertex0.x - vertex3.x) + vertex3.z * (vertex1.x - vertex0.x))/V6;
-      dy[3] = (vertex0.z * (vertex1.x - vertex2.x) + vertex1.z * (vertex2.x - vertex0.x) + vertex2.z * (vertex0.x - vertex1.x))/V6;
+      dy[0] = (vertex1.z * (vertex3.x - vertex2.x) + vertex2.z * (vertex1.x - vertex3.x) + vertex3.z * (vertex2.x - vertex1.x)) / V6;
+      dy[1] = (vertex0.z * (vertex2.x - vertex3.x) + vertex2.z * (vertex3.x - vertex0.x) + vertex3.z * (vertex0.x - vertex2.x)) / V6;
+      dy[2] = (vertex0.z * (vertex3.x - vertex1.x) + vertex1.z * (vertex0.x - vertex3.x) + vertex3.z * (vertex1.x - vertex0.x)) / V6;
+      dy[3] = (vertex0.z * (vertex1.x - vertex2.x) + vertex1.z * (vertex2.x - vertex0.x) + vertex2.z * (vertex0.x - vertex1.x)) / V6;
 
       return dy;
     }
@@ -778,14 +787,13 @@ class ArcaneFemFunctions
 
       Real4 dz{};
 
-      dz[0] = (vertex1.x * (vertex3.y - vertex2.y) + vertex2.x * (vertex1.y - vertex3.y) + vertex3.x * (vertex2.y - vertex1.y))/V6;
-      dz[1] = (vertex0.x * (vertex2.y - vertex3.y) + vertex2.x * (vertex3.y - vertex0.y) + vertex3.x * (vertex0.y - vertex2.y))/V6;
-      dz[2] = (vertex0.x * (vertex3.y - vertex1.y) + vertex1.x * (vertex0.y - vertex3.y) + vertex3.x * (vertex1.y - vertex0.y))/V6;
-      dz[3] = (vertex0.x * (vertex1.y - vertex2.y) + vertex1.x * (vertex2.y - vertex0.y) + vertex2.x * (vertex0.y - vertex1.y))/V6;
+      dz[0] = (vertex1.x * (vertex3.y - vertex2.y) + vertex2.x * (vertex1.y - vertex3.y) + vertex3.x * (vertex2.y - vertex1.y)) / V6;
+      dz[1] = (vertex0.x * (vertex2.y - vertex3.y) + vertex2.x * (vertex3.y - vertex0.y) + vertex3.x * (vertex0.y - vertex2.y)) / V6;
+      dz[2] = (vertex0.x * (vertex3.y - vertex1.y) + vertex1.x * (vertex0.y - vertex3.y) + vertex3.x * (vertex1.y - vertex0.y)) / V6;
+      dz[3] = (vertex0.x * (vertex1.y - vertex2.y) + vertex1.x * (vertex2.y - vertex0.y) + vertex2.x * (vertex0.y - vertex1.y)) / V6;
 
       return dz;
     }
-
   };
 
   /*---------------------------------------------------------------------------*/
@@ -1056,8 +1064,10 @@ class ArcaneFemFunctions
    * CellFEMDispatcher (coming fro PASSMO).
    */
   /*---------------------------------------------------------------------------*/
-  class FemShapeMethods {
+  class FemShapeMethods
+  {
    public:
+
     /*---------------------------------------------------------------------------*/
     /**
      * @brief Provides methods for reference linear (P1) edge finite-element
@@ -1068,19 +1078,23 @@ class ArcaneFemFunctions
      * direct local numbering : 0->1
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real line2ShapeFuncVal(Integer inod, Real3 ref_coord){
+    static inline Real line2ShapeFuncVal(Integer inod, Real3 ref_coord)
+    {
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 2);
 #endif
 
       Real r = ref_coord[0];
-      if (inod == 1) return (0.5*(1 + r));
-      return (0.5*(1 - r));
+      if (inod == 1)
+        return (0.5 * (1 + r));
+      return (0.5 * (1 - r));
     }
 
-    static inline Real3 line2ShapeFuncDeriv(Integer inod,Real3){
-      if (inod == 1) return { 0.5,0.,0. };
-      return { -0.5,0.,0. };
+    static inline Real3 line2ShapeFuncDeriv(Integer inod, Real3)
+    {
+      if (inod == 1)
+        return { 0.5, 0., 0. };
+      return { -0.5, 0., 0. };
     }
 
     /*---------------------------------------------------------------------------*/
@@ -1093,23 +1107,29 @@ class ArcaneFemFunctions
      * direct local numbering : 0->1->2
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real line3ShapeFuncVal(Integer inod, Real3 ref_coord){
+    static inline Real line3ShapeFuncVal(Integer inod, Real3 ref_coord)
+    {
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 3);
 #endif
 
       Real ri = ref_coord[0];
-      if (inod == 0) ri *= -1;
+      if (inod == 0)
+        ri *= -1;
 
-      if (inod < 2) return 0.5*ri*(1 + ri); // nodes 0 or 1
-      return (1 - ri*ri); // middle node
+      if (inod < 2)
+        return 0.5 * ri * (1 + ri); // nodes 0 or 1
+      return (1 - ri * ri); // middle node
     }
 
-    static inline Real3 line3ShapeFuncDeriv(Integer inod, Real3 ref_coord){
+    static inline Real3 line3ShapeFuncDeriv(Integer inod, Real3 ref_coord)
+    {
       Real ri = ref_coord[0];
-      if (!inod) return {-0.5 + ri, 0.,0.};
-      if (inod == 1) return {0.5 + ri, 0.,0.};
-      return {-2.*ri, 0.,0.};
+      if (!inod)
+        return { -0.5 + ri, 0., 0. };
+      if (inod == 1)
+        return { 0.5 + ri, 0., 0. };
+      return { -2. * ri, 0., 0. };
     }
 
     /*---------------------------------------------------------------------------*/
@@ -1132,21 +1152,27 @@ class ArcaneFemFunctions
      * direct local numbering : 0->1->2
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real tri3ShapeFuncVal(Integer inod, Real3 ref_coord){
+    static inline Real tri3ShapeFuncVal(Integer inod, Real3 ref_coord)
+    {
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 3);
 #endif
       Real r = ref_coord[0];
       Real s = ref_coord[1];
-      if (!inod) return (1 - r - s);
-      if (inod == 1) return r;
+      if (!inod)
+        return (1 - r - s);
+      if (inod == 1)
+        return r;
       return s;
     }
 
-    static inline Real3 tri3ShapeFuncDeriv(Integer inod, Real3){
-      if (!inod) return {-1., -1.,0.};
-      if (inod==1) return {1., 0.,0.};
-      return {0., 1., 0.};
+    static inline Real3 tri3ShapeFuncDeriv(Integer inod, Real3)
+    {
+      if (!inod)
+        return { -1., -1., 0. };
+      if (inod == 1)
+        return { 1., 0., 0. };
+      return { 0., 1., 0. };
     }
 
     /*---------------------------------------------------------------------------*/
@@ -1169,41 +1195,60 @@ class ArcaneFemFunctions
      * direct local numbering : 0->1->2->3->4->5
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real tri6ShapeFuncVal(Integer inod, Real3 ref_coord){
+    static inline Real tri6ShapeFuncVal(Integer inod, Real3 ref_coord)
+    {
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 6);
 #endif
-      auto	wi = 0.,ri = ref_coord[0],si = ref_coord[1];
-      auto ri2 = 2.*ri - 1.;
-      auto si2 = 2.*si - 1.;
-      auto ti = 1. - ri - si, ti2 = 2.*ti - 1.;
+      auto wi = 0., ri = ref_coord[0], si = ref_coord[1];
+      auto ri2 = 2. * ri - 1.;
+      auto si2 = 2. * si - 1.;
+      auto ti = 1. - ri - si, ti2 = 2. * ti - 1.;
 
-      switch(inod) {
-        default: break;
-        case 0:	wi = ti*ti2; break;
-        case 1:	wi = ri*ri2; break;
-        case 2:	wi = si*si2; break;
-        case 3:	wi = 4.*ri*ti; break;
-        case 4:	wi = 4.*ri*si; break;
-        case 5:	wi = 4.*si*ti; break;
+      switch (inod) {
+      default:
+        break;
+      case 0:
+        wi = ti * ti2;
+        break;
+      case 1:
+        wi = ri * ri2;
+        break;
+      case 2:
+        wi = si * si2;
+        break;
+      case 3:
+        wi = 4. * ri * ti;
+        break;
+      case 4:
+        wi = 4. * ri * si;
+        break;
+      case 5:
+        wi = 4. * si * ti;
+        break;
       }
       return wi;
     }
 
-    static inline Real3 tri6ShapeFuncDeriv(Integer inod, Real3 ref_coord){
-      auto	ri = ref_coord[0],si = ref_coord[1];
+    static inline Real3 tri6ShapeFuncDeriv(Integer inod, Real3 ref_coord)
+    {
+      auto ri = ref_coord[0], si = ref_coord[1];
       auto ti = 1. - ri - si;
 
       if (!inod) {
-        auto wi = -3. + 4.*(ri + si);
+        auto wi = -3. + 4. * (ri + si);
         return { wi, wi, 0. };
       }
-      if (inod==1) return { -1. + 4.*ri, 0., 0. };
-      if (inod == 2) return { 0., -1. + 4.*si, 0. };
+      if (inod == 1)
+        return { -1. + 4. * ri, 0., 0. };
+      if (inod == 2)
+        return { 0., -1. + 4. * si, 0. };
 
-      if (inod == 3) return { 4.*(ti - ri), -4.*ri, 0. };
-      if (inod == 4) return { 4.*si, 4.*ri, 0.};
-      return { -4.*si, 4.*(ti - si), 0. };
+      if (inod == 3)
+        return { 4. * (ti - ri), -4. * ri, 0. };
+      if (inod == 4)
+        return { 4. * si, 4. * ri, 0. };
+      return { -4. * si, 4. * (ti - si), 0. };
     }
 
     /*---------------------------------------------------------------------------*/
@@ -1225,40 +1270,56 @@ class ArcaneFemFunctions
      * direct local numbering : 0->1->2->3
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real quad4ShapeFuncVal(Integer inod, Real3 ref_coord){
+    static inline Real quad4ShapeFuncVal(Integer inod, Real3 ref_coord)
+    {
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 4);
 #endif
 
-      auto	r{ ref_coord[0] },s{ ref_coord[1] };
-      auto	ri{1.},si{1.};
+      auto r{ ref_coord[0] }, s{ ref_coord[1] };
+      auto ri{ 1. }, si{ 1. };
 
-      switch(inod){
-      default: break;// default is first node (index 0)
-      case 2:	si = -1; [[fallthrough]];
-      case 1:	ri = -1; break;
+      switch (inod) {
+      default:
+        break; // default is first node (index 0)
+      case 2:
+        si = -1;
+        [[fallthrough]];
+      case 1:
+        ri = -1;
+        break;
 
-      case 3:	si = -1; break;
+      case 3:
+        si = -1;
+        break;
       }
-      return ( (1 + ri*r)*(1 + si*s) / 4. );
+      return ((1 + ri * r) * (1 + si * s) / 4.);
     }
 
-    static inline Real3 quad4ShapeFuncDeriv(Integer inod, Real3 ref_coord){
+    static inline Real3 quad4ShapeFuncDeriv(Integer inod, Real3 ref_coord)
+    {
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 4);
 #endif
 
-      auto	r{ ref_coord[0] },s{ ref_coord[1] };
-      auto	ri{1.},si{1.}; // Normalized coordinates (=+-1) =>node index 7 = (1,1,1)
+      auto r{ ref_coord[0] }, s{ ref_coord[1] };
+      auto ri{ 1. }, si{ 1. }; // Normalized coordinates (=+-1) =>node index 7 = (1,1,1)
 
-      switch(inod){
-      default: break;// default is first node (index 0)
-      case 2:	si = -1; [[fallthrough]];
-      case 1:	ri = -1; break;
+      switch (inod) {
+      default:
+        break; // default is first node (index 0)
+      case 2:
+        si = -1;
+        [[fallthrough]];
+      case 1:
+        ri = -1;
+        break;
 
-      case 3:	si = -1; break;
+      case 3:
+        si = -1;
+        break;
       }
-      return {0.25 * ri * (1 + si*s), 0.25 * si * (1 + ri*r), 0.};
+      return { 0.25 * ri * (1 + si * s), 0.25 * si * (1 + ri * r), 0. };
     }
 
     /*---------------------------------------------------------------------------*/
@@ -1283,30 +1344,46 @@ class ArcaneFemFunctions
      * direct local numbering :  0->1->2->...->5->6->7
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real quad8ShapeFuncVal(Integer inod, Real3 ref_coord){
+    static inline Real quad8ShapeFuncVal(Integer inod, Real3 ref_coord)
+    {
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 8);
 #endif
 
-      auto	r{ ref_coord[0] },s{ ref_coord[1] };
-      auto	ri{1.},si{1.};
+      auto r{ ref_coord[0] }, s{ ref_coord[1] };
+      auto ri{ 1. }, si{ 1. };
 
-      switch(inod){
-      default: break;// default is first node (index 0)
-      case 2:	si = -1; [[fallthrough]];
-      case 1:	ri = -1; break;
+      switch (inod) {
+      default:
+        break; // default is first node (index 0)
+      case 2:
+        si = -1;
+        [[fallthrough]];
+      case 1:
+        ri = -1;
+        break;
 
-      case 3:	si = -1; break;
+      case 3:
+        si = -1;
+        break;
 
-      case 6:	si = -1; [[fallthrough]];
-      case 4:	ri = 0; break;
+      case 6:
+        si = -1;
+        [[fallthrough]];
+      case 4:
+        ri = 0;
+        break;
 
-      case 5:	ri = -1; [[fallthrough]];
-      case 7:	si = 0; break;
+      case 5:
+        ri = -1;
+        [[fallthrough]];
+      case 7:
+        si = 0;
+        break;
       }
 
-      auto r0 {r*ri}, s0 {s*si};
-      Real Phi{0.};
+      auto r0{ r * ri }, s0{ s * si };
+      Real Phi{ 0. };
       auto t0{ r0 + s0 - 1. };
 
       if (inod < 4) // Corner nodes
@@ -1321,26 +1398,42 @@ class ArcaneFemFunctions
       return Phi;
     }
 
-    static inline Real3 quad8ShapeFuncDeriv(Integer inod, Real3 ref_coord){
+    static inline Real3 quad8ShapeFuncDeriv(Integer inod, Real3 ref_coord)
+    {
 
-      auto	r{ ref_coord[0] },s{ ref_coord[1] };
-      auto	ri{1.},si{1.};
+      auto r{ ref_coord[0] }, s{ ref_coord[1] };
+      auto ri{ 1. }, si{ 1. };
 
-      switch(inod){
-      default: break;// default is first node (index 0)
-      case 2:	si = -1; [[fallthrough]];
-      case 1:	ri = -1; break;
+      switch (inod) {
+      default:
+        break; // default is first node (index 0)
+      case 2:
+        si = -1;
+        [[fallthrough]];
+      case 1:
+        ri = -1;
+        break;
 
-      case 3:	si = -1; break;
+      case 3:
+        si = -1;
+        break;
 
-      case 6:	si = -1; [[fallthrough]];
-      case 4:	ri = 0; break;
+      case 6:
+        si = -1;
+        [[fallthrough]];
+      case 4:
+        ri = 0;
+        break;
 
-      case 5:	ri = -1; [[fallthrough]];
-      case 7:	si = 0; break;
+      case 5:
+        ri = -1;
+        [[fallthrough]];
+      case 7:
+        si = 0;
+        break;
       }
 
-      auto r0 {r*ri}, s0 {s*si};
+      auto r0{ r * ri }, s0{ s * si };
       Real3 dPhi;
       auto t0{ r0 + s0 - 1. };
 
@@ -1386,52 +1479,67 @@ class ArcaneFemFunctions
      * direct local numbering : 0->1->2->3->4->5->6->7
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real hexa8ShapeFuncVal(Integer inod, Real3 ref_coord){
+    static inline Real hexa8ShapeFuncVal(Integer inod, Real3 ref_coord)
+    {
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 8);
 #endif
-      auto	x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] };
-      auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 7 = (1,1,1)
+      auto x{ ref_coord[0] }, y{ ref_coord[1] }, z{ ref_coord[2] };
+      auto ri{ 1. }, si{ 1. }, ti{ 1. }; // Normalized coordinates (=+-1) =>node index 7 = (1,1,1)
 
-      switch(inod){
-      default: break;
+      switch (inod) {
+      default:
+        break;
       case 3:
-      case 2:	ri = -1; break;
+      case 2:
+        ri = -1;
+        break;
       case 0:
-      case 1: ri = -1; si = -1;
+      case 1:
+        ri = -1;
+        si = -1;
         break;
       case 4:
-      case 5: si = -1;
+      case 5:
+        si = -1;
         break;
       }
-      if (inod == 1 || inod == 2 || inod == 5 || inod == 6) ti = -1;
+      if (inod == 1 || inod == 2 || inod == 5 || inod == 6)
+        ti = -1;
 
-      auto r0 {x*ri}, s0 {y*si}, t0 {z*ti};
+      auto r0{ x * ri }, s0{ y * si }, t0{ z * ti };
       auto Phi = (1 + r0) * (1 + s0) * (1 + t0) / 8.;
 
       return Phi;
-
     }
 
-    static inline Real3 hexa8ShapeFuncDeriv(Integer inod, Real3 ref_coord){
+    static inline Real3 hexa8ShapeFuncDeriv(Integer inod, Real3 ref_coord)
+    {
 
-      auto	x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] };
-      auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 7 = (1,1,1)
+      auto x{ ref_coord[0] }, y{ ref_coord[1] }, z{ ref_coord[2] };
+      auto ri{ 1. }, si{ 1. }, ti{ 1. }; // Normalized coordinates (=+-1) =>node index 7 = (1,1,1)
 
-      switch(inod){
-      default: break;
+      switch (inod) {
+      default:
+        break;
       case 3:
-      case 2:	ri = -1; break;
+      case 2:
+        ri = -1;
+        break;
       case 0:
-      case 1: ri = -1; si = -1;
+      case 1:
+        ri = -1;
+        si = -1;
         break;
       case 4:
-      case 5: si = -1;
+      case 5:
+        si = -1;
         break;
       }
-      if (inod == 1 || inod == 2 || inod == 5 || inod == 6) ti = -1;
+      if (inod == 1 || inod == 2 || inod == 5 || inod == 6)
+        ti = -1;
 
-      auto r0 {x*ri}, s0 {y*si}, t0 {z*ti};
+      auto r0{ x * ri }, s0{ y * si }, t0{ z * ti };
       Real3 dPhi;
       dPhi.x = ri * (1 + s0) * (1 + t0) / 8.;
       dPhi.y = si * (1 + r0) * (1 + t0) / 8.;
@@ -1464,97 +1572,167 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real hexa20ShapeFuncVal(Integer inod, Real3 ref_coord){
+    static inline Real hexa20ShapeFuncVal(Integer inod, Real3 ref_coord)
+    {
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 20);
 #endif
-      auto	x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] };
-      auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
+      auto x{ ref_coord[0] }, y{ ref_coord[1] }, z{ ref_coord[2] };
+      auto ri{ 1. }, si{ 1. }, ti{ 1. }; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
 
-      switch(inod){
-      default: break;
+      switch (inod) {
+      default:
+        break;
 
-      case 5:	ti = -1.; [[fallthrough]];
-      case 1: ri = -1; break;
+      case 5:
+        ti = -1.;
+        [[fallthrough]];
+      case 1:
+        ri = -1;
+        break;
 
-      case 6: ti = -1.; [[fallthrough]];
-      case 2: ri = -1; si = -1; break;
+      case 6:
+        ti = -1.;
+        [[fallthrough]];
+      case 2:
+        ri = -1;
+        si = -1;
+        break;
 
-      case 7: ti = -1.; [[fallthrough]];
-      case 3: si = -1; break;
+      case 7:
+        ti = -1.;
+        [[fallthrough]];
+      case 3:
+        si = -1;
+        break;
 
-      case 4:	ti = -1.; break;
+      case 4:
+        ti = -1.;
+        break;
 
-      case 9: ri = -1.; [[fallthrough]];
-      case 11: si = 0.; break;
+      case 9:
+        ri = -1.;
+        [[fallthrough]];
+      case 11:
+        si = 0.;
+        break;
 
-      case 10: si = -1.; [[fallthrough]];
-      case 8: ri = 0.; break;
+      case 10:
+        si = -1.;
+        [[fallthrough]];
+      case 8:
+        ri = 0.;
+        break;
 
-      case 14: si = -1.; [[fallthrough]];
-      case 12: ri = 0.; ti = -1.; break;
+      case 14:
+        si = -1.;
+        [[fallthrough]];
+      case 12:
+        ri = 0.;
+        ti = -1.;
+        break;
 
-      case 17: si = -1.; [[fallthrough]];
-      case 16: ri = -1.; ti = 0.; break;
+      case 17:
+        si = -1.;
+        [[fallthrough]];
+      case 16:
+        ri = -1.;
+        ti = 0.;
+        break;
 
-      case 18: si = -1.; [[fallthrough]];
-      case 19: ti = 0.; break;
+      case 18:
+        si = -1.;
+        [[fallthrough]];
+      case 19:
+        ti = 0.;
+        break;
       }
 
-      auto r0 {x*ri}, s0 {y*si}, t0 {z*ti};
-      Real Phi{0.};
+      auto r0{ x * ri }, s0{ y * si }, t0{ z * ti };
+      Real Phi{ 0. };
       auto t{ r0 + s0 + t0 - 2. };
 
-      if (inod < 8)  // Corner nodes
+      if (inod < 8) // Corner nodes
         Phi = (1 + r0) * (1 + s0) * (1 + t0) * t / 8.;
 
-      else{  // Middle nodes
+      else { // Middle nodes
         if (math::abs(ri) < REL_PREC)
-          Phi = (1 - x*x) * (1 + s0) * (1 + t0) / 4.;
+          Phi = (1 - x * x) * (1 + s0) * (1 + t0) / 4.;
         else if (math::abs(si) < REL_PREC)
-          Phi = (1 - y*y) * (1 + r0) * (1 + t0) / 4.;
+          Phi = (1 - y * y) * (1 + r0) * (1 + t0) / 4.;
         else if (math::abs(ti) < REL_PREC)
-          Phi = (1 - z*z) * (1 + r0) * (1 + s0) / 4.;
+          Phi = (1 - z * z) * (1 + r0) * (1 + s0) / 4.;
       }
       return Phi;
     }
 
-    static inline Real3 hexa20ShapeFuncDeriv(Integer inod, Real3 ref_coord){
+    static inline Real3 hexa20ShapeFuncDeriv(Integer inod, Real3 ref_coord)
+    {
 
-      auto	x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] };
-      auto	ri{1.},si{1.}, ti{1.}; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
+      auto x{ ref_coord[0] }, y{ ref_coord[1] }, z{ ref_coord[2] };
+      auto ri{ 1. }, si{ 1. }, ti{ 1. }; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
 
-      switch(inod){
-      default: break;
+      switch (inod) {
+      default:
+        break;
 
-      case 5:	ti = -1.;
-      case 1: ri = -1; break;
+      case 5:
+        ti = -1.;
+      case 1:
+        ri = -1;
+        break;
 
-      case 6: ti = -1.;
-      case 2: ri = -1; si = -1; break;
+      case 6:
+        ti = -1.;
+      case 2:
+        ri = -1;
+        si = -1;
+        break;
 
-      case 7: ti = -1.;
-      case 3: si = -1; break;
+      case 7:
+        ti = -1.;
+      case 3:
+        si = -1;
+        break;
 
-      case 4:	ti = -1.; break;
+      case 4:
+        ti = -1.;
+        break;
 
-      case 9: ri = -1.;
-      case 11: si = 0.; break;
+      case 9:
+        ri = -1.;
+      case 11:
+        si = 0.;
+        break;
 
-      case 10: si = -1.;
-      case 8: ri = 0.; break;
+      case 10:
+        si = -1.;
+      case 8:
+        ri = 0.;
+        break;
 
-      case 14: si = -1.;
-      case 12: ri = 0.; ti = -1.; break;
+      case 14:
+        si = -1.;
+      case 12:
+        ri = 0.;
+        ti = -1.;
+        break;
 
-      case 17: si = -1.;
-      case 16: ri = -1.; ti = 0.; break;
+      case 17:
+        si = -1.;
+      case 16:
+        ri = -1.;
+        ti = 0.;
+        break;
 
-      case 18: si = -1.;
-      case 19: ti = 0.; break;
+      case 18:
+        si = -1.;
+      case 19:
+        ti = 0.;
+        break;
       }
 
-      auto r0 {x*ri}, s0 {y*si}, t0 {z*ti};
+      auto r0{ x * ri }, s0{ y * si }, t0{ z * ti };
       auto t{ r0 + s0 + t0 - 2. };
       Real3 dPhi;
 
@@ -1607,28 +1785,37 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real tetra4ShapeFuncVal(Integer inod, Real3 ref_coord){
+    static inline Real tetra4ShapeFuncVal(Integer inod, Real3 ref_coord)
+    {
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 4);
 #endif
 
-      auto	ri = ref_coord[0],si = ref_coord[1],ti = ref_coord[2]; // default is first node (index 3)
+      auto ri = ref_coord[0], si = ref_coord[1], ti = ref_coord[2]; // default is first node (index 3)
 
-      switch(inod){
-      default: break;
-      case 1:	return ri;
-      case 2:	return si;
-      case 0:	return (1. - ri - si - ti);
+      switch (inod) {
+      default:
+        break;
+      case 1:
+        return ri;
+      case 2:
+        return si;
+      case 0:
+        return (1. - ri - si - ti);
       }
       return ti;
     }
 
-    static inline Real3 tetra4ShapeFuncDeriv(Integer inod, Real3 /*ref_coord*/){
+    static inline Real3 tetra4ShapeFuncDeriv(Integer inod, Real3 /*ref_coord*/)
+    {
 
-      if (inod == 3) return {0.,0.,1.};
-      if (inod == 1) return {1.,0.,0.};
-      if (inod == 2) return {0.,1.,0.};
-      return {-1.,-1.,-1.};
+      if (inod == 3)
+        return { 0., 0., 1. };
+      if (inod == 1)
+        return { 1., 0., 0. };
+      if (inod == 2)
+        return { 0., 1., 0. };
+      return { -1., -1., -1. };
     }
 
     /*---------------------------------------------------------------------------*/
@@ -1653,37 +1840,60 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real tetra10ShapeFuncVal(Integer inod, Real3 ref_coord){
+    static inline Real tetra10ShapeFuncVal(Integer inod, Real3 ref_coord)
+    {
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 10);
 #endif
 
-      auto x = ref_coord[0],y = ref_coord[1],z = ref_coord[2],
+      auto x = ref_coord[0], y = ref_coord[1], z = ref_coord[2],
            t = 1. - x - y - z,
-           wi{0.};
+           wi{ 0. };
 
-      switch(inod){
-      default: break;
+      switch (inod) {
+      default:
+        break;
 
       // Corner nodes
-      case 0:	wi = t * (2*t - 1.); break;//=(1. - 2*x - 2*y - 2*z) * t
-      case 1:	wi = x * (2*x - 1.); break;//=(1. - 2*t - 2*y - 2*z)*x
-      case 2:	wi = y * (2*y - 1.); break;//=(1. - 2*x - 2*t - 2*z)*y
-      case 3:	wi = z * (2*z - 1.);break;//=(1. - 2*t - 2*x - 2*y)*z
+      case 0:
+        wi = t * (2 * t - 1.);
+        break; //=(1. - 2*x - 2*y - 2*z) * t
+      case 1:
+        wi = x * (2 * x - 1.);
+        break; //=(1. - 2*t - 2*y - 2*z)*x
+      case 2:
+        wi = y * (2 * y - 1.);
+        break; //=(1. - 2*x - 2*t - 2*z)*y
+      case 3:
+        wi = z * (2 * z - 1.);
+        break; //=(1. - 2*t - 2*x - 2*y)*z
 
       // Middle nodes
-      case 4:	wi = 4*x*t;break;
-      case 5:	wi = 4*x*y;break;
-      case 6:	wi = 4*y*t;break;
-      case 7:	wi = 4*z*t;break;
-      case 8:	wi = 4*z*x;break;
-      case 9:	wi = 4*z*y;break;
+      case 4:
+        wi = 4 * x * t;
+        break;
+      case 5:
+        wi = 4 * x * y;
+        break;
+      case 6:
+        wi = 4 * y * t;
+        break;
+      case 7:
+        wi = 4 * z * t;
+        break;
+      case 8:
+        wi = 4 * z * x;
+        break;
+      case 9:
+        wi = 4 * z * y;
+        break;
       }
       return wi;
     }
 
-    static inline Real3 tetra10ShapeFuncDeriv(Integer inod, Real3 ref_coord){
-      auto  x{ ref_coord[0] },y{ ref_coord[1] },z{ ref_coord[2] },
+    static inline Real3 tetra10ShapeFuncDeriv(Integer inod, Real3 ref_coord)
+    {
+      auto x{ ref_coord[0] }, y{ ref_coord[1] }, z{ ref_coord[2] },
       t{ 1. - x - y - z },
       x4{ 4 * x },
       y4{ 4 * y },
@@ -1697,18 +1907,27 @@ class ArcaneFemFunctions
    if (inod == 2) return {0.,1. - 2*x - 2*t - 2*z + 2*y,0.};
    if (!inod) return {-1. - 2*t + 2*x + 2*y + 2*z,-1. - 2*t+ 2*x + 2*y + 2*z,-1. - 2*t + 2*x + 2*y + 2*z};
 */
-      if (!inod) return {1. - t4, 1. - t4, 1. - t4};
-      if (inod == 1) return {x4 - 1., 0.,0.};
-      if (inod == 2) return {0., y4 - 1., 0.};
-      if (inod == 3) return {0., 0., z4 - 1.};
+      if (!inod)
+        return { 1. - t4, 1. - t4, 1. - t4 };
+      if (inod == 1)
+        return { x4 - 1., 0., 0. };
+      if (inod == 2)
+        return { 0., y4 - 1., 0. };
+      if (inod == 3)
+        return { 0., 0., z4 - 1. };
 
       // Middle nodes
-      if (inod == 4) return {t4 - x4, -x4, -x4};
-      if (inod == 5) return {y4, x4, 0.};
-      if (inod == 6) return {-y4, t4 - y4, -y4};
-      if (inod == 8) return {z4, 0., x4};
-      if (inod == 9) return {0., z4, y4};
-      return {-z4, -z4, t4 - z4};//inod == 7
+      if (inod == 4)
+        return { t4 - x4, -x4, -x4 };
+      if (inod == 5)
+        return { y4, x4, 0. };
+      if (inod == 6)
+        return { -y4, t4 - y4, -y4 };
+      if (inod == 8)
+        return { z4, 0., x4 };
+      if (inod == 9)
+        return { 0., z4, y4 };
+      return { -z4, -z4, t4 - z4 }; //inod == 7
     }
 
     /*---------------------------------------------------------------------------*/
@@ -1738,55 +1957,77 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real penta6ShapeFuncVal(Integer inod, Real3 ref_coord){
+    static inline Real penta6ShapeFuncVal(Integer inod, Real3 ref_coord)
+    {
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 6);
 #endif
-      auto	r{ ref_coord[0] },s{ ref_coord[1] },t{ ref_coord[2] };
-      auto	r0{1.},s0{1.}, ti{-1.};
-      auto rs {1.- r - s};
+      auto r{ ref_coord[0] }, s{ ref_coord[1] }, t{ ref_coord[2] };
+      auto r0{ 1. }, s0{ 1. }, ti{ -1. };
+      auto rs{ 1. - r - s };
 
-      if (inod >= 3) ti = 1.;
-      auto t0{1 + ti*t};
+      if (inod >= 3)
+        ti = 1.;
+      auto t0{ 1 + ti * t };
 
-      switch(inod){
-      default: break;// Node 0
+      switch (inod) {
+      default:
+        break; // Node 0
       case 4:
-      case 1:	r0 = r; rs = 1.; break;
+      case 1:
+        r0 = r;
+        rs = 1.;
+        break;
       case 5:
-      case 2:	s0 = s; rs = 1.; break;
+      case 2:
+        s0 = s;
+        rs = 1.;
+        break;
       }
 
       return 0.5 * r0 * s0 * rs * t0;
     }
 
-    static inline Real3 penta6ShapeFuncDeriv(Integer inod, Real3 ref_coord){
+    static inline Real3 penta6ShapeFuncDeriv(Integer inod, Real3 ref_coord)
+    {
 
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 6);
 #endif
-      auto	r{ ref_coord[0] },s{ ref_coord[1] },t{ ref_coord[2] };
-      auto	ri{1.},si{1.};
-      auto	r0{1.},s0{1.}, ti{-1.};
-      auto rs {1.- r - s};
+      auto r{ ref_coord[0] }, s{ ref_coord[1] }, t{ ref_coord[2] };
+      auto ri{ 1. }, si{ 1. };
+      auto r0{ 1. }, s0{ 1. }, ti{ -1. };
+      auto rs{ 1. - r - s };
 
-      if (inod >= 3) ti = 1.;
-      auto t0{1 + ti*t};
+      if (inod >= 3)
+        ti = 1.;
+      auto t0{ 1 + ti * t };
 
-      switch(inod){
-      default: break;
+      switch (inod) {
+      default:
+        break;
       case 3:
-      case 0:	ri = -1.; si = -1.; break;
+      case 0:
+        ri = -1.;
+        si = -1.;
+        break;
       case 4:
-      case 1:	r0 = r; si = 0.; rs = 1.; break;
+      case 1:
+        r0 = r;
+        si = 0.;
+        rs = 1.;
+        break;
       case 5:
-      case 2:	s0 = s; rs = 1.; break;
+      case 2:
+        s0 = s;
+        rs = 1.;
+        break;
       }
 
       Real3 dPhi;
-      dPhi.x =  0.5 * ri * t0;
-      dPhi.y =  0.5 * si * t0;
-      dPhi.z =  0.5 * ti * rs * r0 * s0;
+      dPhi.x = 0.5 * ri * t0;
+      dPhi.y = 0.5 * si * t0;
+      dPhi.z = 0.5 * ti * rs * r0 * s0;
       return dPhi;
     }
 
@@ -1819,72 +2060,96 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real pyramid5ShapeFuncVal(Integer inod, Real3 ref_coord){
+    static inline Real pyramid5ShapeFuncVal(Integer inod, Real3 ref_coord)
+    {
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 5);
 #endif
-      auto	r{ ref_coord[0] },s{ ref_coord[1] },t{ ref_coord[2] } ;
-      auto	r1{-1.},s1{1.}, r2{-1.},s2{-1.};
+      auto r{ ref_coord[0] }, s{ ref_coord[1] }, t{ ref_coord[2] };
+      auto r1{ -1. }, s1{ 1. }, r2{ -1. }, s2{ -1. };
 
-      if (inod == 4) return t;
-      auto ti{t - 1.};
-      auto t0{0.};
+      if (inod == 4)
+        return t;
+      auto ti{ t - 1. };
+      auto t0{ 0. };
 
       if (math::abs(ti) < REL_PREC)
         ti = 0.;
       else
-        t0 = -1./ti / 4.;
+        t0 = -1. / ti / 4.;
 
-      switch(inod){
-      case 1:	s1 = -1.; r2 = 1.; break;
-      case 2:	r1 = 1.; r2 = 1.; break;
-      case 3:	r1 = 1.; s2 = 1.; break;
-      default: break;// default is for node 0
+      switch (inod) {
+      case 1:
+        s1 = -1.;
+        r2 = 1.;
+        break;
+      case 2:
+        r1 = 1.;
+        r2 = 1.;
+        break;
+      case 3:
+        r1 = 1.;
+        s2 = 1.;
+        break;
+      default:
+        break; // default is for node 0
       }
 
-      return (r1*r + s1*s + ti) * (r2*r + s2*s + ti) * t0;
+      return (r1 * r + s1 * s + ti) * (r2 * r + s2 * s + ti) * t0;
     }
 
-    static inline Real3 pyramid5ShapeFuncDeriv(Integer inod, Real3 ref_coord){
+    static inline Real3 pyramid5ShapeFuncDeriv(Integer inod, Real3 ref_coord)
+    {
 
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 5);
 #endif
-      auto	r{ ref_coord[0] },s{ ref_coord[1] },t{ ref_coord[2] } ;
-      auto	r1{-1.},s1{1.}, r2{-1.},s2{-1.};
+      auto r{ ref_coord[0] }, s{ ref_coord[1] }, t{ ref_coord[2] };
+      auto r1{ -1. }, s1{ 1. }, r2{ -1. }, s2{ -1. };
 
-      auto ti{t - 1.};
-      auto t0{0.};
+      auto ti{ t - 1. };
+      auto t0{ 0. };
 
       if (math::abs(ti) < REL_PREC)
         ti = 0.;
       else
-        t0 = -1./ti / 4.;
+        t0 = -1. / ti / 4.;
 
-      switch(inod){
-      case 1:	s1 = -1.; r2 = 1.; break;
-      case 2:	r1 = 1.; r2 = 1.; break;
-      case 3:	r1 = 1.; s2 = 1.; break;
-      default: break;// default is for node 0
+      switch (inod) {
+      case 1:
+        s1 = -1.;
+        r2 = 1.;
+        break;
+      case 2:
+        r1 = 1.;
+        r2 = 1.;
+        break;
+      case 3:
+        r1 = 1.;
+        s2 = 1.;
+        break;
+      default:
+        break; // default is for node 0
       }
 
-      if (inod == 4) return {0.,0.,1.};
+      if (inod == 4)
+        return { 0., 0., 1. };
 
       Real3 dPhi;
-      auto r12{r1+r2}, rr{2.*r1*r2}, s12{s1+s2}, ss{2.*s1*s2}, rs{r1*s2 + r2*s1}, t02{4.*t0*t0};
+      auto r12{ r1 + r2 }, rr{ 2. * r1 * r2 }, s12{ s1 + s2 }, ss{ 2. * s1 * s2 }, rs{ r1 * s2 + r2 * s1 }, t02{ 4. * t0 * t0 };
 
-      dPhi.x = t0 * (rr*r + rs*s + r12*ti);
-      dPhi.y = t0 * (rs*r + ss*s + s12*ti);
+      dPhi.x = t0 * (rr * r + rs * s + r12 * ti);
+      dPhi.y = t0 * (rs * r + ss * s + s12 * ti);
 
-      if (math::abs(ti) < REL_PREC) dPhi.z = 0.;
+      if (math::abs(ti) < REL_PREC)
+        dPhi.z = 0.;
       else
-        dPhi.z = t0 * (r12*r + s12*s + 2.*ti) + t02 * (r1*r + s1*s + ti) * (r2*r + s2*s + ti);
+        dPhi.z = t0 * (r12 * r + s12 * s + 2. * ti) + t02 * (r1 * r + s1 * s + ti) * (r2 * r + s2 * s + ti);
 
       return dPhi;
     }
 
     /*---------------------------------------------------------------------------*/
-
   };
 
   /*---------------------------------------------------------------------------*/
@@ -1895,17 +2160,20 @@ class ArcaneFemFunctions
    * depending on finite element types (coming fro PASSMO).
    */
   /*---------------------------------------------------------------------------*/
-  class FemGaussQuadrature {
+  class FemGaussQuadrature
+  {
 
    public:
+
     /*---------------------------------------------------------------------------*/
     /**
    * @brief Provides the number of Gauss Points for a given finite element type,
    * depending on the integration order chosen by user (coming fro PASSMO).
    */
     /*---------------------------------------------------------------------------*/
-    static inline Integer getNbGaussPointsfromOrder(Int16 cell_type, Integer ninteg){
-      Integer nbgauss{0};
+    static inline Integer getNbGaussPointsfromOrder(Int16 cell_type, Integer ninteg)
+    {
+      Integer nbgauss{ 0 };
       auto ninteg2{ ninteg * ninteg };
       auto ninteg3{ ninteg2 * ninteg };
 
@@ -1920,58 +2188,73 @@ class ArcaneFemFunctions
 
       else if (ninteg == 2) {
         switch (cell_type) {
-        default: break;
+        default:
+          break;
 
         case IT_Triangle3:
-        case IT_Triangle6: nbgauss = 3;
+        case IT_Triangle6:
+          nbgauss = 3;
           break;
 
         case IT_Tetraedron4:
-        case IT_Tetraedron10: nbgauss = 4;
+        case IT_Tetraedron10:
+          nbgauss = 4;
           break;
 
-        case IT_Pentaedron6: nbgauss = 6;
+        case IT_Pentaedron6:
+          nbgauss = 6;
           break;
 
-        case IT_Pyramid5: nbgauss = 5;
+        case IT_Pyramid5:
+          nbgauss = 5;
           break;
         }
       }
       else if (ninteg == 3) {
         switch (cell_type) {
-        default: break;
+        default:
+          break;
 
         case IT_Triangle3:
-        case IT_Triangle6: nbgauss = 4;
+        case IT_Triangle6:
+          nbgauss = 4;
           break;
 
         case IT_Tetraedron4:
-        case IT_Tetraedron10: nbgauss = 5;
+        case IT_Tetraedron10:
+          nbgauss = 5;
           break;
 
-        case IT_Pentaedron6: nbgauss = 8;
+        case IT_Pentaedron6:
+          nbgauss = 8;
           break;
 
-        case IT_Pyramid5: nbgauss = 6;
+        case IT_Pyramid5:
+          nbgauss = 6;
           break;
         }
       }
       else if (ninteg >= 4) {
         switch (cell_type) {
-        default: break;
+        default:
+          break;
 
         case IT_Triangle3:
-        case IT_Triangle6: nbgauss = 7;
+        case IT_Triangle6:
+          nbgauss = 7;
           break;
 
         case IT_Tetraedron4:
-        case IT_Tetraedron10: nbgauss = 15;
+        case IT_Tetraedron10:
+          nbgauss = 15;
           break;
 
-        case IT_Pentaedron6: nbgauss = 21;
+        case IT_Pentaedron6:
+          nbgauss = 21;
           break;
 
-        case IT_Pyramid5: nbgauss = 27;
+        case IT_Pyramid5:
+          nbgauss = 27;
           break;
         }
       }
@@ -1988,21 +2271,21 @@ class ArcaneFemFunctions
     static inline Real3 getGaussRefPosition(ItemWithNodes cell, Integer ninteg, Integer rank)
     {
       auto cell_type = cell.type();
-      Integer nint{ninteg};
+      Integer nint{ ninteg };
 
       if (nint < 1)
         nint = 1;
 
       if (cell_type == IT_Line2 || cell_type == IT_Line3)
-        return lineRefPosition({rank,-1,-1},{nint,0,0});
+        return lineRefPosition({ rank, -1, -1 }, { nint, 0, 0 });
 
       if (cell_type == IT_Quad4 || cell_type == IT_Quad8) {
-        auto in{0};
+        auto in{ 0 };
         for (Int32 i1 = 0; i1 < nint; ++i1) {
           for (Int32 i2 = 0; i2 < nint; ++i2) {
 
             if (rank == in)
-              return quadRefPosition({i1,i2,-1},{nint,nint,0});
+              return quadRefPosition({ i1, i2, -1 }, { nint, nint, 0 });
 
             ++in;
           }
@@ -2010,7 +2293,7 @@ class ArcaneFemFunctions
       }
 
       if (cell_type == IT_Hexaedron8 || cell_type == IT_Hexaedron20) {
-        auto in{0};
+        auto in{ 0 };
         for (Int32 i1 = 0; i1 < nint; ++i1) {
           for (Int32 i2 = 0; i2 < nint; ++i2) {
             for (Int32 i3 = 0; i3 < nint; ++i3) {
@@ -2025,35 +2308,35 @@ class ArcaneFemFunctions
       }
 
       if (cell_type == IT_Triangle3 || cell_type == IT_Triangle6) {
-        auto o {3};
+        auto o{ 3 };
         if (nint <= 3)
-          o = nint-1;
+          o = nint - 1;
 
-        return {xg1[o][rank],xg2[o][rank],0.};
+        return { xg1[o][rank], xg2[o][rank], 0. };
       }
 
       if (cell_type == IT_Tetraedron4 || cell_type == IT_Tetraedron10) {
-        auto o {3};
+        auto o{ 3 };
         if (nint <= 3)
-          o = nint-1;
+          o = nint - 1;
 
-        return {xtet[o][rank],ytet[o][rank],ztet[o][rank]};
+        return { xtet[o][rank], ytet[o][rank], ztet[o][rank] };
       }
 
       if (cell_type == IT_Pyramid5) {
-        auto o {1};
+        auto o{ 1 };
         if (nint <= 2)
           o = 0;
 
-        return {xpyr[o][rank],ypyr[o][rank],zpyr[o][rank]};
+        return { xpyr[o][rank], ypyr[o][rank], zpyr[o][rank] };
       }
 
       if (cell_type == IT_Pentaedron6) {
-        auto o {1};
+        auto o{ 1 };
         if (nint <= 2)
           o = 0;
 
-        return {xpent[o][rank],ypent[o][rank],zpent[o][rank]};
+        return { xpent[o][rank], ypent[o][rank], zpent[o][rank] };
       }
       return {};
     }
@@ -2068,21 +2351,21 @@ class ArcaneFemFunctions
     static inline Real getGaussWeight(ItemWithNodes cell, Integer ninteg, Integer rank)
     {
       auto cell_type = cell.type();
-      Integer nint{ninteg};
+      Integer nint{ ninteg };
 
       if (nint < 1)
         nint = 1;
 
       if (cell_type == IT_Line2 || cell_type == IT_Line3)
-        return lineWeight({rank,-1,-1},{nint,0,0});
+        return lineWeight({ rank, -1, -1 }, { nint, 0, 0 });
 
       if (cell_type == IT_Quad4 || cell_type == IT_Quad8) {
-        auto in{0};
+        auto in{ 0 };
         for (Int32 i1 = 0; i1 < nint; ++i1) {
           for (Int32 i2 = 0; i2 < nint; ++i2) {
 
             if (rank == in)
-              return quadWeight({i1,i2,-1},{nint,nint,0});
+              return quadWeight({ i1, i2, -1 }, { nint, nint, 0 });
 
             ++in;
           }
@@ -2090,7 +2373,7 @@ class ArcaneFemFunctions
       }
 
       if (cell_type == IT_Hexaedron8 || cell_type == IT_Hexaedron20) {
-        auto in{0};
+        auto in{ 0 };
         for (Int32 i1 = 0; i1 < nint; ++i1) {
           for (Int32 i2 = 0; i2 < nint; ++i2) {
             for (Int32 i3 = 0; i3 < nint; ++i3) {
@@ -2105,9 +2388,9 @@ class ArcaneFemFunctions
       }
 
       if (cell_type == IT_Triangle3 || cell_type == IT_Triangle6) {
-        auto o {3};
+        auto o{ 3 };
         if (nint <= 3)
-          o = nint-1;
+          o = nint - 1;
 
         return wg[o][rank];
       }
@@ -2156,19 +2439,37 @@ class ArcaneFemFunctions
    * by specialized methods (depending on FE type)
    */
     /*---------------------------------------------------------------------------*/
-    static inline Real getRefPosition(Integer indx, Integer ordre){
+    static inline Real getRefPosition(Integer indx, Integer ordre)
+    {
       Real x = xgauss1; // default is order 1
 
-      switch(ordre){
-      case 2: x = xgauss2[indx]; break;
-      case 3: x = xgauss3[indx]; break;
-      case 4: x = xgauss4[indx]; break;
-      case 5: x = xgauss5[indx]; break;
-      case 6: x = xgauss6[indx]; break;
-      case 7: x = xgauss7[indx]; break;
-      case 8: x = xgauss8[indx]; break;
-      case 9: x = xgauss9[indx]; break;
-      default: break;
+      switch (ordre) {
+      case 2:
+        x = xgauss2[indx];
+        break;
+      case 3:
+        x = xgauss3[indx];
+        break;
+      case 4:
+        x = xgauss4[indx];
+        break;
+      case 5:
+        x = xgauss5[indx];
+        break;
+      case 6:
+        x = xgauss6[indx];
+        break;
+      case 7:
+        x = xgauss7[indx];
+        break;
+      case 8:
+        x = xgauss8[indx];
+        break;
+      case 9:
+        x = xgauss9[indx];
+        break;
+      default:
+        break;
       }
       return x;
     }
@@ -2181,19 +2482,37 @@ class ArcaneFemFunctions
    * by specialized methods (depending on FE type)
    */
     /*---------------------------------------------------------------------------*/
-    static inline Real getWeight(Integer indx, Integer ordre){
+    static inline Real getWeight(Integer indx, Integer ordre)
+    {
       Real w = wgauss1; // default is order 1
 
-      switch(ordre){
-      case 2: w = wgauss2[indx]; break;
-      case 3: w = wgauss3[indx]; break;
-      case 4: w = wgauss4[indx]; break;
-      case 5: w = wgauss5[indx]; break;
-      case 6: w = wgauss6[indx]; break;
-      case 7: w = wgauss7[indx]; break;
-      case 8: w = wgauss8[indx]; break;
-      case 9: w = wgauss9[indx]; break;
-      default: break;
+      switch (ordre) {
+      case 2:
+        w = wgauss2[indx];
+        break;
+      case 3:
+        w = wgauss3[indx];
+        break;
+      case 4:
+        w = wgauss4[indx];
+        break;
+      case 5:
+        w = wgauss5[indx];
+        break;
+      case 6:
+        w = wgauss6[indx];
+        break;
+      case 7:
+        w = wgauss7[indx];
+        break;
+      case 8:
+        w = wgauss8[indx];
+        break;
+      case 9:
+        w = wgauss9[indx];
+        break;
+      default:
+        break;
       }
       return w;
     }
@@ -2207,8 +2526,9 @@ class ArcaneFemFunctions
    */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real3 lineRefPosition(Integer3 indices, Integer3 ordre){
-      return {getRefPosition(indices[0],ordre[0]),0.,0.};
+    static inline Real3 lineRefPosition(Integer3 indices, Integer3 ordre)
+    {
+      return { getRefPosition(indices[0], ordre[0]), 0., 0. };
     }
 
     /*---------------------------------------------------------------------------*/
@@ -2219,10 +2539,11 @@ class ArcaneFemFunctions
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
     /*---------------------------------------------------------------------------*/
-    static inline Real3 triRefPosition(Integer3 indices, Integer3 ordre){
-      Integer o = ordre[0]-1;
+    static inline Real3 triRefPosition(Integer3 indices, Integer3 ordre)
+    {
+      Integer o = ordre[0] - 1;
       Integer i = indices[0];
-      return {xg1[o][i],xg2[o][i],0.};
+      return { xg1[o][i], xg2[o][i], 0. };
     }
 
     /*---------------------------------------------------------------------------*/
@@ -2233,9 +2554,11 @@ class ArcaneFemFunctions
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
     /*---------------------------------------------------------------------------*/
-    static inline Real3 quadRefPosition(Integer3 indices, Integer3 ordre){
+    static inline Real3 quadRefPosition(Integer3 indices, Integer3 ordre)
+    {
       Real3 pos;
-      for (Integer i = 0; i < 2; i++) pos[i] = getRefPosition(indices[i],ordre[i]);
+      for (Integer i = 0; i < 2; i++)
+        pos[i] = getRefPosition(indices[i], ordre[i]);
       return pos;
     }
 
@@ -2247,9 +2570,11 @@ class ArcaneFemFunctions
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
     /*---------------------------------------------------------------------------*/
-    static inline Real3 hexaRefPosition(Integer3 indices, Integer3 ordre){
+    static inline Real3 hexaRefPosition(Integer3 indices, Integer3 ordre)
+    {
       Real3 pos;
-      for (Integer i = 0; i < 3; i++) pos[i] = getRefPosition(indices[i],ordre[i]);
+      for (Integer i = 0; i < 3; i++)
+        pos[i] = getRefPosition(indices[i], ordre[i]);
       return pos;
     }
 
@@ -2261,9 +2586,10 @@ class ArcaneFemFunctions
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
     /*---------------------------------------------------------------------------*/
-    [[maybe_unused]] static inline Real3 tetraRefPosition(Integer3 indices, Integer3 /*ordre*/){
+    [[maybe_unused]] static inline Real3 tetraRefPosition(Integer3 indices, Integer3 /*ordre*/)
+    {
       Integer i = indices[0];
-      return {xit[i],yit[i],zit[i]};
+      return { xit[i], yit[i], zit[i] };
     }
 
     /*---------------------------------------------------------------------------*/
@@ -2274,12 +2600,13 @@ class ArcaneFemFunctions
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
     /*---------------------------------------------------------------------------*/
-    [[maybe_unused]] static inline Real3 pentaRefPosition(Integer3 indices, Integer3 ordre){
+    [[maybe_unused]] static inline Real3 pentaRefPosition(Integer3 indices, Integer3 ordre)
+    {
 
       // Same as TriRefPosition on reference coordinate plane (r,s)
       // and LineRefPosition along reference coordinate t (vertical)
-      auto pos = triRefPosition(indices,ordre);
-      pos.z = getRefPosition(indices[2],ordre[2]);
+      auto pos = triRefPosition(indices, ordre);
+      pos.z = getRefPosition(indices[2], ordre[2]);
 
       return pos;
     }
@@ -2292,8 +2619,9 @@ class ArcaneFemFunctions
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
     /*---------------------------------------------------------------------------*/
-    static inline Real lineWeight(Integer3 indices, Integer3 ordre){
-      return getWeight(indices[0],ordre[0]);
+    static inline Real lineWeight(Integer3 indices, Integer3 ordre)
+    {
+      return getWeight(indices[0], ordre[0]);
     }
 
     /*---------------------------------------------------------------------------*/
@@ -2304,8 +2632,9 @@ class ArcaneFemFunctions
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
     /*---------------------------------------------------------------------------*/
-    static inline Real triWeight(Integer3 indices, Integer3 ordre){
-      return wg[ordre[0]-1][indices[0]];
+    static inline Real triWeight(Integer3 indices, Integer3 ordre)
+    {
+      return wg[ordre[0] - 1][indices[0]];
     }
 
     /*---------------------------------------------------------------------------*/
@@ -2316,9 +2645,11 @@ class ArcaneFemFunctions
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
     /*---------------------------------------------------------------------------*/
-    static inline Real quadWeight(Integer3 indices, Integer3 ordre){
+    static inline Real quadWeight(Integer3 indices, Integer3 ordre)
+    {
       Real w = 1.;
-      for (Integer i = 0; i < 2; i++) w *= getWeight(indices[i],ordre[i]);
+      for (Integer i = 0; i < 2; i++)
+        w *= getWeight(indices[i], ordre[i]);
       return w;
     }
 
@@ -2330,9 +2661,11 @@ class ArcaneFemFunctions
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
     /*---------------------------------------------------------------------------*/
-    static inline Real hexaWeight(Integer3 indices, Integer3 ordre){
+    static inline Real hexaWeight(Integer3 indices, Integer3 ordre)
+    {
       Real w = 1.;
-      for (Integer i = 0; i < 3; i++) w *= getWeight(indices[i],ordre[i]);
+      for (Integer i = 0; i < 3; i++)
+        w *= getWeight(indices[i], ordre[i]);
       return w;
     }
 
@@ -2344,7 +2677,8 @@ class ArcaneFemFunctions
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
     /*---------------------------------------------------------------------------*/
-    [[maybe_unused]] static inline Real tetraWeight(Integer3 /*indices*/, Integer3 /*ordre*/){
+    [[maybe_unused]] static inline Real tetraWeight(Integer3 /*indices*/, Integer3 /*ordre*/)
+    {
       return wgtetra;
     }
 
@@ -2356,19 +2690,17 @@ class ArcaneFemFunctions
    * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
    */
     /*---------------------------------------------------------------------------*/
-    [[maybe_unused]] static inline Real pentaWeight(Integer3 indices, Integer3 ordre){
+    [[maybe_unused]] static inline Real pentaWeight(Integer3 indices, Integer3 ordre)
+    {
 
       // Same as TriWeight on reference coordinate plane (r,s)
       // and LineWeight with ordre[2] to account for reference coordinate t (vertical)
-      Real wgpenta = triWeight(indices,ordre)*getWeight(indices[2],ordre[2]);
+      Real wgpenta = triWeight(indices, ordre) * getWeight(indices[2], ordre[2]);
       return wgpenta;
     }
 
     /*---------------------------------------------------------------------------*/
-
   };
-
-
 };
 
 #endif // ARCANE_FEM_FUNCTIONS_H

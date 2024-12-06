@@ -69,13 +69,10 @@ void BSRFormat::computeSparsityRowIndex(const IndexedNodeNodeConnectivityView& n
   out_data.resize(m_bsr_matrix.nbRow());
   auto copy_out_data = viewInOut(command, out_data);
 
+  command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, m_mesh.allNodes())
   {
-    auto command = makeCommand(m_queue);
-    command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, m_mesh.allNodes())
-    {
-      copy_out_data[node_lid.asInt32()] = node_node_cv.nbNode(node_lid) + 1; // Add one to count the node itself
-    };
-  }
+    copy_out_data[node_lid.asInt32()] = node_node_cv.nbNode(node_lid) + 1; // Add one to count the node itself
+  };
   m_queue.barrier();
 
   Accelerator::Scanner<Int32> scanner;
@@ -90,18 +87,15 @@ void BSRFormat::computeSparsityColumns(const IndexedNodeNodeConnectivityView& no
   auto out_row_index = viewIn(command, m_bsr_matrix.rowIndex());
   auto inout_columns = viewInOut(command, m_bsr_matrix.columns());
 
+  command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, m_mesh.allNodes())
   {
-    auto command = makeCommand(m_queue);
-    command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, m_mesh.allNodes())
-    {
-      auto offset = out_row_index[node_lid.asInt32()];
-      for (auto neighbor_lid : node_node_cv.nodeIds(node_lid)) {
-        inout_columns[offset] = neighbor_lid.asInt32();
-        ++offset;
-      }
-      inout_columns[offset] = node_lid.asInt32();
-    };
-  }
+    auto offset = out_row_index[node_lid.asInt32()];
+    for (auto neighbor_lid : node_node_cv.nodeIds(node_lid)) {
+      inout_columns[offset] = neighbor_lid.asInt32();
+      ++offset;
+    }
+    inout_columns[offset] = node_lid.asInt32();
+  };
 }
 
 void BSRFormat::computeSparsity(const IndexedNodeNodeConnectivityView& node_node_cv)

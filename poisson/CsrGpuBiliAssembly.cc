@@ -12,7 +12,10 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+#include "ArcaneFemFunctionsGpu.h"
 #include "FemModule.h"
+#include "BSRMatrix.h"
+#include "FemUtils.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -224,6 +227,41 @@ _assembleCsrGPUBilinearOperatorTRIA3()
  */
 /*---------------------------------------------------------------------------*/
 
+/* class computeElementMatrixTetra4Functor : public BSRFormat::ComputeElementMatrixFunctor
+{
+ public:
+
+  computeElementMatrixTetra4Functor(const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+  : m_cn_cv(cn_cv)
+  , m_in_node_coord(in_node_coord) {};
+
+  //ARCCORE_HOST_DEVICE FixedMatrix<4, 4> computeElementMatrixTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+  ARCCORE_HOST_DEVICE FixedMatrix<4, 4> compute(CellLocalId cell_lid) const override
+  {
+    Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, m_cn_cv, m_in_node_coord);
+
+    Real4 dxU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientXTetra4(cell_lid, m_cn_cv, m_in_node_coord);
+    Real4 dyU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientYTetra4(cell_lid, m_cn_cv, m_in_node_coord);
+    Real4 dzU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientZTetra4(cell_lid, m_cn_cv, m_in_node_coord);
+
+    return volume * (dxU ^ dxU) + volume * (dyU ^ dyU) + volume * (dzU ^ dzU);
+  }
+
+  const IndexedCellNodeConnectivityView& m_cn_cv;
+  const Accelerator::VariableNodeReal3InView& m_in_node_coord;
+}; */
+
+ARCCORE_HOST_DEVICE FixedMatrix<4, 4> computeElementMatrixTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+{
+  Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
+
+  Real4 dxU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientXTetra4(cell_lid, cn_cv, in_node_coord);
+  Real4 dyU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientYTetra4(cell_lid, cn_cv, in_node_coord);
+  Real4 dzU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientZTetra4(cell_lid, cn_cv, in_node_coord);
+
+  return volume * (dxU ^ dxU) + volume * (dyU ^ dyU) + volume * (dzU ^ dzU);
+}
+
 void FemModule::
 _assembleCsrGPUBilinearOperatorTETRA4()
 {
@@ -232,6 +270,21 @@ _assembleCsrGPUBilinearOperatorTETRA4()
   {
     Timer::Action timer_build(m_time_stats, "BuildMatrix");
     _buildMatrixCsrGPU();
+
+    // m_csr_matrix.printMatrix("csr_matrix_dump.txt");
+    BSRFormat bsr_format(subDomain()->traceMng(), m_queue, *(mesh()), m_dofs_on_nodes);
+    bsr_format.initialize(m_nb_edge);
+    auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
+    ARCANE_CHECK_POINTER(connectivity_ptr);
+    IndexedNodeNodeConnectivityView node_node_connectivity_view = connectivity_ptr->view();
+    bsr_format.computeSparsity(node_node_connectivity_view);
+
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cn_cv = m_connectivity_view.cellNode();
+    auto command = makeCommand(m_queue);
+    auto in_node_coord = ax::viewIn(command, m_node_coord);
+    // computeElementMatrixTetra4Functor functor(cn_cv, in_node_coord);
+    bsr_format.assembleBilinear<4>([] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); }, cn_cv, in_node_coord);
   }
 
   {
@@ -252,7 +305,7 @@ _assembleCsrGPUBilinearOperatorTETRA4()
     ItemGenericInfoListView nodes_infos(mesh()->nodeFamily());
 
     Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
-    ax::ProfileRegion ps_region(m_queue,"AddAndComputeBilinearTetra4",0x00FF7F);
+    ax::ProfileRegion ps_region(m_queue, "AddAndComputeBilinearTetra4", 0x00FF7F);
     command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
     {
 
