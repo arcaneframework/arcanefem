@@ -20,7 +20,7 @@ class BSRMatrix : public TraceAccessor
 
   BSRMatrix(ITraceMng* tm, const eMemoryRessource& mem_ressource);
 
-  void initialize(Int8 block_size, Int32 nb_non_zero_value, Int32 nb_row, const RunQueue& queue);
+  void initialize(Int32 block_size, Int32 nb_non_zero_value, Int32 nb_row, const RunQueue& queue);
   Int32 blockSize() { return m_block_size; };
   Int32 nbRow() { return m_row_index.extent0(); };
   Int32 nbNz() { return m_values.extent0(); };
@@ -32,7 +32,7 @@ class BSRMatrix : public TraceAccessor
 
  private:
 
-  Int8 m_block_size; // TODO: What size for this int ?
+  Int32 m_block_size; // TODO: What size for this int ?
   NumArray<Real, MDDim1> m_values;
   NumArray<Int32, MDDim1> m_columns;
   NumArray<Int32, MDDim1> m_row_index;
@@ -53,12 +53,15 @@ class BSRFormat : public TraceAccessor
       ARCANE_THROW(NotImplementedException, "BSRFormat(Ctor): Only supports 3D");
   };
 
-  void initialize();
+  void initialize(Int32 nb_edge);
   void computeSparsity(const IndexedNodeNodeConnectivityView& node_node_cv);
 
   // TODO: I would like to make those 2 methods private
   void computeSparsityRowIndex(const IndexedNodeNodeConnectivityView& node_node_cv);
   void computeSparsityColumns(const IndexedNodeNodeConnectivityView& node_node_cv);
+
+  // TODO: Be able to call the .dump() method of bsr_matrix from here ?
+  // Be able to access bsr_matrix with a getter ?
 
  private:
 

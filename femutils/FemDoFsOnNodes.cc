@@ -45,6 +45,7 @@ class FemDoFsOnNodes::Impl
 
   Ref<IIndexedIncrementalItemConnectivity> m_node_dof_connectivity;
   IItemFamily* m_dof_family = nullptr;
+  Int32 m_nb_dof_per_node;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -71,6 +72,7 @@ FemDoFsOnNodes::
 void FemDoFsOnNodes::Impl::
 initialize(IMesh* mesh, Int32 nb_dof_per_node)
 {
+  m_nb_dof_per_node = nb_dof_per_node;
   IItemFamily* dof_family_interface = mesh->findItemFamily(Arcane::IK_DoF, "DoFNodeFamily", true);
   mesh::DoFFamily* dof_family = ARCANE_CHECK_POINTER(dynamic_cast<mesh::DoFFamily*>(dof_family_interface));
   m_dof_family = dof_family_interface;
@@ -157,7 +159,15 @@ dofFamily() const
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+Int32 FemDoFsOnNodes::nbDofPerNode() const
+{
+  return m_p->m_nb_dof_per_node;
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+} // namespace Arcane::FemUtils
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

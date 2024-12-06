@@ -9,10 +9,10 @@ BSRMatrix::BSRMatrix(ITraceMng* tm, const eMemoryRessource& mem_ressource)
 , m_columns(mem_ressource)
 , m_row_index(mem_ressource) {};
 
-void BSRMatrix::initialize(Int8 block_size, Int32 nb_non_zero_value, Int32 nb_row, const RunQueue& queue)
+void BSRMatrix::initialize(Int32 block_size, Int32 nb_non_zero_value, Int32 nb_row, const RunQueue& queue)
 {
   if (block_size <= 0 || nb_non_zero_value <= 0 || nb_row <= 0)
-    ARCANE_THROW(ArgumentException, "BSRMatrix(initialize): block_size, nb_non_zero_value and nb_row should be positive and not nul");
+    ARCANE_THROW(ArgumentException, "BSRMatrix(initialize): arguments should be positive and not null (block_size={0}, nb_non_zero_value={1} and nb_row={2})", block_size, nb_non_zero_value, nb_row);
 
   if (block_size > nb_row)
     ARCANE_THROW(ArgumentException, "BSRMatrix(initialize): block_size should be less than nb_row");
@@ -50,12 +50,12 @@ void BSRMatrix::dump(std::string filename)
   file.close();
 }
 
-void BSRFormat::initialize()
+void BSRFormat::initialize(Int32 nb_edge)
 {
   Int32 nb_node = m_mesh.nbNode();
-  Int32 nb_dof = m_dofs_on_nodes.dofFamily()->nbItem();
-  Int32 nb_non_zero_value = (nb_dof * nb_dof) * (2 * m_mesh.nbEdge() + nb_node);
-  Int32 nb_row = nb_node * nb_dof;
+  Int32 nb_dof = m_dofs_on_nodes.nbDofPerNode();
+  Int32 nb_non_zero_value = (nb_dof * nb_dof) * (2 * nb_edge + nb_node);
+  Int32 nb_row = nb_node;
 
   m_bsr_matrix.initialize(nb_dof, nb_non_zero_value, nb_row, m_queue);
 }
@@ -109,7 +109,7 @@ void BSRFormat::computeSparsity(const IndexedNodeNodeConnectivityView& node_node
   info() << "BSRFormat(computeSparsity): Compute sparsity of BSRMatrix";
   computeSparsityRowIndex(node_node_cv);
   computeSparsityColumns(node_node_cv);
-  m_bsr_matrix.dump("bsr_matrix_dump.txt");
+  // m_bsr_matrix.dump("bsr_matrix_dump.txt");
 }
 
 }; // namespace Arcane::FemUtils
