@@ -16,6 +16,8 @@
 #include "FemModule.h"
 #include "BSRMatrix.h"
 #include "FemUtils.h"
+#include "arccore/base/ArccoreGlobal.h"
+#include "arccore/base/NotImplementedException.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -138,6 +140,15 @@ _buildMatrixCsrGPU()
  *      matrix to the corresponding entries in the global matrix.
  */
 /*---------------------------------------------------------------------------*/
+ARCCORE_HOST_DEVICE FixedMatrix<3, 3> computeElementMatrixTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+{
+  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+
+  Real3 dxU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dyU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
+
+  return area * (dxU ^ dxU) + area * (dyU ^ dyU);
+}
 
 void FemModule::
 _assembleCsrGPUBilinearOperatorTRIA3()
@@ -149,6 +160,25 @@ _assembleCsrGPUBilinearOperatorTRIA3()
     Timer::Action timer_build(m_time_stats, "BuildMatrix");
     // Build the csr matrix
     _buildMatrixCsrGPU();
+
+    BSRFormat bsr_format(subDomain()->traceMng(), m_queue, *(mesh()), m_dofs_on_nodes);
+    bsr_format.initialize(nbFace());
+    bsr_format.computeSparsity();
+
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cn_cv = m_connectivity_view.cellNode();
+    auto command = makeCommand(m_queue);
+    auto in_node_coord = ax::viewIn(command, m_node_coord);
+    bsr_format.assembleBilinear<3>([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
+
+    for (auto i = 0; i < m_csr_matrix.m_matrix_column.extent0(); ++i)
+      m_csr_matrix.m_matrix_column[i] = bsr_format.m_bsr_matrix.columns()[i];
+    for (auto i = 0; i < m_csr_matrix.m_matrix_value.extent0(); ++i)
+      m_csr_matrix.m_matrix_value[i] = bsr_format.m_bsr_matrix.values()[i];
+    for (auto i = 0; i < m_csr_matrix.m_matrix_row.extent0(); ++i)
+      m_csr_matrix.m_matrix_row[i] = bsr_format.m_bsr_matrix.rowIndex()[i];
+
+    return;
   }
 
   RunQueue* queue = acceleratorMng()->defaultQueue();
@@ -247,13 +277,9 @@ _assembleCsrGPUBilinearOperatorTETRA4()
     Timer::Action timer_build(m_time_stats, "BuildMatrix");
     _buildMatrixCsrGPU();
 
-    // m_csr_matrix.printMatrix("csr_matrix_dump.txt");
     BSRFormat bsr_format(subDomain()->traceMng(), m_queue, *(mesh()), m_dofs_on_nodes);
     bsr_format.initialize(m_nb_edge);
-    auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
-    ARCANE_CHECK_POINTER(connectivity_ptr);
-    IndexedNodeNodeConnectivityView node_node_connectivity_view = connectivity_ptr->view();
-    bsr_format.computeSparsity(node_node_connectivity_view);
+    bsr_format.computeSparsity();
 
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();

@@ -12,6 +12,37 @@
 namespace Arcane::FemUtils::Gpu::MeshOperation
 {
 
+ARCCORE_HOST_DEVICE static inline Real computeAreaTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+{
+  Real3 vertex0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
+  Real3 vertex1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
+  Real3 vertex2 = in_node_coord[cn_cv.nodeId(cell_lid, 2)];
+
+  return 0.5 * ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
+};
+
+ARCCORE_HOST_DEVICE static inline Real3 computeGradientXTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+{
+  Real3 vertex0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
+  Real3 vertex1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
+  Real3 vertex2 = in_node_coord[cn_cv.nodeId(cell_lid, 2)];
+
+  auto A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
+
+  return { (vertex1.y - vertex2.y) / A2, (vertex2.y - vertex0.y) / A2, (vertex0.y - vertex1.y) / A2 };
+}
+
+ARCCORE_HOST_DEVICE static inline Real3 computeGradientYTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+{
+  Real3 vertex0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
+  Real3 vertex1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
+  Real3 vertex2 = in_node_coord[cn_cv.nodeId(cell_lid, 2)];
+
+  auto A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
+
+  return { (vertex2.x - vertex1.x) / A2, (vertex0.x - vertex2.x) / A2, (vertex1.x - vertex0.x) / A2 };
+}
+
 ARCCORE_HOST_DEVICE static inline Real computeVolumeTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real3 vertex0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];

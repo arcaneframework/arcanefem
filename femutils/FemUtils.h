@@ -167,7 +167,7 @@ class FixedMatrix
 /*---------------------------------------------------------------------------*/
 //  Outer product of two Real3 vectors to produce a FixedMatrix<3, 3>
 /*---------------------------------------------------------------------------*/
-inline FixedMatrix<3, 3> operator^(const Arcane::Real3& lhs, const Arcane::Real3& rhs)
+ARCCORE_HOST_DEVICE inline FixedMatrix<3, 3> operator^(const Arcane::Real3& lhs, const Arcane::Real3& rhs)
 {
   FixedMatrix<3, 3> result;
   for (Arcane::Int32 i = 0; i < 3; ++i) {

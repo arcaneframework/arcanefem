@@ -65,8 +65,8 @@ class BSRFormat : public TraceAccessor
   , m_dofs_on_nodes(dofs_on_nodes)
   , m_bsr_matrix(tm, queue.memoryRessource())
   {
-    if (m_mesh.dimension() != 3) // TODO: Why dimension can't be called on a const mesh ?
-      ARCANE_THROW(NotImplementedException, "BSRFormat(Ctor): Only supports 3D");
+    if (m_mesh.dimension() != 2 && m_mesh.dimension() != 3) // TODO: Why dimension can't be called on a const mesh ?
+      ARCANE_THROW(NotImplementedException, "BSRFormat(Ctor): Only supports 2D and 3D");
   };
 
   void initialize(Int32 nb_edge); // TODO: Un peu dommage de devoir passer un argument...
