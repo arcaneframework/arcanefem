@@ -1,4 +1,5 @@
 #include "BSRMatrix.h"
+#include <arcane/core/IndexedItemConnectivityView.h>
 
 namespace Arcane::FemUtils
 {
@@ -60,7 +61,30 @@ void BSRFormat::initialize(Int32 nb_edge)
   m_bsr_matrix.initialize(nb_dof, nb_non_zero_value, nb_row, m_queue);
 }
 
-void BSRFormat::computeSparsityRowIndex(const IndexedNodeNodeConnectivityView& node_node_cv)
+void BSRFormat::computeSparsityRowIndex2D(Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> copy_out_data)
+{
+  auto command = makeCommand(m_queue);
+  UnstructuredMeshConnectivityView connectivity_view(&m_mesh);
+  auto node_face_cv = connectivity_view.nodeFace();
+  command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, m_mesh.allNodes())
+  {
+    copy_out_data[node_lid.asInt32()] = node_face_cv.nbFace(node_lid) + 1;
+  };
+}
+
+void BSRFormat::computeSparsityRowIndex3D(Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> copy_out_data)
+{
+  auto command = makeCommand(m_queue);
+  auto connectivity_mng = m_mesh.indexedConnectivityMng();
+  auto connectivity_ptr = connectivity_mng->findOrCreateConnectivity(m_mesh.nodeFamily(), m_mesh.nodeFamily(), "NodeNodeViaEdge");
+  IndexedNodeNodeConnectivityView node_node_cv = connectivity_ptr->view();
+  command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, m_mesh.allNodes())
+  {
+    copy_out_data[node_lid.asInt32()] = node_node_cv.nbItem(node_lid) + 1;
+  };
+}
+
+void BSRFormat::computeSparsityRowIndex()
 {
   info() << "BSRFormat(computeSparsityRowIndex): Compute row index sparsity of BSRMatrix";
   auto command = makeCommand(m_queue);
@@ -69,28 +93,41 @@ void BSRFormat::computeSparsityRowIndex(const IndexedNodeNodeConnectivityView& n
   out_data.resize(m_bsr_matrix.nbRow());
   auto copy_out_data = viewInOut(command, out_data);
 
-  command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, m_mesh.allNodes())
-  {
-    copy_out_data[node_lid.asInt32()] = node_node_cv.nbNode(node_lid) + 1; // Add one to count the node itself
-  };
+  m_mesh.dimension() == 2 ? computeSparsityRowIndex2D(copy_out_data) : computeSparsityRowIndex3D(copy_out_data);
   m_queue.barrier();
 
   Accelerator::Scanner<Int32> scanner;
   scanner.exclusiveSum(&m_queue, out_data, m_bsr_matrix.rowIndex());
 }
 
-void BSRFormat::computeSparsityColumns(const IndexedNodeNodeConnectivityView& node_node_cv)
+void BSRFormat::computeSparsityColumns2D(Accelerator::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> in_row_index, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> inout_columns)
 {
-  info() << "BSRFormat(computeSparsityColumns): Compute columns sparsity of BSRMatrix";
   auto command = makeCommand(m_queue);
-
-  auto out_row_index = viewIn(command, m_bsr_matrix.rowIndex());
-  auto inout_columns = viewInOut(command, m_bsr_matrix.columns());
-
+  UnstructuredMeshConnectivityView connectivity_view(&m_mesh);
+  auto node_face_cv = connectivity_view.nodeFace();
+  auto face_node_cv = connectivity_view.faceNode();
   command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, m_mesh.allNodes())
   {
-    auto offset = out_row_index[node_lid.asInt32()];
-    for (auto neighbor_lid : node_node_cv.nodeIds(node_lid)) {
+    auto offset = in_row_index[node_lid.asInt32()];
+    for (auto face_lid : node_face_cv.faceIds(node_lid)) {
+      auto nodes = face_node_cv.nodes(face_lid);
+      inout_columns[offset] = nodes[0] == node_lid ? nodes[1] : nodes[0];
+      ++offset;
+    }
+    inout_columns[offset] = node_lid.asInt32();
+  };
+}
+
+void BSRFormat::computeSparsityColumns3D(Accelerator::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> in_row_index, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> inout_columns)
+{
+  auto command = makeCommand(m_queue);
+  auto connectivity_mng = m_mesh.indexedConnectivityMng();
+  auto connectivity_ptr = connectivity_mng->findOrCreateConnectivity(m_mesh.nodeFamily(), m_mesh.nodeFamily(), "NodeNodeViaEdge");
+  IndexedNodeNodeConnectivityView node_node_cv = connectivity_ptr->view();
+  command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, m_mesh.allNodes())
+  {
+    auto offset = in_row_index[node_lid.asInt32()];
+    for (auto neighbor_lid : node_node_cv.items(node_lid)) {
       inout_columns[offset] = neighbor_lid.asInt32();
       ++offset;
     }
@@ -98,12 +135,20 @@ void BSRFormat::computeSparsityColumns(const IndexedNodeNodeConnectivityView& no
   };
 }
 
-void BSRFormat::computeSparsity(const IndexedNodeNodeConnectivityView& node_node_cv)
+void BSRFormat::computeSparsityColumns()
+{
+  info() << "BSRFormat(computeSparsityColumns): Compute columns sparsity of BSRMatrix";
+  auto command = makeCommand(m_queue);
+  auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
+  auto inout_columns = viewInOut(command, m_bsr_matrix.columns());
+  m_mesh.dimension() == 2 ? computeSparsityColumns2D(in_row_index, inout_columns) : computeSparsityColumns3D(in_row_index, inout_columns);
+}
+
+void BSRFormat::computeSparsity()
 {
   info() << "BSRFormat(computeSparsity): Compute sparsity of BSRMatrix";
-  computeSparsityRowIndex(node_node_cv);
-  computeSparsityColumns(node_node_cv);
-  // m_bsr_matrix.dump("bsr_matrix_dump.txt");
+  computeSparsityRowIndex();
+  computeSparsityColumns();
 }
 
 }; // namespace Arcane::FemUtils

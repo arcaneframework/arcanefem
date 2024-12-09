@@ -1,6 +1,11 @@
 #include "FemUtils.h"
 #include "FemDoFsOnNodes.h"
 #include "arcane/accelerator/VariableViews.h"
+#include "arcane/core/DataView.h"
+#include "arcane/core/IndexedItemConnectivityView.h"
+#include "arcane/utils/ArrayLayout.h"
+#include "arcane/utils/MDDim.h"
+#include "arccore/base/ArccoreGlobal.h"
 #include <arcane/accelerator/core/RunQueue.h>
 #include <arcane/core/IMesh.h>
 #include <arcane/utils/ArcaneGlobal.h>
@@ -14,6 +19,11 @@
 #include <arcane/accelerator/Scan.h>
 #include <arcane/core/UnstructuredMeshConnectivity.h>
 #include <arcane/accelerator/Atomic.h>
+#include <arcane/core/IIndexedIncrementalItemConnectivity.h>
+#include <arcane/core/IIndexedIncrementalItemConnectivityMng.h>
+#include <arcane/core/IIncrementalItemConnectivity.h>
+#include <arcane/core/IndexedItemConnectivityView.h>
+#include <arcane/core/MeshUtils.h>
 #include <variant>
 
 namespace Arcane::FemUtils
@@ -61,11 +71,15 @@ class BSRFormat : public TraceAccessor
 
   void initialize(Int32 nb_edge); // TODO: Un peu dommage de devoir passer un argument...
   // Could remove the argument by passing via an UnstructuedMeshConnectivityMessh initialized with m_mesh
-  void computeSparsity(const IndexedNodeNodeConnectivityView& node_node_cv);
+  void computeSparsity();
 
-  // TODO: I would like to make those 2 methods private but can't because of cuda error
-  void computeSparsityRowIndex(const IndexedNodeNodeConnectivityView& node_node_cv);
-  void computeSparsityColumns(const IndexedNodeNodeConnectivityView& node_node_cv);
+  void computeSparsityRowIndex2D(Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> copy_out_data);
+  void computeSparsityRowIndex3D(Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> copy_out_data);
+  void computeSparsityRowIndex();
+
+  void computeSparsityColumns2D(Accelerator::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> in_row_index, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> inout_columns);
+  void computeSparsityColumns3D(Accelerator::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> in_row_index, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> inout_columns);
+  void computeSparsityColumns();
 
   // TODO: Be able to call the .dump() method of bsr_matrix from here ?
   // TODO: Be able to access bsr_matrix with a getter ?
@@ -118,7 +132,6 @@ class BSRFormat : public TraceAccessor
         ++cur_src_node_index;
       }
     };
-    // m_bsr_matrix.dump("bsr_matrix_dump.txt");
   }
 
   // TODO: make it private
