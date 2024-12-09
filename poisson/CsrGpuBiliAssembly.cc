@@ -227,30 +227,6 @@ _assembleCsrGPUBilinearOperatorTRIA3()
  */
 /*---------------------------------------------------------------------------*/
 
-/* class computeElementMatrixTetra4Functor : public BSRFormat::ComputeElementMatrixFunctor
-{
- public:
-
-  computeElementMatrixTetra4Functor(const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
-  : m_cn_cv(cn_cv)
-  , m_in_node_coord(in_node_coord) {};
-
-  //ARCCORE_HOST_DEVICE FixedMatrix<4, 4> computeElementMatrixTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
-  ARCCORE_HOST_DEVICE FixedMatrix<4, 4> compute(CellLocalId cell_lid) const override
-  {
-    Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, m_cn_cv, m_in_node_coord);
-
-    Real4 dxU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientXTetra4(cell_lid, m_cn_cv, m_in_node_coord);
-    Real4 dyU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientYTetra4(cell_lid, m_cn_cv, m_in_node_coord);
-    Real4 dzU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientZTetra4(cell_lid, m_cn_cv, m_in_node_coord);
-
-    return volume * (dxU ^ dxU) + volume * (dyU ^ dyU) + volume * (dzU ^ dzU);
-  }
-
-  const IndexedCellNodeConnectivityView& m_cn_cv;
-  const Accelerator::VariableNodeReal3InView& m_in_node_coord;
-}; */
-
 ARCCORE_HOST_DEVICE FixedMatrix<4, 4> computeElementMatrixTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
@@ -283,8 +259,16 @@ _assembleCsrGPUBilinearOperatorTETRA4()
     auto cn_cv = m_connectivity_view.cellNode();
     auto command = makeCommand(m_queue);
     auto in_node_coord = ax::viewIn(command, m_node_coord);
-    // computeElementMatrixTetra4Functor functor(cn_cv, in_node_coord);
-    bsr_format.assembleBilinear<4>([] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); }, cn_cv, in_node_coord);
+    bsr_format.assembleBilinear<4>([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
+
+    for (auto i = 0; i < m_csr_matrix.m_matrix_column.extent0(); ++i)
+      m_csr_matrix.m_matrix_column[i] = bsr_format.m_bsr_matrix.columns()[i];
+    for (auto i = 0; i < m_csr_matrix.m_matrix_value.extent0(); ++i)
+      m_csr_matrix.m_matrix_value[i] = bsr_format.m_bsr_matrix.values()[i];
+    for (auto i = 0; i < m_csr_matrix.m_matrix_row.extent0(); ++i)
+      m_csr_matrix.m_matrix_row[i] = bsr_format.m_bsr_matrix.rowIndex()[i];
+
+    return;
   }
 
   {
@@ -341,6 +325,7 @@ _assembleCsrGPUBilinearOperatorTETRA4()
       }
     };
   }
+  // m_csr_matrix.printMatrix("csr_matrix_dump.txt");
 }
 
 /*---------------------------------------------------------------------------*/

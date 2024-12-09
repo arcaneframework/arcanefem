@@ -70,18 +70,9 @@ class BSRFormat : public TraceAccessor
   // TODO: Be able to call the .dump() method of bsr_matrix from here ?
   // TODO: Be able to access bsr_matrix with a getter ?
 
-  /* class ComputeElementMatrixFunctor
-  {
-   public:
-
-    virtual ARCCORE_HOST_DEVICE FixedMatrix<4, 4> compute(CellLocalId cell_lid) const;
-  }; */
-
   // TODO: try to make it less than 40 loc
   template <int N, class Function>
-  void assembleBilinear(Function compute_element_matrix, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
-  //void assembleBilinear(const std::function<FixedMatrix<N, N>(CellLocalId, const IndexedCellNodeConnectivityView&, const Accelerator::VariableNodeReal3InView&)>& compute_element_matrix, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
-  //void assembleBilinear(ComputeElementMatrixFunctor& compute_element_matrix)
+  void assembleBilinear(Function compute_element_matrix)
   {
     info() << "BSRFormat(assembleBilinear): Assemble bilinear operator";
     UnstructuredMeshConnectivityView m_connectivity_view(&m_mesh);
@@ -97,11 +88,9 @@ class BSRFormat : public TraceAccessor
     auto in_columns = viewIn(command, m_bsr_matrix.columns());
     auto inout_values = viewInOut(command, m_bsr_matrix.values());
 
-    // TODO: is RUNCOMMAND_ENUMERATE on Cell really deprecated ??
     command << RUNCOMMAND_ENUMERATE(Cell, cell, m_mesh.allCells())
     {
-      //FixedMatrix<4, 4> element_matrix = compute_element_matrix.compute(cell);
-      auto element_matrix = compute_element_matrix(cell, cn_cv, in_node_coord);
+      auto element_matrix = compute_element_matrix(cell);
 
       Int32 cur_src_node_index = 0; // index on cell !
       for (NodeLocalId src_node_lid : cell_node_cv.nodes(cell)) { // TODO: cell should be of type ItemLocalId and not Cell ??
@@ -124,18 +113,21 @@ class BSRFormat : public TraceAccessor
               ++begin;
             }
           }
+          ++cur_dst_node_index;
         }
-        ++cur_dst_node_index;
+        ++cur_src_node_index;
       }
-      ++cur_src_node_index;
     };
+    // m_bsr_matrix.dump("bsr_matrix_dump.txt");
   }
+
+  // TODO: make it private
+  BSRMatrix m_bsr_matrix;
 
  private:
 
   RunQueue& m_queue;
   IMesh& m_mesh;
   const FemDoFsOnNodes& m_dofs_on_nodes;
-  BSRMatrix m_bsr_matrix;
 };
 }; // namespace Arcane::FemUtils
