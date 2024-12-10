@@ -1,6 +1,6 @@
+#include "DoFLinearSystem.h"
 #include "FemUtils.h"
 #include "FemDoFsOnNodes.h"
-#include "arcane/accelerator/VariableViews.h"
 #include "arcane/core/DataView.h"
 #include "arcane/core/IndexedItemConnectivityView.h"
 #include "arcane/utils/ArrayLayout.h"
@@ -8,6 +8,8 @@
 #include "arccore/base/ArccoreGlobal.h"
 #include <arcane/accelerator/core/RunQueue.h>
 #include <arcane/core/IMesh.h>
+#include <arcane/core/ItemEnumerator.h>
+#include <arcane/core/ItemTypes.h>
 #include <arcane/utils/ArcaneGlobal.h>
 #include <arcane/utils/UtilsTypes.h>
 #include <arccore/base/ArgumentException.h>
@@ -24,7 +26,6 @@
 #include <arcane/core/IIncrementalItemConnectivity.h>
 #include <arcane/core/IndexedItemConnectivityView.h>
 #include <arcane/core/MeshUtils.h>
-#include <variant>
 
 namespace Arcane::FemUtils
 {
@@ -35,20 +36,26 @@ class BSRMatrix : public TraceAccessor
 
   BSRMatrix(ITraceMng* tm, const eMemoryRessource& mem_ressource);
 
-  void initialize(Int32 block_size, Int32 nb_non_zero_value, Int32 nb_row, const RunQueue& queue);
+  void initialize(Int32 block_size, Int32 nb_non_zero_value, Int32 nb_col, Int32 nb_row, const RunQueue& queue);
+
   Int32 blockSize() { return m_block_size; };
-  Int32 nbRow() { return m_row_index.extent0(); };
-  Int32 nbNz() { return m_values.extent0(); };
+  Int32 nbNz() { return m_nb_non_zero_value; };
+  Int32 nbCol() { return m_nb_col; };
+  Int32 nbRow() { return m_nb_row; };
 
   NumArray<Real, MDDim1>& values() { return m_values; }
   NumArray<Int32, MDDim1>& columns() { return m_columns; }
   NumArray<Int32, MDDim1>& rowIndex() { return m_row_index; }
 
+  void toLinearSystem(DoFLinearSystem& linear_system);
   void dump(std::string filename);
 
  private:
 
-  Int32 m_block_size; // TODO: What size for this int ?
+  Int32 m_block_size;
+  Int32 m_nb_non_zero_value;
+  Int32 m_nb_col;
+  Int32 m_nb_row;
   NumArray<Real, MDDim1> m_values;
   NumArray<Int32, MDDim1> m_columns;
   NumArray<Int32, MDDim1> m_row_index;
@@ -94,6 +101,7 @@ class BSRFormat : public TraceAccessor
 
     ItemGenericInfoListView nodes_infos(m_mesh.nodeFamily());
 
+    auto block_size = m_bsr_matrix.blockSize();
     Int32 matrix_nb_row = m_bsr_matrix.nbRow();
     Int32 matrix_nb_column = m_bsr_matrix.nbNz();
 
@@ -102,34 +110,35 @@ class BSRFormat : public TraceAccessor
     auto in_columns = viewIn(command, m_bsr_matrix.columns());
     auto inout_values = viewInOut(command, m_bsr_matrix.values());
 
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
     command << RUNCOMMAND_ENUMERATE(Cell, cell, m_mesh.allCells())
     {
-      auto element_matrix = compute_element_matrix(cell);
-
-      Int32 cur_src_node_index = 0; // index on cell !
-      for (NodeLocalId src_node_lid : cell_node_cv.nodes(cell)) { // TODO: cell should be of type ItemLocalId and not Cell ??
-        Int32 cur_dst_node_index = 0;
-        for (NodeLocalId dst_node_lid : cell_node_cv.nodes(cell)) {
-          if (nodes_infos.isOwn(src_node_lid)) {
-            // TODO: Existe-t-il une conversion implicite entre NodeLocalId et Int32 (pour ne pas faire .localId()) ?
-            double value = element_matrix(cur_src_node_index, cur_dst_node_index);
-
-            Int32 row_in_matrix = src_node_lid.localId();
-            Int32 col_in_matrix = dst_node_lid.localId();
-            Int32 begin = in_row_index[row_in_matrix];
-            Int32 end = (row_in_matrix == matrix_nb_row - 1) ? matrix_nb_column : in_row_index[row_in_matrix + 1];
-
+      FixedMatrix<N, N> element_matrix = compute_element_matrix(cell);
+      auto cur_row_node_idx = 0;
+      for (NodeLocalId row_node_lid : cell_node_cv.nodes(cell)) {
+        auto cur_col_node_idx = 0;
+        for (NodeLocalId col_node_lid : cell_node_cv.nodes(cell)) {
+          if (nodes_infos.isOwn(row_node_lid)) {
+            auto begin = in_row_index[row_node_lid];
+            auto end = (row_node_lid == matrix_nb_row - 1) ? matrix_nb_column : in_row_index[row_node_lid + 1];
             while (begin < end) {
-              if (in_columns[begin] == col_in_matrix) {
-                Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_values(begin), value);
+              if (in_columns[begin] == col_node_lid) {
+                auto block_start = begin * (block_size * block_size);
+                for (Int32 i = 0; i < block_size; ++i) {
+                  for (Int32 j = 0; j < block_size; ++j) {
+                    double value = element_matrix(block_size * cur_row_node_idx + i, block_size * cur_col_node_idx + j);
+                    inout_values[block_start + i * block_size + j] += value;
+                  }
+                }
                 break;
               }
               ++begin;
             }
           }
-          ++cur_dst_node_index;
+          ++cur_col_node_idx;
         }
-        ++cur_src_node_index;
+        ++cur_row_node_idx;
       }
     };
   }
