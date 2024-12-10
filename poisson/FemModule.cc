@@ -236,7 +236,34 @@ _handleFlags()
     m_cross_validation = false;
     info() << "Cross validation disabled (CROSS_VALIDATION = FALSE)";
   }
+  if (options()->bsr) {
+    m_use_bsr = true;
+    m_use_legacy = false;
+  }
   info() << "-----------------------------------------------------------------------------------------";
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE FixedMatrix<3, 3> computeElementMatrixTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+{
+  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dxU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dyU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
+  return area * (dxU ^ dxU) + area * (dyU ^ dyU);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE FixedMatrix<4, 4> computeElementMatrixTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+{
+  Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
+  Real4 dxU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientXTetra4(cell_lid, cn_cv, in_node_coord);
+  Real4 dyU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientYTetra4(cell_lid, cn_cv, in_node_coord);
+  Real4 dzU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientZTetra4(cell_lid, cn_cv, in_node_coord);
+  return volume * (dxU ^ dxU) + volume * (dyU ^ dyU) + volume * (dzU ^ dzU);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -401,25 +428,46 @@ _doStationarySolve()
     }
   }
 
-  // Assemble the FEM linear operator (RHS - vector b)
-  assemblyTimeStart = platform::getRealTime();
-  if (m_use_buildless_csr || m_use_csr_gpu || m_use_nodewise_csr || m_use_csr) {
-    //_assembleCsrLinearOperator();
-    _assembleCsrGpuLinearOperator();
-    {
-      Timer::Action timer_action(m_time_stats, "TranslateToLinearSystem");
-      m_csr_matrix.translateToLinearSystem(m_linear_system, m_queue);
-    }
-    _translateRhs();
-  }
-  else {
-    if (m_use_coo || m_use_coo_sort || m_use_coo_gpu || m_use_coo_sort_gpu) {
-      Timer::Action timer_action(m_time_stats, "TranslateToLinearSystem");
-      m_coo_matrix.translateToLinearSystem(m_linear_system);
-    }
+  if (m_use_bsr) {
+    BSRFormat bsr_format(subDomain()->traceMng(), m_queue, *(mesh()), m_dofs_on_nodes);
+    bsr_format.initialize(dim == 2 ? nbFace() : m_nb_edge);
+    bsr_format.computeSparsity();
+
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cn_cv = m_connectivity_view.cellNode();
+    auto command = makeCommand(m_queue);
+    auto in_node_coord = ax::viewIn(command, m_node_coord);
+
+    if (dim == 2)
+      bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
+    else
+      bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
+
+    bsr_format.m_bsr_matrix.toLinearSystem(m_linear_system);
+
     _assembleLinearOperator();
   }
-  info() << "[ArcaneFem-Timer] Time to assemble RHS vector = " << (platform::getRealTime() - assemblyTimeStart);
+  else {
+    // Assemble the FEM linear operator (RHS - vector b)
+    assemblyTimeStart = platform::getRealTime();
+    if (m_use_buildless_csr || m_use_csr_gpu || m_use_nodewise_csr || m_use_csr) {
+      //_assembleCsrLinearOperator();
+      _assembleCsrGpuLinearOperator();
+      {
+        Timer::Action timer_action(m_time_stats, "TranslateToLinearSystem");
+        m_csr_matrix.translateToLinearSystem(m_linear_system, m_queue);
+      }
+      _translateRhs();
+    }
+    else {
+      if (m_use_coo || m_use_coo_sort || m_use_coo_gpu || m_use_coo_sort_gpu) {
+        Timer::Action timer_action(m_time_stats, "TranslateToLinearSystem");
+        m_coo_matrix.translateToLinearSystem(m_linear_system);
+      }
+      _assembleLinearOperator();
+    }
+    info() << "[ArcaneFem-Timer] Time to assemble RHS vector = " << (platform::getRealTime() - assemblyTimeStart);
+  }
 
   // solve linear system
   if (m_solve_linear_system)

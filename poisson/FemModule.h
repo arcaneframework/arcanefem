@@ -96,6 +96,8 @@
 #include "arcane/utils/ValueConvert.h"
 
 #include <arcane/core/MeshUtils.h>
+#include "BSRFormat.h"
+#include "ArcaneFemFunctionsGpu.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -169,6 +171,7 @@ class FemModule
   bool m_use_nodewise_csr = false;
   bool m_use_buildless_csr = false;
   bool m_use_legacy = true;
+  bool m_use_bsr = false;
   bool m_running_on_gpu = false;
   bool m_solve_linear_system = true;
   bool m_cross_validation = true;
@@ -194,10 +197,13 @@ class FemModule
   //! Default queue used for computation.
   RunQueue m_queue;
 
+ public:
+
+  void _doStationarySolve();
+
  private:
 
   void _handleFlags();
-  void _doStationarySolve();
   void _getMaterialParameters();
   void _updateBoundayConditions();
   void _checkCellType();

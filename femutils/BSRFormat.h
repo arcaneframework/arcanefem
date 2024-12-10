@@ -92,7 +92,7 @@ class BSRFormat : public TraceAccessor
   // TODO: Be able to access bsr_matrix with a getter ?
 
   // TODO: try to make it less than 40 loc
-  template <int N, class Function> void assembleBilinear(Function compute_element_matrix)
+  template <class Function> void assembleBilinear(Function compute_element_matrix)
   {
     info() << "BSRFormat(assembleBilinear): Assemble bilinear operator";
     UnstructuredMeshConnectivityView m_connectivity_view(&m_mesh);
@@ -114,7 +114,7 @@ class BSRFormat : public TraceAccessor
 
     command << RUNCOMMAND_ENUMERATE(Cell, cell, m_mesh.allCells())
     {
-      FixedMatrix<N, N> element_matrix = compute_element_matrix(cell);
+      auto element_matrix = compute_element_matrix(cell);
       auto cur_row_node_idx = 0;
       for (NodeLocalId row_node_lid : cell_node_cv.nodes(cell)) {
         auto cur_col_node_idx = 0;
