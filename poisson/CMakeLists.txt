@@ -58,6 +58,8 @@ configure_file(${MSH_DIR}/porous-medium.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY
 configure_file(${MSH_DIR}/L-shape-3D.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/sphere_cut.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/circle_cut.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Test.L-shape.2D.bsr.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Test.sphere.3D.bsr.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 # For benchmarking
 configure_file(run-benchmark.sh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
@@ -161,3 +163,9 @@ endif()
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
   add_test(NAME [poisson]L-shape_2D_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Poisson Test.L-shape.2D.arc)
 endif()
+
+add_test(NAME [poisson]2D_bsr COMMAND Poisson Test.L-shape.2D.bsr.arc)
+arcanefem_add_gpu_test(NAME [poisson]2D_bsr_gpu COMMAND ./Poisson ARGS Test.L-shape.2D.bsr.arc)
+
+add_test(NAME [poisson]3D_bsr COMMAND Poisson Test.sphere.3D.bsr.arc)
+arcanefem_add_gpu_test(NAME [poisson]3D_bsr_gpu COMMAND ./Poisson ARGS Test.sphere.3D.bsr.arc)
