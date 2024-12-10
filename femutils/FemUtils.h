@@ -25,7 +25,6 @@
 #include <arcane/utils/Real3.h>
 #include <arcane/utils/Real3x3.h>
 
-#include <arccore/base/ArccoreGlobal.h>
 #include <array>
 
 /*---------------------------------------------------------------------------*/
@@ -33,10 +32,10 @@
 
 struct Real4
 {
-  Arcane::Real data[4];
-
-  ARCCORE_HOST_DEVICE Arcane::Real& operator[](std::size_t i) { return data[i]; }
-  ARCCORE_HOST_DEVICE const Arcane::Real& operator[](std::size_t i) const { return data[i]; }
+    Arcane::Real data[4];
+    
+    Arcane::Real& operator[](std::size_t i) { return data[i]; }
+    const Arcane::Real& operator[](std::size_t i) const { return data[i]; }
 };
 
 /*---------------------------------------------------------------------------*/
@@ -61,14 +60,14 @@ class FixedMatrix
 
  public:
 
-  ARCCORE_HOST_DEVICE Arcane::Real& operator()(Arcane::Int32 i, Arcane::Int32 j)
+  Arcane::Real& operator()(Arcane::Int32 i, Arcane::Int32 j)
   {
     ARCANE_CHECK_AT(i, N);
     ARCANE_CHECK_AT(j, M);
     return m_values[i * M + j];
   }
 
-  ARCCORE_HOST_DEVICE Arcane::Real operator()(Arcane::Int32 i, Arcane::Int32 j) const
+  Arcane::Real operator()(Arcane::Int32 i, Arcane::Int32 j) const
   {
     ARCANE_CHECK_AT(i, N);
     ARCANE_CHECK_AT(j, M);
@@ -100,7 +99,7 @@ class FixedMatrix
   }
 
   //! Define the addition operator
-  ARCCORE_HOST_DEVICE FixedMatrix<N, M> operator+(const FixedMatrix<N, M>& other) const
+  FixedMatrix<N, M> operator+(const FixedMatrix<N, M>& other) const
   {
     FixedMatrix<N, M> result;
     for (Arcane::Int32 i = 0; i < N; ++i) {
@@ -148,7 +147,7 @@ class FixedMatrix
   }
 
   //! Friend function for scalar multiplication: scalar * FixedMatrix
-  ARCCORE_HOST_DEVICE friend FixedMatrix<N, M> operator*(Real scalar, const FixedMatrix<N, M>& matrix)
+  friend FixedMatrix<N, M> operator*(Real scalar, const FixedMatrix<N, M>& matrix)
   {
     FixedMatrix<N, M> result;
     for (Arcane::Int32 i = 0; i < N; ++i) {
@@ -167,7 +166,7 @@ class FixedMatrix
 /*---------------------------------------------------------------------------*/
 //  Outer product of two Real3 vectors to produce a FixedMatrix<3, 3>
 /*---------------------------------------------------------------------------*/
-ARCCORE_HOST_DEVICE inline FixedMatrix<3, 3> operator^(const Arcane::Real3& lhs, const Arcane::Real3& rhs)
+inline FixedMatrix<3, 3> operator^(const Arcane::Real3& lhs, const Arcane::Real3& rhs)
 {
   FixedMatrix<3, 3> result;
   for (Arcane::Int32 i = 0; i < 3; ++i) {
@@ -181,15 +180,15 @@ ARCCORE_HOST_DEVICE inline FixedMatrix<3, 3> operator^(const Arcane::Real3& lhs,
 /*---------------------------------------------------------------------------*/
 //  Outer product of two Real4 vectors to produce a FixedMatrix<4, 4>
 /*---------------------------------------------------------------------------*/
-ARCCORE_HOST_DEVICE inline FixedMatrix<4, 4> operator^(const Real4& lhs, const Real4& rhs)
+inline FixedMatrix<4, 4> operator^(const Real4& lhs, const Real4& rhs)
 {
-  FixedMatrix<4, 4> result;
-  for (Arcane::Int32 i = 0; i < 4; ++i) {
-    for (Arcane::Int32 j = 0; j < 4; ++j) {
-      result(i, j) = lhs[i] * rhs[j];
+    FixedMatrix<4, 4> result;
+    for (Arcane::Int32 i = 0; i < 4; ++i) {
+        for (Arcane::Int32 j = 0; j < 4; ++j) {
+            result(i, j) = lhs[i] * rhs[j];
+        }
     }
-  }
-  return result;
+    return result;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -285,8 +284,7 @@ matrixTranspose(const FixedMatrix<N, M>& a)
  * \brief Vector N de taille fixe.
  */
 template <int N>
-class FixedVector
-{
+class FixedVector{
   using ThatClass = FixedVector<N>;
 
  public:
@@ -295,14 +293,12 @@ class FixedVector
 
  public:
 
-  Arcane::Real& operator()(Arcane::Int32 i)
-  {
+  Arcane::Real& operator()(Arcane::Int32 i)  {
     ARCANE_CHECK_AT(i, N);
     return m_values[i];
   }
 
-  ARCCORE_HOST_DEVICE Arcane::Real operator()(Arcane::Int32 i) const
-  {
+  Arcane::Real operator()(Arcane::Int32 i) const  {
     ARCANE_CHECK_AT(i, N);
     return m_values[i];
   }
@@ -310,22 +306,19 @@ class FixedVector
  public:
 
   //! Multiply all the components by \a v
-  void multInPlace(Arcane::Real v)
-  {
+  void multInPlace(Arcane::Real v)  {
     for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
       m_values[i] *= v;
   }
 
   //! Add \a v to all the components
-  void addInPlace(Arcane::Real v)
-  {
+  void addInPlace(Arcane::Real v)  {
     for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
       m_values[i] += v;
   }
 
   //! Dump values
-  void dump(std::ostream& o) const
-  {
+  void dump(std::ostream& o) const  {
     const ThatClass& values = *this;
     for (Arcane::Int32 i = 0; i < N; ++i) {
       o << "[ ";
@@ -335,24 +328,21 @@ class FixedVector
   }
 
   //! Set this vector equal to b
-  void setEqualTo(const FixedVector<N>& b)
-  {
+  void setEqualTo(const FixedVector<N>& b)  {
     ARCANE_CHECK_AT(totalNbElement(), N);
     for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
       m_values[i] = b[i];
   }
 
   //! Add b to this vector
-  void add(const FixedVector<N>& b)
-  {
+  void add(const FixedVector<N>& b)  {
     ARCANE_CHECK_AT(totalNbElement(), N);
     for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
       m_values[i] += b[i];
   }
 
   //! Substract b to this vector
-  void sub(const FixedVector<N>& b)
-  {
+  void sub(const FixedVector<N>& b)  {
     ARCANE_CHECK_AT(totalNbElement(), N);
     for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
       m_values[i] -= b[i];
@@ -367,20 +357,18 @@ class FixedVector
 /*---------------------------------------------------------------------------*/
 // Tensor: used for symmetric 2nd-order tensors (useful for stresses, strains)
 // Storage in vectorial form (xx yy zz xy yz zx)
-using Tensor = FixedVector<6>;
+using Tensor= FixedVector<6>;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 inline Real
-trace(const Tensor& b)
-{
-  return (b(0) + b(1) + b(3));
+trace(const Tensor& b){
+  return  (b(0) + b(1) + b(3));
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 inline Tensor
-operator+(const Tensor& t1, const Tensor& t2)
-{
+operator+(const Tensor& t1,const Tensor& t2) {
   Tensor new_vector;
 
   for (Int32 i = 0; i < 6; ++i) {
@@ -392,8 +380,7 @@ operator+(const Tensor& t1, const Tensor& t2)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 inline Tensor
-operator-(const Tensor& t1, const Tensor& t2)
-{
+operator-(const Tensor& t1,const Tensor& t2) {
   Tensor new_vector;
 
   for (Int32 i = 0; i < 6; ++i) {
@@ -404,25 +391,21 @@ operator-(const Tensor& t1, const Tensor& t2)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 inline Real3
-tensorDiagonal(const Tensor& m)
-{ // xx yy zz
-  return { m(0), m(1), m(2) };
+tensorDiagonal(const Tensor& m) { // xx yy zz
+  return {m(0), m(1), m(2) };
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 inline Real3
-tensorOutDiagonal(const Tensor& m)
-{ // xy yz xz
-  return { m(3), m(4), m(5) };
+tensorOutDiagonal(const Tensor& m) { // xy yz xz
+  return {m(3), m(4), m(5) };
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 inline Real3x3
-tensorToMatrix3x3(const Tensor& m)
-{
+tensorToMatrix3x3(const Tensor& m){
   Real3x3 mat;
-  for (Int32 i = 0; i < 3; ++i)
-    mat[i][i] = m(i);
+  for (Int32 i = 0; i < 3; ++i) mat[i][i] = m(i);
   mat[0][1] = mat[1][0] = m(3);
   mat[0][2] = mat[2][0] = m(4);
   mat[1][2] = mat[2][1] = m(5);
@@ -431,11 +414,9 @@ tensorToMatrix3x3(const Tensor& m)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 inline Tensor
-matrix3x3ToTensor(const Real3x3& m)
-{
+matrix3x3ToTensor(const Real3x3& m){
   Tensor t;
-  for (Int32 i = 0; i < 3; ++i)
-    t(i) = m[i][i];
+  for (Int32 i = 0; i < 3; ++i) t(i) = m[i][i];
   t(3) = m[0][1];
   t(4) = m[0][2];
   t(5) = m[2][1];

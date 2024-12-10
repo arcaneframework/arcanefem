@@ -1,4 +1,4 @@
-#include "BSRMatrix.h"
+#include "BSRFormat.h"
 #include "DoFLinearSystem.h"
 #include <arcane/core/IndexedItemConnectivityView.h>
 
