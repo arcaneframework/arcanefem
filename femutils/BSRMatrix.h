@@ -92,8 +92,7 @@ class BSRFormat : public TraceAccessor
   // TODO: Be able to access bsr_matrix with a getter ?
 
   // TODO: try to make it less than 40 loc
-  template <int N, class Function>
-  void assembleBilinear(Function compute_element_matrix)
+  template <int N, class Function> void assembleBilinear(Function compute_element_matrix)
   {
     info() << "BSRFormat(assembleBilinear): Assemble bilinear operator";
     UnstructuredMeshConnectivityView m_connectivity_view(&m_mesh);
@@ -102,15 +101,16 @@ class BSRFormat : public TraceAccessor
     ItemGenericInfoListView nodes_infos(m_mesh.nodeFamily());
 
     auto block_size = m_bsr_matrix.blockSize();
-    Int32 matrix_nb_row = m_bsr_matrix.nbRow();
-    Int32 matrix_nb_column = m_bsr_matrix.nbNz();
+    auto matrix_nb_row = m_bsr_matrix.nbRow();
+    auto matrix_nb_column = m_bsr_matrix.nbCol();
+    auto matrix_nb_nz = m_bsr_matrix.nbNz();
+
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
     auto command = makeCommand(m_queue);
     auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
     auto in_columns = viewIn(command, m_bsr_matrix.columns());
     auto inout_values = viewInOut(command, m_bsr_matrix.values());
-
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
     command << RUNCOMMAND_ENUMERATE(Cell, cell, m_mesh.allCells())
     {
@@ -120,7 +120,7 @@ class BSRFormat : public TraceAccessor
         auto cur_col_node_idx = 0;
         for (NodeLocalId col_node_lid : cell_node_cv.nodes(cell)) {
           if (nodes_infos.isOwn(row_node_lid)) {
-            auto begin = in_row_index[row_node_lid];
+            Int32 begin = in_row_index[row_node_lid];
             auto end = (row_node_lid == matrix_nb_row - 1) ? matrix_nb_column : in_row_index[row_node_lid + 1];
             while (begin < end) {
               if (in_columns[begin] == col_node_lid) {
@@ -128,7 +128,9 @@ class BSRFormat : public TraceAccessor
                 for (Int32 i = 0; i < block_size; ++i) {
                   for (Int32 j = 0; j < block_size; ++j) {
                     double value = element_matrix(block_size * cur_row_node_idx + i, block_size * cur_col_node_idx + j);
-                    inout_values[block_start + i * block_size + j] += value;
+                    ARCANE_ASSERT((block_start + (i * block_size) + j) < matrix_nb_nz, ("Index out of bounds in inout_values"));
+                    if ((block_start + (i * block_size) + j) < matrix_nb_nz)
+                      Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_values[block_start + (i * block_size + j)], value);
                   }
                 }
                 break;
