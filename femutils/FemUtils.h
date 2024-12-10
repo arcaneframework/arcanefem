@@ -25,6 +25,7 @@
 #include <arcane/utils/Real3.h>
 #include <arcane/utils/Real3x3.h>
 
+#include <arccore/base/ArccoreGlobal.h>
 #include <array>
 
 /*---------------------------------------------------------------------------*/
@@ -34,8 +35,8 @@ struct Real4
 {
     Arcane::Real data[4];
     
-    Arcane::Real& operator[](std::size_t i) { return data[i]; }
-    const Arcane::Real& operator[](std::size_t i) const { return data[i]; }
+    ARCCORE_HOST_DEVICE Arcane::Real& operator[](std::size_t i) { return data[i]; }
+    ARCCORE_HOST_DEVICE const Arcane::Real& operator[](std::size_t i) const { return data[i]; }
 };
 
 /*---------------------------------------------------------------------------*/
