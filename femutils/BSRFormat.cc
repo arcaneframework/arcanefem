@@ -1,15 +1,23 @@
+// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+//-----------------------------------------------------------------------------
+// Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// See the top-level COPYRIGHT file for details.
+// SPDX-License-Identifier: Apache-2.0
+//-----------------------------------------------------------------------------
+/*---------------------------------------------------------------------------*/
+/* BSRFormat.cc                                                (C) 2022-2024 */
+/*                                                                           */
+/* BSRFormat class implementation.                                           */
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 #include "BSRFormat.h"
-#include "DoFLinearSystem.h"
-#include <arcane/core/IndexedItemConnectivityView.h>
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 namespace Arcane::FemUtils
 {
-
-BSRMatrix::BSRMatrix(ITraceMng* tm, const eMemoryRessource& mem_ressource)
-: TraceAccessor(tm)
-, m_values(mem_ressource)
-, m_columns(mem_ressource)
-, m_row_index(mem_ressource) {};
 
 void BSRMatrix::initialize(Int32 block_size, Int32 nb_non_zero_value, Int32 nb_col, Int32 nb_row, const RunQueue& queue)
 {
@@ -25,11 +33,15 @@ void BSRMatrix::initialize(Int32 block_size, Int32 nb_non_zero_value, Int32 nb_c
   m_nb_non_zero_value = nb_non_zero_value;
   m_nb_col = nb_col;
   m_nb_row = nb_row;
+
   m_values.resize(nb_non_zero_value);
   m_values.fill(0, &queue);
   m_columns.resize(nb_col);
   m_row_index.resize(nb_row);
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 void BSRMatrix::toLinearSystem(DoFLinearSystem& linear_system)
 {
@@ -57,9 +69,12 @@ void BSRMatrix::toLinearSystem(DoFLinearSystem& linear_system)
   }
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 void BSRMatrix::dump(std::string filename)
 {
-  info() << "BSRMatrix(dump): Dump BSRMatrix in \"" << filename << "\"";
+  info() << "BSRMatrix(dump): Dump matrix in \"" << filename << "\"";
   ofstream file(filename);
 
   file << "size :" << nbNz() << "\n";
@@ -81,16 +96,21 @@ void BSRMatrix::dump(std::string filename)
   file.close();
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 void BSRFormat::initialize(Int32 nb_edge)
 {
-  Int32 nb_node = m_mesh.nbNode();
+  Int32 nb_node = m_mesh.nbNode(); // Is the number of row
   Int32 nb_dof = m_dofs_on_nodes.nbDofPerNode();
   Int32 nb_col = 2 * nb_edge + nb_node;
   Int32 nb_non_zero_value = (nb_dof * nb_dof) * (2 * nb_edge + nb_node);
-  Int32 nb_row = nb_node;
 
-  m_bsr_matrix.initialize(nb_dof, nb_non_zero_value, nb_col, nb_row, m_queue);
+  m_bsr_matrix.initialize(nb_dof, nb_non_zero_value, nb_col, nb_node, m_queue);
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 void BSRFormat::computeSparsityRowIndex2D(Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> copy_out_data)
 {
@@ -103,6 +123,9 @@ void BSRFormat::computeSparsityRowIndex2D(Accelerator::NumArrayView<DataViewGett
   };
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 void BSRFormat::computeSparsityRowIndex3D(Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> copy_out_data)
 {
   auto command = makeCommand(m_queue);
@@ -114,6 +137,9 @@ void BSRFormat::computeSparsityRowIndex3D(Accelerator::NumArrayView<DataViewGett
     copy_out_data[node_lid.asInt32()] = node_node_cv.nbItem(node_lid) + 1;
   };
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 void BSRFormat::computeSparsityRowIndex()
 {
@@ -130,6 +156,9 @@ void BSRFormat::computeSparsityRowIndex()
   Accelerator::Scanner<Int32> scanner;
   scanner.exclusiveSum(&m_queue, out_data, m_bsr_matrix.rowIndex());
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 void BSRFormat::computeSparsityColumns2D(Accelerator::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> in_row_index, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> inout_columns)
 {
@@ -149,6 +178,9 @@ void BSRFormat::computeSparsityColumns2D(Accelerator::NumArrayView<DataViewGette
   };
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 void BSRFormat::computeSparsityColumns3D(Accelerator::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> in_row_index, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> inout_columns)
 {
   auto command = makeCommand(m_queue);
@@ -166,6 +198,9 @@ void BSRFormat::computeSparsityColumns3D(Accelerator::NumArrayView<DataViewGette
   };
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 void BSRFormat::computeSparsityColumns()
 {
   info() << "BSRFormat(computeSparsityColumns): Compute columns sparsity of BSRMatrix";
@@ -174,6 +209,9 @@ void BSRFormat::computeSparsityColumns()
   auto inout_columns = viewInOut(command, m_bsr_matrix.columns());
   m_mesh.dimension() == 2 ? computeSparsityColumns2D(in_row_index, inout_columns) : computeSparsityColumns3D(in_row_index, inout_columns);
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 void BSRFormat::computeSparsity()
 {

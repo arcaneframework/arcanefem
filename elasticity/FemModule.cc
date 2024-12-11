@@ -1165,7 +1165,7 @@ _assembleBilinearOperatorTRIA3()
     auto mu2_copy = mu2;
     bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
 
-    bsr_format.m_bsr_matrix.toLinearSystem(m_linear_system);
+    bsr_format.toLinearSystem(m_linear_system);
   }
   else {
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());

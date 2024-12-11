@@ -249,8 +249,8 @@ _handleFlags()
 ARCCORE_HOST_DEVICE FixedMatrix<3, 3> computeElementMatrixTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
-  Real3 dxU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
-  Real3 dyU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dxU = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dyU = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
   return area * (dxU ^ dxU) + area * (dyU ^ dyU);
 }
 
@@ -260,9 +260,9 @@ ARCCORE_HOST_DEVICE FixedMatrix<3, 3> computeElementMatrixTria3(CellLocalId cell
 ARCCORE_HOST_DEVICE FixedMatrix<4, 4> computeElementMatrixTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
-  Real4 dxU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientXTetra4(cell_lid, cn_cv, in_node_coord);
-  Real4 dyU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientYTetra4(cell_lid, cn_cv, in_node_coord);
-  Real4 dzU = Arcane::FemUtils::Gpu::MeshOperation::computeGradientZTetra4(cell_lid, cn_cv, in_node_coord);
+  Real4 dxU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientXTetra4(cell_lid, cn_cv, in_node_coord);
+  Real4 dyU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientYTetra4(cell_lid, cn_cv, in_node_coord);
+  Real4 dzU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientZTetra4(cell_lid, cn_cv, in_node_coord);
   return volume * (dxU ^ dxU) + volume * (dyU ^ dyU) + volume * (dzU ^ dzU);
 }
 
@@ -443,7 +443,7 @@ _doStationarySolve()
     else
       bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
 
-    bsr_format.m_bsr_matrix.toLinearSystem(m_linear_system);
+    bsr_format.toLinearSystem(m_linear_system);
 
     _assembleLinearOperator();
   }
