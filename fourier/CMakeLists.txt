@@ -40,12 +40,12 @@ find_program(GMSH NAMES gmsh)
 if (GMSH)
   message(STATUS "GMSH found: ${GMSH}")
   add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/plancher.10k.msh
-    COMMAND ${GMSH} -2 ${MSH_DIR}/plancher.geo -format msh41 -o plancher.10k.msh
+    COMMAND ${GMSH} -2 ${MSH_DIR}/plancher.geo -format msh41 -o plancher.10k.msh -bin
     DEPENDS ${MSH_DIR}/plancher.geo
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )
   add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/multi-material.10k.msh
-    COMMAND ${GMSH} -2 ${MSH_DIR}/multi-mat.geo -format msh41 -o multi-material.10k.msh
+    COMMAND ${GMSH} -2 ${MSH_DIR}/multi-mat.geo -format msh41 -o multi-material.10k.msh -bin
     DEPENDS ${MSH_DIR}/multi-mat.geo
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )

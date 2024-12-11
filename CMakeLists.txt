@@ -7,7 +7,7 @@ if(POLICY CMP0144)
   cmake_policy(SET CMP0144 NEW)
 endif()
 
-find_package(Arcane 3.14.4 REQUIRED)
+find_package(Arcane 3.14.14 REQUIRED)
 arcane_accelerator_enable()
 
 enable_testing()

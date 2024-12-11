@@ -1,6 +1,6 @@
 Welcome to the repository showcasing Finite Element Method (FEM) based solvers developed using the Arcane Framework. The FEM solvers/algorithms here are optimized for both CPU and GPU-based parallel computing environments.
 
-Before diving into the samples provided, please ensure you have installed a recent version (3.14.4) of the Arcane Framework.
+Before diving into the samples provided, please ensure you have installed a recent version (3.14.14) of the Arcane Framework.
 
 ## How to test  ##
 

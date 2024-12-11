@@ -22,7 +22,7 @@ find_program(GMSH NAMES gmsh)
 if (GMSH)
   message(STATUS "GMSH found: ${GMSH}")
   add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/plate.fine.msh
-    COMMAND ${GMSH} -2 ${MSH_DIR}/plate.fine.geo -format msh41 -o plate.fine.msh
+    COMMAND ${GMSH} -2 ${MSH_DIR}/plate.fine.geo -format msh41 -o plate.fine.msh -bin
     DEPENDS ${MSH_DIR}/plate.fine.geo
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   )
