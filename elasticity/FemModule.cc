@@ -1163,7 +1163,9 @@ _assembleBilinearOperatorTRIA3()
     auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
     auto lambda_copy = lambda;
     auto mu2_copy = mu2;
-    bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
+    bsr_format.assembleCellWise([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
+    bsr_format.resetMatrixValues();
+    bsr_format.assembleNodeWise([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
 
     bsr_format.toLinearSystem(m_linear_system);
   }

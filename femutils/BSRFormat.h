@@ -159,6 +159,7 @@ class BSRFormat : public TraceAccessor
   void initialize(Int32 nb_edge); // NOTE: Could compute nb_edge inside function via m_mesh
   void toLinearSystem(DoFLinearSystem& linear_system) { m_bsr_matrix.toLinearSystem(linear_system); };
   void dumpMatrix(std::string filename) { m_bsr_matrix.dump(filename); };
+  void resetMatrixValues() { m_bsr_matrix.values().fill(0, &m_queue); };
 
   void computeSparsity();
 
@@ -172,15 +173,15 @@ class BSRFormat : public TraceAccessor
 
   /*---------------------------------------------------------------------------*/
   /**
-   * @brief Assembles the global BSR matrix for a bilinear operator.
+   * @brief Assembles the global BSR matrix for a bilinear operator, cell-wise.
    *
-   * This function constructs the Block Sparse Row (BSR) matrix by iterating over mesh cells 
-   * and accumulating contributions from element-level matrices. It uses a user-defined 
-   * callback to compute the local matrix for each cell and updates the global matrix 
+   * This function constructs the Block Sparse Row (BSR) matrix by iterating over mesh cells
+   * and accumulating contributions from element-level matrices. It uses a user-defined
+   * callback to compute the local matrix for each cell and updates the global matrix
    * with atomic operations to ensure parallel safety.
    *
    * ### Parameters:
-   * - `compute_element_matrix`: A callback function that computes the local matrix 
+   * - `compute_element_matrix`: A callback function that computes the local matrix
    *   for a given cell. It must return a matrix compatible with the expected block size.
    *
    * ### Key Details:
@@ -190,9 +191,10 @@ class BSRFormat : public TraceAccessor
    *
    */
   /*---------------------------------------------------------------------------*/
-  template <class Function> void assembleBilinear(Function compute_element_matrix)
+
+  template <class Function> void assembleCellWise(Function compute_element_matrix)
   {
-    info() << "BSRFormat(assembleBilinear): Assemble bilinear operator";
+    info() << "BSRFormat(assembleCellWise): Assemble bilinear operator cell-wise";
 
     UnstructuredMeshConnectivityView m_connectivity_view(&m_mesh);
     auto cell_node_cv = m_connectivity_view.cellNode();
@@ -221,7 +223,7 @@ class BSRFormat : public TraceAccessor
         for (NodeLocalId col_node_lid : cell_node_cv.nodes(cell)) {
           if (nodes_infos.isOwn(row_node_lid)) {
 
-            Int32 begin = in_row_index[row_node_lid];
+            auto begin = in_row_index[row_node_lid];
             auto end = (row_node_lid == matrix_nb_row - 1) ? matrix_nb_column : in_row_index[row_node_lid + 1];
 
             // Find the column index
@@ -230,14 +232,13 @@ class BSRFormat : public TraceAccessor
                 auto block_start = begin * (block_size * block_size);
 
                 // Update the block values
-                for (Int32 i = 0; i < block_size; ++i) {
-                  for (Int32 j = 0; j < block_size; ++j) {
+                for (auto i = 0; i < block_size; ++i) {
+                  for (auto j = 0; j < block_size; ++j) {
                     double value = element_matrix(block_size * cur_row_node_idx + i, block_size * cur_col_node_idx + j);
-                    ARCANE_ASSERT((block_start + (i * block_size) + j) < matrix_nb_nz, ("BSRFormat(assembleBilinear): Index out of bounds in inout_values"));
+                    ARCANE_ASSERT((block_start + (i * block_size) + j) < matrix_nb_nz, ("BSRFormat(assembleCellWise): Index out of bounds in inout_values"));
                     Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_values[block_start + (i * block_size + j)], value);
                   }
                 }
-
                 break;
               }
               ++begin;
@@ -246,6 +247,92 @@ class BSRFormat : public TraceAccessor
           ++cur_col_node_idx;
         }
         ++cur_row_node_idx;
+      }
+    };
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Assembles the global BSR matrix for a bilinear operator, node-wise.
+   *
+   * This function constructs the Block Sparse Row (BSR) matrix by iterating over mesh nodes
+   * and accumulating contributions from element-level matrices. It uses a user-defined
+   * callback to compute the local matrix for each cell and updates the global matrix.
+   *
+   * ### Parameters:
+   * - `compute_element_matrix`: A callback function that computes the local matrix
+   *   for a given cell. It must return a matrix compatible with the expected block size.
+   *
+   * ### Key Details:
+   * - Uses cell-to-node, node-to-cell connectivity from the mesh and DoF mappings for assembly.
+   * - Handles block structure updates for `blockSize x blockSize` dimensions.
+   *
+   */
+  /*---------------------------------------------------------------------------*/
+
+  template <class Function> void assembleNodeWise(Function compute_element_matrix)
+  {
+    info() << "BSRFormat(assembleNodeWise): Assemble bilinear operator node-wise";
+
+    UnstructuredMeshConnectivityView m_connectivity_view(&m_mesh);
+    auto cell_node_cv = m_connectivity_view.cellNode();
+    auto node_cell_cv = m_connectivity_view.nodeCell();
+
+    ItemGenericInfoListView nodes_infos(m_mesh.nodeFamily());
+
+    auto block_size = m_bsr_matrix.blockSize();
+    auto matrix_nb_row = m_bsr_matrix.nbRow();
+    auto matrix_nb_column = m_bsr_matrix.nbCol();
+    auto matrix_nb_nz = m_bsr_matrix.nbNz();
+
+    auto command = makeCommand(m_queue);
+    auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
+    auto in_columns = viewIn(command, m_bsr_matrix.columns());
+    auto inout_values = viewInOut(command, m_bsr_matrix.values());
+
+    command << RUNCOMMAND_ENUMERATE(Node, row_node, m_mesh.allNodes())
+    {
+      auto cur_row_node_idx = 0;
+      for (auto cell : node_cell_cv.cells(row_node)) {
+
+        // Find the index of the node in the current cell
+        for (Int32 i = 1; i <= 3; ++i) {
+          if (row_node == cell_node_cv.nodeId(cell, i)) {
+            cur_row_node_idx = i;
+            break;
+          }
+          cur_row_node_idx = 0;
+        }
+
+        auto element_matrix = compute_element_matrix(cell);
+
+        auto cur_col_node_idx = 0;
+        for (NodeLocalId col_node_lid : cell_node_cv.nodes(cell)) {
+          if (nodes_infos.isOwn(row_node)) {
+
+            auto begin = in_row_index[row_node];
+            auto end = (row_node == matrix_nb_row - 1) ? matrix_nb_column : in_row_index[row_node + 1];
+
+            // Find the column index
+            while (begin < end) {
+              if (in_columns[begin] == col_node_lid) {
+                auto block_start = begin * (block_size * block_size);
+
+                // Update the block values
+                for (auto i = 0; i < block_size; ++i) {
+                  for (auto j = 0; j < block_size; ++j) {
+                    double value = element_matrix(block_size * cur_row_node_idx + i, block_size * cur_col_node_idx + j);
+                    ARCANE_ASSERT((block_start + (i * block_size) + j) < matrix_nb_nz, ("BSRFormat(assembleNodeWise): Index out of bounds in inout_values"));
+                    inout_values[block_start + (i * block_size + j)] += value;
+                  }
+                }
+                break;
+              }
+              ++begin;
+            }
+          }
+          ++cur_col_node_idx;
+        }
       }
     };
   }
