@@ -38,6 +38,56 @@ void BSRMatrix::initialize(Int32 block_size, Int32 nb_non_zero_value, Int32 nb_c
   m_values.fill(0, &queue);
   m_columns.resize(nb_col);
   m_row_index.resize(nb_row);
+  m_nb_nz_per_row.resize(nb_row);
+}
+
+void BSRMatrix::convertToCSR(NumArray<Int32, MDDim1>& csr_row_index, NumArray<Int32, MDDim1>& csr_columns)
+{
+    info() << "BSRMatrix(toLinearSystem): Convert matrix to CSR";
+  // Taille des blocs
+  Int32 block_size = m_block_size;
+  Int32 b_squared = block_size * block_size; // Nombre total d'éléments dans un bloc
+
+  // Nombre de lignes de blocs
+  Int32 nb_block_rows = m_row_index.extent0() - 1;
+
+  // Taille totale des lignes et des colonnes
+  Int32 nb_rows = nb_block_rows * block_size;
+
+  // Calculer la taille totale des colonnes dans CSR
+  Int32 total_non_zero_elements = m_columns.extent0() * b_squared;
+
+  // Initialisation des tableaux CSR
+  csr_row_index.resize(nb_rows + 1);
+  csr_columns.resize(total_non_zero_elements);
+
+  // Étape 1 : Construire csr_row_index
+  for (Int32 block_row = 0; block_row < nb_block_rows; ++block_row) {
+    Int32 start_block = m_row_index[block_row];
+    Int32 end_block = m_row_index[block_row + 1];
+    Int32 nb_blocks = end_block - start_block;
+
+    for (Int32 offset = 0; offset < block_size; ++offset) {
+      Int32 row = block_row * block_size + offset;
+      csr_row_index[row + 1] = csr_row_index[row] + nb_blocks * block_size;
+    }
+  }
+
+  // Étape 2 : Construire csr_columns
+  Int32 csr_index = 0; // Indice courant dans csr_columns
+  for (Int32 block_row = 0; block_row < nb_block_rows; ++block_row) {
+    Int32 start_block = m_row_index[block_row];
+    Int32 end_block = m_row_index[block_row + 1];
+
+    for (Int32 block_index = start_block; block_index < end_block; ++block_index) {
+      Int32 block_col = m_columns[block_index];
+      for (Int32 row_offset = 0; row_offset < block_size; ++row_offset) {
+        for (Int32 col_offset = 0; col_offset < block_size; ++col_offset) {
+          csr_columns[csr_index++] = block_col * block_size + col_offset;
+        }
+      }
+    }
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -46,7 +96,16 @@ void BSRMatrix::initialize(Int32 block_size, Int32 nb_non_zero_value, Int32 nb_c
 void BSRMatrix::toLinearSystem(DoFLinearSystem& linear_system)
 {
   info() << "BSRMatrix(toLinearSystem): Translate matrix to linear system";
-  for (auto row = 0; row < m_nb_row; ++row) {
+
+  if (linear_system.hasSetCSRValues()) {
+    NumArray<Int32, MDDim1> csr_row_index;
+    NumArray<Int32, MDDim1> csr_column;
+    convertToCSR(csr_row_index, csr_row_index);
+    CSRFormatView csr_view(csr_row_index.to1DSpan(), csr_column.to1DSpan(), m_nb_nz_per_row.to1DSpan(), m_values.to1DSpan());
+    linear_system.setCSRValues(csr_view);
+  }
+  else {
+    for (auto row = 0; row < m_nb_row; ++row) {
     auto row_start = m_row_index[row];
     auto row_end = (row + 1 < m_nb_row) ? m_row_index[row + 1] : m_nb_col;
 
@@ -67,6 +126,7 @@ void BSRMatrix::toLinearSystem(DoFLinearSystem& linear_system)
       }
     }
   }
+}
 }
 
 /*---------------------------------------------------------------------------*/
@@ -155,6 +215,31 @@ void BSRFormat::computeSparsityRowIndex()
 
   Accelerator::Scanner<Int32> scanner;
   scanner.exclusiveSum(&m_queue, out_data, m_bsr_matrix.rowIndex());
+  m_queue.barrier();
+
+  // NOTE: Compute "m_matrix_rows_nb_column" array
+  // Better to do it later, like in the translate to linear
+  // system loop but needed during the assembly with BSR...
+  auto nb_row = m_bsr_matrix.nbRow();
+  {
+    auto command = makeCommand(m_queue);
+
+    m_bsr_matrix.nbNzPerRow().copy(m_bsr_matrix.rowIndex());
+    auto inout_nb_nz_per_row = viewInOut(command, m_bsr_matrix.nbNzPerRow());
+
+    auto nb_nz_per_row = m_bsr_matrix.nbNzPerRow();
+    NumArray<Int32, MDDim1> nb_nz_per_row_copy = nb_nz_per_row;
+    auto in_nb_nz_per_row_copy = viewIn(command, nb_nz_per_row_copy);
+
+    command << RUNCOMMAND_LOOP1(iter, nb_row - 1)
+    {
+      auto [i] = iter();
+      auto x = inout_nb_nz_per_row[i];
+      inout_nb_nz_per_row[i] = in_nb_nz_per_row_copy[i + 1] - x;
+    };
+
+    m_bsr_matrix.nbNzPerRow()[nb_row - 1] = m_bsr_matrix.nbCol() - nb_nz_per_row[nb_row - 1];
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -219,5 +304,4 @@ void BSRFormat::computeSparsity()
   computeSparsityRowIndex();
   computeSparsityColumns();
 }
-
 }; // namespace Arcane::FemUtils

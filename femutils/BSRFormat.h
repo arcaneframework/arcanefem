@@ -103,9 +103,11 @@ class BSRMatrix : public TraceAccessor
   NumArray<Real, MDDim1>& values() { return m_values; }
   NumArray<Int32, MDDim1>& columns() { return m_columns; }
   NumArray<Int32, MDDim1>& rowIndex() { return m_row_index; }
+  NumArray<Int32, MDDim1>& nbNzPerRow() { return m_nb_nz_per_row; }
 
   void toLinearSystem(DoFLinearSystem& linear_system); // TODO: Make it use GPU ?
   void dump(std::string filename);
+  void convertToCSR(NumArray<Int32, MDDim1>& csr_row_index, NumArray<Int32, MDDim1>& csr_columns);
 
  private:
 
@@ -117,6 +119,7 @@ class BSRMatrix : public TraceAccessor
   NumArray<Real, MDDim1> m_values;
   NumArray<Int32, MDDim1> m_columns;
   NumArray<Int32, MDDim1> m_row_index;
+  NumArray<Int32, MDDim1> m_nb_nz_per_row;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -212,7 +215,21 @@ class BSRFormat : public TraceAccessor
     auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
     auto in_columns = viewIn(command, m_bsr_matrix.columns());
     auto inout_values = viewInOut(command, m_bsr_matrix.values());
+    auto in_nz_per_row = viewIn(command, m_bsr_matrix.nbNzPerRow());
 
+    /*
+     *     [ 1  2  0  0  0  0 ]
+     *     [ 3  4  0  0  0  0 ]
+     *     [ 0  0  5  6  7  8 ]
+     *     [ 0  0  9 10 11 12 ]
+     *     [ 0  0  0  0 13 14 ]
+     *     [ 0  0  0  0 15 16 ]
+     *
+     *     BSR Representation:
+     *       - Values:    [ 1, 2, 3, 4, 5, 6, 9, 10, 7, 8, 11, 12, 13, 14, 15, 16 ]
+     *       - Columns:   [ 0, 1, 2, 2 ]  // Column indices of each block
+     *       - Row Index: [ 0, 1, 3 ]     // Starting indices of blocks per row
+     */
     command << RUNCOMMAND_ENUMERATE(Cell, cell, m_mesh.allCells())
     {
       auto element_matrix = compute_element_matrix(cell);
@@ -249,6 +266,59 @@ class BSRFormat : public TraceAccessor
         ++cur_row_node_idx;
       }
     };
+
+    /*
+     *     [ 1  2  0  0  0  0 ]
+     *     [ 3  4  0  0  0  0 ]
+     *     [ 0  0  5  6  7  8 ]
+     *     [ 0  0  9 10 11 12 ]
+     *     [ 0  0  0  0 13 14 ]
+     *     [ 0  0  0  0 15 16 ]
+     *
+     *     BSR Representation:
+     *       - Values:    [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 ] <= "CSR-like"
+     *       - Columns:   [ 0, 1, 2, 2 ]  // Column indices of each block
+     *       - Row Index: [ 0, 1, 3 ]     // Starting indices of blocks per row
+     */
+    /*
+    command << RUNCOMMAND_ENUMERATE(Cell, cell, m_mesh.allCells())
+    {
+      auto element_matrix = compute_element_matrix(cell);
+
+      auto cur_row_node_idx = 0;
+      for (NodeLocalId row_node_lid : cell_node_cv.nodes(cell)) {
+        auto cur_col_node_idx = 0;
+        for (NodeLocalId col_node_lid : cell_node_cv.nodes(cell)) {
+          if (nodes_infos.isOwn(row_node_lid)) {
+
+            auto g_block_start = in_row_index[row_node_lid] * (block_size * block_size);
+            auto begin = in_row_index[row_node_lid];
+            auto end = (row_node_lid == matrix_nb_row - 1) ? matrix_nb_column : in_row_index[row_node_lid + 1];
+
+            auto x = 0;
+            while (begin < end) {
+              if (in_columns[begin] == col_node_lid) {
+                for (auto i = 0; i < block_size; ++i) {
+                  for (auto j = 0; j < block_size; ++j) {
+                    double value = element_matrix(block_size * cur_row_node_idx + i, block_size * cur_col_node_idx + j);
+                    auto l_block_start = g_block_start + (block_size * x);
+                    if (i != 0)
+                      l_block_start += (block_size * in_nz_per_row[row_node_lid]);
+
+                    Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_values[l_block_start + j], value);
+                  }
+                }
+              }
+              ++begin;
+              ++x;
+            }
+          }
+          ++cur_col_node_idx;
+        }
+        ++cur_row_node_idx;
+      }
+    };
+    */
   }
 
   /*---------------------------------------------------------------------------*/
@@ -337,9 +407,10 @@ class BSRFormat : public TraceAccessor
     };
   }
 
+  BSRMatrix m_bsr_matrix;
+
  private:
 
-  BSRMatrix m_bsr_matrix;
   RunQueue& m_queue;
   IMesh& m_mesh;
   const FemDoFsOnNodes& m_dofs_on_nodes;
