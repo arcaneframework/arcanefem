@@ -12,6 +12,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include "BSRFormat.h"
+#include <arccore/base/ArccoreGlobal.h>
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -41,92 +42,183 @@ void BSRMatrix::initialize(Int32 block_size, Int32 nb_non_zero_value, Int32 nb_c
   m_nb_nz_per_row.resize(nb_row);
 }
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
+/**
+ * Retrieves the value of a specific degree of freedom (DoF) from the BSR matrix.
+ *
+ * @param row The row index of the DoF.
+ * @param col The column index of the DoF.
+ * @param isValueArrayCsrLike A flag indicating if the value array uses a CSR-like layout.
+ *                            - true: The value array is structured in a CSR-like manner.
+ *                            - false: The value array is structured in a standard BSR layout.
+ *
+ * @return The value corresponding to the specified row and column indices.
+ *
+ * @throws std::runtime_error If the value is not found in the BSR matrix.
+ */
 
-void BSRMatrix::toCsr(CsrFormat& csr_matrix)
+Real BSRMatrix::getValue(DoFLocalId row, DoFLocalId col, bool isValueArrayCsrLike)
 {
-  info() << "BSRMatrix(toLinearSystem): Convert matrix to CSR";
-  auto block_size = m_block_size;
-  auto b_squared = block_size * block_size; // Total number of elements in a block
+  auto block_row = row / 2;
+  auto block_col = col / 2;
 
-  auto nb_block_rows = m_row_index.extent0() - 1;
-  auto nb_rows = nb_block_rows * block_size;
-  auto total_non_zero_elements = m_columns.extent0() * b_squared;
-  csr_matrix.initialize(nullptr, total_non_zero_elements, nb_rows, m_queue);
+  auto block_start = m_row_index[block_row];
+  auto block_end = (block_row == m_nb_row - 1) ? m_nb_col : m_row_index[block_row + 1];
 
-  csr_matrix.m_matrix_row.resize(nb_rows + 1);
-  csr_matrix.m_matrix_row[0] = 0;
-  csr_matrix.m_matrix_column.resize(total_non_zero_elements);
+  auto row_offset = row % 2;
+  auto col_offset = col % 2;
+
+  auto block_start_in_value = block_start * (m_block_size * m_block_size);
+  auto col_index = 0;
+  while (block_start < block_end) {
+    if (m_columns[block_start] == block_col) {
+      if (isValueArrayCsrLike) {
+        auto value_index = block_start_in_value + (m_block_size * col_index) + ((row_offset) * (m_block_size * m_nb_nz_per_row[block_row]));
+        return m_values[value_index + (col_offset)];
+      }
+      else {
+        block_start = block_start * (m_block_size * m_block_size);
+        auto value_index = block_start + ((row_offset)*m_block_size + (col_offset));
+        return m_values[value_index];
+      }
+    }
+    ++block_start;
+    ++col_index;
+  }
+
+  throw std::runtime_error("BSRMatrix(getValue): Value not found");
+}
+
+/**
+ * Sets the value of a specific degree of freedom (DoF) in the BSR matrix.
+ *
+ * @param row The row index of the DoF.
+ * @param col The column index of the DoF.
+ * @param value The value to set at the specified row and column indices.
+ * @param isValueArrayCsrLike A flag indicating if the value array uses a CSR-like layout.
+ *                            - true: The value array is structured in a CSR-like manner.
+ *                            - false: The value array is structured in a standard BSR layout.
+ */
+
+void BSRMatrix::setValue(DoFLocalId row, DoFLocalId col, Real value, bool isValueArrayCsrLike)
+{
+  auto block_row = row / 2;
+  auto block_col = col / 2;
+
+  auto block_start = m_row_index[block_row];
+  auto block_end = (block_row == m_nb_row - 1) ? m_nb_col : m_row_index[block_row + 1];
+
+  auto row_offset = row % 2;
+  auto col_offset = col % 2;
+
+  auto block_start_in_value = block_start * (m_block_size * m_block_size);
+  auto col_index = 0;
+  while (block_start < block_end) {
+    if (m_columns[block_start] == block_col) {
+      if (isValueArrayCsrLike) {
+        auto value_index = block_start_in_value + (m_block_size * col_index) + ((row_offset) * (m_block_size * m_nb_nz_per_row[block_row]));
+        m_values[value_index + (col_offset)] = value;
+        return;
+      }
+      else {
+        block_start = block_start * (m_block_size * m_block_size);
+        auto value_index = block_start + ((row_offset)*m_block_size + (col_offset));
+        m_values[value_index] = value;
+        return;
+      }
+    }
+    ++block_start;
+    ++col_index;
+  }
+
+  throw std::runtime_error("BSRMatrix(setValue): Failed to set value in BSR matrix");
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void BSRMatrix::toCsr(CsrFormat* csr_matrix)
+{
+  ARCCORE_CHECK_POINTER(csr_matrix);
+  info() << "BSRMatrix(toCsr): Convert matrix to CSR";
+
+   auto block_size = m_block_size;
+   auto b_squared = block_size * block_size;
+
+   auto nb_block_rows = m_row_index.extent0() - 1;
+   auto nb_rows = nb_block_rows * block_size;
+   auto total_non_zero_elements = m_columns.extent0() * b_squared;
+
+  csr_matrix->initialize(nullptr, total_non_zero_elements, nb_rows, m_queue);
+
+  csr_matrix->m_matrix_row.resize(nb_rows + 1); // Initialize all entries to 0
+  csr_matrix->m_matrix_row.fill(0);
+  csr_matrix->m_matrix_column.resize(total_non_zero_elements);
 
   // Compute csr_matrix.m_matrix_row
   for (auto block_row = 0; block_row < nb_block_rows; ++block_row) {
-    auto start_block = m_row_index[block_row];
-    auto end_block = m_row_index[block_row + 1];
-    auto nb_blocks = end_block - start_block; // Redundant with nb_nz_per_row bsr array which is already filled
+     auto start_block = m_row_index[block_row];
+     auto end_block = m_row_index[block_row + 1];
+     auto nb_blocks = end_block - start_block;
 
     for (auto offset = 0; offset < block_size; ++offset) {
-      auto row = block_row * block_size + offset;
-      csr_matrix.m_matrix_row[row + 1] = csr_matrix.m_matrix_row[row] + nb_blocks * block_size;
+       auto row = block_row * block_size + offset;
+      csr_matrix->m_matrix_row[row + 1] = csr_matrix->m_matrix_row[row] + nb_blocks * block_size;
     }
   }
 
   // Compute csr_columns
-  auto csr_index = 0; // Current index in csr_columns
+  size_t csr_index = 0;
   for (auto block_row = 0; block_row < nb_block_rows; ++block_row) {
-    auto start_block = m_row_index[block_row];
-    auto end_block = block_row == nb_block_rows - 1 ? m_nb_col : m_row_index[block_row + 1];
+     auto start_block = m_row_index[block_row];
+     auto end_block = block_row == nb_block_rows - 1 ? m_nb_col :  m_row_index[block_row + 1];
 
     for (auto row_offset = 0; row_offset < block_size; ++row_offset) {
       for (auto block_index = start_block; block_index < end_block; ++block_index) {
-        auto block_col = m_columns[block_index];
+         auto block_col = m_columns[block_index];
         for (Int32 col_offset = 0; col_offset < block_size; ++col_offset) {
-          csr_matrix.m_matrix_column[csr_index++] = block_col * block_size + col_offset;
+          assert(csr_index < total_non_zero_elements); // Ensure no out-of-bounds
+          csr_matrix->m_matrix_column[csr_index++] = block_col * block_size + col_offset;
         }
       }
     }
   }
 
   // Copy bsr_values into csr_matrix.m_matrix_value
-  csr_matrix.m_matrix_value.resize(m_values.extent0());
-  for (auto i = 0; i < m_values.extent0(); ++i) {
-    csr_matrix.m_matrix_value[i] = m_values[i];
-  }
+  csr_matrix->m_matrix_value.resize(m_values.extent0());
+  for (auto i = 0; i < m_values.extent0(); ++i)
+    csr_matrix->m_matrix_value[i] = m_values[i];
+
+  // Copy bsr_nb_nz_per_row into csr_matrix
+  csr_matrix->m_matrix_rows_nb_column.resize(m_nb_nz_per_row.extent0());
+  for (auto i = 0; i < m_nb_nz_per_row.extent0(); ++i)
+    csr_matrix->m_matrix_rows_nb_column[i] = m_nb_nz_per_row[i];
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void BSRMatrix::toLinearSystem(DoFLinearSystem& linear_system)
+void BSRMatrix::toLinearSystem(DoFLinearSystem& linear_system, CsrFormat* csr_matrix)
 {
   info() << "BSRMatrix(toLinearSystem): Translate matrix to linear system";
 
   if (linear_system.hasSetCSRValues()) {
-    /*
-    NumArray<Int32, MDDim1> csr_row_index;
-    NumArray<Int32, MDDim1> csr_column;
-    convertToCSR(csr_row_index, csr_row_index);
-    CSRFormatView csr_view(csr_row_index.to1DSpan(), csr_column.to1DSpan(), m_nb_nz_per_row.to1DSpan(), m_values.to1DSpan());
+    ARCCORE_CHECK_POINTER(csr_matrix);
+    this->toCsr(csr_matrix);
+    CSRFormatView csr_view(csr_matrix->m_matrix_row.to1DSpan(), csr_matrix->m_matrix_column.to1DSpan(), csr_matrix->m_matrix_rows_nb_column.to1DSpan(), m_values.to1DSpan());
     linear_system.setCSRValues(csr_view);
-    */
   }
   else {
     for (auto row = 0; row < m_nb_row; ++row) {
       auto row_start = m_row_index[row];
       auto row_end = (row + 1 < m_nb_row) ? m_row_index[row + 1] : m_nb_col;
 
-      if (row_start == row_end)
-        continue; // Skip empty rows
-
       for (auto block_idx = row_start; block_idx < row_end; ++block_idx) {
         auto col = m_columns[block_idx];
-        auto block_start = block_idx * (m_block_size * m_block_size);
-
         for (auto i = 0; i < m_block_size; ++i) {
           for (auto j = 0; j < m_block_size; ++j) {
-            auto value = m_values[block_start + i * m_block_size + j];
             auto global_row = row * m_block_size + i;
             auto global_col = col * m_block_size + j;
+            auto value = getValue(DoFLocalId(global_row), DoFLocalId(global_col), true);
             linear_system.matrixAddValue(DoFLocalId(global_row), DoFLocalId(global_col), value);
           }
         }
@@ -310,4 +402,5 @@ void BSRFormat::computeSparsity()
   computeSparsityRowIndex();
   computeSparsityColumns();
 }
+
 }; // namespace Arcane::FemUtils

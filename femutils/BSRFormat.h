@@ -26,6 +26,7 @@
 #include <arcane/core/UnstructuredMeshConnectivity.h>
 #include <arcane/core/IIncrementalItemConnectivity.h>
 #include <arcane/core/IndexedItemConnectivityView.h>
+#include <arcane/core/VariableTypedef.h>
 #include <arcane/core/ItemEnumerator.h>
 #include <arcane/core/ItemTypes.h>
 #include <arcane/core/MeshUtils.h>
@@ -108,9 +109,12 @@ class BSRMatrix : public TraceAccessor
   NumArray<Int32, MDDim1>& rowIndex() { return m_row_index; }
   NumArray<Int32, MDDim1>& nbNzPerRow() { return m_nb_nz_per_row; }
 
-  void toLinearSystem(DoFLinearSystem& linear_system); // TODO: Make it use GPU ?
+  void toLinearSystem(DoFLinearSystem& linear_system, CsrFormat *csr_matrix = nullptr); // TODO: Make it use GPU ?
   void dump(std::string filename);
-  void toCsr(CsrFormat& csr_matrix);
+  void toCsr(CsrFormat* csr_matrix);
+
+  Real getValue(DoFLocalId row, DoFLocalId col, bool isValueArrayCsrLike);
+  void setValue(DoFLocalId row, DoFLocalId col, Real value, bool isValueArrayCsrLike = false);
 
  private:
 
@@ -165,7 +169,7 @@ class BSRFormat : public TraceAccessor
   };
 
   void initialize(Int32 nb_edge); // NOTE: Could compute nb_edge inside function via m_mesh
-  void toLinearSystem(DoFLinearSystem& linear_system) { m_bsr_matrix.toLinearSystem(linear_system); };
+  void toLinearSystem(DoFLinearSystem& linear_system, CsrFormat *csr_matrix = nullptr) { m_bsr_matrix.toLinearSystem(linear_system, csr_matrix); };
   void dumpMatrix(std::string filename) { m_bsr_matrix.dump(filename); };
   void resetMatrixValues() { m_bsr_matrix.values().fill(0, &m_queue); };
 
