@@ -39,12 +39,14 @@
 #include <arcane/utils/MDDim.h>
 
 #include <arcane/accelerator/RunCommandEnumerate.h>
+#include <arcane/accelerator/RunCommandLoop.h>
 #include <arcane/accelerator/core/RunQueue.h>
 #include <arcane/accelerator/NumArrayViews.h>
 #include <arcane/accelerator/Atomic.h>
 #include <arcane/accelerator/Scan.h>
 
 #include "DoFLinearSystem.h"
+#include "CsrFormatMatrix.h"
 #include "FemDoFsOnNodes.h"
 
 /*---------------------------------------------------------------------------*/
@@ -87,13 +89,14 @@ class BSRMatrix : public TraceAccessor
 {
  public:
 
-  BSRMatrix(ITraceMng* tm, const eMemoryRessource& mem_ressource)
+  BSRMatrix(ITraceMng* tm, const eMemoryRessource& mem_ressource, RunQueue& queue)
   : TraceAccessor(tm)
   , m_values(mem_ressource)
   , m_columns(mem_ressource)
-  , m_row_index(mem_ressource) {};
+  , m_row_index(mem_ressource)
+  , m_queue(queue) {};
 
-  void initialize(Int32 block_size, Int32 nb_non_zero_value, Int32 nb_col, Int32 nb_row, const RunQueue& queue);
+  void initialize(Int32 block_size, Int32 nb_non_zero_value, Int32 nb_col, Int32 nb_row);
 
   Int32 blockSize() { return m_block_size; };
   Int32 nbNz() { return m_nb_non_zero_value; };
@@ -107,7 +110,7 @@ class BSRMatrix : public TraceAccessor
 
   void toLinearSystem(DoFLinearSystem& linear_system); // TODO: Make it use GPU ?
   void dump(std::string filename);
-  void convertToCSR(NumArray<Int32, MDDim1>& csr_row_index, NumArray<Int32, MDDim1>& csr_columns);
+  void toCsr(CsrFormat& csr_matrix);
 
  private:
 
@@ -120,6 +123,8 @@ class BSRMatrix : public TraceAccessor
   NumArray<Int32, MDDim1> m_columns;
   NumArray<Int32, MDDim1> m_row_index;
   NumArray<Int32, MDDim1> m_nb_nz_per_row;
+
+  RunQueue& m_queue;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -153,7 +158,7 @@ class BSRFormat : public TraceAccessor
   , m_queue(queue)
   , m_mesh(mesh)
   , m_dofs_on_nodes(dofs_on_nodes)
-  , m_bsr_matrix(tm, queue.memoryRessource())
+  , m_bsr_matrix(tm, queue.memoryRessource(), queue)
   {
     if (m_mesh.dimension() != 2 && m_mesh.dimension() != 3)
       ARCANE_THROW(NotImplementedException, "BSRFormat(Ctor): Only supports 2D and 3D");
@@ -230,6 +235,7 @@ class BSRFormat : public TraceAccessor
      *       - Columns:   [ 0, 1, 2, 2 ]  // Column indices of each block
      *       - Row Index: [ 0, 1, 3 ]     // Starting indices of blocks per row
      */
+    /*
     command << RUNCOMMAND_ENUMERATE(Cell, cell, m_mesh.allCells())
     {
       auto element_matrix = compute_element_matrix(cell);
@@ -266,6 +272,7 @@ class BSRFormat : public TraceAccessor
         ++cur_row_node_idx;
       }
     };
+    */
 
     /*
      *     [ 1  2  0  0  0  0 ]
@@ -280,7 +287,6 @@ class BSRFormat : public TraceAccessor
      *       - Columns:   [ 0, 1, 2, 2 ]  // Column indices of each block
      *       - Row Index: [ 0, 1, 3 ]     // Starting indices of blocks per row
      */
-    /*
     command << RUNCOMMAND_ENUMERATE(Cell, cell, m_mesh.allCells())
     {
       auto element_matrix = compute_element_matrix(cell);
@@ -318,7 +324,6 @@ class BSRFormat : public TraceAccessor
         ++cur_row_node_idx;
       }
     };
-    */
   }
 
   /*---------------------------------------------------------------------------*/

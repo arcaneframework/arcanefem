@@ -19,7 +19,7 @@
 namespace Arcane::FemUtils
 {
 
-void BSRMatrix::initialize(Int32 block_size, Int32 nb_non_zero_value, Int32 nb_col, Int32 nb_row, const RunQueue& queue)
+void BSRMatrix::initialize(Int32 block_size, Int32 nb_non_zero_value, Int32 nb_col, Int32 nb_row)
 {
   if (block_size <= 0 || nb_non_zero_value <= 0 || nb_row <= 0)
     ARCANE_THROW(ArgumentException, "BSRMatrix(initialize): arguments should be positive and not null (block_size={0}, nb_non_zero_value={1} and nb_row={2})", block_size, nb_non_zero_value, nb_row);
@@ -35,58 +35,62 @@ void BSRMatrix::initialize(Int32 block_size, Int32 nb_non_zero_value, Int32 nb_c
   m_nb_row = nb_row;
 
   m_values.resize(nb_non_zero_value);
-  m_values.fill(0, &queue);
+  m_values.fill(0, &m_queue);
   m_columns.resize(nb_col);
   m_row_index.resize(nb_row);
   m_nb_nz_per_row.resize(nb_row);
 }
 
-void BSRMatrix::convertToCSR(NumArray<Int32, MDDim1>& csr_row_index, NumArray<Int32, MDDim1>& csr_columns)
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void BSRMatrix::toCsr(CsrFormat& csr_matrix)
 {
-    info() << "BSRMatrix(toLinearSystem): Convert matrix to CSR";
-  // Taille des blocs
-  Int32 block_size = m_block_size;
-  Int32 b_squared = block_size * block_size; // Nombre total d'éléments dans un bloc
+  info() << "BSRMatrix(toLinearSystem): Convert matrix to CSR";
+  auto block_size = m_block_size;
+  auto b_squared = block_size * block_size; // Total number of elements in a block
 
-  // Nombre de lignes de blocs
-  Int32 nb_block_rows = m_row_index.extent0() - 1;
+  auto nb_block_rows = m_row_index.extent0() - 1;
+  auto nb_rows = nb_block_rows * block_size;
+  auto total_non_zero_elements = m_columns.extent0() * b_squared;
+  csr_matrix.initialize(nullptr, total_non_zero_elements, nb_rows, m_queue);
 
-  // Taille totale des lignes et des colonnes
-  Int32 nb_rows = nb_block_rows * block_size;
+  csr_matrix.m_matrix_row.resize(nb_rows + 1);
+  csr_matrix.m_matrix_row[0] = 0;
+  csr_matrix.m_matrix_column.resize(total_non_zero_elements);
 
-  // Calculer la taille totale des colonnes dans CSR
-  Int32 total_non_zero_elements = m_columns.extent0() * b_squared;
+  // Compute csr_matrix.m_matrix_row
+  for (auto block_row = 0; block_row < nb_block_rows; ++block_row) {
+    auto start_block = m_row_index[block_row];
+    auto end_block = m_row_index[block_row + 1];
+    auto nb_blocks = end_block - start_block; // Redundant with nb_nz_per_row bsr array which is already filled
 
-  // Initialisation des tableaux CSR
-  csr_row_index.resize(nb_rows + 1);
-  csr_columns.resize(total_non_zero_elements);
-
-  // Étape 1 : Construire csr_row_index
-  for (Int32 block_row = 0; block_row < nb_block_rows; ++block_row) {
-    Int32 start_block = m_row_index[block_row];
-    Int32 end_block = m_row_index[block_row + 1];
-    Int32 nb_blocks = end_block - start_block;
-
-    for (Int32 offset = 0; offset < block_size; ++offset) {
-      Int32 row = block_row * block_size + offset;
-      csr_row_index[row + 1] = csr_row_index[row] + nb_blocks * block_size;
+    for (auto offset = 0; offset < block_size; ++offset) {
+      auto row = block_row * block_size + offset;
+      csr_matrix.m_matrix_row[row + 1] = csr_matrix.m_matrix_row[row] + nb_blocks * block_size;
     }
   }
 
-  // Étape 2 : Construire csr_columns
-  Int32 csr_index = 0; // Indice courant dans csr_columns
-  for (Int32 block_row = 0; block_row < nb_block_rows; ++block_row) {
-    Int32 start_block = m_row_index[block_row];
-    Int32 end_block = m_row_index[block_row + 1];
+  // Compute csr_columns
+  auto csr_index = 0; // Current index in csr_columns
+  for (auto block_row = 0; block_row < nb_block_rows; ++block_row) {
+    auto start_block = m_row_index[block_row];
+    auto end_block = block_row == nb_block_rows - 1 ? m_nb_col : m_row_index[block_row + 1];
 
-    for (Int32 block_index = start_block; block_index < end_block; ++block_index) {
-      Int32 block_col = m_columns[block_index];
-      for (Int32 row_offset = 0; row_offset < block_size; ++row_offset) {
+    for (auto row_offset = 0; row_offset < block_size; ++row_offset) {
+      for (auto block_index = start_block; block_index < end_block; ++block_index) {
+        auto block_col = m_columns[block_index];
         for (Int32 col_offset = 0; col_offset < block_size; ++col_offset) {
-          csr_columns[csr_index++] = block_col * block_size + col_offset;
+          csr_matrix.m_matrix_column[csr_index++] = block_col * block_size + col_offset;
         }
       }
     }
+  }
+
+  // Copy bsr_values into csr_matrix.m_matrix_value
+  csr_matrix.m_matrix_value.resize(m_values.extent0());
+  for (auto i = 0; i < m_values.extent0(); ++i) {
+    csr_matrix.m_matrix_value[i] = m_values[i];
   }
 }
 
@@ -98,35 +102,37 @@ void BSRMatrix::toLinearSystem(DoFLinearSystem& linear_system)
   info() << "BSRMatrix(toLinearSystem): Translate matrix to linear system";
 
   if (linear_system.hasSetCSRValues()) {
+    /*
     NumArray<Int32, MDDim1> csr_row_index;
     NumArray<Int32, MDDim1> csr_column;
     convertToCSR(csr_row_index, csr_row_index);
     CSRFormatView csr_view(csr_row_index.to1DSpan(), csr_column.to1DSpan(), m_nb_nz_per_row.to1DSpan(), m_values.to1DSpan());
     linear_system.setCSRValues(csr_view);
+    */
   }
   else {
     for (auto row = 0; row < m_nb_row; ++row) {
-    auto row_start = m_row_index[row];
-    auto row_end = (row + 1 < m_nb_row) ? m_row_index[row + 1] : m_nb_col;
+      auto row_start = m_row_index[row];
+      auto row_end = (row + 1 < m_nb_row) ? m_row_index[row + 1] : m_nb_col;
 
-    if (row_start == row_end)
-      continue; // Skip empty rows
+      if (row_start == row_end)
+        continue; // Skip empty rows
 
-    for (auto block_idx = row_start; block_idx < row_end; ++block_idx) {
-      auto col = m_columns[block_idx];
-      auto block_start = block_idx * (m_block_size * m_block_size);
+      for (auto block_idx = row_start; block_idx < row_end; ++block_idx) {
+        auto col = m_columns[block_idx];
+        auto block_start = block_idx * (m_block_size * m_block_size);
 
-      for (auto i = 0; i < m_block_size; ++i) {
-        for (auto j = 0; j < m_block_size; ++j) {
-          auto value = m_values[block_start + i * m_block_size + j];
-          auto global_row = row * m_block_size + i;
-          auto global_col = col * m_block_size + j;
-          linear_system.matrixAddValue(DoFLocalId(global_row), DoFLocalId(global_col), value);
+        for (auto i = 0; i < m_block_size; ++i) {
+          for (auto j = 0; j < m_block_size; ++j) {
+            auto value = m_values[block_start + i * m_block_size + j];
+            auto global_row = row * m_block_size + i;
+            auto global_col = col * m_block_size + j;
+            linear_system.matrixAddValue(DoFLocalId(global_row), DoFLocalId(global_col), value);
+          }
         }
       }
     }
   }
-}
 }
 
 /*---------------------------------------------------------------------------*/
@@ -166,7 +172,7 @@ void BSRFormat::initialize(Int32 nb_edge)
   Int32 nb_col = 2 * nb_edge + nb_node;
   Int32 nb_non_zero_value = (nb_dof * nb_dof) * (2 * nb_edge + nb_node);
 
-  m_bsr_matrix.initialize(nb_dof, nb_non_zero_value, nb_col, nb_node, m_queue);
+  m_bsr_matrix.initialize(nb_dof, nb_non_zero_value, nb_col, nb_node);
 }
 
 /*---------------------------------------------------------------------------*/
