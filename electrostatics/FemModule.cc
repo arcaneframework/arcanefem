@@ -73,8 +73,9 @@ compute()
  *   1. _getMaterialParameters()          Retrieves material parameters via
  *   2. _assembleBilinearOperator()       Assembles the FEM  matrix A
  *   3. _assembleLinearOperator()         Assembles the FEM RHS vector b
- *   4.  _solve()                         Solves for solution vector u = A^-1*b
- *   5. _validateResults()                Regression test
+ *   4. _solve()                          Solves for solution vector x = A^-1*b
+ *   5. _updateVariables()                Updates FEM variables u = x
+ *   6. _validateResults()                Regression test
  */
 /*---------------------------------------------------------------------------*/
 
@@ -85,6 +86,7 @@ _doStationarySolve()
   _assembleBilinearOperator();
   _assembleLinearOperator();
   _solve();
+  _updateVariables();
   _validateResults();
 }
 
@@ -248,12 +250,7 @@ _assembleBilinear(const std::function<FixedMatrix<N, N>(const Cell&)>& compute_e
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Solves the linear system and updates the solution vector.
- *
- * This method performs the following actions:
- *   1. Solves the linear system to compute the solution.
- *   2. Copies the computed solution from the DoF to the node values.
- *   3. Synchronizes the updated node values.
+ * @brief Solves the assembled FEM linear system.
  */
 /*---------------------------------------------------------------------------*/
 
@@ -261,15 +258,28 @@ void FemModule::
 _solve()
 {
   m_linear_system.solve();
+}
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Update the FEM variables.
+ *
+ * This method performs the following actions:
+ *   1. Fetches values of solution from solved linear system to FEM variables,
+ *      i.e., it copies RHS DOF to u.
+ *   2. Performs synchronize of FEM variables across subdomains.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_updateVariables()
+{
   {
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
-    // Copy RHS DoF to Node u
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
-      Real v = dof_u[node_dof.dofId(node, 0)];
-      m_phi[node] = v;
+      m_phi[node] = dof_u[node_dof.dofId(node, 0)];
     }
   }
 

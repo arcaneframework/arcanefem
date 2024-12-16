@@ -81,13 +81,14 @@ class FemModule
 
  private:
 
+  void _getE();
+  void _solve();
+  void _updateVariables();
+  void _validateResults();
   void _doStationarySolve();
   void _getMaterialParameters();
-  void _assembleBilinearOperator();
-  void _solve();
-  void _getE();
   void _assembleLinearOperator();
-  void _validateResults();
+  void _assembleBilinearOperator();
 
   FixedMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
 

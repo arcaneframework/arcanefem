@@ -80,12 +80,13 @@ class FemModule
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;
 
+  void _solve();
+  void _validateResults();
+  void _updateVariables();
   void _doStationarySolve();
   void _getMaterialParameters();
-  void _assembleBilinearOperator();
-  void _solve();
   void _assembleLinearOperator();
-  void _validateResults();
+  void _assembleBilinearOperator();
 
   FixedMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixQuad4(Cell cell);
