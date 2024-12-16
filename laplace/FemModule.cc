@@ -24,9 +24,13 @@
 void FemModule::
 startInit()
 {
-  info() << "Module Fem INIT";
+  info() << "[ArcaneFem-Module] startInit()";
+  Real TimeStart = platform::getRealTime();
+
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
+
+  info() << "[ArcaneFem-Timer] initialize           = " << (platform::getRealTime() - TimeStart);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -43,7 +47,8 @@ startInit()
 void FemModule::
 compute()
 {
-  info() << "Module Fem COMPUTE";
+  info() << "[ArcaneFem-Module] compute()";
+  Real TimeStart = platform::getRealTime();
 
   // Stop code after computations
   if (m_global_iteration() > 0)
@@ -61,7 +66,10 @@ compute()
     m_linear_system.setSolverCommandLineArguments(args);
   }
   info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
+
   _doStationarySolve();
+
+  info() << "[ArcaneFem-Timer] compute              = " << (platform::getRealTime() - TimeStart);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -98,7 +106,7 @@ _doStationarySolve()
 void FemModule::
 _getMaterialParameters()
 {
-  info() << "Get material parameters...";
+  info() << "[ArcaneFem-Module] _getMaterialParameters()";
 }
 
 /*---------------------------------------------------------------------------*/
@@ -118,7 +126,8 @@ _getMaterialParameters()
 void FemModule::
 _assembleLinearOperator()
 {
-  info() << "Assembly of FEM linear operator";
+  info() << "[ArcaneFem-Module] _assembleLinearOperator()";
+  Real TimeStart = platform::getRealTime();
 
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable()); // Temporary variable to keep values for the RHS
   rhs_values.fill(0.0);
@@ -136,6 +145,8 @@ _assembleLinearOperator()
     for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions())
       ArcaneFemFunctions::BoundaryConditions2D::applyPointDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
   }
+
+  info() << "[ArcaneFem-Timer] assemble-rhs-vector  = " << (platform::getRealTime() - TimeStart);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -198,6 +209,9 @@ _computeElementMatrixTria3(Cell cell)
 void FemModule::
 _assembleBilinearOperator()
 {
+  info() << "[ArcaneFem-Module] _assembleBilinearOperator()";
+  Real TimeStart = platform::getRealTime();
+
   if (options()->meshType == "TETRA4")
     _assembleBilinear<4>([this](const Cell& cell) {
       return _computeElementMatrixTetra4(cell);
@@ -208,6 +222,8 @@ _assembleBilinearOperator()
     });
   else
     ARCANE_FATAL("Non supported meshType");
+
+  info() << "[ArcaneFem-Timer] assemble-lhs-matrix  = " << (platform::getRealTime() - TimeStart);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -256,7 +272,12 @@ _assembleBilinear(const std::function<FixedMatrix<N, N>(const Cell&)>& compute_e
 void FemModule::
 _solve()
 {
+  info() << "[ArcaneFem-Module] _solve()";
+  Real TimeStart = platform::getRealTime();
+
   m_linear_system.solve();
+
+  info() << "[ArcaneFem-Timer] linear-system-solve  = " << (platform::getRealTime() - TimeStart);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -273,6 +294,9 @@ _solve()
 void FemModule::
 _updateVariables()
 {
+  info() << "[ArcaneFem-Module] _updateVariables()";
+  Real TimeStart = platform::getRealTime();
+
   {
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -283,6 +307,8 @@ _updateVariables()
   }
 
   m_u.synchronize();
+
+  info() << "[ArcaneFem-Timer] update-variables     = " << (platform::getRealTime() - TimeStart);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -301,6 +327,9 @@ _updateVariables()
 void FemModule::
 _validateResults()
 {
+  info() << "[ArcaneFem-Module] _validateResults()";
+  Real TimeStart = platform::getRealTime();
+
   if (allNodes().size() < 200)
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
@@ -312,6 +341,8 @@ _validateResults()
 
   if (!filename.empty())
     checkNodeResultFile(traceMng(), filename, m_u, 1.0e-4);
+
+  info() << "[ArcaneFem-Timer] cross-validate       = " << (platform::getRealTime() - TimeStart);
 }
 
 /*---------------------------------------------------------------------------*/

@@ -18,6 +18,7 @@
 #include <arcane/utils/NumArray.h>
 #include <arcane/utils/CommandLineArguments.h>
 #include <arcane/utils/StringList.h>
+#include "arcane/utils/PlatformUtils.h"
 
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IMesh.h>
