@@ -48,6 +48,7 @@ class FemModule
   explicit FemModule(const ModuleBuildInfo& mbi)
   : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
+  , m_bsr_format(mbi.subDomain()->traceMng(), *(mbi.subDomain()->acceleratorMng()->defaultQueue()), m_dofs_on_nodes)
   {
     ICaseMng* cm = mbi.subDomain()->caseMng();
     cm->setTreatWarningAsError(true);
@@ -80,6 +81,8 @@ class FemModule
 
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
+
+  BSRFormat m_bsr_format;
 
  private:
 
@@ -127,7 +130,12 @@ startInit()
 {
   info() << "Module Fem INIT";
 
-  m_dofs_on_nodes.initialize(mesh(), 2);
+  IMesh* mesh = defaultMesh();
+  m_dofs_on_nodes.initialize(mesh, 2);
+
+  bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem";
+  m_bsr_format.initialize(mesh, nbFace(), use_csr_in_linearsystem);
+  m_bsr_format.computeSparsity();
 
   _initBoundaryconditions();
 }
@@ -329,13 +337,16 @@ _assembleLinearOperator()
     info() << "Applying Dirichlet boundary condition via "
            << options()->enforceDirichletMethod() << " method ";
 
-    Real Penalty = options()->penalty();        // 1.0e30 is the default
+    Real Penalty = options()->penalty(); // 1.0e30 is the default
 
     ENUMERATE_ (Node, inode, ownNodes()) {
       NodeLocalId node_id = *inode;
       if (m_u1_fixed[node_id]) {
         DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
-        m_linear_system.matrixSetValue(dof_id1, dof_id1, Penalty);
+        if (m_use_bsr)
+          m_bsr_format.matrix().setValue(dof_id1, dof_id1, Penalty);
+        else
+          m_linear_system.matrixSetValue(dof_id1, dof_id1, Penalty);
         {
           Real u1_dirichlet = Penalty * m_U[node_id].x;
           rhs_values[dof_id1] = u1_dirichlet;
@@ -343,14 +354,18 @@ _assembleLinearOperator()
       }
       if (m_u2_fixed[node_id]) {
         DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
-        m_linear_system.matrixSetValue(dof_id2, dof_id2, Penalty);
+        if (m_use_bsr)
+          m_bsr_format.matrix().setValue(dof_id2, dof_id2, Penalty);
+        else
+          m_linear_system.matrixSetValue(dof_id2, dof_id2, Penalty);
         {
           Real u2_dirichlet = Penalty * m_U[node_id].y;
           rhs_values[dof_id2] = u2_dirichlet;
         }
       }
     }
-  }else if (options()->enforceDirichletMethod() == "WeakPenalty") {
+  }
+  else if (options()->enforceDirichletMethod() == "WeakPenalty") {
 
     //----------------------------------------------
     // weak penalty method to enforce Dirichlet BC
@@ -1153,9 +1168,6 @@ _assembleBilinearOperatorTRIA3()
 {
   if (m_use_bsr) {
     auto m_queue = acceleratorMng()->defaultQueue();
-    BSRFormat bsr_format(subDomain()->traceMng(), *m_queue, *(mesh()), m_dofs_on_nodes);
-    bsr_format.initialize(nbFace());
-    bsr_format.computeSparsity();
 
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();
@@ -1163,11 +1175,8 @@ _assembleBilinearOperatorTRIA3()
     auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
     auto lambda_copy = lambda;
     auto mu2_copy = mu2;
-    bsr_format.assembleCellWise([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
-    bsr_format.resetMatrixValues();
-    bsr_format.assembleNodeWise([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
 
-    bsr_format.toLinearSystem(m_linear_system);
+    m_bsr_format.assembleCellWise([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
   }
   else {
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -1219,6 +1228,7 @@ void FemModule::
 _solve()
 {
   info() << "Solving Linear system";
+  m_bsr_format.toLinearSystem(m_linear_system);
   m_linear_system.solve();
 
   // Re-Apply boundary conditions because the solver has modified the value

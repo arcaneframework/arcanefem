@@ -124,6 +124,7 @@ class FemModule
   , m_coo_matrix(mbi.subDomain()->traceMng())
   , m_csr_matrix(mbi.subDomain()->traceMng())
   , m_time_stats(mbi.subDomain()->timeStats())
+  , m_bsr_format(mbi.subDomain()->traceMng(), *(mbi.subDomain()->acceleratorMng()->defaultQueue()), m_dofs_on_nodes)
   {
     ICaseMng* cm = mbi.subDomain()->caseMng();
     cm->setTreatWarningAsError(true);
@@ -182,6 +183,8 @@ class FemModule
 
   CsrFormat m_csr_matrix;
 
+  BSRFormat m_bsr_format;
+
   NumArray<Real, MDDim1> m_rhs_vect;
 
   Integer cache_index;
@@ -211,7 +214,7 @@ class FemModule
   void _assembleBilinearOperatorTETRA4();
   void _solve();
   void _initBoundaryconditions();
-  void _assembleLinearOperator();
+  void _assembleLinearOperator(BSRMatrix* bsr_matrix = nullptr);
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
   void _dumpTimeStats();
