@@ -68,6 +68,8 @@ class FemModule
     return VersionInfo(1, 0, 0);
   }
 
+  void _doStationarySolve();
+
  private:
 
   Real E;
@@ -76,30 +78,24 @@ class FemModule
   Real f2;
   Real mu2;
   Real lambda;
-
   bool m_use_bsr = false;
 
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
-
-  BSRFormat m_bsr_format;
+  BSRFormat<2> m_bsr_format;
 
  private:
 
-  void _doStationarySolve();
   void _getMaterialParameters();
+  void _assembleBilinearOperatorTRIA3();
   void _solve();
   void _initBoundaryconditions();
   void _assembleLinearOperator();
-  FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
+  FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
   Real _computeEdgeLength2(Face face);
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
-
- public:
-
-  void _assembleBilinearOperatorTRIA3();
 };
 
 /*---------------------------------------------------------------------------*/
@@ -129,7 +125,7 @@ void FemModule::
 startInit()
 {
   info() << "Module Fem INIT";
-
+  
   IMesh* mesh = defaultMesh();
   m_dofs_on_nodes.initialize(mesh, 2);
 
@@ -143,17 +139,37 @@ startInit()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+ARCCORE_HOST_DEVICE FixedMatrix<6, 6> computeElementMatrixTRIA3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, Real lambda, Real mu2);
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 void FemModule::
 _doStationarySolve()
 {
   // # get material parameters
   _getMaterialParameters();
 
+  if (m_use_bsr) {
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cn_cv = m_connectivity_view.cellNode();
+    auto command = makeCommand(acceleratorMng()->defaultQueue());
+    auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
+    auto lambda_copy = lambda;
+    auto mu2_copy = mu2;
+
+    m_bsr_format.assembleCellWise([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
+  }
+  else {
   // Assemble the FEM bilinear operator (LHS - matrix A)
   _assembleBilinearOperatorTRIA3();
+  }
 
   // Assemble the FEM linear operator (RHS - vector b)
   _assembleLinearOperator();
+
+  if (m_use_bsr)
+    m_bsr_format.toLinearSystem(m_linear_system);
 
   // Solve for [u1,u2]
   _solve();
@@ -176,10 +192,8 @@ _getMaterialParameters()
 
   mu2 = ( E/(2*(1+nu)) )*2;                // lame parameter mu * 2
   lambda = E*nu/((1+nu)*(1-2*nu));         // lame parameter lambda
-  
-  if (options()->bsr) {
-    m_use_bsr = true;
-  }
+
+  m_use_bsr = options()->bsr;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -337,7 +351,7 @@ _assembleLinearOperator()
     info() << "Applying Dirichlet boundary condition via "
            << options()->enforceDirichletMethod() << " method ";
 
-    Real Penalty = options()->penalty(); // 1.0e30 is the default
+    Real Penalty = options()->penalty();        // 1.0e30 is the default
 
     ENUMERATE_ (Node, inode, ownNodes()) {
       NodeLocalId node_id = *inode;
@@ -364,8 +378,7 @@ _assembleLinearOperator()
         }
       }
     }
-  }
-  else if (options()->enforceDirichletMethod() == "WeakPenalty") {
+  }else if (options()->enforceDirichletMethod() == "WeakPenalty") {
 
     //----------------------------------------------
     // weak penalty method to enforce Dirichlet BC
@@ -611,8 +624,7 @@ _computeEdgeLength2(Face face)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<6, 6> FemModule::
-_computeElementMatrixTRIA3(Cell cell)
+ARCCORE_HOST_DEVICE FixedMatrix<6, 6> computeElementMatrixTRIA3Base(Real3 m0, Real3 m1, Real3 m2, Real area, Real mu2, Real lambda)
 {
   // Get coordiantes of the triangle element  TRI3
   //------------------------------------------------
@@ -622,12 +634,6 @@ _computeElementMatrixTRIA3(Cell cell)
   //                 .     .
   //              1 o . . . o 2
   //------------------------------------------------
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-
-  Real area = _computeAreaTriangle3(cell);    // calculate area
-
   Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
   Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
   Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
@@ -890,274 +896,23 @@ _computeElementMatrixTRIA3(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE FixedMatrix<6, 6> computeElementMatrixTRIA3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, Real lambda, Real mu2)
-{
-  // Get coordiantes of the triangle element  TRI3
-  //------------------------------------------------
-  //                  0 o
-  //                   . .
-  //                  .   .
-  //                 .     .
-  //              1 o . . . o 2
-  //------------------------------------------------
-  Real3 m0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
-  Real3 m1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
-  Real3 m2 = in_node_coord[cn_cv.nodeId(cell_lid, 2)];
-
-  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
-
-  Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
-  Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
-  Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
-
-  FixedMatrix<1, 6> b_matrix;
-  FixedMatrix<6, 1> bT_matrix;
-  FixedMatrix<6, 6> int_Omega_i;
-
-  for (Int32 i = 0; i<6; i++)
-    for (Int32 j = 0; j<6; j++)
-      int_Omega_i(i,j) = 0.;
-
-// -----------------------------------------------------------------------------
-//  lambda( dx(u1)dx(v1) + dy(u2)dx(v1) + dx(u1)dy(v2) + dy(u2)dy(v2) ) + u2v2
-//------------------------------------------------------------------------------
-
-
-  // dx(u1)dx(v1) //
-  b_matrix(0, 0) = dPhi0.x/area;
-  b_matrix(0, 1) = 0.;
-  b_matrix(0, 2) = dPhi1.x/area;
-  b_matrix(0, 3) = 0.;
-  b_matrix(0, 4) = dPhi2.x/area;
-  b_matrix(0, 5) = 0.;
-
-  b_matrix.multInPlace(0.5f);
-
-  bT_matrix(0, 0) = dPhi0.x;
-  bT_matrix(1, 0) = 0.;
-  bT_matrix(2, 0) = dPhi1.x;
-  bT_matrix(3, 0) = 0.;
-  bT_matrix(4, 0) = dPhi2.x;
-  bT_matrix(5, 0) = 0.;
-
-  bT_matrix.multInPlace(0.5f);
-
-  FixedMatrix<6, 6> int_dxU1dxV1 = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_dxU1dxV1);
-
-  // dy(u2)dx(v1) //
-  b_matrix(0, 0) = 0.;
-  b_matrix(0, 1) = dPhi0.y/area;
-  b_matrix(0, 2) = 0.;
-  b_matrix(0, 3) = dPhi1.y/area;
-  b_matrix(0, 4) = 0.;
-  b_matrix(0, 5) = dPhi2.y/area;
-
-  b_matrix.multInPlace(0.5f);
-
-  bT_matrix(0, 0) = dPhi0.x;
-  bT_matrix(1, 0) = 0.;
-  bT_matrix(2, 0) = dPhi1.x;
-  bT_matrix(3, 0) = 0.;
-  bT_matrix(4, 0) = dPhi2.x;
-  bT_matrix(5, 0) = 0.;
-
-  bT_matrix.multInPlace(0.5f);
-
-  FixedMatrix<6, 6> int_dyU1dyV1 = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_dyU1dyV1);
-
-
-
-  // dx(u1)dy(v2) //
-  b_matrix(0, 0) = dPhi0.x/area;
-  b_matrix(0, 1) = 0.;
-  b_matrix(0, 2) = dPhi1.x/area;
-  b_matrix(0, 3) = 0.;
-  b_matrix(0, 4) = dPhi2.x/area;
-  b_matrix(0, 5) = 0.;
-
-  b_matrix.multInPlace(0.5f);
-
-  bT_matrix(0, 0) = 0.;
-  bT_matrix(1, 0) = dPhi0.y;
-  bT_matrix(2, 0) = 0.;
-  bT_matrix(3, 0) = dPhi1.y;
-  bT_matrix(4, 0) = 0.;
-  bT_matrix(5, 0) = dPhi2.y;
-
-  bT_matrix.multInPlace(0.5f);
-
-  FixedMatrix<6, 6> int_dxU2dxV1  = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_dxU2dxV1);
-
-  // dy(u2)dy(v2) //
-  b_matrix(0, 0) = 0.;
-  b_matrix(0, 1) = dPhi0.y/area;
-  b_matrix(0, 2) = 0.;
-  b_matrix(0, 3) = dPhi1.y/area;
-  b_matrix(0, 4) = 0.;
-  b_matrix(0, 5) = dPhi2.y/area;
-
-  b_matrix.multInPlace(0.5f);
-
-  bT_matrix(0, 0) = 0.;
-  bT_matrix(1, 0) = dPhi0.y;
-  bT_matrix(2, 0) = 0.;
-  bT_matrix(3, 0) = dPhi1.y;
-  bT_matrix(4, 0) = 0.;
-  bT_matrix(5, 0) = dPhi2.y;
-
-  bT_matrix.multInPlace(0.5f);
-
-  FixedMatrix<6, 6> int_dyU2dyV1  = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_dyU2dyV1);
-
-  // lambda * (.....)
-  int_Omega_i.multInPlace(lambda);
-
-
-// -----------------------------------------------------------------------------
-//  2*mu( dx(u1)dx(v1) + dy(u2)dy(v2) + 0.5*(   dy(u1)dy(v1) + dx(u2)dy(v1)
-//                                            + dy(u1)dx(v2) + dx(u2)dx(v2) )
-//      )
-//------------------------------------------------------------------------------
-
-  // mu*dx(u1)dx(v1) //
-  b_matrix(0, 0) = dPhi0.x/area;
-  b_matrix(0, 1) = 0.;
-  b_matrix(0, 2) = dPhi1.x/area;
-  b_matrix(0, 3) = 0.;
-  b_matrix(0, 4) = dPhi2.x/area;
-  b_matrix(0, 5) = 0.;
-
-  b_matrix.multInPlace(0.5f);
-
-  bT_matrix(0, 0) = dPhi0.x;
-  bT_matrix(1, 0) = 0.;
-  bT_matrix(2, 0) = dPhi1.x;
-  bT_matrix(3, 0) = 0.;
-  bT_matrix(4, 0) = dPhi2.x;
-  bT_matrix(5, 0) = 0.;
-
-  bT_matrix.multInPlace(0.5f*mu2);
-
-  FixedMatrix<6, 6> int_mudxU1dxV1 = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_mudxU1dxV1);
-
-
-  // mu*dy(u2)dy(v2) //
-  b_matrix(0, 0) = 0.;
-  b_matrix(0, 1) = dPhi0.y/area;
-  b_matrix(0, 2) = 0.;
-  b_matrix(0, 3) = dPhi1.y/area;
-  b_matrix(0, 4) = 0.;
-  b_matrix(0, 5) = dPhi2.y/area;
-
-  b_matrix.multInPlace(0.5f);
-
-  bT_matrix(0, 0) = 0.;
-  bT_matrix(1, 0) = dPhi0.y;
-  bT_matrix(2, 0) = 0.;
-  bT_matrix(3, 0) = dPhi1.y;
-  bT_matrix(4, 0) = 0.;
-  bT_matrix(5, 0) = dPhi2.y;
-
-  bT_matrix.multInPlace(0.5f*mu2);
-
-  FixedMatrix<6, 6> int_mudyU2dyV2  = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_mudyU2dyV2);
-
-  // 0.5*0.5*mu*dy(u1)dy(v1) //
-  b_matrix(0, 0) = dPhi0.y/area;
-  b_matrix(0, 1) = 0.;
-  b_matrix(0, 2) = dPhi1.y/area;
-  b_matrix(0, 3) = 0.;
-  b_matrix(0, 4) = dPhi2.y/area;
-  b_matrix(0, 5) = 0.;
-
-  b_matrix.multInPlace(0.5f);
-
-  bT_matrix(0, 0) = dPhi0.y;
-  bT_matrix(1, 0) = 0.;
-  bT_matrix(2, 0) = dPhi1.y;
-  bT_matrix(3, 0) = 0.;
-  bT_matrix(4, 0) = dPhi2.y;
-  bT_matrix(5, 0) = 0.;
-
-  bT_matrix.multInPlace(0.25f*mu2);
-
-  FixedMatrix<6, 6> int_mudyU1dyV1  = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_mudyU1dyV1);
-
-
-  // 0.5*mu*dx(u2)dy(v1) //
-  b_matrix(0, 0) = 0.;
-  b_matrix(0, 1) = dPhi0.x/area;
-  b_matrix(0, 2) = 0.;
-  b_matrix(0, 3) = dPhi1.x/area;
-  b_matrix(0, 4) = 0.;
-  b_matrix(0, 5) = dPhi2.x/area;
-
-  b_matrix.multInPlace(0.5f);
-
-  bT_matrix(0, 0) = dPhi0.y;
-  bT_matrix(1, 0) = 0.;
-  bT_matrix(2, 0) = dPhi1.y;
-  bT_matrix(3, 0) = 0.;
-  bT_matrix(4, 0) = dPhi2.y;
-  bT_matrix(5, 0) = 0.;
-
-  bT_matrix.multInPlace(0.25f*mu2);
-
-  FixedMatrix<6, 6> int_mudxU2dyV1  = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_mudxU2dyV1);
-
-  // 0.5*mu*dy(u1)dx(v2) //
-  b_matrix(0, 0) = dPhi0.y/area;
-  b_matrix(0, 1) = 0.;
-  b_matrix(0, 2) = dPhi1.y/area;
-  b_matrix(0, 3) = 0.;
-  b_matrix(0, 4) = dPhi2.y/area;
-  b_matrix(0, 5) = 0.;
-
-  b_matrix.multInPlace(0.5f);
-
-  bT_matrix(0, 0) = 0.;
-  bT_matrix(1, 0) = dPhi0.x;
-  bT_matrix(2, 0) = 0.;
-  bT_matrix(3, 0) = dPhi1.x;
-  bT_matrix(4, 0) = 0.;
-  bT_matrix(5, 0) = dPhi2.x;
-
-  bT_matrix.multInPlace(0.25f*mu2);
-
-  FixedMatrix<6, 6> int_mudyU1dxV2  = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_mudyU1dxV2);
-
-  // 0.5*mu*dx(u2)dx(v2) //
-  b_matrix(0, 0) = 0.;
-  b_matrix(0, 1) = dPhi0.x/area;
-  b_matrix(0, 2) = 0.;
-  b_matrix(0, 3) = dPhi1.x/area;
-  b_matrix(0, 4) = 0.;
-  b_matrix(0, 5) = dPhi2.x/area;
-
-  b_matrix.multInPlace(0.5f);
-
-  bT_matrix(0, 0) = 0.;
-  bT_matrix(1, 0) = dPhi0.x;
-  bT_matrix(2, 0) = 0.;
-  bT_matrix(3, 0) = dPhi1.x;
-  bT_matrix(4, 0) = 0.;
-  bT_matrix(5, 0) = dPhi2.x;
-
-  bT_matrix.multInPlace(0.25f*mu2);
-
-  FixedMatrix<6, 6> int_mudxU2dxV2  = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_mudxU2dxV2);
-
-  return int_Omega_i;
+ARCCORE_HOST_DEVICE FixedMatrix<6, 6> computeElementMatrixTRIA3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, Real lambda, Real mu2) {
+    Real3 m0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
+    Real3 m1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
+    Real3 m2 = in_node_coord[cn_cv.nodeId(cell_lid, 2)];
+    Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+    return computeElementMatrixTRIA3Base(m0, m1, m2, area, mu2, lambda);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+FixedMatrix<6, 6> FemModule::_computeElementMatrixTRIA3(Cell cell) {
+    Real3 m0 = m_node_coord[cell.nodeId(0)];
+    Real3 m1 = m_node_coord[cell.nodeId(1)];
+    Real3 m2 = m_node_coord[cell.nodeId(2)];
+    Real area = _computeAreaTriangle3(cell);
+    return computeElementMatrixTRIA3Base(m0, m1, m2, area, mu2, lambda);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1166,57 +921,43 @@ ARCCORE_HOST_DEVICE FixedMatrix<6, 6> computeElementMatrixTRIA3Gpu(CellLocalId c
 void FemModule::
 _assembleBilinearOperatorTRIA3()
 {
-  if (m_use_bsr) {
-    auto m_queue = acceleratorMng()->defaultQueue();
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
-    auto cn_cv = m_connectivity_view.cellNode();
-    auto command = makeCommand(m_queue);
-    auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
-    auto lambda_copy = lambda;
-    auto mu2_copy = mu2;
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    if (cell.type() != IT_Triangle3)
+      ARCANE_FATAL("Only Triangle3 cell type is supported");
 
-    m_bsr_format.assembleCellWise([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
-  }
-  else {
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-      if (cell.type() != IT_Triangle3)
-        ARCANE_FATAL("Only Triangle3 cell type is supported");
-
-      auto K_e = _computeElementMatrixTRIA3(cell); // element stiffness matrix
-      // assemble elementary matrix into the global one elementary terms are
-      // positioned into K according to the rank  of  associated  node in the
-      // mesh.nodes list and according the dof  number. Here  for  each  node
-      // two dofs exists [u1,u2].  For each TRIA3 there are 3 nodes hence the
-      // elementary stiffness matrix size is (3*2 x 3*2)=(6x6). We will  fill
-      // this below in 4 at a time.
-      Int32 n1_index = 0;
-      for (Node node1 : cell.nodes()) {
-        Int32 n2_index = 0;
-        for (Node node2 : cell.nodes()) {
-          Real v1 = K_e(2 * n1_index, 2 * n2_index);
-          Real v2 = K_e(2 * n1_index, 2 * n2_index + 1);
-          Real v3 = K_e(2 * n1_index + 1, 2 * n2_index);
-          Real v4 = K_e(2 * n1_index + 1, 2 * n2_index + 1);
-          // m_k_matrix(node1.localId(), node2.localId()) += v;
-          if (node1.isOwn()) {
-            DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
-            DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
-            DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
-            DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
-            //          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
-            m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
-            m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
-            m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v3);
-            m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v4);
-          }
-          ++n2_index;
+    auto K_e = _computeElementMatrixTRIA3(cell);  // element stiffness matrix
+    // assemble elementary matrix into the global one elementary terms are
+    // positioned into K according to the rank  of  associated  node in the
+    // mesh.nodes list and according the dof  number. Here  for  each  node
+    // two dofs exists [u1,u2].  For each TRIA3 there are 3 nodes hence the
+    // elementary stiffness matrix size is (3*2 x 3*2)=(6x6). We will  fill
+    // this below in 4 at a time.
+    Int32 n1_index = 0;
+    for (Node node1 : cell.nodes()) {
+      Int32 n2_index = 0;
+      for (Node node2 : cell.nodes()) {
+        Real v1 = K_e(2 * n1_index    , 2 * n2_index    );
+        Real v2 = K_e(2 * n1_index    , 2 * n2_index + 1);
+        Real v3 = K_e(2 * n1_index + 1, 2 * n2_index    );
+        Real v4 = K_e(2 * n1_index + 1, 2 * n2_index + 1);
+        // m_k_matrix(node1.localId(), node2.localId()) += v;
+        if (node1.isOwn()) {
+          DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
+          DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
+          DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
+          DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
+//          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+          m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
+          m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
+          m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v3);
+          m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v4);
         }
-        ++n1_index;
+        ++n2_index;
       }
+      ++n1_index;
     }
   }
 }
@@ -1228,7 +969,6 @@ void FemModule::
 _solve()
 {
   info() << "Solving Linear system";
-  m_bsr_format.toLinearSystem(m_linear_system);
   m_linear_system.solve();
 
   // Re-Apply boundary conditions because the solver has modified the value

@@ -69,7 +69,6 @@ class FemDoFsOnNodes
 
   Arcane::IndexedNodeDoFConnectivityView nodeDoFConnectivityView() const;
   Arcane::IItemFamily* dofFamily() const;
-  Int32 nbDofPerNode() const;
 
  private:
 
@@ -79,7 +78,7 @@ class FemDoFsOnNodes
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-} // namespace Arcane::FemUtils
+}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

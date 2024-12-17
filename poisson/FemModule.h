@@ -183,7 +183,7 @@ class FemModule
 
   CsrFormat m_csr_matrix;
 
-  BSRFormat m_bsr_format;
+  BSRFormat<1> m_bsr_format;
 
   NumArray<Real, MDDim1> m_rhs_vect;
 
@@ -214,7 +214,7 @@ class FemModule
   void _assembleBilinearOperatorTETRA4();
   void _solve();
   void _initBoundaryconditions();
-  void _assembleLinearOperator(BSRMatrix* bsr_matrix = nullptr);
+  void _assembleLinearOperator(BSRMatrix<1>* bsr_matrix = nullptr);
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
   void _dumpTimeStats();

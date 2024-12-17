@@ -2,7 +2,6 @@ option(ENABLE_DEBUG_MATRIX "Enable Debug matrix instead of a sparse one" OFF)
 
 set(ACCELERATOR_SOURCES
   BSRFormat.h
-  BSRFormat.cc
   ArcaneFemFunctionsGpu.h
 )
 
