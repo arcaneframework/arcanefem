@@ -197,33 +197,40 @@ class BSRMatrix : public TraceAccessor
     auto total_non_zero_elements = m_columns.extent0() * BLOCK_SIZE_SQ;
 
     csr_matrix->initialize(nullptr, total_non_zero_elements, nb_rows, m_queue);
-    csr_matrix->m_matrix_row.resize(nb_rows + 1);
-    csr_matrix->m_matrix_row.fill(0);
-    csr_matrix->m_matrix_column.resize(total_non_zero_elements);
 
-    // Compute csr_matrix->m_matrix_row
-    for (auto block_row = 0; block_row < nb_block_rows; ++block_row) {
-      auto start_block = m_row_index[block_row];
-      auto end_block = m_row_index[block_row + 1];
-      auto nb_blocks = end_block - start_block;
-
-      for (auto offset = 0; offset < BLOCK_SIZE; ++offset) {
-        auto row = block_row * BLOCK_SIZE + offset;
-        csr_matrix->m_matrix_row[row + 1] = csr_matrix->m_matrix_row[row] + nb_blocks * BLOCK_SIZE;
-      }
+    if constexpr (BLOCK_SIZE == 1) {
+      csr_matrix->m_matrix_row = m_row_index;
+      csr_matrix->m_matrix_column = m_columns;
     }
+    else {
+      csr_matrix->m_matrix_row.resize(nb_rows + 1);
+      csr_matrix->m_matrix_row.fill(0);
+      csr_matrix->m_matrix_column.resize(total_non_zero_elements);
 
-    // Compute csr_columns
-    size_t csr_index = 0;
-    for (auto block_row = 0; block_row < nb_block_rows; ++block_row) {
-      auto start_block = m_row_index[block_row];
-      auto end_block = block_row == nb_block_rows - 1 ? m_nb_col : m_row_index[block_row + 1];
+      // Compute csr_matrix->m_matrix_row
+      for (auto block_row = 0; block_row < nb_block_rows; ++block_row) {
+        auto start_block = m_row_index[block_row];
+        auto end_block = m_row_index[block_row + 1];
+        auto nb_blocks = end_block - start_block;
 
-      for (auto row_offset = 0; row_offset < BLOCK_SIZE; ++row_offset) {
-        for (auto block_index = start_block; block_index < end_block; ++block_index) {
-          auto block_col = m_columns[block_index];
-          for (Int32 col_offset = 0; col_offset < BLOCK_SIZE; ++col_offset)
-            csr_matrix->m_matrix_column[csr_index++] = block_col * BLOCK_SIZE + col_offset;
+        for (auto offset = 0; offset < BLOCK_SIZE; ++offset) {
+          auto row = block_row * BLOCK_SIZE + offset;
+          csr_matrix->m_matrix_row[row + 1] = csr_matrix->m_matrix_row[row] + nb_blocks * BLOCK_SIZE;
+        }
+      }
+
+      // Compute csr_columns
+      size_t csr_index = 0;
+      for (auto block_row = 0; block_row < nb_block_rows; ++block_row) {
+        auto start_block = m_row_index[block_row];
+        auto end_block = block_row == nb_block_rows - 1 ? m_nb_col : m_row_index[block_row + 1];
+
+        for (auto row_offset = 0; row_offset < BLOCK_SIZE; ++row_offset) {
+          for (auto block_index = start_block; block_index < end_block; ++block_index) {
+            auto block_col = m_columns[block_index];
+            for (Int32 col_offset = 0; col_offset < BLOCK_SIZE; ++col_offset)
+              csr_matrix->m_matrix_column[csr_index++] = block_col * BLOCK_SIZE + col_offset;
+          }
         }
       }
     }
