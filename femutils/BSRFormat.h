@@ -66,10 +66,10 @@ namespace Arcane::FemUtils
 /**
  * @brief A class representing a Block Sparse Row (BSR) matrix.
  *
- * The `BSRMatrix` class stores sparse matrices in the Block Sparse Row (BSR) 
+ * The `BSRMatrix` class stores sparse matrices in the Block Sparse Row (BSR)
  * format, suitable for block-structured computations.
  *
- * The BSR format groups non-zero elements into fixed-size blocks, enabling 
+ * The BSR format groups non-zero elements into fixed-size blocks, enabling
  * efficient storage and computation for multi-DoFs meshes.
  * Below is an example for a 6x6 matrix with a block size of 2x2 (2 DoFs per node).
  *
@@ -91,8 +91,11 @@ namespace Arcane::FemUtils
  *       - Columns:   [ 0, 1, 2, 2 ]  // Column indices of each block
  *       - Row Index: [ 0, 1, 3 ]     // Starting indices of blocks per row
  *
- * @note The class supports flexible memory management for computations on 
- * different hardware backends (e.g., CPU, GPU).
+ * @note The class supports flexible memory management for computations on
+ * different hardware backends (e.g., CPU, GPU). Having the value array
+ * stored in per row (which the way CSR format stores matrices) allow us to
+ * pass it directly to HYPRE (which support CSR but not BSR), whithout the need
+ * for a translation step on it.
  */
 /*---------------------------------------------------------------------------*/
 
@@ -190,6 +193,7 @@ class BSRMatrix : public TraceAccessor
   {
     info() << "BSRMatrix(toCsr): Convert matrix to CSR";
 
+    auto startTime = platform::getRealTime();
     constexpr int BLOCK_SIZE_SQ = BLOCK_SIZE * BLOCK_SIZE;
 
     auto nb_block_rows = m_row_index.extent0() - 1;
@@ -207,7 +211,7 @@ class BSRMatrix : public TraceAccessor
       csr_matrix->m_matrix_row.fill(0);
       csr_matrix->m_matrix_column.resize(total_non_zero_elements);
 
-      // Compute csr_matrix->m_matrix_row
+      // Translate `row_index`
       for (auto block_row = 0; block_row < nb_block_rows; ++block_row) {
         auto start_block = m_row_index[block_row];
         auto end_block = m_row_index[block_row + 1];
@@ -219,7 +223,7 @@ class BSRMatrix : public TraceAccessor
         }
       }
 
-      // Compute csr_columns
+      // Translate `columns`
       size_t csr_index = 0;
       for (auto block_row = 0; block_row < nb_block_rows; ++block_row) {
         auto start_block = m_row_index[block_row];
@@ -235,9 +239,10 @@ class BSRMatrix : public TraceAccessor
       }
     }
 
-    // NOTE: move ?
+    // NOTE: If we don't want to keep bsr matrix coefficients we could move the data instead of copying it.
     csr_matrix->m_matrix_value = m_values;
     csr_matrix->m_matrix_rows_nb_column = m_nb_nz_per_row;
+    info() << "[ArcaneFem-Timer] Time to translate BSR to CSR = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
@@ -245,7 +250,7 @@ class BSRMatrix : public TraceAccessor
 
   void toLinearSystem(DoFLinearSystem& linear_system)
   {
-    info() << "BSRMatrix(toLinearSystem): Translate matrix to linear system";
+    info() << "BSRMatrix(toLinearSystem): Translate matrix to linear system using `matrixAddValue`";
 
     for (auto row = 0; row < m_nb_row; ++row) {
       auto row_start = m_row_index[row];
@@ -328,10 +333,10 @@ class BSRMatrix : public TraceAccessor
  * mesh connectivity and degree-of-freedom (DoF) information.
  *
  * In 2D, the sparsity is computed based on node-face connectivity, while in 3D, 
- * node-node connectivity is used. Below is an example workflow:
+ * node-node connectivity is used.
  *
- * @note This class uses GPU-accelerated compute kernels when applicable.
- * It relies on a `BSRMatrix` for matrix representation  and operations.
+ * @note This class uses Arcane's accelerator api and will use GPU is possible.
+ * It uses a `BSRMatrix` under the hood for representation and operations.
  */
 /*---------------------------------------------------------------------------*/
 
@@ -357,14 +362,16 @@ class BSRFormat : public TraceAccessor
     if (mesh->dimension() != 2 && mesh->dimension() != 3)
       ARCANE_THROW(NotImplementedException, "BSRFormat(initialize): Only supports 2D and 3D");
 
+    auto startTime = platform::getRealTime();
     m_mesh = mesh;
-    Int32 nb_node = m_mesh->nbNode(); // Number of row
+    Int32 nb_node = m_mesh->nbNode();
     Int32 nb_col = 2 * nb_edge + nb_node;
     Int32 nb_non_zero_value = (NB_DOF * NB_DOF) * (2 * nb_edge + nb_node);
 
     m_use_csr_in_linear_system = does_linear_system_use_csr;
     bool order_values_per_block = !does_linear_system_use_csr;
     m_bsr_matrix.initialize(nb_non_zero_value, nb_col, nb_node, order_values_per_block);
+    info() << "[ArcaneFem-Timer] Time to initialize BSR format = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
@@ -391,35 +398,6 @@ class BSRFormat : public TraceAccessor
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  void computeSparsityRowIndex2D(Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> copy_out_data)
-  {
-    auto command = makeCommand(m_queue);
-    UnstructuredMeshConnectivityView connectivity_view(m_mesh);
-    auto node_face_cv = connectivity_view.nodeFace();
-    command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, m_mesh->allNodes())
-    {
-      copy_out_data[node_lid.asInt32()] = node_face_cv.nbFace(node_lid) + 1;
-    };
-  }
-
-  /*---------------------------------------------------------------------------*/
-  /*---------------------------------------------------------------------------*/
-
-  void computeSparsityRowIndex3D(Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> copy_out_data)
-  {
-    auto command = makeCommand(m_queue);
-    auto connectivity_mng = m_mesh->indexedConnectivityMng();
-    auto connectivity_ptr = connectivity_mng->findOrCreateConnectivity(m_mesh->nodeFamily(), m_mesh->nodeFamily(), "NodeNodeViaEdge");
-    IndexedNodeNodeConnectivityView node_node_cv = connectivity_ptr->view();
-    command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, m_mesh->allNodes())
-    {
-      copy_out_data[node_lid.asInt32()] = node_node_cv.nbItem(node_lid) + 1;
-    };
-  }
-
-  /*---------------------------------------------------------------------------*/
-  /*---------------------------------------------------------------------------*/
-
   void computeNzPerRowArray()
   {
     info() << "BSRFormat(computeNzPerRowArray): Compute nb_nz_per_row BSR matrix array";
@@ -431,8 +409,8 @@ class BSRFormat : public TraceAccessor
     auto inout_row_index = viewInOut(command, m_bsr_matrix.rowIndex());
 
     auto nb_row = m_bsr_matrix.nbRow();
-    // Copy row_index in nz_per_row
-    // NOTE: maybe fill nz_per_row directly when row_index is filled ?
+    // Copy `row_index` in `nz_per_row`
+    // NOTE: Does Arcane provide a copy-on-gpu primitive ?
     {
       auto command = makeCommand(m_queue);
       command << RUNCOMMAND_LOOP1(iter, nb_row)
@@ -461,81 +439,88 @@ class BSRFormat : public TraceAccessor
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  void computeSparsityRowIndex()
+  void computeOffsets(const SmallSpan<uint>& offsets_smallspan)
   {
-    info() << "BSRFormat(computeSparsityRowIndex): Compute row index sparsity of BSRMatrix";
     auto startTime = platform::getRealTime();
+    NumArray<uint, MDDim1> neighbors(m_bsr_matrix.nbRow() + 1);
+    neighbors[0] = 0;
+    SmallSpan<uint> in_data = neighbors.to1DSmallSpan();
+
     auto command = makeCommand(m_queue);
+    if (m_mesh->dimension() == 2) {
+      UnstructuredMeshConnectivityView connectivity_view(m_mesh);
+      auto node_face_cv = connectivity_view.nodeFace();
+      command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
+      {
+        in_data[node_id + 1] = node_face_cv.nbFace(node_id) + 1;
+      };
+    }
+    else {
+      auto connectivity_mng = m_mesh->indexedConnectivityMng();
+      auto connectivity_ptr = connectivity_mng->findOrCreateConnectivity(m_mesh->nodeFamily(), m_mesh->nodeFamily(), "NodeNodeViaEdge");
+      IndexedNodeNodeConnectivityView node_node_cv = connectivity_ptr->view();
 
-    NumArray<Int32, MDDim1> out_data;
-    out_data.resize(m_bsr_matrix.nbRow());
-    auto copy_out_data = viewInOut(command, out_data);
-
-    m_mesh->dimension() == 2 ? computeSparsityRowIndex2D(copy_out_data) : computeSparsityRowIndex3D(copy_out_data);
+      command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
+      {
+        in_data[node_id + 1] = node_node_cv.nbNode(node_id) + 1;
+      };
+    }
     m_queue.barrier();
 
-    Accelerator::Scanner<Int32> scanner;
-    scanner.exclusiveSum(&m_queue, out_data, m_bsr_matrix.rowIndex());
-    m_queue.barrier();
-
-    if (m_use_csr_in_linear_system)
-      computeNzPerRowArray();
-    info() << "[ArcaneFem-Timer] Time to compute the row-index sparsity of BSR matrix = " << (platform::getRealTime() - startTime);
+    Accelerator::Scanner<uint> scanner;
+    scanner.inclusiveSum(&m_queue, in_data, offsets_smallspan);
+    info() << "[ArcaneFem-Timer] Time to compute offsets of BSR matrix = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  void computeSparsityColumns2D(Accelerator::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> in_row_index, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> inout_columns)
+  void computeRowIndexAndColumns(const SmallSpan<uint>& offsets_smallspan)
   {
-    auto command = makeCommand(m_queue);
-    UnstructuredMeshConnectivityView connectivity_view(m_mesh);
-    auto node_face_cv = connectivity_view.nodeFace();
-    auto face_node_cv = connectivity_view.faceNode();
-    command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, m_mesh->allNodes())
-    {
-      auto offset = in_row_index[node_lid.asInt32()];
-      for (auto face_lid : node_face_cv.faceIds(node_lid)) {
-        auto nodes = face_node_cv.nodes(face_lid);
-        inout_columns[offset] = nodes[0] == node_lid ? nodes[1] : nodes[0];
-        ++offset;
-      }
-      inout_columns[offset] = node_lid.asInt32();
-    };
-  }
-
-  /*---------------------------------------------------------------------------*/
-  /*---------------------------------------------------------------------------*/
-
-  void computeSparsityColumns3D(Accelerator::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> in_row_index, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> inout_columns)
-  {
-    auto command = makeCommand(m_queue);
-    auto connectivity_mng = m_mesh->indexedConnectivityMng();
-    auto connectivity_ptr = connectivity_mng->findOrCreateConnectivity(m_mesh->nodeFamily(), m_mesh->nodeFamily(), "NodeNodeViaEdge");
-    IndexedNodeNodeConnectivityView node_node_cv = connectivity_ptr->view();
-    command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, m_mesh->allNodes())
-    {
-      auto offset = in_row_index[node_lid.asInt32()];
-      for (auto neighbor_lid : node_node_cv.items(node_lid)) {
-        inout_columns[offset] = neighbor_lid.asInt32();
-        ++offset;
-      }
-      inout_columns[offset] = node_lid.asInt32();
-    };
-  }
-
-  /*---------------------------------------------------------------------------*/
-  /*---------------------------------------------------------------------------*/
-
-  void computeSparsityColumns()
-  {
-    info() << "BSRFormat(computeSparsityColumns): Compute columns sparsity of BSRMatrix";
     auto startTime = platform::getRealTime();
     auto command = makeCommand(m_queue);
-    auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
+    auto out_row_index = viewOut(command, m_bsr_matrix.rowIndex());
     auto inout_columns = viewInOut(command, m_bsr_matrix.columns());
-    m_mesh->dimension() == 2 ? computeSparsityColumns2D(in_row_index, inout_columns) : computeSparsityColumns3D(in_row_index, inout_columns);
-    info() << "[ArcaneFem-Timer] Time to compute the column sparsity of BSR matrix = " << (platform::getRealTime() - startTime);
+
+    if (m_mesh->dimension() == 2) {
+      UnstructuredMeshConnectivityView connectivity_view(m_mesh);
+      auto node_face_cv = connectivity_view.nodeFace();
+      auto face_node_cv = connectivity_view.faceNode();
+
+      command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
+      {
+        auto offset = offsets_smallspan[node_id];
+        out_row_index[node_id] = offset;
+
+        for (auto face_lid : node_face_cv.faceIds(node_id)) {
+          auto nodes = face_node_cv.nodes(face_lid);
+          inout_columns[offset] = nodes[0] == node_id ? nodes[1] : nodes[0];
+          ++offset;
+        }
+
+        inout_columns[offset] = node_id;
+      };
+    }
+    else {
+      auto connectivity_mng = m_mesh->indexedConnectivityMng();
+      auto connectivity_ptr = connectivity_mng->findOrCreateConnectivity(m_mesh->nodeFamily(), m_mesh->nodeFamily(), "NodeNodeViaEdge");
+      IndexedNodeNodeConnectivityView node_node_cv = connectivity_ptr->view();
+
+      command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
+      {
+        auto offset = offsets_smallspan[node_id];
+        out_row_index[node_id] = offset;
+
+        for (auto neighbor_idx : node_node_cv.nodeIds(node_id)) {
+          inout_columns[offset] = neighbor_idx;
+          ++offset;
+        }
+
+        inout_columns[offset] = node_id;
+      };
+    }
+
+    info() << "[ArcaneFem-Timer] Time to compute sparsity from offsets of BSR matrix = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
@@ -545,15 +530,24 @@ class BSRFormat : public TraceAccessor
   {
     info() << "BSRFormat(computeSparsity): Compute sparsity of BSRMatrix";
     auto startTime = platform::getRealTime();
-    computeSparsityRowIndex();
-    computeSparsityColumns();
+
+    NumArray<uint, MDDim1> offsets_numarray(m_bsr_matrix.nbRow() + 1);
+    SmallSpan<uint> offsets_smallspan = offsets_numarray.to1DSmallSpan();
+
+    computeOffsets(offsets_smallspan);
+    computeRowIndexAndColumns(offsets_smallspan);
+
     info() << "[ArcaneFem-Timer] Time to compute the sparsity of BSR matrix = " << (platform::getRealTime() - startTime);
+
+    if (m_use_csr_in_linear_system)
+      computeNzPerRowArray();
   }
 
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  template <class Function> void assembleCellWiseOrderedPerBlock(Function compute_element_matrix)
+  template <class Function>
+  void assembleCellWiseOrderedPerBlock(Function compute_element_matrix)
   {
     info() << "BSRFormat(assembleCellWiseOrderedPerBlock): Assemble bilinear operator cell-wise";
 
@@ -792,9 +786,18 @@ class BSRFormat : public TraceAccessor
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  BSRMatrix<NB_DOF>& matrix() { return m_bsr_matrix; };
-  void resetMatrixValues() { m_bsr_matrix.values().fill(0, m_queue); };
-  void dumpMatrix(std::string filename) const { m_bsr_matrix.dump(filename); };
+  BSRMatrix<NB_DOF>& matrix()
+  {
+    return m_bsr_matrix;
+  };
+  void resetMatrixValues()
+  {
+    m_bsr_matrix.values().fill(0, m_queue);
+  };
+  void dumpMatrix(std::string filename) const
+  {
+    m_bsr_matrix.dump(filename);
+  };
 
  private:
 
@@ -807,7 +810,6 @@ class BSRFormat : public TraceAccessor
   RunQueue& m_queue;
   const FemDoFsOnNodes& m_dofs_on_nodes;
 };
-
 }; // namespace Arcane::FemUtils
 
 #endif // ! BSRFORMAT_H
