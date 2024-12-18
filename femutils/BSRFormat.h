@@ -372,6 +372,7 @@ class BSRFormat : public TraceAccessor
 
   void toLinearSystem(DoFLinearSystem& linear_system)
   {
+    auto startTime = platform::getRealTime();
     if (m_use_csr_in_linear_system) {
       if (!linear_system.hasSetCSRValues())
         ARCANE_THROW(ArgumentException, "BSRFormat(toLinearSystem): Linear system was set to use CSR but is incompatible");
@@ -384,6 +385,7 @@ class BSRFormat : public TraceAccessor
     }
     else
       m_bsr_matrix.toLinearSystem(linear_system);
+    info() << "[ArcaneFem-Timer] Time to translate to linear system the BSR matrix = " << (platform::getRealTime() - startTime);
   };
 
   /*---------------------------------------------------------------------------*/
@@ -422,6 +424,7 @@ class BSRFormat : public TraceAccessor
   {
     info() << "BSRFormat(computeNzPerRowArray): Compute nb_nz_per_row BSR matrix array";
 
+    auto startTime = platform::getRealTime();
     auto command = makeCommand(m_queue);
     NumArray<Int32, MDDim1>& nb_nz_per_row = m_bsr_matrix.nbNzPerRow();
     auto inout_nb_nz_per_row = viewInOut(command, nb_nz_per_row);
@@ -452,6 +455,7 @@ class BSRFormat : public TraceAccessor
     m_queue.barrier();
 
     nb_nz_per_row[nb_row - 1] = m_bsr_matrix.nbCol() - nb_nz_per_row[nb_row - 1];
+    info() << "[ArcaneFem-Timer] Time to compute nb_nz_per_row = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
@@ -460,6 +464,7 @@ class BSRFormat : public TraceAccessor
   void computeSparsityRowIndex()
   {
     info() << "BSRFormat(computeSparsityRowIndex): Compute row index sparsity of BSRMatrix";
+    auto startTime = platform::getRealTime();
     auto command = makeCommand(m_queue);
 
     NumArray<Int32, MDDim1> out_data;
@@ -475,6 +480,7 @@ class BSRFormat : public TraceAccessor
 
     if (m_use_csr_in_linear_system)
       computeNzPerRowArray();
+    info() << "[ArcaneFem-Timer] Time to compute the row-index sparsity of BSR matrix = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
@@ -524,10 +530,12 @@ class BSRFormat : public TraceAccessor
   void computeSparsityColumns()
   {
     info() << "BSRFormat(computeSparsityColumns): Compute columns sparsity of BSRMatrix";
+    auto startTime = platform::getRealTime();
     auto command = makeCommand(m_queue);
     auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
     auto inout_columns = viewInOut(command, m_bsr_matrix.columns());
     m_mesh->dimension() == 2 ? computeSparsityColumns2D(in_row_index, inout_columns) : computeSparsityColumns3D(in_row_index, inout_columns);
+    info() << "[ArcaneFem-Timer] Time to compute the column sparsity of BSR matrix = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
@@ -690,7 +698,7 @@ class BSRFormat : public TraceAccessor
       assembleCellWiseOrderedPerBlock(compute_element_matrix);
     else
       assembleCellWiseOrderedPerRow(compute_element_matrix);
-    info() << "[ArcaneFem-Timer] Time to assemble BSR matrix = " << (platform::getRealTime() - startTime);
+    info() << "[ArcaneFem-Timer] Time to assemble (cell-wise) BSR matrix = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
