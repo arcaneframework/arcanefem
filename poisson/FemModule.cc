@@ -138,6 +138,12 @@ startInit()
       m_nb_edge = mesh->nbEdge();
       info() << "Number of edge: nb_edge=" << m_nb_edge;
     }
+
+    if (options()->bsr) {
+      bool use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
+      m_bsr_format.initialize(mesh, mesh->dimension() == 2 ? nbFace() : m_nb_edge, use_csr_in_linear_system);
+      m_bsr_format.computeSparsity(); // Need to be done just once.
+    }
   }
 
   TimeStart = platform::getRealTime();
@@ -236,7 +242,34 @@ _handleFlags()
     m_cross_validation = false;
     info() << "Cross validation disabled (CROSS_VALIDATION = FALSE)";
   }
+  if (options()->bsr) {
+    m_use_bsr = true;
+    m_use_legacy = false;
+  }
   info() << "-----------------------------------------------------------------------------------------";
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE FixedMatrix<3, 3> computeElementMatrixTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+{
+  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dxU = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dyU = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
+  return area * (dxU ^ dxU) + area * (dyU ^ dyU);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE FixedMatrix<4, 4> computeElementMatrixTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+{
+  Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
+  Real4 dxU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientXTetra4(cell_lid, cn_cv, in_node_coord);
+  Real4 dyU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientYTetra4(cell_lid, cn_cv, in_node_coord);
+  Real4 dzU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientZTetra4(cell_lid, cn_cv, in_node_coord);
+  return volume * (dxU ^ dxU) + volume * (dyU ^ dyU) + volume * (dzU ^ dzU);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -255,6 +288,24 @@ _doStationarySolve()
   info() << "[ArcaneFem-Timer] Time to get material parameters = " << (platform::getRealTime() - assemblyTimeStart);
 
   auto dim = mesh()->dimension();
+
+  if (m_use_bsr) {
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cn_cv = m_connectivity_view.cellNode();
+    auto command = makeCommand(m_queue);
+    auto in_node_coord = ax::viewIn(command, m_node_coord);
+
+    if (dim == 2)
+      m_bsr_format.assembleCellWise([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
+    else
+      m_bsr_format.assembleCellWise([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
+
+    _assembleLinearOperator(&(m_bsr_format.matrix()));
+    m_bsr_format.toLinearSystem(m_linear_system);
+    _solve();
+    _checkResultFile();
+    return;
+  }
 
   // Assemble the FEM bilinear operator (LHS - matrix A)
   if (m_use_legacy) {
@@ -578,7 +629,7 @@ _checkCellType()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleLinearOperator()
+_assembleLinearOperator(BSRMatrix<1>* bsr_matrix)
 {
   info() << "Assembly of FEM linear operator  ";
   info() << "Applying Dirichlet boundary condition via  penalty method ";
@@ -619,7 +670,10 @@ _assembleLinearOperator()
       if (m_u_dirichlet[node_id]) {
         DoFLocalId dof_id = node_dof.dofId(*inode, 0);
         // This SetValue should be updated in the acoording format we have (such as COO or CSR)
-        m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
+        if (bsr_matrix)
+          bsr_matrix->setValue(dof_id, dof_id, Penalty);
+        else
+          m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
         Real u_g = Penalty * m_u[node_id];
         // This should be changed for a numArray
         rhs_values[dof_id] = u_g;
