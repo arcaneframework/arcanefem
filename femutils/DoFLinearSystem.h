@@ -79,6 +79,7 @@ class DoFLinearSystemImpl
   virtual void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value) = 0;
   virtual void eliminateRow(DoFLocalId row, Real value) = 0;
   virtual void eliminateRowColumn(DoFLocalId row, Real value) = 0;
+  virtual void setEliminationArrays(VariableDoFByte &dof_elimination_info, VariableDoFReal &dof_elimination_value) = 0;
   virtual void solve() = 0;
   virtual VariableDoFReal& solutionVariable() = 0;
   virtual VariableDoFReal& rhsVariable() = 0;
@@ -172,6 +173,8 @@ class DoFLinearSystem
    * matrixAddValue(...,row) or matrixSetValue(...,row) are discarded.
    */
   void eliminateRowColumn(DoFLocalId row, Real value);
+
+  void setEliminationArrays(VariableDoFByte &dof_elimination_info, VariableDoFReal &dof_elimination_value);
 
   /*!
    * \brief Solve the current linear system.

@@ -103,6 +103,11 @@ class SequentialDoFLinearSystemImpl
     ARCANE_THROW(NotImplementedException, "");
   }
 
+  void setEliminationArrays(VariableDoFByte& dof_elimination_info, VariableDoFReal& dof_elimination_value) override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  };
+
   void solve() override
   {
     _fillRHSVector();
@@ -378,6 +383,12 @@ eliminateRowColumn(DoFLocalId row, Real value)
   _checkInit();
   m_p->eliminateRowColumn(row, value);
 }
+
+void DoFLinearSystem::setEliminationArrays(VariableDoFByte& dof_elimination_info, VariableDoFReal& dof_elimination_value)
+{
+  _checkInit();
+  m_p->setEliminationArrays(dof_elimination_info, dof_elimination_value);
+};
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

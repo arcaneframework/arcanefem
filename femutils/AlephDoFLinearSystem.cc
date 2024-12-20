@@ -21,6 +21,7 @@
 
 #include <arcane/aleph/AlephTypesSolver.h>
 #include <arcane/aleph/Aleph.h>
+#include <arccore/base/NotImplementedException.h>
 
 #include "FemUtils.h"
 #include "IDoFLinearSystemFactory.h"
@@ -244,6 +245,11 @@ class AlephDoFLinearSystemImpl
     m_dof_elimination_value[row] = value;
     info() << "EliminateRowColumn row=" << row.localId() << " v=" << value;
   }
+
+  void setEliminationArrays(VariableDoFByte& dof_elimination_info, VariableDoFReal& dof_elimination_value) override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  };
 
   void solve() override
   {

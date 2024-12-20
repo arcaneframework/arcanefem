@@ -141,6 +141,11 @@ class HypreDoFLinearSystemImpl
     ARCANE_THROW(NotImplementedException, "");
   }
 
+  void setEliminationArrays(VariableDoFByte& dof_elimination_info, VariableDoFReal& dof_elimination_value) override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  };
+
   void solve() override;
 
   VariableDoFReal& solutionVariable() override
