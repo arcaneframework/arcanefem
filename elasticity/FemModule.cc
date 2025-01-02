@@ -96,6 +96,7 @@ class FemModule
   Real _computeEdgeLength2(Face face);
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
+  void _initBsr();
 };
 
 /*---------------------------------------------------------------------------*/
@@ -125,15 +126,19 @@ void FemModule::
 startInit()
 {
   info() << "Module Fem INIT";
-  
-  IMesh* mesh = defaultMesh();
-  m_dofs_on_nodes.initialize(mesh, 2);
 
-  bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem";
-  m_bsr_format.initialize(mesh, nbFace(), use_csr_in_linearsystem);
-  m_bsr_format.computeSparsity();
+  m_dofs_on_nodes.initialize(defaultMesh(), 2);
 
   _initBoundaryconditions();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::_initBsr() {
+    bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem";
+    m_bsr_format.initialize(defaultMesh(), nbFace(), use_csr_in_linearsystem);
+    m_bsr_format.computeSparsity();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -151,6 +156,8 @@ _doStationarySolve()
   _getMaterialParameters();
 
   if (m_use_bsr) {
+    _initBsr();
+
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();
     auto command = makeCommand(acceleratorMng()->defaultQueue());

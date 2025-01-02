@@ -20,6 +20,7 @@
   </meshes>
 
   <fem>
+    <result-file>elasticity_traction_bar_test_ref.txt</result-file>
     <E>21.0e5</E>
     <nu>0.28</nu>
     <dirichlet-boundary-condition>
