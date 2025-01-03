@@ -19,8 +19,8 @@ Real REL_PREC {1.0e-15};
  *
  * The class provides methods organized into different nested classes for:
  * - MeshOperation: Mesh related operations.
- * - FeOperation2D: Finite element operations at element level.
- * - BoundaryConditions2D: Boundary condition related operations.
+ * - FeOperation2D/3D: Finite element operations at element level.
+ * - BoundaryConditions2D/3D: Boundary condition related operations.
  */
 /*---------------------------------------------------------------------------*/
 
@@ -790,10 +790,137 @@ class ArcaneFemFunctions
 
   /*---------------------------------------------------------------------------*/
   /**
-   * @brief Provides methods for applying boundary conditions in 2D FEM problems.
+   * @brief Provides methods for applying boundary conditions in 3D FEM problems.
    *
    * This class includes static methods for applying Neumann boundary conditions
-   * to the right-hand side (RHS) of finite element method equations in 2D.
+   * to the right-hand side (RHS) of finite element method equations in 3D.
+   */
+  /*---------------------------------------------------------------------------*/
+  class BoundaryConditions3D
+  {
+   public:
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Applies a constant source term to the RHS vector.
+     *
+     * This method adds a constant source term `qdot` to the RHS vector for each
+     * node in the mesh. The contribution to each node is weighted by the area of
+     * the cell and evenly distributed among the number of nodes of the cell.
+     *
+     * @param [IN]  qdot       : The constant source term.
+     * @param [IN]  mesh       : The mesh containing all cells.
+     * @param [IN]  node_dof   : DOF connectivity view.
+     * @param [IN]  node_coord : The coordinates of the nodes.
+     * @param [OUT] rhs_values : The RHS values to update.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline void applyConstantSourceToRhs(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      ENUMERATE_ (Cell, icell, mesh->allCells()) {
+        Cell cell = *icell;
+        Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, node_coord);
+        for (Node node : cell.nodes()) {
+          if (node.isOwn())
+            rhs_values[node_dof.dofId(node, 0)] += qdot * volume / cell.nbNode();
+        }
+      }
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Applies Dirichlet boundary conditions to RHS and LHS.
+     *
+     * Updates the LHS matrix and RHS vector to enforce Dirichlet conditions.
+     *
+     * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
+     * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+     *
+     * @param [IN]  bs              : Boundary condition values.
+     * @param [IN]  node_dof        : DOF connectivity view.
+     * @param [IN]  node_coord      : Node coordinates.
+     * @param [OUT] m_linear_system : Linear system for LHS.
+     * @param [OUT] rhs_values RHS  : RHS values to update.
+     */
+    /*---------------------------------------------------------------------------*/
+    static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& /*node_coord*/, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
+    {
+      FaceGroup group = bs->getSurface();
+      Real value = bs->getValue();
+      Real Penalty = bs->getPenalty();
+
+      ENUMERATE_ (Face, iface, group) {
+        for (Node node : iface->nodes()) {
+          if (node.isOwn()) {
+            m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), Penalty);
+            Real u_g = Penalty * value;
+            rhs_values[node_dof.dofId(node, 0)] = u_g;
+          }
+        }
+      }
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Applies Point Dirichlet boundary conditions to RHS and LHS.
+     *
+     * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
+     *
+     * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
+     * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+     *
+     * @param [IN]  bs              : Boundary condition values.
+     * @param [IN]  node_dof        : DOF connectivity view.
+     * @param [IN]  node_coord      : Node coordinates.
+     * @param [OUT] m_linear_system : Linear system for LHS.
+     * @param [OUT] rhs_values RHS  : RHS values to update.
+     */
+    /*---------------------------------------------------------------------------*/
+    static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& /*node_coord*/, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
+    {
+      NodeGroup group = bs->getNode();
+      Real value = bs->getValue();
+      Real Penalty = bs->getPenalty();
+
+      ENUMERATE_ (Node, inode, group) {
+        Node node = *inode;
+        if (node.isOwn()) {
+          m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), Penalty);
+          Real u_g = Penalty * value;
+          rhs_values[node_dof.dofId(node, 0)] = u_g;
+        }
+      }
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Applies Neumann conditions to the right-hand side (RHS) values.
+     *
+     * This method updates the RHS values of the finite element method equations
+     * based on the provided Neumann boundary condition. The boundary condition
+     * can specify a value or its components along the x and y directions.
+     *
+     * @param [IN]  bs         : The Neumann boundary condition values.
+     * @param [IN]  node_dof   : Connectivity view for degrees of freedom at nodes.
+     * @param [IN]  node_coord : Coordinates of the nodes in the mesh.
+     * @param [OUT] rhs_values : The right-hand side values to be updated.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      ARCANE_THROW(NotImplementedException, "");
+    }
+
+  };
+
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Provides methods for applying boundary conditions in 3D FEM problems.
+   *
+   * This class includes static methods for applying Neumann boundary conditions
+   * to the right-hand side (RHS) of finite element method equations in 3D.
    */
   /*---------------------------------------------------------------------------*/
   class BoundaryConditions2D
@@ -1020,6 +1147,8 @@ class ArcaneFemFunctions
       }
     }
   };
+
+
 
   /*---------------------------------------------------------------------------*/
   /**

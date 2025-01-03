@@ -113,7 +113,7 @@ _getMaterialParameters()
  *  3. If Dirichlet BC/Point are specified apply to the LHS & RHS.
  */
 /*---------------------------------------------------------------------------*/
-
+/*
 void FemModule::
 _assembleLinearOperator()
 {
@@ -127,7 +127,6 @@ _assembleLinearOperator()
   if (options()->f.isPresent())
     ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhs(f, mesh(), node_dof, m_node_coord, rhs_values);
 
-
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
   if(bc){
     for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
@@ -138,6 +137,46 @@ _assembleLinearOperator()
 
     for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions())
       ArcaneFemFunctions::BoundaryConditions2D::applyPointDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+  }
+}
+*/
+
+void FemModule::_assembleLinearOperator()
+{
+  info() << "Assembly of FEM linear operator";
+
+  VariableDoFReal& rhs_values(m_linear_system.rhsVariable()); // Temporary variable to keep values for the RHS
+  rhs_values.fill(0.0);
+
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  // Helper lambda to apply boundary conditions
+  auto applyBoundaryConditions = [&](auto BCFunctions) {
+    if (options()->f.isPresent())
+      BCFunctions.applyConstantSourceToRhs(f, mesh(), node_dof, m_node_coord, rhs_values);
+
+    BC::IArcaneFemBC* bc = options()->boundaryConditions();
+    if (bc) {
+      for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
+        BCFunctions.applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+
+      for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
+        BCFunctions.applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+
+      for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions())
+        BCFunctions.applyPointDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+    }
+  };
+
+  // Apply the correct boundary conditions based on `dim`
+  if (options()->meshType == "TETRA4") {
+    using BCFunctions = ArcaneFemFunctions::BoundaryConditions3D;
+    applyBoundaryConditions(BCFunctions());
+  } else if (options()->meshType == "TRIA3") {
+    using BCFunctions = ArcaneFemFunctions::BoundaryConditions2D;
+    applyBoundaryConditions(BCFunctions());
+  } else {
+    ARCANE_THROW(NotImplementedException, "");
   }
 }
 
