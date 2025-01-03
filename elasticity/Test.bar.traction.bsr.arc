@@ -32,5 +32,6 @@
       <surface>right</surface>
       <t1>1.0</t1>
     </traction-boundary-condition>
+    <bsr>true</bsr>
   </fem>
 </case>

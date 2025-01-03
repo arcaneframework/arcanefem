@@ -48,6 +48,11 @@
         Penalty value for enforcing Dirichlet condition
       </description>
     </simple>
+    <simple name="bsr" type="bool"  default="false" >
+      <description>
+        Boolean to use the BSR data structure and its associated methods. BSR is GPU-compatible and works with multi-degree-of-freedom meshes.
+      </description>
+    </simple>
 
     <!-- - - - - - dirichlet-boundary-condition - - - - -->
     <complex name  = "dirichlet-boundary-condition"

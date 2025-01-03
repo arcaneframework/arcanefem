@@ -16,12 +16,18 @@
 #include <arcane/IItemFamily.h>
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
+#include <arcane/accelerator/core/IAcceleratorMng.h>
+#include <arcane/accelerator/core/RunQueue.h>
+#include <arcane/core/ItemTypes.h>
+#include <arccore/base/ArccoreGlobal.h>
 
 #include "IDoFLinearSystemFactory.h"
 #include "Fem_axl.h"
 #include "FemUtils.h"
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
+#include "BSRFormat.h"
+#include "ArcaneFemFunctionsGpu.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -42,6 +48,7 @@ class FemModule
   explicit FemModule(const ModuleBuildInfo& mbi)
   : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
+  , m_bsr_format(mbi.subDomain()->traceMng(), *(mbi.subDomain()->acceleratorMng()->defaultQueue()), m_dofs_on_nodes)
   {
     ICaseMng* cm = mbi.subDomain()->caseMng();
     cm->setTreatWarningAsError(true);
@@ -61,6 +68,8 @@ class FemModule
     return VersionInfo(1, 0, 0);
   }
 
+  void _doStationarySolve();
+
  private:
 
   Real E;
@@ -69,23 +78,25 @@ class FemModule
   Real f2;
   Real mu2;
   Real lambda;
+  bool m_use_bsr = false;
 
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
+  BSRFormat<2> m_bsr_format;
 
  private:
 
-  void _doStationarySolve();
   void _getMaterialParameters();
   void _assembleBilinearOperatorTRIA3();
   void _solve();
   void _initBoundaryconditions();
   void _assembleLinearOperator();
-  FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
+  FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
   Real _computeEdgeLength2(Face face);
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
+  void _initBsr();
 };
 
 /*---------------------------------------------------------------------------*/
@@ -116,10 +127,24 @@ startInit()
 {
   info() << "Module Fem INIT";
 
-  m_dofs_on_nodes.initialize(mesh(), 2);
+  m_dofs_on_nodes.initialize(defaultMesh(), 2);
 
   _initBoundaryconditions();
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::_initBsr() {
+    bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem";
+    m_bsr_format.initialize(defaultMesh(), nbFace(), use_csr_in_linearsystem);
+    m_bsr_format.computeSparsity();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE FixedMatrix<6, 6> computeElementMatrixTRIA3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, Real lambda, Real mu2);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -130,11 +155,28 @@ _doStationarySolve()
   // # get material parameters
   _getMaterialParameters();
 
+  if (m_use_bsr) {
+    _initBsr();
+
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cn_cv = m_connectivity_view.cellNode();
+    auto command = makeCommand(acceleratorMng()->defaultQueue());
+    auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
+    auto lambda_copy = lambda;
+    auto mu2_copy = mu2;
+
+    m_bsr_format.assembleCellWise([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
+  }
+  else {
   // Assemble the FEM bilinear operator (LHS - matrix A)
   _assembleBilinearOperatorTRIA3();
+  }
 
   // Assemble the FEM linear operator (RHS - vector b)
   _assembleLinearOperator();
+
+  if (m_use_bsr)
+    m_bsr_format.toLinearSystem(m_linear_system);
 
   // Solve for [u1,u2]
   _solve();
@@ -157,6 +199,8 @@ _getMaterialParameters()
 
   mu2 = ( E/(2*(1+nu)) )*2;                // lame parameter mu * 2
   lambda = E*nu/((1+nu)*(1-2*nu));         // lame parameter lambda
+
+  m_use_bsr = options()->bsr;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -320,7 +364,10 @@ _assembleLinearOperator()
       NodeLocalId node_id = *inode;
       if (m_u1_fixed[node_id]) {
         DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
-        m_linear_system.matrixSetValue(dof_id1, dof_id1, Penalty);
+        if (m_use_bsr)
+          m_bsr_format.matrix().setValue(dof_id1, dof_id1, Penalty);
+        else
+          m_linear_system.matrixSetValue(dof_id1, dof_id1, Penalty);
         {
           Real u1_dirichlet = Penalty * m_U[node_id].x;
           rhs_values[dof_id1] = u1_dirichlet;
@@ -328,7 +375,10 @@ _assembleLinearOperator()
       }
       if (m_u2_fixed[node_id]) {
         DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
-        m_linear_system.matrixSetValue(dof_id2, dof_id2, Penalty);
+        if (m_use_bsr)
+          m_bsr_format.matrix().setValue(dof_id2, dof_id2, Penalty);
+        else
+          m_linear_system.matrixSetValue(dof_id2, dof_id2, Penalty);
         {
           Real u2_dirichlet = Penalty * m_U[node_id].y;
           rhs_values[dof_id2] = u2_dirichlet;
@@ -581,8 +631,7 @@ _computeEdgeLength2(Face face)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<6, 6> FemModule::
-_computeElementMatrixTRIA3(Cell cell)
+ARCCORE_HOST_DEVICE FixedMatrix<6, 6> computeElementMatrixTRIA3Base(Real3 m0, Real3 m1, Real3 m2, Real area, Real mu2, Real lambda)
 {
   // Get coordiantes of the triangle element  TRI3
   //------------------------------------------------
@@ -592,12 +641,6 @@ _computeElementMatrixTRIA3(Cell cell)
   //                 .     .
   //              1 o . . . o 2
   //------------------------------------------------
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-
-  Real area = _computeAreaTriangle3(cell);    // calculate area
-
   Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
   Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
   Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
@@ -855,6 +898,28 @@ _computeElementMatrixTRIA3(Cell cell)
   //std::cout << "\n";
 
   return int_Omega_i;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE FixedMatrix<6, 6> computeElementMatrixTRIA3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, Real lambda, Real mu2) {
+    Real3 m0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
+    Real3 m1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
+    Real3 m2 = in_node_coord[cn_cv.nodeId(cell_lid, 2)];
+    Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+    return computeElementMatrixTRIA3Base(m0, m1, m2, area, mu2, lambda);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+FixedMatrix<6, 6> FemModule::_computeElementMatrixTRIA3(Cell cell) {
+    Real3 m0 = m_node_coord[cell.nodeId(0)];
+    Real3 m1 = m_node_coord[cell.nodeId(1)];
+    Real3 m2 = m_node_coord[cell.nodeId(2)];
+    Real area = _computeAreaTriangle3(cell);
+    return computeElementMatrixTRIA3Base(m0, m1, m2, area, mu2, lambda);
 }
 
 /*---------------------------------------------------------------------------*/
