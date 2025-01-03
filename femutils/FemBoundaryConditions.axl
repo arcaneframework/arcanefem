@@ -33,6 +33,11 @@
           Value of the Neumann load in y
         </description>
       </simple>
+      <simple name = "valueZ" type = "real" optional = "true">
+        <description>
+          Value of the Neumann load in z
+        </description>
+      </simple>
     </complex>
 
     <complex name  = "dirichlet-point"

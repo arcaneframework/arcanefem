@@ -80,17 +80,16 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real computeAreaTria3(Cell cell, const VariableNodeReal3& node_coord)
+    static inline Real computeAreaTria3(ItemWithNodes item, const VariableNodeReal3& node_coord)
     {
-      Real3 vertex0 = node_coord[cell.nodeId(0)];
-      Real3 vertex1 = node_coord[cell.nodeId(1)];
-      Real3 vertex2 = node_coord[cell.nodeId(2)];
+      Real3 vertex0 = node_coord[item.nodeId(0)];
+      Real3 vertex1 = node_coord[item.nodeId(1)];
+      Real3 vertex2 = node_coord[item.nodeId(2)];
 
       auto v = math::cross(vertex1 - vertex0, vertex2 - vertex0);
 
-      return v.normL2() / 2.0;
-
       // return 0.5 * ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
+      return v.normL2() / 2.0;
     }
 
     // ef: needing to compute with different entity inputs (face or cell)
@@ -142,7 +141,6 @@ class ArcaneFemFunctions
     /*---------------------------------------------------------------------------*/
     /**
      * @brief Computes the volume of a hexaedron defined by eight nodes.
-     *
      */
     /*---------------------------------------------------------------------------*/
     static inline Real hexa8Volume(ItemWithNodes item, const VariableNodeReal3& node_coord)
@@ -166,7 +164,6 @@ class ArcaneFemFunctions
     /**
      * @brief Computes the volume of a pentaedron (wedge or triangular prism)
      * defined by six nodes.
-     *
      */
     /*---------------------------------------------------------------------------*/
 
@@ -191,7 +188,6 @@ class ArcaneFemFunctions
     /*---------------------------------------------------------------------------*/
     /**
      * @brief Computes the volume of a pyramid defined by five nodes.
-     *
      */
     /*---------------------------------------------------------------------------*/
 
@@ -327,6 +323,44 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
+     * @brief Computes the normalized triangle normal for a given face.
+     *
+     * This method calculates normal vector to the triangle defined by nodes,
+     * of the face and normalizes it, and ensures the correct orientation.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline Real3 computeNormalTriangle(Face face, const VariableNodeReal3& node_coord)
+    {
+
+      // Get the vertices of the triangle
+      Real3 vertex0 = node_coord[face.nodeId(0)];
+      Real3 vertex1 = node_coord[face.nodeId(1)];
+      Real3 vertex2 = node_coord[face.nodeId(2)];
+
+      if (!face.isSubDomainBoundaryOutside())
+        std::swap(vertex0, vertex1);
+
+      // Calculate two edges of the triangle
+      Real3 edge1 = { vertex1.x - vertex0.x, vertex1.y - vertex0.y, vertex1.z - vertex0.z };
+      Real3 edge2 = { vertex2.x - vertex0.x, vertex2.y - vertex0.y, vertex2.z - vertex0.z };
+
+      // Compute the cross product of the two edges
+      Real3 normal = {
+        edge1.y * edge2.z - edge1.z * edge2.y,
+        edge1.z * edge2.x - edge1.x * edge2.z,
+        edge1.x * edge2.y - edge1.y * edge2.x
+      };
+
+      // Calculate the magnitude of the normal vector
+      Real norm = math::sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+
+      // Normalize the vector to unit length and return
+      return { normal.x / norm, normal.y / norm, normal.z / norm };
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
      * @brief Computes finite-element entity (Edge, Face or Cell) geometric dimension
      * This method is used for the FEM 2D & 3D needs (coming from PASSMO)
      * for jacobians & elementary matrices computations
@@ -334,32 +368,6 @@ class ArcaneFemFunctions
     /*---------------------------------------------------------------------------*/
     static inline Int32 getGeomDimension(ItemWithNodes item)
     {
-      /*
-      Int16 item_type = item.type();
-      Integer dim = 1; // default geometric dimension is 1D (Line2 and Line3 finite-elements)
-
-      switch(item_type) {
-
-      // 2D elements
-      case IT_Triangle3:
-      case IT_Quad4:
-      case IT_Triangle6:
-      case IT_Quad8: dim = 2; break;
-
-        // 3D elements
-      case IT_Tetraedron4:
-      case IT_Hexaedron8:
-      case IT_Tetraedron10:
-      case IT_Hexaedron20:
-      case IT_Pentaedron6:
-      case IT_Pyramid5:
-        dim = 3; break;
-
-      default: break;
-
-      }
-      return dim;
-*/
       return item.typeInfo()->dimension();
     }
 
@@ -925,6 +933,53 @@ class ArcaneFemFunctions
     static inline void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
     {
       ARCANE_THROW(NotImplementedException, "");
+
+      FaceGroup group = bs->getSurface();
+
+      Real value = 0.0;
+      Real valueX = 0.0;
+      Real valueY = 0.0;
+      Real valueZ = 0.0;
+
+      bool hasValue = bs->hasValue();
+
+      bool hasValueX = bs->hasValueX();
+      bool hasValueY = bs->hasValueY();
+      bool hasValueZ = bs->hasValueZ();
+
+      if (hasValue) {
+        value = bs->getValue();
+      }
+      else {
+        if (hasValueX)
+          valueX = bs->getValueX();
+        if (hasValueY)
+          valueY = bs->getValueY();
+        if (hasValueZ)
+          valueZ = bs->getValueZ();
+      }
+
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+
+        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, node_coord);
+        Real3 normal = ArcaneFemFunctions::MeshOperation::computeNormalTriangle(face, node_coord);
+
+        for (Node node : iface->nodes()) {
+          if (!node.isOwn())
+            continue;
+          Real rhs_value;
+
+          if (hasValue) {
+            rhs_value = value * area / 3.0;
+          }
+          else {
+            rhs_value = (normal.x * valueX + normal.y * valueY + normal.z * valueZ) * area / 3.0;
+          }
+
+          rhs_values[node_dof.dofId(node, 0)] += rhs_value;
+        }
+      }
     }
   };
 
@@ -1021,10 +1076,7 @@ class ArcaneFemFunctions
       Real valueX = 0.0;
       Real valueY = 0.0;
       bool hasValue = bs->hasValue();
-      /*
-      bool hasValueX = bs->getValueX();
-      bool hasValueY = bs->getValueY();
-*/
+
       bool hasValueX = bs->hasValueX();
       bool hasValueY = bs->hasValueY();
 
