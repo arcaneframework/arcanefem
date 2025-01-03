@@ -1,0 +1,70 @@
+name: 'Module testlab'
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - testlab/**
+  pull_request:
+    branches: [ main ]
+    paths:
+      - testlab/**
+  workflow_dispatch:
+
+env:
+  MODULE_DIR: 'testlab'
+
+  # CTest
+  CT_OPTS: "--timeout 300 --output-on-failure"
+
+  # MPI
+  OMPI_ALLOW_RUN_AS_ROOT: 1
+  OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
+  OMPI_MCA_rmaps_base_oversubscribe: 1
+
+jobs:
+  tests:
+    name: 'Build and Test'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/arcaneframework/arcane_ubuntu-2404:gcc-14_full_check_latest
+
+    steps:
+      - name: Define environment paths
+        shell: bash
+        run: |
+          echo "SOURCE_DIR=${GITHUB_WORKSPACE}/src" >> $GITHUB_ENV
+          echo "BUILD_DIR=${GITHUB_WORKSPACE}/build" >> $GITHUB_ENV
+          echo "CT_RESULT_DIR=${GITHUB_WORKSPACE}/test" >> $GITHUB_ENV
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.SOURCE_DIR }}
+
+      - name: Configure
+        shell: bash
+        run: |
+          cmake \
+          -S ${{ env.SOURCE_DIR }} \
+          -B ${{ env.BUILD_DIR }} \
+          -GNinja
+
+      - name: Build
+        shell: bash
+        run: |
+          cmake --build ${{ env.BUILD_DIR }}
+
+      - name: Test
+        shell: bash
+        run: |
+          mkdir -p ${{ env.CT_RESULT_DIR }}
+          ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }} -R '\[${{ env.MODULE_DIR }}\]'
+
+      - name: Upload test artifact
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: tests-${{ env.MODULE_DIR }}-artifact
+          path: ${{ env.CT_RESULT_DIR }}
+          retention-days: 7
