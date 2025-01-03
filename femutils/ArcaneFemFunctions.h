@@ -932,8 +932,6 @@ class ArcaneFemFunctions
 
     static inline void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
     {
-      ARCANE_THROW(NotImplementedException, "");
-
       FaceGroup group = bs->getSurface();
 
       Real value = 0.0;
