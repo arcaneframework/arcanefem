@@ -2,7 +2,7 @@
 
 <img align="left" width="400" src="https://github.com/arcaneframework/arcanefem/assets/52162083/3646fbb9-5c82-4807-b025-7f3b4c899ca7" alt="poisson_1_large" />
 
-Here, we utilize ArcaneFEM to solve the Poisson equation, which is a fundamental elliptic partial differential equation (PDE). The provided code demonstrates a straightforward implementation of a 2D/3D unstructured mesh Galerkin finite element method (FEM) solver on an L-shaped domain. Although we shall explain here only 2D for keeping the text simple.
+Here, we utilize ArcaneFEM to solve the Poisson equation, which is a fundamental elliptic partial differential equation (PDE). The provided code demonstrates a straightforward implementation of a 2D/3D unstructured mesh Galerkin finite element method (FEM) solver on arbitary meshes. Although we shall explain here only 2D for keeping the text simple.
 
 The Poisson equation is encountered in various physical scenarios, including heat conduction, substance diffusion, membrane elasticity, inviscid fluid flow, electrostatics, twisting of elastic rods, and water waves. It serves as a vital tool for modeling and understanding these phenomena.
 
@@ -22,11 +22,11 @@ $$\nabla^2 u = {\mathcal{f}} \quad \forall (x,y)\in\Omega^h.$$
 
 To complete the problem description,   first type (Dirichlet) boundary conditions is applied to this problem:
 
-$u = 0.0 \quad \forall(x,y)\in\partial\Omega^h_{\text{boundary}}\subset\partial \Omega^h,$
+$u = 0.5 \quad \forall(x,y)\in\partial\Omega^h_{\text{horizontal}}\subset\partial \Omega^h,$
 
 Finally the right hand side source is present within the domain
 
-${\mathcal{f}}=-1$
+${\mathcal{f}}=5.5$
 
 
 
@@ -42,100 +42,84 @@ $u^h=0.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{boundary}}$,
 
 $\int_{\Omega^h_{\text{N}}}(\mathbf{q} \cdot \mathbf{n}) v^h=0$ since no Neumann BC is present,
 
-$\int_{\Omega^h}{\mathcal{f}} v^h=1\times10^5$, and
+$\int_{\Omega^h}{\mathcal{f}} v^h=5.5$, and
 
 ## The code ##
 
-#### properties ###
+Once you compile the Poisson module. Look out for three things in the folder: 
+- `Poisson` this is the executable for launching the solver
+- `meshes` folder contains meshes that are needed by the solver
+- `inputs` folder contains input parameters for setting up a test case for the Poisson solver
 
-The value of constant source term $\mathcal{f}$  can be provided in  `Test.L-shape.2D.arc` file
-
-```xml
-  <fem>
-    <f>-1</f>
-  </fem>
-```
+Let us see how to set up a test cases in 2D. The file `inputs/circle.arc` is used here for demonstatation
 
 #### Mesh ####
 
-The mesh `L-shape.msh` is provided in the `Test.L-shape.2D.arc` file
+The mesh `circle_cut.msh` is provided in the `circle.arc` file
 
 ```xml
   <meshes>
     <mesh>
-      <filename>L-shape.msh</filename>
+      <filename>meshes/circle_cut.msh</filename>
     </mesh>
   </meshes>
 ```
-
-Note, here `L-shape.msh` is a 2D mesh, if any other 3D mesh was loaded ArcaneFEM will run 3D calculations it is as simple as that.
-
 Please not that use version 4.1 `.msh` file from `Gmsh`.
+
+#### properties ###
+
+The value of constant source term $\mathcal{f}$  can be provided in  `circle.arc` file
+
+```xml
+  <fem>
+    <f>5.5</f>
+  </fem>
+```
+
 
 #### Boundary conditions ####
 
-The Dirichlet boundary conditions  are provided in `Test.L-shape.2D.arc` file
+The Dirichlet boundary conditions  are provided in `circle.arc` file
 
 ```xml
-    <dirichlet-boundary-condition>
-      <surface>boundary</surface>
-      <value>0.0</value>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>horizontal</surface>
+        <value>0.5</value>
+      </dirichlet>
+    </boundary-conditions>
 ```
 
-So in the snippet above, three Dirichlet condition $u=0$ is  applied to border ('boundary') which is a group of edges in the mesh file `L-shape.msh`.
+So in the snippet above, three Dirichlet condition $u=0.5$ is  applied to border ('horizontal') which is a group of edges in the mesh file `circle_cut.msh`.
 
-If needed, the Neumann  boundary conditions  can also be provided in `Test.L-shape.2D.arc` file
+If needed, the Neumann  boundary conditions  can also be provided in `circle.arc` file
 
 ```xml
-    <neumann-boundary-condition>
-      <surface>Neumann</surface>
-      <value>0.0</value>
-    </neumann-boundary-condition>
+    <neumann-conditions>
+      <dirichlet>
+        <surface>other</surface>
+        <value>0.0</value>
+      </dirichlet>
+    </neumann-conditions>
 ```
 
 
 
 #### Post Process ####
 
-<img align="left" width="400" src="https://github.com/arcaneframework/arcanefem/assets/52162083/a8d114e1-5589-4efd-88fd-84b398acab84" alt="poisson_1_large" />
 
+<img align="left" width="200" src="https://github.com/user-attachments/assets/66b9449e-e2f7-4607-b910-231def7d2f67" alt="poisson_1_large" />
+<img align="left" width="200" src="https://github.com/user-attachments/assets/a68dd3d8-3f9f-424e-8d6a-33e34e41c04b" alt="poisson_1_large" />
+Post processing is controled via 
+
+```xml
+  <arcane-post-processing>
+   <output-period>1</output-period>
+   <format name="VtkHdfV2PostProcessor" />
+   <output>
+     <variable>U</variable>
+   </output>
+  </arcane-post-processing>
+```
 For post processing the `Mesh0.hdf` file is outputted (in `output/depouillement/vtkhdfv2` folder), which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
-
-
-
-
-
-#### Tests available in this module ####
-
-The tests are present in the form of `.arc` files with a prefix `Test.`:
-
-| Name          | Dimension | Boundary Condition                                   | Solver               | Comment                                                     |
-| ------------- | --------- | ---------------------------------------------------- | -------------------- | ----------------------------------------------------------- |
-| L-shape.2D    | 2D        | Homogeneous Dirichlet <br />Homogeneous source term  | Default (PETSc)      | - Serves as validation test                                 |
-| L-shape.3D    | 3D        | Dirichlet + Null flux <br />Homogeneous source term  | PETSc                | - Serves as validation test<br />- Uses BLCSR matrix format |
-| sphere.3D     | 3D        | Dirichlet only<br />Homogeneous source term          | HYPRE (ArcaneFEM)    | - Uses BLCSR matrix format                                  |
-| direct-solver | 2D        | Homogeneous Dirichlet <br />Homogeneous source term  | Sequential Direct LU |                                                             |
-| neumann       | 2D        | Neumann only                                         | Default (PETSc)      | - Serves as validation test                                 |
-| porous        | 2D        | Multiple Dirichlet only<br />Homogeneous source term | PETSc                | - Used for Benchmarking                                     |
-| trilinos      | 2D        | Homogeneous Dirichlet <br />Homogeneous source term  | TRILINOS             | - Used to test TRILINOS                                     |
-| petsc         | 2D        | Homogeneous Dirichlet <br />Homogeneous source term  | PETSc                | - Serves as validation test                                 |
-| hypre         | 2D        | Homogeneous Dirichlet <br />Homogeneous source term  | HYPRE (Arcane)       | - Serves as validation test                                 |
-| hypre_direct  | 2D        | Homogeneous Dirichlet <br />Homogeneous source term  | HYPRE (ArcaneFEM)    | - Serves as validation test<br />- Uses BLCSR matrix format |
-|               |           |                                                      |                      |                                                             |
-
-
-
-### Time analysis ###
-By setting the REGISTER_TIME flag to ON during the compilation, it is possible to generate a `timer.txt` file during the execution which contains the execution time of the
-different parts of poisson.
-
-Here is an example of compilation with this flag :
-~~~{sh}
-ARCANE_INSTALL_DIR=/path/to/arcane/installation
-BUILD_DIR=/tmp/build
-SOURCE_PATH=/path/to/sources
-cmake -S ${SOURCE_PATH} -B ${BUILD_DIR} -DCMAKE_PREFIX_PATH=${ARCANE_INSTALL_DIR} -DREGISTER_TIME=ON
-cmake --build ${BUILD_DIR}
-~~~
 

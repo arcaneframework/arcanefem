@@ -1,171 +1,43 @@
-set(ACCELERATOR_SOURCES
-  FemModule.cc
-  BlCsrBiliAssembly.cc
-  CooGpuBiliAssembly.cc
-  CooSortGpuBiliAssembly.cc
-  CsrGpuBiliAssembly.cc
-  NodeWiseCsrBiliAssembly.cc
-)
-
 add_executable(Poisson
-  ${ACCELERATOR_SOURCES}
-  FemModule.h
-  LegacyBiliAssembly.cc
-  CooBiliAssembly.cc
-  CsrBiliAssembly.cc
-  CooSortBiliAssembly.cc
   FemModule.cc
   main.cc
   Fem_axl.h
 )
 
-arcane_accelerator_add_source_files(${ACCELERATOR_SOURCES})
-
-arcane_accelerator_add_to_target(Poisson)
-
 arcane_generate_axl(Fem)
 arcane_add_arcane_libraries_to_target(Poisson)
 target_include_directories(Poisson PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
 configure_file(Poisson.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.L-shape.2D.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.L-shape.2D.nwcsr.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.L-shape.3D.nwcsr.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.circle.2D.blcsr.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.L-shape.2D.csr-gpu.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.L-shape.2D.coo.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.L-shape.2D.coo-sort.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.L-shape.3D.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.L-shape.2D.coo-gpu.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.L-shape.3D.coo-gpu.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.L-shape.2D.coo-sort-gpu.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.L-shape.3D.coo-sort-gpu.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.L-shape.3D.coo.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.L-shape.3D.coo-sort.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.sphere.3D.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.sphere.3D.csr.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.sphere.3D.csr-gpu.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.circle.2D.csr.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.direct-solver.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.neumann.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.porous.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.trilinos.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.hypre.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.hypre_direct.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.petsc.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(${MSH_DIR}/L-shape.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(${MSH_DIR}/random.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(${MSH_DIR}/porous-medium.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(${MSH_DIR}/L-shape-3D.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(${MSH_DIR}/sphere_cut.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(${MSH_DIR}/circle_cut.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.L-shape.2D.bsr.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.sphere.3D.bsr.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-
-# For benchmarking
-configure_file(run-benchmark.sh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(get_stats_from_json.py ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(TEST_TEMPLATE_2D.xml ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(TEST_TEMPLATE_3D.xml ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(plot-results.sh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Poisson PUBLIC FemUtils)
 
-target_compile_definitions(Poisson PRIVATE $<$<BOOL:${ARCANE_HAS_ACCELERATOR}>:ARCANE_HAS_ACCELERATOR>)
+# Copy the check files in the binary directory
+file(COPY "check" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
-# Copy the tests files in the binary directory
-# The '/' after 'tests' is needed because we want to copy the files
-# inside the 'tests' directory but not the directory itself.
-file(COPY "tests/" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+# Copy the inputs folder containing the arc files
+file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+# Copy the mesh files into meshes directory
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
+set(MESH_FILES
+    sphere_cut.msh
+    circle_cut.msh
+)
+foreach(MESH_FILE IN LISTS MESH_FILES)
+    file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
+endforeach()
+
 
 enable_testing()
 
-add_test(NAME [poisson]3D_Dirichlet COMMAND Poisson Test.L-shape.3D.arc)
-if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-  add_test(NAME [poisson]hypre_direct_2D_csr COMMAND Poisson Test.circle.2D.csr.arc)
-  add_test(NAME [poisson]hypre_direct_2D_blcsr COMMAND Poisson Test.circle.2D.blcsr.arc)
-  arcanefem_add_gpu_test(NAME [poisson]hypre_direct_2D_blcsr_gpu COMMAND ./Poisson ARGS Test.circle.2D.blcsr.arc)
-  add_test(NAME [poisson]hypre_direct_3D COMMAND Poisson Test.sphere.3D.arc)
-  add_test(NAME [poisson]hypre_direct_3D_csr COMMAND Poisson Test.sphere.3D.csr.arc)
-  if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-    add_test(NAME [poisson]hypre_direct_2D_csr_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson Test.circle.2D.csr.arc)
-    add_test(NAME [poisson]hypre_direct_2D_blcsr_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson Test.circle.2D.blcsr.arc)
-    add_test(NAME [poisson]hypre_direct_3D_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson Test.sphere.3D.arc)
-    add_test(NAME [poisson]hypre_direct_3D_csr_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson Test.sphere.3D.csr.arc)
-  endif()
-endif()
-
-
-add_test(NAME [poisson]direct-solver COMMAND Poisson Test.direct-solver.arc)
-
-if(FEMUTILS_HAS_SOLVER_BACKEND_TRILINOS)
-  add_test(NAME [poisson]trilinos COMMAND Poisson Test.trilinos.arc)
-endif()
-
-
-if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-  add_test(NAME [poisson]hypre COMMAND Poisson Test.hypre.arc)
-  add_test(NAME [poisson]hypre_direct COMMAND Poisson Test.hypre_direct.arc)
-  if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-    add_test(NAME [poisson]hypre_direct_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson Test.hypre_direct.arc)
-    add_test(NAME [poisson]hypre_direct_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Poisson Test.hypre_direct.arc)
-  endif()
-endif()
-
-
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
-  add_test(NAME [poisson]L-shape_2D COMMAND Poisson Test.L-shape.2D.arc)
-  add_test(NAME [poisson]L-shape_2D_petsc_coo COMMAND Poisson Test.L-shape.2D.coo.arc)
-  add_test(NAME [poisson]L-shape_2D_petsc_coo-sort COMMAND Poisson Test.L-shape.2D.coo-sort.arc)
-  add_test(NAME [poisson]petsc COMMAND Poisson Test.petsc.arc)
-  add_test(NAME [poisson]neumann COMMAND Poisson Test.neumann.arc)
-  add_test(NAME [poisson]porous COMMAND Poisson Test.porous.arc)
-  add_test(NAME [poisson]3D_Dirichlet_petsc_coo COMMAND Poisson Test.L-shape.3D.coo.arc)
-  add_test(NAME [poisson]3D_Dirichlet_petsc_coo-sort COMMAND Poisson Test.L-shape.3D.coo-sort.arc)
-
-  arcanefem_add_gpu_test(NAME [poisson]gpu COMMAND ./Poisson ARGS Test.petsc.arc)
-  arcanefem_add_gpu_test(NAME [poisson]L-shape_2D_petsc_coo-gpu COMMAND ./Poisson ARGS Test.L-shape.2D.coo-gpu.arc)
-  arcanefem_add_gpu_test(NAME [poisson]L-shape_3D_petsc_coo-gpu COMMAND ./Poisson ARGS Test.L-shape.3D.coo-gpu.arc)
-  arcanefem_add_gpu_test(NAME [poisson]L-shape_2D_petsc_coo-sort-gpu COMMAND ./Poisson ARGS Test.L-shape.2D.coo-sort-gpu.arc)
-  arcanefem_add_gpu_test(NAME [poisson]L-shape_3D_petsc_coo-sort-gpu COMMAND ./Poisson ARGS Test.L-shape.3D.coo-sort-gpu.arc)
-  arcanefem_add_gpu_test(NAME [poisson]L-shape_2D_nwcsr_gpu COMMAND ./Poisson ARGS Test.L-shape.2D.nwcsr.arc)
-  arcanefem_add_gpu_test(NAME [poisson]L-shape_3D_nwcsr_gpu COMMAND ./Poisson ARGS Test.L-shape.2D.nwcsr.arc)
-  arcanefem_add_gpu_test(NAME [poisson]L-shape_2D_petsc_csr-gpu COMMAND ./Poisson ARGS Test.L-shape.2D.csr-gpu.arc)
-
-  if (FEMUTILS_HAS_PARALLEL_SOLVER)
-    add_test(NAME [poisson]L-shape_2D_petsc_coo_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson Test.L-shape.2D.coo.arc)
-    add_test(NAME [poisson]L-shape_2D_petsc_coo-sort_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson Test.L-shape.2D.coo-sort.arc)
-    add_test(NAME [poisson]3D_Dirichlet_petsc_coo_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson Test.L-shape.3D.coo.arc)
-    add_test(NAME [poisson]3D_Dirichlet_petsc_coo-sort_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson Test.L-shape.3D.coo-sort.arc)
-
-    arcanefem_add_gpu_test(NAME [poisson]L-shape_2D_petsc_coo-gpu_2pe NB_MPI 2 COMMAND ./Poisson ARGS Test.L-shape.2D.coo-gpu.arc)
-    arcanefem_add_gpu_test(NAME [poisson]L-shape_3D_petsc_coo-gpu_2pe NB_MPI 2 COMMAND ./Poisson ARGS Test.L-shape.3D.coo-gpu.arc)
-    arcanefem_add_gpu_test(NAME [poisson]L-shape_2D_petsc_coo-sort-gpu_2pe NB_MPI 2 COMMAND ./Poisson ARGS Test.L-shape.2D.coo-sort-gpu.arc)
-    arcanefem_add_gpu_test(NAME [poisson]L-shape_3D_petsc_coo-sort-gpu_2pe NB_MPI 2 COMMAND ./Poisson ARGS Test.L-shape.3D.coo-sort-gpu.arc)
-    arcanefem_add_gpu_test(NAME [poisson]L-shape_2D_nwcsr_gpu_2pe NB_MPI 2 COMMAND ./Poisson ARGS Test.L-shape.2D.nwcsr.arc)
-    arcanefem_add_gpu_test(NAME [poisson]L-shape_3D_nwcsr_gpu_2pe NB_MPI 2 COMMAND ./Poisson ARGS Test.L-shape.2D.nwcsr.arc)
-    arcanefem_add_gpu_test(NAME [poisson]L-shape_2D_petsc_csr-gpu_2pe NB_MPI 2 COMMAND ./Poisson ARGS Test.L-shape.2D.csr-gpu.arc)
-  endif()
+  add_test(NAME [poisson]2D COMMAND Poisson inputs/circle.2D.arc)
+  add_test(NAME [poisson]3D COMMAND Poisson inputs/sphere.3D.arc)
 endif()
 
-if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-  arcanefem_add_gpu_test(NAME [poisson]hypre_direct_gpu COMMAND ./Poisson ARGS Test.hypre_direct.arc)
-  arcanefem_add_gpu_test(NAME [poisson]hypre_direct_3D_gpu COMMAND ./Poisson ARGS Test.sphere.3D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]hypre_direct_3D_csr-gpu COMMAND ./Poisson ARGS Test.sphere.3D.csr-gpu.arc)
-
-  if(FEMUTILS_HAS_PARALLEL_SOLVER)
-    arcanefem_add_gpu_test(NAME [poisson]hypre_direct_gpu_2pe NB_MPI 2 COMMAND ./Poisson ARGS Test.hypre_direct.arc)
-    arcanefem_add_gpu_test(NAME [poisson]hypre_direct_3D_gpu_2pe NB_MPI 2 COMMAND ./Poisson ARGS Test.sphere.3D.arc)
-    arcanefem_add_gpu_test(NAME [poisson]hypre_direct_3D_csr-gpu_2pe NB_MPI 2 COMMAND ./Poisson ARGS Test.sphere.3D.csr-gpu.arc)
-  endif()
-endif()
 
 # If parallel part is available, add some tests
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-  add_test(NAME [poisson]L-shape_2D_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Poisson Test.L-shape.2D.arc)
+  add_test(NAME [poisson]2D_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Poisson inputs/circle.2D.arc)
+  add_test(NAME [poisson]3D_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Poisson inputs/sphere.3D.arc)
 endif()
-
-add_test(NAME [poisson]2D_bsr COMMAND Poisson Test.L-shape.2D.bsr.arc)
-arcanefem_add_gpu_test(NAME [poisson]2D_bsr_gpu COMMAND ./Poisson ARGS Test.L-shape.2D.bsr.arc)
-
-add_test(NAME [poisson]3D_bsr COMMAND Poisson Test.sphere.3D.bsr.arc)
-arcanefem_add_gpu_test(NAME [poisson]3D_bsr_gpu COMMAND ./Poisson ARGS Test.sphere.3D.bsr.arc)

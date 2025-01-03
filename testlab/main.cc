@@ -3,12 +3,11 @@
 
 using namespace Arcane;
 
-int
-main(int argc,char* argv[])
+int main(int argc, char* argv[])
 {
-  ArcaneLauncher::init(CommandLineArguments(&argc,&argv));
+  ArcaneLauncher::init(CommandLineArguments(&argc, &argv));
   auto& app_build_info = ArcaneLauncher::applicationBuildInfo();
-  app_build_info.setCodeName("Poisson");
-  app_build_info.setCodeVersion(VersionInfo(1,0,0));
+  app_build_info.setCodeName("Testlab");
+  app_build_info.setCodeVersion(VersionInfo(1, 0, 0));
   return ArcaneLauncher::run();
 }
