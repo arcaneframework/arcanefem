@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Poisson" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>Sphere 3D</title>
+    <title>Cut circle 2D with Dirichlet and Neumann</title>
     <timeloop>PoissonLoop</timeloop>
   </arcane>
 
@@ -15,19 +15,22 @@
 
   <meshes>
     <mesh>
-      <filename>meshes/sphere_cut.msh</filename>
+      <filename>meshes/circle_cut.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
     <f>5.5</f>
-    <result-file>check/poisson_test_ref_sphere_3D.txt</result-file>
-    <mesh-type>TETRA4</mesh-type>
     <boundary-conditions>
       <dirichlet>
         <surface>horizontal</surface>
         <value>0.5</value>
       </dirichlet>
+      <neumann>
+        <surface>curved</surface>
+        <valueX>-0.35</valueX>
+        <valueY>1.65</valueY>
+      </neumann>
     </boundary-conditions>
     <linear-system>
       <solver-backend>petsc</solver-backend>

@@ -7,7 +7,6 @@
 
   <arcane-post-processing>
    <output-period>1</output-period>
-   <format name="VtkHdfV2PostProcessor" />
    <output>
      <variable>U</variable>
    </output>
@@ -21,13 +20,18 @@
 
   <fem>
     <f>5.5</f>
-    <result-file>check/poisson_test_ref_sphere_3D.txt</result-file>
     <mesh-type>TETRA4</mesh-type>
     <boundary-conditions>
       <dirichlet>
         <surface>horizontal</surface>
         <value>0.5</value>
       </dirichlet>
+      <neumann>
+        <surface>curved</surface>
+        <valueX>0.35</valueX>
+        <valueY>1.65</valueY>
+        <valueZ>3.75</valueZ>
+      </neumann>
     </boundary-conditions>
     <linear-system>
       <solver-backend>petsc</solver-backend>
