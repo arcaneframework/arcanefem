@@ -69,11 +69,12 @@ compute()
  * @brief Performs a stationary solve for the FEM system.
  *
  * This method follows a sequence of steps to solve FEM system:
- *   1. _getMaterialParameters()          Retrieves material parameters via
- *   2. _assembleBilinearOperator()       Assembles the FEM  matrix A
- *   3. _assembleLinearOperator()         Assembles the FEM RHS vector b
- *   4.  _solve()                         Solves for solution vector u = A^-1*b
- *   5. _validateResults()                Regression test
+ *
+ *   1. _getMaterialParameters()     Retrieves material parameters via
+ *   2. _assembleBilinearOperator()  Assembles the FEM  matrix A
+ *   3. _assembleLinearOperator()    Assembles the FEM RHS vector b
+ *   4. _solve()                     Solves for solution vector u = A^-1*b
+ *   5. _validateResults()           Regression test
  */
 /*---------------------------------------------------------------------------*/
 
