@@ -28,5 +28,9 @@
         <value>0.5</value>
       </dirichlet>
     </boundary-conditions>
+    <linear-system>
+      <solver-backend>petsc</solver-backend>
+      <epsilon>1e-15</epsilon>
+    </linear-system>
   </fem>
 </case>
