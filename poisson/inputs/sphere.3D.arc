@@ -15,7 +15,7 @@
 
   <meshes>
     <mesh>
-      <filename>sphere_cut.msh</filename>
+      <filename>meshes/sphere_cut.msh</filename>
     </mesh>
   </meshes>
 

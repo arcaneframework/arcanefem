@@ -15,12 +15,12 @@
 
   <meshes>
     <mesh>
-      <filename>circle_cut.msh</filename>
+      <filename>meshes/circle_cut.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <result-file>poisson_test_ref_circle_2D.txt</result-file>
+    <result-file>check/poisson_test_ref_circle_2D.txt</result-file>
     <f>5.5</f>
     <boundary-conditions>
       <dirichlet>
