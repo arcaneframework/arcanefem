@@ -24,9 +24,14 @@
 void FemModule::
 startInit()
 {
-  info() << "Module Fem INIT";
+  info() << "[ArcaneFem-Module] startInit()";
+  Real elapsedTime = platform::getRealTime();
+
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] initialize", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -43,7 +48,8 @@ startInit()
 void FemModule::
 compute()
 {
-  info() << "Module Fem COMPUTE";
+  info() << "[ArcaneFem-Module] compute()";
+  Real elapsedTime = platform::getRealTime();
 
   // Stop code after computations
   if (m_global_iteration() > 0)
@@ -60,8 +66,11 @@ compute()
     CommandLineArguments args(string_list);
     m_linear_system.setSolverCommandLineArguments(args);
   }
-  info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
+
   _doStationarySolve();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] compute", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -74,7 +83,8 @@ compute()
  *   2. _assembleBilinearOperator()  Assembles the FEM  matrix A
  *   3. _assembleLinearOperator()    Assembles the FEM RHS vector b
  *   4. _solve()                     Solves for solution vector u = A^-1*b
- *   5. _validateResults()           Regression test
+ *   5. _updateVariables()           Updates FEM variables u = x
+ *   6. _validateResults()           Regression test
  */
 /*---------------------------------------------------------------------------*/
 
@@ -85,6 +95,7 @@ _doStationarySolve()
   _assembleBilinearOperator();
   _assembleLinearOperator();
   _solve();
+  _updateVariables();
   _validateResults();
 }
 
@@ -97,8 +108,13 @@ _doStationarySolve()
 void FemModule::
 _getMaterialParameters()
 {
-  info() << "Get material parameters...";
+  info() << "[ArcaneFem-Module] _getMaterialParameters()";
+  Real elapsedTime = platform::getRealTime();
+
   f = options()->f();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] get-material-params", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -117,7 +133,8 @@ _getMaterialParameters()
 
 void FemModule::_assembleLinearOperator()
 {
-  info() << "Assembly of FEM linear operator";
+  info() << "[ArcaneFem-Module] _assembleLinearOperator()";
+  Real elapsedTime = platform::getRealTime();
 
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable()); // Temporary variable to keep values for the RHS
   rhs_values.fill(0.0);
@@ -150,6 +167,9 @@ void FemModule::_assembleLinearOperator()
     using BCFunctions = ArcaneFemFunctions::BoundaryConditions2D;
     applyBoundaryConditions(BCFunctions());
   }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] rhs-vector-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -212,6 +232,9 @@ _computeElementMatrixTria3(Cell cell)
 void FemModule::
 _assembleBilinearOperator()
 {
+  info() << "[ArcaneFem-Module] _assembleBilinearOperator()";
+  Real elapsedTime = platform::getRealTime();
+
   if (mesh()->dimension() == 3)
     _assembleBilinear<4>([this](const Cell& cell) {
       return _computeElementMatrixTetra4(cell);
@@ -220,6 +243,9 @@ _assembleBilinearOperator()
     _assembleBilinear<3>([this](const Cell& cell) {
       return _computeElementMatrixTria3(cell);
     });
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] lhs-matrix-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -261,32 +287,53 @@ _assembleBilinear(const std::function<FixedMatrix<N, N>(const Cell&)>& compute_e
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Solves the linear system and updates the solution vector.
- *
- * This method performs the following actions:
- *   1. Solves the linear system to compute the solution.
- *   2. Copies the computed solution from the DoF to the node values.
- *   3. Synchronizes the updated node values.
+ * @brief Solves the linear system.
  */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
 _solve()
 {
+  info() << "[ArcaneFem-Module] _solve()";
+  Real elapsedTime = platform::getRealTime();
+
   m_linear_system.solve();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] solve-linear-system", elapsedTime);
+}
+
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Update the FEM variables.
+ *
+ * This method performs the following actions:
+ *   1. Fetches values of solution from solved linear system to FEM variables,
+ *      i.e., it copies RHS DOF to u.
+ *   2. Performs synchronize of FEM variables across subdomains.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_updateVariables()
+{
+  info() << "[ArcaneFem-Module] _updateVariables()";
+  Real elapsedTime = platform::getRealTime();
 
   {
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
-    // Copy RHS DoF to Node u
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
-      Real v = dof_u[node_dof.dofId(node, 0)];
-      m_u[node] = v;
+      m_u[node] = dof_u[node_dof.dofId(node, 0)];
     }
   }
 
   m_u.synchronize();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] update-variables", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -305,6 +352,9 @@ _solve()
 void FemModule::
 _validateResults()
 {
+  info() << "[ArcaneFem-Module] _validateResults()";
+  Real elapsedTime = platform::getRealTime();
+
   if (allNodes().size() < 200)
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
@@ -316,6 +366,21 @@ _validateResults()
 
   if (!filename.empty())
     checkNodeResultFile(traceMng(), filename, m_u, 1.0e-4);
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] result-validation", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Function to prints the execution time `value` of phase `label`
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_printArcaneFemTime(const String label, const Real value){
+    info() << std::left << std::setw(40) << label << " = " << value;
+
 }
 
 /*---------------------------------------------------------------------------*/
