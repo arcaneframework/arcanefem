@@ -16,7 +16,6 @@
 /*---------------------------------------------------------------------------*/
 
 #include <arcane/accelerator/VariableViews.h>
-#include <arcane/core/VariableTypedef.h>
 #include <arccore/base/ArccoreGlobal.h>
 #include <arcane/utils/ArcaneGlobal.h>
 

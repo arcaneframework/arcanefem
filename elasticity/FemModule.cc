@@ -21,7 +21,6 @@
 #include <arcane/core/ItemTypes.h>
 #include <arccore/base/ArccoreGlobal.h>
 
-#include "ArcaneFemFunctions.h"
 #include "IDoFLinearSystemFactory.h"
 #include "Fem_axl.h"
 #include "FemUtils.h"
