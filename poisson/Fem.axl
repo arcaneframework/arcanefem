@@ -1,10 +1,12 @@
 <?xml version="1.0" ?>
 <module name="Fem" version="1.0">
   <description>FEM module description</description>
+
   <entry-points>
     <entry-point method-name="compute" name="Compute" where="compute-loop" property="none" />
     <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
   </entry-points>
+
   <variables>
     <variable field-name="u" name="U" data-type="real" item-kind="node" dim="0">
       <description>FEM variable u on nodes</description>
@@ -13,15 +15,14 @@
       <description>Node coordinates from Arcane variable</description>
     </variable>
   </variables>
+
   <options>
     <simple name="f" type="real" default="0.0">
       <description>Volume source within the material.</description>
     </simple>
+
     <simple name="result-file" type="string" optional="true">
       <description>File name of a file containing the values of the solution vector to check the results</description>
-    </simple>
-    <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
-      <description>Type of mesh provided to the solver</description>
     </simple>
 
     <!-- Linear system service instance -->
@@ -29,6 +30,5 @@
 
     <!-- Boundary conditions service instance -->
     <service-instance name = "boundary-conditions" type = "BC::IArcaneFemBC" optional = "true" default="FemBoundaryConditions" />
-
   </options>
 </module>

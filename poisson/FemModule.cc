@@ -69,11 +69,12 @@ compute()
  * @brief Performs a stationary solve for the FEM system.
  *
  * This method follows a sequence of steps to solve FEM system:
- *   1. _getMaterialParameters()          Retrieves material parameters via
- *   2. _assembleBilinearOperator()       Assembles the FEM  matrix A
- *   3. _assembleLinearOperator()         Assembles the FEM RHS vector b
- *   4.  _solve()                         Solves for solution vector u = A^-1*b
- *   5. _validateResults()                Regression test
+ *
+ *   1. _getMaterialParameters()     Retrieves material parameters via
+ *   2. _assembleBilinearOperator()  Assembles the FEM  matrix A
+ *   3. _assembleLinearOperator()    Assembles the FEM RHS vector b
+ *   4. _solve()                     Solves for solution vector u = A^-1*b
+ *   5. _validateResults()           Regression test
  */
 /*---------------------------------------------------------------------------*/
 
@@ -114,8 +115,7 @@ _getMaterialParameters()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
-_assembleLinearOperator()
+void FemModule::_assembleLinearOperator()
 {
   info() << "Assembly of FEM linear operator";
 
@@ -124,20 +124,31 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  if (options()->f.isPresent())
-    ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhs(f, mesh(), node_dof, m_node_coord, rhs_values);
+  // Helper lambda to apply boundary conditions
+  auto applyBoundaryConditions = [&](auto BCFunctions) {
+    if (options()->f.isPresent())
+      BCFunctions.applyConstantSourceToRhs(f, mesh(), node_dof, m_node_coord, rhs_values);
 
+    BC::IArcaneFemBC* bc = options()->boundaryConditions();
+    if (bc) {
+      for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
+        BCFunctions.applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
 
-  BC::IArcaneFemBC* bc = options()->boundaryConditions();
-  if(bc){
-    for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
-      ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+      for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
+        BCFunctions.applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
 
-    for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
-      ArcaneFemFunctions::BoundaryConditions2D::applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+      for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions())
+        BCFunctions.applyPointDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+    }
+  };
 
-    for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions())
-      ArcaneFemFunctions::BoundaryConditions2D::applyPointDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+  // Apply the correct boundary conditions based on mesh dimension
+  if (mesh()->dimension() == 3) {
+    using BCFunctions = ArcaneFemFunctions::BoundaryConditions3D;
+    applyBoundaryConditions(BCFunctions());
+  } else {
+    using BCFunctions = ArcaneFemFunctions::BoundaryConditions2D;
+    applyBoundaryConditions(BCFunctions());
   }
 }
 
@@ -201,16 +212,14 @@ _computeElementMatrixTria3(Cell cell)
 void FemModule::
 _assembleBilinearOperator()
 {
-  if (options()->meshType == "TETRA4")
+  if (mesh()->dimension() == 3)
     _assembleBilinear<4>([this](const Cell& cell) {
       return _computeElementMatrixTetra4(cell);
     });
-  else if (options()->meshType == "TRIA3")
+  else
     _assembleBilinear<3>([this](const Cell& cell) {
       return _computeElementMatrixTria3(cell);
     });
-  else
-    ARCANE_FATAL("Non supported meshType");
 }
 
 /*---------------------------------------------------------------------------*/

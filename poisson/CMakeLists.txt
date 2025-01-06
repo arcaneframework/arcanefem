@@ -22,6 +22,7 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
     sphere_cut.msh
     circle_cut.msh
+    plancher.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
     file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
@@ -32,9 +33,12 @@ enable_testing()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [poisson]2D COMMAND Poisson inputs/circle.2D.arc)
+  add_test(NAME [poisson]2D_neumann COMMAND Poisson inputs/circle.neumann.2D.arc)
   add_test(NAME [poisson]3D COMMAND Poisson inputs/sphere.3D.arc)
+  add_test(NAME [poisson]3D_neumann COMMAND Poisson inputs/sphere.neumann.3D.arc)
 endif()
 
+add_test(NAME [poisson]2D_pntDirichlet COMMAND Poisson inputs/perforatedSquare.pointDirichlet.2D.arc)
 
 # If parallel part is available, add some tests
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
