@@ -142,15 +142,13 @@ void FemModule::_assembleLinearOperator()
     }
   };
 
-  // Apply the correct boundary conditions based on `dim`
-  if (options()->meshType == "TETRA4") {
+  // Apply the correct boundary conditions based on mesh dimension
+  if (mesh()->dimension() == 3) {
     using BCFunctions = ArcaneFemFunctions::BoundaryConditions3D;
     applyBoundaryConditions(BCFunctions());
-  } else if (options()->meshType == "TRIA3") {
+  } else {
     using BCFunctions = ArcaneFemFunctions::BoundaryConditions2D;
     applyBoundaryConditions(BCFunctions());
-  } else {
-    ARCANE_THROW(NotImplementedException, "");
   }
 }
 
@@ -214,16 +212,14 @@ _computeElementMatrixTria3(Cell cell)
 void FemModule::
 _assembleBilinearOperator()
 {
-  if (options()->meshType == "TETRA4")
+  if (mesh()->dimension() == 3)
     _assembleBilinear<4>([this](const Cell& cell) {
       return _computeElementMatrixTetra4(cell);
     });
-  else if (options()->meshType == "TRIA3")
+  else
     _assembleBilinear<3>([this](const Cell& cell) {
       return _computeElementMatrixTria3(cell);
     });
-  else
-    ARCANE_FATAL("Non supported meshType");
 }
 
 /*---------------------------------------------------------------------------*/

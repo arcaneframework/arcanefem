@@ -20,7 +20,6 @@
 
   <fem>
     <f>5.5</f>
-    <mesh-type>TETRA4</mesh-type>
     <boundary-conditions>
       <dirichlet>
         <surface>horizontal</surface>

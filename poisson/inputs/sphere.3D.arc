@@ -21,8 +21,6 @@
 
   <fem>
     <f>5.5</f>
-    <result-file>check/poisson_test_ref_sphere_3D.txt</result-file>
-    <mesh-type>TETRA4</mesh-type>
     <boundary-conditions>
       <dirichlet>
         <surface>horizontal</surface>
