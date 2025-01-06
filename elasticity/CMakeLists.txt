@@ -20,6 +20,8 @@ configure_file(Test.bar.DirichletViaRowElimination.arc ${CMAKE_CURRENT_BINARY_DI
 configure_file(Test.bar.DirichletViaRowColumnElimination.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/bar.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.bar.traction.bsr.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Test.bar.traction.bodyforce.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Test.bar.traction.bodyforce.bsr.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Elasticity PUBLIC FemUtils)
 
@@ -38,6 +40,9 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [elasticity]Dirichlet_via_RowColElimination COMMAND Elasticity Test.bar.DirichletViaRowColumnElimination.arc)
   add_test(NAME [elasticity]2D_bsr COMMAND Elasticity Test.bar.traction.bsr.arc)
   arcanefem_add_gpu_test(NAME [elasticity]2D_bsr_gpu COMMAND ./Elasticity ARGS Test.bar.traction.bsr.arc)
+  add_test(NAME [elasticity]Dirichlet_traction_Bodyforce COMMAND Elasticity Test.bar.traction.bodyforce.arc)
+  add_test(NAME [elasticity]Dirichlet_traction_Bodyforce_bsr COMMAND Elasticity Test.bar.traction.bodyforce.bsr.arc)
+  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_traction_Bodyforce_bsr_gpu COMMAND ./Elasticity ARGS Test.bar.traction.bodyforce.bsr.arc)
 endif()
 
 # If parallel part is available, add some tests
