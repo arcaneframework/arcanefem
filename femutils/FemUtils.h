@@ -15,7 +15,6 @@
 /*---------------------------------------------------------------------------*/
 
 #include <arcane/ArcaneTypes.h>
-#include <arcane/utils/ArcaneGlobal.h>
 #include <arcane/utils/MDSpan.h>
 #include <arcane/matvec/Matrix.h>
 #include <arcane/VariableTypedef.h>
