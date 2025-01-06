@@ -15,6 +15,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include <arcane/ArcaneTypes.h>
+#include <arcane/utils/ArcaneGlobal.h>
 #include <arcane/utils/MDSpan.h>
 #include <arcane/matvec/Matrix.h>
 #include <arcane/VariableTypedef.h>
@@ -58,6 +59,15 @@ class FixedMatrix
  public:
 
   static constexpr Arcane::Int32 totalNbElement() { return N * M; }
+  ARCCORE_HOST_DEVICE FixedMatrix() {};
+  ARCCORE_HOST_DEVICE FixedMatrix(std::initializer_list<Real> init_list)
+  {
+    auto i = 0;
+    for (auto it = init_list.begin(); it != init_list.end(); it++) {
+      m_values[i] = *it;
+      i++;
+    }
+  };
 
  public:
 
@@ -147,6 +157,18 @@ class FixedMatrix
     return result;
   }
 
+  //! Scalar division: FixedMatrix / scalar
+  ARCCORE_HOST_DEVICE FixedMatrix<N, M> operator/(Real scalar) const
+  {
+    FixedMatrix<N, M> result;
+    for (Arcane::Int32 i = 0; i < N; ++i) {
+      for (Arcane::Int32 j = 0; j < M; ++j) {
+        result(i, j) = (*this)(i, j) / scalar;
+      }
+    }
+    return result;
+  }
+
   //! Friend function for scalar multiplication: scalar * FixedMatrix
   ARCCORE_HOST_DEVICE friend FixedMatrix<N, M> operator*(Real scalar, const FixedMatrix<N, M>& matrix)
   {
@@ -190,6 +212,18 @@ ARCCORE_HOST_DEVICE inline FixedMatrix<4, 4> operator^(const Real4& lhs, const R
         }
     }
     return result;
+}
+
+template <int N> inline FixedMatrix<N, N>
+ARCCORE_HOST_DEVICE operator^(const FixedMatrix<N, 1>& lhs, const FixedMatrix<1, N>& rhs)
+{
+  FixedMatrix<N, N> result;
+  for (Arcane::Int32 i = 0; i < N; ++i) {
+    for (Arcane::Int32 j = 0; j < N; ++j) {
+      result(i, j) = lhs(i, 0) * rhs(0, j);
+    }
+  }
+  return result;
 }
 
 /*---------------------------------------------------------------------------*/
