@@ -401,7 +401,8 @@ class ArcaneFemFunctions
         // 2nd in-plane vector
         e2 = math::cross(e3, e1);
 
-        e3.normalize();
+        // e3.normalize();  // deprecated Y2024
+        e3 = math::mutableNormalize(e3);
       }
       else {
 
@@ -422,8 +423,10 @@ class ArcaneFemFunctions
         if (sgn > 0.)
           e2 *= -1.;
       }
-      e1.normalize();
-      e2.normalize();
+      //e1.normalize();  // deprecated Y2024
+      //e2.normalize();  // deprecated Y2024
+      e1 = math::mutableNormalize(e1);
+      e2 = math::mutableNormalize(e2);
     }
   };
 
