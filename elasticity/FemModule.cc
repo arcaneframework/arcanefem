@@ -253,9 +253,7 @@ _assembleLinearOperator()
   info() << "[ArcaneFem-Info] Started module  _assembleLinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  // Temporary variable to keep values for the RHS part of the linear system
-
-  VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
+  VariableDoFReal& rhs_values(m_linear_system.rhsVariable()); // Temporary variable to keep values for the RHS
   rhs_values.fill(0.0);
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());

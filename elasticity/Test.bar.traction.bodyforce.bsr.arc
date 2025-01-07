@@ -33,6 +33,7 @@
     <traction-boundary-condition>
       <surface>right</surface>
       <t1>1.33</t1>
+      <t2>2.13</t2>
     </traction-boundary-condition>
     <bsr>true</bsr>
   </fem>
