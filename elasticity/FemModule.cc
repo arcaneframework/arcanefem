@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemModule.cc                                                (C) 2022-2024 */
+/* FemModule.cc                                                (C) 2022-2025 */
 /*                                                                           */
 /* FEM code to test vectorial FE for Elasticity problem.                     */
 /*---------------------------------------------------------------------------*/
@@ -760,10 +760,9 @@ _solve()
     std::cout.precision(17);
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      std::cout << "U1[" << node.localId() << "][" << node.uniqueId() << "] = "
-                << m_U[node].x << " U2[" << node.localId() << "][" << node.uniqueId() << "] = "
-                << m_U[node].y << "\n";
-      //std::cout << "U1[]" << node.uniqueId() << " " << m_u1[node] << "\n";
+      std::cout << "( N_id, u1, u2, u3 ) = ( " 
+                << node.uniqueId() << ", " << m_U[node].x << ", " << m_U[node].y << ", " << m_U[node].z 
+                <<  ")\n";
     }
     std::cout.precision(p);
   }

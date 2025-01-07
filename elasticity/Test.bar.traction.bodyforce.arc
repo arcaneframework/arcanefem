@@ -27,8 +27,8 @@
     <f2>-6.66</f2>
     <dirichlet-boundary-condition>
       <surface>left</surface>
-      <u1>0.1</u1>
-      <u2>0.1</u2>
+      <u1>0.0</u1>
+      <u2>0.0</u2>
     </dirichlet-boundary-condition>
     <traction-boundary-condition>
       <surface>right</surface>
