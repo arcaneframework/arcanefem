@@ -9,12 +9,6 @@
     <variable field-name="U" name="U" data-type="real3" item-kind="node" dim="0">
       <description>U vector from Arcane variable</description>
     </variable>
-    <variable field-name="u1_fixed" name="u1Fixed" data-type="bool" item-kind="node" dim="0">
-      <description>Boolean which is true if u1 is fixed on the node</description>
-    </variable>
-    <variable field-name="u2_fixed" name="u2Fixed" data-type="bool" item-kind="node" dim="0">
-      <description>Boolean which is true if u2 is fixed on the node</description>
-    </variable>
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
       <description>Node coordinates from Arcane variable</description>
     </variable>

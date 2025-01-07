@@ -89,9 +89,7 @@ class FemModule
   void _getMaterialParameters();
   void _assembleBilinearOperatorTRIA3();
   void _solve();
-  void _initBoundaryconditions();
   void _assembleLinearOperator();
-  void _applyDirichletBoundaryConditions();
   void _validateResults();
   void _updateVariables();
   void _initBsr();

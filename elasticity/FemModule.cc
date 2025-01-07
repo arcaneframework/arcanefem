@@ -29,8 +29,6 @@ startInit()
 
   m_dofs_on_nodes.initialize(defaultMesh(), 2);
 
-  _initBoundaryconditions();
-
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] initialize", elapsedTime);
 }
@@ -138,113 +136,11 @@ _getMaterialParameters()
 }
 
 /*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-// TODO : To be removed
-
-void FemModule::
-_initBoundaryconditions()
-{
-  info() << "[ArcaneFem-Info] Started module  _initBoundaryconditions()";
-  Real elapsedTime = platform::getRealTime();
-
-  _applyDirichletBoundaryConditions();
-
-  elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] applying-boundary-cond", elapsedTime);
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_applyDirichletBoundaryConditions()
-{
-  for (const auto& bs : options()->dirichletBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    Real u1_val = bs->u1();
-    Real u2_val = bs->u2();
-
-    if (bs->u1.isPresent() && bs->u2.isPresent()) {
-      info() << "[ArcaneFem-Info] Applying Dirichlet on group = " << group.name() << " u1= " << u1_val << " u2= " << u2_val;
-      ENUMERATE_ (Face, iface, group) {
-        for (Node node : iface->nodes()) {
-          m_U[node].x = u1_val;
-          m_U[node].y = u2_val;
-          m_u1_fixed[node] = true;
-          m_u2_fixed[node] = true;
-        }
-      }
-      continue;
-    }
-
-    if (bs->u1.isPresent()) {
-      info() << "[ArcaneFem-Info] Applying Dirichlet on group = " << group.name() << " u1=" << u1_val;
-      ENUMERATE_ (Face, iface, group) {
-        for (Node node : iface->nodes()) {
-          m_U[node].x = u1_val;
-          m_u1_fixed[node] = true;
-        }
-      }
-      continue;
-    }
-
-    if (bs->u2.isPresent()) {
-      info() << "[ArcaneFem-Info] Applying Dirichlet on group = " << group.name() << " u2=" << u2_val;
-      ENUMERATE_ (Face, iface, group) {
-        for (Node node : iface->nodes()) {
-          m_U[node].y = u2_val;
-          m_u2_fixed[node] = true;
-        }
-      }
-      continue;
-    }
-  }
-
-  for (const auto& bs : options()->dirichletPointCondition()) {
-    NodeGroup group = bs->node();
-    Real u1_val = bs->u1();
-    Real u2_val = bs->u2();
-
-    if (bs->u1.isPresent() && bs->u2.isPresent()) {
-      info() << "[ArcaneFem-Info] Applying point Dirichlet on group = " << group.name() << " u1= " << u1_val << " u2= " << u2_val;
-      ENUMERATE_ (Node, inode, group) {
-        Node node = *inode;
-        m_U[node].x = u1_val;
-        m_U[node].y = u2_val;
-        m_u1_fixed[node] = true;
-        m_u2_fixed[node] = true;
-      }
-      continue;
-    }
-
-    if (bs->u1.isPresent()) {
-      info() << "[ArcaneFem-Info] Applying point Dirichlet on group = " << group.name() << " u1=" << u1_val;
-      ENUMERATE_ (Node, inode, group) {
-        Node node = *inode;
-        m_U[node].x = u1_val;
-        m_u1_fixed[node] = true;
-      }
-      continue;
-    }
-
-    if (bs->u2.isPresent()) {
-      info() << "[ArcaneFem-Info] Applying point Dirichlet on group = " << group.name() << " u2=" << u2_val;
-      ENUMERATE_ (Node, inode, group) {
-        Node node = *inode;
-        m_U[node].y = u2_val;
-        m_u2_fixed[node] = true;
-      }
-      continue;
-    }
-  }
-}
-
-/*---------------------------------------------------------------------------*/
 // Assemble the FEM linear operator
-//  - This function enforces a Dirichlet boundary condition in a weak sense
-//    via the penalty method
 //  - The method also adds source term
 //  - The method also adds external fluxes
+//  - This function enforces a Dirichlet boundary condition in a weak sense
+//    via the penalty method
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -298,170 +194,190 @@ _assembleLinearOperator()
     }
   }
 
+  //----------------------------------------------
+  // Dirichlet conditions to LHS and RHS
+  //----------------------------------------------
 
-  if (options()->enforceDirichletMethod() == "Penalty") {
+  for (const auto& bs : options()->dirichletBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    Real u1_val = bs->u1();
+    Real u2_val = bs->u2();
 
-    //----------------------------------------------
-    // penalty method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
-    //  Dirichlet condition needs to be applied
-    //
-    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
-    //           a_{i,i} = 1. * P
-    //
-    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
-    //           b_{i} = b_{i} * P
-    //----------------------------------------------
+    if (options()->enforceDirichletMethod() == "Penalty") {
 
-    info() << "[ArcaneFem-Info] Applying Dirichlet via "
-           << options()->enforceDirichletMethod() << " method ";
+      info() << "[ArcaneFem-Info] Applying Dirichlet via "
+             << options()->enforceDirichletMethod() << " method ";
 
-    Real Penalty = options()->penalty(); // 1.0e30 is the default
+      Real Penalty = options()->penalty(); // 1.0e30 is the default
 
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u1_fixed[node_id]) {
-        DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
-        if (m_use_bsr)
-          m_bsr_format.matrix().setValue(dof_id1, dof_id1, Penalty);
-        else
-          m_linear_system.matrixSetValue(dof_id1, dof_id1, Penalty);
-        {
-          Real u1_dirichlet = Penalty * m_U[node_id].x;
-          rhs_values[dof_id1] = u1_dirichlet;
+      if (bs->u1.isPresent()) {
+        ENUMERATE_ (Face, iface, group) {
+          for (Node node : iface->nodes()) {
+            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+            if (node.isOwn()) {
+              if (m_use_bsr)
+                m_bsr_format.matrix().setValue(dof_id1, dof_id1, Penalty);
+              else
+                m_linear_system.matrixSetValue(dof_id1, dof_id1, Penalty);
+              rhs_values[dof_id1] = Penalty * u1_val;
+            }
+          }
         }
       }
-      if (m_u2_fixed[node_id]) {
-        DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
-        if (m_use_bsr)
-          m_bsr_format.matrix().setValue(dof_id2, dof_id2, Penalty);
-        else
-          m_linear_system.matrixSetValue(dof_id2, dof_id2, Penalty);
-        {
-          Real u2_dirichlet = Penalty * m_U[node_id].y;
-          rhs_values[dof_id2] = u2_dirichlet;
-        }
-      }
-    }
-  }
-  else if (options()->enforceDirichletMethod() == "WeakPenalty") {
 
-    //----------------------------------------------
-    // weak penalty method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
-    //  Dirichlet condition needs to be applied
-    //
-    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
-    //           a_{i,i} = a_{i,i} + P
-    //
-    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
-    //           b_{i} = b_{i} * P
-    //----------------------------------------------
-
-    info() << "[ArcaneFem-Info] Applying Dirichlet via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    Real Penalty = options()->penalty(); // 1.0e30 is the default
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u1_fixed[node_id]) {
-        DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
-        m_linear_system.matrixAddValue(dof_id1, dof_id1, Penalty);
-        {
-          Real u1_dirichlet = Penalty * m_U[node_id].x;
-          rhs_values[dof_id1] = u1_dirichlet;
-        }
-      }
-      if (m_u2_fixed[node_id]) {
-        DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
-        m_linear_system.matrixAddValue(dof_id2, dof_id2, Penalty);
-        {
-          Real u2_dirichlet = Penalty * m_U[node_id].y;
-          rhs_values[dof_id2] = u2_dirichlet;
+      if (bs->u2.isPresent()) {
+        ENUMERATE_ (Face, iface, group) {
+          for (Node node : iface->nodes()) {
+            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+            if (node.isOwn()) {
+              if (m_use_bsr)
+                m_bsr_format.matrix().setValue(dof_id2, dof_id2, Penalty);
+              else
+                m_linear_system.matrixSetValue(dof_id2, dof_id2, Penalty);
+              rhs_values[dof_id2] = Penalty * u2_val;
+            }
+          }
         }
       }
     }
-  }
-  else if (options()->enforceDirichletMethod() == "RowElimination") {
 
-    //----------------------------------------------
-    // Row elimination method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'i' be the DOF for which  Dirichlet condition 'g_i' needs to be applied
-    //
-    //  to apply the Dirichlet on 'i'th DOF
-    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j
-    //           a_{i,j} = 1.  : i==j
-    //  - For RHS vector b the terms corresponding to the Dirichlet DOF
-    //           b_i = g_i
-    //----------------------------------------------
+    else if (options()->enforceDirichletMethod() == "WeakPenalty") {
 
-    info() << "[ArcaneFem-Info] Applying Dirichlet via "
-           << options()->enforceDirichletMethod() << " method ";
+      info() << "[ArcaneFem-Info] Applying Dirichlet via "
+             << options()->enforceDirichletMethod() << " method ";
 
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u1_fixed[node_id]) {
-        DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
+      Real Penalty = options()->penalty(); // 1.0e30 is the default
 
-        Real u1_dirichlet = m_U[node_id].x;
-        m_linear_system.eliminateRow(dof_id1, u1_dirichlet);
+      if (bs->u1.isPresent()) {
+        ENUMERATE_ (Face, iface, group) {
+          for (Node node : iface->nodes()) {
+            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+            if (node.isOwn()) {
+              m_linear_system.matrixAddValue(dof_id1, dof_id1, Penalty);
+              rhs_values[dof_id1] = Penalty * u1_val;
+            }
+          }
+        }
       }
-      if (m_u2_fixed[node_id]) {
-        DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
 
-        Real u2_dirichlet = m_U[node_id].y;
-        m_linear_system.eliminateRow(dof_id2, u2_dirichlet);
+      if (bs->u2.isPresent()) {
+        ENUMERATE_ (Face, iface, group) {
+          for (Node node : iface->nodes()) {
+            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+            if (node.isOwn()) {
+              m_linear_system.matrixAddValue(dof_id2, dof_id2, Penalty);
+              rhs_values[dof_id2] = Penalty * u2_val;
+            }
+          }
+        }
       }
     }
-  }
-  else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
+    else if (options()->enforceDirichletMethod() == "RowElimination") {
 
-    //----------------------------------------------
-    // Row elimination method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
-    //
-    //  to apply the Dirichlet on 'i'th DOF
-    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j  for all j
-    //           a_{i,j} = 1.  : i==j
-    //    also the column terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j  for all i
-    //----------------------------------------------
+      info() << "[ArcaneFem-Info] Applying Dirichlet via "
+             << options()->enforceDirichletMethod() << " method ";
 
-    info() << "[ArcaneFem-Info] Applying Dirichlet via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u1_fixed[node_id]) {
-        DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
-
-        Real u1_dirichlet = m_U[node_id].x;
-        m_linear_system.eliminateRowColumn(dof_id1, u1_dirichlet);
+      if (bs->u1.isPresent()) {
+        ENUMERATE_ (Face, iface, group) {
+          for (Node node : iface->nodes()) {
+            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+            if (node.isOwn()) {
+              m_linear_system.eliminateRow(dof_id1, u1_val);
+            }
+          }
+        }
       }
-      if (m_u2_fixed[node_id]) {
-        DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
 
-        Real u2_dirichlet = m_U[node_id].y;
-        m_linear_system.eliminateRowColumn(dof_id2, u2_dirichlet);
+      if (bs->u2.isPresent()) {
+        ENUMERATE_ (Face, iface, group) {
+          for (Node node : iface->nodes()) {
+            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+            if (node.isOwn()) {
+              m_linear_system.eliminateRow(dof_id2, u2_val);
+            }
+          }
+        }
       }
     }
-  }
-  else {
+    else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
 
-    info() << "[ArcaneFem-Info] Applying Dirichlet via "
-           << options()->enforceDirichletMethod() << " is not supported \n"
-           << "enforce-Dirichlet-method only supports:\n"
-           << "  - Penalty\n"
-           << "  - WeakPenalty\n"
-           << "  - RowElimination\n"
-           << "  - RowColumnElimination\n";
+      info() << "[ArcaneFem-Info] Applying Dirichlet via "
+             << options()->enforceDirichletMethod() << " method ";
+
+      if (bs->u1.isPresent()) {
+        ENUMERATE_ (Face, iface, group) {
+          for (Node node : iface->nodes()) {
+            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+            if (node.isOwn()) {
+              m_linear_system.eliminateRowColumn(dof_id1, u1_val);
+            }
+          }
+        }
+      }
+
+      if (bs->u2.isPresent()) {
+        ENUMERATE_ (Face, iface, group) {
+          for (Node node : iface->nodes()) {
+            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+            if (node.isOwn()) {
+              m_linear_system.eliminateRowColumn(dof_id2, u2_val);
+            }
+          }
+        }
+      }
+    }
+    else {
+
+      info() << "[ArcaneFem-Info] Applying Dirichlet via "
+             << options()->enforceDirichletMethod() << " is not supported \n"
+             << "enforce-Dirichlet-method only supports:\n"
+             << "  - Penalty\n"
+             << "  - WeakPenalty\n"
+             << "  - RowElimination\n"
+             << "  - RowColumnElimination\n";
+    }
+  }
+
+  for (const auto& bs : options()->dirichletPointCondition()) {
+    NodeGroup group = bs->node();
+    Real u1_val = bs->u1();
+    Real u2_val = bs->u2();
+
+    if (options()->enforceDirichletMethod() == "Penalty") {
+
+      info() << "[ArcaneFem-Info] Applying Dirichlet via "
+             << options()->enforceDirichletMethod() << " method ";
+
+      Real Penalty = options()->penalty(); // 1.0e30 is the default
+
+      if (bs->u1.isPresent()) {
+        ENUMERATE_ (Node, inode, group) {
+          Node node = *inode;
+          DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+          if (node.isOwn()) {
+            if (m_use_bsr)
+              m_bsr_format.matrix().setValue(dof_id1, dof_id1, Penalty);
+            else
+              m_linear_system.matrixSetValue(dof_id1, dof_id1, Penalty);
+            rhs_values[dof_id1] = Penalty * u1_val;
+          }
+        }
+      }
+
+      if (bs->u2.isPresent()) {
+        ENUMERATE_ (Node, inode, group) {
+          Node node = *inode;
+          DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+          if (node.isOwn()) {
+            if (m_use_bsr)
+              m_bsr_format.matrix().setValue(dof_id2, dof_id2, Penalty);
+            else
+              m_linear_system.matrixSetValue(dof_id2, dof_id2, Penalty);
+            rhs_values[dof_id2] = Penalty * u2_val;
+          }
+        }
+      }
+    }
   }
 
   if (m_use_bsr)
@@ -640,9 +556,6 @@ _updateVariables()
 {
   info() << "[ArcaneFem-Info] Started module  _updateVariables()";
   Real elapsedTime = platform::getRealTime();
-
-  // Re-Apply boundary conditions because the solver has modified the value
-  _applyDirichletBoundaryConditions();
 
   {
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
