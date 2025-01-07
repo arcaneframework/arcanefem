@@ -258,6 +258,47 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
+  //----------------------------------------------
+  // Body force term assembly $int_{Omega}(f.v)$
+  //----------------------------------------------
+
+  if (options()->f1.isPresent() || options()->f2.isPresent()) {
+    ENUMERATE_ (Cell, icell, allCells()) {
+      Cell cell = *icell;
+      Real area = _computeAreaTriangle3(cell);
+      for (Node node : cell.nodes()) {
+        if (node.isOwn()) {
+          rhs_values[node_dof.dofId(node, 0)] += f1 * area / 3;
+          rhs_values[node_dof.dofId(node, 1)] += f2 * area / 3;
+        }
+      }
+    }
+  }
+
+  //----------------------------------------------
+  // Traction term assembly  $int_{dOmega_N}((t.v)$
+  //----------------------------------------------
+
+  for (const auto& bs : options()->tractionBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    Real t1_val = bs->t1();
+    Real t2_val = bs->t2();
+
+    if (bs->t1.isPresent() || bs->t2.isPresent()) {
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real length = _computeEdgeLength2(face);
+        for (Node node : iface->nodes()) {
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += t1_val * length / 2.;
+            rhs_values[node_dof.dofId(node, 1)] += t2_val * length / 2.;
+          }
+        }
+      }
+    }
+  }
+
+
   if (options()->enforceDirichletMethod() == "Penalty") {
 
     //----------------------------------------------
@@ -421,101 +462,6 @@ _assembleLinearOperator()
            << "  - WeakPenalty\n"
            << "  - RowElimination\n"
            << "  - RowColumnElimination\n";
-  }
-
-  //----------------------------------------------
-  // Body force term assembly
-  //----------------------------------------------
-  //
-  //  $int_{Omega}(f1*v1^h)$
-  //  $int_{Omega}(f2*v2^h)$
-  //  only for noded that are non-Dirichlet
-  //----------------------------------------------
-
-  if (options()->f1.isPresent()) {
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-      Real area = _computeAreaTriangle3(cell);
-      for (Node node : cell.nodes()) {
-        if (!(m_u1_fixed[node]) && node.isOwn()) {
-          DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-          rhs_values[dof_id1] += f1 * area / 3;
-        }
-      }
-    }
-  }
-
-  if (options()->f2.isPresent()) {
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-      Real area = _computeAreaTriangle3(cell);
-      for (Node node : cell.nodes()) {
-        if (!(m_u2_fixed[node]) && node.isOwn()) {
-          DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-          rhs_values[dof_id2] += f2 * area / 3;
-        }
-      }
-    }
-  }
-
-  //----------------------------------------------
-  // Traction term assembly
-  //----------------------------------------------
-  //
-  //  $int_{dOmega_N}((tx.nx)*v1^h)$
-  //  $int_{dOmega_N}((ty.ny)*v1^h)$
-  //  only for noded that are non-Dirichlet
-  //----------------------------------------------
-  for (const auto& bs : options()->tractionBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    Real t1_val = bs->t1();
-    Real t2_val = bs->t2();
-
-    if (bs->t1.isPresent() && bs->t2.isPresent()) {
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real length = _computeEdgeLength2(face);
-        for (Node node : iface->nodes()) {
-          if (!(m_u1_fixed[node]) && node.isOwn()) {
-            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-            rhs_values[dof_id1] += t1_val * length / 2.;
-          }
-          if (!(m_u2_fixed[node]) && node.isOwn()) {
-            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-            rhs_values[dof_id2] += t2_val * length / 2.;
-          }
-        }
-      }
-      continue;
-    }
-
-    if (bs->t1.isPresent()) {
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real length = _computeEdgeLength2(face);
-        for (Node node : iface->nodes()) {
-          if (!(m_u1_fixed[node]) && node.isOwn()) {
-            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-            rhs_values[dof_id1] += t1_val * length / 2.;
-          }
-        }
-      }
-      continue;
-    }
-
-    if (bs->t2.isPresent()) {
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real length = _computeEdgeLength2(face);
-        for (Node node : iface->nodes()) {
-          if (!(m_u2_fixed[node]) && node.isOwn()) {
-            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-            rhs_values[dof_id2] += t2_val * length / 2.;
-          }
-        }
-      }
-      continue;
-    }
   }
 
   if (m_use_bsr)
