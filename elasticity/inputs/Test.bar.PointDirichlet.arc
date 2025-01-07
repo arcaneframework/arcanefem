@@ -15,20 +15,30 @@
 
   <meshes>
     <mesh>
-      <filename>bar.msh</filename>
+      <filename>meshes/bar.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <result-file>test_elasticity_results.txt</result-file>
     <E>21.0e5</E>
     <nu>0.28</nu>
     <f2>-1.0</f2>
-    <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     <dirichlet-boundary-condition>
       <surface>left</surface>
       <u1>0.0</u1>
-      <u2>0.0</u2>
     </dirichlet-boundary-condition>
+    <dirichlet-boundary-condition>
+      <surface>right</surface>
+      <u1>1.0</u1>
+    </dirichlet-boundary-condition>
+    <dirichlet-point-condition>
+      <node>botLeft</node>
+      <u1>0.0</u1>
+      <u2>0.0</u2>
+    </dirichlet-point-condition>
+    <dirichlet-point-condition>
+      <node>botRight</node>
+      <u2>0.0</u2>
+    </dirichlet-point-condition>
   </fem>
 </case>
