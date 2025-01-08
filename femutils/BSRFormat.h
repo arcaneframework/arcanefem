@@ -17,6 +17,10 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+#include <arcane/accelerator/AcceleratorGlobal.h>
+#include <arcane/accelerator/GenericSorter.h>
+#include <bitset>
+#include <cstdint>
 #include <ios>
 #include <iomanip>
 
@@ -51,6 +55,7 @@
 #include <arcane/accelerator/NumArrayViews.h>
 #include <arcane/accelerator/Atomic.h>
 #include <arcane/accelerator/Scan.h>
+#include <arcane/accelerator/Sort.h>
 
 #include "DoFLinearSystem.h"
 #include "CsrFormatMatrix.h"
@@ -528,7 +533,7 @@ class BSRFormat : public TraceAccessor
 
   void computeSparsity()
   {
-    info() << "BSRFormat(computeSparsity): Compute sparsity of BSRMatrix";
+    info() << "BSRFormat(computeSparsity): Compute sparsity of BSRMatrix using node-wise approach";
     auto startTime = platform::getRealTime();
 
     NumArray<uint, MDDim1> offsets_numarray(m_bsr_matrix.nbRow() + 1);
@@ -537,10 +542,201 @@ class BSRFormat : public TraceAccessor
     computeOffsets(offsets_smallspan);
     computeRowIndexAndColumns(offsets_smallspan);
 
-    info() << "[ArcaneFem-Timer] Time to compute the sparsity of BSR matrix = " << (platform::getRealTime() - startTime);
+    info() << "[ArcaneFem-Timer] Time to compute the sparsity of BSR matrix using node-wise approach= " << (platform::getRealTime() - startTime);
 
     if (m_use_csr_in_linear_system)
       computeNzPerRowArray();
+
+    //m_bsr_matrix.dump("node-wise-bsr-matrix.txt");
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  ARCCORE_HOST_DEVICE static uint64_t pack(int n0, int n1)
+  {
+    int min = n0 > n1 ? n1 : n0;
+    int max = n0 > n1 ? n0 : n1;
+    return ((uint64_t)min << 32) | (uint64_t)max;
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  ARCCORE_HOST_DEVICE static void unpack(uint64_t packed_edge, int& n0, int& n1)
+  {
+    n0 = (int)(packed_edge >> 32);
+    n1 = (int)(packed_edge & 0xFFFFFFFF);
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  void computeSparsityCellWiseRowPtr(SmallSpan<uint64_t>& sorted_edges_small_span)
+  {
+    auto mem_ressource = m_queue.memoryRessource();
+    NumArray<uint64_t, MDDim1> edges(mem_ressource);
+    auto edges_per_element = m_mesh->dimension() == 2 ? 3 : 6;
+    auto nb_edge_total = m_mesh->nbCell() * edges_per_element;
+    edges.resize(m_mesh->nbCell() * edges_per_element);
+
+    UnstructuredMeshConnectivityView m_connectivity_view(m_mesh);
+    auto cell_node_cv = m_connectivity_view.cellNode();
+
+    {
+      auto command = makeCommand(m_queue);
+      auto inout_edges = viewInOut(command, edges);
+
+      if (m_mesh->dimension() == 2) {
+        command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, m_mesh->allCells())
+        {
+          auto n0 = cell_node_cv.nodeId(cell_lid, 0);
+          auto n1 = cell_node_cv.nodeId(cell_lid, 1);
+          auto n2 = cell_node_cv.nodeId(cell_lid, 2);
+
+          auto start = cell_lid * edges_per_element;
+          inout_edges[start] = pack(n0, n1);
+          inout_edges[start + 1] = pack(n0, n2);
+          inout_edges[start + 2] = pack(n1, n2);
+        };
+      }
+      else {
+        command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, m_mesh->allCells())
+        {
+          auto n0 = cell_node_cv.nodeId(cell_lid, 0);
+          auto n1 = cell_node_cv.nodeId(cell_lid, 1);
+          auto n2 = cell_node_cv.nodeId(cell_lid, 2);
+          auto n3 = cell_node_cv.nodeId(cell_lid, 3);
+
+          auto start = cell_lid * edges_per_element;
+          inout_edges[start] = pack(n0, n1);
+          inout_edges[start + 1] = pack(n0, n2);
+          inout_edges[start + 2] = pack(n0, n3);
+          inout_edges[start + 3] = pack(n1, n2);
+          inout_edges[start + 4] = pack(n1, n3);
+          inout_edges[start + 5] = pack(n2, n3);
+        };
+      }
+    }
+    m_queue.barrier();
+
+    auto sorter = Accelerator::GenericSorter(m_queue);
+    SmallSpan<const uint64_t> edges_small_span = edges.to1DSmallSpan();
+    sorter.apply(edges_small_span, sorted_edges_small_span);
+
+    //Int32 nb_edge_unique = 0;
+    //Int32* nb_edge_unique_ptr = &nb_edge_unique;
+    NumArray<Int32, MDDim1> neighbors(mem_ressource);
+    neighbors.resize(m_mesh->nbNode());
+    neighbors.fill(1, &m_queue);
+
+    {
+      auto command = makeCommand(m_queue);
+      auto inout_neighbors = viewInOut(command, neighbors);
+
+      command << RUNCOMMAND_LOOP1(iter, nb_edge_total)
+      {
+        auto [thread_id] = iter();
+        auto cur_edge = sorted_edges_small_span[thread_id];
+        if (thread_id == (nb_edge_total - 1) || cur_edge != sorted_edges_small_span[thread_id + 1]) {
+          //Accelerator::doAtomic<Accelerator::eAtomicOperation::Add, Int32, Int32>(nb_edge_unique_ptr, 1);
+          Int32 n0, n1 = 0;
+          unpack(cur_edge, n0, n1);
+          Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_neighbors[n0], 1);
+          Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_neighbors[n1], 1);
+        }
+      };
+    }
+    m_queue.barrier();
+
+    Accelerator::Scanner<Int32> scanner;
+    SmallSpan<Int32> neighbors_small_span = neighbors.to1DSmallSpan();
+    scanner.exclusiveSum(&m_queue, neighbors_small_span, m_bsr_matrix.rowIndex().to1DSmallSpan());
+
+    //return nb_edge_unique;
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  ARCCORE_HOST_DEVICE static void register_edge_in_columns(Int32 src, Int32 dst, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> offsets, Accelerator::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> row_index, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> columns)
+  {
+    Int32 start = row_index[src];
+    Int32 offset = Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(offsets[src], 1);
+    columns[start + offset] = dst;
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  void computeSparsityCellWiseColumns(SmallSpan<uint64_t>& sorted_edges_small_span)
+  {
+    auto nb_node = m_mesh->nbNode();
+
+    {
+      auto command = makeCommand(m_queue);
+      auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
+      auto inout_columns = viewInOut(command, m_bsr_matrix.columns());
+
+      command << RUNCOMMAND_LOOP1(iter, nb_node)
+      {
+        auto [n] = iter();
+        auto start = in_row_index[n];
+        inout_columns[start] = n;
+      };
+    }
+    m_queue.barrier();
+
+    auto mem_ressource = m_queue.memoryRessource();
+    NumArray<Int32, MDDim1> offsets(mem_ressource);
+    offsets.resize(nb_node);
+    offsets.fill(1, &m_queue);
+
+    auto edges_per_element = m_mesh->dimension() == 2 ? 3 : 6;
+    auto nb_edge_total = m_mesh->nbCell() * edges_per_element;
+    {
+      auto command = makeCommand(m_queue);
+      auto inout_columns = viewInOut(command, m_bsr_matrix.columns());
+      auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
+      auto inout_offsets = viewInOut(command, offsets);
+
+      command << RUNCOMMAND_LOOP1(iter, nb_edge_total)
+      {
+        auto [thread_id] = iter();
+        auto cur_edge = sorted_edges_small_span[thread_id];
+        if (thread_id == (nb_edge_total - 1) || cur_edge != sorted_edges_small_span[thread_id + 1]) {
+          Int32 n0, n1 = 0;
+          unpack(cur_edge, n0, n1);
+          register_edge_in_columns(n0, n1, inout_offsets, in_row_index, inout_columns);
+          register_edge_in_columns(n1, n0, inout_offsets, in_row_index, inout_columns);
+        }
+      };
+    }
+  };
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  void computeSparsityCellWise()
+  {
+    info() << "BSRFormat(computeSparsityCellWise): Compute sparsity of BSRMatrix using cell-wise approach";
+    auto startTime = platform::getRealTime();
+
+    auto mem_ressource = m_queue.memoryRessource();
+    NumArray<uint64_t, MDDim1> sorted_edges(mem_ressource);
+    Int32 edges_per_element = m_mesh->dimension() == 2 ? 3 : 6;
+    sorted_edges.resize(m_mesh->nbCell() * edges_per_element);
+    auto sorted_edges_small_span = sorted_edges.to1DSmallSpan();
+
+    computeSparsityCellWiseRowPtr(sorted_edges_small_span);
+    computeSparsityCellWiseColumns(sorted_edges_small_span);
+
+    info() << "[ArcaneFem-Timer] Time to compute the sparsity of BSR matrix using cell-wise approach= " << (platform::getRealTime() - startTime);
+
+    if (m_use_csr_in_linear_system)
+      computeNzPerRowArray();
+
+    //m_bsr_matrix.dump("cell-wise-bsr-matrix.txt");
   }
 
   /*---------------------------------------------------------------------------*/
