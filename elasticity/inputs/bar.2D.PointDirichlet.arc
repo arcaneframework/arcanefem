@@ -39,5 +39,6 @@
       <node>botRight</node>
       <u>NULL 0.0</u>
     </dirichlet-point-condition>
+    <result-file>check/elasticity_point-dirichlet_bar_test_ref.txt</result-file>
   </fem>
 </case>
