@@ -25,20 +25,19 @@
     <f2>-1.0</f2>
     <dirichlet-boundary-condition>
       <surface>left</surface>
-      <u1>0.0</u1>
+      <u>0.0 NULL</u>
     </dirichlet-boundary-condition>
     <dirichlet-boundary-condition>
       <surface>right</surface>
-      <u1>1.0</u1>
+      <u>1.0 NULL</u>
     </dirichlet-boundary-condition>
     <dirichlet-point-condition>
       <node>botLeft</node>
-      <u1>0.0</u1>
-      <u2>0.0</u2>
+      <u>0.0 0.0</u>
     </dirichlet-point-condition>
     <dirichlet-point-condition>
       <node>botRight</node>
-      <u2>0.0</u2>
+      <u>NULL 0.0</u>
     </dirichlet-point-condition>
   </fem>
 </case>

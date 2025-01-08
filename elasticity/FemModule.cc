@@ -199,74 +199,31 @@ _assembleLinearOperator()
   //----------------------------------------------
 
   for (const auto& bs : options()->dirichletBoundaryCondition()) {
+
     FaceGroup group = bs->surface();
-    Real u1_val = bs->u1();
-    Real u2_val = bs->u2();
+    const UniqueArray<String> u_dirichlet_string = bs->u();
 
     if (options()->enforceDirichletMethod() == "Penalty") {
 
       info() << "[ArcaneFem-Info] Applying Dirichlet via "
-             << options()->enforceDirichletMethod() << " method ";
+             << options()->enforceDirichletMethod() << " method "
+             << "with Dirichlet " << u_dirichlet_string;
 
-      Real Penalty = options()->penalty(); // 1.0e30 is the default
+      Real Penalty = options()->penalty();
 
-      if (bs->u1.isPresent()) {
-        ENUMERATE_ (Face, iface, group) {
-          for (Node node : iface->nodes()) {
-            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-            if (node.isOwn()) {
-              if (m_use_bsr)
-                m_bsr_format.matrix().setValue(dof_id1, dof_id1, Penalty);
-              else
-                m_linear_system.matrixSetValue(dof_id1, dof_id1, Penalty);
-              rhs_values[dof_id1] = Penalty * u1_val;
-            }
-          }
-        }
-      }
-
-      if (bs->u2.isPresent()) {
-        ENUMERATE_ (Face, iface, group) {
-          for (Node node : iface->nodes()) {
-            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-            if (node.isOwn()) {
-              if (m_use_bsr)
-                m_bsr_format.matrix().setValue(dof_id2, dof_id2, Penalty);
-              else
-                m_linear_system.matrixSetValue(dof_id2, dof_id2, Penalty);
-              rhs_values[dof_id2] = Penalty * u2_val;
-            }
-          }
-        }
-      }
-    }
-
-    else if (options()->enforceDirichletMethod() == "WeakPenalty") {
-
-      info() << "[ArcaneFem-Info] Applying Dirichlet via "
-             << options()->enforceDirichletMethod() << " method ";
-
-      Real Penalty = options()->penalty(); // 1.0e30 is the default
-
-      if (bs->u1.isPresent()) {
-        ENUMERATE_ (Face, iface, group) {
-          for (Node node : iface->nodes()) {
-            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-            if (node.isOwn()) {
-              m_linear_system.matrixAddValue(dof_id1, dof_id1, Penalty);
-              rhs_values[dof_id1] = Penalty * u1_val;
-            }
-          }
-        }
-      }
-
-      if (bs->u2.isPresent()) {
-        ENUMERATE_ (Face, iface, group) {
-          for (Node node : iface->nodes()) {
-            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-            if (node.isOwn()) {
-              m_linear_system.matrixAddValue(dof_id2, dof_id2, Penalty);
-              rhs_values[dof_id2] = Penalty * u2_val;
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Face, iface, group) {
+            for (Node node : iface->nodes()) {
+              DoFLocalId dof_id = node_dof.dofId(node, i);
+              if (node.isOwn()) {
+                if (m_use_bsr)
+                  m_bsr_format.matrix().setValue(dof_id, dof_id, Penalty);
+                else
+                  m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
+                rhs_values[dof_id] = Penalty * u_dirichlet;
+              }
             }
           }
         }
@@ -275,25 +232,18 @@ _assembleLinearOperator()
     else if (options()->enforceDirichletMethod() == "RowElimination") {
 
       info() << "[ArcaneFem-Info] Applying Dirichlet via "
-             << options()->enforceDirichletMethod() << " method ";
+             << options()->enforceDirichletMethod() << " method "
+             << "with Dirichlet " << u_dirichlet_string;
 
-      if (bs->u1.isPresent()) {
-        ENUMERATE_ (Face, iface, group) {
-          for (Node node : iface->nodes()) {
-            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-            if (node.isOwn()) {
-              m_linear_system.eliminateRow(dof_id1, u1_val);
-            }
-          }
-        }
-      }
-
-      if (bs->u2.isPresent()) {
-        ENUMERATE_ (Face, iface, group) {
-          for (Node node : iface->nodes()) {
-            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-            if (node.isOwn()) {
-              m_linear_system.eliminateRow(dof_id2, u2_val);
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Face, iface, group) {
+            for (Node node : iface->nodes()) {
+              DoFLocalId dof_id = node_dof.dofId(node, i);
+              if (node.isOwn()) {
+                m_linear_system.eliminateRow(dof_id, u_dirichlet);
+              }
             }
           }
         }
@@ -302,78 +252,51 @@ _assembleLinearOperator()
     else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
 
       info() << "[ArcaneFem-Info] Applying Dirichlet via "
-             << options()->enforceDirichletMethod() << " method ";
+             << options()->enforceDirichletMethod() << " method "
+             << "with Dirichlet " << u_dirichlet_string;
 
-      if (bs->u1.isPresent()) {
-        ENUMERATE_ (Face, iface, group) {
-          for (Node node : iface->nodes()) {
-            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-            if (node.isOwn()) {
-              m_linear_system.eliminateRowColumn(dof_id1, u1_val);
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Face, iface, group) {
+            for (Node node : iface->nodes()) {
+              DoFLocalId dof_id = node_dof.dofId(node, i);
+              if (node.isOwn()) {
+                m_linear_system.eliminateRowColumn(dof_id, u_dirichlet);
+              }
             }
           }
         }
       }
-
-      if (bs->u2.isPresent()) {
-        ENUMERATE_ (Face, iface, group) {
-          for (Node node : iface->nodes()) {
-            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-            if (node.isOwn()) {
-              m_linear_system.eliminateRowColumn(dof_id2, u2_val);
-            }
-          }
-        }
-      }
-    }
-    else {
-
-      info() << "[ArcaneFem-Info] Applying Dirichlet via "
-             << options()->enforceDirichletMethod() << " is not supported \n"
-             << "enforce-Dirichlet-method only supports:\n"
-             << "  - Penalty\n"
-             << "  - WeakPenalty\n"
-             << "  - RowElimination\n"
-             << "  - RowColumnElimination\n";
     }
   }
 
   for (const auto& bs : options()->dirichletPointCondition()) {
+
     NodeGroup group = bs->node();
-    Real u1_val = bs->u1();
-    Real u2_val = bs->u2();
+    const UniqueArray<String> u_dirichlet_string = bs->u();
 
     if (options()->enforceDirichletMethod() == "Penalty") {
 
       info() << "[ArcaneFem-Info] Applying Dirichlet via "
-             << options()->enforceDirichletMethod() << " method ";
+             << options()->enforceDirichletMethod() << " method "
+             << "with Dirichlet " << u_dirichlet_string;
 
-      Real Penalty = options()->penalty(); // 1.0e30 is the default
+      Real Penalty = options()->penalty();
 
-      if (bs->u1.isPresent()) {
-        ENUMERATE_ (Node, inode, group) {
-          Node node = *inode;
-          DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-          if (node.isOwn()) {
-            if (m_use_bsr)
-              m_bsr_format.matrix().setValue(dof_id1, dof_id1, Penalty);
-            else
-              m_linear_system.matrixSetValue(dof_id1, dof_id1, Penalty);
-            rhs_values[dof_id1] = Penalty * u1_val;
-          }
-        }
-      }
-
-      if (bs->u2.isPresent()) {
-        ENUMERATE_ (Node, inode, group) {
-          Node node = *inode;
-          DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-          if (node.isOwn()) {
-            if (m_use_bsr)
-              m_bsr_format.matrix().setValue(dof_id2, dof_id2, Penalty);
-            else
-              m_linear_system.matrixSetValue(dof_id2, dof_id2, Penalty);
-            rhs_values[dof_id2] = Penalty * u2_val;
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Node, inode, group) {
+            Node node = *inode;
+            DoFLocalId dof_id = node_dof.dofId(node, i);
+            if (node.isOwn()) {
+              if (m_use_bsr)
+                m_bsr_format.matrix().setValue(dof_id, dof_id, Penalty);
+              else
+                m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
+              rhs_values[dof_id] = Penalty * u_dirichlet;
+            }
           }
         }
       }

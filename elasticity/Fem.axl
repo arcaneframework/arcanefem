@@ -62,14 +62,9 @@
           FaceGroup on which to apply these boundary condition
         </description>
       </extended>
-      <simple name = "u1" type = "real" optional="true">
+      <simple name = "u" type = "string[]" optional="true">
         <description>
-          Value u1 on the boundary condition
-        </description>
-      </simple>
-      <simple name = "u2" type = "real" optional="true">
-        <description>
-          Value u1 on the boundary condition
+          Dirichlet conditions on the surface (space separated list).
         </description>
       </simple>
     </complex>
@@ -88,14 +83,9 @@
           NodeGroup on which to apply these point Dirichlet condition
         </description>
       </extended>
-      <simple name = "u1" type = "real"  optional="true">
+      <simple name = "u" type = "string[]" optional="true">
         <description>
-          Value of u1 for point Dirichlet condition
-        </description>
-      </simple>
-      <simple name = "u2" type = "real"  optional="true">
-        <description>
-          Value of u2 for point Dirichlet condition
+          Dirichlet conditions on the points (space separated list).
         </description>
       </simple>
     </complex>
