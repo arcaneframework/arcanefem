@@ -15,7 +15,7 @@
 
   <meshes>
     <mesh>
-      <filename>bar.msh</filename>
+      <filename>meshes/bar.msh</filename>
     </mesh>
   </meshes>
 
@@ -23,7 +23,7 @@
     <E>21.0e5</E>
     <nu>0.28</nu>
     <f2>-1.0</f2>
-    <enforce-Dirichlet-method>RowElimination</enforce-Dirichlet-method>
+    <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
     <dirichlet-boundary-condition>
       <surface>left</surface>
       <u1>0.0</u1>
@@ -31,8 +31,8 @@
     </dirichlet-boundary-condition>
     <linear-system>
       <solver-backend>petsc</solver-backend>
-      <solver-method>gmres</solver-method>
-      <preconditioner>ilu</preconditioner>
+      <solver-method>pcg</solver-method>
+      <preconditioner>amg</preconditioner>
     </linear-system>
   </fem>
 </case>

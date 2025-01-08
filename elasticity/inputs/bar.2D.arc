@@ -15,24 +15,20 @@
 
   <meshes>
     <mesh>
-      <filename>bar.msh</filename>
+      <filename>meshes/bar.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
+    <result-file>check/test_elasticity_results.txt</result-file>
     <E>21.0e5</E>
     <nu>0.28</nu>
     <f2>-1.0</f2>
-    <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
+    <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     <dirichlet-boundary-condition>
       <surface>left</surface>
       <u1>0.0</u1>
       <u2>0.0</u2>
     </dirichlet-boundary-condition>
-    <linear-system>
-      <solver-backend>petsc</solver-backend>
-      <solver-method>pcg</solver-method>
-      <preconditioner>amg</preconditioner>
-    </linear-system>
   </fem>
 </case>

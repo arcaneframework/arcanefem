@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Elasticity" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>Traction + Body force + Dirichlet</title>
+    <title>Sample</title>
     <timeloop>ElasticityLoop</timeloop>
   </arcane>
 
@@ -15,24 +15,24 @@
 
   <meshes>
     <mesh>
-      <filename>bar.msh</filename>
+      <filename>meshes/bar.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <result-file>elasticity_traction_bodyforce_bar_test_ref.txt</result-file>
     <E>21.0e5</E>
     <nu>0.28</nu>
-    <f1>3.33</f1>
-    <f2>-6.66</f2>
+    <f2>-1.0</f2>
+    <enforce-Dirichlet-method>RowElimination</enforce-Dirichlet-method>
     <dirichlet-boundary-condition>
       <surface>left</surface>
       <u1>0.0</u1>
       <u2>0.0</u2>
     </dirichlet-boundary-condition>
-    <traction-boundary-condition>
-      <surface>right</surface>
-      <t1>1.33</t1>
-    </traction-boundary-condition>
+    <linear-system>
+      <solver-backend>petsc</solver-backend>
+      <solver-method>gmres</solver-method>
+      <preconditioner>ilu</preconditioner>
+    </linear-system>
   </fem>
 </case>
