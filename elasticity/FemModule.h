@@ -83,6 +83,7 @@ class FemModule
   Real lambda;
 
   Real3 f;
+  Real3 t;
 
   bool m_use_bsr = false;
 

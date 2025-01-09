@@ -15,9 +15,7 @@
   </variables>
   <options>
     <simple name = "f" type = "string[]" default="NULL NULL" optional="true">
-      <description>
-        Body force vector (space separated list).
-      </description>
+      <description>Body force vector (space separated list).</description>
     </simple>
     <simple name="E" type="real" default="0.0">
       <description>Youngs Modulus of the material.</description>
@@ -103,17 +101,14 @@
           FaceGroup on which to apply these boundary condition
         </description>
       </extended>
-      <simple name = "t1" type = "real"  optional="true">
+      <simple name = "t" type = "string[]" optional="true">
         <description>
-          Value of traction in X direction
-        </description>
-      </simple>
-      <simple name = "t2" type = "real"  optional="true">
-        <description>
-          Value of traction in Y direction
+          Traction vector (space separated list).
         </description>
       </simple>
     </complex>
+
+
     <!-- - - - - - linear-system - - - - -->
     <service-instance name = "linear-system"
                       type = "Arcane::FemUtils::IDoFLinearSystemFactory"

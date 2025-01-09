@@ -29,7 +29,7 @@
     </dirichlet-boundary-condition>
     <traction-boundary-condition>
       <surface>right</surface>
-      <t1>1.0</t1>
+      <t>1.0 NULL</t>
     </traction-boundary-condition>
   </fem>
 </case>

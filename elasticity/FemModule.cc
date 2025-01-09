@@ -121,16 +121,6 @@ _getMaterialParameters()
   info() << "[ArcaneFem-Info] Started module  _getMaterialParameters()";
   Real elapsedTime = platform::getRealTime();
 
-  // body force (fx, fy, fz) = (f[0], f[1], f[2])
-  const UniqueArray<String> f_string = options()->f();
-  info() << "[ArcaneFem-Info]  bodyforce applied " << f_string;
-  for (Int32 i = 0; i < f_string.size(); ++i) {
-    f[i] = 0.0;
-    if (f_string[i] != "NULL") {
-      f[i] = std::stod(f_string[i].localstr());
-    }
-  }
-
   E = options()->E(); // Youngs modulus
   nu = options()->nu(); // Poission ratio
 
@@ -166,7 +156,16 @@ _assembleLinearOperator()
   // Body force term assembly $int_{Omega}(f.v)$
   //----------------------------------------------
 
+  // body force (fx, fy, fz) = (f[0], f[1], f[2])
   const UniqueArray<String> f_string = options()->f();
+  info() << "[ArcaneFem-Info] Applying Bodyforce " << f_string;
+  for (Int32 i = 0; i < f_string.size(); ++i) {
+    f[i] = 0.0;
+    if (f_string[i] != "NULL") {
+      f[i] = std::stod(f_string[i].localstr());
+    }
+  }
+
   if (f_string[0] != "NULL" || f_string[1] != "NULL") {
     ENUMERATE_ (Cell, icell, allCells()) {
       Cell cell = *icell;
@@ -186,17 +185,26 @@ _assembleLinearOperator()
 
   for (const auto& bs : options()->tractionBoundaryCondition()) {
     FaceGroup group = bs->surface();
-    Real t1_val = bs->t1();
-    Real t2_val = bs->t2();
+    const UniqueArray<String> t_string = bs->t();
 
-    if (bs->t1.isPresent() || bs->t2.isPresent()) {
+    info() << "[ArcaneFem-Info] Applying Traction " << t_string;
+    info() << "[ArcaneFem-Info] Traction surface '" << bs->surface().name() << "'";
+
+    for (Int32 i = 0; i < t_string.size(); ++i) {
+      t[i] = 0.0;
+      if (t_string[i] != "NULL") {
+        t[i] = std::stod(t_string[i].localstr());
+      }
+    }
+
+    if (t_string[0] != "NULL" || t_string[1] != "NULL") {
       ENUMERATE_ (Face, iface, group) {
         Face face = *iface;
         Real length = _computeEdgeLength2(face);
         for (Node node : iface->nodes()) {
           if (node.isOwn()) {
-            rhs_values[node_dof.dofId(node, 0)] += t1_val * length / 2.;
-            rhs_values[node_dof.dofId(node, 1)] += t2_val * length / 2.;
+            rhs_values[node_dof.dofId(node, 0)] += t[0] * length / 2.;
+            rhs_values[node_dof.dofId(node, 1)] += t[1] * length / 2.;
           }
         }
       }
@@ -208,15 +216,14 @@ _assembleLinearOperator()
   //----------------------------------------------
 
   for (const auto& bs : options()->dirichletBoundaryCondition()) {
-
     FaceGroup group = bs->surface();
     const UniqueArray<String> u_dirichlet_string = bs->u();
 
-    if (options()->enforceDirichletMethod() == "Penalty") {
+    info() << "[ArcaneFem-Info] Applying Dirichlet " << u_dirichlet_string;
+    info() << "[ArcaneFem-Info] Dirichlet surface '" << bs->surface().name() << "'";
+    info() << "[ArcaneFem-Info] Dirichlet method '" << options()->enforceDirichletMethod() << "'";
 
-      info() << "[ArcaneFem-Info] Applying Dirichlet via "
-             << options()->enforceDirichletMethod() << " method "
-             << "with Dirichlet " << u_dirichlet_string;
+    if (options()->enforceDirichletMethod() == "Penalty") {
 
       Real Penalty = options()->penalty();
 
@@ -240,10 +247,6 @@ _assembleLinearOperator()
     }
     else if (options()->enforceDirichletMethod() == "RowElimination") {
 
-      info() << "[ArcaneFem-Info] Applying Dirichlet via "
-             << options()->enforceDirichletMethod() << " method "
-             << "with Dirichlet " << u_dirichlet_string;
-
       for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
         if (u_dirichlet_string[i] != "NULL") {
           Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
@@ -259,10 +262,6 @@ _assembleLinearOperator()
       }
     }
     else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
-
-      info() << "[ArcaneFem-Info] Applying Dirichlet via "
-             << options()->enforceDirichletMethod() << " method "
-             << "with Dirichlet " << u_dirichlet_string;
 
       for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
         if (u_dirichlet_string[i] != "NULL") {
