@@ -29,11 +29,7 @@
       <surface>horizontal</surface>
       <value>0.5</value>
     </dirichlet-boundary-condition>
-    <linear-system name="HypreLinearSystem">
-      <rtol>0.</rtol>
-      <atol>1e-5</atol>
-      <amg-threshold>0.55</amg-threshold>
-    </linear-system>
-    <bsr>true</bsr>
+    <!-- TODO: Hypre linear system is not available when node-wise approach is used in BSR -->
+    <bsr-node-wise>true</bsr-node-wise>
   </fem>
 </case>

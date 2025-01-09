@@ -87,9 +87,14 @@
         Boolean to use the legacy datastructure and its associated methods
       </description>
     </simple>
-    <simple name="bsr" type="bool"  default="false" >
+    <simple name="bsr-cell-wise" type="bool"  default="false" >
       <description>
-        Boolean to use the BSR data structure and its associated methods. BSR is GPU-compatible and works with multi-degree-of-freedom meshes.
+        Boolean to use the BSR data structure and its associated methods (cell-wise approach). BSR is GPU-compatible and works with multi-degree-of-freedom meshes.
+      </description>
+    </simple>
+    <simple name="bsr-node-wise" type="bool"  default="false" >
+      <description>
+        Boolean to use the BSR data structure and its associated methods (node-wise approach). BSR is GPU-compatible and works with multi-degree-of-freedom meshes.
       </description>
     </simple>
 

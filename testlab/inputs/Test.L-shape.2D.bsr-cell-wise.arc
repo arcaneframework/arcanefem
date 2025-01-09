@@ -26,6 +26,6 @@
       <surface>boundary</surface>
       <value>0.5</value>
     </dirichlet-boundary-condition>
-    <bsr>true</bsr>
+    <bsr-cell-wise>true</bsr-cell-wise>
   </fem>
 </case>

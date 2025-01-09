@@ -139,8 +139,14 @@ if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
   add_test(NAME [testlab]L-shape_2D_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Testlab inputs/Test.L-shape.2D.arc)
 endif()
 
-add_test(NAME [testlab]2D_bsr COMMAND Testlab inputs/Test.L-shape.2D.bsr.arc)
-arcanefem_add_gpu_test(NAME [testlab]2D_bsr_gpu COMMAND ./Testlab ARGS inputs/Test.L-shape.2D.bsr.arc)
+add_test(NAME [testlab]2D_bsr_cell_wise_hypre COMMAND Testlab inputs/Test.L-shape.2D.bsr-cell-wise.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_cell_wise_hypre_gpu COMMAND ./Testlab ARGS inputs/Test.L-shape.2D.bsr-cell-wise.arc)
 
-add_test(NAME [testlab]3D_bsr COMMAND Testlab inputs/Test.sphere.3D.bsr.arc)
-arcanefem_add_gpu_test(NAME [testlab]3D_bsr_gpu COMMAND ./Testlab ARGS inputs/Test.sphere.3D.bsr.arc)
+add_test(NAME [testlab]3D_bsr_cell_wise_hypre COMMAND Testlab inputs/Test.sphere.3D.bsr-cell-wise.arc)
+arcanefem_add_gpu_test(NAME [testlab]3D_bsr_cell_wise_hypre_gpu COMMAND ./Testlab ARGS inputs/Test.sphere.3D.bsr-cell-wise.arc)
+
+add_test(NAME [testlab]2D_bsr_node_wise_aleph COMMAND Testlab inputs/Test.L-shape.2D.bsr-node-wise.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_node_wise_aleph_gpu COMMAND ./Testlab ARGS inputs/Test.L-shape.2D.bsr-node-wise.arc)
+
+add_test(NAME [testlab]3D_bsr_node_wise_aleph COMMAND Testlab inputs/Test.sphere.3D.bsr-node-wise.arc)
+arcanefem_add_gpu_test(NAME [testlab]3D_bsr_node_wise_aleph_gpu COMMAND ./Testlab ARGS inputs/Test.sphere.3D.bsr-node-wise.arc)
