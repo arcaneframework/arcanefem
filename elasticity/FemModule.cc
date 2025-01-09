@@ -280,16 +280,14 @@ _assembleLinearOperator()
   }
 
   for (const auto& bs : options()->dirichletPointCondition()) {
-
     NodeGroup group = bs->node();
     const UniqueArray<String> u_dirichlet_string = bs->u();
 
+    info() << "[ArcaneFem-Info] Applying point Dirichlet " << u_dirichlet_string;
+    info() << "[ArcaneFem-Info] Dirichlet points '" << group.name() << "'";
+    info() << "[ArcaneFem-Info] Dirichlet method '" << options()->enforceDirichletMethod() << "'";
+
     if (options()->enforceDirichletMethod() == "Penalty") {
-
-      info() << "[ArcaneFem-Info] Applying Dirichlet via "
-             << options()->enforceDirichletMethod() << " method "
-             << "with Dirichlet " << u_dirichlet_string;
-
       Real Penalty = options()->penalty();
 
       for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
@@ -304,6 +302,34 @@ _assembleLinearOperator()
               else
                 m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
               rhs_values[dof_id] = Penalty * u_dirichlet;
+            }
+          }
+        }
+      }
+    }
+    else if (options()->enforceDirichletMethod() == "RowElimination") {
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Node, inode, group) {
+            Node node = *inode;
+            DoFLocalId dof_id = node_dof.dofId(node, i);
+            if (node.isOwn()) {
+              m_linear_system.eliminateRow(dof_id, u_dirichlet);
+            }
+          }
+        }
+      }
+    }
+    else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Node, inode, group) {
+            Node node = *inode;
+            DoFLocalId dof_id = node_dof.dofId(node, i);
+            if (node.isOwn()) {
+              m_linear_system.eliminateRowColumn(dof_id, u_dirichlet);
             }
           }
         }
