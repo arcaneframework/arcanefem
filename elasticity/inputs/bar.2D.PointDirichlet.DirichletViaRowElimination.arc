@@ -23,15 +23,28 @@
     <E>21.0e5</E>
     <nu>0.28</nu>
     <f>NULL -1.0</f>
-    <enforce-Dirichlet-method>RowElimination</enforce-Dirichlet-method>
+    <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
     <dirichlet-boundary-condition>
       <surface>left</surface>
-      <u>0.0 0.0</u>
+      <u>0.0 NULL</u>
     </dirichlet-boundary-condition>
+    <dirichlet-boundary-condition>
+      <surface>right</surface>
+      <u>1.0 NULL</u>
+    </dirichlet-boundary-condition>
+    <dirichlet-point-condition>
+      <node>botLeft</node>
+      <u>0.0 0.0</u>
+    </dirichlet-point-condition>
+    <dirichlet-point-condition>
+      <node>botRight</node>
+      <u>NULL 0.0</u>
+    </dirichlet-point-condition>
+    <result-file>check/elasticity_point-dirichlet_bar_test_ref.txt</result-file>
     <linear-system>
-      <solver-backend>petsc</solver-backend>
+      <solver-backend>hypre</solver-backend>
       <solver-method>gmres</solver-method>
-      <preconditioner>ilu</preconditioner>
+      <epsilon>1e-10</epsilon>
     </linear-system>
   </fem>
 </case>

@@ -79,10 +79,11 @@ class FemModule
 
   Real E;
   Real nu;
-  Real f1;
-  Real f2;
   Real mu2;
   Real lambda;
+
+  Real3 f;
+  Real3 t;
 
   bool m_use_bsr = false;
 

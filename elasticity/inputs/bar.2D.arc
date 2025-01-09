@@ -23,12 +23,11 @@
     <result-file>check/test_elasticity_results.txt</result-file>
     <E>21.0e5</E>
     <nu>0.28</nu>
-    <f2>-1.0</f2>
+    <f>NULL -1.0</f>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     <dirichlet-boundary-condition>
       <surface>left</surface>
-      <u1>0.0</u1>
-      <u2>0.0</u2>
+      <u>0.0 0.0</u>
     </dirichlet-boundary-condition>
   </fem>
 </case>
