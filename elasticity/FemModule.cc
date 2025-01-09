@@ -121,8 +121,16 @@ _getMaterialParameters()
   info() << "[ArcaneFem-Info] Started module  _getMaterialParameters()";
   Real elapsedTime = platform::getRealTime();
 
-  f1 = options()->f1(); // body force in Y
-  f2 = options()->f2(); // body force in Y
+  // body force (fx, fy, fz) = (f[0], f[1], f[2])
+  const UniqueArray<String> f_string = options()->f();
+  info() << "[ArcaneFem-Info]  bodyforce applied " << f_string;
+  for (Int32 i = 0; i < f_string.size(); ++i) {
+    f[i] = 0.0;
+    if (f_string[i] != "NULL") {
+      f[i] = std::stod(f_string[i].localstr());
+    }
+  }
+
   E = options()->E(); // Youngs modulus
   nu = options()->nu(); // Poission ratio
 
@@ -158,14 +166,15 @@ _assembleLinearOperator()
   // Body force term assembly $int_{Omega}(f.v)$
   //----------------------------------------------
 
-  if (options()->f1.isPresent() || options()->f2.isPresent()) {
+  const UniqueArray<String> f_string = options()->f();
+  if (f_string[0] != "NULL" || f_string[1] != "NULL") {
     ENUMERATE_ (Cell, icell, allCells()) {
       Cell cell = *icell;
       Real area = _computeAreaTriangle3(cell);
       for (Node node : cell.nodes()) {
         if (node.isOwn()) {
-          rhs_values[node_dof.dofId(node, 0)] += f1 * area / 3;
-          rhs_values[node_dof.dofId(node, 1)] += f2 * area / 3;
+          rhs_values[node_dof.dofId(node, 0)] += f[0] * area / 3;
+          rhs_values[node_dof.dofId(node, 1)] += f[1] * area / 3;
         }
       }
     }

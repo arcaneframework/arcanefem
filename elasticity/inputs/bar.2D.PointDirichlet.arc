@@ -22,7 +22,7 @@
   <fem>
     <E>21.0e5</E>
     <nu>0.28</nu>
-    <f2>-1.0</f2>
+    <f>NULL -1.0</f>
     <dirichlet-boundary-condition>
       <surface>left</surface>
       <u>0.0 NULL</u>
