@@ -43,8 +43,8 @@
     <result-file>check/elasticity_point-dirichlet_bar_test_ref.txt</result-file>
     <linear-system>
       <solver-backend>hypre</solver-backend>
-      <solver-method>bicgstab</solver-method>
-      <epsilon>1e-8</epsilon>
+      <solver-method>gmres</solver-method>
+      <epsilon>1e-10</epsilon>
     </linear-system>
   </fem>
 </case>
