@@ -15,24 +15,22 @@
 
   <meshes>
     <mesh>
-      <filename>bar.msh</filename>
+      <filename>meshes/bar.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <result-file>elasticity_traction_bodyforce_bar_test_ref.txt</result-file>
+    <result-file>check/elasticity_traction_bodyforce_bar_test_ref.txt</result-file>
     <E>21.0e5</E>
     <nu>0.28</nu>
-    <f1>3.33</f1>
-    <f2>-6.66</f2>
+    <f>3.33 -6.66</f>
     <dirichlet-boundary-condition>
       <surface>left</surface>
-      <u1>0.0</u1>
-      <u2>0.0</u2>
+      <u>0.0 0.0</u>
     </dirichlet-boundary-condition>
     <traction-boundary-condition>
       <surface>right</surface>
-      <t1>1.33</t1>
+      <t>1.33 2.13</t>
     </traction-boundary-condition>
     <bsr>true</bsr>
   </fem>

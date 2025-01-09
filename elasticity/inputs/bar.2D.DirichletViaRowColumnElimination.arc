@@ -15,23 +15,23 @@
 
   <meshes>
     <mesh>
-      <filename>bar.msh</filename>
+      <filename>meshes/bar.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <result-file>elasticity_traction_bar_test_ref.txt</result-file>
     <E>21.0e5</E>
     <nu>0.28</nu>
+    <f>NULL -1.0</f>
+    <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
     <dirichlet-boundary-condition>
       <surface>left</surface>
-      <u1>0.0</u1>
-      <u2>0.0</u2>
+      <u>0.0 0.0</u>
     </dirichlet-boundary-condition>
-    <traction-boundary-condition>
-      <surface>right</surface>
-      <t1>1.0</t1>
-    </traction-boundary-condition>
-    <bsr>true</bsr>
+    <linear-system>
+      <solver-backend>petsc</solver-backend>
+      <solver-method>pcg</solver-method>
+      <preconditioner>amg</preconditioner>
+    </linear-system>
   </fem>
 </case>

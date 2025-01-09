@@ -15,30 +15,36 @@
 
   <meshes>
     <mesh>
-      <filename>bar.msh</filename>
+      <filename>meshes/bar.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
     <E>21.0e5</E>
     <nu>0.28</nu>
-    <f2>-1.0</f2>
+    <f>NULL -1.0</f>
+    <enforce-Dirichlet-method>RowElimination</enforce-Dirichlet-method>
     <dirichlet-boundary-condition>
       <surface>left</surface>
-      <u1>0.0</u1>
+      <u>0.0 NULL</u>
     </dirichlet-boundary-condition>
     <dirichlet-boundary-condition>
       <surface>right</surface>
-      <u1>1.0</u1>
+      <u>1.0 NULL</u>
     </dirichlet-boundary-condition>
     <dirichlet-point-condition>
       <node>botLeft</node>
-      <u1>0.0</u1>
-      <u2>0.0</u2>
+      <u>0.0 0.0</u>
     </dirichlet-point-condition>
     <dirichlet-point-condition>
       <node>botRight</node>
-      <u2>0.0</u2>
+      <u>NULL 0.0</u>
     </dirichlet-point-condition>
+    <result-file>check/elasticity_point-dirichlet_bar_test_ref.txt</result-file>
+    <linear-system>
+      <solver-backend>hypre</solver-backend>
+      <solver-method>bicgstab</solver-method>
+      <epsilon>1e-8</epsilon>
+    </linear-system>
   </fem>
 </case>
