@@ -77,7 +77,7 @@ void FemModule::_initBsr()
 
   bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem";
   m_bsr_format.initialize(defaultMesh(), nbFace(), use_csr_in_linearsystem);
-  m_bsr_format.computeSparsity();
+  m_bsr_format.computeSparsityCellWise();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] compute", elapsedTime);
