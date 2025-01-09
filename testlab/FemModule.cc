@@ -142,7 +142,8 @@ startInit()
     if (options()->bsr) {
       bool use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
       m_bsr_format.initialize(mesh, mesh->dimension() == 2 ? nbFace() : m_nb_edge, use_csr_in_linear_system);
-      m_bsr_format.computeSparsity(); // Need to be done just once.
+      //m_bsr_format.computeSparsityNodeWise(); // Need to be done just once.
+      m_bsr_format.computeSparsityCellWise();
     }
   }
 

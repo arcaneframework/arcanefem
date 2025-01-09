@@ -19,7 +19,6 @@
 
 #include <arcane/accelerator/AcceleratorGlobal.h>
 #include <arcane/accelerator/GenericSorter.h>
-#include <bitset>
 #include <cstdint>
 #include <ios>
 #include <iomanip>
@@ -444,20 +443,15 @@ class BSRFormat : public TraceAccessor
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  void computeOffsets(const SmallSpan<uint>& offsets_smallspan)
+  void computeNeighborsNodeWise(SmallSpan<Int32>& neighbors_ss)
   {
-    auto startTime = platform::getRealTime();
-    NumArray<uint, MDDim1> neighbors(m_bsr_matrix.nbRow() + 1);
-    neighbors[0] = 0;
-    SmallSpan<uint> in_data = neighbors.to1DSmallSpan();
-
     auto command = makeCommand(m_queue);
     if (m_mesh->dimension() == 2) {
       UnstructuredMeshConnectivityView connectivity_view(m_mesh);
       auto node_face_cv = connectivity_view.nodeFace();
       command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
       {
-        in_data[node_id + 1] = node_face_cv.nbFace(node_id) + 1;
+        neighbors_ss[node_id] = node_face_cv.nbFace(node_id) + 1;
       };
     }
     else {
@@ -467,25 +461,36 @@ class BSRFormat : public TraceAccessor
 
       command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
       {
-        in_data[node_id + 1] = node_node_cv.nbNode(node_id) + 1;
+        neighbors_ss[node_id] = node_node_cv.nbNode(node_id) + 1;
       };
     }
-    m_queue.barrier();
-
-    Accelerator::Scanner<uint> scanner;
-    scanner.inclusiveSum(&m_queue, in_data, offsets_smallspan);
-    info() << "[ArcaneFem-Timer] Time to compute offsets of BSR matrix = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  void computeRowIndexAndColumns(const SmallSpan<uint>& offsets_smallspan)
+  void computeRowIndexNodeWise()
+  {
+    auto mem_ressource = m_queue.memoryRessource();
+    NumArray<Int32, MDDim1> neighbors(mem_ressource);
+    neighbors.resize(m_mesh->nbNode());
+    SmallSpan<Int32> neighbors_ss = neighbors.to1DSmallSpan();
+    computeNeighborsNodeWise(neighbors_ss);
+
+    Accelerator::Scanner<Int32> scanner;
+    scanner.exclusiveSum(&m_queue, neighbors_ss, m_bsr_matrix.rowIndex().to1DSmallSpan());
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  void computeColumnsNodeWise()
   {
     auto startTime = platform::getRealTime();
+
     auto command = makeCommand(m_queue);
-    auto out_row_index = viewOut(command, m_bsr_matrix.rowIndex());
     auto inout_columns = viewInOut(command, m_bsr_matrix.columns());
+    auto row_index = m_bsr_matrix.rowIndex().to1DSmallSpan();
 
     if (m_mesh->dimension() == 2) {
       UnstructuredMeshConnectivityView connectivity_view(m_mesh);
@@ -494,8 +499,7 @@ class BSRFormat : public TraceAccessor
 
       command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
       {
-        auto offset = offsets_smallspan[node_id];
-        out_row_index[node_id] = offset;
+        auto offset = row_index[node_id];
 
         for (auto face_lid : node_face_cv.faceIds(node_id)) {
           auto nodes = face_node_cv.nodes(face_lid);
@@ -513,8 +517,7 @@ class BSRFormat : public TraceAccessor
 
       command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
       {
-        auto offset = offsets_smallspan[node_id];
-        out_row_index[node_id] = offset;
+        auto offset = row_index[node_id];
 
         for (auto neighbor_idx : node_node_cv.nodeIds(node_id)) {
           inout_columns[offset] = neighbor_idx;
@@ -524,61 +527,52 @@ class BSRFormat : public TraceAccessor
         inout_columns[offset] = node_id;
       };
     }
-
-    info() << "[ArcaneFem-Timer] Time to compute sparsity from offsets of BSR matrix = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  void computeSparsity()
+  void computeSparsityNodeWise()
   {
-    info() << "BSRFormat(computeSparsity): Compute sparsity of BSRMatrix using node-wise approach";
+    info() << "BSRFormat(computeSparsityNodeWise): Compute sparsity of BSRMatrix using node-wise approach";
     auto startTime = platform::getRealTime();
 
-    NumArray<uint, MDDim1> offsets_numarray(m_bsr_matrix.nbRow() + 1);
-    SmallSpan<uint> offsets_smallspan = offsets_numarray.to1DSmallSpan();
-
-    computeOffsets(offsets_smallspan);
-    computeRowIndexAndColumns(offsets_smallspan);
+    computeRowIndexNodeWise();
+    computeColumnsNodeWise();
 
     info() << "[ArcaneFem-Timer] Time to compute the sparsity of BSR matrix using node-wise approach= " << (platform::getRealTime() - startTime);
 
     if (m_use_csr_in_linear_system)
       computeNzPerRowArray();
-
-    //m_bsr_matrix.dump("node-wise-bsr-matrix.txt");
   }
 
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  ARCCORE_HOST_DEVICE static uint64_t pack(int n0, int n1)
+  ARCCORE_HOST_DEVICE static UInt64 pack(Int32 n0, Int32 n1)
   {
-    int min = n0 > n1 ? n1 : n0;
-    int max = n0 > n1 ? n0 : n1;
-    return ((uint64_t)min << 32) | (uint64_t)max;
+    Int32 min = n0 > n1 ? n1 : n0;
+    Int32 max = n0 > n1 ? n0 : n1;
+    return ((UInt64)min << 32) | (UInt64)max;
   }
 
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  ARCCORE_HOST_DEVICE static void unpack(uint64_t packed_edge, int& n0, int& n1)
+  ARCCORE_HOST_DEVICE static void unpack(UInt64 packed_edge, Int32& n0, Int32& n1)
   {
-    n0 = (int)(packed_edge >> 32);
-    n1 = (int)(packed_edge & 0xFFFFFFFF);
+    n0 = (Int32)(packed_edge >> 32);
+    n1 = (Int32)(packed_edge & 0xFFFFFFFF);
   }
 
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  void computeSparsityCellWiseRowPtr(SmallSpan<uint64_t>& sorted_edges_small_span)
+  void computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss)
   {
     auto mem_ressource = m_queue.memoryRessource();
-    NumArray<uint64_t, MDDim1> edges(mem_ressource);
-    auto edges_per_element = m_mesh->dimension() == 2 ? 3 : 6;
-    auto nb_edge_total = m_mesh->nbCell() * edges_per_element;
-    edges.resize(m_mesh->nbCell() * edges_per_element);
+    NumArray<UInt64, MDDim1> edges(mem_ressource);
+    edges.resize(nb_edge_total);
 
     UnstructuredMeshConnectivityView m_connectivity_view(m_mesh);
     auto cell_node_cv = m_connectivity_view.cellNode();
@@ -621,39 +615,51 @@ class BSRFormat : public TraceAccessor
     m_queue.barrier();
 
     auto sorter = Accelerator::GenericSorter(m_queue);
-    SmallSpan<const uint64_t> edges_small_span = edges.to1DSmallSpan();
-    sorter.apply(edges_small_span, sorted_edges_small_span);
+    SmallSpan<const UInt64> edges_ss = edges.to1DSmallSpan();
+    sorter.apply(edges_ss, sorted_edges_ss);
+  }
 
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  void computeNeighborsCellWise(Int8 edges_per_element, Int64 nb_edge_total, NumArray<Int32, MDDim1>& neighbors, SmallSpan<UInt64>& sorted_edges_ss)
+  {
     //Int32 nb_edge_unique = 0;
     //Int32* nb_edge_unique_ptr = &nb_edge_unique;
+
+    auto command = makeCommand(m_queue);
+    auto inout_neighbors = viewInOut(command, neighbors);
+
+    command << RUNCOMMAND_LOOP1(iter, nb_edge_total)
+    {
+      auto [thread_id] = iter();
+      auto cur_edge = sorted_edges_ss[thread_id];
+      if (thread_id == (nb_edge_total - 1) || cur_edge != sorted_edges_ss[thread_id + 1]) {
+        //Accelerator::doAtomic<Accelerator::eAtomicOperation::Add, Int32, Int32>(nb_edge_unique_ptr, 1);
+        Int32 n0, n1 = 0;
+        unpack(cur_edge, n0, n1);
+        Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_neighbors[n0], 1);
+        Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_neighbors[n1], 1);
+      }
+    };
+
+    //return nb_edge_unique;
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  void computeRowIndexCellWise(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss)
+  {
+    auto mem_ressource = m_queue.memoryRessource();
     NumArray<Int32, MDDim1> neighbors(mem_ressource);
     neighbors.resize(m_mesh->nbNode());
     neighbors.fill(1, &m_queue);
-
-    {
-      auto command = makeCommand(m_queue);
-      auto inout_neighbors = viewInOut(command, neighbors);
-
-      command << RUNCOMMAND_LOOP1(iter, nb_edge_total)
-      {
-        auto [thread_id] = iter();
-        auto cur_edge = sorted_edges_small_span[thread_id];
-        if (thread_id == (nb_edge_total - 1) || cur_edge != sorted_edges_small_span[thread_id + 1]) {
-          //Accelerator::doAtomic<Accelerator::eAtomicOperation::Add, Int32, Int32>(nb_edge_unique_ptr, 1);
-          Int32 n0, n1 = 0;
-          unpack(cur_edge, n0, n1);
-          Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_neighbors[n0], 1);
-          Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_neighbors[n1], 1);
-        }
-      };
-    }
-    m_queue.barrier();
+    computeNeighborsCellWise(edges_per_element, nb_edge_total, neighbors, sorted_edges_ss);
 
     Accelerator::Scanner<Int32> scanner;
-    SmallSpan<Int32> neighbors_small_span = neighbors.to1DSmallSpan();
-    scanner.exclusiveSum(&m_queue, neighbors_small_span, m_bsr_matrix.rowIndex().to1DSmallSpan());
-
-    //return nb_edge_unique;
+    SmallSpan<Int32> neighbors_ss = neighbors.to1DSmallSpan();
+    scanner.exclusiveSum(&m_queue, neighbors_ss, m_bsr_matrix.rowIndex().to1DSmallSpan());
   }
 
   /*---------------------------------------------------------------------------*/
@@ -669,7 +675,7 @@ class BSRFormat : public TraceAccessor
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  void computeSparsityCellWiseColumns(SmallSpan<uint64_t>& sorted_edges_small_span)
+  void computeColumnsCellWise(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>& sorted_edges_small_span)
   {
     auto nb_node = m_mesh->nbNode();
 
@@ -692,8 +698,6 @@ class BSRFormat : public TraceAccessor
     offsets.resize(nb_node);
     offsets.fill(1, &m_queue);
 
-    auto edges_per_element = m_mesh->dimension() == 2 ? 3 : 6;
-    auto nb_edge_total = m_mesh->nbCell() * edges_per_element;
     {
       auto command = makeCommand(m_queue);
       auto inout_columns = viewInOut(command, m_bsr_matrix.columns());
@@ -722,21 +726,22 @@ class BSRFormat : public TraceAccessor
     info() << "BSRFormat(computeSparsityCellWise): Compute sparsity of BSRMatrix using cell-wise approach";
     auto startTime = platform::getRealTime();
 
-    auto mem_ressource = m_queue.memoryRessource();
-    NumArray<uint64_t, MDDim1> sorted_edges(mem_ressource);
-    Int32 edges_per_element = m_mesh->dimension() == 2 ? 3 : 6;
-    sorted_edges.resize(m_mesh->nbCell() * edges_per_element);
-    auto sorted_edges_small_span = sorted_edges.to1DSmallSpan();
+    auto edges_per_element = m_mesh->dimension() == 2 ? 3 : 6;
+    auto nb_edge_total = m_mesh->nbCell() * edges_per_element;
 
-    computeSparsityCellWiseRowPtr(sorted_edges_small_span);
-    computeSparsityCellWiseColumns(sorted_edges_small_span);
+    auto mem_ressource = m_queue.memoryRessource();
+    NumArray<UInt64, MDDim1> sorted_edges(mem_ressource);
+    sorted_edges.resize(nb_edge_total);
+    auto sorted_edges_ss = sorted_edges.to1DSmallSpan();
+
+    computeSortedEdges(edges_per_element, nb_edge_total, sorted_edges_ss);
+    computeRowIndexCellWise(edges_per_element, nb_edge_total, sorted_edges_ss);
+    computeColumnsCellWise(edges_per_element, nb_edge_total, sorted_edges_ss);
 
     info() << "[ArcaneFem-Timer] Time to compute the sparsity of BSR matrix using cell-wise approach= " << (platform::getRealTime() - startTime);
 
     if (m_use_csr_in_linear_system)
       computeNzPerRowArray();
-
-    //m_bsr_matrix.dump("cell-wise-bsr-matrix.txt");
   }
 
   /*---------------------------------------------------------------------------*/
