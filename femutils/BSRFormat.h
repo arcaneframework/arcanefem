@@ -17,9 +17,6 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/accelerator/AcceleratorGlobal.h>
-#include <arcane/accelerator/GenericSorter.h>
-#include <cstdint>
 #include <ios>
 #include <iomanip>
 
@@ -52,6 +49,7 @@
 #include <arcane/accelerator/RunCommandLoop.h>
 #include <arcane/accelerator/core/RunQueue.h>
 #include <arcane/accelerator/NumArrayViews.h>
+#include <arcane/accelerator/GenericSorter.h>
 #include <arcane/accelerator/Atomic.h>
 #include <arcane/accelerator/Scan.h>
 #include <arcane/accelerator/Sort.h>
@@ -486,8 +484,6 @@ class BSRFormat : public TraceAccessor
 
   void computeColumnsNodeWise()
   {
-    auto startTime = platform::getRealTime();
-
     auto command = makeCommand(m_queue);
     auto inout_columns = viewInOut(command, m_bsr_matrix.columns());
     auto row_index = m_bsr_matrix.rowIndex().to1DSmallSpan();
@@ -624,9 +620,6 @@ class BSRFormat : public TraceAccessor
 
   void computeNeighborsCellWise(Int8 edges_per_element, Int64 nb_edge_total, NumArray<Int32, MDDim1>& neighbors, SmallSpan<UInt64>& sorted_edges_ss)
   {
-    //Int32 nb_edge_unique = 0;
-    //Int32* nb_edge_unique_ptr = &nb_edge_unique;
-
     auto command = makeCommand(m_queue);
     auto inout_neighbors = viewInOut(command, neighbors);
 
@@ -635,15 +628,12 @@ class BSRFormat : public TraceAccessor
       auto [thread_id] = iter();
       auto cur_edge = sorted_edges_ss[thread_id];
       if (thread_id == (nb_edge_total - 1) || cur_edge != sorted_edges_ss[thread_id + 1]) {
-        //Accelerator::doAtomic<Accelerator::eAtomicOperation::Add, Int32, Int32>(nb_edge_unique_ptr, 1);
         Int32 n0, n1 = 0;
         unpack(cur_edge, n0, n1);
         Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_neighbors[n0], 1);
         Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_neighbors[n1], 1);
       }
     };
-
-    //return nb_edge_unique;
   }
 
   /*---------------------------------------------------------------------------*/
@@ -665,7 +655,7 @@ class BSRFormat : public TraceAccessor
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  ARCCORE_HOST_DEVICE static void register_edge_in_columns(Int32 src, Int32 dst, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> offsets, Accelerator::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> row_index, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> columns)
+  ARCCORE_HOST_DEVICE static void registerEdgeInColumns(Int32 src, Int32 dst, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> offsets, Accelerator::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> row_index, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> columns)
   {
     Int32 start = row_index[src];
     Int32 offset = Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(offsets[src], 1);
@@ -675,7 +665,7 @@ class BSRFormat : public TraceAccessor
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  void computeColumnsCellWise(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>& sorted_edges_small_span)
+  void computeColumnsCellWise(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>& sorted_edges_ss)
   {
     auto nb_node = m_mesh->nbNode();
 
@@ -707,12 +697,12 @@ class BSRFormat : public TraceAccessor
       command << RUNCOMMAND_LOOP1(iter, nb_edge_total)
       {
         auto [thread_id] = iter();
-        auto cur_edge = sorted_edges_small_span[thread_id];
-        if (thread_id == (nb_edge_total - 1) || cur_edge != sorted_edges_small_span[thread_id + 1]) {
+        auto cur_edge = sorted_edges_ss[thread_id];
+        if (thread_id == (nb_edge_total - 1) || cur_edge != sorted_edges_ss[thread_id + 1]) {
           Int32 n0, n1 = 0;
           unpack(cur_edge, n0, n1);
-          register_edge_in_columns(n0, n1, inout_offsets, in_row_index, inout_columns);
-          register_edge_in_columns(n1, n0, inout_offsets, in_row_index, inout_columns);
+          registerEdgeInColumns(n0, n1, inout_offsets, in_row_index, inout_columns);
+          registerEdgeInColumns(n1, n0, inout_offsets, in_row_index, inout_columns);
         }
       };
     }
