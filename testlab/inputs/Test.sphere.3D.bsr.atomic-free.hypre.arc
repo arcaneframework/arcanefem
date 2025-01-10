@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Testlab" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>Sphere 3D with CSR sparse matrix format Gpu compatible. The result of this test is compared with poisson_test_ref_sphere_3D.txt</title>
+    <title>Sample</title>
     <timeloop>TestlabLoop</timeloop>
   </arcane>
 
@@ -29,11 +29,11 @@
       <surface>horizontal</surface>
       <value>0.5</value>
     </dirichlet-boundary-condition>
+    <bsr-atomic-free>true</bsr-atomic-free>
     <linear-system name="HypreLinearSystem">
       <rtol>0.</rtol>
       <atol>1e-5</atol>
       <amg-threshold>0.55</amg-threshold>
     </linear-system>
-    <bsr-cell-wise>true</bsr-cell-wise>
   </fem>
 </case>

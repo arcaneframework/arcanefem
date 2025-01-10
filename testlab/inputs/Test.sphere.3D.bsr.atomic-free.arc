@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Testlab" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>Sphere 3D with CSR sparse matrix format Gpu compatible. The result of this test is compared with poisson_test_ref_sphere_3D.txt</title>
+    <title>Sample</title>
     <timeloop>TestlabLoop</timeloop>
   </arcane>
 
@@ -29,7 +29,6 @@
       <surface>horizontal</surface>
       <value>0.5</value>
     </dirichlet-boundary-condition>
-    <!-- TODO: Hypre linear system is not available when node-wise approach is used in BSR -->
-    <bsr-node-wise>true</bsr-node-wise>
+    <bsr-atomic-free>true</bsr-atomic-free>
   </fem>
 </case>
