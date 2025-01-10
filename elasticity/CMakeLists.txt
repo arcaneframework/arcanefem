@@ -50,6 +50,8 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [elasticity]Dirichlet_traction_Bodyforce COMMAND Elasticity inputs/bar.2D.traction.bodyforce.arc)
   add_test(NAME [elasticity]Dirichlet_traction_Bodyforce_bsr COMMAND Elasticity inputs/bar.2D.traction.bodyforce.bsr.arc)
   arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_traction_Bodyforce_bsr_gpu COMMAND ./Elasticity ARGS inputs/bar.2D.traction.bodyforce.bsr.arc)
+  add_test(NAME [elasticity]Dirichlet_traction_Bodyforce_bsr_atomic_free COMMAND Elasticity inputs/bar.2D.traction.bodyforce.bsr.atomic-free.arc)
+  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_traction_Bodyforce_bsr_gpu_atomic_free COMMAND ./Elasticity ARGS inputs/bar.2D.traction.bodyforce.bsr.atomic-free.arc)
 endif()
 
 # If parallel part is available, add some tests

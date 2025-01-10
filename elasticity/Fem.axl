@@ -44,6 +44,11 @@
         Boolean to use the BSR data structure and its associated methods. BSR is GPU-compatible and works with multi-degree-of-freedom meshes.
       </description>
     </simple>
+    <simple name="bsr-atomic-free" type="bool"  default="false" >
+      <description>
+        Boolean to use the BSR data structure and its associated methods using atomic-free implementation. BSR is GPU-compatible and works with multi-degree-of-freedom meshes.
+      </description>
+    </simple>
 
     <!-- - - - - - dirichlet-boundary-condition - - - - -->
     <complex name  = "dirichlet-boundary-condition"

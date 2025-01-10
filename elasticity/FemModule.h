@@ -26,7 +26,7 @@
 #include <arccore/base/ArccoreGlobal.h>
 
 #include "IDoFLinearSystemFactory.h"
-#include "Fem_axl.h"
+#include "../build/elasticity/Fem_axl.h"
 #include "FemUtils.h"
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
@@ -86,6 +86,7 @@ class FemModule
   Real3 t;
 
   bool m_use_bsr = false;
+  bool m_use_bsr_atomic_free = false;
 
   void _getMaterialParameters();
   void _assembleBilinearOperatorTRIA3();

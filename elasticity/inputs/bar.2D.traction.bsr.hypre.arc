@@ -31,5 +31,11 @@
       <surface>right</surface>
       <t>1.0 NULL</t>
     </traction-boundary-condition>
+    <bsr>true</bsr>
+    <linear-system name="HypreLinearSystem">
+      <rtol>0.</rtol>
+      <atol>1e-5</atol>
+      <amg-threshold>0.55</amg-threshold>
+    </linear-system>
   </fem>
-</case
+</case>
