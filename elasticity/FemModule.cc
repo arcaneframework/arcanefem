@@ -108,7 +108,7 @@ _doStationarySolve()
   _assembleBilinearOperator();
   _assembleLinearOperator();
 
-  if (m_use_bsr)
+  if (m_use_bsr || m_use_bsr_atomic_free)
     m_bsr_format.toLinearSystem(m_linear_system);
 
   _solve();
@@ -242,7 +242,7 @@ _assembleLinearOperator()
             for (Node node : iface->nodes()) {
               DoFLocalId dof_id = node_dof.dofId(node, i);
               if (node.isOwn()) {
-                if (m_use_bsr)
+                if (m_use_bsr || m_use_bsr_atomic_free)
                   m_bsr_format.matrix().setValue(dof_id, dof_id, Penalty);
                 else
                   m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
@@ -305,7 +305,7 @@ _assembleLinearOperator()
             Node node = *inode;
             DoFLocalId dof_id = node_dof.dofId(node, i);
             if (node.isOwn()) {
-              if (m_use_bsr)
+              if (m_use_bsr || m_use_bsr_atomic_free)
                 m_bsr_format.matrix().setValue(dof_id, dof_id, Penalty);
               else
                 m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);

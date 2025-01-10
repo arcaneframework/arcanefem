@@ -26,7 +26,7 @@
 #include <arccore/base/ArccoreGlobal.h>
 
 #include "IDoFLinearSystemFactory.h"
-#include "../build/elasticity/Fem_axl.h"
+#include "Fem_axl.h"
 #include "FemUtils.h"
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
