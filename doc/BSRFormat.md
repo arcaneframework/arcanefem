@@ -1,69 +1,89 @@
-# BSRFormat Documentation
+# Block Sparse Row Format Documentation
 
---- 
-**TODO:**
-- [ ] Update "Linear Operation Assembly" with `ArcaneFemFunctions`
-- [ ] "Implementation Details" part
----
 
-`BSRFormat` class provides facilities for storing, manipulating and assembling the global stiffness matrix. It uses a `BSRMatrix` to store the matrix under the hood. It is GPU compatible and will use accelerators if `-A,AcceleratorRuntime` option is set.
+`BSRFormat` class provides facilities for storing, manipulating and assembling the global stiffness matrix from mesh informations.
 
-> `BSRMatrix` represents a matrix using three arrays: `row_index`, `columns` and `values` as explained [here](https://www.intel.com/content/www/us/en/docs/onemkl/developer-reference-c/2024-0/sparse-blas-bsr-matrix-storage-format.html). Size `n` of a block `n X n` is the number of degrees-of-freedom (DoFs) for the simulation.
+- It supports both triangular and tetrahedral elements with multiple degrees-of-freedom.
+  
+- It supports `Aleph` and `Hypre` linear system backend.
+  
+- It is GPU-accelerated (enabled with `-A,AcceleratorRuntime` option).
+  
+- It uses a `BSRMatrix` to represent the global stiffness matrix under the hood. `BSRMatrix` stores the non-zero coefficients of a matrix within three arrays: `values`, `columns` and `row_index` as explained [here](https://www.intel.com/content/www/us/en/docs/onemkl/developer-reference-c/2024-0/sparse-blas-bsr-matrix-storage-format.html).
 
-<details>
-  <summary><h2>Integration Guide</h2></summary>
+ArcaneFEM's `Elasticity` and `Testlab` modules rely on it.
 
-### Setting up
+## Initializing BSRFormat in your Module
 
-To use `BSRFormat` in your module you will need to make it a member field. You must call its constructor.
+To use `BSRFormat` in your module, it is recommended to include it as a member field of the module.
+
+Ensure you initialize it by calling its constructor:
 
 ```cpp
-// proto: BSRFormat(ITraceMng* tm, RunQueue& queue, const FemDoFsOnNodes& dofs_on_nodes)
+BSRFormat(ITraceMng* tm, RunQueue& queue, const FemDoFsOnNodes& dofs_on_nodes)
+```
 
+Example:
+
+```cpp
 class FemModule : public ArcaneFemObject {
-  FemModule(const ModuleBuildInfo& mbi) {   // ctor
-    // ...
-    m_bsr_format = BSRFormat<1>(mbi.subDomain()->traceMng(), *(mbi.subDomain()->acceleratorMng()->defaultQueue()), m_dofs_on_nodes);
-  }
+
+  FemModule(const ModuleBuildInfo& mbi)
+  : ArcaneFemObject(mbi),
   // ...
+  , m_dofs_on_nodes(mbi.subDomain()->traceMng())
+  , m_bsr_format(mbi.subDomain()->traceMng(), *(mbi.subDomain()->acceleratorMng()->defaultQueue()), m_dofs_on_nodes)
+  { ... }
+  // ...
+  FemDoFsOnNodes m_dofs_on_nodes;
   BSRFormat<1> m_bsr_format;                // 1 degree-of-freedom
 }
 ```
 
-Then you must initialize it using the `initialize(...)` method:
+After constructing the `BSRFormat` object, you must initialize it using the `initialize(...)` method:
 
 ```cpp
-// proto: void initialize(IMesh* mesh, Int32 nb_edge, bool does_linear_system_use_csr)
-//   - nb_edge: number of edge in 3D, number of face in 2D
-//   - does_linear_system_use_csr: True if Hypre is the backend, False otherwise
+// Prototype:
+void initialize(IMesh* mesh, Int32 nb_edge, bool does_linear_system_use_csr);
 
+// Parameters:
+//   - mesh: The mesh object to associate with the `BSRFormat`.
+//   - nb_edge: In 3D, this represents the number of edges; in 2D, it represents the number of faces.
+//   - does_linear_system_use_csr: Set to `true` if Hypre is used as the backend (CSR format), otherwise `false`.
+```
+
+Implementation example of the initialization process in the `startInit` method:
+
+```cpp
 void FemModule::startInit() {
   // ...
   auto use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
   auto nb_edge = mesh->dimension() == 2 ? nbFace() : nbEdge();
-  m_bsr_format.initialize(mesh, nb_edge, use_csr_in_linear_system); // initialize BSRFormat
+  m_bsr_format.initialize(mesh, nb_edge, use_csr_in_linear_system);
 }
 ```
-### Bilinear Operator Assembly
+
+## Bilinear Operator Assembly
 
 `BSRFormat` offers two approaches for assembling the bilinear operator i.e. global stiffness matrix:
-1. Default
-2. Atomic-free
+1. Default Approach
+2. Atomic-free Approach
 
-For both approaches, ArcaneFEM divides the assembly in 2 sub-steps:
-1. Construction of the sparsity of the structure
-2. Assembly of the contributions of local element matrix
+Regardless of the method chosen, ArcaneFEM divides the assembly process into two sub-steps:
 
+1. Construction of the Sparsity Structure: Defines the pattern of non-zero entries in the global stiffness matrix.
+2. Assembly of Local Element Matrix Contributions: Accumulates the contributions of each local element's stiffness matrix into the global matrix.
+        
 <details open>
-  <summary><h4>Default</h4></summary>
-
+  <summary><h3>Default Approach</h3></summary>
+  
 The default way of assembling the global stiffness matrix is by integrating over the elements of the mesh.
 Because of that and of GPU compatibility (i.e. shared-memory parallelism), this method uses an `atomic` operation within its implementation.
 
 > In theory, these operations can lead to non-deterministic behavior, i.e. to a matrix whose coefficients can change from one run to the next for the same simulation.
 > In practice, no such behavior has been observed by us, even in large test case.
 
-##### Construction of the Sparsity
+#### Sparsity Construction
 
 ```cpp
 void FemModule::compute() {
@@ -72,7 +92,7 @@ void FemModule::compute() {
 }
 ```
   
-##### Assembly of the Contributions
+#### Contributions
 
 ```cpp
 namespace ax = Arcane::Accelerator;
@@ -94,11 +114,11 @@ void FemModule::compute() {
 </details>
 
 <details open>
-  <summary><h4>Atomic-free</h4></summary>
+  <summary><h3>Atomic-free Approach</h3></summary>
 
 This method assembles the global stiffness by integrating over the nodes of the mesh. It does not use `atomic` operations and therefore is deterministic.
 
-##### Construction of the Sparsity
+#### Sparsity Construction
 
 ```cpp
 void FemModule::compute() {
@@ -107,7 +127,7 @@ void FemModule::compute() {
 }
 ```
 
-##### Assembly of the Contributions
+#### Contributions Assembly
 
 ```cpp
 namespace ax = Arcane::Accelerator;
@@ -128,7 +148,7 @@ void FemModule::compute() {
 
 </details>
 
-### Linear Operator Assembly 
+## Linear Operator Assembly 
 
 The `setValue(DoFLocalId row, DoFLocalId col, Real value)` method of `BSRMatrix` can be used to set coeffcients in the matrix.
 You can access the representation of `BSRFormat` i.e. `BSRMatrix` by using the `matrix()` method.
@@ -150,50 +170,61 @@ ENUMERATE_ (Node, inode, ownNodes()) {
 
 ### Translate BSRFormat to DoFLinearSystem
 
-ArcaneFEM uses `DoFLinearSystem` class to represent and handle linear systems. You can translate the BSRFormat to a given linear system using the `toLinearSystem(DoFLinearSystem &ls)` method:
+ArcaneFEM uses `DoFLinearSystem` class to represent and handle linear systems. You can translate the BSRFormat to a given linear system using the `toLinearSystem(DoFLinearSystem &ls)` method.
 
-</details>
-
-<details open>
-  <summary><h2>Implementation Details</h2></summary>
+<details>
+  <summary><h2>Algorithms and Implementation Details</h2></summary>
 
   This part is dedicated to the implementation details of `BSRFormat`, in particular the bilinear assembly algorithms.
 
-  ### Default Bilinear Operator Assembly
+<details>
+  <summary><h3>Default Bilinear Operator Assembly</h3></summary>
 
-  #### Construction of the Sparsity
+  #### Sparsity Construction Algorithm
 
-  ##### Building `row_index`
-
+  ##### 1. Populate `row_index` Array
+  
   1. Compute the `neighbors` array: At index `i`, `neighbors` contains the number of neighbors i.e. the number of connected nodes of node `i`.
 
-     a. Iterate over the elements of the mesh in parallel. Store each edge of the element in the `edge` array. Edge `i` (`i: 0 -> nb_edge_per_element`) is stored at index `cur_element_idx * nb_edge_per_element + i`. Edges are represented using a 64-bit integer. The first 32 bits store the `id` of the smaller node in the edge, while the last 32 bits store the `id` of the larger node.
+     a. Loop over the elements of the mesh in parallel. Store each edge of the element in the `edge` array. Edge `i` (`i: 0 -> nb_edge_per_element`) is stored at index `cur_element_idx * nb_edge_per_element + i`. Edges are represented using a 64-bit integer. The first 32 bits store the `id` of the smaller node in the edge, while the last 32 bits store the `id` of the larger node.
 
      b. Sort the `edges` array into `sorted_edges`.
 
-     c. Iterate over the `sorted_edges` array in parallel. For each edge, if `sorted_edges[cur_edge_idx + 1] != cur_edge`, increment `neighbors[src]` and `neighbors[dst]` by `1` with an `atomic` operation. This conditional is needed to ensure that we don't count the same edge multiple time (for edges that are shared between multiple elements of the mesh).
+     c. Loop over the `sorted_edges` array in parallel. For each edge, if `sorted_edges[cur_edge_idx + 1] != cur_edge`, increment `neighbors[src]` and `neighbors[dst]` by `1` with an atomic operation. This conditional is needed to ensure that we don't count the same edge multiple time (for edges that are shared between multiple elements of the mesh).
 
   2. `row_index` is the [exclusive scan](https://en.wikipedia.org/wiki/Prefix_sum#Inclusive_and_exclusive_scans) of `neighbors`.
 
- ##### Building `columns`
+ ##### 2. Populate `columns` Array
 
  1. Compute `sorted_edges` (see 1.b)
- 2. Iterate over the edges in parallel. For each edge, if `sorted_edges[cur_edge_idx + 1] != cur_edge`, "register" the link `src -- dst` in `columns`:
+ 2. Loop over the edges in parallel. For each edge, if `sorted_edges[cur_edge_idx + 1] != cur_edge`, "register" the link `src -- dst` in `columns`: Get the start position of the row `src` in the matrix at `row_index[src]`. Get the current offset in the `src` row at `offsets[src]`. Put `dst` at `columns[start + offset]`. Increment `offsets[src]` by `1`.
+    
+#### Contributions Assembly Algorithm
 
-     a. Get the start position of the row `src` in the matrix with `row_index[src]`.
+1. Loop over the elements in parallel.
 
-     b. Get the current offset in the `src` row wich `offsets[src]`.
+      a. Compute the local stiffness matrix of the element.
 
-     c. Put `dst` at `columns[start + offset]`.
+      b. Loop over the nodes of the current element. Loop over the nodes of the current element. Add the contribution `local_element_matrix[node1, node2]` into `bsr_matrix.values[node1, node2]` using an atomic operation.
+  
+</details>
+<details>
+<summary><h3>Atomic-free Bilinear Operator Assembly</h3></summary>
 
-     d. Increment `offsets[src]` by `1`.
+#### Sparsity Construction Algorithm
 
-### Atomic-free Bilinear Operator Assembly
-
-#### Construction of the Sparsity
-
-The only step in the precedent algorithm where an atomic operation is used is at 1.c i.e. for computing the `neighbors` array.
+The only step in the previous sparsity construction method where an atomic operation is used is at 1.c i.e. for computing the `neighbors` array.
 
 To build the sparsity without atomic, we compute the `neighbors` array using [Arcane's node-node connectivity](https://github.com/arcaneframework/framework/pull/1614). This connectivity is computed by Arcane on-demand. It uses node-edge connectivity under the hood and is not accelerated i.e. it will not use GPU to compute the connectivity.
 
-The rest of the algorithm doesn't change apart from the fact that iterations over the edges are done using cell-edge in 3D (and cell-face in 2D) connectivities of Arcane.
+The rest of the algorithm doesn't change apart from the iterations over the edges which are done using cell-edge in 3D (and cell-face in 2D) connectivities of Arcane.
+
+#### Contributions Assembly Algorithm
+
+1. Loop over the nodes in parallel. Loop over the elements of the node.
+
+      a. Compute the local stiffness matrix of the element.
+
+      b. Loop over the nodes of the element. Add the contribution `local_element_matrix[node1, node2]` into `bsr_matrix[node1, node2]`. Atomic is not needed here.
+</details>
+</details>
