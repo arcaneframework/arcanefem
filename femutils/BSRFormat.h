@@ -196,7 +196,6 @@ class BSRMatrix : public TraceAccessor
     info() << "BSRMatrix(toCsr): Convert matrix to CSR";
 
     auto startTime = platform::getRealTime();
-    constexpr int BLOCK_SIZE_SQ = BLOCK_SIZE * BLOCK_SIZE;
 
     auto nb_block_rows = m_row_index.extent0();
     auto nb_rows = nb_block_rows * BLOCK_SIZE;
@@ -229,7 +228,6 @@ class BSRMatrix : public TraceAccessor
         for (auto j = 0; j < BLOCK_SIZE; ++j) {
           auto start = m_row_index[i];
           auto end = i == m_row_index.extent0() - 1 ? m_nb_col : m_row_index[i + 1];
-          auto nombre_de_dof_dans_la_rangee = (end - start);
           for (auto block_index = start; block_index < end; ++block_index) {
             for (auto k = 0; k < BLOCK_SIZE; ++k) {
               csr_matrix->m_matrix_column[offset] = m_columns[block_index] * BLOCK_SIZE + k;
