@@ -159,7 +159,7 @@ class BSRMatrix : public TraceAccessor
     while (block_start < block_end) {
       if (m_columns[block_start] == block_col) {
         if (!m_order_values_per_block)
-          return block_start_in_value + (BLOCK_SIZE * col_index) + (row_offset * BLOCK_SIZE * m_nb_nz_per_row[block_row]);
+          return block_start_in_value + (BLOCK_SIZE * col_index) + (row_offset * BLOCK_SIZE * m_nb_nz_per_row[block_row]) + col_offset;
         else
           return (block_start * BLOCK_SIZE_SQ) + ((row_offset * BLOCK_SIZE) + col_offset);
       }
@@ -212,7 +212,7 @@ class BSRMatrix : public TraceAccessor
       // Translate `row_index`
       csr_matrix->m_matrix_row[0] = 0;
       auto offset = 1;
-      for (auto i = 0; i < m_row_index.extent0(); ++i) {
+      for (auto i = 0; i < m_row_index.extent0() - 1; ++i) {
         for (auto j = 0; j < BLOCK_SIZE; ++j) {
           auto start = m_row_index[i];
           auto end = i == m_row_index.extent0() - 1 ? m_nb_col : m_row_index[i + 1];

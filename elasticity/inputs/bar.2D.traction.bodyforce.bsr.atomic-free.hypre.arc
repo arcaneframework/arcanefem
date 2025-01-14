@@ -20,18 +20,19 @@
   </meshes>
 
   <fem>
-    <result-file>check/elasticity_traction_bar_test_ref.txt</result-file>
+    <result-file>check/elasticity_traction_bodyforce_bar_test_ref.txt</result-file>
     <E>21.0e5</E>
     <nu>0.28</nu>
+    <f>3.33 -6.66</f>
     <dirichlet-boundary-condition>
       <surface>left</surface>
       <u>0.0 0.0</u>
     </dirichlet-boundary-condition>
     <traction-boundary-condition>
       <surface>right</surface>
-      <t>1.0 NULL</t>
+      <t>1.33 2.13</t>
     </traction-boundary-condition>
-    <bsr>true</bsr>
+    <bsr-atomic-free>true</bsr-atomic-free>
     <linear-system name="HypreLinearSystem">
       <rtol>0.</rtol>
       <atol>1e-15</atol>
