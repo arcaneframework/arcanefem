@@ -15,6 +15,11 @@ ArcaneFEM's `Elasticity` and `Testlab` modules rely on it.
 
 ## Initializing BSRFormat in your Module
 
+```cpp
+#include "BSRFormat.h"
+#include <arcane/accelerator/core/IAcceleratorMng.h>
+```
+
 To use `BSRFormat` in your module, it is recommended to include it as a member field of the module.
 
 Ensure you initialize it by calling its constructor:
@@ -58,8 +63,8 @@ Implementation example of the initialization process in the `startInit` method:
 void FemModule::startInit() {
   // ...
   auto use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
-  auto nb_edge = mesh->dimension() == 2 ? nbFace() : nbEdge();
-  m_bsr_format.initialize(mesh, nb_edge, use_csr_in_linear_system);
+  auto nb_edge = mesh()->dimension() == 2 ? nbFace() : nbEdge();
+  m_bsr_format.initialize(mesh(), nb_edge, use_csr_in_linear_system);
 }
 ```
 
@@ -95,6 +100,8 @@ void FemModule::compute() {
 #### Contributions
 
 ```cpp
+#include <arcane/accelerator/VariableViews.h>
+
 namespace ax = Arcane::Accelerator;
 
 // ...
@@ -105,7 +112,8 @@ void FemModule::compute() {
   // ...
   UnstructuredMeshConnectivityView m_connectivity_view(mesh());
   auto cn_cv = m_connectivity_view.cellNode();
-  auto command = makeCommand(m_queue);
+  auto queue = subDomain()->acceleratorMng()->defaultQueue();
+  auto command = makeCommand(queue);
   auto in_node_coord = ax::viewIn(command, m_node_coord);
   m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
 }
@@ -130,6 +138,8 @@ void FemModule::compute() {
 #### Contributions Assembly
 
 ```cpp
+#include <arcane/accelerator/VariableViews.h>
+
 namespace ax = Arcane::Accelerator;
 
 // ...
@@ -140,7 +150,8 @@ void FemModule::compute() {
   // ...
   UnstructuredMeshConnectivityView m_connectivity_view(mesh());
   auto cn_cv = m_connectivity_view.cellNode();
-  auto command = makeCommand(m_queue);
+  auto queue = subDomain()->acceleratorMng()->defaultQueue();
+  auto command = makeCommand(queue);
   auto in_node_coord = ax::viewIn(command, m_node_coord);
   m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
 }
