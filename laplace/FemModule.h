@@ -25,7 +25,7 @@
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 
-// GPU
+// GPU includes
 #include "arcane/accelerator/core/IAcceleratorMng.h"
 #include "arcane/accelerator/VariableViews.h"
 
@@ -36,6 +36,8 @@
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
 #include "ArcaneFemFunctions.h"
+
+// GPU includes
 #include "ArcaneFemFunctionsGpu.h"
 #include "BSRFormat.h"
 /*---------------------------------------------------------------------------*/
@@ -77,7 +79,6 @@ class FemModule
 
  private:
 
-
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;
@@ -88,6 +89,7 @@ class FemModule
   void _assembleBilinearOperator();
   void _solve();
   void _assembleLinearOperator();
+  void _updateVariables();
   void _validateResults();
 
   void _printArcaneFemTime(const String label, const Real value);
@@ -95,8 +97,8 @@ class FemModule
   FixedMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);
 
-  template<int N>
-  void _assembleBilinear( const std::function<FixedMatrix<N, N>(const Cell&)>& compute_element_matrix);
+  template <int N>
+  void _assembleBilinear(const std::function<FixedMatrix<N, N>(const Cell&)>& compute_element_matrix);
 };
 
 /*---------------------------------------------------------------------------*/
@@ -124,6 +126,17 @@ FixedMatrix<3, 3> FemModule::_computeElementMatrixTria3(Cell cell)
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Computes the element matrix for a triangular element (P1 FE).
+ *
+ * This function calculates the integral of the expression:
+ * integral2D (u.dx * v.dx + u.dy * v.dy)
+ *
+ * Steps involved:
+ * 1. Calculate the area of the triangle.
+ * 2. Compute the gradients of the shape functions.
+ * 3. Return (u.dx * v.dx + u.dy * v.dy);
+ */
 /*---------------------------------------------------------------------------*/
 
 ARCCORE_HOST_DEVICE FixedMatrix<3, 3> computeElementMatrixTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord)
