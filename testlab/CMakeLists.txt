@@ -140,7 +140,25 @@ if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
 endif()
 
 add_test(NAME [testlab]2D_bsr COMMAND Testlab inputs/Test.L-shape.2D.bsr.arc)
-arcanefem_add_gpu_test(NAME [testlab]2D_bsr_gpu COMMAND ./Testlab ARGS inputs/Test.L-shape.2D.bsr.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.arc)
+
+add_test(NAME [testlab]2D_bsr_hypre COMMAND Testlab inputs/Test.L-shape.2D.bsr.hypre.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.arc)
 
 add_test(NAME [testlab]3D_bsr COMMAND Testlab inputs/Test.sphere.3D.bsr.arc)
-arcanefem_add_gpu_test(NAME [testlab]3D_bsr_gpu COMMAND ./Testlab ARGS inputs/Test.sphere.3D.bsr.arc)
+arcanefem_add_gpu_test(NAME [testlab]3D_bsr_gpu COMMAND Testlab ARGS inputs/Test.sphere.3D.bsr.arc)
+
+add_test(NAME [testlab]3D_bsr_hypre COMMAND Testlab inputs/Test.sphere.3D.bsr.hypre.arc)
+arcanefem_add_gpu_test(NAME [testlab]3D_bsr_hypre_gpu COMMAND Testlab ARGS inputs/Test.sphere.3D.bsr.hypre.arc)
+
+add_test(NAME [testlab]2D_bsr_atomic_free COMMAND Testlab inputs/Test.L-shape.2D.bsr.atomic-free.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_atomic_free_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.atomic-free.arc)
+
+add_test(NAME [testlab]2D_bsr_atomic_free_hypre COMMAND Testlab inputs/Test.L-shape.2D.bsr.atomic-free.hypre.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_atomic_free_hypre_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.atomic-free.hypre.arc)
+
+add_test(NAME [testlab]3D_bsr_atomic_free COMMAND Testlab inputs/Test.sphere.3D.bsr.atomic-free.arc)
+arcanefem_add_gpu_test(NAME [testlab]3D_bsr_atomic_free_gpu COMMAND Testlab ARGS inputs/Test.sphere.3D.bsr.atomic-free.arc)
+
+add_test(NAME [testlab]3D_bsr_atomic_free_hypre COMMAND Testlab inputs/Test.sphere.3D.bsr.atomic-free.hypre.arc)
+arcanefem_add_gpu_test(NAME [testlab]3D_bsr_atomic_free_hypre_gpu COMMAND Testlab ARGS inputs/Test.sphere.3D.bsr.atomic-free.hypre.arc)

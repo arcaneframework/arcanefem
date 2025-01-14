@@ -15,20 +15,17 @@
 
   <meshes>
     <mesh>
-      <filename>sphere_cut.msh</filename>
+      <filename>L-shape.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <result-file>poisson_test_ref_sphere_3D.txt</result-file>
-    <f>5.5</f>
-    <mesh-type>TETRA4</mesh-type>
-    <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-    <penalty>1.e31</penalty>
+    <result-file>poisson_test_ref_L-shape_2D.txt</result-file>
+    <f>-5.5</f>
     <dirichlet-boundary-condition>
-      <surface>horizontal</surface>
+      <surface>boundary</surface>
       <value>0.5</value>
     </dirichlet-boundary-condition>
-    <bsr>true</bsr>
+    <bsr-atomic-free>true</bsr-atomic-free>
   </fem>
 </case>

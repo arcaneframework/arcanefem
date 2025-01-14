@@ -49,8 +49,10 @@
 #include <arcane/accelerator/RunCommandLoop.h>
 #include <arcane/accelerator/core/RunQueue.h>
 #include <arcane/accelerator/NumArrayViews.h>
+#include <arcane/accelerator/GenericSorter.h>
 #include <arcane/accelerator/Atomic.h>
 #include <arcane/accelerator/Scan.h>
+#include <arcane/accelerator/Sort.h>
 
 #include "DoFLinearSystem.h"
 #include "CsrFormatMatrix.h"
@@ -157,7 +159,7 @@ class BSRMatrix : public TraceAccessor
     while (block_start < block_end) {
       if (m_columns[block_start] == block_col) {
         if (!m_order_values_per_block)
-          return block_start_in_value + (BLOCK_SIZE * col_index) + (row_offset * BLOCK_SIZE * m_nb_nz_per_row[block_row]);
+          return block_start_in_value + (BLOCK_SIZE * col_index) + (row_offset * BLOCK_SIZE * m_nb_nz_per_row[block_row]) + col_offset;
         else
           return (block_start * BLOCK_SIZE_SQ) + ((row_offset * BLOCK_SIZE) + col_offset);
       }
@@ -194,54 +196,58 @@ class BSRMatrix : public TraceAccessor
     info() << "BSRMatrix(toCsr): Convert matrix to CSR";
 
     auto startTime = platform::getRealTime();
-    constexpr int BLOCK_SIZE_SQ = BLOCK_SIZE * BLOCK_SIZE;
 
-    auto nb_block_rows = m_row_index.extent0() - 1;
+    auto nb_block_rows = m_row_index.extent0();
     auto nb_rows = nb_block_rows * BLOCK_SIZE;
-    auto total_non_zero_elements = m_columns.extent0() * BLOCK_SIZE_SQ;
+    auto total_non_zero_elements = m_nb_non_zero_value;
 
     csr_matrix->initialize(nullptr, total_non_zero_elements, nb_rows, m_queue);
 
     if constexpr (BLOCK_SIZE == 1) {
       csr_matrix->m_matrix_row = m_row_index;
       csr_matrix->m_matrix_column = m_columns;
+      csr_matrix->m_matrix_rows_nb_column = m_nb_nz_per_row;
     }
     else {
-      csr_matrix->m_matrix_row.resize(nb_rows + 1);
-      csr_matrix->m_matrix_row.fill(0);
-      csr_matrix->m_matrix_column.resize(total_non_zero_elements);
-
       // Translate `row_index`
-      for (auto block_row = 0; block_row < nb_block_rows; ++block_row) {
-        auto start_block = m_row_index[block_row];
-        auto end_block = m_row_index[block_row + 1];
-        auto nb_blocks = end_block - start_block;
-
-        for (auto offset = 0; offset < BLOCK_SIZE; ++offset) {
-          auto row = block_row * BLOCK_SIZE + offset;
-          csr_matrix->m_matrix_row[row + 1] = csr_matrix->m_matrix_row[row] + nb_blocks * BLOCK_SIZE;
+      csr_matrix->m_matrix_row[0] = 0;
+      auto offset = 1;
+      for (auto i = 0; i < m_row_index.extent0() - 1; ++i) {
+        for (auto j = 0; j < BLOCK_SIZE; ++j) {
+          auto start = m_row_index[i];
+          auto end = i == m_row_index.extent0() - 1 ? m_nb_col : m_row_index[i + 1];
+          auto nombre_de_dof_dans_la_rangee = (end - start) * BLOCK_SIZE;
+          csr_matrix->m_matrix_row[offset] = csr_matrix->m_matrix_row[offset - 1] + nombre_de_dof_dans_la_rangee;
+          offset++;
         }
       }
 
       // Translate `columns`
-      size_t csr_index = 0;
-      for (auto block_row = 0; block_row < nb_block_rows; ++block_row) {
-        auto start_block = m_row_index[block_row];
-        auto end_block = block_row == nb_block_rows - 1 ? m_nb_col : m_row_index[block_row + 1];
-
-        for (auto row_offset = 0; row_offset < BLOCK_SIZE; ++row_offset) {
-          for (auto block_index = start_block; block_index < end_block; ++block_index) {
-            auto block_col = m_columns[block_index];
-            for (Int32 col_offset = 0; col_offset < BLOCK_SIZE; ++col_offset)
-              csr_matrix->m_matrix_column[csr_index++] = block_col * BLOCK_SIZE + col_offset;
+      offset = 0;
+      for (auto i = 0; i < m_row_index.extent0(); ++i) {
+        for (auto j = 0; j < BLOCK_SIZE; ++j) {
+          auto start = m_row_index[i];
+          auto end = i == m_row_index.extent0() - 1 ? m_nb_col : m_row_index[i + 1];
+          for (auto block_index = start; block_index < end; ++block_index) {
+            for (auto k = 0; k < BLOCK_SIZE; ++k) {
+              csr_matrix->m_matrix_column[offset] = m_columns[block_index] * BLOCK_SIZE + k;
+              offset++;
+            }
           }
+        }
+      }
+
+      // Translate `nb_nz_per_row`
+      offset = 0;
+      for (auto i = 0; i < m_nb_nz_per_row.extent0(); ++i) {
+        for (auto j = 0; j < BLOCK_SIZE; ++j) {
+          csr_matrix->m_matrix_rows_nb_column[offset++] = m_nb_nz_per_row[i] * BLOCK_SIZE;
         }
       }
     }
 
     // NOTE: If we don't want to keep bsr matrix coefficients we could move the data instead of copying it.
     csr_matrix->m_matrix_value = m_values;
-    csr_matrix->m_matrix_rows_nb_column = m_nb_nz_per_row;
     info() << "[ArcaneFem-Timer] Time to translate BSR to CSR = " << (platform::getRealTime() - startTime);
   }
 
@@ -285,7 +291,7 @@ class BSRMatrix : public TraceAccessor
     }
     file << "\n";
 
-    for (auto i = 0; i < nbNz(); ++i)
+    for (auto i = 0; i < m_columns.extent0(); ++i)
       file << m_columns(i) << " ";
     file << "\n";
 
@@ -439,20 +445,15 @@ class BSRFormat : public TraceAccessor
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  void computeOffsets(const SmallSpan<uint>& offsets_smallspan)
+  void computeNeighborsAtomicFree(SmallSpan<Int32>& neighbors_ss)
   {
-    auto startTime = platform::getRealTime();
-    NumArray<uint, MDDim1> neighbors(m_bsr_matrix.nbRow() + 1);
-    neighbors[0] = 0;
-    SmallSpan<uint> in_data = neighbors.to1DSmallSpan();
-
     auto command = makeCommand(m_queue);
     if (m_mesh->dimension() == 2) {
       UnstructuredMeshConnectivityView connectivity_view(m_mesh);
       auto node_face_cv = connectivity_view.nodeFace();
       command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
       {
-        in_data[node_id + 1] = node_face_cv.nbFace(node_id) + 1;
+        neighbors_ss[node_id] = node_face_cv.nbFace(node_id) + 1;
       };
     }
     else {
@@ -462,25 +463,34 @@ class BSRFormat : public TraceAccessor
 
       command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
       {
-        in_data[node_id + 1] = node_node_cv.nbNode(node_id) + 1;
+        neighbors_ss[node_id] = node_node_cv.nbNode(node_id) + 1;
       };
     }
-    m_queue.barrier();
-
-    Accelerator::Scanner<uint> scanner;
-    scanner.inclusiveSum(&m_queue, in_data, offsets_smallspan);
-    info() << "[ArcaneFem-Timer] Time to compute offsets of BSR matrix = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  void computeRowIndexAndColumns(const SmallSpan<uint>& offsets_smallspan)
+  void computeRowIndexAtomicFree()
   {
-    auto startTime = platform::getRealTime();
+    auto mem_ressource = m_queue.memoryRessource();
+    NumArray<Int32, MDDim1> neighbors(mem_ressource);
+    neighbors.resize(m_mesh->nbNode());
+    SmallSpan<Int32> neighbors_ss = neighbors.to1DSmallSpan();
+    computeNeighborsAtomicFree(neighbors_ss);
+
+    Accelerator::Scanner<Int32> scanner;
+    scanner.exclusiveSum(&m_queue, neighbors_ss, m_bsr_matrix.rowIndex().to1DSmallSpan());
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  void computeColumnsAtomicFree()
+  {
     auto command = makeCommand(m_queue);
-    auto out_row_index = viewOut(command, m_bsr_matrix.rowIndex());
     auto inout_columns = viewInOut(command, m_bsr_matrix.columns());
+    auto row_index = m_bsr_matrix.rowIndex().to1DSmallSpan();
 
     if (m_mesh->dimension() == 2) {
       UnstructuredMeshConnectivityView connectivity_view(m_mesh);
@@ -489,8 +499,7 @@ class BSRFormat : public TraceAccessor
 
       command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
       {
-        auto offset = offsets_smallspan[node_id];
-        out_row_index[node_id] = offset;
+        auto offset = row_index[node_id];
 
         for (auto face_lid : node_face_cv.faceIds(node_id)) {
           auto nodes = face_node_cv.nodes(face_lid);
@@ -508,8 +517,7 @@ class BSRFormat : public TraceAccessor
 
       command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
       {
-        auto offset = offsets_smallspan[node_id];
-        out_row_index[node_id] = offset;
+        auto offset = row_index[node_id];
 
         for (auto neighbor_idx : node_node_cv.nodeIds(node_id)) {
           inout_columns[offset] = neighbor_idx;
@@ -519,25 +527,212 @@ class BSRFormat : public TraceAccessor
         inout_columns[offset] = node_id;
       };
     }
-
-    info() << "[ArcaneFem-Timer] Time to compute sparsity from offsets of BSR matrix = " << (platform::getRealTime() - startTime);
   }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  void computeSparsityAtomicFree()
+  {
+    info() << "BSRFormat(computeSparsityAtomicFree): Compute sparsity of BSR matrix using Arcane connectivities (e.g node-face for 2D and node-node for 3D)";
+    auto startTime = platform::getRealTime();
+
+    computeRowIndexAtomicFree();
+    computeColumnsAtomicFree();
+
+    info() << "[ArcaneFem-Timer] Time to compute the sparsity of BSR matrix (with Arcane connectivities implementation) = " << (platform::getRealTime() - startTime);
+
+    if (m_use_csr_in_linear_system)
+      computeNzPerRowArray();
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  ARCCORE_HOST_DEVICE static UInt64 pack(Int32 n0, Int32 n1)
+  {
+    Int32 min = n0 > n1 ? n1 : n0;
+    Int32 max = n0 > n1 ? n0 : n1;
+    return ((UInt64)min << 32) | (UInt64)max;
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  ARCCORE_HOST_DEVICE static void unpack(UInt64 packed_edge, Int32& n0, Int32& n1)
+  {
+    n0 = (Int32)(packed_edge >> 32);
+    n1 = (Int32)(packed_edge & 0xFFFFFFFF);
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  void computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss)
+  {
+    auto mem_ressource = m_queue.memoryRessource();
+    NumArray<UInt64, MDDim1> edges(mem_ressource);
+    edges.resize(nb_edge_total);
+
+    UnstructuredMeshConnectivityView m_connectivity_view(m_mesh);
+    auto cell_node_cv = m_connectivity_view.cellNode();
+
+    {
+      auto command = makeCommand(m_queue);
+      auto inout_edges = viewInOut(command, edges);
+
+      if (m_mesh->dimension() == 2) {
+        command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, m_mesh->allCells())
+        {
+          auto n0 = cell_node_cv.nodeId(cell_lid, 0);
+          auto n1 = cell_node_cv.nodeId(cell_lid, 1);
+          auto n2 = cell_node_cv.nodeId(cell_lid, 2);
+
+          auto start = cell_lid * edges_per_element;
+          inout_edges[start] = pack(n0, n1);
+          inout_edges[start + 1] = pack(n0, n2);
+          inout_edges[start + 2] = pack(n1, n2);
+        };
+      }
+      else {
+        command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, m_mesh->allCells())
+        {
+          auto n0 = cell_node_cv.nodeId(cell_lid, 0);
+          auto n1 = cell_node_cv.nodeId(cell_lid, 1);
+          auto n2 = cell_node_cv.nodeId(cell_lid, 2);
+          auto n3 = cell_node_cv.nodeId(cell_lid, 3);
+
+          auto start = cell_lid * edges_per_element;
+          inout_edges[start] = pack(n0, n1);
+          inout_edges[start + 1] = pack(n0, n2);
+          inout_edges[start + 2] = pack(n0, n3);
+          inout_edges[start + 3] = pack(n1, n2);
+          inout_edges[start + 4] = pack(n1, n3);
+          inout_edges[start + 5] = pack(n2, n3);
+        };
+      }
+    }
+    m_queue.barrier();
+
+    auto sorter = Accelerator::GenericSorter(m_queue);
+    SmallSpan<const UInt64> edges_ss = edges.to1DSmallSpan();
+    sorter.apply(edges_ss, sorted_edges_ss);
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  void computeNeighbors(Int8 edges_per_element, Int64 nb_edge_total, NumArray<Int32, MDDim1>& neighbors, SmallSpan<UInt64>& sorted_edges_ss)
+  {
+    auto command = makeCommand(m_queue);
+    auto inout_neighbors = viewInOut(command, neighbors);
+
+    command << RUNCOMMAND_LOOP1(iter, nb_edge_total)
+    {
+      auto [thread_id] = iter();
+      auto cur_edge = sorted_edges_ss[thread_id];
+      if (thread_id == (nb_edge_total - 1) || cur_edge != sorted_edges_ss[thread_id + 1]) {
+        Int32 n0, n1 = 0;
+        unpack(cur_edge, n0, n1);
+        Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_neighbors[n0], 1);
+        Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_neighbors[n1], 1);
+      }
+    };
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  void computeRowIndex(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss)
+  {
+    auto mem_ressource = m_queue.memoryRessource();
+    NumArray<Int32, MDDim1> neighbors(mem_ressource);
+    neighbors.resize(m_mesh->nbNode());
+    neighbors.fill(1, &m_queue);
+    computeNeighbors(edges_per_element, nb_edge_total, neighbors, sorted_edges_ss);
+
+    Accelerator::Scanner<Int32> scanner;
+    SmallSpan<Int32> neighbors_ss = neighbors.to1DSmallSpan();
+    scanner.exclusiveSum(&m_queue, neighbors_ss, m_bsr_matrix.rowIndex().to1DSmallSpan());
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  ARCCORE_HOST_DEVICE static void registerEdgeInColumns(Int32 src, Int32 dst, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> offsets, Accelerator::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> row_index, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> columns)
+  {
+    Int32 start = row_index[src];
+    Int32 offset = Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(offsets[src], 1);
+    columns[start + offset] = dst;
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  void computeColumns(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>& sorted_edges_ss)
+  {
+    auto nb_node = m_mesh->nbNode();
+
+    {
+      auto command = makeCommand(m_queue);
+      auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
+      auto inout_columns = viewInOut(command, m_bsr_matrix.columns());
+
+      command << RUNCOMMAND_LOOP1(iter, nb_node)
+      {
+        auto [n] = iter();
+        auto start = in_row_index[n];
+        inout_columns[start] = n;
+      };
+    }
+    m_queue.barrier();
+
+    auto mem_ressource = m_queue.memoryRessource();
+    NumArray<Int32, MDDim1> offsets(mem_ressource);
+    offsets.resize(nb_node);
+    offsets.fill(1, &m_queue);
+
+    {
+      auto command = makeCommand(m_queue);
+      auto inout_columns = viewInOut(command, m_bsr_matrix.columns());
+      auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
+      auto inout_offsets = viewInOut(command, offsets);
+
+      command << RUNCOMMAND_LOOP1(iter, nb_edge_total)
+      {
+        auto [thread_id] = iter();
+        auto cur_edge = sorted_edges_ss[thread_id];
+        if (thread_id == (nb_edge_total - 1) || cur_edge != sorted_edges_ss[thread_id + 1]) {
+          Int32 n0, n1 = 0;
+          unpack(cur_edge, n0, n1);
+          registerEdgeInColumns(n0, n1, inout_offsets, in_row_index, inout_columns);
+          registerEdgeInColumns(n1, n0, inout_offsets, in_row_index, inout_columns);
+        }
+      };
+    }
+  };
 
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
   void computeSparsity()
   {
-    info() << "BSRFormat(computeSparsity): Compute sparsity of BSRMatrix";
+    info() << "BSRFormat(computeSparsity): Computing sparsity of BSR matrix without Arcane connectivities (e.g with atomics)...";
     auto startTime = platform::getRealTime();
 
-    NumArray<uint, MDDim1> offsets_numarray(m_bsr_matrix.nbRow() + 1);
-    SmallSpan<uint> offsets_smallspan = offsets_numarray.to1DSmallSpan();
+    auto edges_per_element = m_mesh->dimension() == 2 ? 3 : 6;
+    auto nb_edge_total = m_mesh->nbCell() * edges_per_element;
 
-    computeOffsets(offsets_smallspan);
-    computeRowIndexAndColumns(offsets_smallspan);
+    auto mem_ressource = m_queue.memoryRessource();
+    NumArray<UInt64, MDDim1> sorted_edges(mem_ressource);
+    sorted_edges.resize(nb_edge_total);
+    auto sorted_edges_ss = sorted_edges.to1DSmallSpan();
 
-    info() << "[ArcaneFem-Timer] Time to compute the sparsity of BSR matrix = " << (platform::getRealTime() - startTime);
+    computeSortedEdges(edges_per_element, nb_edge_total, sorted_edges_ss);
+    computeRowIndex(edges_per_element, nb_edge_total, sorted_edges_ss);
+    computeColumns(edges_per_element, nb_edge_total, sorted_edges_ss);
+
+    info() << "[ArcaneFem-Timer] Time to compute the sparsity of BSR matrix (without Arcane connectivities implementation, e.g with atomics) = " << (platform::getRealTime() - startTime);
 
     if (m_use_csr_in_linear_system)
       computeNzPerRowArray();
@@ -547,10 +742,8 @@ class BSRFormat : public TraceAccessor
   /*---------------------------------------------------------------------------*/
 
   template <class Function>
-  void assembleCellWiseOrderedPerBlock(Function compute_element_matrix)
+  void assembleBilinearOrderedPerBlock(Function compute_element_matrix)
   {
-    info() << "BSRFormat(assembleCellWiseOrderedPerBlock): Assemble bilinear operator cell-wise";
-
     UnstructuredMeshConnectivityView m_connectivity_view(m_mesh);
     auto cell_node_cv = m_connectivity_view.cellNode();
 
@@ -604,10 +797,8 @@ class BSRFormat : public TraceAccessor
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  template <class Function> void assembleCellWiseOrderedPerRow(Function compute_element_matrix)
+  template <class Function> void assembleBilinearOrderedPerRow(Function compute_element_matrix)
   {
-    info() << "BSRFormat(assembleCellWiseOrderedPerRow): Assemble bilinear operator cell-wise";
-
     UnstructuredMeshConnectivityView m_connectivity_view(m_mesh);
     auto cell_node_cv = m_connectivity_view.cellNode();
 
@@ -685,14 +876,153 @@ class BSRFormat : public TraceAccessor
    */
   /*---------------------------------------------------------------------------*/
 
-  template <class Function> void assembleCellWise(Function compute_element_matrix)
+  template <class Function> void assembleBilinear(Function compute_element_matrix)
   {
+    info() << "BSRFormat(assembleBilinear): Integrating over elements...";
     auto startTime = platform::getRealTime();
+
     if (m_bsr_matrix.orderValuePerBlock())
-      assembleCellWiseOrderedPerBlock(compute_element_matrix);
+      assembleBilinearOrderedPerBlock(compute_element_matrix);
     else
-      assembleCellWiseOrderedPerRow(compute_element_matrix);
-    info() << "[ArcaneFem-Timer] Time to assemble (cell-wise) BSR matrix = " << (platform::getRealTime() - startTime);
+      assembleBilinearOrderedPerRow(compute_element_matrix);
+
+    info() << "[ArcaneFem-Timer] Time to assemble (atomic implementation) BSR matrix = " << (platform::getRealTime() - startTime);
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  template <class Function>
+  void assembleBilinearOrderedPerBlockAtomicFree(Function compute_element_matrix)
+  {
+    UnstructuredMeshConnectivityView m_connectivity_view(m_mesh);
+    auto cell_node_cv = m_connectivity_view.cellNode();
+    auto node_cell_cv = m_connectivity_view.nodeCell();
+
+    ItemGenericInfoListView nodes_infos(m_mesh->nodeFamily());
+
+    constexpr int NB_DOF_SQ = NB_DOF * NB_DOF;
+    auto matrix_nb_row = m_bsr_matrix.nbRow();
+    auto matrix_nb_column = m_bsr_matrix.nbCol();
+    auto matrix_nb_nz = m_bsr_matrix.nbNz();
+
+    auto command = makeCommand(m_queue);
+    auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
+    auto in_columns = viewIn(command, m_bsr_matrix.columns());
+    auto inout_values = viewInOut(command, m_bsr_matrix.values());
+
+    command << RUNCOMMAND_ENUMERATE(Node, row_node, m_mesh->allNodes())
+    {
+      auto cur_row_node_idx = 0;
+      for (auto cell : node_cell_cv.cells(row_node)) {
+
+        // Find the index of the node in the current cell
+        for (Int32 i = 1; i <= 3; ++i) {
+          if (row_node == cell_node_cv.nodeId(cell, i)) {
+            cur_row_node_idx = i;
+            break;
+          }
+          cur_row_node_idx = 0;
+        }
+
+        auto element_matrix = compute_element_matrix(cell);
+
+        auto cur_col_node_idx = 0;
+        for (NodeLocalId col_node_lid : cell_node_cv.nodes(cell)) {
+          if (nodes_infos.isOwn(row_node)) {
+
+            auto begin = in_row_index[row_node];
+            auto end = (row_node == matrix_nb_row - 1) ? matrix_nb_column : in_row_index[row_node + 1];
+
+            while (begin < end) {
+              if (in_columns[begin] == col_node_lid) {
+                auto block_start = begin * NB_DOF_SQ;
+
+                for (auto i = 0; i < NB_DOF; ++i) {
+                  for (auto j = 0; j < NB_DOF; ++j) {
+                    double value = element_matrix(NB_DOF * cur_row_node_idx + i, NB_DOF * cur_col_node_idx + j);
+                    inout_values[block_start + (i * NB_DOF + j)] += value;
+                  }
+                }
+                break;
+              }
+              ++begin;
+            }
+          }
+          ++cur_col_node_idx;
+        }
+      }
+    };
+  };
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  template <class Function>
+  void assembleBilinearOrderedPerRowAtomicFree(Function compute_element_matrix)
+  {
+    UnstructuredMeshConnectivityView m_connectivity_view(m_mesh);
+    auto cell_node_cv = m_connectivity_view.cellNode();
+    auto node_cell_cv = m_connectivity_view.nodeCell();
+
+    ItemGenericInfoListView nodes_infos(m_mesh->nodeFamily());
+
+    constexpr int NB_DOF_SQ = NB_DOF * NB_DOF;
+    auto matrix_nb_row = m_bsr_matrix.nbRow();
+    auto matrix_nb_column = m_bsr_matrix.nbCol();
+    auto matrix_nb_nz = m_bsr_matrix.nbNz();
+
+    auto command = makeCommand(m_queue);
+    auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
+    auto in_columns = viewIn(command, m_bsr_matrix.columns());
+    auto inout_values = viewInOut(command, m_bsr_matrix.values());
+    auto in_nz_per_row = viewIn(command, m_bsr_matrix.nbNzPerRow());
+
+    command << RUNCOMMAND_ENUMERATE(Node, row_node, m_mesh->allNodes())
+    {
+      auto cur_row_node_idx = 0;
+      for (auto cell : node_cell_cv.cells(row_node)) {
+
+        // Find the index of the node in the current cell
+        for (Int32 i = 1; i <= 3; ++i) {
+          if (row_node == cell_node_cv.nodeId(cell, i)) {
+            cur_row_node_idx = i;
+            break;
+          }
+          cur_row_node_idx = 0;
+        }
+
+        auto element_matrix = compute_element_matrix(cell);
+
+        auto cur_col_node_idx = 0;
+        for (NodeLocalId col_node_lid : cell_node_cv.nodes(cell)) {
+          if (nodes_infos.isOwn(row_node)) {
+
+            auto g_block_start = in_row_index[row_node] * NB_DOF_SQ;
+            auto begin = in_row_index[row_node];
+            auto end = (row_node == matrix_nb_row - 1) ? matrix_nb_column : in_row_index[row_node + 1];
+
+            auto x = 0;
+            while (begin < end) {
+              if (in_columns[begin] == col_node_lid) {
+                for (auto i = 0; i < NB_DOF; ++i) {
+                  for (auto j = 0; j < NB_DOF; ++j) {
+                    double value = element_matrix(NB_DOF * cur_row_node_idx + i, NB_DOF * cur_col_node_idx + j);
+                    auto l_block_start = g_block_start + (NB_DOF * x);
+                    if (i != 0)
+                      l_block_start += (NB_DOF * in_nz_per_row[row_node]);
+                    inout_values[l_block_start + j] += value;
+                  }
+                }
+              }
+              ++begin;
+              ++x;
+            }
+            ++cur_col_node_idx;
+          }
+        }
+      };
+    };
   }
 
   /*---------------------------------------------------------------------------*/
@@ -714,73 +1044,17 @@ class BSRFormat : public TraceAccessor
    */
   /*---------------------------------------------------------------------------*/
 
-  template <class Function> void assembleNodeWise(Function compute_element_matrix)
+  template <class Function> void assembleBilinearAtomicFree(Function compute_element_matrix)
   {
-    info() << "BSRFormat(assembleNodeWise): Assemble bilinear operator node-wise";
+    info() << "BSRFormat(assembleBilinearAtomicFree): Integrating over nodes...";
+    auto startTime = platform::getRealTime();
 
-    UnstructuredMeshConnectivityView m_connectivity_view(m_mesh);
-    auto cell_node_cv = m_connectivity_view.cellNode();
-    auto node_cell_cv = m_connectivity_view.nodeCell();
+    if (m_bsr_matrix.orderValuePerBlock())
+      assembleBilinearOrderedPerBlockAtomicFree(compute_element_matrix);
+    else
+      assembleBilinearOrderedPerRowAtomicFree(compute_element_matrix);
 
-    ItemGenericInfoListView nodes_infos(m_mesh->nodeFamily());
-
-    constexpr int NB_DOF_SQ = NB_DOF * NB_DOF;
-    auto matrix_nb_row = m_bsr_matrix.nbRow();
-    auto matrix_nb_column = m_bsr_matrix.nbCol();
-    auto matrix_nb_nz = m_bsr_matrix.nbNz();
-
-    auto command = makeCommand(m_queue);
-    auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
-    auto in_columns = viewIn(command, m_bsr_matrix.columns());
-    auto inout_values = viewInOut(command, m_bsr_matrix.values());
-
-    if (m_bsr_matrix.orderValuePerBlock()) {
-      command << RUNCOMMAND_ENUMERATE(Node, row_node, m_mesh->allNodes())
-      {
-        auto cur_row_node_idx = 0;
-        for (auto cell : node_cell_cv.cells(row_node)) {
-
-          // Find the index of the node in the current cell
-          for (Int32 i = 1; i <= 3; ++i) {
-            if (row_node == cell_node_cv.nodeId(cell, i)) {
-              cur_row_node_idx = i;
-              break;
-            }
-            cur_row_node_idx = 0;
-          }
-
-          auto element_matrix = compute_element_matrix(cell);
-
-          auto cur_col_node_idx = 0;
-          for (NodeLocalId col_node_lid : cell_node_cv.nodes(cell)) {
-            if (nodes_infos.isOwn(row_node)) {
-
-              auto begin = in_row_index[row_node];
-              auto end = (row_node == matrix_nb_row - 1) ? matrix_nb_column : in_row_index[row_node + 1];
-
-              while (begin < end) {
-                if (in_columns[begin] == col_node_lid) {
-                  auto block_start = begin * NB_DOF_SQ;
-
-                  for (auto i = 0; i < NB_DOF; ++i) {
-                    for (auto j = 0; j < NB_DOF; ++j) {
-                      double value = element_matrix(NB_DOF * cur_row_node_idx + i, NB_DOF * cur_col_node_idx + j);
-                      inout_values[block_start + (i * NB_DOF + j)] += value;
-                    }
-                  }
-                  break;
-                }
-                ++begin;
-              }
-            }
-            ++cur_col_node_idx;
-          }
-        }
-      };
-    }
-    else {
-      ARCANE_THROW(Arccore::NotImplementedException, "BSRFormat(assembleNodeWise): Node-wise assembly does not support BSR matrices for which value are not ordered per block.");
-    }
+    info() << "[ArcaneFem-Timer] Time to assemble (atomic-free implementation) BSR matrix = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/

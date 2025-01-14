@@ -139,10 +139,13 @@ startInit()
       info() << "Number of edge: nb_edge=" << m_nb_edge;
     }
 
-    if (options()->bsr) {
+    if (options()->bsr || options()->bsrAtomicFree()) {
       bool use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
       m_bsr_format.initialize(mesh, mesh->dimension() == 2 ? nbFace() : m_nb_edge, use_csr_in_linear_system);
-      m_bsr_format.computeSparsity(); // Need to be done just once.
+      if (options()->bsrAtomicFree())
+        m_bsr_format.computeSparsityAtomicFree();
+      else
+        m_bsr_format.computeSparsity();
     }
   }
 
@@ -246,6 +249,10 @@ _handleFlags()
     m_use_bsr = true;
     m_use_legacy = false;
   }
+  if (options()->bsrAtomicFree()) {
+    m_use_bsr_atomic_free = true;
+    m_use_legacy = false;
+  }
   info() << "-----------------------------------------------------------------------------------------";
 }
 
@@ -289,16 +296,24 @@ _doStationarySolve()
 
   auto dim = mesh()->dimension();
 
-  if (m_use_bsr) {
+  if (m_use_bsr || m_use_bsr_atomic_free) {
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();
     auto command = makeCommand(m_queue);
     auto in_node_coord = ax::viewIn(command, m_node_coord);
 
-    if (dim == 2)
-      m_bsr_format.assembleCellWise([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
-    else
-      m_bsr_format.assembleCellWise([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
+    if (m_use_bsr_atomic_free) {
+      if (dim == 2)
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
+      else
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
+    }
+    else {
+      if (dim == 2)
+        m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
+      else
+        m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
+    }
 
     _assembleLinearOperator(&(m_bsr_format.matrix()));
     m_bsr_format.toLinearSystem(m_linear_system);

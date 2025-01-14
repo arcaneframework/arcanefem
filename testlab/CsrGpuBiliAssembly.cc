@@ -17,110 +17,190 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_buildOffsets(const SmallSpan<uint>& offsets_smallspan)
+ARCCORE_HOST_DEVICE static UInt64 pack(Int32 n0, Int32 n1)
 {
-  Accelerator::RunQueue* queue = acceleratorMng()->defaultQueue();
-
-  // Initialize the neighbors array and shift right by one for CSR format
-  NumArray<uint, MDDim1> neighbors(nbNode() + 1);
-  neighbors[0] = 0;
-  SmallSpan<uint> in_data = neighbors.to1DSmallSpan();
-
-  // Select and execute the appropriate offset update based on mesh type
-  if (mesh()->dimension() == 2) { // 2D mesh via node-face connectivity
-    UnstructuredMeshConnectivityView connectivity_view(mesh());
-    auto node_face_connectivity_view = connectivity_view.nodeFace();
-
-    auto command = makeCommand(queue);
-    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
-    {
-      in_data[node_id + 1] = node_face_connectivity_view.nbFace(node_id) + 1;
-    };
-  }
-  else { // 3D mesh via node-node connectivity
-    auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
-    ARCANE_CHECK_POINTER(connectivity_ptr);
-    IndexedNodeNodeConnectivityView node_node_connectivity_view = connectivity_ptr->view();
-
-    auto command = makeCommand(queue);
-    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
-    {
-      in_data[node_id + 1] = node_node_connectivity_view.nbNode(node_id) + 1;
-    };
-  }
-  queue->barrier();
-
-  // Do the inclusive sum for CSR row array (in_data)
-  Accelerator::Scanner<uint> scanner;
-  scanner.inclusiveSum(queue, in_data, offsets_smallspan);
+  Int32 min = n0 > n1 ? n1 : n0;
+  Int32 max = n0 > n1 ? n0 : n1;
+  return ((UInt64)min << 32) | (UInt64)max;
 }
 
-void FemModule::
-_buildMatrixCsrGPU()
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE static void unpack(UInt64 packed_edge, Int32& n0, Int32& n1)
 {
+  n0 = (Int32)(packed_edge >> 32);
+  n1 = (Int32)(packed_edge & 0xFFFFFFFF);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::_computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss)
+{
+  auto mem_ressource = m_queue.memoryRessource();
+  NumArray<UInt64, MDDim1> edges(mem_ressource);
+  edges.resize(nb_edge_total);
+
+  UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+  auto cell_node_cv = m_connectivity_view.cellNode();
+
+  {
+    auto command = makeCommand(m_queue);
+    auto inout_edges = viewInOut(command, edges);
+
+    if (mesh()->dimension() == 2) {
+      command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh()->allCells())
+      {
+        auto n0 = cell_node_cv.nodeId(cell_lid, 0);
+        auto n1 = cell_node_cv.nodeId(cell_lid, 1);
+        auto n2 = cell_node_cv.nodeId(cell_lid, 2);
+
+        auto start = cell_lid * edges_per_element;
+        inout_edges[start] = pack(n0, n1);
+        inout_edges[start + 1] = pack(n0, n2);
+        inout_edges[start + 2] = pack(n1, n2);
+      };
+    }
+    else {
+      command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh()->allCells())
+      {
+        auto n0 = cell_node_cv.nodeId(cell_lid, 0);
+        auto n1 = cell_node_cv.nodeId(cell_lid, 1);
+        auto n2 = cell_node_cv.nodeId(cell_lid, 2);
+        auto n3 = cell_node_cv.nodeId(cell_lid, 3);
+
+        auto start = cell_lid * edges_per_element;
+        inout_edges[start] = pack(n0, n1);
+        inout_edges[start + 1] = pack(n0, n2);
+        inout_edges[start + 2] = pack(n0, n3);
+        inout_edges[start + 3] = pack(n1, n2);
+        inout_edges[start + 4] = pack(n1, n3);
+        inout_edges[start + 5] = pack(n2, n3);
+      };
+    }
+  }
+  m_queue.barrier();
+
+  auto sorter = Accelerator::GenericSorter(m_queue);
+  SmallSpan<const UInt64> edges_ss = edges.to1DSmallSpan();
+  sorter.apply(edges_ss, sorted_edges_ss);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::_computeNeighbors(Int8 edges_per_element, Int64 nb_edge_total, NumArray<Int32, MDDim1>& neighbors, SmallSpan<UInt64>& sorted_edges_ss)
+{
+  auto command = makeCommand(m_queue);
+  auto inout_neighbors = viewInOut(command, neighbors);
+
+  command << RUNCOMMAND_LOOP1(iter, nb_edge_total)
+  {
+    auto [thread_id] = iter();
+    auto cur_edge = sorted_edges_ss[thread_id];
+    if (thread_id == (nb_edge_total - 1) || cur_edge != sorted_edges_ss[thread_id + 1]) {
+      Int32 n0, n1 = 0;
+      unpack(cur_edge, n0, n1);
+      Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_neighbors[n0], 1);
+      Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_neighbors[n1], 1);
+    }
+  };
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::_computeRowIndex(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss) {
+    auto mem_ressource = m_queue.memoryRessource();
+    NumArray<Int32, MDDim1> neighbors(mem_ressource);
+    neighbors.resize(mesh()->nbNode());
+    neighbors.fill(1, &m_queue);
+    _computeNeighbors(edges_per_element, nb_edge_total, neighbors, sorted_edges_ss);
+
+    Accelerator::Scanner<Int32> scanner;
+    SmallSpan<Int32> neighbors_ss = neighbors.to1DSmallSpan();
+    scanner.exclusiveSum(&m_queue, neighbors_ss, m_csr_matrix.m_matrix_row.to1DSmallSpan());
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE static void registerEdgeInColumns(Int32 src, Int32 dst, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> offsets, Accelerator::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> row_index, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> columns)
+{
+  Int32 start = row_index[src];
+  Int32 offset = Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(offsets[src], 1);
+  columns[start + offset] = dst;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::_computeColumns(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>& sorted_edges_ss) {
+    auto nb_node = mesh()->nbNode();
+
+    {
+      auto command = makeCommand(m_queue);
+      auto in_row_index = viewIn(command, m_csr_matrix.m_matrix_row);
+      auto inout_columns = viewInOut(command, m_csr_matrix.m_matrix_column);
+
+      command << RUNCOMMAND_LOOP1(iter, nb_node)
+      {
+        auto [n] = iter();
+        auto start = in_row_index[n];
+        inout_columns[start] = n;
+      };
+    }
+    m_queue.barrier();
+
+    auto mem_ressource = m_queue.memoryRessource();
+    NumArray<Int32, MDDim1> offsets(mem_ressource);
+    offsets.resize(nb_node);
+    offsets.fill(1, &m_queue);
+
+    {
+      auto command = makeCommand(m_queue);
+      auto inout_columns = viewInOut(command, m_csr_matrix.m_matrix_column);
+      auto in_row_index = viewIn(command, m_csr_matrix.m_matrix_row);
+      auto inout_offsets = viewInOut(command, offsets);
+
+      command << RUNCOMMAND_LOOP1(iter, nb_edge_total)
+      {
+        auto [thread_id] = iter();
+        auto cur_edge = sorted_edges_ss[thread_id];
+        if (thread_id == (nb_edge_total - 1) || cur_edge != sorted_edges_ss[thread_id + 1]) {
+          Int32 n0, n1 = 0;
+          unpack(cur_edge, n0, n1);
+          registerEdgeInColumns(n0, n1, inout_offsets, in_row_index, inout_columns);
+          registerEdgeInColumns(n1, n0, inout_offsets, in_row_index, inout_columns);
+        }
+      };
+    }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::_computeSparsity()
+{
+
   Int8 mesh_dim = mesh()->dimension();
 
   Int32 nb_node = nbNode();
   Int32 nb_non_zero = nb_node + 2 * (mesh_dim == 2 ? nbFace() : m_nb_edge);
   m_csr_matrix.initialize(m_dof_family, nb_non_zero, nb_node, m_queue);
 
-  NumArray<uint, MDDim1> offsets_numarray(nb_node + 1);
-  SmallSpan<uint> offsets_smallspan = offsets_numarray.to1DSmallSpan();
+  auto edges_per_element = mesh_dim == 2 ? 3 : 6;
+  auto nb_edge_total = mesh()->nbCell() * edges_per_element;
 
-  // Compute the array of offsets on Gpu
-  _buildOffsets(offsets_smallspan);
+  auto mem_ressource = m_queue.memoryRessource();
+  NumArray<UInt64, MDDim1> sorted_edges(mem_ressource);
+  sorted_edges.resize(nb_edge_total);
+  auto sorted_edges_ss = sorted_edges.to1DSmallSpan();
 
-  RunQueue* queue = acceleratorMng()->defaultQueue();
-  auto command = makeCommand(queue);
-
-  auto out_m_matrix_row = viewOut(command, m_csr_matrix.m_matrix_row);
-  auto inout_m_matrix_column = viewInOut(command, m_csr_matrix.m_matrix_column);
-
-  // Select and execute the CSR matrix population based on mesh type
-  if (mesh_dim == 2) { // 2D mesh via node-face & face-node connectivity
-    UnstructuredMeshConnectivityView connectivity_view(mesh());
-
-    auto node_face_connectivity_view = connectivity_view.nodeFace();
-    auto face_node_connectivity_view = connectivity_view.faceNode();
-
-    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
-    {
-      // Retrieve the offset from the inclusive sum
-      auto offset = offsets_smallspan[node_id];
-
-      // Put the offset into CSR row array
-      out_m_matrix_row[node_id] = offset;
-
-      for (auto face_id : node_face_connectivity_view.faceIds(node_id)) {
-        auto nodes = face_node_connectivity_view.nodes(face_id);
-
-        // Put the neighbor of the current node into CSR column array
-        inout_m_matrix_column[offset] = nodes[0] == node_id ? nodes[1] : nodes[0];
-
-        ++offset;
-      }
-
-      inout_m_matrix_column[offset] = node_id; // Self-relation
-    };
-  }
-  else { // 3D mesh via node-node connectivity
-    auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
-    ARCANE_CHECK_POINTER(connectivity_ptr);
-    IndexedNodeNodeConnectivityView node_node_connectivity_view = connectivity_ptr->view();
-
-    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
-    {
-      auto offset = offsets_smallspan[node_id];
-      out_m_matrix_row[node_id] = offset;
-
-      for (auto neighbor_idx : node_node_connectivity_view.nodeIds(node_id)) {
-        inout_m_matrix_column[offset] = neighbor_idx;
-        ++offset;
-      }
-
-      inout_m_matrix_column[offset] = node_id;
-    };
-  }
+  _computeSortedEdges(edges_per_element, nb_edge_total, sorted_edges_ss);
+  _computeRowIndex(edges_per_element, nb_edge_total, sorted_edges_ss);
+  _computeColumns(edges_per_element, nb_edge_total, sorted_edges_ss);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -145,7 +225,7 @@ _assembleCsrGPUBilinearOperatorTRIA3()
   {
     Timer::Action timer_build(m_time_stats, "BuildMatrix");
     // Build the csr matrix
-    _buildMatrixCsrGPU();
+    _computeSparsity();
   }
 
   RunQueue* queue = acceleratorMng()->defaultQueue();
@@ -231,7 +311,7 @@ _assembleCsrGPUBilinearOperatorTETRA4()
 
   {
     Timer::Action timer_build(m_time_stats, "BuildMatrix");
-    _buildMatrixCsrGPU();
+    _computeSparsity();
   }
 
   {

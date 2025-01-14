@@ -86,6 +86,7 @@ class FemModule
   Real3 t;
 
   bool m_use_bsr = false;
+  bool m_use_bsr_atomic_free = false;
 
   void _getMaterialParameters();
   void _assembleBilinearOperatorTRIA3();

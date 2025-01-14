@@ -173,6 +173,7 @@ class FemModule
   bool m_use_buildless_csr = false;
   bool m_use_legacy = true;
   bool m_use_bsr = false;
+  bool m_use_bsr_atomic_free = false;
   bool m_running_on_gpu = false;
   bool m_solve_linear_system = true;
   bool m_cross_validation = true;
@@ -271,8 +272,13 @@ class FemModule
  private:
  public:
 
-  void _buildMatrixCsrGPU();
-  void _buildOffsets(const SmallSpan<uint>& offsets_smallspan);
+  // Compute Sparsity functions:
+  void _computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss);
+  void _computeNeighbors(Int8 edges_per_element, Int64 nb_edge_total, NumArray<Int32, MDDim1>& neighbors, SmallSpan<UInt64>& sorted_edges_ss);
+  void _computeRowIndex(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss);
+  void _computeColumns(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>& sorted_edges_ss);
+  void _computeSparsity();
+
   void _fillDiagonal(Int64 nb_edge, NodeGroup nodes);
   void _assembleCsrGPUBilinearOperatorTRIA3();
   void _assembleCsrGPUBilinearOperatorTETRA4();

@@ -29,6 +29,6 @@
       <surface>horizontal</surface>
       <value>0.5</value>
     </dirichlet-boundary-condition>
-    <bsr>true</bsr>
+    <bsr-atomic-free>true</bsr-atomic-free>
   </fem>
 </case>

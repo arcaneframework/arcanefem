@@ -56,7 +56,7 @@ compute()
 
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
-  m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
+  m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
 
   _doStationarySolve();
 
@@ -77,7 +77,10 @@ void FemModule::_initBsr()
 
   bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem";
   m_bsr_format.initialize(defaultMesh(), nbFace(), use_csr_in_linearsystem);
-  m_bsr_format.computeSparsity();
+  if (m_use_bsr_atomic_free)
+    m_bsr_format.computeSparsityAtomicFree();
+  else
+    m_bsr_format.computeSparsity();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] compute", elapsedTime);
@@ -104,6 +107,10 @@ _doStationarySolve()
   _getMaterialParameters();
   _assembleBilinearOperator();
   _assembleLinearOperator();
+
+  if (m_use_bsr || m_use_bsr_atomic_free)
+    m_bsr_format.toLinearSystem(m_linear_system);
+
   _solve();
   _updateVariables();
   _validateResults();
@@ -128,6 +135,7 @@ _getMaterialParameters()
   lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter lambda
 
   m_use_bsr = options()->bsr;
+  m_use_bsr_atomic_free = options()->bsrAtomicFree();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] get-material-params", elapsedTime);
@@ -234,7 +242,7 @@ _assembleLinearOperator()
             for (Node node : iface->nodes()) {
               DoFLocalId dof_id = node_dof.dofId(node, i);
               if (node.isOwn()) {
-                if (m_use_bsr)
+                if (m_use_bsr || m_use_bsr_atomic_free)
                   m_bsr_format.matrix().setValue(dof_id, dof_id, Penalty);
                 else
                   m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
@@ -297,7 +305,7 @@ _assembleLinearOperator()
             Node node = *inode;
             DoFLocalId dof_id = node_dof.dofId(node, i);
             if (node.isOwn()) {
-              if (m_use_bsr)
+              if (m_use_bsr || m_use_bsr_atomic_free)
                 m_bsr_format.matrix().setValue(dof_id, dof_id, Penalty);
               else
                 m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
@@ -336,9 +344,6 @@ _assembleLinearOperator()
       }
     }
   }
-
-  if (m_use_bsr)
-    m_bsr_format.toLinearSystem(m_linear_system);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] rhs-vector-assembly", elapsedTime);
@@ -379,7 +384,7 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module  _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (m_use_bsr) {
+  if (m_use_bsr || m_use_bsr_atomic_free) {
     _initBsr();
 
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
@@ -389,7 +394,10 @@ _assembleBilinearOperator()
     auto lambda_copy = lambda;
     auto mu2_copy = mu2;
 
-    m_bsr_format.assembleCellWise([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
+    if (m_use_bsr_atomic_free)
+      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
+    else
+      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
   }
   else {
     _assembleBilinearOperatorTRIA3();
