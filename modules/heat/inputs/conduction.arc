@@ -10,13 +10,12 @@
    <format name="VtkHdfV2PostProcessor" />
    <output>
      <variable>NodeTemperature</variable>
-     <variable>Flux</variable>
    </output>
   </arcane-post-processing>
 
   <meshes>
     <mesh>
-      <filename>plate.fine.msh</filename>
+      <filename>meshes/plate.msh</filename>
     </mesh>
   </meshes>
 
@@ -25,6 +24,8 @@
     <tmax>20.</tmax>
     <dt>0.4</dt>
     <Tinit>30.0</Tinit>
+    <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+    <penalty>1.e31</penalty>
     <dirichlet-boundary-condition>
       <surface>left</surface>
       <value>10.0</value>

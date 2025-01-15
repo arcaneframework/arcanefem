@@ -10,12 +10,13 @@
    <format name="VtkHdfV2PostProcessor" />
    <output>
      <variable>NodeTemperature</variable>
+     <variable>Flux</variable>
    </output>
   </arcane-post-processing>
 
   <meshes>
     <mesh>
-      <filename>plate.msh</filename>
+      <filename>meshes/plate.fine.msh</filename>
     </mesh>
   </meshes>
 
@@ -24,16 +25,24 @@
     <tmax>20.</tmax>
     <dt>0.4</dt>
     <Tinit>30.0</Tinit>
-    <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
-    <penalty>1.e31</penalty>
     <dirichlet-boundary-condition>
       <surface>left</surface>
       <value>10.0</value>
     </dirichlet-boundary-condition>
-    <linear-system>
-      <solver-backend>petsc</solver-backend>
-      <solver-method>pcg</solver-method>
-      <preconditioner>amg</preconditioner>
-    </linear-system>
+    <convection-boundary-condition>
+      <surface>right</surface>
+      <h>1.</h>
+      <Text>20.</Text>
+    </convection-boundary-condition>
+    <convection-boundary-condition>
+      <surface>top</surface>
+      <h>1.</h>
+      <Text>20.</Text>
+    </convection-boundary-condition>
+    <convection-boundary-condition>
+      <surface>bottom</surface>
+      <h>1.</h>
+      <Text>20.</Text>
+    </convection-boundary-condition>
   </fem>
 </case>

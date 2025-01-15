@@ -150,4 +150,30 @@ ARCCORE_HOST_DEVICE FixedMatrix<3, 3> computeElementMatrixTria3Gpu(CellLocalId c
   return area * (dxU ^ dxU) + area * (dyU ^ dyU);
 }
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Computes the element matrix for a tetrahedral element (P1 FE).
+ *
+ * This function calculates the integral of the expression:
+ * integral3D (u.dx * v.dx + u.dy * v.dy)
+ *
+ * Steps involved:
+ * 1. Calculate the area of the triangle.
+ * 2. Compute the gradients of the shape functions.
+ * 3. Return (u.dx * v.dx + u.dy * v.dy);
+ */
+/*---------------------------------------------------------------------------*/
+
+FixedMatrix<4, 4> FemModule::
+_computeElementMatrixTetra4(Cell cell)
+{
+  Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
+
+  Real4 dxU = ArcaneFemFunctions::FeOperation3D::computeGradientXTetra4(cell, m_node_coord);
+  Real4 dyU = ArcaneFemFunctions::FeOperation3D::computeGradientYTetra4(cell, m_node_coord);
+  Real4 dzU = ArcaneFemFunctions::FeOperation3D::computeGradientZTetra4(cell, m_node_coord);
+
+  return volume * (dxU ^ dxU) + volume * (dyU ^ dyU) + volume * (dzU ^ dzU);
+}
+
 #endif

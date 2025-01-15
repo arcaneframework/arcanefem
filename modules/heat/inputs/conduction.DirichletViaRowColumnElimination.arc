@@ -15,7 +15,7 @@
 
   <meshes>
     <mesh>
-      <filename>plate.msh</filename>
+      <filename>meshes/plate.msh</filename>
     </mesh>
   </meshes>
 
@@ -24,11 +24,16 @@
     <tmax>20.</tmax>
     <dt>0.4</dt>
     <Tinit>30.0</Tinit>
-    <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+    <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
     <penalty>1.e31</penalty>
     <dirichlet-boundary-condition>
       <surface>left</surface>
       <value>10.0</value>
     </dirichlet-boundary-condition>
+    <linear-system>
+      <solver-backend>petsc</solver-backend>
+      <solver-method>pcg</solver-method>
+      <preconditioner>amg</preconditioner>
+    </linear-system>
   </fem>
 </case>
