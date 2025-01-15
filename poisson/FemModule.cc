@@ -14,27 +14,6 @@
 #include "FemModule.h"
 
 /*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Int64 computeNbEdge(IMesh* mesh)
-{
-  ARCANE_CHECK_PTR(mesh)
-  Int64 nb_edge = 0;
-  if (mesh->dimension() == 2)
-    nb_edge = mesh->nbFace();
-  else {
-    auto nn_via_edge_cv = MeshUtils::computeNodeNodeViaEdgeConnectivity(mesh, "NodeNodeViaEdge");
-    IndexedNodeNodeConnectivityView nn_cv = nn_via_edge_cv->view();
-    ENUMERATE_NODE (inode, mesh->allNodes()) {
-      Node node = *inode;
-      nb_edge += nn_cv.nbNode(node);
-    }
-    nb_edge /= 2;
-  }
-  return nb_edge;
-}
-
-/*---------------------------------------------------------------------------*/
 /**
  * @brief Initializes the FemModule at the start of the simulation.
  *
@@ -53,8 +32,7 @@ startInit()
 
   if (options()->bsr() || options()->bsrAtomicFree()) {
     auto use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
-    auto nb_edge = computeNbEdge(mesh());
-    m_bsr_format.initialize(mesh(), nb_edge, use_csr_in_linear_system);
+    m_bsr_format.initialize(mesh(), use_csr_in_linear_system, options()->bsrAtomicFree());
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -95,11 +73,8 @@ compute()
     m_linear_system.setSolverCommandLineArguments(args);
   }
 
-  if (options()->bsr())
+  if (options()->bsr() || options()->bsrAtomicFree)
     m_bsr_format.computeSparsity();
-
-  if (options()->bsrAtomicFree())
-    m_bsr_format.computeSparsityAtomicFree();
 
   _doStationarySolve();
 
@@ -229,18 +204,10 @@ _assembleBilinearOperator()
     auto command = makeCommand(queue);
     auto in_node_coord = ax::viewIn(command, m_node_coord);
 
-    if (options()->bsr()) {
-      if (mesh()->dimension() == 2)
-        m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
-      else
-        m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord); });
-    }
-    else {
-      if (mesh()->dimension() == 2)
-        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
-      else
-        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord); });
-    }
+    if (mesh()->dimension() == 2)
+      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
+    else
+      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord); });
   }
   else {
     if (mesh()->dimension() == 3)
