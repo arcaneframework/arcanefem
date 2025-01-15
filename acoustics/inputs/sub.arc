@@ -26,7 +26,7 @@
   -->
   <meshes>
     <mesh>
-      <filename>sub.msh</filename>
+      <filename>meshes/sub.msh</filename>
     </mesh>
   </meshes>
 
@@ -46,12 +46,8 @@
         <value>1.0</value>
       </neumann>
     </boundary-conditions>
-    <linear-system>
-      <solver-backend>hypre</solver-backend>
-      <solver-method>bicgstab</solver-method>
-      <epsilon>1e-8</epsilon>
-    </linear-system>
-    <result-file>sub_2D.txt</result-file>
+    <linear-system name="SequentialBasicLinearSystem" />
+    <result-file>check/sub_2D.txt</result-file>
   </fem>
 
   <!--
