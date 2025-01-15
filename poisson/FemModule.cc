@@ -14,6 +14,27 @@
 #include "FemModule.h"
 
 /*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+Int64 computeNbEdge(IMesh* mesh)
+{
+  ARCANE_CHECK_PTR(mesh)
+  Int64 nb_edge = 0;
+  if (mesh->dimension() == 2)
+    nb_edge = mesh->nbFace();
+  else {
+    auto nn_via_edge_cv = MeshUtils::computeNodeNodeViaEdgeConnectivity(mesh, "NodeNodeViaEdge");
+    IndexedNodeNodeConnectivityView nn_cv = nn_via_edge_cv->view();
+    ENUMERATE_NODE (inode, mesh->allNodes()) {
+      Node node = *inode;
+      nb_edge += nn_cv.nbNode(node);
+    }
+    nb_edge /= 2;
+  }
+  return nb_edge;
+}
+
+/*---------------------------------------------------------------------------*/
 /**
  * @brief Initializes the FemModule at the start of the simulation.
  *
@@ -32,7 +53,7 @@ startInit()
 
   if (options()->bsr) {
     auto use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
-    auto nb_edge = mesh()->dimension() == 2 ? nbFace() : nbEdge();
+    auto nb_edge = computeNbEdge(mesh());
     m_bsr_format.initialize(mesh(), nb_edge, use_csr_in_linear_system);
   }
 
@@ -64,6 +85,7 @@ compute()
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
+
   // Test for adding parameters for PETSc.
   // This is only used for the first call.
   {
@@ -187,32 +209,6 @@ void FemModule::_assembleLinearOperator()
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Computes the element matrix for a tetrahedral element (P1 FE).
- *
- * This function calculates the integral of the expression:
- * integral3D (u.dx * v.dx + u.dy * v.dy)
- *
- * Steps involved:
- * 1. Calculate the area of the triangle.
- * 2. Compute the gradients of the shape functions.
- * 3. Return (u.dx * v.dx + u.dy * v.dy);
- */
-/*---------------------------------------------------------------------------*/
-
-FixedMatrix<4, 4> FemModule::
-_computeElementMatrixTetra4(Cell cell)
-{
-  Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
-
-  Real4 dxU = ArcaneFemFunctions::FeOperation3D::computeGradientXTetra4(cell, m_node_coord);
-  Real4 dyU = ArcaneFemFunctions::FeOperation3D::computeGradientYTetra4(cell, m_node_coord);
-  Real4 dzU = ArcaneFemFunctions::FeOperation3D::computeGradientZTetra4(cell, m_node_coord);
-
-  return volume * (dxU ^ dxU) + volume * (dyU ^ dyU) + volume * (dzU ^ dzU);
-}
-
-/*---------------------------------------------------------------------------*/
-/**
  * @brief Calls the right function for LHS assembly given as mesh type.
  */
 /*---------------------------------------------------------------------------*/
@@ -230,12 +226,10 @@ _assembleBilinearOperator()
     auto command = makeCommand(queue);
     auto in_node_coord = ax::viewIn(command, m_node_coord);
 
-    if (mesh()->dimension() == 2) {
-      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
-    }
-    else {
-      ARCANE_THROW(Arccore::NotImplementedException, "3D not implemented with BSR");
-    }
+    if (mesh()->dimension() == 2)
+      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
+    else
+      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord); });
   }
   else {
     if (mesh()->dimension() == 3)
