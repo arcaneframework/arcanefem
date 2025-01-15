@@ -64,7 +64,6 @@ compute()
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
   // Test for adding parameters for PETSc.
-  // This is only used for the first call.
   {
     StringList string_list;
     string_list.add("-ksp_monitor");
