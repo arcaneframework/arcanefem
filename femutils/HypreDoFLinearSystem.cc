@@ -121,14 +121,24 @@ class HypreDoFLinearSystemImpl
 
  public:
 
+  Int32 indexValue(DoFLocalId row_lid, DoFLocalId column_lid)
+  {
+    auto begin = m_csr_view.rows()[row_lid];
+    auto end = row_lid == m_csr_view.rows().size() - 1 ? m_csr_view.columns().size() : m_csr_view.rows()[row_lid + 1];
+    for (auto i = begin; i < end; ++i)
+      if (m_csr_view.columns()[i] == column_lid)
+        return i;
+    return -1;
+  }
+
   void matrixAddValue(DoFLocalId row, DoFLocalId column, Real value) override
   {
-    ARCANE_THROW(NotImplementedException, "");
+    m_csr_view.values()[indexValue(row, column)] += value;
   }
 
   void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value) override
   {
-    ARCANE_THROW(NotImplementedException, "");
+    m_csr_view.values()[indexValue(row, column)] = value;
   }
 
   void eliminateRow(DoFLocalId row, Real value) override
