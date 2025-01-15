@@ -38,7 +38,7 @@ class CSRFormatView
   CSRFormatView(Span<const Int32> rows,
                 Span<const Int32> matrix_rows_nb_column,
                 Span<const Int32> columns,
-                Span<const Real> values)
+                Span<Real> values)
   : m_matrix_rows(rows)
   , m_matrix_rows_nb_column(matrix_rows_nb_column)
   , m_matrix_columns(columns)
@@ -51,14 +51,14 @@ class CSRFormatView
   Span<const Int32> rows() const { return m_matrix_rows; }
   Span<const Int32> rowsNbColumn() const { return m_matrix_rows_nb_column; }
   Span<const Int32> columns() const { return m_matrix_columns; }
-  Span<const Real> values() const { return m_values; }
+  Span<Real> values() { return m_values; }
 
  private:
 
   Span<const Int32> m_matrix_rows;
   Span<const Int32> m_matrix_rows_nb_column;
   Span<const Int32> m_matrix_columns;
-  Span<const Real> m_values;
+  Span< Real> m_values;
 };
 
 /*---------------------------------------------------------------------------*/
