@@ -30,6 +30,11 @@ startInit()
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
+  if (options()->bsr() || options()->bsrAtomicFree()) {
+    auto use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
+    m_bsr_format.initialize(mesh(), use_csr_in_linear_system, options()->bsrAtomicFree());
+  }
+
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] initialize", elapsedTime);
 }
@@ -57,7 +62,8 @@ compute()
 
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
-  m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
+  m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
+
   // Test for adding parameters for PETSc.
   // This is only used for the first call.
   {
@@ -66,6 +72,9 @@ compute()
     CommandLineArguments args(string_list);
     m_linear_system.setSolverCommandLineArguments(args);
   }
+
+  if (options()->bsr() || options()->bsrAtomicFree)
+    m_bsr_format.computeSparsity();
 
   _doStationarySolve();
 
@@ -136,6 +145,9 @@ void FemModule::_assembleLinearOperator()
   info() << "[ArcaneFem-Module] _assembleLinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
+  if (options()->bsr() || options()->bsrAtomicFree())
+    m_bsr_format.toLinearSystem(m_linear_system);
+
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable()); // Temporary variable to keep values for the RHS
   rhs_values.fill(0.0);
 
@@ -163,64 +175,14 @@ void FemModule::_assembleLinearOperator()
   if (mesh()->dimension() == 3) {
     using BCFunctions = ArcaneFemFunctions::BoundaryConditions3D;
     applyBoundaryConditions(BCFunctions());
-  } else {
+  }
+  else {
     using BCFunctions = ArcaneFemFunctions::BoundaryConditions2D;
     applyBoundaryConditions(BCFunctions());
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] rhs-vector-assembly", elapsedTime);
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Computes the element matrix for a tetrahedral element (P1 FE).
- *
- * This function calculates the integral of the expression:
- * integral3D (u.dx * v.dx + u.dy * v.dy)
- *
- * Steps involved:
- * 1. Calculate the area of the triangle.
- * 2. Compute the gradients of the shape functions.
- * 3. Return (u.dx * v.dx + u.dy * v.dy);
- */
-/*---------------------------------------------------------------------------*/
-
-FixedMatrix<4, 4> FemModule::
-_computeElementMatrixTetra4(Cell cell)
-{
-  Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
-
-  Real4 dxU = ArcaneFemFunctions::FeOperation3D::computeGradientXTetra4(cell, m_node_coord);
-  Real4 dyU = ArcaneFemFunctions::FeOperation3D::computeGradientYTetra4(cell, m_node_coord);
-  Real4 dzU = ArcaneFemFunctions::FeOperation3D::computeGradientZTetra4(cell, m_node_coord);
-
-  return volume * (dxU ^ dxU) + volume * (dyU ^ dyU) + volume * (dzU ^ dzU);
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Computes the element matrix for a triangular element (P1 FE).
- *
- * This function calculates the integral of the expression:
- * integral2D (u.dx * v.dx + u.dy * v.dy)
- *
- * Steps involved:
- * 1. Calculate the area of the triangle.
- * 2. Compute the gradients of the shape functions.
- * 3. Return (u.dx * v.dx + u.dy * v.dy);
- */
-/*---------------------------------------------------------------------------*/
-
-FixedMatrix<3, 3> FemModule::
-_computeElementMatrixTria3(Cell cell)
-{
-  Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
-
-  Real3 dxU = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
-  Real3 dyU = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
-
-  return area * (dxU ^ dxU) + area * (dyU ^ dyU);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -235,14 +197,28 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Module] _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (mesh()->dimension() == 3)
-    _assembleBilinear<4>([this](const Cell& cell) {
-      return _computeElementMatrixTetra4(cell);
-    });
-  else
-    _assembleBilinear<3>([this](const Cell& cell) {
-      return _computeElementMatrixTria3(cell);
-    });
+  if (options()->bsr() || options()->bsrAtomicFree()) {
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cn_cv = m_connectivity_view.cellNode();
+    auto queue = subDomain()->acceleratorMng()->defaultQueue();
+    auto command = makeCommand(queue);
+    auto in_node_coord = ax::viewIn(command, m_node_coord);
+
+    if (mesh()->dimension() == 2)
+      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
+    else
+      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord); });
+  }
+  else {
+    if (mesh()->dimension() == 3)
+      _assembleBilinear<4>([this](const Cell& cell) {
+        return _computeElementMatrixTetra4(cell);
+      });
+    else
+      _assembleBilinear<3>([this](const Cell& cell) {
+        return _computeElementMatrixTria3(cell);
+      });
+  }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] lhs-matrix-assembly", elapsedTime);
@@ -302,7 +278,6 @@ _solve()
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] solve-linear-system", elapsedTime);
 }
-
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -378,9 +353,9 @@ _validateResults()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_printArcaneFemTime(const String label, const Real value){
-    info() << std::left << std::setw(40) << label << " = " << value;
-
+_printArcaneFemTime(const String label, const Real value)
+{
+  info() << std::left << std::setw(40) << label << " = " << value;
 }
 
 /*---------------------------------------------------------------------------*/
