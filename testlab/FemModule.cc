@@ -141,11 +141,8 @@ startInit()
 
     if (options()->bsr || options()->bsrAtomicFree()) {
       bool use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
-      m_bsr_format.initialize(mesh, mesh->dimension() == 2 ? nbFace() : m_nb_edge, use_csr_in_linear_system);
-      if (options()->bsrAtomicFree())
-        m_bsr_format.computeSparsityAtomicFree();
-      else
-        m_bsr_format.computeSparsity();
+      m_bsr_format.initialize(mesh, use_csr_in_linear_system, options()->bsrAtomicFree);
+      m_bsr_format.computeSparsity();
     }
   }
 
@@ -302,18 +299,10 @@ _doStationarySolve()
     auto command = makeCommand(m_queue);
     auto in_node_coord = ax::viewIn(command, m_node_coord);
 
-    if (m_use_bsr_atomic_free) {
-      if (dim == 2)
-        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
-      else
-        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
-    }
-    else {
-      if (dim == 2)
-        m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
-      else
-        m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
-    }
+    if (dim == 2)
+      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
+    else
+      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
 
     _assembleLinearOperator(&(m_bsr_format.matrix()));
     m_bsr_format.toLinearSystem(m_linear_system);
