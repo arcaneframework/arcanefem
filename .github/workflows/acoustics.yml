@@ -5,14 +5,20 @@ on:
     branches: [ main ]
     paths:
       - modules/acoustics/**
+    paths-ignore:
+      - '**.md'
+      - '**/.gitignore'
   pull_request:
     branches: [ main ]
     paths:
       - modules/acoustics/**
+    paths-ignore:
+      - '**.md'
+      - '**/.gitignore'
   workflow_dispatch:
 
 env:
-  MODULE_DIR: 'modules/acoustics'
+  MODULE_DIR: 'acoustics'
 
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"

@@ -5,14 +5,20 @@ on:
     branches: [ main ]
     paths:
       - modules/laplace/**
+    paths-ignore:
+      - '**.md'
+      - '**/.gitignore'
   pull_request:
     branches: [ main ]
     paths:
       - modules/laplace/**
+    paths-ignore:
+      - '**.md'
+      - '**/.gitignore'
   workflow_dispatch:
 
 env:
-  MODULE_DIR: 'modules/laplace'
+  MODULE_DIR: 'laplace'
 
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"

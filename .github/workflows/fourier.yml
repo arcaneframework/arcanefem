@@ -5,14 +5,20 @@ on:
     branches: [ main ]
     paths:
       - modules/fourier/**
+    paths-ignore:
+      - '**.md'
+      - '**/.gitignore'
   pull_request:
     branches: [ main ]
     paths:
       - modules/fourier/**
+    paths-ignore:
+      - '**.md'
+      - '**/.gitignore'
   workflow_dispatch:
 
 env:
-  MODULE_DIR: 'modules/fourier'
+  MODULE_DIR: 'fourier'
 
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"
