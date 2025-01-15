@@ -361,7 +361,28 @@ class BSRFormat : public TraceAccessor
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  void initialize(IMesh* mesh, Int32 nb_edge, bool does_linear_system_use_csr)
+ private:
+
+  Int64 computeNbEdge(IMesh* mesh)
+  {
+    Int64 nb_edge = 0;
+    if (mesh->dimension() == 2)
+      nb_edge = mesh->nbFace();
+    else {
+      auto nn_via_edge_cv = MeshUtils::computeNodeNodeViaEdgeConnectivity(mesh, "NodeNodeViaEdge");
+      IndexedNodeNodeConnectivityView nn_cv = nn_via_edge_cv->view();
+      ENUMERATE_NODE (inode, mesh->allNodes()) {
+        Node node = *inode;
+        nb_edge += nn_cv.nbNode(node);
+      }
+      nb_edge /= 2;
+    }
+    return nb_edge;
+  }
+
+ public:
+
+  void initialize(IMesh* mesh, bool does_linear_system_use_csr, bool use_atomic_free = false)
   {
     ARCANE_CHECK_POINTER(mesh);
 
@@ -369,7 +390,9 @@ class BSRFormat : public TraceAccessor
       ARCANE_THROW(NotImplementedException, "BSRFormat(initialize): Only supports 2D and 3D");
 
     auto startTime = platform::getRealTime();
+
     m_mesh = mesh;
+    Int64 nb_edge = computeNbEdge(mesh);
     Int32 nb_node = m_mesh->nbNode();
     Int32 nb_col = 2 * nb_edge + nb_node;
     Int32 nb_non_zero_value = (NB_DOF * NB_DOF) * (2 * nb_edge + nb_node);
@@ -377,6 +400,7 @@ class BSRFormat : public TraceAccessor
     m_use_csr_in_linear_system = does_linear_system_use_csr;
     bool order_values_per_block = !does_linear_system_use_csr;
     m_bsr_matrix.initialize(nb_non_zero_value, nb_col, nb_node, order_values_per_block);
+    m_use_atomic_free = use_atomic_free;
     info() << "[ArcaneFem-Timer] Time to initialize BSR format = " << (platform::getRealTime() - startTime);
   }
 
@@ -715,9 +739,9 @@ class BSRFormat : public TraceAccessor
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  void computeSparsity()
+  void computeSparsityAtomic()
   {
-    info() << "BSRFormat(computeSparsity): Computing sparsity of BSR matrix without Arcane connectivities (e.g with atomics)...";
+    info() << "BSRFormat(computeSparsityAtomic): Computing sparsity of BSR matrix without Arcane connectivities (e.g with atomics)...";
     auto startTime = platform::getRealTime();
 
     auto edges_per_element = m_mesh->dimension() == 2 ? 3 : 6;
@@ -736,6 +760,16 @@ class BSRFormat : public TraceAccessor
 
     if (m_use_csr_in_linear_system)
       computeNzPerRowArray();
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  void computeSparsity() {
+    if (m_use_atomic_free)
+      computeSparsityAtomicFree();
+    else
+      computeSparsityAtomic();
   }
 
   /*---------------------------------------------------------------------------*/
@@ -876,9 +910,9 @@ class BSRFormat : public TraceAccessor
    */
   /*---------------------------------------------------------------------------*/
 
-  template <class Function> void assembleBilinear(Function compute_element_matrix)
+  template <class Function> void assembleBilinearAtomic(Function compute_element_matrix)
   {
-    info() << "BSRFormat(assembleBilinear): Integrating over elements...";
+    info() << "BSRFormat(assembleBilinearAtomic): Integrating over elements...";
     auto startTime = platform::getRealTime();
 
     if (m_bsr_matrix.orderValuePerBlock())
@@ -1060,6 +1094,17 @@ class BSRFormat : public TraceAccessor
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
+  template <class Function> void assembleBilinear(Function compute_element_matrix)
+  {
+    if (m_use_atomic_free)
+      assembleBilinearAtomicFree(compute_element_matrix);
+    else
+      assembleBilinearAtomic(compute_element_matrix);
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
   BSRMatrix<NB_DOF>& matrix()
   {
     return m_bsr_matrix;
@@ -1076,6 +1121,7 @@ class BSRFormat : public TraceAccessor
  private:
 
   bool m_use_csr_in_linear_system = false;
+  bool m_use_atomic_free = false;
 
   BSRMatrix<NB_DOF> m_bsr_matrix;
   CsrFormat m_csr_matrix;
