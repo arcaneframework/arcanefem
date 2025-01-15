@@ -16,7 +16,7 @@
 
   <meshes>
     <mesh>
-      <filename>plate.fine.msh</filename>
+      <filename>meshes/plate.fine.msh</filename>
     </mesh>
   </meshes>
 
@@ -29,20 +29,5 @@
       <surface>left</surface>
       <value>10.0</value>
     </dirichlet-boundary-condition>
-    <convection-boundary-condition>
-      <surface>right</surface>
-      <h>1.</h>
-      <Text>20.</Text>
-    </convection-boundary-condition>
-    <convection-boundary-condition>
-      <surface>top</surface>
-      <h>1.</h>
-      <Text>20.</Text>
-    </convection-boundary-condition>
-    <convection-boundary-condition>
-      <surface>bottom</surface>
-      <h>1.</h>
-      <Text>20.</Text>
-    </convection-boundary-condition>
   </fem>
 </case>

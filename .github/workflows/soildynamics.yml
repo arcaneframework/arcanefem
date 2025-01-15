@@ -4,15 +4,15 @@ on:
   push:
     branches: [ main ]
     paths:
-      - soildynamics/**
+      - modules/soildynamics/**
   pull_request:
     branches: [ main ]
     paths:
-      - soildynamics/**
+      - modules/soildynamics/**
   workflow_dispatch:
 
 env:
-  MODULE_DIR: 'soildynamics'
+  MODULE_DIR: 'modules/soildynamics'
 
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"

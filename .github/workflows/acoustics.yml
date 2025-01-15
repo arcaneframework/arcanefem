@@ -4,15 +4,15 @@ on:
   push:
     branches: [ main ]
     paths:
-      - acoustics/**
+      - modules/acoustics/**
   pull_request:
     branches: [ main ]
     paths:
-      - acoustics/**
+      - modules/acoustics/**
   workflow_dispatch:
 
 env:
-  MODULE_DIR: 'acoustics'
+  MODULE_DIR: 'modules/acoustics'
 
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"

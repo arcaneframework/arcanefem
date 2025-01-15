@@ -4,15 +4,15 @@ on:
   push:
     branches: [ main ]
     paths:
-      - laplace/**
+      - modules/laplace/**
   pull_request:
     branches: [ main ]
     paths:
-      - laplace/**
+      - modules/laplace/**
   workflow_dispatch:
 
 env:
-  MODULE_DIR: 'laplace'
+  MODULE_DIR: 'modules/laplace'
 
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"

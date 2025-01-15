@@ -4,15 +4,15 @@ on:
   push:
     branches: [ main ]
     paths:
-      - fourier/**
+      - modules/fourier/**
   pull_request:
     branches: [ main ]
     paths:
-      - fourier/**
+      - modules/fourier/**
   workflow_dispatch:
 
 env:
-  MODULE_DIR: 'fourier'
+  MODULE_DIR: 'modules/fourier'
 
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"

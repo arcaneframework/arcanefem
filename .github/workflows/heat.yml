@@ -4,15 +4,15 @@ on:
   push:
     branches: [ main ]
     paths:
-      - heat/**
+      - modules/heat/**
   pull_request:
     branches: [ main ]
     paths:
-      - heat/**
+      - modules/heat/**
   workflow_dispatch:
 
 env:
-  MODULE_DIR: 'heat'
+  MODULE_DIR: 'modules/heat'
 
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"
