@@ -14,6 +14,8 @@ on:
 env:
   MODULE_DIR: 'modules/soildynamics'
 
+  MODULE: 'soildynamics'
+
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"
 
@@ -59,7 +61,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p ${{ env.CT_RESULT_DIR }}
-          ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }} -R '\[${{ env.MODULE_DIR }}\]'
+          ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }} -R '\[${{ env.MODULE }}\]'
 
       - name: Upload test artifact
         uses: actions/upload-artifact@v4
