@@ -26,7 +26,7 @@
   -->
   <meshes>
     <mesh>
-      <filename>multi-material.msh</filename>
+      <filename>meshes/multi-material.msh</filename>
     </mesh>
   </meshes>
 
@@ -45,7 +45,7 @@
   <fem>
     <lambda>0.0</lambda>
     <qdot>15.</qdot>
-    <result-file>test2_results.txt</result-file>
+    <result-file>check/test2_results.txt</result-file>
     <boundary-conditions>
       <dirichlet>
         <surface>Left</surface>

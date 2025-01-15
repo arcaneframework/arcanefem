@@ -26,7 +26,7 @@
   -->
   <meshes>
     <mesh>
-      <filename>multi-material.10k.msh</filename>
+      <filename>meshes/multi-material.10k.msh</filename>
     </mesh>
   </meshes>
 

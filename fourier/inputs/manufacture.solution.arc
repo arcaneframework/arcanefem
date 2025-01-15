@@ -26,7 +26,7 @@
   -->
   <meshes>
     <mesh>
-      <filename>square_-2pi_to_2pi.msh</filename>
+      <filename>meshes/square_-2pi_to_2pi.msh</filename>
     </mesh>
   </meshes>
 

@@ -25,7 +25,7 @@
   -->
   <meshes>
     <mesh>
-      <filename>plancher.msh</filename>
+      <filename>meshes/plancher.msh</filename>
     </mesh>
   </meshes>
 
@@ -41,7 +41,7 @@
   <fem>
     <lambda>1.75</lambda>
     <qdot>1e5</qdot>
-    <result-file>test1_results.txt</result-file>
+    <result-file>check/test1_results.txt</result-file>
     <boundary-conditions>
       <dirichlet>
         <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
