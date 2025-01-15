@@ -15,20 +15,23 @@
 
   <meshes>
     <mesh>
-      <filename>ring.msh</filename>
+      <filename>meshes/L-shape-3D.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
+    <result-file>check/test_3D_L-shape.txt</result-file>
+    <mesh-type>TETRA4</mesh-type>
     <boundary-conditions>
       <dirichlet>
-        <surface>inner</surface>
+        <surface>bot</surface>
         <value>50.0</value>
       </dirichlet>
       <dirichlet>
-        <surface>outer</surface>
-        <value>20.0</value>
+        <surface>bc</surface>
+        <value>10.0</value>
       </dirichlet>
     </boundary-conditions>
+    <bsr>true</bsr>
   </fem>
 </case>

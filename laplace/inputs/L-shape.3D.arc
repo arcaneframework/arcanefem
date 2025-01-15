@@ -15,28 +15,22 @@
 
   <meshes>
     <mesh>
-      <filename>plancher.10k.msh</filename>
+      <filename>meshes/L-shape-3D.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
+    <result-file>check/test_3D_L-shape.txt</result-file>
+    <mesh-type>TETRA4</mesh-type>
     <boundary-conditions>
-      <dirichlet-point>
-        <node>topLeftCorner</node>
+      <dirichlet>
+        <surface>bot</surface>
         <value>50.0</value>
-      </dirichlet-point>
-      <dirichlet-point>
-        <node>topRightCorner</node>
-        <value>20.0</value>
-      </dirichlet-point>
-      <dirichlet-point>
-        <node>botLeftCorner</node>
-        <value>20.0</value>
-      </dirichlet-point>
-      <dirichlet-point>
-        <node>botRightCorner</node>
-        <value>50.0</value>
-      </dirichlet-point>
+      </dirichlet>
+      <dirichlet>
+        <surface>bc</surface>
+        <value>10.0</value>
+      </dirichlet>
     </boundary-conditions>
   </fem>
 </case>

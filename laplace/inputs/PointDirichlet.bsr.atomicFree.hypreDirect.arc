@@ -15,12 +15,12 @@
 
   <meshes>
     <mesh>
-      <filename>plancher.msh</filename>
+      <filename>meshes/plancher.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <result-file>test3_results.txt</result-file>
+    <result-file>check/test3_results.txt</result-file>
     <boundary-conditions>
       <dirichlet-point>
         <node>topLeftCorner</node>

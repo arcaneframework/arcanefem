@@ -15,12 +15,11 @@
 
   <meshes>
     <mesh>
-      <filename>plancher.msh</filename>
+      <filename>meshes/plancher.10k.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <result-file>test3_results.txt</result-file>
     <boundary-conditions>
       <dirichlet-point>
         <node>topLeftCorner</node>
@@ -39,6 +38,5 @@
         <value>50.0</value>
       </dirichlet-point>
     </boundary-conditions>
-    <linear-system name="SequentialBasicLinearSystem" />
   </fem>
 </case>

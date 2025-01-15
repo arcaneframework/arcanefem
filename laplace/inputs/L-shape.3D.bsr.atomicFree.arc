@@ -15,12 +15,12 @@
 
   <meshes>
     <mesh>
-      <filename>L-shape-3D.msh</filename>
+      <filename>meshes/L-shape-3D.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <result-file>test_3D_L-shape.txt</result-file>
+    <result-file>check/test_3D_L-shape.txt</result-file>
     <mesh-type>TETRA4</mesh-type>
     <boundary-conditions>
       <dirichlet>
@@ -32,5 +32,6 @@
         <value>10.0</value>
       </dirichlet>
     </boundary-conditions>
+    <bsr-atomic-free>true</bsr-atomic-free>
   </fem>
 </case>
