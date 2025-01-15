@@ -16,7 +16,7 @@
 
   <meshes>
     <mesh>
-      <filename>box-rods.msh</filename>
+      <filename>meshes/box-rods.msh</filename>
     </mesh>
   </meshes>
 
@@ -24,7 +24,7 @@
 
     <rho>0.0</rho>
     <epsilon>1.0</epsilon>
-    <result-file>test_1.txt</result-file>
+    <result-file>check/test_1.txt</result-file>
     <boundary-conditions>
       <dirichlet>
         <surface>rod1</surface>

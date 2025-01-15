@@ -16,26 +16,25 @@
 
   <meshes>
     <mesh>
-      <filename>box-rod-circle.msh</filename>
+      <filename>meshes/interdigital_capacitor.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
     <rho>0.0</rho>
     <epsilon>1.0</epsilon>
-    <result-file>test_2.txt</result-file>
 
     <boundary-conditions>
       <dirichlet>
-        <surface>rod1</surface>
+        <surface>capacitor1</surface>
         <value>-1.0</value>
       </dirichlet>
       <dirichlet>
-        <surface>circle</surface>
+        <surface>capacitor2</surface>
         <value>1.0</value>
       </dirichlet>
       <dirichlet>
-        <surface>external</surface>
+        <surface>Outer</surface>
         <value>0.0</value>
       </dirichlet>
     </boundary-conditions>
