@@ -77,6 +77,8 @@ class FemModule
   void compute() override; //! Method called at each iteration
   VersionInfo versionInfo() const override { return VersionInfo(1, 0, 0); }
 
+  void _assembleBilinearOperator();
+
  private:
 
   DoFLinearSystem m_linear_system;
@@ -86,7 +88,6 @@ class FemModule
 
   void _doStationarySolve();
   void _getMaterialParameters();
-  void _assembleBilinearOperator();
   void _solve();
   void _assembleLinearOperator();
   void _updateVariables();
