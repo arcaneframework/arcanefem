@@ -16,19 +16,20 @@
 
   <meshes>
     <mesh>
-      <filename>bilap.msh</filename>
+      <filename>meshes/bilap.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
     <f>-1.0</f>
+    <enforce-Dirichlet-method>WeakPenalty</enforce-Dirichlet-method>
+    <penalty>1.e30</penalty>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
       <value>0.05</value>
     </dirichlet-boundary-condition>
     <linear-system name="SequentialBasicLinearSystem">
-      <epsilon>1.0e-25</epsilon>
-      <solver-method>pcg</solver-method>
+      <solver-method>direct</solver-method>
     </linear-system>
   </fem>
 </case>

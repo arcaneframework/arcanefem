@@ -17,7 +17,7 @@
 
   <meshes>
     <mesh>
-      <filename>square_double-couple.msh</filename>
+      <filename>meshes/square_double-couple.msh</filename>
     </mesh>
   </meshes>
 
@@ -29,14 +29,14 @@
     <rho>1</rho>
     <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
     <time-discretization>Newmark-beta</time-discretization>
-    <result-file>test_paraxial_results.txt</result-file>
+    <result-file>check/test_paraxial_results.txt</result-file>
     <double-couple>
       <north-node-name>sourceT</north-node-name>
       <south-node-name>sourceB</south-node-name>
       <east-node-name>sourceR</east-node-name>
       <west-node-name>sourceL</west-node-name>
       <method>force-based</method>
-      <double-couple-input-file>force_loading_dc.txt</double-couple-input-file>
+      <double-couple-input-file>data/force_loading_dc.txt</double-couple-input-file>
     </double-couple>
     <paraxial-boundary-condition>
       <surface>left</surface>

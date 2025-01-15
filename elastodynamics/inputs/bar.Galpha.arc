@@ -17,7 +17,7 @@
 
   <meshes>
     <mesh>
-      <filename>bar_dynamic.msh</filename>
+      <filename>meshes/bar_dynamic.msh</filename>
     </mesh>
   </meshes>
 

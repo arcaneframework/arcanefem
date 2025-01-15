@@ -17,16 +17,17 @@
 
   <meshes>
     <mesh>
-      <filename>bar_dynamic.msh</filename>
+      <filename>meshes/bar_dynamic.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <tmax>2.</tmax>
+    <tmax>1.</tmax>
     <dt>0.08</dt>
-    <etam>0.01</etam>
-    <etak>0.01</etak>
+    <alpm>0.00</alpm>
+    <alpf>0.00</alpf>
     <rho>1.0</rho>
+    <f2>-2000.</f2>
     <lambda>576.9230769</lambda>
     <mu>384.6153846</mu>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
@@ -39,11 +40,10 @@
     </dirichlet-boundary-condition>
     <traction-boundary-condition>
       <surface>surfaceright</surface>
-      <t2>0.01</t2>
+      <t2>-1.</t2>
     </traction-boundary-condition>
     <linear-system>
-      <solver-backend>petsc</solver-backend>
-      <preconditioner>ilu</preconditioner>
+      <solver-backend>hypre</solver-backend>
     </linear-system>
   </fem>
 </case>

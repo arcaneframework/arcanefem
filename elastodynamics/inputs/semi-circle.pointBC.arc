@@ -17,28 +17,28 @@
 
   <meshes>
     <mesh>
-      <filename>bar_dynamic.msh</filename>
+      <filename>meshes/semi-circle.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <time-discretization>Newmark-beta</time-discretization>
-    <tmax>2.</tmax>
+    <tmax>1.</tmax>
     <dt>0.08</dt>
     <rho>1.0</rho>
     <lambda>576.9230769</lambda>
     <mu>384.6153846</mu>
-    <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-    <penalty>1.e64</penalty>
+    <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
+    <time-discretization>Newmark-beta</time-discretization>
     <dirichlet-boundary-condition>
-      <surface>surfaceleft</surface>
+      <surface>boderCircle</surface>
       <u1>0.0</u1>
       <u2>0.0</u2>
     </dirichlet-boundary-condition>
-    <traction-boundary-condition>
-      <surface>surfaceright</surface>
-      <t2>0.01</t2>
-    </traction-boundary-condition>
+    <dirichlet-point-condition>
+      <node>source</node>
+      <u1>10.0</u1>
+      <u2>10.0</u2>
+    </dirichlet-point-condition>
     <linear-system>
       <solver-backend>petsc</solver-backend>
       <preconditioner>ilu</preconditioner>

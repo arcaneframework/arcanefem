@@ -16,7 +16,7 @@
 
   <meshes>
     <mesh>
-      <filename>NACA0012.msh</filename>
+      <filename>meshes/NACA0012.msh</filename>
     </mesh>
   </meshes>
 

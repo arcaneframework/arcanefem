@@ -17,22 +17,19 @@
 
   <meshes>
     <mesh>
-      <filename>bar_dynamic.msh</filename>
+      <filename>meshes/bar_dynamic.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <tmax>1.</tmax>
+    <time-discretization>Newmark-beta</time-discretization>
+    <tmax>2.</tmax>
     <dt>0.08</dt>
-    <alpm>0.00</alpm>
-    <alpf>0.00</alpf>
     <rho>1.0</rho>
-    <f2>-2000.</f2>
     <lambda>576.9230769</lambda>
     <mu>384.6153846</mu>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     <penalty>1.e64</penalty>
-    <time-discretization>Newmark-beta</time-discretization>
     <dirichlet-boundary-condition>
       <surface>surfaceleft</surface>
       <u1>0.0</u1>
@@ -40,10 +37,11 @@
     </dirichlet-boundary-condition>
     <traction-boundary-condition>
       <surface>surfaceright</surface>
-      <t2>-1.</t2>
+      <t2>0.01</t2>
     </traction-boundary-condition>
     <linear-system>
-      <solver-backend>hypre</solver-backend>
+      <solver-backend>petsc</solver-backend>
+      <preconditioner>ilu</preconditioner>
     </linear-system>
   </fem>
 </case>

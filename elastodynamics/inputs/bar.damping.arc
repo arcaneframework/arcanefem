@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
-<case codename="Soildynamics" xml:lang="en" codeversion="1.0">
+<case codename="Elastodynamics" xml:lang="en" codeversion="1.0">
   <arcane>
     <title>Sample</title>
-    <timeloop>SoildynamicsLoop</timeloop>
+    <timeloop>ElastodynamicsLoop</timeloop>
   </arcane>
 
   <arcane-post-processing>
@@ -17,25 +17,29 @@
 
   <meshes>
     <mesh>
-      <filename>semi-circle-soil.msh</filename>
+      <filename>meshes/bar_dynamic.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <tmax>0.08</tmax>
-    <dt>0.01</dt>
-    <E>6.62e6</E>
-    <nu>0.45</nu>
-    <rho>2500.0</rho>
+    <tmax>2.</tmax>
+    <dt>0.08</dt>
+    <etam>0.01</etam>
+    <etak>0.01</etak>
+    <rho>1.0</rho>
+    <lambda>576.9230769</lambda>
+    <mu>384.6153846</mu>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-    <penalty>1.e30</penalty>
+    <penalty>1.e64</penalty>
     <time-discretization>Newmark-beta</time-discretization>
-    <paraxial-boundary-condition>
-      <surface>lower</surface>
-    </paraxial-boundary-condition>
+    <dirichlet-boundary-condition>
+      <surface>surfaceleft</surface>
+      <u1>0.0</u1>
+      <u2>0.0</u2>
+    </dirichlet-boundary-condition>
     <traction-boundary-condition>
-      <surface>input</surface>
-      <traction-input-file>semi-circle-soil-traction.txt</traction-input-file>
+      <surface>surfaceright</surface>
+      <t2>0.01</t2>
     </traction-boundary-condition>
     <linear-system>
       <solver-backend>petsc</solver-backend>

@@ -13,13 +13,22 @@ arcane_generate_axl(Fem)
 arcane_add_arcane_libraries_to_target(Bilaplacian)
 target_include_directories(Bilaplacian PUBLIC . ../fem ${CMAKE_CURRENT_BINARY_DIR})
 configure_file(Bilaplacian.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.internal_pcg.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(Test.direct.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-configure_file(${MSH_DIR}/bilap.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Bilaplacian PUBLIC FemUtils)
 
+# Copy the inputs folder containing the arc files
+file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+# Copy the mesh files into meshes directory
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
+set(MESH_FILES
+  bilap.msh
+)
+foreach(MESH_FILE IN LISTS MESH_FILES)
+    file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
+endforeach()
+
 enable_testing()
 
-add_test(NAME [bilaplacian]direct_solver COMMAND Bilaplacian Test.direct.arc)
-#add_test(NAME [bilaplacian]internal_PCG_solver COMMAND Bilaplacian Test.internal_pcg.arc)
+add_test(NAME [bilaplacian]direct_solver COMMAND Bilaplacian inputs/direct.arc)
+#add_test(NAME [bilaplacian]internal_PCG_solver COMMAND Bilaplacian inputs/internal_pcg.arc)

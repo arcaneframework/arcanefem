@@ -17,7 +17,7 @@
 
   <meshes>
     <mesh>
-      <filename>soil_2d.msh</filename>
+      <filename>meshes/soil_2d.msh</filename>
     </mesh>
   </meshes>
 
@@ -35,7 +35,7 @@
       <east-node-name>DcEastPointCord</east-node-name>
       <west-node-name>DcWestPointCord</west-node-name>
       <method>force-based</method>
-      <double-couple-input-file>force_loading_dc.txt</double-couple-input-file>
+      <double-couple-input-file>data/force_loading_dc.txt</double-couple-input-file>
     </double-couple>
     <paraxial-boundary-condition>
       <surface>surfaceLeft</surface>
