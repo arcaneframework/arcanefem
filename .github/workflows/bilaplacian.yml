@@ -5,20 +5,14 @@ on:
     branches: [ main ]
     paths:
       - modules/bilaplacian/**
-    paths-ignore:
-      - '**.md'
-      - '**/.gitignore'
   pull_request:
     branches: [ main ]
     paths:
       - modules/bilaplacian/**
-    paths-ignore:
-      - '**.md'
-      - '**/.gitignore'
   workflow_dispatch:
 
 env:
-  MODULE_DIR: 'bilaplacian'
+  MODULE_DIR: 'modules/bilaplacian'
 
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"

@@ -5,20 +5,14 @@ on:
     branches: [ main ]
     paths:
       - modules/poisson/**
-    paths-ignore:
-      - '**.md'
-      - '**/.gitignore'
   pull_request:
     branches: [ main ]
     paths:
       - modules/poisson/**
-    paths-ignore:
-      - '**.md'
-      - '**/.gitignore'
   workflow_dispatch:
 
 env:
-  MODULE_DIR: 'poisson'
+  MODULE_DIR: 'modules/poisson'
 
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"

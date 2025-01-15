@@ -5,20 +5,14 @@ on:
     branches: [ main ]
     paths:
       - modules/heat/**
-    paths-ignore:
-      - '**.md'
-      - '**/.gitignore'
   pull_request:
     branches: [ main ]
     paths:
       - modules/heat/**
-    paths-ignore:
-      - '**.md'
-      - '**/.gitignore'
   workflow_dispatch:
 
 env:
-  MODULE_DIR: 'heat'
+  MODULE_DIR: 'modules/heat'
 
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"

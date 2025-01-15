@@ -5,16 +5,10 @@ on:
     branches: [ main ]
     paths:
       - modules/laplace/**
-    paths-ignore:
-      - '**.md'
-      - '**/.gitignore'
   pull_request:
     branches: [ main ]
     paths:
       - modules/laplace/**
-    paths-ignore:
-      - '**.md'
-      - '**/.gitignore'
   workflow_dispatch:
 
 env:

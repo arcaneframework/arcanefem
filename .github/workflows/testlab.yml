@@ -5,20 +5,14 @@ on:
     branches: [ main ]
     paths:
       - modules/testlab/**
-    paths-ignore:
-      - '**.md'
-      - '**/.gitignore'
   pull_request:
     branches: [ main ]
     paths:
       - modules/testlab/**
-    paths-ignore:
-      - '**.md'
-      - '**/.gitignore'
   workflow_dispatch:
 
 env:
-  MODULE_DIR: 'testlab'
+  MODULE_DIR: 'modules/testlab'
 
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"

@@ -5,20 +5,14 @@ on:
     branches: [ main ]
     paths:
       - modules/electrostatics/**
-    paths-ignore:
-      - '**.md'
-      - '**/.gitignore'
   pull_request:
     branches: [ main ]
     paths:
       - modules/electrostatics/**
-    paths-ignore:
-      - '**.md'
-      - '**/.gitignore'
   workflow_dispatch:
 
 env:
-  MODULE_DIR: 'electrostatics'
+  MODULE_DIR: 'modules/electrostatics'
 
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"

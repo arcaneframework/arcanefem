@@ -5,20 +5,14 @@ on:
     branches: [ main ]
     paths:
       - modules/aerodynamics/**
-    paths-ignore:
-      - '**.md'
-      - '**/.gitignore'
   pull_request:
     branches: [ main ]
     paths:
       - modules/aerodynamics/**
-    paths-ignore:
-      - '**.md'
-      - '**/.gitignore'
   workflow_dispatch:
 
 env:
-  MODULE_DIR: 'aerodynamics'
+  MODULE_DIR: 'modules/aerodynamics'
 
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"
