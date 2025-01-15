@@ -76,11 +76,8 @@ void FemModule::_initBsr()
   Real elapsedTime = platform::getRealTime();
 
   bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem";
-  m_bsr_format.initialize(defaultMesh(), nbFace(), use_csr_in_linearsystem);
-  if (m_use_bsr_atomic_free)
-    m_bsr_format.computeSparsityAtomicFree();
-  else
-    m_bsr_format.computeSparsity();
+  m_bsr_format.initialize(defaultMesh(), use_csr_in_linearsystem, options()->bsrAtomicFree());
+  m_bsr_format.computeSparsity();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] compute", elapsedTime);
@@ -394,10 +391,7 @@ _assembleBilinearOperator()
     auto lambda_copy = lambda;
     auto mu2_copy = mu2;
 
-    if (m_use_bsr_atomic_free)
-      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
-    else
-      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
+    m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
   }
   else {
     _assembleBilinearOperatorTRIA3();
