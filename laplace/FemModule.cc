@@ -73,8 +73,11 @@ compute()
     m_linear_system.setSolverCommandLineArguments(args);
   }
 
-  if (options()->bsr() || options()->bsrAtomicFree())
+  if (options()->bsr())
     m_bsr_format.computeSparsity();
+  if (options()->bsrAtomicFree())
+    m_bsr_format.computeSparsityAtomicFree();
+
 
   _doStationarySolve();
 
