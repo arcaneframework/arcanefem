@@ -32,8 +32,7 @@ startInit()
 
   if (options()->bsr() || options()->bsrAtomicFree()) {
     auto use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
-    auto nb_edge = mesh()->dimension() == 2 ? nbFace() : nbEdge();
-    m_bsr_format.initialize(mesh(), nb_edge, use_csr_in_linear_system);
+    m_bsr_format.initialize(defaultMesh(), use_csr_in_linear_system, options()->bsrAtomicFree());
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -73,11 +72,8 @@ compute()
     m_linear_system.setSolverCommandLineArguments(args);
   }
 
-  if (options()->bsr())
+  if (options()->bsr() || options()->bsrAtomicFree())
     m_bsr_format.computeSparsity();
-  if (options()->bsrAtomicFree())
-    m_bsr_format.computeSparsityAtomicFree();
-
 
   _doStationarySolve();
 
@@ -210,10 +206,7 @@ _assembleBilinearOperator()
     auto m_queue = subDomain()->acceleratorMng()->defaultQueue();
     auto command = makeCommand(m_queue);
     auto in_node_coord = ax::viewIn(command, m_node_coord);
-    if (options()->bsr())
-      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
-    else
-      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
+    m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
   }
   else {
     if (mesh()->dimension() == 3)
