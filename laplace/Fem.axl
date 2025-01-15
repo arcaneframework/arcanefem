@@ -23,6 +23,9 @@
     <simple name="bsr" type="bool"  default="false" optional="true">
       <description>Use bsr matrix format</description>
     </simple>
+    <simple name="bsr-atomic-free" type="bool"  default="false" optional="true">
+      <description>Use atomic free bsr matrix format</description>
+    </simple>
     <!-- Linear system service instance -->
     <service-instance name="linear-system" type="Arcane::FemUtils::IDoFLinearSystemFactory" default="AlephLinearSystem" />
 

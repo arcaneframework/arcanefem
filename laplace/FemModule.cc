@@ -30,7 +30,7 @@ startInit()
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
-  if (options()->bsr()) {
+  if (options()->bsr() || options()->bsrAtomicFree()) {
     auto use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
     auto nb_edge = mesh()->dimension() == 2 ? nbFace() : nbEdge();
     m_bsr_format.initialize(mesh(), nb_edge, use_csr_in_linear_system);
@@ -73,7 +73,7 @@ compute()
     m_linear_system.setSolverCommandLineArguments(args);
   }
 
-  if (options()->bsr())
+  if (options()->bsr() || options()->bsrAtomicFree())
     m_bsr_format.computeSparsity();
 
   _doStationarySolve();
@@ -139,7 +139,7 @@ _assembleLinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (options()->bsr)
+  if (options()->bsr || options()->bsrAtomicFree())
     m_bsr_format.toLinearSystem(m_linear_system);
 
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable()); // Temporary variable to keep values for the RHS
@@ -201,13 +201,16 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (options()->bsr()) {
+  if (options()->bsr() || options()->bsrAtomicFree()) {
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();
     auto m_queue = subDomain()->acceleratorMng()->defaultQueue();
     auto command = makeCommand(m_queue);
     auto in_node_coord = ax::viewIn(command, m_node_coord);
-    m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
+    if (options()->bsr())
+      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
+    else
+      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
   }
   else {
     if (mesh()->dimension() == 3)
