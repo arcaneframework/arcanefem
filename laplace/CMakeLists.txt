@@ -1,8 +1,13 @@
+set(ACCELERATOR_SOURCES FemModule.cc)
+
 add_executable(Laplace
-  FemModule.cc
+  ${ACCELERATOR_SOURCES}
   main.cc
   Fem_axl.h
 )
+
+arcane_accelerator_add_source_files(${ACCELERATOR_SOURCES})
+arcane_accelerator_add_to_target(Laplace)
 
 arcane_generate_axl(Fem)
 arcane_add_arcane_libraries_to_target(Laplace)
@@ -10,7 +15,11 @@ target_include_directories(Laplace PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
 configure_file(Laplace.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.ring.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.L-shape.3D.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Test.L-shape.3D.bsr.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Test.L-shape.3D.bsr.atomicFree.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.PointDirichlet.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Test.PointDirichlet.bsr.hypreDirect.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(Test.PointDirichlet.bsr.atomicFree.hypreDirect.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(Test.PointDirichlet-refined.arc ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/ring.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/plancher.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
@@ -40,10 +49,17 @@ enable_testing()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [laplace]2D_Dirichlet COMMAND Laplace Test.ring.arc)
+  add_test(NAME [laplace]3D_Dirichlet COMMAND Laplace Test.L-shape.3D.arc)
 endif()
 
-add_test(NAME [laplace]3D_Dirichlet COMMAND Laplace Test.L-shape.3D.arc)
 add_test(NAME [laplace]pointDirichlet COMMAND Laplace Test.PointDirichlet.arc)
+
+if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
+  add_test(NAME [laplace]pointDirichlet_bsr_hypreDirect COMMAND Laplace Test.PointDirichlet.bsr.hypreDirect.arc)
+  arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_bsr_hypreDirect_gpu COMMAND ./Laplace ARGS Test.PointDirichlet.bsr.atomicFree.hypreDirect.arc)
+  add_test(NAME [laplace]pointDirichlet_bsr_atomicFree_hypreDirect COMMAND Laplace Test.PointDirichlet.bsr.hypreDirect.arc)
+  arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_bsr_atomicFree_hypreDirect_gpu COMMAND ./Laplace ARGS Test.PointDirichlet.bsr.atomicFree.hypreDirect.arc)
+  endif()
 
 # If parallel part is available, add some tests
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
