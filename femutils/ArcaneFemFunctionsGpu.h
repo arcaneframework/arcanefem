@@ -24,6 +24,7 @@
 #include <arcane/core/Item.h>
 
 #include "FemUtils.h"
+#include "IArcaneFemBC.h"
 
 namespace Arcane::FemUtils::Gpu::MeshOperation
 {
@@ -269,5 +270,12 @@ ARCCORE_HOST_DEVICE static inline Real4 computeGradientZTetra4(CellLocalId cell_
 };
 
 } // namespace Arcane::FemUtils::Gpu::FeOperation3D
+
+namespace Arcane::FemUtils::Gpu::BoundaryConditions2D
+{
+
+static inline void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values) {}
+
+} // namespace Arcane::FemUtils::Gpu::BoundaryConditions2D
 
 #endif // ! ARCANE_FEM_FUNCTIONS_GPU_H

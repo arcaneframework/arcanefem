@@ -13,7 +13,10 @@
 
 #include "DoFLinearSystem.h"
 
+#include <arcane/accelerator/NumArrayViews.h>
+#include <arcane/utils/ArcaneGlobal.h>
 #include <arcane/utils/FatalErrorException.h>
+#include <arcane/utils/MDDim.h>
 #include <arcane/utils/NumArray.h>
 #include <arcane/utils/PlatformUtils.h>
 #include <arcane/utils/ITraceMng.h>
@@ -173,10 +176,13 @@ class HypreDoFLinearSystemImpl
     m_csr_view = {};
   }
 
+  CSRFormatView& getCSRValues() override { return m_csr_view; };
+
   void setCSRValues(const CSRFormatView& csr_view) override
   {
     m_csr_view = csr_view;
   }
+
   bool hasSetCSRValues() const override { return true; }
 
   void setRunner(Runner* r) override { m_runner = r; }
@@ -223,6 +229,35 @@ class HypreDoFLinearSystemImpl
  private:
 
   void _computeMatrixNumerotation();
+
+  // DEV !! FOR RHS ON GPU
+ public:
+
+  void initializeRhsNumArray() override
+  {
+    bool is_use_device = false;
+    if (m_runner)
+      is_use_device = isAcceleratorPolicy(m_runner->executionPolicy());
+
+    /*
+    eMemoryRessource mem_ressource = eMemoryRessource::Host;
+    if (is_use_device)
+      mem_ressource = eMemoryRessource::Device;
+    */
+
+    auto nb_dof = m_dof_family->nbItem();
+    //m_rhs_values_na = NumArray<Real, MDDim1>(mem_ressource);
+    m_rhs_values_na.resize(nb_dof);
+    RunQueue queue = makeQueue(m_runner);
+    m_rhs_values_na.fill(0.0, queue);
+  };
+
+  NumArray<Real, MDDim1>& rhsVariableNumArray() override
+  {
+    return m_rhs_values_na;
+  };
+
+  NumArray<Real, MDDim1> m_rhs_values_na;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -271,14 +306,14 @@ _computeMatrixNumerotation()
 
 namespace
 {
-template<typename DataType>
-void _doCopy(NumArray<DataType,MDDim1>& num_array,Span<const DataType> rhs,RunQueue* q)
-{
-  num_array.resize(rhs.size());
-  MemoryUtils::copy(num_array.to1DSpan(),rhs,q);
-}
+  template <typename DataType>
+  void _doCopy(NumArray<DataType, MDDim1>& num_array, Span<const DataType> rhs, RunQueue* q)
+  {
+    num_array.resize(rhs.size());
+    MemoryUtils::copy(num_array.to1DSpan(), rhs, q);
+  }
 
-}
+} // namespace
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
