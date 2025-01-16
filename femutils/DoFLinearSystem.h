@@ -14,9 +14,13 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+#include <arcane/accelerator/NumArrayViews.h>
+#include <arcane/accelerator/ViewsCommon.h>
+#include <arcane/utils/ArrayLayout.h>
 #include <arcane/utils/ArrayView.h>
 #include <arcane/ItemTypes.h>
 #include <arcane/VariableTypedef.h>
+#include <arcane/utils/MDDim.h>
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -58,7 +62,7 @@ class CSRFormatView
   Span<const Int32> m_matrix_rows;
   Span<const Int32> m_matrix_rows_nb_column;
   Span<const Int32> m_matrix_columns;
-  Span< Real> m_values;
+  Span<Real> m_values;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -85,9 +89,12 @@ class DoFLinearSystemImpl
   virtual void setSolverCommandLineArguments(const CommandLineArguments& args) = 0;
   virtual void clearValues() = 0;
   virtual void setCSRValues(const CSRFormatView& csr_view) = 0;
+  virtual NumArray<Real, MDDim1>& rhsVariableNumArray() = 0;
+  virtual void initializeRhsNumArray() = 0;
+  virtual CSRFormatView& getCSRValues() = 0;
   virtual bool hasSetCSRValues() const = 0;
-  virtual void setRunner(Runner* r) =0;
-  virtual Runner* runner() const =0;
+  virtual void setRunner(Runner* r) = 0;
+  virtual Runner* runner() const = 0;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -242,6 +249,10 @@ class DoFLinearSystem
   bool hasSetCSRValues() const;
 
  public:
+
+  void initializeRhsNumArray();
+  NumArray<Real, MDDim1>& rhsVariableNumArray();
+  CSRFormatView& getCSRValues();
 
   IDoFLinearSystemFactory* linearSystemFactory() const
   {

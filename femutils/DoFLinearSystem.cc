@@ -173,6 +173,24 @@ class SequentialDoFLinearSystemImpl
     return m_rhs_variable;
   }
 
+  void initializeRhsNumArray() override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
+  NumArray<Real, MDDim1>& rhsVariableNumArray() override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+    return m_rhs_values_na;
+  }
+
+  CSRFormatView& getCSRValues() override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
+  NumArray<Real, MDDim1> m_rhs_values_na;
+
   void setSolverCommandLineArguments(const CommandLineArguments&) override {}
 
   void clearValues() override
@@ -185,6 +203,7 @@ class SequentialDoFLinearSystemImpl
   {
     ARCANE_THROW(NotImplementedException, "");
   }
+
   bool hasSetCSRValues() const override { return false; }
   void setRunner(Runner* r) override { m_runner = r; }
   Runner* runner() const { return m_runner; }
@@ -427,6 +446,24 @@ setCSRValues(const CSRFormatView& csr_view)
 {
   _checkInit();
   return m_p->setCSRValues(csr_view);
+}
+
+CSRFormatView& DoFLinearSystem::getCSRValues()
+{
+  _checkInit();
+  return m_p->getCSRValues();
+}
+
+void DoFLinearSystem::initializeRhsNumArray()
+{
+  _checkInit();
+  return m_p->initializeRhsNumArray();
+}
+
+NumArray<Real, MDDim1>& DoFLinearSystem::rhsVariableNumArray()
+{
+  _checkInit();
+  return m_p->rhsVariableNumArray();
 }
 
 /*---------------------------------------------------------------------------*/
