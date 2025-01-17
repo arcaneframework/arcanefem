@@ -13,30 +13,32 @@
 
 #include "DoFLinearSystem.h"
 
-#include <arcane/accelerator/NumArrayViews.h>
-#include <arcane/utils/ArcaneGlobal.h>
 #include <arcane/utils/FatalErrorException.h>
-#include <arcane/utils/MDDim.h>
-#include <arcane/utils/NumArray.h>
 #include <arcane/utils/PlatformUtils.h>
-#include <arcane/utils/ITraceMng.h>
+#include <arcane/utils/ArcaneGlobal.h>
+#include <arcane/utils/ArrayLayout.h>
 #include <arcane/utils/MemoryUtils.h>
+#include <arcane/utils/MemoryView.h>
+#include <arcane/utils/ITraceMng.h>
+#include <arcane/core/DataView.h>
+#include <arcane/utils/NumArray.h>
+#include <arcane/utils/MDDim.h>
 
-#include <arcane/core/VariableTypes.h>
-#include <arcane/core/IItemFamily.h>
-#include <arcane/core/BasicService.h>
 #include <arcane/core/ServiceFactory.h>
+#include <arcane/core/VariableTypes.h>
+#include <arcane/core/BasicService.h>
+#include <arcane/core/VariableUtils.h>
 #include <arcane/core/IParallelMng.h>
+#include <arcane/core/IItemFamily.h>
 #include <arcane/core/ItemPrinter.h>
 #include <arcane/core/Timer.h>
-#include <arcane/core/VariableUtils.h>
 
+#include <arcane/accelerator/NumArrayViews.h>
 #include <arcane/accelerator/core/Runner.h>
 #include <arcane/accelerator/core/Memory.h>
 
 #include "FemUtils.h"
 #include "IDoFLinearSystemFactory.h"
-
 #include "HypreDoFLinearSystemFactory_axl.h"
 
 #include <HYPRE.h>
@@ -127,7 +129,7 @@ class HypreDoFLinearSystemImpl
   Int32 indexValue(DoFLocalId row_lid, DoFLocalId column_lid)
   {
     auto begin = m_csr_view.rows()[row_lid];
-    auto end = row_lid == m_csr_view.rows().size() - 1 ? m_csr_view.columns().size() : m_csr_view.rows()[row_lid + 1];
+    auto end = row_lid == m_csr_view.rows().extent0() - 1 ? m_csr_view.columns().extent0() : m_csr_view.rows()[row_lid + 1];
     for (auto i = begin; i < end; ++i)
       if (m_csr_view.columns()[i] == column_lid)
         return i;
@@ -407,10 +409,10 @@ solve()
 
   if (do_debug_print) {
     info() << "ROWS_INDEX=" << rows_index_span;
-    info() << "ROWS=" << m_csr_view.rows();
-    info() << "ROWS_NB_COLUMNS=" << m_csr_view.rowsNbColumn();
-    info() << "COLUMNS=" << m_csr_view.columns();
-    info() << "VALUE=" << m_csr_view.values();
+    info() << "ROWS=" << m_csr_view.rows().to1DSpan();
+    info() << "ROWS_NB_COLUMNS=" << m_csr_view.rowsNbColumn().to1DSpan();
+    info() << "COLUMNS=" << m_csr_view.columns().to1DSpan();
+    info() << "VALUE=" << m_csr_view.values().to1DSpan();
   }
 
   const int first_row = m_first_own_row;
@@ -419,7 +421,7 @@ solve()
   info() << "CreateMatrix first_row=" << first_row << " last_row " << last_row;
   HYPRE_IJMatrixCreate(mpi_comm, first_row, last_row, first_row, last_row, &ij_A);
 
-  int* rows_nb_column_data = const_cast<int*>(m_csr_view.rowsNbColumn().data());
+  int* rows_nb_column_data = const_cast<int*>(m_csr_view.rowsNbColumn()._internalData());
 
   Real m1 = platform::getRealTime();
   HYPRE_IJMatrixSetObjectType(ij_A, HYPRE_PARCSR);
@@ -430,7 +432,7 @@ solve()
 #endif
   // m_csr_view.columns() use matrix coordinates local to sub-domain
   // We need to translate them to global matrix coordinates
-  Span<const Int32> columns_index_span = m_csr_view.columns();
+  Span<const Int32> columns_index_span = m_csr_view.columns().to1DSpan();
   if (is_parallel) {
     // TODO: Faire sur accélérateur et ne faire qu'une fois si la structure
     // ne change pas.
@@ -451,10 +453,11 @@ solve()
 
   if (do_debug_print) {
     info() << "FINAL_COLUMNS=" << columns_index_span;
-    info() << "NbValue=" << m_csr_view.values().size();
+    info() << "NbValue=" << m_csr_view.values().extent0();
   }
 
-  Span<const Real> matrix_values = m_csr_view.values();
+  Span<const Real> matrix_values = m_csr_view.values().to1DSpan();
+
   if (do_debug_print) {
     ENUMERATE_ (DoF, idof, m_dof_family->allItems()) {
       DoF dof = *idof;
@@ -505,7 +508,7 @@ solve()
 
   if (is_use_device) {
     info() << "Prefetching memory for 'Hypre'";
-    q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(m_csr_view.rowsNbColumn())).addAsync());
+    q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(m_csr_view.rowsNbColumn().to1DSpan())).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(rows_index_span)).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(columns_index_span)).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(matrix_values)).addAsync());
@@ -513,8 +516,9 @@ solve()
     VariableUtils::prefetchVariableAsync(m_rhs_variable, &q);
     VariableUtils::prefetchVariableAsync(m_dof_variable, &q);
   }
+  Span<const Int32> rows_nb_column_span = m_csr_view.rowsNbColumn().to1DSpan();
   if (is_use_device && is_use_device_memory) {
-    _doCopy(na_rows_nb_column_data, m_csr_view.rowsNbColumn(), &q);
+    _doCopy(na_rows_nb_column_data, rows_nb_column_span, &q);
     _doCopy(na_rows_index, rows_index_span, &q);
     _doCopy(na_columns_index, columns_index_span, &q);
     _doCopy(na_matrix_values, matrix_values, &q);

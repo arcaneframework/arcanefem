@@ -417,7 +417,7 @@ class BSRFormat : public TraceAccessor
       m_bsr_matrix.toCsr(&m_csr_matrix);
 
       info() << "BSRFormat(toLinearSystem): Set CSR values into linear system";
-      CSRFormatView csr_view(m_csr_matrix.m_matrix_row.to1DSpan(), m_csr_matrix.m_matrix_rows_nb_column.to1DSpan(), m_csr_matrix.m_matrix_column.to1DSpan(), m_csr_matrix.m_matrix_value.to1DSpan());
+      CSRFormatView csr_view(m_csr_matrix.m_matrix_row, m_csr_matrix.m_matrix_rows_nb_column, m_csr_matrix.m_matrix_column, m_csr_matrix.m_matrix_value);
       linear_system.setCSRValues(csr_view);
     }
     else

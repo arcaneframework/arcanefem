@@ -14,12 +14,16 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/accelerator/NumArrayViews.h>
-#include <arcane/accelerator/ViewsCommon.h>
-#include <arcane/utils/ArrayLayout.h>
-#include <arcane/utils/ArrayView.h>
 #include <arcane/ItemTypes.h>
 #include <arcane/VariableTypedef.h>
+
+#include <arcane/accelerator/NumArrayViews.h>
+#include <arcane/accelerator/ViewsCommon.h>
+
+#include <arcane/utils/ArrayLayout.h>
+#include <arcane/utils/UtilsTypes.h>
+#include <arcane/utils/ArrayView.h>
+#include <arcane/utils/NumArray.h>
 #include <arcane/utils/MDDim.h>
 
 /*---------------------------------------------------------------------------*/
@@ -39,30 +43,29 @@ class CSRFormatView
  public:
 
   CSRFormatView() = default;
-  CSRFormatView(Span<const Int32> rows,
-                Span<const Int32> matrix_rows_nb_column,
-                Span<const Int32> columns,
-                Span<Real> values)
+  CSRFormatView(NumArray<Int32, MDDim1> rows,
+                NumArray<Int32, MDDim1> matrix_rows_nb_column,
+                NumArray<Int32, MDDim1> columns,
+                NumArray<Real, MDDim1> values)
   : m_matrix_rows(rows)
   , m_matrix_rows_nb_column(matrix_rows_nb_column)
   , m_matrix_columns(columns)
   , m_values(values)
-  {
-  }
+  {}
 
  public:
 
-  Span<const Int32> rows() const { return m_matrix_rows; }
-  Span<const Int32> rowsNbColumn() const { return m_matrix_rows_nb_column; }
-  Span<const Int32> columns() const { return m_matrix_columns; }
-  Span<Real> values() { return m_values; }
+  NumArray<Int32, MDDim1>& rows() { return m_matrix_rows; }
+  NumArray<Int32, MDDim1>& rowsNbColumn() { return m_matrix_rows_nb_column; }
+  NumArray<Int32, MDDim1>& columns() { return m_matrix_columns; }
+  NumArray<Real, MDDim1>& values() { return m_values; }
 
  private:
 
-  Span<const Int32> m_matrix_rows;
-  Span<const Int32> m_matrix_rows_nb_column;
-  Span<const Int32> m_matrix_columns;
-  Span<Real> m_values;
+  NumArray<Int32, MDDim1> m_matrix_rows;
+  NumArray<Int32, MDDim1> m_matrix_rows_nb_column;
+  NumArray<Int32, MDDim1> m_matrix_columns;
+  NumArray<Real, MDDim1> m_values;
 };
 
 /*---------------------------------------------------------------------------*/

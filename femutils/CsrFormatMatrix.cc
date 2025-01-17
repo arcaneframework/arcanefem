@@ -86,8 +86,7 @@ translateToLinearSystem(DoFLinearSystem& linear_system, const RunQueue& queue)
   }
 
   if (do_set_csr) {
-    CSRFormatView csr_view(m_matrix_row.to1DSpan(), m_matrix_rows_nb_column.to1DSpan(),
-                           m_matrix_column.to1DSpan(), m_matrix_value.to1DSpan());
+    CSRFormatView csr_view(m_matrix_row, m_matrix_rows_nb_column, m_matrix_column, m_matrix_value);
     linear_system.setCSRValues(csr_view);
   }
 }
