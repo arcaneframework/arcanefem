@@ -351,6 +351,45 @@ namespace Arcane::FemUtils::Gpu::BoundaryConditions2D
 
 /*---------------------------------------------------------------------------*/
 /**
+ * @brief Applies a constant source term to the RHS vector.
+ *
+ * This method adds a constant source term `qdot` to the RHS vector for each
+ * node in the mesh. The contribution to each node is weighted by the area of
+ * the cell and evenly distributed among the number of nodes of the cell.
+ *
+ */
+/*---------------------------------------------------------------------------*/
+
+static inline void applyConstantSourceToRhs(Real qdot, Accelerator::RunQueue* queue, NumArray<Real, MDDim1>& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
+{
+  ARCANE_CHECK_PTR(queue);
+  ARCANE_CHECK_PTR(mesh);
+
+  UnstructuredMeshConnectivityView connectivity_view;
+  connectivity_view.setMesh(mesh);
+  NodeInfoListView nodes_infos(mesh->nodeFamily());
+  auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
+  auto cn_cv = connectivity_view.cellNode();
+
+  auto command = Accelerator::makeCommand(queue);
+
+  auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
+  auto in_node_coord = Accelerator::viewIn(command, node_coord);
+
+  command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh->allCells())
+  {
+    Real area = MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+    for (NodeLocalId node_lid : cn_cv.nodes(cell_lid)) {
+      if (nodes_infos.isOwn(node_lid)) {
+        Real value = qdot * area / cn_cv.nbItem(cell_lid);
+        Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], value);
+      }
+    }
+  };
+}
+
+/*---------------------------------------------------------------------------*/
+/**
  * @brief Applies Neumann conditions to the right-hand side (RHS) values.
  *
  * This method updates the RHS values of the finite element method equations
