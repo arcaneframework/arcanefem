@@ -31,16 +31,32 @@
 #include <arcane/core/UnstructuredMeshConnectivity.h>
 #include <arcane/core/IndexedItemConnectivityView.h>
 #include <arcane/core/ItemInfoListView.h>
+#include <arcane/core/ItemEnumerator.h>
 #include <arcane/core/MathUtils.h>
 #include <arcane/core/ItemTypes.h>
+#include <arcane/core/DataView.h>
 #include <arcane/core/Item.h>
 
 #include <arcane/utils/ArcaneGlobal.h>
+#include <arcane/utils/ArrayLayout.h>
+#include "arcane/utils/UtilsTypes.h"
 #include <arcane/utils/NumArray.h>
 
+#include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
 #include "IArcaneFemBC.h"
 #include "FemUtils.h"
+
+namespace Arcane::FemUtils::Gpu::Csr
+{
+ARCCORE_HOST_DEVICE static Int32 findIndex(Int32 begin, Int32 end, Int32 column_lid, Accelerator::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> in_csr_columns)
+{
+  for (auto i = begin; i < end; ++i)
+    if (in_csr_columns[i] == column_lid)
+      return i;
+  return -1;
+}
+} // namespace Arcane::FemUtils::Gpu::Csr
 
 namespace Arcane::FemUtils::Gpu::MeshOperation
 {
@@ -400,6 +416,91 @@ static inline void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, Accelera
       };
     }
   }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+static inline void applyDirichletToLhsAndRhsToNG(Real value, Real penalty, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NumArray<Real, MDDim1>& rhs_variable_na, NodeGroup& node_group)
+{
+  ARCANE_CHECK_PTR(bs);
+  ARCANE_CHECK_PTR(queue);
+  ARCANE_CHECK_PTR(mesh);
+
+  auto command = Accelerator::makeCommand(queue);
+  UnstructuredMeshConnectivityView connectivity_view;
+  connectivity_view.setMesh(mesh);
+  auto fn_cv = connectivity_view.faceNode();
+  NodeInfoListView nodes_infos(mesh->nodeFamily());
+  auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
+
+  CSRFormatView& linear_system_lhs_csr = linear_system.getCSRValues();
+
+  auto csr_row = linear_system_lhs_csr.rows();
+  auto csr_row_size = csr_row.extent0();
+  auto in_csr_row = Accelerator::viewInOut(command, csr_row);
+
+  auto csr_columns = linear_system_lhs_csr.columns();
+  auto csr_columns_size = csr_columns.extent0();
+  auto in_csr_columns = Accelerator::viewIn(command, csr_columns);
+
+  auto in_out_csr_values = Accelerator::viewInOut(command, linear_system_lhs_csr.values());
+  auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
+
+  command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
+  {
+    if (nodes_infos.isOwn(node_lid)) {
+      DoFLocalId dof_id = node_dof.dofId(node_lid, 0);
+      auto begin = in_csr_row[dof_id];
+      auto end = dof_id == csr_row_size - 1 ? csr_columns_size : in_csr_row[dof_id + 1];
+      auto index = Csr::findIndex(begin, end, dof_id, in_csr_columns);
+      in_out_csr_values[index] = penalty;
+      in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)] = penalty * value;
+    }
+  };
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies Dirichlet boundary conditions to RHS and LHS.
+ *
+ * Updates the LHS matrix and RHS vector to enforce Dirichlet conditions.
+ *
+ * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
+ * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+ *
+ */
+/*---------------------------------------------------------------------------*/
+
+static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& m_linear_system, const FemDoFsOnNodes& dofs_on_nodes, NumArray<Real, MDDim1>& rhs_variable_na)
+{
+  ARCANE_CHECK_PTR(bs);
+  Real value = bs->getValue();
+  Real penalty = bs->getPenalty();
+  FaceGroup face_group = bs->getSurface();
+  NodeGroup node_group = face_group.nodeGroup();
+  applyDirichletToLhsAndRhsToNG(value, penalty, queue, mesh, m_linear_system, dofs_on_nodes, rhs_variable_na, node_group);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies Point Dirichlet boundary conditions to RHS and LHS.
+ *
+ * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
+ *
+ * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
+ * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+ *
+ */
+/*---------------------------------------------------------------------------*/
+
+static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NumArray<Real, MDDim1>& rhs_variable_na)
+{
+  ARCANE_CHECK_PTR(bs);
+  Real value = bs->getValue();
+  Real penalty = bs->getPenalty();
+  NodeGroup node_group = bs->getNode();
+  applyDirichletToLhsAndRhsToNG(value, penalty, queue, mesh, linear_system, dofs_on_nodes, rhs_variable_na, node_group);
 }
 
 } // namespace Arcane::FemUtils::Gpu::BoundaryConditions2D
