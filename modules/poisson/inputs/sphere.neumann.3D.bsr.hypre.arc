@@ -33,9 +33,11 @@
         <valueZ>3.75</valueZ>
       </neumann>
     </boundary-conditions>
-    <linear-system>
-      <solver-backend>petsc</solver-backend>
-      <epsilon>1e-15</epsilon>
+    <linear-system name="HypreLinearSystem">
+      <rtol>0.</rtol>
+      <atol>1e-15</atol>
+      <amg-threshold>0.55</amg-threshold>
     </linear-system>
+    <bsr>true</bsr>
   </fem>
 </case>

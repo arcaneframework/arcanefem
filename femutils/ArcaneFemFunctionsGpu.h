@@ -432,7 +432,6 @@ namespace BoundaryCondtionsHelpers
 
   static inline void applyDirichletToNodeGroup(Real value, Real penalty, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NumArray<Real, MDDim1>& rhs_variable_na, NodeGroup& node_group)
   {
-    ARCANE_CHECK_PTR(bs);
     ARCANE_CHECK_PTR(queue);
     ARCANE_CHECK_PTR(mesh);
 

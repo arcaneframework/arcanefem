@@ -80,6 +80,7 @@ class FemModule
   VersionInfo versionInfo() const override { return VersionInfo(1, 0, 0); }
 
   void _assembleBilinearOperator();
+  void _assembleLinearOperatorGpu();
 
  private:
 

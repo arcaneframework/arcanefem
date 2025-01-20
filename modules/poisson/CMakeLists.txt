@@ -57,14 +57,23 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 endif()
 
 if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
+  add_test(NAME [poisson]2D_pntDirichlet_bsr_hypre COMMAND Poisson inputs/perforatedSquare.pointDirichlet.2D.bsr.hypre.arc)
+  arcanefem_add_gpu_test(NAME [poisson]2D_pntDirichlet_bsr_hypre_gpu COMMAND Poisson ARGS inputs/perforatedSquare.pointDirichlet.2D.bsr.hypre.arc)
+
   add_test(NAME [poisson]2D_bsr_hypre COMMAND Poisson inputs/circle.2D.bsr.hypre.arc)
   arcanefem_add_gpu_test(NAME [poisson]2D_bsr_hypre_gpu COMMAND Poisson ARGS inputs/circle.2D.bsr.hypre.arc)
+
+  add_test(NAME [poisson]2D_neumann_bsr_hypre COMMAND Poisson inputs/circle.neumann.2D.bsr.hypre.arc)
+  arcanefem_add_gpu_test(NAME [poisson]2D_neumann_bsr_hypre_gpu COMMAND Poisson ARGS inputs/circle.neumann.2D.bsr.hypre.arc)
 
   add_test(NAME [poisson]2D_bsr_atomicFree_hypre COMMAND Poisson inputs/circle.2D.bsr.atomicFree.hypre.arc)
   arcanefem_add_gpu_test(NAME [poisson]2D_bsr_atomicFree_hypre_gpu COMMAND Poisson ARGS inputs/circle.2D.bsr.atomicFree.hypre.arc)
 
   add_test(NAME [poisson]3D_bsr_hypre COMMAND Poisson inputs/sphere.3D.bsr.hypre.arc)
   arcanefem_add_gpu_test(NAME [poisson]3D_bsr_hypre_gpu COMMAND Poisson ARGS inputs/sphere.3D.bsr.hypre.arc)
+
+  add_test(NAME [poisson]3D_neumann_bsr_hypre COMMAND Poisson inputs/sphere.neumann.3D.bsr.hypre.arc)
+  arcanefem_add_gpu_test(NAME [poisson]3D_neumann_bsr_hypre_gpu COMMAND Poisson ARGS inputs/sphere.neumann.3D.bsr.hypre.arc)
 
   add_test(NAME [poisson]3D_bsr_atomicFree_hypre COMMAND Poisson inputs/sphere.3D.bsr.atomicFree.hypre.arc)
   arcanefem_add_gpu_test(NAME [poisson]3D_bsr_atomicFree_hypre_gpu COMMAND Poisson ARGS inputs/sphere.3D.bsr.atomicFree.hypre.arc)
