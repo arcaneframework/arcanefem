@@ -1,12 +1,13 @@
 <?xml version="1.0"?>
 <case codename="Poisson" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>Sphere 3D</title>
+    <title>Cut circle 2D with Dirichlet and Neumann using BSR and Hypre</title>
     <timeloop>PoissonLoop</timeloop>
   </arcane>
 
   <arcane-post-processing>
    <output-period>1</output-period>
+   <format name="VtkHdfV2PostProcessor" />
    <output>
      <variable>U</variable>
    </output>
@@ -14,12 +15,12 @@
 
   <meshes>
     <mesh>
-      <filename>meshes/sphere_cut.msh</filename>
+      <filename>meshes/circle_cut.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <result-file>check/poisson_test_ref_sphere_neumann_3D.txt</result-file>
+    <result-file>check/poisson_test_ref_circle_neumann_2D.txt</result-file>
     <f>5.5</f>
     <boundary-conditions>
       <dirichlet>
@@ -28,14 +29,15 @@
       </dirichlet>
       <neumann>
         <surface>curved</surface>
-        <valueX>0.35</valueX>
+        <valueX>-0.35</valueX>
         <valueY>1.65</valueY>
-        <valueZ>3.75</valueZ>
       </neumann>
     </boundary-conditions>
-    <linear-system>
-      <solver-backend>petsc</solver-backend>
-      <epsilon>1e-15</epsilon>
+    <linear-system name="HypreLinearSystem">
+      <rtol>0.</rtol>
+      <atol>1e-15</atol>
+      <amg-threshold>0.25</amg-threshold>
     </linear-system>
+    <bsr>true</bsr>
   </fem>
 </case>
