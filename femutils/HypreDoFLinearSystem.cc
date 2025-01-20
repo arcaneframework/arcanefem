@@ -231,35 +231,6 @@ class HypreDoFLinearSystemImpl
  private:
 
   void _computeMatrixNumerotation();
-
-  // DEV !! FOR RHS ON GPU
- public:
-
-  void initializeRhsNumArray() override
-  {
-    bool is_use_device = false;
-    if (m_runner)
-      is_use_device = isAcceleratorPolicy(m_runner->executionPolicy());
-
-    /*
-    eMemoryRessource mem_ressource = eMemoryRessource::Host;
-    if (is_use_device)
-      mem_ressource = eMemoryRessource::Device;
-    */
-
-    auto nb_dof = m_dof_family->nbItem();
-    //m_rhs_values_na = NumArray<Real, MDDim1>(mem_ressource);
-    m_rhs_values_na.resize(nb_dof);
-    RunQueue queue = makeQueue(m_runner);
-    m_rhs_values_na.fill(0.0, queue);
-  };
-
-  NumArray<Real, MDDim1>& rhsVariableNumArray() override
-  {
-    return m_rhs_values_na;
-  };
-
-  NumArray<Real, MDDim1> m_rhs_values_na;
 };
 
 /*---------------------------------------------------------------------------*/

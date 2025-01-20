@@ -39,6 +39,7 @@
 
 #include <arcane/utils/ArcaneGlobal.h>
 #include <arcane/utils/ArrayLayout.h>
+#include "arcane/core/VariableTypedef.h"
 #include "arcane/utils/UtilsTypes.h"
 #include <arcane/utils/NumArray.h>
 
@@ -398,7 +399,7 @@ namespace Arcane::FemUtils::Gpu
 namespace BoundaryCondtionsHelpers
 {
   template <class Function>
-  static inline void applyConstantSourceToRhsBase(Function computeDomain, Real qdot, Accelerator::RunQueue* queue, NumArray<Real, MDDim1>& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
+  static inline void applyConstantSourceToRhsBase(Function computeDomain, Real qdot, Accelerator::RunQueue* queue, VariableDoFReal& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
   {
     ARCANE_CHECK_PTR(queue);
     ARCANE_CHECK_PTR(mesh);
@@ -430,7 +431,7 @@ namespace BoundaryCondtionsHelpers
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  static inline void applyDirichletToNodeGroup(Real value, Real penalty, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NumArray<Real, MDDim1>& rhs_variable_na, NodeGroup& node_group)
+  static inline void applyDirichletToNodeGroup(Real value, Real penalty, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NodeGroup& node_group)
   {
     ARCANE_CHECK_PTR(queue);
     ARCANE_CHECK_PTR(mesh);
@@ -453,7 +454,7 @@ namespace BoundaryCondtionsHelpers
     auto in_csr_columns = Accelerator::viewIn(command, csr_columns);
 
     auto in_out_csr_values = Accelerator::viewInOut(command, linear_system_lhs_csr.values());
-    auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
+    auto in_out_rhs_variable_na = Accelerator::viewInOut(command, linear_system.rhsVariable());
 
     command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
     {
@@ -484,7 +485,7 @@ class BoundaryConditions2D
    */
   /*---------------------------------------------------------------------------*/
 
-  static inline void applyConstantSourceToRhs(Real qdot, Accelerator::RunQueue* queue, NumArray<Real, MDDim1>& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
+  static inline void applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord, VariableDoFReal& rhs_variable_na, IMesh* mesh, Accelerator::RunQueue* queue)
   {
     BoundaryCondtionsHelpers::applyConstantSourceToRhsBase([] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord) { return MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord); }, qdot, queue, rhs_variable_na, mesh, dofs_on_nodes, node_coord);
   }
@@ -500,7 +501,7 @@ class BoundaryConditions2D
    */
   /*---------------------------------------------------------------------------*/
 
-  static inline void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, Accelerator::RunQueue* queue, NumArray<Real, MDDim1>& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
+  static inline void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord, VariableDoFReal& rhs_variable_na, IMesh* mesh, Accelerator::RunQueue* queue)
   {
     ARCANE_CHECK_PTR(bs);
     ARCANE_CHECK_PTR(queue);
@@ -570,14 +571,14 @@ class BoundaryConditions2D
    */
   /*---------------------------------------------------------------------------*/
 
-  static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NumArray<Real, MDDim1>& rhs_variable_na)
+  static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
   {
     ARCANE_CHECK_PTR(bs);
     Real value = bs->getValue();
     Real penalty = bs->getPenalty();
     FaceGroup face_group = bs->getSurface();
     NodeGroup node_group = face_group.nodeGroup();
-    BoundaryCondtionsHelpers::applyDirichletToNodeGroup(value, penalty, queue, mesh, linear_system, dofs_on_nodes, rhs_variable_na, node_group);
+    BoundaryCondtionsHelpers::applyDirichletToNodeGroup(value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
   }
 
   /*---------------------------------------------------------------------------*/
@@ -592,13 +593,13 @@ class BoundaryConditions2D
    */
   /*---------------------------------------------------------------------------*/
 
-  static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NumArray<Real, MDDim1>& rhs_variable_na)
+  static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
   {
     ARCANE_CHECK_PTR(bs);
     Real value = bs->getValue();
     Real penalty = bs->getPenalty();
     NodeGroup node_group = bs->getNode();
-    BoundaryCondtionsHelpers::applyDirichletToNodeGroup(value, penalty, queue, mesh, linear_system, dofs_on_nodes, rhs_variable_na, node_group);
+    BoundaryCondtionsHelpers::applyDirichletToNodeGroup(value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
   }
 };
 
@@ -617,7 +618,7 @@ class BoundaryConditions3D
    */
   /*---------------------------------------------------------------------------*/
 
-  static inline void applyConstantSourceToRhs(Real qdot, Accelerator::RunQueue* queue, NumArray<Real, MDDim1>& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
+  static inline void applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord, VariableDoFReal& rhs_variable_na, IMesh* mesh, Accelerator::RunQueue* queue)
   {
     BoundaryCondtionsHelpers::applyConstantSourceToRhsBase([] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord) { return MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord); }, qdot, queue, rhs_variable_na, mesh, dofs_on_nodes, node_coord);
   }
@@ -633,7 +634,7 @@ class BoundaryConditions3D
    */
   /*---------------------------------------------------------------------------*/
 
-  static inline void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, Accelerator::RunQueue* queue, NumArray<Real, MDDim1>& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
+  static inline void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord, VariableDoFReal& rhs_variable_na, IMesh* mesh, Accelerator::RunQueue* queue)
   {
     ARCANE_CHECK_PTR(bs);
     ARCANE_CHECK_PTR(queue);
@@ -704,14 +705,14 @@ class BoundaryConditions3D
    */
   /*---------------------------------------------------------------------------*/
 
-  static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NumArray<Real, MDDim1>& rhs_variable_na)
+  static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
   {
     ARCANE_CHECK_PTR(bs);
     Real value = bs->getValue();
     Real penalty = bs->getPenalty();
     FaceGroup face_group = bs->getSurface();
     NodeGroup node_group = face_group.nodeGroup();
-    BoundaryCondtionsHelpers::applyDirichletToNodeGroup(value, penalty, queue, mesh, linear_system, dofs_on_nodes, rhs_variable_na, node_group);
+    BoundaryCondtionsHelpers::applyDirichletToNodeGroup(value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
   }
 
   /*---------------------------------------------------------------------------*/
@@ -726,13 +727,13 @@ class BoundaryConditions3D
    */
   /*---------------------------------------------------------------------------*/
 
-  static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NumArray<Real, MDDim1>& rhs_variable_na)
+  static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
   {
     ARCANE_CHECK_PTR(bs);
     Real value = bs->getValue();
     Real penalty = bs->getPenalty();
     NodeGroup node_group = bs->getNode();
-    BoundaryCondtionsHelpers::applyDirichletToNodeGroup(value, penalty, queue, mesh, linear_system, dofs_on_nodes, rhs_variable_na, node_group);
+    BoundaryCondtionsHelpers::applyDirichletToNodeGroup(value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
   }
 };
 
