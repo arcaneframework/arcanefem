@@ -378,23 +378,10 @@ class AlephDoFLinearSystemImpl
     return p;
   }
 
-  void initializeRhsNumArray()
-  {
-    ARCANE_THROW(NotImplementedException, "");
-  }
-
-  NumArray<Real, MDDim1>& rhsVariableNumArray()
-  {
-    ARCANE_THROW(NotImplementedException, "");
-    return m_rhs_values_na;
-  }
-
   CSRFormatView& getCSRValues() override
   {
     ARCANE_THROW(NotImplementedException, "");
   }
-
-  NumArray<Real, MDDim1> m_rhs_values_na;
 
  private:
 

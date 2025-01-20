@@ -92,8 +92,6 @@ class DoFLinearSystemImpl
   virtual void setSolverCommandLineArguments(const CommandLineArguments& args) = 0;
   virtual void clearValues() = 0;
   virtual void setCSRValues(const CSRFormatView& csr_view) = 0;
-  virtual NumArray<Real, MDDim1>& rhsVariableNumArray() = 0;
-  virtual void initializeRhsNumArray() = 0;
   virtual CSRFormatView& getCSRValues() = 0;
   virtual bool hasSetCSRValues() const = 0;
   virtual void setRunner(Runner* r) = 0;
@@ -253,8 +251,6 @@ class DoFLinearSystem
 
  public:
 
-  void initializeRhsNumArray();
-  NumArray<Real, MDDim1>& rhsVariableNumArray();
   CSRFormatView& getCSRValues();
 
   IDoFLinearSystemFactory* linearSystemFactory() const

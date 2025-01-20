@@ -102,7 +102,15 @@ _doStationarySolve()
 {
   _getMaterialParameters();
   _assembleBilinearOperator();
-  _assembleLinearOperator();
+
+  if (options()->bsr() || options()->bsrAtomicFree())
+    m_bsr_format.toLinearSystem(m_linear_system);
+
+  if (options()->linearSystem.serviceName() == "HypreLinearSystem")
+    _assembleLinearOperatorGpu();
+  else
+    _assembleLinearOperator();
+
   _solve();
   _updateVariables();
   _validateResults();
@@ -130,30 +138,42 @@ _getMaterialParameters()
 /**
  * @brief FEM linear operator for the current simulation step.
  * GPU compatible. Currently working with HypreDoFLinearSystem.
+ *
+ * This method constructs the linear  system by  assembling the LHS matrix
+ * and  RHS vector, applying various boundary conditions and source terms.
+ *
+ * Steps involved:
+ *  1. The RHS vector is initialized to zero before applying any conditions.
+ *  2. If Neumann BC are specified applied to the RHS.
+ *  3. If Dirichlet BC/Point are specified apply to the LHS & RHS.
  */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::_assembleLinearOperatorGpu()
 {
-  auto queue = subDomain()->acceleratorMng()->defaultQueue();
+  info() << "[ArcaneFem-Module] _assembleLinearOperatorGpu()";
+  Real elapsedTime = platform::getRealTime();
 
-  m_linear_system.initializeRhsNumArray();
-  auto rhs_values_na = m_linear_system.rhsVariableNumArray();
+  auto queue = subDomain()->acceleratorMng()->defaultQueue();
+  auto mesh_ptr = mesh();
+
+  auto& rhs_values(m_linear_system.rhsVariable());
+  rhs_values.fill(0.0);
 
   auto applyBoundaryConditions = [&](auto BCFunctions) {
     if (options()->f.isPresent())
-      BCFunctions.applyConstantSourceToRhs(f, queue, rhs_values_na, mesh(), m_dofs_on_nodes, m_node_coord);
+      BCFunctions.applyConstantSourceToRhs(f, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
 
     BC::IArcaneFemBC* bc = options()->boundaryConditions();
     if (bc) {
       for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
-        BCFunctions.applyNeumannToRhs(bs, queue, rhs_values_na, mesh(), m_dofs_on_nodes, m_node_coord);
+        BCFunctions.applyNeumannToRhs(bs, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
 
       for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
-        BCFunctions.applyDirichletToLhsAndRhs(bs, queue, mesh(), m_linear_system, m_dofs_on_nodes, rhs_values_na);
+        BCFunctions.applyDirichletToLhsAndRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
 
       for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions())
-        BCFunctions.applyPointDirichletToLhsAndRhs(bs, queue, mesh(), m_linear_system, m_dofs_on_nodes, rhs_values_na);
+        BCFunctions.applyPointDirichletToLhsAndRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
     }
   };
 
@@ -166,12 +186,8 @@ void FemModule::_assembleLinearOperatorGpu()
     applyBoundaryConditions(BCFunctions());
   }
 
-  // Translate to RHS
-  VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
-  for (auto i = 0; i < rhs_values_na.extent0(); ++i) {
-    info() << rhs_values_na[i];
-    rhs_values[DoFLocalId(i)] = rhs_values_na[i];
-  }
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] rhs-vector-assembly-gpu", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -193,46 +209,37 @@ void FemModule::_assembleLinearOperator()
   info() << "[ArcaneFem-Module] _assembleLinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (options()->bsr() || options()->bsrAtomicFree())
-    m_bsr_format.toLinearSystem(m_linear_system);
+  VariableDoFReal& rhs_values(m_linear_system.rhsVariable()); // Temporary variable to keep values for the RHS
+  rhs_values.fill(0.0);
 
-  bool is_using_hypre = options()->linearSystem.serviceName() == "HypreLinearSystem";
-  if (is_using_hypre) {
-    _assembleLinearOperatorGpu();
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  // Helper lambda to apply boundary conditions
+  auto applyBoundaryConditions = [&](auto BCFunctions) {
+    if (options()->f.isPresent())
+      BCFunctions.applyConstantSourceToRhs(f, mesh(), node_dof, m_node_coord, rhs_values);
+
+    BC::IArcaneFemBC* bc = options()->boundaryConditions();
+    if (bc) {
+      for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
+        BCFunctions.applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+
+      for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
+        BCFunctions.applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+
+      for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions())
+        BCFunctions.applyPointDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+    }
+  };
+
+  // Apply the correct boundary conditions based on mesh dimension
+  if (mesh()->dimension() == 3) {
+    using BCFunctions = ArcaneFemFunctions::BoundaryConditions3D;
+    applyBoundaryConditions(BCFunctions());
   }
   else {
-    VariableDoFReal& rhs_values(m_linear_system.rhsVariable()); // Temporary variable to keep values for the RHS
-    rhs_values.fill(0.0);
-
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-    // Helper lambda to apply boundary conditions
-    auto applyBoundaryConditions = [&](auto BCFunctions) {
-      if (options()->f.isPresent())
-        BCFunctions.applyConstantSourceToRhs(f, mesh(), node_dof, m_node_coord, rhs_values);
-
-      BC::IArcaneFemBC* bc = options()->boundaryConditions();
-      if (bc) {
-        for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
-          BCFunctions.applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
-
-        for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
-          BCFunctions.applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
-
-        for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions())
-          BCFunctions.applyPointDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
-      }
-    };
-
-    // Apply the correct boundary conditions based on mesh dimension
-    if (mesh()->dimension() == 3) {
-      using BCFunctions = ArcaneFemFunctions::BoundaryConditions3D;
-      applyBoundaryConditions(BCFunctions());
-    }
-    else {
-      using BCFunctions = ArcaneFemFunctions::BoundaryConditions2D;
-      applyBoundaryConditions(BCFunctions());
-    }
+    using BCFunctions = ArcaneFemFunctions::BoundaryConditions2D;
+    applyBoundaryConditions(BCFunctions());
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
