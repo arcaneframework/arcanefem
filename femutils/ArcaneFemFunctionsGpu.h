@@ -63,10 +63,10 @@ namespace Arcane::FemUtils::Gpu::MeshOperation
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Computes the area of a triangle defined by three nodes.
+ * @brief computes the area of a triangle defined by three nodes.
  *
- * This method calculates the area using the determinant formula for a triangle.
- * The area is computed as half the value of the determinant of the matrix
+ * this method calculates the area using the determinant formula for a triangle.
+ * the area is computed as half the value of the determinant of the matrix
  * formed by the coordinates of the triangle's vertices.
  */
 /*---------------------------------------------------------------------------*/
@@ -77,7 +77,21 @@ ARCCORE_HOST_DEVICE static inline Real computeAreaTria3(CellLocalId cell_lid, co
   Real3 vertex1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
   Real3 vertex2 = in_node_coord[cn_cv.nodeId(cell_lid, 2)];
 
-  return 0.5 * ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
+  auto v = math::cross(vertex1 - vertex0, vertex2 - vertex0);
+  return v.normL2() / 2.0;
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE static inline Real computeAreaTria(FaceLocalId face_lid, const IndexedFaceNodeConnectivityView& fn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+{
+  Real3 vertex0 = in_node_coord[fn_cv.nodeId(face_lid, 0)];
+  Real3 vertex1 = in_node_coord[fn_cv.nodeId(face_lid, 1)];
+  Real3 vertex2 = in_node_coord[fn_cv.nodeId(face_lid, 2)];
+
+  auto v = math::cross(vertex1 - vertex0, vertex2 - vertex0);
+  return v.normL2() / 2.0;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -131,7 +145,7 @@ ARCCORE_HOST_DEVICE static inline Real computeLengthFace(FaceLocalId face_lid, I
  */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE static inline Real2 computeNormalFace(FaceLocalId face_lid, IndexedFaceNodeConnectivityView fn_cv, Accelerator::VariableNodeReal3InView in_node_coord, Arcane::FaceInfoListView faces_infos)
+ARCCORE_HOST_DEVICE static inline Real2 computeNormalFace(FaceLocalId face_lid, IndexedFaceNodeConnectivityView fn_cv, Accelerator::VariableNodeReal3InView in_node_coord, FaceInfoListView faces_infos)
 {
   Real3 m0 = in_node_coord[fn_cv.nodeId(face_lid, 0)];
   Real3 m1 = in_node_coord[fn_cv.nodeId(face_lid, 1)];
@@ -147,6 +161,38 @@ ARCCORE_HOST_DEVICE static inline Real2 computeNormalFace(FaceLocalId face_lid, 
   N.x = (m1.y - m0.y) / norm_N;
   N.y = (m0.x - m1.x) / norm_N;
   return N;
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+     * @brief Computes the normalized triangle normal for a given face.
+     *
+     * This method calculates normal vector to the triangle defined by nodes,
+     * of the face and normalizes it, and ensures the correct orientation.
+     */
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE static inline Real3 computeNormalTriangle(FaceLocalId face_lid, IndexedFaceNodeConnectivityView fn_cv, Accelerator::VariableNodeReal3InView in_node_coord, FaceInfoListView faces_infos)
+{
+
+  Real3 vertex0 = in_node_coord[fn_cv.nodeId(face_lid, 0)];
+  Real3 vertex1 = in_node_coord[fn_cv.nodeId(face_lid, 1)];
+  Real3 vertex2 = in_node_coord[fn_cv.nodeId(face_lid, 2)];
+
+  if (!faces_infos.isSubDomainBoundaryOutside(face_lid))
+    std::swap(vertex0, vertex1);
+
+  Real3 edge1 = { vertex1.x - vertex0.x, vertex1.y - vertex0.y, vertex1.z - vertex0.z };
+  Real3 edge2 = { vertex2.x - vertex0.x, vertex2.y - vertex0.y, vertex2.z - vertex0.z };
+
+  Real3 normal = {
+    edge1.y * edge2.z - edge1.z * edge2.y,
+    edge1.z * edge2.x - edge1.x * edge2.z,
+    edge1.x * edge2.y - edge1.y * edge2.x
+  };
+
+  Real norm = math::sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+  return { normal.x / norm, normal.y / norm, normal.z / norm };
 }
 
 } // namespace Arcane::FemUtils::Gpu::MeshOperation
@@ -346,202 +392,351 @@ ARCCORE_HOST_DEVICE static inline Real4 computeGradientZTetra4(CellLocalId cell_
 
 } // namespace Arcane::FemUtils::Gpu::FeOperation3D
 
-namespace Arcane::FemUtils::Gpu::BoundaryConditions2D
+namespace Arcane::FemUtils::Gpu
 {
 
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Applies a constant source term to the RHS vector.
- *
- * This method adds a constant source term `qdot` to the RHS vector for each
- * node in the mesh. The contribution to each node is weighted by the area of
- * the cell and evenly distributed among the number of nodes of the cell.
- *
- */
-/*---------------------------------------------------------------------------*/
-
-static inline void applyConstantSourceToRhs(Real qdot, Accelerator::RunQueue* queue, NumArray<Real, MDDim1>& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
+namespace BoundaryCondtionsHelpers
 {
-  ARCANE_CHECK_PTR(queue);
-  ARCANE_CHECK_PTR(mesh);
-
-  UnstructuredMeshConnectivityView connectivity_view;
-  connectivity_view.setMesh(mesh);
-  NodeInfoListView nodes_infos(mesh->nodeFamily());
-  auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
-  auto cn_cv = connectivity_view.cellNode();
-
-  auto command = Accelerator::makeCommand(queue);
-
-  auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
-  auto in_node_coord = Accelerator::viewIn(command, node_coord);
-
-  command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh->allCells())
+  template <class Function>
+  static inline void applyConstantSourceToRhsBase(Function computeDomain, Real qdot, Accelerator::RunQueue* queue, NumArray<Real, MDDim1>& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
   {
-    Real area = MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
-    for (NodeLocalId node_lid : cn_cv.nodes(cell_lid)) {
+    ARCANE_CHECK_PTR(queue);
+    ARCANE_CHECK_PTR(mesh);
+    ARCANE_CHECK_PTR(computeDomain);
+
+    UnstructuredMeshConnectivityView connectivity_view;
+    connectivity_view.setMesh(mesh);
+    NodeInfoListView nodes_infos(mesh->nodeFamily());
+    auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
+    auto cn_cv = connectivity_view.cellNode();
+
+    auto command = Accelerator::makeCommand(queue);
+
+    auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
+    auto in_node_coord = Accelerator::viewIn(command, node_coord);
+
+    command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh->allCells())
+    {
+      Real domain = computeDomain(cell_lid, cn_cv, in_node_coord);
+      for (NodeLocalId node_lid : cn_cv.nodes(cell_lid)) {
+        if (nodes_infos.isOwn(node_lid)) {
+          Real value = qdot * domain / cn_cv.nbItem(cell_lid);
+          Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], value);
+        }
+      }
+    };
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  static inline void applyDirichletToNodeGroup(Real value, Real penalty, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NumArray<Real, MDDim1>& rhs_variable_na, NodeGroup& node_group)
+  {
+    ARCANE_CHECK_PTR(bs);
+    ARCANE_CHECK_PTR(queue);
+    ARCANE_CHECK_PTR(mesh);
+
+    auto command = Accelerator::makeCommand(queue);
+    UnstructuredMeshConnectivityView connectivity_view;
+    connectivity_view.setMesh(mesh);
+    auto fn_cv = connectivity_view.faceNode();
+    NodeInfoListView nodes_infos(mesh->nodeFamily());
+    auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
+
+    CSRFormatView& linear_system_lhs_csr = linear_system.getCSRValues();
+
+    auto csr_row = linear_system_lhs_csr.rows();
+    auto csr_row_size = csr_row.extent0();
+    auto in_csr_row = Accelerator::viewInOut(command, csr_row);
+
+    auto csr_columns = linear_system_lhs_csr.columns();
+    auto csr_columns_size = csr_columns.extent0();
+    auto in_csr_columns = Accelerator::viewIn(command, csr_columns);
+
+    auto in_out_csr_values = Accelerator::viewInOut(command, linear_system_lhs_csr.values());
+    auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
+
+    command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
+    {
       if (nodes_infos.isOwn(node_lid)) {
-        Real value = qdot * area / cn_cv.nbItem(cell_lid);
-        Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], value);
+        DoFLocalId dof_id = node_dof.dofId(node_lid, 0);
+        auto begin = in_csr_row[dof_id];
+        auto end = dof_id == csr_row_size - 1 ? csr_columns_size : in_csr_row[dof_id + 1];
+        auto index = Csr::findIndex(begin, end, dof_id, in_csr_columns);
+        in_out_csr_values[index] = penalty;
+        in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)] = penalty * value;
+      }
+    };
+  }
+} // namespace BoundaryCondtionsHelpers
+
+class BoundaryConditions2D
+{
+ public:
+
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Applies a constant source term to the RHS vector.
+   *
+   * This method adds a constant source term `qdot` to the RHS vector for each
+   * node in the mesh. The contribution to each node is weighted by the area of
+   * the cell and evenly distributed among the number of nodes of the cell.
+   *
+   */
+  /*---------------------------------------------------------------------------*/
+
+  static inline void applyConstantSourceToRhs(Real qdot, Accelerator::RunQueue* queue, NumArray<Real, MDDim1>& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
+  {
+    BoundaryCondtionsHelpers::applyConstantSourceToRhsBase([] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord) { return MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord); }, qdot, queue, rhs_variable_na, mesh, dofs_on_nodes, node_coord);
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Applies Neumann conditions to the right-hand side (RHS) values.
+   *
+   * This method updates the RHS values of the finite element method equations
+   * based on the provided Neumann boundary condition. The boundary condition
+   * can specify a value or its components along the x and y directions.
+   *
+   */
+  /*---------------------------------------------------------------------------*/
+
+  static inline void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, Accelerator::RunQueue* queue, NumArray<Real, MDDim1>& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
+  {
+    ARCANE_CHECK_PTR(bs);
+    ARCANE_CHECK_PTR(queue);
+    ARCANE_CHECK_PTR(mesh);
+
+    FaceGroup group = bs->getSurface();
+    bool has_value = bs->hasValue();
+
+    UnstructuredMeshConnectivityView connectivity_view;
+    connectivity_view.setMesh(mesh);
+    NodeInfoListView nodes_infos(mesh->nodeFamily());
+    auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
+    auto fn_cv = connectivity_view.faceNode();
+
+    if (has_value) {
+      {
+        Real value = bs->getValue();
+
+        auto command = Accelerator::makeCommand(queue);
+        auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
+        auto in_node_coord = Accelerator::viewIn(command, node_coord);
+        command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
+        {
+          Real length = MeshOperation::computeLengthFace(face_lid, fn_cv, in_node_coord);
+          for (NodeLocalId node_lid : fn_cv.nodes(face_lid)) {
+            if (nodes_infos.isOwn(node_lid)) {
+              Real rhs_value = value * length / 2.0;
+              Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
+            }
+          }
+        };
       }
     }
-  };
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Applies Neumann conditions to the right-hand side (RHS) values.
- *
- * This method updates the RHS values of the finite element method equations
- * based on the provided Neumann boundary condition. The boundary condition
- * can specify a value or its components along the x and y directions.
- *
- */
-/*---------------------------------------------------------------------------*/
-
-static inline void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, Accelerator::RunQueue* queue, NumArray<Real, MDDim1>& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
-{
-  ARCANE_CHECK_PTR(bs);
-  ARCANE_CHECK_PTR(queue);
-  ARCANE_CHECK_PTR(mesh);
-
-  FaceGroup group = bs->getSurface();
-  bool has_value = bs->hasValue();
-
-  UnstructuredMeshConnectivityView connectivity_view;
-  connectivity_view.setMesh(mesh);
-  NodeInfoListView nodes_infos(mesh->nodeFamily());
-  auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
-  auto fn_cv = connectivity_view.faceNode();
-
-  if (has_value) {
-    {
-      Real value = has_value ? bs->getValue() : 0.;
-
-      auto command = Accelerator::makeCommand(queue);
-      auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
-      auto in_node_coord = Accelerator::viewIn(command, node_coord);
-      command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
+    else {
       {
-        Real length = MeshOperation::computeLengthFace(face_lid, fn_cv, in_node_coord);
-        for (NodeLocalId node_lid : fn_cv.nodes(face_lid)) {
-          if (nodes_infos.isOwn(node_lid)) {
-            Real rhs_value = value * length / 2.;
-            Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
+        Real value_x = bs->hasValueX() ? bs->getValueX() : 0.0;
+        Real value_y = bs->hasValueY() ? bs->getValueY() : 0.0;
+
+        auto command = Accelerator::makeCommand(queue);
+        auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
+        auto in_node_coord = Accelerator::viewIn(command, node_coord);
+        FaceInfoListView faces_infos(mesh->faceFamily());
+        command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
+        {
+          Real length = MeshOperation::computeLengthFace(face_lid, fn_cv, in_node_coord);
+          Real2 normal = MeshOperation::computeNormalFace(face_lid, fn_cv, in_node_coord, faces_infos);
+          for (NodeLocalId node_lid : fn_cv.nodes(face_lid)) {
+            if (nodes_infos.isOwn(node_lid)) {
+              Real rhs_value = (normal.x * value_x + normal.y * value_y) * length / 2.0;
+              Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
+            }
           }
-        }
-      };
+        };
+      }
     }
   }
-  else {
-    {
-      Real value_x = bs->hasValueX() ? bs->getValueX() : 0.;
-      Real value_y = bs->hasValueY() ? bs->getValueY() : 0.;
 
-      auto command = Accelerator::makeCommand(queue);
-      auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
-      auto in_node_coord = Accelerator::viewIn(command, node_coord);
-      FaceInfoListView faces_infos(mesh->faceFamily());
-      command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
-      {
-        Real length = MeshOperation::computeLengthFace(face_lid, fn_cv, in_node_coord);
-        Real2 normal = MeshOperation::computeNormalFace(face_lid, fn_cv, in_node_coord, faces_infos);
-        for (NodeLocalId node_lid : fn_cv.nodes(face_lid)) {
-          if (nodes_infos.isOwn(node_lid)) {
-            Real rhs_value = (normal.x * value_x + normal.y * value_y) * length / 2.;
-            Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
-          }
-        }
-      };
-    }
-  }
-}
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Applies Dirichlet boundary conditions to RHS and LHS.
+   *
+   * Updates the LHS matrix and RHS vector to enforce Dirichlet conditions.
+   *
+   * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
+   * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+   *
+   */
+  /*---------------------------------------------------------------------------*/
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-static inline void applyDirichletToLhsAndRhsToNG(Real value, Real penalty, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NumArray<Real, MDDim1>& rhs_variable_na, NodeGroup& node_group)
-{
-  ARCANE_CHECK_PTR(bs);
-  ARCANE_CHECK_PTR(queue);
-  ARCANE_CHECK_PTR(mesh);
-
-  auto command = Accelerator::makeCommand(queue);
-  UnstructuredMeshConnectivityView connectivity_view;
-  connectivity_view.setMesh(mesh);
-  auto fn_cv = connectivity_view.faceNode();
-  NodeInfoListView nodes_infos(mesh->nodeFamily());
-  auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
-
-  CSRFormatView& linear_system_lhs_csr = linear_system.getCSRValues();
-
-  auto csr_row = linear_system_lhs_csr.rows();
-  auto csr_row_size = csr_row.extent0();
-  auto in_csr_row = Accelerator::viewInOut(command, csr_row);
-
-  auto csr_columns = linear_system_lhs_csr.columns();
-  auto csr_columns_size = csr_columns.extent0();
-  auto in_csr_columns = Accelerator::viewIn(command, csr_columns);
-
-  auto in_out_csr_values = Accelerator::viewInOut(command, linear_system_lhs_csr.values());
-  auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
-
-  command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
+  static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NumArray<Real, MDDim1>& rhs_variable_na)
   {
-    if (nodes_infos.isOwn(node_lid)) {
-      DoFLocalId dof_id = node_dof.dofId(node_lid, 0);
-      auto begin = in_csr_row[dof_id];
-      auto end = dof_id == csr_row_size - 1 ? csr_columns_size : in_csr_row[dof_id + 1];
-      auto index = Csr::findIndex(begin, end, dof_id, in_csr_columns);
-      in_out_csr_values[index] = penalty;
-      in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)] = penalty * value;
+    ARCANE_CHECK_PTR(bs);
+    Real value = bs->getValue();
+    Real penalty = bs->getPenalty();
+    FaceGroup face_group = bs->getSurface();
+    NodeGroup node_group = face_group.nodeGroup();
+    BoundaryCondtionsHelpers::applyDirichletToNodeGroup(value, penalty, queue, mesh, linear_system, dofs_on_nodes, rhs_variable_na, node_group);
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Applies Point Dirichlet boundary conditions to RHS and LHS.
+   *
+   * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
+   *
+   * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
+   * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+   *
+   */
+  /*---------------------------------------------------------------------------*/
+
+  static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NumArray<Real, MDDim1>& rhs_variable_na)
+  {
+    ARCANE_CHECK_PTR(bs);
+    Real value = bs->getValue();
+    Real penalty = bs->getPenalty();
+    NodeGroup node_group = bs->getNode();
+    BoundaryCondtionsHelpers::applyDirichletToNodeGroup(value, penalty, queue, mesh, linear_system, dofs_on_nodes, rhs_variable_na, node_group);
+  }
+};
+
+class BoundaryConditions3D
+{
+ public:
+
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Applies a constant source term to the RHS vector.
+   *
+   * This method adds a constant source term `qdot` to the RHS vector for each
+   * node in the mesh. The contribution to each node is weighted by the area of
+   * the cell and evenly distributed among the number of nodes of the cell.
+   *
+   */
+  /*---------------------------------------------------------------------------*/
+
+  static inline void applyConstantSourceToRhs(Real qdot, Accelerator::RunQueue* queue, NumArray<Real, MDDim1>& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
+  {
+    BoundaryCondtionsHelpers::applyConstantSourceToRhsBase([] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord) { return MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord); }, qdot, queue, rhs_variable_na, mesh, dofs_on_nodes, node_coord);
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Applies Neumann conditions to the right-hand side (RHS) values.
+   *
+   * This method updates the RHS values of the finite element method equations
+   * based on the provided Neumann boundary condition. The boundary condition
+   * can specify a value or its components along the x and y directions.
+   *
+   */
+  /*---------------------------------------------------------------------------*/
+
+  static inline void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, Accelerator::RunQueue* queue, NumArray<Real, MDDim1>& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
+  {
+    ARCANE_CHECK_PTR(bs);
+    ARCANE_CHECK_PTR(queue);
+    ARCANE_CHECK_PTR(mesh);
+
+    FaceGroup group = bs->getSurface();
+    bool has_value = bs->hasValue();
+
+    UnstructuredMeshConnectivityView connectivity_view;
+    connectivity_view.setMesh(mesh);
+    NodeInfoListView nodes_infos(mesh->nodeFamily());
+    auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
+    auto fn_cv = connectivity_view.faceNode();
+
+    if (has_value) {
+      {
+        Real value = bs->getValue();
+
+        auto command = Accelerator::makeCommand(queue);
+        auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
+        auto in_node_coord = Accelerator::viewIn(command, node_coord);
+        command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
+        {
+          Real area = MeshOperation::computeAreaTria(face_lid, fn_cv, in_node_coord);
+          for (NodeLocalId node_lid : fn_cv.nodes(face_lid)) {
+            if (nodes_infos.isOwn(node_lid)) {
+              Real rhs_value = value * area / 3.0;
+              Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
+            }
+          }
+        };
+      }
     }
-  };
-}
+    else {
+      {
+        Real value_x = bs->hasValueX() ? bs->getValueX() : 0.0;
+        Real value_y = bs->hasValueY() ? bs->getValueY() : 0.0;
+        Real value_z = bs->hasValueZ() ? bs->getValueZ() : 0.0;
 
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Applies Dirichlet boundary conditions to RHS and LHS.
- *
- * Updates the LHS matrix and RHS vector to enforce Dirichlet conditions.
- *
- * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
- * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
- *
- */
-/*---------------------------------------------------------------------------*/
+        auto command = Accelerator::makeCommand(queue);
+        auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
+        auto in_node_coord = Accelerator::viewIn(command, node_coord);
+        FaceInfoListView faces_infos(mesh->faceFamily());
+        command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
+        {
+          Real area = MeshOperation::computeAreaTria(face_lid, fn_cv, in_node_coord);
+          Real3 normal = MeshOperation::computeNormalTriangle(face_lid, fn_cv, in_node_coord, faces_infos);
+          for (NodeLocalId node_lid : fn_cv.nodes(face_lid)) {
+            if (nodes_infos.isOwn(node_lid)) {
+              Real rhs_value = (normal.x * value_x + normal.y * value_y + normal.z * value_z) * area / 3.0;
+              Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
+            }
+          }
+        };
+      }
+    }
+  }
 
-static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& m_linear_system, const FemDoFsOnNodes& dofs_on_nodes, NumArray<Real, MDDim1>& rhs_variable_na)
-{
-  ARCANE_CHECK_PTR(bs);
-  Real value = bs->getValue();
-  Real penalty = bs->getPenalty();
-  FaceGroup face_group = bs->getSurface();
-  NodeGroup node_group = face_group.nodeGroup();
-  applyDirichletToLhsAndRhsToNG(value, penalty, queue, mesh, m_linear_system, dofs_on_nodes, rhs_variable_na, node_group);
-}
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Applies Dirichlet boundary conditions to RHS and LHS.
+   *
+   * Updates the LHS matrix and RHS vector to enforce Dirichlet conditions.
+   *
+   * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
+   * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+   *
+   */
+  /*---------------------------------------------------------------------------*/
 
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Applies Point Dirichlet boundary conditions to RHS and LHS.
- *
- * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
- *
- * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
- * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
- *
- */
-/*---------------------------------------------------------------------------*/
+  static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NumArray<Real, MDDim1>& rhs_variable_na)
+  {
+    ARCANE_CHECK_PTR(bs);
+    Real value = bs->getValue();
+    Real penalty = bs->getPenalty();
+    FaceGroup face_group = bs->getSurface();
+    NodeGroup node_group = face_group.nodeGroup();
+    BoundaryCondtionsHelpers::applyDirichletToNodeGroup(value, penalty, queue, mesh, linear_system, dofs_on_nodes, rhs_variable_na, node_group);
+  }
 
-static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NumArray<Real, MDDim1>& rhs_variable_na)
-{
-  ARCANE_CHECK_PTR(bs);
-  Real value = bs->getValue();
-  Real penalty = bs->getPenalty();
-  NodeGroup node_group = bs->getNode();
-  applyDirichletToLhsAndRhsToNG(value, penalty, queue, mesh, linear_system, dofs_on_nodes, rhs_variable_na, node_group);
-}
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Applies Point Dirichlet boundary conditions to RHS and LHS.
+   *
+   * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
+   *
+   * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
+   * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+   *
+   */
+  /*---------------------------------------------------------------------------*/
 
-} // namespace Arcane::FemUtils::Gpu::BoundaryConditions2D
+  static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NumArray<Real, MDDim1>& rhs_variable_na)
+  {
+    ARCANE_CHECK_PTR(bs);
+    Real value = bs->getValue();
+    Real penalty = bs->getPenalty();
+    NodeGroup node_group = bs->getNode();
+    BoundaryCondtionsHelpers::applyDirichletToNodeGroup(value, penalty, queue, mesh, linear_system, dofs_on_nodes, rhs_variable_na, node_group);
+  }
+};
+
+} // namespace Arcane::FemUtils::Gpu
 
 #endif // ! ARCANE_FEM_FUNCTIONS_GPU_H
