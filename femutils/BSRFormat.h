@@ -244,6 +244,10 @@ class BSRMatrix : public TraceAccessor
           csr_matrix->m_matrix_rows_nb_column[offset++] = m_nb_nz_per_row[i] * BLOCK_SIZE;
         }
       }
+
+      // Fill last entry of CSR matrix row_index array
+      auto row_index_size = csr_matrix->m_matrix_row.extent0();
+      csr_matrix->m_matrix_row[row_index_size - 1] = csr_matrix->m_matrix_row[row_index_size - 2] + csr_matrix->m_matrix_rows_nb_column[csr_matrix->m_matrix_rows_nb_column.extent0() - 1];
     }
 
     // NOTE: If we don't want to keep bsr matrix coefficients we could move the data instead of copying it.
