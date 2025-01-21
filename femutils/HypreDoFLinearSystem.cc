@@ -320,9 +320,88 @@ namespace
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+void HypreDoFLinearSystemImpl::_applyRowElimination()
+{
+  auto nb_dof = m_dof_family->nbItem();
+
+  RunQueue queue = makeQueue(m_runner);
+  auto command = makeCommand(queue);
+
+  auto in_elimination_info = Accelerator::viewIn(command, m_dof_elimination_info);
+  auto in_elimination_value = Accelerator::viewIn(command, m_dof_elimination_value);
+
+  auto csr_row = m_csr_view.rows();
+  auto csr_row_size = csr_row.extent0();
+  auto in_csr_row = Accelerator::viewInOut(command, csr_row);
+
+  auto csr_columns = m_csr_view.columns();
+  auto in_csr_columns = Accelerator::viewIn(command, csr_columns);
+  auto csr_columns_size = csr_columns.extent0();
+
+  auto in_out_csr_values = Accelerator::viewInOut(command, m_csr_view.values());
+
+  auto in_out_rhs_variable = Accelerator::viewInOut(command, m_rhs_variable);
+
+  command << RUNCOMMAND_LOOP1(iter, nb_dof)
+  {
+    auto [thread_id] = iter();
+    DoFLocalId dof_id(thread_id);
+    auto elimination_info = in_elimination_info[dof_id];
+    if (elimination_info == ELIMINATE_ROW || elimination_info == ELIMINATE_ROW_COLUMN) {
+      auto begin = in_csr_row[dof_id];
+      auto end = dof_id == csr_row_size - 1 ? csr_columns_size : in_csr_row[dof_id + 1];
+      auto elimination_value = in_elimination_value[dof_id];
+      for (Int32 i = begin; i < end; ++i)
+        in_out_csr_values[i] = in_csr_columns[i] == dof_id ? 1 : 0;
+      in_out_rhs_variable[dof_id] = elimination_value;
+    }
+  };
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void HypreDoFLinearSystemImpl::_applyForcedValuesToLhs()
+{
+  auto nb_dof = m_dof_family->nbItem();
+
+  RunQueue queue = makeQueue(m_runner);
+  auto command = makeCommand(queue);
+
+  auto in_out_forced_info = Accelerator::viewInOut(command, m_dof_forced_info);
+  auto in_out_forced_value = Accelerator::viewInOut(command, m_dof_forced_value);
+
+  auto csr_row = m_csr_view.rows();
+  auto csr_row_size = csr_row.extent0();
+  auto in_csr_row = Accelerator::viewInOut(command, csr_row);
+
+  auto csr_columns = m_csr_view.columns();
+  auto csr_columns_size = csr_columns.extent0();
+  auto in_csr_columns = Accelerator::viewIn(command, csr_columns);
+
+  auto in_out_csr_values = Accelerator::viewInOut(command, m_csr_view.values());
+
+  command << RUNCOMMAND_LOOP1(iter, nb_dof)
+  {
+    auto [dof_id] = iter();
+    if (in_out_forced_info[(DoFLocalId)dof_id]) {
+      auto begin = in_csr_row[dof_id];
+      auto end = dof_id == csr_row_size - 1 ? csr_columns_size : in_csr_row[dof_id + 1];
+      auto index = FemUtils::Gpu::Csr::findIndex(begin, end, dof_id, in_csr_columns);
+      in_out_csr_values[index] = in_out_forced_value[(DoFLocalId)dof_id];
+    }
+  };
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 void HypreDoFLinearSystemImpl::
 solve()
 {
+  _applyRowElimination();
+  _applyForcedValuesToLhs();
+
 #if HYPRE_RELEASE_NUMBER >= 22700
   HYPRE_MemoryLocation hypre_memory = HYPRE_MEMORY_HOST;
   HYPRE_ExecutionPolicy hypre_exec_policy = HYPRE_EXEC_HOST;
