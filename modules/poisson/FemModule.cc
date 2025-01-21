@@ -154,37 +154,37 @@ void FemModule::_assembleLinearOperatorGpu()
   info() << "[ArcaneFem-Module] _assembleLinearOperatorGpu()";
   Real elapsedTime = platform::getRealTime();
 
-  auto queue = subDomain()->acceleratorMng()->defaultQueue();
-  auto mesh_ptr = mesh();
-
   auto& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
+
+  // Because of Dirichlet (Penalty) implementation in Hypre.
+  m_linear_system.getForcedInfo().fill(false);
+
+  auto queue = subDomain()->acceleratorMng()->defaultQueue();
+  auto mesh_ptr = mesh();
 
   auto applyBoundaryConditions = [&](auto BCFunctions) {
     if (options()->f.isPresent())
       BCFunctions.applyConstantSourceToRhs(f, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
 
     BC::IArcaneFemBC* bc = options()->boundaryConditions();
+
     if (bc) {
       for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
         BCFunctions.applyNeumannToRhs(bs, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
 
       for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
-        BCFunctions.applyDirichletToLhsAndRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
+        FemUtils::Gpu::BoundaryConditions::applyDirichletViaPenalty(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
 
       for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions())
-        BCFunctions.applyPointDirichletToLhsAndRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
+        FemUtils::Gpu::BoundaryConditions::applyPointDirichletViaPenalty(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
     }
   };
 
-  if (mesh()->dimension() == 2) {
-    using BCFunctions = FemUtils::Gpu::BoundaryConditions2D;
-    applyBoundaryConditions(BCFunctions());
-  }
-  else {
-    using BCFunctions = FemUtils::Gpu::BoundaryConditions3D;
-    applyBoundaryConditions(BCFunctions());
-  }
+  if (mesh()->dimension() == 3)
+    applyBoundaryConditions(FemUtils::Gpu::BoundaryConditions3D());
+  else
+    applyBoundaryConditions(FemUtils::Gpu::BoundaryConditions2D());
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] rhs-vector-assembly-gpu", elapsedTime);
