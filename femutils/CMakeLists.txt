@@ -3,6 +3,7 @@ option(ENABLE_DEBUG_MATRIX "Enable Debug matrix instead of a sparse one" OFF)
 set(ACCELERATOR_SOURCES
   BSRFormat.h
   ArcaneFemFunctionsGpu.h
+  HypreDoFLinearSystem.cc
 )
 
 add_library(FemUtils
@@ -85,7 +86,7 @@ if (TARGET Arcane::arcane_aleph_hypre)
   else()
     message(WARNING "Do not find a valid target for Hypre. This may produce link errors")
   endif()
-  target_sources(FemUtils PRIVATE HypreDoFLinearSystem.cc)
+  #target_sources(FemUtils PRIVATE HypreDoFLinearSystem.cc)
   find_package(Threads)
   if (TARGET Threads::Threads)
     target_link_libraries(FemUtils PUBLIC Threads::Threads)
