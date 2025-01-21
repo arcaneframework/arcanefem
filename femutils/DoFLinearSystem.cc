@@ -178,6 +178,26 @@ class SequentialDoFLinearSystemImpl
     ARCANE_THROW(NotImplementedException, "");
   }
 
+  VariableDoFReal& getForcedValue() override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
+  VariableDoFBool& getForcedInfo() override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
+  VariableDoFReal& getEliminationValue() override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
+  VariableDoFByte& getEliminationInfo() override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
   void setSolverCommandLineArguments(const CommandLineArguments&) override {}
 
   void clearValues() override
@@ -435,10 +455,49 @@ setCSRValues(const CSRFormatView& csr_view)
   return m_p->setCSRValues(csr_view);
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 CSRFormatView& DoFLinearSystem::getCSRValues()
 {
   _checkInit();
   return m_p->getCSRValues();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFReal& DoFLinearSystem::getForcedValue()
+{
+  _checkInit();
+  return m_p->getForcedValue();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFBool& DoFLinearSystem::getForcedInfo()
+{
+  _checkInit();
+  return m_p->getForcedInfo();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFReal& DoFLinearSystem::getEliminationValue()
+{
+  _checkInit();
+  return m_p->getEliminationValue();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFByte& DoFLinearSystem::getEliminationInfo()
+{
+  _checkInit();
+  return m_p->getEliminationInfo();
 }
 
 /*---------------------------------------------------------------------------*/
