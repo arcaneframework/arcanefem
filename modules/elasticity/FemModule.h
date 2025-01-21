@@ -32,6 +32,7 @@
 #include "FemDoFsOnNodes.h"
 #include "BSRFormat.h"
 #include "ArcaneFemFunctionsGpu.h"
+#include "arccore/base/NotImplementedException.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -70,6 +71,7 @@ class FemModule
 
   void _doStationarySolve();
   void _assembleBilinearOperator();
+  void _assembleLinearOperatorGpu();
 
  private:
 

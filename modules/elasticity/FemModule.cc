@@ -57,6 +57,7 @@ compute()
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
+  m_linear_system.clearValues();
 
   _doStationarySolve();
 
@@ -103,10 +104,11 @@ _doStationarySolve()
 {
   _getMaterialParameters();
   _assembleBilinearOperator();
-  _assembleLinearOperator();
 
   if (m_use_bsr || m_use_bsr_atomic_free)
     m_bsr_format.toLinearSystem(m_linear_system);
+
+  _assembleLinearOperator();
 
   _solve();
   _updateVariables();
@@ -136,6 +138,64 @@ _getMaterialParameters()
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] get-material-params", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::_assembleLinearOperatorGpu()
+{
+  info() << "[ArcaneFem-Info] Started module  _assembleLinearOperatorGpu()";
+  Real elapsedTime = platform::getRealTime();
+
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  auto queue = subDomain()->acceleratorMng()->defaultQueue();
+  auto mesh_ptr = mesh();
+
+  // Dirichlet conditions to LHS and RHS
+  for (const auto& bs : options()->dirichletBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    const UniqueArray<String> u_dirichlet_string = bs->u();
+
+    auto method = options()->enforceDirichletMethod();
+
+    info() << "[ArcaneFem-Info] Applying Dirichlet " << u_dirichlet_string;
+    info() << "[ArcaneFem-Info] Dirichlet surface '" << bs->surface().name() << "'";
+    info() << "[ArcaneFem-Info] Dirichlet method '" << method << "'";
+
+    if (method == "Penalty")
+      FemUtils::Gpu::BoundaryConditions::applyDirichletViaPenaltyVectorial(m_dofs_on_nodes, m_linear_system, mesh_ptr, queue, group, options()->penalty(), u_dirichlet_string);
+
+    if (method == "RowElimination")
+      FemUtils::Gpu::BoundaryConditions::applyDirichletViaRowEliminationVectorial(m_dofs_on_nodes, m_linear_system, mesh_ptr, queue, group, u_dirichlet_string);
+
+    if (method == "RowColumnElimination")
+      ARCANE_THROW(Arccore::NotImplementedException, "Row-Column Elimination method not available with Hypre");
+  }
+
+  for (const auto& bs : options()->dirichletPointCondition()) {
+    NodeGroup group = bs->node();
+    const UniqueArray<String> u_dirichlet_string = bs->u();
+
+    auto method = options()->enforceDirichletMethod();
+
+    info() << "[ArcaneFem-Info] Applying point Dirichlet " << u_dirichlet_string;
+    info() << "[ArcaneFem-Info] Dirichlet points '" << group.name() << "'";
+    info() << "[ArcaneFem-Info] Dirichlet method '" << method << "'";
+
+    if (method == "Penalty")
+      FemUtils::Gpu::BoundaryConditions::applyPointDirichletViaPenaltyVectorial(m_dofs_on_nodes, m_linear_system, mesh(), queue, group, options()->penalty(), u_dirichlet_string);
+
+    if (method == "RowElimination")
+      FemUtils::Gpu::BoundaryConditions::applyPointDirichletViaRowEliminationVectorial(m_dofs_on_nodes, m_linear_system, mesh(), queue, group, u_dirichlet_string);
+
+    if (method == "RowColumnElimination")
+      ARCANE_THROW(Arccore::NotImplementedException, "Row-Column Elimination method not available with Hypre");
+  }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] rhs-gpu-part-vector-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -216,6 +276,13 @@ _assembleLinearOperator()
     }
   }
 
+  auto use_hypre = options()->linearSystem.serviceName() == "HypreLinearSystem";
+  if (use_hypre) {
+    // The rest of the assembly can be handled on GPU becuase of Hypre solver.
+    _assembleLinearOperatorGpu();
+    return;
+  }
+
   //----------------------------------------------
   // Dirichlet conditions to LHS and RHS
   //----------------------------------------------
@@ -239,10 +306,7 @@ _assembleLinearOperator()
             for (Node node : iface->nodes()) {
               DoFLocalId dof_id = node_dof.dofId(node, i);
               if (node.isOwn()) {
-                if (m_use_bsr || m_use_bsr_atomic_free)
-                  m_bsr_format.matrix().setValue(dof_id, dof_id, Penalty);
-                else
-                  m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
+                m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
                 rhs_values[dof_id] = Penalty * u_dirichlet;
               }
             }
@@ -302,10 +366,7 @@ _assembleLinearOperator()
             Node node = *inode;
             DoFLocalId dof_id = node_dof.dofId(node, i);
             if (node.isOwn()) {
-              if (m_use_bsr || m_use_bsr_atomic_free)
-                m_bsr_format.matrix().setValue(dof_id, dof_id, Penalty);
-              else
-                m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
+              m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
               rhs_values[dof_id] = Penalty * u_dirichlet;
             }
           }
