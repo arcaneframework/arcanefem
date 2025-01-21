@@ -399,7 +399,7 @@ namespace Arcane::FemUtils::Gpu
 namespace BoundaryCondtionsHelpers
 {
   template <class Function>
-  static inline void applyConstantSourceToRhsBase(Function computeDomain, Real qdot, Accelerator::RunQueue* queue, VariableDoFReal& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
+  inline void applyConstantSourceToRhsBase(Function computeDomain, Real qdot, Accelerator::RunQueue* queue, VariableDoFReal& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
   {
     ARCANE_CHECK_PTR(queue);
     ARCANE_CHECK_PTR(mesh);
@@ -431,44 +431,160 @@ namespace BoundaryCondtionsHelpers
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  static inline void applyDirichletToNodeGroup(Real value, Real penalty, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NodeGroup& node_group)
+  inline void applyDirichletToNodeGroupViaPenalty(Real value, Real penalty, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NodeGroup& node_group, Int32 dof_index = 0)
   {
     ARCANE_CHECK_PTR(queue);
     ARCANE_CHECK_PTR(mesh);
 
-    auto command = Accelerator::makeCommand(queue);
-    UnstructuredMeshConnectivityView connectivity_view;
-    connectivity_view.setMesh(mesh);
-    auto fn_cv = connectivity_view.faceNode();
     NodeInfoListView nodes_infos(mesh->nodeFamily());
     auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
 
-    CSRFormatView& linear_system_lhs_csr = linear_system.getCSRValues();
-
-    auto csr_row = linear_system_lhs_csr.rows();
-    auto csr_row_size = csr_row.extent0();
-    auto in_csr_row = Accelerator::viewInOut(command, csr_row);
-
-    auto csr_columns = linear_system_lhs_csr.columns();
-    auto csr_columns_size = csr_columns.extent0();
-    auto in_csr_columns = Accelerator::viewIn(command, csr_columns);
-
-    auto in_out_csr_values = Accelerator::viewInOut(command, linear_system_lhs_csr.values());
-    auto in_out_rhs_variable_na = Accelerator::viewInOut(command, linear_system.rhsVariable());
+    auto command = Accelerator::makeCommand(queue);
+    auto in_out_forced_info = Accelerator::viewInOut(command, linear_system.getForcedInfo());
+    auto in_out_forced_value = Accelerator::viewInOut(command, linear_system.getForcedValue());
+    auto in_out_rhs_variable = Accelerator::viewInOut(command, linear_system.rhsVariable());
 
     command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
     {
       if (nodes_infos.isOwn(node_lid)) {
-        DoFLocalId dof_id = node_dof.dofId(node_lid, 0);
-        auto begin = in_csr_row[dof_id];
-        auto end = dof_id == csr_row_size - 1 ? csr_columns_size : in_csr_row[dof_id + 1];
-        auto index = Csr::findIndex(begin, end, dof_id, in_csr_columns);
-        in_out_csr_values[index] = penalty;
-        in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)] = penalty * value;
+        DoFLocalId dof_id = node_dof.dofId(node_lid, dof_index);
+        in_out_forced_info[dof_id] = true;
+        in_out_forced_value[dof_id] = penalty;
+        in_out_rhs_variable[dof_id] = penalty * value;
+      }
+    };
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  template <Byte ELIMINATION_MODE>
+  inline void applyDirichletToNodeGroupViaRowElimination(Real value, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NodeGroup& node_group, Int32 dof_index = 0)
+  {
+    ARCANE_CHECK_PTR(queue);
+    ARCANE_CHECK_PTR(mesh);
+
+    NodeInfoListView nodes_infos(mesh->nodeFamily());
+    auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
+
+    auto command = Accelerator::makeCommand(queue);
+    auto in_out_elimination_info = Accelerator::viewInOut(command, linear_system.getEliminationInfo());
+    auto in_out_elimination_value = Accelerator::viewInOut(command, linear_system.getEliminationValue());
+
+    command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
+    {
+      if (nodes_infos.isOwn(node_lid)) {
+        DoFLocalId dof_id = node_dof.dofId(node_lid, dof_index);
+        in_out_elimination_info[dof_id] = ELIMINATION_MODE;
+        in_out_elimination_value[dof_id] = value;
       }
     };
   }
 } // namespace BoundaryCondtionsHelpers
+
+namespace BoundaryConditions
+{
+
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Applies Dirichlet boundary conditions to RHS and LHS.
+   *
+   * Updates the LHS matrix and RHS vector to enforce Dirichlet conditions.
+   *
+   * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
+   * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+   *
+   */
+  /*---------------------------------------------------------------------------*/
+
+  inline void applyDirichletViaPenalty(BC::IDirichletBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
+  {
+    ARCANE_CHECK_PTR(bs);
+    Real value = bs->getValue();
+    Real penalty = bs->getPenalty();
+    FaceGroup face_group = bs->getSurface();
+    NodeGroup node_group = face_group.nodeGroup();
+    BoundaryCondtionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  inline void applyDirichletViaPenaltyVectorial(const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue, FaceGroup face_group, Real penalty, const UniqueArray<String> u_dirichlet_str)
+  {
+    NodeGroup node_group = face_group.nodeGroup();
+    for (auto dof_index = 0; dof_index < u_dirichlet_str.size(); ++dof_index) {
+      if (u_dirichlet_str[dof_index] != "NULL") {
+        Real u_dirichlet = std::stod(u_dirichlet_str[dof_index].localstr());
+        BoundaryCondtionsHelpers::applyDirichletToNodeGroupViaPenalty(u_dirichlet, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group, dof_index);
+      }
+    }
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  inline void applyDirichletViaRowEliminationVectorial(const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue, FaceGroup face_group, const UniqueArray<String> u_dirichlet_str)
+  {
+    constexpr Byte ELIMINATE_ROW = 1;
+    NodeGroup node_group = face_group.nodeGroup();
+    for (auto dof_index = 0; dof_index < u_dirichlet_str.size(); ++dof_index) {
+      if (u_dirichlet_str[dof_index] != "NULL") {
+        Real u_dirichlet = std::stod(u_dirichlet_str[dof_index].localstr());
+        BoundaryCondtionsHelpers::applyDirichletToNodeGroupViaRowElimination<ELIMINATE_ROW>(u_dirichlet, queue, mesh, linear_system, dofs_on_nodes, node_group, dof_index);
+      }
+    }
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Applies Point Dirichlet boundary conditions to RHS and LHS.
+   *
+   * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
+   *
+   * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
+   * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+   *
+   */
+  /*---------------------------------------------------------------------------*/
+
+  static inline void applyPointDirichletViaPenalty(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
+  {
+    ARCANE_CHECK_PTR(bs);
+    Real value = bs->getValue();
+    Real penalty = bs->getPenalty();
+    NodeGroup node_group = bs->getNode();
+    BoundaryCondtionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  static inline void applyPointDirichletViaPenaltyVectorial(const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue, NodeGroup node_group, Real penalty, const UniqueArray<String> u_dirichlet_str)
+  {
+    for (auto dof_index = 0; dof_index < u_dirichlet_str.size(); ++dof_index) {
+      if (u_dirichlet_str[dof_index] != "NULL") {
+        Real u_dirichlet = std::stod(u_dirichlet_str[dof_index].localstr());
+        BoundaryCondtionsHelpers::applyDirichletToNodeGroupViaPenalty(u_dirichlet, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group, dof_index);
+      }
+    }
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
+  inline void applyPointDirichletViaRowEliminationVectorial(const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue, NodeGroup node_group, const UniqueArray<String> u_dirichlet_str)
+  {
+    constexpr Byte ELIMINATE_ROW = 1;
+    for (auto dof_index = 0; dof_index < u_dirichlet_str.size(); ++dof_index) {
+      if (u_dirichlet_str[dof_index] != "NULL") {
+        Real u_dirichlet = std::stod(u_dirichlet_str[dof_index].localstr());
+        BoundaryCondtionsHelpers::applyDirichletToNodeGroupViaRowElimination<ELIMINATE_ROW>(u_dirichlet, queue, mesh, linear_system, dofs_on_nodes, node_group, dof_index);
+      }
+    }
+  }
+
+}; // namespace BoundaryConditions
 
 class BoundaryConditions2D
 {
@@ -557,49 +673,6 @@ class BoundaryConditions2D
         };
       }
     }
-  }
-
-  /*---------------------------------------------------------------------------*/
-  /**
-   * @brief Applies Dirichlet boundary conditions to RHS and LHS.
-   *
-   * Updates the LHS matrix and RHS vector to enforce Dirichlet conditions.
-   *
-   * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
-   * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
-   *
-   */
-  /*---------------------------------------------------------------------------*/
-
-  static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
-  {
-    ARCANE_CHECK_PTR(bs);
-    Real value = bs->getValue();
-    Real penalty = bs->getPenalty();
-    FaceGroup face_group = bs->getSurface();
-    NodeGroup node_group = face_group.nodeGroup();
-    BoundaryCondtionsHelpers::applyDirichletToNodeGroup(value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
-  }
-
-  /*---------------------------------------------------------------------------*/
-  /**
-   * @brief Applies Point Dirichlet boundary conditions to RHS and LHS.
-   *
-   * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
-   *
-   * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
-   * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
-   *
-   */
-  /*---------------------------------------------------------------------------*/
-
-  static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
-  {
-    ARCANE_CHECK_PTR(bs);
-    Real value = bs->getValue();
-    Real penalty = bs->getPenalty();
-    NodeGroup node_group = bs->getNode();
-    BoundaryCondtionsHelpers::applyDirichletToNodeGroup(value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
   }
 };
 
@@ -691,49 +764,6 @@ class BoundaryConditions3D
         };
       }
     }
-  }
-
-  /*---------------------------------------------------------------------------*/
-  /**
-   * @brief Applies Dirichlet boundary conditions to RHS and LHS.
-   *
-   * Updates the LHS matrix and RHS vector to enforce Dirichlet conditions.
-   *
-   * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
-   * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
-   *
-   */
-  /*---------------------------------------------------------------------------*/
-
-  static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
-  {
-    ARCANE_CHECK_PTR(bs);
-    Real value = bs->getValue();
-    Real penalty = bs->getPenalty();
-    FaceGroup face_group = bs->getSurface();
-    NodeGroup node_group = face_group.nodeGroup();
-    BoundaryCondtionsHelpers::applyDirichletToNodeGroup(value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
-  }
-
-  /*---------------------------------------------------------------------------*/
-  /**
-   * @brief Applies Point Dirichlet boundary conditions to RHS and LHS.
-   *
-   * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
-   *
-   * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
-   * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
-   *
-   */
-  /*---------------------------------------------------------------------------*/
-
-  static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
-  {
-    ARCANE_CHECK_PTR(bs);
-    Real value = bs->getValue();
-    Real penalty = bs->getPenalty();
-    NodeGroup node_group = bs->getNode();
-    BoundaryCondtionsHelpers::applyDirichletToNodeGroup(value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
   }
 };
 
