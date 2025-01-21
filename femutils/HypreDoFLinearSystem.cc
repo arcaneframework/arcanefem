@@ -13,6 +13,9 @@
 
 #include "DoFLinearSystem.h"
 
+#include <arcane/accelerator/RunCommandLoop.h>
+#include <arcane/core/ItemTypes.h>
+#include <arcane/core/VariableTypedef.h>
 #include <arcane/utils/FatalErrorException.h>
 #include <arcane/utils/PlatformUtils.h>
 #include <arcane/utils/ArcaneGlobal.h>
@@ -34,12 +37,14 @@
 #include <arcane/core/Timer.h>
 
 #include <arcane/accelerator/NumArrayViews.h>
+#include <arcane/accelerator/VariableViews.h>
 #include <arcane/accelerator/core/Runner.h>
 #include <arcane/accelerator/core/Memory.h>
 
 #include "FemUtils.h"
 #include "IDoFLinearSystemFactory.h"
 #include "HypreDoFLinearSystemFactory_axl.h"
+#include "ArcaneFemFunctionsGpu.h"
 
 #include <HYPRE.h>
 #include <HYPRE_parcsr_ls.h>
@@ -100,8 +105,10 @@ class HypreDoFLinearSystemImpl
   , m_rhs_variable(VariableBuildInfo(dof_family, solver_name + "RHSVariable"))
   , m_dof_variable(VariableBuildInfo(dof_family, solver_name + "SolutionVariable"))
   , m_dof_matrix_indexes(VariableBuildInfo(m_dof_family, solver_name + "DoFMatrixIndexes"))
-  , m_dof_elimination_info(VariableBuildInfo(m_dof_family, solver_name + "DoFEliminationInfo"))
-  , m_dof_elimination_value(VariableBuildInfo(m_dof_family, solver_name + "DoFEliminationValue"))
+  , m_dof_forced_info(VariableBuildInfo(dof_family, solver_name + "DoFForcedInfo"))
+  , m_dof_forced_value(VariableBuildInfo(dof_family, solver_name + "DoFForcedValue"))
+  , m_dof_elimination_info(VariableBuildInfo(dof_family, solver_name + "DoFEliminationInfo"))
+  , m_dof_elimination_value(VariableBuildInfo(dof_family, solver_name + "DoFEliminationValue"))
   , m_dof_matrix_numbering(VariableBuildInfo(dof_family, solver_name + "MatrixNumbering"))
   {
     info() << "Creating HypreDoFLinearSystemImpl()";
@@ -174,8 +181,11 @@ class HypreDoFLinearSystemImpl
 
   void clearValues() override
   {
-    info() << "Clear values";
+    info() << "[Hypre-Info]: Clear values";
     m_csr_view = {};
+    m_dof_forced_info.fill(false);
+    m_dof_elimination_info.fill(ELIMINATE_NONE);
+    m_dof_elimination_value.fill(0);
   }
 
   CSRFormatView& getCSRValues() override { return m_csr_view; };
@@ -200,14 +210,33 @@ class HypreDoFLinearSystemImpl
   void setAbsTolerance(Real v) { m_atol = v; }
   void setAmgThreshold(Real v) { m_amg_threshold = v; }
 
+  VariableDoFBool& getForcedInfo() override { return m_dof_forced_info; }
+  VariableDoFBool m_dof_forced_info;
+
+  VariableDoFReal& getForcedValue() override { return m_dof_forced_value; }
+  VariableDoFReal m_dof_forced_value;
+
+  void _applyForcedValuesToLhs();
+
+  static constexpr Byte ELIMINATE_NONE = 0;
+  static constexpr Byte ELIMINATE_ROW = 1;
+  static constexpr Byte ELIMINATE_ROW_COLUMN = 2;
+
+  VariableDoFByte& getEliminationInfo() override { return m_dof_elimination_info; }
+  VariableDoFByte m_dof_elimination_info;
+
+  VariableDoFReal& getEliminationValue() override { return m_dof_elimination_value; }
+  VariableDoFReal m_dof_elimination_value;
+
+  void _applyRowElimination();
+  void _applyColumnElimination();
+
  private:
 
   IItemFamily* m_dof_family = nullptr;
   VariableDoFReal m_rhs_variable;
   VariableDoFReal m_dof_variable;
   VariableDoFInt32 m_dof_matrix_indexes;
-  VariableDoFByte m_dof_elimination_info;
-  VariableDoFReal m_dof_elimination_value;
   VariableDoFInt32 m_dof_matrix_numbering;
   NumArray<Int32, MDDim1> m_parallel_columns_index;
   NumArray<Int32, MDDim1> m_parallel_rows_index;

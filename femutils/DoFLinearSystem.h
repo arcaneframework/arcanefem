@@ -14,6 +14,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+#include "arcane/core/VariableTypedef.h"
 #include <arcane/ItemTypes.h>
 #include <arcane/VariableTypedef.h>
 
@@ -93,6 +94,10 @@ class DoFLinearSystemImpl
   virtual void clearValues() = 0;
   virtual void setCSRValues(const CSRFormatView& csr_view) = 0;
   virtual CSRFormatView& getCSRValues() = 0;
+  virtual VariableDoFReal& getForcedValue() = 0;
+  virtual VariableDoFBool& getForcedInfo() = 0;
+  virtual VariableDoFReal& getEliminationValue() = 0;
+  virtual VariableDoFByte& getEliminationInfo() = 0;
   virtual bool hasSetCSRValues() const = 0;
   virtual void setRunner(Runner* r) = 0;
   virtual Runner* runner() const = 0;
@@ -252,6 +257,12 @@ class DoFLinearSystem
  public:
 
   CSRFormatView& getCSRValues();
+
+  VariableDoFReal& getForcedValue();
+  VariableDoFBool& getForcedInfo();
+
+  VariableDoFReal& getEliminationValue();
+  VariableDoFByte& getEliminationInfo();
 
   IDoFLinearSystemFactory* linearSystemFactory() const
   {
