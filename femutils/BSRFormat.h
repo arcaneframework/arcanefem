@@ -456,17 +456,20 @@ class BSRFormat : public TraceAccessor
     m_queue.barrier();
 
     {
+      auto nb_col = m_bsr_matrix.nbCol();
       auto command = makeCommand(m_queue);
-      command << RUNCOMMAND_LOOP1(iter, nb_row - 1)
+      command << RUNCOMMAND_LOOP1(iter, nb_row)
       {
         auto [i] = iter();
         auto x = inout_nb_nz_per_row[i];
-        inout_nb_nz_per_row[i] = inout_row_index[i + 1] - x;
+        if (i == nb_row - 1)
+          inout_nb_nz_per_row[i] = nb_col - inout_row_index[i];
+        else
+          inout_nb_nz_per_row[i] = inout_row_index[i + 1] - x;
       };
     }
     m_queue.barrier();
 
-    nb_nz_per_row[nb_row - 1] = m_bsr_matrix.nbCol() - nb_nz_per_row[nb_row - 1];
     info() << "[ArcaneFem-Timer] Time to compute nb_nz_per_row = " << (platform::getRealTime() - startTime);
   }
 
