@@ -50,7 +50,7 @@
 
 namespace Arcane::FemUtils::Gpu::Csr
 {
-ARCCORE_HOST_DEVICE static Int32 findIndex(Int32 begin, Int32 end, Int32 column_lid, Accelerator::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> in_csr_columns)
+ARCCORE_HOST_DEVICE static Int32 findIndex(Int32 begin, Int32 end, Int32 column_lid, Span<const Int32> in_csr_columns)
 {
   for (auto i = begin; i < end; ++i)
     if (in_csr_columns[i] == column_lid)
