@@ -399,11 +399,11 @@ namespace Arcane::FemUtils::Gpu
 namespace BoundaryCondtionsHelpers
 {
   template <class Function>
-  inline void applyConstantSourceToRhsBase(Function computeDomain, Real qdot, Accelerator::RunQueue* queue, VariableDoFReal& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
+  inline void applyConstantSourceToRhsBase(Function computeSpatialIntegral, Real qdot, Accelerator::RunQueue* queue, VariableDoFReal& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
   {
     ARCANE_CHECK_PTR(queue);
     ARCANE_CHECK_PTR(mesh);
-    ARCANE_CHECK_PTR(computeDomain);
+    ARCANE_CHECK_PTR(computeSpatialIntegral);
 
     UnstructuredMeshConnectivityView connectivity_view;
     connectivity_view.setMesh(mesh);
@@ -418,7 +418,7 @@ namespace BoundaryCondtionsHelpers
 
     command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh->allCells())
     {
-      Real domain = computeDomain(cell_lid, cn_cv, in_node_coord);
+      Real domain = computeSpatialIntegral(cell_lid, cn_cv, in_node_coord);
       for (NodeLocalId node_lid : cn_cv.nodes(cell_lid)) {
         if (nodes_infos.isOwn(node_lid)) {
           Real value = qdot * domain / cn_cv.nbItem(cell_lid);
@@ -455,31 +455,6 @@ namespace BoundaryCondtionsHelpers
     };
   }
 
-  /*---------------------------------------------------------------------------*/
-  /*---------------------------------------------------------------------------*/
-
-  template <Byte ELIMINATION_MODE>
-  inline void applyDirichletToNodeGroupViaRowElimination(Real value, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NodeGroup& node_group, Int32 dof_index = 0)
-  {
-    ARCANE_CHECK_PTR(queue);
-    ARCANE_CHECK_PTR(mesh);
-
-    NodeInfoListView nodes_infos(mesh->nodeFamily());
-    auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
-
-    auto command = Accelerator::makeCommand(queue);
-    auto in_out_elimination_info = Accelerator::viewInOut(command, linear_system.getEliminationInfo());
-    auto in_out_elimination_value = Accelerator::viewInOut(command, linear_system.getEliminationValue());
-
-    command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
-    {
-      if (nodes_infos.isOwn(node_lid)) {
-        DoFLocalId dof_id = node_dof.dofId(node_lid, dof_index);
-        in_out_elimination_info[dof_id] = ELIMINATION_MODE;
-        in_out_elimination_value[dof_id] = value;
-      }
-    };
-  }
 } // namespace BoundaryCondtionsHelpers
 
 namespace BoundaryConditions
@@ -522,21 +497,6 @@ namespace BoundaryConditions
   }
 
   /*---------------------------------------------------------------------------*/
-  /*---------------------------------------------------------------------------*/
-
-  inline void applyDirichletViaRowEliminationVectorial(const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue, FaceGroup face_group, const UniqueArray<String> u_dirichlet_str)
-  {
-    constexpr Byte ELIMINATE_ROW = 1;
-    NodeGroup node_group = face_group.nodeGroup();
-    for (auto dof_index = 0; dof_index < u_dirichlet_str.size(); ++dof_index) {
-      if (u_dirichlet_str[dof_index] != "NULL") {
-        Real u_dirichlet = std::stod(u_dirichlet_str[dof_index].localstr());
-        BoundaryCondtionsHelpers::applyDirichletToNodeGroupViaRowElimination<ELIMINATE_ROW>(u_dirichlet, queue, mesh, linear_system, dofs_on_nodes, node_group, dof_index);
-      }
-    }
-  }
-
-  /*---------------------------------------------------------------------------*/
   /**
    * @brief Applies Point Dirichlet boundary conditions to RHS and LHS.
    *
@@ -566,20 +526,6 @@ namespace BoundaryConditions
       if (u_dirichlet_str[dof_index] != "NULL") {
         Real u_dirichlet = std::stod(u_dirichlet_str[dof_index].localstr());
         BoundaryCondtionsHelpers::applyDirichletToNodeGroupViaPenalty(u_dirichlet, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group, dof_index);
-      }
-    }
-  }
-
-  /*---------------------------------------------------------------------------*/
-  /*---------------------------------------------------------------------------*/
-
-  inline void applyPointDirichletViaRowEliminationVectorial(const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue, NodeGroup node_group, const UniqueArray<String> u_dirichlet_str)
-  {
-    constexpr Byte ELIMINATE_ROW = 1;
-    for (auto dof_index = 0; dof_index < u_dirichlet_str.size(); ++dof_index) {
-      if (u_dirichlet_str[dof_index] != "NULL") {
-        Real u_dirichlet = std::stod(u_dirichlet_str[dof_index].localstr());
-        BoundaryCondtionsHelpers::applyDirichletToNodeGroupViaRowElimination<ELIMINATE_ROW>(u_dirichlet, queue, mesh, linear_system, dofs_on_nodes, node_group, dof_index);
       }
     }
   }

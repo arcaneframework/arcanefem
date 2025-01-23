@@ -107,8 +107,6 @@ class HypreDoFLinearSystemImpl
   , m_dof_matrix_indexes(VariableBuildInfo(m_dof_family, solver_name + "DoFMatrixIndexes"))
   , m_dof_forced_info(VariableBuildInfo(dof_family, solver_name + "DoFForcedInfo"))
   , m_dof_forced_value(VariableBuildInfo(dof_family, solver_name + "DoFForcedValue"))
-  , m_dof_elimination_info(VariableBuildInfo(dof_family, solver_name + "DoFEliminationInfo"))
-  , m_dof_elimination_value(VariableBuildInfo(dof_family, solver_name + "DoFEliminationValue"))
   , m_dof_matrix_numbering(VariableBuildInfo(dof_family, solver_name + "MatrixNumbering"))
   {
     info() << "Creating HypreDoFLinearSystemImpl()";
@@ -184,8 +182,6 @@ class HypreDoFLinearSystemImpl
     info() << "[Hypre-Info]: Clear values";
     m_csr_view = {};
     m_dof_forced_info.fill(false);
-    m_dof_elimination_info.fill(ELIMINATE_NONE);
-    m_dof_elimination_value.fill(0);
   }
 
   CSRFormatView& getCSRValues() override { return m_csr_view; };
@@ -217,19 +213,6 @@ class HypreDoFLinearSystemImpl
   VariableDoFReal m_dof_forced_value;
 
   void _applyForcedValuesToLhs();
-
-  static constexpr Byte ELIMINATE_NONE = 0;
-  static constexpr Byte ELIMINATE_ROW = 1;
-  static constexpr Byte ELIMINATE_ROW_COLUMN = 2;
-
-  VariableDoFByte& getEliminationInfo() override { return m_dof_elimination_info; }
-  VariableDoFByte m_dof_elimination_info;
-
-  VariableDoFReal& getEliminationValue() override { return m_dof_elimination_value; }
-  VariableDoFReal m_dof_elimination_value;
-
-  void _applyRowElimination();
-  void _applyColumnElimination();
 
  private:
 
@@ -320,43 +303,6 @@ namespace
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void HypreDoFLinearSystemImpl::_applyRowElimination()
-{
-  auto nb_dof = m_dof_family->nbItem();
-
-  RunQueue queue = makeQueue(m_runner);
-  auto command = makeCommand(queue);
-
-  auto in_elimination_info = Accelerator::viewIn(command, m_dof_elimination_info);
-  auto in_elimination_value = Accelerator::viewIn(command, m_dof_elimination_value);
-
-  auto csr_row_size = m_csr_view.nbRow();
-  auto csr_columns_size = m_csr_view.nbColumn();
-  auto in_csr_row = m_csr_view.rows();
-  auto in_csr_columns = m_csr_view.columns();
-  auto in_out_csr_values = m_csr_view.values();
-
-  auto in_out_rhs_variable = Accelerator::viewInOut(command, m_rhs_variable);
-
-  command << RUNCOMMAND_LOOP1(iter, nb_dof)
-  {
-    auto [thread_id] = iter();
-    DoFLocalId dof_id(thread_id);
-    auto elimination_info = in_elimination_info[dof_id];
-    if (elimination_info == ELIMINATE_ROW || elimination_info == ELIMINATE_ROW_COLUMN) {
-      auto begin = in_csr_row[dof_id];
-      auto end = dof_id == csr_row_size - 1 ? csr_columns_size : in_csr_row[dof_id + 1];
-      auto elimination_value = in_elimination_value[dof_id];
-      for (Int32 i = begin; i < end; ++i)
-        in_out_csr_values[i] = in_csr_columns[i] == dof_id ? 1 : 0;
-      in_out_rhs_variable[dof_id] = elimination_value;
-    }
-  };
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
 void HypreDoFLinearSystemImpl::_applyForcedValuesToLhs()
 {
   auto nb_dof = m_dof_family->nbItem();
@@ -391,7 +337,6 @@ void HypreDoFLinearSystemImpl::_applyForcedValuesToLhs()
 void HypreDoFLinearSystemImpl::
 solve()
 {
-  _applyRowElimination();
   _applyForcedValuesToLhs();
 
 #if HYPRE_RELEASE_NUMBER >= 22700

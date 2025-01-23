@@ -143,7 +143,7 @@ _getMaterialParameters()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleLinearOperatorGpu()
+void FemModule::_assembleDirichletsGpu()
 {
   info() << "[ArcaneFem-Info] Started module  _assembleLinearOperatorGpu()";
   Real elapsedTime = platform::getRealTime();
@@ -160,18 +160,14 @@ void FemModule::_assembleLinearOperatorGpu()
 
     auto method = options()->enforceDirichletMethod();
 
-    info() << "[ArcaneFem-Info] Applying Dirichlet " << u_dirichlet_string;
+    info() << "[ArcaneFem-Info] Applying Dirichlet " << u_dirichlet_string << " on Gpu";
     info() << "[ArcaneFem-Info] Dirichlet surface '" << bs->surface().name() << "'";
     info() << "[ArcaneFem-Info] Dirichlet method '" << method << "'";
 
     if (method == "Penalty")
       FemUtils::Gpu::BoundaryConditions::applyDirichletViaPenaltyVectorial(m_dofs_on_nodes, m_linear_system, mesh_ptr, queue, group, options()->penalty(), u_dirichlet_string);
-
-    if (method == "RowElimination")
-      FemUtils::Gpu::BoundaryConditions::applyDirichletViaRowEliminationVectorial(m_dofs_on_nodes, m_linear_system, mesh_ptr, queue, group, u_dirichlet_string);
-
-    if (method == "RowColumnElimination")
-      ARCANE_THROW(Arccore::NotImplementedException, "Row-Column Elimination method not available with Hypre");
+    else
+      ARCANE_THROW(Arccore::NotImplementedException, "Only Penalty method is available with Hypre");
   }
 
   for (const auto& bs : options()->dirichletPointCondition()) {
@@ -180,18 +176,14 @@ void FemModule::_assembleLinearOperatorGpu()
 
     auto method = options()->enforceDirichletMethod();
 
-    info() << "[ArcaneFem-Info] Applying point Dirichlet " << u_dirichlet_string;
+    info() << "[ArcaneFem-Info] Applying point Dirichlet " << u_dirichlet_string << " on Gpu";
     info() << "[ArcaneFem-Info] Dirichlet points '" << group.name() << "'";
     info() << "[ArcaneFem-Info] Dirichlet method '" << method << "'";
 
     if (method == "Penalty")
       FemUtils::Gpu::BoundaryConditions::applyPointDirichletViaPenaltyVectorial(m_dofs_on_nodes, m_linear_system, mesh(), queue, group, options()->penalty(), u_dirichlet_string);
-
-    if (method == "RowElimination")
-      FemUtils::Gpu::BoundaryConditions::applyPointDirichletViaRowEliminationVectorial(m_dofs_on_nodes, m_linear_system, mesh(), queue, group, u_dirichlet_string);
-
-    if (method == "RowColumnElimination")
-      ARCANE_THROW(Arccore::NotImplementedException, "Row-Column Elimination method not available with Hypre");
+    else
+      ARCANE_THROW(Arccore::NotImplementedException, "Only Penalty method is available with Hypre");
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -278,8 +270,8 @@ _assembleLinearOperator()
 
   auto use_hypre = options()->linearSystem.serviceName() == "HypreLinearSystem";
   if (use_hypre) {
-    // The rest of the assembly can be handled on GPU becuase of Hypre solver.
-    _assembleLinearOperatorGpu();
+    // The rest of the assembly can be handled on Gpu because of Hypre solver.
+    _assembleDirichletsGpu();
     return;
   }
 
