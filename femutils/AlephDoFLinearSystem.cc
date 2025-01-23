@@ -114,7 +114,7 @@ class AlephDoFLinearSystemImpl
   ~AlephDoFLinearSystemImpl()
   {
     delete m_aleph_params;
-    if (m_need_destroy_matrix_and_vector) {
+    if (m_need_destroy_matrix_and_vector){
       delete m_aleph_matrix;
       delete m_aleph_rhs_vector;
       delete m_aleph_solution_vector;
@@ -152,14 +152,14 @@ class AlephDoFLinearSystemImpl
     // We need to compile Arcane with the needed library and link
     // the code with the associated aleph library (see CMakeLists.txt)
     // TODO: Linear algebra backend should be accessed from arc file.
-    if (!m_aleph_kernel) {
+    if (!m_aleph_kernel){
       info() << "Creating Aleph Kernel";
       // We can use less than the number of MPI ranks
       // but for the moment we use all the available cores.
       Int32 nb_core = m_sub_domain->parallelMng()->commSize();
       m_aleph_kernel = new AlephKernel(m_sub_domain, solver_backend, nb_core);
     }
-    else {
+    else{
       //
       m_need_destroy_matrix_and_vector = false;
     }
@@ -176,7 +176,7 @@ class AlephDoFLinearSystemImpl
       m_dof_matrix_indexes[dof] = row;
     }
     // Do not print informations about setting matrix if matrix is too big
-    if (own_dofs.size() > 200)
+    if (own_dofs.size()>200)
       m_do_print_filling = false;
 
     m_aleph_matrix = m_aleph_kernel->createSolverMatrix();
@@ -332,7 +332,7 @@ class AlephDoFLinearSystemImpl
 
   void setCSRValues(const CSRFormatView& csr_view) override
   {
-    ARCANE_THROW(NotImplementedException, "");
+    ARCANE_THROW(NotImplementedException,"");
   }
 
   bool hasSetCSRValues() const { return false; }
@@ -389,16 +389,6 @@ class AlephDoFLinearSystemImpl
   }
 
   VariableDoFBool& getForcedInfo() override
-  {
-    ARCANE_THROW(NotImplementedException, "");
-  }
-
-  VariableDoFReal& getEliminationValue() override
-  {
-    ARCANE_THROW(NotImplementedException, "");
-  }
-
-  VariableDoFByte& getEliminationInfo() override
   {
     ARCANE_THROW(NotImplementedException, "");
   }

@@ -71,7 +71,7 @@ class FemModule
 
   void _doStationarySolve();
   void _assembleBilinearOperator();
-  void _assembleLinearOperatorGpu();
+  void _assembleDirichletsGpu();
 
  private:
 
