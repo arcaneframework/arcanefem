@@ -64,6 +64,9 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
 
   add_test(NAME [elasticity]Dirichlet_traction_Bodyforce_bsr_atomic_free_hypre COMMAND Elasticity inputs/bar.2D.traction.bodyforce.bsr.atomic-free.hypre.arc)
   arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_traction_Bodyforce_bsr_gpu_atomic_free_hypre COMMAND ./Elasticity ARGS inputs/bar.2D.traction.bodyforce.bsr.atomic-free.hypre.arc)
+
+  add_test(NAME [elasticity]Dirichlet_pointBC_bsr_hypre COMMAND Elasticity inputs/bar.2D.PointDirichlet.bsr.hypre.arc)
+  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_pointBC_bsr_hypre_gpu COMMAND Elasticity ARGS inputs/bar.2D.PointDirichlet.bsr.hypre.arc)
 endif()
 
 # If parallel part is available, add some tests
