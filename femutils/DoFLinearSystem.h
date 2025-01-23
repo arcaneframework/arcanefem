@@ -44,10 +44,10 @@ class CSRFormatView
  public:
 
   CSRFormatView() = default;
-  CSRFormatView(NumArray<Int32, MDDim1> rows,
-                NumArray<Int32, MDDim1> matrix_rows_nb_column,
-                NumArray<Int32, MDDim1> columns,
-                NumArray<Real, MDDim1> values)
+  CSRFormatView(Span<const Int32> rows,
+                Span<const Int32> matrix_rows_nb_column,
+                Span<const Int32> columns,
+                Span<Real> values)
   : m_matrix_rows(rows)
   , m_matrix_rows_nb_column(matrix_rows_nb_column)
   , m_matrix_columns(columns)
@@ -56,17 +56,23 @@ class CSRFormatView
 
  public:
 
-  NumArray<Int32, MDDim1>& rows() { return m_matrix_rows; }
-  NumArray<Int32, MDDim1>& rowsNbColumn() { return m_matrix_rows_nb_column; }
-  NumArray<Int32, MDDim1>& columns() { return m_matrix_columns; }
-  NumArray<Real, MDDim1>& values() { return m_values; }
+  Span<const Int32> rows() const { return m_matrix_rows; }
+  Span<const Int32> rowsNbColumn() const { return m_matrix_rows_nb_column; }
+  Span<const Int32> columns() const { return m_matrix_columns; }
+  Span<Real> values() { return m_values; }
+
+  Int32 nbRow() { return m_matrix_rows.size(); }
+  Int32 nbColumn() { return m_matrix_columns.size(); }
+  Int32 nbValue() { return m_values.size(); }
+
+  Int32 row(Int32 index) { return m_matrix_rows[index]; }
 
  private:
 
-  NumArray<Int32, MDDim1> m_matrix_rows;
-  NumArray<Int32, MDDim1> m_matrix_rows_nb_column;
-  NumArray<Int32, MDDim1> m_matrix_columns;
-  NumArray<Real, MDDim1> m_values;
+  Span<const Int32> m_matrix_rows;
+  Span<const Int32> m_matrix_rows_nb_column;
+  Span<const Int32> m_matrix_columns;
+  Span<Real> m_values;
 };
 
 /*---------------------------------------------------------------------------*/

@@ -136,7 +136,7 @@ class HypreDoFLinearSystemImpl
   Int32 indexValue(DoFLocalId row_lid, DoFLocalId column_lid)
   {
     auto begin = m_csr_view.rows()[row_lid];
-    auto end = row_lid == m_csr_view.rows().extent0() - 1 ? m_csr_view.columns().extent0() : m_csr_view.rows()[row_lid + 1];
+    auto end = row_lid == m_csr_view.nbRow() - 1 ? m_csr_view.nbColumn() : m_csr_view.row(row_lid + 1);
     for (auto i = begin; i < end; ++i)
       if (m_csr_view.columns()[i] == column_lid)
         return i;
@@ -330,15 +330,11 @@ void HypreDoFLinearSystemImpl::_applyRowElimination()
   auto in_elimination_info = Accelerator::viewIn(command, m_dof_elimination_info);
   auto in_elimination_value = Accelerator::viewIn(command, m_dof_elimination_value);
 
-  auto csr_row = m_csr_view.rows();
-  auto csr_row_size = csr_row.extent0();
-  auto in_csr_row = Accelerator::viewInOut(command, csr_row);
-
-  auto csr_columns = m_csr_view.columns();
-  auto in_csr_columns = Accelerator::viewIn(command, csr_columns);
-  auto csr_columns_size = csr_columns.extent0();
-
-  auto in_out_csr_values = Accelerator::viewInOut(command, m_csr_view.values());
+  auto csr_row_size = m_csr_view.nbRow();
+  auto csr_columns_size = m_csr_view.nbColumn();
+  auto in_csr_row = m_csr_view.rows();
+  auto in_csr_columns = m_csr_view.columns();
+  auto in_out_csr_values = m_csr_view.values();
 
   auto in_out_rhs_variable = Accelerator::viewInOut(command, m_rhs_variable);
 
@@ -371,15 +367,11 @@ void HypreDoFLinearSystemImpl::_applyForcedValuesToLhs()
   auto in_out_forced_info = Accelerator::viewInOut(command, m_dof_forced_info);
   auto in_out_forced_value = Accelerator::viewInOut(command, m_dof_forced_value);
 
-  auto csr_row = m_csr_view.rows();
-  auto csr_row_size = csr_row.extent0();
-  auto in_csr_row = Accelerator::viewInOut(command, csr_row);
-
-  auto csr_columns = m_csr_view.columns();
-  auto csr_columns_size = csr_columns.extent0();
-  auto in_csr_columns = Accelerator::viewIn(command, csr_columns);
-
-  auto in_out_csr_values = Accelerator::viewInOut(command, m_csr_view.values());
+  auto csr_row_size = m_csr_view.nbRow();
+  auto csr_columns_size = m_csr_view.nbColumn();
+  auto in_csr_row = m_csr_view.rows();
+  auto in_csr_columns = m_csr_view.columns();
+  auto in_out_csr_values = m_csr_view.values();
 
   command << RUNCOMMAND_LOOP1(iter, nb_dof)
   {
@@ -488,10 +480,10 @@ solve()
 
   if (do_debug_print) {
     info() << "ROWS_INDEX=" << rows_index_span;
-    info() << "ROWS=" << m_csr_view.rows().to1DSpan();
-    info() << "ROWS_NB_COLUMNS=" << m_csr_view.rowsNbColumn().to1DSpan();
-    info() << "COLUMNS=" << m_csr_view.columns().to1DSpan();
-    info() << "VALUE=" << m_csr_view.values().to1DSpan();
+    info() << "ROWS=" << m_csr_view.rows();
+    info() << "ROWS_NB_COLUMNS=" << m_csr_view.rowsNbColumn();
+    info() << "COLUMNS=" << m_csr_view.columns();
+    info() << "VALUE=" << m_csr_view.values();
   }
 
   const int first_row = m_first_own_row;
@@ -500,7 +492,7 @@ solve()
   info() << "CreateMatrix first_row=" << first_row << " last_row " << last_row;
   HYPRE_IJMatrixCreate(mpi_comm, first_row, last_row, first_row, last_row, &ij_A);
 
-  int* rows_nb_column_data = const_cast<int*>(m_csr_view.rowsNbColumn()._internalData());
+  int* rows_nb_column_data = const_cast<int*>(m_csr_view.rowsNbColumn().data());
 
   Real m1 = platform::getRealTime();
   HYPRE_IJMatrixSetObjectType(ij_A, HYPRE_PARCSR);
@@ -511,7 +503,7 @@ solve()
 #endif
   // m_csr_view.columns() use matrix coordinates local to sub-domain
   // We need to translate them to global matrix coordinates
-  Span<const Int32> columns_index_span = m_csr_view.columns().to1DSpan();
+  Span<const Int32> columns_index_span = m_csr_view.columns();
   if (is_parallel) {
     // TODO: Faire sur accélérateur et ne faire qu'une fois si la structure
     // ne change pas.
@@ -532,10 +524,10 @@ solve()
 
   if (do_debug_print) {
     info() << "FINAL_COLUMNS=" << columns_index_span;
-    info() << "NbValue=" << m_csr_view.values().extent0();
+    info() << "NbValue=" << m_csr_view.nbValue();
   }
 
-  Span<const Real> matrix_values = m_csr_view.values().to1DSpan();
+  Span<const Real> matrix_values = m_csr_view.values();
 
   if (do_debug_print) {
     ENUMERATE_ (DoF, idof, m_dof_family->allItems()) {
@@ -587,7 +579,7 @@ solve()
 
   if (is_use_device) {
     info() << "Prefetching memory for 'Hypre'";
-    q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(m_csr_view.rowsNbColumn().to1DSpan())).addAsync());
+    q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(m_csr_view.rowsNbColumn())).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(rows_index_span)).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(columns_index_span)).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(matrix_values)).addAsync());
@@ -595,7 +587,7 @@ solve()
     VariableUtils::prefetchVariableAsync(m_rhs_variable, &q);
     VariableUtils::prefetchVariableAsync(m_dof_variable, &q);
   }
-  Span<const Int32> rows_nb_column_span = m_csr_view.rowsNbColumn().to1DSpan();
+  Span<const Int32> rows_nb_column_span = m_csr_view.rowsNbColumn();
   if (is_use_device && is_use_device_memory) {
     _doCopy(na_rows_nb_column_data, rows_nb_column_span, &q);
     _doCopy(na_rows_index, rows_index_span, &q);
