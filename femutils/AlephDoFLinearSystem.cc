@@ -393,6 +393,16 @@ class AlephDoFLinearSystemImpl
     ARCANE_THROW(NotImplementedException, "");
   }
 
+  VariableDoFReal& getEliminationValue() override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
+  VariableDoFByte& getEliminationInfo() override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
  private:
 
   ISubDomain* m_sub_domain = nullptr;

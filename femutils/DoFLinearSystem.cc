@@ -188,6 +188,16 @@ class SequentialDoFLinearSystemImpl
     ARCANE_THROW(NotImplementedException, "");
   }
 
+  VariableDoFByte& getEliminationInfo() override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
+  VariableDoFReal& getEliminationValue() override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
   void setSolverCommandLineArguments(const CommandLineArguments&) override {}
 
   void clearValues() override
@@ -470,6 +480,24 @@ VariableDoFBool& DoFLinearSystem::getForcedInfo()
 {
   _checkInit();
   return m_p->getForcedInfo();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFByte& DoFLinearSystem::getEliminationInfo()
+{
+  _checkInit();
+  return m_p->getEliminationInfo();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFReal& DoFLinearSystem::getEliminationValue()
+{
+  _checkInit();
+  return m_p->getEliminationValue();
 }
 
 /*---------------------------------------------------------------------------*/

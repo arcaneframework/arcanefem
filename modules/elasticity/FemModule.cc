@@ -166,8 +166,10 @@ void FemModule::_assembleDirichletsGpu()
 
     if (method == "Penalty")
       FemUtils::Gpu::BoundaryConditions::applyDirichletViaPenaltyVectorial(m_dofs_on_nodes, m_linear_system, mesh_ptr, queue, group, options()->penalty(), u_dirichlet_string);
+    else if (method == "RowElimination")
+      FemUtils::Gpu::BoundaryConditions::applyDirichletViaRowEliminationVectorial(m_dofs_on_nodes, m_linear_system, mesh_ptr, queue, group, u_dirichlet_string);
     else
-      ARCANE_THROW(Arccore::NotImplementedException, "Only Penalty method is available with Hypre");
+      ARCANE_THROW(Arccore::NotImplementedException, "Method is not supported.");
   }
 
   for (const auto& bs : options()->dirichletPointCondition()) {
@@ -182,8 +184,10 @@ void FemModule::_assembleDirichletsGpu()
 
     if (method == "Penalty")
       FemUtils::Gpu::BoundaryConditions::applyPointDirichletViaPenaltyVectorial(m_dofs_on_nodes, m_linear_system, mesh(), queue, group, options()->penalty(), u_dirichlet_string);
+    else if (method == "RowElimination")
+      FemUtils::Gpu::BoundaryConditions::applyPointDirichletViaRowEliminationVectorial(m_dofs_on_nodes, m_linear_system, mesh_ptr, queue, group, u_dirichlet_string);
     else
-      ARCANE_THROW(Arccore::NotImplementedException, "Only Penalty method is available with Hypre");
+      ARCANE_THROW(Arccore::NotImplementedException, "Method is not supported.");
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
