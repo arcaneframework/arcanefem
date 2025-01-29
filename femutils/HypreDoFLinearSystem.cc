@@ -216,6 +216,9 @@ class HypreDoFLinearSystemImpl
   void setAbsTolerance(Real v) { m_atol = v; }
   void setAmgThreshold(Real v) { m_amg_threshold = v; }
 
+  void setSolver(String v) { m_solver = v; }
+  void setPreconditioner(String v) { m_preconditioner = v; }
+
   void _applyRowElimination();
   void _applyForcedValuesToLhs();
 
@@ -252,6 +255,9 @@ class HypreDoFLinearSystemImpl
   Real m_amg_threshold = 0.25;
   Real m_rtol = 1.0e-7;
   Real m_atol = 0.;
+
+  String m_solver = "cg";
+  String m_preconditioner = "amg";
 
  private:
 
@@ -686,45 +692,48 @@ solve()
   HYPRE_Solver solver = nullptr;
   {
     Timer::Action ta1(tstat, "HypreSetSolver");
-    HYPRE_ParCSRPCGCreate(mpi_comm, &solver);
-    HYPRE_PCGSetMaxIter(solver, m_max_iter); // max iterations //
-    HYPRE_PCGSetTol(solver, m_rtol); // relative conv. tolerance //
-    HYPRE_PCGSetAbsoluteTol(solver, m_atol); // absolute conv. tolerance //
-    HYPRE_PCGSetTwoNorm(solver, 1); // use the two norm as the stopping criteria //
-    HYPRE_PCGSetPrintLevel(solver, m_verbosity); // print solve info //
-    HYPRE_PCGSetLogging(solver, 1); // needed to get run info later //
+
+    if (m_solver == "cg") {
+      HYPRE_ParCSRPCGCreate(mpi_comm, &solver);
+      HYPRE_PCGSetMaxIter(solver, m_max_iter); // max iterations //
+      HYPRE_PCGSetTol(solver, m_rtol); // relative conv. tolerance //
+      HYPRE_PCGSetAbsoluteTol(solver, m_atol); // absolute conv. tolerance //
+      HYPRE_PCGSetTwoNorm(solver, 1); // use the two norm as the stopping criteria //
+      HYPRE_PCGSetPrintLevel(solver, m_verbosity); // print solve info //
+      HYPRE_PCGSetLogging(solver, 1); // needed to get run info later //
+    }
   }
 
   HYPRE_Solver precond = nullptr;
   {
     Timer::Action ta1(tstat, "HypreSetPrecond");
 
-    info() << "Info Hypre: AmgCoarsener=" << m_amg_coarsener;
-    info() << "Info Hypre: AmgInterpType=" << m_amg_interp_type;
-    info() << "Info Hypre: AmgSmoother=" << m_amg_smoother;
+    if (m_preconditioner == "amg") {
+      // Set Boomer AMG preconditioner Note we try to add only GPU-CPU compatible ones//
+      HYPRE_BoomerAMGCreate(&precond);
+      HYPRE_BoomerAMGSetPrintLevel(precond, 1); // print amg solution info //
+      HYPRE_BoomerAMGSetCoarsenType(precond, m_amg_coarsener); // GPU supported: 8(PMIS) //
+      HYPRE_BoomerAMGSetInterpType(precond, m_amg_interp_type); // GPU supported: 3, 15, extended+i 6, 14, 18 //
+      HYPRE_BoomerAMGSetRelaxType(precond, m_amg_smoother); // GPU support: 3, 4, 6 Sym G.S./Jacobi hybrid, 7, 18, 11, 12//
+      HYPRE_BoomerAMGSetRelaxOrder(precond, 0); // must be false //
+      HYPRE_BoomerAMGSetNumSweeps(precond, 1);
+      HYPRE_BoomerAMGSetTol(precond, 0.0); // conv. tolerance zero //
+      HYPRE_BoomerAMGSetMaxIter(precond, 1); // do only one iteration! //
+      HYPRE_BoomerAMGSetStrongThreshold(precond, m_amg_threshold); // amg threshold strength //
+      HYPRE_BoomerAMGSetKeepTranspose(precond, 1); // for GPU the local interp. trnsp saved//
 
-    // Set Boomer AMG preconditioner Note we try to add only GPU-CPU compatible ones//
-    HYPRE_BoomerAMGCreate(&precond);
-    HYPRE_BoomerAMGSetPrintLevel(precond, 1); // print amg solution info //
-    HYPRE_BoomerAMGSetCoarsenType(precond, m_amg_coarsener); // GPU supported: 8(PMIS) //
-    HYPRE_BoomerAMGSetInterpType(precond, m_amg_interp_type); // GPU supported: 3, 15, extended+i 6, 14, 18 //
-    HYPRE_BoomerAMGSetRelaxType(precond, m_amg_smoother); // GPU support: 3, 4, 6 Sym G.S./Jacobi hybrid, 7, 18, 11, 12//
-    HYPRE_BoomerAMGSetRelaxOrder(precond, 0); // must be false //
-    HYPRE_BoomerAMGSetNumSweeps(precond, 1);
-    HYPRE_BoomerAMGSetTol(precond, 0.0); // conv. tolerance zero //
-    HYPRE_BoomerAMGSetMaxIter(precond, 1); // do only one iteration! //
-    HYPRE_BoomerAMGSetStrongThreshold(precond, m_amg_threshold); // amg threshold strength //
-    HYPRE_BoomerAMGSetKeepTranspose(precond, 1); // for GPU the local interp. trnsp saved//
-
-    hypreCheck("HYPRE_ParCSRPCGSetPrecond",
-               HYPRE_ParCSRPCGSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
+      hypreCheck("HYPRE_ParCSRPCGSetPrecond",
+                 HYPRE_ParCSRPCGSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
+    }
   }
 
   Real a1 = platform::getRealTime();
   {
     Timer::Action ta1(tstat, "HypreSetup");
-    hypreCheck("HYPRE_PCGSetup",
-               HYPRE_ParCSRPCGSetup(solver, parcsr_A, parvector_b, parvector_x));
+    if (m_solver == "cg") {
+      hypreCheck("HYPRE_PCGSetup",
+                 HYPRE_ParCSRPCGSetup(solver, parcsr_A, parvector_b, parvector_x));
+    }
   }
   Real a2 = platform::getRealTime();
   info() << "Time to setup =" << (a2 - a1);
@@ -732,8 +741,10 @@ solve()
 
   {
     Timer::Action ta1(tstat, "HypreLinearSystemSolve");
-    hypreCheck("HYPRE_PCGSolve",
-               HYPRE_ParCSRPCGSolve(solver, parcsr_A, parvector_b, parvector_x));
+    if (m_solver == "cg") {
+      hypreCheck("HYPRE_PCGSolve",
+                 HYPRE_ParCSRPCGSolve(solver, parcsr_A, parvector_b, parvector_x));
+    }
   }
   Real b1 = platform::getRealTime();
   info() << "Time to solve=" << (b1 - a2);
@@ -784,6 +795,8 @@ class HypreDoFLinearSystemFactoryService
     x->setAmgInterpType(options()->amgInterpType());
     x->setAmgSmoother(options()->amgSmoother());
     x->setVerbosityLevel(options()->verbosity());
+    x->setSolver(options()->solver());
+    x->setPreconditioner(options()->preconditioner());
     return x;
   }
 };
