@@ -142,8 +142,10 @@ endif()
 add_test(NAME [testlab]2D_bsr COMMAND Testlab inputs/Test.L-shape.2D.bsr.arc)
 arcanefem_add_gpu_test(NAME [testlab]2D_bsr_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.arc)
 
-add_test(NAME [testlab]2D_bsr_hypre COMMAND Testlab inputs/Test.L-shape.2D.bsr.hypre.arc)
-arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.arc)
+add_test(NAME [testlab]2D_bsr_hypre_direct COMMAND Testlab inputs/Test.L-shape.2D.bsr.hypre.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_direct_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_direct_gmres_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.gmres.arc)
+
 
 add_test(NAME [testlab]3D_bsr COMMAND Testlab inputs/Test.sphere.3D.bsr.arc)
 arcanefem_add_gpu_test(NAME [testlab]3D_bsr_gpu COMMAND Testlab ARGS inputs/Test.sphere.3D.bsr.arc)
