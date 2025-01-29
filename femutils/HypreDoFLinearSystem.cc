@@ -720,6 +720,14 @@ solve()
       HYPRE_FlexGMRESSetPrintLevel(solver, m_verbosity); // print solve info //
       HYPRE_FlexGMRESSetLogging(solver, 1); // needed to get run info later //
     }
+    else if (m_solver == "bicgstab") {
+      HYPRE_ParCSRBiCGSTABCreate(mpi_comm, &solver);
+      HYPRE_BiCGSTABSetMaxIter(solver, m_max_iter); // max iterations //
+      HYPRE_BiCGSTABSetTol(solver, m_rtol); // relative conv. tolerance //
+      HYPRE_BiCGSTABSetAbsoluteTol(solver, m_atol); // absolute conv. tolerance //
+      HYPRE_BiCGSTABSetPrintLevel(solver, m_verbosity); // print solve info //
+      HYPRE_BiCGSTABSetLogging(solver, 1); // needed to get run info later //
+    }
 
   }
 
@@ -753,6 +761,35 @@ solve()
         hypreCheck("HYPRE_ParCSRFlexGMRESSetPrecond",
                    HYPRE_ParCSRFlexGMRESSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
       }
+      else if (m_solver == "bicgstab") {
+        hypreCheck("HYPRE_ParCSRBiCGSTABSetPrecond",
+                   HYPRE_ParCSRBiCGSTABSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
+      }
+    }
+    else if (m_preconditioner == "bjacobi") {
+      HYPRE_ILUCreate(&precond);
+      HYPRE_ILUSetType(precond, 0); // GPU supported: 0(ILU0) //
+      HYPRE_ILUSetMaxIter(precond, 1);
+      HYPRE_ILUSetTol(precond, 0);
+      HYPRE_ILUSetLocalReordering(precond, 1); // 0: none, 1: RCM
+      HYPRE_ILUSetPrintLevel(precond, 1);
+
+      if (m_solver == "cg") {
+        hypreCheck("HYPRE_ParCSRPCGSetPrecond",
+                   HYPRE_ParCSRPCGSetPrecond(solver, HYPRE_ILUSolve, HYPRE_ILUSetup, precond));
+      }
+      else if (m_solver == "gmres") {
+        hypreCheck("HYPRE_ParCSRGMRESSetPrecond",
+                   HYPRE_ParCSRGMRESSetPrecond(solver, HYPRE_ILUSolve, HYPRE_ILUSetup, precond));
+      }
+      else if (m_solver == "fgmres") {
+        hypreCheck("HYPRE_ParCSRFlexGMRESSetPrecond",
+                   HYPRE_ParCSRFlexGMRESSetPrecond(solver, HYPRE_ILUSolve, HYPRE_ILUSetup, precond));
+      }
+      else if (m_solver == "bicgstab") {
+        hypreCheck("HYPRE_ParCSRBiCGSTABSetPrecond",
+                   HYPRE_ParCSRBiCGSTABSetPrecond(solver, HYPRE_ILUSolve, HYPRE_ILUSetup, precond));
+      }
     }
   }
 
@@ -770,6 +807,10 @@ solve()
     else if (m_solver == "fgmres") {
       hypreCheck("HYPRE_ParFlesxCSRGMRESSetup",
                  HYPRE_ParCSRFlexGMRESSetup(solver, parcsr_A, parvector_b, parvector_x));
+    }
+    else if (m_solver == "bicgstab") {
+      hypreCheck("HYPRE_ParCSRBiCGSTABSetup",
+                 HYPRE_ParCSRBiCGSTABSetup(solver, parcsr_A, parvector_b, parvector_x));
     }
   }
   Real a2 = platform::getRealTime();
@@ -789,6 +830,10 @@ solve()
     else if (m_solver == "fgmres") {
       hypreCheck("HYPRE_ParCSRFlexGMRESSolve",
                  HYPRE_ParCSRFlexGMRESSolve(solver, parcsr_A, parvector_b, parvector_x));
+    }
+    else if (m_solver == "bicgstab") {
+      hypreCheck("HYPRE_ParCSRBiCGSTABSolve",
+                 HYPRE_ParCSRBiCGSTABSolve(solver, parcsr_A, parvector_b, parvector_x));
     }
   }
   Real b1 = platform::getRealTime();

@@ -147,6 +147,11 @@ add_test(NAME [testlab]2D_bsr_hypre_direct COMMAND Testlab inputs/Test.L-shape.2
 arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_direct_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.arc)
 arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_direct_gmres_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.gmres.arc)
 arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_direct_fgmres_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.fgmres.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_direct_bicgstab_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.bicgstab.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_direct_cg_bjac_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.cg.bjacobi.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_direct_gmres_bjac_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.gmres.bjacobi.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_direct_fgmres_bjac_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.fgmres.bjacobi.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_direct_bicgstab_bjac_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.bicgstab.bjacobi.arc)
 
 
 add_test(NAME [testlab]3D_bsr COMMAND Testlab inputs/Test.sphere.3D.bsr.arc)
