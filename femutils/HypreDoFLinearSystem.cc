@@ -702,6 +702,15 @@ solve()
       HYPRE_PCGSetPrintLevel(solver, m_verbosity); // print solve info //
       HYPRE_PCGSetLogging(solver, 1); // needed to get run info later //
     }
+    else if (m_solver == "gmres") {
+      HYPRE_ParCSRGMRESCreate(mpi_comm, &solver);
+      HYPRE_GMRESSetKDim(solver, 2);
+      HYPRE_GMRESSetMaxIter(solver, m_max_iter); // max iterations //
+      HYPRE_GMRESSetTol(solver, m_rtol); // relative conv. tolerance //
+      HYPRE_GMRESSetAbsoluteTol(solver, m_atol); // absolute conv. tolerance //
+      HYPRE_GMRESSetPrintLevel(solver, m_verbosity); // print solve info //
+      HYPRE_GMRESSetLogging(solver, 1); // needed to get run info later //
+    }
   }
 
   HYPRE_Solver precond = nullptr;
@@ -722,8 +731,14 @@ solve()
       HYPRE_BoomerAMGSetStrongThreshold(precond, m_amg_threshold); // amg threshold strength //
       HYPRE_BoomerAMGSetKeepTranspose(precond, 1); // for GPU the local interp. trnsp saved//
 
-      hypreCheck("HYPRE_ParCSRPCGSetPrecond",
-                 HYPRE_ParCSRPCGSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
+      if (m_solver == "cg") {
+        hypreCheck("HYPRE_ParCSRPCGSetPrecond",
+                   HYPRE_ParCSRPCGSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
+      }
+      else if (m_solver == "gmres") {
+        hypreCheck("HYPRE_ParCSRGMRESSetPrecond",
+                   HYPRE_ParCSRGMRESSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
+      }
     }
   }
 
@@ -733,6 +748,10 @@ solve()
     if (m_solver == "cg") {
       hypreCheck("HYPRE_PCGSetup",
                  HYPRE_ParCSRPCGSetup(solver, parcsr_A, parvector_b, parvector_x));
+    }
+    else if (m_solver == "gmres") {
+      hypreCheck("HYPRE_ParCSRGMRESSetup",
+                 HYPRE_ParCSRGMRESSetup(solver, parcsr_A, parvector_b, parvector_x));
     }
   }
   Real a2 = platform::getRealTime();
@@ -744,6 +763,10 @@ solve()
     if (m_solver == "cg") {
       hypreCheck("HYPRE_PCGSolve",
                  HYPRE_ParCSRPCGSolve(solver, parcsr_A, parvector_b, parvector_x));
+    }
+    else if (m_solver == "gmres") {
+      hypreCheck("HYPRE_ParCSRGMRESSolve",
+                 HYPRE_ParCSRGMRESSolve(solver, parcsr_A, parvector_b, parvector_x));
     }
   }
   Real b1 = platform::getRealTime();
