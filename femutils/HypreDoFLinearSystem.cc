@@ -685,7 +685,7 @@ solve()
 
   HYPRE_Solver solver = nullptr;
   {
-    Timer::Action ta1(tstat, "HypreSetPrecond");
+    Timer::Action ta1(tstat, "HypreSetSolver");
     HYPRE_ParCSRPCGCreate(mpi_comm, &solver);
     HYPRE_PCGSetMaxIter(solver, m_max_iter); // max iterations //
     HYPRE_PCGSetTol(solver, m_rtol); // relative conv. tolerance //
@@ -697,22 +697,17 @@ solve()
 
   HYPRE_Solver precond = nullptr;
   {
+    Timer::Action ta1(tstat, "HypreSetPrecond");
+
     info() << "Info Hypre: AmgCoarsener=" << m_amg_coarsener;
     info() << "Info Hypre: AmgInterpType=" << m_amg_interp_type;
     info() << "Info Hypre: AmgSmoother=" << m_amg_smoother;
-
-    v1 = platform::getRealTime();
-    hypreCheck("HYPRE_BoomerAMGCreate", HYPRE_BoomerAMGCreate(&precond));
-    v2 = platform::getRealTime();
-    info() << "Time to call 'HYPRE_BoomerAMGCreate' = " << (v2 - v1);
-    pm->traceMng()->flush();
 
     // Set Boomer AMG preconditioner Note we try to add only GPU-CPU compatible ones//
     HYPRE_BoomerAMGCreate(&precond);
     HYPRE_BoomerAMGSetPrintLevel(precond, 1); // print amg solution info //
     HYPRE_BoomerAMGSetCoarsenType(precond, m_amg_coarsener); // GPU supported: 8(PMIS) //
     HYPRE_BoomerAMGSetInterpType(precond, m_amg_interp_type); // GPU supported: 3, 15, extended+i 6, 14, 18 //
-    //HYPRE_BoomerAMGSetOldDefault(precond);
     HYPRE_BoomerAMGSetRelaxType(precond, m_amg_smoother); // GPU support: 3, 4, 6 Sym G.S./Jacobi hybrid, 7, 18, 11, 12//
     HYPRE_BoomerAMGSetRelaxOrder(precond, 0); // must be false //
     HYPRE_BoomerAMGSetNumSweeps(precond, 1);
