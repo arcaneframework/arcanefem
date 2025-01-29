@@ -711,6 +711,16 @@ solve()
       HYPRE_GMRESSetPrintLevel(solver, m_verbosity); // print solve info //
       HYPRE_GMRESSetLogging(solver, 1); // needed to get run info later //
     }
+    else if (m_solver == "fgmres") {
+      HYPRE_ParCSRFlexGMRESCreate(mpi_comm, &solver);
+      HYPRE_FlexGMRESSetMaxIter(solver, m_max_iter); // max iterations //
+      HYPRE_FlexGMRESSetKDim(solver, 2);
+      HYPRE_FlexGMRESSetTol(solver, m_rtol); // relative conv. tolerance //
+      HYPRE_FlexGMRESSetAbsoluteTol(solver, m_atol); // absolute conv. tolerance //
+      HYPRE_FlexGMRESSetPrintLevel(solver, m_verbosity); // print solve info //
+      HYPRE_FlexGMRESSetLogging(solver, 1); // needed to get run info later //
+    }
+
   }
 
   HYPRE_Solver precond = nullptr;
@@ -739,6 +749,10 @@ solve()
         hypreCheck("HYPRE_ParCSRGMRESSetPrecond",
                    HYPRE_ParCSRGMRESSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
       }
+      else if (m_solver == "fgmres") {
+        hypreCheck("HYPRE_ParCSRFlexGMRESSetPrecond",
+                   HYPRE_ParCSRFlexGMRESSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
+      }
     }
   }
 
@@ -752,6 +766,10 @@ solve()
     else if (m_solver == "gmres") {
       hypreCheck("HYPRE_ParCSRGMRESSetup",
                  HYPRE_ParCSRGMRESSetup(solver, parcsr_A, parvector_b, parvector_x));
+    }
+    else if (m_solver == "fgmres") {
+      hypreCheck("HYPRE_ParFlesxCSRGMRESSetup",
+                 HYPRE_ParCSRFlexGMRESSetup(solver, parcsr_A, parvector_b, parvector_x));
     }
   }
   Real a2 = platform::getRealTime();
@@ -767,6 +785,10 @@ solve()
     else if (m_solver == "gmres") {
       hypreCheck("HYPRE_ParCSRGMRESSolve",
                  HYPRE_ParCSRGMRESSolve(solver, parcsr_A, parvector_b, parvector_x));
+    }
+    else if (m_solver == "fgmres") {
+      hypreCheck("HYPRE_ParCSRFlexGMRESSolve",
+                 HYPRE_ParCSRFlexGMRESSolve(solver, parcsr_A, parvector_b, parvector_x));
     }
   }
   Real b1 = platform::getRealTime();
