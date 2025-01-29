@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* HypreDoFLinearSystem.cc                                     (C) 2022-2024 */
+/* HypreDoFLinearSystem.cc                                     (C) 2022-2025 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
 /*---------------------------------------------------------------------------*/
@@ -120,7 +120,7 @@ class HypreDoFLinearSystemImpl
   {
     info() << "Calling HYPRE_Finalize";
 #if HYPRE_RELEASE_NUMBER >= 21500
-    HYPRE_Finalize(); /* must be the last HYPRE function call */
+    HYPRE_Finalize(); // must be the last HYPRE function call //
 #endif
   }
 
@@ -129,7 +129,7 @@ class HypreDoFLinearSystemImpl
   void build()
   {
 #if HYPRE_RELEASE_NUMBER >= 22700
-    HYPRE_Init(); /* must be the first HYPRE function call */
+    HYPRE_Init(); // must be the first HYPRE function call //
 #endif
   }
 
@@ -436,13 +436,13 @@ solve()
   }
 
   hypreCheck("HYPRE_SetMemoryLocation", HYPRE_SetMemoryLocation(hypre_memory));
-  /* setup AMG on GPUs */
+  // setup AMG on GPUs //
   hypreCheck("HYPRE_SetExecutionPolicy", HYPRE_SetExecutionPolicy(hypre_exec_policy));
 
   if (is_use_device) {
-    /* use hypre's SpGEMM instead of vendor implementation */
+    // use hypre's SpGEMM instead of vendor implementation //
     HYPRE_SetSpGemmUseVendor(false);
-    /* use GPU RNG */
+    // use GPU RNG //
     HYPRE_SetUseGpuRand(true);
   }
 #endif
@@ -460,10 +460,10 @@ solve()
 
   info() << "HypreInfo: is_device?=" << is_use_device << " use_device_memory?=" << is_use_device_memory;
 
-  /* use hypre's GPU memory pool */
+  // use hypre's GPU memory pool //
   //HYPRE_SetGPUMemoryPoolSize(bin_growth, min_bin, max_bin, max_bytes);
 
-  /* setup IJ matrix A */
+  // setup IJ matrix A //
 
   HYPRE_IJMatrix ij_A = nullptr;
   HYPRE_ParCSRMatrix parcsr_A = nullptr;
@@ -600,7 +600,7 @@ solve()
 
   {
     Timer::Action ta1(tstat, "HypreLinearSystemBuildMatrix");
-    /* GPU pointers; efficient in large chunks */
+    // GPU pointers; efficient in large chunks //
     HYPRE_IJMatrixSetValues(ij_A,
                             nb_local_row,
                             rows_nb_column_data,
@@ -684,23 +684,22 @@ solve()
   }
 
   HYPRE_Solver solver = nullptr;
-  HYPRE_Solver precond = nullptr;
   {
     Timer::Action ta1(tstat, "HypreSetPrecond");
-    /* setup AMG */
     HYPRE_ParCSRPCGCreate(mpi_comm, &solver);
+    HYPRE_PCGSetMaxIter(solver, m_max_iter); // max iterations //
+    HYPRE_PCGSetTol(solver, m_rtol); // relative conv. tolerance //
+    HYPRE_PCGSetAbsoluteTol(solver, m_atol); // absolute conv. tolerance //
+    HYPRE_PCGSetTwoNorm(solver, 1); // use the two norm as the stopping criteria //
+    HYPRE_PCGSetPrintLevel(solver, m_verbosity); // print solve info //
+    HYPRE_PCGSetLogging(solver, 1); // needed to get run info later //
+  }
 
+  HYPRE_Solver precond = nullptr;
+  {
     info() << "Info Hypre: AmgCoarsener=" << m_amg_coarsener;
     info() << "Info Hypre: AmgInterpType=" << m_amg_interp_type;
     info() << "Info Hypre: AmgSmoother=" << m_amg_smoother;
-
-    /* Set some parameters (See Reference Manual for more parameters) */
-    HYPRE_PCGSetMaxIter(solver, m_max_iter); /* max iterations */
-    HYPRE_PCGSetTol(solver, m_rtol); /* relative conv. tolerance */
-    HYPRE_PCGSetAbsoluteTol(solver, m_atol); /* absolute conv. tolerance */
-    HYPRE_PCGSetTwoNorm(solver, 1); /* use the two norm as the stopping criteria */
-    HYPRE_PCGSetPrintLevel(solver, m_verbosity); /* print solve info */
-    HYPRE_PCGSetLogging(solver, 1); /* needed to get run info later */
 
     v1 = platform::getRealTime();
     hypreCheck("HYPRE_BoomerAMGCreate", HYPRE_BoomerAMGCreate(&precond));
@@ -708,23 +707,24 @@ solve()
     info() << "Time to call 'HYPRE_BoomerAMGCreate' = " << (v2 - v1);
     pm->traceMng()->flush();
 
-    /* Set Boomer AMG precoditioner Note we try to add only GPU-CPU compatible ones*/
+    // Set Boomer AMG preconditioner Note we try to add only GPU-CPU compatible ones//
     HYPRE_BoomerAMGCreate(&precond);
-    HYPRE_BoomerAMGSetPrintLevel(precond, 1); /* print amg solution info */
-    HYPRE_BoomerAMGSetCoarsenType(precond, m_amg_coarsener); /* GPU supported: 8(PMIS) */
-    HYPRE_BoomerAMGSetInterpType(precond, m_amg_interp_type); /* GPU supported: 3, 15, extended+i 6, 14, 18 */
+    HYPRE_BoomerAMGSetPrintLevel(precond, 1); // print amg solution info //
+    HYPRE_BoomerAMGSetCoarsenType(precond, m_amg_coarsener); // GPU supported: 8(PMIS) //
+    HYPRE_BoomerAMGSetInterpType(precond, m_amg_interp_type); // GPU supported: 3, 15, extended+i 6, 14, 18 //
     //HYPRE_BoomerAMGSetOldDefault(precond);
-    HYPRE_BoomerAMGSetRelaxType(precond, m_amg_smoother); /* GPU support: 3, 4, 6 Sym G.S./Jacobi hybrid, 7, 18, 11, 12*/
-    HYPRE_BoomerAMGSetRelaxOrder(precond, 0); /* must be false */
+    HYPRE_BoomerAMGSetRelaxType(precond, m_amg_smoother); // GPU support: 3, 4, 6 Sym G.S./Jacobi hybrid, 7, 18, 11, 12//
+    HYPRE_BoomerAMGSetRelaxOrder(precond, 0); // must be false //
     HYPRE_BoomerAMGSetNumSweeps(precond, 1);
-    HYPRE_BoomerAMGSetTol(precond, 0.0); /* conv. tolerance zero */
-    HYPRE_BoomerAMGSetMaxIter(precond, 1); /* do only one iteration! */
-    HYPRE_BoomerAMGSetStrongThreshold(precond, m_amg_threshold); /* amg threshold strength */
-    HYPRE_BoomerAMGSetKeepTranspose(precond, 1); /* for GPU the local interp. trnsp saved*/
+    HYPRE_BoomerAMGSetTol(precond, 0.0); // conv. tolerance zero //
+    HYPRE_BoomerAMGSetMaxIter(precond, 1); // do only one iteration! //
+    HYPRE_BoomerAMGSetStrongThreshold(precond, m_amg_threshold); // amg threshold strength //
+    HYPRE_BoomerAMGSetKeepTranspose(precond, 1); // for GPU the local interp. trnsp saved//
 
     hypreCheck("HYPRE_ParCSRPCGSetPrecond",
                HYPRE_ParCSRPCGSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
   }
+
   Real a1 = platform::getRealTime();
   {
     Timer::Action ta1(tstat, "HypreSetup");
