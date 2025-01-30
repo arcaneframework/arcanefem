@@ -43,6 +43,24 @@
 
 #include "FemUtils.h"
 #include "IDoFLinearSystemFactory.h"
+
+namespace Arcane::FemUtils
+{
+enum class solver
+{
+  CG,
+  GMRES,
+  FGMRES,
+  BICGSTAB
+};
+
+enum class preconditioner
+{
+  AMG,
+  BJACOBI
+};
+}
+
 #include "HypreDoFLinearSystemFactory_axl.h"
 #include "ArcaneFemFunctionsGpu.h"
 
@@ -56,6 +74,8 @@
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+
+
 
 namespace Arcane::FemUtils
 {
@@ -216,8 +236,8 @@ class HypreDoFLinearSystemImpl
   void setAbsTolerance(Real v) { m_atol = v; }
   void setAmgThreshold(Real v) { m_amg_threshold = v; }
 
-  void setSolver(String v) { m_solver = v; }
-  void setPreconditioner(String v) { m_preconditioner = v; }
+  void setSolver(solver v) { m_solver = v; }
+  void setPreconditioner(preconditioner v) { m_preconditioner = v; }
 
   void _applyRowElimination();
   void _applyForcedValuesToLhs();
@@ -256,8 +276,8 @@ class HypreDoFLinearSystemImpl
   Real m_rtol = 1.0e-7;
   Real m_atol = 0.;
 
-  String m_solver = "cg";
-  String m_preconditioner = "amg";
+  solver m_solver = solver::CG;
+  preconditioner m_preconditioner = preconditioner::AMG;
 
  private:
 
@@ -693,7 +713,8 @@ solve()
   {
     Timer::Action ta1(tstat, "HypreSetSolver");
 
-    if (m_solver == "cg") {
+    switch (m_solver) {
+    case solver::CG:
       HYPRE_ParCSRPCGCreate(mpi_comm, &solver);
       HYPRE_PCGSetMaxIter(solver, m_max_iter); // max iterations //
       HYPRE_PCGSetTol(solver, m_rtol); // relative conv. tolerance //
@@ -701,8 +722,8 @@ solve()
       HYPRE_PCGSetTwoNorm(solver, 1); // use the two norm as the stopping criteria //
       HYPRE_PCGSetPrintLevel(solver, m_verbosity); // print solve info //
       HYPRE_PCGSetLogging(solver, 1); // needed to get run info later //
-    }
-    else if (m_solver == "gmres") {
+      break;
+    case solver::GMRES:
       HYPRE_ParCSRGMRESCreate(mpi_comm, &solver);
       HYPRE_GMRESSetKDim(solver, 2);
       HYPRE_GMRESSetMaxIter(solver, m_max_iter); // max iterations //
@@ -710,8 +731,8 @@ solve()
       HYPRE_GMRESSetAbsoluteTol(solver, m_atol); // absolute conv. tolerance //
       HYPRE_GMRESSetPrintLevel(solver, m_verbosity); // print solve info //
       HYPRE_GMRESSetLogging(solver, 1); // needed to get run info later //
-    }
-    else if (m_solver == "fgmres") {
+      break;
+    case solver::FGMRES:
       HYPRE_ParCSRFlexGMRESCreate(mpi_comm, &solver);
       HYPRE_FlexGMRESSetMaxIter(solver, m_max_iter); // max iterations //
       HYPRE_FlexGMRESSetKDim(solver, 2);
@@ -719,23 +740,24 @@ solve()
       HYPRE_FlexGMRESSetAbsoluteTol(solver, m_atol); // absolute conv. tolerance //
       HYPRE_FlexGMRESSetPrintLevel(solver, m_verbosity); // print solve info //
       HYPRE_FlexGMRESSetLogging(solver, 1); // needed to get run info later //
-    }
-    else if (m_solver == "bicgstab") {
+      break;
+    case solver::BICGSTAB:
       HYPRE_ParCSRBiCGSTABCreate(mpi_comm, &solver);
       HYPRE_BiCGSTABSetMaxIter(solver, m_max_iter); // max iterations //
       HYPRE_BiCGSTABSetTol(solver, m_rtol); // relative conv. tolerance //
       HYPRE_BiCGSTABSetAbsoluteTol(solver, m_atol); // absolute conv. tolerance //
       HYPRE_BiCGSTABSetPrintLevel(solver, m_verbosity); // print solve info //
       HYPRE_BiCGSTABSetLogging(solver, 1); // needed to get run info later //
+      break;
     }
-
   }
 
   HYPRE_Solver precond = nullptr;
   {
     Timer::Action ta1(tstat, "HypreSetPrecond");
 
-    if (m_preconditioner == "amg") {
+    switch (m_preconditioner) {
+    case preconditioner::AMG:
       // Set Boomer AMG preconditioner Note we try to add only GPU-CPU compatible ones//
       HYPRE_BoomerAMGCreate(&precond);
       HYPRE_BoomerAMGSetPrintLevel(precond, 1); // print amg solution info //
@@ -749,24 +771,26 @@ solve()
       HYPRE_BoomerAMGSetStrongThreshold(precond, m_amg_threshold); // amg threshold strength //
       HYPRE_BoomerAMGSetKeepTranspose(precond, 1); // for GPU the local interp. trnsp saved//
 
-      if (m_solver == "cg") {
+      switch (m_solver) {
+      case solver::CG:
         hypreCheck("HYPRE_ParCSRPCGSetPrecond",
                    HYPRE_ParCSRPCGSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
-      }
-      else if (m_solver == "gmres") {
+        break;
+      case solver::GMRES:
         hypreCheck("HYPRE_ParCSRGMRESSetPrecond",
                    HYPRE_ParCSRGMRESSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
-      }
-      else if (m_solver == "fgmres") {
+        break;
+      case solver::FGMRES:
         hypreCheck("HYPRE_ParCSRFlexGMRESSetPrecond",
                    HYPRE_ParCSRFlexGMRESSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
-      }
-      else if (m_solver == "bicgstab") {
+        break;
+      case solver::BICGSTAB:
         hypreCheck("HYPRE_ParCSRBiCGSTABSetPrecond",
                    HYPRE_ParCSRBiCGSTABSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
+        break;
       }
-    }
-    else if (m_preconditioner == "bjacobi") {
+      break;
+    case preconditioner::BJACOBI:
       HYPRE_ILUCreate(&precond);
       HYPRE_ILUSetType(precond, 0); // GPU supported: 0(ILU0) //
       HYPRE_ILUSetMaxIter(precond, 1);
@@ -774,66 +798,76 @@ solve()
       HYPRE_ILUSetLocalReordering(precond, 1); // 0: none, 1: RCM
       HYPRE_ILUSetPrintLevel(precond, 1);
 
-      if (m_solver == "cg") {
+      switch (m_solver) {
+      case solver::CG:
         hypreCheck("HYPRE_ParCSRPCGSetPrecond",
                    HYPRE_ParCSRPCGSetPrecond(solver, HYPRE_ILUSolve, HYPRE_ILUSetup, precond));
-      }
-      else if (m_solver == "gmres") {
+        break;
+      case solver::GMRES:
         hypreCheck("HYPRE_ParCSRGMRESSetPrecond",
                    HYPRE_ParCSRGMRESSetPrecond(solver, HYPRE_ILUSolve, HYPRE_ILUSetup, precond));
-      }
-      else if (m_solver == "fgmres") {
+        break;
+      case solver::FGMRES:
         hypreCheck("HYPRE_ParCSRFlexGMRESSetPrecond",
                    HYPRE_ParCSRFlexGMRESSetPrecond(solver, HYPRE_ILUSolve, HYPRE_ILUSetup, precond));
-      }
-      else if (m_solver == "bicgstab") {
+        break;
+      case solver::BICGSTAB:
         hypreCheck("HYPRE_ParCSRBiCGSTABSetPrecond",
                    HYPRE_ParCSRBiCGSTABSetPrecond(solver, HYPRE_ILUSolve, HYPRE_ILUSetup, precond));
+        break;
       }
+      break;
     }
   }
 
   Real a1 = platform::getRealTime();
   {
     Timer::Action ta1(tstat, "HypreSetup");
-    if (m_solver == "cg") {
+
+    switch (m_solver) {
+    case solver::CG:
       hypreCheck("HYPRE_PCGSetup",
                  HYPRE_ParCSRPCGSetup(solver, parcsr_A, parvector_b, parvector_x));
-    }
-    else if (m_solver == "gmres") {
+      break;
+    case solver::GMRES:
       hypreCheck("HYPRE_ParCSRGMRESSetup",
                  HYPRE_ParCSRGMRESSetup(solver, parcsr_A, parvector_b, parvector_x));
-    }
-    else if (m_solver == "fgmres") {
+      break;
+    case solver::FGMRES:
       hypreCheck("HYPRE_ParFlesxCSRGMRESSetup",
                  HYPRE_ParCSRFlexGMRESSetup(solver, parcsr_A, parvector_b, parvector_x));
-    }
-    else if (m_solver == "bicgstab") {
+      break;
+    case solver::BICGSTAB:
       hypreCheck("HYPRE_ParCSRBiCGSTABSetup",
                  HYPRE_ParCSRBiCGSTABSetup(solver, parcsr_A, parvector_b, parvector_x));
+      break;
     }
   }
+
   Real a2 = platform::getRealTime();
   info() << "Time to setup =" << (a2 - a1);
   pm->traceMng()->flush();
 
   {
     Timer::Action ta1(tstat, "HypreLinearSystemSolve");
-    if (m_solver == "cg") {
+
+    switch (m_solver) {
+    case solver::CG:
       hypreCheck("HYPRE_PCGSolve",
                  HYPRE_ParCSRPCGSolve(solver, parcsr_A, parvector_b, parvector_x));
-    }
-    else if (m_solver == "gmres") {
+      break;
+    case solver::GMRES:
       hypreCheck("HYPRE_ParCSRGMRESSolve",
                  HYPRE_ParCSRGMRESSolve(solver, parcsr_A, parvector_b, parvector_x));
-    }
-    else if (m_solver == "fgmres") {
+      break;
+    case solver::FGMRES:
       hypreCheck("HYPRE_ParCSRFlexGMRESSolve",
                  HYPRE_ParCSRFlexGMRESSolve(solver, parcsr_A, parvector_b, parvector_x));
-    }
-    else if (m_solver == "bicgstab") {
+      break;
+    case solver::BICGSTAB:
       hypreCheck("HYPRE_ParCSRBiCGSTABSolve",
                  HYPRE_ParCSRBiCGSTABSolve(solver, parcsr_A, parvector_b, parvector_x));
+      break;
     }
   }
   Real b1 = platform::getRealTime();
