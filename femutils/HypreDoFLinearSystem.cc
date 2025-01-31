@@ -133,12 +133,12 @@ class HypreDoFLinearSystemImpl
   , m_dof_elimination_value(VariableBuildInfo(dof_family, solver_name + "DoFEliminationValue"))
   , m_dof_matrix_numbering(VariableBuildInfo(dof_family, solver_name + "MatrixNumbering"))
   {
-    info() << "Creating HypreDoFLinearSystemImpl()";
+    info() << "[Hypre-Info] Creating HypreDoFLinearSystemImpl()";
   }
 
   ~HypreDoFLinearSystemImpl()
   {
-    info() << "Calling HYPRE_Finalize";
+    info() << "[Hypre-Info] Calling HYPRE_Finalize";
 #if HYPRE_RELEASE_NUMBER >= 21500
     HYPRE_Finalize(); // must be the last HYPRE function call //
 #endif
@@ -439,7 +439,7 @@ solve()
   bool is_use_device = false;
   if (m_runner) {
     is_use_device = isAcceleratorPolicy(m_runner->executionPolicy());
-    info() << "Runner for Hypre=" << m_runner->executionPolicy() << " wanted_is_device=" << is_use_device;
+    info() << "[Hypre-Info] Runner for Hypre=" << m_runner->executionPolicy() << " wanted_is_device=" << is_use_device;
   }
 
   // Si HYPRE n'est pas compilé avec le support GPU, alors on utilise l'hôte.
@@ -449,7 +449,7 @@ solve()
   // utilisent CUDA ou ROCM)
 #ifndef HYPRE_USING_GPU
   if (is_use_device) {
-    info() << "Hypre is not compiled with GPU support. Using host backend";
+    info() << "[Hypre-Info] Hypre is not compiled with GPU support. Using host backend";
     is_use_device = false;
   }
 #endif
@@ -484,7 +484,7 @@ solve()
     is_use_device_memory = true;
   }
 
-  info() << "HypreInfo: is_device?=" << is_use_device << " use_device_memory?=" << is_use_device_memory;
+  info() << "[Hypre-Info] is_device?=" << is_use_device << " use_device_memory?=" << is_use_device_memory;
 
   // use hypre's GPU memory pool //
   //HYPRE_SetGPUMemoryPoolSize(bin_growth, min_bin, max_bin, max_bytes);
@@ -511,7 +511,7 @@ solve()
   const int first_row = m_first_own_row;
   const int last_row = m_first_own_row + m_nb_own_row - 1;
 
-  info() << "CreateMatrix first_row=" << first_row << " last_row " << last_row;
+  info() << "[Hypre-Info] CreateMatrix first_row=" << first_row << " last_row " << last_row;
   HYPRE_IJMatrixCreate(mpi_comm, first_row, last_row, first_row, last_row, &ij_A);
 
   int* rows_nb_column_data = const_cast<int*>(m_csr_view.rowsNbColumn().data());
@@ -600,7 +600,7 @@ solve()
   RunQueue q = makeQueue(m_runner);
 
   if (is_use_device) {
-    info() << "Prefetching memory for 'Hypre'";
+    info() << "[Hypre-Info] Prefetching memory";
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(m_csr_view.rowsNbColumn())).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(rows_index_span)).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(columns_index_span)).addAsync());
@@ -637,7 +637,7 @@ solve()
     HYPRE_IJMatrixAssemble(ij_A);
     HYPRE_IJMatrixGetObject(ij_A, (void**)&parcsr_A);
     Real m2 = platform::getRealTime();
-    info() << "Time to create matrix=" << (m2 - m1);
+    info() << "[Hypre-Timer] Time to create matrix=" << (m2 - m1);
   }
 
   pm->traceMng()->flush();
@@ -697,7 +697,7 @@ solve()
              HYPRE_IJVectorAssemble(ij_vector_x));
   HYPRE_IJVectorGetObject(ij_vector_x, (void**)&parvector_x);
   Real v2 = platform::getRealTime();
-  info() << "Time to create vectors=" << (v2 - v1);
+  info() << "[Hypre-Timer] Time to create vectors=" << (v2 - v1);
   pm->traceMng()->flush();
 
   if (do_dump_matrix) {
@@ -860,7 +860,7 @@ solve()
   }
 
   Real a2 = platform::getRealTime();
-  info() << "Time to setup =" << (a2 - a1);
+  info() << "[Hypre-Timer] Time to setup =" << (a2 - a1);
   pm->traceMng()->flush();
 
   {
@@ -889,7 +889,7 @@ solve()
     }
   }
   Real b1 = platform::getRealTime();
-  info() << "Time to solve=" << (b1 - a2);
+  info() << "[Hypre-Timer] Time to solve=" << (b1 - a2);
   pm->traceMng()->flush();
 
   if (is_parallel) {
@@ -920,7 +920,7 @@ class HypreDoFLinearSystemFactoryService
   explicit HypreDoFLinearSystemFactoryService(const ServiceBuildInfo& sbi)
   : ArcaneHypreDoFLinearSystemFactoryObject(sbi)
   {
-    info() << "Create HypreDoF";
+    info() << "[Hypre-Info] Create HypreDoF";
   }
 
   DoFLinearSystemImpl*
