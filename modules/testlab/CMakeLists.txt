@@ -137,13 +137,22 @@ endif()
 # If parallel part is available, add some tests
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
   add_test(NAME [testlab]L-shape_2D_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Testlab inputs/Test.L-shape.2D.arc)
+  add_test(NAME [testlab]L-2D_bsr_hypre_direct_gmres_4pu COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Testlab inputs/Test.L-shape.2D.bsr.hypre.gmres.arc)
 endif()
 
 add_test(NAME [testlab]2D_bsr COMMAND Testlab inputs/Test.L-shape.2D.bsr.arc)
 arcanefem_add_gpu_test(NAME [testlab]2D_bsr_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.arc)
 
-add_test(NAME [testlab]2D_bsr_hypre COMMAND Testlab inputs/Test.L-shape.2D.bsr.hypre.arc)
-arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.arc)
+add_test(NAME [testlab]2D_bsr_hypre_direct COMMAND Testlab inputs/Test.L-shape.2D.bsr.hypre.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_direct_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_direct_gmres_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.gmres.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_direct_fgmres_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.fgmres.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_direct_bicgstab_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.bicgstab.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_direct_cg_bjac_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.cg.bjacobi.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_direct_gmres_bjac_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.gmres.bjacobi.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_direct_fgmres_bjac_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.fgmres.bjacobi.arc)
+arcanefem_add_gpu_test(NAME [testlab]2D_bsr_hypre_direct_bicgstab_bjac_gpu COMMAND Testlab ARGS inputs/Test.L-shape.2D.bsr.hypre.bicgstab.bjacobi.arc)
+
 
 add_test(NAME [testlab]3D_bsr COMMAND Testlab inputs/Test.sphere.3D.bsr.arc)
 arcanefem_add_gpu_test(NAME [testlab]3D_bsr_gpu COMMAND Testlab ARGS inputs/Test.sphere.3D.bsr.arc)

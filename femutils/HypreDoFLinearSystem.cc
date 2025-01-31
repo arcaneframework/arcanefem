@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* HypreDoFLinearSystem.cc                                     (C) 2022-2024 */
+/* HypreDoFLinearSystem.cc                                     (C) 2022-2025 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
 /*---------------------------------------------------------------------------*/
@@ -43,6 +43,24 @@
 
 #include "FemUtils.h"
 #include "IDoFLinearSystemFactory.h"
+
+namespace Arcane::FemUtils
+{
+enum class solver
+{
+  CG,
+  GMRES,
+  FGMRES,
+  BICGSTAB
+};
+
+enum class preconditioner
+{
+  AMG,
+  BJACOBI
+};
+}
+
 #include "HypreDoFLinearSystemFactory_axl.h"
 #include "ArcaneFemFunctionsGpu.h"
 
@@ -56,6 +74,8 @@
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+
+
 
 namespace Arcane::FemUtils
 {
@@ -113,14 +133,14 @@ class HypreDoFLinearSystemImpl
   , m_dof_elimination_value(VariableBuildInfo(dof_family, solver_name + "DoFEliminationValue"))
   , m_dof_matrix_numbering(VariableBuildInfo(dof_family, solver_name + "MatrixNumbering"))
   {
-    info() << "Creating HypreDoFLinearSystemImpl()";
+    info() << "[Hypre-Info] Creating HypreDoFLinearSystemImpl()";
   }
 
   ~HypreDoFLinearSystemImpl()
   {
-    info() << "Calling HYPRE_Finalize";
+    info() << "[Hypre-Info] Calling HYPRE_Finalize";
 #if HYPRE_RELEASE_NUMBER >= 21500
-    HYPRE_Finalize(); /* must be the last HYPRE function call */
+    HYPRE_Finalize(); // must be the last HYPRE function call //
 #endif
   }
 
@@ -129,7 +149,7 @@ class HypreDoFLinearSystemImpl
   void build()
   {
 #if HYPRE_RELEASE_NUMBER >= 22700
-    HYPRE_Init(); /* must be the first HYPRE function call */
+    HYPRE_Init(); // must be the first HYPRE function call //
 #endif
   }
 
@@ -216,6 +236,9 @@ class HypreDoFLinearSystemImpl
   void setAbsTolerance(Real v) { m_atol = v; }
   void setAmgThreshold(Real v) { m_amg_threshold = v; }
 
+  void setSolver(solver v) { m_solver = v; }
+  void setPreconditioner(preconditioner v) { m_preconditioner = v; }
+
   void _applyRowElimination();
   void _applyForcedValuesToLhs();
 
@@ -252,6 +275,9 @@ class HypreDoFLinearSystemImpl
   Real m_amg_threshold = 0.25;
   Real m_rtol = 1.0e-7;
   Real m_atol = 0.;
+
+  solver m_solver = solver::CG;
+  preconditioner m_preconditioner = preconditioner::AMG;
 
  private:
 
@@ -413,7 +439,7 @@ solve()
   bool is_use_device = false;
   if (m_runner) {
     is_use_device = isAcceleratorPolicy(m_runner->executionPolicy());
-    info() << "Runner for Hypre=" << m_runner->executionPolicy() << " wanted_is_device=" << is_use_device;
+    info() << "[Hypre-Info] Runner for Hypre=" << m_runner->executionPolicy() << " wanted_is_device=" << is_use_device;
   }
 
   // Si HYPRE n'est pas compilé avec le support GPU, alors on utilise l'hôte.
@@ -423,7 +449,7 @@ solve()
   // utilisent CUDA ou ROCM)
 #ifndef HYPRE_USING_GPU
   if (is_use_device) {
-    info() << "Hypre is not compiled with GPU support. Using host backend";
+    info() << "[Hypre-Info] Hypre is not compiled with GPU support. Using host backend";
     is_use_device = false;
   }
 #endif
@@ -436,13 +462,13 @@ solve()
   }
 
   hypreCheck("HYPRE_SetMemoryLocation", HYPRE_SetMemoryLocation(hypre_memory));
-  /* setup AMG on GPUs */
+  // setup AMG on GPUs //
   hypreCheck("HYPRE_SetExecutionPolicy", HYPRE_SetExecutionPolicy(hypre_exec_policy));
 
   if (is_use_device) {
-    /* use hypre's SpGEMM instead of vendor implementation */
+    // use hypre's SpGEMM instead of vendor implementation //
     HYPRE_SetSpGemmUseVendor(false);
-    /* use GPU RNG */
+    // use GPU RNG //
     HYPRE_SetUseGpuRand(true);
   }
 #endif
@@ -458,12 +484,12 @@ solve()
     is_use_device_memory = true;
   }
 
-  info() << "HypreInfo: is_device?=" << is_use_device << " use_device_memory?=" << is_use_device_memory;
+  info() << "[Hypre-Info] is_device?=" << is_use_device << " use_device_memory?=" << is_use_device_memory;
 
-  /* use hypre's GPU memory pool */
+  // use hypre's GPU memory pool //
   //HYPRE_SetGPUMemoryPoolSize(bin_growth, min_bin, max_bin, max_bytes);
 
-  /* setup IJ matrix A */
+  // setup IJ matrix A //
 
   HYPRE_IJMatrix ij_A = nullptr;
   HYPRE_ParCSRMatrix parcsr_A = nullptr;
@@ -485,7 +511,7 @@ solve()
   const int first_row = m_first_own_row;
   const int last_row = m_first_own_row + m_nb_own_row - 1;
 
-  info() << "CreateMatrix first_row=" << first_row << " last_row " << last_row;
+  info() << "[Hypre-Info] CreateMatrix first_row=" << first_row << " last_row " << last_row;
   HYPRE_IJMatrixCreate(mpi_comm, first_row, last_row, first_row, last_row, &ij_A);
 
   int* rows_nb_column_data = const_cast<int*>(m_csr_view.rowsNbColumn().data());
@@ -574,7 +600,7 @@ solve()
   RunQueue q = makeQueue(m_runner);
 
   if (is_use_device) {
-    info() << "Prefetching memory for 'Hypre'";
+    info() << "[Hypre-Info] Prefetching memory";
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(m_csr_view.rowsNbColumn())).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(rows_index_span)).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(columns_index_span)).addAsync());
@@ -600,7 +626,7 @@ solve()
 
   {
     Timer::Action ta1(tstat, "HypreLinearSystemBuildMatrix");
-    /* GPU pointers; efficient in large chunks */
+    // GPU pointers; efficient in large chunks //
     HYPRE_IJMatrixSetValues(ij_A,
                             nb_local_row,
                             rows_nb_column_data,
@@ -611,7 +637,7 @@ solve()
     HYPRE_IJMatrixAssemble(ij_A);
     HYPRE_IJMatrixGetObject(ij_A, (void**)&parcsr_A);
     Real m2 = platform::getRealTime();
-    info() << "Time to create matrix=" << (m2 - m1);
+    info() << "[Hypre-Timer] Time to create matrix=" << (m2 - m1);
   }
 
   pm->traceMng()->flush();
@@ -671,7 +697,7 @@ solve()
              HYPRE_IJVectorAssemble(ij_vector_x));
   HYPRE_IJVectorGetObject(ij_vector_x, (void**)&parvector_x);
   Real v2 = platform::getRealTime();
-  info() << "Time to create vectors=" << (v2 - v1);
+  info() << "[Hypre-Timer] Time to create vectors=" << (v2 - v1);
   pm->traceMng()->flush();
 
   if (do_dump_matrix) {
@@ -684,64 +710,186 @@ solve()
   }
 
   HYPRE_Solver solver = nullptr;
+  {
+    Timer::Action ta1(tstat, "HypreSetSolver");
+
+    switch (m_solver) {
+    case solver::CG:
+      HYPRE_ParCSRPCGCreate(mpi_comm, &solver);
+      HYPRE_PCGSetMaxIter(solver, m_max_iter); // max iterations //
+      HYPRE_PCGSetTol(solver, m_rtol); // relative conv. tolerance //
+      HYPRE_PCGSetAbsoluteTol(solver, m_atol); // absolute conv. tolerance //
+      HYPRE_PCGSetTwoNorm(solver, 1); // use the two norm as the stopping criteria //
+      HYPRE_PCGSetPrintLevel(solver, m_verbosity); // print solve info //
+      HYPRE_PCGSetLogging(solver, 1); // needed to get run info later //
+      break;
+    case solver::GMRES:
+      HYPRE_ParCSRGMRESCreate(mpi_comm, &solver);
+      HYPRE_GMRESSetKDim(solver, 2);
+      HYPRE_GMRESSetMaxIter(solver, m_max_iter); // max iterations //
+      HYPRE_GMRESSetTol(solver, m_rtol); // relative conv. tolerance //
+      HYPRE_GMRESSetAbsoluteTol(solver, m_atol); // absolute conv. tolerance //
+      HYPRE_GMRESSetPrintLevel(solver, m_verbosity); // print solve info //
+      HYPRE_GMRESSetLogging(solver, 1); // needed to get run info later //
+      break;
+    case solver::FGMRES:
+      HYPRE_ParCSRFlexGMRESCreate(mpi_comm, &solver);
+      HYPRE_FlexGMRESSetMaxIter(solver, m_max_iter); // max iterations //
+      HYPRE_FlexGMRESSetKDim(solver, 2);
+      HYPRE_FlexGMRESSetTol(solver, m_rtol); // relative conv. tolerance //
+      HYPRE_FlexGMRESSetAbsoluteTol(solver, m_atol); // absolute conv. tolerance //
+      HYPRE_FlexGMRESSetPrintLevel(solver, m_verbosity); // print solve info //
+      HYPRE_FlexGMRESSetLogging(solver, 1); // needed to get run info later //
+      break;
+    case solver::BICGSTAB:
+      HYPRE_ParCSRBiCGSTABCreate(mpi_comm, &solver);
+      HYPRE_BiCGSTABSetMaxIter(solver, m_max_iter); // max iterations //
+      HYPRE_BiCGSTABSetTol(solver, m_rtol); // relative conv. tolerance //
+      HYPRE_BiCGSTABSetAbsoluteTol(solver, m_atol); // absolute conv. tolerance //
+      HYPRE_BiCGSTABSetPrintLevel(solver, m_verbosity); // print solve info //
+      HYPRE_BiCGSTABSetLogging(solver, 1); // needed to get run info later //
+      break;
+    default:
+      ARCANE_FATAL("Hypre solver type not correct use: cg|gmres|fgmres|bicgstab");
+      break;
+    }
+  }
+
   HYPRE_Solver precond = nullptr;
   {
     Timer::Action ta1(tstat, "HypreSetPrecond");
-    /* setup AMG */
-    HYPRE_ParCSRPCGCreate(mpi_comm, &solver);
 
-    info() << "Info Hypre: AmgCoarsener=" << m_amg_coarsener;
-    info() << "Info Hypre: AmgInterpType=" << m_amg_interp_type;
-    info() << "Info Hypre: AmgSmoother=" << m_amg_smoother;
+    switch (m_preconditioner) {
+    case preconditioner::AMG:
+      // Set Boomer AMG preconditioner Note we try to add only GPU-CPU compatible ones//
+      HYPRE_BoomerAMGCreate(&precond);
+      HYPRE_BoomerAMGSetPrintLevel(precond, 1); // print amg solution info //
+      HYPRE_BoomerAMGSetCoarsenType(precond, m_amg_coarsener); // GPU supported: 8(PMIS) //
+      HYPRE_BoomerAMGSetInterpType(precond, m_amg_interp_type); // GPU supported: 3, 15, extended+i 6, 14, 18 //
+      HYPRE_BoomerAMGSetRelaxType(precond, m_amg_smoother); // GPU support: 3, 4, 6 Sym G.S./Jacobi hybrid, 7, 18, 11, 12//
+      HYPRE_BoomerAMGSetRelaxOrder(precond, 0); // must be false //
+      HYPRE_BoomerAMGSetNumSweeps(precond, 1);
+      HYPRE_BoomerAMGSetTol(precond, 0.0); // conv. tolerance zero //
+      HYPRE_BoomerAMGSetMaxIter(precond, 1); // do only one iteration! //
+      HYPRE_BoomerAMGSetStrongThreshold(precond, m_amg_threshold); // amg threshold strength //
+      HYPRE_BoomerAMGSetKeepTranspose(precond, 1); // for GPU the local interp. trnsp saved//
 
-    /* Set some parameters (See Reference Manual for more parameters) */
-    HYPRE_PCGSetMaxIter(solver, m_max_iter); /* max iterations */
-    HYPRE_PCGSetTol(solver, m_rtol); /* relative conv. tolerance */
-    HYPRE_PCGSetAbsoluteTol(solver, m_atol); /* absolute conv. tolerance */
-    HYPRE_PCGSetTwoNorm(solver, 1); /* use the two norm as the stopping criteria */
-    HYPRE_PCGSetPrintLevel(solver, m_verbosity); /* print solve info */
-    HYPRE_PCGSetLogging(solver, 1); /* needed to get run info later */
+      switch (m_solver) {
+      case solver::CG:
+        hypreCheck("HYPRE_ParCSRPCGSetPrecond",
+                   HYPRE_ParCSRPCGSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
+        break;
+      case solver::GMRES:
+        hypreCheck("HYPRE_ParCSRGMRESSetPrecond",
+                   HYPRE_ParCSRGMRESSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
+        break;
+      case solver::FGMRES:
+        hypreCheck("HYPRE_ParCSRFlexGMRESSetPrecond",
+                   HYPRE_ParCSRFlexGMRESSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
+        break;
+      case solver::BICGSTAB:
+        hypreCheck("HYPRE_ParCSRBiCGSTABSetPrecond",
+                   HYPRE_ParCSRBiCGSTABSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
+        break;
+      default:
+        ARCANE_FATAL("Hypre solver type not correct use: cg|gmres|fgmres|bicgstab");
+        break;
+      }
+      break;
+    case preconditioner::BJACOBI:
+      HYPRE_ILUCreate(&precond);
+      HYPRE_ILUSetType(precond, 0); // GPU supported: 0(ILU0) //
+      HYPRE_ILUSetMaxIter(precond, 1);
+      HYPRE_ILUSetTol(precond, 0);
+      HYPRE_ILUSetLocalReordering(precond, 1); // 0: none, 1: RCM
+      HYPRE_ILUSetPrintLevel(precond, 1);
 
-    v1 = platform::getRealTime();
-    hypreCheck("HYPRE_BoomerAMGCreate", HYPRE_BoomerAMGCreate(&precond));
-    v2 = platform::getRealTime();
-    info() << "Time to call 'HYPRE_BoomerAMGCreate' = " << (v2 - v1);
-    pm->traceMng()->flush();
-
-    /* Set Boomer AMG precoditioner Note we try to add only GPU-CPU compatible ones*/
-    HYPRE_BoomerAMGCreate(&precond);
-    HYPRE_BoomerAMGSetPrintLevel(precond, 1); /* print amg solution info */
-    HYPRE_BoomerAMGSetCoarsenType(precond, m_amg_coarsener); /* GPU supported: 8(PMIS) */
-    HYPRE_BoomerAMGSetInterpType(precond, m_amg_interp_type); /* GPU supported: 3, 15, extended+i 6, 14, 18 */
-    //HYPRE_BoomerAMGSetOldDefault(precond);
-    HYPRE_BoomerAMGSetRelaxType(precond, m_amg_smoother); /* GPU support: 3, 4, 6 Sym G.S./Jacobi hybrid, 7, 18, 11, 12*/
-    HYPRE_BoomerAMGSetRelaxOrder(precond, 0); /* must be false */
-    HYPRE_BoomerAMGSetNumSweeps(precond, 1);
-    HYPRE_BoomerAMGSetTol(precond, 0.0); /* conv. tolerance zero */
-    HYPRE_BoomerAMGSetMaxIter(precond, 1); /* do only one iteration! */
-    HYPRE_BoomerAMGSetStrongThreshold(precond, m_amg_threshold); /* amg threshold strength */
-    HYPRE_BoomerAMGSetKeepTranspose(precond, 1); /* for GPU the local interp. trnsp saved*/
-
-    hypreCheck("HYPRE_ParCSRPCGSetPrecond",
-               HYPRE_ParCSRPCGSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
+      switch (m_solver) {
+      case solver::CG:
+        hypreCheck("HYPRE_ParCSRPCGSetPrecond",
+                   HYPRE_ParCSRPCGSetPrecond(solver, HYPRE_ILUSolve, HYPRE_ILUSetup, precond));
+        break;
+      case solver::GMRES:
+        hypreCheck("HYPRE_ParCSRGMRESSetPrecond",
+                   HYPRE_ParCSRGMRESSetPrecond(solver, HYPRE_ILUSolve, HYPRE_ILUSetup, precond));
+        break;
+      case solver::FGMRES:
+        hypreCheck("HYPRE_ParCSRFlexGMRESSetPrecond",
+                   HYPRE_ParCSRFlexGMRESSetPrecond(solver, HYPRE_ILUSolve, HYPRE_ILUSetup, precond));
+        break;
+      case solver::BICGSTAB:
+        hypreCheck("HYPRE_ParCSRBiCGSTABSetPrecond",
+                   HYPRE_ParCSRBiCGSTABSetPrecond(solver, HYPRE_ILUSolve, HYPRE_ILUSetup, precond));
+        break;
+      default:
+        ARCANE_FATAL("Hypre solver type not correct use: cg|gmres|fgmres|bicgstab");
+        break;
+      }
+      break;
+    default:
+      ARCANE_FATAL("Hypre preconditioner type not correct use: amg|bjacobi");
+      break;
+    }
   }
+
   Real a1 = platform::getRealTime();
   {
     Timer::Action ta1(tstat, "HypreSetup");
-    hypreCheck("HYPRE_PCGSetup",
-               HYPRE_ParCSRPCGSetup(solver, parcsr_A, parvector_b, parvector_x));
+
+    switch (m_solver) {
+    case solver::CG:
+      hypreCheck("HYPRE_PCGSetup",
+                 HYPRE_ParCSRPCGSetup(solver, parcsr_A, parvector_b, parvector_x));
+      break;
+    case solver::GMRES:
+      hypreCheck("HYPRE_ParCSRGMRESSetup",
+                 HYPRE_ParCSRGMRESSetup(solver, parcsr_A, parvector_b, parvector_x));
+      break;
+    case solver::FGMRES:
+      hypreCheck("HYPRE_ParFlesxCSRGMRESSetup",
+                 HYPRE_ParCSRFlexGMRESSetup(solver, parcsr_A, parvector_b, parvector_x));
+      break;
+    case solver::BICGSTAB:
+      hypreCheck("HYPRE_ParCSRBiCGSTABSetup",
+                 HYPRE_ParCSRBiCGSTABSetup(solver, parcsr_A, parvector_b, parvector_x));
+      break;
+    default:
+      ARCANE_FATAL("Hypre solver type not correct use: cg|gmres|fgmres|bicgstab");
+      break;
+    }
   }
+
   Real a2 = platform::getRealTime();
-  info() << "Time to setup =" << (a2 - a1);
+  info() << "[Hypre-Timer] Time to setup =" << (a2 - a1);
   pm->traceMng()->flush();
 
   {
     Timer::Action ta1(tstat, "HypreLinearSystemSolve");
-    hypreCheck("HYPRE_PCGSolve",
-               HYPRE_ParCSRPCGSolve(solver, parcsr_A, parvector_b, parvector_x));
+
+    switch (m_solver) {
+    case solver::CG:
+      hypreCheck("HYPRE_PCGSolve",
+                 HYPRE_ParCSRPCGSolve(solver, parcsr_A, parvector_b, parvector_x));
+      break;
+    case solver::GMRES:
+      hypreCheck("HYPRE_ParCSRGMRESSolve",
+                 HYPRE_ParCSRGMRESSolve(solver, parcsr_A, parvector_b, parvector_x));
+      break;
+    case solver::FGMRES:
+      hypreCheck("HYPRE_ParCSRFlexGMRESSolve",
+                 HYPRE_ParCSRFlexGMRESSolve(solver, parcsr_A, parvector_b, parvector_x));
+      break;
+    case solver::BICGSTAB:
+      hypreCheck("HYPRE_ParCSRBiCGSTABSolve",
+                 HYPRE_ParCSRBiCGSTABSolve(solver, parcsr_A, parvector_b, parvector_x));
+      break;
+    default:
+      ARCANE_FATAL("Hypre solver type not correct use: cg|gmres|fgmres|bicgstab");
+      break;
+    }
   }
   Real b1 = platform::getRealTime();
-  info() << "Time to solve=" << (b1 - a2);
+  info() << "[Hypre-Timer] Time to solve=" << (b1 - a2);
   pm->traceMng()->flush();
 
   if (is_parallel) {
@@ -772,7 +920,7 @@ class HypreDoFLinearSystemFactoryService
   explicit HypreDoFLinearSystemFactoryService(const ServiceBuildInfo& sbi)
   : ArcaneHypreDoFLinearSystemFactoryObject(sbi)
   {
-    info() << "Create HypreDoF";
+    info() << "[Hypre-Info] Create HypreDoF";
   }
 
   DoFLinearSystemImpl*
@@ -789,6 +937,8 @@ class HypreDoFLinearSystemFactoryService
     x->setAmgInterpType(options()->amgInterpType());
     x->setAmgSmoother(options()->amgSmoother());
     x->setVerbosityLevel(options()->verbosity());
+    x->setSolver(options()->solver());
+    x->setPreconditioner(options()->preconditioner());
     return x;
   }
 };
