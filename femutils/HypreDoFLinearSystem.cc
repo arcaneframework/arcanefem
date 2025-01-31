@@ -749,6 +749,9 @@ solve()
       HYPRE_BiCGSTABSetPrintLevel(solver, m_verbosity); // print solve info //
       HYPRE_BiCGSTABSetLogging(solver, 1); // needed to get run info later //
       break;
+    default:
+      ARCANE_FATAL("Hypre solver type not correct use: cg|gmres|fgmres|bicgstab");
+      break;
     }
   }
 
@@ -788,6 +791,9 @@ solve()
         hypreCheck("HYPRE_ParCSRBiCGSTABSetPrecond",
                    HYPRE_ParCSRBiCGSTABSetPrecond(solver, HYPRE_BoomerAMGSolve, HYPRE_BoomerAMGSetup, precond));
         break;
+      default:
+        ARCANE_FATAL("Hypre solver type not correct use: cg|gmres|fgmres|bicgstab");
+        break;
       }
       break;
     case preconditioner::BJACOBI:
@@ -815,7 +821,13 @@ solve()
         hypreCheck("HYPRE_ParCSRBiCGSTABSetPrecond",
                    HYPRE_ParCSRBiCGSTABSetPrecond(solver, HYPRE_ILUSolve, HYPRE_ILUSetup, precond));
         break;
+      default:
+        ARCANE_FATAL("Hypre solver type not correct use: cg|gmres|fgmres|bicgstab");
+        break;
       }
+      break;
+    default:
+      ARCANE_FATAL("Hypre preconditioner type not correct use: amg|bjacobi");
       break;
     }
   }
@@ -840,6 +852,9 @@ solve()
     case solver::BICGSTAB:
       hypreCheck("HYPRE_ParCSRBiCGSTABSetup",
                  HYPRE_ParCSRBiCGSTABSetup(solver, parcsr_A, parvector_b, parvector_x));
+      break;
+    default:
+      ARCANE_FATAL("Hypre solver type not correct use: cg|gmres|fgmres|bicgstab");
       break;
     }
   }
@@ -867,6 +882,9 @@ solve()
     case solver::BICGSTAB:
       hypreCheck("HYPRE_ParCSRBiCGSTABSolve",
                  HYPRE_ParCSRBiCGSTABSolve(solver, parcsr_A, parvector_b, parvector_x));
+      break;
+    default:
+      ARCANE_FATAL("Hypre solver type not correct use: cg|gmres|fgmres|bicgstab");
       break;
     }
   }
