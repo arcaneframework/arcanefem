@@ -109,7 +109,7 @@ class SequentialDoFLinearSystemImpl
 
     Int32 matrix_size = m_k_matrix.extent0();
     Arcane::MatVec::Matrix matrix(matrix_size, matrix_size);
-    _convertNumArrayToCSRMatrix(matrix, m_k_matrix.span());
+    _convertNumArrayToCSRMatrix(matrix, m_k_matrix.mdspan());
     bool is_verbose = true;
     Arcane::MatVec::Vector vector_b(matrix_size);
     Arcane::MatVec::Vector vector_x(matrix_size);
