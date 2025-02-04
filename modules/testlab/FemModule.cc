@@ -242,13 +242,15 @@ _handleFlags()
     m_cross_validation = false;
     info() << "Cross validation disabled (CROSS_VALIDATION = FALSE)";
   }
-  if (options()->bsr) {
+  if (parameter_list.getParameterOrNull("BSR") == "TRUE" || options()->bsr) {
     m_use_bsr = true;
     m_use_legacy = false;
+    info() << "BSR: The GPU-compatible Block Compressed Sparse Row (BSR) data structure is used for sparse matrices";
   }
-  if (options()->bsrAtomicFree()) {
+  if (parameter_list.getParameterOrNull("BSR_ATOMIC_FREE") == "TRUE" || options()->bsrAtomicFree()) {
     m_use_bsr_atomic_free = true;
     m_use_legacy = false;
+    info() << "BSR: The GPU-compatible Block Compressed Sparse Row (BSR) data structure is used for sparse matrices with Atomic-Free assembly";
   }
   info() << "-----------------------------------------------------------------------------------------";
 }
@@ -306,8 +308,10 @@ _doStationarySolve()
 
     _assembleLinearOperator(&(m_bsr_format.matrix()));
     m_bsr_format.toLinearSystem(m_linear_system);
-    _solve();
-    _checkResultFile();
+    if (m_solve_linear_system)
+      _solve();
+    if (m_solve_linear_system && m_cross_validation)
+      _checkResultFile();
     return;
   }
 
