@@ -27,15 +27,11 @@ startInit()
   info() << "[ArcaneFem-Module] startInit()";
   Real elapsedTime = platform::getRealTime();
 
-  ParameterList parameter_list = this->subDomain()->application()->applicationInfo().commandLineArguments().parameters();
-
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
-  if (options()->bsr() || options()->bsrAtomicFree()) {
-    auto use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
-    m_bsr_format.initialize(mesh(), use_csr_in_linear_system, options()->bsrAtomicFree());
-  }
+  m_matrix_format = options()->matrixFormat();
+  _handleCommandLineFlags();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] initialize", elapsedTime);
@@ -62,21 +58,22 @@ compute()
   if (m_global_iteration() > 0)
     subDomain()->timeLoopMng()->stopComputeLoop(true);
 
+  info() << "[ArcaneFem-Info] Matrix format used " << m_matrix_format;
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
 
-  // Test for adding parameters for PETSc.
-  // This is only used for the first call.
-  {
-    StringList string_list;
-    string_list.add("-ksp_monitor");
-    CommandLineArguments args(string_list);
-    m_linear_system.setSolverCommandLineArguments(args);
-  }
+  if (m_petsc_flags != NULL)
+    _setPetscFlagsFromCommandline();
 
-  if (options()->bsr() || options()->bsrAtomicFree)
+  if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") {
+    auto use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
+    if (m_matrix_format == "BSR")
+      m_bsr_format.initialize(mesh(), use_csr_in_linear_system, 0);
+    else
+      m_bsr_format.initialize(mesh(), use_csr_in_linear_system, 1);
     m_bsr_format.computeSparsity();
+  }
 
   _doStationarySolve();
 
@@ -103,11 +100,20 @@ void FemModule::
 _doStationarySolve()
 {
   _getMaterialParameters();
-  _assembleBilinearOperator();
-  _assembleLinearOperator();
-  _solve();
-  _updateVariables();
-  _validateResults();
+
+  if(m_assemble_linear_system){
+    _assembleBilinearOperator();
+    _assembleLinearOperator();
+  }
+
+  if(m_solve_linear_system){
+    _solve();
+    _updateVariables();
+  }
+
+  if(m_cross_validation){
+    _validateResults();
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -132,7 +138,7 @@ _getMaterialParameters()
 /**
  * @brief Assembles the FEM linear operator for the current simulation step.
  *
- * This method constructs the right-hand side (RHS) vector by calling the
+ * This method constructs the right-hand side (RHS) vector by calling theq
  * appropriate assembly function based on the execution context:
  *  - CPU-exclusive execution: Calls _assembleLinearOperatorCpu().
  *  - CPU or GPU execution: Calls _assembleLinearOperatorGpu().
@@ -272,7 +278,7 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Module] _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (options()->bsr() || options()->bsrAtomicFree()) {
+  if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") {
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();
     auto queue = subDomain()->acceleratorMng()->defaultQueue();
@@ -286,7 +292,8 @@ _assembleBilinearOperator()
 
     m_bsr_format.toLinearSystem(m_linear_system);
   }
-  else {
+
+  if (m_matrix_format == "DOK") {
     if (mesh()->dimension() == 3)
       _assembleBilinear<4>([this](const Cell& cell) {
         return _computeElementMatrixTetra4(cell);
@@ -433,6 +440,68 @@ void FemModule::
 _printArcaneFemTime(const String label, const Real value)
 {
   info() << std::left << std::setw(40) << label << " = " << value;
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Function to set PETSc flags from commandline
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_setPetscFlagsFromCommandline()
+{
+  StringList string_list;
+  std::string petsc_flags_std = m_petsc_flags.localstr();
+  // Use a string stream to split the string by spaces
+  std::istringstream iss(petsc_flags_std);
+  String token;
+  while (iss >> token) {
+    string_list.add(token);
+  }
+
+  CommandLineArguments args(string_list);
+  m_linear_system.setSolverCommandLineArguments(args);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Function to hande commandline flags
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_handleCommandLineFlags()
+{
+  info() << "[ArcaneFem-Module] _handleCommandLineFlags()";
+  ParameterList parameter_list = this->subDomain()->application()->applicationInfo().commandLineArguments().parameters();
+
+  if (parameter_list.getParameterOrNull("ASSEMBLE_LINEAR_SYSTEM") == "FALSE") {
+    m_assemble_linear_system = false;
+    info() << "[ArcaneFem-Info] Linear system not assembled (ASSEMBLE_LINEAR_SYSTEM = FALSE)";
+  }
+
+  if (parameter_list.getParameterOrNull("SOLVE_LINEAR_SYSTEM") == "FALSE") {
+    m_solve_linear_system = false;
+    m_cross_validation = false;
+    info() << "[ArcaneFem-Info] Linear system assembled but not solved (SOLVE_LINEAR_SYSTEM = FALSE)";
+  }
+
+  if (parameter_list.getParameterOrNull("CROSS_VALIDATION") == "FALSE") {
+    m_cross_validation = false;
+    info() << "[ArcaneFem-Info] Cross validation disabled (CROSS_VALIDATION = FALSE)";
+  }
+
+  m_petsc_flags = parameter_list.getParameterOrNull("PETSC_FLAGS");
+  if (m_petsc_flags != NULL) {
+    info() << "[ArcaneFem-Info] PETSc flags the user provided will be used (PETSC_FLAGS != NULL)";
+  }
+
+  String matrix_format_from_commandline = parameter_list.getParameterOrNull("MATRIX_FORMAT");
+  if (matrix_format_from_commandline != NULL){
+    m_matrix_format = matrix_format_from_commandline;
+    info() << "[ArcaneFem-Info] Using commandline format for matrix format (PETSC_FLAGS != NULL)";
+  }
 }
 
 /*---------------------------------------------------------------------------*/

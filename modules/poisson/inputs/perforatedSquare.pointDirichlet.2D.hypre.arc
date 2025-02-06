@@ -44,6 +44,5 @@
       <atol>1e-15</atol>
       <amg-threshold>0.25</amg-threshold>
     </linear-system>
-    <bsr>true</bsr>
   </fem>
 </case>
