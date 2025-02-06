@@ -27,8 +27,6 @@ startInit()
   info() << "[ArcaneFem-Module] startInit()";
   Real elapsedTime = platform::getRealTime();
 
-  ParameterList parameter_list = this->subDomain()->application()->applicationInfo().commandLineArguments().parameters();
-
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
