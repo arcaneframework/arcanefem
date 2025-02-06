@@ -94,6 +94,7 @@ class FemModule
   void _doStationarySolve();
   void _getMaterialParameters();
   void _solve();
+  void _assembleLinearOperatorCpu();
   void _assembleLinearOperator();
 
   void _updateVariables();

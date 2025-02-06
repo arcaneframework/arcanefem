@@ -27,6 +27,8 @@ startInit()
   info() << "[ArcaneFem-Module] startInit()";
   Real elapsedTime = platform::getRealTime();
 
+  ParameterList parameter_list = this->subDomain()->application()->applicationInfo().commandLineArguments().parameters();
+
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
@@ -102,15 +104,7 @@ _doStationarySolve()
 {
   _getMaterialParameters();
   _assembleBilinearOperator();
-
-  if (options()->bsr() || options()->bsrAtomicFree())
-    m_bsr_format.toLinearSystem(m_linear_system);
-
-  if (options()->linearSystem.serviceName() == "HypreLinearSystem")
-    _assembleLinearOperatorGpu();
-  else
-    _assembleLinearOperator();
-
+  _assembleLinearOperator();
   _solve();
   _updateVariables();
   _validateResults();
@@ -132,6 +126,26 @@ _getMaterialParameters()
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] get-material-params", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Assembles the FEM linear operator for the current simulation step.
+ *
+ * This method constructs the right-hand side (RHS) vector by calling the
+ * appropriate assembly function based on the execution context:
+ *  - CPU-exclusive execution: Calls _assembleLinearOperatorCpu().
+ *  - CPU or GPU execution: Calls _assembleLinearOperatorGpu().
+ *
+ */
+ /*---------------------------------------------------------------------------*/
+
+void FemModule::_assembleLinearOperator()
+{
+  if (options()->linearSystem.serviceName() == "HypreLinearSystem")
+    _assembleLinearOperatorGpu();
+  else
+    _assembleLinearOperatorCpu();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -204,9 +218,9 @@ void FemModule::_assembleLinearOperatorGpu()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleLinearOperator()
+void FemModule::_assembleLinearOperatorCpu()
 {
-  info() << "[ArcaneFem-Module] _assembleLinearOperator()";
+  info() << "[ArcaneFem-Module] _assembleLinearOperatorCpu()";
   Real elapsedTime = platform::getRealTime();
 
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable()); // Temporary variable to keep values for the RHS
@@ -269,6 +283,8 @@ _assembleBilinearOperator()
       m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
     else
       m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord); });
+
+    m_bsr_format.toLinearSystem(m_linear_system);
   }
   else {
     if (mesh()->dimension() == 3)
