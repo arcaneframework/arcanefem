@@ -48,7 +48,13 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 
   arcanefem_add_gpu_test(NAME [poisson]3D_bsr COMMAND Poisson ARGS  -A,MATRIX_FORMAT=BSR inputs/sphere.3D.arc)
   arcanefem_add_gpu_test(NAME [poisson]3D_bsr_atomicFree COMMAND Poisson ARGS  -A,MATRIX_FORMAT=AF-BSR inputs/sphere.3D.arc)
-endif()
+
+  add_test(NAME [poisson]2D_petsc COMMAND Poisson -A,PETSC_FLAGS=-ksp_monitor inputs/circle.2D.arc)
+  add_test(NAME [poisson]2D_assembly_only COMMAND Poisson -A,SOLVE_LINEAR_SYSTEM=FALSE inputs/circle.2D.arc)
+  add_test(NAME [poisson]2D_no_cross_validation COMMAND Poisson -A,CROSS_VALIDATION=FALSE inputs/circle.2D.arc)
+  add_test(NAME [poisson]2D_parse_and_exit COMMAND Poisson -A,ASSEMBLE_LINEAR_SYSTEM=FALSE -A,SOLVE_LINEAR_SYSTEM=FALSE -A,CROSS_VALIDATION=FALSE inputs/circle.2D.arc)
+
+  endif()
 
 if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   arcanefem_add_gpu_test(NAME [poisson]2D_pntDirichlet_bsr_hypre COMMAND Poisson ARGS -A,MATRIX_FORMAT=BSR inputs/perforatedSquare.pointDirichlet.2D.hypre.arc)
