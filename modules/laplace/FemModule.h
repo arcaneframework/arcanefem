@@ -15,6 +15,9 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+#include <arcane/utils/PlatformUtils.h>
+#include <arcane/utils/ParameterList.h>
+#include <arcane/utils/ApplicationInfo.h>
 #include <arcane/utils/NumArray.h>
 #include <arcane/utils/CommandLineArguments.h>
 #include <arcane/utils/StringList.h>
@@ -25,7 +28,6 @@
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 
-// GPU includes
 #include "arcane/accelerator/core/IAcceleratorMng.h"
 #include "arcane/accelerator/VariableViews.h"
 
@@ -37,7 +39,6 @@
 #include "FemDoFsOnNodes.h"
 #include "ArcaneFemFunctions.h"
 
-// GPU includes
 #include "ArcaneFemFunctionsGpu.h"
 #include "BSRFormat.h"
 /*---------------------------------------------------------------------------*/
@@ -86,6 +87,15 @@ class FemModule
   FemDoFsOnNodes m_dofs_on_nodes;
   BSRFormat<1> m_bsr_format;
 
+  String m_petsc_flags;
+  String m_matrix_format = "DOK";
+
+  bool m_assemble_linear_system = true;
+  bool m_solve_linear_system = true;
+  bool m_cross_validation = true;
+  bool m_use_bsr_matrix_format = false;
+  bool m_use_atomic_free_bsr_matrix_format = false;
+
   void _doStationarySolve();
   void _getMaterialParameters();
   void _solve();
@@ -93,6 +103,8 @@ class FemModule
   void _updateVariables();
   void _validateResults();
 
+  void _handleCommandLineFlags();
+  void _setPetscFlagsFromCommandline();
   void _printArcaneFemTime(const String label, const Real value);
 
   FixedMatrix<3, 3> _computeElementMatrixTria3(Cell cell);

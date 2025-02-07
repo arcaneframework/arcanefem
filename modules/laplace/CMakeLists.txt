@@ -49,23 +49,25 @@ endif()
 
 enable_testing()
 
+add_test(NAME [laplace]pointDirichlet COMMAND Laplace inputs/PointDirichlet.arc)
+
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [laplace]2D_Dirichlet COMMAND Laplace inputs/ring.arc)
   add_test(NAME [laplace]3D_Dirichlet COMMAND Laplace inputs/L-shape.3D.arc)
+  add_test(NAME [laplace]2D_Dirichlet_petsc_monitor COMMAND Laplace -A,petsc_flags=-ksp_monitor inputs/ring.arc)
+  add_test(NAME [laplace]2D_parse_and_exit COMMAND Laplace  -A,assemble_linear_system=FALSE -A,solve_linear_system=FALSE -A,cross_validation=FALSE  inputs/ring.arc)
+
+  if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
+    add_test(NAME [laplace]2D_Dirichlet_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Laplace inputs/ring.arc)
+    add_test(NAME [laplace]3D_Dirichlet_3D_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Laplace inputs/L-shape.3D.arc)
+
+    if(FEMTEST_HAS_GMSH_TEST)
+      add_test(NAME [laplace]pointDirichlet_10k_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Laplace inputs/PointDirichlet-refined.arc)
+    endif()
+  endif()
 endif()
 
-add_test(NAME [laplace]pointDirichlet COMMAND Laplace inputs/PointDirichlet.arc)
-
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-  arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_bsr_hypreDirect COMMAND ./Laplace ARGS inputs/PointDirichlet.bsr.atomicFree.hypreDirect.arc)
-  arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_bsr_atomicFree_hypreDirect COMMAND ./Laplace ARGS inputs/PointDirichlet.bsr.atomicFree.hypreDirect.arc)
-  endif()
-
-# If parallel part is available, add some tests
-if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-  add_test(NAME [laplace]2D_Dirichlet_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Laplace inputs/ring.arc)
-  add_test(NAME [laplace]3D_Dirichlet_3D_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Laplace inputs/L-shape.3D.arc)
-  if(FEMTEST_HAS_GMSH_TEST)
-    add_test(NAME [laplace]pointDirichlet_10k_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Laplace inputs/PointDirichlet-refined.arc)
-  endif()
+  arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_bsr_hypreDirect COMMAND ./Laplace ARGS  -A,matrix_format=BSR inputs/PointDirichlet.hypreDirect.arc)
+  arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_bsr_atomicFree_hypreDirect COMMAND ./Laplace ARGS  -A,matrix_format=AF-BSR inputs/PointDirichlet.hypreDirect.arc)
 endif()
