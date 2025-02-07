@@ -252,7 +252,7 @@ class BSRMatrix : public TraceAccessor
 
     // NOTE: If we don't want to keep bsr matrix coefficients we could move the data instead of copying it.
     csr_matrix->m_matrix_value = m_values;
-    info() << "[ArcaneFem-Timer] Time to translate BSR to CSR = " << (platform::getRealTime() - startTime);
+    info() << std::left << std::setw(40) << "[ArcaneFem-Timer] convert-bsr-to-csr" << " = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
@@ -405,7 +405,8 @@ class BSRFormat : public TraceAccessor
     bool order_values_per_block = !does_linear_system_use_csr;
     m_bsr_matrix.initialize(nb_non_zero_value, nb_col, nb_node, order_values_per_block);
     m_use_atomic_free = use_atomic_free;
-    info() << "[ArcaneFem-Timer] Time to initialize BSR format = " << (platform::getRealTime() - startTime);
+
+    info() << std::left << std::setw(40) << "[ArcaneFem-Timer] initialize-bsr-matrix" << " = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
@@ -426,7 +427,8 @@ class BSRFormat : public TraceAccessor
     }
     else
       m_bsr_matrix.toLinearSystem(linear_system);
-    info() << "[ArcaneFem-Timer] Time to translate to linear system the BSR matrix = " << (platform::getRealTime() - startTime);
+
+    info() << std::left << std::setw(40) << "[ArcaneFem-Timer] setup-linear-systm" << " = " << (platform::getRealTime() - startTime);
   };
 
   /*---------------------------------------------------------------------------*/
@@ -470,7 +472,7 @@ class BSRFormat : public TraceAccessor
     }
     m_queue.barrier();
 
-    info() << "[ArcaneFem-Timer] Time to compute nb_nz_per_row = " << (platform::getRealTime() - startTime);
+    info() << std::left << std::setw(40) << "[ArcaneFem-Timer] compute-nnz-bsr" << " = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
@@ -571,7 +573,7 @@ class BSRFormat : public TraceAccessor
     computeRowIndexAtomicFree();
     computeColumnsAtomicFree();
 
-    info() << "[ArcaneFem-Timer] Time to compute the sparsity of BSR matrix (with Arcane connectivities implementation) = " << (platform::getRealTime() - startTime);
+    info() << std::left << std::setw(40) << "[ArcaneFem-Timer] build-sparsity-af_bsr" << " = " << (platform::getRealTime() - startTime);
 
     if (m_use_csr_in_linear_system)
       computeNzPerRowArray();
@@ -763,7 +765,7 @@ class BSRFormat : public TraceAccessor
     computeRowIndex(edges_per_element, nb_edge_total, sorted_edges_ss);
     computeColumns(edges_per_element, nb_edge_total, sorted_edges_ss);
 
-    info() << "[ArcaneFem-Timer] Time to compute the sparsity of BSR matrix (without Arcane connectivities implementation, e.g with atomics) = " << (platform::getRealTime() - startTime);
+    info() << std::left << std::setw(40) << "[ArcaneFem-Timer] build-sparsity-bsr" << " = " << (platform::getRealTime() - startTime);
 
     if (m_use_csr_in_linear_system)
       computeNzPerRowArray();
@@ -928,7 +930,7 @@ class BSRFormat : public TraceAccessor
     else
       assembleBilinearOrderedPerRow(compute_element_matrix);
 
-    info() << "[ArcaneFem-Timer] Time to assemble (atomic implementation) BSR matrix = " << (platform::getRealTime() - startTime);
+    info() << std::left << std::setw(40) << "[ArcaneFem-Timer] assemble-bsr-matrix" << " = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
@@ -1096,7 +1098,7 @@ class BSRFormat : public TraceAccessor
     else
       assembleBilinearOrderedPerRowAtomicFree(compute_element_matrix);
 
-    info() << "[ArcaneFem-Timer] Time to assemble (atomic-free implementation) BSR matrix = " << (platform::getRealTime() - startTime);
+    info() << std::left << std::setw(40) << "[ArcaneFem-Timer] assemble-af_bsr" << " = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/

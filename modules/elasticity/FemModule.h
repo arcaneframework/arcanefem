@@ -15,6 +15,11 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+#include <arcane/utils/CommandLineArguments.h>
+#include <arcane/utils/ParameterList.h>
+#include <arcane/utils/ApplicationInfo.h>
+#include <arcane/utils/StringList.h>
+
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IMesh.h>
 #include <arcane/IItemFamily.h>
@@ -89,6 +94,15 @@ class FemModule
   Real3 f;
   Real3 t;
 
+  String m_petsc_flags;
+  String m_matrix_format = "DOK";
+
+  bool m_assemble_linear_system = true;
+  bool m_solve_linear_system = true;
+  bool m_cross_validation = true;
+  bool m_use_bsr_matrix_format = false;
+  bool m_use_atomic_free_bsr_matrix_format = false;
+
   bool m_use_bsr = false;
   bool m_use_bsr_atomic_free = false;
 
@@ -100,6 +114,8 @@ class FemModule
   void _updateVariables();
   void _initBsr();
 
+  void _handleCommandLineFlags();
+  void _setPetscFlagsFromCommandline();
   void _printArcaneFemTime(const String label, const Real value);
 
   Real _computeEdgeLength2(Face face);
@@ -160,7 +176,7 @@ FixedMatrix<6, 6> FemModule::_computeElementMatrixTRIA3(Cell cell)
   Real3 m0 = m_node_coord[cell.nodeId(0)];
   Real3 m1 = m_node_coord[cell.nodeId(1)];
   Real3 m2 = m_node_coord[cell.nodeId(2)];
-  Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord); //_computeAreaTriangle3(cell);
+  Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
   return computeElementMatrixTRIA3Base(m0, m1, m2, area, lambda, mu2);
 }
 
