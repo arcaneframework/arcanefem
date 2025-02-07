@@ -31,5 +31,5 @@ endif()
 
 # If parallel part is available, add some tests
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-  add_test(NAME [aerodynamics]Joukowski_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./aerodynamics inputs/Joukowski.arc)
+  add_test(NAME [aerodynamics]Joukowski_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./aerodynamics inputs/Joukowski.arc)
 endif()

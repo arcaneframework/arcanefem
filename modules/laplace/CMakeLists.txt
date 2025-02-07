@@ -57,10 +57,8 @@ endif()
 add_test(NAME [laplace]pointDirichlet COMMAND Laplace inputs/PointDirichlet.arc)
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-  add_test(NAME [laplace]pointDirichlet_bsr_hypreDirect COMMAND Laplace inputs/PointDirichlet.bsr.hypreDirect.arc)
-  arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_bsr_hypreDirect_gpu COMMAND ./Laplace ARGS inputs/PointDirichlet.bsr.atomicFree.hypreDirect.arc)
-  add_test(NAME [laplace]pointDirichlet_bsr_atomicFree_hypreDirect COMMAND Laplace inputs/PointDirichlet.bsr.hypreDirect.arc)
-  arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_bsr_atomicFree_hypreDirect_gpu COMMAND ./Laplace ARGS inputs/PointDirichlet.bsr.atomicFree.hypreDirect.arc)
+  arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_bsr_hypreDirect COMMAND ./Laplace ARGS inputs/PointDirichlet.bsr.atomicFree.hypreDirect.arc)
+  arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_bsr_atomicFree_hypreDirect COMMAND ./Laplace ARGS inputs/PointDirichlet.bsr.atomicFree.hypreDirect.arc)
   endif()
 
 # If parallel part is available, add some tests
