@@ -33,43 +33,38 @@ foreach(MESH_FILE IN LISTS MESH_FILES)
     file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 endforeach()
 
-
 enable_testing()
+
+add_test(NAME [poisson]2D_pntDirichlet COMMAND Poisson inputs/perforatedSquare.pointDirichlet.2D.arc)
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [poisson]2D COMMAND Poisson inputs/circle.2D.arc)
   add_test(NAME [poisson]2D_neumann COMMAND Poisson inputs/circle.neumann.2D.arc)
-
-  arcanefem_add_gpu_test(NAME [poisson]2D_bsr COMMAND Poisson ARGS -A,MATRIX_FORMAT=BSR inputs/circle.2D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_bsr_atomicFree COMMAND Poisson ARGS -A,MATRIX_FORMAT=AF-BSR inputs/circle.2D.arc)
-
   add_test(NAME [poisson]3D COMMAND Poisson inputs/sphere.3D.arc)
   add_test(NAME [poisson]3D_neumann COMMAND Poisson inputs/sphere.neumann.3D.arc)
-
-  arcanefem_add_gpu_test(NAME [poisson]3D_bsr COMMAND Poisson ARGS  -A,MATRIX_FORMAT=BSR inputs/sphere.3D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]3D_bsr_atomicFree COMMAND Poisson ARGS  -A,MATRIX_FORMAT=AF-BSR inputs/sphere.3D.arc)
-
   add_test(NAME [poisson]2D_petsc COMMAND Poisson -A,PETSC_FLAGS=-ksp_monitor inputs/circle.2D.arc)
-  add_test(NAME [poisson]2D_assembly_only COMMAND Poisson -A,SOLVE_LINEAR_SYSTEM=FALSE inputs/circle.2D.arc)
-  add_test(NAME [poisson]2D_no_cross_validation COMMAND Poisson -A,CROSS_VALIDATION=FALSE inputs/circle.2D.arc)
-  add_test(NAME [poisson]2D_parse_and_exit COMMAND Poisson -A,ASSEMBLE_LINEAR_SYSTEM=FALSE -A,SOLVE_LINEAR_SYSTEM=FALSE -A,CROSS_VALIDATION=FALSE inputs/circle.2D.arc)
+  add_test(NAME [poisson]2D_assembly_only COMMAND Poisson -A,solve_linear_system=FALSE inputs/circle.2D.arc)
+  add_test(NAME [poisson]2D_no_cross_validation COMMAND Poisson -A,cross_validation=FALSE inputs/circle.2D.arc)
+  add_test(NAME [poisson]2D_parse_and_exit COMMAND Poisson -A,assemble_linear_system=FALSE -A,solve_linear_system=FALSE -A,CROSS_VALIDATION=FALSE inputs/circle.2D.arc)
 
+  arcanefem_add_gpu_test(NAME [poisson]2D_bsr COMMAND Poisson ARGS -A,matrix_format=BSR inputs/circle.2D.arc)
+  arcanefem_add_gpu_test(NAME [poisson]2D_bsr_atomicFree COMMAND Poisson ARGS -A,matrix_format=AF-BSR inputs/circle.2D.arc)
+  arcanefem_add_gpu_test(NAME [poisson]3D_bsr COMMAND Poisson ARGS  -A,matrix_format=BSR inputs/sphere.3D.arc)
+  arcanefem_add_gpu_test(NAME [poisson]3D_bsr_atomicFree COMMAND Poisson ARGS  -A,matrix_format=AF-BSR inputs/sphere.3D.arc)
+
+  if(FEMUTILS_HAS_PARALLEL_SOLVER)
+    add_test(NAME [poisson]2D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson inputs/circle.2D.arc)
+    add_test(NAME [poisson]3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson inputs/sphere.3D.arc)
   endif()
 
-if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-  arcanefem_add_gpu_test(NAME [poisson]2D_pntDirichlet_bsr_hypre COMMAND Poisson ARGS -A,MATRIX_FORMAT=BSR inputs/perforatedSquare.pointDirichlet.2D.hypre.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_bsr_hypre COMMAND Poisson ARGS -A,MATRIX_FORMAT=BSR inputs/circle.2D.hypre.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_neumann_bsr_hypre COMMAND Poisson ARGS -A,MATRIX_FORMAT=BSR inputs/circle.neumann.2D.hypre.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_bsr_atomicFree_hypre COMMAND Poisson ARGS  -A,MATRIX_FORMAT=AF-BSR inputs/circle.2D.hypre.arc)
-  arcanefem_add_gpu_test(NAME [poisson]3D_bsr_hypre_gpu COMMAND Poisson ARGS -A,MATRIX_FORMAT=BSR inputs/sphere.3D.hypre.arc)
-  arcanefem_add_gpu_test(NAME [poisson]3D_neumann_bsr_hypre COMMAND Poisson ARGS -A,MATRIX_FORMAT=BSR inputs/sphere.neumann.3D.hypre.arc)
-  arcanefem_add_gpu_test(NAME [poisson]3D_bsr_atomicFree_hypre_gpu COMMAND Poisson ARGS -A,MATRIX_FORMAT=AF-BSR inputs/sphere.3D.hypre.arc)
 endif()
 
-add_test(NAME [poisson]2D_pntDirichlet COMMAND Poisson inputs/perforatedSquare.pointDirichlet.2D.arc)
-
-# If parallel part is available, add some tests
-if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC AND FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-  add_test(NAME [poisson]2D_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Poisson inputs/circle.2D.arc)
-  add_test(NAME [poisson]3D_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Poisson inputs/sphere.3D.arc)
+if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
+  arcanefem_add_gpu_test(NAME [poisson]2D_pntDirichlet_bsr_hypre COMMAND Poisson ARGS -A,matrix_format=BSR inputs/perforatedSquare.pointDirichlet.2D.hypre.arc)
+  arcanefem_add_gpu_test(NAME [poisson]2D_bsr_hypre COMMAND Poisson ARGS -A,matrix_format=BSR inputs/circle.2D.hypre.arc)
+  arcanefem_add_gpu_test(NAME [poisson]2D_neumann_bsr_hypre COMMAND Poisson ARGS -A,matrix_format=BSR inputs/circle.neumann.2D.hypre.arc)
+  arcanefem_add_gpu_test(NAME [poisson]2D_bsr_atomicFree_hypre COMMAND Poisson ARGS  -A,matrix_format=AF-BSR inputs/circle.2D.hypre.arc)
+  arcanefem_add_gpu_test(NAME [poisson]3D_bsr_hypre_gpu COMMAND Poisson ARGS -A,matrix_format=BSR inputs/sphere.3D.hypre.arc)
+  arcanefem_add_gpu_test(NAME [poisson]3D_neumann_bsr_hypre COMMAND Poisson ARGS -A,matrix_format=BSR inputs/sphere.neumann.3D.hypre.arc)
+  arcanefem_add_gpu_test(NAME [poisson]3D_bsr_atomicFree_hypre_gpu COMMAND Poisson ARGS -A,matrix_format=AF-BSR inputs/sphere.3D.hypre.arc)
 endif()

@@ -476,31 +476,31 @@ _handleCommandLineFlags()
   info() << "[ArcaneFem-Module] _handleCommandLineFlags()";
   ParameterList parameter_list = this->subDomain()->application()->applicationInfo().commandLineArguments().parameters();
 
-  if (parameter_list.getParameterOrNull("ASSEMBLE_LINEAR_SYSTEM") == "FALSE") {
+  if (parameter_list.getParameterOrNull("assemble_linear_system") == "FALSE") {
     m_assemble_linear_system = false;
-    info() << "[ArcaneFem-Info] Linear system not assembled (ASSEMBLE_LINEAR_SYSTEM = FALSE)";
+    info() << "[ArcaneFem-Info] Linear system not assembled (assemble_linear_system = FALSE)";
   }
 
-  if (parameter_list.getParameterOrNull("SOLVE_LINEAR_SYSTEM") == "FALSE") {
+  if (parameter_list.getParameterOrNull("solve_linear_system") == "FALSE") {
     m_solve_linear_system = false;
     m_cross_validation = false;
-    info() << "[ArcaneFem-Info] Linear system assembled but not solved (SOLVE_LINEAR_SYSTEM = FALSE)";
+    info() << "[ArcaneFem-Info] Linear system assembled but not solved (solve_linear_system = FALSE)";
   }
 
-  if (parameter_list.getParameterOrNull("CROSS_VALIDATION") == "FALSE") {
+  if (parameter_list.getParameterOrNull("cross_validation") == "FALSE") {
     m_cross_validation = false;
-    info() << "[ArcaneFem-Info] Cross validation disabled (CROSS_VALIDATION = FALSE)";
+    info() << "[ArcaneFem-Info] Cross validation disabled (cross_validation = FALSE)";
   }
 
-  m_petsc_flags = parameter_list.getParameterOrNull("PETSC_FLAGS");
+  m_petsc_flags = parameter_list.getParameterOrNull("petsc_flags");
   if (m_petsc_flags != NULL) {
-    info() << "[ArcaneFem-Info] PETSc flags the user provided will be used (PETSC_FLAGS != NULL)";
+    info() << "[ArcaneFem-Info] PETSc flags the user provided will be used (petsc_flags != NULL)";
   }
 
-  String matrix_format_from_commandline = parameter_list.getParameterOrNull("MATRIX_FORMAT");
+  String matrix_format_from_commandline = parameter_list.getParameterOrNull("matrix_format");
   if (matrix_format_from_commandline != NULL){
     m_matrix_format = matrix_format_from_commandline;
-    info() << "[ArcaneFem-Info] Using commandline format for matrix format (PETSC_FLAGS != NULL)";
+    info() << "[ArcaneFem-Info] Using commandline format for matrix format (matrix_format != NULL)";
   }
 }
 
