@@ -32,6 +32,5 @@
       <atol>1e-15</atol>
       <amg-threshold>0.25</amg-threshold>
     </linear-system>
-    <bsr-atomic-free>true</bsr-atomic-free>
   </fem>
 </case>
