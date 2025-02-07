@@ -20,12 +20,11 @@
     <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
       <description>Type of mesh provided to the solver</description>
     </simple>
-    <simple name="bsr" type="bool"  default="false" optional="true">
-      <description>Use bsr matrix format</description>
+
+    <simple name="matrix-format" type="string" default="DOK" optional="true">
+      <description>Which matrix format to use DOK|BSR|AF-BSR.</description>
     </simple>
-    <simple name="bsr-atomic-free" type="bool"  default="false" optional="true">
-      <description>Use atomic free bsr matrix format</description>
-    </simple>
+
     <!-- Linear system service instance -->
     <service-instance name="linear-system" type="Arcane::FemUtils::IDoFLinearSystemFactory" default="AlephLinearSystem" />
 

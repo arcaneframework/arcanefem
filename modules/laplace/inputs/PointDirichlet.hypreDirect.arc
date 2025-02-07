@@ -39,7 +39,6 @@
         <value>50.0</value>
       </dirichlet-point>
     </boundary-conditions>
-    <bsr-atomic-free>true</bsr-atomic-free>
     <linear-system name="HypreLinearSystem">
       <rtol>0.</rtol>
       <atol>1e-15</atol>
