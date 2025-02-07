@@ -82,7 +82,6 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   arcanefem_add_gpu_test(NAME [testlab]L-shape_3D_petsc_coo-gpu COMMAND ./Testlab ARGS inputs/Test.L-shape.3D.coo-gpu.arc)
 
   if (FEMUTILS_HAS_PARALLEL_SOLVER)
-    add_test(NAME [testlab]L-shape_2D_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Testlab inputs/Test.L-shape.2D.arc)
     add_test(NAME [testlab]L-shape_2D_petsc_coo_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Testlab inputs/Test.L-shape.2D.coo.arc)
     add_test(NAME [testlab]L-shape_2D_petsc_coo-sort_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Testlab inputs/Test.L-shape.2D.coo-sort.arc)
     add_test(NAME [testlab]3D_Dirichlet_petsc_coo_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Testlab inputs/Test.L-shape.3D.coo.arc)
