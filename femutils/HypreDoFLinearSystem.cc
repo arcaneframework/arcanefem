@@ -231,6 +231,8 @@ class HypreDoFLinearSystemImpl
   void setAmgCoarsener(Int32 v) { m_amg_coarsener = v; }
   void setAmgInterpType(Int32 v) { m_amg_interp_type = v; }
   void setAmgSmoother(Int32 v) { m_amg_smoother = v; }
+  void setKrylovDim(Int32 v) { m_krylov_dim = v; }
+
 
   void setRelTolerance(Real v) { m_rtol = v; }
   void setAbsTolerance(Real v) { m_atol = v; }
@@ -271,6 +273,7 @@ class HypreDoFLinearSystemImpl
   Int32 m_amg_coarsener = 8;
   Int32 m_amg_interp_type = 6;
   Int32 m_amg_smoother = 6;
+  Int32 m_krylov_dim = 2;
 
   Real m_amg_threshold = 0.25;
   Real m_rtol = 1.0e-7;
@@ -725,7 +728,7 @@ solve()
       break;
     case solver::GMRES:
       HYPRE_ParCSRGMRESCreate(mpi_comm, &solver);
-      HYPRE_GMRESSetKDim(solver, 2);
+      HYPRE_GMRESSetKDim(solver, m_krylov_dim); // Krylov dimension //
       HYPRE_GMRESSetMaxIter(solver, m_max_iter); // max iterations //
       HYPRE_GMRESSetTol(solver, m_rtol); // relative conv. tolerance //
       HYPRE_GMRESSetAbsoluteTol(solver, m_atol); // absolute conv. tolerance //
@@ -735,7 +738,7 @@ solve()
     case solver::FGMRES:
       HYPRE_ParCSRFlexGMRESCreate(mpi_comm, &solver);
       HYPRE_FlexGMRESSetMaxIter(solver, m_max_iter); // max iterations //
-      HYPRE_FlexGMRESSetKDim(solver, 2);
+      HYPRE_FlexGMRESSetKDim(solver, m_krylov_dim); // Krylov dimension //
       HYPRE_FlexGMRESSetTol(solver, m_rtol); // relative conv. tolerance //
       HYPRE_FlexGMRESSetAbsoluteTol(solver, m_atol); // absolute conv. tolerance //
       HYPRE_FlexGMRESSetPrintLevel(solver, m_verbosity); // print solve info //
@@ -936,6 +939,7 @@ class HypreDoFLinearSystemFactoryService
     x->setAmgCoarsener(options()->amgCoarsener());
     x->setAmgInterpType(options()->amgInterpType());
     x->setAmgSmoother(options()->amgSmoother());
+    x->setKrylovDim(options()->krylovDim());
     x->setVerbosityLevel(options()->verbosity());
     x->setSolver(options()->solver());
     x->setPreconditioner(options()->preconditioner());
