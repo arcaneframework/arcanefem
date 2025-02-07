@@ -73,7 +73,7 @@ compute()
 
 void FemModule::_initBsr()
 {
-  info() << "[ArcaneFem-Info] Started module  compute()";
+  info() << "[ArcaneFem-Info] Started module  _initBsr()";
   Real elapsedTime = platform::getRealTime();
 
   bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem";
@@ -81,7 +81,7 @@ void FemModule::_initBsr()
   m_bsr_format.computeSparsity();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] compute", elapsedTime);
+  _printArcaneFemTime("[ArcaneFem-Timer] initialize-bsr-matrix", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -104,12 +104,7 @@ _doStationarySolve()
 {
   _getMaterialParameters();
   _assembleBilinearOperator();
-
-  if (m_use_bsr || m_use_bsr_atomic_free)
-    m_bsr_format.toLinearSystem(m_linear_system);
-
   _assembleLinearOperator();
-
   _solve();
   _updateVariables();
   _validateResults();
@@ -230,7 +225,7 @@ _assembleLinearOperator()
   if (f_string[0] != "NULL" || f_string[1] != "NULL") {
     ENUMERATE_ (Cell, icell, allCells()) {
       Cell cell = *icell;
-      Real area = _computeAreaTriangle3(cell);
+      Real area =  ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
       for (Node node : cell.nodes()) {
         if (node.isOwn()) {
           rhs_values[node_dof.dofId(node, 0)] += f[0] * area / 3;
@@ -261,7 +256,7 @@ _assembleLinearOperator()
     if (t_string[0] != "NULL" || t_string[1] != "NULL") {
       ENUMERATE_ (Face, iface, group) {
         Face face = *iface;
-        Real length = _computeEdgeLength2(face);
+        Real length =  ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
         for (Node node : iface->nodes()) {
           if (node.isOwn()) {
             rhs_values[node_dof.dofId(node, 0)] += t[0] * length / 2.;
@@ -404,29 +399,6 @@ _assembleLinearOperator()
 }
 
 /*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real FemModule::
-_computeAreaTriangle3(Cell cell)
-{
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-  return 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real FemModule::
-_computeEdgeLength2(Face face)
-{
-  Real3 m0 = m_node_coord[face.nodeId(0)];
-  Real3 m1 = m_node_coord[face.nodeId(1)];
-  return math::sqrt((m1.x - m0.x) * (m1.x - m0.x) + (m1.y - m0.y) * (m1.y - m0.y));
-}
-
-/*---------------------------------------------------------------------------*/
 /**
  * @brief Calls the right function for LHS assembly given as mesh type.
  */
@@ -449,6 +421,8 @@ _assembleBilinearOperator()
     auto mu2_copy = mu2;
 
     m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
+
+    m_bsr_format.toLinearSystem(m_linear_system);
   }
   else {
     _assembleBilinearOperatorTRIA3();

@@ -24,6 +24,7 @@
 #include <arcane/accelerator/core/RunQueue.h>
 #include <arcane/core/ItemTypes.h>
 #include <arccore/base/ArccoreGlobal.h>
+#include "arccore/base/NotImplementedException.h"
 
 #include "IDoFLinearSystemFactory.h"
 #include "Fem_axl.h"
@@ -31,8 +32,9 @@
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
 #include "BSRFormat.h"
+
+#include "ArcaneFemFunctions.h"
 #include "ArcaneFemFunctionsGpu.h"
-#include "arccore/base/NotImplementedException.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -134,7 +136,6 @@ ARCCORE_HOST_DEVICE FixedMatrix<6, 6> computeElementMatrixTRIA3Base(Real3 m0, Re
   //                  (dy(u1)dy(v1) + dx(u2)dy(v1) + dy(u1)dx(v2) + dx(u2)dx(v2)))
   //------------------------------------------------------------------------------
   FixedMatrix<6, 6> step2_res = ((((dxV1 ^ dxU1) + (dyV2 ^ dyU2)) + ((dyV1 ^ dyU1) + (dyV1 ^ dxU2) + (dxV2 ^ dyU1) + (dxV2 ^ dxU2)) * 0.5) * mu2) / (4 * area);
-  ;
 
   return (step1_res + step2_res);
 }
@@ -159,7 +160,7 @@ FixedMatrix<6, 6> FemModule::_computeElementMatrixTRIA3(Cell cell)
   Real3 m0 = m_node_coord[cell.nodeId(0)];
   Real3 m1 = m_node_coord[cell.nodeId(1)];
   Real3 m2 = m_node_coord[cell.nodeId(2)];
-  Real area = _computeAreaTriangle3(cell);
+  Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord); //_computeAreaTriangle3(cell);
   return computeElementMatrixTRIA3Base(m0, m1, m2, area, lambda, mu2);
 }
 
