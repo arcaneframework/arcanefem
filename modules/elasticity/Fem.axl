@@ -39,15 +39,8 @@
         Penalty value for enforcing Dirichlet condition
       </description>
     </simple>
-    <simple name="bsr" type="bool"  default="false" >
-      <description>
-        Boolean to use the BSR data structure and its associated methods. BSR is GPU-compatible and works with multi-degree-of-freedom meshes.
-      </description>
-    </simple>
-    <simple name="bsr-atomic-free" type="bool"  default="false" >
-      <description>
-        Boolean to use the BSR data structure and its associated methods using atomic-free implementation. BSR is GPU-compatible and works with multi-degree-of-freedom meshes.
-      </description>
+    <simple name="matrix-format" type="string" default="DOK" optional="true">
+      <description>Which matrix format to use DOK|BSR|AF-BSR.</description>
     </simple>
 
     <!-- - - - - - dirichlet-boundary-condition - - - - -->

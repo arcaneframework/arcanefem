@@ -20,27 +20,17 @@
   </meshes>
 
   <fem>
+    <result-file>check/elasticity_traction_bar_test_ref.txt</result-file>
     <E>21.0e5</E>
     <nu>0.28</nu>
-    <f>NULL -1.0</f>
     <dirichlet-boundary-condition>
       <surface>left</surface>
-      <u>0.0 NULL</u>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>right</surface>
-      <u>1.0 NULL</u>
-    </dirichlet-boundary-condition>
-    <dirichlet-point-condition>
-      <node>botLeft</node>
       <u>0.0 0.0</u>
-    </dirichlet-point-condition>
-    <dirichlet-point-condition>
-      <node>botRight</node>
-      <u>NULL 0.0</u>
-    </dirichlet-point-condition>
-    <result-file>check/elasticity_point-dirichlet_bar_test_ref.txt</result-file>
-    <bsr>true</bsr>
+    </dirichlet-boundary-condition>
+    <traction-boundary-condition>
+      <surface>right</surface>
+      <t>1.0 NULL</t>
+    </traction-boundary-condition>
     <linear-system name="HypreLinearSystem">
       <rtol>0.</rtol>
       <atol>1e-15</atol>

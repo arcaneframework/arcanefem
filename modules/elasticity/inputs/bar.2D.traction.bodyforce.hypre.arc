@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Elasticity" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>Traction + Body force + Dirichlet using BSR Format</title>
+    <title>Sample</title>
     <timeloop>ElasticityLoop</timeloop>
   </arcane>
 
@@ -32,6 +32,10 @@
       <surface>right</surface>
       <t>1.33 2.13</t>
     </traction-boundary-condition>
-    <bsr>true</bsr>
+    <linear-system name="HypreLinearSystem">
+      <rtol>0.</rtol>
+      <atol>1e-15</atol>
+      <amg-threshold>0.25</amg-threshold>
+    </linear-system>
   </fem>
 </case>
