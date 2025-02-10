@@ -15,6 +15,8 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+#include <arcane/utils/PlatformUtils.h>
+
 #include <arcane/utils/NumArray.h>
 #include <arcane/utils/CommandLineArguments.h>
 #include <arcane/utils/StringList.h>
@@ -80,7 +82,10 @@ class FemModule
   void _assembleBilinearOperatorTria3();
   void _solve();
   void _assembleLinearOperator();
+  void _updateVariables();
   void _validateResults();
+
+  void _printArcaneFemTime(const String label, const Real value);
 
   FixedMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
 };
