@@ -7,136 +7,25 @@
 /*---------------------------------------------------------------------------*/
 /* FemModule.cc                                                (C) 2022-2025 */
 /*                                                                           */
-/* Simple module to test simple FEM mechanism.                               */
+/* Heat equation solver module of ArcaneFEM.                                 */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/utils/NumArray.h>
-#include <arcane/ITimeLoopMng.h>
-#include <arcane/IMesh.h>
-#include <arcane/IItemFamily.h>
-#include <arcane/ItemGroup.h>
-#include <arcane/ICaseMng.h>
-
-#include "IDoFLinearSystemFactory.h"
-#include "Fem_axl.h"
-#include "FemUtils.h"
-#include "DoFLinearSystem.h"
-#include "FemDoFsOnNodes.h"
+#include "FemModule.h"
 
 /*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-using namespace Arcane;
-using namespace Arcane::FemUtils;
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-/*!
- * \brief Module Fem.
+/**
+ * @brief Initializes the FemModule at the start of the simulation.
+ *
+ * This method initializes degrees of freedom (DoFs) on nodes.
  */
-class FemModule
-: public ArcaneFemObject
-{
- public:
-
-  explicit FemModule(const ModuleBuildInfo& mbi)
-  : ArcaneFemObject(mbi)
-  , m_dofs_on_nodes(mbi.subDomain()->traceMng())
-  {
-    ICaseMng* cm = mbi.subDomain()->caseMng();
-    cm->setTreatWarningAsError(true);
-    cm->setAllowUnkownRootElelement(false);
-  }
-
- public:
-
-  //! Method called at each iteration
-  void compute() override;
-
-  //! Method called at the beginning of the simulation
-  void startInit() override;
-
-  VersionInfo versionInfo() const override
-  {
-    return VersionInfo(1, 0, 0);
-  }
-
- private:
-
-  //! Time variables
-  Real t   ,
-       dt  ,
-       tmax;
-  //! Temperature
-  Real Tinit ,
-       Text  ;
-  //! Material parameters
-  Real lambda ,
-       h      ,
-       qdot   ;
-  //! FEM parameter
-  Real ElementNodes;
-
-  DoFLinearSystem m_linear_system;
-  IItemFamily* m_dof_family = nullptr;
-  FemDoFsOnNodes m_dofs_on_nodes;
-
- private:
-
-  void _initTime();
-  void _updateTime();
-  void _updateVariables();
-  void _initTemperature();
-  void _doStationarySolve();
-  void _getParameters();
-  void _updateBoundayConditions();
-  void _assembleBilinearOperatorTRIA3();
-  void _assembleBilinearOperatorEDGE2();
-  void _solve();
-  void _initBoundaryconditions();
-  void _assembleLinearOperator();
-  FixedMatrix<2, 2> _computeElementMatrixEDGE2(Face face);
-  FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
-  Real  _computeDxOfRealTRIA3(Cell cell);
-  Real  _computeDyOfRealTRIA3(Cell cell);
-  Real2 _computeDxDyOfRealTRIA3(Cell cell);
-  Real _computeAreaTriangle3(Cell cell);
-  Real _computeEdgeLength2(Face face);
-  void _applyDirichletBoundaryConditions();
-  void _checkResultFile();
-};
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-compute()
-{
-  info() << "Module Fem COMPUTE";
-
-  // Stop code after computations
-  if (t >= tmax)
-    subDomain()->timeLoopMng()->stopComputeLoop(true);
-
-  m_linear_system.reset();
-  m_linear_system.setLinearSystemFactory(options()->linearSystem());
-  m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
-
-  info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
-  _doStationarySolve();
-  _updateVariables();
-  _updateTime();
-
-}
-
-/*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
 startInit()
 {
-  info() << "Module Fem INIT";
+  info() << "[ArcaneFem-Info] Started module startInit()";
+  Real elapsedTime = platform::getRealTime();
 
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
@@ -146,6 +35,34 @@ startInit()
   _getParameters();             // get material parameters
   _initTemperature();           // initialize temperature
   m_global_deltat.assign(dt);
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] initialize", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+compute()
+{
+  info() << "[ArcaneFem-Info] Started module compute()";
+  Real elapsedTime = platform::getRealTime();
+
+  // Stop code after computations
+  if (t >= tmax)
+    subDomain()->timeLoopMng()->stopComputeLoop(true);
+
+  m_linear_system.reset();
+  m_linear_system.setLinearSystemFactory(options()->linearSystem());
+  m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
+
+  _doStationarySolve();
+  _updateVariables();
+  _updateTime();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] compute", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -154,7 +71,7 @@ startInit()
 void FemModule::
 _initTime()
 {
-  info() << "Initiate time";
+  info() << "[ArcaneFem-Info] Started module _initTime()";
 
   tmax   = options()->tmax();
   dt     = options()->dt();
@@ -169,7 +86,7 @@ _initTime()
 void FemModule::
 _updateTime()
 {
-  info() << "Update time";
+  info() << "[ArcaneFem-Info] Started module _updateTime()";
 
   t += dt;
   info() << "Time t is :" << t << " (s)";
@@ -181,7 +98,7 @@ _updateTime()
 void FemModule::
 _updateVariables()
 {
-  info() << "Update FEM variables";
+  info() << "[ArcaneFem-Info] Started module _updateVariables()";
 
   {
     // Copy Node temperature to Node temperature old
@@ -198,7 +115,7 @@ _updateVariables()
 void FemModule::
 _initTemperature()
 {
-  info() << "Init Temperature";
+  info() << "[ArcaneFem-Info] Started module _initTemperature()";
 
   Tinit   = options()->Tinit();
 
@@ -222,9 +139,7 @@ _doStationarySolve()
   _updateBoundayConditions();
 
   // Assemble the FEM bilinear operator (LHS - matrix A)
-  _assembleBilinearOperatorTRIA3();
-
-  _assembleBilinearOperatorEDGE2();
+  _assembleBilinearOperator();
 
   // Assemble the FEM linear operator (RHS - vector b)
   _assembleLinearOperator();
@@ -242,15 +157,17 @@ _doStationarySolve()
 void FemModule::
 _getParameters()
 {
-  info() << "Get material parameters...";
+  info() << "[ArcaneFem-Info] Started module _getMaterialParameters()";
+  Real elapsedTime = platform::getRealTime();
+
   lambda = options()->lambda();
-  qdot   = options()->qdot();
+  qdot = options()->qdot();
   ElementNodes = 3.;
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
     m_cell_lambda[cell] = lambda;
-    }
+  }
 
   for (const auto& bs : options()->materialProperty()) {
     CellGroup group = bs->volume();
@@ -260,8 +177,11 @@ _getParameters()
     ENUMERATE_ (Cell, icell, group) {
       Cell cell = *icell;
       m_cell_lambda[cell] = value;
-      }
     }
+  }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] get-material-params", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -270,9 +190,7 @@ _getParameters()
 void FemModule::
 _initBoundaryconditions()
 {
-  info() << "Init boundary conditions...";
-
-  info() << "Apply boundary conditions";
+  info() << "[ArcaneFem-Info] Started module _initBoundaryconditions()";
   _applyDirichletBoundaryConditions();
 }
 
@@ -339,15 +257,14 @@ _updateBoundayConditions()
 void FemModule::
 _assembleLinearOperator()
 {
-  info() << "Assembly of FEM linear operator ";
+  info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
+  Real elapsedTime = platform::getRealTime();
 
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-
 
   if (options()->enforceDirichletMethod() == "Penalty") {
 
@@ -535,6 +452,8 @@ _assembleLinearOperator()
     }
   }
 
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] rhs-vector-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -770,6 +689,25 @@ _computeElementMatrixTRIA3(Cell cell)
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Calls the right function for LHS assembly given as mesh type.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleBilinearOperator()
+{
+  info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
+  Real elapsedTime = platform::getRealTime();
+
+  _assembleBilinearOperatorTRIA3();
+  _assembleBilinearOperatorEDGE2();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] lhs-matrix-assembly", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -845,6 +783,9 @@ _assembleBilinearOperatorEDGE2()
 void FemModule::
 _solve()
 {
+  info() << "[ArcaneFem-Info] Started module _solve()";
+  Real elapsedTime = platform::getRealTime();
+
   m_linear_system.solve();
 
   // Re-Apply boundary conditions because the solver has modified the value
@@ -868,50 +809,18 @@ _solve()
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
 
-        //m_dx_node_temperature[cell] = _computeDyOfRealTRIA3(cell);
-
         Real2 DX = _computeDxDyOfRealTRIA3(cell);
         m_flux[cell].x = -m_cell_lambda[cell] * DX.x;
         m_flux[cell].y = -m_cell_lambda[cell] * DX.y;
         m_flux[cell].z = 0.;
-        /*
-        Real3 x0 = m_node_coord[cell.nodeId(0)];
-        Real3 x1 = m_node_coord[cell.nodeId(1)];
-        Real3 x2 = m_node_coord[cell.nodeId(2)];
-
-        Real f0 = m_node_temperature[cell.nodeId(0)];
-        Real f1 = m_node_temperature[cell.nodeId(1)];
-        Real f2 = m_node_temperature[cell.nodeId(2)];
-
-        // Using Cramer's rule  det (adj (A)) / det (A)
-        m_dx_node_temperature[cell]  =    f0*(x1.y - x2.y) - x0.y*(f1 - f2) + (f1*x2.y - f2*x1.y);
-        m_dx_node_temperature[cell] /=  ( x0.x*(x1.y - x2.y) - x0.y*(x1.x - x2.x) + (x1.x*x2.y - x2.x*x1.y) );
-        */
       }
 
       m_flux.synchronize();
     }
-
   }
-  const bool do_print = (allNodes().size() < 200);
-  if (do_print) {
-    ENUMERATE_ (Node, inode, allNodes()) {
-      Node node = *inode;
-      info() << "T[" << node.localId() << "][" << node.uniqueId() << "] = "
-             << m_node_temperature[node];
-      //info() << "T[]" << node.uniqueId() << " "
-      //       << m_node_temperature[node];
-    }
 
-/*
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-
-      info() << "DX[" << cell.localId() << "] = "
-             << m_dx_node_temperature[cell];
-    }
-*/
-  }
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] solve-linear-system", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -920,12 +829,37 @@ _solve()
 void FemModule::
 _checkResultFile()
 {
+  info() << "[ArcaneFem-Info] Started module _validateResults()";
+  Real elapsedTime = platform::getRealTime();
+
+  if (allNodes().size() < 200) {
+    ENUMERATE_ (Node, inode, allNodes()) {
+      Node node = *inode;
+      info() << "T[" << node.localId() << "][" << node.uniqueId() << "] = "
+             << m_node_temperature[node];
+    }
+  }
+
   String filename = options()->resultFile();
-  info() << "CheckResultFile filename=" << filename;
-  if (filename.empty())
-    return;
-  const double epsilon = 1.0e-4;
-  checkNodeResultFile(traceMng(), filename, m_node_temperature, epsilon);
+  info() << "ValidateResultFile filename=" << filename;
+
+  if (!filename.empty())
+    checkNodeResultFile(traceMng(), filename, m_node_temperature, 1.0e-4);
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] result-validation", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Function to prints the execution time `value` of phase `label`
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_printArcaneFemTime(const String label, const Real value)
+{
+  info() << std::left << std::setw(40) << label << " = " << value;
 }
 
 /*---------------------------------------------------------------------------*/
