@@ -24,7 +24,7 @@
 void FemModule::
 startInit()
 {
-  info() << "[ArcaneFem-Module] startInit()";
+  info() << "[ArcaneFem-Info] Started module startInit()";
   Real elapsedTime = platform::getRealTime();
 
   m_dofs_on_nodes.initialize(mesh(), 1);
@@ -51,7 +51,7 @@ startInit()
 void FemModule::
 compute()
 {
-  info() << "[ArcaneFem-Module] compute()";
+  info() << "[ArcaneFem-Info] Started module compute()";
   Real elapsedTime = platform::getRealTime();
 
   // Stop code after computations
@@ -125,7 +125,7 @@ _doStationarySolve()
 void FemModule::
 _getMaterialParameters()
 {
-  info() << "[ArcaneFem-Module] _getMaterialParameters()";
+  info() << "[ArcaneFem-Info] Started module _getMaterialParameters()";
   Real elapsedTime = platform::getRealTime();
 
   f = options()->f();
@@ -171,7 +171,7 @@ void FemModule::_assembleLinearOperator()
 
 void FemModule::_assembleLinearOperatorGpu()
 {
-  info() << "[ArcaneFem-Module] _assembleLinearOperatorGpu()";
+  info() << "[ArcaneFem-Info] Started module _assembleLinearOperatorGpu()";
   Real elapsedTime = platform::getRealTime();
 
   auto& rhs_values(m_linear_system.rhsVariable());
@@ -226,7 +226,7 @@ void FemModule::_assembleLinearOperatorGpu()
 
 void FemModule::_assembleLinearOperatorCpu()
 {
-  info() << "[ArcaneFem-Module] _assembleLinearOperatorCpu()";
+  info() << "[ArcaneFem-Info] Started module _assembleLinearOperatorCpu()";
   Real elapsedTime = platform::getRealTime();
 
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable()); // Temporary variable to keep values for the RHS
@@ -275,7 +275,7 @@ void FemModule::_assembleLinearOperatorCpu()
 void FemModule::
 _assembleBilinearOperator()
 {
-  info() << "[ArcaneFem-Module] _assembleBilinearOperator()";
+  info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
   if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") {
@@ -354,7 +354,7 @@ _assembleBilinear(const std::function<FixedMatrix<N, N>(const Cell&)>& compute_e
 void FemModule::
 _solve()
 {
-  info() << "[ArcaneFem-Module] _solve()";
+  info() << "[ArcaneFem-Info] Started module _solve()";
   Real elapsedTime = platform::getRealTime();
 
   m_linear_system.solve();
@@ -377,7 +377,7 @@ _solve()
 void FemModule::
 _updateVariables()
 {
-  info() << "[ArcaneFem-Module] _updateVariables()";
+  info() << "[ArcaneFem-Info] Started module _updateVariables()";
   Real elapsedTime = platform::getRealTime();
 
   {
@@ -411,7 +411,7 @@ _updateVariables()
 void FemModule::
 _validateResults()
 {
-  info() << "[ArcaneFem-Module] _validateResults()";
+  info() << "[ArcaneFem-Info] Started module _validateResults()";
   Real elapsedTime = platform::getRealTime();
 
   if (allNodes().size() < 200)
@@ -473,7 +473,7 @@ _setPetscFlagsFromCommandline()
 void FemModule::
 _handleCommandLineFlags()
 {
-  info() << "[ArcaneFem-Module] _handleCommandLineFlags()";
+  info() << "[ArcaneFem-Info] Started module _handleCommandLineFlags()";
   ParameterList parameter_list = this->subDomain()->application()->applicationInfo().commandLineArguments().parameters();
 
   if (parameter_list.getParameterOrNull("assemble_linear_system") == "FALSE") {
