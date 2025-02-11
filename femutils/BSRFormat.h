@@ -929,8 +929,6 @@ class BSRFormat : public TraceAccessor
       assembleBilinearOrderedPerBlock(compute_element_matrix);
     else
       assembleBilinearOrderedPerRow(compute_element_matrix);
-
-    info() << std::left << std::setw(40) << "[ArcaneFem-Timer] assemble-bsr-matrix" << " = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
@@ -1097,8 +1095,6 @@ class BSRFormat : public TraceAccessor
       assembleBilinearOrderedPerBlockAtomicFree(compute_element_matrix);
     else
       assembleBilinearOrderedPerRowAtomicFree(compute_element_matrix);
-
-    info() << std::left << std::setw(40) << "[ArcaneFem-Timer] assemble-af_bsr" << " = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/

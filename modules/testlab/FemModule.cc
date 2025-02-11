@@ -297,26 +297,6 @@ _doStationarySolve()
 
   auto dim = mesh()->dimension();
 
-  if (m_use_bsr || m_use_bsr_atomic_free) {
-    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
-    auto cn_cv = m_connectivity_view.cellNode();
-    auto command = makeCommand(m_queue);
-    auto in_node_coord = ax::viewIn(command, m_node_coord);
-
-    if (dim == 2)
-      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
-    else
-      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
-
-    _assembleLinearOperator(&(m_bsr_format.matrix()));
-    m_bsr_format.toLinearSystem(m_linear_system);
-    if (m_solve_linear_system)
-      _solve();
-    if (m_solve_linear_system && m_cross_validation)
-      _checkResultFile();
-    return;
-  }
-
   // Assemble the FEM bilinear operator (LHS - matrix A)
   if (m_use_legacy) {
     void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleBilinearOperatorTRIA3 : &FemModule::_assembleBilinearOperatorTETRA4;
@@ -331,6 +311,52 @@ _doStationarySolve()
       assemblyTimeStart = platform::getRealTime();
       (this->*assembly_fun)();
       _printArcaneFemTime("[ArcaneFem-Timer] assemble-DOK-mat", (platform::getRealTime() - assemblyTimeStart));
+    }
+  }
+
+  if (m_use_bsr) {
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cn_cv = m_connectivity_view.cellNode();
+    auto command = makeCommand(m_queue);
+    auto in_node_coord = ax::viewIn(command, m_node_coord);
+    assemblyTimeStart = platform::getRealTime();
+
+    if (dim == 2)
+      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
+    else
+      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
+    _printArcaneFemTime("[ArcaneFem-Timer] assmble-BSR_GPU-mat", (platform::getRealTime() - assemblyTimeStart));
+
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      assemblyTimeStart = platform::getRealTime();
+      if (dim == 2)
+        m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
+      else
+        m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
+      _printArcaneFemTime("[ArcaneFem-Timer] assmble-BSR_GPU-mat", (platform::getRealTime() - assemblyTimeStart));
+    }
+  }
+
+  if (m_use_bsr_atomic_free) {
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cn_cv = m_connectivity_view.cellNode();
+    auto command = makeCommand(m_queue);
+    auto in_node_coord = ax::viewIn(command, m_node_coord);
+    assemblyTimeStart = platform::getRealTime();
+
+    if (dim == 2)
+      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
+    else
+      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
+    _printArcaneFemTime("[ArcaneFem-Timer] assmble-AF_BSR_GPU-mat", (platform::getRealTime() - assemblyTimeStart));
+
+    for (auto i = 1; i < m_cache_warming; ++i) {
+      assemblyTimeStart = platform::getRealTime();
+      if (dim == 2)
+        m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
+      else
+        m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
+      _printArcaneFemTime("[ArcaneFem-Timer] assmble-AF_BSR_GPU-mat", (platform::getRealTime() - assemblyTimeStart));
     }
   }
 
@@ -471,6 +497,11 @@ _doStationarySolve()
       m_csr_matrix.translateToLinearSystem(m_linear_system, m_queue);
     }
     _translateRhs();
+  }
+  else if (m_use_bsr || m_use_bsr_atomic_free) {
+    _assembleLinearOperator(&(m_bsr_format.matrix()));
+    Timer::Action timer_action(m_time_stats, "TranslateToLinearSystem");
+    m_bsr_format.toLinearSystem(m_linear_system);
   }
   else {
     if (m_use_coo || m_use_coo_sort || m_use_coo_gpu || m_use_coo_sort_gpu) {
