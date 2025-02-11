@@ -21,7 +21,7 @@ void FemModule::_dumpTimeStats()
   Int64 nb_node = mesh()->ownNodes().size();
   Int64 total_nb_node = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_node);
 
-  Int64 nb_face = mesh()->ownFaces().size(); // Face in 3D, edge in 2D
+  Int64 nb_face = mesh()->outerFaces().size(); // Face in 3D, edge in 2D
   Int64 total_nb_boundary_elt = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_face);
 
   Int64 nb_cell = mesh()->ownCells().size();
@@ -67,7 +67,8 @@ endModule()
 void FemModule::
 compute()
 {
-  info() << "Module Fem COMPUTE";
+  info() << "[ArcaneFem-Info] Started module compute()";
+  Real elapsedTime = platform::getRealTime();
 
   // Stop code after computations
   if (m_global_iteration() > 0)
@@ -76,30 +77,30 @@ compute()
   Real TimeStart = platform::getRealTime();
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
-
   m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
-  // Test for adding parameters for PETSc.
-  // This is only used for the first call.
-  {
-    StringList string_list;
-    /*
-    string_list.add("-trmalloc");
-    string_list.add("-log_trace");
-    string_list.add("-ksp_monitor");
-    string_list.add("-ksp_view");
-    string_list.add("-math_view");
-    string_list.add("draw");
-    string_list.add("-draw_pause");
-    string_list.add("-10");
-    */
-    CommandLineArguments args(string_list);
-    m_linear_system.setSolverCommandLineArguments(args);
-  }
+  if (m_petsc_flags != NULL)
+  _setPetscFlagsFromCommandline();
+
   info() << "[ArcaneFem-Timer] Time to initialize linear-system = " << (platform::getRealTime() - TimeStart);
 
-  info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
+  Int64 nb_node = mesh()->ownNodes().size();
+  Int64 total_nb_node = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_node);
+
+  Int64 nb_face = mesh()->outerFaces().size(); // Face in 3D, edge in 2D
+  Int64 total_nb_boundary_elt = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_face);
+
+  Int64 nb_cell = mesh()->ownCells().size();
+  Int64 total_nb_elt = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_cell);
+
+  info() << "[ArcaneFem-Info] mesh dimension " << defaultMesh()->dimension();
+  info() << "[ArcaneFem-Info] mesh boundary elements " << total_nb_boundary_elt;
+  info() << "[ArcaneFem-Info] mesh cells " << total_nb_elt;
+  info() << "[ArcaneFem-Info] mesh nodes " << total_nb_node;
 
   _doStationarySolve();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] compute", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -108,8 +109,9 @@ compute()
 void FemModule::
 startInit()
 {
+  info() << "[ArcaneFem-Info] Started module startInit()";
+  Real elapsedTime = platform::getRealTime();
   Real TimeStart;
-  info() << "Module Fem INIT";
 
   m_queue = *(acceleratorMng()->defaultQueue());
   // When everything will be available on the GPU we will be able to
@@ -132,7 +134,7 @@ startInit()
       }
       m_nb_edge = nb_edge / 2;
       info() << "Using custom node-node via edge connectivity: nb_edge=" << m_nb_edge;
-      info() << "[ArcaneFem-Timer] Time to initialize node-node connectivity view = " << (platform::getRealTime() - TimeStart);
+      _printArcaneFemTime("[ArcaneFem-Timer] initialize-nde-nd-contvty", (platform::getRealTime() - TimeStart));
     }
     else {
       m_nb_edge = mesh->nbEdge();
@@ -149,15 +151,18 @@ startInit()
   TimeStart = platform::getRealTime();
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
-  info() << "[ArcaneFem-Timer] Time to initialize DOFs = " << (platform::getRealTime() - TimeStart);
+  _printArcaneFemTime("[ArcaneFem-Timer] initialize-DOFs", (platform::getRealTime() - TimeStart));
 
   _handleFlags();
 
   TimeStart = platform::getRealTime();
   _initBoundaryconditions();
-  info() << "[ArcaneFem-Timer] Time to initialize boundary conditions = " << (platform::getRealTime() - TimeStart);
+  _printArcaneFemTime("[ArcaneFem-Timer] initialize-bc", (platform::getRealTime() - TimeStart));
 
   _checkCellType();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] initialize-total", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -168,7 +173,7 @@ _handleFlags()
 {
   ParameterList parameter_list = this->subDomain()->application()->applicationInfo().commandLineArguments().parameters();
   info() << "-----------------------------------------------------------------------------------------";
-  String cache_warm = parameter_list.getParameterOrNull("CACHE_WARMING");
+  String cache_warm = parameter_list.getParameterOrNull("cache_warming");
   if (cache_warm != NULL) {
     auto tmp = Convert::Type<Integer>::tryParse(cache_warm);
     m_cache_warming = *tmp;
@@ -219,6 +224,16 @@ _handleFlags()
     m_use_legacy = false;
     info() << "BLCSR: The GPU-compatible Compressed Sparse Row (CSR) data structure is used for sparse matrices with Node-Wise computation in a Build Less manner";
   }
+  if (parameter_list.getParameterOrNull("BSR") == "TRUE" || options()->bsr) {
+    m_use_bsr = true;
+    m_use_legacy = false;
+    info() << "BSR: The GPU-compatible Block Compressed Sparse Row (BSR) data structure is used for sparse matrices";
+  }
+  if (parameter_list.getParameterOrNull("BSR_ATOMIC_FREE") == "TRUE" || options()->bsrAtomicFree()) {
+    m_use_bsr_atomic_free = true;
+    m_use_legacy = false;
+    info() << "BSR: The GPU-compatible Block Compressed Sparse Row (BSR) data structure is used for sparse matrices with Atomic-Free assembly";
+  }
   if (parameter_list.getParameterOrNull("LEGACY") == "TRUE" || m_use_legacy || options()->legacy()) {
     m_use_legacy = true;
     info() << "DOK: The Dictionary Of Key ata structure is used for sparse matrices";
@@ -234,23 +249,17 @@ _handleFlags()
     m_running_on_gpu = true;
     info() << "HIP: The methods able to use GPU will use it";
   }
-  if (parameter_list.getParameterOrNull("SOLVE_LINEAR_SYSTEM") == "FALSE") {
+  if (parameter_list.getParameterOrNull("solve_linear_system") == "FALSE") {
     m_solve_linear_system = false;
-    info() << "Linear system assembled but not solved (SOLVE_LINEAR_SYSTEM = FALSE)";
+    info() << "Linear system assembled but not solved (solve_linear_system = FALSE)";
   }
-  if (parameter_list.getParameterOrNull("CROSS_VALIDATION") == "FALSE") {
+  if (parameter_list.getParameterOrNull("cross_validation") == "FALSE") {
     m_cross_validation = false;
-    info() << "Cross validation disabled (CROSS_VALIDATION = FALSE)";
+    info() << "Cross validation disabled (cross_validation = FALSE)";
   }
-  if (parameter_list.getParameterOrNull("BSR") == "TRUE" || options()->bsr) {
-    m_use_bsr = true;
-    m_use_legacy = false;
-    info() << "BSR: The GPU-compatible Block Compressed Sparse Row (BSR) data structure is used for sparse matrices";
-  }
-  if (parameter_list.getParameterOrNull("BSR_ATOMIC_FREE") == "TRUE" || options()->bsrAtomicFree()) {
-    m_use_bsr_atomic_free = true;
-    m_use_legacy = false;
-    info() << "BSR: The GPU-compatible Block Compressed Sparse Row (BSR) data structure is used for sparse matrices with Atomic-Free assembly";
+  m_petsc_flags = parameter_list.getParameterOrNull("petsc_flags");
+  if (m_petsc_flags != NULL) {
+    info() << "[ArcaneFem-Info] PETSc flags the user provided will be used (petsc_flags != NULL)";
   }
   info() << "-----------------------------------------------------------------------------------------";
 }
@@ -495,12 +504,17 @@ _doStationarySolve()
 void FemModule::
 _getMaterialParameters()
 {
-  info() << "Get material parameters...";
+  info() << "[ArcaneFem-Info] Started module _getMaterialParameters()";
+  Real elapsedTime = platform::getRealTime();
+
   f = options()->f();
   ElementNodes = 3.;
 
   if (options()->meshType == "TETRA4")
     ElementNodes = 4.;
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] get-material-params", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -509,8 +523,8 @@ _getMaterialParameters()
 void FemModule::
 _initBoundaryconditions()
 {
+  info() << "[ArcaneFem-Info] Started module _initBoundaryconditions()";
 
-  info() << "Apply boundary conditions";
   _applyDirichletBoundaryConditions();
 }
 
@@ -520,12 +534,7 @@ _initBoundaryconditions()
 void FemModule::
 _applyDirichletBoundaryConditionsGpu()
 {
-  // Handle all the Dirichlet boundary conditions.
-  // In the 'arc' file, there are in the following format:
-  //   <dirichlet-boundary-condition>
-  //   <surface>Haut</surface>
-  //   <value>21.0</value>
-  // </dirichlet-boundary-condition>
+  info() << "[ArcaneFem-Info] Started module _applyDirichletBoundaryConditionsGpu()";
 
   for (const auto& bs : options()->dirichletBoundaryCondition()) {
     FaceGroup group = bs->surface();
@@ -576,12 +585,7 @@ _applyDirichletBoundaryConditionsGpu()
 void FemModule::
 _applyDirichletBoundaryConditions()
 {
-  // Handle all the Dirichlet boundary conditions.
-  // In the 'arc' file, there are in the following format:
-  //   <dirichlet-boundary-condition>
-  //   <surface>Haut</surface>
-  //   <value>21.0</value>
-  // </dirichlet-boundary-condition>
+  info() << "[ArcaneFem-Info] Started module _applyDirichletBoundaryConditions()";
 
   for (const auto& bs : options()->dirichletBoundaryCondition()) {
     FaceGroup group = bs->surface();
@@ -614,6 +618,9 @@ _applyDirichletBoundaryConditions()
 void FemModule::
 _checkCellType()
 {
+  info() << "[ArcaneFem-Info] Started module _checkCellType()";
+  Real elapsedTime = platform::getRealTime();
+
   Int16 type = 0;
   if (options()->meshType == "TETRA4") {
     type = IT_Tetraedron4;
@@ -626,6 +633,9 @@ _checkCellType()
     if (cell.type() != type)
       ARCANE_FATAL("Only Triangle3 cell type is supported");
   }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] mesh-check", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -639,8 +649,8 @@ _checkCellType()
 void FemModule::
 _assembleLinearOperator(BSRMatrix<1>* bsr_matrix)
 {
-  info() << "Assembly of FEM linear operator  ";
-  info() << "Applying Dirichlet boundary condition via  penalty method ";
+  info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
+  Real elapsedTime = platform::getRealTime();
 
   // time registration
   Timer::Action timer_action(m_time_stats, "AssembleLinearOperator");
@@ -879,6 +889,9 @@ _assembleLinearOperator(BSRMatrix<1>* bsr_matrix)
       }
     }
   }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] rhs-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -887,8 +900,8 @@ _assembleLinearOperator(BSRMatrix<1>* bsr_matrix)
 void FemModule::
 _assembleCsrLinearOperator()
 {
-  info() << "Assembly of FEM linear operator ";
-  info() << "Applying Dirichlet boundary condition via  penalty method for Csr";
+  info() << "[ArcaneFem-Info] Started module _assembleCsrLinearOperator()";
+  Real elapsedTime = platform::getRealTime();
 
   // time registration
   Timer::Action timer_action(m_time_stats, "CsrAssembleLinearOperator");
@@ -1106,6 +1119,9 @@ _assembleCsrLinearOperator()
       }
     }
   }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] rhs-assembly-csr", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1132,8 +1148,8 @@ _getValIndexCsrGpu(Int32 begin, Int32 end, DoFLocalId col, ax::NumArrayView<Data
 void FemModule::
 _assembleCsrGpuLinearOperator()
 {
-  info() << "Assembly of FEM linear operator ";
-  info() << "Applying Dirichlet boundary condition via penalty method for Csr, designed for GPU";
+  info() << "[ArcaneFem-Info] Started module _assembleCsrGpuLinearOperator()";
+  Real elapsedTime = platform::getRealTime();
 
   Timer::Action timer_action(m_time_stats, "CsrGpuAssembleLinearOperator");
 
@@ -1567,6 +1583,9 @@ _assembleCsrGpuLinearOperator()
       }
     }
   }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] rhs-assembly-csr-gpu", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1574,12 +1593,18 @@ _assembleCsrGpuLinearOperator()
 void FemModule::
 _translateRhs()
 {
+  info() << "[ArcaneFem-Info] Started module _translateRhs()";
+  Real elapsedTime = platform::getRealTime();
+
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
   for (Int32 i = 0; i < m_rhs_vect.dim1Size(); i++) {
 
     rhs_values[DoFLocalId(i)] = m_rhs_vect[DoFLocalId(i)];
   }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] rhs-translation", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1830,6 +1855,9 @@ _computeElementMatrixTETRA4(Cell cell)
 void FemModule::
 _solve()
 {
+  info() << "[ArcaneFem-Info] Started module _solve()";
+  Real elapsedTime = platform::getRealTime();
+
   Real TimeStart;
   ITimeStats* tstat = m_time_stats;
   Timer::Action timer_action(tstat, "Solving");
@@ -1838,15 +1866,17 @@ _solve()
     TimeStart = platform::getRealTime();
     Timer::Action ta1(tstat, "LinearSystemSolve");
     m_linear_system.solve();
-    info() << "[ArcaneFem-Timer] Time to solve linear system = " << (platform::getRealTime() - TimeStart);
   }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] solving-linear-system", elapsedTime);
 
   // Re-Apply boundary conditions because the solver has modified the value
   {
     TimeStart = platform::getRealTime();
     Timer::Action ta1(tstat, "ApplyBoundaryConditions");
     _applyDirichletBoundaryConditions();
-    info() << "[ArcaneFem-Timer] Time to Re-Apply boundary conditions = " << (platform::getRealTime() - TimeStart);
+    _printArcaneFemTime("[ArcaneFem-Timer] reapply-bc", (platform::getRealTime() - TimeStart));
   }
 
   {
@@ -1860,12 +1890,12 @@ _solve()
       Real v = dof_u[node_dof.dofId(node, 0)];
       m_u[node] = v;
     }
-    info() << "[ArcaneFem-Timer] Time to prepare solution for post-process = " << (platform::getRealTime() - TimeStart);
+    _printArcaneFemTime("[ArcaneFem-Timer] update-solution", (platform::getRealTime() - TimeStart));
   }
 
   TimeStart = platform::getRealTime();
   m_u.synchronize();
-  info() << "[ArcaneFem-Timer] Time to synchronize solution across subdomains = " << (platform::getRealTime() - TimeStart);
+  _printArcaneFemTime("[ArcaneFem-Timer] synchronize", (platform::getRealTime() - TimeStart));
 
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {
@@ -1909,6 +1939,40 @@ bool FemModule::
 _isMasterRank() const
 {
   return parallelMng()->isMasterIO();
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Function to prints the execution time `value` of phase `label`
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_printArcaneFemTime(const String label, const Real value)
+{
+  info() << std::left << std::setw(40) << label << " = " << value;
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Function to set PETSc flags from commandline
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_setPetscFlagsFromCommandline()
+{
+  StringList string_list;
+  std::string petsc_flags_std = m_petsc_flags.localstr();
+  // Use a string stream to split the string by spaces
+  std::istringstream iss(petsc_flags_std);
+  String token;
+  while (iss >> token) {
+    string_list.add(token);
+  }
+
+  CommandLineArguments args(string_list);
+  m_linear_system.setSolverCommandLineArguments(args);
 }
 
 /*---------------------------------------------------------------------------*/

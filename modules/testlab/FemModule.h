@@ -160,6 +160,10 @@ class FemModule
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;
+
+  String m_petsc_flags;
+  String m_matrix_format = "DOK";
+
   bool m_register_time = false;
   bool m_arcane_timer = false;
   Integer m_cache_warming = 1;
@@ -219,6 +223,7 @@ class FemModule
   void _applyDirichletBoundaryConditions();
   void _checkResultFile();
   void _dumpTimeStats();
+  void _setPetscFlagsFromCommandline();
   FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixTETRA4(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
@@ -328,6 +333,8 @@ class FemModule
   void _assembleCsrLinearOperator();
   void _translateRhs();
   bool _isMasterRank() const;
+  void _printArcaneFemTime(const String label, const Real value);
+
 };
 
 /*---------------------------------------------------------------------------*/
