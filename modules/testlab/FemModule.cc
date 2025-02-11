@@ -123,7 +123,6 @@ startInit()
       TimeStart = platform::getRealTime();
       m_node_node_via_edge_connectivity = MeshUtils::computeNodeNodeViaEdgeConnectivity(defaultMesh(), "NodeNodeViaEdge");
       m_node_node_via_edge_connectivity->connectivity()->dumpStats(std::cout);
-      std::cout << "\n";
       IndexedNodeNodeConnectivityView nn_cv = m_node_node_via_edge_connectivity->view();
       Int64 nb_edge = 0;
       ENUMERATE_NODE (inode, allNodes()) {
@@ -131,12 +130,10 @@ startInit()
         nb_edge += nn_cv.nbNode(node);
       }
       m_nb_edge = nb_edge / 2;
-      info() << "Using custom node-node via edge connectivity: nb_edge=" << m_nb_edge;
       _printArcaneFemTime("[ArcaneFem-Timer] init-nde-nde-contvty", (platform::getRealTime() - TimeStart));
     }
     else {
       m_nb_edge = mesh->nbEdge();
-      info() << "Number of edge: nb_edge=" << m_nb_edge;
     }
 
     if (options()->bsr || options()->bsrAtomicFree()) {
@@ -170,96 +167,96 @@ void FemModule ::
 _handleFlags()
 {
   ParameterList parameter_list = this->subDomain()->application()->applicationInfo().commandLineArguments().parameters();
-  info() << "-----------------------------------------------------------------------------------------";
   String cache_warm = parameter_list.getParameterOrNull("cache_warming");
   if (cache_warm != NULL) {
     auto tmp = Convert::Type<Integer>::tryParse(cache_warm);
     m_cache_warming = *tmp;
-    info() << "CACHE_WARMING: A cache warming of " << m_cache_warming << " iterations will happen";
+    info() << "[ArcaneFem-Info] cache warming activated via CLI";
+    info() << "[ArcaneFem-Info] A cache warming of " << m_cache_warming << " iterations will happen";
   }
   if (cache_warm == NULL) {
     m_cache_warming = options()->cacheWarming();
     if (m_cache_warming != 1)
-      info() << "CACHE_WARMING: A cache warming of " << m_cache_warming << " iterations will happen";
+      info() << "[ArcaneFem-Info] A cache warming of " << m_cache_warming << " iterations will happen";
   }
   if (parameter_list.getParameterOrNull("COO") == "TRUE" || options()->coo()) {
     m_use_coo = true;
     m_use_legacy = false;
-    info() << "COO: The COOrdinate data structure is used for sparse matrices";
+    info() << "[ArcaneFem-Info] Matrix format COO activated via CLI";
   }
-  if (parameter_list.getParameterOrNull("COO_SORT") == "TRUE" || options()->cooSorting()) {
+  if (parameter_list.getParameterOrNull("S-COO") == "TRUE" || options()->cooSorting()) {
     m_use_coo_sort = true;
     m_use_legacy = false;
-    info() << "COO_SORT: The COOrdinate data structure with SORTing is used for sparse matrices";
+    info() << "[ArcaneFem-Info] Matrix format S_COO activated via CLI";
   }
   if (parameter_list.getParameterOrNull("COO_GPU") == "TRUE" || options()->cooGpu()) {
     m_use_coo_gpu = true;
     m_use_legacy = false;
-    info() << "COO_GPU: The GPU-compatible COOrdinate data structure is used for sparse matrices";
+    info() << "[ArcaneFem-Info] Matrix format COO_GPU activated via CLI";
   }
-  if (parameter_list.getParameterOrNull("COO_SORT_GPU") == "TRUE" || options()->cooSortingGpu()) {
+  if (parameter_list.getParameterOrNull("S-COO_GPU") == "TRUE" || options()->cooSortingGpu()) {
     m_use_coo_sort_gpu = true;
     m_use_legacy = false;
-    info() << "COO_SORT_GPU: The GPU-compatible COOrdinate data structure with SORTing is used for sparse matrices";
+    info() << "[ArcaneFem-Info] Matrix format S_COO_GPU activated via CLI";
   }
   if (parameter_list.getParameterOrNull("CSR") == "TRUE" || options()->csr()) {
     m_use_csr = true;
     m_use_legacy = false;
-    info() << "CSR: The Compressed Sparse Row data structure is used for sparse matrices";
+    info() << "[ArcaneFem-Info] Matrix format CSR activated via CLI";
   }
   if (parameter_list.getParameterOrNull("CSR_GPU") == "TRUE" || options()->csrGpu()) {
     m_use_csr_gpu = true;
     m_use_legacy = false;
-    info() << "CSR_GPU: The GPU-compatible Compressed Sparse Row data structure is used for sparse matrices";
+    info() << "[ArcaneFem-Info] Matrix format CSR_GPU activated via CLI";
   }
-  if (parameter_list.getParameterOrNull("NWCSR") == "TRUE" || options()->nwcsr()) {
+  if (parameter_list.getParameterOrNull("AF-CSR_GPU") == "TRUE" || options()->nwcsr()) {
     m_use_nodewise_csr = true;
     m_use_legacy = false;
-    info() << "NWCSR: The GPU-compatible Compressed Sparse Row data structure is used for sparse matrices with Node-Wise computation";
+    info() << "[ArcaneFem-Info] Matrix format AF_CSR_GPU activated via CLI";
   }
-  if (parameter_list.getParameterOrNull("BLCSR") == "TRUE" || options()->blcsr()) {
+  if (parameter_list.getParameterOrNull("BL-CSR_GPU") == "TRUE" || options()->blcsr()) {
     m_use_buildless_csr = true;
     m_use_legacy = false;
-    info() << "BLCSR: The GPU-compatible Compressed Sparse Row (CSR) data structure is used for sparse matrices with Node-Wise computation in a Build Less manner";
+    info() << "[ArcaneFem-Info] Matrix format BL_CSR_GPU activated via CLI";
   }
-  if (parameter_list.getParameterOrNull("BSR") == "TRUE" || options()->bsr) {
+  if (parameter_list.getParameterOrNull("BSR_GPU") == "TRUE" || options()->bsr) {
     m_use_bsr = true;
     m_use_legacy = false;
-    info() << "BSR: The GPU-compatible Block Compressed Sparse Row (BSR) data structure is used for sparse matrices";
+    info() << "[ArcaneFem-Info] Matrix format BSR_GPU activated via CLI";
   }
-  if (parameter_list.getParameterOrNull("BSR_ATOMIC_FREE") == "TRUE" || options()->bsrAtomicFree()) {
+  if (parameter_list.getParameterOrNull("AF-BSR_GPU") == "TRUE" || options()->bsrAtomicFree()) {
     m_use_bsr_atomic_free = true;
     m_use_legacy = false;
-    info() << "BSR: The GPU-compatible Block Compressed Sparse Row (BSR) data structure is used for sparse matrices with Atomic-Free assembly";
+    info() << "[ArcaneFem-Info] Matrix format atomic free BSR_GPU activated via CLI";
   }
-  if (parameter_list.getParameterOrNull("LEGACY") == "TRUE" || m_use_legacy || options()->legacy()) {
+  if (parameter_list.getParameterOrNull("DOK") == "TRUE" || m_use_legacy || options()->legacy()) {
     m_use_legacy = true;
-    info() << "DOK: The Dictionary Of Key ata structure is used for sparse matrices";
+    info() << "[ArcaneFem-Info] Matrix format DOK LEGACYactivated via CLI";
   }
-  else if (parameter_list.getParameterOrNull("LEGACY") == "FALSE" || options()->legacy()) {
+  else if (parameter_list.getParameterOrNull("DOK") == "FALSE" || options()->legacy()) {
     m_use_legacy = false;
+    info() << "[ArcaneFem-Info] Matrix format DOK disabled via CLI";
   }
   if (parameter_list.getParameterOrNull("AcceleratorRuntime") == "cuda") {
     m_running_on_gpu = true;
-    info() << "CUDA: The methods able to use GPU will use it";
+    info() << "[ArcaneFem-Info] CUDA Accelerator Runtime for GPU";
   }
   if (parameter_list.getParameterOrNull("AcceleratorRuntime") == "hip") {
     m_running_on_gpu = true;
-    info() << "HIP: The methods able to use GPU will use it";
+    info() << "[ArcaneFem-Info] HIP Accelerator Runtime for GPU";
   }
   if (parameter_list.getParameterOrNull("solve_linear_system") == "FALSE") {
     m_solve_linear_system = false;
-    info() << "Linear system assembled but not solved (solve_linear_system = FALSE)";
+    info() << "[ArcaneFem-Info] Linear system assembled not solved (solve_linear_system = FALSE)";
   }
   if (parameter_list.getParameterOrNull("cross_validation") == "FALSE") {
     m_cross_validation = false;
-    info() << "Cross validation disabled (cross_validation = FALSE)";
+    info() << "[ArcaneFem-Info] Cross validation disabled (cross_validation = FALSE)";
   }
   m_petsc_flags = parameter_list.getParameterOrNull("petsc_flags");
   if (m_petsc_flags != NULL) {
     info() << "[ArcaneFem-Info] PETSc flags the user provided will be used (petsc_flags != NULL)";
   }
-  info() << "-----------------------------------------------------------------------------------------";
 }
 
 /*---------------------------------------------------------------------------*/
