@@ -561,7 +561,8 @@ _applyDirichletBoundaryConditionsGpu()
   for (const auto& bs : options()->dirichletBoundaryCondition()) {
     FaceGroup group = bs->surface();
     Real value = bs->value();
-    info() << "Apply Dirichlet boundary condition surface=" << group.name() << " v=" << value;
+    info() << "Apply Dirichlet boundary condition surface=" << group.name() << " v=" << value
+           << " via " << options()->enforceDirichletMethod() << " method ";
 
     RunQueue* queue = acceleratorMng()->defaultQueue();
     auto command = makeCommand(queue);
@@ -592,7 +593,8 @@ _applyDirichletBoundaryConditionsGpu()
 
     NodeGroup group = bs->node();
     Real value = bs->value();
-    info() << "Apply Dirichlet point condition node=" << group.name() << " v=" << value;
+    info() << "Apply Dirichlet point condition node=" << group.name() << " v=" << value
+           << " via " << options()->enforceDirichletMethod() << " method ";
     command << RUNCOMMAND_ENUMERATE(Node, inode, group)
     {
       out_u[inode] = value;
@@ -612,7 +614,8 @@ _applyDirichletBoundaryConditions()
   for (const auto& bs : options()->dirichletBoundaryCondition()) {
     FaceGroup group = bs->surface();
     Real value = bs->value();
-    info() << "Apply Dirichlet boundary condition surface=" << group.name() << " v=" << value;
+    info() << "Apply Dirichlet boundary condition surface=" << group.name() << " v=" << value
+           << " via " << options()->enforceDirichletMethod() << " method ";
     ENUMERATE_ (Face, iface, group) {
       for (Node node : iface->nodes()) {
         //Original Code
@@ -625,7 +628,8 @@ _applyDirichletBoundaryConditions()
   for (const auto& bs : options()->dirichletPointCondition()) {
     NodeGroup group = bs->node();
     Real value = bs->value();
-    info() << "Apply Dirichlet point condition node=" << group.name() << " v=" << value;
+    info() << "Apply Dirichlet point condition node=" << group.name() << " v=" << value
+           << " via " << options()->enforceDirichletMethod() << " method ";
     ENUMERATE_ (Node, inode, group) {
       Node node = *inode;
       m_u[node] = value;
@@ -700,9 +704,6 @@ _assembleLinearOperator(BSRMatrix<1>* bsr_matrix)
     //           b_{i} = b_{i} * P
     //----------------------------------------------
 
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
     Real Penalty = options()->penalty(); // 1.0e30 is the default
 
     ENUMERATE_ (Node, inode, ownNodes()) {
@@ -736,9 +737,6 @@ _assembleLinearOperator(BSRMatrix<1>* bsr_matrix)
     //           b_{i} = b_{i} * P
     //----------------------------------------------
 
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
     Real Penalty = options()->penalty(); // 1.0e30 is the default
 
     // The same as before
@@ -764,9 +762,7 @@ _assembleLinearOperator(BSRMatrix<1>* bsr_matrix)
     //           a_{i,j} = 0.  : i!=j
     //           a_{i,j} = 1.  : i==j
     //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
+    ARCANE_FATAL("RowElimination Not Implemented for CSR GPU.");
     // The same as before
     // TODO
   }
@@ -784,10 +780,7 @@ _assembleLinearOperator(BSRMatrix<1>* bsr_matrix)
     //    also the column terms corresponding to the Dirichlet DOF
     //           a_{i,j} = 0.  : i!=j  for all i
     //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
+    ARCANE_FATAL("RowColumnElimination Not Implemented for CSR GPU.");
     // The same as before
     // TODO
   }
@@ -950,9 +943,6 @@ _assembleCsrLinearOperator()
     //           b_{i} = b_{i} * P
     //----------------------------------------------
 
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
     Real Penalty = options()->penalty(); // 1.0e30 is the default
 
     ENUMERATE_ (Node, inode, ownNodes()) {
@@ -981,9 +971,6 @@ _assembleCsrLinearOperator()
     //           b_{i} = b_{i} * P
     //----------------------------------------------
 
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
     Real Penalty = options()->penalty(); // 1.0e30 is the default
 
     // The same as before
@@ -1009,9 +996,7 @@ _assembleCsrLinearOperator()
     //           a_{i,j} = 0.  : i!=j
     //           a_{i,j} = 1.  : i==j
     //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
+    ARCANE_FATAL("RowElimination Not Implemented for CSR GPU.");
     // The same as before
     // TODO
   }
@@ -1029,10 +1014,7 @@ _assembleCsrLinearOperator()
     //    also the column terms corresponding to the Dirichlet DOF
     //           a_{i,j} = 0.  : i!=j  for all i
     //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
+    ARCANE_FATAL("RowColumnElimination Not Implemented for CSR GPU.");
     // The same as before
     // TODO
   }
@@ -1195,9 +1177,6 @@ _assembleCsrGpuLinearOperator()
     //           b_{i} = b_{i} * P
     //----------------------------------------------
 
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
     Real Penalty = options()->penalty(); // 1.0e30 is the default
 
     RunQueue* queue = acceleratorMng()->defaultQueue();
@@ -1253,9 +1232,6 @@ _assembleCsrGpuLinearOperator()
     //           b_{i} = b_{i} * P
     //----------------------------------------------
 
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
     Real Penalty = options()->penalty(); // 1.0e30 is the default
 
     RunQueue* queue = acceleratorMng()->defaultQueue();
@@ -1309,9 +1285,7 @@ _assembleCsrGpuLinearOperator()
     //           a_{i,j} = 0.  : i!=j
     //           a_{i,j} = 1.  : i==j
     //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
+    ARCANE_FATAL("RowElimination Not Implemented for CSR GPU.");
     // TODO
   }
   else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
@@ -1328,11 +1302,7 @@ _assembleCsrGpuLinearOperator()
     //    also the column terms corresponding to the Dirichlet DOF
     //           a_{i,j} = 0.  : i!=j  for all i
     //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    // TODO
+    ARCANE_FATAL("RowColumnElimination Not Implemented for CSR GPU.");
   }
   else {
 
@@ -1340,9 +1310,7 @@ _assembleCsrGpuLinearOperator()
            << options()->enforceDirichletMethod() << " is not supported \n"
            << "enforce-Dirichlet-method only supports:\n"
            << "  - Penalty\n"
-           << "  - WeakPenalty\n"
-           << "  - RowElimination\n"
-           << "  - RowColumnElimination\n";
+           << "  - WeakPenalty\n";
   }
 
   if (options()->meshType == "TRIA3") {
@@ -1944,13 +1912,18 @@ _build()
 void FemModule::
 _checkResultFile()
 {
+  info() << "[ArcaneFem-Info] Started module _checkResultFile()";
+  Real elapsedTime = platform::getRealTime();
+
   String filename = options()->resultFile();
-  info() << "CheckResultFile filename=" << filename;
   if (filename.empty())
     return;
   const double epsilon = 1.0e-4;
   const double skipValuesMinLim = 1.0e-16;
   checkNodeResultFile(traceMng(), filename, m_u, epsilon, skipValuesMinLim);
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] cross-validation", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
