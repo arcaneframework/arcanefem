@@ -139,7 +139,6 @@ startInit()
     if (options()->bsr || options()->bsrAtomicFree()) {
       bool use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
       m_bsr_format.initialize(mesh, use_csr_in_linear_system, options()->bsrAtomicFree);
-      m_bsr_format.computeSparsity();
     }
   }
 
@@ -321,6 +320,7 @@ _doStationarySolve()
     auto in_node_coord = ax::viewIn(command, m_node_coord);
     assemblyTimeStart = platform::getRealTime();
 
+    m_bsr_format.computeSparsity();
     if (dim == 2)
       m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
     else
@@ -329,6 +329,8 @@ _doStationarySolve()
 
     for (auto i = 1; i < m_cache_warming; ++i) {
       assemblyTimeStart = platform::getRealTime();
+      m_bsr_format.resetMatrixValues();
+      m_bsr_format.computeSparsity();
       if (dim == 2)
         m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
       else
@@ -344,6 +346,7 @@ _doStationarySolve()
     auto in_node_coord = ax::viewIn(command, m_node_coord);
     assemblyTimeStart = platform::getRealTime();
 
+    m_bsr_format.computeSparsity();
     if (dim == 2)
       m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
     else
@@ -352,6 +355,8 @@ _doStationarySolve()
 
     for (auto i = 1; i < m_cache_warming; ++i) {
       assemblyTimeStart = platform::getRealTime();
+      m_bsr_format.resetMatrixValues();
+      m_bsr_format.computeSparsity();
       if (dim == 2)
         m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
       else
