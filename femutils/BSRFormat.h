@@ -194,7 +194,6 @@ class BSRMatrix : public TraceAccessor
   void toCsr(CsrFormat* csr_matrix)
   {
     info() << "BSRMatrix(toCsr): Convert matrix to CSR";
-
     auto startTime = platform::getRealTime();
 
     auto nb_block_rows = m_row_index.extent0();
@@ -252,7 +251,7 @@ class BSRMatrix : public TraceAccessor
 
     // NOTE: If we don't want to keep bsr matrix coefficients we could move the data instead of copying it.
     csr_matrix->m_matrix_value = m_values;
-    info() << std::left << std::setw(40) << "[ArcaneFem-Timer] convert-bsr-to-csr" << " = " << (platform::getRealTime() - startTime);
+    info() << std::left << std::setw(40) << "[BsrMatrix-Timer] convert-bsr-to-csr" << " = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
@@ -406,7 +405,7 @@ class BSRFormat : public TraceAccessor
     m_bsr_matrix.initialize(nb_non_zero_value, nb_col, nb_node, order_values_per_block);
     m_use_atomic_free = use_atomic_free;
 
-    info() << std::left << std::setw(40) << "[ArcaneFem-Timer] initialize-bsr-matrix" << " = " << (platform::getRealTime() - startTime);
+    info() << std::left << std::setw(40) << "[BsrMatrix-Timer] initialize-bsr-matrix" << " = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
@@ -428,7 +427,7 @@ class BSRFormat : public TraceAccessor
     else
       m_bsr_matrix.toLinearSystem(linear_system);
 
-    info() << std::left << std::setw(40) << "[ArcaneFem-Timer] setup-linear-systm" << " = " << (platform::getRealTime() - startTime);
+    info() << std::left << std::setw(40) << "[BsrMatrix-Timer] setup-linear-systm" << " = " << (platform::getRealTime() - startTime);
   };
 
   /*---------------------------------------------------------------------------*/
@@ -437,8 +436,8 @@ class BSRFormat : public TraceAccessor
   void computeNzPerRowArray()
   {
     info() << "BSRFormat(computeNzPerRowArray): Compute nb_nz_per_row BSR matrix array";
-
     auto startTime = platform::getRealTime();
+
     auto command = makeCommand(m_queue);
     NumArray<Int32, MDDim1>& nb_nz_per_row = m_bsr_matrix.nbNzPerRow();
     auto inout_nb_nz_per_row = viewInOut(command, nb_nz_per_row);
@@ -472,7 +471,7 @@ class BSRFormat : public TraceAccessor
     }
     m_queue.barrier();
 
-    info() << std::left << std::setw(40) << "[ArcaneFem-Timer] compute-nnz-bsr" << " = " << (platform::getRealTime() - startTime);
+    info() << std::left << std::setw(40) << "[BsrMatrix-Timer] compute-nnz-bsr" << " = " << (platform::getRealTime() - startTime);
   }
 
   /*---------------------------------------------------------------------------*/
@@ -573,7 +572,7 @@ class BSRFormat : public TraceAccessor
     computeRowIndexAtomicFree();
     computeColumnsAtomicFree();
 
-    info() << std::left << std::setw(40) << "[ArcaneFem-Timer] build-sparsity-af_bsr" << " = " << (platform::getRealTime() - startTime);
+    info() << std::left << std::setw(40) << "[BsrMatrix-Timer] build-sparsity-af_bsr" << " = " << (platform::getRealTime() - startTime);
 
     if (m_use_csr_in_linear_system)
       computeNzPerRowArray();
@@ -765,7 +764,7 @@ class BSRFormat : public TraceAccessor
     computeRowIndex(edges_per_element, nb_edge_total, sorted_edges_ss);
     computeColumns(edges_per_element, nb_edge_total, sorted_edges_ss);
 
-    info() << std::left << std::setw(40) << "[ArcaneFem-Timer] build-sparsity-bsr" << " = " << (platform::getRealTime() - startTime);
+    info() << std::left << std::setw(40) << "[BsrMatrix-Timer] build-sparsity-bsr" << " = " << (platform::getRealTime() - startTime);
 
     if (m_use_csr_in_linear_system)
       computeNzPerRowArray();
@@ -923,7 +922,6 @@ class BSRFormat : public TraceAccessor
   template <class Function> void assembleBilinearAtomic(Function compute_element_matrix)
   {
     info() << "BSRFormat(assembleBilinearAtomic): Integrating over elements...";
-    auto startTime = platform::getRealTime();
 
     if (m_bsr_matrix.orderValuePerBlock())
       assembleBilinearOrderedPerBlock(compute_element_matrix);
@@ -1089,7 +1087,6 @@ class BSRFormat : public TraceAccessor
   template <class Function> void assembleBilinearAtomicFree(Function compute_element_matrix)
   {
     info() << "BSRFormat(assembleBilinearAtomicFree): Integrating over nodes...";
-    auto startTime = platform::getRealTime();
 
     if (m_bsr_matrix.orderValuePerBlock())
       assembleBilinearOrderedPerBlockAtomicFree(compute_element_matrix);
