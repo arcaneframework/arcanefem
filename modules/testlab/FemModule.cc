@@ -322,9 +322,9 @@ _doStationarySolve()
 
     m_bsr_format.computeSparsityAtomic();
     if (dim == 2)
-      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
+      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
     else
-      m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
+      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
     _printArcaneFemTime("[ArcaneFem-Timer] assemble-BSR_GPU-mat", (platform::getRealTime() - assemblyTimeStart));
 
     for (auto i = 1; i < m_cache_warming; ++i) {
@@ -358,9 +358,9 @@ _doStationarySolve()
       m_bsr_format.resetMatrixValues();
       m_bsr_format.computeSparsityAtomicFree();
       if (dim == 2)
-        m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
       else
-        m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4(cell_lid, cn_cv, in_node_coord); });
       _printArcaneFemTime("[ArcaneFem-Timer] assemble-AF_BSR_GPU-mat", (platform::getRealTime() - assemblyTimeStart));
     }
   }
