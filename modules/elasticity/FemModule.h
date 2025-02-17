@@ -133,25 +133,21 @@ ARCCORE_HOST_DEVICE FixedMatrix<6, 6> computeElementMatrixTRIA3Base(Real3 m0, Re
   Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
   Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
 
-  FixedMatrix<1, 6> dxU1 = { dPhi0.x, 0., dPhi1.x, 0., dPhi2.x, 0. };
-  FixedMatrix<1, 6> dyU1 = { dPhi0.y, 0., dPhi1.y, 0., dPhi2.y, 0. };
-  FixedMatrix<6, 1> dxV1 = matrixTranspose(dxU1);
-  FixedMatrix<6, 1> dyV1 = matrixTranspose(dyU1);
-  FixedMatrix<1, 6> dxU2 = { 0., dPhi0.x, 0., dPhi1.x, 0., dPhi2.x };
-  FixedMatrix<1, 6> dyU2 = { 0., dPhi0.y, 0., dPhi1.y, 0., dPhi2.y };
-  FixedMatrix<6, 1> dxV2 = matrixTranspose(dxU2);
-  FixedMatrix<6, 1> dyV2 = matrixTranspose(dyU2);
+  Real6 dxU1 = { dPhi0.x, 0., dPhi1.x, 0., dPhi2.x, 0. };
+  Real6 dyU1 = { dPhi0.y, 0., dPhi1.y, 0., dPhi2.y, 0. };
+  Real6 dxU2 = { 0., dPhi0.x, 0., dPhi1.x, 0., dPhi2.x };
+  Real6 dyU2 = { 0., dPhi0.y, 0., dPhi1.y, 0., dPhi2.y };
 
   // -----------------------------------------------------------------------------
   //  step1 = (dx(u1)dx(v1) + dy(u2)dx(v1) + dx(u1)dy(v2) + dy(u2)dy(v2)) * lambda
   //------------------------------------------------------------------------------
-  FixedMatrix<6, 6> step1_res = (((dxV1 ^ dxU1) + (dxV1 ^ dyU2) + (dyV2 ^ dxU1) + (dyV2 ^ dyU2)) * lambda) / (4 * area);
+  FixedMatrix<6, 6> step1_res = (((dxU1 ^ dxU1) + (dxU1 ^ dyU2) + (dyU2 ^ dxU1) + (dyU2 ^ dyU2)) * lambda) / (4 * area);
 
   // -----------------------------------------------------------------------------
   //  step2 = 2*mu * (dx(u1)dx(v1) + dy(u2)dy(v2) + 0.5 *
   //                  (dy(u1)dy(v1) + dx(u2)dy(v1) + dy(u1)dx(v2) + dx(u2)dx(v2)))
   //------------------------------------------------------------------------------
-  FixedMatrix<6, 6> step2_res = ((((dxV1 ^ dxU1) + (dyV2 ^ dyU2)) + ((dyV1 ^ dyU1) + (dyV1 ^ dxU2) + (dxV2 ^ dyU1) + (dxV2 ^ dxU2)) * 0.5) * mu2) / (4 * area);
+  FixedMatrix<6, 6> step2_res = ((((dxU1 ^ dxU1) + (dyU2 ^ dyU2)) + ((dyU1 ^ dyU1) + (dyU1 ^ dxU2) + (dxU2 ^ dyU1) + (dxU2 ^ dxU2)) * 0.5) * mu2) / (4 * area);
 
   return (step1_res + step2_res);
 }

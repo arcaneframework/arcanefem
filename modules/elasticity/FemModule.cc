@@ -69,6 +69,20 @@ compute()
   if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
     _initBsr();
 
+  Int64 nb_node = mesh()->ownNodes().size();
+  Int64 total_nb_node = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_node);
+
+  Int64 nb_face = mesh()->outerFaces().size();
+  Int64 total_nb_boundary_elt = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_face);
+
+  Int64 nb_cell = mesh()->ownCells().size();
+  Int64 total_nb_elt = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_cell);
+
+  info() << "[ArcaneFem-Info] mesh dimension " << defaultMesh()->dimension();
+  info() << "[ArcaneFem-Info] mesh boundary elements " << total_nb_boundary_elt;
+  info() << "[ArcaneFem-Info] mesh cells " << total_nb_elt;
+  info() << "[ArcaneFem-Info] mesh nodes " << total_nb_node;
+
   _doStationarySolve();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -92,8 +106,6 @@ void FemModule::_initBsr()
     m_bsr_format.initialize(defaultMesh(), use_csr_in_linearsystem, 0);
   else
     m_bsr_format.initialize(defaultMesh(), use_csr_in_linearsystem, 1);
-
-  m_bsr_format.computeSparsity();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] initialize-bsr-matrix", elapsedTime);
@@ -427,8 +439,8 @@ _assembleBilinearOperator()
     auto lambda_copy = lambda;
     auto mu2_copy = mu2;
 
+    m_bsr_format.computeSparsity();
     m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
-
     m_bsr_format.toLinearSystem(m_linear_system);
   }
   else {
