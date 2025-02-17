@@ -965,7 +965,7 @@ class BSRFormat : public TraceAccessor
           cur_row_node_idx = 0;
         }
 
-        auto element_matrix = compute_element_matrix(cell);
+        auto element_vector = compute_element_matrix(cell, cur_row_node_idx);
 
         auto cur_col_node_idx = 0;
         for (NodeLocalId col_node_lid : cell_node_cv.nodes(cell)) {
@@ -980,7 +980,7 @@ class BSRFormat : public TraceAccessor
 
                 for (auto i = 0; i < NB_DOF; ++i) {
                   for (auto j = 0; j < NB_DOF; ++j) {
-                    double value = element_matrix(NB_DOF * cur_row_node_idx + i, NB_DOF * cur_col_node_idx + j);
+                    double value = element_vector(i, NB_DOF * cur_col_node_idx + j);
                     inout_values[block_start + (i * NB_DOF + j)] += value;
                   }
                 }
@@ -1020,7 +1020,7 @@ class BSRFormat : public TraceAccessor
 
     command << RUNCOMMAND_ENUMERATE(Node, row_node, m_mesh->allNodes())
     {
-      auto cur_row_node_idx = 0;
+      Int32 cur_row_node_idx = 0;
       for (auto cell : node_cell_cv.cells(row_node)) {
 
         // Find the index of the node in the current cell
@@ -1032,7 +1032,7 @@ class BSRFormat : public TraceAccessor
           cur_row_node_idx = 0;
         }
 
-        auto element_matrix = compute_element_matrix(cell);
+        auto element_vector = compute_element_matrix(cell, cur_row_node_idx);
 
         auto cur_col_node_idx = 0;
         for (NodeLocalId col_node_lid : cell_node_cv.nodes(cell)) {
@@ -1047,7 +1047,7 @@ class BSRFormat : public TraceAccessor
               if (in_columns[begin] == col_node_lid) {
                 for (auto i = 0; i < NB_DOF; ++i) {
                   for (auto j = 0; j < NB_DOF; ++j) {
-                    double value = element_matrix(NB_DOF * cur_row_node_idx + i, NB_DOF * cur_col_node_idx + j);
+                    double value = element_vector(i, NB_DOF * cur_col_node_idx + j);
                     auto l_block_start = g_block_start + (NB_DOF * x);
                     if (i != 0)
                       l_block_start += (NB_DOF * in_nz_per_row[row_node]);
