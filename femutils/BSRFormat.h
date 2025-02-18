@@ -933,7 +933,7 @@ class BSRFormat : public TraceAccessor
   /*---------------------------------------------------------------------------*/
 
   template <class Function>
-  void assembleBilinearOrderedPerBlockAtomicFree(Function compute_element_matrix)
+  void assembleBilinearOrderedPerBlockAtomicFree(Function compute_element_vectors)
   {
     UnstructuredMeshConnectivityView m_connectivity_view(m_mesh);
     auto cell_node_cv = m_connectivity_view.cellNode();
@@ -965,7 +965,7 @@ class BSRFormat : public TraceAccessor
           cur_row_node_idx = 0;
         }
 
-        auto element_vector = compute_element_matrix(cell, cur_row_node_idx);
+        auto element_vector = compute_element_vectors(cell, cur_row_node_idx);
 
         auto cur_col_node_idx = 0;
         for (NodeLocalId col_node_lid : cell_node_cv.nodes(cell)) {
@@ -999,7 +999,7 @@ class BSRFormat : public TraceAccessor
   /*---------------------------------------------------------------------------*/
 
   template <class Function>
-  void assembleBilinearOrderedPerRowAtomicFree(Function compute_element_matrix)
+  void assembleBilinearOrderedPerRowAtomicFree(Function compute_element_vectors)
   {
     UnstructuredMeshConnectivityView m_connectivity_view(m_mesh);
     auto cell_node_cv = m_connectivity_view.cellNode();
@@ -1032,7 +1032,7 @@ class BSRFormat : public TraceAccessor
           cur_row_node_idx = 0;
         }
 
-        auto element_vector = compute_element_matrix(cell, cur_row_node_idx);
+        auto element_vector = compute_element_vectors(cell, cur_row_node_idx);
 
         auto cur_col_node_idx = 0;
         for (NodeLocalId col_node_lid : cell_node_cv.nodes(cell)) {
@@ -1071,11 +1071,11 @@ class BSRFormat : public TraceAccessor
    *
    * This function constructs the Block Sparse Row (BSR) matrix by iterating over mesh nodes
    * and accumulating contributions from element-level matrices. It uses a user-defined
-   * callback to compute the local matrix for each cell and updates the global matrix.
+   * callback to compute the local vectors for each cell and updates the global matrix.
    *
    * ### Parameters:
-   * - `compute_element_matrix`: A callback function that computes the local matrix
-   *   for a given cell. It must return a matrix compatible with the expected block size.
+   * - `compute_element_vectors`: A callback function that computes the local vectors
+   *   for a given cell. It must return a vectors compatible with the expected block size.
    *
    * ### Key Details:
    * - Uses cell-to-node, node-to-cell connectivity from the mesh and DoF mappings for assembly.
@@ -1084,14 +1084,14 @@ class BSRFormat : public TraceAccessor
    */
   /*---------------------------------------------------------------------------*/
 
-  template <class Function> void assembleBilinearAtomicFree(Function compute_element_matrix)
+  template <class Function> void assembleBilinearAtomicFree(Function compute_element_vectors)
   {
     info() << "BSRFormat(assembleBilinearAtomicFree): Integrating over nodes...";
 
     if (m_bsr_matrix.orderValuePerBlock())
-      assembleBilinearOrderedPerBlockAtomicFree(compute_element_matrix);
+      assembleBilinearOrderedPerBlockAtomicFree(compute_element_vectors);
     else
-      assembleBilinearOrderedPerRowAtomicFree(compute_element_matrix);
+      assembleBilinearOrderedPerRowAtomicFree(compute_element_vectors);
   }
 
   /*---------------------------------------------------------------------------*/
