@@ -356,8 +356,8 @@ _doStationarySolve()
     _printArcaneFemTime("[ArcaneFem-Timer] assemble-BSR_GPU-mat", (platform::getRealTime() - assemblyTimeStart));
 
     for (auto i = 1; i < m_cache_warming; ++i) {
-      assemblyTimeStart = platform::getRealTime();
       m_bsr_format.resetMatrixValues();
+      assemblyTimeStart = platform::getRealTime();
       m_bsr_format.computeSparsityAtomic();
       if (dim == 2)
         m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
@@ -382,8 +382,8 @@ _doStationarySolve()
     _printArcaneFemTime("[ArcaneFem-Timer] assemble-AF_BSR_GPU-mat", (platform::getRealTime() - assemblyTimeStart));
 
     for (auto i = 1; i < m_cache_warming; ++i) {
-      assemblyTimeStart = platform::getRealTime();
       m_bsr_format.resetMatrixValues();
+      assemblyTimeStart = platform::getRealTime();
       m_bsr_format.computeSparsityAtomicFree();
       if (dim == 2)
         m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
