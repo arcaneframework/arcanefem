@@ -430,8 +430,7 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module  _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") {
-
+  if (m_matrix_format == "BSR") {
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();
     auto command = makeCommand(acceleratorMng()->defaultQueue());
@@ -440,11 +439,26 @@ _assembleBilinearOperator()
     auto mu2_copy = mu2;
 
     m_bsr_format.computeSparsity();
-    m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
+    m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
     m_bsr_format.toLinearSystem(m_linear_system);
   }
-  else {
+  else if (m_matrix_format == "AF-BSR") {
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cn_cv = m_connectivity_view.cellNode();
+    auto command = makeCommand(acceleratorMng()->defaultQueue());
+    auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
+    auto lambda_copy = lambda;
+    auto mu2_copy = mu2;
+
+    m_bsr_format.computeSparsity();
+    m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy, node_lid); });
+    m_bsr_format.toLinearSystem(m_linear_system);
+  }
+  else if (m_matrix_format == "DOK") {
     _assembleBilinearOperatorTRIA3();
+  }
+  else {
+    ARCANE_FATAL("Unsupported matrix type, only DOK| BSR|AF-BSR is supported.");
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;

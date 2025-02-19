@@ -140,15 +140,7 @@ FixedMatrix<3, 3> FemModule::_computeElementMatrixTria3(Cell cell)
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Computes the element matrix for a triangular element (P1 FE).
- *
- * This function calculates the integral of the expression:
- * integral2D (u.dx * v.dx + u.dy * v.dy)
- *
- * Steps involved:
- * 1. Calculate the area of the triangle.
- * 2. Compute the gradients of the shape functions.
- * 3. Return (u.dx * v.dx + u.dy * v.dy);
+ * @brief Computes the element matrix for a triangular element (P1 FE) on GPU.
  */
 /*---------------------------------------------------------------------------*/
 
@@ -160,6 +152,23 @@ ARCCORE_HOST_DEVICE FixedMatrix<3, 3> computeElementMatrixTria3Gpu(CellLocalId c
   Real3 dyU = FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
 
   return area * (dxU ^ dxU) + area * (dyU ^ dyU);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Computes the element vector for a triangular element (P1 FE) on GPU.
+ */
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE FixedMatrix<1, 3> computeElementVectorTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
+{
+  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+
+  Real3 dxU = FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dyU = FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
+
+  Real3 node_vector_integral = area * dxU[node_lid] * dxU + area * dyU[node_lid] * dyU;
+  return { node_vector_integral[0], node_vector_integral[1], node_vector_integral[2] };
 }
 
 /*---------------------------------------------------------------------------*/
@@ -187,5 +196,36 @@ _computeElementMatrixTetra4(Cell cell)
 
   return volume * (dxU ^ dxU) + volume * (dyU ^ dyU) + volume * (dzU ^ dzU);
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE FixedMatrix<4, 4> computeElementMatrixTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord)
+{
+  Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
+
+  FixedMatrix<1, 4> dxU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientXTetra4(cell_lid, cn_cv, in_node_coord);
+  FixedMatrix<1, 4> dyU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientYTetra4(cell_lid, cn_cv, in_node_coord);
+  FixedMatrix<1, 4> dzU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientZTetra4(cell_lid, cn_cv, in_node_coord);
+
+  return volume * (dxU ^ dxU) + volume * (dyU ^ dyU) + volume * (dzU ^ dzU);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE FixedMatrix<1, 4> computeElementVectorTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
+{
+  Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
+
+  FixedMatrix<1, 4> dxU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientXTetra4(cell_lid, cn_cv, in_node_coord);
+  FixedMatrix<1, 4> dyU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientYTetra4(cell_lid, cn_cv, in_node_coord);
+  FixedMatrix<1, 4> dzU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientZTetra4(cell_lid, cn_cv, in_node_coord);
+
+  return volume * dxU(0,node_lid) * dxU + volume * dyU(0,node_lid) * dyU + volume * dzU(0,node_lid) * dzU;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 #endif

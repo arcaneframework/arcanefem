@@ -162,6 +162,20 @@ ARCCORE_HOST_DEVICE FixedMatrix<3, 3> _computeElementMatrixTria3Gpu(CellLocalId 
 }
 
 /*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE FixedMatrix<1, 3> _computeElementVectorTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
+{
+  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+
+  Real3 dxU = FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dyU = FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
+
+  Real3 node_vector_integral = area * dxU[node_lid] * dxU + area * dyU[node_lid] * dyU;
+  return { node_vector_integral[0], node_vector_integral[1], node_vector_integral[2] };
+}
+
+/*---------------------------------------------------------------------------*/
 /**
  * @brief Computes the element matrix for a tetrahedral element (P1 FE).
  *
@@ -193,11 +207,25 @@ ARCCORE_HOST_DEVICE FixedMatrix<4, 4> _computeElementMatrixTetra4Gpu(CellLocalId
 {
   Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
 
-  Real4 dxU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientXTetra4(cell_lid, cn_cv, in_node_coord);
-  Real4 dyU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientYTetra4(cell_lid, cn_cv, in_node_coord);
-  Real4 dzU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientZTetra4(cell_lid, cn_cv, in_node_coord);
+  FixedMatrix<1, 4> dxU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientXTetra4(cell_lid, cn_cv, in_node_coord);
+  FixedMatrix<1, 4> dyU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientYTetra4(cell_lid, cn_cv, in_node_coord);
+  FixedMatrix<1, 4> dzU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientZTetra4(cell_lid, cn_cv, in_node_coord);
 
   return volume * (dxU ^ dxU) + volume * (dyU ^ dyU) + volume * (dzU ^ dzU);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE FixedMatrix<1, 4> _computeElementVectorTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
+{
+  Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
+
+  FixedMatrix<1, 4> dxU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientXTetra4(cell_lid, cn_cv, in_node_coord);
+  FixedMatrix<1, 4> dyU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientYTetra4(cell_lid, cn_cv, in_node_coord);
+  FixedMatrix<1, 4> dzU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientZTetra4(cell_lid, cn_cv, in_node_coord);
+
+  return volume * dxU(0,node_lid) * dxU + volume * dyU(0,node_lid) * dyU + volume * dzU(0,node_lid) * dzU;
 }
 
 /*---------------------------------------------------------------------------*/

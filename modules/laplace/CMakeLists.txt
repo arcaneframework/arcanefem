@@ -57,6 +57,11 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [laplace]2D_Dirichlet_petsc_monitor COMMAND Laplace -A,petsc_flags=-ksp_monitor inputs/ring.arc)
   add_test(NAME [laplace]2D_parse_and_exit COMMAND Laplace  -A,assemble_linear_system=FALSE -A,solve_linear_system=FALSE -A,cross_validation=FALSE  inputs/ring.arc)
 
+  arcanefem_add_gpu_test(NAME [laplace]2D_Dirichlet_bsr COMMAND ./Laplace ARGS -A,matrix_format=BSR inputs/ring.arc)
+  arcanefem_add_gpu_test(NAME [laplace]2D_Dirichlet_af-bsr COMMAND ./Laplace ARGS -A,matrix_format=AF-BSR inputs/ring.arc)
+  arcanefem_add_gpu_test(NAME [laplace]3D_Dirichlet_bsr COMMAND ./Laplace ARGS -A,matrix_format=BSR inputs/L-shape.3D.arc)
+  arcanefem_add_gpu_test(NAME [laplace]3D_Dirichlet_af-bsr COMMAND ./Laplace ARGS -A,matrix_format=AF-BSR inputs/L-shape.3D.arc)
+
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [laplace]2D_Dirichlet_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Laplace inputs/ring.arc)
     add_test(NAME [laplace]3D_Dirichlet_3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Laplace inputs/L-shape.3D.arc)
@@ -69,5 +74,5 @@ endif()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_bsr_hypreDirect COMMAND ./Laplace ARGS  -A,matrix_format=BSR inputs/PointDirichlet.hypreDirect.arc)
-  arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_bsr_atomicFree_hypreDirect COMMAND ./Laplace ARGS  -A,matrix_format=AF-BSR inputs/PointDirichlet.hypreDirect.arc)
+  arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_af-bsr_hypreDirect COMMAND ./Laplace ARGS  -A,matrix_format=AF-BSR inputs/PointDirichlet.hypreDirect.arc)
 endif()
