@@ -12,6 +12,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
+#include "ElementMatrix.h"
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -152,7 +153,7 @@ _getMaterialParameters()
   E = options()->E(); // Youngs modulus
   nu = options()->nu(); // Poission ratio
 
-  mu2 = (E / (2 * (1 + nu))) * 2; // lame parameter mu * 2
+  mu = (E / (2 * (1 + nu))); // lame parameter mu
   lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter lambda
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -436,10 +437,10 @@ _assembleBilinearOperator()
     auto command = makeCommand(acceleratorMng()->defaultQueue());
     auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
     auto lambda_copy = lambda;
-    auto mu2_copy = mu2;
+    auto mu_copy = mu;
 
     m_bsr_format.computeSparsity();
-    m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy); });
+    m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu_copy); });
     m_bsr_format.toLinearSystem(m_linear_system);
   }
   else if (m_matrix_format == "AF-BSR") {
@@ -448,10 +449,10 @@ _assembleBilinearOperator()
     auto command = makeCommand(acceleratorMng()->defaultQueue());
     auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
     auto lambda_copy = lambda;
-    auto mu2_copy = mu2;
+    auto mu_copy = mu;
 
     m_bsr_format.computeSparsity();
-    m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu2_copy, node_lid); });
+    m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu_copy, node_lid); });
     m_bsr_format.toLinearSystem(m_linear_system);
   }
   else if (m_matrix_format == "DOK") {
