@@ -108,6 +108,7 @@ class FemModule
 
   void _getMaterialParameters();
   void _assembleBilinearOperatorTRIA3();
+  void _assembleBilinearOperatorTetra4();
   void _solve();
   void _assembleLinearOperator();
   void _validateResults();
@@ -122,6 +123,7 @@ class FemModule
   Real _computeAreaTriangle3(Cell cell);
 
   FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
+  FixedMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
 };
 
 #endif
