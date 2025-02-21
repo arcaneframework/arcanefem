@@ -85,7 +85,7 @@ class FemModule
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;
-  BSRFormat<1> m_bsr_format;
+  BSRFormat m_bsr_format;
 
   String m_petsc_flags;
   String m_matrix_format = "DOK";

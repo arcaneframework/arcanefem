@@ -86,7 +86,7 @@ class FemModule
 
  private:
 
-  BSRFormat<1> m_bsr_format;
+  BSRFormat m_bsr_format;
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;

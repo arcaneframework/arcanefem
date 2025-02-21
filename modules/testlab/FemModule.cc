@@ -138,7 +138,7 @@ startInit()
 
     if (options()->bsr || options()->bsrAtomicFree()) {
       bool use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
-      m_bsr_format.initialize(mesh, use_csr_in_linear_system, options()->bsrAtomicFree);
+      m_bsr_format.initialize(mesh, 1, use_csr_in_linear_system, options()->bsrAtomicFree);
     }
   }
 
@@ -708,7 +708,7 @@ _checkCellType()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleLinearOperator(BSRMatrix<1>* bsr_matrix)
+_assembleLinearOperator(BSRMatrix* bsr_matrix)
 {
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
   Real elapsedTime = platform::getRealTime();

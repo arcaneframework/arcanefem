@@ -104,9 +104,9 @@ void FemModule::_initBsr()
   bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem";
 
   if (m_matrix_format == "BSR")
-    m_bsr_format.initialize(defaultMesh(), use_csr_in_linearsystem, 0);
+    m_bsr_format.initialize(defaultMesh(), defaultMesh()->dimension(), use_csr_in_linearsystem, 0);
   else
-    m_bsr_format.initialize(defaultMesh(), use_csr_in_linearsystem, 1);
+    m_bsr_format.initialize(defaultMesh(), defaultMesh()->dimension(), use_csr_in_linearsystem, 1);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] initialize-bsr-matrix", elapsedTime);

@@ -84,7 +84,7 @@ class FemModule
 
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
-  BSRFormat<2> m_bsr_format;
+  BSRFormat m_bsr_format;
 
   Real E;
   Real nu;
