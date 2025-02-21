@@ -28,9 +28,11 @@ startInit()
   info() << "[ArcaneFem-Info] Started module  startInit()";
   Real elapsedTime = platform::getRealTime();
 
-  m_dofs_on_nodes.initialize(defaultMesh(), 2);
-
+  m_dof_per_node = defaultMesh()->dimension();
   m_matrix_format = options()->matrixFormat();
+
+  m_dofs_on_nodes.initialize(defaultMesh(), m_dof_per_node);
+
   _handleCommandLineFlags();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -104,9 +106,9 @@ void FemModule::_initBsr()
   bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem";
 
   if (m_matrix_format == "BSR")
-    m_bsr_format.initialize(defaultMesh(), use_csr_in_linearsystem, 0);
+    m_bsr_format.initialize(defaultMesh(), m_dof_per_node, use_csr_in_linearsystem, 0);
   else
-    m_bsr_format.initialize(defaultMesh(), use_csr_in_linearsystem, 1);
+    m_bsr_format.initialize(defaultMesh(), m_dof_per_node, use_csr_in_linearsystem, 1);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] initialize-bsr-matrix", elapsedTime);
@@ -243,18 +245,31 @@ _assembleLinearOperator()
     }
   }
 
-  if (f_string[0] != "NULL" || f_string[1] != "NULL") {
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-      Real area =  ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
-      for (Node node : cell.nodes()) {
-        if (node.isOwn()) {
-          rhs_values[node_dof.dofId(node, 0)] += f[0] * area / 3;
-          rhs_values[node_dof.dofId(node, 1)] += f[1] * area / 3;
+  if (mesh()->dimension() == 2)
+    if (f_string[0] != "NULL" || f_string[1] != "NULL")
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
+        for (Node node : cell.nodes()) {
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += f[0] * area / 3;
+            rhs_values[node_dof.dofId(node, 1)] += f[1] * area / 3;
+          }
         }
       }
-    }
-  }
+  if (mesh()->dimension() == 3)
+    if (f_string[0] != "NULL" || f_string[1] != "NULL" || f_string[1] != "NULL")
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
+        for (Node node : cell.nodes()) {
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += f[0] * volume / 4;
+            rhs_values[node_dof.dofId(node, 1)] += f[1] * volume / 4;
+            rhs_values[node_dof.dofId(node, 2)] += f[2] * volume / 4;
+          }
+        }
+      }
 
   //----------------------------------------------
   // Traction term assembly  $int_{dOmega_N}((t.v)$
@@ -274,18 +289,32 @@ _assembleLinearOperator()
       }
     }
 
-    if (t_string[0] != "NULL" || t_string[1] != "NULL") {
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real length =  ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-        for (Node node : iface->nodes()) {
-          if (node.isOwn()) {
-            rhs_values[node_dof.dofId(node, 0)] += t[0] * length / 2.;
-            rhs_values[node_dof.dofId(node, 1)] += t[1] * length / 2.;
+    if (mesh()->dimension() == 2)
+      if (t_string[0] != "NULL" || t_string[1] != "NULL")
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
+          for (Node node : iface->nodes()) {
+            if (node.isOwn()) {
+              rhs_values[node_dof.dofId(node, 0)] += t[0] * length / 2.;
+              rhs_values[node_dof.dofId(node, 1)] += t[1] * length / 2.;
+            }
           }
         }
-      }
-    }
+
+    if (mesh()->dimension() == 3)
+      if (t_string[0] != "NULL" || t_string[1] != "NULL" || t_string[2] != "NULL")
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
+          for (Node node : iface->nodes()) {
+            if (node.isOwn()) {
+              rhs_values[node_dof.dofId(node, 0)] += t[0] * area / 3.;
+              rhs_values[node_dof.dofId(node, 1)] += t[1] * area / 3.;
+              rhs_values[node_dof.dofId(node, 2)] += t[2] * area / 3.;
+            }
+          }
+        }
   }
 
   auto use_hypre = options()->linearSystem.serviceName() == "HypreLinearSystem";
@@ -440,7 +469,10 @@ _assembleBilinearOperator()
     auto mu_copy = mu;
 
     m_bsr_format.computeSparsity();
-    m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu_copy); });
+    if (mesh()->dimension() == 2)
+      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu_copy); });
+    if (mesh()->dimension() == 3)
+      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu_copy); });
     m_bsr_format.toLinearSystem(m_linear_system);
   }
   else if (m_matrix_format == "AF-BSR") {
@@ -452,11 +484,17 @@ _assembleBilinearOperator()
     auto mu_copy = mu;
 
     m_bsr_format.computeSparsity();
-    m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu_copy, node_lid); });
+    if (mesh()->dimension() == 2)
+      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu_copy, node_lid); });
+    if (mesh()->dimension() == 3)
+      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu_copy, node_lid); });
     m_bsr_format.toLinearSystem(m_linear_system);
   }
   else if (m_matrix_format == "DOK") {
-    _assembleBilinearOperatorTRIA3();
+    if (mesh()->dimension() == 2)
+      _assembleBilinearOperatorTRIA3();
+    if (mesh()->dimension() == 3)
+    _assembleBilinearOperatorTetra4();
   }
   else {
     ARCANE_FATAL("Unsupported matrix type, only DOK| BSR|AF-BSR is supported.");
@@ -465,6 +503,61 @@ _assembleBilinearOperator()
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] lhs-matrix-assembly", elapsedTime);
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleBilinearOperatorTetra4()
+{
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+
+    auto K_e = _computeElementMatrixTetra4(cell);
+    Int32 n1_index = 0;
+    for (Node node1 : cell.nodes()) {
+      Int32 n2_index = 0;
+      for (Node node2 : cell.nodes()) {
+        Real v1 = K_e(3 * n1_index, 3 * n2_index);
+        Real v2 = K_e(3 * n1_index, 3 * n2_index + 1);
+        Real v3 = K_e(3 * n1_index, 3 * n2_index + 2);
+
+        Real v4 = K_e(3 * n1_index + 1, 3 * n2_index);
+        Real v5 = K_e(3 * n1_index + 1, 3 * n2_index + 1);
+        Real v6 = K_e(3 * n1_index + 1, 3 * n2_index + 2);
+
+        Real v7 = K_e(3 * n1_index + 2, 3 * n2_index);
+        Real v8 = K_e(3 * n1_index + 2, 3 * n2_index + 1);
+        Real v9 = K_e(3 * n1_index + 2, 3 * n2_index + 2);
+        if (node1.isOwn()) {
+          DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
+          DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
+          DoFLocalId node1_dof3 = node_dof.dofId(node1, 2);
+          DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
+          DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
+          DoFLocalId node2_dof3 = node_dof.dofId(node2, 2);
+
+          m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
+          m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
+          m_linear_system.matrixAddValue(node1_dof1, node2_dof3, v3);
+
+          m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v4);
+          m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v5);
+          m_linear_system.matrixAddValue(node1_dof2, node2_dof3, v6);
+
+          m_linear_system.matrixAddValue(node1_dof3, node2_dof1, v7);
+          m_linear_system.matrixAddValue(node1_dof3, node2_dof2, v8);
+          m_linear_system.matrixAddValue(node1_dof3, node2_dof3, v9);
+        }
+        ++n2_index;
+      }
+      ++n1_index;
+    }
+  }
+}
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -493,13 +586,13 @@ _assembleBilinearOperatorTRIA3()
         Real v2 = K_e(2 * n1_index, 2 * n2_index + 1);
         Real v3 = K_e(2 * n1_index + 1, 2 * n2_index);
         Real v4 = K_e(2 * n1_index + 1, 2 * n2_index + 1);
-        // m_k_matrix(node1.localId(), node2.localId()) += v;
+
         if (node1.isOwn()) {
           DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
           DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
           DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
           DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
-          //          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+
           m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
           m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
           m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v3);
@@ -584,12 +677,21 @@ _updateVariables()
   {
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      Node node = *inode;
-      Real u1_val = dof_u[node_dof.dofId(node, 0)];
-      Real u2_val = dof_u[node_dof.dofId(node, 1)];
-      m_U[node] = Real3(u1_val, u2_val, 0.0);
-    }
+    if (mesh()->dimension() == 3)
+      ENUMERATE_ (Node, inode, ownNodes()) {
+        Node node = *inode;
+        Real u1_val = dof_u[node_dof.dofId(node, 0)];
+        Real u2_val = dof_u[node_dof.dofId(node, 1)];
+        Real u3_val = dof_u[node_dof.dofId(node, 2)];
+        m_U[node] = Real3(u1_val, u2_val, u3_val);
+      }
+    else
+      ENUMERATE_ (Node, inode, ownNodes()) {
+        Node node = *inode;
+        Real u1_val = dof_u[node_dof.dofId(node, 0)];
+        Real u2_val = dof_u[node_dof.dofId(node, 1)];
+        m_U[node] = Real3(u1_val, u2_val, 0.);
+      }
   }
 
   m_U.synchronize();
