@@ -28,9 +28,11 @@ startInit()
   info() << "[ArcaneFem-Info] Started module  startInit()";
   Real elapsedTime = platform::getRealTime();
 
-  m_dofs_on_nodes.initialize(defaultMesh(), defaultMesh()->dimension());
-
+  m_dof_per_node = defaultMesh()->dimension();
   m_matrix_format = options()->matrixFormat();
+
+  m_dofs_on_nodes.initialize(defaultMesh(), m_dof_per_node);
+
   _handleCommandLineFlags();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -104,9 +106,9 @@ void FemModule::_initBsr()
   bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem";
 
   if (m_matrix_format == "BSR")
-    m_bsr_format.initialize(defaultMesh(), defaultMesh()->dimension(), use_csr_in_linearsystem, 0);
+    m_bsr_format.initialize(defaultMesh(), m_dof_per_node, use_csr_in_linearsystem, 0);
   else
-    m_bsr_format.initialize(defaultMesh(), defaultMesh()->dimension(), use_csr_in_linearsystem, 1);
+    m_bsr_format.initialize(defaultMesh(), m_dof_per_node, use_csr_in_linearsystem, 1);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] initialize-bsr-matrix", elapsedTime);
@@ -243,18 +245,31 @@ _assembleLinearOperator()
     }
   }
 
-  if (f_string[0] != "NULL" || f_string[1] != "NULL") {
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-      Real area =  ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
-      for (Node node : cell.nodes()) {
-        if (node.isOwn()) {
-          rhs_values[node_dof.dofId(node, 0)] += f[0] * area / 3;
-          rhs_values[node_dof.dofId(node, 1)] += f[1] * area / 3;
+  if (mesh()->dimension() == 2)
+    if (f_string[0] != "NULL" || f_string[1] != "NULL")
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
+        for (Node node : cell.nodes()) {
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += f[0] * area / 3;
+            rhs_values[node_dof.dofId(node, 1)] += f[1] * area / 3;
+          }
         }
       }
-    }
-  }
+  if (mesh()->dimension() == 3)
+    if (f_string[0] != "NULL" || f_string[1] != "NULL" || f_string[1] != "NULL")
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
+        for (Node node : cell.nodes()) {
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += f[0] * volume / 4;
+            rhs_values[node_dof.dofId(node, 1)] += f[1] * volume / 4;
+            rhs_values[node_dof.dofId(node, 2)] += f[2] * volume / 4;
+          }
+        }
+      }
 
   //----------------------------------------------
   // Traction term assembly  $int_{dOmega_N}((t.v)$
@@ -274,18 +289,32 @@ _assembleLinearOperator()
       }
     }
 
-    if (t_string[0] != "NULL" || t_string[1] != "NULL") {
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real length =  ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-        for (Node node : iface->nodes()) {
-          if (node.isOwn()) {
-            rhs_values[node_dof.dofId(node, 0)] += t[0] * length / 2.;
-            rhs_values[node_dof.dofId(node, 1)] += t[1] * length / 2.;
+    if (mesh()->dimension() == 2)
+      if (t_string[0] != "NULL" || t_string[1] != "NULL")
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
+          for (Node node : iface->nodes()) {
+            if (node.isOwn()) {
+              rhs_values[node_dof.dofId(node, 0)] += t[0] * length / 2.;
+              rhs_values[node_dof.dofId(node, 1)] += t[1] * length / 2.;
+            }
           }
         }
-      }
-    }
+
+    if (mesh()->dimension() == 3)
+      if (t_string[0] != "NULL" || t_string[1] != "NULL" || t_string[2] != "NULL")
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
+          for (Node node : iface->nodes()) {
+            if (node.isOwn()) {
+              rhs_values[node_dof.dofId(node, 0)] += t[0] * area / 3.;
+              rhs_values[node_dof.dofId(node, 1)] += t[1] * area / 3.;
+              rhs_values[node_dof.dofId(node, 2)] += t[2] * area / 3.;
+            }
+          }
+        }
   }
 
   auto use_hypre = options()->linearSystem.serviceName() == "HypreLinearSystem";

@@ -94,6 +94,8 @@ class FemModule
   Real3 f;
   Real3 t;
 
+  Int8 m_dof_per_node;
+
   String m_petsc_flags;
   String m_matrix_format = "DOK";
 
