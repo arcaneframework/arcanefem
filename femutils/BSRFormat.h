@@ -886,9 +886,7 @@ class BSRFormat : public TraceAccessor
                 for (auto i = 0; i < matrix_nb_block; ++i) {
                   for (auto j = 0; j < matrix_nb_block; ++j) {
                     double value = element_matrix(matrix_nb_block * cur_row_node_idx + i, matrix_nb_block * cur_col_node_idx + j);
-                    auto l_block_start = g_block_start + (matrix_nb_block * x);
-                    if (i != 0)
-                      l_block_start += (matrix_nb_block * in_nz_per_row[row_node_lid]);
+                    auto l_block_start = g_block_start + (matrix_nb_block * (x + i * in_nz_per_row[row_node_lid]));
                     Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_values[l_block_start + j], value);
                   }
                 }
@@ -1056,9 +1054,7 @@ class BSRFormat : public TraceAccessor
                 for (auto i = 0; i < matrix_nb_block; ++i) {
                   for (auto j = 0; j < matrix_nb_block; ++j) {
                     double value = element_vector(i, matrix_nb_block * cur_col_node_idx + j);
-                    auto l_block_start = g_block_start + (matrix_nb_block * x);
-                    if (i != 0)
-                      l_block_start += (matrix_nb_block * in_nz_per_row[row_node]);
+                    auto l_block_start = g_block_start + (matrix_nb_block * (x + i * in_nz_per_row[row_node]));
                     inout_values[l_block_start + j] += value;
                   }
                 }

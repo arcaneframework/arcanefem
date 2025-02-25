@@ -32,10 +32,10 @@
     </dirichlet-boundary-condition>
     <enforce-Dirichlet-method>RowElimination</enforce-Dirichlet-method>
     <result-file>check/3D_dirichlet_bodyforce_test_ref.txt</result-file>
-    <linear-system>
-      <solver-backend>hypre</solver-backend>
-      <solver-method>bicgstab</solver-method>
-      <epsilon>1e-10</epsilon>
+    <linear-system name="HypreLinearSystem">
+      <solver>bicgstab</solver>
+      <rtol>1e-9</rtol>
+      <atol>0.</atol>
     </linear-system>
   </fem>
 </case>

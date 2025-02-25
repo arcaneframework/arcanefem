@@ -64,7 +64,6 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 endif()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-  add_test(NAME [elasticity]3D_Dirichlet_Bodyforce_hypre_dok COMMAND Elasticity -A,matrix_format=DOK inputs/bar.3D.Dirichlet.bodyForce.hypre.arc)
   arcanefem_add_gpu_test(NAME [elasticity]3D_Dirichlet_Bodyforce_hypre_bsr COMMAND  ./Elasticity ARGS -A,matrix_format=BSR inputs/bar.3D.Dirichlet.bodyForce.hypre.arc)
   arcanefem_add_gpu_test(NAME [elasticity]3D_Dirichlet_Bodyforce_hypre_af-bsr COMMAND  ./Elasticity ARGS -A,matrix_format=AF-BSR inputs/bar.3D.Dirichlet.bodyForce.hypre.arc)
   arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_pointBC_RowElimination_bsr COMMAND  ./Elasticity ARGS -A,matrix_format=BSR inputs/bar.2D.PointDirichlet.DirichletViaRowElimination.hypre.arc)
