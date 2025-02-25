@@ -12,6 +12,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
+#include "ElementMatrix.h"
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -141,7 +142,7 @@ _getMaterialParameters()
 /**
  * @brief Assembles the FEM linear operator for the current simulation step.
  *
- * This method constructs the right-hand side (RHS) vector by calling theq
+ * This method constructs the right-hand side (RHS) vector by calling then
  * appropriate assembly function based on the execution context:
  *  - CPU-exclusive execution: Calls _assembleLinearOperatorCpu().
  *  - CPU or GPU execution: Calls _assembleLinearOperatorGpu().
