@@ -33,9 +33,5 @@
         <valueZ>3.75</valueZ>
       </neumann>
     </boundary-conditions>
-    <linear-system>
-      <solver-backend>petsc</solver-backend>
-      <epsilon>1e-15</epsilon>
-    </linear-system>
   </fem>
 </case>
