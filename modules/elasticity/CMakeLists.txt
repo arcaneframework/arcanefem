@@ -37,40 +37,134 @@ endforeach()
 enable_testing()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
-  add_test(NAME [elasticity]Dirichlet COMMAND Elasticity inputs/bar.2D.arc)
-  add_test(NAME [elasticity]Dirichlet_traction COMMAND Elasticity inputs/bar.2D.traction.arc)
-  add_test(NAME [elasticity]Dirichlet_pointBC COMMAND Elasticity inputs/bar.2D.PointDirichlet.arc)
-  add_test(NAME [elasticity]Dirichlet_pointBC_bsr COMMAND Elasticity -A,matrix_format=BSR inputs/bar.2D.PointDirichlet.arc)
-  add_test(NAME [elasticity]Dirichlet_pointBC_via_RowElimination COMMAND Elasticity inputs/bar.2D.PointDirichlet.DirichletViaRowElimination.arc)
-  add_test(NAME [elasticity]Dirichlet_pointBC_via_RowColElimination COMMAND Elasticity inputs/bar.2D.PointDirichlet.DirichletViaRowColumnElimination.arc)
-  add_test(NAME [elasticity]Dirichlet_via_RowElimination COMMAND Elasticity inputs/bar.2D.DirichletViaRowElimination.arc)
-  add_test(NAME [elasticity]Dirichlet_via_RowColElimination COMMAND Elasticity inputs/bar.2D.DirichletViaRowColumnElimination.arc)
-  add_test(NAME [elasticity]Dirichlet_traction_Bodyforce COMMAND Elasticity inputs/bar.2D.traction.bodyforce.arc)
-  add_test(NAME [elasticity]bar_parse_and_exit COMMAND Elasticity -A,assemble_linear_system=FALSE -A,solve_linear_system=FALSE -A,cross_validation=FALSE inputs/bar.2D.arc)
-  add_test(NAME [elasticity]bar_petsc_flags COMMAND Elasticity -A,petsc_flags=-ksp_monitor  -A,cross_validation=FALSE inputs/bar.2D.arc)
-  add_test(NAME [elasticity]3D_Dirichlet_Bodyforce_dok COMMAND Elasticity -A,matrix_format=DOK inputs/bar.3D.Dirichlet.bodyForce.arc)
+  set(SOLVER_PETSC_GMRES
+    -A,//fem/petsc-flags=-ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15)
 
-  arcanefem_add_gpu_test(NAME [elasticity]3D_Dirichlet_Bodyforce_bsr COMMAND  ./Elasticity ARGS -A,matrix_format=BSR inputs/bar.3D.Dirichlet.bodyForce.arc)
-  arcanefem_add_gpu_test(NAME [elasticity]3D_Dirichlet_Bodyforce_af-bsr COMMAND  ./Elasticity ARGS -A,matrix_format=AF-BSR inputs/bar.3D.Dirichlet.bodyForce.arc)
-  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_traction_bsr COMMAND  ./Elasticity ARGS -A,matrix_format=BSR inputs/bar.2D.traction.arc)
-  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_traction_Bodyforce_bsr COMMAND ./Elasticity ARGS -A,matrix_format=BSR inputs/bar.2D.traction.bodyforce.arc)
-  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_traction_Bodyforce_bsr_atomic_free COMMAND ./Elasticity ARGS -A,matrix_format=AF-BSR inputs/bar.2D.traction.bodyforce.arc)
+  add_test(NAME [elasticity]Dirichlet COMMAND Elasticity
+    inputs/bar.2D.arc)
+
+  add_test(NAME [elasticity]Dirichlet_traction COMMAND Elasticity
+    inputs/bar.2D.traction.arc)
+
+  add_test(NAME [elasticity]Dirichlet_pointBC COMMAND Elasticity
+    inputs/bar.2D.PointDirichlet.arc)
+
+  add_test(NAME [elasticity]Dirichlet_pointBC_via_RowElimination COMMAND Elasticity
+    -A,//fem/enforce-Dirichlet-method=RowElimination
+    ${SOLVER_PETSC_GMRES}
+    inputs/bar.2D.PointDirichlet.arc)
+
+  add_test(NAME [elasticity]Dirichlet_pointBC_via_RowColElimination COMMAND Elasticity
+    -A,//fem/enforce-Dirichlet-method=RowColumnElimination
+    inputs/bar.2D.PointDirichlet.arc)
+
+  add_test(NAME [elasticity]Dirichlet_via_RowElimination COMMAND Elasticity
+    -A,//fem/enforce-Dirichlet-method=RowElimination
+    ${SOLVER_PETSC_GMRES}
+    inputs/bar.2D.arc)
+
+  add_test(NAME [elasticity]Dirichlet_via_RowColElimination COMMAND Elasticity
+    -A,//fem/enforce-Dirichlet-method=RowColumnElimination
+    inputs/bar.2D.arc)
+
+  add_test(NAME [elasticity]Dirichlet_traction_bodyforce COMMAND Elasticity
+    inputs/bar.2D.traction.bodyforce.arc)
+
+  add_test(NAME [elasticity]bar_parse_and_exit COMMAND Elasticity
+    -A,//fem/assemble-linear-system=false
+    -A,//fem/solve-linear-system=false
+    -A,//fem/cross-validation=false
+    inputs/bar.2D.arc)
+
+  add_test(NAME [elasticity]3D_Dirichlet_bodyforce_dok COMMAND Elasticity
+    -A,//fem/matrix-format=DOK
+    inputs/bar.2D.PointDirichlet.arc)
+
+  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_pointBC_bsr COMMAND  ./Elasticity ARGS
+    -A,//fem/matrix-format=BSR
+    inputs/bar.3D.Dirichlet.bodyForce.arc)
+
+  arcanefem_add_gpu_test(NAME [elasticity]3D_Dirichlet_bodyforce_bsr COMMAND  ./Elasticity ARGS
+    -A,//fem/matrix-format=BSR
+    inputs/bar.3D.Dirichlet.bodyForce.arc)
+
+  arcanefem_add_gpu_test(NAME [elasticity]3D_Dirichlet_bodyforce_af-bsr COMMAND  ./Elasticity ARGS
+    -A,//fem/matrix-format=AF-BSR
+    inputs/bar.3D.Dirichlet.bodyForce.arc)
+
+  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_traction_bsr COMMAND  ./Elasticity ARGS
+    -A,//fem/matrix-format=BSR
+    inputs/bar.2D.traction.arc)
+
+  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_traction_bodyforce_bsr COMMAND ./Elasticity ARGS
+    -A,//fem/matrix-format=BSR
+    inputs/bar.2D.traction.bodyforce.arc)
+
+  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_traction_bodyforce_af-bsr COMMAND ./Elasticity ARGS
+    -A,//fem/matrix-format=AF-BSR
+    inputs/bar.2D.traction.bodyforce.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER)
-    add_test(NAME [elasticity]Dirichlet_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity inputs/bar.2D.arc)
-    add_test(NAME [elasticity]Dirichlet_via_RowElimination_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity inputs/bar.2D.DirichletViaRowElimination.arc)
-    add_test(NAME [elasticity]Dirichlet_via_RowColElimination_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity inputs/bar.2D.DirichletViaRowColumnElimination.arc)
+    add_test(NAME [elasticity]Dirichlet_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity
+      inputs/bar.2D.arc)
+    add_test(NAME [elasticity]Dirichlet_via_RowElimination_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity
+      -A,//fem/enforce-Dirichlet-method=RowElimination
+      ${SOLVER_PETSC_GMRES}
+      inputs/bar.2D.arc)
+    add_test(NAME [elasticity]Dirichlet_via_RowColElimination_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity
+      -A,//fem/enforce-Dirichlet-method=RowColumnElimination
+      inputs/bar.2D.arc)
   endif()
 endif()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-  arcanefem_add_gpu_test(NAME [elasticity]3D_Dirichlet_Bodyforce_traction_hypre_bsr COMMAND  ./Elasticity ARGS -A,matrix_format=BSR inputs/bar.3D.Dirichlet.traction.bodyForce.hypre.arc)
-  arcanefem_add_gpu_test(NAME [elasticity]3D_Dirichlet_Bodyforce_traction_hypre_af-bsr COMMAND  ./Elasticity ARGS -A,matrix_format=AF-BSR inputs/bar.3D.Dirichlet.traction.bodyForce.hypre.arc)
-  arcanefem_add_gpu_test(NAME [elasticity]3D_Dirichlet_Bodyforce_hypre_bsr COMMAND  ./Elasticity ARGS -A,matrix_format=BSR inputs/bar.3D.Dirichlet.bodyForce.hypre.arc)
-  arcanefem_add_gpu_test(NAME [elasticity]3D_Dirichlet_Bodyforce_hypre_af-bsr COMMAND  ./Elasticity ARGS -A,matrix_format=AF-BSR inputs/bar.3D.Dirichlet.bodyForce.hypre.arc)
-  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_pointBC_RowElimination_bsr COMMAND  ./Elasticity ARGS -A,matrix_format=BSR inputs/bar.2D.PointDirichlet.DirichletViaRowElimination.hypre.arc)
-  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_pointBC_RowElimination_af-bsr COMMAND  ./Elasticity ARGS -A,matrix_format=AF-BSR inputs/bar.2D.PointDirichlet.DirichletViaRowElimination.hypre.arc)
-  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_traction_bsr_hypre COMMAND ./Elasticity ARGS -A,matrix_format=BSR inputs/bar.2D.traction.hypre.arc)
-  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_traction_Bodyforce_bsr_atomic_free_hypre COMMAND ./Elasticity ARGS -A,matrix_format=AF-BSR inputs/bar.2D.traction.bodyforce.hypre.arc)
-  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_pointBC_bsr_hypre COMMAND Elasticity ARGS -A,matrix_format=BSR inputs/bar.2D.PointDirichlet.hypre.arc)
+  set(SOLVER_HYPRE_CG
+    -A,//fem/linear-system/@name=HypreLinearSystem
+    -A,//fem/linear-system/solver=cg
+    -A,//fem/linear-system/atol=1e-9
+    -A,//fem/linear-system/rtol=0)
+
+    set(SOLVER_HYPRE_BICGSTAB
+    -A,//fem/linear-system/@name=HypreLinearSystem
+    -A,//fem/linear-system/solver=bicgstab)
+
+  arcanefem_add_gpu_test(NAME [elasticity]3D_Dirichlet_bodyforce_traction_hypre_bsr COMMAND  ./Elasticity ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/bar.3D.Dirichlet.traction.bodyForce.arc)
+  arcanefem_add_gpu_test(NAME [elasticity]3D_Dirichlet_bodyforce_traction_hypre_af-bsr COMMAND  ./Elasticity ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/bar.3D.Dirichlet.traction.bodyForce.arc)
+  arcanefem_add_gpu_test(NAME [elasticity]3D_Dirichlet_bodyforce_hypre_bsr COMMAND  ./Elasticity ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/bar.3D.Dirichlet.bodyForce.arc)
+  arcanefem_add_gpu_test(NAME [elasticity]3D_Dirichlet_bodyforce_hypre_af-bsr COMMAND  ./Elasticity ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/bar.3D.Dirichlet.bodyForce.arc)
+  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_pointBC_RowElimination_bsr COMMAND  ./Elasticity ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_BICGSTAB}
+    -A,//fem/enforce-Dirichlet-method=RowElimination
+    inputs/bar.2D.PointDirichlet.arc)
+  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_pointBC_RowElimination_af-bsr COMMAND  ./Elasticity ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_BICGSTAB}
+    -A,//fem/enforce-Dirichlet-method=RowElimination
+    inputs/bar.2D.PointDirichlet.arc)
+  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_pointBC_hypre_bsr COMMAND  ./Elasticity ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    -A,//fem/enforce-Dirichlet-method=Penalty
+    inputs/bar.2D.PointDirichlet.arc)
+  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_traction_bsr_hypre COMMAND ./Elasticity ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/bar.2D.traction.arc)
+  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_traction_bodyforce_af-bsr_hypre COMMAND ./Elasticity ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/bar.2D.traction.bodyforce.arc)
 endif()

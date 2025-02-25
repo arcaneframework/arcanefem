@@ -30,10 +30,12 @@ startInit()
 
   m_dof_per_node = defaultMesh()->dimension();
   m_matrix_format = options()->matrixFormat();
+  m_assemble_linear_system = options()->assembleLinearSystem();
+  m_solve_linear_system = options()->solveLinearSystem();
+  m_cross_validation = options()->crossValidation();
+  m_petsc_flags = options()->petscFlags();
 
   m_dofs_on_nodes.initialize(defaultMesh(), m_dof_per_node);
-
-  _handleCommandLineFlags();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] initialize", elapsedTime);
@@ -133,11 +135,17 @@ void FemModule::
 _doStationarySolve()
 {
   _getMaterialParameters();
-  _assembleBilinearOperator();
-  _assembleLinearOperator();
-  _solve();
-  _updateVariables();
-  _validateResults();
+  if(m_assemble_linear_system){
+    _assembleBilinearOperator();
+    _assembleLinearOperator();
+  }
+  if(m_solve_linear_system){
+    _solve();
+    _updateVariables();
+  }
+  if(m_cross_validation){
+    _validateResults();
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -718,40 +726,6 @@ _setPetscFlagsFromCommandline()
   }
   CommandLineArguments args(string_list);
   m_linear_system.setSolverCommandLineArguments(args);
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Function to hande commandline flags
- */
-/*---------------------------------------------------------------------------*/
-void FemModule::
-_handleCommandLineFlags()
-{
-  info() << "[ArcaneFem-Module] _handleCommandLineFlags()";
-  ParameterList parameter_list = this->subDomain()->application()->applicationInfo().commandLineArguments().parameters();
-  if (parameter_list.getParameterOrNull("assemble_linear_system") == "FALSE") {
-    m_assemble_linear_system = false;
-    info() << "[ArcaneFem-Info] Linear system not assembled (assemble_linear_system = FALSE)";
-  }
-  if (parameter_list.getParameterOrNull("solve_linear_system") == "FALSE") {
-    m_solve_linear_system = false;
-    m_cross_validation = false;
-    info() << "[ArcaneFem-Info] Linear system assembled but not solved (solve_linear_system = FALSE)";
-  }
-  if (parameter_list.getParameterOrNull("cross_validation") == "FALSE") {
-    m_cross_validation = false;
-    info() << "[ArcaneFem-Info] Cross validation disabled (cross_validation = FALSE)";
-  }
-  m_petsc_flags = parameter_list.getParameterOrNull("petsc_flags");
-  if (m_petsc_flags != NULL) {
-    info() << "[ArcaneFem-Info] PETSc flags the user provided will be used (petsc_flags != NULL)";
-  }
-  String matrix_format_from_commandline = parameter_list.getParameterOrNull("matrix_format");
-  if (matrix_format_from_commandline != NULL){
-    m_matrix_format = matrix_format_from_commandline;
-    info() << "[ArcaneFem-Info] Using commandline format for matrix format (matrix_format != NULL)";
-  }
 }
 
 /*---------------------------------------------------------------------------*/
