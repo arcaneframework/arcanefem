@@ -49,30 +49,66 @@ endif()
 
 enable_testing()
 
-add_test(NAME [laplace]pointDirichlet COMMAND Laplace inputs/PointDirichlet.arc)
+add_test(NAME [laplace]pointDirichlet COMMAND Laplace
+  inputs/PointDirichlet.arc)
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
-  add_test(NAME [laplace]2D_Dirichlet COMMAND Laplace inputs/ring.arc)
-  add_test(NAME [laplace]3D_Dirichlet COMMAND Laplace inputs/L-shape.3D.arc)
-  add_test(NAME [laplace]2D_Dirichlet_petsc_monitor COMMAND Laplace -A,petsc_flags=-ksp_monitor inputs/ring.arc)
-  add_test(NAME [laplace]2D_parse_and_exit COMMAND Laplace  -A,assemble_linear_system=FALSE -A,solve_linear_system=FALSE -A,cross_validation=FALSE  inputs/ring.arc)
+  add_test(NAME [laplace]2D_Dirichlet COMMAND Laplace
+    inputs/ring.arc)
+  add_test(NAME [laplace]3D_Dirichlet COMMAND Laplace
+    inputs/L-shape.3D.arc)
+  add_test(NAME [laplace]2D_Dirichlet_petsc_monitor COMMAND Laplace
+    -A,//fem/petsc-flags=-ksp_monitor
+    inputs/ring.arc)
+  add_test(NAME [laplace]2D_parse_and_exit COMMAND Laplace
+    -A,//fem/assemble-linear-system=false
+    -A,//fem/solve-linear-system=false
+    -A,//fem/cross-validation=false
+    inputs/ring.arc)
 
-  arcanefem_add_gpu_test(NAME [laplace]2D_Dirichlet_bsr COMMAND ./Laplace ARGS -A,matrix_format=BSR inputs/ring.arc)
-  arcanefem_add_gpu_test(NAME [laplace]2D_Dirichlet_af-bsr COMMAND ./Laplace ARGS -A,matrix_format=AF-BSR inputs/ring.arc)
-  arcanefem_add_gpu_test(NAME [laplace]3D_Dirichlet_bsr COMMAND ./Laplace ARGS -A,matrix_format=BSR inputs/L-shape.3D.arc)
-  arcanefem_add_gpu_test(NAME [laplace]3D_Dirichlet_af-bsr COMMAND ./Laplace ARGS -A,matrix_format=AF-BSR inputs/L-shape.3D.arc)
+  arcanefem_add_gpu_test(NAME [laplace]2D_Dirichlet_bsr COMMAND ./Laplace ARGS
+    -A,//fem/matrix-format=BSR
+    inputs/ring.arc)
+  arcanefem_add_gpu_test(NAME [laplace]2D_Dirichlet_af-bsr COMMAND ./Laplace ARGS
+    -A,//fem/matrix-format=AF-BSR
+    inputs/ring.arc)
+  arcanefem_add_gpu_test(NAME [laplace]3D_Dirichlet_bsr COMMAND ./Laplace ARGS
+    -A,//fem/matrix-format=BSR
+    inputs/L-shape.3D.arc)
+  arcanefem_add_gpu_test(NAME [laplace]3D_Dirichlet_af-bsr COMMAND ./Laplace ARGS
+    -A,//fem/matrix_format=AF-BSR
+    inputs/L-shape.3D.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-    add_test(NAME [laplace]2D_Dirichlet_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Laplace inputs/ring.arc)
-    add_test(NAME [laplace]3D_Dirichlet_3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Laplace inputs/L-shape.3D.arc)
+    add_test(NAME [laplace]2D_Dirichlet_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Laplace
+      inputs/ring.arc)
+    add_test(NAME [laplace]3D_Dirichlet_3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Laplace
+      inputs/L-shape.3D.arc)
 
     if(FEMTEST_HAS_GMSH_TEST)
-      add_test(NAME [laplace]pointDirichlet_10k_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Laplace inputs/PointDirichlet-refined.arc)
+      add_test(NAME [laplace]pointDirichlet_10k_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Laplace
+        -A,//meshes/mesh/filename=meshes/plancher.10k.msh
+        -A,//fem/linear-system/@name=AlephLinearSystem
+        -A,//fem/linear-system/solver-backend=petsc
+        -A,//fem/petsc-flags=-ksp_monitor\ -ksp_rtol\ 10e-5
+        -A,//fem/cross-validation=false
+        inputs/PointDirichlet.arc)
     endif()
   endif()
 endif()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-  arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_bsr_hypreDirect COMMAND ./Laplace ARGS  -A,matrix_format=BSR inputs/PointDirichlet.hypreDirect.arc)
-  arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_af-bsr_hypreDirect COMMAND ./Laplace ARGS  -A,matrix_format=AF-BSR inputs/PointDirichlet.hypreDirect.arc)
+  set(SOLVER_HYPRE_CG
+    -A,//fem/linear-system/@name=HypreLinearSystem
+    -A,//fem/linear-system/solver=cg
+    -A,//fem/linear-system/atol=1e-9
+    -A,//fem/linear-system/rtol=0)
+  arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_bsr_hypreDirect COMMAND ./Laplace ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/PointDirichlet.arc)
+  arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_af-bsr_hypreDirect COMMAND ./Laplace ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/PointDirichlet.arc)
 endif()
