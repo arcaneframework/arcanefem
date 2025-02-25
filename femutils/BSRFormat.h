@@ -323,9 +323,9 @@ class BSRMatrix : public TraceAccessor
 
   bool m_order_values_per_block = true;
 
-  Int32 m_nb_non_zero_value = 1;
-  Int32 m_nb_col = 1;
-  Int32 m_nb_row = 1;
+  Int32 m_nb_non_zero_value = 0;
+  Int32 m_nb_col = 0;
+  Int32 m_nb_row = 0;
   Int8 m_nb_block = 1;
 
   NumArray<Real, MDDim1> m_values;
