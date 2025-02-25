@@ -37,6 +37,35 @@ struct Real4
 
   ARCCORE_HOST_DEVICE Arcane::Real& operator[](std::size_t i) { return data[i]; }
   ARCCORE_HOST_DEVICE const Arcane::Real& operator[](std::size_t i) const { return data[i]; }
+  // Vector addition: Real4 + Real4
+  ARCCORE_HOST_DEVICE Real4 operator+(const Real4& other) const
+  {
+    Real4 result;
+    for (std::size_t i = 0; i < 4; ++i)
+      result[i] = data[i] + other[i];
+    return result;
+  }
+
+  // Vector subtraction: Real4 - Real4
+  ARCCORE_HOST_DEVICE Real4 operator-(const Real4& other) const
+  {
+    Real4 result;
+    for (std::size_t i = 0; i < 4; ++i)
+      result[i] = data[i] - other[i];
+    return result;
+  }
+  // Scalar multiplication: Real4 * scalar
+  ARCCORE_HOST_DEVICE Real4 operator*(Arcane::Real scalar) const
+  {
+    Real4 result;
+    for (std::size_t i = 0; i < 4; ++i)
+      result[i] = data[i] * scalar;
+    return result;
+  }
+  friend ARCCORE_HOST_DEVICE Real4 operator*(Arcane::Real scalar, const Real4& vec)
+  {
+    return vec * scalar;
+  }
 };
 
 /*---------------------------------------------------------------------------*/
@@ -271,6 +300,20 @@ ARCCORE_HOST_DEVICE inline FixedMatrix<6, 6> operator^(const FixedMatrix<1, 6>& 
   FixedMatrix<6, 6> result;
   for (Arcane::Int32 i = 0; i < 6; ++i) {
     for (Arcane::Int32 j = 0; j < 6; ++j) {
+      result(i, j) = lhs(0, i) * rhs(0, j);
+    }
+  }
+  return result;
+}
+
+/*---------------------------------------------------------------------------*/
+//  Outer product of two FixedMatrix<1, 12> vectors to produce a FixedMatrix<12, 12>
+/*---------------------------------------------------------------------------*/
+ARCCORE_HOST_DEVICE inline FixedMatrix<12, 12> operator^(const FixedMatrix<1, 12>& lhs, const FixedMatrix<1, 12>& rhs)
+{
+  FixedMatrix<12, 12> result;
+  for (Arcane::Int32 i = 0; i < 12; ++i) {
+    for (Arcane::Int32 j = 0; j < 12; ++j) {
       result(i, j) = lhs(0, i) * rhs(0, j);
     }
   }

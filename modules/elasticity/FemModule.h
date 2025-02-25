@@ -84,7 +84,7 @@ class FemModule
 
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
-  BSRFormat<2> m_bsr_format;
+  BSRFormat m_bsr_format;
 
   Real E;
   Real nu;
@@ -93,6 +93,8 @@ class FemModule
 
   Real3 f;
   Real3 t;
+
+  Int8 m_dof_per_node;
 
   String m_petsc_flags;
   String m_matrix_format = "DOK";
@@ -108,6 +110,7 @@ class FemModule
 
   void _getMaterialParameters();
   void _assembleBilinearOperatorTRIA3();
+  void _assembleBilinearOperatorTetra4();
   void _solve();
   void _assembleLinearOperator();
   void _validateResults();
@@ -122,6 +125,7 @@ class FemModule
   Real _computeAreaTriangle3(Cell cell);
 
   FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
+  FixedMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
 };
 
 #endif

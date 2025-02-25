@@ -101,7 +101,6 @@ namespace Arcane::FemUtils
  */
 /*---------------------------------------------------------------------------*/
 
-template <int BLOCK_SIZE>
 class BSRMatrix : public TraceAccessor
 {
  public:
@@ -116,21 +115,22 @@ class BSRMatrix : public TraceAccessor
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  void initialize(Int32 nb_non_zero_value, Int32 nb_col, Int32 nb_row, bool order_values_per_block)
+  void initialize(Int32 nb_non_zero_value, Int32 nb_col, Int32 nb_row, Int8 nb_block, bool order_values_per_block)
   {
-    if (BLOCK_SIZE <= 0 || nb_non_zero_value <= 0 || nb_row <= 0)
-      ARCANE_THROW(ArgumentException, "BSRMatrix(initialize): arguments should be positive and not null (block_size={0}, nb_non_zero_value={1} and nb_row={2})", BLOCK_SIZE, nb_non_zero_value, nb_row);
+    if (nb_block <= 0 || nb_non_zero_value <= 0 || nb_row <= 0)
+      ARCANE_THROW(ArgumentException, "BSRMatrix(initialize): arguments should be positive and not null (block_size={0}, nb_non_zero_value={1} and nb_row={2})", nb_block, nb_non_zero_value, nb_row);
 
-    if (BLOCK_SIZE > nb_row)
+    if (nb_block > nb_row)
       ARCANE_THROW(ArgumentException, "BSRMatrix(initialize): block_size should be less than nb_row");
 
-    info() << "BSRMatrix(initialize): Initialize BSRMatrix with block_size=" << BLOCK_SIZE << ", nb_non_zero_value=" << nb_non_zero_value << ", nb_col=" << nb_col << ", nb_row=" << nb_row << ", order_values_per_block=" << std::boolalpha << order_values_per_block;
+    info() << "BSRMatrix(initialize): Initialize BSRMatrix with block_size=" << nb_block << ", nb_non_zero_value=" << nb_non_zero_value << ", nb_col=" << nb_col << ", nb_row=" << nb_row << ", order_values_per_block=" << std::boolalpha << order_values_per_block;
 
     m_order_values_per_block = order_values_per_block;
 
     m_nb_non_zero_value = nb_non_zero_value;
     m_nb_col = nb_col;
     m_nb_row = nb_row;
+    m_nb_block = nb_block;
 
     m_values.resize(nb_non_zero_value);
     m_values.fill(0, &m_queue);
@@ -144,24 +144,24 @@ class BSRMatrix : public TraceAccessor
 
   Int32 findValueIndex(DoFLocalId row, DoFLocalId col) const
   {
-    auto block_row = row / BLOCK_SIZE;
-    auto block_col = col / BLOCK_SIZE;
+    auto block_row = row / m_nb_block;
+    auto block_col = col / m_nb_block;
 
     auto block_start = m_row_index[block_row];
     auto block_end = (block_row == m_nb_row - 1) ? m_nb_col : m_row_index[block_row + 1];
 
-    auto row_offset = row % BLOCK_SIZE;
-    auto col_offset = col % BLOCK_SIZE;
+    auto row_offset = row % m_nb_block;
+    auto col_offset = col % m_nb_block;
 
-    constexpr int BLOCK_SIZE_SQ = BLOCK_SIZE * BLOCK_SIZE;
-    auto block_start_in_value = block_start * BLOCK_SIZE_SQ;
+    auto nb_block_sq = m_nb_block * m_nb_block;
+    auto block_start_in_value = block_start * nb_block_sq;
     auto col_index = 0;
     while (block_start < block_end) {
       if (m_columns[block_start] == block_col) {
         if (!m_order_values_per_block)
-          return block_start_in_value + (BLOCK_SIZE * col_index) + (row_offset * BLOCK_SIZE * m_nb_nz_per_row[block_row]) + col_offset;
+          return block_start_in_value + (m_nb_block * col_index) + (row_offset * m_nb_block * m_nb_nz_per_row[block_row]) + col_offset;
         else
-          return (block_start * BLOCK_SIZE_SQ) + ((row_offset * BLOCK_SIZE) + col_offset);
+          return (block_start * nb_block_sq) + ((row_offset * m_nb_block) + col_offset);
       }
       ++block_start;
       ++col_index;
@@ -197,12 +197,12 @@ class BSRMatrix : public TraceAccessor
     auto startTime = platform::getRealTime();
 
     auto nb_block_rows = m_row_index.extent0();
-    auto nb_rows = nb_block_rows * BLOCK_SIZE;
+    auto nb_rows = nb_block_rows * m_nb_block;
     auto total_non_zero_elements = m_nb_non_zero_value;
 
     csr_matrix->initialize(nullptr, total_non_zero_elements, nb_rows, m_queue);
 
-    if constexpr (BLOCK_SIZE == 1) {
+    if (m_nb_block == 1) {
       csr_matrix->m_matrix_row = m_row_index;
       csr_matrix->m_matrix_column = m_columns;
       csr_matrix->m_matrix_rows_nb_column = m_nb_nz_per_row;
@@ -212,10 +212,10 @@ class BSRMatrix : public TraceAccessor
       csr_matrix->m_matrix_row[0] = 0;
       auto offset = 1;
       for (auto i = 0; i < m_row_index.extent0() - 1; ++i) {
-        for (auto j = 0; j < BLOCK_SIZE; ++j) {
+        for (auto j = 0; j < m_nb_block; ++j) {
           auto start = m_row_index[i];
           auto end = i == m_row_index.extent0() - 1 ? m_nb_col : m_row_index[i + 1];
-          auto nombre_de_dof_dans_la_rangee = (end - start) * BLOCK_SIZE;
+          auto nombre_de_dof_dans_la_rangee = (end - start) * m_nb_block;
           csr_matrix->m_matrix_row[offset] = csr_matrix->m_matrix_row[offset - 1] + nombre_de_dof_dans_la_rangee;
           offset++;
         }
@@ -224,12 +224,12 @@ class BSRMatrix : public TraceAccessor
       // Translate `columns`
       offset = 0;
       for (auto i = 0; i < m_row_index.extent0(); ++i) {
-        for (auto j = 0; j < BLOCK_SIZE; ++j) {
+        for (auto j = 0; j < m_nb_block; ++j) {
           auto start = m_row_index[i];
           auto end = i == m_row_index.extent0() - 1 ? m_nb_col : m_row_index[i + 1];
           for (auto block_index = start; block_index < end; ++block_index) {
-            for (auto k = 0; k < BLOCK_SIZE; ++k) {
-              csr_matrix->m_matrix_column[offset] = m_columns[block_index] * BLOCK_SIZE + k;
+            for (auto k = 0; k < m_nb_block; ++k) {
+              csr_matrix->m_matrix_column[offset] = m_columns[block_index] * m_nb_block + k;
               offset++;
             }
           }
@@ -239,8 +239,8 @@ class BSRMatrix : public TraceAccessor
       // Translate `nb_nz_per_row`
       offset = 0;
       for (auto i = 0; i < m_nb_nz_per_row.extent0(); ++i) {
-        for (auto j = 0; j < BLOCK_SIZE; ++j) {
-          csr_matrix->m_matrix_rows_nb_column[offset++] = m_nb_nz_per_row[i] * BLOCK_SIZE;
+        for (auto j = 0; j < m_nb_block; ++j) {
+          csr_matrix->m_matrix_rows_nb_column[offset++] = m_nb_nz_per_row[i] * m_nb_block;
         }
       }
 
@@ -266,10 +266,10 @@ class BSRMatrix : public TraceAccessor
       auto row_end = (row + 1 < m_nb_row) ? m_row_index[row + 1] : m_nb_col;
       for (auto block_idx = row_start; block_idx < row_end; ++block_idx) {
         auto col = m_columns[block_idx];
-        for (auto i = 0; i < BLOCK_SIZE; ++i) {
-          for (auto j = 0; j < BLOCK_SIZE; ++j) {
-            auto global_row = (row * BLOCK_SIZE) + i;
-            auto global_col = (col * BLOCK_SIZE) + j;
+        for (auto i = 0; i < m_nb_block; ++i) {
+          for (auto j = 0; j < m_nb_block; ++j) {
+            auto global_row = (row * m_nb_block) + i;
+            auto global_col = (col * m_nb_block) + j;
             auto value = getValue(DoFLocalId(global_row), DoFLocalId(global_col));
             linear_system.matrixAddValue(DoFLocalId(global_row), DoFLocalId(global_col), value);
           }
@@ -312,6 +312,7 @@ class BSRMatrix : public TraceAccessor
   Int32 nbNz() { return m_nb_non_zero_value; };
   Int32 nbCol() { return m_nb_col; };
   Int32 nbRow() { return m_nb_row; };
+  Int8 nbBlock() { return m_nb_block; };
 
   NumArray<Real, MDDim1>& values() { return m_values; }
   NumArray<Int32, MDDim1>& columns() { return m_columns; }
@@ -322,9 +323,10 @@ class BSRMatrix : public TraceAccessor
 
   bool m_order_values_per_block = true;
 
-  Int32 m_nb_non_zero_value;
-  Int32 m_nb_col;
-  Int32 m_nb_row;
+  Int32 m_nb_non_zero_value = 0;
+  Int32 m_nb_col = 0;
+  Int32 m_nb_row = 0;
+  Int8 m_nb_block = 1;
 
   NumArray<Real, MDDim1> m_values;
   NumArray<Int32, MDDim1> m_columns;
@@ -349,7 +351,6 @@ class BSRMatrix : public TraceAccessor
  */
 /*---------------------------------------------------------------------------*/
 
-template <int NB_DOF>
 class BSRFormat : public TraceAccessor
 {
  public:
@@ -365,6 +366,8 @@ class BSRFormat : public TraceAccessor
   /*---------------------------------------------------------------------------*/
 
  private:
+
+  Int8 m_nb_dof = 1;
 
   Int64 computeNbEdge(IMesh* mesh)
   {
@@ -385,7 +388,7 @@ class BSRFormat : public TraceAccessor
 
  public:
 
-  void initialize(IMesh* mesh, bool does_linear_system_use_csr, bool use_atomic_free = false)
+  void initialize(IMesh* mesh, Int8 nb_dof, bool does_linear_system_use_csr, bool use_atomic_free = false)
   {
     ARCANE_CHECK_POINTER(mesh);
 
@@ -395,14 +398,15 @@ class BSRFormat : public TraceAccessor
     auto startTime = platform::getRealTime();
 
     m_mesh = mesh;
+    m_nb_dof = nb_dof;
     Int64 nb_edge = computeNbEdge(mesh);
     Int32 nb_node = m_mesh->nbNode();
     Int32 nb_col = 2 * nb_edge + nb_node;
-    Int32 nb_non_zero_value = (NB_DOF * NB_DOF) * (2 * nb_edge + nb_node);
+    Int32 nb_non_zero_value = (m_nb_dof * m_nb_dof) * (2 * nb_edge + nb_node);
 
     m_use_csr_in_linear_system = does_linear_system_use_csr;
     bool order_values_per_block = !does_linear_system_use_csr;
-    m_bsr_matrix.initialize(nb_non_zero_value, nb_col, nb_node, order_values_per_block);
+    m_bsr_matrix.initialize(nb_non_zero_value, nb_col, nb_node, m_nb_dof, order_values_per_block);
     m_use_atomic_free = use_atomic_free;
 
     info() << std::left << std::setw(40) << "[BsrMatrix-Timer] initialize-bsr-matrix" << " = " << (platform::getRealTime() - startTime);
@@ -792,10 +796,11 @@ class BSRFormat : public TraceAccessor
 
     ItemGenericInfoListView nodes_infos(m_mesh->nodeFamily());
 
-    constexpr int NB_DOF_SQ = NB_DOF * NB_DOF;
     auto matrix_nb_row = m_bsr_matrix.nbRow();
     auto matrix_nb_column = m_bsr_matrix.nbCol();
     auto matrix_nb_nz = m_bsr_matrix.nbNz();
+    auto matrix_nb_block = m_bsr_matrix.nbBlock();
+    auto matrix_nb_block_sq = matrix_nb_block * matrix_nb_block;
 
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
@@ -818,11 +823,11 @@ class BSRFormat : public TraceAccessor
             auto end = (row_node_lid == matrix_nb_row - 1) ? matrix_nb_column : in_row_index[row_node_lid + 1];
             while (begin < end) {
               if (in_columns[begin] == col_node_lid) {
-                auto block_start = begin * NB_DOF_SQ;
-                for (auto i = 0; i < NB_DOF; ++i) {
-                  for (auto j = 0; j < NB_DOF; ++j) {
-                    double value = element_matrix(NB_DOF * cur_row_node_idx + i, NB_DOF * cur_col_node_idx + j);
-                    Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_values[block_start + (i * NB_DOF + j)], value);
+                auto block_start = begin * matrix_nb_block_sq;
+                for (auto i = 0; i < matrix_nb_block; ++i) {
+                  for (auto j = 0; j < matrix_nb_block; ++j) {
+                    double value = element_matrix(matrix_nb_block * cur_row_node_idx + i, matrix_nb_block * cur_col_node_idx + j);
+                    Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_values[block_start + (i * matrix_nb_block + j)], value);
                   }
                 }
                 break;
@@ -847,10 +852,11 @@ class BSRFormat : public TraceAccessor
 
     ItemGenericInfoListView nodes_infos(m_mesh->nodeFamily());
 
-    constexpr int NB_DOF_SQ = NB_DOF * NB_DOF;
     auto matrix_nb_row = m_bsr_matrix.nbRow();
     auto matrix_nb_column = m_bsr_matrix.nbCol();
     auto matrix_nb_nz = m_bsr_matrix.nbNz();
+    auto matrix_nb_block = m_bsr_matrix.nbBlock();
+    auto matrix_nb_block_sq = matrix_nb_block * matrix_nb_block;
 
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
@@ -870,19 +876,17 @@ class BSRFormat : public TraceAccessor
         for (NodeLocalId col_node_lid : cell_node_cv.nodes(cell)) {
           if (nodes_infos.isOwn(row_node_lid)) {
 
-            auto g_block_start = in_row_index[row_node_lid] * NB_DOF_SQ;
+            auto g_block_start = in_row_index[row_node_lid] * matrix_nb_block_sq;
             auto begin = in_row_index[row_node_lid];
             auto end = (row_node_lid == matrix_nb_row - 1) ? matrix_nb_column : in_row_index[row_node_lid + 1];
 
             auto x = 0;
             while (begin < end) {
               if (in_columns[begin] == col_node_lid) {
-                for (auto i = 0; i < NB_DOF; ++i) {
-                  for (auto j = 0; j < NB_DOF; ++j) {
-                    double value = element_matrix(NB_DOF * cur_row_node_idx + i, NB_DOF * cur_col_node_idx + j);
-                    auto l_block_start = g_block_start + (NB_DOF * x);
-                    if (i != 0)
-                      l_block_start += (NB_DOF * in_nz_per_row[row_node_lid]);
+                for (auto i = 0; i < matrix_nb_block; ++i) {
+                  for (auto j = 0; j < matrix_nb_block; ++j) {
+                    double value = element_matrix(matrix_nb_block * cur_row_node_idx + i, matrix_nb_block * cur_col_node_idx + j);
+                    auto l_block_start = g_block_start + (matrix_nb_block * (x + i * in_nz_per_row[row_node_lid]));
                     Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(inout_values[l_block_start + j], value);
                   }
                 }
@@ -941,10 +945,11 @@ class BSRFormat : public TraceAccessor
 
     ItemGenericInfoListView nodes_infos(m_mesh->nodeFamily());
 
-    constexpr int NB_DOF_SQ = NB_DOF * NB_DOF;
     auto matrix_nb_row = m_bsr_matrix.nbRow();
     auto matrix_nb_column = m_bsr_matrix.nbCol();
     auto matrix_nb_nz = m_bsr_matrix.nbNz();
+    auto matrix_nb_block = m_bsr_matrix.nbBlock();
+    auto matrix_nb_block_sq = matrix_nb_block * matrix_nb_block;
 
     auto command = makeCommand(m_queue);
     auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
@@ -976,12 +981,12 @@ class BSRFormat : public TraceAccessor
 
             while (begin < end) {
               if (in_columns[begin] == col_node_lid) {
-                auto block_start = begin * NB_DOF_SQ;
+                auto block_start = begin * matrix_nb_block_sq;
 
-                for (auto i = 0; i < NB_DOF; ++i) {
-                  for (auto j = 0; j < NB_DOF; ++j) {
-                    double value = element_vector(i, NB_DOF * cur_col_node_idx + j);
-                    inout_values[block_start + (i * NB_DOF + j)] += value;
+                for (auto i = 0; i < matrix_nb_block; ++i) {
+                  for (auto j = 0; j < matrix_nb_block; ++j) {
+                    double value = element_vector(i, matrix_nb_block * cur_col_node_idx + j);
+                    inout_values[block_start + (i * matrix_nb_block + j)] += value;
                   }
                 }
                 break;
@@ -1007,10 +1012,11 @@ class BSRFormat : public TraceAccessor
 
     ItemGenericInfoListView nodes_infos(m_mesh->nodeFamily());
 
-    constexpr int NB_DOF_SQ = NB_DOF * NB_DOF;
     auto matrix_nb_row = m_bsr_matrix.nbRow();
     auto matrix_nb_column = m_bsr_matrix.nbCol();
     auto matrix_nb_nz = m_bsr_matrix.nbNz();
+    auto matrix_nb_block = m_bsr_matrix.nbBlock();
+    auto matrix_nb_block_sq = matrix_nb_block * matrix_nb_block;
 
     auto command = makeCommand(m_queue);
     auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
@@ -1038,19 +1044,17 @@ class BSRFormat : public TraceAccessor
         for (NodeLocalId col_node_lid : cell_node_cv.nodes(cell)) {
           if (nodes_infos.isOwn(row_node)) {
 
-            auto g_block_start = in_row_index[row_node] * NB_DOF_SQ;
+            auto g_block_start = in_row_index[row_node] * matrix_nb_block_sq;
             auto begin = in_row_index[row_node];
             auto end = (row_node == matrix_nb_row - 1) ? matrix_nb_column : in_row_index[row_node + 1];
 
             auto x = 0;
             while (begin < end) {
               if (in_columns[begin] == col_node_lid) {
-                for (auto i = 0; i < NB_DOF; ++i) {
-                  for (auto j = 0; j < NB_DOF; ++j) {
-                    double value = element_vector(i, NB_DOF * cur_col_node_idx + j);
-                    auto l_block_start = g_block_start + (NB_DOF * x);
-                    if (i != 0)
-                      l_block_start += (NB_DOF * in_nz_per_row[row_node]);
+                for (auto i = 0; i < matrix_nb_block; ++i) {
+                  for (auto j = 0; j < matrix_nb_block; ++j) {
+                    double value = element_vector(i, matrix_nb_block * cur_col_node_idx + j);
+                    auto l_block_start = g_block_start + (matrix_nb_block * (x + i * in_nz_per_row[row_node]));
                     inout_values[l_block_start + j] += value;
                   }
                 }
@@ -1108,7 +1112,7 @@ class BSRFormat : public TraceAccessor
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  BSRMatrix<NB_DOF>& matrix()
+  BSRMatrix& matrix()
   {
     return m_bsr_matrix;
   };
@@ -1116,7 +1120,7 @@ class BSRFormat : public TraceAccessor
   {
     m_bsr_matrix.values().fill(0, m_queue);
   };
-  void dumpMatrix(std::string filename) const
+  void dumpMatrix(std::string filename)
   {
     m_bsr_matrix.dump(filename);
   };
@@ -1126,7 +1130,7 @@ class BSRFormat : public TraceAccessor
   bool m_use_csr_in_linear_system = false;
   bool m_use_atomic_free = false;
 
-  BSRMatrix<NB_DOF> m_bsr_matrix;
+  BSRMatrix m_bsr_matrix;
   CsrFormat m_csr_matrix;
 
   IMesh* m_mesh;
