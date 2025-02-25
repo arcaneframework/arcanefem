@@ -323,10 +323,10 @@ class BSRMatrix : public TraceAccessor
 
   bool m_order_values_per_block = true;
 
-  Int32 m_nb_non_zero_value;
-  Int32 m_nb_col;
-  Int32 m_nb_row;
-  Int8 m_nb_block;
+  Int32 m_nb_non_zero_value = 1;
+  Int32 m_nb_col = 1;
+  Int32 m_nb_row = 1;
+  Int8 m_nb_block = 1;
 
   NumArray<Real, MDDim1> m_values;
   NumArray<Int32, MDDim1> m_columns;
@@ -366,7 +366,8 @@ class BSRFormat : public TraceAccessor
   /*---------------------------------------------------------------------------*/
 
  private:
-  Int8 m_nb_dof;
+
+  Int8 m_nb_dof = 1;
 
   Int64 computeNbEdge(IMesh* mesh)
   {
