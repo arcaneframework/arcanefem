@@ -102,14 +102,9 @@ class FemModule
   bool m_assemble_linear_system = true;
   bool m_solve_linear_system = true;
   bool m_cross_validation = true;
-  bool m_use_bsr_matrix_format = false;
-  bool m_use_atomic_free_bsr_matrix_format = false;
-
-  bool m_use_bsr = false;
-  bool m_use_bsr_atomic_free = false;
 
   void _getMaterialParameters();
-  void _assembleBilinearOperatorTRIA3();
+  void _assembleBilinearOperatorTria3();
   void _assembleBilinearOperatorTetra4();
   void _solve();
   void _assembleLinearOperator();
@@ -117,14 +112,10 @@ class FemModule
   void _updateVariables();
   void _initBsr();
 
-  void _handleCommandLineFlags();
   void _setPetscFlagsFromCommandline();
   void _printArcaneFemTime(const String label, const Real value);
 
-  Real _computeEdgeLength2(Face face);
-  Real _computeAreaTriangle3(Cell cell);
-
-  FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
+  FixedMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
   FixedMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
 };
 

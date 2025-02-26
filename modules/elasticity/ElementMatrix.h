@@ -7,13 +7,13 @@
 /*---------------------------------------------------------------------------*/
 /* ElementMatrix.h                                             (C) 2022-2025 */
 /*                                                                           */
-/* Contains functions to compute the FEM element matric for Elasticity       */
+/* Contains functions to compute the FEM element matrices for Elasticity     */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Computes the element matrix for a triangular element (P1 FE).
+ * @brief Computes the element matrix for a triangular element (ℙ1 FE).
  *
  * Theory:
  *
@@ -38,7 +38,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE FixedMatrix<6, 6> computeElementMatrixTRIA3Base(Real3 dxu, Real3 dyu, Real area, Real lambda, Real mu)
+ARCCORE_HOST_DEVICE FixedMatrix<6, 6> computeElementMatrixTria3Base(Real3 dxu, Real3 dyu, Real area, Real lambda, Real mu)
 {
   FixedMatrix<1, 6> dxUx = { dxu[0], 0., dxu[1], 0., dxu[2], 0. };
   FixedMatrix<1, 6> dyUx = { dyu[0], 0., dyu[1], 0., dyu[2], 0. };
@@ -60,31 +60,31 @@ ARCCORE_HOST_DEVICE FixedMatrix<6, 6> computeElementMatrixTRIA3Base(Real3 dxu, R
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE FixedMatrix<6, 6> computeElementMatrixTRIA3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, Real lambda, Real mu)
+ARCCORE_HOST_DEVICE FixedMatrix<6, 6> computeElementMatrixTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, Real lambda, Real mu)
 {
   Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
   Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
   Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
 
-  return computeElementMatrixTRIA3Base(dxu, dyu, area, lambda, mu);
+  return computeElementMatrixTria3Base(dxu, dyu, area, lambda, mu);
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<6, 6> FemModule::_computeElementMatrixTRIA3(Cell cell)
+FixedMatrix<6, 6> FemModule::_computeElementMatrixTria3(Cell cell)
 {
   Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
   Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
   Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
 
-  return computeElementMatrixTRIA3Base(dxu, dyu, area, lambda, mu);
+  return computeElementMatrixTria3Base(dxu, dyu, area, lambda, mu);
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE FixedMatrix<2, 6> computeElementVectorTRIA3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, Real lambda, Real mu, Int32 node_lid)
+ARCCORE_HOST_DEVICE FixedMatrix<2, 6> computeElementVectorTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, Real lambda, Real mu, Int32 node_lid)
 {
   Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
   Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
@@ -119,7 +119,7 @@ ARCCORE_HOST_DEVICE FixedMatrix<2, 6> computeElementVectorTRIA3Gpu(CellLocalId c
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Computes the element matrix for a tetrahedral element (P1 FE).
+ * @brief Computes the element matrix for a tetrahedral element (ℙ1 FE).
  *
  * Theory:
  *

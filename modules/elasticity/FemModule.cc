@@ -96,7 +96,7 @@ compute()
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Initilizes BSR matrix.
+ * @brief Initializes BSR matrix.
  */
 /*---------------------------------------------------------------------------*/
 
@@ -123,10 +123,10 @@ void FemModule::_initBsr()
  * This method follows a sequence of steps to solve FEM system:
  *
  *   1. _getMaterialParameters()     Retrieves material parameters via
- *   2. _assembleBilinearOperator()  Assembles the FEM  matrix A
- *   3. _assembleLinearOperator()    Assembles the FEM RHS vector b
- *   4. _solve()                     Solves for solution vector u = A^-1*b
- *   5. _updateVariables()           Updates FEM variables u = x
+ *   2. _assembleBilinearOperator()  Assembles the FEM  matrix 𝐀
+ *   3. _assembleLinearOperator()    Assembles the FEM RHS vector 𝐛
+ *   4. _solve()                     Solves for solution vector 𝐮 = 𝐀⁻¹𝐛
+ *   5. _updateVariables()           Updates FEM variables 𝐮 = 𝐱
  *   6. _validateResults()           Regression test
  */
 /*---------------------------------------------------------------------------*/
@@ -161,10 +161,10 @@ _getMaterialParameters()
   Real elapsedTime = platform::getRealTime();
 
   E = options()->E(); // Youngs modulus
-  nu = options()->nu(); // Poission ratio
+  nu = options()->nu(); // Poission ratio ν
 
-  mu = (E / (2 * (1 + nu))); // lame parameter mu
-  lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter lambda
+  mu = (E / (2 * (1 + nu))); // lame parameter μ
+  lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] get-material-params", elapsedTime);
@@ -221,11 +221,15 @@ void FemModule::_assembleDirichletsGpu()
 }
 
 /*---------------------------------------------------------------------------*/
-// Assemble the FEM linear operator
-//  - The method also adds source term
-//  - The method also adds external fluxes
-//  - This function enforces a Dirichlet boundary condition in a weak sense
-//    via the penalty method
+/**
+ * @brief Assemble the FEM linear operator.
+ *
+ * This method follows a sequence of steps to assemble RHS of FEM linear system:
+ *
+ *   1. assembles the bodyforce contribution (source term) ∫∫∫ (𝐟.𝐯) on Ω
+ *   2. assembles the traction contribution (Neumann term) ∫∫ (𝐭.𝐯)  on ∂Ω
+ *   3. apply Dirichlet contributions to LHS and RHS
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -239,11 +243,9 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  //----------------------------------------------
-  // Body force term assembly $int_{Omega}(f.v)$
-  //----------------------------------------------
-
-  // body force (fx, fy, fz) = (f[0], f[1], f[2])
+  //----------------------------------------------------------------------
+  // body force ∫∫∫ (𝐟.𝐯)  with 𝐟 = (𝑓𝑥, 𝑓𝑦, 𝑓𝑧) = (f[0], f[1], f[2])
+  //----------------------------------------------------------------------
   const UniqueArray<String> f_string = options()->f();
   info() << "[ArcaneFem-Info] Applying Bodyforce " << f_string;
   for (Int32 i = 0; i < f_string.size(); ++i) {
@@ -279,10 +281,9 @@ _assembleLinearOperator()
         }
       }
 
-  //----------------------------------------------
-  // Traction term assembly  $int_{dOmega_N}((t.v)$
-  //----------------------------------------------
-
+  //----------------------------------------------------------------------
+  // traction term ∫∫ (𝐭.𝐯)  with 𝐭 = (𝑡𝑥, 𝑡𝑦, 𝑡𝑧) = (t[0], t[1], t[2])
+  //----------------------------------------------------------------------
   for (const auto& bs : options()->tractionBoundaryCondition()) {
     FaceGroup group = bs->surface();
     const UniqueArray<String> t_string = bs->t();
@@ -478,7 +479,7 @@ _assembleBilinearOperator()
 
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2)
-      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu_copy); });
+      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu_copy); });
     if (mesh()->dimension() == 3)
       m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu_copy); });
     m_bsr_format.toLinearSystem(m_linear_system);
@@ -493,14 +494,14 @@ _assembleBilinearOperator()
 
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2)
-      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTRIA3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu_copy, node_lid); });
+      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu_copy, node_lid); });
     if (mesh()->dimension() == 3)
       m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu_copy, node_lid); });
     m_bsr_format.toLinearSystem(m_linear_system);
   }
   else if (m_matrix_format == "DOK") {
     if (mesh()->dimension() == 2)
-      _assembleBilinearOperatorTRIA3();
+      _assembleBilinearOperatorTria3();
     if (mesh()->dimension() == 3)
     _assembleBilinearOperatorTetra4();
   }
@@ -570,7 +571,7 @@ _assembleBilinearOperatorTetra4()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleBilinearOperatorTRIA3()
+_assembleBilinearOperatorTria3()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
@@ -579,7 +580,7 @@ _assembleBilinearOperatorTRIA3()
     if (cell.type() != IT_Triangle3)
       ARCANE_FATAL("Only Triangle3 cell type is supported");
 
-    auto K_e = _computeElementMatrixTRIA3(cell); // element stiffness matrix
+    auto K_e = _computeElementMatrixTria3(cell); // element stiffness matrix
     // assemble elementary matrix into the global one elementary terms are
     // positioned into K according to the rank  of  associated  node in the
     // mesh.nodes list and according the dof  number. Here  for  each  node
