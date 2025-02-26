@@ -243,6 +243,29 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
+     * @brief Computes the barycenter (centroid) of a tetrahedron.
+     *
+     * This method calculates the barycenter of a tetrahedron defined by its nodes.
+     * The barycenter is computed as the average of the vertices' coordinates.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline Real3 computeBaryCenterTetra4(Cell cell, const VariableNodeReal3& node_coord)
+    {
+      Real3 vertex0 = node_coord[cell.nodeId(0)];
+      Real3 vertex1 = node_coord[cell.nodeId(1)];
+      Real3 vertex2 = node_coord[cell.nodeId(2)];
+      Real3 vertex3 = node_coord[cell.nodeId(3)];
+
+      Real Center_x = (vertex0.x + vertex1.x + vertex2.x + vertex3.x) / 4.;
+      Real Center_y = (vertex0.y + vertex1.y + vertex2.y + vertex3.x) / 4.;
+      Real Center_z = (vertex0.z + vertex1.z + vertex2.z + vertex3.z) / 4.;
+
+      return { Center_x, Center_y, Center_z };
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
      * @brief Computes the length of the edge defined by a given face.
      *
      * This method calculates Euclidean distance between the two nodes of the face.
@@ -866,6 +889,36 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
+     * @brief Applies a manufactured source term to the RHS vector.
+     *
+     * This method adds a manufactured source term to the RHS vector for each
+     * node in the mesh. The contribution to each node is weighted by the area of
+     * the cell and evenly distributed among the nodes of the cell.
+     *
+     * @param [IN]  qdot       : The constant source term.
+     * @param [IN]  mesh       : The mesh containing all cells.
+     * @param [IN]  node_dof   : DOF connectivity view.
+     * @param [IN]  node_coord : The coordinates of the nodes.
+     * @param [OUT] rhs_values : The RHS values to update.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline void applyManufacturedSourceToRhs(IBinaryMathFunctor<Real, Real3, Real>* manufactured_source, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      ENUMERATE_ (Cell, icell, mesh->allCells()) {
+        Cell cell = *icell;
+        Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, node_coord);
+        Real3 bcenter = ArcaneFemFunctions::MeshOperation::computeBaryCenterTetra4(cell, node_coord);
+
+        for (Node node : cell.nodes()) {
+          if (node.isOwn())
+            rhs_values[node_dof.dofId(node, 0)] += manufactured_source->apply(volume / cell.nbNode(), bcenter);
+        }
+      }
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
      * @brief Applies Dirichlet boundary conditions to RHS and LHS.
      *
      * Updates the LHS matrix and RHS vector to enforce Dirichlet conditions.
@@ -990,6 +1043,40 @@ class ArcaneFemFunctions
           }
 
           rhs_values[node_dof.dofId(node, 0)] += rhs_value;
+        }
+      }
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Applies Manufactured Dirichlet boundary conditions to RHS and LHS.
+     *
+     * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
+     *
+     * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
+     * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+     *
+     * @param [IN]  manufactured_dirichlet   : External function for Dirichlet.
+     * @param [IN]  group           : Group of all external faces.
+     * @param [IN]  bs              : Boundary condition values.
+     * @param [IN]  node_dof        : DOF connectivity view.
+     * @param [IN]  node_coord      : Node coordinates.
+     * @param [OUT] m_linear_system : Linear system for LHS.
+     * @param [OUT] rhs_values RHS  : RHS values to update.
+     */
+    /*---------------------------------------------------------------------------*/
+    static inline void applyManufacturedDirichletToLhsAndRhs(IBinaryMathFunctor<Real, Real3, Real>* manufactured_dirichlet, Real /*lambda*/, const FaceGroup& group, BC::IManufacturedSolution* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
+    {
+      Real Penalty = bs->getPenalty();
+
+      ENUMERATE_ (Face, iface, group) {
+        for (Node node : iface->nodes()) {
+          if (node.isOwn()) {
+            m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), Penalty);
+            double tt = 1.;
+            Real u_g = Penalty * manufactured_dirichlet->apply(tt, node_coord[node]);
+            rhs_values[node_dof.dofId(node, 0)] = u_g;
+          }
         }
       }
     }
