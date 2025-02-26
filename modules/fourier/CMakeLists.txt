@@ -86,7 +86,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       add_test(NAME [Fourier]conduction_10k_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
         -A,//meshes/mesh/filename=meshes/plancher.10k.msh
         -A,//fem/cross-validation=false
-        inputs/conduction.10k.arc)
+        inputs/conduction.arc)
       add_test(NAME [Fourier]conduction_heterogeneous_10k_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
         -A,//meshes/mesh/filename=meshes//multi-material.10k.msh
         -A,//fem/cross-validation=false
