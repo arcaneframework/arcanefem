@@ -12,6 +12,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
+#include "ElementMatrix.h"
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -30,6 +31,11 @@ startInit()
 
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
+  m_matrix_format = options()->matrixFormat();
+  m_assemble_linear_system = options()->assembleLinearSystem();
+  m_solve_linear_system = options()->solveLinearSystem();
+  m_cross_validation = options()->crossValidation();
+  m_petsc_flags = options()->petscFlags();
 
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
@@ -84,14 +90,9 @@ compute()
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
-  // Test for adding parameters for PETSc.
-  // This is only used for the first call.
-  {
-    StringList string_list;
-    string_list.add("-ksp_monitor");
-    CommandLineArguments args(string_list);
-    m_linear_system.setSolverCommandLineArguments(args);
-  }
+
+  if (m_petsc_flags != NULL)
+    _setPetscFlagsFromCommandline();
 
   _doStationarySolve();
 
@@ -118,11 +119,19 @@ void FemModule::
 _doStationarySolve()
 {
   _getMaterialParameters();
-  _assembleBilinearOperator();
-  _assembleLinearOperator();
-  _solve();
-  _updateVariables();
-  _validateResults();
+  if(m_assemble_linear_system){
+    _assembleBilinearOperator();
+    _assembleLinearOperator();
+  }
+
+  if(m_solve_linear_system){
+    _solve();
+    _updateVariables();
+  }
+
+  if(m_cross_validation){
+    _validateResults();
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -226,45 +235,6 @@ _assembleLinearOperator()
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Computes the element matrix for a triangular element (P1 FE).
- *
- * This function calculates the integral of the expression:
- * lambda*(u.dx * v.dx + u.dy * v.dy)
- *
- * Steps involved:
- * 1. Calculate the area of the triangle.
- * 2. Compute the gradients of the shape functions.
- * 3. Return lambda*(u.dx * v.dx + u.dy * v.dy);
- */
-/*---------------------------------------------------------------------------*/
-
-FixedMatrix<3, 3> FemModule::
-_computeElementMatrixTria3(Cell cell)
-{
-  Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
-
-  Real3 dxU = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
-  Real3 dyU = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
-
-  return area * lambda * (dxU ^ dxU) + area * lambda * (dyU ^ dyU);
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-FixedMatrix<4, 4> FemModule::
-_computeElementMatrixQuad4(Cell cell)
-{
-  Real area = ArcaneFemFunctions::MeshOperation::computeAreaQuad4(cell, m_node_coord);
-
-  Real4 dxU = ArcaneFemFunctions::FeOperation2D::computeGradientXQuad4(cell, m_node_coord);
-  Real4 dyU = ArcaneFemFunctions::FeOperation2D::computeGradientYQuad4(cell, m_node_coord);
-
-  return area * lambda * (dxU ^ dxU) + area * lambda * (dyU ^ dyU);
-}
-
-/*---------------------------------------------------------------------------*/
-/**
  * @brief Calls the right function for LHS assembly given as mesh type.
  */
 /*---------------------------------------------------------------------------*/
@@ -282,6 +252,10 @@ _assembleBilinearOperator()
   else if (options()->meshType == "TRIA3")
     _assembleBilinear<3>([this](const Cell& cell) {
       return _computeElementMatrixTria3(cell);
+    });
+  else if (options()->meshType == "TETRA4")
+    _assembleBilinear<4>([this](const Cell& cell) {
+      return _computeElementMatrixTetra4(cell);
     });
   else
     ARCANE_FATAL("Non supported meshType");
@@ -427,6 +401,28 @@ _validateResults()
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] result-validation", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Function to set PETSc flags from commandline
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_setPetscFlagsFromCommandline()
+{
+  StringList string_list;
+  std::string petsc_flags_std = m_petsc_flags.localstr();
+  // Use a string stream to split the string by spaces
+  std::istringstream iss(petsc_flags_std);
+  String token;
+  while (iss >> token) {
+    string_list.add(token);
+  }
+
+  CommandLineArguments args(string_list);
+  m_linear_system.setSolverCommandLineArguments(args);
 }
 
 /*---------------------------------------------------------------------------*/

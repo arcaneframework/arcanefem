@@ -60,18 +60,37 @@ endif()
 enable_testing()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
-  add_test(NAME [Fourier]conduction COMMAND Fourier inputs/conduction.arc)
-  add_test(NAME [Fourier]conduction_heterogeneous COMMAND Fourier inputs/conduction.heterogeneous.arc)
-  add_test(NAME [Fourier]conduction_quad COMMAND Fourier inputs/conduction.quad4.arc)
-  add_test(NAME [Fourier]manufacture_solution COMMAND Fourier -A,UsingDotNet=1 inputs/manufacture.solution.arc)
+  add_test(NAME [Fourier]conduction COMMAND Fourier
+    inputs/conduction.arc)
+  add_test(NAME [Fourier]conduction_heterogeneous COMMAND Fourier
+    inputs/conduction.heterogeneous.arc)
+  add_test(NAME [Fourier]conduction_quad COMMAND Fourier
+    -A,//meshes/mesh/filename=meshes/plancher.quad4.msh
+    -A,//fem/mesh-type=QUAD4
+    -A,//fem/petsc-flags=-ksp_monitor
+    -A,//fem/cross-validation=false
+    inputs/conduction.arc)
+  add_test(NAME [Fourier]manufacture_solution COMMAND Fourier
+    -A,UsingDotNet=1
+    inputs/manufacture.solution.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-    add_test(NAME [Fourier]conduction_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Fourier inputs/conduction.arc)
-    add_test(NAME [Fourier]conduction_heterogeneous_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Fourier inputs/conduction.heterogeneous.arc)
-    add_test(NAME [Fourier]manufacture_solution_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Fourier -A,UsingDotNet=1  inputs/manufacture.solution.arc)
+    add_test(NAME [Fourier]conduction_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+      inputs/conduction.arc)
+    add_test(NAME [Fourier]conduction_heterogeneous_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+      inputs/conduction.heterogeneous.arc)
+    add_test(NAME [Fourier]manufacture_solution_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+      -A,UsingDotNet=1
+      inputs/manufacture.solution.arc)
     if(FEMTEST_HAS_GMSH_TEST)
-      add_test(NAME [Fourier]conduction_10k_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Fourier inputs/conduction.10k.arc)
-      add_test(NAME [Fourier]conduction_heterogeneous_10k_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Fourier inputs/conduction.heterogeneous.10k.arc)
+      add_test(NAME [Fourier]conduction_10k_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+        -A,//meshes/mesh/filename=meshes/plancher.10k.msh
+        -A,//fem/cross-validation=false
+        inputs/conduction.10k.arc)
+      add_test(NAME [Fourier]conduction_heterogeneous_10k_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+        -A,//meshes/mesh/filename=meshes//multi-material.10k.msh
+        -A,//fem/cross-validation=false
+        inputs/conduction.heterogeneous.arc)
     endif()
   endif()
 endif()

@@ -78,6 +78,13 @@ class FemModule
   Real qdot;
   Real ElementNodes;
 
+  String m_petsc_flags;
+  String m_matrix_format = "DOK";
+
+  bool m_assemble_linear_system = true;
+  bool m_solve_linear_system = true;
+  bool m_cross_validation = true;
+
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;
@@ -89,10 +96,12 @@ class FemModule
   void _assembleLinearOperator();
   void _validateResults();
   void _updateVariables();
+  void _setPetscFlagsFromCommandline();
   void _printArcaneFemTime(const String label, const Real value);
 
   FixedMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
   FixedMatrix<4, 4> _computeElementMatrixQuad4(Cell cell);
+  FixedMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);
 
   IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_dirichlet = nullptr;
   IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_source = nullptr;

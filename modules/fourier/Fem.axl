@@ -23,16 +23,38 @@
     <simple name="qdot" type="real" default="0.0">
       <description>Heat source within the material.</description>
     </simple>
+
     <simple name="lambda" type="real" default="1.75">
       <description>Thermal conductivity of the material.</description>
     </simple>
+
     <simple name="result-file" type="string" optional="true">
       <description>File name of a file containing the values of the solution vector to check the results</description>
     </simple>
+
     <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
       <description>Type of mesh provided to the solver</description>
     </simple>
 
+    <simple name="matrix-format" type="string" default="DOK" optional="true">
+      <description>Which matrix format to use DOK|BSR|AF-BSR.</description>
+    </simple>
+
+    <simple name="petsc-flags" type="string" default="" optional="true">
+      <description>Flags for PETSc from commandline.</description>
+    </simple>
+
+    <simple name="solve-linear-system" type="bool" default="true" optional="true">
+      <description>Boolean to enable linear system solving.</description>
+    </simple>
+
+    <simple name="assemble-linear-system" type="bool" default="true" optional="true">
+      <description>Boolean to enable linear system assembly.</description>
+    </simple>
+
+    <simple name="cross-validation" type="bool" default="true" optional="true">
+      <description>Boolean to enable cross validation.</description>
+    </simple>
     <!-- - - - - - material-property - - - - -->
     <complex name  = "material-property"
              type  = "MaterialProperty"
