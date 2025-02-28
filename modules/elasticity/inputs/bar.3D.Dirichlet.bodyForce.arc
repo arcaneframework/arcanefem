@@ -15,6 +15,9 @@
   <meshes>
     <mesh>
       <filename>meshes/bar_dynamic_3D.msh</filename>
+      <subdivider>
+        <nb-subdivision>0</nb-subdivision>
+      </subdivider>
     </mesh>
   </meshes>
 

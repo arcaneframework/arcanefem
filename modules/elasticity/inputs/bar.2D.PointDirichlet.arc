@@ -16,6 +16,9 @@
   <meshes>
     <mesh>
       <filename>meshes/bar.msh</filename>
+      <subdivider>
+        <nb-subdivision>0</nb-subdivision>
+      </subdivider>
     </mesh>
   </meshes>
 
