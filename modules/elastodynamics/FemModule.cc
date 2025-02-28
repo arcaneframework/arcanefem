@@ -11,126 +11,35 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/ITimeLoopMng.h>
-#include <arcane/IMesh.h>
-#include <arcane/IItemFamily.h>
-#include <arcane/ItemGroup.h>
-#include <arcane/ICaseMng.h>
-#include <arcane/CaseTable.h>
-
-#include "IDoFLinearSystemFactory.h"
-#include "Fem_axl.h"
-#include "FemUtils.h"
-#include "DoFLinearSystem.h"
-#include "FemDoFsOnNodes.h"
+#include "FemModule.h"
+#include "ElementMatrix.h"
 
 /*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-using namespace Arcane;
-using namespace Arcane::FemUtils;
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-/*!
- * \brief Module Fem.
+/**
+ * @brief Initializes the FemModule at the start of the simulation.
+ *
+ * This method initializes degrees of freedom (DoFs) on nodes.
  */
-class FemModule
-: public ArcaneFemObject
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+startInit()
 {
- public:
+  info() << "Module Fem INIT";
 
-  explicit FemModule(const ModuleBuildInfo& mbi)
-  : ArcaneFemObject(mbi)
-  , m_dofs_on_nodes(mbi.subDomain()->traceMng())
-  {
-    ICaseMng* cm = mbi.subDomain()->caseMng();
-    cm->setTreatWarningAsError(true);
-    cm->setAllowUnkownRootElelement(false);
-  }
-  ~FemModule()
-  {
-    for( const CaseTableInfo&  t : m_traction_case_table_list )
-      delete t.case_table;
-  }
+  m_dofs_on_nodes.initialize(mesh(), 2);
 
- public:
+  _applyDirichletBoundaryConditions();
 
-  //! Method called at each iteration
-  void compute() override;
+  // # get parameters
+  _getParameters();
 
-  //! Method called at the beginning of the simulation
-  void startInit() override;
+  t    = dt;
+  tmax = tmax - dt;
+  m_global_deltat.assign(dt);
 
-  VersionInfo versionInfo() const override
-  {
-    return VersionInfo(1, 0, 0);
-  }
-
- private:
-
-  Real t;                     // time variable
-  Real dt;                    // time step
-  Real tmax;                  // max time
-
-  Real etam;                  // time discretization param etam
-  Real etak;                  // time discretization param etak
-  Real alpm;                  // time discretization param alpm
-  Real alpf;                  // time discretization param alpf
-  Real beta;                  // time discretization param beta
-  Real gamma;                 // time discretization param gamma
-
-  Real E;                     // Youngs modulus
-  Real nu;                    // Poissons ratio
-  Real rho;                   // Density
-  Real f1;                    // Body force in x
-  Real f2;                    // Body force in y
-  Real mu;                    // Lame parameter mu
-  Real mu2;                   // Lame parameter mu * 2
-  Real lambda;                // Lame parameter lambda
-
-  Real c0;                    // constant
-  Real c1;                    // constant
-  Real c2;                    // constant
-  Real c3;                    // constant
-  Real c4;                    // constant
-  Real c5;                    // constant
-  Real c6;                    // constant
-  Real c7;                    // constant
-  Real c8;                    // constant
-  Real c9;                    // constant
-  Real c10;                   // constant
-
-  DoFLinearSystem m_linear_system;
-  FemDoFsOnNodes m_dofs_on_nodes;
-
-  // Struct to make sure we are using a CaseTable associated
-  // to the right file
-  struct CaseTableInfo
-  {
-    String file_name;
-    CaseTable* case_table = nullptr;
-  };
-  // List of CaseTable for traction boundary conditions
-  UniqueArray<CaseTableInfo> m_traction_case_table_list;
-
- private:
-
-  void _doStationarySolve();
-  void _getParameters();
-  void _updateVariables();
-  void _updateTime();
-  void _assembleBilinearOperatorTRIA3();
-  void _solve();
-  void _assembleLinearOperator();
-  FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
-  Real _computeAreaTriangle3(Cell cell);
-  Real _computeEdgeLength2(Face face);
-  Real2 _computeDxDyOfRealTRIA3(Cell cell);
-  void _applyDirichletBoundaryConditions();
-  void _checkResultFile();
-  void _readCaseTables();
-};
+  _readCaseTables();
+}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -155,28 +64,6 @@ compute()
   _updateVariables();
 
   _updateTime();
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-startInit()
-{
-  info() << "Module Fem INIT";
-
-  m_dofs_on_nodes.initialize(mesh(), 2);
-
-  _applyDirichletBoundaryConditions();
-
-  // # get parameters
-  _getParameters();
-
-  t    = dt;
-  tmax = tmax - dt;
-  m_global_deltat.assign(dt);
-
-  _readCaseTables();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1006,339 +893,7 @@ _computeEdgeLength2(Face face)
 {
   Real3 m0 = m_node_coord[face.nodeId(0)];
   Real3 m1 = m_node_coord[face.nodeId(1)];
-  return  math::sqrt((m1.x-m0.x)*(m1.x-m0.x) + (m1.y-m0.y)*(m1.y - m0.y));
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-FixedMatrix<6, 6> FemModule::
-_computeElementMatrixTRIA3(Cell cell)
-{
-  // Get coordiantes of the triangle element  TRI3
-  //------------------------------------------------
-  //                  0 o
-  //                   . .
-  //                  .   .
-  //                 .     .
-  //              1 o . . . o 2
-  //------------------------------------------------
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-
-  Real area = _computeAreaTriangle3(cell);    // calculate area
-
-  Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
-  Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
-  Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
-
-  FixedMatrix<1, 6> b_matrix;
-  FixedMatrix<6, 1> bT_matrix;
-  FixedMatrix<6, 6> int_Omega_i;
-
-  for (Int32 i = 0; i<6; i++)
-    for (Int32 j = 0; j<6; j++)
-      int_Omega_i(i,j) = 0.;
-
-// -----------------------------------------------------------------------------
-//  lambda( dx(u1)dx(v1) + dy(u2)dx(v1) + dx(u1)dy(v2) + dy(u2)dy(v2) ) + u2v2
-//------------------------------------------------------------------------------
-
-
-  // dx(u1)dx(v1) //
-  b_matrix(0, 0) = dPhi0.x/area;
-  b_matrix(0, 1) = 0.;
-  b_matrix(0, 2) = dPhi1.x/area;
-  b_matrix(0, 3) = 0.;
-  b_matrix(0, 4) = dPhi2.x/area;
-  b_matrix(0, 5) = 0.;
-
-  b_matrix.multInPlace(0.5);
-
-  bT_matrix(0, 0) = dPhi0.x;
-  bT_matrix(1, 0) = 0.;
-  bT_matrix(2, 0) = dPhi1.x;
-  bT_matrix(3, 0) = 0.;
-  bT_matrix(4, 0) = dPhi2.x;
-  bT_matrix(5, 0) = 0.;
-
-  bT_matrix.multInPlace(0.5);
-
-  FixedMatrix<6, 6> int_dxU1dxV1 = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_dxU1dxV1);
-
-  // dy(u2)dx(v1) //
-  b_matrix(0, 0) = 0.;
-  b_matrix(0, 1) = dPhi0.y/area;
-  b_matrix(0, 2) = 0.;
-  b_matrix(0, 3) = dPhi1.y/area;
-  b_matrix(0, 4) = 0.;
-  b_matrix(0, 5) = dPhi2.y/area;
-
-  b_matrix.multInPlace(0.5);
-
-  bT_matrix(0, 0) = dPhi0.x;
-  bT_matrix(1, 0) = 0.;
-  bT_matrix(2, 0) = dPhi1.x;
-  bT_matrix(3, 0) = 0.;
-  bT_matrix(4, 0) = dPhi2.x;
-  bT_matrix(5, 0) = 0.;
-
-  bT_matrix.multInPlace(0.5);
-
-  FixedMatrix<6, 6> int_dyU1dyV1 = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_dyU1dyV1);
-
-  // dx(u1)dy(v2) //
-  b_matrix(0, 0) = dPhi0.x/area;
-  b_matrix(0, 1) = 0.;
-  b_matrix(0, 2) = dPhi1.x/area;
-  b_matrix(0, 3) = 0.;
-  b_matrix(0, 4) = dPhi2.x/area;
-  b_matrix(0, 5) = 0.;
-
-  b_matrix.multInPlace(0.5);
-
-  bT_matrix(0, 0) = 0.;
-  bT_matrix(1, 0) = dPhi0.y;
-  bT_matrix(2, 0) = 0.;
-  bT_matrix(3, 0) = dPhi1.y;
-  bT_matrix(4, 0) = 0.;
-  bT_matrix(5, 0) = dPhi2.y;
-
-  bT_matrix.multInPlace(0.5);
-
-  FixedMatrix<6, 6> int_dxU2dxV1  = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_dxU2dxV1);
-
-  // dy(u2)dy(v2) //
-  b_matrix(0, 0) = 0.;
-  b_matrix(0, 1) = dPhi0.y/area;
-  b_matrix(0, 2) = 0.;
-  b_matrix(0, 3) = dPhi1.y/area;
-  b_matrix(0, 4) = 0.;
-  b_matrix(0, 5) = dPhi2.y/area;
-
-  b_matrix.multInPlace(0.5);
-
-  bT_matrix(0, 0) = 0.;
-  bT_matrix(1, 0) = dPhi0.y;
-  bT_matrix(2, 0) = 0.;
-  bT_matrix(3, 0) = dPhi1.y;
-  bT_matrix(4, 0) = 0.;
-  bT_matrix(5, 0) = dPhi2.y;
-
-  bT_matrix.multInPlace(0.5);
-
-  FixedMatrix<6, 6> int_dyU2dyV1  = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_dyU2dyV1);
-
-  // lambda * (.....)
-  int_Omega_i.multInPlace(c1);
-
-
-// -----------------------------------------------------------------------------
-//  2*mu( dx(u1)dx(v1) + dy(u2)dy(v2) + 0.5*(   dy(u1)dy(v1) + dx(u2)dy(v1)
-//                                            + dy(u1)dx(v2) + dx(u2)dx(v2) )
-//      )
-//------------------------------------------------------------------------------
-
-  // mu*dx(u1)dx(v1) //
-  b_matrix(0, 0) = dPhi0.x/area;
-  b_matrix(0, 1) = 0.;
-  b_matrix(0, 2) = dPhi1.x/area;
-  b_matrix(0, 3) = 0.;
-  b_matrix(0, 4) = dPhi2.x/area;
-  b_matrix(0, 5) = 0.;
-
-  b_matrix.multInPlace(0.5);
-
-  bT_matrix(0, 0) = dPhi0.x;
-  bT_matrix(1, 0) = 0.;
-  bT_matrix(2, 0) = dPhi1.x;
-  bT_matrix(3, 0) = 0.;
-  bT_matrix(4, 0) = dPhi2.x;
-  bT_matrix(5, 0) = 0.;
-
-  bT_matrix.multInPlace(0.5*c2);
-
-  FixedMatrix<6, 6> int_mudxU1dxV1 = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_mudxU1dxV1);
-
-
-  // mu*dy(u2)dy(v2) //
-  b_matrix(0, 0) = 0.;
-  b_matrix(0, 1) = dPhi0.y/area;
-  b_matrix(0, 2) = 0.;
-  b_matrix(0, 3) = dPhi1.y/area;
-  b_matrix(0, 4) = 0.;
-  b_matrix(0, 5) = dPhi2.y/area;
-
-  b_matrix.multInPlace(0.5);
-
-  bT_matrix(0, 0) = 0.;
-  bT_matrix(1, 0) = dPhi0.y;
-  bT_matrix(2, 0) = 0.;
-  bT_matrix(3, 0) = dPhi1.y;
-  bT_matrix(4, 0) = 0.;
-  bT_matrix(5, 0) = dPhi2.y;
-
-  bT_matrix.multInPlace(0.5*c2);
-
-  FixedMatrix<6, 6> int_mudyU2dyV2  = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_mudyU2dyV2);
-
-  // 0.5*0.5*mu*dy(u1)dy(v1) //
-  b_matrix(0, 0) = dPhi0.y/area;
-  b_matrix(0, 1) = 0.;
-  b_matrix(0, 2) = dPhi1.y/area;
-  b_matrix(0, 3) = 0.;
-  b_matrix(0, 4) = dPhi2.y/area;
-  b_matrix(0, 5) = 0.;
-
-  b_matrix.multInPlace(0.5);
-
-  bT_matrix(0, 0) = dPhi0.y;
-  bT_matrix(1, 0) = 0.;
-  bT_matrix(2, 0) = dPhi1.y;
-  bT_matrix(3, 0) = 0.;
-  bT_matrix(4, 0) = dPhi2.y;
-  bT_matrix(5, 0) = 0.;
-
-  bT_matrix.multInPlace(0.25*c2);
-
-  FixedMatrix<6, 6> int_mudyU1dyV1  = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_mudyU1dyV1);
-
-  // 0.5*mu*dx(u2)dy(v1) //
-  b_matrix(0, 0) = 0.;
-  b_matrix(0, 1) = dPhi0.x/area;
-  b_matrix(0, 2) = 0.;
-  b_matrix(0, 3) = dPhi1.x/area;
-  b_matrix(0, 4) = 0.;
-  b_matrix(0, 5) = dPhi2.x/area;
-
-  b_matrix.multInPlace(0.5);
-
-  bT_matrix(0, 0) = dPhi0.y;
-  bT_matrix(1, 0) = 0.;
-  bT_matrix(2, 0) = dPhi1.y;
-  bT_matrix(3, 0) = 0.;
-  bT_matrix(4, 0) = dPhi2.y;
-  bT_matrix(5, 0) = 0.;
-
-  bT_matrix.multInPlace(0.25*c2);
-
-  FixedMatrix<6, 6> int_mudxU2dyV1  = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_mudxU2dyV1);
-
-  // 0.5*mu*dy(u1)dx(v2) //
-  b_matrix(0, 0) = dPhi0.y/area;
-  b_matrix(0, 1) = 0.;
-  b_matrix(0, 2) = dPhi1.y/area;
-  b_matrix(0, 3) = 0.;
-  b_matrix(0, 4) = dPhi2.y/area;
-  b_matrix(0, 5) = 0.;
-
-  b_matrix.multInPlace(0.5);
-
-  bT_matrix(0, 0) = 0.;
-  bT_matrix(1, 0) = dPhi0.x;
-  bT_matrix(2, 0) = 0.;
-  bT_matrix(3, 0) = dPhi1.x;
-  bT_matrix(4, 0) = 0.;
-  bT_matrix(5, 0) = dPhi2.x;
-
-  bT_matrix.multInPlace(0.25*c2);
-
-  FixedMatrix<6, 6> int_mudyU1dxV2  = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_mudyU1dxV2);
-
-  // 0.5*mu*dx(u2)dx(v2) //
-  b_matrix(0, 0) = 0.;
-  b_matrix(0, 1) = dPhi0.x/area;
-  b_matrix(0, 2) = 0.;
-  b_matrix(0, 3) = dPhi1.x/area;
-  b_matrix(0, 4) = 0.;
-  b_matrix(0, 5) = dPhi2.x/area;
-
-  b_matrix.multInPlace(0.5);
-
-  bT_matrix(0, 0) = 0.;
-  bT_matrix(1, 0) = dPhi0.x;
-  bT_matrix(2, 0) = 0.;
-  bT_matrix(3, 0) = dPhi1.x;
-  bT_matrix(4, 0) = 0.;
-  bT_matrix(5, 0) = dPhi2.x;
-
-  bT_matrix.multInPlace(0.25*c2);
-
-  FixedMatrix<6, 6> int_mudxU2dxV2  = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_mudxU2dxV2);
-
-  //info() << "Cell=" << cell.localId();
-  //std::cout << " int_cdPi_dPj=";
-  //int_cdPi_dPj.dump(std::cout);
-  //std::cout << "\n";
-
-
-  // u1v1 //
-  b_matrix(0, 0) = 1.;
-  b_matrix(0, 1) = 0.;
-  b_matrix(0, 2) = 1.;
-  b_matrix(0, 3) = 0.;
-  b_matrix(0, 4) = 1.;
-  b_matrix(0, 5) = 0.;
-
-  b_matrix.multInPlace(0.5);
-
-  bT_matrix(0, 0) = area/3.;
-  bT_matrix(1, 0) = 0.;
-  bT_matrix(2, 0) = area/3.;
-  bT_matrix(3, 0) = 0.;
-  bT_matrix(4, 0) = area/3.;
-  bT_matrix(5, 0) = 0.;
-
-  bT_matrix.multInPlace(0.5*c0);
-
-  FixedMatrix<6, 6> int_U2V2   = matrixMultiplication(bT_matrix, b_matrix);
-
-  for (Int32 i = 0; i<6; i++)
-    int_U2V2(i,i) *= 2.;
-
-  int_Omega_i = matrixAddition( int_Omega_i, int_U2V2);
-
-
-
-  // u2v2 //
-  b_matrix(0, 0) = 0.;
-  b_matrix(0, 1) = 1.;
-  b_matrix(0, 2) = 0.;
-  b_matrix(0, 3) = 1.;
-  b_matrix(0, 4) = 0.;
-  b_matrix(0, 5) = 1.;
-
-  b_matrix.multInPlace(0.5);
-
-  bT_matrix(0, 0) = 0.;
-  bT_matrix(1, 0) = area/3.;
-  bT_matrix(2, 0) = 0.;
-  bT_matrix(3, 0) = area/3.;
-  bT_matrix(4, 0) = 0.;
-  bT_matrix(5, 0) = area/3.;
-
-  bT_matrix.multInPlace(0.5*c0);
-
-  int_U2V2   = matrixMultiplication(bT_matrix, b_matrix);
-
-  for (Int32 i = 0; i<6; i++)
-    int_U2V2(i,i) *= 2.;
-
-
-  int_Omega_i = matrixAddition( int_Omega_i, int_U2V2);
-
-  return int_Omega_i;
+  return math::sqrt((m1.x - m0.x) * (m1.x - m0.x) + (m1.y - m0.y) * (m1.y - m0.y));
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1354,7 +909,7 @@ _assembleBilinearOperatorTRIA3()
     if (cell.type() != IT_Triangle3)
       ARCANE_FATAL("Only Triangle3 cell type is supported");
 
-    auto K_e = _computeElementMatrixTRIA3(cell);  // element stiffness matrix
+    auto K_e = _computeElementMatrixTRIA3(cell); // element stiffness matrix
     // assemble elementary matrix into  the global one elementary terms are
     // positioned into  K according  to the rank of associated  node in the
     // mesh.nodes list  and according the dof number. Here  for  each  node
@@ -1365,9 +920,9 @@ _assembleBilinearOperatorTRIA3()
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
       for (Node node2 : cell.nodes()) {
-        Real v1 = K_e(2 * n1_index    , 2 * n2_index    );
-        Real v2 = K_e(2 * n1_index    , 2 * n2_index + 1);
-        Real v3 = K_e(2 * n1_index + 1, 2 * n2_index    );
+        Real v1 = K_e(2 * n1_index, 2 * n2_index);
+        Real v2 = K_e(2 * n1_index, 2 * n2_index + 1);
+        Real v3 = K_e(2 * n1_index + 1, 2 * n2_index);
         Real v4 = K_e(2 * n1_index + 1, 2 * n2_index + 1);
         // m_k_matrix(node1.localId(), node2.localId()) += v;
         if (node1.isOwn()) {
@@ -1375,7 +930,7 @@ _assembleBilinearOperatorTRIA3()
           DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
           DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
           DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
-//          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+          //          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
           m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
           m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
           m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v3);
