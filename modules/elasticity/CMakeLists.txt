@@ -29,6 +29,7 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
     bar.msh
     bar_dynamic_3D.msh
+    sphere_cut.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
     file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
@@ -144,6 +145,10 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG}
     inputs/bar.3D.Dirichlet.bodyForce.arc)
+  arcanefem_add_gpu_test(NAME [elasticity]3D_sphere_Dirichlet_bodyforce_hypre_af-bsr COMMAND  ./Elasticity ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/bar.3D.sphere.Dirichlet.bodyForce.arc)
   arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_pointBC_RowElimination_bsr COMMAND  ./Elasticity ARGS
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_BICGSTAB}
