@@ -14,7 +14,7 @@
     </variable>
   </variables>
   <options>
-    <simple name = "f" type = "string[]" default="NULL NULL" optional="true">
+    <simple name = "f" type = "string[]" default="NULL NULL NULL" optional="true">
       <description>Body force vector (space separated list).</description>
     </simple>
     <simple name="E" type="real" default="0.0">
@@ -66,7 +66,7 @@
           FaceGroup on which to apply these boundary condition
         </description>
       </extended>
-      <simple name = "u" type = "string[]" optional="true">
+      <simple name = "u" type = "string[]" default="NULL NULL NULL" optional="true">
         <description>
           Dirichlet conditions on the surface (space separated list).
         </description>
@@ -87,7 +87,7 @@
           NodeGroup on which to apply these point Dirichlet condition
         </description>
       </extended>
-      <simple name = "u" type = "string[]" optional="true">
+      <simple name = "u" type = "string[]" default="NULL NULL NULL" optional="true">
         <description>
           Dirichlet conditions on the points (space separated list).
         </description>
@@ -108,7 +108,7 @@
           FaceGroup on which to apply these boundary condition
         </description>
       </extended>
-      <simple name = "t" type = "string[]" optional="true">
+      <simple name = "t" type = "string[]" default="NULL NULL NULL" optional="true">
         <description>
           Traction vector (space separated list).
         </description>
