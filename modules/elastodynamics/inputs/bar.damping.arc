@@ -29,6 +29,7 @@
     <rho>1.0</rho>
     <lambda>576.9230769</lambda>
     <mu>384.6153846</mu>
+    <result-file>check/2D_elastodynamics_bar_constant_traction_damping.txt</result-file>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     <penalty>1.e64</penalty>
     <time-discretization>Newmark-beta</time-discretization>

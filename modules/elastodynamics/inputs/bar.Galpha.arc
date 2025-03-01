@@ -31,6 +31,7 @@
     <time-discretization>Generalized-alpha</time-discretization>
     <alpm>0.20</alpm>
     <alpf>0.40</alpf>
+    <result-file>check/2D_elastodynamics_Galpha_time_discretization.txt</result-file>
     <dirichlet-boundary-condition>
       <surface>surfaceleft</surface>
       <u1>0.0</u1>

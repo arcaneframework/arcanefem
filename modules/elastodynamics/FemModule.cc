@@ -60,10 +60,13 @@ compute()
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
   _doStationarySolve();
-
   _updateVariables();
-
   _updateTime();
+
+  if (t > tmax + dt - 1e-8){
+    info() << "Perfroming check";
+    _checkResultFile();
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -82,18 +85,9 @@ _updateTime()
 void FemModule::
 _doStationarySolve()
 {
-
-  // Assemble the FEM bilinear operator (LHS - matrix A)
   _assembleBilinearOperatorTRIA3();
-
-  // Assemble the FEM linear operator (RHS - vector b)
   _assembleLinearOperator();
-
-  // Solve for [u1,u2]
   _solve();
-
-  // Check results TODO
-  // _checkResultFile();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -133,7 +127,6 @@ _getParameters()
     lambda = options()->lambda;
 
   mu2 =  mu*2;                             // lame parameter mu * 2
-
 
   //----- time discretization Newmark-Beta or Generalized-alpha  -----//
   if (options()->timeDiscretization == "Newmark-beta") {
@@ -964,7 +957,6 @@ _solve()
       u_disp.y = u2_val;
       u_disp.z = 0.0;
       m_dU[node] = u_disp;
-      info() << "Node: " << node.localId() << " U1=" << u1_val << " U2=" << u2_val;
     }
   }
 
@@ -982,10 +974,9 @@ _solve()
     std::cout.precision(17);
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      std::cout << "U1[" << node.localId() << "][" << node.uniqueId() << "] = "
-                << m_dU[node].x << " U2[" << node.localId() << "][" << node.uniqueId() << "] = "
-                << m_dU[node].y << "\n";
-      //std::cout << "U1[]" << node.uniqueId() << " " << m_u1[node] << "\n";
+      std::cout << "( N_id, u1, u2, u3 ) = ( "
+      << node.uniqueId() << ", " << m_dU[node].x << ", " << m_dU[node].y << ", " << m_dU[node].z
+      << ")\n";
     }
     std::cout.precision(p);
   }
@@ -1002,8 +993,7 @@ _checkResultFile()
   if (filename.empty())
     return;
   const double epsilon = 1.0e-4;
-  // TODO
-  //Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_U.x, epsilon);
+  Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_dU, epsilon);
 }
 
 /*---------------------------------------------------------------------------*/

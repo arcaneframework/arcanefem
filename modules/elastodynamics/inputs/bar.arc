@@ -22,6 +22,7 @@
   </meshes>
 
   <fem>
+    <result-file>check/2D_elastodynamics_bar.txt</result-file>
     <time-discretization>Newmark-beta</time-discretization>
     <tmax>2.</tmax>
     <dt>0.08</dt>
