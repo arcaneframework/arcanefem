@@ -29,9 +29,6 @@ startInit()
 
   m_dofs_on_nodes.initialize(mesh(), 2);
 
-  _applyDirichletBoundaryConditions();
-
-  // # get parameters
   _getParameters();
 
   t    = dt;
@@ -111,8 +108,6 @@ _getParameters()
   alpf = options()->alpf();                // time discretization param alpf
 
   //--------- material parameter ---------//
-  f1   = options()->f1();                  // body force in X
-  f2   = options()->f2();                  // body force in Y
   E    = options()->E();                   // Youngs modulus
   nu   = options()->nu();                  // Poission ratio
   rho  = options()->rho();                 // Density
@@ -200,112 +195,6 @@ _readCaseTables()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_applyDirichletBoundaryConditions()
-{
-
-  info() << "Apply boundary conditions";
-
-  // Handle all the Dirichlet boundary conditions.
-  // In the 'arc' file, there are in the following format:
-  //   <dirichlet-boundary-condition>
-  //   <surface>Left</surface>
-  //   <u1>1.0</u1>
-  //   <u1>0.0</u2>
-  // </dirichlet-boundary-condition>
-
-  for (const auto& bs : options()->dirichletBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    Real u1_val = bs->u1();
-    Real u2_val = bs->u2();
-
-    if( bs->u1.isPresent() && bs->u2.isPresent()) {
-      info() << "Apply Dirichlet boundary condition surface=" << group.name() << " u1= " << u1_val << " u2= " << u2_val;
-      ENUMERATE_ (Face, iface, group) {
-        for (Node node : iface->nodes()) {
-          m_dU[node].x = u1_val;
-          m_dU[node].y = u2_val;
-          m_u1_fixed[node] = true;
-          m_u2_fixed[node] = true;
-        }
-      }
-      continue;
-    }
-
-    if(bs->u1.isPresent()) {
-      info() << "Apply Dirichlet boundary condition surface=" << group.name() << " u1=" << u1_val;
-      ENUMERATE_ (Face, iface, group) {
-        for (Node node : iface->nodes()) {
-          m_dU[node].x = u1_val;
-          m_u1_fixed[node] = true;
-        }
-      }
-      continue;
-    }
-
-    if(bs->u2.isPresent()) {
-      info() << "Apply Dirichlet boundary condition surface=" << group.name() << " u2=" << u2_val;
-      ENUMERATE_ (Face, iface, group) {
-        for (Node node : iface->nodes()) {
-          m_dU[node].y = u2_val;
-          m_u2_fixed[node] = true;
-        }
-      }
-      continue;
-    }
-  }
-
-  // Handle all the Dirichlet point conditions.
-  // In the 'arc' file, there are in the following format:
-  //   <dirichlet-point-condition>
-  //   <surface>Left</surface>
-  //   <u1>1.0</u1>
-  //   <u1>0.0</u2>
-  // </dirichlet-point-condition>
-
-  for (const auto& bs : options()->dirichletPointCondition()) {
-    NodeGroup group = bs->node();
-    Real u1_val = bs->u1();
-    Real u2_val = bs->u2();
-
-    if( bs->u1.isPresent() && bs->u2.isPresent()) {
-      info() << "Apply Dirichlet point condition on node=" << group.name() << " u1= " << u1_val << " u2= " << u2_val;
-      ENUMERATE_ (Node, inode, group) {
-        Node node = *inode;
-        m_dU[node].x = u1_val;
-        m_dU[node].y = u2_val;
-        m_u1_fixed[node] = true;
-        m_u2_fixed[node] = true;
-      }
-      continue;
-    }
-
-    if(bs->u1.isPresent()) {
-      info() << "Apply Dirichlet point condition on node=" << group.name() << " u1=" << u1_val;
-      ENUMERATE_ (Node, inode, group) {
-        Node node = *inode;
-        m_dU[node].x = u1_val;
-        m_u1_fixed[node] = true;
-      }
-      continue;
-    }
-
-    if(bs->u2.isPresent()) {
-      info() << "Apply Dirichlet point condition on node=" << group.name() << " u2=" << u2_val;
-      ENUMERATE_ (Node, inode, group) {
-        Node node = *inode;
-        m_dU[node].y = u2_val;
-        m_u2_fixed[node] = true;
-      }
-      continue;
-    }
-  }
-
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
 _updateVariables()
 {
   // Note at this stage we already have calculated dU
@@ -353,200 +242,31 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  if (options()->enforceDirichletMethod() == "Penalty") {
-
-    //----------------------------------------------
-    // penalty method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
-    //  Dirichlet condition needs to be applied
-    //
-    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
-    //           a_{i,i} = 1. * P
-    //
-    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
-    //           b_{i} = b_{i} * P
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    Real Penalty = options()->penalty();        // 1.0e30 is the default
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u1_fixed[node_id]) {
-        DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
-        m_linear_system.matrixSetValue(dof_id1, dof_id1, Penalty);
-        {
-          Real u1_dirichlet = Penalty * m_dU[node_id].x;
-          rhs_values[dof_id1] = u1_dirichlet;
-        }
-      }
-      if (m_u2_fixed[node_id]) {
-        DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
-        m_linear_system.matrixSetValue(dof_id2, dof_id2, Penalty);
-        {
-          Real u2_dirichlet = Penalty * m_dU[node_id].y;
-          rhs_values[dof_id2] = u2_dirichlet;
-        }
-      }
-    }
-  }else if (options()->enforceDirichletMethod() == "WeakPenalty") {
-
-    //----------------------------------------------
-    // weak penalty method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
-    //  Dirichlet condition needs to be applied
-    //
-    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
-    //           a_{i,i} = a_{i,i} + P
-    //
-    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
-    //           b_{i} = b_{i} * P
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    Real Penalty = options()->penalty();        // 1.0e30 is the default
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u1_fixed[node_id]) {
-        DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
-        m_linear_system.matrixAddValue(dof_id1, dof_id1, Penalty);
-        {
-          Real u1_dirichlet = Penalty * m_dU[node_id].x;
-          rhs_values[dof_id1] = u1_dirichlet;
-        }
-      }
-      if (m_u2_fixed[node_id]) {
-        DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
-        m_linear_system.matrixAddValue(dof_id2, dof_id2, Penalty);
-        {
-          Real u2_dirichlet = Penalty * m_dU[node_id].y;
-          rhs_values[dof_id2] = u2_dirichlet;
-        }
-      }
-    }
-  }else if (options()->enforceDirichletMethod() == "RowElimination") {
-
-    //----------------------------------------------
-    // Row elimination method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'i' be the DOF for which  Dirichlet condition 'g_i' needs to be applied
-    //
-    //  to apply the Dirichlet on 'i'th DOF
-    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j
-    //           a_{i,j} = 1.  : i==j
-    //  - For RHS vector b the terms corresponding to the Dirichlet DOF
-    //           b_i = g_i
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u1_fixed[node_id]) {
-        DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
-
-        Real u1_dirichlet = m_dU[node_id].x;
-        m_linear_system.eliminateRow(dof_id1, u1_dirichlet);
-
-      }
-      if (m_u2_fixed[node_id]) {
-        DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
-
-        Real u2_dirichlet = m_dU[node_id].y;
-        m_linear_system.eliminateRow(dof_id2, u2_dirichlet);
-
-      }
-    }
-  }else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
-
-    //----------------------------------------------
-    // Row elimination method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
-    //
-    //  to apply the Dirichlet on 'i'th DOF
-    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j  for all j
-    //           a_{i,j} = 1.  : i==j
-    //    also the column terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j  for all i
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u1_fixed[node_id]) {
-        DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
-
-        Real u1_dirichlet = m_dU[node_id].x;
-        m_linear_system.eliminateRowColumn(dof_id1, u1_dirichlet);
-
-      }
-      if (m_u2_fixed[node_id]) {
-        DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
-
-        Real u2_dirichlet = m_U[node_id].y;
-        m_linear_system.eliminateRowColumn(dof_id2, u2_dirichlet);
-
-      }
-    }
-  }else {
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " is not supported \n"
-           << "enforce-Dirichlet-method only supports:\n"
-           << "  - Penalty\n"
-           << "  - WeakPenalty\n"
-           << "  - RowElimination\n"
-           << "  - RowColumnElimination\n";
-
-    ARCANE_FATAL( "Dirichlet boundary conditions were not applied " );
-  }
-  //----------------------------------------------
-  // Body force term assembly
-  //----------------------------------------------
-  //
-  //  $int_{Omega}(f1*v1^h)$
-  //  $int_{Omega}(f2*v2^h)$
-  //  only for nodes that are non-Dirichlet
-  //----------------------------------------------
-
-  if ( options()->f1.isPresent()) {
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-      Real area = _computeAreaTriangle3(cell);
-      for (Node node : cell.nodes()) {
-        if (!(m_u1_fixed[node]) && node.isOwn()) {
-          DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-          rhs_values[dof_id1] += f1 * area / 3;
-        }
-      }
+  //----------------------------------------------------------------------
+  // body force ∫∫∫ (𝐟.𝐯)  with 𝐟 = (𝑓𝑥, 𝑓𝑦, 𝑓𝑧) = (f[0], f[1], f[2])
+  //----------------------------------------------------------------------
+  Real3 f;
+  const UniqueArray<String> f_string = options()->f();
+  info() << "[ArcaneFem-Info] Applying Bodyforce " << f_string;
+  for (Int32 i = 0; i < f_string.size(); ++i) {
+    f[i] = 0.0;
+    if (f_string[i] != "NULL") {
+      f[i] = std::stod(f_string[i].localstr());
     }
   }
 
-  if ( options()->f2.isPresent()) {
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-      Real area = _computeAreaTriangle3(cell);
-      for (Node node : cell.nodes()) {
-        if (!(m_u2_fixed[node]) && node.isOwn()) {
-          DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-          rhs_values[dof_id2] += f2 * area / 3;
+  if (mesh()->dimension() == 2)
+    if (f_string[0] != "NULL" || f_string[1] != "NULL")
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
+        for (Node node : cell.nodes()) {
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += f[0] * area / 3;
+            rhs_values[node_dof.dofId(node, 1)] += f[1] * area / 3;
+          }
         }
       }
-    }
-  }
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
@@ -718,7 +438,6 @@ $$
         DoFLocalId dof_id1 = node_dof.dofId(node, 0);
         DoFLocalId dof_id2 = node_dof.dofId(node, 1);
 
-        if (!(m_u1_fixed[node]))
         rhs_values[dof_id1] +=   (Uold1 + m_U[node].x) * (area / 12.) * c0
                                + (Vold1 + m_V[node].x) * (area / 12.) * c3
                                + (Aold1 + m_A[node].x) * (area / 12.) * c4
@@ -730,7 +449,6 @@ $$
                                + ( (DXA1.x * DXV(0,i) * area ) +   0.5 * ( DXA1.y + DXA2.x) * DYV(0,i) * area    )*c10
                                ;
 
-        if (!(m_u2_fixed[node]))
         rhs_values[dof_id2] +=   (Uold2 + m_U[node].y) * (area / 12.) * c0
                                + (Vold2 + m_V[node].y) * (area / 12.) * c3
                                + (Aold2 + m_A[node].y) * (area / 12.) * c4
@@ -762,29 +480,29 @@ $$
     const CaseTableInfo& case_table_info = m_traction_case_table_list[boundary_condition_index];
     ++boundary_condition_index;
 
-    Real3 trac;  // traction in x, y and z
+    Real3 trac; // traction in x, y and z
 
-    if (bs->tractionInputFile.isPresent()){
+    if (bs->tractionInputFile.isPresent()) {
 
       String file_name = bs->tractionInputFile();
-      info() << "Applying traction boundary conditions for surface "<< group.name()
-             << " via CaseTable" <<  file_name;
+      info() << "Applying traction boundary conditions for surface " << group.name()
+             << " via CaseTable" << file_name;
       CaseTable* inn = case_table_info.case_table;
       if (!inn)
         ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _readCaseTables()");
-      if (file_name!=case_table_info.file_name)
-        ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'",case_table_info.file_name);
+      if (file_name != case_table_info.file_name)
+        ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'", case_table_info.file_name);
       inn->value(t, trac);
 
       ENUMERATE_ (Face, iface, group) {
         Face face = *iface;
         Real length = _computeEdgeLength2(face);
         for (Node node : iface->nodes()) {
-          if (!(m_u1_fixed[node]) && node.isOwn()) {
+          if (node.isOwn()) {
             DoFLocalId dof_id1 = node_dof.dofId(node, 0);
             rhs_values[dof_id1] += trac.x * length / 2.;
           }
-          if (!(m_u2_fixed[node]) && node.isOwn()) {
+          if (node.isOwn()) {
             DoFLocalId dof_id2 = node_dof.dofId(node, 1);
             rhs_values[dof_id2] += trac.y * length / 2.;
           }
@@ -793,76 +511,152 @@ $$
       continue;
     }
     else {
+      const UniqueArray<String> t_string = bs->t();
+      Real3 t;
 
-      info() << "Applying constant traction boundary conditions for surface "<< group.name();
+      info() << "[ArcaneFem-Info] Applying Traction " << t_string;
+      info() << "[ArcaneFem-Info] Traction surface '" << bs->surface().name() << "'";
 
-      trac.x = bs->t1();
-      trac.y = bs->t2();
-      if( bs->t1.isPresent() && bs->t2.isPresent()) {
-        ENUMERATE_ (Face, iface, group) {
-          Face face = *iface;
-          Real length = _computeEdgeLength2(face);
-          for (Node node : iface->nodes()) {
-            if (!(m_u1_fixed[node]) && node.isOwn()) {
-              DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-              rhs_values[dof_id1] += trac.x * length / 2.;
+      for (Int32 i = 0; i < t_string.size(); ++i) {
+        t[i] = 0.0;
+        if (t_string[i] != "NULL") {
+          t[i] = std::stod(t_string[i].localstr());
+        }
+      }
+
+      if (mesh()->dimension() == 2)
+        if (t_string[0] != "NULL" || t_string[1] != "NULL")
+          ENUMERATE_ (Face, iface, group) {
+            Face face = *iface;
+            Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
+            for (Node node : iface->nodes()) {
+              if (node.isOwn()) {
+                rhs_values[node_dof.dofId(node, 0)] += t[0] * length / 2.;
+                rhs_values[node_dof.dofId(node, 1)] += t[1] * length / 2.;
+              }
             }
-            if (!(m_u2_fixed[node]) && node.isOwn()) {
-              DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-              rhs_values[dof_id2] += trac.y * length / 2.;
+          }
+    }
+  }
+
+  //----------------------------------------------
+  // Dirichlet conditions to LHS and RHS
+  //----------------------------------------------
+
+  for (const auto& bs : options()->dirichletBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    const UniqueArray<String> u_dirichlet_string = bs->u();
+
+    info() << "[ArcaneFem-Info] Applying Dirichlet " << u_dirichlet_string;
+    info() << "[ArcaneFem-Info] Dirichlet surface '" << bs->surface().name() << "'";
+    info() << "[ArcaneFem-Info] Dirichlet method '" << options()->enforceDirichletMethod() << "'";
+
+    if (options()->enforceDirichletMethod() == "Penalty") {
+
+      Real Penalty = options()->penalty();
+
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Face, iface, group) {
+            for (Node node : iface->nodes()) {
+              DoFLocalId dof_id = node_dof.dofId(node, i);
+              if (node.isOwn()) {
+                m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
+                rhs_values[dof_id] = Penalty * u_dirichlet;
+              }
             }
           }
         }
-        continue;
       }
+    }
+    else if (options()->enforceDirichletMethod() == "RowElimination") {
 
-      if( bs->t1.isPresent()) {
-        ENUMERATE_ (Face, iface, group) {
-          Face face = *iface;
-          Real length = _computeEdgeLength2(face);
-          for (Node node : iface->nodes()) {
-            if (!(m_u1_fixed[node]) && node.isOwn()) {
-              DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-              rhs_values[dof_id1] += trac.x * length / 2.;
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Face, iface, group) {
+            for (Node node : iface->nodes()) {
+              DoFLocalId dof_id = node_dof.dofId(node, i);
+              if (node.isOwn()) {
+                m_linear_system.eliminateRow(dof_id, u_dirichlet);
+              }
             }
           }
         }
-        continue;
       }
+    }
+    else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
 
-      if( bs->t2.isPresent()) {
-        ENUMERATE_ (Face, iface, group) {
-          Face face = *iface;
-          Real length = _computeEdgeLength2(face);
-          for (Node node : iface->nodes()) {
-            if (!(m_u2_fixed[node]) && node.isOwn()) {
-              DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-              rhs_values[dof_id2] += trac.y * length / 2. ;
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Face, iface, group) {
+            for (Node node : iface->nodes()) {
+              DoFLocalId dof_id = node_dof.dofId(node, i);
+              if (node.isOwn()) {
+                m_linear_system.eliminateRowColumn(dof_id, u_dirichlet);
+              }
             }
           }
         }
-        continue;
       }
-
     }
+  }
 
-   /*
-   // tt/0.8*(tt <= 0.8)+ 0.*(tt > 0.8)
-    trac.x = bs->t1();
-    trac.y = bs->t2();
-    trac.y = (t - dt);
-    Real toto = 0.0;
-    std::cout.precision(17);
-    if(trac.y <=0.8){
-      trac.y = trac.y/0.8;
-      cout << std::scientific<<"tttt " << t << "\t"<< trac.x << "\t"<< trac.y << "\t" << toto << endl;
-    }
-    else{
-      trac.y = 0.;
-      cout << std::scientific<<"tttt " << t << "\t"<< trac.x << "\t"<< trac.y << "\t" << toto <<endl;
-    }
-    */
+  for (const auto& bs : options()->dirichletPointCondition()) {
+    NodeGroup group = bs->node();
+    const UniqueArray<String> u_dirichlet_string = bs->u();
 
+    info() << "[ArcaneFem-Info] Applying point Dirichlet " << u_dirichlet_string;
+    info() << "[ArcaneFem-Info] Dirichlet points '" << group.name() << "'";
+    info() << "[ArcaneFem-Info] Dirichlet method '" << options()->enforceDirichletMethod() << "'";
+
+    if (options()->enforceDirichletMethod() == "Penalty") {
+      Real Penalty = options()->penalty();
+
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Node, inode, group) {
+            Node node = *inode;
+            DoFLocalId dof_id = node_dof.dofId(node, i);
+            if (node.isOwn()) {
+              m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
+              rhs_values[dof_id] = Penalty * u_dirichlet;
+            }
+          }
+        }
+      }
+    }
+    else if (options()->enforceDirichletMethod() == "RowElimination") {
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Node, inode, group) {
+            Node node = *inode;
+            DoFLocalId dof_id = node_dof.dofId(node, i);
+            if (node.isOwn()) {
+              m_linear_system.eliminateRow(dof_id, u_dirichlet);
+            }
+          }
+        }
+      }
+    }
+    else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Node, inode, group) {
+            Node node = *inode;
+            DoFLocalId dof_id = node_dof.dofId(node, i);
+            if (node.isOwn()) {
+              m_linear_system.eliminateRowColumn(dof_id, u_dirichlet);
+            }
+          }
+        }
+      }
+    }
   }
 }
 
@@ -961,7 +755,7 @@ _solve()
   }
 
   // Re-Apply boundary conditions because the solver has modified the value
-  _applyDirichletBoundaryConditions();
+  //_applyDirichletBoundaryConditions();
 
   m_dU.synchronize();
   m_U.synchronize();
@@ -975,8 +769,8 @@ _solve()
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
       std::cout << "( N_id, u1, u2, u3 ) = ( "
-      << node.uniqueId() << ", " << m_dU[node].x << ", " << m_dU[node].y << ", " << m_dU[node].z
-      << ")\n";
+                << node.uniqueId() << ", " << m_dU[node].x << ", " << m_dU[node].y << ", " << m_dU[node].z
+                << ")\n";
     }
     std::cout.precision(p);
   }
@@ -993,7 +787,7 @@ _checkResultFile()
   if (filename.empty())
     return;
   const double epsilon = 1.0e-4;
-  Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_dU, epsilon);
+  Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_dU, epsilon, 1e-16);
 }
 
 /*---------------------------------------------------------------------------*/

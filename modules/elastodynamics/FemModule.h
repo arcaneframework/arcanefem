@@ -27,6 +27,8 @@
 #include "FemUtils.h"
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
+#include "ArcaneFemFunctions.h"
+
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -87,8 +89,6 @@ class FemModule
   Real E;                     // Youngs modulus
   Real nu;                    // Poissons ratio
   Real rho;                   // Density
-  Real f1;                    // Body force in x
-  Real f2;                    // Body force in y
   Real mu;                    // Lame parameter mu
   Real mu2;                   // Lame parameter mu * 2
   Real lambda;                // Lame parameter lambda
@@ -131,7 +131,6 @@ class FemModule
   Real _computeAreaTriangle3(Cell cell);
   Real _computeEdgeLength2(Face face);
   Real2 _computeDxDyOfRealTRIA3(Cell cell);
-  void _applyDirichletBoundaryConditions();
   void _checkResultFile();
   void _readCaseTables();
 };
