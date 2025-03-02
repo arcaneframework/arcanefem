@@ -34,12 +34,11 @@
     <result-file>check/2D_elastodynamics_Galpha_time_discretization.txt</result-file>
     <dirichlet-boundary-condition>
       <surface>surfaceleft</surface>
-      <u1>0.0</u1>
-      <u2>0.0</u2>
+      <u>0.0 0.0</u>
     </dirichlet-boundary-condition>
     <traction-boundary-condition>
       <surface>surfaceright</surface>
-      <t2>0.01</t2>
+      <t>NULL 0.01</t>
     </traction-boundary-condition>
     <linear-system>
       <solver-backend>petsc</solver-backend>

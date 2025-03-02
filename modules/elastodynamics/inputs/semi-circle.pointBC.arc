@@ -31,13 +31,11 @@
     <time-discretization>Newmark-beta</time-discretization>
     <dirichlet-boundary-condition>
       <surface>boderCircle</surface>
-      <u1>0.0</u1>
-      <u2>0.0</u2>
+      <u>0.0 0.0</u>
     </dirichlet-boundary-condition>
     <dirichlet-point-condition>
       <node>source</node>
-      <u1>10.0</u1>
-      <u2>10.0</u2>
+      <u>10.0 10.0</u>
     </dirichlet-point-condition>
     <linear-system>
       <solver-backend>petsc</solver-backend>

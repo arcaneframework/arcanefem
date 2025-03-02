@@ -27,7 +27,7 @@
     <alpm>0.00</alpm>
     <alpf>0.00</alpf>
     <rho>1.0</rho>
-    <f2>-2000.</f2>
+    <f>NULL -2000.</f>
     <lambda>576.9230769</lambda>
     <mu>384.6153846</mu>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
@@ -35,12 +35,11 @@
     <time-discretization>Newmark-beta</time-discretization>
     <dirichlet-boundary-condition>
       <surface>surfaceleft</surface>
-      <u1>0.0</u1>
-      <u2>0.0</u2>
+      <u>0.0 0.0</u>
     </dirichlet-boundary-condition>
     <traction-boundary-condition>
       <surface>surfaceright</surface>
-      <t2>-1.</t2>
+      <t>NULL -1.</t>
     </traction-boundary-condition>
     <linear-system>
       <solver-backend>hypre</solver-backend>
