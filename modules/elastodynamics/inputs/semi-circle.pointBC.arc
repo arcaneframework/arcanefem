@@ -38,8 +38,9 @@
       <u>10.0 10.0</u>
     </dirichlet-point-condition>
     <linear-system>
-      <solver-backend>petsc</solver-backend>
-      <preconditioner>ilu</preconditioner>
+      <solver-backend>hypre</solver-backend>
+      <solver-method>bicgstab</solver-method>
+      <epsilon>1e-8</epsilon>
     </linear-system>
   </fem>
 </case>

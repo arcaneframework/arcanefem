@@ -34,7 +34,13 @@ endforeach()
 enable_testing()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
-  add_test(NAME [elastodynamics] COMMAND Elastodynamics inputs/bar.arc)
+  add_test(NAME [elastodynamics]2D_bar COMMAND Elastodynamics inputs/bar.arc)
+  add_test(NAME [elastodynamics]2D_bar_RowElimination COMMAND Elastodynamics
+    -A,//fem/enforce-Dirichlet-method=RowElimination
+    inputs/bar.arc)
+  add_test(NAME [elastodynamics]2D_bar_RowColumnElimination COMMAND Elastodynamics
+    -A,//fem/enforce-Dirichlet-method=RowColumnElimination
+    inputs/bar.arc)
   add_test(NAME [elastodynamics]transient_traction COMMAND Elastodynamics inputs/bar.transient-traction.arc)
   add_test(NAME [elastodynamics]Dirichlet_pointBc COMMAND Elastodynamics inputs/semi-circle.pointBC.arc)
   add_test(NAME [elastodynamics]constant_traction_and_damping COMMAND Elastodynamics inputs/bar.damping.arc)
@@ -42,5 +48,16 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 endif()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
+  set(SOLVER_HYPRE_CG_2D
+    -A,//fem/linear-system/@name=HypreLinearSystem
+    -A,//fem/linear-system/solver=gmres
+    -A,//fem/linear-system/atol=1e-15
+    -A,//fem/linear-system/rtol=0)
   add_test(NAME [elastodynamics]Dirichlet_traction_bodyforce COMMAND Elastodynamics inputs/bar.dirichlet.traction.bodyforce.arc)
+  add_test(NAME [elastodynamics]2D_pointBc_RowElimination COMMAND Elastodynamics
+    -A,//fem/enforce-Dirichlet-method=RowElimination
+    inputs/semi-circle.pointBC.arc)
+  add_test(NAME [elastodynamics]2D_pointBc_RowColumnElimination COMMAND Elastodynamics
+    -A,//fem/enforce-Dirichlet-method=RowColumnElimination
+    inputs/semi-circle.pointBC.arc)
 endif()
