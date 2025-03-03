@@ -128,8 +128,6 @@ class FemModule
   void _solve();
   void _assembleLinearOperator();
   FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
-  Real _computeAreaTriangle3(Cell cell);
-  Real _computeEdgeLength2(Face face);
   Real2 _computeDxDyOfRealTRIA3(Cell cell);
   void _checkResultFile();
   void _readCaseTables();
