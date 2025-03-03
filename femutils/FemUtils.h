@@ -434,6 +434,25 @@ ARCCORE_HOST_DEVICE matrixTranspose(const FixedMatrix<N, M>& a)
 }
 
 /*---------------------------------------------------------------------------*/
+/*!
+ * \brief IdentityMatrix of size N.
+ */
+/*---------------------------------------------------------------------------*/
+template <int N>
+class IdentityMatrix : public FixedMatrix<N, N>
+{
+ public:
+  ARCCORE_HOST_DEVICE IdentityMatrix() : FixedMatrix<N, N>()
+  {
+    for (Arcane::Int32 i = 0; i < N; ++i) {
+      for (Arcane::Int32 j = 0; j < N; ++j) {
+        (*this)(i, j) = (i == j) ? 1.0 : 0.0;
+      }
+    }
+  }
+};
+
+/*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
  * \brief Vector N de taille fixe.
