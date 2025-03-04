@@ -121,6 +121,16 @@ _getParameters()
   if( options()->lambda.isPresent())
     lambda = options()->lambda;
 
+  if (options()->f.isPresent()) {
+    const UniqueArray<String> f_string = options()->f();
+    info() << "[ArcaneFem-Info] Applying Bodyforce " << f_string;
+    for (Int32 i = 0; i < f_string.size(); ++i) {
+      if (f_string[i] != "NULL") {
+        f[i] = std::stod(f_string[i].localstr());
+      }
+    }
+  }
+
   //----- time discretization Newmark-Beta or Generalized-alpha  -----//
   if (options()->timeDiscretization == "Newmark-beta") {
 
@@ -135,14 +145,12 @@ _getParameters()
     c3 =   rho/beta/dt - etam*rho*(1-gamma/beta)                              ;
     c4 =   rho*( (1.-2.*beta)/2./beta  - etam*dt*(1.-gamma/2/beta))           ;
     c5 =  -lambda*etak*gamma/beta/dt                                          ;
-    c6 =  -2.*mu*etak*gamma/beta/dt                                           ;
+    c6 =  -mu*etak*gamma/beta/dt                                              ;
     c7 =   etak*lambda*(gamma/beta - 1)                                       ;
     c8 =   etak*lambda*dt*((1.-2*beta)/2./beta - (1.-gamma))                  ;
-    c9 =   etak*2*mu*(gamma/beta -1)                                          ;
-    c10=   etak*2*mu*dt*((1.-2*beta)/2./beta -(1.-gamma))                     ;
-
-    }
-
+    c9 =   etak*mu*(gamma/beta -1)                                          ;
+    c10=   etak*mu*dt*((1.-2*beta)/2./beta -(1.-gamma))                     ;
+  }
   else if (options()->timeDiscretization == "Generalized-alpha") {
 
     info() << "Apply time discretization via Generalized-alpha ";
@@ -156,19 +164,15 @@ _getParameters()
     c3 =   rho*(1.-alpm)/beta/dt - etam*rho*(1-gamma*(1-alpf)/beta)           ;
     c4 =   rho*( (1.-alpm)*(1.-2.*beta)/2./beta - alpm - etam*dt*(1.-alpf)*(1.-gamma/2/beta))   ;
     c5 =   lambda*alpf -    lambda*etak*gamma*(1.-alpf)/beta/dt               ;
-    c6 =   2*mu*alpf   -    2.*mu*etak*gamma*(1.-alpf)/beta/dt                ;
+    c6 =   mu*alpf   -    mu*etak*gamma*(1.-alpf)/beta/dt                     ;
     c7 =   etak*lambda*(gamma*(1.-alpf)/beta - 1)                             ;
     c8 =   etak*lambda*dt*(1.-alpf)*((1.-2*beta)/2./beta - (1.-gamma))        ;
-    c9 =   etak*2*mu*(gamma*(1.-alpf)/beta -1)                                ;
-    c10=   etak*2*mu*dt*(1.-alpf)*((1.-2*beta)/2./beta -(1.-gamma))           ;
-
-    }
-
+    c9 =   etak*mu*(gamma*(1.-alpf)/beta -1)                                ;
+    c10=   etak*mu*dt*(1.-alpf)*((1.-2*beta)/2./beta -(1.-gamma))           ;
+  }
   else {
-
     ARCANE_FATAL("Only Newmark-beta | Generalized-alpha are supported for time-discretization ");
-
-    }
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -240,164 +244,62 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  //----------------------------------------------------------------------
-  // body force ∫∫∫ (𝐟.𝐯)  with 𝐟 = (𝑓𝑥, 𝑓𝑦, 𝑓𝑧) = (f[0], f[1], f[2])
-  //----------------------------------------------------------------------
-  Real3 f;
-  const UniqueArray<String> f_string = options()->f();
-  info() << "[ArcaneFem-Info] Applying Bodyforce " << f_string;
-  for (Int32 i = 0; i < f_string.size(); ++i) {
-    f[i] = 0.0;
-    if (f_string[i] != "NULL") {
-      f[i] = std::stod(f_string[i].localstr());
-    }
-  }
-
-  if (mesh()->dimension() == 2)
-    if (f_string[0] != "NULL" || f_string[1] != "NULL")
-      ENUMERATE_ (Cell, icell, allCells()) {
-        Cell cell = *icell;
-        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
-        for (Node node : cell.nodes()) {
-          if (node.isOwn()) {
-            rhs_values[node_dof.dofId(node, 0)] += f[0] * area / 3;
-            rhs_values[node_dof.dofId(node, 1)] += f[1] * area / 3;
-          }
-        }
-      }
-
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
     Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
+    Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
+    Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
 
-    Real3 m0 = m_node_coord[cell.nodeId(0)];
-    Real3 m1 = m_node_coord[cell.nodeId(1)];
-    Real3 m2 = m_node_coord[cell.nodeId(2)];
+    FixedMatrix<1, 6> Uy = { 0., 1., 0., 1., 0., 1. };
+    FixedMatrix<1, 6> Ux = { 1., 0., 1., 0., 1., 0. };
+    FixedMatrix<1, 6> F = { f[0], f[1], f[0], f[1], f[0], f[1] };
+    FixedMatrix<1, 6> dxUx = { dxu[0], 0., dxu[1], 0., dxu[2], 0. };
+    FixedMatrix<1, 6> dyUx = { dyu[0], 0., dyu[1], 0., dyu[2], 0. };
+    FixedMatrix<1, 6> dxUy = { 0., dxu[0], 0., dxu[1], 0., dxu[2] };
+    FixedMatrix<1, 6> dyUy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
+    IdentityMatrix<6> I6;
 
-    Real2 DXU1, DXU2, DXV1, DXV2, DXA1, DXA2;
+    FixedMatrix<1, 6> Un = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y,
+                             m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y,
+                             m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y };
 
-    // to construct dx(v) we use d(Phi0)/dx , d(Phi1)/dx , d(Phi1)/dx
-    // here Phi_i are the basis functions at three nodes i=1:3
-    Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
-    Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
-    Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
+    FixedMatrix<1, 6> Vn = { m_V[cell.nodeId(0)].x, m_V[cell.nodeId(0)].y,
+                             m_V[cell.nodeId(1)].x, m_V[cell.nodeId(1)].y,
+                             m_V[cell.nodeId(2)].x, m_V[cell.nodeId(2)].y };
 
-    FixedMatrix<1, 3> DYV;
+    FixedMatrix<1, 6> An = { m_A[cell.nodeId(0)].x, m_A[cell.nodeId(0)].y,
+                             m_A[cell.nodeId(1)].x, m_A[cell.nodeId(1)].y,
+                             m_A[cell.nodeId(2)].x, m_A[cell.nodeId(2)].y };
 
-    DYV(0, 0) = dPhi0.y / (2. * area);
-    DYV(0, 1) = dPhi1.y / (2. * area);
-    DYV(0, 2) = dPhi2.y / (2. * area);
+    //----------------------------------------------------------------------
+    //  ∫∫∫ (𝐟.𝐯) + ∫∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯) +
+    //  ∫∫∫ (c₅)(∇𝐮ₙ.∇𝐯) + ∫∫∫ (c₆)(ε(𝐮ₙ):ε(𝐯)) +
+    //  ∫∫∫ (c₇)(∇𝐮ᵗₙ.∇𝐯) + ∫∫∫ (c₉)(ε(𝐮ᵗₙ):ε(𝐯)) +
+    //  ∫∫∫ (c₈)(∇𝐮ᵗᵗₙ.∇𝐯) + ∫∫∫ (c₁₀)(ε(𝐮ᵗᵗₙ):ε(𝐯))
+    //----------------------------------------------------------------------
+    FixedMatrix<1, 6> rhs = ( F * (1/3.)
+                            + Un * ((Uy ^ Uy) + (Ux ^ Ux) + I6)*(c0*1/12.)
+                            + Vn * ((Uy ^ Uy) + (Ux ^ Ux) + I6)*(c3*1/12.)
+                            + An * ((Uy ^ Uy) + (Ux ^ Ux) + I6)*(c4*1/12.)
+                            - Un * ((dyUy ^ dxUx) + (dxUx ^ dyUy)  +  (dxUx ^ dxUx) + (dyUy ^ dyUy)) * c5
+                            - Un * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy)) +  ((dxUy + dyUx) ^ (dyUx + dxUy)))*c6
+                            + Vn * ((dyUy ^ dxUx) + (dxUx ^ dyUy)  +  (dxUx ^ dxUx) + (dyUy ^ dyUy)) * c7
+                            + Vn * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy)) +  ((dxUy + dyUx) ^ (dyUx + dxUy)))*c9
+                            + An * ((dyUy ^ dxUx) + (dxUx ^ dyUy)  +  (dxUx ^ dxUx) + (dyUy ^ dyUy)) * c8
+                            + An * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy)) +  ((dxUy + dyUx) ^ (dyUx + dxUy)))*c10
+                            ) * area;
 
-    FixedMatrix<1, 3> DXV;
-
-    DXV(0, 0) = dPhi0.x / (2. * area);
-    DXV(0, 1) = dPhi1.x / (2. * area);
-    DXV(0, 2) = dPhi2.x / (2. * area);
-
-    // to construct dx(u_n) we use d(Phi0)/dx , d(Phi1)/dx , d(Phi1)/dx
-    //      d(u_n)/dx = \sum_{1=1}^{3} { (u_n)_i* (d(Phi_i)/dx)  }
-    Real f0 = m_U[cell.nodeId(0)].x;
-    Real f1 = m_U[cell.nodeId(1)].x;
-    Real f2 = m_U[cell.nodeId(2)].x;
-
-    DXU1.x = DXV(0, 0) * f0 + DXV(0, 1) * f1 + DXV(0, 2) * f2;
-    DXU1.y = DYV(0, 0) * f0 + DYV(0, 1) * f1 + DYV(0, 2) * f2;
-
-    Real Uold1 = f0 + f1 + f2;
-
-    f0 = m_U[cell.nodeId(0)].y;
-    f1 = m_U[cell.nodeId(1)].y;
-    f2 = m_U[cell.nodeId(2)].y;
-
-    Real Uold2 = f0 + f1 + f2;
-
-    DXU2.x = DXV(0, 0) * f0 + DXV(0, 1) * f1 + DXV(0, 2) * f2;
-    DXU2.y = DYV(0, 0) * f0 + DYV(0, 1) * f1 + DYV(0, 2) * f2;
-
-    f0 = m_V[cell.nodeId(0)].x;
-    f1 = m_V[cell.nodeId(1)].x;
-    f2 = m_V[cell.nodeId(2)].x;
-
-    Real Vold1 = f0 + f1 + f2;
-
-    DXV1.x = DXV(0, 0) * f0 + DXV(0, 1) * f1 + DXV(0, 2) * f2;
-    DXV1.y = DYV(0, 0) * f0 + DYV(0, 1) * f1 + DYV(0, 2) * f2;
-
-    f0 = m_V[cell.nodeId(0)].y;
-    f1 = m_V[cell.nodeId(1)].y;
-    f2 = m_V[cell.nodeId(2)].y;
-
-    Real Vold2 = f0 + f1 + f2;
-
-    DXV2.x = DXV(0, 0) * f0 + DXV(0, 1) * f1 + DXV(0, 2) * f2;
-    DXV2.y = DYV(0, 0) * f0 + DYV(0, 1) * f1 + DYV(0, 2) * f2;
-
-    f0 = m_A[cell.nodeId(0)].x;
-    f1 = m_A[cell.nodeId(1)].x;
-    f2 = m_A[cell.nodeId(2)].x;
-
-    Real Aold1 = f0 + f1 + f2;
-
-    DXA1.x = DXV(0, 0) * f0 + DXV(0, 1) * f1 + DXV(0, 2) * f2;
-    DXA1.y = DYV(0, 0) * f0 + DYV(0, 1) * f1 + DYV(0, 2) * f2;
-
-    f0 = m_A[cell.nodeId(0)].y;
-    f1 = m_A[cell.nodeId(1)].y;
-    f2 = m_A[cell.nodeId(2)].y;
-
-    Real Aold2 = f0 + f1 + f2;
-
-    DXA2.x = DXV(0, 0) * f0 + DXV(0, 1) * f1 + DXV(0, 2) * f2;
-    DXA2.y = DYV(0, 0) * f0 + DYV(0, 1) * f1 + DYV(0, 2) * f2;
-
-    // the linear terms expands to:
-    //
-    //   b(0,𝐯) =   ∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫ (c₃)(ụₙ.𝐯) + ∫∫ (c₄)(ṳₙ.𝐯)
-    //            - ∫∫ (c₅)(∇𝐮ₙ.∇𝐯) - ∫∫ (c₆)(ε(𝐮ₙ):ε(𝐯))
-    //            + ∫∫ (c₇)(∇ụₙ.∇𝐯) + ∫∫ (c₈)(ε(ụₙ):ε(𝐯))
-    //            + ∫∫ (c₉)(∇ṳₙ.∇𝐯) + ∫∫ (c₁₀)(ε(ṳₙ):ε(𝐯))
-
-    int i = 0;
-    for (Node node : cell.nodes()) {
-      if (node.isOwn()) {
-        DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-        DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-
-        rhs_values[dof_id1] +=   (Uold1 + m_U[node].x) * (area / 12.) * c0
-                               + (Vold1 + m_V[node].x) * (area / 12.) * c3
-                               + (Aold1 + m_A[node].x) * (area / 12.) * c4
-                               - ( (DXU1.x + DXU2.y) *DXV(0,i) * area )* c5
-                               - ( (DXU1.x * DXV(0,i) * area ) +   0.5 * ( DXU1.y + DXU2.x) * DYV(0,i) * area    )*c6
-                               + ( (DXV1.x +  DXV2.y) * DXV(0,i)* area  )* c7
-                               + ( (DXV1.x * DXV(0,i) * area ) +   0.5 * ( DXV1.y + DXV2.x) * DYV(0,i) * area    )*c9
-                               + ( (DXA1.x +  DXA2.y) * DXV(0,i) * area  )* c8
-                               + ( (DXA1.x * DXV(0,i) * area ) +   0.5 * ( DXA1.y + DXA2.x) * DYV(0,i) * area    )*c10
-                               ;
-
-        rhs_values[dof_id2] +=   (Uold2 + m_U[node].y) * (area / 12.) * c0
-                               + (Vold2 + m_V[node].y) * (area / 12.) * c3
-                               + (Aold2 + m_A[node].y) * (area / 12.) * c4
-                               - ( (DXU1.x + DXU2.y)  * DYV(0,i) * area )* c5
-                               - ( (DXU2.y * DYV(0,i) * area) +   0.5 * ( DXU1.y + DXU2.x) * DXV(0,i) * area  )*c6
-                               + ( (DXV1.x +  DXV2.y) * DYV(0,i) * area)* c7
-                               + ( (DXV2.y * DYV(0,i) * area) +   0.5 * ( DXV1.y + DXV2.x) * DXV(0,i) * area  )*c9
-                               + ( (DXA1.x +  DXA2.y) * DYV(0,i) * area )* c8
-                               + ( (DXA2.y * DYV(0,i) * area) +   0.5 * ( DXA1.y + DXA2.x) * DXV(0,i) * area  )*c10
-                               ;
-      }
-      i++;
-    }
+    rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0,0);
+    rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(0,1);
+    rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(0,2);
+    rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(0,3);
+    rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(0,4);
+    rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(0,5);
   }
 
-  //----------------------------------------------
-  // Traction term assembly
-  //----------------------------------------------
-  //
-  //  $int_{dOmega_N}((tx.nx)*v1^h)$
-  //  $int_{dOmega_N}((ty.ny)*v1^h)$
-  //  only for noded that are non-Dirichlet
-  //----------------------------------------------
-
+  //----------------------------------------------------------------------
+  // traction term ∫∫ (𝐭.𝐯)  with 𝐭 = (𝑡𝑥, 𝑡𝑦, 𝑡𝑧) = (t[0], t[1], t[2])
+  //----------------------------------------------------------------------
   // Index of the boundary condition. Needed to associate a CaseTable
   Int32 boundary_condition_index = 0;
   for (const auto& bs : options()->tractionBoundaryCondition()) {
@@ -591,8 +493,6 @@ _assembleBilinearOperatorTRIA3()
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    if (cell.type() != IT_Triangle3)
-      ARCANE_FATAL("Only Triangle3 cell type is supported");
 
     auto K_e = _computeElementMatrixTRIA3(cell); // element stiffness matrix
     // assemble elementary matrix into  the global one elementary terms are
@@ -651,9 +551,6 @@ _solve()
       m_dU[node] = u_disp;
     }
   }
-
-  // Re-Apply boundary conditions because the solver has modified the value
-  //_applyDirichletBoundaryConditions();
 
   m_dU.synchronize();
   m_U.synchronize();
