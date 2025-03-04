@@ -12,6 +12,29 @@
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Computes the element matrix for a triangular element (ℙ1 FE).
+ *
+ * Theory:
+ *
+ *   a(𝐮,𝐯) = ∫∫ [(∂²𝐮/∂𝑡²).(𝐯)]dΩ + ∫∫ [σ(𝐮):ε(𝐯)]dΩ
+ *
+ *   with  trial func 𝐮 = (𝑢𝑥,𝑢𝑦) and test func 𝐯 = (𝑣𝑥,𝑣𝑦),
+ *   σ(𝐮) is stress tensor with     σᵢⱼ = λδᵢⱼεₖₖ + 2μεᵢⱼ
+ *   ε(𝐯) is strain tensor with     εᵢⱼ = 0.5 (∂𝑣ᵢ/∂xⱼ + ∂𝑣ⱼ/∂xᵢ)
+ *
+ *   the bilinear integral after Newmark-Beta and damping terms expands to:
+ *
+ *      a(𝐮,𝐯) =   ∫∫ (c₀)(𝐮.𝐯)
+ *               + ∫∫ (c₁)(∂𝑢𝑦/∂𝑦 ∂𝑣𝑥/∂𝑥 + ∂𝑢𝑥/∂𝑥 ∂𝑣𝑦/∂𝑦)
+ *               + ∫∫ (c₁+2c₂)(∂𝑢𝑥/∂𝑥 ∂𝑣𝑥/∂𝑥 + ∂𝑢𝑦/∂𝑦 ∂𝑣𝑦/∂𝑦)
+ *               + ∫∫ (c₂)(∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦)(∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥)
+ *
+ *   with c₀ = (ρ)/(β δ𝑡²) + (ηₘ ρ γ)/(β δ𝑡)
+ *        c₁ = λ + (λ ηₖ γ)/(β δ𝑡)
+ *        c₂ = 2μ + (2μ ηₖ γ)/(β δ𝑡)
+ *
+ */
 /*---------------------------------------------------------------------------*/
 
 FixedMatrix<6, 6> FemModule::
@@ -29,10 +52,10 @@ _computeElementMatrixTRIA3(Cell cell)
   FixedMatrix<1, 6> dyUy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
   IdentityMatrix<6> I6;
 
-  FixedMatrix<6, 6> int_Omega_i = c0 / 12. * ((Uy ^ Uy) + (Ux ^ Ux) + I6) * area +
-                                  c1 * ((dyUy ^ dxUx) + (dxUx ^ dyUy)) * area +
-                                  (c2 + c1) * ((dxUx ^ dxUx) + (dyUy ^ dyUy)) * area +
-                                  (c2 / 2) * ((dxUy + dyUx) ^ (dyUx + dxUy)) * area;
+  FixedMatrix<6, 6> int_Omega_i = (c0 / 12.) * ((Uy ^ Uy) + (Ux ^ Ux) + I6) * area +
+                                  (c1) * ((dyUy ^ dxUx) + (dxUx ^ dyUy)) * area +
+                                  (2*c2 + c1) * ((dxUx ^ dxUx) + (dyUy ^ dyUy)) * area +
+                                  (c2) * ((dxUy + dyUx) ^ (dyUx + dxUy)) * area;
 
   return int_Omega_i;
 }
