@@ -121,8 +121,6 @@ _getParameters()
   if( options()->lambda.isPresent())
     lambda = options()->lambda;
 
-  mu2 =  mu*2;                             // lame parameter mu * 2
-
   //----- time discretization Newmark-Beta or Generalized-alpha  -----//
   if (options()->timeDiscretization == "Newmark-beta") {
 
@@ -133,7 +131,7 @@ _getParameters()
 
     c0 =   rho/(beta*dt*dt) + etam*rho*gamma/beta/dt                          ;
     c1 =   lambda + lambda*etak*gamma/beta/dt                                 ;
-    c2 =   2.*mu + 2.*mu*etak*gamma/beta/dt                                   ;
+    c2 =   mu + mu*etak*gamma/beta/dt                                         ;
     c3 =   rho/beta/dt - etam*rho*(1-gamma/beta)                              ;
     c4 =   rho*( (1.-2.*beta)/2./beta  - etam*dt*(1.-gamma/2/beta))           ;
     c5 =  -lambda*etak*gamma/beta/dt                                          ;
@@ -154,7 +152,7 @@ _getParameters()
 
     c0 =   rho*(1.-alpm)/(beta*dt*dt) + etam*rho*gamma*(1-alpf)/beta/dt       ;
     c1 =   lambda*(1.-alpf) + lambda*etak*gamma*(1.-alpf)/beta/dt             ;
-    c2 =   2.*mu*(1.-alpf) + 2.*mu*etak*gamma*(1.-alpf)/beta/dt               ;
+    c2 =   mu*(1.-alpf) + mu*etak*gamma*(1.-alpf)/beta/dt                     ;
     c3 =   rho*(1.-alpm)/beta/dt - etam*rho*(1-gamma*(1-alpf)/beta)           ;
     c4 =   rho*( (1.-alpm)*(1.-2.*beta)/2./beta - alpm - etam*dt*(1.-alpf)*(1.-gamma/2/beta))   ;
     c5 =   lambda*alpf -    lambda*etak*gamma*(1.-alpf)/beta/dt               ;
@@ -276,64 +274,7 @@ _assembleLinearOperator()
     Real3 m1 = m_node_coord[cell.nodeId(1)];
     Real3 m2 = m_node_coord[cell.nodeId(2)];
 
-/*
-
-    Real f0 = m_U[cell.nodeId(0)].x;
-    Real f1 = m_U[cell.nodeId(1)].x;
-    Real f2 = m_U[cell.nodeId(2)].x;
-
-    Real detA = ( m0.x*(m1.y - m2.y) - m0.y*(m1.x - m2.x) + (m1.x*m2.y - m2.x*m1.y) );
-
-    Real2 DXU1;
-    DXU1.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / (2.*area);/// detA;
-    DXU1.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / (2.*area);/// detA;
-
-    f0 = m_U[cell.nodeId(0)].y;
-    f1 = m_U[cell.nodeId(1)].y;
-    f2 = m_U[cell.nodeId(2)].y;
-
-    Real2 DXU2;
-    DXU2.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / (2.*area);/// detA;
-    DXU2.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / (2.*area);/// detA;
-
-    f0 = m_V[cell.nodeId(0)].x;
-    f1 = m_V[cell.nodeId(1)].x;
-    f2 = m_V[cell.nodeId(2)].x;
-
-    Real2 DXV1;
-    DXV1.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / (2.*area);/// detA;
-    DXV1.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / (2.*area);/// detA;
-
-    f0 = m_V[cell.nodeId(0)].y;
-    f1 = m_V[cell.nodeId(1)].y;
-    f2 = m_V[cell.nodeId(2)].y;
-
-    Real2 DXV2;
-    DXV2.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / (2.*area);/// detA;
-    DXV2.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / (2.*area);/// detA;
-
-    f0 = m_A[cell.nodeId(0)].x;
-    f1 = m_A[cell.nodeId(1)].x;
-    f2 = m_A[cell.nodeId(2)].x;
-
-    Real2 DXA1;
-    DXA1.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / (2.*area);/// detA;
-    DXA1.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / (2.*area);/// detA;
-
-    f0 = m_A[cell.nodeId(0)].y;
-    f1 = m_A[cell.nodeId(1)].y;
-    f2 = m_A[cell.nodeId(2)].y;
-
-    Real2 DXA2;
-    DXA2.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / (2.*area);/// detA;
-    DXA2.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / (2.*area);/// detA;
-*/
-
     Real2 DXU1, DXU2, DXV1, DXV2, DXA1, DXA2;
-
-    //  Real2  Ctriangle;
-    //  Ctriangle.x = (1/3.)* (m0.x + m1.x+m2.x);
-    //  Ctriangle.y = (1/3.)* (m0.y + m1.y+m2.y);
 
     // to construct dx(v) we use d(Phi0)/dx , d(Phi1)/dx , d(Phi1)/dx
     // here Phi_i are the basis functions at three nodes i=1:3
@@ -343,16 +284,15 @@ _assembleLinearOperator()
 
     FixedMatrix<1, 3> DYV;
 
-    DYV(0,0) = dPhi0.y /(2.* area);
-    DYV(0,1) = dPhi1.y /(2.* area);
-    DYV(0,2) = dPhi2.y /(2.* area);
+    DYV(0, 0) = dPhi0.y / (2. * area);
+    DYV(0, 1) = dPhi1.y / (2. * area);
+    DYV(0, 2) = dPhi2.y / (2. * area);
 
     FixedMatrix<1, 3> DXV;
 
-    DXV(0,0) = dPhi0.x /(2.* area);
-    DXV(0,1) = dPhi1.x /(2.* area);
-    DXV(0,2) = dPhi2.x /(2.* area);
-
+    DXV(0, 0) = dPhi0.x / (2. * area);
+    DXV(0, 1) = dPhi1.x / (2. * area);
+    DXV(0, 2) = dPhi2.x / (2. * area);
 
     // to construct dx(u_n) we use d(Phi0)/dx , d(Phi1)/dx , d(Phi1)/dx
     //      d(u_n)/dx = \sum_{1=1}^{3} { (u_n)_i* (d(Phi_i)/dx)  }
@@ -360,8 +300,8 @@ _assembleLinearOperator()
     Real f1 = m_U[cell.nodeId(1)].x;
     Real f2 = m_U[cell.nodeId(2)].x;
 
-    DXU1.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
-    DXU1.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
+    DXU1.x = DXV(0, 0) * f0 + DXV(0, 1) * f1 + DXV(0, 2) * f2;
+    DXU1.y = DYV(0, 0) * f0 + DYV(0, 1) * f1 + DYV(0, 2) * f2;
 
     Real Uold1 = f0 + f1 + f2;
 
@@ -371,8 +311,8 @@ _assembleLinearOperator()
 
     Real Uold2 = f0 + f1 + f2;
 
-    DXU2.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
-    DXU2.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
+    DXU2.x = DXV(0, 0) * f0 + DXV(0, 1) * f1 + DXV(0, 2) * f2;
+    DXU2.y = DYV(0, 0) * f0 + DYV(0, 1) * f1 + DYV(0, 2) * f2;
 
     f0 = m_V[cell.nodeId(0)].x;
     f1 = m_V[cell.nodeId(1)].x;
@@ -380,8 +320,8 @@ _assembleLinearOperator()
 
     Real Vold1 = f0 + f1 + f2;
 
-    DXV1.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
-    DXV1.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
+    DXV1.x = DXV(0, 0) * f0 + DXV(0, 1) * f1 + DXV(0, 2) * f2;
+    DXV1.y = DYV(0, 0) * f0 + DYV(0, 1) * f1 + DYV(0, 2) * f2;
 
     f0 = m_V[cell.nodeId(0)].y;
     f1 = m_V[cell.nodeId(1)].y;
@@ -389,8 +329,8 @@ _assembleLinearOperator()
 
     Real Vold2 = f0 + f1 + f2;
 
-    DXV2.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
-    DXV2.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
+    DXV2.x = DXV(0, 0) * f0 + DXV(0, 1) * f1 + DXV(0, 2) * f2;
+    DXV2.y = DYV(0, 0) * f0 + DYV(0, 1) * f1 + DYV(0, 2) * f2;
 
     f0 = m_A[cell.nodeId(0)].x;
     f1 = m_A[cell.nodeId(1)].x;
@@ -398,8 +338,8 @@ _assembleLinearOperator()
 
     Real Aold1 = f0 + f1 + f2;
 
-    DXA1.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
-    DXA1.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
+    DXA1.x = DXV(0, 0) * f0 + DXV(0, 1) * f1 + DXV(0, 2) * f2;
+    DXA1.y = DYV(0, 0) * f0 + DYV(0, 1) * f1 + DYV(0, 2) * f2;
 
     f0 = m_A[cell.nodeId(0)].y;
     f1 = m_A[cell.nodeId(1)].y;
@@ -407,31 +347,16 @@ _assembleLinearOperator()
 
     Real Aold2 = f0 + f1 + f2;
 
-    DXA2.x = DXV(0,0) * f0 +  DXV(0,1) * f1 + DXV(0,2) * f2;
-    DXA2.y = DYV(0,0) * f0 +  DYV(0,1) * f1 + DYV(0,2) * f2;
+    DXA2.x = DXV(0, 0) * f0 + DXV(0, 1) * f1 + DXV(0, 2) * f2;
+    DXA2.y = DYV(0, 0) * f0 + DYV(0, 1) * f1 + DYV(0, 2) * f2;
 
+    // the linear terms expands to:
+    //
+    //   b(0,𝐯) =   ∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫ (c₃)(ụₙ.𝐯) + ∫∫ (c₄)(ṳₙ.𝐯)
+    //            - ∫∫ (c₅)(∇𝐮ₙ.∇𝐯) - ∫∫ (c₆)(ε(𝐮ₙ):ε(𝐯))
+    //            + ∫∫ (c₇)(∇ụₙ.∇𝐯) + ∫∫ (c₈)(ε(ụₙ):ε(𝐯))
+    //            + ∫∫ (c₉)(∇ṳₙ.∇𝐯) + ∫∫ (c₁₀)(ε(ṳₙ):ε(𝐯))
 
-/*
-$$
-\int_{\Omega}(
-                    (U \cdot v) c_0
-                  + (V \cdot v) c_3
-                  + (A \cdot v) c_4
-                  - (\nabla \cdot U  \nabla \cdot v) c_5
-                  - (\varepsilon(U) : \varepsilon(v) ) c_6
-                  + (\nabla \cdot V  \nabla \cdot v) c_7
-                  + (\varepsilon(V) : \varepsilon(v) ) c_9
-                  + (\nabla \cdot A  \nabla \cdot v) c_8
-                  + (\varepsilon(A) : \varepsilon(v) ) c_{10}
-               )
-$$
-*/
-
-    // Info: We could also use the following logic
-    //    cell.node(i).isOwn();
-    //    cell.node(i);
-    //    Node node = cell.node(i);
-    // Then we can loop 1:3
     int i = 0;
     for (Node node : cell.nodes()) {
       if (node.isOwn()) {
@@ -499,12 +424,8 @@ $$
         Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
         for (Node node : iface->nodes()) {
           if (node.isOwn()) {
-            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-            rhs_values[dof_id1] += trac.x * length / 2.;
-          }
-          if (node.isOwn()) {
-            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-            rhs_values[dof_id2] += trac.y * length / 2.;
+            rhs_values[node_dof.dofId(node, 0)] += trac.x * length / 2.;
+            rhs_values[node_dof.dofId(node, 1)] += trac.y * length / 2.;
           }
         }
       }
@@ -512,15 +433,15 @@ $$
     }
     else {
       const UniqueArray<String> t_string = bs->t();
-      Real3 t;
+      Real3 trac;
 
       info() << "[ArcaneFem-Info] Applying Traction " << t_string;
       info() << "[ArcaneFem-Info] Traction surface '" << bs->surface().name() << "'";
 
       for (Int32 i = 0; i < t_string.size(); ++i) {
-        t[i] = 0.0;
+        trac[i] = 0.0;
         if (t_string[i] != "NULL") {
-          t[i] = std::stod(t_string[i].localstr());
+          trac[i] = std::stod(t_string[i].localstr());
         }
       }
 
@@ -531,8 +452,8 @@ $$
             Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
             for (Node node : iface->nodes()) {
               if (node.isOwn()) {
-                rhs_values[node_dof.dofId(node, 0)] += t[0] * length / 2.;
-                rhs_values[node_dof.dofId(node, 1)] += t[1] * length / 2.;
+                rhs_values[node_dof.dofId(node, 0)] += trac[0] * length / 2.;
+                rhs_values[node_dof.dofId(node, 1)] += trac[1] * length / 2.;
               }
             }
           }
