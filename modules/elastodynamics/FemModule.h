@@ -83,6 +83,8 @@ class FemModule
   Real mu; // Lame parameter μ
   Real lambda; // Lame parameter λ
 
+  Real3 f = {0,0,0}; // body force 𝐟
+
   Real c0; // constant c₀
   Real c1; // constant c₁
   Real c2; // constant c₂
