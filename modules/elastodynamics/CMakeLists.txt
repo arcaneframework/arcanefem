@@ -24,6 +24,7 @@ file(COPY "check" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
   bar_dynamic.msh
+  bar_dynamic_3D.msh
   semi-circle.msh 
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
@@ -41,17 +42,14 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [elastodynamics]2D_bar_RowColumnElimination COMMAND Elastodynamics
     -A,//fem/enforce-Dirichlet-method=RowColumnElimination
     inputs/bar.arc)
-  add_test(NAME [elastodynamics]transient_traction COMMAND Elastodynamics inputs/bar.transient-traction.arc)
-  add_test(NAME [elastodynamics]constant_traction_and_damping COMMAND Elastodynamics inputs/bar.damping.arc)
-  add_test(NAME [elastodynamics]time-discretization_Galpha COMMAND Elastodynamics inputs/bar.Galpha.arc)
+  add_test(NAME [elastodynamics]3D_bar COMMAND Elastodynamics inputs/bar.3D.arc)
+  add_test(NAME [elastodynamics]2D_transient_traction COMMAND Elastodynamics inputs/bar.transient-traction.arc)
+  add_test(NAME [elastodynamics]3D_transient_traction COMMAND Elastodynamics inputs/bar.3D.transient-traction.arc)
+  add_test(NAME [elastodynamics]2D_constant_traction_and_damping COMMAND Elastodynamics inputs/bar.damping.arc)
+  add_test(NAME [elastodynamics]2D_time-discretization_Galpha COMMAND Elastodynamics inputs/bar.Galpha.arc)
 endif()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-  set(SOLVER_HYPRE_CG_2D
-    -A,//fem/linear-system/@name=HypreLinearSystem
-    -A,//fem/linear-system/solver=gmres
-    -A,//fem/linear-system/atol=1e-15
-    -A,//fem/linear-system/rtol=0)
   add_test(NAME [elastodynamics]Dirichlet_traction_bodyforce COMMAND Elastodynamics inputs/bar.dirichlet.traction.bodyforce.arc)
   add_test(NAME [elastodynamics]Dirichlet_pointBc_Penalty COMMAND Elastodynamics
     -A,//fem/enforce-Dirichlet-method=Penalty

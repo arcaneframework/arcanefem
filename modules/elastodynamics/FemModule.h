@@ -15,12 +15,15 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IMesh.h>
 #include <arcane/IItemFamily.h>
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 #include <arcane/CaseTable.h>
+
+#include <arcane/utils/PlatformUtils.h>
 
 #include "IDoFLinearSystemFactory.h"
 #include "Fem_axl.h"
@@ -116,13 +119,21 @@ class FemModule
   void _getParameters();
   void _updateVariables();
   void _updateTime();
-  void _assembleBilinearOperatorTRIA3();
   void _solve();
   void _assembleLinearOperator();
-  FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
-  Real2 _computeDxDyOfRealTRIA3(Cell cell);
+  void _assembleLinearOperatorTria3();
+  void _assembleLinearOperatorTetra4();
   void _checkResultFile();
   void _readCaseTables();
+  void _assembleBilinearOperator();
+  void _assembleBilinearOperatorTRIA3();
+  void _assembleBilinearOperatorTetra4();
+
+  void _printArcaneFemTime(const String label, const Real value);
+
+  FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
+  FixedMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
+
 };
 
 #endif
