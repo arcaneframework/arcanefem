@@ -366,9 +366,9 @@ _assembleLinearOperator()
       //  ∫∫∫ (c₈)(∇𝐮ᵗᵗₙ.∇𝐯) + ∫∫∫ (c₁₀)(ε(𝐮ᵗᵗₙ):ε(𝐯))
       //----------------------------------------------------------------------
       FixedMatrix<1, 12> rhs = ( F * (1/4.)
-                              + Un * ((Uy ^ Uy) + (Ux ^ Ux) + (Uz ^ Uz) + I12)*(c0*1/20.)
-                              + Vn * ((Uy ^ Uy) + (Ux ^ Ux) + (Uz ^ Uz) + I12)*(c3*1/20.)
-                              + An * ((Uy ^ Uy) + (Ux ^ Ux) + (Uz ^ Uz) + I12)*(c4*1/20.)
+                              + Un * ((Uy ^ Uy) + (Ux ^ Ux) + (Uz ^ Uz) + 2*I12)*(c0*1/20.)
+                              + Vn * ((Uy ^ Uy) + (Ux ^ Ux) + (Uz ^ Uz) + 2*I12)*(c3*1/20.)
+                              + An * ((Uy ^ Uy) + (Ux ^ Ux) + (Uz ^ Uz) + 2*I12)*(c4*1/20.)
                               - Un * ((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) +
                                       (dyUy ^ dxUx) + (dxUx ^ dyUy) +
                                       (dzUz ^ dxUx) + (dxUx ^ dzUz) +
