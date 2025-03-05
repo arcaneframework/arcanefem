@@ -27,7 +27,7 @@ startInit()
 {
   info() << "Module Fem INIT";
 
-  m_dofs_on_nodes.initialize(mesh(), 2);
+  m_dofs_on_nodes.initialize(mesh(), mesh()->dimension());
 
   _getParameters();
 
@@ -82,7 +82,7 @@ _updateTime()
 void FemModule::
 _doStationarySolve()
 {
-  _assembleBilinearOperatorTRIA3();
+  _assembleBilinearOperator();
   _assembleLinearOperator();
   _solve();
 }
@@ -139,17 +139,17 @@ _getParameters()
     gamma = 0.5;
     beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
 
-    c0 =   rho/(beta*dt*dt) + etam*rho*gamma/beta/dt                          ;
-    c1 =   lambda + lambda*etak*gamma/beta/dt                                 ;
-    c2 =   mu + mu*etak*gamma/beta/dt                                         ;
-    c3 =   rho/beta/dt - etam*rho*(1-gamma/beta)                              ;
-    c4 =   rho*( (1.-2.*beta)/2./beta  - etam*dt*(1.-gamma/2/beta))           ;
-    c5 =  -lambda*etak*gamma/beta/dt                                          ;
-    c6 =  -mu*etak*gamma/beta/dt                                              ;
-    c7 =   etak*lambda*(gamma/beta - 1)                                       ;
-    c8 =   etak*lambda*dt*((1.-2*beta)/2./beta - (1.-gamma))                  ;
-    c9 =   etak*mu*(gamma/beta -1)                                          ;
-    c10=   etak*mu*dt*((1.-2*beta)/2./beta -(1.-gamma))                     ;
+    c0 = rho / (beta * dt * dt) + etam * rho * gamma / beta / dt;
+    c1 = lambda + lambda * etak * gamma / beta / dt;
+    c2 = mu + mu * etak * gamma / beta / dt;
+    c3 = rho / beta / dt - etam * rho * (1 - gamma / beta);
+    c4 = rho * ((1. - 2. * beta) / 2. / beta - etam * dt * (1. - gamma / 2 / beta));
+    c5 = -lambda * etak * gamma / beta / dt;
+    c6 = -mu * etak * gamma / beta / dt;
+    c7 = etak * lambda * (gamma / beta - 1);
+    c8 = etak * lambda * dt * ((1. - 2 * beta) / 2. / beta - (1. - gamma));
+    c9 = etak * mu * (gamma / beta - 1);
+    c10 = etak * mu * dt * ((1. - 2 * beta) / 2. / beta - (1. - gamma));
   }
   else if (options()->timeDiscretization == "Generalized-alpha") {
 
@@ -158,17 +158,17 @@ _getParameters()
     gamma = 0.5 + alpf - alpm                ;
     beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
 
-    c0 =   rho*(1.-alpm)/(beta*dt*dt) + etam*rho*gamma*(1-alpf)/beta/dt       ;
-    c1 =   lambda*(1.-alpf) + lambda*etak*gamma*(1.-alpf)/beta/dt             ;
-    c2 =   mu*(1.-alpf) + mu*etak*gamma*(1.-alpf)/beta/dt                     ;
-    c3 =   rho*(1.-alpm)/beta/dt - etam*rho*(1-gamma*(1-alpf)/beta)           ;
-    c4 =   rho*( (1.-alpm)*(1.-2.*beta)/2./beta - alpm - etam*dt*(1.-alpf)*(1.-gamma/2/beta))   ;
-    c5 =   lambda*alpf -    lambda*etak*gamma*(1.-alpf)/beta/dt               ;
-    c6 =   mu*alpf   -    mu*etak*gamma*(1.-alpf)/beta/dt                     ;
-    c7 =   etak*lambda*(gamma*(1.-alpf)/beta - 1)                             ;
-    c8 =   etak*lambda*dt*(1.-alpf)*((1.-2*beta)/2./beta - (1.-gamma))        ;
-    c9 =   etak*mu*(gamma*(1.-alpf)/beta -1)                                ;
-    c10=   etak*mu*dt*(1.-alpf)*((1.-2*beta)/2./beta -(1.-gamma))           ;
+    c0 = rho * (1. - alpm) / (beta * dt * dt) + etam * rho * gamma * (1 - alpf) / beta / dt;
+    c1 = lambda * (1. - alpf) + lambda * etak * gamma * (1. - alpf) / beta / dt;
+    c2 = mu * (1. - alpf) + mu * etak * gamma * (1. - alpf) / beta / dt;
+    c3 = rho * (1. - alpm) / beta / dt - etam * rho * (1 - gamma * (1 - alpf) / beta);
+    c4 = rho * ((1. - alpm) * (1. - 2. * beta) / 2. / beta - alpm - etam * dt * (1. - alpf) * (1. - gamma / 2 / beta));
+    c5 = lambda * alpf - lambda * etak * gamma * (1. - alpf) / beta / dt;
+    c6 = mu * alpf - mu * etak * gamma * (1. - alpf) / beta / dt;
+    c7 = etak * lambda * (gamma * (1. - alpf) / beta - 1);
+    c8 = etak * lambda * dt * (1. - alpf) * ((1. - 2 * beta) / 2. / beta - (1. - gamma));
+    c9 = etak * mu * (gamma * (1. - alpf) / beta - 1);
+    c10 = etak * mu * dt * (1. - alpf) * ((1. - 2 * beta) / 2. / beta - (1. - gamma));
   }
   else {
     ARCANE_FATAL("Only Newmark-beta | Generalized-alpha are supported for time-discretization ");
@@ -185,11 +185,11 @@ _readCaseTables()
   for (const auto& bs : options()->tractionBoundaryCondition()) {
     CaseTable* case_table = nullptr;
     String file_name;
-    if(bs->tractionInputFile.isPresent()){
+    if (bs->tractionInputFile.isPresent()) {
       file_name = bs->tractionInputFile();
       case_table = readFileAsCaseTable(pm, file_name, 3);
     }
-    m_traction_case_table_list.add(CaseTableInfo{file_name,case_table});
+    m_traction_case_table_list.add(CaseTableInfo{ file_name, case_table });
   }
 }
 
@@ -202,27 +202,47 @@ _updateVariables()
   // Note at this stage we already have calculated dU
   Real alocX;
   Real alocY;
+  Real alocZ;
 
   VariableDoFReal& dof_u(m_linear_system.solutionVariable());
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  ENUMERATE_ (Node, inode, allNodes()) {
-    Node node = *inode;
+  if (mesh()->dimension() == 2)
+    ENUMERATE_ (Node, inode, allNodes()) {
+      Node node = *inode;
 
-    alocX = (m_dU[node].x - m_U[node].x - dt*m_V[node].x)/beta/(dt*dt)
-                  - (1.-2.*beta)/2./beta*m_A[node].x;
-    alocY = (m_dU[node].y - m_U[node].y - dt*m_V[node].y)/beta/(dt*dt)
-                  - (1.-2.*beta)/2./beta*m_A[node].y;
+      alocX = (m_dU[node].x - m_U[node].x - dt * m_V[node].x) / beta / (dt * dt) - (1. - 2. * beta) / 2. / beta * m_A[node].x;
+      alocY = (m_dU[node].y - m_U[node].y - dt * m_V[node].y) / beta / (dt * dt) - (1. - 2. * beta) / 2. / beta * m_A[node].y;
 
-    m_V[node].x = m_V[node].x + dt*((1.-gamma)*m_A[node].x + gamma*alocX);
-    m_V[node].y = m_V[node].y + dt*((1.-gamma)*m_A[node].y + gamma*alocY);
+      m_V[node].x = m_V[node].x + dt * ((1. - gamma) * m_A[node].x + gamma * alocX);
+      m_V[node].y = m_V[node].y + dt * ((1. - gamma) * m_A[node].y + gamma * alocY);
 
-    m_A[node].x = alocX;
-    m_A[node].y = alocY;
+      m_A[node].x = alocX;
+      m_A[node].y = alocY;
 
-    m_U[node].x = m_dU[node].x;
-    m_U[node].y = m_dU[node].y;
-  }
+      m_U[node].x = m_dU[node].x;
+      m_U[node].y = m_dU[node].y;
+    }
+  if (mesh()->dimension() == 3)
+    ENUMERATE_ (Node, inode, allNodes()) {
+      Node node = *inode;
+
+      alocX = (m_dU[node].x - m_U[node].x - dt * m_V[node].x) / beta / (dt * dt) - (1. - 2. * beta) / 2. / beta * m_A[node].x;
+      alocY = (m_dU[node].y - m_U[node].y - dt * m_V[node].y) / beta / (dt * dt) - (1. - 2. * beta) / 2. / beta * m_A[node].y;
+      alocZ = (m_dU[node].z - m_U[node].z - dt * m_V[node].z) / beta / (dt * dt) - (1. - 2. * beta) / 2. / beta * m_A[node].z;
+
+      m_V[node].x = m_V[node].x + dt * ((1. - gamma) * m_A[node].x + gamma * alocX);
+      m_V[node].y = m_V[node].y + dt * ((1. - gamma) * m_A[node].y + gamma * alocY);
+      m_V[node].z = m_V[node].z + dt * ((1. - gamma) * m_A[node].z + gamma * alocZ);
+
+      m_A[node].x = alocX;
+      m_A[node].y = alocY;
+      m_A[node].z = alocZ;
+
+      m_U[node].x = m_dU[node].x;
+      m_U[node].y = m_dU[node].y;
+      m_U[node].z = m_dU[node].z;
+    }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -244,58 +264,150 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-    Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
-    Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
-    Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
+  if (mesh()->dimension() == 2)
+    ENUMERATE_ (Cell, icell, allCells()) {
+      Cell cell = *icell;
+      Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
+      Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
+      Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
 
-    FixedMatrix<1, 6> Uy = { 0., 1., 0., 1., 0., 1. };
-    FixedMatrix<1, 6> Ux = { 1., 0., 1., 0., 1., 0. };
-    FixedMatrix<1, 6> F = { f[0], f[1], f[0], f[1], f[0], f[1] };
-    FixedMatrix<1, 6> dxUx = { dxu[0], 0., dxu[1], 0., dxu[2], 0. };
-    FixedMatrix<1, 6> dyUx = { dyu[0], 0., dyu[1], 0., dyu[2], 0. };
-    FixedMatrix<1, 6> dxUy = { 0., dxu[0], 0., dxu[1], 0., dxu[2] };
-    FixedMatrix<1, 6> dyUy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
-    IdentityMatrix<6> I6;
+      FixedMatrix<1, 6> Uy = { 0., 1., 0., 1., 0., 1. };
+      FixedMatrix<1, 6> Ux = { 1., 0., 1., 0., 1., 0. };
+      FixedMatrix<1, 6> F = { f[0], f[1], f[0], f[1], f[0], f[1] };
+      FixedMatrix<1, 6> dxUx = { dxu[0], 0., dxu[1], 0., dxu[2], 0. };
+      FixedMatrix<1, 6> dyUx = { dyu[0], 0., dyu[1], 0., dyu[2], 0. };
+      FixedMatrix<1, 6> dxUy = { 0., dxu[0], 0., dxu[1], 0., dxu[2] };
+      FixedMatrix<1, 6> dyUy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
+      IdentityMatrix<6> I6;
 
-    FixedMatrix<1, 6> Un = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y,
-                             m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y,
-                             m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y };
+      FixedMatrix<1, 6> Un = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y,
+                               m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y,
+                               m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y };
 
-    FixedMatrix<1, 6> Vn = { m_V[cell.nodeId(0)].x, m_V[cell.nodeId(0)].y,
-                             m_V[cell.nodeId(1)].x, m_V[cell.nodeId(1)].y,
-                             m_V[cell.nodeId(2)].x, m_V[cell.nodeId(2)].y };
+      FixedMatrix<1, 6> Vn = { m_V[cell.nodeId(0)].x, m_V[cell.nodeId(0)].y,
+                               m_V[cell.nodeId(1)].x, m_V[cell.nodeId(1)].y,
+                               m_V[cell.nodeId(2)].x, m_V[cell.nodeId(2)].y };
 
-    FixedMatrix<1, 6> An = { m_A[cell.nodeId(0)].x, m_A[cell.nodeId(0)].y,
-                             m_A[cell.nodeId(1)].x, m_A[cell.nodeId(1)].y,
-                             m_A[cell.nodeId(2)].x, m_A[cell.nodeId(2)].y };
+      FixedMatrix<1, 6> An = { m_A[cell.nodeId(0)].x, m_A[cell.nodeId(0)].y,
+                               m_A[cell.nodeId(1)].x, m_A[cell.nodeId(1)].y,
+                               m_A[cell.nodeId(2)].x, m_A[cell.nodeId(2)].y };
 
-    //----------------------------------------------------------------------
-    //  ∫∫∫ (𝐟.𝐯) + ∫∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯) +
-    //  ∫∫∫ (c₅)(∇𝐮ₙ.∇𝐯) + ∫∫∫ (c₆)(ε(𝐮ₙ):ε(𝐯)) +
-    //  ∫∫∫ (c₇)(∇𝐮ᵗₙ.∇𝐯) + ∫∫∫ (c₉)(ε(𝐮ᵗₙ):ε(𝐯)) +
-    //  ∫∫∫ (c₈)(∇𝐮ᵗᵗₙ.∇𝐯) + ∫∫∫ (c₁₀)(ε(𝐮ᵗᵗₙ):ε(𝐯))
-    //----------------------------------------------------------------------
-    FixedMatrix<1, 6> rhs = ( F * (1/3.)
-                            + Un * ((Uy ^ Uy) + (Ux ^ Ux) + I6)*(c0*1/12.)
-                            + Vn * ((Uy ^ Uy) + (Ux ^ Ux) + I6)*(c3*1/12.)
-                            + An * ((Uy ^ Uy) + (Ux ^ Ux) + I6)*(c4*1/12.)
-                            - Un * ((dyUy ^ dxUx) + (dxUx ^ dyUy)  +  (dxUx ^ dxUx) + (dyUy ^ dyUy)) * c5
-                            - Un * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy)) +  ((dxUy + dyUx) ^ (dyUx + dxUy)))*c6
-                            + Vn * ((dyUy ^ dxUx) + (dxUx ^ dyUy)  +  (dxUx ^ dxUx) + (dyUy ^ dyUy)) * c7
-                            + Vn * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy)) +  ((dxUy + dyUx) ^ (dyUx + dxUy)))*c9
-                            + An * ((dyUy ^ dxUx) + (dxUx ^ dyUy)  +  (dxUx ^ dxUx) + (dyUy ^ dyUy)) * c8
-                            + An * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy)) +  ((dxUy + dyUx) ^ (dyUx + dxUy)))*c10
-                            ) * area;
+      //----------------------------------------------------------------------
+      //  ∫∫∫ (𝐟.𝐯) + ∫∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯) +
+      //  ∫∫∫ (c₅)(∇𝐮ₙ.∇𝐯) + ∫∫∫ (c₆)(ε(𝐮ₙ):ε(𝐯)) +
+      //  ∫∫∫ (c₇)(∇𝐮ᵗₙ.∇𝐯) + ∫∫∫ (c₉)(ε(𝐮ᵗₙ):ε(𝐯)) +
+      //  ∫∫∫ (c₈)(∇𝐮ᵗᵗₙ.∇𝐯) + ∫∫∫ (c₁₀)(ε(𝐮ᵗᵗₙ):ε(𝐯))
+      //----------------------------------------------------------------------
+      FixedMatrix<1, 6> rhs = ( F * (1/3.)
+                              + Un * ((Uy ^ Uy) + (Ux ^ Ux) + I6)*(c0*1/12.)
+                              + Vn * ((Uy ^ Uy) + (Ux ^ Ux) + I6)*(c3*1/12.)
+                              + An * ((Uy ^ Uy) + (Ux ^ Ux) + I6)*(c4*1/12.)
+                              - Un * ((dyUy ^ dxUx) + (dxUx ^ dyUy)  +  (dxUx ^ dxUx) + (dyUy ^ dyUy)) * c5
+                              - Un * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy)) +  ((dxUy + dyUx) ^ (dyUx + dxUy)))*c6
+                              + Vn * ((dyUy ^ dxUx) + (dxUx ^ dyUy)  +  (dxUx ^ dxUx) + (dyUy ^ dyUy)) * c7
+                              + Vn * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy)) +  ((dxUy + dyUx) ^ (dyUx + dxUy)))*c9
+                              + An * ((dyUy ^ dxUx) + (dxUx ^ dyUy)  +  (dxUx ^ dxUx) + (dyUy ^ dyUy)) * c8
+                              + An * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy)) +  ((dxUy + dyUx) ^ (dyUx + dxUy)))*c10
+                              ) * area;
 
-    rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0,0);
-    rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(0,1);
-    rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(0,2);
-    rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(0,3);
-    rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(0,4);
-    rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(0,5);
-  }
+      rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0,0);
+      rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(0,1);
+      rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(0,2);
+      rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(0,3);
+      rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(0,4);
+      rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(0,5);
+    }
+
+  if (mesh()->dimension() == 3)
+    ENUMERATE_ (Cell, icell, allCells()) {
+      Cell cell = *icell;
+      Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
+      Real4 dxu = ArcaneFemFunctions::FeOperation3D::computeGradientXTetra4(cell, m_node_coord);
+      Real4 dyu = ArcaneFemFunctions::FeOperation3D::computeGradientYTetra4(cell, m_node_coord);
+      Real4 dzu = ArcaneFemFunctions::FeOperation3D::computeGradientZTetra4(cell, m_node_coord);
+
+      FixedMatrix<1, 12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0. };
+      FixedMatrix<1, 12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0. };
+      FixedMatrix<1, 12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1. };
+
+      FixedMatrix<1, 12> F = { f[0], f[1], f[2], f[0], f[1], f[2], f[0], f[1], f[2] };
+      FixedMatrix<1, 12> dxUx = { dxu[0], 0., 0.,    dxu[1], 0., 0.,    dxu[2], 0., 0.,    dxu[3], 0., 0. };
+      FixedMatrix<1, 12> dyUx = { dyu[0], 0., 0.,    dyu[1], 0., 0.,    dyu[2], 0., 0.,    dyu[3], 0., 0. };
+      FixedMatrix<1, 12> dzUx = { dzu[0], 0., 0.,    dzu[1], 0., 0.,    dzu[2], 0., 0.,    dzu[3], 0., 0. };
+
+      FixedMatrix<1, 12> dxUy = { 0., dxu[0], 0.,    0., dxu[1], 0.,    0., dxu[2], 0.,    0., dxu[3], 0. };
+      FixedMatrix<1, 12> dyUy = { 0., dyu[0], 0.,    0., dyu[1], 0.,    0., dyu[2], 0.,    0., dyu[3], 0. };
+      FixedMatrix<1, 12> dzUy = { 0., dzu[0], 0.,    0., dzu[1], 0.,    0., dzu[2], 0.,    0., dzu[3], 0. };
+
+      FixedMatrix<1, 12> dxUz = { 0., 0., dxu[0],    0., 0., dxu[1],    0., 0., dxu[2],    0., 0., dxu[3] };
+      FixedMatrix<1, 12> dyUz = { 0., 0., dyu[0],    0., 0., dyu[1],    0., 0., dyu[2],    0., 0., dyu[3] };
+      FixedMatrix<1, 12> dzUz = { 0., 0., dzu[0],    0., 0., dzu[1],    0., 0., dzu[2],    0., 0., dzu[3] };
+      IdentityMatrix<12> I12;
+
+      FixedMatrix<1, 12> Un = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y, m_U[cell.nodeId(0)].z,
+                                m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y, m_U[cell.nodeId(1)].z,
+                                m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y, m_U[cell.nodeId(2)].z,
+                                m_U[cell.nodeId(3)].x, m_U[cell.nodeId(3)].y, m_U[cell.nodeId(3)].z };
+
+      FixedMatrix<1, 12> Vn = { m_V[cell.nodeId(0)].x, m_V[cell.nodeId(0)].y, m_V[cell.nodeId(0)].z,
+                                m_V[cell.nodeId(1)].x, m_V[cell.nodeId(1)].y, m_V[cell.nodeId(1)].z,
+                                m_V[cell.nodeId(2)].x, m_V[cell.nodeId(2)].y, m_V[cell.nodeId(2)].z,
+                                m_V[cell.nodeId(3)].x, m_V[cell.nodeId(3)].y, m_V[cell.nodeId(3)].z };
+
+      FixedMatrix<1, 12> An = { m_A[cell.nodeId(0)].x, m_A[cell.nodeId(0)].y, m_A[cell.nodeId(0)].z,
+                                m_A[cell.nodeId(1)].x, m_A[cell.nodeId(1)].y, m_A[cell.nodeId(1)].z,
+                                m_A[cell.nodeId(2)].x, m_A[cell.nodeId(2)].y, m_A[cell.nodeId(2)].z,
+                                m_A[cell.nodeId(3)].x, m_A[cell.nodeId(3)].y, m_A[cell.nodeId(3)].z };
+
+      //----------------------------------------------------------------------
+      //  ∫∫∫ (𝐟.𝐯) + ∫∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯) +
+      //  ∫∫∫ (c₅)(∇𝐮ₙ.∇𝐯) + ∫∫∫ (c₆)(ε(𝐮ₙ):ε(𝐯)) +
+      //  ∫∫∫ (c₇)(∇𝐮ᵗₙ.∇𝐯) + ∫∫∫ (c₉)(ε(𝐮ᵗₙ):ε(𝐯)) +
+      //  ∫∫∫ (c₈)(∇𝐮ᵗᵗₙ.∇𝐯) + ∫∫∫ (c₁₀)(ε(𝐮ᵗᵗₙ):ε(𝐯))
+      //----------------------------------------------------------------------
+      FixedMatrix<1, 12> rhs = ( F * (1/4.)
+                              + Un * ((Uy ^ Uy) + (Ux ^ Ux) + (Uz ^ Uz) + I12)*(c0*1/20.)
+                              + Vn * ((Uy ^ Uy) + (Ux ^ Ux) + (Uz ^ Uz) + I12)*(c3*1/20.)
+                              + An * ((Uy ^ Uy) + (Ux ^ Ux) + (Uz ^ Uz) + I12)*(c4*1/20.)
+                              - Un * ((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) +
+                                      (dyUy ^ dxUx) + (dxUx ^ dyUy) +
+                                      (dzUz ^ dxUx) + (dxUx ^ dzUz) +
+                                      (dyUy ^ dzUz) + (dzUz ^ dyUy)) * c5
+                              - Un * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) ) +
+                                         ( ((dxUy + dyUx) ^ (dyUx + dxUy)) +
+                                           ((dzUy + dyUz) ^ (dyUz + dzUy)) +
+                                           ((dxUz + dzUx) ^ (dzUx + dxUz)) ))*c6
+                              + Vn * ((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) +
+                                      (dyUy ^ dxUx) + (dxUx ^ dyUy) +
+                                      (dzUz ^ dxUx) + (dxUx ^ dzUz) +
+                                      (dyUy ^ dzUz) + (dzUz ^ dyUy)) * c7
+                              + Vn * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) ) +
+                                      ( ((dxUy + dyUx) ^ (dyUx + dxUy)) +
+                                        ((dzUy + dyUz) ^ (dyUz + dzUy)) +
+                                        ((dxUz + dzUx) ^ (dzUx + dxUz)) ))*c9
+                                        + An * ((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) +
+                                        (dyUy ^ dxUx) + (dxUx ^ dyUy) +
+                                        (dzUz ^ dxUx) + (dxUx ^ dzUz) +
+                                        (dyUy ^ dzUz) + (dzUz ^ dyUy)) * c8
+                                + An * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) ) +
+                                        ( ((dxUy + dyUx) ^ (dyUx + dxUy)) +
+                                          ((dzUy + dyUz) ^ (dyUz + dzUy)) +
+                                          ((dxUz + dzUx) ^ (dzUx + dxUz)) ))*c10
+                              ) * volume;
+
+      rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0,0);
+      rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(0,1);
+      rhs_values[node_dof.dofId(cell.nodeId(0), 2)] += rhs(0,2);
+      rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(0,3);
+      rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(0,4);
+      rhs_values[node_dof.dofId(cell.nodeId(1), 2)] += rhs(0,5);
+      rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(0,6);
+      rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(0,7);
+      rhs_values[node_dof.dofId(cell.nodeId(2), 2)] += rhs(0,8);
+      rhs_values[node_dof.dofId(cell.nodeId(3), 0)] += rhs(0,9);
+      rhs_values[node_dof.dofId(cell.nodeId(3), 1)] += rhs(0,10);
+      rhs_values[node_dof.dofId(cell.nodeId(3), 2)] += rhs(0,11);
+    }
 
   //----------------------------------------------------------------------
   // traction term ∫∫ (𝐭.𝐯)  with 𝐭 = (𝑡𝑥, 𝑡𝑦, 𝑡𝑧) = (t[0], t[1], t[2])
@@ -321,16 +433,29 @@ _assembleLinearOperator()
         ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'", case_table_info.file_name);
       inn->value(t, trac);
 
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-        for (Node node : iface->nodes()) {
-          if (node.isOwn()) {
-            rhs_values[node_dof.dofId(node, 0)] += trac.x * length / 2.;
-            rhs_values[node_dof.dofId(node, 1)] += trac.y * length / 2.;
+      if (mesh()->dimension() == 2)
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
+          for (Node node : iface->nodes()) {
+            if (node.isOwn()) {
+              rhs_values[node_dof.dofId(node, 0)] += trac.x * length / 2.;
+              rhs_values[node_dof.dofId(node, 1)] += trac.y * length / 2.;
+            }
           }
         }
-      }
+      if (mesh()->dimension() == 3)
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
+          for (Node node : iface->nodes()) {
+            if (node.isOwn()) {
+              rhs_values[node_dof.dofId(node, 0)] += trac.x * area / 3.;
+              rhs_values[node_dof.dofId(node, 1)] += trac.y * area / 3.;
+              rhs_values[node_dof.dofId(node, 2)] += trac.z * area / 3.;
+            }
+          }
+        }
       continue;
     }
     else {
@@ -356,6 +481,20 @@ _assembleLinearOperator()
               if (node.isOwn()) {
                 rhs_values[node_dof.dofId(node, 0)] += trac[0] * length / 2.;
                 rhs_values[node_dof.dofId(node, 1)] += trac[1] * length / 2.;
+              }
+            }
+          }
+
+      if (mesh()->dimension() == 3)
+        if (t_string[0] != "NULL" || t_string[1] != "NULL" || t_string[2] != "NULL")
+          ENUMERATE_ (Face, iface, group) {
+            Face face = *iface;
+            Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
+            for (Node node : iface->nodes()) {
+              if (node.isOwn()) {
+                rhs_values[node_dof.dofId(node, 0)] += trac[0] * area / 3.;
+                rhs_values[node_dof.dofId(node, 1)] += trac[1] * area / 3.;
+                rhs_values[node_dof.dofId(node, 2)] += trac[2] * area / 3.;
               }
             }
           }
@@ -532,6 +671,78 @@ _assembleBilinearOperatorTRIA3()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
+_assembleBilinearOperatorTetra4()
+{
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+
+    auto K_e = _computeElementMatrixTetra4(cell);
+    Int32 n1_index = 0;
+    for (Node node1 : cell.nodes()) {
+      Int32 n2_index = 0;
+      for (Node node2 : cell.nodes()) {
+        Real v1 = K_e(3 * n1_index, 3 * n2_index);
+        Real v2 = K_e(3 * n1_index, 3 * n2_index + 1);
+        Real v3 = K_e(3 * n1_index, 3 * n2_index + 2);
+
+        Real v4 = K_e(3 * n1_index + 1, 3 * n2_index);
+        Real v5 = K_e(3 * n1_index + 1, 3 * n2_index + 1);
+        Real v6 = K_e(3 * n1_index + 1, 3 * n2_index + 2);
+
+        Real v7 = K_e(3 * n1_index + 2, 3 * n2_index);
+        Real v8 = K_e(3 * n1_index + 2, 3 * n2_index + 1);
+        Real v9 = K_e(3 * n1_index + 2, 3 * n2_index + 2);
+        if (node1.isOwn()) {
+          DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
+          DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
+          DoFLocalId node1_dof3 = node_dof.dofId(node1, 2);
+          DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
+          DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
+          DoFLocalId node2_dof3 = node_dof.dofId(node2, 2);
+
+          m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
+          m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
+          m_linear_system.matrixAddValue(node1_dof1, node2_dof3, v3);
+
+          m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v4);
+          m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v5);
+          m_linear_system.matrixAddValue(node1_dof2, node2_dof3, v6);
+
+          m_linear_system.matrixAddValue(node1_dof3, node2_dof1, v7);
+          m_linear_system.matrixAddValue(node1_dof3, node2_dof2, v8);
+          m_linear_system.matrixAddValue(node1_dof3, node2_dof3, v9);
+        }
+        ++n2_index;
+      }
+      ++n1_index;
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleBilinearOperator()
+{
+  info() << "[ArcaneFem-Info] Started module  _assembleBilinearOperator()";
+  Real elapsedTime = platform::getRealTime();
+
+  if (mesh()->dimension() == 2)
+    _assembleBilinearOperatorTRIA3();
+  else
+    _assembleBilinearOperatorTetra4();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  _printArcaneFemTime("[ArcaneFem-Timer] initialize", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
 _solve()
 {
   info() << "Solving Linear system";
@@ -540,6 +751,7 @@ _solve()
   {
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    if (mesh()->dimension() == 2)
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
       Real u1_val = dof_u[node_dof.dofId(node, 0)];
@@ -548,6 +760,18 @@ _solve()
       u_disp.x = u1_val;
       u_disp.y = u2_val;
       u_disp.z = 0.0;
+      m_dU[node] = u_disp;
+    }
+    if (mesh()->dimension() == 3)
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      Real u1_val = dof_u[node_dof.dofId(node, 0)];
+      Real u2_val = dof_u[node_dof.dofId(node, 1)];
+      Real u3_val = dof_u[node_dof.dofId(node, 2)];
+      Real3 u_disp;
+      u_disp.x = u1_val;
+      u_disp.y = u2_val;
+      u_disp.z = u3_val;
       m_dU[node] = u_disp;
     }
   }
@@ -583,6 +807,18 @@ _checkResultFile()
     return;
   const double epsilon = 1.0e-4;
   Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_dU, epsilon, 1e-16);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Function to prints the execution time `value` of phase `label`
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_printArcaneFemTime(const String label, const Real value)
+{
+  info() << std::left << std::setw(40) << label << " = " << value;
 }
 
 /*---------------------------------------------------------------------------*/
