@@ -307,6 +307,21 @@ ARCCORE_HOST_DEVICE inline FixedMatrix<6, 6> operator^(const FixedMatrix<1, 6>& 
 }
 
 /*---------------------------------------------------------------------------*/
+//  Matrix vector product of FixedMatrix<1, 6> vectors and matrix FixedMatrix<6, 6>
+/*---------------------------------------------------------------------------*/
+ARCCORE_HOST_DEVICE inline FixedMatrix<1, 6> operator*(const FixedMatrix<1, 6>& lhs, const FixedMatrix<6, 6>& rhs)
+{
+  FixedMatrix<1, 6> result;
+  for (Arcane::Int32 j = 0; j < 6; ++j) {
+    result(0, j) = 0; // Initialize result element
+    for (Arcane::Int32 i = 0; i < 6; ++i) {
+      result(0, j) += lhs(0, i) * rhs(i, j);
+    }
+  }
+  return result;
+}
+
+/*---------------------------------------------------------------------------*/
 //  Outer product of two FixedMatrix<1, 12> vectors to produce a FixedMatrix<12, 12>
 /*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE inline FixedMatrix<12, 12> operator^(const FixedMatrix<1, 12>& lhs, const FixedMatrix<1, 12>& rhs)

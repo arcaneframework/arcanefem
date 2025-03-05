@@ -1,4 +1,4 @@
-﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
 // Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
@@ -82,6 +82,8 @@ class FemModule
   Real rho; // Density ρ
   Real mu; // Lame parameter μ
   Real lambda; // Lame parameter λ
+
+  Real3 f = {0,0,0}; // body force 𝐟
 
   Real c0; // constant c₀
   Real c1; // constant c₁
