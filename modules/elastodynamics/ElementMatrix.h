@@ -59,3 +59,73 @@ _computeElementMatrixTRIA3(Cell cell)
 
   return int_Omega_i;
 }
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Computes the element matrix for a tetrahedral element (ℙ1 FE).
+ *
+ * Theory:
+ *
+ *   a(𝐮,𝐯) = ∫∫∫ [(∂²𝐮/∂𝑡²).(𝐯)] dΩ + ∫∫∫ [σ(𝐮):ε(𝐯)] dΩ
+ *
+ *   with trial function 𝐮 = (𝑢𝑥, 𝑢𝑦, 𝑢𝑧) and test function 𝐯 = (𝑣𝑥, 𝑣𝑦, 𝑣𝑧),
+ *   σ(𝐮) is the stress tensor, given by     σᵢⱼ = λδᵢⱼεₖₖ + 2μεᵢⱼ
+ *   ε(𝐯) is the strain tensor, defined as    εᵢⱼ = 0.5 (∂𝑣ᵢ/∂xⱼ + ∂𝑣ⱼ/∂xᵢ)
+ *
+ *   The bilinear integral after applying the Newmark-Beta scheme and damping terms expands to:
+ *
+ *      a(𝐮,𝐯) =   ∫∫∫ (c₀)(𝐮 ⋅ 𝐯) dΩ
+ *               + ∫∫∫ (c₁) (∂𝑢𝑥/∂𝑥 ∂𝑣𝑥/∂𝑥 + ∂𝑢𝑦/∂𝑦 ∂𝑣𝑦/∂𝑦 + ∂𝑢𝑧/∂𝑧 ∂𝑣𝑧/∂𝑧 +
+ *                           ∂𝑢𝑦/∂𝑦 ∂𝑣𝑥/∂𝑥 + ∂𝑢𝑥/∂𝑥 ∂𝑣𝑦/∂𝑦 +
+ *                           ∂𝑢𝑧/∂𝑧 ∂𝑣𝑥/∂𝑥 + ∂𝑢𝑥/∂𝑥 ∂𝑣𝑧/∂𝑧 +
+ *                           ∂𝑢𝑦/∂𝑦 ∂𝑣𝑧/∂𝑧 + ∂𝑢𝑧/∂𝑧 ∂𝑣𝑦/∂𝑦 )
+ *               + ∫∫∫ (c₂)(2(∂𝑢𝑥/∂𝑥 ∂𝑣𝑥/∂𝑥 + ∂𝑢𝑦/∂𝑦 ∂𝑣𝑦/∂𝑦 + ∂𝑢𝑧/∂𝑧 ∂𝑣𝑧/∂𝑧) +
+ *                           (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦)(∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) +
+ *                           (∂𝑢𝑧/∂𝑦 + ∂𝑢𝑦/∂𝑧)(∂𝑣𝑦/∂𝑧 + ∂𝑣𝑧/∂𝑦) +
+ *                           (∂𝑢𝑥/∂𝑧 + ∂𝑢𝑧/∂𝑥)(∂𝑣𝑧/∂𝑥 + ∂𝑣𝑥/∂𝑧) )
+ *
+ *   with c₀ = (ρ)/(β δ𝑡²) + (ηₘ ρ γ)/(β δ𝑡)
+ *        c₁ = λ + (λ ηₖ γ)/(β δ𝑡)
+ *        c₂ = 2μ + (2μ ηₖ γ)/(β δ𝑡)
+ *
+ */
+/*---------------------------------------------------------------------------*/
+
+FixedMatrix<12, 12> FemModule::_computeElementMatrixTetra4(Cell cell)
+{
+  Real4 dxu = ArcaneFemFunctions::FeOperation3D::computeGradientXTetra4(cell, m_node_coord);
+  Real4 dyu = ArcaneFemFunctions::FeOperation3D::computeGradientYTetra4(cell, m_node_coord);
+  Real4 dzu = ArcaneFemFunctions::FeOperation3D::computeGradientZTetra4(cell, m_node_coord);
+
+  Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
+
+  IdentityMatrix<12> I12;
+
+  FixedMatrix<1, 12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
+  FixedMatrix<1, 12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. };
+  FixedMatrix<1, 12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. };
+
+  FixedMatrix<1, 12> dxUx = { dxu[0], 0., 0.,    dxu[1], 0., 0.,    dxu[2], 0., 0.,    dxu[3], 0., 0. };
+  FixedMatrix<1, 12> dyUx = { dyu[0], 0., 0.,    dyu[1], 0., 0.,    dyu[2], 0., 0.,    dyu[3], 0., 0. };
+  FixedMatrix<1, 12> dzUx = { dzu[0], 0., 0.,    dzu[1], 0., 0.,    dzu[2], 0., 0.,    dzu[3], 0., 0. };
+
+  FixedMatrix<1, 12> dxUy = { 0., dxu[0], 0.,    0., dxu[1], 0.,    0., dxu[2], 0.,    0., dxu[3], 0. };
+  FixedMatrix<1, 12> dyUy = { 0., dyu[0], 0.,    0., dyu[1], 0.,    0., dyu[2], 0.,    0., dyu[3], 0. };
+  FixedMatrix<1, 12> dzUy = { 0., dzu[0], 0.,    0., dzu[1], 0.,    0., dzu[2], 0.,    0., dzu[3], 0. };
+
+  FixedMatrix<1, 12> dxUz = { 0., 0., dxu[0],    0., 0., dxu[1],    0., 0., dxu[2],    0., 0., dxu[3] };
+  FixedMatrix<1, 12> dyUz = { 0., 0., dyu[0],    0., 0., dyu[1],    0., 0., dyu[2],    0., 0., dyu[3] };
+  FixedMatrix<1, 12> dzUz = { 0., 0., dzu[0],    0., 0., dzu[1],    0., 0., dzu[2],    0., 0., dzu[3] };
+
+  FixedMatrix<12, 12> int_Omega_i = (c0 / 20.) * ((Uy ^ Uy) + (Ux ^ Ux) + (Uz ^ Uz) + (I12)) * volume +
+                                    (c1)*((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) +
+                                          (dyUy ^ dxUx) + (dxUx ^ dyUy) +
+                                          (dzUz ^ dxUx) + (dxUx ^ dzUz) +
+                                          (dyUy ^ dzUz) + (dzUz ^ dyUy) ) * volume +
+                                    (c2)*(2.*((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) ) +
+                                          ( ((dxUy + dyUx) ^ (dyUx + dxUy)) +
+                                            ((dzUy + dyUz) ^ (dyUz + dzUy)) +
+                                            ((dxUz + dzUx) ^ (dzUx + dxUz)) ) )*volume;
+
+  return int_Omega_i;
+}
