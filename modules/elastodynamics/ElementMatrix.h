@@ -101,9 +101,9 @@ FixedMatrix<12, 12> FemModule::_computeElementMatrixTetra4(Cell cell)
 
   IdentityMatrix<12> I12;
 
-  FixedMatrix<1, 12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0. };
-  FixedMatrix<1, 12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0. };
-  FixedMatrix<1, 12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1. };
+  FixedMatrix<1, 12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
+  FixedMatrix<1, 12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. };
+  FixedMatrix<1, 12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. };
 
   FixedMatrix<1, 12> dxUx = { dxu[0], 0., 0.,    dxu[1], 0., 0.,    dxu[2], 0., 0.,    dxu[3], 0., 0. };
   FixedMatrix<1, 12> dyUx = { dyu[0], 0., 0.,    dyu[1], 0., 0.,    dyu[2], 0., 0.,    dyu[3], 0., 0. };
@@ -117,7 +117,7 @@ FixedMatrix<12, 12> FemModule::_computeElementMatrixTetra4(Cell cell)
   FixedMatrix<1, 12> dyUz = { 0., 0., dyu[0],    0., 0., dyu[1],    0., 0., dyu[2],    0., 0., dyu[3] };
   FixedMatrix<1, 12> dzUz = { 0., 0., dzu[0],    0., 0., dzu[1],    0., 0., dzu[2],    0., 0., dzu[3] };
 
-  FixedMatrix<12, 12> int_Omega_i = (c0 / 20.) * ((Uy ^ Uy) + (Ux ^ Ux) + (Uz ^ Uz) + 2*I12) * volume +
+  FixedMatrix<12, 12> int_Omega_i = (c0 / 20.) * ((Uy ^ Uy) + (Ux ^ Ux) + (Uz ^ Uz) + (I12)) * volume +
                                     (c1)*((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) +
                                           (dyUy ^ dxUx) + (dxUx ^ dyUy) +
                                           (dzUz ^ dxUx) + (dxUx ^ dzUz) +
