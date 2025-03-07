@@ -25,17 +25,21 @@
 void FemModule::
 startInit()
 {
-  info() << "Module Fem INIT";
+  info() << "[ArcaneFem-Info] Started module  compute()";
+  Real elapsedTime = platform::getRealTime();
 
   m_dofs_on_nodes.initialize(mesh(), mesh()->dimension());
 
   _getParameters();
 
-  t    = dt;
+  t = dt;
   tmax = tmax - dt;
   m_global_deltat.assign(dt);
 
   _readCaseTables();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "initialize", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -44,7 +48,8 @@ startInit()
 void FemModule::
 compute()
 {
-  info() << "Module Fem COMPUTE";
+  info() << "[ArcaneFem-Info] Started module  compute()";
+  Real elapsedTime = platform::getRealTime();
 
   // Stop code after computations
   if (t >= tmax)
@@ -60,10 +65,11 @@ compute()
   _updateVariables();
   _updateTime();
 
-  if (t > tmax + dt - 1e-8){
-    info() << "Perfroming check";
-    _checkResultFile();
-  }
+  if (t > tmax + dt - 1e-8)
+    _validateResults();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "compute", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -72,7 +78,6 @@ compute()
 void FemModule::
 _updateTime()
 {
-  info() << "Update time";
   t += dt;
 }
 
@@ -93,7 +98,8 @@ _doStationarySolve()
 void FemModule::
 _getParameters()
 {
-  info() << "Get material parameters...";
+  info() << "[ArcaneFem-Info] Started module  _getParameters()";
+  Real elapsedTime = platform::getRealTime();
 
   //--------- time parameters -----------//
   tmax = options()->tmax();                // max time
@@ -134,7 +140,7 @@ _getParameters()
   //----- time discretization Newmark-Beta or Generalized-alpha  -----//
   if (options()->timeDiscretization == "Newmark-beta") {
 
-    info() << "Apply time discretization via Newmark-beta ";
+    info() << "[ArcaneFem-Info] Apply time discretization via Newmark-beta ";
 
     gamma = 0.5;
     beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
@@ -153,7 +159,7 @@ _getParameters()
   }
   else if (options()->timeDiscretization == "Generalized-alpha") {
 
-    info() << "Apply time discretization via Generalized-alpha ";
+    info() << "[ArcaneFem-Info] Apply time discretization via Generalized-alpha ";
 
     gamma = 0.5 + alpf - alpm                ;
     beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
@@ -173,6 +179,9 @@ _getParameters()
   else {
     ARCANE_FATAL("Only Newmark-beta | Generalized-alpha are supported for time-discretization ");
   }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"get-material-params", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -199,6 +208,9 @@ _readCaseTables()
 void FemModule::
 _updateVariables()
 {
+  info() << "[ArcaneFem-Info] Started module  _updateVariables()";
+  Real elapsedTime = platform::getRealTime();
+
   // Note at this stage we already have calculated dU
   Real alocX;
   Real alocY;
@@ -243,6 +255,9 @@ _updateVariables()
       m_U[node].y = m_dU[node].y;
       m_U[node].z = m_dU[node].z;
     }
+
+    elapsedTime = platform::getRealTime() - elapsedTime;
+    ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -256,7 +271,8 @@ _updateVariables()
 void FemModule::
 _assembleLinearOperator()
 {
-  info() << "Assembly of FEM linear operator ";
+  info() << "[ArcaneFem-Info] Started module  _assembleLinearOperator()";
+  Real elapsedTime = platform::getRealTime();
 
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
@@ -620,20 +636,23 @@ _assembleLinearOperator()
       }
     }
   }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-vector-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleBilinearOperatorTRIA3()
+_assembleBilinearOperatorTria3()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    auto K_e = _computeElementMatrixTRIA3(cell); // element stiffness matrix
+    auto K_e = _computeElementMatrixTria3(cell); // element stiffness matrix
     // assemble elementary matrix into  the global one elementary terms are
     // positioned into  K according  to the rank of associated  node in the
     // mesh.nodes list  and according the dof number. Here  for  each  node
@@ -731,12 +750,12 @@ _assembleBilinearOperator()
   Real elapsedTime = platform::getRealTime();
 
   if (mesh()->dimension() == 2)
-    _assembleBilinearOperatorTRIA3();
+    _assembleBilinearOperatorTria3();
   else
     _assembleBilinearOperatorTetra4();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] initialize", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"lhs-matrix-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -745,7 +764,9 @@ _assembleBilinearOperator()
 void FemModule::
 _solve()
 {
-  info() << "Solving Linear system";
+  info() << "[ArcaneFem-Info] Started module  _solve()";
+  Real elapsedTime = platform::getRealTime();
+
   m_linear_system.solve();
 
   {
@@ -781,8 +802,20 @@ _solve()
   m_V.synchronize();
   m_A.synchronize();
 
-  const bool do_print = (allNodes().size() < 200);
-  if (do_print) {
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"solve-linear-system", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_validateResults()
+{
+  info() << "[ArcaneFem-Info] Started module  _validateResults()";
+  Real elapsedTime = platform::getRealTime();
+
+  if (allNodes().size() < 200) {
     int p = std::cout.precision();
     std::cout.precision(17);
     ENUMERATE_ (Node, inode, allNodes()) {
@@ -793,32 +826,18 @@ _solve()
     }
     std::cout.precision(p);
   }
-}
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_checkResultFile()
-{
   String filename = options()->resultFile();
-  info() << "CheckResultFile filename=" << filename;
-  if (filename.empty())
-    return;
   const double epsilon = 1.0e-4;
-  Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_dU, epsilon, 1e-16);
-}
+  const double min_value_to_test = 1.0e-16;
 
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Function to prints the execution time `value` of phase `label`
- */
-/*---------------------------------------------------------------------------*/
+  info() << "[ArcaneFem-Info] Validating results filename=" << filename << " epsilon =" << epsilon;
 
-void FemModule::
-_printArcaneFemTime(const String label, const Real value)
-{
-  info() << std::left << std::setw(40) << label << " = " << value;
+  if (!filename.empty())
+    Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_dU, epsilon, min_value_to_test);
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"cross-validation", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
