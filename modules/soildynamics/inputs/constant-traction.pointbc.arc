@@ -7,7 +7,6 @@
 
   <arcane-post-processing>
    <output-period>1</output-period>
-   <format name="VtkHdfV2PostProcessor" />
    <output>
      <variable>U</variable>
      <variable>V</variable>
@@ -27,6 +26,7 @@
     <E>6.62e6</E>
     <nu>0.45</nu>
     <rho>2500.0</rho>
+    <f>3359.6 3452.3</f>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     <penalty>1.e30</penalty>
     <paraxial-boundary-condition>
@@ -34,9 +34,13 @@
     </paraxial-boundary-condition>
     <traction-boundary-condition>
       <surface>input</surface>
-      <traction-input-file>data/semi-circle-soil-traction.txt</traction-input-file>
+      <t>0.01 0.01</t>
     </traction-boundary-condition>
-    <result-file>check/test_2D_transient_traction.txt</result-file>
+    <dirichlet-point-condition>
+      <node>source</node>
+      <u>0.0 0.0003</u>
+    </dirichlet-point-condition>
+    <result-file>check/test_2D_constant_traction_pointbc.txt</result-file>
     <linear-system>
       <solver-backend>petsc</solver-backend>
       <preconditioner>ilu</preconditioner>

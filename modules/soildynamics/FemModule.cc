@@ -119,10 +119,6 @@ _getParameters()
   tmax = options()->tmax();                // max time
   dt   = options()->dt();                  // time step
 
-  //--- time discretization parameter ---//
-  alpm = options()->alpm();                // time discretization param alpm
-  alpf = options()->alpf();                // time discretization param alpf
-
   //--------- material parameter ---------//
   E    = options()->E();                   // Youngs modulus
   nu   = options()->nu();                  // Poission ratio
@@ -162,49 +158,19 @@ _getParameters()
     }
   }
 
-  //----- time discretization Newmark-Beta or Generalized-alpha  -----//
-  if (options()->timeDiscretization == "Newmark-beta") {
+  gamma = 0.5;
+  beta = (1. / 4.) * (gamma + 0.5) * (gamma + 0.5);
 
-    info() << "[ArcaneFem-Info] Apply time discretization via Newmark-beta ";
-
-    gamma = 0.5;
-    beta = (1. / 4.) * (gamma + 0.5) * (gamma + 0.5);
-
-    c0 = rho / (beta * dt * dt);
-    c1 = lambda;
-    c2 = 2. * mu;
-    c3 = rho / (beta * dt);
-    c4 = rho * (1. / 2. / beta - 1.);
-    c5 = 0.;
-    c6 = 0.;
-    c7 = rho * gamma / beta / dt;
-    c8 = rho * (1. - gamma / beta);
-    c9 = rho * dt * (1. - gamma / (2. * beta));
-  }
-
-  else if (options()->timeDiscretization == "Generalized-alpha") {
-
-    info() << "[ArcaneFem-Info] Apply time discretization via Generalized-alpha ";
-
-    gamma = 0.5 + alpf - alpm;
-    beta = (1. / 4.) * (gamma + 0.5) * (gamma + 0.5);
-
-    c0 = rho * (1. - alpm) / (beta * dt * dt);
-    c1 = lambda * (1. - alpf);
-    c2 = 2. * mu * (1. - alpf);
-    c3 = rho * (1. - alpm) / (beta * dt);
-    c4 = rho * ((1. - alpm) / 2. / beta - 1.);
-    c5 = lambda * alpf;
-    c6 = 2 * mu * alpf;
-    c7 = rho * (1. - alpf) * gamma / beta / dt;
-    c8 = rho * (1. - gamma * (1 - alpf) / beta);
-    c9 = rho * (1. - alpf) * dt * (1. - gamma / (2. * beta));
-
-    ARCANE_FATAL("Only Newmark-beta works for time-discretization Generalized-alpha WIP ");
-  }
-  else {
-    ARCANE_FATAL("Only Newmark-beta | Generalized-alpha are supported for time-discretization ");
-  }
+  c0 = rho / (beta * dt * dt);
+  c1 = lambda;
+  c2 = 2. * mu;
+  c3 = rho / (beta * dt);
+  c4 = rho * (1. / 2. / beta - 1.);
+  c5 = 0.;
+  c6 = 0.;
+  c7 = rho * gamma / beta / dt;
+  c8 = rho * (1. - gamma / beta);
+  c9 = rho * dt * (1. - gamma / (2. * beta));
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "get-material-params", elapsedTime);
@@ -355,12 +321,12 @@ $$
         
         rhs_values[dof_id1] +=   (Uold1 + m_U[node].x) * (area / 12.) * c0
                                + (Vold1 + m_V[node].x) * (area / 12.) * c3
-                               + (Aold1 + m_A[node].x) * (area / 12.) * c4   // TODO add c5 and c6 contribution for Galpha
+                               + (Aold1 + m_A[node].x) * (area / 12.) * c4
                                ;
 
         rhs_values[dof_id2] +=   (Uold2 + m_U[node].y) * (area / 12.) * c0
                                + (Vold2 + m_V[node].y) * (area / 12.) * c3
-                               + (Aold2 + m_A[node].y) * (area / 12.) * c4  // TODO add c5 and c6 contribution for Galpha
+                               + (Aold2 + m_A[node].y) * (area / 12.) * c4
                                ;
       }
       i++;

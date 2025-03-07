@@ -6,7 +6,7 @@
   </arcane>
 
   <arcane-post-processing>
-   <output-period>1</output-period>
+   <output-period>5</output-period>
    <format name="VtkHdfV2PostProcessor" />
    <output>
      <variable>U</variable>
@@ -17,33 +17,38 @@
 
   <meshes>
     <mesh>
-      <filename>meshes/soil_2d.msh</filename>
+      <filename>meshes/square_double-couple.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
     <tmax>0.2</tmax>
     <dt>0.01</dt>
-    <cs>11.5</cs>
-    <cp>20.</cp>
-    <rho>9.0</rho>
+    <cs>2</cs>
+    <cp>4</cp>
+    <rho>1</rho>
+    <f>1255.1 32289.5</f>
     <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
+    <result-file>check/test_paraxial_body-force_results.txt</result-file>
     <double-couple>
-      <north-node-name>DcNorthPointCord</north-node-name>
-      <south-node-name>DcSouthPointCord</south-node-name>
-      <east-node-name>DcEastPointCord</east-node-name>
-      <west-node-name>DcWestPointCord</west-node-name>
+      <north-node-name>sourceT</north-node-name>
+      <south-node-name>sourceB</south-node-name>
+      <east-node-name>sourceR</east-node-name>
+      <west-node-name>sourceL</west-node-name>
       <method>force-based</method>
       <double-couple-input-file>data/force_loading_dc.txt</double-couple-input-file>
     </double-couple>
     <paraxial-boundary-condition>
-      <surface>surfaceLeft</surface>
+      <surface>left</surface>
     </paraxial-boundary-condition>
     <paraxial-boundary-condition>
-      <surface>surfaceRight</surface>
+      <surface>top</surface>
     </paraxial-boundary-condition>
     <paraxial-boundary-condition>
-      <surface>surfaceBottom</surface>
+      <surface>right</surface>
+    </paraxial-boundary-condition>
+    <paraxial-boundary-condition>
+      <surface>bottom</surface>
     </paraxial-boundary-condition>
     <linear-system>
       <solver-backend>hypre</solver-backend>

@@ -28,7 +28,6 @@
     <rho>2500.0</rho>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     <penalty>1.e30</penalty>
-    <time-discretization>Newmark-beta</time-discretization>
     <paraxial-boundary-condition>
       <surface>lower</surface>
     </paraxial-boundary-condition>
