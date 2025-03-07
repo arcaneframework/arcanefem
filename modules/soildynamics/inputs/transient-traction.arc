@@ -37,6 +37,7 @@
       <surface>input</surface>
       <traction-input-file>data/semi-circle-soil-traction.txt</traction-input-file>
     </traction-boundary-condition>
+    <result-file>check/test_2D_transient_traction.txt</result-file>
     <linear-system>
       <solver-backend>petsc</solver-backend>
       <preconditioner>ilu</preconditioner>

@@ -320,8 +320,6 @@ _computeElementMatrixTRIA3(Cell cell)
 
   int_Omega_i = matrixAddition( int_Omega_i, int_U2V2);
 
-
-
   // du2v2 //
   b_matrix(0, 0) = 0.;
   b_matrix(0, 1) = 1.;
