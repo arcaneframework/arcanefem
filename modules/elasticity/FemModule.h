@@ -18,7 +18,6 @@
 #include <arcane/utils/CommandLineArguments.h>
 #include <arcane/utils/ParameterList.h>
 #include <arcane/utils/ApplicationInfo.h>
-#include <arcane/utils/StringList.h>
 
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IMesh.h>
@@ -111,9 +110,6 @@ class FemModule
   void _validateResults();
   void _updateVariables();
   void _initBsr();
-
-  void _setPetscFlagsFromCommandline();
-  void _printArcaneFemTime(const String label, const Real value);
 
   FixedMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
   FixedMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);

@@ -38,7 +38,7 @@ startInit()
   m_dofs_on_nodes.initialize(defaultMesh(), m_dof_per_node);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] initialize", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -68,8 +68,10 @@ compute()
   m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
   m_linear_system.clearValues();
 
-  if (m_petsc_flags != NULL)
-    _setPetscFlagsFromCommandline();
+  if (m_petsc_flags != NULL){
+    CommandLineArguments args = ArcaneFemFunctions::GeneralFunctions::getPetscFlagsFromCommandline(m_petsc_flags);
+    m_linear_system.setSolverCommandLineArguments(args);
+  }
 
   if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
     _initBsr();
@@ -91,7 +93,7 @@ compute()
   _doStationarySolve();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] compute", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"compute", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -113,7 +115,7 @@ void FemModule::_initBsr()
     m_bsr_format.initialize(defaultMesh(), m_dof_per_node, use_csr_in_linearsystem, 1);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] initialize-bsr-matrix", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize-bsr-matrix", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -167,7 +169,7 @@ _getMaterialParameters()
   lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] get-material-params", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"get-material-params", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -454,7 +456,7 @@ _assembleLinearOperator()
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] rhs-vector-assembly", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-vector-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -510,7 +512,7 @@ _assembleBilinearOperator()
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] lhs-matrix-assembly", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"lhs-matrix-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -629,7 +631,7 @@ _solve()
   m_linear_system.solve();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] solve-linear-system", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"solve-linear-system", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -663,7 +665,7 @@ _validateResults()
     Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_U, epsilon, min_value_to_test);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] result-validation", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"result-validation", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -706,39 +708,7 @@ _updateVariables()
   m_U.synchronize();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] update-variables", elapsedTime);
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Function to set PETSc flags from commandline
- */
-/*---------------------------------------------------------------------------*/
-void FemModule::
-_setPetscFlagsFromCommandline()
-{
-  StringList string_list;
-  std::string petsc_flags_std = m_petsc_flags.localstr();
-  // Use a string stream to split the string by spaces
-  std::istringstream iss(petsc_flags_std);
-  String token;
-  while (iss >> token) {
-    string_list.add(token);
-  }
-  CommandLineArguments args(string_list);
-  m_linear_system.setSolverCommandLineArguments(args);
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Function to prints the execution time `value` of phase `label`
- */
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_printArcaneFemTime(const String label, const Real value)
-{
-  info() << std::left << std::setw(40) << label << " = " << value;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/

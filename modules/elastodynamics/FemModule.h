@@ -121,17 +121,13 @@ class FemModule
   void _updateTime();
   void _solve();
   void _assembleLinearOperator();
-  void _assembleLinearOperatorTria3();
-  void _assembleLinearOperatorTetra4();
-  void _checkResultFile();
+  void _validateResults();
   void _readCaseTables();
   void _assembleBilinearOperator();
-  void _assembleBilinearOperatorTRIA3();
+  void _assembleBilinearOperatorTria3();
   void _assembleBilinearOperatorTetra4();
 
-  void _printArcaneFemTime(const String label, const Real value);
-
-  FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
+  FixedMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
   FixedMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
 
 };
