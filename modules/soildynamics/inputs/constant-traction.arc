@@ -34,8 +34,7 @@
     </paraxial-boundary-condition>
     <traction-boundary-condition>
       <surface>input</surface>
-      <t1>0.01</t1>     
-      <t2>0.01</t2>       
+      <t>0.01 0.01</t>
     </traction-boundary-condition>
     <linear-system>
       <solver-backend>petsc</solver-backend>
