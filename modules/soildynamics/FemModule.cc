@@ -281,7 +281,8 @@ _updateVariables()
 void FemModule::
 _assembleLinearOperator()
 {
-  info() << "Assembly of FEM linear operator ";
+  info() << "[ArcaneFem-Info] Started module  _assembleLinearOperator()";
+  Real elapsedTime = platform::getRealTime();
 
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
@@ -316,7 +317,7 @@ _assembleLinearOperator()
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    Real area = _computeAreaTriangle3(cell);
+    Real area =  ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
 
     Real3 m0 = m_node_coord[cell.nodeId(0)];
     Real3 m1 = m_node_coord[cell.nodeId(1)];
@@ -435,7 +436,6 @@ $$
   //----------------------------------------------
   // Paraxial term assembly
   //----------------------------------------------
-
   for (const auto& bs : options()->paraxialBoundaryCondition()) {
     FaceGroup group = bs->surface();
 
@@ -444,8 +444,8 @@ $$
     ENUMERATE_ (Face, iface, group) {
       Face face = *iface;
 
-      Real  length = _computeEdgeLength2(face);
-      Real2 Normal = _computeEdgeNormal2(face);
+      Real  length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
+      Real2 Normal = ArcaneFemFunctions::MeshOperation::computeNormalEdge2(face, m_node_coord);
 
       Real f0 = m_U[face.nodeId(0)].x;
       Real f1 = m_U[face.nodeId(1)].x;
@@ -669,46 +669,9 @@ $$
     }
 
   }
-}
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real FemModule::
-_computeAreaTriangle3(Cell cell)
-{
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-  return 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real FemModule::
-_computeEdgeLength2(Face face)
-{
-  Real3 m0 = m_node_coord[face.nodeId(0)];
-  Real3 m1 = m_node_coord[face.nodeId(1)];
-  return  math::sqrt((m1.x-m0.x)*(m1.x-m0.x) + (m1.y-m0.y)*(m1.y - m0.y));
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real2 FemModule::
-_computeEdgeNormal2(Face face)
-{
-  Real3 m0 = m_node_coord[face.nodeId(0)];
-  Real3 m1 = m_node_coord[face.nodeId(1)];
-  if (!face.isSubDomainBoundaryOutside())
-    std::swap(m0,m1);
-  Real2 N;
-  Real norm_N = math::sqrt( (m1.y - m0.y)*(m1.y - m0.y) + (m1.x - m0.x)*(m1.x - m0.x) );   // for normalizing
-  N.x = (m1.y - m0.y)/ norm_N;
-  N.y = (m0.x - m1.x)/ norm_N;
-  return  N;
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-vector-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -721,8 +684,6 @@ _assembleBilinearOperatorTRIA3()
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    if (cell.type() != IT_Triangle3)
-      ARCANE_FATAL("Only Triangle3 cell type is supported");
 
     auto K_e = _computeElementMatrixTRIA3(cell);  // element stiffness matrix
     // assemble elementary matrix into  the global one elementary terms are
@@ -757,7 +718,6 @@ _assembleBilinearOperatorTRIA3()
     }
   }
 }
-
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

@@ -29,7 +29,7 @@ _computeElementMatrixTRIA3(Cell cell)
   Real3 m1 = m_node_coord[cell.nodeId(1)];
   Real3 m2 = m_node_coord[cell.nodeId(2)];
 
-  Real area = _computeAreaTriangle3(cell);    // calculate area
+  Real area =  ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
 
   Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
   Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
@@ -368,8 +368,8 @@ _computeElementMatrixEDGE2(Face face)
   Real3 m0 = m_node_coord[face.nodeId(0)];
   Real3 m1 = m_node_coord[face.nodeId(1)];
 
-  Real area = _computeEdgeLength2(face);    // calculate length
-  Real2 N   = _computeEdgeNormal2(face);
+  Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
+  Real2 N   = ArcaneFemFunctions::MeshOperation::computeNormalEdge2(face, m_node_coord);
 
   FixedMatrix<1, 4> b_matrix;
   FixedMatrix<4, 1> bT_matrix;
@@ -387,9 +387,9 @@ _computeElementMatrixEDGE2(Face face)
 
   b_matrix.multInPlace(0.5f);
 
-  bT_matrix(0, 0) = area/3;
+  bT_matrix(0, 0) = length/3;
   bT_matrix(1, 0) = 0.;
-  bT_matrix(2, 0) = area/3;
+  bT_matrix(2, 0) = length/3;
   bT_matrix(3, 0) = 0.;
 
   bT_matrix.multInPlace(1.);
@@ -412,9 +412,9 @@ _computeElementMatrixEDGE2(Face face)
 
 
   bT_matrix(0, 0) = 0.;
-  bT_matrix(1, 0) = area/3;
+  bT_matrix(1, 0) = length/3;
   bT_matrix(2, 0) = 0.;
-  bT_matrix(3, 0) = area/3;
+  bT_matrix(3, 0) = length/3;
 
   bT_matrix.multInPlace(1.);
 
@@ -435,9 +435,9 @@ _computeElementMatrixEDGE2(Face face)
   b_matrix.multInPlace(0.5f);
 
   bT_matrix(0, 0) = 0.;
-  bT_matrix(1, 0) = area/3;
+  bT_matrix(1, 0) = length/3;
   bT_matrix(2, 0) = 0.;
-  bT_matrix(3, 0) = area/3;
+  bT_matrix(3, 0) = length/3;
 
   bT_matrix.multInPlace(1.);
 
@@ -454,9 +454,9 @@ _computeElementMatrixEDGE2(Face face)
 
   b_matrix.multInPlace(0.5f);
 
-  bT_matrix(0, 0) = area/3;
+  bT_matrix(0, 0) = length/3;
   bT_matrix(1, 0) = 0.;
-  bT_matrix(2, 0) = area/3;
+  bT_matrix(2, 0) = length/3;
   bT_matrix(3, 0) = 0.;
 
   bT_matrix.multInPlace(1.);
