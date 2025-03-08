@@ -256,81 +256,39 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  //----------------------------------------------------------------------
-  // body force ∫∫∫ (𝐟.𝐯)  with 𝐟 = (𝑓𝑥, 𝑓𝑦, 𝑓𝑧) = (f[0], f[1], f[2])
-  //----------------------------------------------------------------------
-  const UniqueArray<String> f_string = options()->f();
-  info() << "[ArcaneFem-Info] Applying Bodyforce " << f_string;
-  for (Int32 i = 0; i < f_string.size(); ++i) {
-    f[i] = 0.0;
-    if (f_string[i] != "NULL") {
-      f[i] = std::stod(f_string[i].localstr());
-    }
-  }
-
-  if (mesh()->dimension() == 2)
-    if (f_string[0] != "NULL" || f_string[1] != "NULL")
-      ENUMERATE_ (Cell, icell, allCells()) {
-        Cell cell = *icell;
-        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
-        for (Node node : cell.nodes()) {
-          if (node.isOwn()) {
-            rhs_values[node_dof.dofId(node, 0)] += f[0] * area / 3;
-            rhs_values[node_dof.dofId(node, 1)] += f[1] * area / 3;
-          }
-        }
-      }
-
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    Real area =  ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
+    Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
+    Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
+    Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
+    FixedMatrix<1, 6> Uy = { 0., 1., 0., 1., 0., 1. };
+    FixedMatrix<1, 6> Ux = { 1., 0., 1., 0., 1., 0. };
+    FixedMatrix<1, 6> F = { f[0], f[1], f[0], f[1], f[0], f[1] };
+    IdentityMatrix<6> I6;
+    FixedMatrix<1, 6> Un = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y,
+                             m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y,
+                             m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y };
+    FixedMatrix<1, 6> Vn = { m_V[cell.nodeId(0)].x, m_V[cell.nodeId(0)].y,
+                             m_V[cell.nodeId(1)].x, m_V[cell.nodeId(1)].y,
+                             m_V[cell.nodeId(2)].x, m_V[cell.nodeId(2)].y };
+    FixedMatrix<1, 6> An = { m_A[cell.nodeId(0)].x, m_A[cell.nodeId(0)].y,
+                             m_A[cell.nodeId(1)].x, m_A[cell.nodeId(1)].y,
+                             m_A[cell.nodeId(2)].x, m_A[cell.nodeId(2)].y };
+    //----------------------------------------------------------------------
+    //  ∫∫∫ (𝐟.𝐯) + ∫∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯)
+    //----------------------------------------------------------------------
+    FixedMatrix<1, 6> rhs = ( F * (1/3.)
+                            + Un * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy))*(c0*1/12.)
+                            + Vn * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy))*(c3*1/12.)
+                            + An * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy))*(c4*1/12.)
+                            ) * area;
 
-    Real3 m0 = m_node_coord[cell.nodeId(0)];
-    Real3 m1 = m_node_coord[cell.nodeId(1)];
-    Real3 m2 = m_node_coord[cell.nodeId(2)];
-
-    Real Uold1 = m_U[cell.nodeId(0)].x + m_U[cell.nodeId(1)].x + m_U[cell.nodeId(2)].x;
-    Real Uold2 = m_U[cell.nodeId(0)].y + m_U[cell.nodeId(1)].y + m_U[cell.nodeId(2)].y;
-
-    Real Vold1 = m_V[cell.nodeId(0)].x + m_V[cell.nodeId(1)].x + m_V[cell.nodeId(2)].x;
-    Real Vold2 = m_V[cell.nodeId(0)].y + m_V[cell.nodeId(1)].y + m_V[cell.nodeId(2)].y;
-
-    Real Aold1 = m_A[cell.nodeId(0)].x + m_A[cell.nodeId(1)].x + m_A[cell.nodeId(2)].x;
-    Real Aold2 = m_A[cell.nodeId(0)].y + m_A[cell.nodeId(1)].y + m_A[cell.nodeId(2)].y;
-
-/*
-$$
-\int_{\Omega}(
-                    (U \cdot v) c_0
-                  + (V \cdot v) c_3
-                  + (A \cdot v) c_4
-               )
-$$
-*/
-
-    // Info: We could also use the following logic
-    //    cell.node(i).isOwn();
-    //    cell.node(i);
-    //    Node node = cell.node(i);
-    // Then we can loop 1:3
-    int i = 0;
-    for (Node node : cell.nodes()) {
-      if (node.isOwn()) {
-        DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-        DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-        
-        rhs_values[dof_id1] +=   (Uold1 + m_U[node].x) * (area / 12.) * c0
-                               + (Vold1 + m_V[node].x) * (area / 12.) * c3
-                               + (Aold1 + m_A[node].x) * (area / 12.) * c4
-                               ;
-
-        rhs_values[dof_id2] +=   (Uold2 + m_U[node].y) * (area / 12.) * c0
-                               + (Vold2 + m_V[node].y) * (area / 12.) * c3
-                               + (Aold2 + m_A[node].y) * (area / 12.) * c4
-                               ;
-      }
-      i++;
-    }
+    rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0,0);
+    rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(0,1);
+    rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(0,2);
+    rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(0,3);
+    rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(0,4);
+    rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(0,5);
   }
 
   //----------------------------------------------------------------------
