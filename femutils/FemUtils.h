@@ -464,6 +464,25 @@ ARCCORE_HOST_DEVICE matrixTranspose(const FixedMatrix<N, M>& a)
 }
 
 /*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+template <int N> inline FixedMatrix<N, N>
+ARCCORE_HOST_DEVICE massMatrix(const FixedMatrix<1, N>& lhs, const FixedMatrix<1, N>& rhs)
+{
+  using namespace Arcane;
+
+  FixedMatrix<N, N> m_matrix;
+  for (Arcane::Int32 i = 0; i < N; ++i)
+    for (Arcane::Int32 j = 0; j < N; ++j)
+      m_matrix(i, j) = lhs(0, i) * rhs(0, j);
+
+  for (Arcane::Int32 i = 0; i < N; ++i)
+    m_matrix(i, i) *= 2.;
+
+  return m_matrix;
+}
+
+/*---------------------------------------------------------------------------*/
 /*!
  * \brief IdentityMatrix of size N.
  */

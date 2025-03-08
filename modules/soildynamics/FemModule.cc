@@ -163,7 +163,7 @@ _getParameters()
 
   c0 = rho / (beta * dt * dt);
   c1 = lambda;
-  c2 = 2. * mu;
+  c2 = mu;
   c3 = rho / (beta * dt);
   c4 = rho * (1. / 2. / beta - 1.);
   c5 = 0.;
