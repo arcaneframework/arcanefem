@@ -455,37 +455,8 @@ _assembleLinearOperator()
         }
       }
     }
-    else if (options()->enforceDirichletMethod() == "RowElimination") {
-
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
-          ENUMERATE_ (Face, iface, group) {
-            for (Node node : iface->nodes()) {
-              DoFLocalId dof_id = node_dof.dofId(node, i);
-              if (node.isOwn()) {
-                m_linear_system.eliminateRow(dof_id, u_dirichlet);
-              }
-            }
-          }
-        }
-      }
-    }
-    else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
-
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
-          ENUMERATE_ (Face, iface, group) {
-            for (Node node : iface->nodes()) {
-              DoFLocalId dof_id = node_dof.dofId(node, i);
-              if (node.isOwn()) {
-                m_linear_system.eliminateRowColumn(dof_id, u_dirichlet);
-              }
-            }
-          }
-        }
-      }
+    else {
+      ARCANE_FATAL("Dirichlet enforcing Method Not implemented use Penalty");
     }
   }
 
@@ -514,33 +485,8 @@ _assembleLinearOperator()
         }
       }
     }
-    else if (options()->enforceDirichletMethod() == "RowElimination") {
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
-          ENUMERATE_ (Node, inode, group) {
-            Node node = *inode;
-            DoFLocalId dof_id = node_dof.dofId(node, i);
-            if (node.isOwn()) {
-              m_linear_system.eliminateRow(dof_id, u_dirichlet);
-            }
-          }
-        }
-      }
-    }
-    else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
-          ENUMERATE_ (Node, inode, group) {
-            Node node = *inode;
-            DoFLocalId dof_id = node_dof.dofId(node, i);
-            if (node.isOwn()) {
-              m_linear_system.eliminateRowColumn(dof_id, u_dirichlet);
-            }
-          }
-        }
-      }
+    else {
+      ARCANE_FATAL("Dirichlet enforcing Method Not implemented use Penalty");
     }
   }
 
