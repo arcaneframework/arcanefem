@@ -27,6 +27,7 @@
     <E>6.62e6</E>
     <nu>0.45</nu>
     <rho>2500.0</rho>
+    <f>NULL 315.9</f>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     <penalty>1.e30</penalty>
     <paraxial-boundary-condition>

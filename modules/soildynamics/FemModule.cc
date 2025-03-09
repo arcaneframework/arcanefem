@@ -369,58 +369,35 @@ _assembleLinearOperator()
       Face face = *iface;
 
       Real  length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-      Real2 Normal = ArcaneFemFunctions::MeshOperation::computeNormalEdge2(face, m_node_coord);
+      Real2 N = ArcaneFemFunctions::MeshOperation::computeNormalEdge2(face, m_node_coord);
 
-      Real f0 = m_U[face.nodeId(0)].x;
-      Real f1 = m_U[face.nodeId(1)].x;
-      Real Uold1 = f0 + f1;
+      FixedMatrix<1, 4> Uy = {0., 1., 0., 1.};
+      FixedMatrix<1, 4> Ux = {1., 0., 1., 0.};
 
-      f0 = m_U[face.nodeId(0)].y;
-      f1 = m_U[face.nodeId(1)].y;
-      Real Uold2 = f0 + f1;
+      FixedMatrix<1, 4> Un = {m_U[face.nodeId(0)].x,  m_U[face.nodeId(0)].y,  m_U[face.nodeId(1)].x, m_U[face.nodeId(1)].y};
+      FixedMatrix<1, 4> Vn = {m_V[face.nodeId(0)].x,  m_V[face.nodeId(0)].y,  m_V[face.nodeId(1)].x, m_V[face.nodeId(1)].y};
+      FixedMatrix<1, 4> An = {m_A[face.nodeId(0)].x,  m_A[face.nodeId(0)].y,  m_A[face.nodeId(1)].x, m_A[face.nodeId(1)].y};
 
-      f0 = m_V[face.nodeId(0)].x;
-      f1 = m_V[face.nodeId(1)].x;
-      Real Vold1 = f0 + f1;
+      FixedMatrix<1, 4> rhs = (c7*(N.x*N.x*cp + N.y*N.y*cs)) * Un* (massMatrix(Ux,Ux)) * length/6. +
+                              (c7*(N.y*N.y*cp + N.x*N.x*cs)) * Un*  (massMatrix(Uy,Uy)) * length/6. +
+                              (c7*(N.x*N.y*(cp - cs))) *Un* (massMatrix(Ux,Uy)) * length/6. +
+                              (c7*(N.x*N.y*(cp - cs))) * Un* (massMatrix(Uy,Ux)) * length/6. +
 
-      f0 = m_V[face.nodeId(0)].y;
-      f1 = m_V[face.nodeId(1)].y;
-      Real Vold2 = f0 + f1;
+                             -((c8*(N.x*N.x*cp + N.y*N.y*cs)) * Vn* (massMatrix(Ux,Ux)) * length/6. +
+                               (c8*(N.y*N.y*cp + N.x*N.x*cs)) * Vn*  (massMatrix(Uy,Uy)) * length/6. +
+                               (c8*(N.x*N.y*(cp - cs))) * Vn* (massMatrix(Ux,Uy)) * length/6. +
+                               (c8*(N.x*N.y*(cp - cs))) * Vn* (massMatrix(Uy,Ux)) * length/6.)
 
-      f0 = m_A[face.nodeId(0)].x;
-      f1 = m_A[face.nodeId(1)].x;
-      Real Aold1 = f0 + f1;
+                             -((c9*(N.x*N.x*cp + N.y*N.y*cs)) * An* (massMatrix(Ux,Ux)) * length/6. +
+                               (c9*(N.y*N.y*cp + N.x*N.x*cs)) * An*  (massMatrix(Uy,Uy)) * length/6. +
+                               (c9*(N.x*N.y*(cp - cs))) * An* (massMatrix(Ux,Uy)) * length/6. +
+                               (c9*(N.x*N.y*(cp - cs))) * An* (massMatrix(Uy,Ux)) * length/6.)
+                               ;
 
-      f0 = m_A[face.nodeId(0)].y;
-      f1 = m_A[face.nodeId(1)].y;
-      Real Aold2 = f0 + f1;
-
-      for (Node node : iface->nodes()) {
-        if (node.isOwn()) {
-            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-             rhs_values[dof_id1] += (  c7*( cp*( Normal.x*Normal.x*(Uold1+m_U[node].x) + Normal.x*Normal.y*(Uold2+m_U[node].y) ) +
-                                           cs*( Normal.y*Normal.y*(Uold1+m_U[node].x) - Normal.x*Normal.y*(Uold2+m_U[node].y) )
-                                         )
-                                    - c8*( cp*( Normal.x*Normal.x*(Vold1+m_V[node].x) + Normal.x*Normal.y*(Vold2+m_V[node].y) ) +
-                                           cs*( Normal.y*Normal.y*(Vold1+m_V[node].x) - Normal.x*Normal.y*(Vold2+m_V[node].y) )
-                                         )
-                                    - c9*( cp*( Normal.x*Normal.x*(Aold1+m_A[node].x) + Normal.x*Normal.y*(Aold2+m_A[node].y) ) +
-                                           cs*( Normal.y*Normal.y*(Aold1+m_A[node].x) - Normal.x*Normal.y*(Aold2+m_A[node].y) )
-                                         )
-                                    ) * length / 6.;
-            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-             rhs_values[dof_id2] += (  c7*( cp*( Normal.x*Normal.y*(Uold1+m_U[node].x) + Normal.y*Normal.y*(Uold2+m_U[node].y)) +
-                                           cs*(-Normal.x*Normal.y*(Uold1+m_U[node].x) + Normal.x*Normal.x*(Uold2+m_U[node].y) )
-                                         )
-                                    - c8*( cp*( Normal.x*Normal.y*(Vold1+m_V[node].x) + Normal.y*Normal.y*(Vold2+m_V[node].y) ) +
-                                           cs*(-Normal.x*Normal.y*(Vold1+m_V[node].x) + Normal.x*Normal.x*(Vold2+m_V[node].y) )
-                                         )
-                                    - c9*( cp*( Normal.x*Normal.y*(Aold1+m_A[node].x) + Normal.y*Normal.y*(Aold2+m_A[node].y) ) +
-                                           cs*(-Normal.x*Normal.y*(Aold1+m_A[node].x) + Normal.x*Normal.x*(Aold2+m_A[node].y) )
-                                         )
-                                   ) * length / 6.;
-        }
-      }
+      rhs_values[node_dof.dofId(face.nodeId(0), 0)] += rhs(0,0);
+      rhs_values[node_dof.dofId(face.nodeId(0), 1)] += rhs(0,1);
+      rhs_values[node_dof.dofId(face.nodeId(1), 0)] += rhs(0,2);
+      rhs_values[node_dof.dofId(face.nodeId(1), 1)] += rhs(0,3);
     }
   }
 
