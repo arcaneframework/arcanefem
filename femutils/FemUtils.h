@@ -279,6 +279,21 @@ ARCCORE_HOST_DEVICE inline FixedMatrix<4, 4> operator^(const FixedMatrix<1, 4> &
 }
 
 /*---------------------------------------------------------------------------*/
+//  Matrix vector product of FixedMatrix<1, 4> vectors and matrix FixedMatrix<4, 4>
+/*---------------------------------------------------------------------------*/
+ARCCORE_HOST_DEVICE inline FixedMatrix<1, 4> operator*(const FixedMatrix<1, 4>& lhs, const FixedMatrix<4, 4>& rhs)
+{
+  FixedMatrix<1, 4> result;
+  for (Arcane::Int32 j = 0; j < 4; ++j) {
+    result(0, j) = 0; // Initialize result element
+    for (Arcane::Int32 i = 0; i < 4; ++i) {
+      result(0, j) += lhs(0, i) * rhs(i, j);
+    }
+  }
+  return result;
+}
+
+/*---------------------------------------------------------------------------*/
 //  Outer product of two Real6 vectors to produce a FixedMatrix<6, 6>
 /*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE inline FixedMatrix<6, 6> operator^(const Real6& lhs, const Real6& rhs)
@@ -364,6 +379,22 @@ ARCCORE_HOST_DEVICE inline FixedMatrix<9, 9> operator^(const Real9& lhs, const R
   return result;
 }
 
+/*---------------------------------------------------------------------------*/
+//  Matrix vector product of FixedMatrix<1, 9> vectors and matrix FixedMatrix<9, 9>
+/*---------------------------------------------------------------------------*/
+ARCCORE_HOST_DEVICE inline FixedMatrix<1, 9> operator*(const FixedMatrix<1, 9>& lhs, const FixedMatrix<9, 9>& rhs)
+{
+  FixedMatrix<1, 9> result;
+  for (Arcane::Int32 j = 0; j < 9; ++j) {
+    result(0, j) = 0; // Initialize result element
+    for (Arcane::Int32 i = 0; i < 9; ++i) {
+      result(0, j) += lhs(0, i) * rhs(i, j);
+    }
+  }
+  return result;
+}
+
+
 template <int N> inline FixedMatrix<N, N>
 ARCCORE_HOST_DEVICE operator^(const FixedMatrix<N, 1>& lhs, const FixedMatrix<1, N>& rhs)
 {
@@ -376,20 +407,6 @@ ARCCORE_HOST_DEVICE operator^(const FixedMatrix<N, 1>& lhs, const FixedMatrix<1,
   return result;
 }
 
-
-
-template <int N> inline FixedMatrix<1, N>
-ARCCORE_HOST_DEVICE operator*(const FixedMatrix<1, N>& lhs, const FixedMatrix<N, N>& rhs)
-{
-  FixedMatrix<1, N> result;
-  for (Arcane::Int32 j = 0; j < N; ++j) {
-    result(0, j) = 0; // Initialize result element
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      result(0, j) += lhs(0, i) * rhs(i, j);
-    }
-  }
-  return result;
-}
 
 /*---------------------------------------------------------------------------*/
 // Define the conversion from Real3x3 to FixedMatrix<3, 3>
