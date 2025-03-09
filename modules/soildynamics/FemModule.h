@@ -120,16 +120,16 @@ class FemModule
   void _getParameters();
   void _updateVariables();
   void _updateTime();
-  void _assembleBilinearOperatorTria3();
-  void _assembleBilinearOperatorEdge2();
+  void _assemble2dBilinearOperatorTria3();
+  void _assemble2dBilinearOperatorEdge2();
   void _solve();
   void _assembleLinearOperator();
   void _applyDirichletBoundaryConditions();
   void _validateResults();
   void _readCaseTables();
 
-  FixedMatrix<4, 4> _computeElementMatrixEdge2(Face face);
-  FixedMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
+  FixedMatrix<4, 4> _compute2dElementMatrixEdge2(Face face);
+  FixedMatrix<6, 6> _compute2dElementMatrixTria3(Cell cell);
 };
 
 #endif
