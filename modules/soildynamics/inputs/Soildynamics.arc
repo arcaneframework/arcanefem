@@ -24,23 +24,19 @@
   <fem>
     <tmax>2.</tmax>
     <dt>0.08</dt>
-    <alpm>0.20</alpm>
-    <alpf>0.40</alpf>
     <rho>1.0</rho>
     <lambda>576.9230769</lambda>
     <mu>384.6153846</mu>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     <penalty>1.e64</penalty>
-    <time-discretization>Newmark-beta</time-discretization>
     <result-file>check/test_soildynamics_results.txt</result-file>
     <dirichlet-boundary-condition>
       <surface>surfaceleft</surface>
-      <u1>0.0</u1>
-      <u2>0.0</u2>
+      <u>0.0 0.0</u>
     </dirichlet-boundary-condition>
     <traction-boundary-condition>
       <surface>surfaceright</surface>
-      <t2>0.01</t2>
+      <t>NULL 0.01</t>
     </traction-boundary-condition>
     <linear-system>
       <solver-backend>petsc</solver-backend>

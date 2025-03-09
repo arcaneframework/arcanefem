@@ -18,22 +18,13 @@
     <variable field-name="A" name="A" data-type="real3" item-kind="node" dim="0">
       <description>Acceleration V vector for time step t-1</description>
     </variable>
-    <variable field-name="u1_fixed" name="u1Fixed" data-type="bool" item-kind="node" dim="0">
-      <description>Boolean which is true if u1 is fixed on the node</description>
-    </variable>
-    <variable field-name="u2_fixed" name="u2Fixed" data-type="bool" item-kind="node" dim="0">
-      <description>Boolean which is true if u2 is fixed on the node</description>
-    </variable>
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
       <description>Node coordinates from Arcane variable</description>
     </variable>
   </variables>
   <options>
-    <simple name="f1" type="real" default="0.0" optional="true">
-      <description>Body force in x within the material.</description>
-    </simple>
-    <simple name="f2" type="real" default="0.0" optional="true">
-      <description>Body force in y within the material.</description>
+    <simple name = "f" type = "string[]" default="NULL NULL NULL" optional="true">
+      <description>Body force vector (space separated list).</description>
     </simple>
     <simple name="E" type="real" default="0.0"  optional="true">
       <description>Youngs Modulus of the material.</description>
@@ -62,20 +53,11 @@
     <simple name="dt" type="real" default="0.0">
       <description>Time step.</description>
     </simple>
-    <simple name="alpm" type="real" default="0.0">
-      <description>Alpha m for Generalized Alpha time scheme.</description>
-    </simple>
-    <simple name="alpf" type="real" default="0.0">
-      <description>Alpha f for Generalized Alpha time scheme.</description>
-    </simple>
     <simple name="result-file" type="string" optional="true">
       <description>File name of a file containing the values of the solution vector to check the results</description>
     </simple>
     <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
       <description>Type of mesh provided to the solver</description>
-    </simple>
-    <simple name="time-discretization" type="string"  default="Newmark-beta" optional="true">
-      <description>Type of time discretization for the solver</description>
     </simple>
     <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
       <description>
@@ -102,14 +84,9 @@
           FaceGroup on which to apply these boundary condition
         </description>
       </extended>
-      <simple name = "u1" type = "real" optional="true">
+      <simple name = "u" type = "string[]" default="NULL NULL NULL" optional="true">
         <description>
-          Value u1 on the boundary condition
-        </description>
-      </simple>
-      <simple name = "u2" type = "real" optional="true">
-        <description>
-          Value u1 on the boundary condition
+          Dirichlet conditions on the surface (space separated list).
         </description>
       </simple>
     </complex>
@@ -167,14 +144,9 @@
           NodeGroup on which to apply these point Dirichlet condition
         </description>
       </extended>
-      <simple name = "u1" type = "real"  optional="true">
+      <simple name = "u" type = "string[]" default="NULL NULL NULL" optional="true">
         <description>
-          Value of u1 for point Dirichlet condition
-        </description>
-      </simple>
-      <simple name = "u2" type = "real"  optional="true">
-        <description>
-          Value of u2 for point Dirichlet condition
+          Dirichlet conditions on the surface (space separated list).
         </description>
       </simple>
     </complex>
@@ -193,14 +165,9 @@
           FaceGroup on which to apply these boundary condition
         </description>
       </extended>
-      <simple name = "t1" type = "real"  optional="true">
+      <simple name = "t" type = "string[]" default="NULL NULL NULL" optional="true">
         <description>
-          Value of traction in X direction
-        </description>
-      </simple>
-      <simple name = "t2" type = "real"  optional="true">
-        <description>
-          Value of traction in Y direction
+          Traction vector (space separated list).
         </description>
       </simple>
       <simple name = "traction-input-file" type = "string"  optional="true">

@@ -20,7 +20,8 @@
 void FemModule::
 compute()
 {
-  info() << "Module Fem COMPUTE";
+  info() << "[ArcaneFem-Info] Started module  compute()";
+  Real elapsedTime = platform::getRealTime();
 
   // Stop code after computations
   if (t >= tmax)
@@ -31,10 +32,10 @@ compute()
   // Set if we want to keep the matrix structure between calls.
   // The matrix has to have the same structure (same structure for non-zero)
   bool keep_struct = true;
-  if (m_linear_system.isInitialized() && keep_struct){
+  if (m_linear_system.isInitialized() && keep_struct) {
     m_linear_system.clearValues();
   }
-  else{
+  else {
     m_linear_system.reset();
     m_linear_system.setLinearSystemFactory(options()->linearSystem());
     m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
@@ -45,11 +46,11 @@ compute()
   _updateTime();
 
   // At the last time stepp check error
-  if (t > tmax + dt - 1e-8){
-    info() << "Perfroming check";
-    _checkResultFile();
-  }
+  if (t > tmax + dt - 1e-8)
+    _validateResults();
 
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "compute", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -58,11 +59,11 @@ compute()
 void FemModule::
 startInit()
 {
-  info() << "Module Fem INIT";
+  info() << "[ArcaneFem-Info] Started module  startInit()";
+  Real elapsedTime = platform::getRealTime();
 
-  m_dofs_on_nodes.initialize(mesh(), 2);
+  m_dofs_on_nodes.initialize(mesh(), mesh()->dimension());
 
-  // # get parameters
   _getParameters();
 
   t    = dt;
@@ -71,7 +72,8 @@ startInit()
 
   _readCaseTables();
 
-  _applyDirichletBoundaryConditions();
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "initialize", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -80,7 +82,6 @@ startInit()
 void FemModule::
 _updateTime()
 {
-  info() << "Update time";
   t += dt;
 }
 
@@ -111,19 +112,14 @@ _doStationarySolve()
 void FemModule::
 _getParameters()
 {
-  info() << "Get material parameters...";
+  info() << "[ArcaneFem-Info] Started module  _getParameters()";
+  Real elapsedTime = platform::getRealTime();
 
   //--------- time parameters -----------//
   tmax = options()->tmax();                // max time
   dt   = options()->dt();                  // time step
 
-  //--- time discretization parameter ---//
-  alpm = options()->alpm();                // time discretization param alpm
-  alpf = options()->alpf();                // time discretization param alpf
-
   //--------- material parameter ---------//
-  f1   = options()->f1();                  // body force in X
-  f2   = options()->f2();                  // body force in Y
   E    = options()->E();                   // Youngs modulus
   nu   = options()->nu();                  // Poission ratio
   rho  = options()->rho();                 // Density
@@ -137,68 +133,47 @@ _getParameters()
     cp     = math::sqrt((lambda+(2.*mu))/rho) ;
   }
 
-  if( options()->mu.isPresent() && options()->lambda.isPresent()) {
-    mu     = options()->mu;
+  if (options()->mu.isPresent() && options()->lambda.isPresent()) {
+    mu = options()->mu;
     lambda = options()->lambda;
-    cs     = math::sqrt(mu/rho);
-    cp     = math::sqrt((lambda+(2.*mu))/rho) ;
+    cs = math::sqrt(mu / rho);
+    cp = math::sqrt((lambda + (2. * mu)) / rho);
   }
 
-  if( (options()->cp.isPresent()) && (options()->cs.isPresent()) ) {
-    mu     =  cs*cs*rho;
-    lambda =  cp*cp*rho - 2*mu;
+  if ((options()->cp.isPresent()) && (options()->cs.isPresent())) {
+    mu = cs * cs * rho;
+    lambda = cp * cp * rho - 2 * mu;
   }
 
-  mu2 =  mu*2;                             // lame parameter mu * 2
+  mu2 = mu * 2; // lame parameter mu * 2
 
-  //----- time discretization Newmark-Beta or Generalized-alpha  -----//
-  if (options()->timeDiscretization == "Newmark-beta") {
-
-    info() << "Apply time discretization via Newmark-beta ";
-
-    gamma = 0.5;
-    beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
-
-    c0 =   rho/(beta*dt*dt)                                ;
-    c1 =   lambda                                          ;
-    c2 =   2.*mu                                           ;
-    c3 =   rho/(beta*dt)                                   ;
-    c4 =   rho*(1./2./beta -1.)                            ;
-    c5 =   0.                                              ;
-    c6 =   0.                                              ;
-    c7 =   rho*gamma/beta/dt                               ;
-    c8 =   rho*(1.-gamma/beta)                             ;
-    c9 =   rho*dt*(1.-gamma/(2.*beta))                     ;
-
+  //--------- body force ---------//
+  if (options()->f.isPresent()) {
+    const UniqueArray<String> f_string = options()->f();
+    info() << "[ArcaneFem-Info] Applying Bodyforce " << f_string;
+    for (Int32 i = 0; i < f_string.size(); ++i) {
+      if (f_string[i] != "NULL") {
+        f[i] = std::stod(f_string[i].localstr());
+      }
     }
+  }
 
-  else if (options()->timeDiscretization == "Generalized-alpha") {
+  gamma = 0.5;
+  beta = (1. / 4.) * (gamma + 0.5) * (gamma + 0.5);
 
-    info() << "Apply time discretization via Generalized-alpha ";
+  c0 = rho / (beta * dt * dt);
+  c1 = lambda;
+  c2 = mu;
+  c3 = rho / (beta * dt);
+  c4 = rho * (1. / 2. / beta - 1.);
+  c5 = 0.;
+  c6 = 0.;
+  c7 = rho * gamma / beta / dt;
+  c8 = rho * (1. - gamma / beta);
+  c9 = rho * dt * (1. - gamma / (2. * beta));
 
-    gamma = 0.5 + alpf - alpm                ;
-    beta  = (1./4.)*(gamma+0.5)*(gamma+0.5)  ;
-
-    c0 =   rho*(1.-alpm)/(beta*dt*dt)                      ;
-    c1 =   lambda*(1.-alpf)                                ;
-    c2 =   2.*mu*(1.-alpf)                                 ;
-    c3 =   rho*(1.-alpm)/(beta*dt)                         ;
-    c4 =   rho*((1.-alpm)/2./beta -1.)                     ;
-    c5 =   lambda*alpf                                     ;
-    c6 =   2*mu*alpf                                       ;
-    c7 =   rho*(1.-alpf)*gamma/beta/dt                     ;
-    c8 =   rho*(1.-gamma*(1-alpf)/beta)                    ;
-    c9 =   rho*(1.-alpf)*dt*(1.-gamma/(2.*beta))           ;
-
-    ARCANE_FATAL("Only Newmark-beta works for time-discretization Generalized-alpha WIP ");
-
-    }
-
-  else {
-
-    ARCANE_FATAL("Only Newmark-beta | Generalized-alpha are supported for time-discretization ");
-
-    }
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "get-material-params", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -227,96 +202,6 @@ _readCaseTables()
 
     m_double_couple_case_table_list.add(CaseTableInfo{bs->doubleCoupleInputFile(),case_table});
   }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_applyDirichletBoundaryConditions()
-{
-
-  info() << "Apply boundary conditions";
-
-  for (const auto& bs : options()->dirichletBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    Real u1_val = bs->u1();
-    Real u2_val = bs->u2();
-
-    if( bs->u1.isPresent() && bs->u2.isPresent()) {
-      info() << "Apply Dirichlet boundary condition surface=" << group.name() << " u1= " << u1_val << " u2= " << u2_val;
-      ENUMERATE_ (Face, iface, group) {
-        for (Node node : iface->nodes()) {
-          m_dU[node].x = u1_val;
-          m_dU[node].y = u2_val;
-          m_u1_fixed[node] = true;
-          m_u2_fixed[node] = true;
-        }
-      }
-      continue;
-    }
-
-    if(bs->u1.isPresent()) {
-      info() << "Apply Dirichlet boundary condition surface=" << group.name() << " u1=" << u1_val;
-      ENUMERATE_ (Face, iface, group) {
-        for (Node node : iface->nodes()) {
-          m_dU[node].x = u1_val;
-          m_u1_fixed[node] = true;
-        }
-      }
-      continue;
-    }
-
-    if(bs->u2.isPresent()) {
-      info() << "Apply Dirichlet boundary condition surface=" << group.name() << " u2=" << u2_val;
-      ENUMERATE_ (Face, iface, group) {
-        for (Node node : iface->nodes()) {
-          m_dU[node].y = u2_val;
-          m_u2_fixed[node] = true;
-        }
-      }
-      continue;
-    }
-  }
-
-  for (const auto& bs : options()->dirichletPointCondition()) {
-    NodeGroup group = bs->node();
-    Real u1_val = bs->u1();
-    Real u2_val = bs->u2();
-
-    if( bs->u1.isPresent() && bs->u2.isPresent()) {
-      info() << "Apply Dirichlet point condition on node=" << group.name() << " u1= " << u1_val << " u2= " << u2_val;
-      ENUMERATE_ (Node, inode, group) {
-        Node node = *inode;
-        m_dU[node].x = u1_val;
-        m_dU[node].y = u2_val;
-        m_u1_fixed[node] = true;
-        m_u2_fixed[node] = true;
-      }
-      continue;
-    }
-
-    if(bs->u1.isPresent()) {
-      info() << "Apply Dirichlet point condition on node=" << group.name() << " u1=" << u1_val;
-      ENUMERATE_ (Node, inode, group) {
-        Node node = *inode;
-        m_dU[node].x = u1_val;
-        m_u1_fixed[node] = true;
-      }
-      continue;
-    }
-
-    if(bs->u2.isPresent()) {
-      info() << "Apply Dirichlet point condition on node=" << group.name() << " u2=" << u2_val;
-      ENUMERATE_ (Node, inode, group) {
-        Node node = *inode;
-        m_dU[node].y = u2_val;
-        m_u2_fixed[node] = true;
-      }
-      continue;
-    }
-  }
-
 }
 
 /*---------------------------------------------------------------------------*/
@@ -362,7 +247,8 @@ _updateVariables()
 void FemModule::
 _assembleLinearOperator()
 {
-  info() << "Assembly of FEM linear operator ";
+  info() << "[ArcaneFem-Info] Started module  _assembleLinearOperator()";
+  Real elapsedTime = platform::getRealTime();
 
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
@@ -370,375 +256,110 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  if (options()->enforceDirichletMethod() == "Penalty") {
-
-    //----------------------------------------------
-    // penalty method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
-    //  Dirichlet condition needs to be applied
-    //
-    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
-    //           a_{i,i} = 1. * P
-    //
-    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
-    //           b_{i} = b_{i} * P
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    Real Penalty = options()->penalty();        // 1.0e30 is the default
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u1_fixed[node_id]) {
-        DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
-        m_linear_system.matrixSetValue(dof_id1, dof_id1, Penalty);
-        {
-          Real u1_dirichlet = Penalty * m_dU[node_id].x;
-          rhs_values[dof_id1] = u1_dirichlet;
-        }
-      }
-      if (m_u2_fixed[node_id]) {
-        DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
-        m_linear_system.matrixSetValue(dof_id2, dof_id2, Penalty);
-        {
-          Real u2_dirichlet = Penalty * m_dU[node_id].y;
-          rhs_values[dof_id2] = u2_dirichlet;
-        }
-      }
-    }
-  }else if (options()->enforceDirichletMethod() == "WeakPenalty") {
-
-    //----------------------------------------------
-    // weak penalty method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
-    //  Dirichlet condition needs to be applied
-    //
-    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
-    //           a_{i,i} = a_{i,i} + P
-    //
-    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
-    //           b_{i} = b_{i} * P
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    Real Penalty = options()->penalty();        // 1.0e30 is the default
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u1_fixed[node_id]) {
-        DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
-        m_linear_system.matrixAddValue(dof_id1, dof_id1, Penalty);
-        {
-          Real u1_dirichlet = Penalty * m_dU[node_id].x;
-          rhs_values[dof_id1] = u1_dirichlet;
-        }
-      }
-      if (m_u2_fixed[node_id]) {
-        DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
-        m_linear_system.matrixAddValue(dof_id2, dof_id2, Penalty);
-        {
-          Real u2_dirichlet = Penalty * m_dU[node_id].y;
-          rhs_values[dof_id2] = u2_dirichlet;
-        }
-      }
-    }
-  }else if (options()->enforceDirichletMethod() == "RowElimination") {
-
-    //----------------------------------------------
-    // Row elimination method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'i' be the DOF for which  Dirichlet condition 'g_i' needs to be applied
-    //
-    //  to apply the Dirichlet on 'i'th DOF
-    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j
-    //           a_{i,j} = 1.  : i==j
-    //  - For RHS vector b the terms corresponding to the Dirichlet DOF
-    //           b_i = g_i
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u1_fixed[node_id]) {
-        DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
-
-        Real u1_dirichlet = m_dU[node_id].x;
-        m_linear_system.eliminateRow(dof_id1, u1_dirichlet);
-
-      }
-      if (m_u2_fixed[node_id]) {
-        DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
-
-        Real u2_dirichlet = m_dU[node_id].y;
-        m_linear_system.eliminateRow(dof_id2, u2_dirichlet);
-
-      }
-    }
-  }else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
-
-    //----------------------------------------------
-    // Row elimination method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
-    //
-    //  to apply the Dirichlet on 'i'th DOF
-    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j  for all j
-    //           a_{i,j} = 1.  : i==j
-    //    also the column terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j  for all i
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u1_fixed[node_id]) {
-        DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
-
-        Real u1_dirichlet = m_dU[node_id].x;
-        m_linear_system.eliminateRowColumn(dof_id1, u1_dirichlet);
-
-      }
-      if (m_u2_fixed[node_id]) {
-        DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
-
-        Real u2_dirichlet = m_dU[node_id].y;
-        m_linear_system.eliminateRowColumn(dof_id2, u2_dirichlet);
-
-      }
-    }
-  }else {
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " is not supported \n"
-           << "enforce-Dirichlet-method only supports:\n"
-           << "  - Penalty\n"
-           << "  - WeakPenalty\n"
-           << "  - RowElimination\n"
-           << "  - RowColumnElimination\n";
-
-    ARCANE_FATAL( "Dirichlet boundary conditions were not applied " );
-  }
-  //----------------------------------------------
-  // Body force term assembly
-  //----------------------------------------------
-  //
-  //  $int_{Omega}(f1*v1^h)$
-  //  $int_{Omega}(f2*v2^h)$
-  //  only for nodes that are non-Dirichlet
-  //----------------------------------------------
-
-  if ( options()->f1.isPresent()) {
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-      Real area = _computeAreaTriangle3(cell);
-      for (Node node : cell.nodes()) {
-        if (!(m_u1_fixed[node]) && node.isOwn()) {
-          DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-          rhs_values[dof_id1] += f1 * area / 3;
-        }
-      }
-    }
-  }
-
-  if ( options()->f2.isPresent()) {
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-      Real area = _computeAreaTriangle3(cell);
-      for (Node node : cell.nodes()) {
-        if (!(m_u2_fixed[node]) && node.isOwn()) {
-          DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-          rhs_values[dof_id2] += f2 * area / 3;
-        }
-      }
-    }
-  }
-
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    Real area = _computeAreaTriangle3(cell);
+    Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
+    Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
+    Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
+    FixedMatrix<1, 6> Uy = { 0., 1., 0., 1., 0., 1. };
+    FixedMatrix<1, 6> Ux = { 1., 0., 1., 0., 1., 0. };
+    FixedMatrix<1, 6> F = { f[0], f[1], f[0], f[1], f[0], f[1] };
+    IdentityMatrix<6> I6;
+    FixedMatrix<1, 6> Un = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y,
+                             m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y,
+                             m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y };
+    FixedMatrix<1, 6> Vn = { m_V[cell.nodeId(0)].x, m_V[cell.nodeId(0)].y,
+                             m_V[cell.nodeId(1)].x, m_V[cell.nodeId(1)].y,
+                             m_V[cell.nodeId(2)].x, m_V[cell.nodeId(2)].y };
+    FixedMatrix<1, 6> An = { m_A[cell.nodeId(0)].x, m_A[cell.nodeId(0)].y,
+                             m_A[cell.nodeId(1)].x, m_A[cell.nodeId(1)].y,
+                             m_A[cell.nodeId(2)].x, m_A[cell.nodeId(2)].y };
+    //----------------------------------------------------------------------
+    //  ∫∫∫ (𝐟.𝐯) + ∫∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯)
+    //----------------------------------------------------------------------
+    FixedMatrix<1, 6> rhs = ( F * (1/3.)
+                            + Un * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy))*(c0*1/12.)
+                            + Vn * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy))*(c3*1/12.)
+                            + An * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy))*(c4*1/12.)
+                            ) * area;
 
-    Real3 m0 = m_node_coord[cell.nodeId(0)];
-    Real3 m1 = m_node_coord[cell.nodeId(1)];
-    Real3 m2 = m_node_coord[cell.nodeId(2)];
-
-    Real Uold1 = m_U[cell.nodeId(0)].x + m_U[cell.nodeId(1)].x + m_U[cell.nodeId(2)].x;
-    Real Uold2 = m_U[cell.nodeId(0)].y + m_U[cell.nodeId(1)].y + m_U[cell.nodeId(2)].y;
-
-    Real Vold1 = m_V[cell.nodeId(0)].x + m_V[cell.nodeId(1)].x + m_V[cell.nodeId(2)].x;
-    Real Vold2 = m_V[cell.nodeId(0)].y + m_V[cell.nodeId(1)].y + m_V[cell.nodeId(2)].y;
-
-    Real Aold1 = m_A[cell.nodeId(0)].x + m_A[cell.nodeId(1)].x + m_A[cell.nodeId(2)].x;
-    Real Aold2 = m_A[cell.nodeId(0)].y + m_A[cell.nodeId(1)].y + m_A[cell.nodeId(2)].y;
-
-/*
-$$
-\int_{\Omega}(
-                    (U \cdot v) c_0
-                  + (V \cdot v) c_3
-                  + (A \cdot v) c_4
-               )
-$$
-*/
-
-    // Info: We could also use the following logic
-    //    cell.node(i).isOwn();
-    //    cell.node(i);
-    //    Node node = cell.node(i);
-    // Then we can loop 1:3
-    int i = 0;
-    for (Node node : cell.nodes()) {
-      if (node.isOwn()) {
-        DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-        DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-        
-        if (!(m_u1_fixed[node]))
-        rhs_values[dof_id1] +=   (Uold1 + m_U[node].x) * (area / 12.) * c0
-                               + (Vold1 + m_V[node].x) * (area / 12.) * c3
-                               + (Aold1 + m_A[node].x) * (area / 12.) * c4   // TODO add c5 and c6 contribution for Galpha
-                               ;
-
-        if (!(m_u2_fixed[node]))
-        rhs_values[dof_id2] +=   (Uold2 + m_U[node].y) * (area / 12.) * c0
-                               + (Vold2 + m_V[node].y) * (area / 12.) * c3
-                               + (Aold2 + m_A[node].y) * (area / 12.) * c4  // TODO add c5 and c6 contribution for Galpha
-                               ;
-      }
-      i++;
-    }
+    rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0,0);
+    rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(0,1);
+    rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(0,2);
+    rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(0,3);
+    rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(0,4);
+    rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(0,5);
   }
 
-  //----------------------------------------------
-  // Traction term assembly
-  //----------------------------------------------
-  //
-  //  $int_{dOmega_N}((tx.nx)*v1^h)$
-  //  $int_{dOmega_N}((ty.ny)*v1^h)$
-  //  only for noded that are non-Dirichlet
-  //----------------------------------------------
-
+  //----------------------------------------------------------------------
+  // traction term ∫∫ (𝐭.𝐯)  with 𝐭 = (𝑡𝑥, 𝑡𝑦, 𝑡𝑧) = (t[0], t[1], t[2])
+  //----------------------------------------------------------------------
   // Index of the boundary condition. Needed to associate a CaseTable
   Int32 boundary_condition_index = 0;
-
   for (const auto& bs : options()->tractionBoundaryCondition()) {
-
     FaceGroup group = bs->surface();
-
     const CaseTableInfo& case_table_info = m_traction_case_table_list[boundary_condition_index];
     ++boundary_condition_index;
 
     Real3 trac; // traction in x, y and z
 
-
-    if (bs->tractionInputFile.isPresent()){
+    if (bs->tractionInputFile.isPresent()) {
 
       String file_name = bs->tractionInputFile();
-      info() << "Applying traction boundary conditions for surface "<< group.name()
-             << " via CaseTable" <<  file_name;
+      info() << "Applying traction boundary conditions for surface " << group.name()
+             << " via CaseTable" << file_name;
       CaseTable* inn = case_table_info.case_table;
-
       if (!inn)
         ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _readCaseTables()");
-      if (file_name!=case_table_info.file_name)
-        ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'",case_table_info.file_name);
-
+      if (file_name != case_table_info.file_name)
+        ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'", case_table_info.file_name);
       inn->value(t, trac);
 
-
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real length = _computeEdgeLength2(face);
-        for (Node node : iface->nodes()) {
-          if (!(m_u1_fixed[node]) && node.isOwn()) {
-            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-
-            rhs_values[dof_id1] += trac.x * length / 2.;
-          }
-          if (!(m_u2_fixed[node]) && node.isOwn()) {
-            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-            rhs_values[dof_id2] += trac.y * length / 2.;
-
+      if (mesh()->dimension() == 2)
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
+          for (Node node : iface->nodes()) {
+            if (node.isOwn()) {
+              rhs_values[node_dof.dofId(node, 0)] += trac.x * length / 2.;
+              rhs_values[node_dof.dofId(node, 1)] += trac.y * length / 2.;
+            }
           }
         }
-      }
-
       continue;
     }
     else {
+      const UniqueArray<String> t_string = bs->t();
+      Real3 trac;
 
-      info() << "Applying constant traction boundary conditions for surface "<< group.name();
+      info() << "[ArcaneFem-Info] Applying Traction " << t_string;
+      info() << "[ArcaneFem-Info] Traction surface '" << bs->surface().name() << "'";
 
-      trac.x = bs->t1();
-      trac.y = bs->t2();
-
-      if( bs->t1.isPresent() && bs->t2.isPresent()) {
-        ENUMERATE_ (Face, iface, group) {
-          Face face = *iface;
-          Real length = _computeEdgeLength2(face);
-          for (Node node : iface->nodes()) {
-            if (!(m_u1_fixed[node]) && node.isOwn()) {
-              DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-              rhs_values[dof_id1] += trac.x * length / 2.;
-            }
-            if (!(m_u2_fixed[node]) && node.isOwn()) {
-              DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-              rhs_values[dof_id2] += trac.y * length / 2.;
-            }
-          }
+      for (Int32 i = 0; i < t_string.size(); ++i) {
+        trac[i] = 0.0;
+        if (t_string[i] != "NULL") {
+          trac[i] = std::stod(t_string[i].localstr());
         }
-        continue;
       }
 
-      if( bs->t1.isPresent()) {
-        ENUMERATE_ (Face, iface, group) {
-          Face face = *iface;
-        Real length = _computeEdgeLength2(face);
-          for (Node node : iface->nodes()) {
-            if (!(m_u1_fixed[node]) && node.isOwn()) {
-              DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-              rhs_values[dof_id1] += trac.x * length / 2.;
+      if (mesh()->dimension() == 2)
+        if (t_string[0] != "NULL" || t_string[1] != "NULL")
+          ENUMERATE_ (Face, iface, group) {
+            Face face = *iface;
+            Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
+            for (Node node : iface->nodes()) {
+              if (node.isOwn()) {
+                rhs_values[node_dof.dofId(node, 0)] += trac[0] * length / 2.;
+                rhs_values[node_dof.dofId(node, 1)] += trac[1] * length / 2.;
+              }
             }
           }
-        }
-        continue;
-      }
-
-      if( bs->t2.isPresent()) {
-        ENUMERATE_ (Face, iface, group) {
-          Face face = *iface;
-          Real length = _computeEdgeLength2(face);
-          for (Node node : iface->nodes()) {
-            if (!(m_u2_fixed[node]) && node.isOwn()) {
-              DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-              rhs_values[dof_id2] += trac.y * length / 2. ;
-            }
-          }
-        }
-        continue;
-      }
-
     }
   }
 
   //----------------------------------------------
   // Paraxial term assembly
   //----------------------------------------------
-  //
-  //  $int_{dOmega_P}  c7 (.....)
-  //  only for noded that are non-Dirichlet
-  //----------------------------------------------
-
   for (const auto& bs : options()->paraxialBoundaryCondition()) {
     FaceGroup group = bs->surface();
 
@@ -747,69 +368,107 @@ $$
     ENUMERATE_ (Face, iface, group) {
       Face face = *iface;
 
-      Real  length = _computeEdgeLength2(face);
-      Real2 Normal = _computeEdgeNormal2(face);
+      Real  length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
+      Real2 N = ArcaneFemFunctions::MeshOperation::computeNormalEdge2(face, m_node_coord);
 
-      Real f0 = m_U[face.nodeId(0)].x;
-      Real f1 = m_U[face.nodeId(1)].x;
-      Real Uold1 = f0 + f1;
+      FixedMatrix<1, 4> Uy = {0., 1., 0., 1.};
+      FixedMatrix<1, 4> Ux = {1., 0., 1., 0.};
 
-      f0 = m_U[face.nodeId(0)].y;
-      f1 = m_U[face.nodeId(1)].y;
-      Real Uold2 = f0 + f1;
+      FixedMatrix<1, 4> Un = {m_U[face.nodeId(0)].x,  m_U[face.nodeId(0)].y,  m_U[face.nodeId(1)].x, m_U[face.nodeId(1)].y};
+      FixedMatrix<1, 4> Vn = {m_V[face.nodeId(0)].x,  m_V[face.nodeId(0)].y,  m_V[face.nodeId(1)].x, m_V[face.nodeId(1)].y};
+      FixedMatrix<1, 4> An = {m_A[face.nodeId(0)].x,  m_A[face.nodeId(0)].y,  m_A[face.nodeId(1)].x, m_A[face.nodeId(1)].y};
 
-      f0 = m_V[face.nodeId(0)].x;
-      f1 = m_V[face.nodeId(1)].x;
-      Real Vold1 = f0 + f1;
+      FixedMatrix<1, 4> rhs = (c7*(N.x*N.x*cp + N.y*N.y*cs)) * Un* (massMatrix(Ux,Ux)) * length/6. +
+                              (c7*(N.y*N.y*cp + N.x*N.x*cs)) * Un*  (massMatrix(Uy,Uy)) * length/6. +
+                              (c7*(N.x*N.y*(cp - cs))) *Un* (massMatrix(Ux,Uy)) * length/6. +
+                              (c7*(N.x*N.y*(cp - cs))) * Un* (massMatrix(Uy,Ux)) * length/6. +
 
-      f0 = m_V[face.nodeId(0)].y;
-      f1 = m_V[face.nodeId(1)].y;
-      Real Vold2 = f0 + f1;
+                             -((c8*(N.x*N.x*cp + N.y*N.y*cs)) * Vn* (massMatrix(Ux,Ux)) * length/6. +
+                               (c8*(N.y*N.y*cp + N.x*N.x*cs)) * Vn*  (massMatrix(Uy,Uy)) * length/6. +
+                               (c8*(N.x*N.y*(cp - cs))) * Vn* (massMatrix(Ux,Uy)) * length/6. +
+                               (c8*(N.x*N.y*(cp - cs))) * Vn* (massMatrix(Uy,Ux)) * length/6.)
 
-      f0 = m_A[face.nodeId(0)].x;
-      f1 = m_A[face.nodeId(1)].x;
-      Real Aold1 = f0 + f1;
+                             -((c9*(N.x*N.x*cp + N.y*N.y*cs)) * An* (massMatrix(Ux,Ux)) * length/6. +
+                               (c9*(N.y*N.y*cp + N.x*N.x*cs)) * An*  (massMatrix(Uy,Uy)) * length/6. +
+                               (c9*(N.x*N.y*(cp - cs))) * An* (massMatrix(Ux,Uy)) * length/6. +
+                               (c9*(N.x*N.y*(cp - cs))) * An* (massMatrix(Uy,Ux)) * length/6.)
+                               ;
 
-      f0 = m_A[face.nodeId(0)].y;
-      f1 = m_A[face.nodeId(1)].y;
-      Real Aold2 = f0 + f1;
+      rhs_values[node_dof.dofId(face.nodeId(0), 0)] += rhs(0,0);
+      rhs_values[node_dof.dofId(face.nodeId(0), 1)] += rhs(0,1);
+      rhs_values[node_dof.dofId(face.nodeId(1), 0)] += rhs(0,2);
+      rhs_values[node_dof.dofId(face.nodeId(1), 1)] += rhs(0,3);
+    }
+  }
 
-      for (Node node : iface->nodes()) {
-        if (node.isOwn()) {
-          if (!(m_u1_fixed[node])) {
-            DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-             rhs_values[dof_id1] += (  c7*( cp*( Normal.x*Normal.x*(Uold1+m_U[node].x) + Normal.x*Normal.y*(Uold2+m_U[node].y) ) +
-                                           cs*( Normal.y*Normal.y*(Uold1+m_U[node].x) - Normal.x*Normal.y*(Uold2+m_U[node].y) )
-                                         )
-                                    - c8*( cp*( Normal.x*Normal.x*(Vold1+m_V[node].x) + Normal.x*Normal.y*(Vold2+m_V[node].y) ) +
-                                           cs*( Normal.y*Normal.y*(Vold1+m_V[node].x) - Normal.x*Normal.y*(Vold2+m_V[node].y) )
-                                         )
-                                    - c9*( cp*( Normal.x*Normal.x*(Aold1+m_A[node].x) + Normal.x*Normal.y*(Aold2+m_A[node].y) ) +
-                                           cs*( Normal.y*Normal.y*(Aold1+m_A[node].x) - Normal.x*Normal.y*(Aold2+m_A[node].y) )
-                                         )
-                                    ) * length / 6.;
-          }
-          if (!(m_u2_fixed[node])) {
-            DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-             rhs_values[dof_id2] += (  c7*( cp*( Normal.x*Normal.y*(Uold1+m_U[node].x) + Normal.y*Normal.y*(Uold2+m_U[node].y)) +
-                                           cs*(-Normal.x*Normal.y*(Uold1+m_U[node].x) + Normal.x*Normal.x*(Uold2+m_U[node].y) )
-                                         )
-                                    - c8*( cp*( Normal.x*Normal.y*(Vold1+m_V[node].x) + Normal.y*Normal.y*(Vold2+m_V[node].y) ) +
-                                           cs*(-Normal.x*Normal.y*(Vold1+m_V[node].x) + Normal.x*Normal.x*(Vold2+m_V[node].y) )
-                                         )
-                                    - c9*( cp*( Normal.x*Normal.y*(Aold1+m_A[node].x) + Normal.y*Normal.y*(Aold2+m_A[node].y) ) +
-                                           cs*(-Normal.x*Normal.y*(Aold1+m_A[node].x) + Normal.x*Normal.x*(Aold2+m_A[node].y) )
-                                         )
-                                   ) * length / 6.;
+  //----------------------------------------------
+  // Dirichlet conditions to LHS and RHS
+  //----------------------------------------------
+
+  for (const auto& bs : options()->dirichletBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    const UniqueArray<String> u_dirichlet_string = bs->u();
+
+    info() << "[ArcaneFem-Info] Applying Dirichlet " << u_dirichlet_string;
+    info() << "[ArcaneFem-Info] Dirichlet surface '" << bs->surface().name() << "'";
+    info() << "[ArcaneFem-Info] Dirichlet method '" << options()->enforceDirichletMethod() << "'";
+
+    if (options()->enforceDirichletMethod() == "Penalty") {
+
+      Real Penalty = options()->penalty();
+
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Face, iface, group) {
+            for (Node node : iface->nodes()) {
+              DoFLocalId dof_id = node_dof.dofId(node, i);
+              if (node.isOwn()) {
+                m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
+                rhs_values[dof_id] = Penalty * u_dirichlet;
+              }
+            }
           }
         }
       }
+    }
+    else {
+      ARCANE_FATAL("Dirichlet enforcing Method Not implemented use Penalty");
+    }
+  }
+
+  for (const auto& bs : options()->dirichletPointCondition()) {
+    NodeGroup group = bs->node();
+    const UniqueArray<String> u_dirichlet_string = bs->u();
+
+    info() << "[ArcaneFem-Info] Applying point Dirichlet " << u_dirichlet_string;
+    info() << "[ArcaneFem-Info] Dirichlet points '" << group.name() << "'";
+    info() << "[ArcaneFem-Info] Dirichlet method '" << options()->enforceDirichletMethod() << "'";
+
+    if (options()->enforceDirichletMethod() == "Penalty") {
+      Real Penalty = options()->penalty();
+
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Node, inode, group) {
+            Node node = *inode;
+            DoFLocalId dof_id = node_dof.dofId(node, i);
+            if (node.isOwn()) {
+              m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
+              rhs_values[dof_id] = Penalty * u_dirichlet;
+            }
+          }
+        }
+      }
+    }
+    else {
+      ARCANE_FATAL("Dirichlet enforcing Method Not implemented use Penalty");
     }
   }
 
   //----------------------------------------------
   // Double-couple term assembly
-  //----------------------------------------------
   //----------------------------------------------
 
   // Index of the boundary condition. Needed to associate a CaseTable
@@ -857,46 +516,9 @@ $$
     }
 
   }
-}
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real FemModule::
-_computeAreaTriangle3(Cell cell)
-{
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-  return 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real FemModule::
-_computeEdgeLength2(Face face)
-{
-  Real3 m0 = m_node_coord[face.nodeId(0)];
-  Real3 m1 = m_node_coord[face.nodeId(1)];
-  return  math::sqrt((m1.x-m0.x)*(m1.x-m0.x) + (m1.y-m0.y)*(m1.y - m0.y));
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real2 FemModule::
-_computeEdgeNormal2(Face face)
-{
-  Real3 m0 = m_node_coord[face.nodeId(0)];
-  Real3 m1 = m_node_coord[face.nodeId(1)];
-  if (!face.isSubDomainBoundaryOutside())
-    std::swap(m0,m1);
-  Real2 N;
-  Real norm_N = math::sqrt( (m1.y - m0.y)*(m1.y - m0.y) + (m1.x - m0.x)*(m1.x - m0.x) );   // for normalizing
-  N.x = (m1.y - m0.y)/ norm_N;
-  N.y = (m0.x - m1.x)/ norm_N;
-  return  N;
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-vector-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -909,8 +531,6 @@ _assembleBilinearOperatorTRIA3()
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    if (cell.type() != IT_Triangle3)
-      ARCANE_FATAL("Only Triangle3 cell type is supported");
 
     auto K_e = _computeElementMatrixTRIA3(cell);  // element stiffness matrix
     // assemble elementary matrix into  the global one elementary terms are
@@ -945,7 +565,6 @@ _assembleBilinearOperatorTRIA3()
     }
   }
 }
-
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -996,7 +615,9 @@ _assembleBilinearOperatorEDGE2()
 void FemModule::
 _solve()
 {
-  info() << "Solving Linear system";
+  info() << "[ArcaneFem-Info] Started module  _solve()";
+  Real elapsedTime = platform::getRealTime();
+
   m_linear_system.solve();
 
   {
@@ -1014,41 +635,47 @@ _solve()
     }
   }
 
-  // Re-Apply boundary conditions because the solver has modified the value
-  _applyDirichletBoundaryConditions();  // ************ CHECK
-
   m_dU.synchronize();
   m_U.synchronize();
   m_V.synchronize();
   m_A.synchronize();
 
-  const bool do_print = (allNodes().size() < 200);
-  if (do_print) {
-    int p = std::cout.precision();
-    ENUMERATE_ (Node, inode, allNodes()) {
-      Node node = *inode;
-      //std::cout.precision(17);
-      //std::cout << "U1[" << node.localId() << "][" << node.uniqueId() << "] = "
-      //          << m_dU[node].x << " U2[" << node.localId() << "][" << node.uniqueId() << "] = "
-      //          << m_dU[node].y << "\n";
-      info() << "Node: " << node.uniqueId() << " U1=" << m_dU[node].x << " U2=" << m_dU[node].y << " U3=0.0";
-    }
-    std::cout.precision(p);
-  }
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"solve-linear-system", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_checkResultFile()
+_validateResults()
 {
+  info() << "[ArcaneFem-Info] Started module  _validateResults()";
+  Real elapsedTime = platform::getRealTime();
+
+  if (allNodes().size() < 200) {
+    int p = std::cout.precision();
+    std::cout.precision(17);
+    ENUMERATE_ (Node, inode, allNodes()) {
+      Node node = *inode;
+      std::cout << "( N_id, u1, u2, u3 ) = ( "
+                << node.uniqueId() << ", " << m_dU[node].x << ", " << m_dU[node].y << ", " << m_dU[node].z
+                << ")\n";
+    }
+    std::cout.precision(p);
+  }
+
   String filename = options()->resultFile();
-  info() << "CheckResultFile filename=" << filename;
-  if (filename.empty())
-    return;
   const double epsilon = 1.0e-4;
-  Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_dU, epsilon);
+  const double min_value_to_test = 1.0e-16;
+
+  info() << "[ArcaneFem-Info] Validating results filename=" << filename << " epsilon =" << epsilon;
+
+  if (!filename.empty())
+    Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_dU, epsilon, min_value_to_test);
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"cross-validation", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/

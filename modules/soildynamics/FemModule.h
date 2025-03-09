@@ -22,11 +22,14 @@
 #include <arcane/ICaseMng.h>
 #include <arcane/CaseTable.h>
 
+#include <arcane/utils/PlatformUtils.h>
+
 #include "IDoFLinearSystemFactory.h"
 #include "Fem_axl.h"
 #include "FemUtils.h"
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
+#include "ArcaneFemFunctions.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -86,6 +89,8 @@ class FemModule
   Real beta;                  // time discretization param beta
   Real gamma;                 // time discretization param gamma
 
+  Real3 f = {0,0,0}; // body force 𝐟
+
   Real E;                     // Youngs modulus
   Real nu;                    // Poissons ratio
   Real rho;                   // Density
@@ -134,7 +139,7 @@ class FemModule
   void _solve();
   void _assembleLinearOperator();
   void _applyDirichletBoundaryConditions();
-  void _checkResultFile();
+  void _validateResults();
   void _readCaseTables();
   FixedMatrix<4, 4> _computeElementMatrixEDGE2(Face face);
   FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);

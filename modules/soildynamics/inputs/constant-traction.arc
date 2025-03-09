@@ -28,15 +28,14 @@
     <rho>2500.0</rho>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     <penalty>1.e30</penalty>
-    <time-discretization>Newmark-beta</time-discretization>
     <paraxial-boundary-condition>
       <surface>lower</surface>
     </paraxial-boundary-condition>
     <traction-boundary-condition>
       <surface>input</surface>
-      <t1>0.01</t1>     
-      <t2>0.01</t2>       
+      <t>0.01 0.01</t>
     </traction-boundary-condition>
+    <result-file>check/test_2D_constant_traction.txt</result-file>
     <linear-system>
       <solver-backend>petsc</solver-backend>
       <preconditioner>ilu</preconditioner>

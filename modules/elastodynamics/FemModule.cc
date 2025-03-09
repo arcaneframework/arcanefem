@@ -25,7 +25,7 @@
 void FemModule::
 startInit()
 {
-  info() << "[ArcaneFem-Info] Started module  compute()";
+  info() << "[ArcaneFem-Info] Started module  startInit()";
   Real elapsedTime = platform::getRealTime();
 
   m_dofs_on_nodes.initialize(mesh(), mesh()->dimension());
@@ -127,6 +127,7 @@ _getParameters()
   if( options()->lambda.isPresent())
     lambda = options()->lambda;
 
+  //--------- body force ---------//
   if (options()->f.isPresent()) {
     const UniqueArray<String> f_string = options()->f();
     info() << "[ArcaneFem-Info] Applying Bodyforce " << f_string;
