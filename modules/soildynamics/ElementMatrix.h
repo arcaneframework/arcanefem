@@ -50,7 +50,6 @@ _computeElementMatrixTRIA3(Cell cell)
   FixedMatrix<1, 6> dyUx = { dyu[0], 0., dyu[1], 0., dyu[2], 0. };
   FixedMatrix<1, 6> dxUy = { 0., dxu[0], 0., dxu[1], 0., dxu[2] };
   FixedMatrix<1, 6> dyUy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
-  IdentityMatrix<6> I6;
 
   FixedMatrix<6, 6> int_Omega_i = (c0 / 12.) * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy)) * area +
                                   (c1) * ((dyUy ^ dxUx) + (dxUx ^ dyUy)) * area +
@@ -81,7 +80,6 @@ _computeElementMatrixEDGE2(Face face)
 
   FixedMatrix<1, 4> Uy = {0., 1., 0., 1.};
   FixedMatrix<1, 4> Ux = {1., 0., 1., 0.};
-  IdentityMatrix<4> I4;
 
   FixedMatrix<4, 4> int_Omega_i = (c7*(N.x*N.x*cp + N.y*N.y*cs)) * (massMatrix(Ux,Ux)) * length/6. +
                                   (c7*(N.y*N.y*cp + N.x*N.x*cs)) * (massMatrix(Uy,Uy)) * length/6. +
