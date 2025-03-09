@@ -38,7 +38,7 @@
 /*---------------------------------------------------------------------------*/
 
 FixedMatrix<6, 6> FemModule::
-_computeElementMatrixTRIA3(Cell cell)
+_computeElementMatrixTria3(Cell cell)
 {
   Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
   Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
@@ -73,7 +73,7 @@ _computeElementMatrixTRIA3(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 FixedMatrix<4, 4> FemModule::
-_computeElementMatrixEDGE2(Face face)
+_computeElementMatrixEdge2(Face face)
 {
   Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
   Real2 N   = ArcaneFemFunctions::MeshOperation::computeNormalEdge2(face, m_node_coord);

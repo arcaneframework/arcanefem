@@ -94,8 +94,8 @@ _doStationarySolve()
 
   // Assemble the FEM bilinear operator (LHS - matrix A)
   if(t<=dt){
-    _assembleBilinearOperatorTRIA3();
-    _assembleBilinearOperatorEDGE2();
+    _assembleBilinearOperatorTria3();
+    _assembleBilinearOperatorEdge2();
   }
 
   // Assemble the FEM linear operator (RHS - vector b)
@@ -525,14 +525,14 @@ _assembleLinearOperator()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleBilinearOperatorTRIA3()
+_assembleBilinearOperatorTria3()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    auto K_e = _computeElementMatrixTRIA3(cell);  // element stiffness matrix
+    auto K_e = _computeElementMatrixTria3(cell);  // element stiffness matrix
     // assemble elementary matrix into  the global one elementary terms are
     // positioned into  K according  to the rank of associated  node in the
     // mesh.nodes list  and according the dof number. Here  for  each  node
@@ -570,7 +570,7 @@ _assembleBilinearOperatorTRIA3()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleBilinearOperatorEDGE2()
+_assembleBilinearOperatorEdge2()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
@@ -580,7 +580,7 @@ _assembleBilinearOperatorEDGE2()
     ENUMERATE_ (Face, iface, group) {
       Face face = *iface;
 
-      auto K_e = _computeElementMatrixEDGE2(face);  // element stiffness matrix
+      auto K_e = _computeElementMatrixEdge2(face);  // element stiffness matrix
 
       Int32 n1_index = 0;
       for (Node node1 : face.nodes() ) {

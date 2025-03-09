@@ -134,19 +134,16 @@ class FemModule
   void _getParameters();
   void _updateVariables();
   void _updateTime();
-  void _assembleBilinearOperatorTRIA3();
-  void _assembleBilinearOperatorEDGE2();
+  void _assembleBilinearOperatorTria3();
+  void _assembleBilinearOperatorEdge2();
   void _solve();
   void _assembleLinearOperator();
   void _applyDirichletBoundaryConditions();
   void _validateResults();
   void _readCaseTables();
-  FixedMatrix<4, 4> _computeElementMatrixEDGE2(Face face);
-  FixedMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
-  Real _computeAreaTriangle3(Cell cell);
-  Real _computeEdgeLength2(Face face);
-  Real2 _computeDxDyOfRealTRIA3(Cell cell);
-  Real2 _computeEdgeNormal2(Face face);
+
+  FixedMatrix<4, 4> _computeElementMatrixEdge2(Face face);
+  FixedMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
 };
 
 #endif
