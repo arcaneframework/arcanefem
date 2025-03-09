@@ -145,8 +145,6 @@ _getParameters()
     lambda = cp * cp * rho - 2 * mu;
   }
 
-  mu2 = mu * 2; // lame parameter mu * 2
-
   //--------- body force ---------//
   if (options()->f.isPresent()) {
     const UniqueArray<String> f_string = options()->f();

@@ -65,53 +65,39 @@ class FemModule
 
  public:
 
-  //! Method called at each iteration
-  void compute() override;
-
-  //! Method called at the beginning of the simulation
-  void startInit() override;
-
-  VersionInfo versionInfo() const override
-  {
-    return VersionInfo(1, 0, 0);
-  }
+ void startInit() override; //! Method called at the beginning of the simulation
+ void compute() override; //! Method called at each iteration
+ VersionInfo versionInfo() const override { return VersionInfo(1, 0, 0); }
 
  private:
 
-  Real t;                     // time variable
-  Real dt;                    // time step
-  Real tmax;                  // max time
+  Real t; // time variable 𝑡
+  Real dt; // time step δ𝑡
+  Real tmax; // max time 𝑡ₘₐₓ
 
-  Real etam;                  // time discretization param etam
-  Real etak;                  // time discretization param etak
-  Real alpm;                  // time discretization param alpm
-  Real alpf;                  // time discretization param alpf
-  Real beta;                  // time discretization param beta
-  Real gamma;                 // time discretization param gamma
+  Real beta; // time discretization param β
+  Real gamma; // time discretization param γ
 
   Real3 f = {0,0,0}; // body force 𝐟
 
-  Real E;                     // Youngs modulus
-  Real nu;                    // Poissons ratio
-  Real rho;                   // Density
-  Real cp;                    // Primary wave velocity of soil
-  Real cs;                    // Secondary wave velocity of soil
-  Real f1;                    // Body force in x
-  Real f2;                    // Body force in y
-  Real mu;                    // Lame parameter mu
-  Real mu2;                   // Lame parameter mu * 2
-  Real lambda;                // Lame parameter lambda
+  Real E; // Youngs modulus 𝐸
+  Real nu; // Poissons ratio ν
+  Real rho; // Density ρ
+  Real mu; // Lame parameter μ
+  Real lambda; // Lame parameter λ
+  Real cp; // Primary wave velocity of soil
+  Real cs; // Secondary wave velocity of soil
 
-  Real c0;                    // constant
-  Real c1;                    // constant
-  Real c2;                    // constant
-  Real c3;                    // constant
-  Real c4;                    // constant
-  Real c5;                    // constant
-  Real c6;                    // constant
-  Real c7;                    // constant
-  Real c8;                    // constant
-  Real c9;                    // constant
+  Real c0; // constant c₀
+  Real c1; // constant c₁
+  Real c2; // constant c₂
+  Real c3; // constant c₃
+  Real c4; // constant c₄
+  Real c5; // constant c₅
+  Real c6; // constant c₆
+  Real c7; // constant c₇
+  Real c8; // constant c₈
+  Real c9; // constant c₉
 
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
