@@ -295,7 +295,6 @@ _assembleLinearOperator()
       FixedMatrix<1, 6> dyUx = { dyu[0], 0., dyu[1], 0., dyu[2], 0. };
       FixedMatrix<1, 6> dxUy = { 0., dxu[0], 0., dxu[1], 0., dxu[2] };
       FixedMatrix<1, 6> dyUy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
-      IdentityMatrix<6> I6;
 
       FixedMatrix<1, 6> Un = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y,
                                m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y,
@@ -316,9 +315,9 @@ _assembleLinearOperator()
       //  ∫∫∫ (c₈)(∇𝐮ᵗᵗₙ.∇𝐯) + ∫∫∫ (c₁₀)(ε(𝐮ᵗᵗₙ):ε(𝐯))
       //----------------------------------------------------------------------
       FixedMatrix<1, 6> rhs = ( F * (1/3.)
-                              + Un * ((Uy ^ Uy) + (Ux ^ Ux) + I6)*(c0*1/12.)
-                              + Vn * ((Uy ^ Uy) + (Ux ^ Ux) + I6)*(c3*1/12.)
-                              + An * ((Uy ^ Uy) + (Ux ^ Ux) + I6)*(c4*1/12.)
+                              + Un * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy))*(c0*1/12.)
+                              + Vn * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy))*(c3*1/12.)
+                              + An * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy))*(c4*1/12.)
                               - Un * ((dyUy ^ dxUx) + (dxUx ^ dyUy)  +  (dxUx ^ dxUx) + (dyUy ^ dyUy)) * c5
                               - Un * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy)) +  ((dxUy + dyUx) ^ (dyUx + dxUy)))*c6
                               + Vn * ((dyUy ^ dxUx) + (dxUx ^ dyUy)  +  (dxUx ^ dxUx) + (dyUy ^ dyUy)) * c7
@@ -359,7 +358,6 @@ _assembleLinearOperator()
       FixedMatrix<1, 12> dxUz = { 0., 0., dxu[0],    0., 0., dxu[1],    0., 0., dxu[2],    0., 0., dxu[3] };
       FixedMatrix<1, 12> dyUz = { 0., 0., dyu[0],    0., 0., dyu[1],    0., 0., dyu[2],    0., 0., dyu[3] };
       FixedMatrix<1, 12> dzUz = { 0., 0., dzu[0],    0., 0., dzu[1],    0., 0., dzu[2],    0., 0., dzu[3] };
-      IdentityMatrix<12> I12;
 
       FixedMatrix<1, 12> Un = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y, m_U[cell.nodeId(0)].z,
                                 m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y, m_U[cell.nodeId(1)].z,
@@ -383,9 +381,9 @@ _assembleLinearOperator()
       //  ∫∫∫ (c₈)(∇𝐮ᵗᵗₙ.∇𝐯) + ∫∫∫ (c₁₀)(ε(𝐮ᵗᵗₙ):ε(𝐯))
       //----------------------------------------------------------------------
       FixedMatrix<1, 12> rhs = ( F * (1/4.)
-                              + Un * ((Uy ^ Uy) + (Ux ^ Ux) + (Uz ^ Uz) + I12)*(c0*1/20.)
-                              + Vn * ((Uy ^ Uy) + (Ux ^ Ux) + (Uz ^ Uz) + I12)*(c3*1/20.)
-                              + An * ((Uy ^ Uy) + (Ux ^ Ux) + (Uz ^ Uz) + I12)*(c4*1/20.)
+                              + Un * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz))*(c0*1/20.)
+                              + Vn * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz))*(c3*1/20.)
+                              + An * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz))*(c4*1/20.)
                               - Un * ((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) +
                                       (dyUy ^ dxUx) + (dxUx ^ dyUy) +
                                       (dzUz ^ dxUx) + (dxUx ^ dzUz) +

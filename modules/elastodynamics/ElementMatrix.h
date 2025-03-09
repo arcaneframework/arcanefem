@@ -46,13 +46,13 @@ _computeElementMatrixTria3(Cell cell)
 
   FixedMatrix<1, 6> Uy = {0., 1., 0., 1., 0., 1.};
   FixedMatrix<1, 6> Ux = {1., 0., 1., 0., 1., 0.};
+
   FixedMatrix<1, 6> dxUx = { dxu[0], 0., dxu[1], 0., dxu[2], 0. };
   FixedMatrix<1, 6> dyUx = { dyu[0], 0., dyu[1], 0., dyu[2], 0. };
   FixedMatrix<1, 6> dxUy = { 0., dxu[0], 0., dxu[1], 0., dxu[2] };
   FixedMatrix<1, 6> dyUy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
-  IdentityMatrix<6> I6;
 
-  FixedMatrix<6, 6> int_Omega_i = (c0 / 12.) * ((Uy ^ Uy) + (Ux ^ Ux) + I6) * area +
+  FixedMatrix<6, 6> int_Omega_i = (c0 / 12.) * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy)) * area +
                                   (c1) * ((dyUy ^ dxUx) + (dxUx ^ dyUy)) * area +
                                   (2*c2 + c1) * ((dxUx ^ dxUx) + (dyUy ^ dyUy)) * area +
                                   (c2) * ((dxUy + dyUx) ^ (dyUx + dxUy)) * area;
@@ -99,8 +99,6 @@ FixedMatrix<12, 12> FemModule::_computeElementMatrixTetra4(Cell cell)
 
   Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
 
-  IdentityMatrix<12> I12;
-
   FixedMatrix<1, 12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
   FixedMatrix<1, 12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. };
   FixedMatrix<1, 12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. };
@@ -117,7 +115,7 @@ FixedMatrix<12, 12> FemModule::_computeElementMatrixTetra4(Cell cell)
   FixedMatrix<1, 12> dyUz = { 0., 0., dyu[0],    0., 0., dyu[1],    0., 0., dyu[2],    0., 0., dyu[3] };
   FixedMatrix<1, 12> dzUz = { 0., 0., dzu[0],    0., 0., dzu[1],    0., 0., dzu[2],    0., 0., dzu[3] };
 
-  FixedMatrix<12, 12> int_Omega_i = (c0 / 20.) * ((Uy ^ Uy) + (Ux ^ Ux) + (Uz ^ Uz) + (I12)) * volume +
+  FixedMatrix<12, 12> int_Omega_i = (c0 / 20.) * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz)) * volume +
                                     (c1)*((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) +
                                           (dyUy ^ dxUx) + (dxUx ^ dyUy) +
                                           (dzUz ^ dxUx) + (dxUx ^ dzUz) +
