@@ -94,14 +94,18 @@ _doStationarySolve()
 
   // Assemble the FEM bilinear operator (LHS - matrix A)
   if(t<=dt){
-    _assemble2dBilinearOperatorTria3();
-    _assemble2dBilinearOperatorEdge2();
+    if (mesh()->dimension() == 2){
+      _assemble2dBilinearOperatorTria3();
+      _assemble2dBilinearOperatorEdge2();
+    }
+    if (mesh()->dimension() == 3){
+      _assemble3dBilinearOperatorTetra4();
+      _assemble3dBilinearOperatorTria3();
+    }
   }
 
-  // Assemble the FEM linear operator (RHS - vector b)
   _assembleLinearOperator();
 
-  // Solve for [u1,u2]
   _solve();
 
 }
@@ -211,29 +215,57 @@ _updateVariables()
   // Note at this stage we already have calculated dU
   Real alocX;
   Real alocY;
+  Real alocZ;
 
   VariableDoFReal& dof_u(m_linear_system.solutionVariable());
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  ENUMERATE_ (Node, inode, allNodes()) {
-    Node node = *inode;
+  if (mesh()->dimension() == 2)
+    ENUMERATE_ (Node, inode, allNodes()) {
+      Node node = *inode;
 
-    alocX = (m_dU[node].x - m_U[node].x - dt*m_V[node].x)/beta/(dt*dt)
-                  - (1.-2.*beta)/2./beta*m_A[node].x;
-    alocY = (m_dU[node].y - m_U[node].y - dt*m_V[node].y)/beta/(dt*dt)
-                  - (1.-2.*beta)/2./beta*m_A[node].y;
+      alocX = (m_dU[node].x - m_U[node].x - dt * m_V[node].x) / beta / (dt * dt) - (1. - 2. * beta) / 2. / beta * m_A[node].x;
+      alocY = (m_dU[node].y - m_U[node].y - dt * m_V[node].y) / beta / (dt * dt) - (1. - 2. * beta) / 2. / beta * m_A[node].y;
 
-    m_V[node].x = m_V[node].x + dt*((1.-gamma)*m_A[node].x + gamma*alocX);
-    m_V[node].y = m_V[node].y + dt*((1.-gamma)*m_A[node].y + gamma*alocY);
+      m_V[node].x = m_V[node].x + dt * ((1. - gamma) * m_A[node].x + gamma * alocX);
+      m_V[node].y = m_V[node].y + dt * ((1. - gamma) * m_A[node].y + gamma * alocY);
 
-    m_A[node].x = alocX;
-    m_A[node].y = alocY;
+      m_A[node].x = alocX;
+      m_A[node].y = alocY;
 
-    m_U[node].x = m_dU[node].x;
-    m_U[node].y = m_dU[node].y;
-  }
+      m_U[node].x = m_dU[node].x;
+      m_U[node].y = m_dU[node].y;
+    }
+  if (mesh()->dimension() == 3)
+    ENUMERATE_ (Node, inode, allNodes()) {
+      Node node = *inode;
+
+      alocX = (m_dU[node].x - m_U[node].x - dt * m_V[node].x) / beta / (dt * dt) - (1. - 2. * beta) / 2. / beta * m_A[node].x;
+      alocY = (m_dU[node].y - m_U[node].y - dt * m_V[node].y) / beta / (dt * dt) - (1. - 2. * beta) / 2. / beta * m_A[node].y;
+      alocZ = (m_dU[node].z - m_U[node].z - dt * m_V[node].z) / beta / (dt * dt) - (1. - 2. * beta) / 2. / beta * m_A[node].z;
+
+      m_V[node].x = m_V[node].x + dt * ((1. - gamma) * m_A[node].x + gamma * alocX);
+      m_V[node].y = m_V[node].y + dt * ((1. - gamma) * m_A[node].y + gamma * alocY);
+      m_V[node].z = m_V[node].z + dt * ((1. - gamma) * m_A[node].z + gamma * alocZ);
+
+      m_A[node].x = alocX;
+      m_A[node].y = alocY;
+      m_A[node].z = alocZ;
+
+      m_U[node].x = m_dU[node].x;
+      m_U[node].y = m_dU[node].y;
+      m_U[node].z = m_dU[node].z;
+    }
 }
 
+void FemModule::
+_assembleLinearOperator()
+{
+  if (mesh()->dimension() == 2)
+    _assembleLinearOperator2d();
+  if (mesh()->dimension() == 3)
+    _assembleLinearOperator3d();
+}
 /*---------------------------------------------------------------------------*/
 // Assemble the FEM linear operator
 //  - This function enforces a Dirichlet boundary condition in a weak sense
@@ -243,7 +275,7 @@ _updateVariables()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleLinearOperator()
+_assembleLinearOperator2d()
 {
   info() << "[ArcaneFem-Info] Started module  _assembleLinearOperator()";
   Real elapsedTime = platform::getRealTime();
@@ -313,17 +345,16 @@ _assembleLinearOperator()
         ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'", case_table_info.file_name);
       inn->value(t, trac);
 
-      if (mesh()->dimension() == 2)
-        ENUMERATE_ (Face, iface, group) {
-          Face face = *iface;
-          Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-          for (Node node : iface->nodes()) {
-            if (node.isOwn()) {
-              rhs_values[node_dof.dofId(node, 0)] += trac.x * length / 2.;
-              rhs_values[node_dof.dofId(node, 1)] += trac.y * length / 2.;
-            }
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
+        for (Node node : iface->nodes()) {
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += trac.x * length / 2.;
+            rhs_values[node_dof.dofId(node, 1)] += trac.y * length / 2.;
           }
         }
+      }
       continue;
     }
     else {
@@ -340,18 +371,17 @@ _assembleLinearOperator()
         }
       }
 
-      if (mesh()->dimension() == 2)
-        if (t_string[0] != "NULL" || t_string[1] != "NULL")
-          ENUMERATE_ (Face, iface, group) {
-            Face face = *iface;
-            Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-            for (Node node : iface->nodes()) {
-              if (node.isOwn()) {
-                rhs_values[node_dof.dofId(node, 0)] += trac[0] * length / 2.;
-                rhs_values[node_dof.dofId(node, 1)] += trac[1] * length / 2.;
-              }
+      if (t_string[0] != "NULL" || t_string[1] != "NULL")
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
+          for (Node node : iface->nodes()) {
+            if (node.isOwn()) {
+              rhs_values[node_dof.dofId(node, 0)] += trac[0] * length / 2.;
+              rhs_values[node_dof.dofId(node, 1)] += trac[1] * length / 2.;
             }
           }
+        }
     }
   }
 
@@ -376,26 +406,346 @@ _assembleLinearOperator()
       FixedMatrix<1, 4> Vn = {m_V[face.nodeId(0)].x,  m_V[face.nodeId(0)].y,  m_V[face.nodeId(1)].x, m_V[face.nodeId(1)].y};
       FixedMatrix<1, 4> An = {m_A[face.nodeId(0)].x,  m_A[face.nodeId(0)].y,  m_A[face.nodeId(1)].x, m_A[face.nodeId(1)].y};
 
-      FixedMatrix<1, 4> rhs = (c7*(N.x*N.x*cp + N.y*N.y*cs)) * Un* (massMatrix(Ux,Ux)) * length/6. +
-                              (c7*(N.y*N.y*cp + N.x*N.x*cs)) * Un*  (massMatrix(Uy,Uy)) * length/6. +
-                              (c7*(N.x*N.y*(cp - cs))) *Un* (massMatrix(Ux,Uy)) * length/6. +
-                              (c7*(N.x*N.y*(cp - cs))) * Un* (massMatrix(Uy,Ux)) * length/6. +
+      FixedMatrix<1, 4> rhs = (c7*(N.x*N.x*cp + N.y*N.y*cs)) * Un * (massMatrix(Ux,Ux)) * length/6. +
+                              (c7*(N.y*N.y*cp + N.x*N.x*cs)) * Un *  (massMatrix(Uy,Uy)) * length/6. +
+                              (c7*(N.x*N.y*(cp - cs))) * Un * (massMatrix(Ux,Uy)) * length/6. +
+                              (c7*(N.x*N.y*(cp - cs))) * Un * (massMatrix(Uy,Ux)) * length/6. +
 
-                             -((c8*(N.x*N.x*cp + N.y*N.y*cs)) * Vn* (massMatrix(Ux,Ux)) * length/6. +
-                               (c8*(N.y*N.y*cp + N.x*N.x*cs)) * Vn*  (massMatrix(Uy,Uy)) * length/6. +
-                               (c8*(N.x*N.y*(cp - cs))) * Vn* (massMatrix(Ux,Uy)) * length/6. +
-                               (c8*(N.x*N.y*(cp - cs))) * Vn* (massMatrix(Uy,Ux)) * length/6.)
+                             -((c8*(N.x*N.x*cp + N.y*N.y*cs)) * Vn * (massMatrix(Ux,Ux)) * length/6. +
+                               (c8*(N.y*N.y*cp + N.x*N.x*cs)) * Vn *  (massMatrix(Uy,Uy)) * length/6. +
+                               (c8*(N.x*N.y*(cp - cs))) * Vn * (massMatrix(Ux,Uy)) * length/6. +
+                               (c8*(N.x*N.y*(cp - cs))) * Vn * (massMatrix(Uy,Ux)) * length/6.)
 
-                             -((c9*(N.x*N.x*cp + N.y*N.y*cs)) * An* (massMatrix(Ux,Ux)) * length/6. +
-                               (c9*(N.y*N.y*cp + N.x*N.x*cs)) * An*  (massMatrix(Uy,Uy)) * length/6. +
-                               (c9*(N.x*N.y*(cp - cs))) * An* (massMatrix(Ux,Uy)) * length/6. +
-                               (c9*(N.x*N.y*(cp - cs))) * An* (massMatrix(Uy,Ux)) * length/6.)
+                             -((c9*(N.x*N.x*cp + N.y*N.y*cs)) * An * (massMatrix(Ux,Ux)) * length/6. +
+                               (c9*(N.y*N.y*cp + N.x*N.x*cs)) * An *  (massMatrix(Uy,Uy)) * length/6. +
+                               (c9*(N.x*N.y*(cp - cs))) * An * (massMatrix(Ux,Uy)) * length/6. +
+                               (c9*(N.x*N.y*(cp - cs))) * An * (massMatrix(Uy,Ux)) * length/6.)
                                ;
 
       rhs_values[node_dof.dofId(face.nodeId(0), 0)] += rhs(0,0);
       rhs_values[node_dof.dofId(face.nodeId(0), 1)] += rhs(0,1);
       rhs_values[node_dof.dofId(face.nodeId(1), 0)] += rhs(0,2);
       rhs_values[node_dof.dofId(face.nodeId(1), 1)] += rhs(0,3);
+    }
+  }
+
+  //----------------------------------------------
+  // Dirichlet conditions to LHS and RHS
+  //----------------------------------------------
+
+  for (const auto& bs : options()->dirichletBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    const UniqueArray<String> u_dirichlet_string = bs->u();
+
+    info() << "[ArcaneFem-Info] Applying Dirichlet " << u_dirichlet_string;
+    info() << "[ArcaneFem-Info] Dirichlet surface '" << bs->surface().name() << "'";
+    info() << "[ArcaneFem-Info] Dirichlet method '" << options()->enforceDirichletMethod() << "'";
+
+    if (options()->enforceDirichletMethod() == "Penalty") {
+
+      Real Penalty = options()->penalty();
+
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Face, iface, group) {
+            for (Node node : iface->nodes()) {
+              DoFLocalId dof_id = node_dof.dofId(node, i);
+              if (node.isOwn()) {
+                m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
+                rhs_values[dof_id] = Penalty * u_dirichlet;
+              }
+            }
+          }
+        }
+      }
+    }
+    else {
+      ARCANE_FATAL("Dirichlet enforcing Method Not implemented use Penalty");
+    }
+  }
+
+  for (const auto& bs : options()->dirichletPointCondition()) {
+    NodeGroup group = bs->node();
+    const UniqueArray<String> u_dirichlet_string = bs->u();
+
+    info() << "[ArcaneFem-Info] Applying point Dirichlet " << u_dirichlet_string;
+    info() << "[ArcaneFem-Info] Dirichlet points '" << group.name() << "'";
+    info() << "[ArcaneFem-Info] Dirichlet method '" << options()->enforceDirichletMethod() << "'";
+
+    if (options()->enforceDirichletMethod() == "Penalty") {
+      Real Penalty = options()->penalty();
+
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Node, inode, group) {
+            Node node = *inode;
+            DoFLocalId dof_id = node_dof.dofId(node, i);
+            if (node.isOwn()) {
+              m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
+              rhs_values[dof_id] = Penalty * u_dirichlet;
+            }
+          }
+        }
+      }
+    }
+    else {
+      ARCANE_FATAL("Dirichlet enforcing Method Not implemented use Penalty");
+    }
+  }
+
+  //----------------------------------------------
+  // Double-couple term assembly
+  //----------------------------------------------
+
+  // Index of the boundary condition. Needed to associate a CaseTable
+  Int32 boundary_condition_index_dc = 0;
+
+  for (const auto& bs : options()->doubleCouple()) {
+
+    const CaseTableInfo& case_table_dc_info = m_double_couple_case_table_list[boundary_condition_index_dc];
+
+    ++boundary_condition_index_dc;
+
+    Real dc_force; // double-couple force
+
+    String file_name = bs->doubleCoupleInputFile();
+    info() << "Applying boundary conditions for surface via CaseTable" <<  file_name;
+
+    CaseTable* dc_case_table_inn = case_table_dc_info.case_table;
+
+    dc_case_table_inn->value(t, dc_force);
+
+    NodeGroup north = bs->northNodeName();
+    NodeGroup south = bs->southNodeName();
+    NodeGroup east  = bs->eastNodeName();
+    NodeGroup west  = bs->westNodeName();
+
+    ENUMERATE_ (Node, inode, north) {
+      Node node = *inode;
+      DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+      rhs_values[dof_id1] = dc_force;
+    }
+    ENUMERATE_ (Node, inode, south) {
+      Node node = *inode;
+      DoFLocalId dof_id1 = node_dof.dofId(node, 0);
+      rhs_values[dof_id1] = -dc_force;
+    }
+    ENUMERATE_ (Node, inode, east) {
+      Node node = *inode;
+      DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+      rhs_values[dof_id2] = -dc_force;
+    }
+    ENUMERATE_ (Node, inode, west) {
+      Node node = *inode;
+      DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+      rhs_values[dof_id2] = dc_force;
+    }
+
+  }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-vector-assembly", elapsedTime);
+}
+
+void FemModule::
+_assembleLinearOperator3d()
+{
+  info() << "[ArcaneFem-Info] Started module  _assembleLinearOperator()";
+  Real elapsedTime = platform::getRealTime();
+
+  // Temporary variable to keep values for the RHS part of the linear system
+  VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
+  rhs_values.fill(0.0);
+
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
+
+    FixedMatrix<1, 12> Ux = {1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0.};
+    FixedMatrix<1, 12> Uy = {0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0.};
+    FixedMatrix<1, 12> Uz = {0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1.};
+
+    FixedMatrix<1, 12> F = { f[0], f[1], f[2], f[0], f[1], f[2], f[0], f[1], f[2] };
+
+    FixedMatrix<1, 12> Un = {m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y, m_U[cell.nodeId(0)].z,
+                             m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y, m_U[cell.nodeId(1)].z,
+                             m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y, m_U[cell.nodeId(2)].z,
+                             m_U[cell.nodeId(3)].x, m_U[cell.nodeId(3)].y, m_U[cell.nodeId(3)].z};
+
+    FixedMatrix<1, 12> Vn = {m_V[cell.nodeId(0)].x, m_V[cell.nodeId(0)].y, m_V[cell.nodeId(0)].z,
+                             m_V[cell.nodeId(1)].x, m_V[cell.nodeId(1)].y, m_V[cell.nodeId(1)].z,
+                             m_V[cell.nodeId(2)].x, m_V[cell.nodeId(2)].y, m_V[cell.nodeId(2)].z,
+                             m_V[cell.nodeId(3)].x, m_V[cell.nodeId(3)].y, m_V[cell.nodeId(3)].z};
+
+    FixedMatrix<1, 12> An = {m_A[cell.nodeId(0)].x, m_A[cell.nodeId(0)].y, m_A[cell.nodeId(0)].z,
+                             m_A[cell.nodeId(1)].x, m_A[cell.nodeId(1)].y, m_A[cell.nodeId(1)].z,
+                             m_A[cell.nodeId(2)].x, m_A[cell.nodeId(2)].y, m_A[cell.nodeId(2)].z,
+                             m_A[cell.nodeId(3)].x, m_A[cell.nodeId(3)].y, m_A[cell.nodeId(3)].z};
+
+    //----------------------------------------------------------------------
+    //  ∫∫∫ (𝐟.𝐯) + ∫∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯)
+    //----------------------------------------------------------------------
+    FixedMatrix<1, 12> rhs = (  F * (1/4.)
+                              + Un * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz))*(c0*1/20.)
+                              + Vn * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz))*(c3*1/20.)
+                              + An * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz))*(c4*1/20.)
+                            ) * volume;
+
+     rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0,0);
+     rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(0,1);
+     rhs_values[node_dof.dofId(cell.nodeId(0), 2)] += rhs(0,2);
+     rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(0,3);
+     rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(0,4);
+     rhs_values[node_dof.dofId(cell.nodeId(1), 2)] += rhs(0,5);
+     rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(0,6);
+     rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(0,7);
+     rhs_values[node_dof.dofId(cell.nodeId(2), 2)] += rhs(0,8);
+     rhs_values[node_dof.dofId(cell.nodeId(3), 0)] += rhs(0,9);
+     rhs_values[node_dof.dofId(cell.nodeId(3), 1)] += rhs(0,10);
+     rhs_values[node_dof.dofId(cell.nodeId(3), 2)] += rhs(0,11);
+  }
+
+  //----------------------------------------------------------------------
+  // traction term ∫∫ (𝐭.𝐯)  with 𝐭 = (𝑡𝑥, 𝑡𝑦, 𝑡𝑧) = (t[0], t[1], t[2])
+  //----------------------------------------------------------------------
+  // Index of the boundary condition. Needed to associate a CaseTable
+  Int32 boundary_condition_index = 0;
+  for (const auto& bs : options()->tractionBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    const CaseTableInfo& case_table_info = m_traction_case_table_list[boundary_condition_index];
+    ++boundary_condition_index;
+
+    Real3 trac; // traction in x, y and z
+
+    if (bs->tractionInputFile.isPresent()) {
+
+      String file_name = bs->tractionInputFile();
+      info() << "Applying traction boundary conditions for surface " << group.name()
+             << " via CaseTable" << file_name;
+      CaseTable* inn = case_table_info.case_table;
+      if (!inn)
+        ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _readCaseTables()");
+      if (file_name != case_table_info.file_name)
+        ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'", case_table_info.file_name);
+      inn->value(t, trac);
+
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
+        for (Node node : iface->nodes()) {
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += trac.x * area / 3.;
+            rhs_values[node_dof.dofId(node, 1)] += trac.y * area / 3.;
+            rhs_values[node_dof.dofId(node, 2)] += trac.z * area / 3.;
+          }
+        }
+      }
+      continue;
+    }
+    else {
+      const UniqueArray<String> t_string = bs->t();
+      Real3 trac;
+
+      info() << "[ArcaneFem-Info] Applying Traction " << t_string;
+      info() << "[ArcaneFem-Info] Traction surface '" << bs->surface().name() << "'";
+
+      for (Int32 i = 0; i < t_string.size(); ++i) {
+        trac[i] = 0.0;
+        if (t_string[i] != "NULL") {
+          trac[i] = std::stod(t_string[i].localstr());
+        }
+      }
+
+      if (t_string[0] != "NULL" || t_string[1] != "NULL" || t_string[2] != "NULL")
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
+        for (Node node : iface->nodes()) {
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += trac[0] * area / 3.;
+            rhs_values[node_dof.dofId(node, 1)] += trac[1] * area / 3.;
+            rhs_values[node_dof.dofId(node, 2)] += trac[2] * area / 3.;
+          }
+        }
+      }
+    }
+  }
+
+  //----------------------------------------------
+  // Paraxial term assembly
+  //----------------------------------------------
+  for (const auto& bs : options()->paraxialBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+
+    info() << "Applying constant paraxial boundary conditions for surface "<< group.name();
+
+    ENUMERATE_ (Face, iface, group) {
+      Face face = *iface;
+
+      Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
+      Real3 N = ArcaneFemFunctions::MeshOperation::computeNormalTriangle(face, m_node_coord);
+
+      FixedMatrix<1, 9> Ux = {1., 0., 0., 1., 0., 0., 1., 0., 0.};
+      FixedMatrix<1, 9> Uy = {0., 1., 0., 0., 1., 0., 0., 1., 0.};
+      FixedMatrix<1, 9> Uz = {0., 0., 1., 0., 0., 1., 0., 0., 1.};
+
+      FixedMatrix<1, 9> Un = {m_U[face.nodeId(0)].x,  m_U[face.nodeId(0)].y,  m_U[face.nodeId(0)].z,
+                              m_U[face.nodeId(1)].x,  m_U[face.nodeId(1)].y,  m_U[face.nodeId(1)].z,
+                              m_U[face.nodeId(2)].x,  m_U[face.nodeId(2)].y,  m_U[face.nodeId(2)].z,
+                            };
+      FixedMatrix<1, 9> Vn = {m_V[face.nodeId(0)].x,  m_V[face.nodeId(0)].y,  m_V[face.nodeId(0)].z,
+                              m_V[face.nodeId(1)].x,  m_V[face.nodeId(1)].y,  m_V[face.nodeId(1)].z,
+                              m_V[face.nodeId(2)].x,  m_V[face.nodeId(2)].y,  m_V[face.nodeId(2)].z,
+                            };
+      FixedMatrix<1, 9> An = {m_A[face.nodeId(0)].x,  m_A[face.nodeId(0)].y,  m_A[face.nodeId(0)].z,
+                              m_A[face.nodeId(1)].x,  m_A[face.nodeId(1)].y,  m_A[face.nodeId(1)].z,
+                              m_A[face.nodeId(2)].x,  m_A[face.nodeId(2)].y,  m_A[face.nodeId(2)].z,
+                            };
+
+      FixedMatrix<1, 9> rhs = (c7*(N.x*N.x*cp + (1.-N.x*N.x)*cs)) * Un * (massMatrix(Ux,Ux)) * area/12. +
+                              (c7*(N.y*N.y*cp + (1.-N.y*N.y)*cs)) * Un * (massMatrix(Uy,Uy)) * area/12. +
+                              (c7*(N.z*N.z*cp + (1.-N.z*N.z)*cs)) * Un * (massMatrix(Uz,Uz)) * area/12. +
+                              (c7*(N.x*N.y*(cp - cs))) * Un * (massMatrix(Ux,Uy)) * area/12. +
+                              (c7*(N.x*N.z*(cp - cs))) * Un * (massMatrix(Ux,Uz)) * area/12. +
+                              (c7*(N.y*N.x*(cp - cs))) * Un * (massMatrix(Uy,Ux)) * area/12. +
+                              (c7*(N.y*N.z*(cp - cs))) * Un * (massMatrix(Uy,Uz)) * area/12. +
+                              (c7*(N.z*N.x*(cp - cs))) * Un * (massMatrix(Uz,Ux)) * area/12. +
+                              (c7*(N.z*N.y*(cp - cs))) * Un * (massMatrix(Uz,Uy)) * area/12.
+
+                             -((c8*(N.x*N.x*cp + (1.-N.x*N.x)*cs)) * Vn * (massMatrix(Ux,Ux)) * area/12. +
+                               (c8*(N.y*N.y*cp + (1.-N.y*N.y)*cs)) * Vn * (massMatrix(Uy,Uy)) * area/12. +
+                               (c8*(N.z*N.z*cp + (1.-N.z*N.z)*cs)) * Vn * (massMatrix(Uz,Uz)) * area/12. +
+                               (c8*(N.x*N.y*(cp - cs))) * Vn * (massMatrix(Ux,Uy)) * area/12. +
+                               (c8*(N.x*N.z*(cp - cs))) * Vn * (massMatrix(Ux,Uz)) * area/12. +
+                               (c8*(N.y*N.x*(cp - cs))) * Vn * (massMatrix(Uy,Ux)) * area/12. +
+                               (c8*(N.y*N.z*(cp - cs))) * Vn * (massMatrix(Uy,Uz)) * area/12. +
+                               (c8*(N.z*N.x*(cp - cs))) * Vn * (massMatrix(Uz,Ux)) * area/12. +
+                               (c8*(N.z*N.y*(cp - cs))) * Vn * (massMatrix(Uz,Uy)) * area/12.)
+
+                             -((c9*(N.x*N.x*cp + (1.-N.x*N.x)*cs)) * An * (massMatrix(Ux,Ux)) * area/12. +
+                               (c9*(N.y*N.y*cp + (1.-N.y*N.y)*cs)) * An * (massMatrix(Uy,Uy)) * area/12. +
+                               (c9*(N.z*N.z*cp + (1.-N.z*N.z)*cs)) * An * (massMatrix(Uz,Uz)) * area/12. +
+                               (c9*(N.x*N.y*(cp - cs))) * An * (massMatrix(Ux,Uy)) * area/12. +
+                               (c9*(N.x*N.z*(cp - cs))) * An * (massMatrix(Ux,Uz)) * area/12. +
+                               (c9*(N.y*N.x*(cp - cs))) * An * (massMatrix(Uy,Ux)) * area/12. +
+                               (c9*(N.y*N.z*(cp - cs))) * An * (massMatrix(Uy,Uz)) * area/12. +
+                               (c9*(N.z*N.x*(cp - cs))) * An * (massMatrix(Uz,Ux)) * area/12. +
+                               (c9*(N.z*N.y*(cp - cs))) * An * (massMatrix(Uz,Uy)) * area/12.)
+                               ;
+
+      rhs_values[node_dof.dofId(face.nodeId(0), 0)] += rhs(0,0);
+      rhs_values[node_dof.dofId(face.nodeId(0), 1)] += rhs(0,1);
+      rhs_values[node_dof.dofId(face.nodeId(0), 2)] += rhs(0,2);
+      rhs_values[node_dof.dofId(face.nodeId(1), 0)] += rhs(0,3);
+      rhs_values[node_dof.dofId(face.nodeId(1), 1)] += rhs(0,4);
+      rhs_values[node_dof.dofId(face.nodeId(1), 2)] += rhs(0,5);
+      rhs_values[node_dof.dofId(face.nodeId(2), 0)] += rhs(0,6);
+      rhs_values[node_dof.dofId(face.nodeId(2), 1)] += rhs(0,7);
+      rhs_values[node_dof.dofId(face.nodeId(2), 2)] += rhs(0,8);
     }
   }
 
@@ -611,6 +961,120 @@ _assemble2dBilinearOperatorEdge2()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
+_assemble3dBilinearOperatorTetra4()
+{
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+
+    auto K_e = _compute3dElementMatrixTetra4(cell);
+    Int32 n1_index = 0;
+    for (Node node1 : cell.nodes()) {
+      Int32 n2_index = 0;
+      for (Node node2 : cell.nodes()) {
+        Real v1 = K_e(3 * n1_index, 3 * n2_index);
+        Real v2 = K_e(3 * n1_index, 3 * n2_index + 1);
+        Real v3 = K_e(3 * n1_index, 3 * n2_index + 2);
+
+        Real v4 = K_e(3 * n1_index + 1, 3 * n2_index);
+        Real v5 = K_e(3 * n1_index + 1, 3 * n2_index + 1);
+        Real v6 = K_e(3 * n1_index + 1, 3 * n2_index + 2);
+
+        Real v7 = K_e(3 * n1_index + 2, 3 * n2_index);
+        Real v8 = K_e(3 * n1_index + 2, 3 * n2_index + 1);
+        Real v9 = K_e(3 * n1_index + 2, 3 * n2_index + 2);
+        if (node1.isOwn()) {
+          DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
+          DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
+          DoFLocalId node1_dof3 = node_dof.dofId(node1, 2);
+          DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
+          DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
+          DoFLocalId node2_dof3 = node_dof.dofId(node2, 2);
+
+          m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
+          m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
+          m_linear_system.matrixAddValue(node1_dof1, node2_dof3, v3);
+
+          m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v4);
+          m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v5);
+          m_linear_system.matrixAddValue(node1_dof2, node2_dof3, v6);
+
+          m_linear_system.matrixAddValue(node1_dof3, node2_dof1, v7);
+          m_linear_system.matrixAddValue(node1_dof3, node2_dof2, v8);
+          m_linear_system.matrixAddValue(node1_dof3, node2_dof3, v9);
+        }
+        ++n2_index;
+      }
+      ++n1_index;
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assemble3dBilinearOperatorTria3()
+{
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  for (const auto& bs : options()->paraxialBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+
+    ENUMERATE_ (Face, iface, group) {
+      Face face = *iface;
+
+      auto K_e = _compute3dElementMatrixTria3(face);  // element stiffness matrix
+
+      Int32 n1_index = 0;
+      for (Node node1 : face.nodes() ) {
+        Int32 n2_index = 0;
+        for (Node node2 : face.nodes()) {
+          Real v1 = K_e(3 * n1_index    , 3 * n2_index    );
+          Real v2 = K_e(3 * n1_index    , 3 * n2_index + 1);
+          Real v3 = K_e(3 * n1_index    , 3 * n2_index + 2);
+
+          Real v4 = K_e(3 * n1_index + 1, 3 * n2_index    );
+          Real v5 = K_e(3 * n1_index + 1, 3 * n2_index + 1);
+          Real v6 = K_e(3 * n1_index + 1, 3 * n2_index + 2);
+
+          Real v7 = K_e(3 * n1_index + 2, 3 * n2_index    );
+          Real v8 = K_e(3 * n1_index + 2, 3 * n2_index + 1);
+          Real v9 = K_e(3 * n1_index + 2, 3 * n2_index + 2);
+          if (node1.isOwn()) {
+            DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
+            DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
+            DoFLocalId node1_dof3 = node_dof.dofId(node1, 2);
+
+            DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
+            DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
+            DoFLocalId node2_dof3 = node_dof.dofId(node2, 2);
+
+            m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
+            m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
+            m_linear_system.matrixAddValue(node1_dof1, node2_dof3, v3);
+
+            m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v4);
+            m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v5);
+            m_linear_system.matrixAddValue(node1_dof2, node2_dof3, v6);
+
+            m_linear_system.matrixAddValue(node1_dof3, node2_dof1, v7);
+            m_linear_system.matrixAddValue(node1_dof3, node2_dof2, v8);
+            m_linear_system.matrixAddValue(node1_dof3, node2_dof3, v9);
+          }
+          ++n2_index;
+        }
+        ++n1_index;
+      }
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
 _solve()
 {
   info() << "[ArcaneFem-Info] Started module  _solve()";
@@ -621,14 +1085,27 @@ _solve()
   {
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    if (mesh()->dimension() == 2)
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
-      Real  u1_val = dof_u[node_dof.dofId(node, 0)];
-      Real  u2_val = dof_u[node_dof.dofId(node, 1)];
+      Real u1_val = dof_u[node_dof.dofId(node, 0)];
+      Real u2_val = dof_u[node_dof.dofId(node, 1)];
       Real3 u_disp;
       u_disp.x = u1_val;
       u_disp.y = u2_val;
-      u_disp.z = 0.;
+      u_disp.z = 0.0;
+      m_dU[node] = u_disp;
+    }
+    if (mesh()->dimension() == 3)
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      Real u1_val = dof_u[node_dof.dofId(node, 0)];
+      Real u2_val = dof_u[node_dof.dofId(node, 1)];
+      Real u3_val = dof_u[node_dof.dofId(node, 2)];
+      Real3 u_disp;
+      u_disp.x = u1_val;
+      u_disp.y = u2_val;
+      u_disp.z = u3_val;
       m_dU[node] = u_disp;
     }
   }
