@@ -27,6 +27,7 @@ set(MESH_FILES
   semi-circle-soil.msh
   square_double-couple.msh
   soil_2d.msh
+  cube_double_couple_3d.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
     file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
@@ -45,6 +46,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   add_test(NAME [soildynamics]2d_double-couple_paraxial COMMAND Soildynamics inputs/double-couple.paraxial.arc)
   add_test(NAME [soildynamics]2d_double-couple_paraxial_body-force COMMAND Soildynamics inputs/double-couple.paraxial.body-force.arc)
   add_test(NAME [soildynamics]2d_double-couple_paraxial_soil COMMAND Soildynamics inputs/double-couple.paraxial.soil.arc)
+  add_test(NAME [soildynamics]3d_double-couple_paraxial_soil COMMAND Soildynamics inputs/3d.double-couple.paraxial.soil.arc)
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [soildynamics]2d_double-couple_paraxial_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/double-couple.paraxial.arc)
   endif()
