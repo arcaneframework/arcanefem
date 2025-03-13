@@ -45,7 +45,7 @@ compute()
   _updateVariables();
   _updateTime();
 
-  // At the last time stepp check error
+  // At the last time step check error
   if (t > tmax + dt - 1e-8)
     _validateResults();
 
@@ -66,7 +66,7 @@ startInit()
 
   _getParameters();
 
-  t    = dt;
+  t = dt;
   tmax = tmax;
   m_global_deltat.assign(dt);
 
@@ -91,23 +91,9 @@ _updateTime()
 void FemModule::
 _doStationarySolve()
 {
-
-  // Assemble the FEM bilinear operator (LHS - matrix A)
-  if(t<=dt){
-    if (mesh()->dimension() == 2){
-      _assemble2dBilinearOperatorTria3();
-      _assemble2dBilinearOperatorEdge2();
-    }
-    if (mesh()->dimension() == 3){
-      _assemble3dBilinearOperatorTetra4();
-      _assemble3dBilinearOperatorTria3();
-    }
-  }
-
+  _assembleBilinearOperator();
   _assembleLinearOperator();
-
   _solve();
-
 }
 
 /*---------------------------------------------------------------------------*/
@@ -120,21 +106,21 @@ _getParameters()
   Real elapsedTime = platform::getRealTime();
 
   //--------- time parameters -----------//
-  tmax = options()->tmax();                // max time
-  dt   = options()->dt();                  // time step
+  tmax = options()->tmax(); // max time
+  dt = options()->dt(); // time step
 
   //--------- material parameter ---------//
-  E    = options()->E();                   // Youngs modulus
-  nu   = options()->nu();                  // Poission ratio
-  rho  = options()->rho();                 // Density
-  cp   = options()->cp();                  // Wave velocity primary
-  cs   = options()->cs();                  // Wave velocity secondary
+  E = options()->E(); // Youngs modulus
+  nu = options()->nu(); // Poission ratio
+  rho = options()->rho(); // Density
+  cp = options()->cp(); // Wave velocity primary
+  cs = options()->cs(); // Wave velocity secondary
 
-  if( options()->E.isPresent() && options()->nu.isPresent()) {
-    mu     = E/(2*(1+nu));                   // lame parameter mu
-    lambda = E*nu/((1+nu)*(1-2*nu));         // lame parameter lambda
-    cs     = math::sqrt(mu/rho);
-    cp     = math::sqrt((lambda+(2.*mu))/rho) ;
+  if (options()->E.isPresent() && options()->nu.isPresent()) {
+    mu = E / (2 * (1 + nu));
+    lambda = E * nu / ((1 + nu) * (1 - 2 * nu));
+    cs = math::sqrt(mu / rho);
+    cp = math::sqrt((lambda + (2. * mu)) / rho);
   }
 
   if (options()->mu.isPresent() && options()->lambda.isPresent()) {
@@ -149,7 +135,6 @@ _getParameters()
     lambda = cp * cp * rho - 2 * mu;
   }
 
-  //--------- body force ---------//
   if (options()->f.isPresent()) {
     const UniqueArray<String> f_string = options()->f();
     info() << "[ArcaneFem-Info] Applying Bodyforce " << f_string;
@@ -185,24 +170,23 @@ void FemModule::
 _readCaseTables()
 {
   IParallelMng* pm = subDomain()->parallelMng();
+
   for (const auto& bs : options()->tractionBoundaryCondition()) {
     CaseTable* case_table = nullptr;
-    String file_name;
-    if(bs->tractionInputFile.isPresent()){
-      file_name = bs->tractionInputFile();
-      case_table = readFileAsCaseTable(pm, file_name, 3);
-    }
-    m_traction_case_table_list.add(CaseTableInfo{file_name,case_table});
+
+    if (bs->tractionInputFile.isPresent())
+      case_table = readFileAsCaseTable(pm, bs->tractionInputFile(), 3);
+
+    m_traction_case_table_list.add(CaseTableInfo{ bs->tractionInputFile(), case_table });
   }
 
   for (const auto& bs : options()->doubleCouple()) {
     CaseTable* case_table = nullptr;
 
-    if(bs->doubleCoupleInputFile.isPresent()){
+    if (bs->doubleCoupleInputFile.isPresent())
       case_table = readFileAsCaseTable(pm, bs->doubleCoupleInputFile(), 1);
-    }
 
-    m_double_couple_case_table_list.add(CaseTableInfo{bs->doubleCoupleInputFile(),case_table});
+    m_double_couple_case_table_list.add(CaseTableInfo{ bs->doubleCoupleInputFile(), case_table });
   }
 }
 
@@ -212,13 +196,36 @@ _readCaseTables()
 void FemModule::
 _updateVariables()
 {
+
+  VariableDoFReal& dof_u(m_linear_system.solutionVariable());
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  if (mesh()->dimension() == 2)
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      Real u1_val = dof_u[node_dof.dofId(node, 0)];
+      Real u2_val = dof_u[node_dof.dofId(node, 1)];
+      Real3 u_disp = {u1_val, u2_val, 0.};
+      m_dU[node] = u_disp;
+    }
+  if (mesh()->dimension() == 3)
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      Real u1_val = dof_u[node_dof.dofId(node, 0)];
+      Real u2_val = dof_u[node_dof.dofId(node, 1)];
+      Real u3_val = dof_u[node_dof.dofId(node, 2)];
+      Real3 u_disp = {u1_val, u2_val, u3_val};
+      m_dU[node] = u_disp;
+    }
+
+  m_dU.synchronize();
+  m_U.synchronize();
+  m_V.synchronize();
+  m_A.synchronize();
+
   // Note at this stage we already have calculated dU
   Real alocX;
   Real alocY;
   Real alocZ;
-
-  VariableDoFReal& dof_u(m_linear_system.solutionVariable());
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   if (mesh()->dimension() == 2)
     ENUMERATE_ (Node, inode, allNodes()) {
@@ -266,6 +273,7 @@ _assembleLinearOperator()
   if (mesh()->dimension() == 3)
     _assembleLinearOperator3d();
 }
+
 /*---------------------------------------------------------------------------*/
 // Assemble the FEM linear operator
 //  - This function enforces a Dirichlet boundary condition in a weak sense
@@ -291,10 +299,12 @@ _assembleLinearOperator2d()
     Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
     Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
     Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
+
     FixedMatrix<1, 6> Uy = { 0., 1., 0., 1., 0., 1. };
     FixedMatrix<1, 6> Ux = { 1., 0., 1., 0., 1., 0. };
+
     FixedMatrix<1, 6> F = { f[0], f[1], f[0], f[1], f[0], f[1] };
-    IdentityMatrix<6> I6;
+
     FixedMatrix<1, 6> Un = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y,
                              m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y,
                              m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y };
@@ -307,18 +317,18 @@ _assembleLinearOperator2d()
     //----------------------------------------------------------------------
     //  ∫∫∫ (𝐟.𝐯) + ∫∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯)
     //----------------------------------------------------------------------
-    FixedMatrix<1, 6> rhs = ( F * (1/3.)
-                            + Un * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy))*(c0*1/12.)
-                            + Vn * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy))*(c3*1/12.)
-                            + An * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy))*(c4*1/12.)
+    FixedMatrix<1, 6> rhs = (   F * (1 / 3.)
+                              + Un * (massMatrix(Ux, Ux) + massMatrix(Uy, Uy)) * (c0 * 1 / 12.)
+                              + Vn * (massMatrix(Ux, Ux) + massMatrix(Uy, Uy)) * (c3 * 1 / 12.)
+                              + An * (massMatrix(Ux, Ux) + massMatrix(Uy, Uy)) * (c4 * 1 / 12.)
                             ) * area;
 
-    rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0,0);
-    rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(0,1);
-    rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(0,2);
-    rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(0,3);
-    rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(0,4);
-    rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(0,5);
+    rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0, 0);
+    rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(0, 1);
+    rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(0, 2);
+    rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(0, 3);
+    rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(0, 4);
+    rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(0, 5);
   }
 
   //----------------------------------------------------------------------
@@ -391,41 +401,41 @@ _assembleLinearOperator2d()
   for (const auto& bs : options()->paraxialBoundaryCondition()) {
     FaceGroup group = bs->surface();
 
-    info() << "Applying constant paraxial boundary conditions for surface "<< group.name();
+    info() << "[ArcaneFem-Info] Applying constant Paraxial boundary conditions for surface " << group.name();
 
     ENUMERATE_ (Face, iface, group) {
       Face face = *iface;
 
-      Real  length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
+      Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
       Real2 N = ArcaneFemFunctions::MeshOperation::computeNormalEdge2(face, m_node_coord);
 
-      FixedMatrix<1, 4> Uy = {0., 1., 0., 1.};
-      FixedMatrix<1, 4> Ux = {1., 0., 1., 0.};
+      FixedMatrix<1, 4> Uy = { 0., 1., 0., 1. };
+      FixedMatrix<1, 4> Ux = { 1., 0., 1., 0. };
 
-      FixedMatrix<1, 4> Un = {m_U[face.nodeId(0)].x,  m_U[face.nodeId(0)].y,  m_U[face.nodeId(1)].x, m_U[face.nodeId(1)].y};
-      FixedMatrix<1, 4> Vn = {m_V[face.nodeId(0)].x,  m_V[face.nodeId(0)].y,  m_V[face.nodeId(1)].x, m_V[face.nodeId(1)].y};
-      FixedMatrix<1, 4> An = {m_A[face.nodeId(0)].x,  m_A[face.nodeId(0)].y,  m_A[face.nodeId(1)].x, m_A[face.nodeId(1)].y};
+      FixedMatrix<1, 4> Un = { m_U[face.nodeId(0)].x, m_U[face.nodeId(0)].y, m_U[face.nodeId(1)].x, m_U[face.nodeId(1)].y };
+      FixedMatrix<1, 4> Vn = { m_V[face.nodeId(0)].x, m_V[face.nodeId(0)].y, m_V[face.nodeId(1)].x, m_V[face.nodeId(1)].y };
+      FixedMatrix<1, 4> An = { m_A[face.nodeId(0)].x, m_A[face.nodeId(0)].y, m_A[face.nodeId(1)].x, m_A[face.nodeId(1)].y };
 
-      FixedMatrix<1, 4> rhs = (c7*(N.x*N.x*cp + N.y*N.y*cs)) * Un * (massMatrix(Ux,Ux)) * length/6. +
-                              (c7*(N.y*N.y*cp + N.x*N.x*cs)) * Un *  (massMatrix(Uy,Uy)) * length/6. +
-                              (c7*(N.x*N.y*(cp - cs))) * Un * (massMatrix(Ux,Uy)) * length/6. +
-                              (c7*(N.x*N.y*(cp - cs))) * Un * (massMatrix(Uy,Ux)) * length/6. +
+      FixedMatrix<1, 4> rhs = ( (c7 * (N.x * N.x * cp + N.y * N.y * cs)) * Un * (massMatrix(Ux, Ux)) +
+                                (c7 * (N.y * N.y * cp + N.x * N.x * cs)) * Un * (massMatrix(Uy, Uy)) +
+                                (c7 * (N.x * N.y * (cp - cs))) * Un * (massMatrix(Ux, Uy)) +
+                                (c7 * (N.x * N.y * (cp - cs))) * Un * (massMatrix(Uy, Ux)) +
 
-                             -((c8*(N.x*N.x*cp + N.y*N.y*cs)) * Vn * (massMatrix(Ux,Ux)) * length/6. +
-                               (c8*(N.y*N.y*cp + N.x*N.x*cs)) * Vn *  (massMatrix(Uy,Uy)) * length/6. +
-                               (c8*(N.x*N.y*(cp - cs))) * Vn * (massMatrix(Ux,Uy)) * length/6. +
-                               (c8*(N.x*N.y*(cp - cs))) * Vn * (massMatrix(Uy,Ux)) * length/6.)
+                              - ( (c8 * (N.x * N.x * cp + N.y * N.y * cs)) * Vn * (massMatrix(Ux, Ux)) +
+                                  (c8 * (N.y * N.y * cp + N.x * N.x * cs)) * Vn * (massMatrix(Uy, Uy)) +
+                                  (c8 * (N.x * N.y * (cp - cs))) * Vn * (massMatrix(Ux, Uy)) +
+                                  (c8 * (N.x * N.y * (cp - cs))) * Vn * (massMatrix(Uy, Ux)) )
 
-                             -((c9*(N.x*N.x*cp + N.y*N.y*cs)) * An * (massMatrix(Ux,Ux)) * length/6. +
-                               (c9*(N.y*N.y*cp + N.x*N.x*cs)) * An *  (massMatrix(Uy,Uy)) * length/6. +
-                               (c9*(N.x*N.y*(cp - cs))) * An * (massMatrix(Ux,Uy)) * length/6. +
-                               (c9*(N.x*N.y*(cp - cs))) * An * (massMatrix(Uy,Ux)) * length/6.)
-                               ;
+                              - ( (c9 * (N.x * N.x * cp + N.y * N.y * cs)) * An * (massMatrix(Ux, Ux))  +
+                                  (c9 * (N.y * N.y * cp + N.x * N.x * cs)) * An * (massMatrix(Uy, Uy))  +
+                                  (c9 * (N.x * N.y * (cp - cs))) * An * (massMatrix(Ux, Uy)) +
+                                  (c9 * (N.x * N.y * (cp - cs))) * An * (massMatrix(Uy, Ux)) )
+                              ) * length / 6. ;
 
-      rhs_values[node_dof.dofId(face.nodeId(0), 0)] += rhs(0,0);
-      rhs_values[node_dof.dofId(face.nodeId(0), 1)] += rhs(0,1);
-      rhs_values[node_dof.dofId(face.nodeId(1), 0)] += rhs(0,2);
-      rhs_values[node_dof.dofId(face.nodeId(1), 1)] += rhs(0,3);
+      rhs_values[node_dof.dofId(face.nodeId(0), 0)] += rhs(0, 0);
+      rhs_values[node_dof.dofId(face.nodeId(0), 1)] += rhs(0, 1);
+      rhs_values[node_dof.dofId(face.nodeId(1), 0)] += rhs(0, 2);
+      rhs_values[node_dof.dofId(face.nodeId(1), 1)] += rhs(0, 3);
     }
   }
 
@@ -461,7 +471,7 @@ _assembleLinearOperator2d()
       }
     }
     else {
-      ARCANE_FATAL("Dirichlet enforcing Method Not implemented use Penalty");
+      ARCANE_FATAL("Dirichlet enforcing method not implemented use Penalty");
     }
   }
 
@@ -474,6 +484,7 @@ _assembleLinearOperator2d()
     info() << "[ArcaneFem-Info] Dirichlet method '" << options()->enforceDirichletMethod() << "'";
 
     if (options()->enforceDirichletMethod() == "Penalty") {
+
       Real Penalty = options()->penalty();
 
       for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
@@ -511,7 +522,7 @@ _assembleLinearOperator2d()
     Real dc_force; // double-couple force
 
     String file_name = bs->doubleCoupleInputFile();
-    info() << "Applying boundary conditions for surface via CaseTable" <<  file_name;
+    info() << "Applying boundary conditions for surface via CaseTable" << file_name;
 
     CaseTable* dc_case_table_inn = case_table_dc_info.case_table;
 
@@ -519,8 +530,8 @@ _assembleLinearOperator2d()
 
     NodeGroup north = bs->northNodeName();
     NodeGroup south = bs->southNodeName();
-    NodeGroup east  = bs->eastNodeName();
-    NodeGroup west  = bs->westNodeName();
+    NodeGroup east = bs->eastNodeName();
+    NodeGroup west = bs->westNodeName();
 
     ENUMERATE_ (Node, inode, north) {
       Node node = *inode;
@@ -542,11 +553,10 @@ _assembleLinearOperator2d()
       DoFLocalId dof_id2 = node_dof.dofId(node, 1);
       rhs_values[dof_id2] = dc_force;
     }
-
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-vector-assembly", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
 }
 
 void FemModule::
@@ -565,48 +575,48 @@ _assembleLinearOperator3d()
     Cell cell = *icell;
     Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
 
-    FixedMatrix<1, 12> Ux = {1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0.};
-    FixedMatrix<1, 12> Uy = {0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0.};
-    FixedMatrix<1, 12> Uz = {0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1.};
+    FixedMatrix<1, 12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. };
+    FixedMatrix<1, 12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
+    FixedMatrix<1, 12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. };
 
     FixedMatrix<1, 12> F = { f[0], f[1], f[2], f[0], f[1], f[2], f[0], f[1], f[2] };
 
-    FixedMatrix<1, 12> Un = {m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y, m_U[cell.nodeId(0)].z,
-                             m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y, m_U[cell.nodeId(1)].z,
-                             m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y, m_U[cell.nodeId(2)].z,
-                             m_U[cell.nodeId(3)].x, m_U[cell.nodeId(3)].y, m_U[cell.nodeId(3)].z};
+    FixedMatrix<1, 12> Un = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y, m_U[cell.nodeId(0)].z,
+                              m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y, m_U[cell.nodeId(1)].z,
+                              m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y, m_U[cell.nodeId(2)].z,
+                              m_U[cell.nodeId(3)].x, m_U[cell.nodeId(3)].y, m_U[cell.nodeId(3)].z };
 
-    FixedMatrix<1, 12> Vn = {m_V[cell.nodeId(0)].x, m_V[cell.nodeId(0)].y, m_V[cell.nodeId(0)].z,
-                             m_V[cell.nodeId(1)].x, m_V[cell.nodeId(1)].y, m_V[cell.nodeId(1)].z,
-                             m_V[cell.nodeId(2)].x, m_V[cell.nodeId(2)].y, m_V[cell.nodeId(2)].z,
-                             m_V[cell.nodeId(3)].x, m_V[cell.nodeId(3)].y, m_V[cell.nodeId(3)].z};
+    FixedMatrix<1, 12> Vn = { m_V[cell.nodeId(0)].x, m_V[cell.nodeId(0)].y, m_V[cell.nodeId(0)].z,
+                              m_V[cell.nodeId(1)].x, m_V[cell.nodeId(1)].y, m_V[cell.nodeId(1)].z,
+                              m_V[cell.nodeId(2)].x, m_V[cell.nodeId(2)].y, m_V[cell.nodeId(2)].z,
+                              m_V[cell.nodeId(3)].x, m_V[cell.nodeId(3)].y, m_V[cell.nodeId(3)].z };
 
-    FixedMatrix<1, 12> An = {m_A[cell.nodeId(0)].x, m_A[cell.nodeId(0)].y, m_A[cell.nodeId(0)].z,
-                             m_A[cell.nodeId(1)].x, m_A[cell.nodeId(1)].y, m_A[cell.nodeId(1)].z,
-                             m_A[cell.nodeId(2)].x, m_A[cell.nodeId(2)].y, m_A[cell.nodeId(2)].z,
-                             m_A[cell.nodeId(3)].x, m_A[cell.nodeId(3)].y, m_A[cell.nodeId(3)].z};
+    FixedMatrix<1, 12> An = { m_A[cell.nodeId(0)].x, m_A[cell.nodeId(0)].y, m_A[cell.nodeId(0)].z,
+                              m_A[cell.nodeId(1)].x, m_A[cell.nodeId(1)].y, m_A[cell.nodeId(1)].z,
+                              m_A[cell.nodeId(2)].x, m_A[cell.nodeId(2)].y, m_A[cell.nodeId(2)].z,
+                              m_A[cell.nodeId(3)].x, m_A[cell.nodeId(3)].y, m_A[cell.nodeId(3)].z };
 
     //----------------------------------------------------------------------
     //  ∫∫∫ (𝐟.𝐯) + ∫∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯)
     //----------------------------------------------------------------------
-    FixedMatrix<1, 12> rhs = (  F * (1/4.)
-                              + Un * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz))*(c0*1/20.)
-                              + Vn * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz))*(c3*1/20.)
-                              + An * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz))*(c4*1/20.)
-                            ) * volume;
+    FixedMatrix<1, 12> rhs = (  F * (1 / 4.)
+                              + Un * (massMatrix(Ux, Ux) + massMatrix(Uy, Uy) + massMatrix(Uz, Uz)) * (c0 * 1 / 20.)
+                              + Vn * (massMatrix(Ux, Ux) + massMatrix(Uy, Uy) + massMatrix(Uz, Uz)) * (c3 * 1 / 20.)
+                              + An * (massMatrix(Ux, Ux) + massMatrix(Uy, Uy) + massMatrix(Uz, Uz)) * (c4 * 1 / 20.)
+                             ) * volume;
 
-     rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0,0);
-     rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(0,1);
-     rhs_values[node_dof.dofId(cell.nodeId(0), 2)] += rhs(0,2);
-     rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(0,3);
-     rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(0,4);
-     rhs_values[node_dof.dofId(cell.nodeId(1), 2)] += rhs(0,5);
-     rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(0,6);
-     rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(0,7);
-     rhs_values[node_dof.dofId(cell.nodeId(2), 2)] += rhs(0,8);
-     rhs_values[node_dof.dofId(cell.nodeId(3), 0)] += rhs(0,9);
-     rhs_values[node_dof.dofId(cell.nodeId(3), 1)] += rhs(0,10);
-     rhs_values[node_dof.dofId(cell.nodeId(3), 2)] += rhs(0,11);
+    rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0, 0);
+    rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(0, 1);
+    rhs_values[node_dof.dofId(cell.nodeId(0), 2)] += rhs(0, 2);
+    rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(0, 3);
+    rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(0, 4);
+    rhs_values[node_dof.dofId(cell.nodeId(1), 2)] += rhs(0, 5);
+    rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(0, 6);
+    rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(0, 7);
+    rhs_values[node_dof.dofId(cell.nodeId(2), 2)] += rhs(0, 8);
+    rhs_values[node_dof.dofId(cell.nodeId(3), 0)] += rhs(0, 9);
+    rhs_values[node_dof.dofId(cell.nodeId(3), 1)] += rhs(0, 10);
+    rhs_values[node_dof.dofId(cell.nodeId(3), 2)] += rhs(0, 11);
   }
 
   //----------------------------------------------------------------------
@@ -661,17 +671,17 @@ _assembleLinearOperator3d()
       }
 
       if (t_string[0] != "NULL" || t_string[1] != "NULL" || t_string[2] != "NULL")
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
-        for (Node node : iface->nodes()) {
-          if (node.isOwn()) {
-            rhs_values[node_dof.dofId(node, 0)] += trac[0] * area / 3.;
-            rhs_values[node_dof.dofId(node, 1)] += trac[1] * area / 3.;
-            rhs_values[node_dof.dofId(node, 2)] += trac[2] * area / 3.;
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
+          for (Node node : iface->nodes()) {
+            if (node.isOwn()) {
+              rhs_values[node_dof.dofId(node, 0)] += trac[0] * area / 3.;
+              rhs_values[node_dof.dofId(node, 1)] += trac[1] * area / 3.;
+              rhs_values[node_dof.dofId(node, 2)] += trac[2] * area / 3.;
+            }
           }
         }
-      }
     }
   }
 
@@ -681,7 +691,7 @@ _assembleLinearOperator3d()
   for (const auto& bs : options()->paraxialBoundaryCondition()) {
     FaceGroup group = bs->surface();
 
-    info() << "Applying constant paraxial boundary conditions for surface "<< group.name();
+    info() << "Applying constant Paraxial boundary conditions for surface " << group.name();
 
     ENUMERATE_ (Face, iface, group) {
       Face face = *iface;
@@ -689,63 +699,62 @@ _assembleLinearOperator3d()
       Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
       Real3 N = ArcaneFemFunctions::MeshOperation::computeNormalTriangle(face, m_node_coord);
 
-      FixedMatrix<1, 9> Ux = {1., 0., 0., 1., 0., 0., 1., 0., 0.};
-      FixedMatrix<1, 9> Uy = {0., 1., 0., 0., 1., 0., 0., 1., 0.};
-      FixedMatrix<1, 9> Uz = {0., 0., 1., 0., 0., 1., 0., 0., 1.};
+      FixedMatrix<1, 9> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0. };
+      FixedMatrix<1, 9> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0. };
+      FixedMatrix<1, 9> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1. };
 
-      FixedMatrix<1, 9> Un = {m_U[face.nodeId(0)].x,  m_U[face.nodeId(0)].y,  m_U[face.nodeId(0)].z,
-                              m_U[face.nodeId(1)].x,  m_U[face.nodeId(1)].y,  m_U[face.nodeId(1)].z,
-                              m_U[face.nodeId(2)].x,  m_U[face.nodeId(2)].y,  m_U[face.nodeId(2)].z,
-                            };
-      FixedMatrix<1, 9> Vn = {m_V[face.nodeId(0)].x,  m_V[face.nodeId(0)].y,  m_V[face.nodeId(0)].z,
-                              m_V[face.nodeId(1)].x,  m_V[face.nodeId(1)].y,  m_V[face.nodeId(1)].z,
-                              m_V[face.nodeId(2)].x,  m_V[face.nodeId(2)].y,  m_V[face.nodeId(2)].z,
-                            };
-      FixedMatrix<1, 9> An = {m_A[face.nodeId(0)].x,  m_A[face.nodeId(0)].y,  m_A[face.nodeId(0)].z,
-                              m_A[face.nodeId(1)].x,  m_A[face.nodeId(1)].y,  m_A[face.nodeId(1)].z,
-                              m_A[face.nodeId(2)].x,  m_A[face.nodeId(2)].y,  m_A[face.nodeId(2)].z,
-                            };
+      FixedMatrix<1, 9> Un = { m_U[face.nodeId(0)].x, m_U[face.nodeId(0)].y, m_U[face.nodeId(0)].z,
+                               m_U[face.nodeId(1)].x, m_U[face.nodeId(1)].y, m_U[face.nodeId(1)].z,
+                               m_U[face.nodeId(2)].x, m_U[face.nodeId(2)].y, m_U[face.nodeId(2)].z, };
 
-      FixedMatrix<1, 9> rhs = (c7*(N.x*N.x*cp + (1.-N.x*N.x)*cs)) * Un * (massMatrix(Ux,Ux)) * area/12. +
-                              (c7*(N.y*N.y*cp + (1.-N.y*N.y)*cs)) * Un * (massMatrix(Uy,Uy)) * area/12. +
-                              (c7*(N.z*N.z*cp + (1.-N.z*N.z)*cs)) * Un * (massMatrix(Uz,Uz)) * area/12. +
-                              (c7*(N.x*N.y*(cp - cs))) * Un * (massMatrix(Ux,Uy)) * area/12. +
-                              (c7*(N.x*N.z*(cp - cs))) * Un * (massMatrix(Ux,Uz)) * area/12. +
-                              (c7*(N.y*N.x*(cp - cs))) * Un * (massMatrix(Uy,Ux)) * area/12. +
-                              (c7*(N.y*N.z*(cp - cs))) * Un * (massMatrix(Uy,Uz)) * area/12. +
-                              (c7*(N.z*N.x*(cp - cs))) * Un * (massMatrix(Uz,Ux)) * area/12. +
-                              (c7*(N.z*N.y*(cp - cs))) * Un * (massMatrix(Uz,Uy)) * area/12.
+      FixedMatrix<1, 9> Vn = { m_V[face.nodeId(0)].x, m_V[face.nodeId(0)].y, m_V[face.nodeId(0)].z,
+                               m_V[face.nodeId(1)].x, m_V[face.nodeId(1)].y, m_V[face.nodeId(1)].z,
+                               m_V[face.nodeId(2)].x, m_V[face.nodeId(2)].y, m_V[face.nodeId(2)].z, };
 
-                             -((c8*(N.x*N.x*cp + (1.-N.x*N.x)*cs)) * Vn * (massMatrix(Ux,Ux)) * area/12. +
-                               (c8*(N.y*N.y*cp + (1.-N.y*N.y)*cs)) * Vn * (massMatrix(Uy,Uy)) * area/12. +
-                               (c8*(N.z*N.z*cp + (1.-N.z*N.z)*cs)) * Vn * (massMatrix(Uz,Uz)) * area/12. +
-                               (c8*(N.x*N.y*(cp - cs))) * Vn * (massMatrix(Ux,Uy)) * area/12. +
-                               (c8*(N.x*N.z*(cp - cs))) * Vn * (massMatrix(Ux,Uz)) * area/12. +
-                               (c8*(N.y*N.x*(cp - cs))) * Vn * (massMatrix(Uy,Ux)) * area/12. +
-                               (c8*(N.y*N.z*(cp - cs))) * Vn * (massMatrix(Uy,Uz)) * area/12. +
-                               (c8*(N.z*N.x*(cp - cs))) * Vn * (massMatrix(Uz,Ux)) * area/12. +
-                               (c8*(N.z*N.y*(cp - cs))) * Vn * (massMatrix(Uz,Uy)) * area/12.)
+      FixedMatrix<1, 9> An = { m_A[face.nodeId(0)].x, m_A[face.nodeId(0)].y, m_A[face.nodeId(0)].z,
+                               m_A[face.nodeId(1)].x, m_A[face.nodeId(1)].y, m_A[face.nodeId(1)].z,
+                               m_A[face.nodeId(2)].x, m_A[face.nodeId(2)].y, m_A[face.nodeId(2)].z, };
 
-                             -((c9*(N.x*N.x*cp + (1.-N.x*N.x)*cs)) * An * (massMatrix(Ux,Ux)) * area/12. +
-                               (c9*(N.y*N.y*cp + (1.-N.y*N.y)*cs)) * An * (massMatrix(Uy,Uy)) * area/12. +
-                               (c9*(N.z*N.z*cp + (1.-N.z*N.z)*cs)) * An * (massMatrix(Uz,Uz)) * area/12. +
-                               (c9*(N.x*N.y*(cp - cs))) * An * (massMatrix(Ux,Uy)) * area/12. +
-                               (c9*(N.x*N.z*(cp - cs))) * An * (massMatrix(Ux,Uz)) * area/12. +
-                               (c9*(N.y*N.x*(cp - cs))) * An * (massMatrix(Uy,Ux)) * area/12. +
-                               (c9*(N.y*N.z*(cp - cs))) * An * (massMatrix(Uy,Uz)) * area/12. +
-                               (c9*(N.z*N.x*(cp - cs))) * An * (massMatrix(Uz,Ux)) * area/12. +
-                               (c9*(N.z*N.y*(cp - cs))) * An * (massMatrix(Uz,Uy)) * area/12.)
-                               ;
+      FixedMatrix<1, 9> rhs = ( (c7 * (N.x * N.x * cp + (1. - N.x * N.x) * cs)) * Un * (massMatrix(Ux, Ux)) +
+                                (c7 * (N.y * N.y * cp + (1. - N.y * N.y) * cs)) * Un * (massMatrix(Uy, Uy)) +
+                                (c7 * (N.z * N.z * cp + (1. - N.z * N.z) * cs)) * Un * (massMatrix(Uz, Uz)) +
+                                (c7 * (N.x * N.y * (cp - cs))) * Un * (massMatrix(Ux, Uy)) +
+                                (c7 * (N.x * N.z * (cp - cs))) * Un * (massMatrix(Ux, Uz)) +
+                                (c7 * (N.y * N.x * (cp - cs))) * Un * (massMatrix(Uy, Ux)) +
+                                (c7 * (N.y * N.z * (cp - cs))) * Un * (massMatrix(Uy, Uz)) +
+                                (c7 * (N.z * N.x * (cp - cs))) * Un * (massMatrix(Uz, Ux)) +
+                                (c7 * (N.z * N.y * (cp - cs))) * Un * (massMatrix(Uz, Uy))
 
-      rhs_values[node_dof.dofId(face.nodeId(0), 0)] += rhs(0,0);
-      rhs_values[node_dof.dofId(face.nodeId(0), 1)] += rhs(0,1);
-      rhs_values[node_dof.dofId(face.nodeId(0), 2)] += rhs(0,2);
-      rhs_values[node_dof.dofId(face.nodeId(1), 0)] += rhs(0,3);
-      rhs_values[node_dof.dofId(face.nodeId(1), 1)] += rhs(0,4);
-      rhs_values[node_dof.dofId(face.nodeId(1), 2)] += rhs(0,5);
-      rhs_values[node_dof.dofId(face.nodeId(2), 0)] += rhs(0,6);
-      rhs_values[node_dof.dofId(face.nodeId(2), 1)] += rhs(0,7);
-      rhs_values[node_dof.dofId(face.nodeId(2), 2)] += rhs(0,8);
+                              - ((c8 * (N.x * N.x * cp + (1. - N.x * N.x) * cs)) * Vn * (massMatrix(Ux, Ux)) +
+                                 (c8 * (N.y * N.y * cp + (1. - N.y * N.y) * cs)) * Vn * (massMatrix(Uy, Uy)) +
+                                 (c8 * (N.z * N.z * cp + (1. - N.z * N.z) * cs)) * Vn * (massMatrix(Uz, Uz)) +
+                                 (c8 * (N.x * N.y * (cp - cs))) * Vn * (massMatrix(Ux, Uy)) +
+                                 (c8 * (N.x * N.z * (cp - cs))) * Vn * (massMatrix(Ux, Uz)) +
+                                 (c8 * (N.y * N.x * (cp - cs))) * Vn * (massMatrix(Uy, Ux)) +
+                                 (c8 * (N.y * N.z * (cp - cs))) * Vn * (massMatrix(Uy, Uz)) +
+                                 (c8 * (N.z * N.x * (cp - cs))) * Vn * (massMatrix(Uz, Ux)) +
+                                 (c8 * (N.z * N.y * (cp - cs))) * Vn * (massMatrix(Uz, Uy)) )
+
+                              - ((c9 * (N.x * N.x * cp + (1. - N.x * N.x) * cs)) * An * (massMatrix(Ux, Ux)) +
+                                 (c9 * (N.y * N.y * cp + (1. - N.y * N.y) * cs)) * An * (massMatrix(Uy, Uy)) +
+                                 (c9 * (N.z * N.z * cp + (1. - N.z * N.z) * cs)) * An * (massMatrix(Uz, Uz)) +
+                                 (c9 * (N.x * N.y * (cp - cs))) * An * (massMatrix(Ux, Uy)) +
+                                 (c9 * (N.x * N.z * (cp - cs))) * An * (massMatrix(Ux, Uz)) +
+                                 (c9 * (N.y * N.x * (cp - cs))) * An * (massMatrix(Uy, Ux)) +
+                                 (c9 * (N.y * N.z * (cp - cs))) * An * (massMatrix(Uy, Uz)) +
+                                 (c9 * (N.z * N.x * (cp - cs))) * An * (massMatrix(Uz, Ux)) +
+                                 (c9 * (N.z * N.y * (cp - cs))) * An * (massMatrix(Uz, Uy)) )
+                               ) * (area / 12.);
+
+      rhs_values[node_dof.dofId(face.nodeId(0), 0)] += rhs(0, 0);
+      rhs_values[node_dof.dofId(face.nodeId(0), 1)] += rhs(0, 1);
+      rhs_values[node_dof.dofId(face.nodeId(0), 2)] += rhs(0, 2);
+      rhs_values[node_dof.dofId(face.nodeId(1), 0)] += rhs(0, 3);
+      rhs_values[node_dof.dofId(face.nodeId(1), 1)] += rhs(0, 4);
+      rhs_values[node_dof.dofId(face.nodeId(1), 2)] += rhs(0, 5);
+      rhs_values[node_dof.dofId(face.nodeId(2), 0)] += rhs(0, 6);
+      rhs_values[node_dof.dofId(face.nodeId(2), 1)] += rhs(0, 7);
+      rhs_values[node_dof.dofId(face.nodeId(2), 2)] += rhs(0, 8);
     }
   }
 
@@ -831,7 +840,7 @@ _assembleLinearOperator3d()
     Real dc_force; // double-couple force
 
     String file_name = bs->doubleCoupleInputFile();
-    info() << "Applying boundary conditions for surface via CaseTable" <<  file_name;
+    info() << "Applying boundary conditions for surface via CaseTable" << file_name;
 
     CaseTable* dc_case_table_inn = case_table_dc_info.case_table;
 
@@ -839,8 +848,8 @@ _assembleLinearOperator3d()
 
     NodeGroup north = bs->northNodeName();
     NodeGroup south = bs->southNodeName();
-    NodeGroup east  = bs->eastNodeName();
-    NodeGroup west  = bs->westNodeName();
+    NodeGroup east = bs->eastNodeName();
+    NodeGroup west = bs->westNodeName();
 
     ENUMERATE_ (Node, inode, north) {
       Node node = *inode;
@@ -862,11 +871,28 @@ _assembleLinearOperator3d()
       DoFLocalId dof_id2 = node_dof.dofId(node, 1);
       rhs_values[dof_id2] = dc_force;
     }
-
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-vector-assembly", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleBilinearOperator()
+{
+  if (t <= dt) {
+    if (mesh()->dimension() == 2) {
+      _assemble2dBilinearOperatorTria3();
+      _assemble2dBilinearOperatorEdge2();
+    }
+    if (mesh()->dimension() == 3) {
+      _assemble3dBilinearOperatorTetra4();
+      _assemble3dBilinearOperatorTria3();
+    }
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -880,7 +906,7 @@ _assemble2dBilinearOperatorTria3()
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    auto K_e = _compute2dElementMatrixTria3(cell);  // element stiffness matrix
+    auto K_e = _compute2dElementMatrixTria3(cell); // element stiffness matrix
     // assemble elementary matrix into  the global one elementary terms are
     // positioned into  K according  to the rank of associated  node in the
     // mesh.nodes list  and according the dof number. Here  for  each  node
@@ -891,17 +917,17 @@ _assemble2dBilinearOperatorTria3()
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
       for (Node node2 : cell.nodes()) {
-        Real v1 = K_e(2 * n1_index    , 2 * n2_index    );
-        Real v2 = K_e(2 * n1_index    , 2 * n2_index + 1);
-        Real v3 = K_e(2 * n1_index + 1, 2 * n2_index    );
+        Real v1 = K_e(2 * n1_index, 2 * n2_index);
+        Real v2 = K_e(2 * n1_index, 2 * n2_index + 1);
+        Real v3 = K_e(2 * n1_index + 1, 2 * n2_index);
         Real v4 = K_e(2 * n1_index + 1, 2 * n2_index + 1);
-        // m_k_matrix(node1.localId(), node2.localId()) += v;
+
         if (node1.isOwn()) {
           DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
           DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
           DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
           DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
-//          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+
           m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
           m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
           m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v3);
@@ -928,15 +954,15 @@ _assemble2dBilinearOperatorEdge2()
     ENUMERATE_ (Face, iface, group) {
       Face face = *iface;
 
-      auto K_e = _compute2dElementMatrixEdge2(face);  // element stiffness matrix
+      auto K_e = _compute2dElementMatrixEdge2(face);
 
       Int32 n1_index = 0;
-      for (Node node1 : face.nodes() ) {
+      for (Node node1 : face.nodes()) {
         Int32 n2_index = 0;
         for (Node node2 : face.nodes()) {
-          Real v1 = K_e(2 * n1_index    , 2 * n2_index    );
-          Real v2 = K_e(2 * n1_index    , 2 * n2_index + 1);
-          Real v3 = K_e(2 * n1_index + 1, 2 * n2_index    );
+          Real v1 = K_e(2 * n1_index, 2 * n2_index);
+          Real v2 = K_e(2 * n1_index, 2 * n2_index + 1);
+          Real v3 = K_e(2 * n1_index + 1, 2 * n2_index);
           Real v4 = K_e(2 * n1_index + 1, 2 * n2_index + 1);
           if (node1.isOwn()) {
             DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
@@ -1025,21 +1051,21 @@ _assemble3dBilinearOperatorTria3()
     ENUMERATE_ (Face, iface, group) {
       Face face = *iface;
 
-      auto K_e = _compute3dElementMatrixTria3(face);  // element stiffness matrix
+      auto K_e = _compute3dElementMatrixTria3(face);
 
       Int32 n1_index = 0;
-      for (Node node1 : face.nodes() ) {
+      for (Node node1 : face.nodes()) {
         Int32 n2_index = 0;
         for (Node node2 : face.nodes()) {
-          Real v1 = K_e(3 * n1_index    , 3 * n2_index    );
-          Real v2 = K_e(3 * n1_index    , 3 * n2_index + 1);
-          Real v3 = K_e(3 * n1_index    , 3 * n2_index + 2);
+          Real v1 = K_e(3 * n1_index, 3 * n2_index);
+          Real v2 = K_e(3 * n1_index, 3 * n2_index + 1);
+          Real v3 = K_e(3 * n1_index, 3 * n2_index + 2);
 
-          Real v4 = K_e(3 * n1_index + 1, 3 * n2_index    );
+          Real v4 = K_e(3 * n1_index + 1, 3 * n2_index);
           Real v5 = K_e(3 * n1_index + 1, 3 * n2_index + 1);
           Real v6 = K_e(3 * n1_index + 1, 3 * n2_index + 2);
 
-          Real v7 = K_e(3 * n1_index + 2, 3 * n2_index    );
+          Real v7 = K_e(3 * n1_index + 2, 3 * n2_index);
           Real v8 = K_e(3 * n1_index + 2, 3 * n2_index + 1);
           Real v9 = K_e(3 * n1_index + 2, 3 * n2_index + 2);
           if (node1.isOwn()) {
@@ -1082,41 +1108,8 @@ _solve()
 
   m_linear_system.solve();
 
-  {
-    VariableDoFReal& dof_u(m_linear_system.solutionVariable());
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    if (mesh()->dimension() == 2)
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      Node node = *inode;
-      Real u1_val = dof_u[node_dof.dofId(node, 0)];
-      Real u2_val = dof_u[node_dof.dofId(node, 1)];
-      Real3 u_disp;
-      u_disp.x = u1_val;
-      u_disp.y = u2_val;
-      u_disp.z = 0.0;
-      m_dU[node] = u_disp;
-    }
-    if (mesh()->dimension() == 3)
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      Node node = *inode;
-      Real u1_val = dof_u[node_dof.dofId(node, 0)];
-      Real u2_val = dof_u[node_dof.dofId(node, 1)];
-      Real u3_val = dof_u[node_dof.dofId(node, 2)];
-      Real3 u_disp;
-      u_disp.x = u1_val;
-      u_disp.y = u2_val;
-      u_disp.z = u3_val;
-      m_dU[node] = u_disp;
-    }
-  }
-
-  m_dU.synchronize();
-  m_U.synchronize();
-  m_V.synchronize();
-  m_A.synchronize();
-
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"solve-linear-system", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "solve-linear-system", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1150,7 +1143,7 @@ _validateResults()
     Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_dU, epsilon, min_value_to_test);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"cross-validation", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "cross-validation", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/

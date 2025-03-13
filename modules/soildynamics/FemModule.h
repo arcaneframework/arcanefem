@@ -120,6 +120,7 @@ class FemModule
   void _getParameters();
   void _updateVariables();
   void _updateTime();
+  void _assembleBilinearOperator();
   void _assemble2dBilinearOperatorTria3();
   void _assemble2dBilinearOperatorEdge2();
   void _assemble3dBilinearOperatorTetra4();
