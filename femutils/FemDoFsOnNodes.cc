@@ -12,7 +12,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include "FemDoFsOnNodes.h"
-
+#include <arcane/core/MeshUtils.h>
 #include <arcane/mesh/DoFFamily.h>
 #include "arcane/IIndexedIncrementalItemConnectivityMng.h"
 #include "arcane/IIndexedIncrementalItemConnectivity.h"
@@ -79,11 +79,14 @@ initialize(IMesh* mesh, Int32 nb_dof_per_node)
   Int64UniqueArray uids(mesh->allNodes().size() * nb_dof_per_node);
   {
     Integer dof_index = 0;
+    UniqueArray<Int64> hash_maker({0,0});
     ENUMERATE_NODE (inode, mesh->allNodes()) {
       Node node = *inode;
       Int64 node_unique_id = node.uniqueId().asInt64();
+      hash_maker[0] = node_unique_id;
       for (Integer i = 0; i < nb_dof_per_node; ++i) {
-        uids[dof_index] = node_unique_id * nb_dof_per_node + i;
+        hash_maker[1] = i;
+        uids[dof_index] = MeshUtils::generateHashUniqueId(hash_maker.constView());
         ++dof_index;
       }
     }
