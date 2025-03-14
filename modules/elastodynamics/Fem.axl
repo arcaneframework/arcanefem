@@ -78,6 +78,21 @@
         Penalty value for enforcing Dirichlet condition
       </description>
     </simple>
+    <simple name="matrix-format" type="string" default="DOK" optional="true">
+      <description>Which matrix format to use DOK|BSR|AF-BSR.</description>
+    </simple>
+    <simple name="petsc-flags" type="string" default="" optional="true">
+      <description>Flags for PETSc from commandline.</description>
+    </simple>
+    <simple name="solve-linear-system" type="bool" default="true" optional="true">
+      <description>Boolean to enable linear system solving.</description>
+    </simple>
+    <simple name="assemble-linear-system" type="bool" default="true" optional="true">
+      <description>Boolean to enable linear system assembly.</description>
+    </simple>
+    <simple name="cross-validation" type="bool" default="true" optional="true">
+      <description>Boolean to enable cross validation.</description>
+    </simple>
 
     <!-- - - - - - dirichlet-boundary-condition - - - - -->
     <complex name  = "dirichlet-boundary-condition"

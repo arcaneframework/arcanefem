@@ -35,22 +35,39 @@ endforeach()
 enable_testing()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
-  add_test(NAME [elastodynamics]2D_bar COMMAND Elastodynamics inputs/bar.arc)
+  add_test(NAME [elastodynamics]2D_bar COMMAND Elastodynamics
+    -A,//fem/petsc-flags=-ksp_monitor
+    inputs/bar.arc)
   add_test(NAME [elastodynamics]2D_bar_RowElimination COMMAND Elastodynamics
     -A,//fem/enforce-Dirichlet-method=RowElimination
     inputs/bar.arc)
   add_test(NAME [elastodynamics]2D_bar_RowColumnElimination COMMAND Elastodynamics
     -A,//fem/enforce-Dirichlet-method=RowColumnElimination
     inputs/bar.arc)
-  add_test(NAME [elastodynamics]3D_bar COMMAND Elastodynamics inputs/bar.3D.arc)
-  add_test(NAME [elastodynamics]2D_transient_traction COMMAND Elastodynamics inputs/bar.transient-traction.arc)
-  add_test(NAME [elastodynamics]3D_transient_traction COMMAND Elastodynamics inputs/bar.3D.transient-traction.arc)
-  add_test(NAME [elastodynamics]2D_constant_traction_and_damping COMMAND Elastodynamics inputs/bar.damping.arc)
-  add_test(NAME [elastodynamics]2D_time-discretization_Galpha COMMAND Elastodynamics inputs/bar.Galpha.arc)
+  add_test(NAME [elastodynamics]3D_bar COMMAND Elastodynamics
+    inputs/bar.3D.arc)
+  add_test(NAME [elastodynamics]3D_bar_RowColumnElimination_bjacobi COMMAND Elastodynamics
+    -A,//fem/enforce-Dirichlet-method=RowColumnElimination
+    -A,//fem/petsc-flags=-ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-8
+    inputs/bar.3D.arc)
+  add_test(NAME [elastodynamics]2D_transient_traction COMMAND Elastodynamics
+    inputs/bar.transient-traction.arc)
+  add_test(NAME [elastodynamics]3D_transient_traction COMMAND Elastodynamics
+    inputs/bar.3D.transient-traction.arc)
+  add_test(NAME [elastodynamics]2D_constant_traction_and_damping COMMAND Elastodynamics
+    inputs/bar.damping.arc)
+  add_test(NAME [elastodynamics]2D_time-discretization_Galpha COMMAND Elastodynamics
+    inputs/bar.Galpha.arc)
+  add_test(NAME [elasticity]bar_parse_and_exit COMMAND Elastodynamics
+    -A,//fem/assemble-linear-system=false
+    -A,//fem/solve-linear-system=false
+    -A,//fem/cross-validation=false
+    inputs/bar.arc)
 endif()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-  add_test(NAME [elastodynamics]Dirichlet_traction_bodyforce COMMAND Elastodynamics inputs/bar.dirichlet.traction.bodyforce.arc)
+  add_test(NAME [elastodynamics]Dirichlet_traction_bodyforce COMMAND Elastodynamics
+    inputs/bar.dirichlet.traction.bodyforce.arc)
   add_test(NAME [elastodynamics]Dirichlet_pointBc_Penalty COMMAND Elastodynamics
     -A,//fem/enforce-Dirichlet-method=Penalty
     inputs/semi-circle.pointBC.arc)
