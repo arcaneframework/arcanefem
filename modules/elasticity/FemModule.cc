@@ -28,12 +28,7 @@ startInit()
   info() << "[ArcaneFem-Info] Started module  startInit()";
   Real elapsedTime = platform::getRealTime();
 
-  m_dof_per_node = defaultMesh()->dimension();
-  m_matrix_format = options()->matrixFormat();
-  m_assemble_linear_system = options()->assembleLinearSystem();
-  m_solve_linear_system = options()->solveLinearSystem();
-  m_cross_validation = options()->crossValidation();
-  m_petsc_flags = options()->petscFlags();
+  _getMaterialParameters();
 
   m_dofs_on_nodes.initialize(defaultMesh(), m_dof_per_node);
 
@@ -136,7 +131,6 @@ void FemModule::_initBsr()
 void FemModule::
 _doStationarySolve()
 {
-  _getMaterialParameters();
   if(m_assemble_linear_system){
     _assembleBilinearOperator();
     _assembleLinearOperator();
@@ -167,6 +161,13 @@ _getMaterialParameters()
 
   mu = (E / (2 * (1 + nu))); // lame parameter μ
   lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
+
+  m_dof_per_node = defaultMesh()->dimension();
+  m_matrix_format = options()->matrixFormat();
+  m_assemble_linear_system = options()->assembleLinearSystem();
+  m_solve_linear_system = options()->solveLinearSystem();
+  m_cross_validation = options()->crossValidation();
+  m_petsc_flags = options()->petscFlags();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"get-material-params", elapsedTime);

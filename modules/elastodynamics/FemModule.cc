@@ -61,11 +61,15 @@ compute()
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
+  if (m_petsc_flags != NULL){
+    CommandLineArguments args = ArcaneFemFunctions::GeneralFunctions::getPetscFlagsFromCommandline(m_petsc_flags);
+    m_linear_system.setSolverCommandLineArguments(args);
+  }
+
   _doStationarySolve();
-  _updateVariables();
   _updateTime();
 
-  if (t > tmax + dt - 1e-8)
+  if ((t > tmax + dt - 1e-8) && m_cross_validation)
     _validateResults();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -87,9 +91,14 @@ _updateTime()
 void FemModule::
 _doStationarySolve()
 {
-  _assembleBilinearOperator();
-  _assembleLinearOperator();
-  _solve();
+  if(m_assemble_linear_system){
+    _assembleBilinearOperator();
+    _assembleLinearOperator();
+  }
+  if(m_solve_linear_system){
+    _solve();
+    _updateVariables();
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -102,24 +111,24 @@ _getParameters()
   Real elapsedTime = platform::getRealTime();
 
   //--------- time parameters -----------//
-  tmax = options()->tmax();                // max time
-  dt   = options()->dt();                  // time step
+  tmax = options()->tmax(); // max time
+  dt = options()->dt(); // time step
 
   //--- damping term parameter ---//
-  etam = options()->etam();                // damping param etam
-  etak = options()->etak();                // damping param etak
+  etam = options()->etam(); // damping param etam
+  etak = options()->etak(); // damping param etak
 
   //--- time discretization parameter ---//
-  alpm = options()->alpm();                // time discretization param alpm
-  alpf = options()->alpf();                // time discretization param alpf
+  alpm = options()->alpm(); // time discretization param alpm
+  alpf = options()->alpf(); // time discretization param alpf
 
   //--------- material parameter ---------//
-  E    = options()->E();                   // Youngs modulus
-  nu   = options()->nu();                  // Poission ratio
-  rho  = options()->rho();                 // Density
+  E = options()->E(); // Youngs modulus
+  nu = options()->nu(); // Poission ratio
+  rho = options()->rho(); // Density
 
-  mu  = E/(2*(1+nu));                      // lame parameter mu
-  lambda = E*nu/((1+nu)*(1-2*nu));         // lame parameter lambda
+  mu = E / (2 * (1 + nu)); // lame parameter mu
+  lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter lambda
 
   if( options()->mu.isPresent())
     mu = options()->mu;
@@ -180,6 +189,12 @@ _getParameters()
   else {
     ARCANE_FATAL("Only Newmark-beta | Generalized-alpha are supported for time-discretization ");
   }
+
+  m_matrix_format = options()->matrixFormat();
+  m_assemble_linear_system = options()->assembleLinearSystem();
+  m_solve_linear_system = options()->solveLinearSystem();
+  m_cross_validation = options()->crossValidation();
+  m_petsc_flags = options()->petscFlags();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"get-material-params", elapsedTime);
