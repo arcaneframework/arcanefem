@@ -863,12 +863,12 @@ _assembleLinearOperator3d()
     }
     ENUMERATE_ (Node, inode, east) {
       Node node = *inode;
-      DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+      DoFLocalId dof_id2 = node_dof.dofId(node, 2);
       rhs_values[dof_id2] = -dc_force;
     }
     ENUMERATE_ (Node, inode, west) {
       Node node = *inode;
-      DoFLocalId dof_id2 = node_dof.dofId(node, 1);
+      DoFLocalId dof_id2 = node_dof.dofId(node, 2);
       rhs_values[dof_id2] = dc_force;
     }
   }

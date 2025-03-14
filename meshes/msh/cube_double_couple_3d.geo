@@ -52,10 +52,10 @@ Physical Surface("backsur", 24) = {3};
 Physical Surface("topsur", 25) = {6};
 Physical Surface("botsur", 26) = {5};
 Physical Volume("vol", 27) = {1};
-Physical Point("dctop", 28) = {2};
-Physical Point("dcbot", 29) = {3};
-Physical Point("dcleft", 30) = {4};
-Physical Point("dcright", 31) = {5};
+Physical Point("dcNorth", 28) = {2};
+Physical Point("dcSouth", 29) = {3};
+Physical Point("dcEast", 31) = {5};
+Physical Point("dcWest", 30) = {4};
 
 Mesh.Algorithm = 5;
 Mesh.Algorithm3D = 10;
