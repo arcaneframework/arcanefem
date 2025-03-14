@@ -5,10 +5,14 @@ on:
     branches: [ main ]
     paths:
       - modules/soildynamics/**
+    paths-ignore:
+      - '**/*.md'
   pull_request:
     branches: [ main ]
     paths:
       - modules/soildynamics/**
+    paths-ignore:
+      - '**/*.md'
   workflow_dispatch:
 
 env:
