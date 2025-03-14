@@ -43,7 +43,7 @@
       <surface>botsur</surface>
     </paraxial-boundary-condition>
     <dirichlet-point-condition>
-      <node>dctop</node>
+      <node>dcNorth</node>
       <u>0.0 NULL NULL</u>
     </dirichlet-point-condition>
     <double-couple>

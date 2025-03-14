@@ -43,11 +43,9 @@ compute()
 
   _doStationarySolve();
   _updateVariables();
-  _updateTime();
-
-  // At the last time step check error
-  if (t > tmax + dt - 1e-8)
+  if (t >= tmax)
     _validateResults();
+  _updateTime();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "compute", elapsedTime);
