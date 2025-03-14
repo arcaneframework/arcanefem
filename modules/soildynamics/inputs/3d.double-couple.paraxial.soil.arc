@@ -26,15 +26,14 @@
     <cs>21.5</cs>
     <cp>40.</cp>
     <rho>9.0</rho>
-    <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
     <paraxial-boundary-condition>
       <surface>leftsur</surface>
     </paraxial-boundary-condition>
     <double-couple>
-      <north-node-name>dctop</north-node-name>
-      <south-node-name>dcbot</south-node-name>
-      <east-node-name>dcleft</east-node-name>
-      <west-node-name>dcright</west-node-name>
+      <north-node-name>dcNorth</north-node-name>
+      <south-node-name>dcSouth</south-node-name>
+      <east-node-name>dcEast</east-node-name>
+      <west-node-name>dcWest</west-node-name>
       <method>force-based</method>
       <double-couple-input-file>data/force_loading_dc.txt</double-couple-input-file>
     </double-couple>

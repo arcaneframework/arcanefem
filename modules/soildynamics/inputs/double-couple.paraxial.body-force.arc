@@ -28,7 +28,6 @@
     <cp>4</cp>
     <rho>1</rho>
     <f>1255.1 32289.5</f>
-    <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
     <result-file>check/test_paraxial_body-force_results.txt</result-file>
     <double-couple>
       <north-node-name>sourceT</north-node-name>

@@ -27,7 +27,6 @@
     <cs>11.5</cs>
     <cp>20.</cp>
     <rho>9.0</rho>
-    <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
     <double-couple>
       <north-node-name>DcNorthPointCord</north-node-name>
       <south-node-name>DcSouthPointCord</south-node-name>

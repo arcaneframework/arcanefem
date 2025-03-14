@@ -27,7 +27,6 @@
     <cs>2</cs>
     <cp>4</cp>
     <rho>1</rho>
-    <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
     <result-file>check/test_paraxial_results.txt</result-file>
     <double-couple>
       <north-node-name>sourceT</north-node-name>
