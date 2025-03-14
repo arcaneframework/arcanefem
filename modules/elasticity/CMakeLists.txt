@@ -81,6 +81,11 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/matrix-format=DOK
     inputs/bar.2D.PointDirichlet.arc)
 
+  add_test(NAME [elasticity]3D_Dirichlet_bodyforce_subdivider COMMAND Elasticity ARGS
+  -A,//fem/cross-validation=false 
+  -A,//meshes/mesh/subdivider/nb-subdivision=2
+  inputs/bar.3D.Dirichlet.bodyForce.arc)
+
   arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_pointBC_bsr COMMAND  ./Elasticity ARGS
     -A,//fem/matrix-format=BSR
     inputs/bar.3D.Dirichlet.bodyForce.arc)
