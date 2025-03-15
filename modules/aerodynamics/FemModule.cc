@@ -12,6 +12,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
+#include "ElementMatrix.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -60,7 +61,7 @@ _getPsi()
 
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
-        Real2 DX = _computeDxDyOfRealTRIA3(cell);
+        Real2 DX = _computeDxDyOfRealTria3(cell);
         m_psi[cell] = - DX.x*DX.x - DX.y*DX.y  ;
       }
 
@@ -73,7 +74,7 @@ _getPsi()
 void FemModule::
 _doStationarySolve()
 {
-  _assembleBilinearOperatorTRIA3();
+  _assembleBilinearOperatorTria3();
   _assembleLinearOperator();
   _solve();
   _checkResultFile();
@@ -277,52 +278,12 @@ _computeAreaTriangle3(Cell cell)
   return 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));
 }
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-FixedMatrix<3, 3> FemModule::
-_computeElementMatrixTRIA3(Cell cell)
-{
-  // Get coordiantes of the triangle element  TRI3
-  //------------------------------------------------
-  //                  0 o
-  //                   . .
-  //                  .   .
-  //                 .     .
-  //              1 o . . . o 2
-  //------------------------------------------------
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-
-  Real area = _computeAreaTriangle3(cell);    // calculate area
-
-  Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
-  Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
-  Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
-
-  FixedMatrix<2, 3> b_matrix;
-  b_matrix(0, 0) = dPhi0.x;
-  b_matrix(0, 1) = dPhi1.x;
-  b_matrix(0, 2) = dPhi2.x;
-
-  b_matrix(1, 0) = dPhi0.y;
-  b_matrix(1, 1) = dPhi1.y;
-  b_matrix(1, 2) = dPhi2.y;
-
-  b_matrix.multInPlace(1.0 / (2.0 * area));
-
-  FixedMatrix<3, 3> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
-  int_cdPi_dPj.multInPlace(area );
-
-  return int_cdPi_dPj;
-}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 Real2 FemModule::
-_computeDxDyOfRealTRIA3(Cell cell)
+_computeDxDyOfRealTria3(Cell cell)
 {
   Real3 m0 = m_node_coord[cell.nodeId(0)];
   Real3 m1 = m_node_coord[cell.nodeId(1)];
@@ -345,7 +306,7 @@ _computeDxDyOfRealTRIA3(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleBilinearOperatorTRIA3()
+_assembleBilinearOperatorTria3()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
@@ -354,7 +315,7 @@ _assembleBilinearOperatorTRIA3()
     if (cell.type() != IT_Triangle3)
       ARCANE_FATAL("Only Triangle3 cell type is supported");
 
-    auto K_e = _computeElementMatrixTRIA3(cell);  // element stifness matrix
+    auto K_e = _computeElementMatrixTria3(cell);  // element stifness matrix
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
