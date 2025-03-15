@@ -58,7 +58,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/bar.damping.arc)
   add_test(NAME [elastodynamics]2D_time-discretization_Galpha COMMAND Elastodynamics
     inputs/bar.Galpha.arc)
-  add_test(NAME [elasticity]bar_parse_and_exit COMMAND Elastodynamics
+  add_test(NAME [elastodynamics]parse_and_exit COMMAND Elastodynamics
     -A,//fem/assemble-linear-system=false
     -A,//fem/solve-linear-system=false
     -A,//fem/cross-validation=false

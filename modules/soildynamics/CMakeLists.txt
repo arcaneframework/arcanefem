@@ -36,13 +36,25 @@ endforeach()
 enable_testing()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
-  add_test(NAME [soildynamics]2d_bar_elastodynamics COMMAND Soildynamics inputs/Soildynamics.arc)
-  add_test(NAME [soildynamics]2d_semi-circle_const_traction COMMAND Soildynamics inputs/constant-traction.arc)
-  add_test(NAME [soildynamics]2d_semi-circle_const_traction_pointbc COMMAND Soildynamics inputs/constant-traction.pointbc.arc)
-  add_test(NAME [soildynamics]2d_semi-circle_transient_traction COMMAND Soildynamics inputs/transient-traction.arc)
+  add_test(NAME [soildynamics]2d_semi-circle_const_traction COMMAND Soildynamics
+    -A,//fem/petsc-flags=-ksp_monitor
+    inputs/constant-traction.arc)
+  add_test(NAME [soildynamics]2d_semi-circle_const_traction_pointbc COMMAND Soildynamics
+    -A,//fem/petsc-flags=-ksp_view
+    inputs/constant-traction.pointbc.arc)
+  add_test(NAME [soildynamics]2d_semi-circle_transient_traction COMMAND Soildynamics
+    inputs/transient-traction.arc)
+  add_test(NAME [soildynamics]2d_bar_elastodynamics COMMAND Soildynamics
+    -A,//fem/petsc-flags=-ksp_monitor
+    inputs/Soildynamics.arc)
+  add_test(NAME [soildynamics]parse_and_exit COMMAND Soildynamics
+    -A,//fem/assemble-linear-system=false
+    -A,//fem/solve-linear-system=false
+    -A,//fem/cross-validation=false
+    inputs/Soildynamics.arc)
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-    add_test(NAME [soildynamics]2d_semi-circle_const_traction_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/constant-traction.arc)
-    add_test(NAME [soildynamics]2d_semi-circle_transient_traction_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/transient-traction.arc)
+    add_test(NAME [soildynamics]2d_semi-circle_const_traction_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/constant-traction.arc)
+    add_test(NAME [soildynamics]2d_semi-circle_transient_traction_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/transient-traction.arc)
   endif()
 endif()
 
@@ -53,9 +65,9 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   add_test(NAME [soildynamics]3d_double-couple_paraxial_soil COMMAND Soildynamics inputs/3d.double-couple.paraxial.soil.arc)
   add_test(NAME [soildynamics]3d_all-conditions COMMAND Soildynamics inputs/3d.all-conditions.arc)
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-    add_test(NAME [soildynamics]2d_double-couple_paraxial_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/double-couple.paraxial.arc)
-    add_test(NAME [soildynamics]2d_double-couple_paraxial_soil_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/double-couple.paraxial.soil.arc)
-    add_test(NAME [soildynamics]3d_double-couple_paraxial_soil_2pe COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/3d.double-couple.paraxial.soil.arc)
-    add_test(NAME [soildynamics]3d_all-conditions_2pe  COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/3d.all-conditions.arc)
+    add_test(NAME [soildynamics]2d_double-couple_paraxial_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/double-couple.paraxial.arc)
+    add_test(NAME [soildynamics]2d_double-couple_paraxial_soil_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/double-couple.paraxial.soil.arc)
+    add_test(NAME [soildynamics]3d_double-couple_paraxial_soil_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/3d.double-couple.paraxial.soil.arc)
+    add_test(NAME [soildynamics]3d_all-conditions_2p  COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/3d.all-conditions.arc)
   endif()
 endif()

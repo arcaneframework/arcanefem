@@ -41,9 +41,13 @@ compute()
     m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
   }
 
+  if (m_petsc_flags != NULL){
+    CommandLineArguments args = ArcaneFemFunctions::GeneralFunctions::getPetscFlagsFromCommandline(m_petsc_flags);
+    m_linear_system.setSolverCommandLineArguments(args);
+  }
+
   _doStationarySolve();
-  _updateVariables();
-  if (t >= tmax)
+  if (t >= tmax  && m_cross_validation)
     _validateResults();
   _updateTime();
 
@@ -89,9 +93,14 @@ _updateTime()
 void FemModule::
 _doStationarySolve()
 {
-  _assembleBilinearOperator();
-  _assembleLinearOperator();
-  _solve();
+  if(m_assemble_linear_system){
+    _assembleBilinearOperator();
+    _assembleLinearOperator();
+  }
+  if(m_solve_linear_system){
+    _solve();
+    _updateVariables();
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -156,6 +165,12 @@ _getParameters()
   c7 = rho * gamma / beta / dt;
   c8 = rho * (1. - gamma / beta);
   c9 = rho * dt * (1. - gamma / (2. * beta));
+
+  m_matrix_format = options()->matrixFormat();
+  m_assemble_linear_system = options()->assembleLinearSystem();
+  m_solve_linear_system = options()->solveLinearSystem();
+  m_cross_validation = options()->crossValidation();
+  m_petsc_flags = options()->petscFlags();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "get-material-params", elapsedTime);
