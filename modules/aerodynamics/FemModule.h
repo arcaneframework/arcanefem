@@ -94,7 +94,8 @@ class FemModule
   template <int N>
   void _assembleBilinear(const std::function<FixedMatrix<N, N>(const Cell&)>& compute_element_matrix);
 
-  Real2 _computeDxDyOfRealTria3(Cell cell);
+  Real2 _computeGradientOfRealTria3(Cell cell);
+  Real3 _computeGradientOfRealTetra4(Cell cell);
 };
 
 #endif
