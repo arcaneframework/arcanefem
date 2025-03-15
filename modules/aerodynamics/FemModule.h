@@ -81,7 +81,7 @@ class FemModule
  private:
 
   void _doStationarySolve();
-  void _assembleBilinearOperatorTria3();
+  void _assembleBilinearOperator();
   void _solve();
   void _assembleLinearOperator();
   void _getPsi();
@@ -89,6 +89,10 @@ class FemModule
   void _validateResults();
 
   FixedMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
+  FixedMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);
+
+  template <int N>
+  void _assembleBilinear(const std::function<FixedMatrix<N, N>(const Cell&)>& compute_element_matrix);
 
   Real2 _computeDxDyOfRealTria3(Cell cell);
 };
