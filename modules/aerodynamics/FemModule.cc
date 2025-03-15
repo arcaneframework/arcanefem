@@ -82,7 +82,7 @@ _getPsi()
 void FemModule::
 _doStationarySolve()
 {
-  _assembleBilinearOperatorTria3();
+  _assembleBilinearOperator();
   _assembleLinearOperator();
   _solve();
   _updateVariables();
@@ -153,21 +153,51 @@ _computeDxDyOfRealTria3(Cell cell)
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Calls the right function for LHS assembly
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleBilinearOperatorTria3()
+_assembleBilinearOperator()
 {
-  info() << "[ArcaneFem-Info] Started module _assembleBilinearOperatorTria3()";
+  info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
+  if (mesh()->dimension() == 3)
+    _assembleBilinear<4>([this](const Cell& cell) {
+      return _computeElementMatrixTetra4(cell);
+    });
+  if (mesh()->dimension() == 2)
+    _assembleBilinear<3>([this](const Cell& cell) {
+      return _computeElementMatrixTria3(cell);
+    });
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "lhs-matrix-assembly", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Assembles the bilinear operator matrix for the FEM linear system.
+ *
+ * The method performs the following steps:
+ *   1. Computes element matrix using provided `compute_element_matrix` function.
+ *   2. Assembles global matrix by adding contributions from each cell's element
+ *      matrix to the corresponding entries in the global matrix.
+ */
+/*---------------------------------------------------------------------------*/
+
+template <int N>
+void FemModule::
+_assembleBilinear(const std::function<FixedMatrix<N, N>(const Cell&)>& compute_element_matrix)
+{
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    auto K_e = _computeElementMatrixTria3(cell);
-
+    auto K_e = compute_element_matrix(cell); // element matrix based on the provided function
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
@@ -181,9 +211,6 @@ _assembleBilinearOperatorTria3()
       ++n1_index;
     }
   }
-
-  elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"assemble-lhs", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
