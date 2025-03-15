@@ -118,7 +118,11 @@ _assembleLinearOperator()
       for (Node node : iface->nodes()) {
         if (node.isOwn()) {
           m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), Penalty);
-          Real u_g = (m_node_coord[node].y - value * m_node_coord[node].x) * Penalty;
+          Real u_g = 0;
+          if (mesh()->dimension() == 2)
+            u_g = (m_node_coord[node].y - value * m_node_coord[node].x) * Penalty;
+          if (mesh()->dimension() == 3)
+            u_g = (m_node_coord[node].z - value * m_node_coord[node].x) * Penalty;
           rhs_values[node_dof.dofId(node, 0)] = u_g;
         }
       }
