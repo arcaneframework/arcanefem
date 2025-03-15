@@ -99,6 +99,13 @@ class FemModule
   Real c8; // constant c₈
   Real c9; // constant c₉
 
+  String m_petsc_flags;
+  String m_matrix_format = "DOK";
+
+  bool m_assemble_linear_system = true;
+  bool m_solve_linear_system = true;
+  bool m_cross_validation = true;
+
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
 
