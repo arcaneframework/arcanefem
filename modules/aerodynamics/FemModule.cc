@@ -11,80 +11,8 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/utils/NumArray.h>
-#include <arcane/ITimeLoopMng.h>
-#include <arcane/IMesh.h>
-#include <arcane/IItemFamily.h>
-#include <arcane/ItemGroup.h>
-#include <arcane/ICaseMng.h>
-
-#include "IDoFLinearSystemFactory.h"
-#include "Fem_axl.h"
-#include "FemUtils.h"
-#include "DoFLinearSystem.h"
-#include "FemDoFsOnNodes.h"
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-using namespace Arcane;
-using namespace Arcane::FemUtils;
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-/*!
- * \brief Module Fem.
- */
-class FemModule
-: public ArcaneFemObject
-{
- public:
-
-  explicit FemModule(const ModuleBuildInfo& mbi)
-  : ArcaneFemObject(mbi)
-  , m_dofs_on_nodes(mbi.subDomain()->traceMng())
-  {
-    ICaseMng* cm = mbi.subDomain()->caseMng();
-    cm->setTreatWarningAsError(true);
-    cm->setAllowUnkownRootElelement(false);
-  }
-
- public:
-
-  //! Method called at each iteration
-  void compute() override;
-
-  //! Method called at the beginning of the simulation
-  void startInit() override;
-
-  VersionInfo versionInfo() const override
-  {
-    return VersionInfo(1, 0, 0);
-  }
-
- private:
-
-  Real ElementNodes;
-
-  DoFLinearSystem m_linear_system;
-  IItemFamily* m_dof_family = nullptr;
-  FemDoFsOnNodes m_dofs_on_nodes;
-
- private:
-
-  void _doStationarySolve();
-  void _getMaterialParameters();
-  void _assembleBilinearOperatorTRIA3();
-  void _solve();
-  void _initBoundaryconditions();
-  void _assembleLinearOperator();
-  FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
-  Real2 _computeDxDyOfRealTRIA3(Cell cell);
-  Real _computeAreaTriangle3(Cell cell);
-  void _applyDirichletBoundaryConditions();
-  void _getPsi();
-  void _checkResultFile();
-};
+#include "FemModule.h"
+#include "ElementMatrix.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -92,7 +20,8 @@ class FemModule
 void FemModule::
 compute()
 {
-  info() << "Module Fem COMPUTE";
+  info() << "[ArcaneFem-Info] Started module compute()";
+  Real elapsedTime = platform::getRealTime();
 
   // Stop code after computations
   if (m_global_iteration() > 0)
@@ -102,10 +31,11 @@ compute()
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
-  info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
   _doStationarySolve();
   _getPsi();
- 
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"compute", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -114,12 +44,14 @@ compute()
 void FemModule::
 startInit()
 {
-  info() << "Module Fem INIT";
+  info() << "[ArcaneFem-Info] Started module startInit()";
+  Real elapsedTime = platform::getRealTime();
 
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
-  _initBoundaryconditions();
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
 }
 
 
@@ -129,15 +61,19 @@ startInit()
 void FemModule::
 _getPsi()
 {
-  info() << "Postprocessing PSI";
+  info() << "[ArcaneFem-Info] Started module _getPsi()";
+  Real elapsedTime = platform::getRealTime();
 
-      ENUMERATE_ (Cell, icell, allCells()) {
-        Cell cell = *icell;
-        Real2 DX = _computeDxDyOfRealTRIA3(cell);
-        m_psi[cell] = - DX.x*DX.x - DX.y*DX.y  ;
-      }
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    Real2 DX = _computeDxDyOfRealTria3(cell);
+    m_psi[cell] = -DX.x * DX.x - DX.y * DX.y;
+  }
 
-      m_psi.synchronize();
+  m_psi.synchronize();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-psi", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -146,80 +82,11 @@ _getPsi()
 void FemModule::
 _doStationarySolve()
 {
-  // # get material parameters
-  _getMaterialParameters();
-
-  // Assemble the FEM bilinear operator (LHS - matrix A)
-  _assembleBilinearOperatorTRIA3();
-
-  // Assemble the FEM linear operator (RHS - vector b)
+  _assembleBilinearOperatorTria3();
   _assembleLinearOperator();
-
-  // # T=linalg.solve(K,RHS)
   _solve();
-
-  // Check results
-  _checkResultFile();
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_getMaterialParameters()
-{
-  info() << "Get material parameters...";
-  ElementNodes = 3.;
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_initBoundaryconditions()
-{
-  info() << "Init boundary conditions...";
-
-  info() << "Apply boundary conditions";
-  _applyDirichletBoundaryConditions();
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_applyDirichletBoundaryConditions()
-{
-  // Handle all the Dirichlet boundary conditions.
-  // In the 'arc' file, there are in the following format:
-  //   <dirichlet-boundary-condition>
-  //   <surface>Haut</surface>
-  //   <value>21.0</value>
-  // </dirichlet-boundary-condition>
-
-  for (const auto& bs : options()->farfieldBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    Real value = bs->angle();
-    info() << "Apply Farfield boundary condition surface=" << group.name() << " v=" << value;
-    ENUMERATE_ (Face, iface, group) {
-      for (Node node : iface->nodes()) {
-        m_u[node] = m_node_coord[node].y - value*m_node_coord[node].x;
-        m_u_fixed[node] = true;
-      }
-    }
-  }
-
-  for (const auto& bs : options()->dirichletBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    Real value = bs->value();
-    info() << "Apply Dirichlet boundary condition surface=" << group.name() << " v=" << value;
-    ENUMERATE_ (Face, iface, group) {
-      for (Node node : iface->nodes()) {
-        m_u[node] = value;
-        m_u_fixed[node] = true;
-      }
-    }
-  }
+  _updateVariables();
+  _validateResults();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -229,193 +96,44 @@ _applyDirichletBoundaryConditions()
 void FemModule::
 _assembleLinearOperator()
 {
-  info() << "Assembly of FEM linear operator ";
-  info() << "Applying Dirichlet boundary condition via  penalty method ";
+  info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
+  Real elapsedTime = platform::getRealTime();
 
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
+  if (bc)
+    for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
+      ArcaneFemFunctions::BoundaryConditions2D::applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
 
-  if (options()->enforceDirichletMethod() == "Penalty") {
+  for (const auto& bs : options()->farfieldBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    Real value = bs->angle();
+    Real Penalty = options()->penalty();
 
-    //----------------------------------------------
-    // penalty method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
-    //  Dirichlet condition needs to be applied
-    //
-    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
-    //           a_{i,i} = 1. * P
-    //
-    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
-    //           b_{i} = b_{i} * P
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    Real Penalty = options()->penalty();        // 1.0e30 is the default
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u_fixed[node_id]) {
-        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-        m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
-        Real value = Penalty * m_u[node_id];
-        rhs_values[dof_id] = value;
+    ENUMERATE_ (Face, iface, group) {
+      for (Node node : iface->nodes()) {
+        if (node.isOwn()) {
+          m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), Penalty);
+          Real u_g = (m_node_coord[node].y - value * m_node_coord[node].x) * Penalty;
+          rhs_values[node_dof.dofId(node, 0)] = u_g;
+        }
       }
     }
-  }else if (options()->enforceDirichletMethod() == "WeakPenalty") {
-
-    //----------------------------------------------
-    // weak penalty method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
-    //  Dirichlet condition needs to be applied
-    //
-    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
-    //           a_{i,i} = a_{i,i} + P
-    //
-    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
-    //           b_{i} = b_{i} * P
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    Real Penalty = options()->penalty();        // 1.0e30 is the default
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u_fixed[node_id]) {
-        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-        m_linear_system.matrixAddValue(dof_id, dof_id, Penalty);
-        Real value = Penalty * m_u[node_id];
-        rhs_values[dof_id] = value;
-      }
-    }
-  }else if (options()->enforceDirichletMethod() == "RowElimination") {
-
-    //----------------------------------------------
-    // Row elimination method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
-    //
-    //  to apply the Dirichlet on 'i'th DOF
-    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j
-    //           a_{i,j} = 1.  : i==j
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u_fixed[node_id]) {
-        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-        Real value = m_u[node_id];
-        m_linear_system.eliminateRow(dof_id, value);
-      }
-    }
-  }else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
-
-    //----------------------------------------------
-    // Row elimination method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
-    //
-    //  to apply the Dirichlet on 'i'th DOF
-    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j  for all j
-    //           a_{i,j} = 1.  : i==j
-    //    also the column terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j  for all i
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u_fixed[node_id]) {
-        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-        Real value = m_u[node_id];
-        m_linear_system.eliminateRowColumn(dof_id, value);
-      }
-    }
-  }else {
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " is not supported \n"
-           << "enforce-Dirichlet-method only supports:\n"
-           << "  - Penalty\n"
-           << "  - WeakPenalty\n"
-           << "  - RowElimination\n"
-           << "  - RowColumnElimination\n";
   }
-}
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real FemModule::
-_computeAreaTriangle3(Cell cell)
-{
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-  return 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-FixedMatrix<3, 3> FemModule::
-_computeElementMatrixTRIA3(Cell cell)
-{
-  // Get coordiantes of the triangle element  TRI3
-  //------------------------------------------------
-  //                  0 o
-  //                   . .
-  //                  .   .
-  //                 .     .
-  //              1 o . . . o 2
-  //------------------------------------------------
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-
-  Real area = _computeAreaTriangle3(cell);    // calculate area
-
-  Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
-  Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
-  Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
-
-  FixedMatrix<2, 3> b_matrix;
-  b_matrix(0, 0) = dPhi0.x;
-  b_matrix(0, 1) = dPhi1.x;
-  b_matrix(0, 2) = dPhi2.x;
-
-  b_matrix(1, 0) = dPhi0.y;
-  b_matrix(1, 1) = dPhi1.y;
-  b_matrix(1, 2) = dPhi2.y;
-
-  b_matrix.multInPlace(1.0 / (2.0 * area));
-
-  FixedMatrix<3, 3> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
-  int_cdPi_dPj.multInPlace(area );
-
-  return int_cdPi_dPj;
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"assemble-rhs", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 Real2 FemModule::
-_computeDxDyOfRealTRIA3(Cell cell)
+_computeDxDyOfRealTria3(Cell cell)
 {
   Real3 m0 = m_node_coord[cell.nodeId(0)];
   Real3 m1 = m_node_coord[cell.nodeId(1)];
@@ -438,16 +156,18 @@ _computeDxDyOfRealTRIA3(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleBilinearOperatorTRIA3()
+_assembleBilinearOperatorTria3()
 {
+  info() << "[ArcaneFem-Info] Started module _assembleBilinearOperatorTria3()";
+  Real elapsedTime = platform::getRealTime();
+
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    if (cell.type() != IT_Triangle3)
-      ARCANE_FATAL("Only Triangle3 cell type is supported");
 
-    auto K_e = _computeElementMatrixTRIA3(cell);  // element stifness matrix
+    auto K_e = _computeElementMatrixTria3(cell);
+
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
@@ -461,6 +181,9 @@ _assembleBilinearOperatorTRIA3()
       ++n1_index;
     }
   }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"assemble-lhs", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -469,45 +192,80 @@ _assembleBilinearOperatorTRIA3()
 void FemModule::
 _solve()
 {
+  info() << "[ArcaneFem-Info] Started module _solve()";
+  Real elapsedTime = platform::getRealTime();
+
   m_linear_system.solve();
 
-  // Re-Apply boundary conditions because the solver has modified the value
-  _applyDirichletBoundaryConditions();
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"solve-linear-system", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Update the FEM variables.
+ *
+ * This method performs the following actions:
+ *   1. Fetches values of solution from solved linear system to FEM variables,
+ *      i.e., it copies RHS DOF to u.
+ *   2. Performs synchronize of FEM variables across subdomains.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_updateVariables()
+{
+  info() << "[ArcaneFem-Info] Started module _updateVariables()";
+  Real elapsedTime = platform::getRealTime();
 
   {
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
-      Real v = dof_u[node_dof.dofId(node, 0)];
-      m_u[node] = v;
+      m_u[node] = dof_u[node_dof.dofId(node, 0)];
     }
   }
 
   m_u.synchronize();
 
-  const bool do_print = (allNodes().size() < 200);
-  if (do_print) {
-    ENUMERATE_ (Node, inode, allNodes()) {
-      Node node = *inode;
-      info() << "U[" << node.localId() << "][" << node.uniqueId() << "] = "
-             << m_u[node];
-    }
-  }
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Validates and prints the results of the FEM computation.
+ *
+ * This method performs the following actions:
+ *   1. If number of nodes < 200, prints the computed values for each node.
+ *   2. Retrieves the filename for the result file from options.
+ *   3. If a filename is provided, checks the computed results against result file.
+ *
+ * @note The result comparison uses a tolerance of 1.0e-4.
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_checkResultFile()
+_validateResults()
 {
+  info() << "[ArcaneFem-Info] Started module _validateResults()";
+  Real elapsedTime = platform::getRealTime();
+
+  if (allNodes().size() < 200)
+    ENUMERATE_ (Node, inode, allNodes()) {
+      Node node = *inode;
+      info() << "u[" << node.localId() << "][" << node.uniqueId() << "] = " << m_u[node];
+    }
+
   String filename = options()->resultFile();
-  info() << "CheckResultFile filename=" << filename;
-  if (filename.empty())
-    return;
-  const double epsilon = 1.0e-4;
-  checkNodeResultFile(traceMng(), filename, m_u, epsilon);
+  info() << "ValidateResultFile filename=" << filename;
+
+  if (!filename.empty())
+    checkNodeResultFile(traceMng(), filename, m_u, 1.0e-4);
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"result-validation", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/

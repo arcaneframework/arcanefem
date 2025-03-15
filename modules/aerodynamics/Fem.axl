@@ -55,30 +55,11 @@
       </simple>
     </complex>
     
-    <!-- - - - - - dirichlet-boundary-condition - - - - -->
-    <complex name  = "dirichlet-boundary-condition"
-             type  = "DirichletBoundaryCondition"
-             minOccurs = "0"
-             maxOccurs = "unbounded"
-      >
-      <description>
-        Dirichelt boundary condition
-      </description>
-      <extended name = "surface" type = "Arcane::FaceGroup">
-        <description>
-          FaceGroup on which to apply these boundary condition
-        </description>
-      </extended>
-      <simple name = "value" type = "real">
-        <description>
-          Value of the boundary condition
-        </description>
-      </simple>
-    </complex>
+    <!-- Boundary conditions service instance -->
+    <service-instance name = "boundary-conditions" type = "BC::IArcaneFemBC" optional = "true" default="FemBoundaryConditions" />
 
-    <service-instance name = "linear-system"
-                      type = "Arcane::FemUtils::IDoFLinearSystemFactory"
-                      default = "AlephLinearSystem"
-                      />
+    <!-- Linear system service instance -->
+    <service-instance name="linear-system" type="Arcane::FemUtils::IDoFLinearSystemFactory" default="AlephLinearSystem" />
+
   </options>
 </module>

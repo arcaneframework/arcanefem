@@ -7,7 +7,6 @@
 
   <arcane-post-processing>
    <output-period>1</output-period>
-   <format name="VtkHdfV2PostProcessor" />
    <output>
      <variable>u</variable>
      <variable>psi</variable>
@@ -25,13 +24,16 @@
       <surface>FarField</surface>
       <angle>0.1</angle>
     </farfield-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>upperAirfoil</surface>
-      <value>0.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>lowerAirfoil</surface>
-      <value>0.0</value>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>upperAirfoil</surface>
+        <value>0.0</value>
+      </dirichlet>
+      <dirichlet>
+        <surface>lowerAirfoil</surface>
+        <value>0.0</value>
+      </dirichlet>
+    </boundary-conditions>
+    <result-file>check/test_2d.txt</result-file>
   </fem>
 </case>

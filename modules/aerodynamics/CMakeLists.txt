@@ -14,6 +14,9 @@ target_link_libraries(aerodynamics PUBLIC FemUtils)
 # Copy the inputs folder containing the arc files
 file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
+# Copy the check folder containing the arc files
+file(COPY "check" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
 # Copy the mesh files into meshes directory
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
