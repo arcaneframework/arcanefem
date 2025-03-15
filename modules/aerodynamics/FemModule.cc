@@ -46,8 +46,6 @@ startInit()
 
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
-
-  _initBoundaryconditions();
 }
 
 
@@ -59,13 +57,13 @@ _getPsi()
 {
   info() << "Postprocessing PSI";
 
-      ENUMERATE_ (Cell, icell, allCells()) {
-        Cell cell = *icell;
-        Real2 DX = _computeDxDyOfRealTria3(cell);
-        m_psi[cell] = - DX.x*DX.x - DX.y*DX.y  ;
-      }
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    Real2 DX = _computeDxDyOfRealTria3(cell);
+    m_psi[cell] = -DX.x * DX.x - DX.y * DX.y;
+  }
 
-      m_psi.synchronize();
+  m_psi.synchronize();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -81,56 +79,6 @@ _doStationarySolve()
 }
 
 /*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_initBoundaryconditions()
-{
-  info() << "Init boundary conditions...";
-
-  info() << "Apply boundary conditions";
-  _applyDirichletBoundaryConditions();
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_applyDirichletBoundaryConditions()
-{
-  // Handle all the Dirichlet boundary conditions.
-  // In the 'arc' file, there are in the following format:
-  //   <dirichlet-boundary-condition>
-  //   <surface>Haut</surface>
-  //   <value>21.0</value>
-  // </dirichlet-boundary-condition>
-
-  for (const auto& bs : options()->farfieldBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    Real value = bs->angle();
-    info() << "Apply Farfield boundary condition surface=" << group.name() << " v=" << value;
-    ENUMERATE_ (Face, iface, group) {
-      for (Node node : iface->nodes()) {
-        m_u[node] = m_node_coord[node].y - value*m_node_coord[node].x;
-        m_u_fixed[node] = true;
-      }
-    }
-  }
-
-  for (const auto& bs : options()->dirichletBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    Real value = bs->value();
-    info() << "Apply Dirichlet boundary condition surface=" << group.name() << " v=" << value;
-    ENUMERATE_ (Face, iface, group) {
-      for (Node node : iface->nodes()) {
-        m_u[node] = value;
-        m_u_fixed[node] = true;
-      }
-    }
-  }
-}
-
-/*---------------------------------------------------------------------------*/
 // Assemble the FEM linear operator
 /*---------------------------------------------------------------------------*/
 
@@ -138,146 +86,34 @@ void FemModule::
 _assembleLinearOperator()
 {
   info() << "Assembly of FEM linear operator ";
-  info() << "Applying Dirichlet boundary condition via  penalty method ";
 
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
+  if (bc)
+    for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
+      ArcaneFemFunctions::BoundaryConditions2D::applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
 
-  if (options()->enforceDirichletMethod() == "Penalty") {
+  for (const auto& bs : options()->farfieldBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    Real value = bs->angle();
 
-    //----------------------------------------------
-    // penalty method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
-    //  Dirichlet condition needs to be applied
-    //
-    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
-    //           a_{i,i} = 1. * P
-    //
-    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
-    //           b_{i} = b_{i} * P
-    //----------------------------------------------
+    Real Penalty = options()->penalty();
 
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    Real Penalty = options()->penalty();        // 1.0e30 is the default
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u_fixed[node_id]) {
-        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-        m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
-        Real value = Penalty * m_u[node_id];
-        rhs_values[dof_id] = value;
+    ENUMERATE_ (Face, iface, group) {
+      for (Node node : iface->nodes()) {
+        if (node.isOwn()) {
+          m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), Penalty);
+          Real u_g = (m_node_coord[node].y - value * m_node_coord[node].x) * Penalty;
+          rhs_values[node_dof.dofId(node, 0)] = u_g;
+        }
       }
     }
-  }else if (options()->enforceDirichletMethod() == "WeakPenalty") {
-
-    //----------------------------------------------
-    // weak penalty method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
-    //  Dirichlet condition needs to be applied
-    //
-    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
-    //           a_{i,i} = a_{i,i} + P
-    //
-    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
-    //           b_{i} = b_{i} * P
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    Real Penalty = options()->penalty();        // 1.0e30 is the default
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u_fixed[node_id]) {
-        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-        m_linear_system.matrixAddValue(dof_id, dof_id, Penalty);
-        Real value = Penalty * m_u[node_id];
-        rhs_values[dof_id] = value;
-      }
-    }
-  }else if (options()->enforceDirichletMethod() == "RowElimination") {
-
-    //----------------------------------------------
-    // Row elimination method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
-    //
-    //  to apply the Dirichlet on 'i'th DOF
-    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j
-    //           a_{i,j} = 1.  : i==j
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u_fixed[node_id]) {
-        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-        Real value = m_u[node_id];
-        m_linear_system.eliminateRow(dof_id, value);
-      }
-    }
-  }else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
-
-    //----------------------------------------------
-    // Row elimination method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
-    //
-    //  to apply the Dirichlet on 'i'th DOF
-    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j  for all j
-    //           a_{i,j} = 1.  : i==j
-    //    also the column terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j  for all i
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u_fixed[node_id]) {
-        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-        Real value = m_u[node_id];
-        m_linear_system.eliminateRowColumn(dof_id, value);
-      }
-    }
-  }else {
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " is not supported \n"
-           << "enforce-Dirichlet-method only supports:\n"
-           << "  - Penalty\n"
-           << "  - WeakPenalty\n"
-           << "  - RowElimination\n"
-           << "  - RowColumnElimination\n";
   }
 }
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real FemModule::
-_computeAreaTriangle3(Cell cell)
-{
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-  return 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));
-}
-
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -312,8 +148,6 @@ _assembleBilinearOperatorTria3()
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    if (cell.type() != IT_Triangle3)
-      ARCANE_FATAL("Only Triangle3 cell type is supported");
 
     auto K_e = _computeElementMatrixTria3(cell);  // element stifness matrix
     Int32 n1_index = 0;
@@ -339,9 +173,6 @@ _solve()
 {
   m_linear_system.solve();
 
-  // Re-Apply boundary conditions because the solver has modified the value
-  _applyDirichletBoundaryConditions();
-
   {
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -354,14 +185,11 @@ _solve()
 
   m_u.synchronize();
 
-  const bool do_print = (allNodes().size() < 200);
-  if (do_print) {
+  if (allNodes().size() < 200)
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      info() << "U[" << node.localId() << "][" << node.uniqueId() << "] = "
-             << m_u[node];
+      info() << "u[" << node.localId() << "][" << node.uniqueId() << "] = " << m_u[node];
     }
-  }
 }
 
 /*---------------------------------------------------------------------------*/
