@@ -15,6 +15,11 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+#include <arcane/utils/PlatformUtils.h>
+#include <arcane/utils/ParameterList.h>
+#include <arcane/utils/ApplicationInfo.h>
+#include <arcane/utils/CommandLineArguments.h>
+
 #include <arcane/utils/NumArray.h>
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IMesh.h>
@@ -38,10 +43,15 @@ using namespace Arcane;
 using namespace Arcane::FemUtils;
 
 /*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-/*!
- * \brief Module Fem.
+/**
+ * @brief A module for finite element method.
+ *
+ * This class handles the initialization and computation for finite element
+ * method (FEM) simulations, providing methods to  set  up and solve linear
+ * systems, assemble FEM operators, and perform result checks.
  */
+/*---------------------------------------------------------------------------*/
+
 class FemModule
 : public ArcaneFemObject
 {
@@ -74,11 +84,13 @@ class FemModule
   void _assembleBilinearOperatorTria3();
   void _solve();
   void _assembleLinearOperator();
-  FixedMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
-  Real2 _computeDxDyOfRealTria3(Cell cell);
-  Real _computeAreaTriangle3(Cell cell);
   void _getPsi();
-  void _checkResultFile();
+  void _updateVariables();
+  void _validateResults();
+
+  FixedMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
+
+  Real2 _computeDxDyOfRealTria3(Cell cell);
 };
 
 #endif

@@ -20,7 +20,8 @@
 void FemModule::
 compute()
 {
-  info() << "Module Fem COMPUTE";
+  info() << "[ArcaneFem-Info] Started module compute()";
+  Real elapsedTime = platform::getRealTime();
 
   // Stop code after computations
   if (m_global_iteration() > 0)
@@ -30,10 +31,11 @@ compute()
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
-  info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
   _doStationarySolve();
   _getPsi();
- 
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"compute", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -42,10 +44,14 @@ compute()
 void FemModule::
 startInit()
 {
-  info() << "Module Fem INIT";
+  info() << "[ArcaneFem-Info] Started module startInit()";
+  Real elapsedTime = platform::getRealTime();
 
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
 }
 
 
@@ -55,7 +61,8 @@ startInit()
 void FemModule::
 _getPsi()
 {
-  info() << "Postprocessing PSI";
+  info() << "[ArcaneFem-Info] Started module _getPsi()";
+  Real elapsedTime = platform::getRealTime();
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
@@ -64,6 +71,9 @@ _getPsi()
   }
 
   m_psi.synchronize();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-psi", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -75,7 +85,8 @@ _doStationarySolve()
   _assembleBilinearOperatorTria3();
   _assembleLinearOperator();
   _solve();
-  _checkResultFile();
+  _updateVariables();
+  _validateResults();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -85,7 +96,8 @@ _doStationarySolve()
 void FemModule::
 _assembleLinearOperator()
 {
-  info() << "Assembly of FEM linear operator ";
+  info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
+  Real elapsedTime = platform::getRealTime();
 
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
@@ -100,7 +112,6 @@ _assembleLinearOperator()
   for (const auto& bs : options()->farfieldBoundaryCondition()) {
     FaceGroup group = bs->surface();
     Real value = bs->angle();
-
     Real Penalty = options()->penalty();
 
     ENUMERATE_ (Face, iface, group) {
@@ -113,6 +124,9 @@ _assembleLinearOperator()
       }
     }
   }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"assemble-rhs", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -144,12 +158,16 @@ _computeDxDyOfRealTria3(Cell cell)
 void FemModule::
 _assembleBilinearOperatorTria3()
 {
+  info() << "[ArcaneFem-Info] Started module _assembleBilinearOperatorTria3()";
+  Real elapsedTime = platform::getRealTime();
+
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    auto K_e = _computeElementMatrixTria3(cell);  // element stifness matrix
+    auto K_e = _computeElementMatrixTria3(cell);
+
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
@@ -163,6 +181,9 @@ _assembleBilinearOperatorTria3()
       ++n1_index;
     }
   }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"assemble-lhs", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -171,39 +192,80 @@ _assembleBilinearOperatorTria3()
 void FemModule::
 _solve()
 {
+  info() << "[ArcaneFem-Info] Started module _solve()";
+  Real elapsedTime = platform::getRealTime();
+
   m_linear_system.solve();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"solve-linear-system", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Update the FEM variables.
+ *
+ * This method performs the following actions:
+ *   1. Fetches values of solution from solved linear system to FEM variables,
+ *      i.e., it copies RHS DOF to u.
+ *   2. Performs synchronize of FEM variables across subdomains.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_updateVariables()
+{
+  info() << "[ArcaneFem-Info] Started module _updateVariables()";
+  Real elapsedTime = platform::getRealTime();
 
   {
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
-      Real v = dof_u[node_dof.dofId(node, 0)];
-      m_u[node] = v;
+      m_u[node] = dof_u[node_dof.dofId(node, 0)];
     }
   }
 
   m_u.synchronize();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Validates and prints the results of the FEM computation.
+ *
+ * This method performs the following actions:
+ *   1. If number of nodes < 200, prints the computed values for each node.
+ *   2. Retrieves the filename for the result file from options.
+ *   3. If a filename is provided, checks the computed results against result file.
+ *
+ * @note The result comparison uses a tolerance of 1.0e-4.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_validateResults()
+{
+  info() << "[ArcaneFem-Info] Started module _validateResults()";
+  Real elapsedTime = platform::getRealTime();
 
   if (allNodes().size() < 200)
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
       info() << "u[" << node.localId() << "][" << node.uniqueId() << "] = " << m_u[node];
     }
-}
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_checkResultFile()
-{
   String filename = options()->resultFile();
-  info() << "CheckResultFile filename=" << filename;
-  if (filename.empty())
-    return;
-  const double epsilon = 1.0e-4;
-  checkNodeResultFile(traceMng(), filename, m_u, epsilon);
+  info() << "ValidateResultFile filename=" << filename;
+
+  if (!filename.empty())
+    checkNodeResultFile(traceMng(), filename, m_u, 1.0e-4);
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"result-validation", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
