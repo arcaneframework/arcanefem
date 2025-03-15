@@ -11,80 +11,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/utils/NumArray.h>
-#include <arcane/ITimeLoopMng.h>
-#include <arcane/IMesh.h>
-#include <arcane/IItemFamily.h>
-#include <arcane/ItemGroup.h>
-#include <arcane/ICaseMng.h>
-
-#include "IDoFLinearSystemFactory.h"
-#include "Fem_axl.h"
-#include "FemUtils.h"
-#include "DoFLinearSystem.h"
-#include "FemDoFsOnNodes.h"
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-using namespace Arcane;
-using namespace Arcane::FemUtils;
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-/*!
- * \brief Module Fem.
- */
-class FemModule
-: public ArcaneFemObject
-{
- public:
-
-  explicit FemModule(const ModuleBuildInfo& mbi)
-  : ArcaneFemObject(mbi)
-  , m_dofs_on_nodes(mbi.subDomain()->traceMng())
-  {
-    ICaseMng* cm = mbi.subDomain()->caseMng();
-    cm->setTreatWarningAsError(true);
-    cm->setAllowUnkownRootElelement(false);
-  }
-
- public:
-
-  //! Method called at each iteration
-  void compute() override;
-
-  //! Method called at the beginning of the simulation
-  void startInit() override;
-
-  VersionInfo versionInfo() const override
-  {
-    return VersionInfo(1, 0, 0);
-  }
-
- private:
-
-  Real ElementNodes;
-
-  DoFLinearSystem m_linear_system;
-  IItemFamily* m_dof_family = nullptr;
-  FemDoFsOnNodes m_dofs_on_nodes;
-
- private:
-
-  void _doStationarySolve();
-  void _getMaterialParameters();
-  void _assembleBilinearOperatorTRIA3();
-  void _solve();
-  void _initBoundaryconditions();
-  void _assembleLinearOperator();
-  FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
-  Real2 _computeDxDyOfRealTRIA3(Cell cell);
-  Real _computeAreaTriangle3(Cell cell);
-  void _applyDirichletBoundaryConditions();
-  void _getPsi();
-  void _checkResultFile();
-};
+#include "FemModule.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -146,30 +73,10 @@ _getPsi()
 void FemModule::
 _doStationarySolve()
 {
-  // # get material parameters
-  _getMaterialParameters();
-
-  // Assemble the FEM bilinear operator (LHS - matrix A)
   _assembleBilinearOperatorTRIA3();
-
-  // Assemble the FEM linear operator (RHS - vector b)
   _assembleLinearOperator();
-
-  // # T=linalg.solve(K,RHS)
   _solve();
-
-  // Check results
   _checkResultFile();
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_getMaterialParameters()
-{
-  info() << "Get material parameters...";
-  ElementNodes = 3.;
 }
 
 /*---------------------------------------------------------------------------*/
