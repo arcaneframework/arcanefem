@@ -15,6 +15,42 @@
 #include "ElementMatrix.h"
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Initializes the FemModule at the start of the simulation.
+ *
+ * - This method initializes degrees of freedom (DoFs) on nodes.
+ * - It also gets values of some solver parameters.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+startInit()
+{
+  info() << "[ArcaneFem-Info] Started module startInit()";
+  Real elapsedTime = platform::getRealTime();
+
+  m_dofs_on_nodes.initialize(mesh(), 1);
+
+  m_matrix_format = options()->matrixFormat();
+  m_assemble_linear_system = options()->assembleLinearSystem();
+  m_solve_linear_system = options()->solveLinearSystem();
+  m_cross_validation = options()->crossValidation();
+  m_petsc_flags = options()->petscFlags();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Performs the main computation for the FemModule.
+ *
+ * This method:
+ *   1. Stops the time loop after 1 iteration since the equation is steady state.
+ *   2. Resets, configures, and initializes the linear system.
+ *   3. Applies PETSc commandline flags to the solver (if PETSc is used).
+ *   4. Executes the stationary solve and extracts psi.
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -47,28 +83,6 @@ compute()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-startInit()
-{
-  info() << "[ArcaneFem-Info] Started module startInit()";
-  Real elapsedTime = platform::getRealTime();
-
-  m_dofs_on_nodes.initialize(mesh(), 1);
-
-  m_matrix_format = options()->matrixFormat();
-  m_assemble_linear_system = options()->assembleLinearSystem();
-  m_solve_linear_system = options()->solveLinearSystem();
-  m_cross_validation = options()->crossValidation();
-  m_petsc_flags = options()->petscFlags();
-
-  elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
-}
-
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
 _getPsi()
 {
   info() << "[ArcaneFem-Info] Started module _getPsi()";
@@ -95,6 +109,16 @@ _getPsi()
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Performs a stationary solve for the FEM system.
+ *
+ * This method follows a sequence of steps to solve FEM system:
+ *   1. _assembleBilinearOperator()       Assembles the FEM  matrix 𝑨
+ *   2. _assembleLinearOperator()         Assembles the FEM RHS vector 𝑏
+ *   3.  _solve()                         Solves for solution vector 𝒖 = 𝑨⁻¹𝒃
+ *   4. _updateVariables()                Updates FEM variables 𝒖 = 𝒙
+ *   5. _validateResults()                Regression test
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -114,7 +138,12 @@ _doStationarySolve()
 }
 
 /*---------------------------------------------------------------------------*/
-// Assemble the FEM linear operator
+/**
+ * @brief FEM linear operator for the current simulation step.
+ *
+ * This method constructs the FEM linear  systems RHS vector by applying
+ * various boundary conditions and source terms.
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -123,8 +152,7 @@ _assembleLinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  // Temporary variable to keep values for the RHS part of the linear system
-  VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
+  VariableDoFReal& rhs_values(m_linear_system.rhsVariable()); // Temporary variable to keep values for the RHS
   rhs_values.fill(0.0);
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -312,19 +340,17 @@ _updateVariables()
   info() << "[ArcaneFem-Info] Started module _updateVariables()";
   Real elapsedTime = platform::getRealTime();
 
-  {
-    VariableDoFReal& dof_u(m_linear_system.solutionVariable());
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      Node node = *inode;
-      m_u[node] = dof_u[node_dof.dofId(node, 0)];
-    }
+  VariableDoFReal& dof_u(m_linear_system.solutionVariable());
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  ENUMERATE_ (Node, inode, ownNodes()) {
+    Node node = *inode;
+    m_u[node] = dof_u[node_dof.dofId(node, 0)];
   }
 
   m_u.synchronize();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "update-variables", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/

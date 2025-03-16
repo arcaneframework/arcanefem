@@ -7,7 +7,7 @@
 /*---------------------------------------------------------------------------*/
 /* ElementMatrix.h                                             (C) 2022-2025 */
 /*                                                                           */
-/* Contains functions to compute the FEM element matrices for Poisson        */
+/* Contains functions to compute the FEM element matrices for aerodynamics   */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -43,7 +43,7 @@ FixedMatrix<3, 3> FemModule::_computeElementMatrixTria3(Cell cell)
  *       a(𝑢,𝑣) = ∫∫∫ (∂𝑢/∂𝑥 ∂𝑣/∂𝑥  + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦 + ∂𝑢/∂𝑧 ∂𝑣/∂𝑧)dΩ
  *
  * Steps involved:
- * 1. Calculate the area of the triangle.
+ * 1. Calculate the volume of the tetrahedron.
  * 2. Compute the gradients of the shape functions.
  * 3. Return a(𝑢,𝑣);
  */

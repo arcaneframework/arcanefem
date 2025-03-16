@@ -134,8 +134,8 @@ _getMaterialParameters()
 /**
  * @brief FEM linear operator for the current simulation step.
  *
- * This method constructs the linear  system by  assembling the LHS matrix
- * and  RHS vector, applying various boundary conditions and source terms.
+ * This method constructs the FEM linear  systems RHS vector by applying
+ * various boundary conditions and source terms.
  *
  * Steps involved:
  *  1. The RHS vector is initialized to zero before applying any conditions.
