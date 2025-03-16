@@ -67,7 +67,7 @@ compute()
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
-  if (m_petsc_flags != NULL){
+  if (m_petsc_flags != NULL) {
     CommandLineArguments args = ArcaneFemFunctions::GeneralFunctions::getPetscFlagsFromCommandline(m_petsc_flags);
     m_linear_system.setSolverCommandLineArguments(args);
   }
@@ -76,7 +76,7 @@ compute()
   _getPsi();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"compute", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "compute", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -105,7 +105,7 @@ _getPsi()
   m_psi.synchronize();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-psi", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "update-psi", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -114,7 +114,7 @@ _getPsi()
  *
  * This method follows a sequence of steps to solve FEM system:
  *   1. _assembleBilinearOperator()       Assembles the FEM  matrix 𝑨
- *   2. _assembleLinearOperator()         Assembles the FEM RHS vector 𝑏
+ *   2. _assembleLinearOperator()         Assembles the FEM RHS vector 𝒃
  *   3.  _solve()                         Solves for solution vector 𝒖 = 𝑨⁻¹𝒃
  *   4. _updateVariables()                Updates FEM variables 𝒖 = 𝒙
  *   5. _validateResults()                Regression test
@@ -124,15 +124,15 @@ _getPsi()
 void FemModule::
 _doStationarySolve()
 {
-  if(m_assemble_linear_system){
+  if (m_assemble_linear_system) {
     _assembleBilinearOperator();
     _assembleLinearOperator();
   }
-  if(m_solve_linear_system){
+  if (m_solve_linear_system) {
     _solve();
     _updateVariables();
   }
-  if(m_cross_validation){
+  if (m_cross_validation) {
     _validateResults();
   }
 }
@@ -163,18 +163,18 @@ _assembleLinearOperator()
 
   for (const auto& bs : options()->farfieldBoundaryCondition()) {
     FaceGroup group = bs->surface();
-    Real value = bs->angle();
-    Real Penalty = options()->penalty();
+    Real angle = bs->angle();
+    Real penalty = options()->penalty();
 
     ENUMERATE_ (Face, iface, group) {
       for (Node node : iface->nodes()) {
         if (node.isOwn()) {
-          m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), Penalty);
+          m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), penalty);
           Real u_g = 0;
           if (mesh()->dimension() == 2)
-            u_g = (m_node_coord[node].y - value * m_node_coord[node].x) * Penalty;
+            u_g = (m_node_coord[node].y - angle * m_node_coord[node].x) * penalty;
           if (mesh()->dimension() == 3)
-            u_g = (m_node_coord[node].z - value * m_node_coord[node].x) * Penalty;
+            u_g = (m_node_coord[node].z - angle * m_node_coord[node].x) * penalty;
           rhs_values[node_dof.dofId(node, 0)] = u_g;
         }
       }
@@ -182,13 +182,14 @@ _assembleLinearOperator()
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"assemble-rhs", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "assemble-rhs", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-Real3 FemModule::_computeGradientOfRealTetra4(Cell cell)
+Real3 FemModule::
+_computeGradientOfRealTetra4(Cell cell)
 {
   Real3 m0 = m_node_coord[cell.nodeId(0)];
   Real3 m1 = m_node_coord[cell.nodeId(1)];
@@ -238,13 +239,13 @@ _computeGradientOfRealTria3(Cell cell)
   Real f1 = m_u[cell.nodeId(1)];
   Real f2 = m_u[cell.nodeId(2)];
 
-  Real detA = ( m0.x*(m1.y - m2.y) - m0.y*(m1.x - m2.x) + (m1.x*m2.y - m2.x*m1.y) );
+  Real detA = (m0.x * (m1.y - m2.y) - m0.y * (m1.x - m2.x) + (m1.x * m2.y - m2.x * m1.y));
 
   Real2 grad;
-  grad.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / detA;
-  grad.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / detA;
+  grad.x = (m0.x * (f1 - f2) - f0 * (m1.x - m2.x) + (f2 * m1.x - f1 * m2.x)) / detA;
+  grad.y = (f0 * (m1.y - m2.y) - m0.y * (f1 - f2) + (f1 * m2.y - f2 * m1.y)) / detA;
 
-  return grad ;
+  return grad;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -298,9 +299,8 @@ _assembleBilinear(const std::function<FixedMatrix<N, N>(const Cell&)>& compute_e
       Int32 n2_index = 0;
       for (Node node2 : cell.nodes()) {
         Real v = K_e(n1_index, n2_index);
-        if (node1.isOwn()) {
+        if (node1.isOwn())
           m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
-        }
         ++n2_index;
       }
       ++n1_index;
@@ -320,7 +320,7 @@ _solve()
   m_linear_system.solve();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"solve-linear-system", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "solve-linear-system", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -329,7 +329,7 @@ _solve()
  *
  * This method performs the following actions:
  *   1. Fetches values of solution from solved linear system to FEM variables,
- *      i.e., it copies RHS DOF to u.
+ *      i.e., it copies RHS DOF to 𝒖.
  *   2. Performs synchronize of FEM variables across subdomains.
  */
 /*---------------------------------------------------------------------------*/
@@ -342,6 +342,7 @@ _updateVariables()
 
   VariableDoFReal& dof_u(m_linear_system.solutionVariable());
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
   ENUMERATE_ (Node, inode, ownNodes()) {
     Node node = *inode;
     m_u[node] = dof_u[node_dof.dofId(node, 0)];
@@ -385,7 +386,7 @@ _validateResults()
     checkNodeResultFile(traceMng(), filename, m_u, 1.0e-4);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"result-validation", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "result-validation", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
