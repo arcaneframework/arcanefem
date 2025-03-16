@@ -12,9 +12,6 @@
     <variable field-name="u" name="u" data-type="real" item-kind="node" dim="0">
       <description>P1 variable on node coords</description>
     </variable>
-    <variable field-name="u_fixed" name="uixed" data-type="bool" item-kind="node" dim="0">
-      <description>Boolean which is true if Dirichlet node</description>
-    </variable>
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
       <description>Node coordinates from Arcane variable</description>
     </variable>
@@ -32,6 +29,26 @@
       <description>
         Penalty value for enforcing Dirichlet condition
       </description>
+    </simple>
+
+    <simple name="matrix-format" type="string" default="DOK" optional="true">
+      <description>Which matrix format to use DOK|BSR|AF-BSR.</description>
+    </simple>
+
+    <simple name="petsc-flags" type="string" default="" optional="true">
+      <description>Flags for PETSc from commandline.</description>
+    </simple>
+
+    <simple name="solve-linear-system" type="bool" default="true" optional="true">
+      <description>Boolean to enable linear system solving.</description>
+    </simple>
+
+    <simple name="assemble-linear-system" type="bool" default="true" optional="true">
+      <description>Boolean to enable linear system assembly.</description>
+    </simple>
+
+    <simple name="cross-validation" type="bool" default="true" optional="true">
+      <description>Boolean to enable cross validation.</description>
     </simple>
 
     <!-- - - - - - farfield-boundary-condition - - - - -->

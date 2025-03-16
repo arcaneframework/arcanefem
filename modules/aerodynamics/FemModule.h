@@ -72,13 +72,16 @@ class FemModule
 
  private:
 
-  Real ElementNodes;
-
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;
 
- private:
+  String m_petsc_flags;
+  String m_matrix_format = "DOK";
+
+  bool m_assemble_linear_system = true;
+  bool m_solve_linear_system = true;
+  bool m_cross_validation = true;
 
   void _doStationarySolve();
   void _assembleBilinearOperator();
