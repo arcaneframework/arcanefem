@@ -72,16 +72,19 @@ class FemModule
 
  private:
 
-  Real ElementNodes;
-
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;
 
- private:
+  String m_petsc_flags;
+  String m_matrix_format = "DOK";
+
+  bool m_assemble_linear_system = true;
+  bool m_solve_linear_system = true;
+  bool m_cross_validation = true;
 
   void _doStationarySolve();
-  void _assembleBilinearOperatorTria3();
+  void _assembleBilinearOperator();
   void _solve();
   void _assembleLinearOperator();
   void _getPsi();
@@ -89,8 +92,13 @@ class FemModule
   void _validateResults();
 
   FixedMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
+  FixedMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);
 
-  Real2 _computeDxDyOfRealTria3(Cell cell);
+  template <int N>
+  void _assembleBilinear(const std::function<FixedMatrix<N, N>(const Cell&)>& compute_element_matrix);
+
+  Real2 _computeGradientOfRealTria3(Cell cell);
+  Real3 _computeGradientOfRealTetra4(Cell cell);
 };
 
 #endif
