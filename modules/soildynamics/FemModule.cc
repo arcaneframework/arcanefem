@@ -281,10 +281,16 @@ _updateVariables()
 void FemModule::
 _assembleLinearOperator()
 {
+  info() << "[ArcaneFem-Info] Started module  _assembleLinearOperator()";
+  Real elapsedTime = platform::getRealTime();
+
   if (mesh()->dimension() == 2)
     _assembleLinearOperator2d();
   if (mesh()->dimension() == 3)
     _assembleLinearOperator3d();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -298,9 +304,6 @@ _assembleLinearOperator()
 void FemModule::
 _assembleLinearOperator2d()
 {
-  info() << "[ArcaneFem-Info] Started module  _assembleLinearOperator()";
-  Real elapsedTime = platform::getRealTime();
-
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
@@ -567,17 +570,11 @@ _assembleLinearOperator2d()
       rhs_values[dof_id2] = dc_force;
     }
   }
-
-  elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
 }
 
 void FemModule::
 _assembleLinearOperator3d()
 {
-  info() << "[ArcaneFem-Info] Started module  _assembleLinearOperator()";
-  Real elapsedTime = platform::getRealTime();
-
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
@@ -885,9 +882,6 @@ _assembleLinearOperator3d()
       rhs_values[dof_id2] = dc_force;
     }
   }
-
-  elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -896,6 +890,9 @@ _assembleLinearOperator3d()
 void FemModule::
 _assembleBilinearOperator()
 {
+  info() << "[ArcaneFem-Info] Started module  _assembleBilinearOperator()";
+  Real elapsedTime = platform::getRealTime();
+
   if (t <= dt) {
     if (mesh()->dimension() == 2) {
       _assemble2dBilinearOperatorTria3();
@@ -906,6 +903,9 @@ _assembleBilinearOperator()
       _assemble3dBilinearOperatorTria3();
     }
   }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "lhs-matrix-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
