@@ -125,8 +125,6 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    /* ef: needing to compute with different entity inputs (face or cell) */
-    /* static inline Real computeVolumeTetra4(Cell cell, const VariableNodeReal3& node_coord)*/
     static inline Real computeVolumeTetra4(ItemWithNodes item, const VariableNodeReal3& node_coord)
     {
       Real3 vertex0 = node_coord[item.nodeId(0)];
@@ -159,11 +157,9 @@ class ArcaneFemFunctions
 
       auto v = math::cross(vertex1 - vertex0, vertex2 - vertex0);
 
-      // return 0.5 * ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
       return v.normL2() / 2.0;
     }
 
-    // ef: needing to compute with different entity inputs (face or cell)
     static inline Real tri3Surface(ItemWithNodes item, const VariableNodeReal3& node_coord)
     {
       Real3 n0 = node_coord[item.nodeId(0)];
@@ -332,19 +328,6 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    // ef:
-    // - needing to compute edge length with different entity inputs (edge, face or cell)
-    // - simplifying using available arcane functions
-    /* ef    static inline Real computeLengthEdge2(Face face, const VariableNodeReal3& node_coord)
-    {
-      Real3 vertex0 = node_coord[face.nodeId(0)];
-      Real3 vertex1 = node_coord[face.nodeId(1)];
-
-      Real dx = vertex1.x - vertex0.x;
-      Real dy = vertex1.y - vertex0.y;
-
-      return math::sqrt(dx * dx + dy * dy);
-      }*/
     static inline Real computeLengthEdge2(ItemWithNodes item, const VariableNodeReal3& node_coord)
     {
       Real3 vertex0 = node_coord[item.nodeId(0)];
@@ -475,7 +458,6 @@ class ArcaneFemFunctions
     /*---------------------------------------------------------------------------*/
     static inline void dirVectors(Face face, const VariableNodeReal3& node_coord, Integer ndim, Real3& e1, Real3& e2, Real3& e3)
     {
-
       Real3 n0 = node_coord[face.nodeId(0)];
       Real3 n1 = node_coord[face.nodeId(1)];
 
@@ -494,8 +476,6 @@ class ArcaneFemFunctions
 
         // 2nd in-plane vector
         e2 = math::cross(e3, e1);
-
-        // e3.normalize();  // deprecated Y2024
         e3 = math::mutableNormalize(e3);
       }
       else {
@@ -517,8 +497,6 @@ class ArcaneFemFunctions
         if (sgn > 0.)
           e2 *= -1.;
       }
-      //e1.normalize();  // deprecated Y2024
-      //e2.normalize();  // deprecated Y2024
       e1 = math::mutableNormalize(e1);
       e2 = math::mutableNormalize(e2);
     }
@@ -581,48 +559,15 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-     * @brief Computes the gradients of basis functions N for P1 triangles.
+     * @brief Computes the 𝑥 gradients of basis functions 𝐍 for ℙ1 triangles.
      *
-     * This method calculates gradient operator ∇ Ni for a given P1 cell
-     * with i = 1,..,3 for the three shape function Ni hence output is a
-     * matrix of size 3x3
-     *
-     *              [ ∂N1/∂x     ∂N1/∂y   ∂N1/∂z  ]
-     *         ∇N = [ ∂N2/∂x     ∂N2/∂y   ∂N2/∂z  ]
-     *              [ ∂N3/∂x     ∂N3/∂y   ∂N3/∂z  ]
-     *
-     *                     [ y2​−y3     x3​−x2    0  ]
-     *         ∇N = 1/(2A) [ y3−y1     x1−x3    0  ]
-     *                     [ y1−y2     x2−x1    0  ]
-     *
-     * @note we can adapt the same for 3D by filling the third component
-     */
-    /*---------------------------------------------------------------------------*/
-
-    static inline Real3x3 computeGradientTria3(Cell cell, const VariableNodeReal3& node_coord)
-    {
-      Real3 vertex0 = node_coord[cell.nodeId(0)];
-      Real3 vertex1 = node_coord[cell.nodeId(1)];
-      Real3 vertex2 = node_coord[cell.nodeId(2)];
-
-      Real A2 = ((vertex1.x - vertex0.x) * (vertex2.y - vertex0.y) - (vertex2.x - vertex0.x) * (vertex1.y - vertex0.y));
-
-      return { Real3((vertex1.y - vertex2.y) / A2, (vertex2.x - vertex1.x) / A2, 0),
-               Real3((vertex2.y - vertex0.y) / A2, (vertex0.x - vertex2.x) / A2, 0),
-               Real3((vertex0.y - vertex1.y) / A2, (vertex1.x - vertex0.x) / A2, 0) };
-    }
-
-    /*---------------------------------------------------------------------------*/
-    /**
-     * @brief Computes the X gradients of basis functions N for P1 triangles.
-     *
-     * This method calculates gradient operator ∂/∂x of Ni for a given P1
-     * cell with i = 1,..,3 for the three shape function  Ni  hence output
+     * This method calculates gradient operator ∂/∂𝑥 of 𝑁ᵢ for a given ℙ1
+     * cell with i = 1,..,3 for the three shape function  𝑁ᵢ  hence output
      * is a vector of size 3
      *
-     *         ∂N/∂x = [ ∂N1/∂x  ∂N1/∂x  ∂N3/∂x ]
+     *         ∂𝐍/∂𝑥 = [ ∂𝑁₁/∂𝑥  ∂𝑁₂/∂𝑥  ∂𝑁₃/∂𝑥 ]
      *
-     *         ∂N/∂x = 1/(2A) [ y2​−y3  y3−y1  y1−y2 ]
+     *         ∂𝐍/∂𝑥 = 1/(2𝐴) [ y2-y3  y3−y1  y1−y2 ]
      */
     /*---------------------------------------------------------------------------*/
 
@@ -639,15 +584,15 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-     * @brief Computes the Y gradients of basis functions N for P1 triangles.
+     * @brief Computes the 𝑦 gradients of basis functions 𝐍 for ℙ1 triangles.
      *
-     * This method calculates gradient operator ∂/∂y of Ni for a given P1
-     * cell with i = 1,..,3 for the three shape function  Ni  hence output
+     * This method calculates gradient operator ∂/∂𝑦 of 𝑁ᵢ for a given ℙ1
+     * cell with i = 1,..,3 for the three shape function  𝑁ᵢ  hence output
      * is a vector of size 3
      *
-     *         ∂N/∂x = [ ∂N1/∂y  ∂N1/∂y  ∂N3/∂y ]
+     *         ∂𝐍/∂𝑥 = [ ∂𝑁₁/∂𝑦  ∂𝑁₂/∂𝑦  ∂𝑁₃/∂𝑦 ]
      *
-     *         ∂N/∂x = 1/(2A) [ x3​−x2  x1−x3  x2−x1 ]
+     *         ∂𝐍/∂𝑥 = 1/(2𝐴) [ 𝑥₃−𝑥₂  𝑥₁−𝑥₃  𝑥₂−𝑥₁ ]
      */
     /*---------------------------------------------------------------------------*/
 
@@ -773,139 +718,162 @@ class ArcaneFemFunctions
 
     /*-------------------------------------------------------------------------*/
     /**
-     * @brief Computes the X gradients of basis functions N for P1 Tetrahedron.
+     * @brief Computes the X gradients of basis functions 𝐍 for ℙ1 Tetrahedron.
      *
-     * This method calculates gradient operator ∂/∂x of Ni for a given P1
-     * cell with i = 1,..,4 for the four shape function  Ni  hence output
+     * This method calculates gradient operator ∂/∂𝑥 of 𝑁ᵢ for a given ℙ1
+     * cell with i = 1,..,4 for the four shape function  𝑁ᵢ  hence output
      * is a vector of size 4
      *
-     *         ∂N/∂x = [ ∂N1/∂x  ∂N2/∂x  ∂N3/∂x  ∂N4/∂x ]
+     *         ∂𝐍/∂𝑥 = [ ∂𝑁₁/∂𝑥  ∂𝑁₂/∂𝑥  ∂𝑁₃/∂𝑥  ∂𝑁₄/∂𝑥 ]
      *
-     *         ∂N/∂x = 1/(6V) [ b0  b1  b2  b3 ]
+     *         ∂𝐍/∂𝑥 = 1/(6𝑉) [ dx0  dx1  dx2  dx3 ]
      *
      * where:
-     *    b0 = (m1.y * (m3.z - m2.z) + m2.y * (m1.z - m3.z) + m3.y * (m2.z - m1.z)),
-     *    b1 = (m0.y * (m2.z - m3.z) + m2.y * (m3.z - m0.z) + m3.y * (m0.z - m2.z)),
-     *    b2 = (m0.y * (m3.z - m1.z) + m1.y * (m0.z - m3.z) + m3.y * (m1.z - m0.z)),
-     *    b3 = (m0.y * (m1.z - m2.z) + m1.y * (m2.z - m0.z) + m2.y * (m0.z - m1.z)).
+     *    dx0 = (n1.y * (n3.z - n2.z) + n2.y * (n1.z - n3.z) + n3.y * (n2.z - n1.z)),
+     *    dx1 = (n0.y * (n2.z - n3.z) + n2.y * (n3.z - n0.z) + n3.y * (n0.z - n2.z)),
+     *    dx2 = (n0.y * (n3.z - n1.z) + n1.y * (n0.z - n3.z) + n3.y * (n1.z - n0.z)),
+     *    dx3 = (n0.y * (n1.z - n2.z) + n1.y * (n2.z - n0.z) + n2.y * (n0.z - n1.z)).
      *
      */
     /*-------------------------------------------------------------------------*/
 
     static inline Real4 computeGradientXTetra4(Cell cell, const VariableNodeReal3& node_coord)
     {
-      Real3 vertex0 = node_coord[cell.nodeId(0)];
-      Real3 vertex1 = node_coord[cell.nodeId(1)];
-      Real3 vertex2 = node_coord[cell.nodeId(2)];
-      Real3 vertex3 = node_coord[cell.nodeId(3)];
+      Real3 n0 = node_coord[cell.nodeId(0)];
+      Real3 n1 = node_coord[cell.nodeId(1)];
+      Real3 n2 = node_coord[cell.nodeId(2)];
+      Real3 n3 = node_coord[cell.nodeId(3)];
 
-      Real3 v0 = vertex1 - vertex0;
-      Real3 v1 = vertex2 - vertex0;
-      Real3 v2 = vertex3 - vertex0;
+      Real3 v0 = n1 - n0;
+      Real3 v1 = n2 - n0;
+      Real3 v2 = n3 - n0;
 
       // 6 x Volume of tetrahedron
       Real V6 = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
 
       Real4 dx{};
 
-      dx[0] = (vertex1.y * (vertex3.z - vertex2.z) + vertex2.y * (vertex1.z - vertex3.z) + vertex3.y * (vertex2.z - vertex1.z)) / V6;
-      dx[1] = (vertex0.y * (vertex2.z - vertex3.z) + vertex2.y * (vertex3.z - vertex0.z) + vertex3.y * (vertex0.z - vertex2.z)) / V6;
-      dx[2] = (vertex0.y * (vertex3.z - vertex1.z) + vertex1.y * (vertex0.z - vertex3.z) + vertex3.y * (vertex1.z - vertex0.z)) / V6;
-      dx[3] = (vertex0.y * (vertex1.z - vertex2.z) + vertex1.y * (vertex2.z - vertex0.z) + vertex2.y * (vertex0.z - vertex1.z)) / V6;
+      dx[0] = (n1.y * (n3.z - n2.z) + n2.y * (n1.z - n3.z) + n3.y * (n2.z - n1.z)) / V6;
+      dx[1] = (n0.y * (n2.z - n3.z) + n2.y * (n3.z - n0.z) + n3.y * (n0.z - n2.z)) / V6;
+      dx[2] = (n0.y * (n3.z - n1.z) + n1.y * (n0.z - n3.z) + n3.y * (n1.z - n0.z)) / V6;
+      dx[3] = (n0.y * (n1.z - n2.z) + n1.y * (n2.z - n0.z) + n2.y * (n0.z - n1.z)) / V6;
 
       return dx;
     }
 
     /*-------------------------------------------------------------------------*/
     /**
- * @brief Computes the Y gradients of basis functions N for P1 Tetrahedron.
- *
- * This method calculates gradient operator ∂/∂y of Ni for a given P1
- * cell with i = 1,..,4 for the four shape functions Ni, hence the output
- * is a vector of size 4.
- *
- *         ∂N/∂y = [ ∂N1/∂y  ∂N2/∂y  ∂N3/∂y  ∂N4/∂y ]
- *
- *         ∂N/∂y = 1/(6V) [ c0  c1  c2  c3 ]
- *
- * where:
- *    c0 = (m1.z * (m3.x - m2.x) + m2.z * (m1.x - m3.x) + m3.z * (m2.x - m1.x)),
- *    c1 = (m0.z * (m2.x - m3.x) + m2.z * (m3.x - m0.x) + m3.z * (m0.x - m2.x)),
- *    c2 = (m0.z * (m3.x - m1.x) + m1.z * (m0.x - m3.x) + m3.z * (m1.x - m0.x)),
- *    c3 = (m0.z * (m1.x - m2.x) + m1.z * (m2.x - m0.x) + m2.z * (m0.x - m1.x)).
- *
- */
+     * @brief Computes the Y gradients of basis functions 𝐍 for ℙ1 Tetrahedron.
+     *
+     * This method calculates gradient operator ∂/∂𝑦 of 𝑁ᵢ for a given ℙ1
+     * cell with i = 1,..,4 for the four shape functions 𝑁ᵢ, hence the output
+     * is a vector of size 4.
+     *
+     *         ∂𝐍/∂𝑦 = [ ∂𝑁₁/∂𝑦  ∂𝑁₂/∂𝑦  ∂𝑁₃/∂𝑦  ∂𝑁₄/∂𝑦 ]
+     *
+     *         ∂𝐍/∂𝑦 = 1/(6𝑉) [ dy0  dy1  dy2  dy3 ]
+     *
+     * where:
+     *    dy0 = (n1.z * (n3.x - n2.x) + n2.z * (n1.x - n3.x) + n3.z * (n2.x - n1.x)),
+     *    dy1 = (n0.z * (n2.x - n3.x) + n2.z * (n3.x - n0.x) + n3.z * (n0.x - n2.x)),
+     *    dy2 = (n0.z * (n3.x - n1.x) + n1.z * (n0.x - n3.x) + n3.z * (n1.x - n0.x)),
+     *    dy3 = (n0.z * (n1.x - n2.x) + n1.z * (n2.x - n0.x) + n2.z * (n0.x - n1.x)).
+     *
+     */
     /*-------------------------------------------------------------------------*/
 
     static inline Real4 computeGradientYTetra4(Cell cell, const VariableNodeReal3& node_coord)
     {
-      Real3 vertex0 = node_coord[cell.nodeId(0)];
-      Real3 vertex1 = node_coord[cell.nodeId(1)];
-      Real3 vertex2 = node_coord[cell.nodeId(2)];
-      Real3 vertex3 = node_coord[cell.nodeId(3)];
+      Real3 n0 = node_coord[cell.nodeId(0)];
+      Real3 n1 = node_coord[cell.nodeId(1)];
+      Real3 n2 = node_coord[cell.nodeId(2)];
+      Real3 n3 = node_coord[cell.nodeId(3)];
 
-      Real3 v0 = vertex1 - vertex0;
-      Real3 v1 = vertex2 - vertex0;
-      Real3 v2 = vertex3 - vertex0;
+      Real3 v0 = n1 - n0;
+      Real3 v1 = n2 - n0;
+      Real3 v2 = n3 - n0;
 
       // 6 x Volume of tetrahedron
       Real V6 = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
 
       Real4 dy{};
 
-      dy[0] = (vertex1.z * (vertex3.x - vertex2.x) + vertex2.z * (vertex1.x - vertex3.x) + vertex3.z * (vertex2.x - vertex1.x)) / V6;
-      dy[1] = (vertex0.z * (vertex2.x - vertex3.x) + vertex2.z * (vertex3.x - vertex0.x) + vertex3.z * (vertex0.x - vertex2.x)) / V6;
-      dy[2] = (vertex0.z * (vertex3.x - vertex1.x) + vertex1.z * (vertex0.x - vertex3.x) + vertex3.z * (vertex1.x - vertex0.x)) / V6;
-      dy[3] = (vertex0.z * (vertex1.x - vertex2.x) + vertex1.z * (vertex2.x - vertex0.x) + vertex2.z * (vertex0.x - vertex1.x)) / V6;
+      dy[0] = (n1.z * (n3.x - n2.x) + n2.z * (n1.x - n3.x) + n3.z * (n2.x - n1.x)) / V6;
+      dy[1] = (n0.z * (n2.x - n3.x) + n2.z * (n3.x - n0.x) + n3.z * (n0.x - n2.x)) / V6;
+      dy[2] = (n0.z * (n3.x - n1.x) + n1.z * (n0.x - n3.x) + n3.z * (n1.x - n0.x)) / V6;
+      dy[3] = (n0.z * (n1.x - n2.x) + n1.z * (n2.x - n0.x) + n2.z * (n0.x - n1.x)) / V6;
 
       return dy;
     }
 
     /*-------------------------------------------------------------------------*/
     /**
- * @brief Computes the Z gradients of basis functions N for P1 Tetrahedron.
- *
- * This method calculates gradient operator ∂/∂z of Ni for a given P1
- * cell with i = 1,..,4 for the four shape functions Ni, hence the output
- * is a vector of size 4.
- *
- *         ∂N/∂z = [ ∂N1/∂z  ∂N2/∂z  ∂N3/∂z  ∂N4/∂z ]
- *
- *         ∂N/∂z = 1/(6V) [ d0  d1  d2  d3 ]
- *
- * where:
- *    d0 = (m1.x * (m3.y - m2.y) + m2.x * (m1.y - m3.y) + m3.x * (m2.y - m1.y)),
- *    d1 = (m0.x * (m2.y - m3.y) + m2.x * (m3.y - m0.y) + m3.x * (m0.y - m2.y)),
- *    d2 = (m0.x * (m3.y - m1.y) + m1.x * (m0.y - m3.y) + m3.x * (m1.y - m0.y)),
- *    d3 = (m0.x * (m1.y - m2.y) + m1.x * (m2.y - m0.y) + m2.x * (m0.y - m1.y)).
- *
- */
+     * @brief Computes the 𝑧 gradients of basis functions 𝐍 for ℙ1 Tetrahedron.
+     *
+     * This method calculates gradient operator ∂/∂𝑧 of 𝑁ᵢ for a given ℙ1
+     * cell with i = 1,..,4 for the four shape functions 𝑁ᵢ, hence the output
+     * is a vector of size 4.
+     *
+     *         ∂𝐍/∂𝑧 = [ ∂𝑁₁/∂𝑧  ∂𝑁₂/∂𝑧  ∂𝑁₃/∂𝑧  ∂𝑁₄/∂𝑧 ]
+     *
+     *         ∂𝐍/∂𝑧 = 1/(6𝑉) [ dz0  dz1  dz2  dz3 ]
+     *
+     * where:
+     *    dz0 = (n1.x * (n3.y - n2.y) + n2.x * (n1.y - n3.y) + n3.x * (n2.y - n1.y)),
+     *    dz1 = (n0.x * (n2.y - n3.y) + n2.x * (n3.y - n0.y) + n3.x * (n0.y - n2.y)),
+     *    dz2 = (n0.x * (n3.y - n1.y) + n1.x * (n0.y - n3.y) + n3.x * (n1.y - n0.y)),
+     *    dz3 = (n0.x * (n1.y - n2.y) + n1.x * (n2.y - n0.y) + n2.x * (n0.y - n1.y)).
+     *
+     */
     /*-------------------------------------------------------------------------*/
 
     static inline Real4 computeGradientZTetra4(Cell cell, const VariableNodeReal3& node_coord)
     {
-      Real3 vertex0 = node_coord[cell.nodeId(0)];
-      Real3 vertex1 = node_coord[cell.nodeId(1)];
-      Real3 vertex2 = node_coord[cell.nodeId(2)];
-      Real3 vertex3 = node_coord[cell.nodeId(3)];
+      Real3 n0 = node_coord[cell.nodeId(0)];
+      Real3 n1 = node_coord[cell.nodeId(1)];
+      Real3 n2 = node_coord[cell.nodeId(2)];
+      Real3 n3 = node_coord[cell.nodeId(3)];
 
-      auto v0 = vertex1 - vertex0;
-      auto v1 = vertex2 - vertex0;
-      auto v2 = vertex3 - vertex0;
+      auto v0 = n1 - n0;
+      auto v1 = n2 - n0;
+      auto v2 = n3 - n0;
 
       // 6 x Volume of tetrahedron
       Real V6 = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
 
       Real4 dz{};
 
-      dz[0] = (vertex1.x * (vertex3.y - vertex2.y) + vertex2.x * (vertex1.y - vertex3.y) + vertex3.x * (vertex2.y - vertex1.y)) / V6;
-      dz[1] = (vertex0.x * (vertex2.y - vertex3.y) + vertex2.x * (vertex3.y - vertex0.y) + vertex3.x * (vertex0.y - vertex2.y)) / V6;
-      dz[2] = (vertex0.x * (vertex3.y - vertex1.y) + vertex1.x * (vertex0.y - vertex3.y) + vertex3.x * (vertex1.y - vertex0.y)) / V6;
-      dz[3] = (vertex0.x * (vertex1.y - vertex2.y) + vertex1.x * (vertex2.y - vertex0.y) + vertex2.x * (vertex0.y - vertex1.y)) / V6;
+      dz[0] = (n1.x * (n3.y - n2.y) + n2.x * (n1.y - n3.y) + n3.x * (n2.y - n1.y)) / V6;
+      dz[1] = (n0.x * (n2.y - n3.y) + n2.x * (n3.y - n0.y) + n3.x * (n0.y - n2.y)) / V6;
+      dz[2] = (n0.x * (n3.y - n1.y) + n1.x * (n0.y - n3.y) + n3.x * (n1.y - n0.y)) / V6;
+      dz[3] = (n0.x * (n1.y - n2.y) + n1.x * (n2.y - n0.y) + n2.x * (n0.y - n1.y)) / V6;
 
       return dz;
     }
   };
+
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Provides methods to help build boundary conditions in 2D/3D.
+     */
+    /*---------------------------------------------------------------------------*/
+    class BoundaryConditionsHelpers
+    {
+      public:
+
+      static inline void applyDirichletToNodeGroupViaPenalty(Real value, Real penalty, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& linear_system, VariableDoFReal& rhs_values, NodeGroup& node_group){
+        ENUMERATE_ (Node, inode, node_group) {
+          Node node = *inode;
+          if (node.isOwn()) {
+            linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), penalty);
+            Real u_g = penalty * value;
+            rhs_values[node_dof.dofId(node, 0)] = u_g;
+          }
+        }
+      }
+
+    };
 
   /*---------------------------------------------------------------------------*/
   /**
@@ -983,8 +951,8 @@ class ArcaneFemFunctions
      *
      * Updates the LHS matrix and RHS vector to enforce Dirichlet conditions.
      *
-     * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
-     * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+     * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
+     * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
      *
      * @param [IN]  bs              : Boundary condition values.
      * @param [IN]  node_dof        : DOF connectivity view.
@@ -995,19 +963,11 @@ class ArcaneFemFunctions
     /*---------------------------------------------------------------------------*/
     static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& /*node_coord*/, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
     {
-      FaceGroup group = bs->getSurface();
+      FaceGroup face_group = bs->getSurface();
+      NodeGroup node_group = face_group.nodeGroup();
       Real value = bs->getValue();
-      Real Penalty = bs->getPenalty();
-
-      ENUMERATE_ (Face, iface, group) {
-        for (Node node : iface->nodes()) {
-          if (node.isOwn()) {
-            m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), Penalty);
-            Real u_g = Penalty * value;
-            rhs_values[node_dof.dofId(node, 0)] = u_g;
-          }
-        }
-      }
+      Real penalty = bs->getPenalty();
+      ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
     }
 
     /*---------------------------------------------------------------------------*/
@@ -1016,8 +976,8 @@ class ArcaneFemFunctions
      *
      * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
      *
-     * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
-     * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+     * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
+     * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
      *
      * @param [IN]  bs              : Boundary condition values.
      * @param [IN]  node_dof        : DOF connectivity view.
@@ -1028,18 +988,10 @@ class ArcaneFemFunctions
     /*---------------------------------------------------------------------------*/
     static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& /*node_coord*/, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
     {
-      NodeGroup group = bs->getNode();
+      NodeGroup node_group = bs->getNode();
       Real value = bs->getValue();
-      Real Penalty = bs->getPenalty();
-
-      ENUMERATE_ (Node, inode, group) {
-        Node node = *inode;
-        if (node.isOwn()) {
-          m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), Penalty);
-          Real u_g = Penalty * value;
-          rhs_values[node_dof.dofId(node, 0)] = u_g;
-        }
-      }
+      Real penalty = bs->getPenalty();
+      ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
     }
 
     /*---------------------------------------------------------------------------*/
@@ -1113,8 +1065,8 @@ class ArcaneFemFunctions
      *
      * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
      *
-     * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
-     * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+     * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
+     * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
      *
      * @param [IN]  manufactured_dirichlet   : External function for Dirichlet.
      * @param [IN]  group           : Group of all external faces.
@@ -1127,16 +1079,14 @@ class ArcaneFemFunctions
     /*---------------------------------------------------------------------------*/
     static inline void applyManufacturedDirichletToLhsAndRhs(IBinaryMathFunctor<Real, Real3, Real>* manufactured_dirichlet, Real /*lambda*/, const FaceGroup& group, BC::IManufacturedSolution* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
     {
-      Real Penalty = bs->getPenalty();
-
-      ENUMERATE_ (Face, iface, group) {
-        for (Node node : iface->nodes()) {
-          if (node.isOwn()) {
-            m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), Penalty);
-            double tt = 1.;
-            Real u_g = Penalty * manufactured_dirichlet->apply(tt, node_coord[node]);
-            rhs_values[node_dof.dofId(node, 0)] = u_g;
-          }
+      Real penalty = bs->getPenalty();
+      NodeGroup node_group = group.nodeGroup();
+      ENUMERATE_ (Node, inode, node_group) {
+        Node node = *inode;
+        if (node.isOwn()) {
+          m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), penalty);
+          Real u_g = penalty * manufactured_dirichlet->apply(1., node_coord[node]);
+          rhs_values[node_dof.dofId(node, 0)] = u_g;
         }
       }
     }
@@ -1278,8 +1228,8 @@ class ArcaneFemFunctions
      *
      * Updates the LHS matrix and RHS vector to enforce Dirichlet conditions.
      *
-     * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
-     * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+     * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
+     * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
      *
      * @param [IN]  bs              : Boundary condition values.
      * @param [IN]  node_dof        : DOF connectivity view.
@@ -1290,19 +1240,11 @@ class ArcaneFemFunctions
     /*---------------------------------------------------------------------------*/
     static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& /*node_coord*/, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
     {
-      FaceGroup group = bs->getSurface();
+      FaceGroup face_group = bs->getSurface();
+      NodeGroup node_group = face_group.nodeGroup();
       Real value = bs->getValue();
-      Real Penalty = bs->getPenalty();
-
-      ENUMERATE_ (Face, iface, group) {
-        for (Node node : iface->nodes()) {
-          if (node.isOwn()) {
-            m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), Penalty);
-            Real u_g = Penalty * value;
-            rhs_values[node_dof.dofId(node, 0)] = u_g;
-          }
-        }
-      }
+      Real penalty = bs->getPenalty();
+      ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
     }
 
     /*---------------------------------------------------------------------------*/
@@ -1311,8 +1253,8 @@ class ArcaneFemFunctions
      *
      * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
      *
-     * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
-     * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+     * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
+     * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
      *
      * @param [IN]  bs              : Boundary condition values.
      * @param [IN]  node_dof        : DOF connectivity view.
@@ -1323,18 +1265,10 @@ class ArcaneFemFunctions
     /*---------------------------------------------------------------------------*/
     static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& /*node_coord*/, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
     {
-      NodeGroup group = bs->getNode();
+      NodeGroup node_group = bs->getNode();
       Real value = bs->getValue();
-      Real Penalty = bs->getPenalty();
-
-      ENUMERATE_ (Node, inode, group) {
-        Node node = *inode;
-        if (node.isOwn()) {
-          m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), Penalty);
-          Real u_g = Penalty * value;
-          rhs_values[node_dof.dofId(node, 0)] = u_g;
-        }
-      }
+      Real penalty = bs->getPenalty();
+      ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
     }
 
     /*---------------------------------------------------------------------------*/
@@ -1343,8 +1277,8 @@ class ArcaneFemFunctions
      *
      * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
      *
-     * - For LHS matrix `A`, the diagonal term for the Dirichlet DOF is set to `P`.
-     * - For RHS vector `b`, the Dirichlet DOF term is scaled by `P`.
+     * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
+     * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
      *
      * @param [IN]  manufactured_dirichlet   : External function for Dirichlet.
      * @param [IN]  group           : Group of all external faces.
@@ -1357,16 +1291,14 @@ class ArcaneFemFunctions
     /*---------------------------------------------------------------------------*/
     static inline void applyManufacturedDirichletToLhsAndRhs(IBinaryMathFunctor<Real, Real3, Real>* manufactured_dirichlet, Real /*lambda*/, const FaceGroup& group, BC::IManufacturedSolution* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
     {
-      Real Penalty = bs->getPenalty();
-
-      ENUMERATE_ (Face, iface, group) {
-        for (Node node : iface->nodes()) {
-          if (node.isOwn()) {
-            m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), Penalty);
-            double tt = 1.;
-            Real u_g = Penalty * manufactured_dirichlet->apply(tt, node_coord[node]);
-            rhs_values[node_dof.dofId(node, 0)] = u_g;
-          }
+      Real penalty = bs->getPenalty();
+      NodeGroup node_group = group.nodeGroup();
+      ENUMERATE_ (Node, inode, node_group) {
+        Node node = *inode;
+        if (node.isOwn()) {
+          m_linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), penalty);
+          Real u_g = penalty * manufactured_dirichlet->apply(1., node_coord[node]);
+          rhs_values[node_dof.dofId(node, 0)] = u_g;
         }
       }
     }
