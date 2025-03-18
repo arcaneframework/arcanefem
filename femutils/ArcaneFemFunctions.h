@@ -151,24 +151,13 @@ class ArcaneFemFunctions
 
     static inline Real computeAreaTria3(ItemWithNodes item, const VariableNodeReal3& node_coord)
     {
-      Real3 vertex0 = node_coord[item.nodeId(0)];
-      Real3 vertex1 = node_coord[item.nodeId(1)];
-      Real3 vertex2 = node_coord[item.nodeId(2)];
-
-      auto v = math::cross(vertex1 - vertex0, vertex2 - vertex0);
-
-      return v.normL2() / 2.0;
-    }
-
-    static inline Real tri3Surface(ItemWithNodes item, const VariableNodeReal3& node_coord)
-    {
       Real3 n0 = node_coord[item.nodeId(0)];
       Real3 n1 = node_coord[item.nodeId(1)];
       Real3 n2 = node_coord[item.nodeId(2)];
 
       auto v = math::cross(n1 - n0, n2 - n0);
 
-      return 0.5 * v.normL2();
+      return v.normL2() / 2.0;
     }
 
     /*---------------------------------------------------------------------------*/
@@ -182,18 +171,7 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline Real computeAreaQuad4(Cell cell, const VariableNodeReal3& node_coord)
-    {
-      Real3 vertex0 = node_coord[cell.nodeId(0)];
-      Real3 vertex1 = node_coord[cell.nodeId(1)];
-      Real3 vertex2 = node_coord[cell.nodeId(2)];
-      Real3 vertex3 = node_coord[cell.nodeId(3)];
-
-      return 0.5 * ((vertex1.x * vertex2.y + vertex2.x * vertex3.y + vertex3.x * vertex0.y + vertex0.x * vertex1.y) - (vertex2.x * vertex1.y + vertex3.x * vertex2.y + vertex0.x * vertex3.y + vertex1.x * vertex0.y));
-    }
-
-    // ef: needing to compute with different entity inputs (face or cell)
-    static inline Real quad4Surface(ItemWithNodes item, const VariableNodeReal3& node_coord)
+    static inline Real computeAreaQuad4(ItemWithNodes item, const VariableNodeReal3& node_coord)
     {
       Real3 n0 = node_coord[item.nodeId(0)];
       Real3 n1 = node_coord[item.nodeId(1)];
@@ -202,6 +180,7 @@ class ArcaneFemFunctions
 
       auto tri1x2 = math::cross(n2 - n1, n0 - n1);
       auto tri2x2 = math::cross(n0 - n3, n2 - n3);
+  
       return 0.5 * (tri1x2.normL2() + tri2x2.normL2());
     }
 
@@ -384,12 +363,12 @@ class ArcaneFemFunctions
       // Faces
       case IT_Triangle3:
       case IT_Triangle6:
-        fac_el = tri3Surface(face, node_coord) / 3.;
+        fac_el = computeAreaTria3(face, node_coord) / 3.;
         break;
 
       case IT_Quad4:
       case IT_Quad8:
-        fac_el = quad4Surface(face, node_coord) / 4.;
+        fac_el = computeAreaQuad4(face, node_coord) / 4.;
         break;
 
       default:
