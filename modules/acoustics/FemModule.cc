@@ -154,15 +154,14 @@ _assembleLinearOperator()
 FixedMatrix<3, 3> FemModule::
 _computeElementMatrixTria3(Cell cell)
 {
-
   Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
 
-  Real3x3 UV = ArcaneFemFunctions::FeOperation2D::computeUVTria3(cell, m_node_coord);
+  FixedMatrix<1, 3> U = { 1, 1, 1 };
 
   Real3 dxU = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
   Real3 dyU = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
 
-  return -area * (dxU ^ dxU) - area * (dyU ^ dyU) + m_kc2 * area * UV;
+  return -area * (dxU ^ dxU) - area * (dyU ^ dyU) + m_kc2 * area * (1/ 12.) *massMatrix(U,U);
 }
 
 /*---------------------------------------------------------------------------*/

@@ -71,28 +71,6 @@ struct Real4
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-struct Real6
-{
-  Arcane::Real data[6];
-
-  ARCCORE_HOST_DEVICE Arcane::Real& operator[](std::size_t i) { return data[i]; }
-  ARCCORE_HOST_DEVICE const Arcane::Real& operator[](std::size_t i) const { return data[i]; }
-};
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-struct Real9
-{
-  Arcane::Real data[9];
-
-  ARCCORE_HOST_DEVICE Arcane::Real& operator[](std::size_t i) { return data[i]; }
-  ARCCORE_HOST_DEVICE const Arcane::Real& operator[](std::size_t i) const { return data[i]; }
-};
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
 namespace Arcane::FemUtils
 {
 
@@ -294,20 +272,6 @@ ARCCORE_HOST_DEVICE inline FixedMatrix<1, 4> operator*(const FixedMatrix<1, 4>& 
 }
 
 /*---------------------------------------------------------------------------*/
-//  Outer product of two Real6 vectors to produce a FixedMatrix<6, 6>
-/*---------------------------------------------------------------------------*/
-ARCCORE_HOST_DEVICE inline FixedMatrix<6, 6> operator^(const Real6& lhs, const Real6& rhs)
-{
-  FixedMatrix<6, 6> result;
-  for (Arcane::Int32 i = 0; i < 6; ++i) {
-    for (Arcane::Int32 j = 0; j < 6; ++j) {
-      result(i, j) = lhs[i] * rhs[j];
-    }
-  }
-  return result;
-}
-
-/*---------------------------------------------------------------------------*/
 //  Outer product of two FixedMatrix<1, 6> vectors to produce a FixedMatrix<6, 6>
 /*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE inline FixedMatrix<6, 6> operator^(const FixedMatrix<1, 6>& lhs, const FixedMatrix<1, 6>& rhs)
@@ -366,20 +330,6 @@ ARCCORE_HOST_DEVICE inline FixedMatrix<1, 12> operator*(const FixedMatrix<1, 12>
 }
 
 /*---------------------------------------------------------------------------*/
-//  Outer product of two Real9 vectors to produce a FixedMatrix<9, 9>
-/*---------------------------------------------------------------------------*/
-ARCCORE_HOST_DEVICE inline FixedMatrix<9, 9> operator^(const Real9& lhs, const Real9& rhs)
-{
-  FixedMatrix<9, 9> result;
-  for (Arcane::Int32 i = 0; i < 9; ++i) {
-    for (Arcane::Int32 j = 0; j < 9; ++j) {
-      result(i, j) = lhs[i] * rhs[j];
-    }
-  }
-  return result;
-}
-
-/*---------------------------------------------------------------------------*/
 //  Matrix vector product of FixedMatrix<1, 9> vectors and matrix FixedMatrix<9, 9>
 /*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE inline FixedMatrix<1, 9> operator*(const FixedMatrix<1, 9>& lhs, const FixedMatrix<9, 9>& rhs)
@@ -405,39 +355,6 @@ ARCCORE_HOST_DEVICE operator^(const FixedMatrix<N, 1>& lhs, const FixedMatrix<1,
     }
   }
   return result;
-}
-
-
-/*---------------------------------------------------------------------------*/
-// Define the conversion from Real3x3 to FixedMatrix<3, 3>
-/*---------------------------------------------------------------------------*/
-inline FixedMatrix<3, 3> convertReal3x3ToFixedMatrix(const Arcane::Real3x3& rhs)
-{
-  FixedMatrix<3, 3> result;
-  for (Arcane::Int32 i = 0; i < 3; ++i) {
-    for (Arcane::Int32 j = 0; j < 3; ++j) {
-      result(i, j) = rhs(i, j);
-    }
-  }
-  return result;
-}
-
-/*---------------------------------------------------------------------------*/
-// Overload operator+ to handle FixedMatrix<3, 3> + Real3x3
-/*---------------------------------------------------------------------------*/
-inline FixedMatrix<3, 3> operator+(const FixedMatrix<3, 3>& lhs, const Arcane::Real3x3& rhs)
-{
-  FixedMatrix<3, 3> converted_rhs = convertReal3x3ToFixedMatrix(rhs);
-  return lhs + converted_rhs;
-}
-
-/*---------------------------------------------------------------------------*/
-// Overload operator+ to handle Real3x3 + FixedMatrix<3, 3>
-/*---------------------------------------------------------------------------*/
-inline FixedMatrix<3, 3> operator+(const Arcane::Real3x3& lhs, const FixedMatrix<3, 3>& rhs)
-{
-  FixedMatrix<3, 3> converted_lhs = convertReal3x3ToFixedMatrix(lhs);
-  return converted_lhs + rhs;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -513,25 +430,6 @@ ARCCORE_HOST_DEVICE massMatrix(const FixedMatrix<1, N>& lhs, const FixedMatrix<1
 
   return m_matrix;
 }
-
-/*---------------------------------------------------------------------------*/
-/*!
- * \brief IdentityMatrix of size N.
- */
-/*---------------------------------------------------------------------------*/
-template <int N>
-class IdentityMatrix : public FixedMatrix<N, N>
-{
- public:
-  ARCCORE_HOST_DEVICE IdentityMatrix() : FixedMatrix<N, N>()
-  {
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      for (Arcane::Int32 j = 0; j < N; ++j) {
-        (*this)(i, j) = (i == j) ? 1.0 : 0.0;
-      }
-    }
-  }
-};
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

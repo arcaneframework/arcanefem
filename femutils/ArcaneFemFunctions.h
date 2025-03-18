@@ -651,26 +651,6 @@ class ArcaneFemFunctions
 
       return dy;
     }
-
-    /*---------------------------------------------------------------------------*/
-    /**
-     * @brief Computes the integral (u*v) for P1 triangles.
-     *
-     * here the element matrix will read
-     *
-     *              [ 1/6     1/12   1/12 ]
-     *         a  = [ 1/12    1/6    1/12 ]
-     *              [ 1/12    1/12   1/6  ]
-     *
-     */
-    /*---------------------------------------------------------------------------*/
-
-    static inline Real3x3 computeUVTria3(Cell /*cell*/, const VariableNodeReal3& /*node_coord*/)
-    {
-      Real aii = 1. / 6.;
-      Real aij = 1. / 12.;
-      return { Real3(aii, aij, aij), Real3(aij, aii, aij), Real3(aij, aij, aii) };
-    }
   };
 
   /*---------------------------------------------------------------------------*/
