@@ -243,115 +243,32 @@ ARCCORE_HOST_DEVICE inline FixedMatrix<4, 4> operator^(const Real4& lhs, const R
 }
 
 /*---------------------------------------------------------------------------*/
-//  Outer product of two Real4 vectors to produce a FixedMatrix<4, 4>
+//  Outer product of two FixedMatrix<1, N> vectors to produce a FixedMatrix<N, N>
 /*---------------------------------------------------------------------------*/
-ARCCORE_HOST_DEVICE inline FixedMatrix<4, 4> operator^(const FixedMatrix<1, 4> & lhs, const FixedMatrix<1, 4> & rhs)
-{
-  FixedMatrix<4, 4> result;
-  for (Arcane::Int32 i = 0; i < 4; ++i) {
-    for (Arcane::Int32 j = 0; j < 4; ++j) {
-      result(i, j) = lhs(0, i) * rhs(0, j);
-    }
-  }
-  return result;
-}
-
-/*---------------------------------------------------------------------------*/
-//  Matrix vector product of FixedMatrix<1, 4> vectors and matrix FixedMatrix<4, 4>
-/*---------------------------------------------------------------------------*/
-ARCCORE_HOST_DEVICE inline FixedMatrix<1, 4> operator*(const FixedMatrix<1, 4>& lhs, const FixedMatrix<4, 4>& rhs)
-{
-  FixedMatrix<1, 4> result;
-  for (Arcane::Int32 j = 0; j < 4; ++j) {
-    result(0, j) = 0; // Initialize result element
-    for (Arcane::Int32 i = 0; i < 4; ++i) {
-      result(0, j) += lhs(0, i) * rhs(i, j);
-    }
-  }
-  return result;
-}
-
-/*---------------------------------------------------------------------------*/
-//  Outer product of two FixedMatrix<1, 6> vectors to produce a FixedMatrix<6, 6>
-/*---------------------------------------------------------------------------*/
-ARCCORE_HOST_DEVICE inline FixedMatrix<6, 6> operator^(const FixedMatrix<1, 6>& lhs, const FixedMatrix<1, 6>& rhs)
-{
-  FixedMatrix<6, 6> result;
-  for (Arcane::Int32 i = 0; i < 6; ++i) {
-    for (Arcane::Int32 j = 0; j < 6; ++j) {
-      result(i, j) = lhs(0, i) * rhs(0, j);
-    }
-  }
-  return result;
-}
-
-/*---------------------------------------------------------------------------*/
-//  Matrix vector product of FixedMatrix<1, 6> vectors and matrix FixedMatrix<6, 6>
-/*---------------------------------------------------------------------------*/
-ARCCORE_HOST_DEVICE inline FixedMatrix<1, 6> operator*(const FixedMatrix<1, 6>& lhs, const FixedMatrix<6, 6>& rhs)
-{
-  FixedMatrix<1, 6> result;
-  for (Arcane::Int32 j = 0; j < 6; ++j) {
-    result(0, j) = 0; // Initialize result element
-    for (Arcane::Int32 i = 0; i < 6; ++i) {
-      result(0, j) += lhs(0, i) * rhs(i, j);
-    }
-  }
-  return result;
-}
-
-/*---------------------------------------------------------------------------*/
-//  Outer product of two FixedMatrix<1, 12> vectors to produce a FixedMatrix<12, 12>
-/*---------------------------------------------------------------------------*/
-ARCCORE_HOST_DEVICE inline FixedMatrix<12, 12> operator^(const FixedMatrix<1, 12>& lhs, const FixedMatrix<1, 12>& rhs)
-{
-  FixedMatrix<12, 12> result;
-  for (Arcane::Int32 i = 0; i < 12; ++i) {
-    for (Arcane::Int32 j = 0; j < 12; ++j) {
-      result(i, j) = lhs(0, i) * rhs(0, j);
-    }
-  }
-  return result;
-}
-
-/*---------------------------------------------------------------------------*/
-//  Matrix vector product of FixedMatrix<1, 12> vectors and matrix FixedMatrix<12, 12>
-/*---------------------------------------------------------------------------*/
-ARCCORE_HOST_DEVICE inline FixedMatrix<1, 12> operator*(const FixedMatrix<1, 12>& lhs, const FixedMatrix<12, 12>& rhs)
-{
-  FixedMatrix<1, 12> result;
-  for (Arcane::Int32 j = 0; j < 12; ++j) {
-    result(0, j) = 0; // Initialize result element
-    for (Arcane::Int32 i = 0; i < 12; ++i) {
-      result(0, j) += lhs(0, i) * rhs(i, j);
-    }
-  }
-  return result;
-}
-
-/*---------------------------------------------------------------------------*/
-//  Matrix vector product of FixedMatrix<1, 9> vectors and matrix FixedMatrix<9, 9>
-/*---------------------------------------------------------------------------*/
-ARCCORE_HOST_DEVICE inline FixedMatrix<1, 9> operator*(const FixedMatrix<1, 9>& lhs, const FixedMatrix<9, 9>& rhs)
-{
-  FixedMatrix<1, 9> result;
-  for (Arcane::Int32 j = 0; j < 9; ++j) {
-    result(0, j) = 0; // Initialize result element
-    for (Arcane::Int32 i = 0; i < 9; ++i) {
-      result(0, j) += lhs(0, i) * rhs(i, j);
-    }
-  }
-  return result;
-}
-
-
 template <int N> inline FixedMatrix<N, N>
-ARCCORE_HOST_DEVICE operator^(const FixedMatrix<N, 1>& lhs, const FixedMatrix<1, N>& rhs)
+ARCCORE_HOST_DEVICE operator^(const FixedMatrix<1, N>& lhs, const FixedMatrix<1, N>& rhs)
 {
   FixedMatrix<N, N> result;
   for (Arcane::Int32 i = 0; i < N; ++i) {
     for (Arcane::Int32 j = 0; j < N; ++j) {
-      result(i, j) = lhs(i, 0) * rhs(0, j);
+      result(i, j) = lhs(0, i) * rhs(0, j);
+    }
+  }
+  return result;
+}
+
+/*---------------------------------------------------------------------------*/
+//  Matrix vector product of FixedMatrix<1, N> vectors and matrix FixedMatrix<N, N>
+/*---------------------------------------------------------------------------*/
+
+template <int N> inline FixedMatrix<1, N>
+ARCCORE_HOST_DEVICE operator*(const FixedMatrix<1, N>& lhs, const FixedMatrix<N, N>& rhs)
+{
+  FixedMatrix<1, N> result;
+  for (Arcane::Int32 j = 0; j < N; ++j) {
+    result(0, j) = 0; // Initialize result element
+    for (Arcane::Int32 i = 0; i < N; ++i) {
+      result(0, j) += lhs(0, i) * rhs(i, j);
     }
   }
   return result;
