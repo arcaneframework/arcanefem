@@ -158,16 +158,29 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  BC::IArcaneFemBC* bc = options()->boundaryConditions();
-  if (bc) {
-    for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
-      ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+  // Helper lambda to apply boundary conditions
+  auto applyBoundaryConditions = [&](auto BCFunctions) {
+    BC::IArcaneFemBC* bc = options()->boundaryConditions();
+    if (bc) {
+      for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
+        BCFunctions.applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
 
-    for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
-      ArcaneFemFunctions::BoundaryConditions2D::applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+      for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
+        BCFunctions.applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
 
-    for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions())
-      ArcaneFemFunctions::BoundaryConditions2D::applyPointDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+      for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions())
+        BCFunctions.applyPointDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+    }
+  };
+
+  // Apply the correct boundary conditions based on mesh dimension
+  if (mesh()->dimension() == 3) {
+    using BCFunctions = ArcaneFemFunctions::BoundaryConditions3D;
+    applyBoundaryConditions(BCFunctions());
+  }
+  else {
+    using BCFunctions = ArcaneFemFunctions::BoundaryConditions2D;
+    applyBoundaryConditions(BCFunctions());
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;

@@ -29,6 +29,7 @@ set(MESH_FILES
   ring.msh
   plancher.msh
   L-shape-3D.msh
+  truncated_cube.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
     file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
@@ -55,8 +56,12 @@ add_test(NAME [laplace]pointDirichlet COMMAND Laplace
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [laplace]2D_Dirichlet COMMAND Laplace
     inputs/ring.arc)
+  add_test(NAME [laplace]2D_Dirichlet-Neumann COMMAND Laplace
+    inputs/ring.dirichlet-neumann.arc)
   add_test(NAME [laplace]3D_Dirichlet COMMAND Laplace
     inputs/L-shape.3D.arc)
+  add_test(NAME [laplace]3D_Dirichlet-Neumann COMMAND Laplace
+    inputs/L-shape.3D.dirichlet-neumann.arc)
   add_test(NAME [laplace]2D_Dirichlet_petsc_monitor COMMAND Laplace
     -A,//fem/petsc-flags=-ksp_monitor
     inputs/ring.arc)
@@ -78,6 +83,9 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   arcanefem_add_gpu_test(NAME [laplace]3D_Dirichlet_af-bsr COMMAND ./Laplace ARGS
     -A,//fem/matrix_format=AF-BSR
     inputs/L-shape.3D.arc)
+  arcanefem_add_gpu_test(NAME [laplace]3D_pointBc_af-bsr COMMAND ./Laplace ARGS
+    -A,//fem/matrix_format=AF-BSR
+    inputs/truncated-cube.3D.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [laplace]2D_Dirichlet_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Laplace
