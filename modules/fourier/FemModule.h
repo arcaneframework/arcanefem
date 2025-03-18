@@ -96,15 +96,15 @@ class FemModule
   void _validateResults();
   void _updateVariables();
 
-  FixedMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
-  FixedMatrix<4, 4> _computeElementMatrixQuad4(Cell cell);
-  FixedMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);
+  RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
+  RealMatrix<4, 4> _computeElementMatrixQuad4(Cell cell);
+  RealMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);
 
   IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_dirichlet = nullptr;
   IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_source = nullptr;
 
   template<int N>
-  void _assembleBilinear( const std::function<FixedMatrix<N, N>(const Cell&)>& compute_element_matrix);
+  void _assembleBilinear( const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
 };
 
 #endif

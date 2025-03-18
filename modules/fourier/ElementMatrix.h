@@ -25,7 +25,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<3, 3> FemModule::
+RealMatrix<3, 3> FemModule::
 _computeElementMatrixTria3(Cell cell)
 {
   Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
@@ -39,7 +39,7 @@ _computeElementMatrixTria3(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<4, 4> FemModule::
+RealMatrix<4, 4> FemModule::
 _computeElementMatrixQuad4(Cell cell)
 {
   Real area = ArcaneFemFunctions::MeshOperation::computeAreaQuad4(cell, m_node_coord);
@@ -64,7 +64,7 @@ _computeElementMatrixQuad4(Cell cell)
  */
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<4, 4> FemModule::_computeElementMatrixTetra4(Cell cell)
+RealMatrix<4, 4> FemModule::_computeElementMatrixTetra4(Cell cell)
 {
   Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
 

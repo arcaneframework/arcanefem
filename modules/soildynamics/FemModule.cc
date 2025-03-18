@@ -316,24 +316,24 @@ _assembleLinearOperator2d()
     Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
     Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
 
-    FixedMatrix<1, 6> Uy = { 0., 1., 0., 1., 0., 1. };
-    FixedMatrix<1, 6> Ux = { 1., 0., 1., 0., 1., 0. };
+    RealMatrix<1, 6> Uy = { 0., 1., 0., 1., 0., 1. };
+    RealMatrix<1, 6> Ux = { 1., 0., 1., 0., 1., 0. };
 
-    FixedMatrix<1, 6> F = { f[0], f[1], f[0], f[1], f[0], f[1] };
+    RealMatrix<1, 6> F = { f[0], f[1], f[0], f[1], f[0], f[1] };
 
-    FixedMatrix<1, 6> Un = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y,
+    RealMatrix<1, 6> Un = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y,
                              m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y,
                              m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y };
-    FixedMatrix<1, 6> Vn = { m_V[cell.nodeId(0)].x, m_V[cell.nodeId(0)].y,
+    RealMatrix<1, 6> Vn = { m_V[cell.nodeId(0)].x, m_V[cell.nodeId(0)].y,
                              m_V[cell.nodeId(1)].x, m_V[cell.nodeId(1)].y,
                              m_V[cell.nodeId(2)].x, m_V[cell.nodeId(2)].y };
-    FixedMatrix<1, 6> An = { m_A[cell.nodeId(0)].x, m_A[cell.nodeId(0)].y,
+    RealMatrix<1, 6> An = { m_A[cell.nodeId(0)].x, m_A[cell.nodeId(0)].y,
                              m_A[cell.nodeId(1)].x, m_A[cell.nodeId(1)].y,
                              m_A[cell.nodeId(2)].x, m_A[cell.nodeId(2)].y };
     //----------------------------------------------------------------------
     //  ∫∫∫ (𝐟.𝐯) + ∫∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯)
     //----------------------------------------------------------------------
-    FixedMatrix<1, 6> rhs = (   F * (1 / 3.)
+    RealMatrix<1, 6> rhs = (   F * (1 / 3.)
                               + Un * (massMatrix(Ux, Ux) + massMatrix(Uy, Uy)) * (c0 * 1 / 12.)
                               + Vn * (massMatrix(Ux, Ux) + massMatrix(Uy, Uy)) * (c3 * 1 / 12.)
                               + An * (massMatrix(Ux, Ux) + massMatrix(Uy, Uy)) * (c4 * 1 / 12.)
@@ -425,14 +425,14 @@ _assembleLinearOperator2d()
       Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
       Real2 N = ArcaneFemFunctions::MeshOperation::computeNormalEdge2(face, m_node_coord);
 
-      FixedMatrix<1, 4> Uy = { 0., 1., 0., 1. };
-      FixedMatrix<1, 4> Ux = { 1., 0., 1., 0. };
+      RealMatrix<1, 4> Uy = { 0., 1., 0., 1. };
+      RealMatrix<1, 4> Ux = { 1., 0., 1., 0. };
 
-      FixedMatrix<1, 4> Un = { m_U[face.nodeId(0)].x, m_U[face.nodeId(0)].y, m_U[face.nodeId(1)].x, m_U[face.nodeId(1)].y };
-      FixedMatrix<1, 4> Vn = { m_V[face.nodeId(0)].x, m_V[face.nodeId(0)].y, m_V[face.nodeId(1)].x, m_V[face.nodeId(1)].y };
-      FixedMatrix<1, 4> An = { m_A[face.nodeId(0)].x, m_A[face.nodeId(0)].y, m_A[face.nodeId(1)].x, m_A[face.nodeId(1)].y };
+      RealMatrix<1, 4> Un = { m_U[face.nodeId(0)].x, m_U[face.nodeId(0)].y, m_U[face.nodeId(1)].x, m_U[face.nodeId(1)].y };
+      RealMatrix<1, 4> Vn = { m_V[face.nodeId(0)].x, m_V[face.nodeId(0)].y, m_V[face.nodeId(1)].x, m_V[face.nodeId(1)].y };
+      RealMatrix<1, 4> An = { m_A[face.nodeId(0)].x, m_A[face.nodeId(0)].y, m_A[face.nodeId(1)].x, m_A[face.nodeId(1)].y };
 
-      FixedMatrix<1, 4> rhs = ( (c7 * (N.x * N.x * cp + N.y * N.y * cs)) * Un * (massMatrix(Ux, Ux)) +
+      RealMatrix<1, 4> rhs = ( (c7 * (N.x * N.x * cp + N.y * N.y * cs)) * Un * (massMatrix(Ux, Ux)) +
                                 (c7 * (N.y * N.y * cp + N.x * N.x * cs)) * Un * (massMatrix(Uy, Uy)) +
                                 (c7 * (N.x * N.y * (cp - cs))) * Un * (massMatrix(Ux, Uy)) +
                                 (c7 * (N.x * N.y * (cp - cs))) * Un * (massMatrix(Uy, Ux)) +
@@ -585,23 +585,23 @@ _assembleLinearOperator3d()
     Cell cell = *icell;
     Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
 
-    FixedMatrix<1, 12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. };
-    FixedMatrix<1, 12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
-    FixedMatrix<1, 12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. };
+    RealMatrix<1, 12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. };
+    RealMatrix<1, 12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
+    RealMatrix<1, 12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. };
 
-    FixedMatrix<1, 12> F = { f[0], f[1], f[2], f[0], f[1], f[2], f[0], f[1], f[2] };
+    RealMatrix<1, 12> F = { f[0], f[1], f[2], f[0], f[1], f[2], f[0], f[1], f[2] };
 
-    FixedMatrix<1, 12> Un = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y, m_U[cell.nodeId(0)].z,
+    RealMatrix<1, 12> Un = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y, m_U[cell.nodeId(0)].z,
                               m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y, m_U[cell.nodeId(1)].z,
                               m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y, m_U[cell.nodeId(2)].z,
                               m_U[cell.nodeId(3)].x, m_U[cell.nodeId(3)].y, m_U[cell.nodeId(3)].z };
 
-    FixedMatrix<1, 12> Vn = { m_V[cell.nodeId(0)].x, m_V[cell.nodeId(0)].y, m_V[cell.nodeId(0)].z,
+    RealMatrix<1, 12> Vn = { m_V[cell.nodeId(0)].x, m_V[cell.nodeId(0)].y, m_V[cell.nodeId(0)].z,
                               m_V[cell.nodeId(1)].x, m_V[cell.nodeId(1)].y, m_V[cell.nodeId(1)].z,
                               m_V[cell.nodeId(2)].x, m_V[cell.nodeId(2)].y, m_V[cell.nodeId(2)].z,
                               m_V[cell.nodeId(3)].x, m_V[cell.nodeId(3)].y, m_V[cell.nodeId(3)].z };
 
-    FixedMatrix<1, 12> An = { m_A[cell.nodeId(0)].x, m_A[cell.nodeId(0)].y, m_A[cell.nodeId(0)].z,
+    RealMatrix<1, 12> An = { m_A[cell.nodeId(0)].x, m_A[cell.nodeId(0)].y, m_A[cell.nodeId(0)].z,
                               m_A[cell.nodeId(1)].x, m_A[cell.nodeId(1)].y, m_A[cell.nodeId(1)].z,
                               m_A[cell.nodeId(2)].x, m_A[cell.nodeId(2)].y, m_A[cell.nodeId(2)].z,
                               m_A[cell.nodeId(3)].x, m_A[cell.nodeId(3)].y, m_A[cell.nodeId(3)].z };
@@ -609,7 +609,7 @@ _assembleLinearOperator3d()
     //----------------------------------------------------------------------
     //  ∫∫∫ (𝐟.𝐯) + ∫∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯)
     //----------------------------------------------------------------------
-    FixedMatrix<1, 12> rhs = (  F * (1 / 4.)
+    RealMatrix<1, 12> rhs = (  F * (1 / 4.)
                               + Un * (massMatrix(Ux, Ux) + massMatrix(Uy, Uy) + massMatrix(Uz, Uz)) * (c0 * 1 / 20.)
                               + Vn * (massMatrix(Ux, Ux) + massMatrix(Uy, Uy) + massMatrix(Uz, Uz)) * (c3 * 1 / 20.)
                               + An * (massMatrix(Ux, Ux) + massMatrix(Uy, Uy) + massMatrix(Uz, Uz)) * (c4 * 1 / 20.)
@@ -709,23 +709,23 @@ _assembleLinearOperator3d()
       Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
       Real3 N = ArcaneFemFunctions::MeshOperation::computeNormalTriangle(face, m_node_coord);
 
-      FixedMatrix<1, 9> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0. };
-      FixedMatrix<1, 9> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0. };
-      FixedMatrix<1, 9> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1. };
+      RealMatrix<1, 9> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0. };
+      RealMatrix<1, 9> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0. };
+      RealMatrix<1, 9> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1. };
 
-      FixedMatrix<1, 9> Un = { m_U[face.nodeId(0)].x, m_U[face.nodeId(0)].y, m_U[face.nodeId(0)].z,
+      RealMatrix<1, 9> Un = { m_U[face.nodeId(0)].x, m_U[face.nodeId(0)].y, m_U[face.nodeId(0)].z,
                                m_U[face.nodeId(1)].x, m_U[face.nodeId(1)].y, m_U[face.nodeId(1)].z,
                                m_U[face.nodeId(2)].x, m_U[face.nodeId(2)].y, m_U[face.nodeId(2)].z, };
 
-      FixedMatrix<1, 9> Vn = { m_V[face.nodeId(0)].x, m_V[face.nodeId(0)].y, m_V[face.nodeId(0)].z,
+      RealMatrix<1, 9> Vn = { m_V[face.nodeId(0)].x, m_V[face.nodeId(0)].y, m_V[face.nodeId(0)].z,
                                m_V[face.nodeId(1)].x, m_V[face.nodeId(1)].y, m_V[face.nodeId(1)].z,
                                m_V[face.nodeId(2)].x, m_V[face.nodeId(2)].y, m_V[face.nodeId(2)].z, };
 
-      FixedMatrix<1, 9> An = { m_A[face.nodeId(0)].x, m_A[face.nodeId(0)].y, m_A[face.nodeId(0)].z,
+      RealMatrix<1, 9> An = { m_A[face.nodeId(0)].x, m_A[face.nodeId(0)].y, m_A[face.nodeId(0)].z,
                                m_A[face.nodeId(1)].x, m_A[face.nodeId(1)].y, m_A[face.nodeId(1)].z,
                                m_A[face.nodeId(2)].x, m_A[face.nodeId(2)].y, m_A[face.nodeId(2)].z, };
 
-      FixedMatrix<1, 9> rhs = ( (c7 * (N.x * N.x * cp + (1. - N.x * N.x) * cs)) * Un * (massMatrix(Ux, Ux)) +
+      RealMatrix<1, 9> rhs = ( (c7 * (N.x * N.x * cp + (1. - N.x * N.x) * cs)) * Un * (massMatrix(Ux, Ux)) +
                                 (c7 * (N.y * N.y * cp + (1. - N.y * N.y) * cs)) * Un * (massMatrix(Uy, Uy)) +
                                 (c7 * (N.z * N.z * cp + (1. - N.z * N.z) * cs)) * Un * (massMatrix(Uz, Uz)) +
                                 (c7 * (N.x * N.y * (cp - cs))) * Un * (massMatrix(Ux, Uy)) +

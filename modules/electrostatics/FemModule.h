@@ -89,10 +89,10 @@ class FemModule
   void _assembleLinearOperator();
   void _validateResults();
 
-  FixedMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
+  RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
 
   template<int N>
-  void _assembleBilinear( const std::function<FixedMatrix<N, N>(const Cell&)>& compute_element_matrix);
+  void _assembleBilinear( const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
 };
 
 #endif

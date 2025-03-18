@@ -1485,7 +1485,7 @@ _computeK(const Real& lambda, const Real& mu, const DoFLocalId& igauss, const In
       for (Int32 l = 0; l < 3; ++l) {
 
         auto ii = 3 * inod + l;
-        FixedVector<6> Bii;
+        RealVector<6> Bii;
 
         if (!l) {
           Bii(0) = Bmat(0, inod);
@@ -1515,7 +1515,7 @@ _computeK(const Real& lambda, const Real& mu, const DoFLocalId& igauss, const In
         for (Int32 jj = ii; jj < size; ++jj) {
 
           auto ll = jj % 3;
-          FixedVector<6> Bjj;
+          RealVector<6> Bjj;
 
           if (!ll) {
             auto jnod{ (Int32)(jj / 3) };

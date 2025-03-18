@@ -54,7 +54,7 @@ class ElastTensor{
  public:
   using ThatClass = ElastTensor;
  private:
-//  FixedMatrix<6,6>	m_values;
+//  RealMatrix<6,6>	m_values;
   Real lambda{};
   Real mu{};
   Real lamba2mu{};
@@ -144,8 +144,8 @@ bothMultiply(const ElastTensor& a, const RealUniqueArray2& b){
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 template <int N>
-class FixedVector{
-  using ThatClass = FixedVector<N>;
+class RealVector{
+  using ThatClass = RealVector<N>;
 
  public:
 
@@ -188,21 +188,21 @@ class FixedVector{
   }
 
   //! Set this vector equal to b
-  void setEqualTo(const FixedVector<N>& b)  {
+  void setEqualTo(const RealVector<N>& b)  {
     ARCANE_CHECK_AT(totalNbElement(), N);
     for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
       m_values[i] = b[i];
   }
 
   //! Add b to this vector
-  void add(const FixedVector<N>& b)  {
+  void add(const RealVector<N>& b)  {
     ARCANE_CHECK_AT(totalNbElement(), N);
     for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
       m_values[i] += b[i];
   }
 
   //! Substract b to this vector
-  void sub(const FixedVector<N>& b)  {
+  void sub(const RealVector<N>& b)  {
     ARCANE_CHECK_AT(totalNbElement(), N);
     for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
       m_values[i] -= b[i];
@@ -217,7 +217,7 @@ class FixedVector{
 /*---------------------------------------------------------------------------*/
 // Tensor: used for symmetric 2nd-order tensors (useful for stresses, strains)
 // Storage in vectorial form (xx yy zz xy yz zx)
-using Tensor= FixedVector<6>;
+using Tensor= RealVector<6>;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

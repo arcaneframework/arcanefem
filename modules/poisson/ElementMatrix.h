@@ -25,7 +25,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<3, 3> FemModule::_computeElementMatrixTria3(Cell cell)
+RealMatrix<3, 3> FemModule::_computeElementMatrixTria3(Cell cell)
 {
   Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
 
@@ -38,7 +38,7 @@ FixedMatrix<3, 3> FemModule::_computeElementMatrixTria3(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE FixedMatrix<3, 3> _computeElementMatrixTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE RealMatrix<3, 3> _computeElementMatrixTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord)
 {
   Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
 
@@ -51,7 +51,7 @@ ARCCORE_HOST_DEVICE FixedMatrix<3, 3> _computeElementMatrixTria3Gpu(CellLocalId 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE FixedMatrix<1, 3> _computeElementVectorTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
+ARCCORE_HOST_DEVICE RealMatrix<1, 3> _computeElementVectorTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
 {
   Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
 
@@ -76,7 +76,7 @@ ARCCORE_HOST_DEVICE FixedMatrix<1, 3> _computeElementVectorTria3Gpu(CellLocalId 
  */
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<4, 4> FemModule::_computeElementMatrixTetra4(Cell cell)
+RealMatrix<4, 4> FemModule::_computeElementMatrixTetra4(Cell cell)
 {
   Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
 
@@ -90,7 +90,7 @@ FixedMatrix<4, 4> FemModule::_computeElementMatrixTetra4(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE FixedMatrix<4, 4> _computeElementMatrixTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE RealMatrix<4, 4> _computeElementMatrixTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord)
 {
   Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
 
@@ -104,7 +104,7 @@ ARCCORE_HOST_DEVICE FixedMatrix<4, 4> _computeElementMatrixTetra4Gpu(CellLocalId
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE FixedMatrix<1, 4> _computeElementVectorTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
+ARCCORE_HOST_DEVICE RealMatrix<1, 4> _computeElementVectorTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
 {
   Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
 

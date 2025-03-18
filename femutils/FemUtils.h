@@ -80,15 +80,15 @@ namespace Arcane::FemUtils
  * \brief Matrice NxM de taille fixe.
  */
 template <int N, int M>
-class FixedMatrix
+class RealMatrix
 {
-  using ThatClass = FixedMatrix<N, M>;
+  using ThatClass = RealMatrix<N, M>;
 
  public:
 
   static constexpr Arcane::Int32 totalNbElement() { return N * M; }
-  ARCCORE_HOST_DEVICE FixedMatrix() {};
-  ARCCORE_HOST_DEVICE FixedMatrix(std::initializer_list<Real> init_list)
+  ARCCORE_HOST_DEVICE RealMatrix() {};
+  ARCCORE_HOST_DEVICE RealMatrix(std::initializer_list<Real> init_list)
   {
     auto i = 0;
     for (auto it = init_list.begin(); it != init_list.end(); it++) {
@@ -138,9 +138,9 @@ class FixedMatrix
   }
 
   //! Define the addition operator
-  ARCCORE_HOST_DEVICE FixedMatrix<N, M> operator+(const FixedMatrix<N, M>& other) const
+  ARCCORE_HOST_DEVICE RealMatrix<N, M> operator+(const RealMatrix<N, M>& other) const
   {
-    FixedMatrix<N, M> result;
+    RealMatrix<N, M> result;
     for (Arcane::Int32 i = 0; i < N; ++i) {
       for (Arcane::Int32 j = 0; j < M; ++j) {
         result(i, j) = (*this)(i, j) + other(i, j);
@@ -150,9 +150,9 @@ class FixedMatrix
   }
 
   //! Define the subtraction operator
-  FixedMatrix<N, M> operator-(const FixedMatrix<N, M>& other) const
+  RealMatrix<N, M> operator-(const RealMatrix<N, M>& other) const
   {
-    FixedMatrix<N, M> result;
+    RealMatrix<N, M> result;
     for (Arcane::Int32 i = 0; i < N; ++i) {
       for (Arcane::Int32 j = 0; j < M; ++j) {
         result(i, j) = (*this)(i, j) - other(i, j);
@@ -162,9 +162,9 @@ class FixedMatrix
   }
 
   //! Define the unary negation operator
-  FixedMatrix<N, M> operator-() const
+  RealMatrix<N, M> operator-() const
   {
-    FixedMatrix<N, M> result;
+    RealMatrix<N, M> result;
     for (Arcane::Int32 i = 0; i < N; ++i) {
       for (Arcane::Int32 j = 0; j < M; ++j) {
         result(i, j) = -(*this)(i, j);
@@ -173,10 +173,10 @@ class FixedMatrix
     return result;
   }
 
-  //! Scalar multiplication: FixedMatrix * scalar
-  ARCCORE_HOST_DEVICE FixedMatrix<N, M> operator*(Real scalar) const
+  //! Scalar multiplication: RealMatrix * scalar
+  ARCCORE_HOST_DEVICE RealMatrix<N, M> operator*(Real scalar) const
   {
-    FixedMatrix<N, M> result;
+    RealMatrix<N, M> result;
     for (Arcane::Int32 i = 0; i < N; ++i) {
       for (Arcane::Int32 j = 0; j < M; ++j) {
         result(i, j) = (*this)(i, j) * scalar;
@@ -185,10 +185,10 @@ class FixedMatrix
     return result;
   }
 
-  //! Scalar division: FixedMatrix / scalar
-  ARCCORE_HOST_DEVICE FixedMatrix<N, M> operator/(Real scalar) const
+  //! Scalar division: RealMatrix / scalar
+  ARCCORE_HOST_DEVICE RealMatrix<N, M> operator/(Real scalar) const
   {
-    FixedMatrix<N, M> result;
+    RealMatrix<N, M> result;
     for (Arcane::Int32 i = 0; i < N; ++i) {
       for (Arcane::Int32 j = 0; j < M; ++j) {
         result(i, j) = (*this)(i, j) / scalar;
@@ -197,10 +197,10 @@ class FixedMatrix
     return result;
   }
 
-  //! Friend function for scalar multiplication: scalar * FixedMatrix
-  ARCCORE_HOST_DEVICE friend FixedMatrix<N, M> operator*(Real scalar, const FixedMatrix<N, M>& matrix)
+  //! Friend function for scalar multiplication: scalar * RealMatrix
+  ARCCORE_HOST_DEVICE friend RealMatrix<N, M> operator*(Real scalar, const RealMatrix<N, M>& matrix)
   {
-    FixedMatrix<N, M> result;
+    RealMatrix<N, M> result;
     for (Arcane::Int32 i = 0; i < N; ++i) {
       for (Arcane::Int32 j = 0; j < M; ++j) {
         result(i, j) = scalar * matrix(i, j);
@@ -215,11 +215,11 @@ class FixedMatrix
 };
 
 /*---------------------------------------------------------------------------*/
-//  Outer product of two Real3 vectors to produce a FixedMatrix<3, 3>
+//  Outer product of two Real3 vectors to produce a RealMatrix<3, 3>
 /*---------------------------------------------------------------------------*/
-ARCCORE_HOST_DEVICE inline FixedMatrix<3, 3> operator^(const Arcane::Real3& lhs, const Arcane::Real3& rhs)
+ARCCORE_HOST_DEVICE inline RealMatrix<3, 3> operator^(const Arcane::Real3& lhs, const Arcane::Real3& rhs)
 {
-  FixedMatrix<3, 3> result;
+  RealMatrix<3, 3> result;
   for (Arcane::Int32 i = 0; i < 3; ++i) {
     for (Arcane::Int32 j = 0; j < 3; ++j) {
       result(i, j) = lhs[i] * rhs[j];
@@ -229,11 +229,11 @@ ARCCORE_HOST_DEVICE inline FixedMatrix<3, 3> operator^(const Arcane::Real3& lhs,
 }
 
 /*---------------------------------------------------------------------------*/
-//  Outer product of two Real4 vectors to produce a FixedMatrix<4, 4>
+//  Outer product of two Real4 vectors to produce a RealMatrix<4, 4>
 /*---------------------------------------------------------------------------*/
-ARCCORE_HOST_DEVICE inline FixedMatrix<4, 4> operator^(const Real4& lhs, const Real4& rhs)
+ARCCORE_HOST_DEVICE inline RealMatrix<4, 4> operator^(const Real4& lhs, const Real4& rhs)
 {
-  FixedMatrix<4, 4> result;
+  RealMatrix<4, 4> result;
   for (Arcane::Int32 i = 0; i < 4; ++i) {
     for (Arcane::Int32 j = 0; j < 4; ++j) {
       result(i, j) = lhs[i] * rhs[j];
@@ -243,12 +243,12 @@ ARCCORE_HOST_DEVICE inline FixedMatrix<4, 4> operator^(const Real4& lhs, const R
 }
 
 /*---------------------------------------------------------------------------*/
-//  Outer product of two FixedMatrix<1, N> vectors to produce a FixedMatrix<N, N>
+//  Outer product of two RealMatrix<1, N> vectors to produce a RealMatrix<N, N>
 /*---------------------------------------------------------------------------*/
-template <int N> inline FixedMatrix<N, N>
-ARCCORE_HOST_DEVICE operator^(const FixedMatrix<1, N>& lhs, const FixedMatrix<1, N>& rhs)
+template <int N> inline RealMatrix<N, N>
+ARCCORE_HOST_DEVICE operator^(const RealMatrix<1, N>& lhs, const RealMatrix<1, N>& rhs)
 {
-  FixedMatrix<N, N> result;
+  RealMatrix<N, N> result;
   for (Arcane::Int32 i = 0; i < N; ++i) {
     for (Arcane::Int32 j = 0; j < N; ++j) {
       result(i, j) = lhs(0, i) * rhs(0, j);
@@ -258,13 +258,13 @@ ARCCORE_HOST_DEVICE operator^(const FixedMatrix<1, N>& lhs, const FixedMatrix<1,
 }
 
 /*---------------------------------------------------------------------------*/
-//  Matrix vector product of FixedMatrix<1, N> vectors and matrix FixedMatrix<N, N>
+//  Matrix vector product of RealMatrix<1, N> vectors and matrix RealMatrix<N, N>
 /*---------------------------------------------------------------------------*/
 
-template <int N> inline FixedMatrix<1, N>
-ARCCORE_HOST_DEVICE operator*(const FixedMatrix<1, N>& lhs, const FixedMatrix<N, N>& rhs)
+template <int N> inline RealMatrix<1, N>
+ARCCORE_HOST_DEVICE operator*(const RealMatrix<1, N>& lhs, const RealMatrix<N, N>& rhs)
 {
-  FixedMatrix<1, N> result;
+  RealMatrix<1, N> result;
   for (Arcane::Int32 j = 0; j < N; ++j) {
     result(0, j) = 0; // Initialize result element
     for (Arcane::Int32 i = 0; i < N; ++i) {
@@ -277,11 +277,11 @@ ARCCORE_HOST_DEVICE operator*(const FixedMatrix<1, N>& lhs, const FixedMatrix<N,
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-template <int N, int M> inline FixedMatrix<N, N>
-ARCCORE_HOST_DEVICE matrixAddition(const FixedMatrix<N, M>& a, const FixedMatrix<M, N>& b)
+template <int N, int M> inline RealMatrix<N, N>
+ARCCORE_HOST_DEVICE matrixAddition(const RealMatrix<N, M>& a, const RealMatrix<M, N>& b)
 {
   using namespace Arcane;
-  FixedMatrix<N, N> new_matrix;
+  RealMatrix<N, N> new_matrix;
 
   for (Int32 i = 0; i < N; ++i) {
     for (Int32 j = 0; j < N; ++j) {
@@ -294,11 +294,11 @@ ARCCORE_HOST_DEVICE matrixAddition(const FixedMatrix<N, M>& a, const FixedMatrix
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-template <int N, int M> inline FixedMatrix<N, N>
-ARCCORE_HOST_DEVICE matrixMultiplication(const FixedMatrix<N, M>& a, const FixedMatrix<M, N>& b)
+template <int N, int M> inline RealMatrix<N, N>
+ARCCORE_HOST_DEVICE matrixMultiplication(const RealMatrix<N, M>& a, const RealMatrix<M, N>& b)
 {
   using namespace Arcane;
-  FixedMatrix<N, N> new_matrix;
+  RealMatrix<N, N> new_matrix;
 
   for (Int32 i = 0; i < N; ++i) {
     for (Int32 j = 0; j < N; ++j) {
@@ -315,12 +315,12 @@ ARCCORE_HOST_DEVICE matrixMultiplication(const FixedMatrix<N, M>& a, const Fixed
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-template <int N, int M> inline FixedMatrix<M, N>
-ARCCORE_HOST_DEVICE matrixTranspose(const FixedMatrix<N, M>& a)
+template <int N, int M> inline RealMatrix<M, N>
+ARCCORE_HOST_DEVICE matrixTranspose(const RealMatrix<N, M>& a)
 {
   using namespace Arcane;
 
-  FixedMatrix<M, N> t_matrix;
+  RealMatrix<M, N> t_matrix;
   for (Int32 i = 0; i < N; ++i) {
     for (Int32 j = 0; j < M; ++j) {
       t_matrix(j, i) = a(i, j);
@@ -332,12 +332,12 @@ ARCCORE_HOST_DEVICE matrixTranspose(const FixedMatrix<N, M>& a)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-template <int N> inline FixedMatrix<N, N>
-ARCCORE_HOST_DEVICE massMatrix(const FixedMatrix<1, N>& lhs, const FixedMatrix<1, N>& rhs)
+template <int N> inline RealMatrix<N, N>
+ARCCORE_HOST_DEVICE massMatrix(const RealMatrix<1, N>& lhs, const RealMatrix<1, N>& rhs)
 {
   using namespace Arcane;
 
-  FixedMatrix<N, N> m_matrix;
+  RealMatrix<N, N> m_matrix;
   for (Arcane::Int32 i = 0; i < N; ++i)
     for (Arcane::Int32 j = 0; j < N; ++j)
       m_matrix(i, j) = lhs(0, i) * rhs(0, j);
@@ -354,8 +354,8 @@ ARCCORE_HOST_DEVICE massMatrix(const FixedMatrix<1, N>& lhs, const FixedMatrix<1
  * \brief Vector N de taille fixe.
  */
 template <int N>
-class FixedVector{
-  using ThatClass = FixedVector<N>;
+class RealVector{
+  using ThatClass = RealVector<N>;
 
  public:
 
@@ -382,7 +382,7 @@ class FixedVector{
   }
 
   //! Add \a v to all the components
-  void addInPlace(Arcane::Real v)  {
+  ARCCORE_HOST_DEVICE void addInPlace(Arcane::Real v)  {
     for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
       m_values[i] += v;
   }
@@ -398,21 +398,21 @@ class FixedVector{
   }
 
   //! Set this vector equal to b
-  void setEqualTo(const FixedVector<N>& b)  {
+  ARCCORE_HOST_DEVICE void setEqualTo(const RealVector<N>& b)  {
     ARCANE_CHECK_AT(totalNbElement(), N);
     for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
       m_values[i] = b[i];
   }
 
   //! Add b to this vector
-  void add(const FixedVector<N>& b)  {
+  ARCCORE_HOST_DEVICE void add(const RealVector<N>& b)  {
     ARCANE_CHECK_AT(totalNbElement(), N);
     for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
       m_values[i] += b[i];
   }
 
   //! Substract b to this vector
-  void sub(const FixedVector<N>& b)  {
+  ARCCORE_HOST_DEVICE void sub(const RealVector<N>& b)  {
     ARCANE_CHECK_AT(totalNbElement(), N);
     for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
       m_values[i] -= b[i];
@@ -427,7 +427,7 @@ class FixedVector{
 /*---------------------------------------------------------------------------*/
 // Tensor: used for symmetric 2nd-order tensors (useful for stresses, strains)
 // Storage in vectorial form (xx yy zz xy yz zx)
-using Tensor= FixedVector<6>;
+using Tensor= RealVector<6>;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

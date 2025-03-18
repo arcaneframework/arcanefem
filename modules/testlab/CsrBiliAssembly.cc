@@ -111,7 +111,7 @@ _assembleCsrBilinearOperatorTRIA3()
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    FixedMatrix<3, 3> K_e;
+    RealMatrix<3, 3> K_e;
     {
       //Timer::Action timer_csr_compute_add(m_time_stats, "CsrComputeElementMatrixTria3");
       K_e = _computeElementMatrixTRIA3(cell); // element stifness matrix
@@ -161,7 +161,7 @@ _assembleCsrBilinearOperatorTETRA4()
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    FixedMatrix<4, 4> K_e;
+    RealMatrix<4, 4> K_e;
     {
       K_e = _computeElementMatrixTETRA4(cell); // element stiffness matrix
     }

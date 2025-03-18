@@ -224,8 +224,8 @@ class FemModule
   void _checkResultFile();
   void _dumpTimeStats();
   void _setPetscFlagsFromCommandline();
-  FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
-  FixedMatrix<4, 4> _computeElementMatrixTETRA4(Cell cell);
+  RealMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
+  RealMatrix<4, 4> _computeElementMatrixTETRA4(Cell cell);
   Real _computeAreaTriangle3(Cell cell);
   Real _computeAreaTetra4(Cell cell);
   Real _computeEdgeLength2(Face face);

@@ -261,7 +261,7 @@ _handleFlags()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE FixedMatrix<3, 3> computeElementMatrixTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE RealMatrix<3, 3> computeElementMatrixTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
   Real3 dxU = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
@@ -272,7 +272,7 @@ ARCCORE_HOST_DEVICE FixedMatrix<3, 3> computeElementMatrixTria3(CellLocalId cell
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE FixedMatrix<1, 3> computeElementVectorTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
+ARCCORE_HOST_DEVICE RealMatrix<1, 3> computeElementVectorTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
 {
   Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
 
@@ -286,7 +286,7 @@ ARCCORE_HOST_DEVICE FixedMatrix<1, 3> computeElementVectorTria3Gpu(CellLocalId c
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE FixedMatrix<4, 4> computeElementMatrixTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE RealMatrix<4, 4> computeElementMatrixTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
   Real4 dxU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientXTetra4(cell_lid, cn_cv, in_node_coord);
@@ -298,7 +298,7 @@ ARCCORE_HOST_DEVICE FixedMatrix<4, 4> computeElementMatrixTetra4(CellLocalId cel
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE FixedMatrix<1, 4> computeElementVectorTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
+ARCCORE_HOST_DEVICE RealMatrix<1, 4> computeElementVectorTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
 {
   Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
 
@@ -1764,7 +1764,7 @@ _computeEdgeNormal2(Face face)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<3, 3> FemModule::
+RealMatrix<3, 3> FemModule::
 _computeElementMatrixTRIA3(Cell cell)
 {
   // Get coordiantes of the triangle element  TRI3
@@ -1785,7 +1785,7 @@ _computeElementMatrixTRIA3(Cell cell)
   Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
   Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
 
-  FixedMatrix<2, 3> b_matrix;
+  RealMatrix<2, 3> b_matrix;
   b_matrix(0, 0) = dPhi0.x;
   b_matrix(0, 1) = dPhi1.x;
   b_matrix(0, 2) = dPhi2.x;
@@ -1796,7 +1796,7 @@ _computeElementMatrixTRIA3(Cell cell)
 
   b_matrix.multInPlace(1.0 / (2.0 * area));
 
-  FixedMatrix<3, 3> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
+  RealMatrix<3, 3> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
   int_cdPi_dPj.multInPlace(area);
 
   //info() << "Cell=" << cell.localId();
@@ -1810,7 +1810,7 @@ _computeElementMatrixTRIA3(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<4, 4> FemModule::
+RealMatrix<4, 4> FemModule::
 _computeElementMatrixTETRA4(Cell cell)
 {
   // Get coordinates of the triangle element  TETRA4
@@ -1838,7 +1838,7 @@ _computeElementMatrixTETRA4(Cell cell)
   Real3 dPhi3 = Arcane::math::cross(m0 - m1, m1 - m2);
 
   // Construct the B-matrix
-  FixedMatrix<3, 4> b_matrix;
+  RealMatrix<3, 4> b_matrix;
   b_matrix(0, 0) = dPhi0.x;
   b_matrix(1, 0) = dPhi0.y;
   b_matrix(2, 0) = dPhi0.z;
@@ -1858,7 +1858,7 @@ _computeElementMatrixTETRA4(Cell cell)
   b_matrix.multInPlace(1.0 / (6.0 * volume));
 
   // Compute the element matrix
-  FixedMatrix<4, 4> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
+  RealMatrix<4, 4> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
   int_cdPi_dPj.multInPlace(volume);
 
   /*

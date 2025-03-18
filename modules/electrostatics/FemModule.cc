@@ -179,7 +179,7 @@ _getE()
  */
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<3, 3> FemModule::
+RealMatrix<3, 3> FemModule::
 _computeElementMatrixTria3(Cell cell)
 {
   Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
@@ -223,7 +223,7 @@ _assembleBilinearOperator()
 
 template <int N>
 void FemModule::
-_assembleBilinear(const std::function<FixedMatrix<N, N>(const Cell&)>& compute_element_matrix)
+_assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 

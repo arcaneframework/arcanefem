@@ -288,7 +288,7 @@ _assembleBilinearOperator()
 
 template <int N>
 void FemModule::
-_assembleBilinear(const std::function<FixedMatrix<N, N>(const Cell&)>& compute_element_matrix)
+_assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
