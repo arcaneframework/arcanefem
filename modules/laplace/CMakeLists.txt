@@ -56,8 +56,12 @@ add_test(NAME [laplace]pointDirichlet COMMAND Laplace
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [laplace]2D_Dirichlet COMMAND Laplace
     inputs/ring.arc)
+  add_test(NAME [laplace]2D_Dirichlet-Neumann COMMAND Laplace
+    inputs/ring.dirichlet-neumann.arc)
   add_test(NAME [laplace]3D_Dirichlet COMMAND Laplace
     inputs/L-shape.3D.arc)
+  add_test(NAME [laplace]3D_Dirichlet-Neumann COMMAND Laplace
+    inputs/L-shape.3D.dirichlet-neumann.arc)
   add_test(NAME [laplace]2D_Dirichlet_petsc_monitor COMMAND Laplace
     -A,//fem/petsc-flags=-ksp_monitor
     inputs/ring.arc)
