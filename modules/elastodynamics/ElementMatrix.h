@@ -44,13 +44,13 @@ _computeElementMatrixTria3(Cell cell)
   Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
   Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
 
-  RealMatrix<1, 6> Uy = {0., 1., 0., 1., 0., 1.};
-  RealMatrix<1, 6> Ux = {1., 0., 1., 0., 1., 0.};
+  RealVector<6> Uy = {0., 1., 0., 1., 0., 1.};
+  RealVector<6> Ux = {1., 0., 1., 0., 1., 0.};
 
-  RealMatrix<1, 6> dxUx = { dxu[0], 0., dxu[1], 0., dxu[2], 0. };
-  RealMatrix<1, 6> dyUx = { dyu[0], 0., dyu[1], 0., dyu[2], 0. };
-  RealMatrix<1, 6> dxUy = { 0., dxu[0], 0., dxu[1], 0., dxu[2] };
-  RealMatrix<1, 6> dyUy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
+  RealVector<6> dxUx = { dxu[0], 0., dxu[1], 0., dxu[2], 0. };
+  RealVector<6> dyUx = { dyu[0], 0., dyu[1], 0., dyu[2], 0. };
+  RealVector<6> dxUy = { 0., dxu[0], 0., dxu[1], 0., dxu[2] };
+  RealVector<6> dyUy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
 
   RealMatrix<6, 6> int_Omega_i = (c0 / 12.) * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy)) * area +
                                   (c1) * ((dyUy ^ dxUx) + (dxUx ^ dyUy)) * area +
@@ -99,21 +99,21 @@ RealMatrix<12, 12> FemModule::_computeElementMatrixTetra4(Cell cell)
 
   Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
 
-  RealMatrix<1, 12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
-  RealMatrix<1, 12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. };
-  RealMatrix<1, 12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. };
+  RealVector<12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
+  RealVector<12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. };
+  RealVector<12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. };
 
-  RealMatrix<1, 12> dxUx = { dxu[0], 0., 0.,    dxu[1], 0., 0.,    dxu[2], 0., 0.,    dxu[3], 0., 0. };
-  RealMatrix<1, 12> dyUx = { dyu[0], 0., 0.,    dyu[1], 0., 0.,    dyu[2], 0., 0.,    dyu[3], 0., 0. };
-  RealMatrix<1, 12> dzUx = { dzu[0], 0., 0.,    dzu[1], 0., 0.,    dzu[2], 0., 0.,    dzu[3], 0., 0. };
+  RealVector<12> dxUx = { dxu[0], 0., 0.,    dxu[1], 0., 0.,    dxu[2], 0., 0.,    dxu[3], 0., 0. };
+  RealVector<12> dyUx = { dyu[0], 0., 0.,    dyu[1], 0., 0.,    dyu[2], 0., 0.,    dyu[3], 0., 0. };
+  RealVector<12> dzUx = { dzu[0], 0., 0.,    dzu[1], 0., 0.,    dzu[2], 0., 0.,    dzu[3], 0., 0. };
 
-  RealMatrix<1, 12> dxUy = { 0., dxu[0], 0.,    0., dxu[1], 0.,    0., dxu[2], 0.,    0., dxu[3], 0. };
-  RealMatrix<1, 12> dyUy = { 0., dyu[0], 0.,    0., dyu[1], 0.,    0., dyu[2], 0.,    0., dyu[3], 0. };
-  RealMatrix<1, 12> dzUy = { 0., dzu[0], 0.,    0., dzu[1], 0.,    0., dzu[2], 0.,    0., dzu[3], 0. };
+  RealVector<12> dxUy = { 0., dxu[0], 0.,    0., dxu[1], 0.,    0., dxu[2], 0.,    0., dxu[3], 0. };
+  RealVector<12> dyUy = { 0., dyu[0], 0.,    0., dyu[1], 0.,    0., dyu[2], 0.,    0., dyu[3], 0. };
+  RealVector<12> dzUy = { 0., dzu[0], 0.,    0., dzu[1], 0.,    0., dzu[2], 0.,    0., dzu[3], 0. };
 
-  RealMatrix<1, 12> dxUz = { 0., 0., dxu[0],    0., 0., dxu[1],    0., 0., dxu[2],    0., 0., dxu[3] };
-  RealMatrix<1, 12> dyUz = { 0., 0., dyu[0],    0., 0., dyu[1],    0., 0., dyu[2],    0., 0., dyu[3] };
-  RealMatrix<1, 12> dzUz = { 0., 0., dzu[0],    0., 0., dzu[1],    0., 0., dzu[2],    0., 0., dzu[3] };
+  RealVector<12> dxUz = { 0., 0., dxu[0],    0., 0., dxu[1],    0., 0., dxu[2],    0., 0., dxu[3] };
+  RealVector<12> dyUz = { 0., 0., dyu[0],    0., 0., dyu[1],    0., 0., dyu[2],    0., 0., dyu[3] };
+  RealVector<12> dzUz = { 0., 0., dzu[0],    0., 0., dzu[1],    0., 0., dzu[2],    0., 0., dzu[3] };
 
   RealMatrix<12, 12> int_Omega_i = (c0 / 20.) * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz)) * volume +
                                     (c1)*((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) +
