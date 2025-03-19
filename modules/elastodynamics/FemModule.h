@@ -134,8 +134,8 @@ class FemModule
   void _assembleBilinearOperatorTria3();
   void _assembleBilinearOperatorTetra4();
 
-  FixedMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
-  FixedMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
+  RealMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
+  RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
 
 };
 

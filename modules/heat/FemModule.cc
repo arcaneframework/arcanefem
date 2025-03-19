@@ -544,7 +544,7 @@ _computeEdgeLength2(Face face)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<2, 2> FemModule::
+RealMatrix<2, 2> FemModule::
 _computeElementMatrixEDGE2(Face face)
 {
   // Get coordinates of the triangle element  EDGE2
@@ -561,9 +561,9 @@ _computeElementMatrixEDGE2(Face face)
   Real2 dPhi0(m0.y - m1.y, m1.x - m0.x);
   Real2 dPhi1(m1.y - m0.y, m0.x - m1.x);
 
-  FixedMatrix<1, 2> b_matrix;
-  FixedMatrix<2, 1> bT_matrix;
-  FixedMatrix<2, 2> int_DOmega_i;
+  RealMatrix<1, 2> b_matrix;
+  RealMatrix<2, 1> bT_matrix;
+  RealMatrix<2, 2> int_DOmega_i;
 
   for (Int32 i = 0; i<2; i++)
     for (Int32 j = 0; j<2; j++)
@@ -580,7 +580,7 @@ _computeElementMatrixEDGE2(Face face)
 
   bT_matrix.multInPlace(1.);
 
-  FixedMatrix<2, 2> int_UV   = matrixMultiplication(bT_matrix, b_matrix);
+  RealMatrix<2, 2> int_UV   = matrixMultiplication(bT_matrix, b_matrix);
 
   for (Int32 i = 0; i<2; i++)
     int_UV(i,i) *= 2.;
@@ -594,7 +594,7 @@ _computeElementMatrixEDGE2(Face face)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<3, 3> FemModule::
+RealMatrix<3, 3> FemModule::
 _computeElementMatrixTRIA3(Cell cell)
 {
   // Get coordinates of the triangle element  TRI3
@@ -615,9 +615,9 @@ _computeElementMatrixTRIA3(Cell cell)
   Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
   Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
 
-  FixedMatrix<1, 3> b_matrix;
-  FixedMatrix<3, 1> bT_matrix;
-  FixedMatrix<3, 3> int_Omega_i;
+  RealMatrix<1, 3> b_matrix;
+  RealMatrix<3, 1> bT_matrix;
+  RealMatrix<3, 3> int_Omega_i;
 
   for (Int32 i = 0; i<3; i++)
     for (Int32 j = 0; j<3; j++)
@@ -641,7 +641,7 @@ _computeElementMatrixTRIA3(Cell cell)
 
   bT_matrix.multInPlace(0.5f);
 
-  FixedMatrix<3, 3> int_dxUdxV = matrixMultiplication(bT_matrix, b_matrix);
+  RealMatrix<3, 3> int_dxUdxV = matrixMultiplication(bT_matrix, b_matrix);
   int_Omega_i = matrixAddition( int_Omega_i, int_dxUdxV);
 
 
@@ -658,7 +658,7 @@ _computeElementMatrixTRIA3(Cell cell)
 
   bT_matrix.multInPlace(0.5f);
 
-  FixedMatrix<3, 3> int_dyUdyV = matrixMultiplication(bT_matrix, b_matrix);
+  RealMatrix<3, 3> int_dyUdyV = matrixMultiplication(bT_matrix, b_matrix);
   int_Omega_i = matrixAddition( int_Omega_i, int_dyUdyV);
 
   int_Omega_i.multInPlace(lambda);
@@ -676,7 +676,7 @@ _computeElementMatrixTRIA3(Cell cell)
 
   bT_matrix.multInPlace(0.5f);
 
-  FixedMatrix<3, 3> int_UV   = matrixMultiplication(bT_matrix, b_matrix);
+  RealMatrix<3, 3> int_UV   = matrixMultiplication(bT_matrix, b_matrix);
 
   for (Int32 i = 0; i<3; i++)
     int_UV(i,i) *= 2.;

@@ -81,10 +81,10 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/matrix-format=BSR
     inputs/L-shape.3D.arc)
   arcanefem_add_gpu_test(NAME [laplace]3D_Dirichlet_af-bsr COMMAND ./Laplace ARGS
-    -A,//fem/matrix_format=AF-BSR
+    -A,//fem/matrix-format=AF-BSR
     inputs/L-shape.3D.arc)
   arcanefem_add_gpu_test(NAME [laplace]3D_pointBc_af-bsr COMMAND ./Laplace ARGS
-    -A,//fem/matrix_format=AF-BSR
+    -A,//fem/matrix-format=AF-BSR
     inputs/truncated-cube.3D.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)

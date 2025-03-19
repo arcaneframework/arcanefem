@@ -102,7 +102,7 @@ _assembleCooSortBilinearOperatorTRIA3()
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    FixedMatrix<3, 3> K_e;
+    RealMatrix<3, 3> K_e;
     {
       K_e = _computeElementMatrixTRIA3(cell);
     }
@@ -157,7 +157,7 @@ void FemModule::_assembleCooSortBilinearOperatorTETRA4()
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    FixedMatrix<4, 4> K_e;
+    RealMatrix<4, 4> K_e;
     {
       K_e = _computeElementMatrixTETRA4(cell);
     }

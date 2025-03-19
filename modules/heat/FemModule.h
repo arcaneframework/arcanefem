@@ -107,8 +107,8 @@ class FemModule
 
   void _printArcaneFemTime(const String label, const Real value);
 
-  FixedMatrix<2, 2> _computeElementMatrixEDGE2(Face face);
-  FixedMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
+  RealMatrix<2, 2> _computeElementMatrixEDGE2(Face face);
+  RealMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
   Real  _computeDxOfRealTRIA3(Cell cell);
   Real  _computeDyOfRealTRIA3(Cell cell);
   Real2 _computeDxDyOfRealTRIA3(Cell cell);

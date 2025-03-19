@@ -36,21 +36,21 @@
  */
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<6, 6> FemModule::
+RealMatrix<6, 6> FemModule::
 _compute2dElementMatrixTria3(Cell cell)
 {
   Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
   Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
   Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
 
-  FixedMatrix<1, 6> Uy = {0., 1., 0., 1., 0., 1.};
-  FixedMatrix<1, 6> Ux = {1., 0., 1., 0., 1., 0.};
-  FixedMatrix<1, 6> dxUx = { dxu[0], 0., dxu[1], 0., dxu[2], 0. };
-  FixedMatrix<1, 6> dyUx = { dyu[0], 0., dyu[1], 0., dyu[2], 0. };
-  FixedMatrix<1, 6> dxUy = { 0., dxu[0], 0., dxu[1], 0., dxu[2] };
-  FixedMatrix<1, 6> dyUy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
+  RealVector<6> Uy = {0., 1., 0., 1., 0., 1.};
+  RealVector<6> Ux = {1., 0., 1., 0., 1., 0.};
+  RealVector<6> dxUx = { dxu[0], 0., dxu[1], 0., dxu[2], 0. };
+  RealVector<6> dyUx = { dyu[0], 0., dyu[1], 0., dyu[2], 0. };
+  RealVector<6> dxUy = { 0., dxu[0], 0., dxu[1], 0., dxu[2] };
+  RealVector<6> dyUy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
 
-  FixedMatrix<6, 6> int_Omega_i = (c0 / 12.) * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy)) * area +
+  RealMatrix<6, 6> int_Omega_i = (c0 / 12.) * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy)) * area +
                                   (c1) * ((dyUy ^ dxUx) + (dxUx ^ dyUy)) * area +
                                   (2*c2 + c1) * ((dxUx ^ dxUx) + (dyUy ^ dyUy)) * area +
                                   (c2) * ((dxUy + dyUx) ^ (dyUx + dxUy)) * area;
@@ -73,16 +73,16 @@ _compute2dElementMatrixTria3(Cell cell)
  */
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<4, 4> FemModule::
+RealMatrix<4, 4> FemModule::
 _compute2dElementMatrixEdge2(Face face)
 {
   Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
   Real2 N   = ArcaneFemFunctions::MeshOperation::computeNormalEdge2(face, m_node_coord);
 
-  FixedMatrix<1, 4> Uy = {0., 1., 0., 1.};
-  FixedMatrix<1, 4> Ux = {1., 0., 1., 0.};
+  RealVector<4> Uy = {0., 1., 0., 1.};
+  RealVector<4> Ux = {1., 0., 1., 0.};
 
-  FixedMatrix<4, 4> int_Omega_i = (c7*(N.x*N.x*cp + N.y*N.y*cs)) * (massMatrix(Ux,Ux)) * length/6. +
+  RealMatrix<4, 4> int_Omega_i = (c7*(N.x*N.x*cp + N.y*N.y*cs)) * (massMatrix(Ux,Ux)) * length/6. +
                                   (c7*(N.y*N.y*cp + N.x*N.x*cs)) * (massMatrix(Uy,Uy)) * length/6. +
                                   (c7*(N.x*N.y*(cp - cs))) * (massMatrix(Ux,Uy)) * length/6. +
                                   (c7*(N.x*N.y*(cp - cs))) * (massMatrix(Uy,Ux)) * length/6. ;
@@ -119,7 +119,7 @@ _compute2dElementMatrixEdge2(Face face)
  */
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<12, 12> FemModule::_compute3dElementMatrixTetra4(Cell cell)
+RealMatrix<12, 12> FemModule::_compute3dElementMatrixTetra4(Cell cell)
 {
   Real4 dxu = ArcaneFemFunctions::FeOperation3D::computeGradientXTetra4(cell, m_node_coord);
   Real4 dyu = ArcaneFemFunctions::FeOperation3D::computeGradientYTetra4(cell, m_node_coord);
@@ -127,23 +127,23 @@ FixedMatrix<12, 12> FemModule::_compute3dElementMatrixTetra4(Cell cell)
 
   Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
 
-  FixedMatrix<1, 12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
-  FixedMatrix<1, 12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. };
-  FixedMatrix<1, 12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. };
+  RealVector<12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
+  RealVector<12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. };
+  RealVector<12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. };
 
-  FixedMatrix<1, 12> dxUx = { dxu[0], 0., 0.,    dxu[1], 0., 0.,    dxu[2], 0., 0.,    dxu[3], 0., 0. };
-  FixedMatrix<1, 12> dyUx = { dyu[0], 0., 0.,    dyu[1], 0., 0.,    dyu[2], 0., 0.,    dyu[3], 0., 0. };
-  FixedMatrix<1, 12> dzUx = { dzu[0], 0., 0.,    dzu[1], 0., 0.,    dzu[2], 0., 0.,    dzu[3], 0., 0. };
+  RealVector<12> dxUx = { dxu[0], 0., 0.,    dxu[1], 0., 0.,    dxu[2], 0., 0.,    dxu[3], 0., 0. };
+  RealVector<12> dyUx = { dyu[0], 0., 0.,    dyu[1], 0., 0.,    dyu[2], 0., 0.,    dyu[3], 0., 0. };
+  RealVector<12> dzUx = { dzu[0], 0., 0.,    dzu[1], 0., 0.,    dzu[2], 0., 0.,    dzu[3], 0., 0. };
 
-  FixedMatrix<1, 12> dxUy = { 0., dxu[0], 0.,    0., dxu[1], 0.,    0., dxu[2], 0.,    0., dxu[3], 0. };
-  FixedMatrix<1, 12> dyUy = { 0., dyu[0], 0.,    0., dyu[1], 0.,    0., dyu[2], 0.,    0., dyu[3], 0. };
-  FixedMatrix<1, 12> dzUy = { 0., dzu[0], 0.,    0., dzu[1], 0.,    0., dzu[2], 0.,    0., dzu[3], 0. };
+  RealVector<12> dxUy = { 0., dxu[0], 0.,    0., dxu[1], 0.,    0., dxu[2], 0.,    0., dxu[3], 0. };
+  RealVector<12> dyUy = { 0., dyu[0], 0.,    0., dyu[1], 0.,    0., dyu[2], 0.,    0., dyu[3], 0. };
+  RealVector<12> dzUy = { 0., dzu[0], 0.,    0., dzu[1], 0.,    0., dzu[2], 0.,    0., dzu[3], 0. };
 
-  FixedMatrix<1, 12> dxUz = { 0., 0., dxu[0],    0., 0., dxu[1],    0., 0., dxu[2],    0., 0., dxu[3] };
-  FixedMatrix<1, 12> dyUz = { 0., 0., dyu[0],    0., 0., dyu[1],    0., 0., dyu[2],    0., 0., dyu[3] };
-  FixedMatrix<1, 12> dzUz = { 0., 0., dzu[0],    0., 0., dzu[1],    0., 0., dzu[2],    0., 0., dzu[3] };
+  RealVector<12> dxUz = { 0., 0., dxu[0],    0., 0., dxu[1],    0., 0., dxu[2],    0., 0., dxu[3] };
+  RealVector<12> dyUz = { 0., 0., dyu[0],    0., 0., dyu[1],    0., 0., dyu[2],    0., 0., dyu[3] };
+  RealVector<12> dzUz = { 0., 0., dzu[0],    0., 0., dzu[1],    0., 0., dzu[2],    0., 0., dzu[3] };
 
-  FixedMatrix<12, 12> int_Omega_i = (c0 / 20.) * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz)) * volume +
+  RealMatrix<12, 12> int_Omega_i = (c0 / 20.) * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz)) * volume +
                                     (c1)*((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) +
                                           (dyUy ^ dxUx) + (dxUx ^ dyUy) +
                                           (dzUz ^ dxUx) + (dxUx ^ dzUz) +
@@ -173,17 +173,17 @@ FixedMatrix<12, 12> FemModule::_compute3dElementMatrixTetra4(Cell cell)
  */
 /*---------------------------------------------------------------------------*/
 
-FixedMatrix<9, 9> FemModule::
+RealMatrix<9, 9> FemModule::
 _compute3dElementMatrixTria3(Face face)
 {
   Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
   Real3 N = ArcaneFemFunctions::MeshOperation::computeNormalTriangle(face, m_node_coord);
 
-  FixedMatrix<1, 9> Ux = {1., 0., 0., 1., 0., 0., 1., 0., 0.};
-  FixedMatrix<1, 9> Uy = {0., 1., 0., 0., 1., 0., 0., 1., 0.};
-  FixedMatrix<1, 9> Uz = {0., 0., 1., 0., 0., 1., 0., 0., 1.};
+  RealVector<9> Ux = {1., 0., 0., 1., 0., 0., 1., 0., 0.};
+  RealVector<9> Uy = {0., 1., 0., 0., 1., 0., 0., 1., 0.};
+  RealVector<9> Uz = {0., 0., 1., 0., 0., 1., 0., 0., 1.};
 
-  FixedMatrix<9, 9> int_Omega_i = (c7*(N.x*N.x*cp + (1.-N.x*N.x)*cs)) * (massMatrix(Ux,Ux)) * area/12. +
+  RealMatrix<9, 9> int_Omega_i = (c7*(N.x*N.x*cp + (1.-N.x*N.x)*cs)) * (massMatrix(Ux,Ux)) * area/12. +
                                   (c7*(N.y*N.y*cp + (1.-N.y*N.y)*cs)) * (massMatrix(Uy,Uy)) * area/12. +
                                   (c7*(N.z*N.z*cp + (1.-N.z*N.z)*cs)) * (massMatrix(Uz,Uz)) * area/12. +
                                   (c7*(N.x*N.y*(cp - cs))) * (massMatrix(Ux,Uy)) * area/12. +

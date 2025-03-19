@@ -24,7 +24,7 @@ _assembleBilinearOperatorTRIA3()
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    FixedMatrix<3, 3> K_e;
+    RealMatrix<3, 3> K_e;
     {
       K_e = _computeElementMatrixTRIA3(cell); // element stiffness matrix
     }

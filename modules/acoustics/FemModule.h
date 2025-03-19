@@ -84,7 +84,7 @@ class FemModule
   void _updateVariables();
   void _validateResults();
 
-  FixedMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
+  RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
 };
 
 #endif
