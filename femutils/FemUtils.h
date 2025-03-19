@@ -97,6 +97,19 @@ class RealMatrix
     }
   };
 
+  ARCCORE_HOST_DEVICE RealMatrix(std::initializer_list<std::initializer_list<Real>> init_list)
+  {
+    Arcane::Int32 i = 0;
+    for (const auto& row : init_list) {
+      Arcane::Int32 j = 0;
+      for (const auto& value : row) {
+          m_values[i * M + j] = value;
+        ++j;
+      }
+      ++i;
+    }
+  }
+
  public:
 
   ARCCORE_HOST_DEVICE Arcane::Real& operator()(Arcane::Int32 i, Arcane::Int32 j)

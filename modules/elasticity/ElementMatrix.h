@@ -110,9 +110,10 @@ ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeElementVectorTria3Gpu(CellLocalId ce
   RealVector <6> result_x = normal_strain_energy_x + compressibility_effect_x + shear_energy_x;
   RealVector <6> result_y = normal_strain_energy_y + compressibility_effect_y + shear_energy_y;
 
-  RealMatrix <2, 6> result;
-  result(0,0)=result_x(0); result(0,1)=result_x(1); result(0,2)=result_x(2); result(0,3)=result_x(3); result(0,4)=result_x(4); result(0,5)=result_x(5);
-  result(1,0)=result_y(0); result(1,1)=result_y(1); result(1,2)=result_y(2); result(1,3)=result_y(3); result(1,4)=result_y(4); result(1,5)=result_y(5);
+  RealMatrix<2, 6> result = {
+    { result_x(0), result_x(1), result_x(2), result_x(3), result_x(4), result_x(5) },
+    { result_y(0), result_y(1), result_y(2), result_y(3), result_y(4), result_y(5) }
+  };
 
   return result;
 }
@@ -285,18 +286,16 @@ ARCCORE_HOST_DEVICE RealMatrix<3, 12> computeElementVectorTetra4Gpu(CellLocalId 
   RealVector<12> result_y = normal_strain_energy_y + compressibility_effect_y + shear_energy_y;
   RealVector<12> result_z = normal_strain_energy_z + compressibility_effect_z + shear_energy_z;
 
-  RealMatrix <3, 12> result;
-  result(0,0)=result_x(0); result(0,1)=result_x(1); result(0,2) =result_x(2);  result(0,3)=result_x(3);
-  result(0,4)=result_x(4); result(0,5)=result_x(5); result(0,6) =result_x(6);  result(0,7)=result_x(7);
-  result(0,8)=result_x(8); result(0,9)=result_x(9); result(0,10)=result_x(10); result(0,11)=result_x(11);
+  RealMatrix<3, 12> result = {
+    { result_x(0), result_x(1), result_x(2), result_x(3), result_x(4), result_x(5),
+      result_x(6), result_x(7), result_x(8), result_x(9), result_x(10), result_x(11) },
 
-  result(1,0)=result_y(0); result(1,1)=result_y(1); result(1,2) =result_y(2);  result(1,3) =result_y(3);
-  result(1,4)=result_y(4); result(1,5)=result_y(5); result(1,6) =result_y(6);  result(1,7) =result_y(7);
-  result(1,8)=result_y(8); result(1,9)=result_y(9); result(1,10)=result_y(10); result(1,11)=result_y(11);
+    { result_y(0), result_y(1), result_y(2), result_y(3), result_y(4), result_y(5),
+      result_y(6), result_y(7), result_y(8), result_y(9), result_y(10), result_y(11) },
 
-  result(2,0)=result_z(0); result(2,1)=result_z(1); result(2,2) =result_z(2);  result(2,3) =result_z(3);
-  result(2,4)=result_z(4); result(2,5)=result_z(5); result(2,6) =result_z(6);  result(2,7) =result_z(7);
-  result(2,8)=result_z(8); result(2,9)=result_z(9); result(2,10)=result_z(10); result(2,11)=result_z(11);
+    { result_z(0), result_z(1), result_z(2), result_z(3), result_z(4), result_z(5),
+      result_z(6), result_z(7), result_z(8), result_z(9), result_z(10), result_z(11) }
+  };
 
   return result;
 }
