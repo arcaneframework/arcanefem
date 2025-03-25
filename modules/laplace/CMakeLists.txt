@@ -130,4 +130,8 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG}
     inputs/L-shape.3D.arc)
+  arcanefem_add_gpu_test(NAME [laplace]3D_pointBc_neumann_af-bsr_hypreDirect COMMAND ./Laplace ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/truncated-cube.neumann.3D.arc)
 endif()
