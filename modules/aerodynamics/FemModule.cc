@@ -74,7 +74,7 @@ compute()
 
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
-  m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
+  m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
 
   if (m_petsc_flags != NULL) {
     CommandLineArguments args = ArcaneFemFunctions::GeneralFunctions::getPetscFlagsFromCommandline(m_petsc_flags);
@@ -148,15 +148,40 @@ _doStationarySolve()
 
 /*---------------------------------------------------------------------------*/
 /**
+ * @brief Assembles the FEM linear operator for the current simulation step.
+ *
+ * This method constructs the right-hand side (RHS) vector by calling then
+ * appropriate assembly function based on the execution context:
+ *  - CPU-exclusive execution: Calls _assembleLinearOperatorCpu().
+ *  - CPU or GPU execution: Calls _assembleLinearOperatorGpu().
+ *
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::_assembleLinearOperator()
+{
+  if (options()->linearSystem.serviceName() == "HypreLinearSystem")
+    _assembleLinearOperatorGpu();
+  else
+    _assembleLinearOperatorCpu();
+}
+
+/*---------------------------------------------------------------------------*/
+/**
  * @brief FEM linear operator for the current simulation step.
  *
- * This method constructs the FEM linear  systems RHS vector by applying
- * various boundary conditions and source terms.
+ * This method constructs the linear  system by  assembling the LHS matrix
+ * and  RHS vector, applying various boundary conditions and source terms.
+ *
+ * Steps involved:
+ *  1. The RHS vector is initialized to zero before applying any conditions.
+ *  2. Dirichlet BC/Point are specified apply to the LHS & RHS.
+ *  3. Far-field BC are applied to the LHS & RHS.
  */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleLinearOperator()
+_assembleLinearOperatorCpu()
 {
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
   Real elapsedTime = platform::getRealTime();
@@ -195,6 +220,85 @@ _assembleLinearOperator()
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "assemble-rhs", elapsedTime);
+}
+
+ /*---------------------------------------------------------------------------*/
+ /**
+  * @brief FEM linear operator for the current simulation step.
+  * GPU compatible. Currently working with HypreDoFLinearSystem.
+  *
+  * This method constructs the linear  system by  assembling the LHS matrix
+  * and  RHS vector, applying various boundary conditions and source terms.
+  *
+  * Steps involved:
+  *  1. The RHS vector is initialized to zero before applying any conditions.
+  *  2. If Neumann BC are specified applied to the RHS.
+  *  3. If Dirichlet BC/Point are specified apply to the LHS & RHS.
+  */
+ /*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleLinearOperatorGpu()
+{
+  info() << "[ArcaneFem-Info] Started module _assembleLinearOperatorGpu()";
+  Real elapsedTime = platform::getRealTime();
+
+  m_bsr_format.toLinearSystem(m_linear_system);
+
+  auto& rhs_values(m_linear_system.rhsVariable());
+  rhs_values.fill(0.0);
+
+  // Because of Dirichlet (Penalty) implementation in Hypre.
+  m_linear_system.getForcedInfo().fill(false);
+
+  auto queue = subDomain()->acceleratorMng()->defaultQueue();
+  auto mesh_ptr = mesh();
+  auto dim = mesh()->dimension();
+  auto applyBoundaryConditions = [&](auto BCFunctions) {
+    BC::IArcaneFemBC* bc = options()->boundaryConditions();
+
+    if (bc) {
+      for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
+        FemUtils::Gpu::BoundaryConditions::applyDirichletViaPenalty(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
+    }
+  };
+
+  for (const auto& bs : options()->farfieldBoundaryCondition()) {
+    Real angle = bs->angle();
+    Real penalty = options()->penalty();
+    FaceGroup face_group = bs->getSurface();
+    NodeGroup node_group = face_group.nodeGroup();
+
+    NodeInfoListView nodes_infos(mesh_ptr->nodeFamily());
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+    auto command = Accelerator::makeCommand(queue);
+    auto in_m_node_coord = ax::viewIn(command, m_node_coord);
+    auto in_out_forced_info = Accelerator::viewInOut(command, m_linear_system.getForcedInfo());
+    auto in_out_forced_value = Accelerator::viewInOut(command, m_linear_system.getForcedValue());
+    auto in_out_rhs_variable = Accelerator::viewInOut(command, m_linear_system.rhsVariable());
+
+    command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
+    {
+      if (nodes_infos.isOwn(node_lid)) {
+        DoFLocalId dof_id = node_dof.dofId(node_lid, 0);
+        in_out_forced_info[dof_id] = true;
+        in_out_forced_value[dof_id] = penalty;
+        if (dim == 2)
+          in_out_rhs_variable[dof_id] = (in_m_node_coord[node_lid].y - angle * in_m_node_coord[node_lid].x) * penalty;
+        else
+          in_out_rhs_variable[dof_id] = (in_m_node_coord[node_lid].z - angle * in_m_node_coord[node_lid].x) * penalty;
+      }
+    };
+  }
+
+  if (mesh()->dimension() == 3)
+    applyBoundaryConditions(FemUtils::Gpu::BoundaryConditions3D());
+  else
+    applyBoundaryConditions(FemUtils::Gpu::BoundaryConditions2D());
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly-gpu", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/

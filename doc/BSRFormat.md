@@ -116,14 +116,16 @@ ARCCORE_HOST_DEVICE RealMatrix<1, 3> computeElementVectorTria3Gpu(CellLocalId ce
 
 // ...
 
-void FemModule::compute() {
+void FemModule::_assembleBilinearOperator() {
   // ...
-  UnstructuredMeshConnectivityView m_connectivity_view(mesh());
-  auto cn_cv = m_connectivity_view.cellNode();
-  auto queue = subDomain()->acceleratorMng()->defaultQueue();
-  auto command = makeCommand(queue);
-  auto in_node_coord = ax::viewIn(command, m_node_coord);
-  m_bsr_format.assembleBilinear([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cn_cv = m_connectivity_view.cellNode();
+    auto m_queue = subDomain()->acceleratorMng()->defaultQueue();
+    auto command = makeCommand(m_queue);
+    auto in_node_coord = ax::viewIn(command, m_node_coord);
+    m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
+
+  // ...
 }
 ```
 
@@ -132,16 +134,7 @@ void FemModule::compute() {
 <details open>
   <summary><h3>Atomic-free Approach</h3></summary>
 
-This method assembles the global stiffness by integrating over the nodes of the mesh. It does not use `atomic` operations and therefore is deterministic.
-
-#### Sparsity Construction
-
-```cpp
-void FemModule::compute() {
-  // ...
-  m_bsr_format.computeSparsityAtomicFree()
-}
-```
+This method assembles the global stiffness by integrating over the DOF's  (nodes since we are doing   $P_1$  FEM) of the mesh. It does not use `atomic` operations and therefore is deterministic.
 
 #### Contributions Assembly
 
@@ -154,25 +147,38 @@ namespace ax = Arcane::Accelerator;
 
 ARCCORE_HOST_DEVICE RealMatrix<3, 3> computeElementMatrixTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord) { ... }
 
-void FemModule::compute() {
+void FemModule::_assembleBilinearOperator() {
   // ...
   UnstructuredMeshConnectivityView m_connectivity_view(mesh());
   auto cn_cv = m_connectivity_view.cellNode();
   auto queue = subDomain()->acceleratorMng()->defaultQueue();
   auto command = makeCommand(queue);
   auto in_node_coord = ax::viewIn(command, m_node_coord);
-  m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3(cell_lid, cn_cv, in_node_coord); });
+  m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
 }
 ```
 
 </details>
 
+*NOTE* Additional thing to do is to make sure that the lambda functions do not have private or protected access within its class. In the example above `_assembleBilinearOperator` needs to be `public`, this is only if you compile using `nvcc` if `clang` is used this step is not needed.
+
+### Translate BSRFormat to DoFLinearSystem
+
+ArcaneFEM uses `DoFLinearSystem` class to represent and handle linear systems. You can translate the BSRFormat to a given linear system using the `toLinearSystem(DoFLinearSystem &ls)` method.
+
+Normally at this point your matrix assembly phase is on GPUs. You could for instance use matrix-assembly on GPU and matrix solving on CPU's. A `m_bsr_format.toLinearSystem(m_linear_system);` is required for that.  You would additionally need to initialize the linear system in a proper way
+```c++
+m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
+```
+
+
+
 ## Linear Operator Assembly 
 
-The `setValue(DoFLocalId row, DoFLocalId col, Real value)` method of `BSRMatrix` can be used to set coeffcients in the matrix.
+The `setValue(DoFLocalId row, DoFLocalId col, Real value)` method of `BSRMatrix` can be used to set coefficients in the matrix.
 You can access the representation of `BSRFormat` i.e. `BSRMatrix` by using the `matrix()` method.
 
-Exemple (applying Dirichlet boundary condition):
+Example (applying Dirichlet boundary condition):
 ```cpp
 // ...
 Real Penalty = options()->penalty(); // 1.0e30 is the default
@@ -187,9 +193,7 @@ ENUMERATE_ (Node, inode, ownNodes()) {
 } 
 ```
 
-### Translate BSRFormat to DoFLinearSystem
 
-ArcaneFEM uses `DoFLinearSystem` class to represent and handle linear systems. You can translate the BSRFormat to a given linear system using the `toLinearSystem(DoFLinearSystem &ls)` method.
 
 <details>
   <summary><h2>Algorithms and Implementation Details</h2></summary>
