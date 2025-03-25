@@ -86,11 +86,14 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   arcanefem_add_gpu_test(NAME [laplace]3D_pointBc_af-bsr COMMAND ./Laplace ARGS
     -A,//fem/matrix-format=AF-BSR
     inputs/truncated-cube.3D.arc)
+  arcanefem_add_gpu_test(NAME [laplace]3D_pointBc_neumann_af-bsr COMMAND ./Laplace ARGS
+    -A,//fem/matrix-format=AF-BSR
+    inputs/truncated-cube.neumann.3D.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [laplace]2D_Dirichlet_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Laplace
       inputs/ring.arc)
-    add_test(NAME [laplace]3D_Dirichlet_3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Laplace
+    add_test(NAME [laplace]3D_Dirichlet_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Laplace
       inputs/L-shape.3D.arc)
 
     if(FEMTEST_HAS_GMSH_TEST)
@@ -119,4 +122,12 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG}
     inputs/PointDirichlet.arc)
+  arcanefem_add_gpu_test(NAME [laplace]3D_Dirichlet_bsr_hypreDirect COMMAND ./Laplace ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/L-shape.3D.arc)
+  arcanefem_add_gpu_test(NAME [laplace]3D_Dirichlet_af-bsr_hypreDirect COMMAND ./Laplace ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/L-shape.3D.arc)
 endif()
