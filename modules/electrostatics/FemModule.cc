@@ -24,10 +24,14 @@
 void FemModule::
 startInit()
 {
-  info() << "Module Fem INIT";
+  info() << "[ArcaneFem-Info] Started module compute()";
+  Real elapsedTime = platform::getRealTime();
 
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -43,7 +47,8 @@ startInit()
 void FemModule::
 compute()
 {
-  info() << "Module Fem COMPUTE";
+  info() << "[ArcaneFem-Info] Started module compute()";
+  Real elapsedTime = platform::getRealTime();
 
   // Stop code after computations
   if (m_global_iteration() > 0)
@@ -52,28 +57,28 @@ compute()
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
-  // Test for adding parameters for PETSc.
-  // This is only used for the first call.
-  {
-    StringList string_list;
-    string_list.add("-ksp_monitor");
-    CommandLineArguments args(string_list);
+
+  if (m_petsc_flags != NULL){
+    CommandLineArguments args = ArcaneFemFunctions::GeneralFunctions::getPetscFlagsFromCommandline(m_petsc_flags);
     m_linear_system.setSolverCommandLineArguments(args);
   }
 
   _doStationarySolve();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"compute", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Performs a stationary solve for the FEM system.
  *
- * This method follows a sequence of steps to solve FEM system:
- *   1. _getMaterialParameters()          Retrieves material parameters via
- *   2. _assembleBilinearOperator()       Assembles the FEM  matrix A
- *   3. _assembleLinearOperator()         Assembles the FEM RHS vector b
- *   4.  _solve()                         Solves for solution vector u = A^-1*b
- *   5. _validateResults()                Regression test
+ * This method follows via the following steps:
+ *   1. _assembleBilinearOperator()  Assembles the FEM  matrix 𝐀
+ *   2. _assembleLinearOperator()    Assembles the FEM RHS vector 𝐛
+ *   3. _solve()                     Solves for solution vector 𝐮 = 𝐀⁻¹𝐛
+ *   4. _updateVariables()           Updates FEM variables 𝐮 = 𝐱
+ *   5. _validateResults()           Regression test
  */
 /*---------------------------------------------------------------------------*/
 
@@ -81,11 +86,17 @@ void FemModule::
 _doStationarySolve()
 {
   _getMaterialParameters();
-  _assembleBilinearOperator();
-  _assembleLinearOperator();
-  _solve();
-  _updateVariables();
-  _validateResults();
+  if(m_assemble_linear_system){
+    _assembleBilinearOperator();
+    _assembleLinearOperator();
+  }
+  if(m_solve_linear_system){
+    _solve();
+    _updateVariables();
+  }
+  if(m_cross_validation){
+    _validateResults();
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -101,9 +112,14 @@ _doStationarySolve()
 void FemModule::
 _getMaterialParameters()
 {
-  info() << "Get material parameters...";
+  info() << "[ArcaneFem-Info] Started module _getMaterialParameters()";
+  Real elapsedTime = platform::getRealTime();
+
   rho = options()->rho();
   epsilon = options()->epsilon();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"get-material-param", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -124,7 +140,8 @@ _getMaterialParameters()
 void FemModule::
 _assembleLinearOperator()
 {
-  info() << "Assembly of FEM linear operator ";
+  info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
+  Real elapsedTime = platform::getRealTime();
 
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
@@ -144,6 +161,9 @@ _assembleLinearOperator()
 
   for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
     ArcaneFemFunctions::BoundaryConditions2D::applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -180,6 +200,9 @@ _computeElementMatrixTria3(Cell cell)
 void FemModule::
 _assembleBilinearOperator()
 {
+  info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
+  Real elapsedTime = platform::getRealTime();
+
   if (options()->meshType == "QUAD4")
     ARCANE_FATAL("Non supported meshType");
   else if (options()->meshType == "TRIA3")
@@ -188,6 +211,9 @@ _assembleBilinearOperator()
     });
   else
     ARCANE_FATAL("Non supported meshType");
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"lhs-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -246,6 +272,8 @@ _solve()
 
   m_linear_system.solve();
 
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"solve", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -305,6 +333,9 @@ _updateVariables()
 void FemModule::
 _validateResults()
 {
+  info() << "[ArcaneFem-Module] _validateResults()";
+  Real elapsedTime = platform::getRealTime();
+
   if (allNodes().size() < 200)
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
@@ -316,6 +347,9 @@ _validateResults()
 
   if (!filename.empty())
     checkNodeResultFile(traceMng(), filename, m_phi, 1.0e-4);
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "cross-validation", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
