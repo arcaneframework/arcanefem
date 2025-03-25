@@ -809,6 +809,44 @@ class ArcaneFemFunctions
 
       return dz;
     }
+
+
+    static inline Real3 computeGradientTetra4(Cell cell, const VariableNodeReal3& node_coord, VariableNodeReal u)
+    {
+      Real3 m0 = node_coord[cell.nodeId(0)];
+      Real3 m1 = node_coord[cell.nodeId(1)];
+      Real3 m2 = node_coord[cell.nodeId(2)];
+      Real3 m3 = node_coord[cell.nodeId(3)];
+
+      Real f0 = u[cell.nodeId(0)];
+      Real f1 = u[cell.nodeId(1)];
+      Real f2 = u[cell.nodeId(2)];
+      Real f3 = u[cell.nodeId(3)];
+
+      Real3 v0 = m1 - m0;
+      Real3 v1 = m2 - m0;
+      Real3 v2 = m3 - m0;
+
+      // 6 x Volume of tetrahedron
+      Real V6 = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
+
+      // Compute gradient components
+      Real3 grad;
+      grad.x = (f0 * (m1.y * m2.z + m2.y * m3.z + m3.y * m1.z - m3.y * m2.z - m2.y * m1.z - m1.y * m3.z)
+               - f1 * (m0.y * m2.z + m2.y * m3.z + m3.y * m0.z - m3.y * m2.z - m2.y * m0.z - m0.y * m3.z)
+               + f2 * (m0.y * m1.z + m1.y * m3.z + m3.y * m0.z - m3.y * m1.z - m1.y * m0.z - m0.y * m3.z)
+               - f3 * (m0.y * m1.z + m1.y * m2.z + m2.y * m0.z - m2.y * m1.z - m1.y * m0.z - m0.y * m2.z)) / V6;
+      grad.y = (f0 * (m1.z * m2.x + m2.z * m3.x + m3.z * m1.x - m3.z * m2.x - m2.z * m1.x - m1.z * m3.x)
+               - f1 * (m0.z * m2.x + m2.z * m3.x + m3.z * m0.x - m3.z * m2.x - m2.z * m0.x - m0.z * m3.x)
+               + f2 * (m0.z * m1.x + m1.z * m3.x + m3.z * m0.x - m3.z * m1.x - m1.z * m0.x - m0.z * m3.x)
+               - f3 * (m0.z * m1.x + m1.z * m2.x + m2.z * m0.x - m2.z * m1.x - m1.z * m0.x - m0.z * m2.x)) / V6;
+      grad.z = (f0 * (m1.x * m2.y + m2.x * m3.y + m3.x * m1.y - m3.x * m2.y - m2.x * m1.y - m1.x * m3.y)
+               - f1 * (m0.x * m2.y + m2.x * m3.y + m3.x * m0.y - m3.x * m2.y - m2.x * m0.y - m0.x * m3.y)
+               + f2 * (m0.x * m1.y + m1.x * m3.y + m3.x * m0.y - m3.x * m1.y - m1.x * m0.y - m0.x * m3.y)
+               - f3 * (m0.x * m1.y + m1.x * m2.y + m2.x * m0.y - m2.x * m1.y - m1.x * m0.y - m0.x * m2.y)) / V6;
+      return grad;
+    }
+
   };
 
 
