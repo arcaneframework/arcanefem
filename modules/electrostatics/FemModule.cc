@@ -60,9 +60,8 @@ compute()
     CommandLineArguments args(string_list);
     m_linear_system.setSolverCommandLineArguments(args);
   }
-  info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
+
   _doStationarySolve();
-  _getE();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -85,6 +84,7 @@ _doStationarySolve()
   _assembleBilinearOperator();
   _assembleLinearOperator();
   _solve();
+  _updateVariables();
   _validateResults();
 }
 
@@ -144,25 +144,6 @@ _assembleLinearOperator()
 
   for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
     ArcaneFemFunctions::BoundaryConditions2D::applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Computes the Electric Field which is gradient of ∇ Phi = E 
- */
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_getE()
-{
-  info() << "Postprocessing E";
-
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-    m_E[cell] = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_phi);
-  }
-
-  m_E.synchronize();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -260,7 +241,29 @@ _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_el
 void FemModule::
 _solve()
 {
+  info() << "[ArcaneFem-Module] _solve()";
+  Real elapsedTime = platform::getRealTime();
+
   m_linear_system.solve();
+
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Update the FEM variables.
+ *
+ * This method performs the following actions:
+ *   1. Fetches values of solution from solved linear system to FEM variables,
+ *      i.e., it copies RHS DOF to u.
+ *   2. Performs synchronize of FEM variables across subdomains.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_updateVariables()
+{
+  info() << "[ArcaneFem-Module] _updateVariables()";
+  Real elapsedTime = platform::getRealTime();
 
   {
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
@@ -274,6 +277,16 @@ _solve()
   }
 
   m_phi.synchronize();
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    m_E[cell] = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_phi);
+  }
+
+  m_E.synchronize();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
