@@ -39,6 +39,19 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/solve-linear-system=false
     -A,//fem/cross-validation=false
     inputs/Joukowski.arc)
+
+  arcanefem_add_gpu_test(NAME [aerodynamics]2d_Joukowski_bsr COMMAND ./aerodynamics ARGS
+    -A,//fem/matrix-format=BSR
+    inputs/Joukowski.arc)
+  arcanefem_add_gpu_test(NAME [aerodynamics]2d_Joukowski_af-bsr COMMAND ./aerodynamics ARGS
+    -A,//fem/matrix-format=AF-BSR
+    inputs/Joukowski.arc)
+  arcanefem_add_gpu_test(NAME [aerodynamics]3d_Joukowski_bsr COMMAND ./aerodynamics ARGS
+    -A,//fem/matrix-format=BSR
+    inputs/Joukowski_3d.arc)
+  arcanefem_add_gpu_test(NAME [aerodynamics]3d_Joukowski_af-bsr COMMAND ./aerodynamics ARGS
+    -A,//fem/matrix-format=AF-BSR
+    inputs/Joukowski_3d.arc)
 endif()
 
 # If parallel part is available, add some tests
