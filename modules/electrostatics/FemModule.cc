@@ -192,13 +192,29 @@ _assembleLinearOperatorCpu()
     ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhs(qdot, mesh(), node_dof, m_node_coord, rhs_values);
   }
 
-  BC::IArcaneFemBC* bc = options()->boundaryConditions();
+  auto applyBoundaryConditions = [&](auto BCFunctions) {
+    BC::IArcaneFemBC* bc = options()->boundaryConditions();
+    if (bc) {
+      for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
+        BCFunctions.applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
 
-  for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
-    ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+      for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
+        BCFunctions.applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
 
-  for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
-    ArcaneFemFunctions::BoundaryConditions2D::applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+      for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions())
+        BCFunctions.applyPointDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+    }
+  };
+
+  // Apply the correct boundary conditions based on mesh dimension
+  if (mesh()->dimension() == 3) {
+    using BCFunctions = ArcaneFemFunctions::BoundaryConditions3D;
+    applyBoundaryConditions(BCFunctions());
+  }
+  else {
+    using BCFunctions = ArcaneFemFunctions::BoundaryConditions2D;
+    applyBoundaryConditions(BCFunctions());
+  }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-assembly", elapsedTime);
@@ -408,10 +424,16 @@ _updateVariables()
 
   m_phi.synchronize();
 
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-    m_E[cell] = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_phi);
-  }
+  if (mesh()->dimension() == 2)
+    ENUMERATE_ (Cell, icell, allCells()) {
+      Cell cell = *icell;
+      m_E[cell] = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_phi);
+    }
+  else
+    ENUMERATE_ (Cell, icell, allCells()) {
+      Cell cell = *icell;
+      m_E[cell] = ArcaneFemFunctions::FeOperation3D::computeGradientTetra4(cell, m_node_coord, m_phi);
+    }
 
   m_E.synchronize();
 

@@ -26,6 +26,8 @@ set(MESH_FILES
   box-rods.msh
   box-rod-circle.msh
   interdigital_capacitor.msh
+  truncated_cube.msh
+  spheres_in_sphere.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
     file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
@@ -52,6 +54,12 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   arcanefem_add_gpu_test(NAME [electrostatics]box-rods_af-bsr COMMAND ./Electrostatics ARGS
     -A,//fem/matrix-format=AF-BSR
     inputs/box-rods.arc)
+  arcanefem_add_gpu_test(NAME [electrostatics]truncated_cube_bsr COMMAND ./Electrostatics ARGS
+    -A,//fem/matrix-format=BSR
+    inputs/truncated_cube.arc)
+  arcanefem_add_gpu_test(NAME [electrostatics]spheres_bsr COMMAND ./Electrostatics ARGS
+    -A,//fem/matrix-format=BSR
+    inputs/spheres.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [electrostatics]box-rods_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Electrostatics inputs/box-rods.arc)
