@@ -19,7 +19,6 @@
 #include <arcane/utils/ParameterList.h>
 #include <arcane/utils/ApplicationInfo.h>
 #include <arcane/utils/NumArray.h>
-#include <arcane/utils/CommandLineArguments.h>
 
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IMesh.h>
@@ -27,8 +26,8 @@
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 
-#include "arcane/accelerator/core/IAcceleratorMng.h"
-#include "arcane/accelerator/VariableViews.h"
+#include <arcane/accelerator/core/IAcceleratorMng.h>
+#include <arcane/accelerator/VariableViews.h>
 
 #include "IArcaneFemBC.h"
 #include "IDoFLinearSystemFactory.h"
@@ -92,11 +91,8 @@ class FemModule
   bool m_assemble_linear_system = true;
   bool m_solve_linear_system = true;
   bool m_cross_validation = true;
-  bool m_use_bsr_matrix_format = false;
-  bool m_use_atomic_free_bsr_matrix_format = false;
 
   void _doStationarySolve();
-  void _getMaterialParameters();
   void _solve();
   void _assembleLinearOperator();
   void _updateVariables();

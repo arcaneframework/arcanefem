@@ -88,46 +88,29 @@ compute()
 /**
  * @brief Performs a stationary solve for the FEM system.
  *
- * This method follows a sequence of steps to solve FEM system:
- *   1. _getMaterialParameters()          Retrieves material parameters via
- *   2. _assembleBilinearOperator()       Assembles the FEM  matrix A
- *   3. _assembleLinearOperator()         Assembles the FEM RHS vector b
- *   4.  _solve()                         Solves for solution vector u = A^-1*b
- *   5. _updateVariables()                Updates FEM variables u = x
- *   6. _validateResults()                Regression test
+ * This method follows via the following steps:
+ *   1. _assembleBilinearOperator()  Assembles the FEM  matrix 𝐀
+ *   2. _assembleLinearOperator()    Assembles the FEM RHS vector 𝐛
+ *   3. _solve()                     Solves for solution vector 𝐮 = 𝐀⁻¹𝐛
+ *   4. _updateVariables()           Updates FEM variables 𝐮 = 𝐱
+ *   5. _validateResults()           Regression test
  */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
 _doStationarySolve()
 {
-  _getMaterialParameters();
-
   if(m_assemble_linear_system){
     _assembleBilinearOperator();
     _assembleLinearOperator();
   }
-
   if(m_solve_linear_system){
     _solve();
     _updateVariables();
   }
-
   if(m_cross_validation){
     _validateResults();
   }
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Retrieves and sets the material parameters for the simulation.
- */
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_getMaterialParameters()
-{
-  info() << "[ArcaneFem-Info] Started module _getMaterialParameters()";
 }
 
 /*---------------------------------------------------------------------------*/
@@ -238,9 +221,8 @@ _assembleBilinearOperator()
  * @brief Assembles the bilinear operator matrix for the FEM linear system.
  *
  * The method performs the following steps:
- *   1. For each cell, retrieves the cell-specific constant `lambda`.
- *   2. Computes element matrix using provided `compute_element_matrix` function.
- *   3. Assembles global matrix by adding contributions from each cell's element 
+ *   1. Computes element matrix using provided `compute_element_matrix` function.
+ *   2. Assembles global matrix by adding contributions from each cell's element 
  *      matrix to the corresponding entries in the global matrix.
  */
 /*---------------------------------------------------------------------------*/
@@ -273,11 +255,6 @@ _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_el
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Solves the linear system and updates the solution vector.
- *
- * This method performs the following actions:
- *   1. Solves the linear system to compute the solution.
- *   2. Copies the computed solution from the DoF to the node values.
- *   3. Synchronizes the updated node values.
  */
 /*---------------------------------------------------------------------------*/
 
