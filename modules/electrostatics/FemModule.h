@@ -70,7 +70,10 @@ class FemModule
   void compute() override; //! Method called at each iteration
   VersionInfo versionInfo() const override { return VersionInfo(1, 0, 0); }
 
- private:
+  void _assembleBilinearOperator();
+  void _assembleLinearOperatorGpu();
+
+  private:
 
   Real rho;
   Real epsilon;
@@ -89,7 +92,7 @@ class FemModule
 
   void _doStationarySolve();
   void _getMaterialParameters();
-  void _assembleBilinearOperator();
+  void _assembleLinearOperatorCpu();
   void _solve();
   void _assembleLinearOperator();
   void _updateVariables();

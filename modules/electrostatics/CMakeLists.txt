@@ -57,3 +57,19 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     add_test(NAME [electrostatics]box-rods_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Electrostatics inputs/box-rods.arc)
   endif()
 endif()
+
+if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
+  set(SOLVER_HYPRE_CG
+    -A,//fem/linear-system/@name=HypreLinearSystem
+    -A,//fem/linear-system/solver=cg
+    -A,//fem/linear-system/atol=1e-9
+    -A,//fem/linear-system/rtol=0)
+  arcanefem_add_gpu_test(NAME [electrostatics]rod-circle_bsr_hypreDirect COMMAND ./Electrostatics ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/rod-circle.arc)
+  arcanefem_add_gpu_test(NAME [electrostatics]rod-circle_af-bsr_hypreDirect COMMAND ./Electrostatics ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/rod-circle.arc)
+endif()

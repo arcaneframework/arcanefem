@@ -140,6 +140,26 @@ _getMaterialParameters()
 
 /*---------------------------------------------------------------------------*/
 /**
+ * @brief Assembles the FEM linear operator for the current simulation step.
+ *
+ * This method constructs the right-hand side (RHS) vector by calling then
+ * appropriate assembly function based on the execution context:
+ *  - CPU-exclusive execution: Calls _assembleLinearOperatorCpu().
+ *  - CPU or GPU execution: Calls _assembleLinearOperatorGpu().
+ *
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::_assembleLinearOperator()
+{
+  if (options()->linearSystem.serviceName() == "HypreLinearSystem")
+    _assembleLinearOperatorGpu();
+  else
+    _assembleLinearOperatorCpu();
+}
+
+/*---------------------------------------------------------------------------*/
+/**
  * @brief FEM linear operator for the current simulation step.      
  *
  * This method constructs the linear  system by  assembling the LHS matrix 
@@ -154,7 +174,7 @@ _getMaterialParameters()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleLinearOperator()
+_assembleLinearOperatorCpu()
 {
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
   Real elapsedTime = platform::getRealTime();
@@ -174,15 +194,71 @@ _assembleLinearOperator()
 
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
-  for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions()){
+  for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
     ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
-  }
 
   for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
     ArcaneFemFunctions::BoundaryConditions2D::applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-assembly", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief FEM linear operator for the current simulation step.
+ * GPU compatible. Currently working with HypreDoFLinearSystem.
+ *
+ * This method constructs the linear  system by  assembling the LHS matrix
+ * and  RHS vector, applying various boundary conditions and source terms.
+ *
+ * Steps involved:
+ *  1. The RHS vector is initialized to zero before applying any conditions.
+ *  2. If Neumann BC are specified applied to the RHS.
+ *  3. If Dirichlet BC/Point are specified apply to the LHS & RHS.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::_assembleLinearOperatorGpu()
+{
+  info() << "[ArcaneFem-Info] Started module _assembleLinearOperatorGpu()";
+  Real elapsedTime = platform::getRealTime();
+
+  m_bsr_format.toLinearSystem(m_linear_system);
+
+  auto& rhs_values(m_linear_system.rhsVariable());
+  rhs_values.fill(0.0);
+
+  // Because of Dirichlet (Penalty) implementation in Hypre.
+  m_linear_system.getForcedInfo().fill(false);
+
+  auto queue = subDomain()->acceleratorMng()->defaultQueue();
+  auto mesh_ptr = mesh();
+
+  auto applyBoundaryConditions = [&](auto BCFunctions) {
+    BC::IArcaneFemBC* bc = options()->boundaryConditions();
+
+    if (options()->rho.isPresent()){
+      Real qdot = -rho / epsilon;
+      BCFunctions.applyConstantSourceToRhs(qdot, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
+    }
+
+    if (bc) {
+      for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
+        BCFunctions.applyNeumannToRhs(bs, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
+
+      for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
+        FemUtils::Gpu::BoundaryConditions::applyDirichletViaPenalty(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
+    }
+  };
+
+  if (mesh()->dimension() == 3)
+    applyBoundaryConditions(FemUtils::Gpu::BoundaryConditions3D());
+  else
+    applyBoundaryConditions(FemUtils::Gpu::BoundaryConditions2D());
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-vector-assembly-gpu", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -197,14 +273,46 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (options()->meshType == "QUAD4")
-    ARCANE_FATAL("Non supported meshType");
-  else if (options()->meshType == "TRIA3")
-    _assembleBilinear<3>([this](const Cell& cell) {
-      return _computeElementMatrixTria3(cell);
-    });
-  else
-    ARCANE_FATAL("Non supported meshType");
+  if (m_matrix_format == "BSR") {
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cn_cv = m_connectivity_view.cellNode();
+    auto queue = subDomain()->acceleratorMng()->defaultQueue();
+    auto command = makeCommand(queue);
+    auto in_node_coord = ax::viewIn(command, m_node_coord);
+
+    if (mesh()->dimension() == 2)
+      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
+    else
+      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord); });
+
+    m_bsr_format.toLinearSystem(m_linear_system);
+  }
+
+  if (m_matrix_format == "AF-BSR") {
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cn_cv = m_connectivity_view.cellNode();
+    auto queue = subDomain()->acceleratorMng()->defaultQueue();
+    auto command = makeCommand(queue);
+    auto in_node_coord = ax::viewIn(command, m_node_coord);
+
+    if (mesh()->dimension() == 2)
+      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
+    else
+      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
+
+    m_bsr_format.toLinearSystem(m_linear_system);
+  }
+
+  if (m_matrix_format == "DOK") {
+    if (mesh()->dimension() == 3)
+      _assembleBilinear<4>([this](const Cell& cell) {
+        return _computeElementMatrixTetra4(cell);
+      });
+    else
+      _assembleBilinear<3>([this](const Cell& cell) {
+        return _computeElementMatrixTria3(cell);
+      });
+  }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"lhs-assembly", elapsedTime);
@@ -340,7 +448,7 @@ _validateResults()
   info() << "ValidateResultFile filename=" << filename;
 
   if (!filename.empty())
-    checkNodeResultFile(traceMng(), filename, m_phi, 1.0e-4);
+    checkNodeResultFile(traceMng(), filename, m_phi, 1.0e-4, 1.0e-16);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "cross-validation", elapsedTime);
