@@ -11,7 +11,6 @@ configure_file(Electrostatics.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Electrostatics PUBLIC FemUtils)
 
-
 # Copy the check files in the binary directory
 file(COPY "check" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -35,9 +34,16 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [electrostatics]box-rods COMMAND Electrostatics inputs/box-rods.arc)
   add_test(NAME [electrostatics]capacitor COMMAND Electrostatics inputs/Capacitor.arc)
   add_test(NAME [electrostatics]rod-circle COMMAND Electrostatics inputs/rod-circle.arc)
-endif()
+  add_test(NAME [electrostatics]box-rods_petsc_monitor COMMAND Electrostatics
+    -A,//fem/petsc-flags=-ksp_monitor
+    inputs/box-rods.arc)
+  add_test(NAME [electrostatics]2D_parse_and_exit COMMAND Electrostatics
+    -A,//fem/assemble-linear-system=false
+    -A,//fem/solve-linear-system=false
+    -A,//fem/cross-validation=false
+    inputs/Capacitor.arc)
 
-# If parallel part is available, add some tests
-if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-  add_test(NAME [electrostatics]parallel_4pe COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./Electrostatics inputs/box-rods.arc)
+  if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
+    add_test(NAME [electrostatics]box-rods_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Electrostatics inputs/box-rods.arc)
+  endif()
 endif()
