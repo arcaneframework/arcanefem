@@ -77,6 +77,7 @@ class FemModule
   VersionInfo versionInfo() const override { return VersionInfo(1, 0, 0); }
 
   void _assembleBilinearOperator();
+  void _assembleLinearOperatorGpu();
 
  private:
 
@@ -95,6 +96,7 @@ class FemModule
   void _doStationarySolve();
   void _solve();
   void _assembleLinearOperator();
+  void _assembleLinearOperatorCpu();
   void _updateVariables();
   void _validateResults();
 
