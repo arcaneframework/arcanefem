@@ -27,6 +27,9 @@
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 
+#include "arcane/accelerator/core/IAcceleratorMng.h"
+#include "arcane/accelerator/VariableViews.h"
+
 #include "IArcaneFemBC.h"
 #include "IDoFLinearSystemFactory.h"
 #include "Fem_axl.h"
@@ -35,12 +38,16 @@
 #include "FemDoFsOnNodes.h"
 
 #include "ArcaneFemFunctions.h"
+#include "ArcaneFemFunctionsGpu.h"
+#include "BSRFormat.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 using namespace Arcane;
 using namespace Arcane::FemUtils;
+
+namespace ax = Arcane::Accelerator;
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -60,6 +67,7 @@ class FemModule
   explicit FemModule(const ModuleBuildInfo& mbi)
   : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
+  , m_bsr_format(mbi.subDomain()->traceMng(), *(mbi.subDomain()->acceleratorMng()->defaultQueue()), m_dofs_on_nodes)
   {
     ICaseMng* cm = mbi.subDomain()->caseMng();
     cm->setTreatWarningAsError(true);
@@ -75,6 +83,7 @@ class FemModule
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;
+  BSRFormat m_bsr_format;
 
   String m_petsc_flags;
   String m_matrix_format = "DOK";
