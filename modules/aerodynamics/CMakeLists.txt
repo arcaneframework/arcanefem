@@ -1,9 +1,12 @@
+set(ACCELERATOR_SOURCES FemModule.cc)
+
 add_executable(aerodynamics
-  FemModule.cc
+  ${ACCELERATOR_SOURCES}
   main.cc
   Fem_axl.h
 )
 
+arcane_accelerator_add_source_files(${ACCELERATOR_SOURCES})
 arcane_generate_axl(Fem)
 arcane_add_arcane_libraries_to_target(aerodynamics)
 target_include_directories(aerodynamics PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
