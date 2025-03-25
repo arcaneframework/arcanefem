@@ -1,9 +1,12 @@
+set(ACCELERATOR_SOURCES FemModule.cc)
+
 add_executable(Electrostatics
-  FemModule.cc
+  ${ACCELERATOR_SOURCES}
   main.cc
   Fem_axl.h
 )
 
+arcane_accelerator_add_source_files(${ACCELERATOR_SOURCES})
 arcane_generate_axl(Fem)
 arcane_add_arcane_libraries_to_target(Electrostatics)
 target_include_directories(Electrostatics PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
@@ -42,6 +45,13 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/solve-linear-system=false
     -A,//fem/cross-validation=false
     inputs/Capacitor.arc)
+
+  arcanefem_add_gpu_test(NAME [electrostatics]box-rods_bsr COMMAND ./Electrostatics ARGS
+    -A,//fem/matrix-format=BSR
+    inputs/box-rods.arc)
+  arcanefem_add_gpu_test(NAME [electrostatics]box-rods_af-bsr COMMAND ./Electrostatics ARGS
+    -A,//fem/matrix-format=AF-BSR
+    inputs/box-rods.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [electrostatics]box-rods_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Electrostatics inputs/box-rods.arc)
