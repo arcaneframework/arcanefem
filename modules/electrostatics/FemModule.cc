@@ -200,9 +200,6 @@ _assembleLinearOperatorCpu()
 
       for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
         BCFunctions.applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
-
-      for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions())
-        BCFunctions.applyPointDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
     }
   };
 
