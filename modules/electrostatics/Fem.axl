@@ -20,16 +20,38 @@
     <simple name="rho" type="real" default="0.0">
       <description>charge density of the material.</description>
     </simple>
+
     <simple name="epsilon" type="real" default="0.0">
       <description>freespace permittivity.</description>
     </simple>
+
     <simple name="result-file" type="string" optional="true">
       <description>File name of a file containing the values of the solution vector to check the results</description>
     </simple>
+
     <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
       <description>Type of mesh provided to the solver</description>
     </simple>
 
+    <simple name="matrix-format" type="string" default="DOK" optional="true">
+      <description>Which matrix format to use DOK|BSR|AF-BSR.</description>
+    </simple>
+
+    <simple name="petsc-flags" type="string" default="" optional="true">
+      <description>Flags for PETSc from commandline.</description>
+    </simple>
+
+    <simple name="solve-linear-system" type="bool" default="true" optional="true">
+      <description>Boolean to enable linear system solving.</description>
+    </simple>
+
+    <simple name="assemble-linear-system" type="bool" default="true" optional="true">
+      <description>Boolean to enable linear system assembly.</description>
+    </simple>
+
+    <simple name="cross-validation" type="bool" default="true" optional="true">
+      <description>Boolean to enable cross validation.</description>
+    </simple>
 
     <!-- Linear system service instance -->
     <service-instance name="linear-system" type="Arcane::FemUtils::IDoFLinearSystemFactory" default="AlephLinearSystem" />
