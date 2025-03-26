@@ -39,6 +39,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [electrostatics]box-rods COMMAND Electrostatics inputs/box-rods.arc)
   add_test(NAME [electrostatics]capacitor COMMAND Electrostatics inputs/Capacitor.arc)
   add_test(NAME [electrostatics]rod-circle COMMAND Electrostatics inputs/rod-circle.arc)
+  add_test(NAME [electrostatics]spheres COMMAND Electrostatics inputs/spheres.arc)
   add_test(NAME [electrostatics]box-rods_petsc_monitor COMMAND Electrostatics
     -A,//fem/petsc-flags=-ksp_monitor
     inputs/box-rods.arc)
@@ -60,6 +61,9 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   arcanefem_add_gpu_test(NAME [electrostatics]spheres_bsr COMMAND ./Electrostatics ARGS
     -A,//fem/matrix-format=BSR
     inputs/spheres.arc)
+  arcanefem_add_gpu_test(NAME [electrostatics]spheres_af-bsr COMMAND ./Electrostatics ARGS
+    -A,//fem/matrix-format=AF-BSR
+    inputs/spheres.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [electrostatics]box-rods_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Electrostatics inputs/box-rods.arc)
@@ -80,4 +84,12 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG}
     inputs/rod-circle.arc)
+  arcanefem_add_gpu_test(NAME [electrostatics]spheres_af-bsr_hypreDirect COMMAND ./Electrostatics ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/spheres.arc)
+  arcanefem_add_gpu_test(NAME [electrostatics]truncated_cube_bsr_hypreDirect COMMAND ./Electrostatics ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/truncated_cube.arc)
 endif()
