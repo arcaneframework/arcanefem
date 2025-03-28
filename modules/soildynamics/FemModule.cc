@@ -962,7 +962,7 @@ _assembleBilinearOperator()
     if (mesh()->dimension() == 3)
       if(m_matrix_format == "DOK")
         _assembleBilinearOperatorTetra4();
-      else if(m_matrix_format == "BSR")
+      else if(m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
         _assembleBilinearOperatorTetra4Gpu();
   }
 
@@ -1006,7 +1006,10 @@ _assembleBilinearOperatorTetra4Gpu()
   auto c2_copy = c2;
 
   m_bsr_format.computeSparsity();
-  m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, c0_copy, c1_copy, c2_copy); });
+  if (m_matrix_format == "BSR")
+    m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, c0_copy, c1_copy, c2_copy); });
+  else
+    m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, c0_copy, c1_copy, c2_copy, node_lid); });
 }
 
 /*---------------------------------------------------------------------------*/

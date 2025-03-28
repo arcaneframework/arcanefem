@@ -100,6 +100,11 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     ${SOLVER_HYPRE_CG}
     inputs/3d.double-couple.paraxial.soil.arc)
 
+  arcanefem_add_gpu_test(NAME [soildynamics]3d_double-couple_paraxial_soil_af-bsr COMMAND  ./Soildynamics ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/3d.double-couple.paraxial.soil.arc)
+
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [soildynamics]2d_double-couple_paraxial_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/double-couple.paraxial.arc)
     add_test(NAME [soildynamics]2d_double-couple_paraxial_soil_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/double-couple.paraxial.soil.arc)
