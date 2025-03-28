@@ -58,6 +58,9 @@ _computeElementMatrixTria3(Cell cell)
   return int_Omega_i;
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeElementMatrixTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, Real c0, Real c1, Real c2)
 {
   Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
@@ -66,6 +69,7 @@ ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeElementMatrixTria3Gpu(CellLocalId ce
 
   RealVector<6> Uy = {0., 1., 0., 1., 0., 1.};
   RealVector<6> Ux = {1., 0., 1., 0., 1., 0.};
+
   RealVector<6> dxUx = { dxu[0], 0., dxu[1], 0., dxu[2], 0. };
   RealVector<6> dyUx = { dyu[0], 0., dyu[1], 0., dyu[2], 0. };
   RealVector<6> dxUy = { 0., dxu[0], 0., dxu[1], 0., dxu[2] };
@@ -77,6 +81,48 @@ ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeElementMatrixTria3Gpu(CellLocalId ce
                                   (c2) * ((dxUy + dyUx) ^ (dyUx + dxUy)) * area;
 
   return int_Omega_i;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeElementVectorTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, Real c0, Real c1, Real c2, Int32 node_lid)
+{
+  Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
+  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+
+  RealVector<6> Uy = {0., 1., 0., 1., 0., 1.};
+  RealVector<6> Ux = {1., 0., 1., 0., 1., 0.};
+
+  RealVector<6> dxUx = { dxu[0], 0., dxu[1], 0., dxu[2], 0. };
+  RealVector<6> dyUx = { dyu[0], 0., dyu[1], 0., dyu[2], 0. };
+  RealVector<6> dxUy = { 0., dxu[0], 0., dxu[1], 0., dxu[2] };
+  RealVector<6> dyUy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
+
+  RealMatrix<6, 6> massMat = (c0 / 12.) * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy)) * area;
+  RealVector<6> massVect_x = {massMat(node_lid*2,0) , massMat(node_lid*2,1) , massMat(node_lid*2,2) ,
+                              massMat(node_lid*2,3) , massMat(node_lid*2,4) , massMat(node_lid*2,5) };
+
+  RealVector<6> massVect_y = {massMat(node_lid*2+1,0) , massMat(node_lid*2+1,1) , massMat(node_lid*2+1,2) ,
+                              massMat(node_lid*2+1,3) , massMat(node_lid*2+1,4) , massMat(node_lid*2+1,5)};
+
+  RealVector <6> result_x = (c1) * ((dyUy(node_lid*2) * dxUx) + (dxUx(node_lid*2) * dyUy)) * area +
+                            (2*c2 + c1) * ((dxUx(node_lid*2) * dxUx) + (dyUy(node_lid*2) * dyUy)) * area +
+                            (c2) * ((dxUy(node_lid*2) + dyUx(node_lid*2)) * (dyUx + dxUy)) * area;
+  RealVector <6> result_y = (c1) * ((dyUy(node_lid*2+1) * dxUx) + (dxUx(node_lid*2+1) * dyUy)) * area + 
+                            (2*c2 + c1) * ((dxUx(node_lid*2+1) * dxUx) + (dyUy(node_lid*2+1) * dyUy)) * area +
+                            (c2) * ((dxUy(node_lid*2+1) + dyUx(node_lid*2+1)) * (dyUx + dxUy)) * area;
+
+  result_x = result_x + massVect_x;
+  result_y = result_y + massVect_y;
+
+  RealMatrix<2, 6> result = {
+    { result_x(0), result_x(1), result_x(2), result_x(3), result_x(4), result_x(5) },
+    { result_y(0), result_y(1), result_y(2), result_y(3), result_y(4), result_y(5) }
+  };
+
+  return result;
 }
 
 /*---------------------------------------------------------------------------*/

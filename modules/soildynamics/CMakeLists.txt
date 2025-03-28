@@ -90,6 +90,11 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     ${SOLVER_HYPRE_CG}
     inputs/double-couple.paraxial.body-force.arc)
 
+  arcanefem_add_gpu_test(NAME [soildynamics]2d_double-couple_paraxial_body-force_af-bsr COMMAND  ./Soildynamics ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/double-couple.paraxial.body-force.arc)
+
   arcanefem_add_gpu_test(NAME [soildynamics]3d_double-couple_paraxial_soil_bsr COMMAND  ./Soildynamics ARGS
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG}
