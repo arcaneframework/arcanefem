@@ -38,8 +38,5 @@
       <double-couple-input-file>data/force_loading_dc.txt</double-couple-input-file>
     </double-couple>
     <result-file>check/3d_test_paraxial_double_couple.txt</result-file>
-    <linear-system>
-      <solver-backend>hypre</solver-backend>
-    </linear-system>
   </fem>
 </case>

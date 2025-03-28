@@ -191,6 +191,15 @@ class BSRMatrix : public TraceAccessor
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
+  void addValue(DoFLocalId row, DoFLocalId col, Real value)
+  {
+    auto value_idx = findValueIndex(row, col);
+    m_values[value_idx] += value;
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
   void toCsr(CsrFormat* csr_matrix)
   {
     info() << "BSRMatrix(toCsr): Convert matrix to CSR";

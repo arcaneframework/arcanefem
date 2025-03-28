@@ -49,8 +49,5 @@
     <paraxial-boundary-condition>
       <surface>bottom</surface>
     </paraxial-boundary-condition>
-    <linear-system>
-      <solver-backend>hypre</solver-backend>
-    </linear-system>
   </fem>
 </case>
