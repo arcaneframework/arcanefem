@@ -870,6 +870,23 @@ class ArcaneFemFunctions
         }
       }
 
+      static inline void applyDirichletToNodeGroupViaRowElimination(Real value, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& linear_system, VariableDoFReal& rhs_values, NodeGroup& node_group){
+        ENUMERATE_ (Node, inode, node_group) {
+          Node node = *inode;
+          if (node.isOwn()) {
+            linear_system.eliminateRow(node_dof.dofId(*inode, 0), value);
+          }
+        }
+      }
+
+      static inline void applyDirichletToNodeGroupViaRowColumnElimination(Real value, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& linear_system, VariableDoFReal& rhs_values, NodeGroup& node_group){
+        ENUMERATE_ (Node, inode, node_group) {
+          Node node = *inode;
+          if (node.isOwn()) {
+            linear_system.eliminateRowColumn(node_dof.dofId(*inode, 0), value);
+          }
+        }
+      }
     };
 
   /*---------------------------------------------------------------------------*/
@@ -963,8 +980,19 @@ class ArcaneFemFunctions
       FaceGroup face_group = bs->getSurface();
       NodeGroup node_group = face_group.nodeGroup();
       Real value = bs->getValue();
-      Real penalty = bs->getPenalty();
-      ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
+      if( bs->getEnforceDirichletMethod() == "Penalty" ){
+        Real penalty = bs->getPenalty();
+        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
+      }
+      else if( bs->getEnforceDirichletMethod() == "RowElimination"){
+        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+      }
+      else if ( bs->getEnforceDirichletMethod() == "RowColumnElimination"){
+        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+      }
+      else{
+        ARCANE_FATAL("Unknown Dirichlet method");
+      }
     }
 
     /*---------------------------------------------------------------------------*/
@@ -987,8 +1015,19 @@ class ArcaneFemFunctions
     {
       NodeGroup node_group = bs->getNode();
       Real value = bs->getValue();
-      Real penalty = bs->getPenalty();
-      ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
+      if( bs->getEnforceDirichletMethod() == "Penalty" ){
+        Real penalty = bs->getPenalty();
+        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
+      }
+      else if( bs->getEnforceDirichletMethod() == "RowElimination"){
+        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+      }
+      else if ( bs->getEnforceDirichletMethod() == "RowColumnElimination"){
+        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+      }
+      else{
+        ARCANE_FATAL("Unknown Dirichlet method");
+      }
     }
 
     /*---------------------------------------------------------------------------*/
@@ -1131,6 +1170,34 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
+     * @brief Applies a constant source term to the RHS vector.
+     *
+     * This method adds a constant source term `qdot` to the RHS vector for each
+     * node in the mesh. The contribution to each node is weighted by the area of
+     * the cell and evenly distributed among the number of nodes of the cell.
+     *
+     * @param [IN]  qdot       : The constant source term.
+     * @param [IN]  mesh       : The mesh containing all cells.
+     * @param [IN]  node_dof   : DOF connectivity view.
+     * @param [IN]  node_coord : The coordinates of the nodes.
+     * @param [OUT] rhs_values : The RHS values to update.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline void applyVariableSourceToRhs(VariableNodeReal& qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      ENUMERATE_ (Cell, icell, mesh->allCells()) {
+        Cell cell = *icell;
+        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, node_coord);
+        for (Node node : cell.nodes()) {
+          if (node.isOwn())
+            rhs_values[node_dof.dofId(node, 0)] += qdot[node] * area / cell.nbNode();
+        }
+      }
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
      * @brief Applies a manufactured source term to the RHS vector.
      *
      * This method adds a manufactured source term to the RHS vector for each
@@ -1240,8 +1307,19 @@ class ArcaneFemFunctions
       FaceGroup face_group = bs->getSurface();
       NodeGroup node_group = face_group.nodeGroup();
       Real value = bs->getValue();
-      Real penalty = bs->getPenalty();
-      ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
+      if( bs->getEnforceDirichletMethod() == "Penalty" ){
+        Real penalty = bs->getPenalty();
+        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
+      }
+      else if( bs->getEnforceDirichletMethod() == "RowElimination"){
+        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+      }
+      else if ( bs->getEnforceDirichletMethod() == "RowColumnElimination"){
+        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+      }
+      else{
+        ARCANE_FATAL("Unknown Dirichlet method");
+      }
     }
 
     /*---------------------------------------------------------------------------*/
@@ -1264,8 +1342,19 @@ class ArcaneFemFunctions
     {
       NodeGroup node_group = bs->getNode();
       Real value = bs->getValue();
-      Real penalty = bs->getPenalty();
-      ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
+      if( bs->getEnforceDirichletMethod() == "Penalty" ){
+        Real penalty = bs->getPenalty();
+        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
+      }
+      else if( bs->getEnforceDirichletMethod() == "RowElimination"){
+        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+      }
+      else if ( bs->getEnforceDirichletMethod() == "RowColumnElimination"){
+        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+      }
+      else{
+        ARCANE_FATAL("Unknown Dirichlet method");
+      }
     }
 
     /*---------------------------------------------------------------------------*/
