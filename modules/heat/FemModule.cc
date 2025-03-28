@@ -37,7 +37,7 @@ startInit()
   m_global_deltat.assign(dt);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] initialize", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] initialize", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -62,7 +62,7 @@ compute()
   _updateTime();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] compute", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] compute", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -179,7 +179,7 @@ _getParameters()
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] get-material-params", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] get-material-params", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -215,7 +215,7 @@ _assembleLinearOperator()
     Text = bs->Text();
     ENUMERATE_ (Face, iface, group) {
       Face face = *iface;
-      Real length = _computeEdgeLength2(face);
+      Real length =  ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
       for (Node node : iface->nodes()) {
         if (node.isOwn())
           rhs_values[node_dof.dofId(node, 0)] += h * Text * length / 2.;
@@ -245,7 +245,7 @@ _assembleLinearOperator()
   applyBoundaryConditions(BCFunctions());
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] rhs-vector-assembly", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] rhs-vector-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -313,29 +313,6 @@ _computeDxDyOfRealTRIA3(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-Real FemModule::
-_computeAreaTriangle3(Cell cell)
-{
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-  return 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real FemModule::
-_computeEdgeLength2(Face face)
-{
-  Real3 m0 = m_node_coord[face.nodeId(0)];
-  Real3 m1 = m_node_coord[face.nodeId(1)];
-  return  math::sqrt((m1.x-m0.x)*(m1.x-m0.x) + (m1.y-m0.y)*(m1.y - m0.y));
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
 RealMatrix<2, 2> FemModule::
 _computeElementMatrixEDGE2(Face face)
 {
@@ -348,7 +325,7 @@ _computeElementMatrixEDGE2(Face face)
   Real3 m0 = m_node_coord[face.nodeId(0)];
   Real3 m1 = m_node_coord[face.nodeId(1)];
 
-  Real area = _computeEdgeLength2(face);    // calculate length
+  Real area =  ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
 
   Real2 dPhi0(m0.y - m1.y, m1.x - m0.x);
   Real2 dPhi1(m1.y - m0.y, m0.x - m1.x);
@@ -401,7 +378,7 @@ _computeElementMatrixTRIA3(Cell cell)
   Real3 m1 = m_node_coord[cell.nodeId(1)];
   Real3 m2 = m_node_coord[cell.nodeId(2)];
 
-  Real area = _computeAreaTriangle3(cell);    // calculate area
+  Real area =  ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
 
   Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
   Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
@@ -496,7 +473,7 @@ _assembleBilinearOperator()
   _assembleBilinearOperatorEDGE2();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] lhs-matrix-assembly", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] lhs-matrix-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -608,7 +585,7 @@ _solve()
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] solve-linear-system", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] solve-linear-system", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -635,19 +612,7 @@ _checkResultFile()
     checkNodeResultFile(traceMng(), filename, m_node_temperature, 1.0e-4);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] result-validation", elapsedTime);
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Function to prints the execution time `value` of phase `label`
- */
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_printArcaneFemTime(const String label, const Real value)
-{
-  info() << std::left << std::setw(40) << label << " = " << value;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] result-validation", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/

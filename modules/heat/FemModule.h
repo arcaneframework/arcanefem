@@ -104,16 +104,11 @@ class FemModule
   void _assembleLinearOperator();
   void _checkResultFile();
 
-  void _printArcaneFemTime(const String label, const Real value);
-
   RealMatrix<2, 2> _computeElementMatrixEDGE2(Face face);
   RealMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
   Real  _computeDxOfRealTRIA3(Cell cell);
   Real  _computeDyOfRealTRIA3(Cell cell);
   Real2 _computeDxDyOfRealTRIA3(Cell cell);
-  Real _computeAreaTriangle3(Cell cell);
-  Real _computeEdgeLength2(Face face);
-
 };
 
 #endif
