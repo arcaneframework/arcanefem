@@ -128,10 +128,8 @@ class FemModule
   void _updateVariables();
   void _updateTime();
   void _assembleBilinearOperator();
-  void _assemble2dBilinearOperatorTria3();
-  void _assemble2dBilinearOperatorEdge2();
-  void _assemble3dBilinearOperatorTetra4();
-  void _assemble3dBilinearOperatorTria3();
+  void _assembleBilinearOperatorTria3();
+  void _assembleBilinearOperatorTetra4();
   void _solve();
   void _assembleLinearOperator();
   void _assembleLinearOperator2d();
@@ -141,9 +139,9 @@ class FemModule
   void _readCaseTables();
 
   RealMatrix<4, 4> _computeParaxialElementMatrixEdge2(Face face);
-  RealMatrix<6, 6> _compute2dElementMatrixTria3(Cell cell);
+  RealMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
   RealMatrix<9, 9> _computeParaxialElementMatrixTria3(Face face);
-  RealMatrix<12, 12> _compute3dElementMatrixTetra4(Cell cell);
+  RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
 };
 
 #endif

@@ -917,9 +917,9 @@ _assembleBilinearOperator()
 
   if (t <= dt) {
     if (mesh()->dimension() == 2)
-      _assemble2dBilinearOperatorTria3();
+      _assembleBilinearOperatorTria3();
     if (mesh()->dimension() == 3)
-      _assemble3dBilinearOperatorTetra4();
+      _assembleBilinearOperatorTetra4();
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -930,14 +930,14 @@ _assembleBilinearOperator()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assemble2dBilinearOperatorTria3()
+_assembleBilinearOperatorTria3()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    auto K_e = _compute2dElementMatrixTria3(cell); // element stiffness matrix
+    auto K_e = _computeElementMatrixTria3(cell); // element stiffness matrix
     // assemble elementary matrix into  the global one elementary terms are
     // positioned into  K according  to the rank of associated  node in the
     // mesh.nodes list  and according the dof number. Here  for  each  node
@@ -975,14 +975,14 @@ _assemble2dBilinearOperatorTria3()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assemble3dBilinearOperatorTetra4()
+_assembleBilinearOperatorTetra4()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    auto K_e = _compute3dElementMatrixTetra4(cell);
+    auto K_e = _computeElementMatrixTetra4(cell);
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
