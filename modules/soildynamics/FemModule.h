@@ -74,6 +74,8 @@ class FemModule
  void compute() override; //! Method called at each iteration
  VersionInfo versionInfo() const override { return VersionInfo(1, 0, 0); }
 
+ void _assembleBilinearOperatorTria3Gpu();
+
  private:
 
   Real t; // time variable 𝑡
@@ -138,8 +140,8 @@ class FemModule
   void _assembleBilinearOperatorTetra4();
   void _solve();
   void _assembleLinearOperator();
-  void _assembleLinearOperator2d();
-  void _assembleLinearOperator3d();
+  void _assembleLinearOperator2d(BSRMatrix* bsr_matrix = nullptr);
+  void _assembleLinearOperator3d(BSRMatrix* bsr_matrix = nullptr);
   void _applyDirichletBoundaryConditions();
   void _validateResults();
   void _readCaseTables();

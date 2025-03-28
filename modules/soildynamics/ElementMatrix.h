@@ -58,6 +58,27 @@ _computeElementMatrixTria3(Cell cell)
   return int_Omega_i;
 }
 
+ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeElementMatrixTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, Real c0, Real c1, Real c2)
+{
+  Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
+  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+
+  RealVector<6> Uy = {0., 1., 0., 1., 0., 1.};
+  RealVector<6> Ux = {1., 0., 1., 0., 1., 0.};
+  RealVector<6> dxUx = { dxu[0], 0., dxu[1], 0., dxu[2], 0. };
+  RealVector<6> dyUx = { dyu[0], 0., dyu[1], 0., dyu[2], 0. };
+  RealVector<6> dxUy = { 0., dxu[0], 0., dxu[1], 0., dxu[2] };
+  RealVector<6> dyUy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
+
+  RealMatrix<6, 6> int_Omega_i = (c0 / 12.) * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy)) * area +
+                                  (c1) * ((dyUy ^ dxUx) + (dxUx ^ dyUy)) * area +
+                                  (2*c2 + c1) * ((dxUx ^ dxUx) + (dyUy ^ dyUy)) * area +
+                                  (c2) * ((dxUy + dyUx) ^ (dyUx + dxUy)) * area;
+
+  return int_Omega_i;
+}
+
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Computes 2D paraxial element matrix for a edge element (ℙ1 FE).

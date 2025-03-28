@@ -291,9 +291,15 @@ _assembleLinearOperator()
   Real elapsedTime = platform::getRealTime();
 
   if (mesh()->dimension() == 2)
-    _assembleLinearOperator2d();
+    if (m_matrix_format == "BSR")
+      _assembleLinearOperator2d(&(m_bsr_format.matrix()));
+    else
+      _assembleLinearOperator2d();
   if (mesh()->dimension() == 3)
     _assembleLinearOperator3d();
+
+  if(m_matrix_format == "BSR")
+    m_bsr_format.toLinearSystem(m_linear_system);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
@@ -308,7 +314,7 @@ _assembleLinearOperator()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleLinearOperator2d()
+_assembleLinearOperator2d(BSRMatrix* bsr_matrix)
 {
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
@@ -418,7 +424,7 @@ _assembleLinearOperator2d()
   }
 
   //----------------------------------------------
-  // Paraxial term assembly
+  // Paraxial term assembly for LHS and RHS
   //----------------------------------------------
   for (const auto& bs : options()->paraxialBoundaryCondition()) {
     FaceGroup group = bs->surface();
@@ -460,10 +466,18 @@ _assembleLinearOperator2d()
               DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
               DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
 
-              m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
-              m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
-              m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v3);
-              m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v4);
+              if (bsr_matrix) {
+                bsr_matrix->addValue(node1_dof1, node2_dof1, v1);
+                bsr_matrix->addValue(node1_dof1, node2_dof2, v2);
+                bsr_matrix->addValue(node1_dof2, node2_dof1, v3);
+                bsr_matrix->addValue(node1_dof2, node2_dof2, v4);
+              }
+              else {
+                m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
+                m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
+                m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v3);
+                m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v4);
+              }
             }
             ++n2_index;
           }
@@ -591,7 +605,7 @@ _assembleLinearOperator2d()
 }
 
 void FemModule::
-_assembleLinearOperator3d()
+_assembleLinearOperator3d(BSRMatrix* bsr_matrix)
 {
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
@@ -776,17 +790,32 @@ _assembleLinearOperator3d()
               DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
               DoFLocalId node2_dof3 = node_dof.dofId(node2, 2);
 
-              m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
-              m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
-              m_linear_system.matrixAddValue(node1_dof1, node2_dof3, v3);
+              if (bsr_matrix) {
+                bsr_matrix->addValue(node1_dof1, node2_dof1, v1);
+                bsr_matrix->addValue(node1_dof1, node2_dof2, v2);
+                bsr_matrix->addValue(node1_dof1, node2_dof3, v3);
 
-              m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v4);
-              m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v5);
-              m_linear_system.matrixAddValue(node1_dof2, node2_dof3, v6);
+                bsr_matrix->addValue(node1_dof2, node2_dof1, v4);
+                bsr_matrix->addValue(node1_dof2, node2_dof2, v5);
+                bsr_matrix->addValue(node1_dof2, node2_dof3, v6);
 
-              m_linear_system.matrixAddValue(node1_dof3, node2_dof1, v7);
-              m_linear_system.matrixAddValue(node1_dof3, node2_dof2, v8);
-              m_linear_system.matrixAddValue(node1_dof3, node2_dof3, v9);
+                bsr_matrix->addValue(node1_dof3, node2_dof1, v7);
+                bsr_matrix->addValue(node1_dof3, node2_dof2, v8);
+                bsr_matrix->addValue(node1_dof3, node2_dof3, v9);
+              }
+              else {
+                m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
+                m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
+                m_linear_system.matrixAddValue(node1_dof1, node2_dof3, v3);
+
+                m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v4);
+                m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v5);
+                m_linear_system.matrixAddValue(node1_dof2, node2_dof3, v6);
+
+                m_linear_system.matrixAddValue(node1_dof3, node2_dof1, v7);
+                m_linear_system.matrixAddValue(node1_dof3, node2_dof2, v8);
+                m_linear_system.matrixAddValue(node1_dof3, node2_dof3, v9);
+              }
             }
             ++n2_index;
           }
@@ -923,7 +952,10 @@ _assembleBilinearOperator()
 
   if (t <= dt) {
     if (mesh()->dimension() == 2)
-      _assembleBilinearOperatorTria3();
+      if(m_matrix_format == "DOK")
+        _assembleBilinearOperatorTria3();
+      else if(m_matrix_format == "BSR")
+        _assembleBilinearOperatorTria3Gpu();
     if (mesh()->dimension() == 3)
       _assembleBilinearOperatorTetra4();
   }
@@ -932,6 +964,25 @@ _assembleBilinearOperator()
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "lhs-matrix-assembly", elapsedTime);
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleBilinearOperatorTria3Gpu()
+{
+  UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+  auto cn_cv = m_connectivity_view.cellNode();
+  auto fn_cv = m_connectivity_view.faceNode();
+  auto command = makeCommand(acceleratorMng()->defaultQueue());
+  FaceInfoListView faces_infos(mesh()->faceFamily());
+  auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
+  auto c0_copy = c0;
+  auto c1_copy = c1;
+  auto c2_copy = c2;
+
+  m_bsr_format.computeSparsity();
+  m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, c0_copy, c1_copy, c2_copy); });
+}
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
