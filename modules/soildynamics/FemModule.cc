@@ -421,9 +421,7 @@ _assembleLinearOperator2d()
 
     ENUMERATE_ (Face, iface, group) {
       Face face = *iface;
-
       Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-      Real2 N = ArcaneFemFunctions::MeshOperation::computeNormalEdge2(face, m_node_coord);
 
       RealVector<4> Uy = { 0., 1., 0., 1. };
       RealVector<4> Ux = { 1., 0., 1., 0. };
@@ -432,26 +430,40 @@ _assembleLinearOperator2d()
       RealVector<4> Vn = { m_V[face.nodeId(0)].x, m_V[face.nodeId(0)].y, m_V[face.nodeId(1)].x, m_V[face.nodeId(1)].y };
       RealVector<4> An = { m_A[face.nodeId(0)].x, m_A[face.nodeId(0)].y, m_A[face.nodeId(1)].x, m_A[face.nodeId(1)].y };
 
-      RealVector<4> rhs = ( (c7 * (N.x * N.x * cp + N.y * N.y * cs)) * Un * (massMatrix(Ux, Ux)) +
-                                (c7 * (N.y * N.y * cp + N.x * N.x * cs)) * Un * (massMatrix(Uy, Uy)) +
-                                (c7 * (N.x * N.y * (cp - cs))) * Un * (massMatrix(Ux, Uy)) +
-                                (c7 * (N.x * N.y * (cp - cs))) * Un * (massMatrix(Uy, Ux)) +
-
-                              - ( (c8 * (N.x * N.x * cp + N.y * N.y * cs)) * Vn * (massMatrix(Ux, Ux)) +
-                                  (c8 * (N.y * N.y * cp + N.x * N.x * cs)) * Vn * (massMatrix(Uy, Uy)) +
-                                  (c8 * (N.x * N.y * (cp - cs))) * Vn * (massMatrix(Ux, Uy)) +
-                                  (c8 * (N.x * N.y * (cp - cs))) * Vn * (massMatrix(Uy, Ux)) )
-
-                              - ( (c9 * (N.x * N.x * cp + N.y * N.y * cs)) * An * (massMatrix(Ux, Ux))  +
-                                  (c9 * (N.y * N.y * cp + N.x * N.x * cs)) * An * (massMatrix(Uy, Uy))  +
-                                  (c9 * (N.x * N.y * (cp - cs))) * An * (massMatrix(Ux, Uy)) +
-                                  (c9 * (N.x * N.y * (cp - cs))) * An * (massMatrix(Uy, Ux)) )
-                              ) * length / 6. ;
+      RealMatrix<4, 4>  ParaxialElementMatrixEdge2 = _computeParaxialElementMatrixEdge2(face);
+      RealVector<4> rhs = length * (c7 * Un * ParaxialElementMatrixEdge2 - c8 * Vn * ParaxialElementMatrixEdge2  + c9 * An * ParaxialElementMatrixEdge2) ;
 
       rhs_values[node_dof.dofId(face.nodeId(0), 0)] += rhs(0);
       rhs_values[node_dof.dofId(face.nodeId(0), 1)] += rhs(1);
       rhs_values[node_dof.dofId(face.nodeId(1), 0)] += rhs(2);
       rhs_values[node_dof.dofId(face.nodeId(1), 1)] += rhs(3);
+
+      if (t <= dt) {
+        ParaxialElementMatrixEdge2 = c7 * length * ParaxialElementMatrixEdge2;
+        Int32 n1_index = 0;
+        for (Node node1 : face.nodes()) {
+          Int32 n2_index = 0;
+          for (Node node2 : face.nodes()) {
+            Real v1 = ParaxialElementMatrixEdge2(2 * n1_index, 2 * n2_index);
+            Real v2 = ParaxialElementMatrixEdge2(2 * n1_index, 2 * n2_index + 1);
+            Real v3 = ParaxialElementMatrixEdge2(2 * n1_index + 1, 2 * n2_index);
+            Real v4 = ParaxialElementMatrixEdge2(2 * n1_index + 1, 2 * n2_index + 1);
+            if (node1.isOwn()) {
+              DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
+              DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
+              DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
+              DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
+
+              m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
+              m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
+              m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v3);
+              m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v4);
+            }
+            ++n2_index;
+          }
+          ++n1_index;
+        }
+      }
     }
   }
 
@@ -904,13 +916,10 @@ _assembleBilinearOperator()
   Real elapsedTime = platform::getRealTime();
 
   if (t <= dt) {
-    if (mesh()->dimension() == 2) {
+    if (mesh()->dimension() == 2)
       _assemble2dBilinearOperatorTria3();
-      _assemble2dBilinearOperatorEdge2();
-    }
-    if (mesh()->dimension() == 3) {
+    if (mesh()->dimension() == 3)
       _assemble3dBilinearOperatorTetra4();
-    }
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -958,49 +967,6 @@ _assemble2dBilinearOperatorTria3()
         ++n2_index;
       }
       ++n1_index;
-    }
-  }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_assemble2dBilinearOperatorEdge2()
-{
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  for (const auto& bs : options()->paraxialBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-
-    ENUMERATE_ (Face, iface, group) {
-      Face face = *iface;
-
-      auto K_e = _compute2dElementMatrixEdge2(face);
-
-      Int32 n1_index = 0;
-      for (Node node1 : face.nodes()) {
-        Int32 n2_index = 0;
-        for (Node node2 : face.nodes()) {
-          Real v1 = K_e(2 * n1_index, 2 * n2_index);
-          Real v2 = K_e(2 * n1_index, 2 * n2_index + 1);
-          Real v3 = K_e(2 * n1_index + 1, 2 * n2_index);
-          Real v4 = K_e(2 * n1_index + 1, 2 * n2_index + 1);
-          if (node1.isOwn()) {
-            DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
-            DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
-            DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
-            DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
-
-            m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
-            m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
-            m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v3);
-            m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v4);
-          }
-          ++n2_index;
-        }
-        ++n1_index;
-      }
     }
   }
 }

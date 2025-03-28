@@ -60,32 +60,31 @@ _compute2dElementMatrixTria3(Cell cell)
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Computes 2D problem element matrix for a edge element (ℙ1 FE).
+ * @brief Computes 2D paraxial element matrix for a edge element (ℙ1 FE).
  *
  * Theory:
  *
- *   a(𝐮,𝐯) =  ∫ (c₇)(cₚ 𝑁𝑥² + cₛ 𝑁𝑦²)(𝑢𝑥 𝑣𝑥) +
- *             ∫ (c₇)(cₚ 𝑁𝑦² + cₛ 𝑁𝑥²)(𝑢𝑦 𝑣𝑦) +
- *             ∫ (c₇)(𝑁𝑦 𝑁𝑥 (cₚ - cₛ))(𝑢𝑥 𝑣𝑦) +
- *             ∫ (c₇)(𝑁𝑥 𝑁𝑦 (cₚ - cₛ))(𝑢𝑦 𝑣𝑥) ;
+ *   a(𝐮,𝐯) =  ∫ (cₚ 𝑁𝑥² + cₛ 𝑁𝑦²)(𝑢𝑥 𝑣𝑥) +
+ *             ∫ (cₚ 𝑁𝑦² + cₛ 𝑁𝑥²)(𝑢𝑦 𝑣𝑦) +
+ *             ∫ (𝑁𝑦 𝑁𝑥 (cₚ - cₛ))(𝑢𝑥 𝑣𝑦) +
+ *             ∫ (𝑁𝑥 𝑁𝑦 (cₚ - cₛ))(𝑢𝑦 𝑣𝑥) ;
  *
  *   with  trial func 𝐮 = (𝑢𝑥,𝑢𝑦) and test func 𝐯 = (𝑣𝑥,𝑣𝑦)
  */
 /*---------------------------------------------------------------------------*/
 
 RealMatrix<4, 4> FemModule::
-_compute2dElementMatrixEdge2(Face face)
+_computeParaxialElementMatrixEdge2(Face face)
 {
-  Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
   Real2 N   = ArcaneFemFunctions::MeshOperation::computeNormalEdge2(face, m_node_coord);
 
   RealVector<4> Uy = {0., 1., 0., 1.};
   RealVector<4> Ux = {1., 0., 1., 0.};
 
-  RealMatrix<4, 4> int_Omega_i = (c7*(N.x*N.x*cp + N.y*N.y*cs)) * (massMatrix(Ux,Ux)) * length/6. +
-                                  (c7*(N.y*N.y*cp + N.x*N.x*cs)) * (massMatrix(Uy,Uy)) * length/6. +
-                                  (c7*(N.x*N.y*(cp - cs))) * (massMatrix(Ux,Uy)) * length/6. +
-                                  (c7*(N.x*N.y*(cp - cs))) * (massMatrix(Uy,Ux)) * length/6. ;
+  RealMatrix<4, 4> int_Omega_i = (((N.x*N.x*cp + N.y*N.y*cs)) * (massMatrix(Ux,Ux)) +
+                                  ((N.y*N.y*cp + N.x*N.x*cs)) * (massMatrix(Uy,Uy)) +
+                                  ((N.x*N.y*(cp - cs))) * (massMatrix(Ux,Uy)) +
+                                  ((N.x*N.y*(cp - cs))) * (massMatrix(Uy,Ux)) )/6. ;
   return int_Omega_i;
 }
 
@@ -158,16 +157,16 @@ RealMatrix<12, 12> FemModule::_compute3dElementMatrixTetra4(Cell cell)
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Computes 3D problem element matrix for a triangular element (ℙ1 FE).
+ * @brief Computes 3D paraxial element matrix for a triangular element (ℙ1 FE).
  *
  * Theory:
  *
- *   a(𝐮,𝐯) =  ∫∫ (c₇)(cₚ 𝑁𝑥² + cₛ (1 - 𝑁𝑥²))(𝑢𝑥 𝑣𝑥) +
- *             ∫∫ (c₇)(cₚ 𝑁𝑦² + cₛ (1 - 𝑁𝑦²))(𝑢𝑦 𝑣𝑦) +
- *             ∫∫ (c₇)(cₚ 𝑁𝑧² + cₛ (1 - 𝑁𝑧²))(𝑢𝑧 𝑣𝑧) +
- *             ∫∫ (c₇)(𝑁𝑥 𝑁𝑦 (cₚ - cₛ))(𝑢𝑥 𝑣𝑦) + ∫∫ (c₇)(𝑁𝑥 𝑁𝑧 (cₚ - cₛ))(𝑢𝑥 𝑣𝑧) +
- *             ∫∫ (c₇)(𝑁𝑦 𝑁𝑥 (cₚ - cₛ))(𝑢𝑦 𝑣𝑥) + ∫∫ (c₇)(𝑁𝑦 𝑁𝑧 (cₚ - cₛ))(𝑢𝑦 𝑣𝑧) +
- *             ∫∫ (c₇)(𝑁𝑧 𝑁𝑥 (cₚ - cₛ))(𝑢𝑧 𝑣𝑥) + ∫∫ (c₇)(𝑁𝑧 𝑁𝑦 (cₚ - cₛ))(𝑢𝑧 𝑣𝑦) ;
+ *   a(𝐮,𝐯) =  ∫∫ (cₚ 𝑁𝑥² + cₛ (1 - 𝑁𝑥²))(𝑢𝑥 𝑣𝑥) +
+ *             ∫∫ (cₚ 𝑁𝑦² + cₛ (1 - 𝑁𝑦²))(𝑢𝑦 𝑣𝑦) +
+ *             ∫∫ (cₚ 𝑁𝑧² + cₛ (1 - 𝑁𝑧²))(𝑢𝑧 𝑣𝑧) +
+ *             ∫∫ (𝑁𝑥 𝑁𝑦 (cₚ - cₛ))(𝑢𝑥 𝑣𝑦) + ∫∫ (c₇)(𝑁𝑥 𝑁𝑧 (cₚ - cₛ))(𝑢𝑥 𝑣𝑧) +
+ *             ∫∫ (𝑁𝑦 𝑁𝑥 (cₚ - cₛ))(𝑢𝑦 𝑣𝑥) + ∫∫ (c₇)(𝑁𝑦 𝑁𝑧 (cₚ - cₛ))(𝑢𝑦 𝑣𝑧) +
+ *             ∫∫ (𝑁𝑧 𝑁𝑥 (cₚ - cₛ))(𝑢𝑧 𝑣𝑥) + ∫∫ (c₇)(𝑁𝑧 𝑁𝑦 (cₚ - cₛ))(𝑢𝑧 𝑣𝑦) ;
  *
  *   with trial function 𝐮 = (𝑢𝑥, 𝑢𝑦, 𝑢𝑧) and test function 𝐯 = (𝑣𝑥, 𝑣𝑦, 𝑣𝑧)
  */
