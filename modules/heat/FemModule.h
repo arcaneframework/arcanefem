@@ -23,11 +23,13 @@
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 
+#include "IArcaneFemBC.h"
 #include "IDoFLinearSystemFactory.h"
 #include "Fem_axl.h"
 #include "FemUtils.h"
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
+#include "ArcaneFemFunctions.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -95,14 +97,11 @@ class FemModule
   void _initTemperature();
   void _doStationarySolve();
   void _getParameters();
-  void _updateBoundayConditions();
   void _assembleBilinearOperator();
   void _assembleBilinearOperatorTRIA3();
   void _assembleBilinearOperatorEDGE2();
   void _solve();
-  void _initBoundaryconditions();
   void _assembleLinearOperator();
-  void _applyDirichletBoundaryConditions();
   void _checkResultFile();
 
   void _printArcaneFemTime(const String label, const Real value);

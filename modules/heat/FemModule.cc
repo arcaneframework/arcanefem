@@ -30,7 +30,7 @@ startInit()
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
-  _initBoundaryconditions();    // initialize boundary conditions
+  //_initBoundaryconditions();    // initialize boundary conditions
   _initTime();                  // initialize time
   _getParameters();             // get material parameters
   _initTemperature();           // initialize temperature
@@ -135,9 +135,6 @@ void FemModule::
 _doStationarySolve()
 {
 
-  // # update BCs
-  _updateBoundayConditions();
-
   // Assemble the FEM bilinear operator (LHS - matrix A)
   _assembleBilinearOperator();
 
@@ -186,68 +183,6 @@ _getParameters()
 }
 
 /*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_initBoundaryconditions()
-{
-  info() << "[ArcaneFem-Info] Started module _initBoundaryconditions()";
-  _applyDirichletBoundaryConditions();
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_applyDirichletBoundaryConditions()
-{
-  // Handle all the Dirichlet boundary conditions.
-  // In the 'arc' file, there are in the following format:
-  //   <dirichlet-boundary-condition>
-  //   <surface>Haut</surface>
-  //   <value>21.0</value>
-  // </dirichlet-boundary-condition>
-
-  for (const auto& bs : options()->dirichletBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    Real value = bs->value();
-    info() << "Apply Dirichlet boundary condition surface=" << group.name() << " v=" << value;
-    ENUMERATE_ (Face, iface, group) {
-      for (Node node : iface->nodes()) {
-        m_node_temperature[node] = value;
-        m_node_is_temperature_fixed[node] = true;
-      }
-    }
-  }
-
-  // Handle all Dirichlet point boundary condition
-  // In the 'arc' file, these are recognized by
-  //     <dirichlet-point-condition>
-  //    <node>botLeftCorner</node>
-  //    <value>20.0</value>
-  //  </dirichlet-point-condition>
-  for (const auto& bs : options()->dirichletPointCondition()) {
-    NodeGroup group = bs->node();
-    Real value = bs->value();
-    info() << "Apply Dirichlet point condition node=" << group.name() << " v=" << value;
-    ENUMERATE_ (Node, inode, group) {
-      Node node = *inode;
-      m_node_temperature[node] = value;
-      m_node_is_temperature_fixed[node] = true;
-      }
-    }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_updateBoundayConditions()
-{
-  info() << "TODO " << A_FUNCINFO;
-}
-
-/*---------------------------------------------------------------------------*/
 // Assemble the FEM linear operator
 //  - This function enforces a Dirichlet boundary condition in a weak sense
 //    via the penalty method
@@ -267,171 +202,6 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  if (options()->enforceDirichletMethod() == "Penalty") {
-
-    //----------------------------------------------
-    // penalty method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
-    //  Dirichlet condition needs to be applied
-    //
-    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
-    //           a_{i,i} = 1. * P
-    //
-    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
-    //           b_{i} = b_{i} * P
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    Real Penalty = options()->penalty();        // 1.0e30 is the default
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_node_is_temperature_fixed[node_id]) {
-        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-        m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
-        Real temperature = Penalty * m_node_temperature[node_id];
-        rhs_values[dof_id] = temperature;
-      }
-    }
-  }else if (options()->enforceDirichletMethod() == "WeakPenalty") {
-
-    //----------------------------------------------
-    // weak penalty method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
-    //  Dirichlet condition needs to be applied
-    //
-    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
-    //           a_{i,i} = a_{i,i} + P
-    //
-    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
-    //           b_{i} = b_{i} * P
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    Real Penalty = options()->penalty();        // 1.0e30 is the default
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_node_is_temperature_fixed[node_id]) {
-        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-        m_linear_system.matrixAddValue(dof_id, dof_id, Penalty);
-        Real temperature = Penalty * m_node_temperature[node_id];
-        rhs_values[dof_id] = temperature;
-      }
-    }
-  }else if (options()->enforceDirichletMethod() == "RowElimination") {
-
-    //----------------------------------------------
-    // Row elimination method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
-    //
-    //  to apply the Dirichlet on 'i'th DOF
-    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j
-    //           a_{i,j} = 1.  : i==j
-    //  - For RHS vector b the terms corresponding to the Dirichlet DOF
-    //           b_i = g_i
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_node_is_temperature_fixed[node_id]) {
-        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-
-        Real temperature = m_node_temperature[node_id];
-        m_linear_system.eliminateRow(dof_id, temperature);
-
-      }
-    }
-  }else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
-
-    //----------------------------------------------
-    // Row elimination method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
-    //
-    //  to apply the Dirichlet on 'i'th DOF
-    //  - For RHS vector b the terms corresponding to the Dirichlet DOF
-    //           b_i = g_i and b_j = b_j - a_{j,i}*g_i
-    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j  for all j
-    //           a_{i,j} = 1.  : i==j
-    //    also the column terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j  for all i
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_node_is_temperature_fixed[node_id]) {
-        DoFLocalId dof_id = node_dof.dofId(*inode, 0);
-
-        Real temperature = m_node_temperature[node_id];
-        m_linear_system.eliminateRowColumn(dof_id, temperature);
-
-      }
-    }
-  }else {
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " is not supported \n"
-           << "enforce-Dirichlet-method only supports:\n"
-           << "  - Penalty\n"
-           << "  - WeakPenalty\n"
-           << "  - RowElimination\n"
-           << "  - RowColumnElimination\n";
-  }
-
-
-  //----------------------------------------------
-  // Constant source term assembly
-  //----------------------------------------------
-  //
-  //  $int_{Omega}(qdot*v^h)$
-  //  only for nodes that are non-Dirichlet
-  //----------------------------------------------
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-    Real area = _computeAreaTriangle3(cell);
-    for (Node node : cell.nodes()) {
-      if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
-        rhs_values[node_dof.dofId(node, 0)] += (m_node_temperature_old[node]/dt) * area / ElementNodes;
-    }
-  }
-
-  //----------------------------------------------
-  // Constant flux term assembly
-  //----------------------------------------------
-  //
-  //  $int_{dOmega_N}((q.n)*v^h)$
-  //  only for nodes that are non-Dirichlet
-  //  TODO : take flux vector and use normal at boundaries
-  //----------------------------------------------
-  for (const auto& bs : options()->neumannBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    Real value = bs->value();
-    ENUMERATE_ (Face, iface, group) {
-      Face face = *iface;
-      Real length = _computeEdgeLength2(face);
-      for (Node node : iface->nodes()) {
-        if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
-          rhs_values[node_dof.dofId(node, 0)] += value * length / 2.;
-      }
-    }
-  }
-
   //----------------------------------------------
   // Convection term assembly
   //----------------------------------------------
@@ -447,11 +217,32 @@ _assembleLinearOperator()
       Face face = *iface;
       Real length = _computeEdgeLength2(face);
       for (Node node : iface->nodes()) {
-        if (!(m_node_is_temperature_fixed[node]) && node.isOwn())
+        if (node.isOwn())
           rhs_values[node_dof.dofId(node, 0)] += h * Text * length / 2.;
       }
     }
   }
+
+  // Helper lambda to apply boundary conditions
+  auto applyBoundaryConditions = [&](auto BCFunctions) {
+    m_node_temperature_old.mult(1.0 / dt);
+    BCFunctions.applyVariableSourceToRhs(m_node_temperature_old, mesh(), node_dof, m_node_coord, rhs_values);
+
+    BC::IArcaneFemBC* bc = options()->boundaryConditions();
+    if (bc) {
+      for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
+        BCFunctions.applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+
+      for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
+        BCFunctions.applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+
+      for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions())
+        BCFunctions.applyPointDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+    }
+  };
+
+  using BCFunctions = ArcaneFemFunctions::BoundaryConditions2D;
+  applyBoundaryConditions(BCFunctions());
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] rhs-vector-assembly", elapsedTime);
@@ -788,10 +579,6 @@ _solve()
   Real elapsedTime = platform::getRealTime();
 
   m_linear_system.solve();
-
-  // Re-Apply boundary conditions because the solver has modified the value
-  // of node_temperature on all nodes
-  _applyDirichletBoundaryConditions();
 
   {
     VariableDoFReal& dof_temperature(m_linear_system.solutionVariable());

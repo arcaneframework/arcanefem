@@ -25,12 +25,13 @@
     <tmax>20.</tmax>
     <dt>0.4</dt>
     <Tinit>30.0</Tinit>
-    <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
-    <penalty>1.e31</penalty>
-    <dirichlet-boundary-condition>
-      <surface>left</surface>
-      <value>10.0</value>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
+        <surface>left</surface>
+        <value>10.0</value>
+      </dirichlet>
+    </boundary-conditions>
     <linear-system>
       <solver-backend>petsc</solver-backend>
       <solver-method>pcg</solver-method>
