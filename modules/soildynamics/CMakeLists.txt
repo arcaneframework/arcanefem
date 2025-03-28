@@ -62,15 +62,45 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 endif()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-  add_test(NAME [soildynamics]2d_double-couple_paraxial COMMAND Soildynamics inputs/double-couple.paraxial.arc)
-  add_test(NAME [soildynamics]2d_double-couple_paraxial_body-force COMMAND Soildynamics inputs/double-couple.paraxial.body-force.arc)
-  add_test(NAME [soildynamics]2d_double-couple_paraxial_soil COMMAND Soildynamics inputs/double-couple.paraxial.soil.arc)
-  add_test(NAME [soildynamics]3d_double-couple_paraxial_soil COMMAND Soildynamics inputs/3d.double-couple.paraxial.soil.arc)
-  add_test(NAME [soildynamics]3d_all-conditions COMMAND Soildynamics inputs/3d.all-conditions.arc)
+  set(SOLVER_HYPRE_CG
+  -A,//fem/linear-system/@name=HypreLinearSystem
+  -A,//fem/linear-system/solver=cg
+  -A,//fem/linear-system/atol=1e-9
+  -A,//fem/linear-system/rtol=0)
+
+  add_test(NAME [soildynamics]2d_double-couple_paraxial COMMAND Soildynamics
+    inputs/double-couple.paraxial.arc)
+
+  add_test(NAME [soildynamics]2d_double-couple_paraxial_body-force COMMAND Soildynamics
+    -A,//fem/linear-system/solver-backend=hypre
+    inputs/double-couple.paraxial.body-force.arc)
+
+  add_test(NAME [soildynamics]2d_double-couple_paraxial_soil COMMAND Soildynamics
+    inputs/double-couple.paraxial.soil.arc)
+
+  add_test(NAME [soildynamics]3d_double-couple_paraxial_soil COMMAND Soildynamics
+    -A,//fem/linear-system/solver-backend=hypre
+    inputs/3d.double-couple.paraxial.soil.arc)
+
+  add_test(NAME [soildynamics]3d_all-conditions COMMAND Soildynamics
+    inputs/3d.all-conditions.arc)
+
+  arcanefem_add_gpu_test(NAME [soildynamics]2d_double-couple_paraxial_body-force_bsr COMMAND  ./Soildynamics ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/double-couple.paraxial.body-force.arc)
+
+  arcanefem_add_gpu_test(NAME [soildynamics]3d_double-couple_paraxial_soil_bsr COMMAND  ./Soildynamics ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/3d.double-couple.paraxial.soil.arc)
+
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [soildynamics]2d_double-couple_paraxial_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/double-couple.paraxial.arc)
     add_test(NAME [soildynamics]2d_double-couple_paraxial_soil_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/double-couple.paraxial.soil.arc)
-    add_test(NAME [soildynamics]3d_double-couple_paraxial_soil_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/3d.double-couple.paraxial.soil.arc)
+    add_test(NAME [soildynamics]3d_double-couple_paraxial_soil_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics
+      -A,//fem/linear-system/solver-backend=hypre
+      inputs/3d.double-couple.paraxial.soil.arc)
     add_test(NAME [soildynamics]3d_all-conditions_2p  COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/3d.all-conditions.arc)
   endif()
 endif()
