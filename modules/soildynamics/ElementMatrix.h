@@ -174,24 +174,23 @@ RealMatrix<12, 12> FemModule::_compute3dElementMatrixTetra4(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 RealMatrix<9, 9> FemModule::
-_compute3dElementMatrixTria3(Face face)
+_computeParaxialElementMatrixTria3(Face face)
 {
-  Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
   Real3 N = ArcaneFemFunctions::MeshOperation::computeNormalTriangle(face, m_node_coord);
 
   RealVector<9> Ux = {1., 0., 0., 1., 0., 0., 1., 0., 0.};
   RealVector<9> Uy = {0., 1., 0., 0., 1., 0., 0., 1., 0.};
   RealVector<9> Uz = {0., 0., 1., 0., 0., 1., 0., 0., 1.};
 
-  RealMatrix<9, 9> int_Omega_i = (c7*(N.x*N.x*cp + (1.-N.x*N.x)*cs)) * (massMatrix(Ux,Ux)) * area/12. +
-                                  (c7*(N.y*N.y*cp + (1.-N.y*N.y)*cs)) * (massMatrix(Uy,Uy)) * area/12. +
-                                  (c7*(N.z*N.z*cp + (1.-N.z*N.z)*cs)) * (massMatrix(Uz,Uz)) * area/12. +
-                                  (c7*(N.x*N.y*(cp - cs))) * (massMatrix(Ux,Uy)) * area/12. +
-                                  (c7*(N.x*N.z*(cp - cs))) * (massMatrix(Ux,Uz)) * area/12. +
-                                  (c7*(N.y*N.x*(cp - cs))) * (massMatrix(Uy,Ux)) * area/12. +
-                                  (c7*(N.y*N.z*(cp - cs))) * (massMatrix(Uy,Uz)) * area/12. +
-                                  (c7*(N.z*N.x*(cp - cs))) * (massMatrix(Uz,Ux)) * area/12. +
-                                  (c7*(N.z*N.y*(cp - cs))) * (massMatrix(Uz,Uy)) * area/12.
+  RealMatrix<9, 9> int_Omega_i =  (((N.x*N.x*cp + (1.-N.x*N.x)*cs)) * (massMatrix(Ux,Ux)) +
+                                   ((N.y*N.y*cp + (1.-N.y*N.y)*cs)) * (massMatrix(Uy,Uy)) +
+                                   ((N.z*N.z*cp + (1.-N.z*N.z)*cs)) * (massMatrix(Uz,Uz)) +
+                                   ((N.x*N.y*(cp - cs))) * (massMatrix(Ux,Uy))  +
+                                   ((N.x*N.z*(cp - cs))) * (massMatrix(Ux,Uz))  +
+                                   ((N.y*N.x*(cp - cs))) * (massMatrix(Uy,Ux))  +
+                                   ((N.y*N.z*(cp - cs))) * (massMatrix(Uy,Uz))  +
+                                   ((N.z*N.x*(cp - cs))) * (massMatrix(Uz,Ux))  +
+                                   ((N.z*N.y*(cp - cs))) * (massMatrix(Uz,Uy)) ) / 12.
                                   ;
 
   return int_Omega_i;

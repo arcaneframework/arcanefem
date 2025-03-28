@@ -142,7 +142,7 @@ class FemModule
 
   RealMatrix<4, 4> _compute2dElementMatrixEdge2(Face face);
   RealMatrix<6, 6> _compute2dElementMatrixTria3(Cell cell);
-  RealMatrix<9, 9> _compute3dElementMatrixTria3(Face face);
+  RealMatrix<9, 9> _computeParaxialElementMatrixTria3(Face face);
   RealMatrix<12, 12> _compute3dElementMatrixTetra4(Cell cell);
 };
 
