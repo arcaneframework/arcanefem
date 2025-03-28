@@ -71,8 +71,6 @@ startInit()
   bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem";
   if (m_matrix_format == "BSR")
     m_bsr_format.initialize(defaultMesh(), mesh()->dimension(), use_csr_in_linearsystem, 0);
-  else if (m_matrix_format == "AF-BSR")
-    m_bsr_format.initialize(defaultMesh(), mesh()->dimension(), use_csr_in_linearsystem, 1);
 
   t = dt;
   tmax = tmax;
@@ -296,7 +294,10 @@ _assembleLinearOperator()
     else
       _assembleLinearOperator2d();
   if (mesh()->dimension() == 3)
-    _assembleLinearOperator3d();
+    if (m_matrix_format == "BSR")
+      _assembleLinearOperator3d(&(m_bsr_format.matrix()));
+    else
+      _assembleLinearOperator3d();
 
   if(m_matrix_format == "BSR")
     m_bsr_format.toLinearSystem(m_linear_system);
@@ -957,7 +958,10 @@ _assembleBilinearOperator()
       else if(m_matrix_format == "BSR")
         _assembleBilinearOperatorTria3Gpu();
     if (mesh()->dimension() == 3)
-      _assembleBilinearOperatorTetra4();
+      if(m_matrix_format == "DOK")
+        _assembleBilinearOperatorTetra4();
+      else if(m_matrix_format == "BSR")
+        _assembleBilinearOperatorTetra4Gpu();
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -983,6 +987,27 @@ _assembleBilinearOperatorTria3Gpu()
   m_bsr_format.computeSparsity();
   m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, c0_copy, c1_copy, c2_copy); });
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleBilinearOperatorTetra4Gpu()
+{
+  UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+  auto cn_cv = m_connectivity_view.cellNode();
+  auto fn_cv = m_connectivity_view.faceNode();
+  auto command = makeCommand(acceleratorMng()->defaultQueue());
+  FaceInfoListView faces_infos(mesh()->faceFamily());
+  auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
+  auto c0_copy = c0;
+  auto c1_copy = c1;
+  auto c2_copy = c2;
+
+  m_bsr_format.computeSparsity();
+  m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, c0_copy, c1_copy, c2_copy); });
+}
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 

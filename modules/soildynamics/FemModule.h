@@ -75,6 +75,7 @@ class FemModule
  VersionInfo versionInfo() const override { return VersionInfo(1, 0, 0); }
 
  void _assembleBilinearOperatorTria3Gpu();
+ void _assembleBilinearOperatorTetra4Gpu();
 
  private:
 
