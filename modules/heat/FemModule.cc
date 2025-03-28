@@ -147,8 +147,9 @@ _doStationarySolve()
   // # T=linalg.solve(K,RHS)
   _solve();
 
-  // Check results
-  _checkResultFile();
+  // # update time
+  if (t >= tmax)
+    _checkResultFile();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -835,7 +836,7 @@ _checkResultFile()
   if (allNodes().size() < 200) {
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      info() << "T[" << node.localId() << "][" << node.uniqueId() << "] = "
+      info() << "T[" << node.uniqueId() << "] = "
              << m_node_temperature[node];
     }
   }

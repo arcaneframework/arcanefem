@@ -20,6 +20,7 @@
   </meshes>
 
   <fem>
+    <result-file>check/2d_conduction_convection.txt</result-file>
     <lambda>1.75</lambda>
     <tmax>20.</tmax>
     <dt>0.4</dt>

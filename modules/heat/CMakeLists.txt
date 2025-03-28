@@ -12,6 +12,9 @@ configure_file(Heat.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 # Copy the inputs folder containing the arc files
 file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
+# Copy the check files in the binary directory
+file(COPY "check" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
 # Copy the mesh files into meshes directory
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
