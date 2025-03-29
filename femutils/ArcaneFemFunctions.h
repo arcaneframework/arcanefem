@@ -931,6 +931,34 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
+     * @brief Applies a constant source term to the RHS vector.
+     *
+     * This method adds a constant source term `qdot` to the RHS vector for each
+     * node in the mesh. The contribution to each node is weighted by the area of
+     * the cell and evenly distributed among the number of nodes of the cell.
+     *
+     * @param [IN]  qdot       : The constant source term.
+     * @param [IN]  mesh       : The mesh containing all cells.
+     * @param [IN]  node_dof   : DOF connectivity view.
+     * @param [IN]  node_coord : The coordinates of the nodes.
+     * @param [OUT] rhs_values : The RHS values to update.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline void applyVariableSourceToRhs(VariableNodeReal& qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      ENUMERATE_ (Cell, icell, mesh->allCells()) {
+        Cell cell = *icell;
+        Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, node_coord);
+        for (Node node : cell.nodes()) {
+          if (node.isOwn())
+            rhs_values[node_dof.dofId(node, 0)] += qdot[node] * volume / cell.nbNode();
+        }
+      }
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
      * @brief Applies a manufactured source term to the RHS vector.
      *
      * This method adds a manufactured source term to the RHS vector for each
