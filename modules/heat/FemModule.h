@@ -58,32 +58,15 @@ class FemModule
 
  public:
 
-  //! Method called at each iteration
-  void compute() override;
-
-  //! Method called at the beginning of the simulation
-  void startInit() override;
-
-  VersionInfo versionInfo() const override
-  {
-    return VersionInfo(1, 0, 0);
-  }
+  void startInit() override; //! Method called at the beginning of the simulation
+  void compute() override; //! Method called at each iteration
+  VersionInfo versionInfo() const override { return VersionInfo(1, 0, 0); }
 
  private:
 
-  //! Time variables
-  Real t   ,
-       dt  ,
-       tmax;
-  //! Temperature
-  Real Tinit ,
-       Text  ;
-  //! Material parameters
-  Real lambda ,
-       h      ,
-       qdot   ;
-  //! FEM parameter
-  Real ElementNodes;
+  Real t, dt, tmax; //! Time variables
+  Real Tinit, Text; //! Temperature
+  Real lambda, h, qdot; //! Material parameters
 
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;

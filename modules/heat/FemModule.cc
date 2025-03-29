@@ -37,13 +37,13 @@ startInit()
   m_cross_validation = options()->crossValidation();
   m_petsc_flags = options()->petscFlags();
 
-  _initTime();                  // initialize time
-  _getParameters();             // get material parameters
-  _initTemperature();           // initialize temperature
+  _initTime(); // initialize time
+  _getParameters(); // get material parameters
+  _initTemperature(); // initialize temperature
   m_global_deltat.assign(dt);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "initialize", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -72,7 +72,7 @@ compute()
   _updateTime();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"compute", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "compute", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -83,11 +83,10 @@ _initTime()
 {
   info() << "[ArcaneFem-Info] Started module _initTime()";
 
-  tmax   = options()->tmax();
-  dt     = options()->dt();
-
-  tmax = tmax ;
-  t    = 0.0;
+  tmax = options()->tmax();
+  dt = options()->dt();
+  tmax = tmax;
+  t = 0.0;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -138,7 +137,7 @@ _updateVariables()
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "update-variables", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
