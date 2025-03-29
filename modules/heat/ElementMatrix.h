@@ -37,3 +37,31 @@ _computeElementMatrixTria3(Cell cell)
 
   return lambda * (area * (dxU ^ dxU) + area * (dyU ^ dyU)) + (1 / 12.) * massMatrix(U, U) * area / dt;
 }
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Computes the element matrix for a tetrahedral element (ℙ1 FE).
+ *
+ * This function calculates the integral of the expression:
+ *       a(𝑢,𝑣) = ∫∫∫ λ(∂𝑢/∂𝑥 ∂𝑣/∂𝑥  + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦 + ∂𝑢/∂𝑧 ∂𝑣/∂𝑧)dΩ + ∫∫∫ (𝑢𝑣/δ𝑡)dΩ
+ *
+ * Steps involved:
+ * 1. Calculate the area of the triangle.
+ * 2. Compute the gradients of the shape functions.
+ * 3. Return a(𝑢,𝑣);
+ */
+/*---------------------------------------------------------------------------*/
+
+RealMatrix<4, 4> FemModule::
+_computeElementMatrixTetra4(Cell cell)
+{
+  Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
+
+  RealVector<4> U = { 1., 1., 1., 1. };
+  Real4 dxU = ArcaneFemFunctions::FeOperation3D::computeGradientXTetra4(cell, m_node_coord);
+  Real4 dyU = ArcaneFemFunctions::FeOperation3D::computeGradientYTetra4(cell, m_node_coord);
+  Real4 dzU = ArcaneFemFunctions::FeOperation3D::computeGradientZTetra4(cell, m_node_coord);
+
+  return lambda * (volume * (dxU ^ dxU) + volume * (dyU ^ dyU) + volume * (dzU ^ dzU))
+         + (1 / 20.) * massMatrix(U, U) * volume / dt;
+}

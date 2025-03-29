@@ -88,12 +88,16 @@ class FemModule
   void _doStationarySolve();
   void _getParameters();
   void _assembleBilinearOperator();
-  void _assembleBilinearOperatorTria3();
   void _solve();
   void _assembleLinearOperator();
+  void _applyConvectionToLhsAndRhs();
   void _validateResults();
 
   RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
+  RealMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);
+
+  template <int N>
+  void _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
 };
 
 #endif
