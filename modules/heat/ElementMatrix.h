@@ -33,6 +33,7 @@ _computeElementMatrixTria3(Cell cell)
   RealVector<3> U = { 1., 1., 1. };
   Real3 dxU = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
   Real3 dyU = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
+  Real lambda = m_cell_lambda[cell];
 
   return lambda * (area * (dxU ^ dxU) + area * (dyU ^ dyU)) + (1 / 12.) * massMatrix(U, U) * area / dt;
 }

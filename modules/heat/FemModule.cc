@@ -43,9 +43,6 @@ startInit()
   m_global_deltat.assign(dt);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] initialize", elapsedTime);
-
-  elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
 }
 
@@ -75,7 +72,7 @@ compute()
   _updateTime();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] compute", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"compute", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -142,9 +139,8 @@ _updateVariables()
     }
   }
 
-
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] update-variables", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -156,12 +152,7 @@ _initTemperature()
   info() << "[ArcaneFem-Info] Started module _initTemperature()";
 
   Tinit = options()->Tinit();
-
-  // Copy Node temperature to Node temperature old
-  ENUMERATE_ (Node, inode, ownNodes()) {
-    Node node = *inode;
-    m_node_temperature_old[node] = Tinit;
-  }
+  m_node_temperature_old.fill(Tinit);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -194,12 +185,9 @@ _getParameters()
 
   lambda = options()->lambda();
   qdot = options()->qdot();
-  ElementNodes = 3.;
 
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-    m_cell_lambda[cell] = lambda;
-  }
+  // Initialize cell lambda with default value
+  m_cell_lambda.fill(lambda);
 
   for (const auto& bs : options()->materialProperty()) {
     CellGroup group = bs->volume();
@@ -213,7 +201,7 @@ _getParameters()
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] get-material-params", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "get-material-params", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -245,8 +233,8 @@ _assembleLinearOperator()
     Text = bs->Text();
     ENUMERATE_ (Face, iface, group) {
       Face face = *iface;
-      Real length =  ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-      RealVector<2> U = {1., 1.};
+      Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
+      RealVector<2> U = { 1., 1. };
 
       // a(𝑢,𝑣) = ∫ (𝑢𝑣)dΩ  for a line element (ℙ1 FE)
       RealMatrix<2, 2> K_e = (1 / 6.) * massMatrix(U, U) * length;
@@ -292,7 +280,7 @@ _assembleLinearOperator()
   applyBoundaryConditions(BCFunctions());
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] rhs-vector-assembly", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -310,7 +298,7 @@ _assembleBilinearOperator()
   _assembleBilinearOperatorTria3();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] lhs-matrix-assembly", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "lhs-matrix-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -324,8 +312,9 @@ _assembleBilinearOperatorTria3()
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    lambda = m_cell_lambda[cell]; // lambda is always considered cell constant
     auto K_e = _computeElementMatrixTria3(cell); // element stiffness matrix
+
+    // Assemble the global matrix a(𝑢,𝑣) = ∫ (𝑢𝑣)dΩ  for a triangle element (ℙ1 FE)
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
@@ -353,7 +342,7 @@ _solve()
   m_linear_system.solve();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] solve-linear-system", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "solve-linear-system", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -365,13 +354,11 @@ _validateResults()
   info() << "[ArcaneFem-Info] Started module _validateResults()";
   Real elapsedTime = platform::getRealTime();
 
-  if (allNodes().size() < 200) {
+  if (allNodes().size() < 200)
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      info() << "T[" << node.uniqueId() << "] = "
-             << m_node_temperature[node];
+      info() << "T[" << node.uniqueId() << "] = " << m_node_temperature[node];
     }
-  }
 
   String filename = options()->resultFile();
   info() << "ValidateResultFile filename=" << filename;
@@ -380,7 +367,7 @@ _validateResults()
     checkNodeResultFile(traceMng(), filename, m_node_temperature, 1.0e-4);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] result-validation", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "result-validation", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
