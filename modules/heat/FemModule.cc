@@ -123,11 +123,21 @@ _updateVariables()
 
     m_node_temperature.synchronize();
     m_node_temperature_old.synchronize();
-
+    if(mesh()->dimension() == 2)
     ENUMERATE_ (Cell, icell, allCells()) {
       Cell cell = *icell;
 
       Real3 grad = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_node_temperature);
+      m_flux[cell].x = -m_cell_lambda[cell] * grad.x;
+      m_flux[cell].y = -m_cell_lambda[cell] * grad.y;
+      m_flux[cell].z = 0.;
+    }
+
+    if(mesh()->dimension() == 3)
+    ENUMERATE_ (Cell, icell, allCells()) {
+      Cell cell = *icell;
+
+      Real3 grad = ArcaneFemFunctions::FeOperation3D::computeGradientTetra4(cell, m_node_coord, m_node_temperature);
       m_flux[cell].x = -m_cell_lambda[cell] * grad.x;
       m_flux[cell].y = -m_cell_lambda[cell] * grad.y;
       m_flux[cell].z = 0.;
