@@ -89,6 +89,13 @@ class FemModule
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;
 
+  String m_petsc_flags;
+  String m_matrix_format = "DOK";
+
+  bool m_assemble_linear_system = true;
+  bool m_solve_linear_system = true;
+  bool m_cross_validation = true;
+
  private:
 
   void _initTime();
@@ -101,7 +108,7 @@ class FemModule
   void _assembleBilinearOperatorTria3();
   void _solve();
   void _assembleLinearOperator();
-  void _checkResultFile();
+  void _validateResults();
 
   RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
 };

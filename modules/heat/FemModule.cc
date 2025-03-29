@@ -31,6 +31,12 @@ startInit()
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
+  m_matrix_format = options()->matrixFormat();
+  m_assemble_linear_system = options()->assembleLinearSystem();
+  m_solve_linear_system = options()->solveLinearSystem();
+  m_cross_validation = options()->crossValidation();
+  m_petsc_flags = options()->petscFlags();
+
   _initTime();                  // initialize time
   _getParameters();             // get material parameters
   _initTemperature();           // initialize temperature
@@ -38,6 +44,9 @@ startInit()
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] initialize", elapsedTime);
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -57,8 +66,12 @@ compute()
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
+  if (m_petsc_flags != NULL){
+    CommandLineArguments args = ArcaneFemFunctions::GeneralFunctions::getPetscFlagsFromCommandline(m_petsc_flags);
+    m_linear_system.setSolverCommandLineArguments(args);
+  }
+
   _doStationarySolve();
-  _updateVariables();
   _updateTime();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -99,14 +112,39 @@ void FemModule::
 _updateVariables()
 {
   info() << "[ArcaneFem-Info] Started module _updateVariables()";
+  Real elapsedTime = platform::getRealTime();
 
   {
-    // Copy Node temperature to Node temperature old
+    VariableDoFReal& dof_temperature(m_linear_system.solutionVariable());
+    // Copy RHS DoF to Node temperature
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
+      Real v = dof_temperature[node_dof.dofId(node, 0)];
+      m_node_temperature[node] = v;
       m_node_temperature_old[node] = m_node_temperature[node];
     }
+
+    m_node_temperature.synchronize();
+    m_node_temperature_old.synchronize();
+
+    if(m_flux.tagValue("PostProcessing")=="1") {
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+
+        Real3 grad = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_node_temperature);
+        m_flux[cell].x = -m_cell_lambda[cell] * grad.x;
+        m_flux[cell].y = -m_cell_lambda[cell] * grad.y;
+        m_flux[cell].z = 0.;
+      }
+
+      m_flux.synchronize();
+    }
   }
+
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] update-variables", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -117,14 +155,12 @@ _initTemperature()
 {
   info() << "[ArcaneFem-Info] Started module _initTemperature()";
 
-  Tinit   = options()->Tinit();
+  Tinit = options()->Tinit();
 
-  {
-    // Copy Node temperature to Node temperature old
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      Node node = *inode;
-      m_node_temperature_old[node] = Tinit;
-    }
+  // Copy Node temperature to Node temperature old
+  ENUMERATE_ (Node, inode, ownNodes()) {
+    Node node = *inode;
+    m_node_temperature_old[node] = Tinit;
   }
 }
 
@@ -134,19 +170,17 @@ _initTemperature()
 void FemModule::
 _doStationarySolve()
 {
-
-  // Assemble the FEM bilinear operator (LHS - matrix A)
-  _assembleBilinearOperator();
-
-  // Assemble the FEM linear operator (RHS - vector b)
-  _assembleLinearOperator();
-
-  // # T=linalg.solve(K,RHS)
-  _solve();
-
-  // # update time
-  if (t >= tmax)
-    _checkResultFile();
+  if(m_assemble_linear_system){
+    _assembleBilinearOperator();
+    _assembleLinearOperator();
+  }
+  if(m_solve_linear_system){
+    _solve();
+    _updateVariables();
+  }
+  if(m_cross_validation && (t >= tmax)){
+    _validateResults();
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -203,11 +237,7 @@ _assembleLinearOperator()
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   //----------------------------------------------
-  // Convection term assembly
-  //----------------------------------------------
-  //
-  //  $int_{dOmega_C}( h*Text*v^h)$
-  //  only for nodes that are non-Dirichlet
+  // Convection term assembly $int_{dOmega_C}( h*Text*v^h)$
   //----------------------------------------------
   for (const auto& bs : options()->convectionBoundaryCondition()) {
     FaceGroup group = bs->surface();
@@ -322,33 +352,6 @@ _solve()
 
   m_linear_system.solve();
 
-  {
-    VariableDoFReal& dof_temperature(m_linear_system.solutionVariable());
-    // Copy RHS DoF to Node temperature
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      Node node = *inode;
-      Real v = dof_temperature[node_dof.dofId(node, 0)];
-      m_node_temperature[node] = v;
-    }
-
-    m_node_temperature.synchronize();
-    m_node_temperature_old.synchronize();
-
-    if(m_flux.tagValue("PostProcessing")=="1") {
-      ENUMERATE_ (Cell, icell, allCells()) {
-        Cell cell = *icell;
-
-        Real3 grad = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_node_temperature);
-        m_flux[cell].x = -m_cell_lambda[cell] * grad.x;
-        m_flux[cell].y = -m_cell_lambda[cell] * grad.y;
-        m_flux[cell].z = 0.;
-      }
-
-      m_flux.synchronize();
-    }
-  }
-
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] solve-linear-system", elapsedTime);
 }
@@ -357,7 +360,7 @@ _solve()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_checkResultFile()
+_validateResults()
 {
   info() << "[ArcaneFem-Info] Started module _validateResults()";
   Real elapsedTime = platform::getRealTime();
