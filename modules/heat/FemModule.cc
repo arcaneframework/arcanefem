@@ -125,18 +125,16 @@ _updateVariables()
     m_node_temperature.synchronize();
     m_node_temperature_old.synchronize();
 
-    if(m_flux.tagValue("PostProcessing")=="1") {
-      ENUMERATE_ (Cell, icell, allCells()) {
-        Cell cell = *icell;
+    ENUMERATE_ (Cell, icell, allCells()) {
+      Cell cell = *icell;
 
-        Real3 grad = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_node_temperature);
-        m_flux[cell].x = -m_cell_lambda[cell] * grad.x;
-        m_flux[cell].y = -m_cell_lambda[cell] * grad.y;
-        m_flux[cell].z = 0.;
-      }
-
-      m_flux.synchronize();
+      Real3 grad = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_node_temperature);
+      m_flux[cell].x = -m_cell_lambda[cell] * grad.x;
+      m_flux[cell].y = -m_cell_lambda[cell] * grad.y;
+      m_flux[cell].z = 0.;
     }
+
+    m_flux.synchronize();
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;

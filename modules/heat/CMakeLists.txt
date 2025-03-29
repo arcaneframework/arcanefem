@@ -43,10 +43,34 @@ enable_testing()
 
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
-  add_test(NAME [heat]conduction COMMAND heat inputs/conduction.arc)
-  add_test(NAME [heat]conduction_RowElimination_Dirichlet COMMAND heat inputs/conduction.DirichletViaRowElimination.arc)
-  add_test(NAME [heat]conduction_RowColElimination_Dirichlet COMMAND heat inputs/conduction.DirichletViaRowColumnElimination.arc)
-  add_test(NAME [heat]conduction_convection COMMAND heat inputs/conduction.convection.arc)
+  add_test(NAME [heat]conduction COMMAND heat
+    inputs/conduction.arc)
+
+  add_test(NAME [heat]conduction_RowElimination_Dirichlet COMMAND heat
+    -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowElimination
+    -A,//fem/linear-system/solver-backend=petsc
+    -A,//fem/linear-system/solver-method=gmres
+    inputs/conduction.arc)
+
+  add_test(NAME [heat]conduction_RowColElimination_Dirichlet COMMAND heat
+  -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
+    inputs/conduction.arc)
+
+  add_test(NAME [heat]conduction_convection COMMAND heat
+    inputs/conduction.convection.arc)
+
+    add_test(NAME [heat]conduction_neumann_pointBC COMMAND heat
+    inputs/conduction.neumann.point-dirichlet.arc)
+
+  add_test(NAME [heat]conduction_petsc_monitor COMMAND heat
+    -A,//fem/petsc-flags=-ksp_monitor
+    inputs/conduction.arc)
+
+  add_test(NAME [heat]2d_parse_and_exit COMMAND heat
+    -A,//fem/assemble-linear-system=false
+    -A,//fem/solve-linear-system=false
+    -A,//fem/cross-validation=false
+    inputs/conduction.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [heat]conduction_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat inputs/conduction.arc)

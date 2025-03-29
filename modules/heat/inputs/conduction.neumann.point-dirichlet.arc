@@ -20,22 +20,28 @@
   </meshes>
 
   <fem>
-    <result-file>check/2d_conduction.txt</result-file>
     <lambda>1.75</lambda>
     <tmax>20.</tmax>
     <dt>0.4</dt>
     <Tinit>30.0</Tinit>
+    <result-file>check/2d_conduction_neumann_pointBC.txt</result-file>
     <boundary-conditions>
-      <dirichlet>
-        <enforce-Dirichlet-method>RowElimination</enforce-Dirichlet-method>
+      <dirichlet-point>
+        <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+        <penalty>1.e31</penalty>
+        <node>topLeft</node>
+        <value>1.8</value>
+      </dirichlet-point>
+      <dirichlet-point>
+        <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+        <penalty>1.e31</penalty>
+        <node>botRight</node>
+        <value>31.0</value>
+      </dirichlet-point>
+      <neumann>
         <surface>left</surface>
-        <value>10.0</value>
-      </dirichlet>
+        <value>9.6</value>
+      </neumann>
     </boundary-conditions>
-    <linear-system>
-      <solver-backend>petsc</solver-backend>
-      <solver-method>gmres</solver-method>
-      <preconditioner>ilu</preconditioner>
-    </linear-system>
   </fem>
 </case>
