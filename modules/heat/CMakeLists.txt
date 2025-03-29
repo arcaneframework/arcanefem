@@ -84,7 +84,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 
     add_test(NAME [heat]conduction_RowColElimination_Dirichlet_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
       -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
-      inputs/conduction.DirichletViaRowColumnElimination.arc)
+      inputs/conduction.arc)
 
     add_test(NAME [heat]conduction_convection_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
       inputs/conduction.convection.arc)
