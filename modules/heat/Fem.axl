@@ -15,9 +15,6 @@
     <variable field-name="node_temperature_old" name="NodeTemperatureOld" data-type="real" item-kind="node" dim="0">
       <description>Temperature on variables for node coords at time t-dt</description>
     </variable>
-    <variable field-name="node_is_temperature_fixed" name="NodeIsTemperatureFixed" data-type="bool" item-kind="node" dim="0">
-      <description>Boolean which is true if temperature is fixed on the node</description>
-    </variable>
     <variable field-name="flux" name="Flux" data-type="real3" item-kind="cell" dim="0">
       <description>Flux of heat on variables cells</description>
     </variable>
@@ -47,80 +44,26 @@
     <simple name="Tinit" type="real" default="0.0">
       <description>Initial temperature.</description>
     </simple>
-    <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
-      <description>
-        Method via which Dirichlet boundary condition is imposed
-      </description>
-    </simple>
-    <simple name = "penalty" type = "real" default="1.e30" optional="true">
-      <description>
-        Penalty value for enforcing Dirichlet condition
-      </description>
+
+    <simple name="matrix-format" type="string" default="DOK" optional="true">
+      <description>Which matrix format to use DOK|BSR|AF-BSR.</description>
     </simple>
 
-    <!-- - - - - - dirichlet-boundary-condition - - - - -->
-    <complex name  = "dirichlet-boundary-condition"
-             type  = "DirichletBoundaryCondition"
-             minOccurs = "0"
-             maxOccurs = "unbounded"
-      >
-      <description>
-        Dirichlet boundary condition
-      </description>
-      <extended name = "surface" type = "Arcane::FaceGroup">
-        <description>
-          FaceGroup on which to apply these boundary condition
-        </description>
-      </extended>
-      <simple name = "value" type = "real">
-        <description>
-          Value of the boundary condition
-        </description>
-      </simple>
-    </complex>
+    <simple name="petsc-flags" type="string" default="" optional="true">
+      <description>Flags for PETSc from commandline.</description>
+    </simple>
 
-    <!-- - - - - - neumann-boundary-condition - - - - -->
-    <complex name  = "neumann-boundary-condition"
-             type  = "NeumannBoundaryCondition"
-             minOccurs = "0"
-             maxOccurs = "unbounded"
-      >
-      <description>
-        Neumann boundary condition
-      </description>
-      <extended name = "surface" type = "Arcane::FaceGroup">
-        <description>
-          FaceGroup on which to apply these boundary condition
-        </description>
-      </extended>
-      <simple name = "value" type = "real">
-        <description>
-          Value of the boundary condition
-        </description>
-      </simple>
-    </complex>
+    <simple name="solve-linear-system" type="bool" default="true" optional="true">
+      <description>Boolean to enable linear system solving.</description>
+    </simple>
 
+    <simple name="assemble-linear-system" type="bool" default="true" optional="true">
+      <description>Boolean to enable linear system assembly.</description>
+    </simple>
 
-    <!-- - - - - - dirichlet-point-condition - - - - -->
-    <complex name  = "dirichlet-point-condition"
-             type  = "DirichletPointCondition"
-             minOccurs = "0"
-             maxOccurs = "unbounded"
-      >
-      <description>
-        Dirichlet point condition
-      </description>
-      <extended name = "node" type = "Arcane::NodeGroup">
-        <description>
-          NodeGroup on which to apply these point Dirichlet condition
-        </description>
-      </extended>
-      <simple name = "value" type = "real">
-        <description>
-          Value of the point Dirichlet condition
-        </description>
-      </simple>
-    </complex>
+    <simple name="cross-validation" type="bool" default="true" optional="true">
+      <description>Boolean to enable cross validation.</description>
+    </simple>
 
     <!-- - - - - - convection-boundary-condition - - - - -->
     <complex name  = "convection-boundary-condition"
@@ -169,9 +112,11 @@
       </simple>
     </complex>
 
-    <service-instance name = "linear-system"
-                      type = "Arcane::FemUtils::IDoFLinearSystemFactory"
-                      default = "AlephLinearSystem"
-                      />
+    <!-- Linear system service instance -->
+    <service-instance name="linear-system" type="Arcane::FemUtils::IDoFLinearSystemFactory" default="AlephLinearSystem" />
+
+    <!-- Boundary conditions service instance -->
+    <service-instance name = "boundary-conditions" type = "BC::IArcaneFemBC" optional = "true" default="FemBoundaryConditions" />
+
   </options>
 </module>

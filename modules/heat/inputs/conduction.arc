@@ -20,15 +20,18 @@
   </meshes>
 
   <fem>
+    <result-file>check/2d_conduction.txt</result-file>
     <lambda>1.75</lambda>
     <tmax>20.</tmax>
     <dt>0.4</dt>
     <Tinit>30.0</Tinit>
-    <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-    <penalty>1.e31</penalty>
-    <dirichlet-boundary-condition>
-      <surface>left</surface>
-      <value>10.0</value>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+        <penalty>1.e31</penalty>
+        <surface>left</surface>
+        <value>10.0</value>
+      </dirichlet>
+    </boundary-conditions>
   </fem>
 </case>

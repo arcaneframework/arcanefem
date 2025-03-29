@@ -20,33 +20,28 @@
   </meshes>
 
   <fem>
-    <result-file>check/2d_conduction_convection.txt</result-file>
     <lambda>1.75</lambda>
     <tmax>20.</tmax>
     <dt>0.4</dt>
     <Tinit>30.0</Tinit>
+    <result-file>check/2d_conduction_neumann_pointBC.txt</result-file>
     <boundary-conditions>
-      <dirichlet>
+      <dirichlet-point>
         <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
         <penalty>1.e31</penalty>
+        <node>topLeft</node>
+        <value>1.8</value>
+      </dirichlet-point>
+      <dirichlet-point>
+        <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+        <penalty>1.e31</penalty>
+        <node>botRight</node>
+        <value>31.0</value>
+      </dirichlet-point>
+      <neumann>
         <surface>left</surface>
-        <value>10.0</value>
-      </dirichlet>
+        <value>9.6</value>
+      </neumann>
     </boundary-conditions>
-    <convection-boundary-condition>
-      <surface>right</surface>
-      <h>1.</h>
-      <Text>20.</Text>
-    </convection-boundary-condition>
-    <convection-boundary-condition>
-      <surface>top</surface>
-      <h>1.</h>
-      <Text>20.</Text>
-    </convection-boundary-condition>
-    <convection-boundary-condition>
-      <surface>bottom</surface>
-      <h>1.</h>
-      <Text>20.</Text>
-    </convection-boundary-condition>
   </fem>
 </case>

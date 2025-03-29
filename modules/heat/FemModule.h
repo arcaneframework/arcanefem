@@ -23,11 +23,13 @@
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 
+#include "IArcaneFemBC.h"
 #include "IDoFLinearSystemFactory.h"
 #include "Fem_axl.h"
 #include "FemUtils.h"
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
+#include "ArcaneFemFunctions.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -87,6 +89,13 @@ class FemModule
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;
 
+  String m_petsc_flags;
+  String m_matrix_format = "DOK";
+
+  bool m_assemble_linear_system = true;
+  bool m_solve_linear_system = true;
+  bool m_cross_validation = true;
+
  private:
 
   void _initTime();
@@ -95,26 +104,13 @@ class FemModule
   void _initTemperature();
   void _doStationarySolve();
   void _getParameters();
-  void _updateBoundayConditions();
   void _assembleBilinearOperator();
-  void _assembleBilinearOperatorTRIA3();
-  void _assembleBilinearOperatorEDGE2();
+  void _assembleBilinearOperatorTria3();
   void _solve();
-  void _initBoundaryconditions();
   void _assembleLinearOperator();
-  void _applyDirichletBoundaryConditions();
-  void _checkResultFile();
+  void _validateResults();
 
-  void _printArcaneFemTime(const String label, const Real value);
-
-  RealMatrix<2, 2> _computeElementMatrixEDGE2(Face face);
-  RealMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
-  Real  _computeDxOfRealTRIA3(Cell cell);
-  Real  _computeDyOfRealTRIA3(Cell cell);
-  Real2 _computeDxDyOfRealTRIA3(Cell cell);
-  Real _computeAreaTriangle3(Cell cell);
-  Real _computeEdgeLength2(Face face);
-
+  RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
 };
 
 #endif
