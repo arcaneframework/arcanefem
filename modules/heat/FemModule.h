@@ -104,9 +104,6 @@ class FemModule
   void _checkResultFile();
 
   RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
-  Real  _computeDxOfRealTria3(Cell cell);
-  Real  _computeDyOfRealTria3(Cell cell);
-  Real2 _computeDxDyOfRealTria3(Cell cell);
 };
 
 #endif

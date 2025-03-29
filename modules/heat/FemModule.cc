@@ -266,68 +266,6 @@ _assembleLinearOperator()
 }
 
 /*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real FemModule::
-_computeDyOfRealTria3(Cell cell)
-{
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-
-  Real f0 = m_node_temperature[cell.nodeId(0)];
-  Real f1 = m_node_temperature[cell.nodeId(1)];
-  Real f2 = m_node_temperature[cell.nodeId(2)];
-
-  // Using Cramer's rule  det (adj (A)) / det (A)
-  return ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) /
-         ( m0.x*(m1.y - m2.y) - m0.y*(m1.x - m2.x) + (m1.x*m2.y - m2.x*m1.y) );
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real FemModule::
-_computeDxOfRealTria3(Cell cell)
-{
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-
-  Real f0 = m_node_temperature[cell.nodeId(0)];
-  Real f1 = m_node_temperature[cell.nodeId(1)];
-  Real f2 = m_node_temperature[cell.nodeId(2)];
-
-  // Using Cramer's rule  det (adj (A)) / det (A)
-  return ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) /
-         ( m0.x*(m1.y - m2.y) - m0.y*(m1.x - m2.x) + (m1.x*m2.y - m2.x*m1.y) );
-}
-
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real2 FemModule::
-_computeDxDyOfRealTria3(Cell cell)
-{
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-
-  Real f0 = m_node_temperature[cell.nodeId(0)];
-  Real f1 = m_node_temperature[cell.nodeId(1)];
-  Real f2 = m_node_temperature[cell.nodeId(2)];
-
-  Real detA = ( m0.x*(m1.y - m2.y) - m0.y*(m1.x - m2.x) + (m1.x*m2.y - m2.x*m1.y) );
-
-  Real2 DX;
-        DX.x = ( m0.x*(f1 - f2) - f0*(m1.x - m2.x) + (f2*m1.x - f1*m2.x) ) / detA;
-        DX.y = ( f0*(m1.y - m2.y) - m0.y*(f1 - f2) + (f1*m2.y - f2*m1.y) ) / detA;
-
-  return DX ;
-}
-
-/*---------------------------------------------------------------------------*/
 /**
  * @brief Calls the right function for LHS assembly given as mesh type.
  */
@@ -356,20 +294,13 @@ _assembleBilinearOperatorTria3()
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    lambda = m_cell_lambda[cell];                 // lambda is always considered cell constant
-    auto K_e = _computeElementMatrixTria3(cell);  // element stiffness matrix
-    // assemble elementary matrix into the global one elementary terms are
-    // positioned into K according to  the rank of associated  node in the
-    // mesh.nodes list and according the dof number. For each TRIA3  there
-    // are 3 nodes hence the elementary stiffness matrix  size  is (3x3)=6
-    // will be  filled.
+    lambda = m_cell_lambda[cell]; // lambda is always considered cell constant
+    auto K_e = _computeElementMatrixTria3(cell); // element stiffness matrix
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
       for (Node node2 : cell.nodes()) {
-        // K[node1.rank,node2.rank]=K[node1.rank,node2.rank]+K_e[inode1,inode2]
         Real v = K_e(n1_index, n2_index);
-        // m_k_matrix(node1.localId(), node2.localId()) += v;
         if (node1.isOwn()) {
           m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
         }
@@ -408,9 +339,9 @@ _solve()
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
 
-        Real2 DX = _computeDxDyOfRealTria3(cell);
-        m_flux[cell].x = -m_cell_lambda[cell] * DX.x;
-        m_flux[cell].y = -m_cell_lambda[cell] * DX.y;
+        Real3 grad = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_node_temperature);
+        m_flux[cell].x = -m_cell_lambda[cell] * grad.x;
+        m_flux[cell].y = -m_cell_lambda[cell] * grad.y;
         m_flux[cell].z = 0.;
       }
 
