@@ -123,11 +123,21 @@ _updateVariables()
 
     m_node_temperature.synchronize();
     m_node_temperature_old.synchronize();
-
+    if(mesh()->dimension() == 2)
     ENUMERATE_ (Cell, icell, allCells()) {
       Cell cell = *icell;
 
       Real3 grad = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_node_temperature);
+      m_flux[cell].x = -m_cell_lambda[cell] * grad.x;
+      m_flux[cell].y = -m_cell_lambda[cell] * grad.y;
+      m_flux[cell].z = 0.;
+    }
+
+    if(mesh()->dimension() == 3)
+    ENUMERATE_ (Cell, icell, allCells()) {
+      Cell cell = *icell;
+
+      Real3 grad = ArcaneFemFunctions::FeOperation3D::computeGradientTetra4(cell, m_node_coord, m_node_temperature);
       m_flux[cell].x = -m_cell_lambda[cell] * grad.x;
       m_flux[cell].y = -m_cell_lambda[cell] * grad.y;
       m_flux[cell].z = 0.;
@@ -228,31 +238,59 @@ _assembleLinearOperator()
     FaceGroup group = bs->surface();
     h = bs->h();
     Text = bs->Text();
-    ENUMERATE_ (Face, iface, group) {
-      Face face = *iface;
-      Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-      RealVector<2> U = { 1., 1. };
 
-      // a(𝑢,𝑣) = ∫ (𝑢𝑣)dΩ  for a line element (ℙ1 FE)
-      RealMatrix<2, 2> K_e = (1 / 6.) * massMatrix(U, U) * length;
-      Int32 n1_index = 0;
-      for (Node node1 : face.nodes()) {
-        Int32 n2_index = 0;
-        for (Node node2 : face.nodes()) {
-          Real v = K_e(n1_index, n2_index);
-          if (node1.isOwn()) {
-            m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+    if (mesh()->dimension() == 2)
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
+        RealVector<2> U = { 1., 1. };
+
+        // a(𝑢,𝑣) = ∫ (𝑢𝑣)dΩ  for a line element (ℙ1 FE)
+        RealMatrix<2, 2> K_e = (1 / 6.) * massMatrix(U, U) * length;
+        Int32 n1_index = 0;
+        for (Node node1 : face.nodes()) {
+          Int32 n2_index = 0;
+          for (Node node2 : face.nodes()) {
+            Real v = K_e(n1_index, n2_index);
+            if (node1.isOwn()) {
+              m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+            }
+            ++n2_index;
           }
-          ++n2_index;
+          ++n1_index;
         }
-        ++n1_index;
-      }
 
-      for (Node node : iface->nodes()) {
-        if (node.isOwn())
-          rhs_values[node_dof.dofId(node, 0)] += h * Text * length / 2.;
+        for (Node node : iface->nodes()) {
+          if (node.isOwn())
+            rhs_values[node_dof.dofId(node, 0)] += h * Text * length / 2.;
+        }
       }
-    }
+    else if (mesh()->dimension() == 3)
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
+        RealVector<3> U = { 1., 1., 1. };
+
+        // a(𝑢,𝑣) = ∫∫ (𝑢𝑣)dΩ  for a line element (ℙ1 FE)
+        RealMatrix<3, 3> K_e = (1 / 12.) * massMatrix(U, U) * area;
+        Int32 n1_index = 0;
+        for (Node node1 : face.nodes()) {
+          Int32 n2_index = 0;
+          for (Node node2 : face.nodes()) {
+            Real v = K_e(n1_index, n2_index);
+            if (node1.isOwn()) {
+              m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+            }
+            ++n2_index;
+          }
+          ++n1_index;
+        }
+
+        for (Node node : iface->nodes()) {
+          if (node.isOwn())
+            rhs_values[node_dof.dofId(node, 0)] += h * Text * area / 3.;
+        }
+      }
   }
 
   // Helper lambda to apply boundary conditions
@@ -273,8 +311,15 @@ _assembleLinearOperator()
     }
   };
 
-  using BCFunctions = ArcaneFemFunctions::BoundaryConditions2D;
-  applyBoundaryConditions(BCFunctions());
+  // Apply the correct boundary conditions based on mesh dimension
+  if (mesh()->dimension() == 3) {
+    using BCFunctions = ArcaneFemFunctions::BoundaryConditions3D;
+    applyBoundaryConditions(BCFunctions());
+  }
+  else {
+    using BCFunctions = ArcaneFemFunctions::BoundaryConditions2D;
+    applyBoundaryConditions(BCFunctions());
+  }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
@@ -292,26 +337,41 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  _assembleBilinearOperatorTria3();
+  if (mesh()->dimension() == 3)
+    _assembleBilinear<4>([this](const Cell& cell) {
+      return _computeElementMatrixTetra4(cell);
+    });
+  else
+    _assembleBilinear<3>([this](const Cell& cell) {
+      return _computeElementMatrixTria3(cell);
+    });
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "lhs-matrix-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Assembles the bilinear operator matrix for the FEM linear system.
+ *
+ * The method performs the following steps:
+ *   1. For each cell, retrieves the cell-specific constant `lambda`.
+ *   2. Computes element matrix using provided `compute_element_matrix` function.
+ *   3. Assembles global matrix by adding contributions from each cell's element
+ *      matrix to the corresponding entries in the global matrix.
+ */
 /*---------------------------------------------------------------------------*/
 
+template <int N>
 void FemModule::
-_assembleBilinearOperatorTria3()
+_assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    auto K_e = _computeElementMatrixTria3(cell); // element stiffness matrix
-
-    // Assemble the global matrix a(𝑢,𝑣) = ∫ (𝑢𝑣)dΩ  for a triangle element (ℙ1 FE)
+    auto K_e = compute_element_matrix(cell); // element matrix based on the provided function
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
@@ -326,7 +386,6 @@ _assembleBilinearOperatorTria3()
     }
   }
 }
-
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
