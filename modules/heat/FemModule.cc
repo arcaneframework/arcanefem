@@ -239,58 +239,36 @@ _assembleLinearOperator()
     h = bs->h();
     Text = bs->Text();
 
+    auto processConvectionBoundaryCondition = [&](auto U, Real factor, auto computeMeasure, Integer num_nodes) {
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real measure = computeMeasure(face, m_node_coord);
+        auto K_e = factor * massMatrix(U, U) * measure;
+
+        Int32 n1_index = 0;
+        for (Node node1 : face.nodes()) {
+          Int32 n2_index = 0;
+          for (Node node2 : face.nodes()) {
+            Real v = K_e(n1_index, n2_index);
+            if (node1.isOwn()) {
+              m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+            }
+            ++n2_index;
+          }
+          ++n1_index;
+        }
+
+        for (Node node : iface->nodes()) {
+          if (node.isOwn())
+            rhs_values[node_dof.dofId(node, 0)] += h * Text * measure / num_nodes;
+        }
+      }
+    };
+
     if (mesh()->dimension() == 2)
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-        RealVector<2> U = { 1., 1. };
-
-        // a(𝑢,𝑣) = ∫ (𝑢𝑣)dΩ  for a line element (ℙ1 FE)
-        RealMatrix<2, 2> K_e = (1 / 6.) * massMatrix(U, U) * length;
-        Int32 n1_index = 0;
-        for (Node node1 : face.nodes()) {
-          Int32 n2_index = 0;
-          for (Node node2 : face.nodes()) {
-            Real v = K_e(n1_index, n2_index);
-            if (node1.isOwn()) {
-              m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
-            }
-            ++n2_index;
-          }
-          ++n1_index;
-        }
-
-        for (Node node : iface->nodes()) {
-          if (node.isOwn())
-            rhs_values[node_dof.dofId(node, 0)] += h * Text * length / 2.;
-        }
-      }
+      processConvectionBoundaryCondition(RealVector<2>{1., 1.}, 1 / 6., ArcaneFemFunctions::MeshOperation::computeLengthEdge2, 2);
     else if (mesh()->dimension() == 3)
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
-        RealVector<3> U = { 1., 1., 1. };
-
-        // a(𝑢,𝑣) = ∫∫ (𝑢𝑣)dΩ  for a line element (ℙ1 FE)
-        RealMatrix<3, 3> K_e = (1 / 12.) * massMatrix(U, U) * area;
-        Int32 n1_index = 0;
-        for (Node node1 : face.nodes()) {
-          Int32 n2_index = 0;
-          for (Node node2 : face.nodes()) {
-            Real v = K_e(n1_index, n2_index);
-            if (node1.isOwn()) {
-              m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
-            }
-            ++n2_index;
-          }
-          ++n1_index;
-        }
-
-        for (Node node : iface->nodes()) {
-          if (node.isOwn())
-            rhs_values[node_dof.dofId(node, 0)] += h * Text * area / 3.;
-        }
-      }
+      processConvectionBoundaryCondition(RealVector<3>{1., 1., 1.}, 1 / 12., ArcaneFemFunctions::MeshOperation::computeAreaTria3, 3);
   }
 
   // Helper lambda to apply boundary conditions
