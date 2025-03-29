@@ -53,7 +53,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/conduction.arc)
 
   add_test(NAME [heat]conduction_RowColElimination_Dirichlet COMMAND heat
-  -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
+    -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
     inputs/conduction.arc)
 
   add_test(NAME [heat]conduction_convection COMMAND heat
@@ -73,10 +73,25 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/conduction.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-    add_test(NAME [heat]conduction_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat inputs/conduction.arc)
-    add_test(NAME [heat]conduction_RowElimination_Dirichlet_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat inputs/conduction.DirichletViaRowElimination.arc)
-    add_test(NAME [heat]conduction_RowColElimination_Dirichlet_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat inputs/conduction.DirichletViaRowColumnElimination.arc)
-    add_test(NAME [heat]conduction_convection_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat inputs/conduction.convection.arc)
+    add_test(NAME [heat]conduction_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
+      inputs/conduction.arc)
+
+    add_test(NAME [heat]conduction_RowElimination_Dirichlet_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
+      -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowElimination
+      -A,//fem/linear-system/solver-backend=petsc
+      -A,//fem/linear-system/solver-method=gmres
+      inputs/conduction.arc)
+
+    add_test(NAME [heat]conduction_RowColElimination_Dirichlet_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
+      -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
+      inputs/conduction.DirichletViaRowColumnElimination.arc)
+
+    add_test(NAME [heat]conduction_convection_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
+      inputs/conduction.convection.arc)
+
+    add_test(NAME [heat]conduction_neumann_pointBC_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
+      inputs/conduction.neumann.point-dirichlet.arc)
+
     if(FEMTEST_HAS_GMSH_TEST)
       add_test(NAME [heat]conduction_fine_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat inputs/conduction.fine.arc)
       add_test(NAME [heat]conduction_convection_fine_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat inputs/conduction.convection.fine.arc)
