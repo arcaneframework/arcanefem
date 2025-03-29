@@ -19,6 +19,7 @@ file(COPY "check" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
   plate.msh
+  multi-material.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
     file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
@@ -55,6 +56,9 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [heat]conduction_RowColElimination_Dirichlet COMMAND heat
     -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
     inputs/conduction.arc)
+
+  add_test(NAME [heat]conduction_multi-material COMMAND heat
+    inputs/conduction.multi-material.arc)
 
   add_test(NAME [heat]conduction_convection COMMAND heat
     inputs/conduction.convection.arc)
