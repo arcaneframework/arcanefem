@@ -98,17 +98,15 @@ class FemModule
   void _doStationarySolve();
   void _getParameters();
   void _assembleBilinearOperator();
-  void _assembleBilinearOperatorTRIA3();
-  void _assembleBilinearOperatorEDGE2();
+  void _assembleBilinearOperatorTria3();
   void _solve();
   void _assembleLinearOperator();
   void _checkResultFile();
 
-  RealMatrix<2, 2> _computeElementMatrixEDGE2(Face face);
-  RealMatrix<3, 3> _computeElementMatrixTRIA3(Cell cell);
-  Real  _computeDxOfRealTRIA3(Cell cell);
-  Real  _computeDyOfRealTRIA3(Cell cell);
-  Real2 _computeDxDyOfRealTRIA3(Cell cell);
+  RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
+  Real  _computeDxOfRealTria3(Cell cell);
+  Real  _computeDyOfRealTria3(Cell cell);
+  Real2 _computeDxDyOfRealTria3(Cell cell);
 };
 
 #endif

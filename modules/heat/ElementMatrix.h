@@ -26,7 +26,7 @@
 /*---------------------------------------------------------------------------*/
 
 RealMatrix<3, 3> FemModule::
-_computeElementMatrixTRIA3(Cell cell)
+_computeElementMatrixTria3(Cell cell)
 {
   Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
 
@@ -35,27 +35,4 @@ _computeElementMatrixTRIA3(Cell cell)
   Real3 dyU = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
 
   return lambda * (area * (dxU ^ dxU) + area * (dyU ^ dyU)) + (1 / 12.) * massMatrix(U, U) * area / dt;
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Computes the element matrix for a line element (ℙ1 FE).
- *
- * This function calculates the integral of the expression:
- *       a(𝑢,𝑣) = ∫ (𝑢𝑣)dΩ
- *
- * Steps involved:
- * 1. Calculate the length of the line.
- * 2. Compute the gradients of the shape functions.
- * 3. Return a(𝑢,𝑣);
- */
-/*---------------------------------------------------------------------------*/
-
-RealMatrix<2, 2> FemModule::
-_computeElementMatrixEDGE2(Face face)
-{
-  Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-  RealVector<2> U = {1., 1.};
-
-  return (1 / 6.) * massMatrix(U, U) * length;
 }

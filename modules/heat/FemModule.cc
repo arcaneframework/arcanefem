@@ -31,7 +31,6 @@ startInit()
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
-  //_initBoundaryconditions();    // initialize boundary conditions
   _initTime();                  // initialize time
   _getParameters();             // get material parameters
   _initTemperature();           // initialize temperature
@@ -217,6 +216,23 @@ _assembleLinearOperator()
     ENUMERATE_ (Face, iface, group) {
       Face face = *iface;
       Real length =  ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
+      RealVector<2> U = {1., 1.};
+
+      // a(𝑢,𝑣) = ∫ (𝑢𝑣)dΩ  for a line element (ℙ1 FE)
+      RealMatrix<2, 2> K_e = (1 / 6.) * massMatrix(U, U) * length;
+      Int32 n1_index = 0;
+      for (Node node1 : face.nodes()) {
+        Int32 n2_index = 0;
+        for (Node node2 : face.nodes()) {
+          Real v = K_e(n1_index, n2_index);
+          if (node1.isOwn()) {
+            m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+          }
+          ++n2_index;
+        }
+        ++n1_index;
+      }
+
       for (Node node : iface->nodes()) {
         if (node.isOwn())
           rhs_values[node_dof.dofId(node, 0)] += h * Text * length / 2.;
@@ -253,7 +269,7 @@ _assembleLinearOperator()
 /*---------------------------------------------------------------------------*/
 
 Real FemModule::
-_computeDyOfRealTRIA3(Cell cell)
+_computeDyOfRealTria3(Cell cell)
 {
   Real3 m0 = m_node_coord[cell.nodeId(0)];
   Real3 m1 = m_node_coord[cell.nodeId(1)];
@@ -272,7 +288,7 @@ _computeDyOfRealTRIA3(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 Real FemModule::
-_computeDxOfRealTRIA3(Cell cell)
+_computeDxOfRealTria3(Cell cell)
 {
   Real3 m0 = m_node_coord[cell.nodeId(0)];
   Real3 m1 = m_node_coord[cell.nodeId(1)];
@@ -292,7 +308,7 @@ _computeDxOfRealTRIA3(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 Real2 FemModule::
-_computeDxDyOfRealTRIA3(Cell cell)
+_computeDxDyOfRealTria3(Cell cell)
 {
   Real3 m0 = m_node_coord[cell.nodeId(0)];
   Real3 m1 = m_node_coord[cell.nodeId(1)];
@@ -323,8 +339,7 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  _assembleBilinearOperatorTRIA3();
-  _assembleBilinearOperatorEDGE2();
+  _assembleBilinearOperatorTria3();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"[ArcaneFem-Timer] lhs-matrix-assembly", elapsedTime);
@@ -334,17 +349,15 @@ _assembleBilinearOperator()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleBilinearOperatorTRIA3()
+_assembleBilinearOperatorTria3()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    if (cell.type() != IT_Triangle3)
-      ARCANE_FATAL("Only Triangle3 cell type is supported");
 
     lambda = m_cell_lambda[cell];                 // lambda is always considered cell constant
-    auto K_e = _computeElementMatrixTRIA3(cell);  // element stiffness matrix
+    auto K_e = _computeElementMatrixTria3(cell);  // element stiffness matrix
     // assemble elementary matrix into the global one elementary terms are
     // positioned into K according to  the rank of associated  node in the
     // mesh.nodes list and according the dof number. For each TRIA3  there
@@ -363,39 +376,6 @@ _assembleBilinearOperatorTRIA3()
         ++n2_index;
       }
       ++n1_index;
-    }
-  }
-}
-
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_assembleBilinearOperatorEDGE2()
-{
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  for (const auto& bs : options()->convectionBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    h = bs->h();
-    ENUMERATE_ (Face, iface, group) {
-      Face face = *iface;
-
-      auto K_e = _computeElementMatrixEDGE2(face);  // element stiffness matrix
-
-      Int32 n1_index = 0;
-      for (Node node1 : face.nodes() ) {
-        Int32 n2_index = 0;
-        for (Node node2 : face.nodes()) {
-          Real v = K_e(n1_index, n2_index);
-          if (node1.isOwn()) {
-            m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
-          }
-          ++n2_index;
-        }
-        ++n1_index;
-      }
     }
   }
 }
@@ -428,7 +408,7 @@ _solve()
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
 
-        Real2 DX = _computeDxDyOfRealTRIA3(cell);
+        Real2 DX = _computeDxDyOfRealTria3(cell);
         m_flux[cell].x = -m_cell_lambda[cell] * DX.x;
         m_flux[cell].y = -m_cell_lambda[cell] * DX.y;
         m_flux[cell].z = 0.;
