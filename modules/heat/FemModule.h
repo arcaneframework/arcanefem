@@ -90,7 +90,6 @@ class FemModule
   void _assembleBilinearOperator();
   void _solve();
   void _assembleLinearOperator();
-  void _applyConvectionToLhsAndRhs();
   void _validateResults();
 
   RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
