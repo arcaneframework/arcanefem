@@ -438,9 +438,6 @@ _assembleLinearOperator2d(BSRMatrix* bsr_matrix)
       Face face = *iface;
       Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
 
-      RealVector<4> Uy = { 0., 1., 0., 1. };
-      RealVector<4> Ux = { 1., 0., 1., 0. };
-
       RealVector<4> Un = { m_U[face.nodeId(0)].x, m_U[face.nodeId(0)].y, m_U[face.nodeId(1)].x, m_U[face.nodeId(1)].y };
       RealVector<4> Vn = { m_V[face.nodeId(0)].x, m_V[face.nodeId(0)].y, m_V[face.nodeId(1)].x, m_V[face.nodeId(1)].y };
       RealVector<4> An = { m_A[face.nodeId(0)].x, m_A[face.nodeId(0)].y, m_A[face.nodeId(1)].x, m_A[face.nodeId(1)].y };
