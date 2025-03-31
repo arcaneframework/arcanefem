@@ -567,7 +567,7 @@ _getMaterialParameters()
   f = options()->f();
   ElementNodes = 3.;
 
-  if (options()->meshType == "TETRA4")
+  if (mesh()->dimension() == 3)
     ElementNodes = 4.;
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -683,7 +683,7 @@ _checkCellType()
   Real elapsedTime = platform::getRealTime();
 
   Int16 type = 0;
-  if (options()->meshType == "TETRA4") {
+  if (mesh()->dimension() == 3) {
     type = IT_Tetraedron4;
   }
   else {
@@ -839,7 +839,7 @@ _assembleLinearOperator(BSRMatrix* bsr_matrix)
     //  $int_{Omega}(f*v^h)$
     //  only for noded that are non-Dirichlet
     //----------------------------------------------
-    if (options()->meshType == "TRIA3") {
+    if (mesh()->dimension() == 2) {
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
         Real area = _computeAreaTriangle3(cell);
@@ -851,7 +851,7 @@ _assembleLinearOperator(BSRMatrix* bsr_matrix)
       }
     }
 
-    if (options()->meshType == "TETRA4") {
+    if (mesh()->dimension() == 3) {
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
         Real area = _computeAreaTetra4(cell);
@@ -1348,7 +1348,7 @@ _assembleCsrGpuLinearOperator()
            << "  - WeakPenalty\n";
   }
 
-  if (options()->meshType == "TRIA3") {
+  if (mesh()->dimension() == 2) {
     Timer::Action timer_action(m_time_stats, "CsrGpuConstantSourceTermAssembly");
     //----------------------------------------------
     // Constant source term assembly
@@ -1394,7 +1394,7 @@ _assembleCsrGpuLinearOperator()
     };
   }
 
-  if (options()->meshType == "TETRA4") {
+  if (mesh()->dimension() == 3) {
     Timer::Action timer_action(m_time_stats, "CsrGpuConstantSourceTermAssembly");
     //----------------------------------------------
     // Constant source term assembly

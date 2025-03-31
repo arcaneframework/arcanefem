@@ -97,7 +97,6 @@ class FemModule
   void _updateVariables();
 
   RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
-  RealMatrix<4, 4> _computeElementMatrixQuad4(Cell cell);
   RealMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);
 
   IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_dirichlet = nullptr;

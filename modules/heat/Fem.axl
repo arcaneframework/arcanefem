@@ -32,9 +32,6 @@
     <simple name="result-file" type="string" optional="true">
       <description>File name of a file containing the values of the solution vector to check the results</description>
     </simple>
-    <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
-      <description>Type of mesh provided to the solver</description>
-    </simple>
     <simple name="dt" type="real" default="0.1">
       <description>Time step of simulation.</description>
     </simple>

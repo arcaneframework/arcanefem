@@ -40,7 +40,6 @@
   -->
   <fem>
     <qdot>6.3e-2</qdot>
-    <mesh-type>TETRA4</mesh-type>
     <boundary-conditions>
       <dirichlet>
         <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>

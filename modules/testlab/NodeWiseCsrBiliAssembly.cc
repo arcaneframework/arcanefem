@@ -40,11 +40,11 @@
 
   // Compute the number of nnz and initialize the memory space
   Int64 nbnde = nbNode();
-  Int64 nedge = options()->meshType == "TETRA4" ? nbEdge() : nbFace();
+  Int64 nedge = mesh()->dimension() == 3 ? nbEdge() : nbFace();
   Int32 nnz = nedge * 2 + nbnde;
   m_csr_matrix.initialize(m_dof_family, nnz, nbnde);
 
-  if (options()->meshType == "TRIA3") {
+  if (mesh()->dimension() == 2) {
     ENUMERATE_NODE (inode, allNodes()) {
 
       //Since we compute the neighbouring connectivity here, we also fill the csr matrix
@@ -65,7 +65,7 @@
       }
     }
   }
-  else if (options()->meshType == "TETRA4") {
+  else if (mesh()->dimension() == 3) {
     ENUMERATE_NODE (inode, allNodes()) {
       Node node = *inode;
       Int32 node_dof_id = node_dof.dofId(node, 0);

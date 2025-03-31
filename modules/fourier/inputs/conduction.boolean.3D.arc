@@ -41,7 +41,6 @@
   <fem>
     <lambda>23.5</lambda>
     <qdot>1.123e-2</qdot>
-    <mesh-type>TETRA4</mesh-type>
     <boundary-conditions>
       <dirichlet>
         <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>

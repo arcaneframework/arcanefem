@@ -32,7 +32,6 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
   plancher.msh
   multi-material.msh
-  plancher.quad4.msh
   square_-2pi_to_2pi.msh
   bar_dynamic_3D.msh
   pipe.msh
@@ -67,12 +66,6 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/conduction.arc)
   add_test(NAME [Fourier]conduction_heterogeneous COMMAND Fourier
     inputs/conduction.heterogeneous.arc)
-  add_test(NAME [Fourier]conduction_quad COMMAND Fourier
-    -A,//meshes/mesh/filename=meshes/plancher.quad4.msh
-    -A,//fem/mesh-type=QUAD4
-    -A,//fem/petsc-flags=-ksp_monitor
-    -A,//fem/cross-validation=false
-    inputs/conduction.arc)
   add_test(NAME [Fourier]manufacture_solution COMMAND Fourier
     -A,UsingDotNet=1
     inputs/manufacture.solution.arc)
@@ -83,7 +76,6 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [Fourier]manufacture_solution_3D COMMAND Fourier
     -A,UsingDotNet=1
     -A,//meshes/mesh/filename=meshes/bar_dynamic_3D.msh 
-    -A,//fem/mesh-type=TETRA4
     inputs/manufacture.solution.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
@@ -99,7 +91,6 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     add_test(NAME [Fourier]manufacture_solution_3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
       -A,UsingDotNet=1
       -A,//meshes/mesh/filename=meshes/bar_dynamic_3D.msh 
-      -A,//fem/mesh-type=TETRA4
       inputs/manufacture.solution.arc)
     if(FEMTEST_HAS_GMSH_TEST)
       add_test(NAME [Fourier]conduction_10k_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier

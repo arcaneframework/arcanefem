@@ -23,7 +23,6 @@
     <blcsr>true</blcsr>
     <result-file>poisson_test_ref_sphere_3D.txt</result-file>
     <f>5.5</f>
-    <mesh-type>TETRA4</mesh-type>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     <penalty>1.e31</penalty>
     <dirichlet-boundary-condition>

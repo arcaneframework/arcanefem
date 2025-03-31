@@ -23,7 +23,6 @@
     <coo-sorting-gpu>true</coo-sorting-gpu>
     <f>5.5</f>
     <result-file>poisson_test_ref_L-shape_3D.txt</result-file>
-    <mesh-type>TETRA4</mesh-type>
     <dirichlet-boundary-condition>
       <surface>bot</surface>
       <value>50.0</value>

@@ -41,7 +41,6 @@
   <fem>
     <lambda>0.023</lambda>
     <qdot>1.123e-2</qdot>
-    <mesh-type>TETRA4</mesh-type>
     <result-file>check/test_conduction_3D.txt</result-file>
     <boundary-conditions>
       <dirichlet>
