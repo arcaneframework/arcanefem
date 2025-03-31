@@ -23,7 +23,6 @@
     <blcsr>true</blcsr>
     <result-file>poisson_test_ref_L-shape_3D.txt</result-file>
     <f>5.5</f>
-    <mesh-type>TETRA4</mesh-type>
     <dirichlet-boundary-condition>
       <surface>bot</surface>
       <value>50.0</value>

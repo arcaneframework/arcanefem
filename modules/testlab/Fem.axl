@@ -24,9 +24,6 @@
     <simple name="result-file" type="string" optional="true">
       <description>File name of a file containing the values of the solution vector to check the results</description>
     </simple>
-    <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
-      <description>Type of mesh provided to the solver</description>
-    </simple>
     <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
       <description>
         Method via which Dirichlet boundary condition is imposed

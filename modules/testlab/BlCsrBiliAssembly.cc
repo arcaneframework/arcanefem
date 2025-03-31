@@ -25,9 +25,9 @@ _buildMatrixBuildLessCsr()
   Integer nbnde = nbNode();
   Int64 nedge;
 
-  if (options()->meshType == "TETRA4")
+  if (mesh()->dimension() == 3)
     nedge = nbEdge();
-  else if (options()->meshType == "TRIA3")
+  else if (mesh()->dimension() == 2)
     nedge = nbFace();
   else
     ARCANE_THROW(NotImplementedException, "");
@@ -38,7 +38,7 @@ _buildMatrixBuildLessCsr()
   Integer index = 1;
   m_csr_matrix.m_matrix_row(0) = 0;
 
-  if (options()->meshType == "TETRA4")
+  if (mesh()->dimension() == 3)
     ENUMERATE_NODE (inode, allNodes()) {
       Node node = *inode;
       if (index < nbnde) {
@@ -46,7 +46,7 @@ _buildMatrixBuildLessCsr()
         index++;
       }
     }
-  else if (options()->meshType == "TRIA3")
+  else if (mesh()->dimension() == 2)
     ENUMERATE_NODE (inode, allNodes()) {
       Node node = *inode;
       if (index < nbnde) {
@@ -66,9 +66,9 @@ void FemModule::_buildMatrixGpuBuildLessCsr()
   Integer nbnde = nbNode();
   Int64 nedge;
 
-  if (options()->meshType == "TETRA4")
+  if (mesh()->dimension() == 3)
     nedge = m_nb_edge;
-  else if (options()->meshType == "TRIA3")
+  else if (mesh()->dimension() == 2)
     nedge = nbFace();
   else
     ARCANE_THROW(NotImplementedException, "");
@@ -86,7 +86,7 @@ void FemModule::_buildMatrixGpuBuildLessCsr()
   UnstructuredMeshConnectivityView connectivity_view;
   connectivity_view.setMesh(this->mesh());
 
-  if (options()->meshType == "TRIA3") {
+  if (mesh()->dimension() == 2) {
     auto nfc = connectivity_view.nodeFace();
     command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
     {

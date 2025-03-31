@@ -29,10 +29,6 @@
       <description>File name of a file containing the values of the solution vector to check the results</description>
     </simple>
 
-    <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
-      <description>Type of mesh provided to the solver</description>
-    </simple>
-
     <simple name="matrix-format" type="string" default="DOK" optional="true">
       <description>Which matrix format to use DOK|BSR|AF-BSR.</description>
     </simple>

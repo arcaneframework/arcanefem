@@ -21,7 +21,6 @@
 
   <fem>
     <result-file>check/test_3D_L-shape.txt</result-file>
-    <mesh-type>TETRA4</mesh-type>
     <boundary-conditions>
       <dirichlet>
         <surface>bot</surface>

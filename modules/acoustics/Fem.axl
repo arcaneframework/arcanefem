@@ -33,11 +33,6 @@
       <description>k/c square of the material.</description>
     </simple>
 
-    <!-- Mesh type used by the solver -->
-    <simple name="mesh-type" type="string"  default="TRIA3" optional="true">
-      <description>Type of mesh provided to the solver</description>
-    </simple>
-
     <!-- Linear system service instance -->
     <service-instance name="linear-system" type="Arcane::FemUtils::IDoFLinearSystemFactory" default="AlephLinearSystem" />
 
