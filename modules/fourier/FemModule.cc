@@ -255,20 +255,14 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (options()->meshType == "QUAD4")
-    _assembleBilinear<4>([this](const Cell& cell) {
-      return _computeElementMatrixQuad4(cell);
-    });
-  else if (options()->meshType == "TRIA3")
+  if (mesh()->dimension() == 2)
     _assembleBilinear<3>([this](const Cell& cell) {
       return _computeElementMatrixTria3(cell);
     });
-  else if (options()->meshType == "TETRA4")
+  else
     _assembleBilinear<4>([this](const Cell& cell) {
       return _computeElementMatrixTetra4(cell);
     });
-  else
-    ARCANE_FATAL("Non supported meshType");
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"lhs-matrix-assembly", elapsedTime);
@@ -400,7 +394,7 @@ _validateResults()
   if (allNodes().size() < 200)
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      info() << "u[" << node.localId() << "][" << node.uniqueId() << "] = " << m_u[node];
+      info() << "u[" << node.uniqueId() << "] = " << m_u[node];
     }
 
   String filename = options()->resultFile();

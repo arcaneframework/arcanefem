@@ -13,7 +13,7 @@
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Computes the element matrix for a triangular/quad element (ℙ1 FE).
+ * @brief Computes the element matrix for a triangular element (ℙ1 FE).
  *
  * This function calculates the expression:
  *       a(𝑢,𝑣) = ∫∫ λ(∂𝑢/∂𝑥 ∂𝑣/∂𝑥  + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦)dΩ
@@ -32,20 +32,6 @@ _computeElementMatrixTria3(Cell cell)
 
   Real3 dxU = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
   Real3 dyU = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
-
-  return area * lambda * (dxU ^ dxU) + area * lambda * (dyU ^ dyU);
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-RealMatrix<4, 4> FemModule::
-_computeElementMatrixQuad4(Cell cell)
-{
-  Real area = ArcaneFemFunctions::MeshOperation::computeAreaQuad4(cell, m_node_coord);
-
-  Real4 dxU = ArcaneFemFunctions::FeOperation2D::computeGradientXQuad4(cell, m_node_coord);
-  Real4 dyU = ArcaneFemFunctions::FeOperation2D::computeGradientYQuad4(cell, m_node_coord);
 
   return area * lambda * (dxU ^ dxU) + area * lambda * (dyU ^ dyU);
 }
