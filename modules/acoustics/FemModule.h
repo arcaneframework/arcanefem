@@ -76,9 +76,16 @@ class FemModule
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;
 
+  String m_petsc_flags;
+  String m_matrix_format = "DOK";
+
+  bool m_assemble_linear_system = true;
+  bool m_solve_linear_system = true;
+  bool m_cross_validation = true;
+
   void _doStationarySolve();
   void _getMaterialParameters();
-  void _assembleBilinearOperatorTria3();
+  void _assembleBilinearOperator();
   void _solve();
   void _assembleLinearOperator();
   void _updateVariables();

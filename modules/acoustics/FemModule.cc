@@ -12,6 +12,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
+#include "ElementMatrix.h"
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -30,8 +31,14 @@ startInit()
   m_dofs_on_nodes.initialize(mesh(), 1);
   m_dof_family = m_dofs_on_nodes.dofFamily();
 
+  m_matrix_format = options()->matrixFormat();
+  m_assemble_linear_system = options()->assembleLinearSystem();
+  m_solve_linear_system = options()->solveLinearSystem();
+  m_cross_validation = options()->crossValidation();
+  m_petsc_flags = options()->petscFlags();
+
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "initialize", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -58,6 +65,11 @@ compute()
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
+  if (m_petsc_flags != NULL) {
+    CommandLineArguments args = ArcaneFemFunctions::GeneralFunctions::getPetscFlagsFromCommandline(m_petsc_flags);
+    m_linear_system.setSolverCommandLineArguments(args);
+  }
+
   _doStationarySolve();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -70,10 +82,10 @@ compute()
  *
  * This method follows a sequence of steps to solve FEM system:
  *   1. _getMaterialParameters()          Retrieves material parameters via
- *   2. _assembleBilinearOperator()       Assembles the FEM  matrix A
- *   3. _assembleLinearOperator()         Assembles the FEM RHS vector b
- *   4.  _solve()                         Solves for solution vector u = A^-1*b
- *   5. _updateVariables()                Updates FEM variables u = x
+ *   2. _assembleBilinearOperator()       Assembles the FEM  matrix 𝑨
+ *   3. _assembleLinearOperator()         Assembles the FEM RHS vector 𝒃
+ *   4.  _solve()                         Solves for solution vector 𝒖 = 𝑨⁻¹𝒃
+ *   5. _updateVariables()                Updates FEM variables 𝒖 = 𝒙
  *   6. _validateResults()                Regression test
  */
 /*---------------------------------------------------------------------------*/
@@ -82,11 +94,18 @@ void FemModule::
 _doStationarySolve()
 {
   _getMaterialParameters();
-  _assembleBilinearOperatorTria3();
-  _assembleLinearOperator();
-  _solve();
-  _updateVariables();
-  _validateResults();
+
+  if (m_assemble_linear_system) {
+    _assembleBilinearOperator();
+    _assembleLinearOperator();
+  }
+  if (m_solve_linear_system) {
+    _solve();
+    _updateVariables();
+  }
+  if (m_cross_validation) {
+    _validateResults();
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -101,7 +120,7 @@ _getMaterialParameters()
   m_kc2 = options()->kc2();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"get-material-parms", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "get-material-parms", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -133,35 +152,7 @@ _assembleLinearOperator()
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-vector-assembly", elapsedTime);
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Computes the element matrix for a triangular element (P1 FE).
- *
- * This function calculates the integral of the expression:
- * -(u.dx * v.dx + u.dy * v.dy) + kc2 * u * v
- *
- * Steps involved:
- * 1. Calculate the area of the triangle.
- * 2. Compute the integral U*V term.
- * 3. Compute the gradients of the shape functions.
- * 4. Return -(u.dx * v.dx + u.dy * v.dy) + kc2 * u * v ;
- */
-/*---------------------------------------------------------------------------*/
-
-RealMatrix<3, 3> FemModule::
-_computeElementMatrixTria3(Cell cell)
-{
-  Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
-
-  RealMatrix<1, 3> U = { 1, 1, 1 };
-
-  Real3 dxU = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
-  Real3 dyU = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
-
-  return -area * (dxU ^ dxU) - area * (dyU ^ dyU) + m_kc2 * area * (1/ 12.) *massMatrix(U,U);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -175,7 +166,7 @@ _computeElementMatrixTria3(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleBilinearOperatorTria3()
+_assembleBilinearOperator()
 {
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
@@ -201,7 +192,7 @@ _assembleBilinearOperatorTria3()
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"lhs-matrix-assembly", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "lhs-matrix-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -224,7 +215,7 @@ _solve()
   m_linear_system.solve();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"solve-linear-system", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "solve-linear-system", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -256,7 +247,7 @@ _updateVariables()
   m_u.synchronize();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "update-variables", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -278,12 +269,11 @@ _validateResults()
   info() << "[ArcaneFem-Info] Started module _validateResults()";
   Real elapsedTime = platform::getRealTime();
 
-  if (allNodes().size() < 200) {
+  if (allNodes().size() < 200)
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
       info() << "u[" << node.localId() << "][" << node.uniqueId() << "] = " << m_u[node];
     }
-  }
 
   String filename = options()->resultFile();
   const double epsilon = 1.0e-4;
@@ -295,7 +285,7 @@ _validateResults()
     checkNodeResultFile(traceMng(), filename, m_u, epsilon, min_value_to_test);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"result-validation", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "result-validation", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/

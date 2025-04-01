@@ -32,6 +32,14 @@ enable_testing()
 
 add_test(NAME [Acoustics]2D_submarine COMMAND Acoustics inputs/sub.arc)
 
+if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
+  add_test(NAME [Acoustics]parse_and_exit COMMAND Acoustics
+    -A,//fem/assemble-linear-system=false
+    -A,//fem/solve-linear-system=false
+    -A,//fem/cross-validation=false
+    inputs/sub.arc)
+endif()
+
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   add_test(NAME [Acoustics]2D_submarine_hypre COMMAND Acoustics inputs/sub.hypre.arc)
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
