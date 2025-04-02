@@ -6,23 +6,15 @@
     <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
   </entry-points>
   <variables>
-    <variable field-name="u1" name="u1" data-type="real" item-kind="node" dim="0">
-      <description>First component of vector variables on node</description>
-    </variable>
-    <variable field-name="u1_fixed" name="u1Fixed" data-type="bool" item-kind="node" dim="0">
-      <description>Boolean which is true if u1 is fixed on the node</description>
-    </variable>
-    <variable field-name="u2" name="u2" data-type="real" item-kind="node" dim="0">
-      <description>Second component of vector variables on node</description>
-    </variable>
-    <variable field-name="u2_fixed" name="u2Fixed" data-type="bool" item-kind="node" dim="0">
-      <description>Boolean which is true if u2 is fixed on the node</description>
+     <variable field-name="U" name="U" data-type="real2" item-kind="node" dim="0">
+      <description>vector variables on node</description>
     </variable>
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
       <description>Node coordinates from Arcane variable</description>
     </variable>
   </variables>
   <options>
+
     <simple name="f" type="real" default="0.0">
       <description>Source within the material.</description>
     </simple>
@@ -35,6 +27,26 @@
       <description>
         Method via which Dirichlet boundary condition is imposed
       </description>
+    </simple>
+
+    <simple name="matrix-format" type="string" default="DOK" optional="true">
+      <description>Which matrix format to use DOK|BSR|AF-BSR.</description>
+    </simple>
+
+    <simple name="petsc-flags" type="string" default="" optional="true">
+      <description>Flags for PETSc from commandline.</description>
+    </simple>
+
+    <simple name="solve-linear-system" type="bool" default="true" optional="true">
+      <description>Boolean to enable linear system solving.</description>
+    </simple>
+
+    <simple name="assemble-linear-system" type="bool" default="true" optional="true">
+      <description>Boolean to enable linear system assembly.</description>
+    </simple>
+
+    <simple name="cross-validation" type="bool" default="true" optional="true">
+      <description>Boolean to enable cross validation.</description>
     </simple>
 
     <simple name = "penalty" type = "real" default="1.e30" optional="true">
@@ -57,9 +69,9 @@
           FaceGroup on which to apply these boundary condition
         </description>
       </extended>
-      <simple name = "value" type = "real">
+      <simple name = "u" type = "string[]" default="NULL" optional="true">
         <description>
-          Value of the boundary condition
+          Dirichlet conditions on the surface (space separated list).
         </description>
       </simple>
     </complex>
@@ -84,6 +96,7 @@
         </description>
       </simple>
     </complex>
+
     <service-instance name = "linear-system"
                       type = "Arcane::FemUtils::IDoFLinearSystemFactory"
                       default = "AlephLinearSystem"

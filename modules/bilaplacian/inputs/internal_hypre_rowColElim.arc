@@ -9,8 +9,7 @@
    <output-period>1</output-period>
    <format name="VtkHdfV2PostProcessor" />
    <output>
-     <variable>u1</variable>
-     <variable>u2</variable>
+     <variable>U</variable>
    </output>
   </arcane-post-processing>
 
@@ -21,14 +20,21 @@
   </meshes>
 
   <fem>
-    <f>-1.0</f>
+    <result-file>check/2d_test.txt</result-file>
+    <f>-786.25</f>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
-      <value>0.05</value>
+      <u>145.5</u>
     </dirichlet-boundary-condition>
-    <linear-system name="SequentialBasicLinearSystem">
-      <epsilon>1.0e-25</epsilon>
-      <solver-method>pcg</solver-method>
+      <neumann-boundary-condition>
+      <surface>boundary</surface>
+      <value>0</value>
+    </neumann-boundary-condition>
+    <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
+    <linear-system>
+      <solver-backend>hypre</solver-backend>
+      <solver-method>gmres</solver-method>
+      <epsilon>1e-15</epsilon>
     </linear-system>
   </fem>
 </case>

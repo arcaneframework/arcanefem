@@ -9,8 +9,7 @@
    <output-period>1</output-period>
    <format name="VtkHdfV2PostProcessor" />
    <output>
-     <variable>u1</variable>
-     <variable>u2</variable>
+     <variable>U</variable>
    </output>
   </arcane-post-processing>
 
@@ -21,12 +20,11 @@
   </meshes>
 
   <fem>
-    <f>-1.0</f>
-    <enforce-Dirichlet-method>WeakPenalty</enforce-Dirichlet-method>
-    <penalty>1.e30</penalty>
+    <result-file>check/2d_test.txt</result-file>
+    <f>-786.25</f>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
-      <value>0.05</value>
+      <u>145.5 NULL</u>
     </dirichlet-boundary-condition>
     <linear-system name="SequentialBasicLinearSystem">
       <solver-method>direct</solver-method>
