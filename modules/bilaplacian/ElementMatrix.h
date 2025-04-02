@@ -16,7 +16,9 @@
  * @brief Computes the element matrix for a triangular element (ℙ1 FE).
  *
  * This function calculates the integral of the expression:
- *       a(𝑢,𝑣) = ∫∫ (∂𝑢/∂𝑥 ∂𝑣/∂𝑥  + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦)dΩ
+ *       a(𝐮,𝐯) =  ∫∫ (∂𝑢𝑥/∂𝑥 ∂𝑣𝑦/∂𝑥 + ∂𝑢𝑦/∂𝑥 ∂𝑣𝑦/∂𝑦)dΩ
+ *               + ∫∫ (∂𝑢𝑦/∂𝑥 ∂𝑣𝑥/∂𝑥 + ∂𝑣𝑦/∂𝑦 ∂𝑣𝑥/∂𝑦)dΩ
+ *               + ∫∫ (𝑢𝑦 𝑣𝑦)dΩ
  *
  * Steps involved:
  * 1. Calculate the area of the triangle.
@@ -28,149 +30,22 @@
 RealMatrix<6, 6> FemModule::
 _computeElementMatrixTRIA3(Cell cell)
 {
-  // Get coordiantes of the triangle element  TRI3
-  //------------------------------------------------
-  //                  0 o
-  //                   . .
-  //                  .   .
-  //                 .     .
-  //              1 o . . . o 2
-  //------------------------------------------------
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-
+  Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
+  Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
   Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
 
-  Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
-  Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
-  Real2 dPhi2(m0.y - m1.y, m1.x - m0.x);
+  RealVector<6> Uy = { 0., 1., 0., 1., 0., 1. };
+  RealVector<6> Ux = { 1., 0., 1., 0., 1., 0. };
 
-  RealMatrix<1, 6> b_matrix;
-  RealMatrix<6, 1> bT_matrix;
-  RealMatrix<6, 6> int_Omega_i;
+  RealVector<6> dxUx = { dxu[0], 0., dxu[1], 0., dxu[2], 0. };
+  RealVector<6> dyUx = { dyu[0], 0., dyu[1], 0., dyu[2], 0. };
+  RealVector<6> dxUy = { 0., dxu[0], 0., dxu[1], 0., dxu[2] };
+  RealVector<6> dyUy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
 
-  for (Int32 i = 0; i<6; i++)
-    for (Int32 j = 0; j<6; j++)
-      int_Omega_i(i,j) = 0.;
-
-// -----------------------------------------------------------------------------
-//  dx(u1)dx(v2) + dy(u1)dy(v2) + dx(u2)dx(v1) + dy(u2)dy(v1) + u2v2
-//------------------------------------------------------------------------------
-
-  // dx(u1)dx(v2) //
-  b_matrix(0, 0) = dPhi0.x/area;
-  b_matrix(0, 1) = 0.;
-  b_matrix(0, 2) = dPhi1.x/area;
-  b_matrix(0, 3) = 0.;
-  b_matrix(0, 4) = dPhi2.x/area;
-  b_matrix(0, 5) = 0.;
-
-  b_matrix.multInPlace(0.5f);
-
-  bT_matrix(0, 0) = 0.;
-  bT_matrix(1, 0) = dPhi0.x;
-  bT_matrix(2, 0) = 0.;
-  bT_matrix(3, 0) = dPhi1.x;
-  bT_matrix(4, 0) = 0.;
-  bT_matrix(5, 0) = dPhi2.x;
-
-  bT_matrix.multInPlace(0.5f);
-
-  RealMatrix<6, 6> int_dxU1dxV1 = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_dxU1dxV1);
-
-  // dy(u1)dy(v2) //
-  b_matrix(0, 0) = dPhi0.y/area;
-  b_matrix(0, 1) = 0.;
-  b_matrix(0, 2) = dPhi1.y/area;
-  b_matrix(0, 3) = 0.;
-  b_matrix(0, 4) = dPhi2.y/area;
-  b_matrix(0, 5) = 0.;
-
-  b_matrix.multInPlace(0.5f);
-
-  bT_matrix(0, 0) = 0.;
-  bT_matrix(1, 0) = dPhi0.y;
-  bT_matrix(2, 0) = 0.;
-  bT_matrix(3, 0) = dPhi1.y;
-  bT_matrix(4, 0) = 0.;
-  bT_matrix(5, 0) = dPhi2.y;
-
-  bT_matrix.multInPlace(0.5f);
-
-  RealMatrix<6, 6> int_dyU1dyV1 = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_dyU1dyV1);
-
-  // dx(u2)dx(v1) //
-  b_matrix(0, 0) = 0.;
-  b_matrix(0, 1) = dPhi0.x/area;
-  b_matrix(0, 2) = 0.;
-  b_matrix(0, 3) = dPhi1.x/area;
-  b_matrix(0, 4) = 0.;
-  b_matrix(0, 5) = dPhi2.x/area;
-
-  b_matrix.multInPlace(0.5f);
-
-  bT_matrix(0, 0) = dPhi0.x;
-  bT_matrix(1, 0) = 0.;
-  bT_matrix(2, 0) = dPhi1.x;
-  bT_matrix(3, 0) = 0.;
-  bT_matrix(4, 0) = dPhi2.x;
-  bT_matrix(5, 0) = 0.;
-
-  bT_matrix.multInPlace(0.5f);
-
-  RealMatrix<6, 6> int_dxU2dxV1  = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_dxU2dxV1);
-
-  // dy(u2)dy(v1) //
-  b_matrix(0, 0) = 0.;
-  b_matrix(0, 1) = dPhi0.y/area;
-  b_matrix(0, 2) = 0.;
-  b_matrix(0, 3) = dPhi1.y/area;
-  b_matrix(0, 4) = 0.;
-  b_matrix(0, 5) = dPhi2.y/area;
-
-  b_matrix.multInPlace(0.5f);
-
-  bT_matrix(0, 0) = dPhi0.y;
-  bT_matrix(1, 0) = 0.;
-  bT_matrix(2, 0) = dPhi1.y;
-  bT_matrix(3, 0) = 0.;
-  bT_matrix(4, 0) = dPhi2.y;
-  bT_matrix(5, 0) = 0.;
-
-  bT_matrix.multInPlace(0.5f);
-
-  RealMatrix<6, 6> int_dyU2dyV1  = matrixMultiplication(bT_matrix, b_matrix);
-  int_Omega_i = matrixAddition( int_Omega_i, int_dyU2dyV1);
-
-  // u2v2 //
-  b_matrix(0, 0) = 0;
-  b_matrix(0, 1) = 1.;
-  b_matrix(0, 2) = 0;
-  b_matrix(0, 3) = 1.;
-  b_matrix(0, 4) = 0;
-  b_matrix(0, 5) = 1.;
-
-  b_matrix.multInPlace(0.5f);
-
-  bT_matrix(0, 0) = 0.;
-  bT_matrix(1, 0) = area/3.;
-  bT_matrix(2, 0) = 0.;
-  bT_matrix(3, 0) = area/3.;
-  bT_matrix(4, 0) = 0.;
-  bT_matrix(5, 0) = area/3.;
-
-  bT_matrix.multInPlace(0.5f);
-
-  RealMatrix<6, 6> int_U2V2   = matrixMultiplication(bT_matrix, b_matrix);
-
-  for (Int32 i = 0; i<6; i++)
-    int_U2V2(i,i) *= 2.;
-
-  int_Omega_i = matrixAddition( int_Omega_i, int_U2V2);
+  // -----------------------------------------------------------------------------
+  //  dx(u1)dx(v2) + dy(u1)dy(v2) + dx(u2)dx(v1) + dy(u2)dy(v1) + u2v2
+  //------------------------------------------------------------------------------
+  RealMatrix<6, 6> int_Omega_i = ((dxUx ^ dxUy) + (dyUx ^ dyUy)) * area + ((dxUy ^ dxUx) + (dyUy ^ dyUx)) * area + massMatrix(Uy, Uy) * area;
 
   return int_Omega_i;
 }
