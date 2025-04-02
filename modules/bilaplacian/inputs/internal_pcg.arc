@@ -21,10 +21,11 @@
   </meshes>
 
   <fem>
-    <f>-1.0</f>
+    <result-file>check/2d_test.txt</result-file>
+    <f>-786.25</f>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
-      <value>0.05</value>
+      <value>145.5</value>
     </dirichlet-boundary-condition>
     <linear-system name="SequentialBasicLinearSystem">
       <epsilon>1.0e-25</epsilon>

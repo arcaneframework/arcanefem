@@ -21,12 +21,11 @@
   </meshes>
 
   <fem>
-    <f>-1.0</f>
-    <enforce-Dirichlet-method>WeakPenalty</enforce-Dirichlet-method>
-    <penalty>1.e30</penalty>
+    <result-file>check/2d_test.txt</result-file>
+    <f>-786.25</f>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
-      <value>0.05</value>
+      <value>145.5</value>
     </dirichlet-boundary-condition>
     <linear-system name="SequentialBasicLinearSystem">
       <solver-method>direct</solver-method>

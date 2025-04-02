@@ -19,6 +19,9 @@ target_link_libraries(Bilaplacian PUBLIC FemUtils)
 # Copy the inputs folder containing the arc files
 file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
+# Copy the check files in the binary directory
+file(COPY "check" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
 # Copy the mesh files into meshes directory
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
@@ -31,4 +34,4 @@ endforeach()
 enable_testing()
 
 add_test(NAME [bilaplacian]direct_solver COMMAND Bilaplacian inputs/direct.arc)
-#add_test(NAME [bilaplacian]internal_PCG_solver COMMAND Bilaplacian inputs/internal_pcg.arc)
+add_test(NAME [bilaplacian]internal_PCG_solver COMMAND Bilaplacian inputs/internal_pcg.arc)
