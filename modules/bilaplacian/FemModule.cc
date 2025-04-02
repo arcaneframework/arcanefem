@@ -11,77 +11,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/ITimeLoopMng.h>
-#include <arcane/IMesh.h>
-#include <arcane/IItemFamily.h>
-#include <arcane/ItemGroup.h>
-#include <arcane/ICaseMng.h>
-
-#include "IDoFLinearSystemFactory.h"
-#include "Fem_axl.h"
-#include "FemUtils.h"
-#include "DoFLinearSystem.h"
-#include "FemDoFsOnNodes.h"
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-using namespace Arcane;
-using namespace Arcane::FemUtils;
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-/*!
- * \brief Module Fem.
- */
-class FemModule
-: public ArcaneFemObject
-{
- public:
-
-  explicit FemModule(const ModuleBuildInfo& mbi)
-  : ArcaneFemObject(mbi)
-  , m_dofs_on_nodes(mbi.subDomain()->traceMng())
-  {
-    ICaseMng* cm = mbi.subDomain()->caseMng();
-    cm->setTreatWarningAsError(true);
-    cm->setAllowUnkownRootElelement(false);
-  }
-
- public:
-
-  //! Method called at each iteration
-  void compute() override;
-
-  //! Method called at the beginning of the simulation
-  void startInit() override;
-
-  VersionInfo versionInfo() const override
-  {
-    return VersionInfo(1, 0, 0);
-  }
-
- private:
-
-  Real f;
-
-  DoFLinearSystem m_linear_system;
-  FemDoFsOnNodes m_dofs_on_nodes;
-
- private:
-
-  void _doStationarySolve();
-  void _getMaterialParameters();
-  void _assembleBilinearOperatorTRIA3();
-  void _solve();
-  void _initBoundaryconditions();
-  void _assembleLinearOperator();
-  RealMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
-  Real _computeAreaTriangle3(Cell cell);
-  Real _computeEdgeLength2(Face face);
-  void _applyDirichletBoundaryConditions();
-  void _checkResultFile();
-};
+#include "FemModule.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -613,26 +543,22 @@ _solve()
       Real u2_val = dof_temperature[node_dof.dofId(node, 1)];
       m_u1[node] = u1_val;
       m_u2[node] = u2_val;
-      info() << "Node: " << node.localId() << " U1=" << u1_val << " U2=" << u2_val;
     }
   }
 
   m_u1.synchronize();
   m_u2.synchronize();
 
-  const bool do_print = (allNodes().size() < 200);
-  if (do_print) {
+  if (allNodes().size() < 200) {
     int p = std::cout.precision();
     std::cout.precision(17);
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      std::cout << "U1[" << node.localId() << "][" << node.uniqueId() << "] = "
-                << m_u1[node] << " U2[" << node.localId() << "][" << node.uniqueId() << "] = "
-                << m_u2[node] << "\n";
-      //std::cout << "U1[]" << node.uniqueId() << " " << m_u1[node] << "\n";
+      std::cout << "( N_id, u1, u2 ) = ( " << node.uniqueId() << ", " << m_u1[node] << ", " << m_u2[node] << ")\n";
     }
     std::cout.precision(p);
   }
+
 }
 
 /*---------------------------------------------------------------------------*/
