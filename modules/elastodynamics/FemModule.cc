@@ -102,6 +102,13 @@ _doStationarySolve()
 }
 
 /*---------------------------------------------------------------------------*/
+/*
+ * @brief Reads the parameters from the options.
+ *
+ * This method retrieves various parameters such as time step, material properties,
+ * and time discretization methods from the options provided in the simulation.
+ * It also initializes the material properties based on the retrieved parameters.
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -201,6 +208,12 @@ _getParameters()
 }
 
 /*---------------------------------------------------------------------------*/
+/*
+  * @brief Reads case tables for traction boundary conditions.
+  *
+  * This method reads the case tables specified in the options and stores
+  * them in a list for later use.
+  */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -226,6 +239,39 @@ _updateVariables()
 {
   info() << "[ArcaneFem-Info] Started module  _updateVariables()";
   Real elapsedTime = platform::getRealTime();
+
+  {
+    VariableDoFReal& dof_u(m_linear_system.solutionVariable());
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    if (mesh()->dimension() == 2)
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      Real u1_val = dof_u[node_dof.dofId(node, 0)];
+      Real u2_val = dof_u[node_dof.dofId(node, 1)];
+      Real3 u_disp;
+      u_disp.x = u1_val;
+      u_disp.y = u2_val;
+      u_disp.z = 0.0;
+      m_dU[node] = u_disp;
+    }
+    if (mesh()->dimension() == 3)
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      Real u1_val = dof_u[node_dof.dofId(node, 0)];
+      Real u2_val = dof_u[node_dof.dofId(node, 1)];
+      Real u3_val = dof_u[node_dof.dofId(node, 2)];
+      Real3 u_disp;
+      u_disp.x = u1_val;
+      u_disp.y = u2_val;
+      u_disp.z = u3_val;
+      m_dU[node] = u_disp;
+    }
+  }
+
+  m_dU.synchronize();
+  m_U.synchronize();
+  m_V.synchronize();
+  m_A.synchronize();
 
   // Note at this stage we already have calculated dU
   Real alocX;
@@ -277,11 +323,18 @@ _updateVariables()
 }
 
 /*---------------------------------------------------------------------------*/
-// Assemble the FEM linear operator
-//  - This function enforces a Dirichlet boundary condition in a weak sense
-//    via the penalty method
-//  - The method also adds source term
-//  - The method also adds external fluxes
+/*
+ * @brief Assembles the linear operator for the FEM simulation.
+ *
+ * This method computes the linear operator for the FEM simulation
+ * by assembling the linear parts of the system. It uses the
+ * material properties and the mesh to compute the contributions
+ * from each element. The results are stored in the right-hand side
+ * of the linear system.
+ * 
+ * @note This method assumes that the mesh and material properties
+ *  are already set up.
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -782,39 +835,6 @@ _solve()
   Real elapsedTime = platform::getRealTime();
 
   m_linear_system.solve();
-
-  {
-    VariableDoFReal& dof_u(m_linear_system.solutionVariable());
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    if (mesh()->dimension() == 2)
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      Node node = *inode;
-      Real u1_val = dof_u[node_dof.dofId(node, 0)];
-      Real u2_val = dof_u[node_dof.dofId(node, 1)];
-      Real3 u_disp;
-      u_disp.x = u1_val;
-      u_disp.y = u2_val;
-      u_disp.z = 0.0;
-      m_dU[node] = u_disp;
-    }
-    if (mesh()->dimension() == 3)
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      Node node = *inode;
-      Real u1_val = dof_u[node_dof.dofId(node, 0)];
-      Real u2_val = dof_u[node_dof.dofId(node, 1)];
-      Real u3_val = dof_u[node_dof.dofId(node, 2)];
-      Real3 u_disp;
-      u_disp.x = u1_val;
-      u_disp.y = u2_val;
-      u_disp.z = u3_val;
-      m_dU[node] = u_disp;
-    }
-  }
-
-  m_dU.synchronize();
-  m_U.synchronize();
-  m_V.synchronize();
-  m_A.synchronize();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"solve-linear-system", elapsedTime);
