@@ -24,8 +24,12 @@
     <f>-786.25</f>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
-      <u>145.5 NULL</u>
+      <u>145.5</u>
     </dirichlet-boundary-condition>
+      <neumann-boundary-condition>
+      <surface>boundary</surface>
+      <value>0</value>
+    </neumann-boundary-condition>
     <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
     <linear-system>
       <solver-backend>hypre</solver-backend>

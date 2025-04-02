@@ -30,6 +30,11 @@ compute()
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
+  if (m_petsc_flags != NULL) {
+    CommandLineArguments args = ArcaneFemFunctions::GeneralFunctions::getPetscFlagsFromCommandline(m_petsc_flags);
+    m_linear_system.setSolverCommandLineArguments(args);
+  }
+
   _doStationarySolve();
 }
 
@@ -42,19 +47,41 @@ startInit()
   info() << "Module Fem INIT";
 
   m_dofs_on_nodes.initialize(mesh(), 2);
+
+  m_matrix_format = options()->matrixFormat();
+  m_assemble_linear_system = options()->assembleLinearSystem();
+  m_solve_linear_system = options()->solveLinearSystem();
+  m_cross_validation = options()->crossValidation();
+  m_petsc_flags = options()->petscFlags();
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Performs a stationary solve for the FEM system.
+ *
+ * This method follows a sequence of steps to solve FEM system:
+ *   1. _assembleBilinearOperator()       Assembles the FEM  matrix 𝑨
+ *   2. _assembleLinearOperator()         Assembles the FEM RHS vector 𝒃
+ *   3.  _solve()                         Solves for solution vector 𝒖 = 𝑨⁻¹𝒃
+ *   4. _updateVariables()                Updates FEM variables 𝒖 = 𝒙
+ *   5. _validateResults()                Regression test
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
 _doStationarySolve()
 {
   _getMaterialParameters();
-  _assembleBilinearOperatorTria3();
-  _assembleLinearOperator();
-  _solve();
-  _checkResultFile();
+  if (m_assemble_linear_system) {
+    _assembleBilinearOperatorTria3();
+    _assembleLinearOperator();
+  }
+  if (m_solve_linear_system) {
+    _solve();
+  }
+  if (m_cross_validation) {
+    _checkResultFile();
+  }
 }
 
 /*---------------------------------------------------------------------------*/
