@@ -15,6 +15,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+#include <arcane/utils/PlatformUtils.h>
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IMesh.h>
 #include <arcane/IItemFamily.h>
@@ -75,7 +76,8 @@ class FemModule
 
   void _doStationarySolve();
   void _getMaterialParameters();
-  void _assembleBilinearOperatorTria3();
+  void _assembleBilinearOperator();
+  void _updateVariables();
   void _solve();
   void _assembleLinearOperator();
   void _checkResultFile();

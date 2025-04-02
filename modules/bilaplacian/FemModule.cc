@@ -15,12 +15,49 @@
 #include "ElementMatrix.h"
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Initializes the FemModule at the start of the simulation.
+ *
+ * - This method initializes degrees of freedom (DoFs) on nodes.
+ * - It also gets values of some solver parameters.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+startInit()
+{
+  info() << "[ArcaneFem-Info] Started module startInit()";
+  Real elapsedTime = platform::getRealTime();
+
+  m_dofs_on_nodes.initialize(mesh(), 2);
+
+  m_matrix_format = options()->matrixFormat();
+  m_assemble_linear_system = options()->assembleLinearSystem();
+  m_solve_linear_system = options()->solveLinearSystem();
+  m_cross_validation = options()->crossValidation();
+  m_petsc_flags = options()->petscFlags();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Performs the main computation for the FemModule.
+ *
+ * This method:
+ *   1. Stops the time loop after 1 iteration since the equation is steady state.
+ *   2. Resets, configures, and initializes the linear system.
+ *   3. Applies PETSc commandline flags to the solver (if PETSc is used).
+ *   4. Executes the stationary solve and extracts psi.
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
 compute()
 {
-  info() << "Module Fem COMPUTE";
+  info() << "[ArcaneFem-Info] Started module compute()";
+  Real elapsedTime = platform::getRealTime();
 
   // Stop code after computations
   if (m_global_iteration() > 0)
@@ -36,23 +73,9 @@ compute()
   }
 
   _doStationarySolve();
-}
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-startInit()
-{
-  info() << "Module Fem INIT";
-
-  m_dofs_on_nodes.initialize(mesh(), 2);
-
-  m_matrix_format = options()->matrixFormat();
-  m_assemble_linear_system = options()->assembleLinearSystem();
-  m_solve_linear_system = options()->solveLinearSystem();
-  m_cross_validation = options()->crossValidation();
-  m_petsc_flags = options()->petscFlags();
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "compute", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -62,7 +85,7 @@ startInit()
  * This method follows a sequence of steps to solve FEM system:
  *   1. _assembleBilinearOperator()       Assembles the FEM  matrix 𝑨
  *   2. _assembleLinearOperator()         Assembles the FEM RHS vector 𝒃
- *   3.  _solve()                         Solves for solution vector 𝒖 = 𝑨⁻¹𝒃
+ *   3. _solve()                          Solves for solution vector 𝒖 = 𝑨⁻¹𝒃
  *   4. _updateVariables()                Updates FEM variables 𝒖 = 𝒙
  *   5. _validateResults()                Regression test
  */
@@ -73,11 +96,12 @@ _doStationarySolve()
 {
   _getMaterialParameters();
   if (m_assemble_linear_system) {
-    _assembleBilinearOperatorTria3();
+    _assembleBilinearOperator();
     _assembleLinearOperator();
   }
   if (m_solve_linear_system) {
     _solve();
+    _updateVariables();
   }
   if (m_cross_validation) {
     _checkResultFile();
@@ -85,27 +109,45 @@ _doStationarySolve()
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Retrieves material parameters for the FEM simulation.
+ *
+ * This method fetches the value of the source term 'f' from the options.
+ * It is called at the beginning of the simulation to set up necessary parameters.
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
 _getMaterialParameters()
 {
-  info() << "Get material parameters...";
-  f   = options()->f();
+  info() << "[ArcaneFem-Info] Started module _getMaterialParameters()";
+  Real elapsedTime = platform::getRealTime();
+
+  f = options()->f();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "get-material-parms", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
-// Assemble the FEM linear operator
-//  - This function enforces a Dirichlet boundary condition in a weak sense
-//    via the penalty method
-//  - The method also adds source term
+/**
+ * @brief Assembles the linear operator for the FEM simulation.
+ *
+ * This method constructs the linear system by assembling the LHS matrix
+ * and RHS vector, applying various boundary conditions and source terms.
+ *
+ * Steps involved:
+ *  1. The RHS vector is initialized to zero before applying any conditions.
+ *  2. If Neumann BC are specified applied to the RHS.
+ *  3. If Dirichlet BC/Point are specified apply to the LHS & RHS.
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
 _assembleLinearOperator()
 {
-  info() << "Assembly of FEM linear operator ";
-  info() << "Applying Dirichlet boundary condition via  penalty method ";
+  info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
+  Real elapsedTime = platform::getRealTime();
 
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
@@ -115,9 +157,7 @@ _assembleLinearOperator()
   //----------------------------------------------
   // Constant source term assembly
   //----------------------------------------------
-  //
   //  $int_{Omega}(f*v^h)$
-  //  only for noded that are non-Dirichlet
   //----------------------------------------------
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
@@ -211,15 +251,29 @@ _assembleLinearOperator()
     }
   }
 
-
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "assemble-rhs", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Assembles the bilinear operator for the FEM simulation.
+ *
+ * This method constructs the bilinear operator by iterating over all cells
+ * and computing the element matrix for each cell. The values are then added
+ * to the global matrix.
+ *
+ * Note: The method assumes that the linear system has been initialized before
+ *       calling this function.
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleBilinearOperatorTria3()
+_assembleBilinearOperator()
 {
+  info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
+  Real elapsedTime = platform::getRealTime();
+
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
@@ -252,17 +306,49 @@ _assembleBilinearOperatorTria3()
       ++n1_index;
     }
   }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "lhs-matrix-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Solves the linear system for the FEM simulation.
+ *
+ * This method calls the solve function of the linear system object
+ * to compute the solution vector.
+ *
+ * Note: The method assumes that the linear system has been assembled
+ *       before calling this function.
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
 _solve()
 {
-  info() << "Solving Linear system";
+  info() << "[ArcaneFem-Info] Started module _solve()";
+  Real elapsedTime = platform::getRealTime();
+
   m_linear_system.solve();
 
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "solve-linear-system", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Updates the variables after solving the linear system.
+ *
+ * This method retrieves the solution from the linear system and updates
+ * the internal variable m_U with the computed values.
+ *
+ * Note: The method assumes that the linear system has been solved before
+ *       calling this function.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_updateVariables(){
   {
     VariableDoFReal& dof_temperature(m_linear_system.solutionVariable());
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -276,6 +362,26 @@ _solve()
   }
 
   m_U.synchronize();
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Validates the result file by comparing it with the computed results.
+ *
+ * This method checks the result file specified in the options and compares
+ * the computed results with the values in the file. It is used for regression
+ * testing and validation of the FEM module.
+ *
+ * Note: The method assumes that the results have been computed before calling
+ *       this function.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_checkResultFile()
+{
+  info() << "[ArcaneFem-Info] Started module _validateResults()";
+  Real elapsedTime = platform::getRealTime();
 
   if (allNodes().size() < 200) {
     int p = std::cout.precision();
@@ -287,20 +393,14 @@ _solve()
     std::cout.precision(p);
   }
 
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_checkResultFile()
-{
   String filename = options()->resultFile();
-  info() << "CheckResultFile filename=" << filename;
-  if (filename.empty())
-    return;
-  const double epsilon = 1.0e-4;
-  Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_U, epsilon);
+  info() << "ValidateResultFile filename=" << filename;
+
+  if (!filename.empty())
+    checkNodeResultFile(traceMng(), filename, m_U, 1.0e-4);
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "result-validation", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
