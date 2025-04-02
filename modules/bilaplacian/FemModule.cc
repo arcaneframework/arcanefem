@@ -42,8 +42,6 @@ startInit()
   info() << "Module Fem INIT";
 
   m_dofs_on_nodes.initialize(mesh(), 2);
-
-  //_initBoundaryconditions();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -52,19 +50,10 @@ startInit()
 void FemModule::
 _doStationarySolve()
 {
-  // # get material parameters
   _getMaterialParameters();
-
-  // Assemble the FEM bilinear operator (LHS - matrix A)
-  _assembleBilinearOperatorTRIA3();
-
-  // Assemble the FEM linear operator (RHS - vector b)
+  _assembleBilinearOperatorTria3();
   _assembleLinearOperator();
-
-  // Solve for [u1,u2]
   _solve();
-
-  // Check results
   _checkResultFile();
 }
 
@@ -117,9 +106,7 @@ _assembleLinearOperator()
   //----------------------------------------------
   // Constant flux term assembly
   //----------------------------------------------
-  //
   //  $int_{dOmega_N}((q.n)*v^h)$
-  //  only for noded that are non-Dirichlet
   //----------------------------------------------
   for (const auto& bs : options()->neumannBoundaryCondition()) {
     FaceGroup group = bs->surface();
@@ -204,22 +191,15 @@ _assembleLinearOperator()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleBilinearOperatorTRIA3()
+_assembleBilinearOperatorTria3()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    if (cell.type() != IT_Triangle3)
-      ARCANE_FATAL("Only Triangle3 cell type is supported");
 
-    auto K_e = _computeElementMatrixTRIA3(cell);  // element stifness matrix
-    // assemble elementary matrix into the global one elementary terms are
-    // positionned into K according to the rank of associated  node in the
-    // mesh.nodes list and acoording the dof number. Here  for  each  node
-    // two dofs exists [u1,u2]. For each TRIA3 there are 3 nodes hence the
-    // elementary stifness matrix size is (3*2 x 3*2)=(6x6). We will  fill
-    // this below in 4 at a time.
+    auto K_e = _computeElementMatrixTria3(cell);
+
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
@@ -228,13 +208,13 @@ _assembleBilinearOperatorTRIA3()
         Real v2 = K_e(2 * n1_index    , 2 * n2_index + 1);
         Real v3 = K_e(2 * n1_index + 1, 2 * n2_index    );
         Real v4 = K_e(2 * n1_index + 1, 2 * n2_index + 1);
-        // m_k_matrix(node1.localId(), node2.localId()) += v;
+
         if (node1.isOwn()) {
           DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
           DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
           DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
           DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
-//          m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+
           m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
           m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
           m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v3);
@@ -255,9 +235,6 @@ _solve()
 {
   info() << "Solving Linear system";
   m_linear_system.solve();
-
-  // Re-Apply boundary conditions because the solver has modified the value
-  //_applyDirichletBoundaryConditions();
 
   {
     VariableDoFReal& dof_temperature(m_linear_system.solutionVariable());

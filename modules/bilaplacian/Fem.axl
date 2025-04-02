@@ -14,6 +14,7 @@
     </variable>
   </variables>
   <options>
+
     <simple name="f" type="real" default="0.0">
       <description>Source within the material.</description>
     </simple>
@@ -48,7 +49,7 @@
           FaceGroup on which to apply these boundary condition
         </description>
       </extended>
-      <simple name = "u" type = "string[]" default="NULL NULL" optional="true">
+      <simple name = "u" type = "string[]" default="NULL" optional="true">
         <description>
           Dirichlet conditions on the surface (space separated list).
         </description>
@@ -75,6 +76,7 @@
         </description>
       </simple>
     </complex>
+
     <service-instance name = "linear-system"
                       type = "Arcane::FemUtils::IDoFLinearSystemFactory"
                       default = "AlephLinearSystem"
