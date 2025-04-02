@@ -30,7 +30,6 @@ compute()
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
-  info() << "NB_CELL=" << allCells().size() << " NB_FACE=" << allFaces().size();
   _doStationarySolve();
 }
 
@@ -44,7 +43,7 @@ startInit()
 
   m_dofs_on_nodes.initialize(mesh(), 2);
 
-  _initBoundaryconditions();
+  //_initBoundaryconditions();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -80,44 +79,6 @@ _getMaterialParameters()
 }
 
 /*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_initBoundaryconditions()
-{
-  info() << "Init boundary conditions...";
-
-  info() << "Apply boundary conditions";
-  _applyDirichletBoundaryConditions();
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_applyDirichletBoundaryConditions()
-{
-  // Handle all the Dirichlet boundary conditions.
-  // In the 'arc' file, there are in the following format:
-  //   <dirichlet-boundary-condition>
-  //   <surface>Haut</surface>
-  //   <value>21.0</value>
-  // </dirichlet-boundary-condition>
-
-  for (const auto& bs : options()->dirichletBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    Real value = bs->value();
-    info() << "Apply Dirichlet boundary condition surface=" << group.name() << " v=" << value;
-    ENUMERATE_ (Face, iface, group) {
-      for (Node node : iface->nodes()) {
-        m_u1[node] = value;
-        m_u1_fixed[node] = true;
-      }
-    }
-  }
-}
-
-/*---------------------------------------------------------------------------*/
 // Assemble the FEM linear operator
 //  - This function enforces a Dirichlet boundary condition in a weak sense
 //    via the penalty method
@@ -130,134 +91,10 @@ _assembleLinearOperator()
   info() << "Assembly of FEM linear operator ";
   info() << "Applying Dirichlet boundary condition via  penalty method ";
 
-  // Temporary variable to keep values for the RHS part of the linear system
-  //VariableNodeReal rhs1_values(VariableBuildInfo(defaultMesh(), "NodeRHS1Values"));
-  //rhs1_values.fill(0.0);
-
-  //VariableNodeReal rhs2_values(VariableBuildInfo(defaultMesh(), "NodeRHS2Values"));
-  //rhs2_values.fill(0.0);
-
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  if (options()->enforceDirichletMethod() == "Penalty") {
-
-    //----------------------------------------------
-    // penalty method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
-    //  Dirichlet condition needs to be applied
-    //
-    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
-    //           a_{i,i} = 1. * P
-    //
-    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
-    //           b_{i} = b_{i} * P
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    Real Penalty = options()->penalty();        // 1.0e30 is the default
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u1_fixed[node_id]) {
-        DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
-        //DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
-        //m_k_matrix(node_id, node_id) += 1.0e6;
-        //                                             u1   ,NA,NA, u2
-        // m_linear_system.matrixAddValue(*inode, *inode, 1.0e30, 0, 0, 0);
-        m_linear_system.matrixSetValue(dof_id1, dof_id1, Penalty);
-        //m_rhs_vector[node_id] += 1.0e6 * m_node_temperature[node_id];
-        {
-          Real temperature = Penalty * m_u1[node_id];
-          rhs_values[dof_id1] = temperature;
-        }
-      }
-    }
-  }else if (options()->enforceDirichletMethod() == "WeakPenalty") {
-
-    //----------------------------------------------
-    // weak penalty method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'P' be the penalty term and let 'i' be the set of DOF for which
-    //  Dirichlet condition needs to be applied
-    //
-    //  - For LHS matrix A the diag term corresponding to the Dirichlet DOF
-    //           a_{i,i} = a_{i,i} + P
-    //
-    //  - For RHS vector b the term that corresponds to the Dirichlet DOF
-    //           b_{i} = b_{i} * P
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-    Real Penalty = options()->penalty();        // 1.0e30 is the default
-
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      NodeLocalId node_id = *inode;
-      if (m_u1_fixed[node_id]) {
-        DoFLocalId dof_id1 = node_dof.dofId(node_id, 0);
-        //DoFLocalId dof_id2 = node_dof.dofId(node_id, 1);
-        //m_k_matrix(node_id, node_id) += 1.0e6;
-        //                                             u1   ,NA,NA, u2
-        // m_linear_system.matrixAddValue(*inode, *inode, 1.0e30, 0, 0, 0);
-        m_linear_system.matrixAddValue(dof_id1, dof_id1, Penalty);
-        //m_rhs_vector[node_id] += 1.0e6 * m_node_temperature[node_id];
-        {
-          Real temperature = Penalty * m_u1[node_id];
-          rhs_values[dof_id1] = temperature;
-        }
-      }
-    }
-  }else if (options()->enforceDirichletMethod() == "RowElimination") {
-
-    //----------------------------------------------
-    // Row elimination method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
-    //
-    //  to apply the Dirichlet on 'i'th DOF
-    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j
-    //           a_{i,j} = 1.  : i==j
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-  }else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
-
-    //----------------------------------------------
-    // Row elimination method to enforce Dirichlet BC
-    //----------------------------------------------
-    //  Let 'I' be the set of DOF for which  Dirichlet condition needs to be applied
-    //
-    //  to apply the Dirichlet on 'i'th DOF
-    //  - For LHS matrix A the row terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j  for all j
-    //           a_{i,j} = 1.  : i==j
-    //    also the column terms corresponding to the Dirichlet DOF
-    //           a_{i,j} = 0.  : i!=j  for all i
-    //----------------------------------------------
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " method ";
-
-  }else {
-
-    info() << "Applying Dirichlet boundary condition via "
-           << options()->enforceDirichletMethod() << " is not supported \n"
-           << "enforce-Dirichlet-method only supports:\n"
-           << "  - Penalty\n"
-           << "  - WeakPenalty\n"
-           << "  - RowElimination\n"
-           << "  - RowColumnElimination\n";
-  }
 
   //----------------------------------------------
   // Constant source term assembly
@@ -270,7 +107,7 @@ _assembleLinearOperator()
     Cell cell = *icell;
     Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
     for (Node node : cell.nodes()) {
-      if (!(m_u1_fixed[node]) && node.isOwn()) {
+      if (node.isOwn()) {
         DoFLocalId dof_id1 = node_dof.dofId(node, 0);
         rhs_values[dof_id1] += f * area / 3;
       }
@@ -291,13 +128,76 @@ _assembleLinearOperator()
       Face face = *iface;
       Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
       for (Node node : iface->nodes()) {
-        if (!(m_u1_fixed[node]) && node.isOwn()) {
+        if (node.isOwn()) {
           DoFLocalId dof_id1 = node_dof.dofId(node, 0);
           rhs_values[dof_id1] += value * length / 2.;
         }
       }
     }
   }
+
+  for (const auto& bs : options()->dirichletBoundaryCondition()) {
+    FaceGroup group = bs->surface();
+    const UniqueArray<String> u_dirichlet_string = bs->u();
+
+    info() << "[ArcaneFem-Info] Applying Dirichlet " << u_dirichlet_string;
+    info() << "[ArcaneFem-Info] Dirichlet surface '" << bs->surface().name() << "'";
+    info() << "[ArcaneFem-Info] Dirichlet method '" << options()->enforceDirichletMethod() << "'";
+
+    if (options()->enforceDirichletMethod() == "Penalty") {
+
+      Real Penalty = options()->penalty();
+
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Face, iface, group) {
+            for (Node node : iface->nodes()) {
+              DoFLocalId dof_id = node_dof.dofId(node, i);
+              if (node.isOwn()) {
+                m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
+                rhs_values[dof_id] = Penalty * u_dirichlet;
+              }
+            }
+          }
+        }
+      }
+    }
+    else if (options()->enforceDirichletMethod() == "RowElimination") {
+
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Face, iface, group) {
+            for (Node node : iface->nodes()) {
+              DoFLocalId dof_id = node_dof.dofId(node, i);
+              if (node.isOwn()) {
+                m_linear_system.eliminateRow(dof_id, u_dirichlet);
+              }
+            }
+          }
+        }
+      }
+    }
+    else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
+
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
+          ENUMERATE_ (Face, iface, group) {
+            for (Node node : iface->nodes()) {
+              DoFLocalId dof_id = node_dof.dofId(node, i);
+              if (node.isOwn()) {
+                m_linear_system.eliminateRowColumn(dof_id, u_dirichlet);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -357,7 +257,7 @@ _solve()
   m_linear_system.solve();
 
   // Re-Apply boundary conditions because the solver has modified the value
-  _applyDirichletBoundaryConditions();
+  //_applyDirichletBoundaryConditions();
 
   {
     VariableDoFReal& dof_temperature(m_linear_system.solutionVariable());
@@ -366,20 +266,19 @@ _solve()
       Node node = *inode;
       Real u1_val = dof_temperature[node_dof.dofId(node, 0)];
       Real u2_val = dof_temperature[node_dof.dofId(node, 1)];
-      m_u1[node] = u1_val;
-      m_u2[node] = u2_val;
+      m_U[node].x = u1_val;
+      m_U[node].y = u2_val;
     }
   }
 
-  m_u1.synchronize();
-  m_u2.synchronize();
+  m_U.synchronize();
 
   if (allNodes().size() < 200) {
     int p = std::cout.precision();
     std::cout.precision(17);
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      std::cout << "( N_id, u1, u2 ) = ( " << node.uniqueId() << ", " << m_u1[node] << ", " << m_u2[node] << ")\n";
+      std::cout << "( N_id, u1, u2 ) = ( " << node.uniqueId() << ", " << m_U[node].x << ", " << m_U[node].y << ")\n";
     }
     std::cout.precision(p);
   }
@@ -397,7 +296,7 @@ _checkResultFile()
   if (filename.empty())
     return;
   const double epsilon = 1.0e-4;
-  Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_u1, epsilon);
+  Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_U, epsilon);
 }
 
 /*---------------------------------------------------------------------------*/

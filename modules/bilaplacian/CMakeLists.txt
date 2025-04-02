@@ -34,4 +34,7 @@ endforeach()
 enable_testing()
 
 add_test(NAME [bilaplacian]direct_solver COMMAND Bilaplacian inputs/direct.arc)
-add_test(NAME [bilaplacian]internal_PCG_solver COMMAND Bilaplacian inputs/internal_pcg.arc)
+
+if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
+  add_test(NAME [bilaplacian]hypre_rowColElim COMMAND Bilaplacian inputs/internal_hypre_rowColElim.arc)
+endif()

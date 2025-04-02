@@ -42,9 +42,6 @@ _computeElementMatrixTRIA3(Cell cell)
   RealVector<6> dxUy = { 0., dxu[0], 0., dxu[1], 0., dxu[2] };
   RealVector<6> dyUy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
 
-  // -----------------------------------------------------------------------------
-  //  dx(u1)dx(v2) + dy(u1)dy(v2) + dx(u2)dx(v1) + dy(u2)dy(v1) + u2v2
-  //------------------------------------------------------------------------------
   RealMatrix<6, 6> int_Omega_i = ((dxUx ^ dxUy) + (dyUx ^ dyUy)) * area + ((dxUy ^ dxUx) + (dyUy ^ dyUx)) * area + massMatrix(Uy, Uy) * area;
 
   return int_Omega_i;

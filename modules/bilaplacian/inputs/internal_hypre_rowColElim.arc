@@ -9,8 +9,7 @@
    <output-period>1</output-period>
    <format name="VtkHdfV2PostProcessor" />
    <output>
-     <variable>u1</variable>
-     <variable>u2</variable>
+     <variable>U</variable>
    </output>
   </arcane-post-processing>
 
@@ -25,11 +24,13 @@
     <f>-786.25</f>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
-      <value>145.5</value>
+      <u>145.5 NULL</u>
     </dirichlet-boundary-condition>
-    <linear-system name="SequentialBasicLinearSystem">
-      <epsilon>1.0e-25</epsilon>
-      <solver-method>pcg</solver-method>
+    <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
+    <linear-system>
+      <solver-backend>hypre</solver-backend>
+      <solver-method>gmres</solver-method>
+      <epsilon>1e-15</epsilon>
     </linear-system>
   </fem>
 </case>

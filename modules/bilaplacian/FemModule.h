@@ -70,9 +70,7 @@ class FemModule
   void _getMaterialParameters();
   void _assembleBilinearOperatorTRIA3();
   void _solve();
-  void _initBoundaryconditions();
   void _assembleLinearOperator();
-  void _applyDirichletBoundaryConditions();
   void _checkResultFile();
 
   RealMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
