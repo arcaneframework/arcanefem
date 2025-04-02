@@ -268,7 +268,7 @@ _assembleLinearOperator()
   //----------------------------------------------
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    Real area = _computeAreaTriangle3(cell);
+    Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
     for (Node node : cell.nodes()) {
       if (!(m_u1_fixed[node]) && node.isOwn()) {
         DoFLocalId dof_id1 = node_dof.dofId(node, 0);
@@ -289,7 +289,7 @@ _assembleLinearOperator()
     Real value = bs->value();
     ENUMERATE_ (Face, iface, group) {
       Face face = *iface;
-      Real length = _computeEdgeLength2(face);
+      Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
       for (Node node : iface->nodes()) {
         if (!(m_u1_fixed[node]) && node.isOwn()) {
           DoFLocalId dof_id1 = node_dof.dofId(node, 0);
@@ -298,29 +298,6 @@ _assembleLinearOperator()
       }
     }
   }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real FemModule::
-_computeAreaTriangle3(Cell cell)
-{
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-  return 0.5 * ((m1.x - m0.x) * (m2.y - m0.y) - (m2.x - m0.x) * (m1.y - m0.y));
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real FemModule::
-_computeEdgeLength2(Face face)
-{
-  Real3 m0 = m_node_coord[face.nodeId(0)];
-  Real3 m1 = m_node_coord[face.nodeId(1)];
-  return  math::sqrt((m1.x-m0.x)*(m1.x-m0.x) + (m1.y-m0.y)*(m1.y - m0.y));
 }
 
 /*---------------------------------------------------------------------------*/

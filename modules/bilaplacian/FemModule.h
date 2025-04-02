@@ -26,6 +26,7 @@
 #include "FemUtils.h"
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
+#include "ArcaneFemFunctions.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -76,8 +77,6 @@ class FemModule
 
   RealMatrix<6, 6> _computeElementMatrixTRIA3(Cell cell);
 
-  Real _computeAreaTriangle3(Cell cell);
-  Real _computeEdgeLength2(Face face);
 };
 
 #endif

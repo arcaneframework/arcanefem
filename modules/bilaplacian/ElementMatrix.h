@@ -40,7 +40,7 @@ _computeElementMatrixTRIA3(Cell cell)
   Real3 m1 = m_node_coord[cell.nodeId(1)];
   Real3 m2 = m_node_coord[cell.nodeId(2)];
 
-  Real area = _computeAreaTriangle3(cell);    // calculate area
+  Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
 
   Real2 dPhi0(m1.y - m2.y, m2.x - m1.x);
   Real2 dPhi1(m2.y - m0.y, m0.x - m2.x);
