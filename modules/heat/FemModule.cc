@@ -37,6 +37,10 @@ startInit()
   m_cross_validation = options()->crossValidation();
   m_petsc_flags = options()->petscFlags();
 
+  bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem";
+  if (m_matrix_format == "BSR")
+    m_bsr_format.initialize(defaultMesh(), mesh()->dimension(), use_csr_in_linearsystem, 0);
+
   _initTime(); // initialize time
   _getParameters(); // get material parameters
   _initTemperature(); // initialize temperature
@@ -68,7 +72,7 @@ compute()
   else {
     m_linear_system.reset();
     m_linear_system.setLinearSystemFactory(options()->linearSystem());
-    m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
+    m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
   }
 
   if (m_petsc_flags != NULL){
