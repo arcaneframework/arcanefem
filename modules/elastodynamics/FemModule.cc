@@ -57,9 +57,17 @@ compute()
 
   info() << "Time iteration at t : " << t << " (s) ";
 
-  m_linear_system.reset();
-  m_linear_system.setLinearSystemFactory(options()->linearSystem());
-  m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
+  // Set if we want to keep the matrix structure between calls.
+  // The matrix has to have the same structure (same structure for non-zero)
+  bool keep_struct = true;
+  if (m_linear_system.isInitialized() && keep_struct) {
+    m_linear_system.clearValues();
+  }
+  else {
+    m_linear_system.reset();
+    m_linear_system.setLinearSystemFactory(options()->linearSystem());
+    m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
+  }
 
   if (m_petsc_flags != NULL){
     CommandLineArguments args = ArcaneFemFunctions::GeneralFunctions::getPetscFlagsFromCommandline(m_petsc_flags);
@@ -624,7 +632,10 @@ _assembleLinearOperator()
             for (Node node : iface->nodes()) {
               DoFLocalId dof_id = node_dof.dofId(node, i);
               if (node.isOwn()) {
-                m_linear_system.eliminateRow(dof_id, u_dirichlet);
+                if (t <= dt)
+                  m_linear_system.eliminateRow(dof_id, u_dirichlet);
+                else
+                  rhs_values[dof_id] =  u_dirichlet;
               }
             }
           }
@@ -640,7 +651,10 @@ _assembleLinearOperator()
             for (Node node : iface->nodes()) {
               DoFLocalId dof_id = node_dof.dofId(node, i);
               if (node.isOwn()) {
-                m_linear_system.eliminateRowColumn(dof_id, u_dirichlet);
+                if (t <= dt)
+                  m_linear_system.eliminateRowColumn(dof_id, u_dirichlet);
+                else
+                  rhs_values[dof_id] =  u_dirichlet;
               }
             }
           }
@@ -682,7 +696,10 @@ _assembleLinearOperator()
             Node node = *inode;
             DoFLocalId dof_id = node_dof.dofId(node, i);
             if (node.isOwn()) {
-              m_linear_system.eliminateRow(dof_id, u_dirichlet);
+              if (t <= dt)
+                m_linear_system.eliminateRow(dof_id, u_dirichlet);
+              else
+                rhs_values[dof_id] =  u_dirichlet;
             }
           }
         }
@@ -696,7 +713,10 @@ _assembleLinearOperator()
             Node node = *inode;
             DoFLocalId dof_id = node_dof.dofId(node, i);
             if (node.isOwn()) {
-              m_linear_system.eliminateRowColumn(dof_id, u_dirichlet);
+              if (t <= dt)
+                m_linear_system.eliminateRowColumn(dof_id, u_dirichlet);
+              else
+                rhs_values[dof_id] =  u_dirichlet;
             }
           }
         }
@@ -816,13 +836,15 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module  _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (mesh()->dimension() == 2)
-    _assembleBilinearOperatorTria3();
-  else
-    _assembleBilinearOperatorTetra4();
+  if (t <= dt) {
+    if (mesh()->dimension() == 2)
+      _assembleBilinearOperatorTria3();
+    else
+      _assembleBilinearOperatorTetra4();
+  }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"lhs-matrix-assembly", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "lhs-matrix-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
