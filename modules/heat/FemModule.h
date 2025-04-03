@@ -68,6 +68,8 @@ class FemModule
   void compute() override; //! Method called at each iteration
   VersionInfo versionInfo() const override { return VersionInfo(1, 0, 0); }
 
+  void _assembleBilinearOperator();
+
  private:
 
   Real t, dt, tmax; //! Time variables
@@ -94,7 +96,6 @@ class FemModule
   void _initTemperature();
   void _doStationarySolve();
   void _getParameters();
-  void _assembleBilinearOperator();
   void _solve();
   void _assembleLinearOperator();
   void _validateResults();

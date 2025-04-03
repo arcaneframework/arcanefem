@@ -38,8 +38,10 @@ startInit()
   m_petsc_flags = options()->petscFlags();
 
   bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem";
-  if (m_matrix_format == "BSR")
-    m_bsr_format.initialize(defaultMesh(), mesh()->dimension(), use_csr_in_linearsystem, 0);
+  if (m_matrix_format == "BSR"){
+    m_bsr_format.initialize(mesh(), 1, use_csr_in_linearsystem, 0);
+    m_bsr_format.computeSparsity();
+  }
 
   _initTime(); // initialize time
   _getParameters(); // get material parameters
@@ -369,6 +371,21 @@ _assembleBilinearOperator()
   Real elapsedTime = platform::getRealTime();
 
   if (t <= dt - 1e-8){
+
+    if (m_matrix_format == "BSR") {
+      UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+      auto cn_cv = m_connectivity_view.cellNode();
+      auto queue = subDomain()->acceleratorMng()->defaultQueue();
+      auto command = makeCommand(queue);
+      auto in_node_coord = ax::viewIn(command, m_node_coord);
+      auto in_cell_lambda = ax::viewIn(command, m_cell_lambda);
+      auto in_dt = dt;
+
+      if (mesh()->dimension() == 2)
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, in_dt); });
+      m_bsr_format.toLinearSystem(m_linear_system);
+    }
+  else{
   if (mesh()->dimension() == 3)
     _assembleBilinear<4>([this](const Cell& cell) {
       return _computeElementMatrixTetra4(cell);
@@ -377,6 +394,7 @@ _assembleBilinearOperator()
     _assembleBilinear<3>([this](const Cell& cell) {
       return _computeElementMatrixTria3(cell);
     });
+  }
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
