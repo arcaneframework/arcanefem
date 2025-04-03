@@ -35,6 +35,17 @@ RealMatrix<3, 3> FemModule::_computeElementMatrixTria3(Cell cell)
   return area * lambda * (dxU ^ dxU) + area * lambda * (dyU ^ dyU);
 }
 
+ARCCORE_HOST_DEVICE RealMatrix<3, 3> computeElementMatrixTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, const ax::VariableCellRealInView& in_cell_lambda)
+{
+  Real area = FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+
+  Real3 dxU = FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dyU = FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
+  Real in_lambda = in_cell_lambda[cell_lid];
+
+  return area * in_lambda * (dxU ^ dxU) + area * in_lambda * (dyU ^ dyU);
+}
+
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Computes the element matrix for a tetrahedral element (ℙ1 FE).

@@ -17,17 +17,17 @@
 /*---------------------------------------------------------------------------*/
 
 #include <arcane/utils/PlatformUtils.h>
-
 #include <arcane/utils/NumArray.h>
 #include <arcane/utils/CommandLineArguments.h>
 #include <arcane/utils/Real3.h>
-
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IMesh.h>
 #include <arcane/IItemFamily.h>
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 #include <arcane/core/IStandardFunction.h>
+#include <arcane/accelerator/core/IAcceleratorMng.h>
+#include <arcane/accelerator/VariableViews.h>
 
 #include "IArcaneFemBC.h"
 #include "IDoFLinearSystemFactory.h"
@@ -36,12 +36,15 @@
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
 #include "ArcaneFemFunctions.h"
+#include "ArcaneFemFunctionsGpu.h"
+#include "BSRFormat.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 using namespace Arcane;
 using namespace Arcane::FemUtils;
+namespace ax = Arcane::Accelerator;
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -61,6 +64,7 @@ class FemModule
   explicit FemModule(const ModuleBuildInfo& mbi)
   : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
+  , m_bsr_format(mbi.subDomain()->traceMng(), *(mbi.subDomain()->acceleratorMng()->defaultQueue()), m_dofs_on_nodes)
   {
     ICaseMng* cm = mbi.subDomain()->caseMng();
     cm->setTreatWarningAsError(true);
@@ -70,6 +74,9 @@ class FemModule
   void startInit() override; //! Method called at the beginning of the simulation
   void compute() override; //! Method called at each iteration
   VersionInfo versionInfo() const override { return VersionInfo(1, 0, 0); }
+
+  void _assembleBilinearOperator();
+  void _assembleLinearOperatorGpu();
 
  private:
 
@@ -87,12 +94,13 @@ class FemModule
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;
+  BSRFormat m_bsr_format;
 
   void _doStationarySolve();
   void _getMaterialParameters();
-  void _assembleBilinearOperator();
   void _solve();
   void _assembleLinearOperator();
+  void _assembleLinearOperatorCpu();
   void _validateResults();
   void _updateVariables();
 
