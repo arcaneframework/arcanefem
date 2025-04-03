@@ -96,9 +96,12 @@ compute()
     m_linear_system.setSolverCommandLineArguments(args);
   }
 
-  if (m_matrix_format == "BSR") {
+  if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") {
     auto use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
-    m_bsr_format.initialize(mesh(), 1, use_csr_in_linear_system, 0);
+    if (m_matrix_format == "BSR")
+      m_bsr_format.initialize(mesh(), 1, use_csr_in_linear_system, 0);
+    else
+      m_bsr_format.initialize(mesh(), 1, use_csr_in_linear_system, 1);
     m_bsr_format.computeSparsity();
   }
 
@@ -210,7 +213,7 @@ _assembleLinearOperatorCpu()
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (m_matrix_format == "BSR")
+  if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
     m_bsr_format.toLinearSystem(m_linear_system);
 
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable()); // Temporary variable to keep values for the RHS
@@ -324,7 +327,7 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (m_matrix_format == "BSR") {
+  if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") {
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();
     auto m_queue = subDomain()->acceleratorMng()->defaultQueue();
@@ -333,7 +336,10 @@ _assembleBilinearOperator()
     auto in_cell_lambda = ax::viewIn(command, m_cell_lambda);
 
     if (mesh()->dimension() == 2)
-      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda); });
+      if (m_matrix_format == "BSR")
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda); });
+      else
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, node_lid); });
   }
   else {
     if (mesh()->dimension() == 2)

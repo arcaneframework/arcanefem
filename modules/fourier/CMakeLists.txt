@@ -85,6 +85,10 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/matrix-format=BSR
     inputs/conduction.arc)
 
+  arcanefem_add_gpu_test(NAME [Fourier]conduction_petsc_af-bsr COMMAND ./Fourier ARGS
+    -A,//fem/matrix-format=AF-BSR
+    inputs/conduction.arc)
+
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [Fourier]conduction_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
       inputs/conduction.arc)
@@ -121,6 +125,11 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
 
   arcanefem_add_gpu_test(NAME [Fourier]conduction_hypre_bsr COMMAND ./Fourier ARGS
     -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [Fourier]conduction_hypre_af-bsr COMMAND ./Fourier ARGS
+    -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG}
     inputs/conduction.arc)
 
