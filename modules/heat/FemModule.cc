@@ -59,9 +59,17 @@ compute()
   if (t >= tmax)
     subDomain()->timeLoopMng()->stopComputeLoop(true);
 
-  m_linear_system.reset();
-  m_linear_system.setLinearSystemFactory(options()->linearSystem());
-  m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
+  // Set if we want to keep the matrix structure between calls.
+  // The matrix has to have the same structure (same structure for non-zero)
+  bool keep_struct = true;
+  if (m_linear_system.isInitialized() && keep_struct) {
+    m_linear_system.clearValues();
+  }
+  else {
+    m_linear_system.reset();
+    m_linear_system.setLinearSystemFactory(options()->linearSystem());
+    m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
+  }
 
   if (m_petsc_flags != NULL){
     CommandLineArguments args = ArcaneFemFunctions::GeneralFunctions::getPetscFlagsFromCommandline(m_petsc_flags);
@@ -243,19 +251,21 @@ _assembleLinearOperator()
       ENUMERATE_ (Face, iface, group) {
         Face face = *iface;
         Real measure = computeMeasure(face, m_node_coord);
-        auto K_e = factor * massMatrix(U, U) * measure;
 
-        Int32 n1_index = 0;
-        for (Node node1 : face.nodes()) {
-          Int32 n2_index = 0;
-          for (Node node2 : face.nodes()) {
-            Real v = K_e(n1_index, n2_index);
-            if (node1.isOwn()) {
-              m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+        if (t <= dt - 1e-8) {
+          auto K_e = factor * massMatrix(U, U) * measure;
+
+          Int32 n1_index = 0;
+          for (Node node1 : face.nodes()) {
+            Int32 n2_index = 0;
+            for (Node node2 : face.nodes()) {
+              Real v = K_e(n1_index, n2_index);
+              if (node1.isOwn())
+                m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
+              ++n2_index;
             }
-            ++n2_index;
+            ++n1_index;
           }
-          ++n1_index;
         }
 
         for (Node node : iface->nodes()) {
@@ -281,11 +291,50 @@ _assembleLinearOperator()
       for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
         BCFunctions.applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
 
-      for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
-        BCFunctions.applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+      for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions()) {
+        //  BCFunctions.applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+        FaceGroup face_group = bs->getSurface();
+        NodeGroup node_group = face_group.nodeGroup();
+        Real value = bs->getValue();
+        if (bs->getEnforceDirichletMethod() == "Penalty") {
+          Real penalty = bs->getPenalty();
+          ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
+        }
+        else if (bs->getEnforceDirichletMethod() == "RowElimination") {
+          if (t <= dt - 1e-8)
+            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+          else
+            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(value, node_dof, m_linear_system, rhs_values, node_group);
+        }
+        // else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
+        //     ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+        // }
+        else {
+          ARCANE_FATAL("Unknown Dirichlet method");
+        }
+      }
 
-      for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions())
-        BCFunctions.applyPointDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+      for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions()){
+      //  BCFunctions.applyPointDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+      NodeGroup node_group = bs->getNode();
+      Real value = bs->getValue();
+      if (bs->getEnforceDirichletMethod() == "Penalty") {
+        Real penalty = bs->getPenalty();
+        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
+      }
+      else if (bs->getEnforceDirichletMethod() == "RowElimination") {
+        if (t <= dt - 1e-8)
+          ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+        else
+          ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(value, node_dof, m_linear_system, rhs_values, node_group);
+      }
+      // else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
+      //     ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+      // }
+      else {
+        ARCANE_FATAL("Unknown Dirichlet method");
+      }
+      }
     }
   };
 
@@ -315,6 +364,7 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
+  if (t <= dt - 1e-8){
   if (mesh()->dimension() == 3)
     _assembleBilinear<4>([this](const Cell& cell) {
       return _computeElementMatrixTetra4(cell);
@@ -323,6 +373,7 @@ _assembleBilinearOperator()
     _assembleBilinear<3>([this](const Cell& cell) {
       return _computeElementMatrixTria3(cell);
     });
+  }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "lhs-matrix-assembly", elapsedTime);
