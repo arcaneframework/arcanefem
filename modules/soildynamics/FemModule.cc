@@ -94,6 +94,15 @@ _updateTime()
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Performs a stationary solve for the FEM system.
+ *
+ * This method follows via the following steps:
+ *   1. _assembleBilinearOperator()  Assembles the FEM  matrix 𝐀
+ *   2. _assembleLinearOperator()    Assembles the FEM RHS vector 𝐛
+ *   3. _solve()                     Solves for solution vector 𝐮 = 𝐀⁻¹𝐛
+ *   4. _updateVariables()           Updates FEM variables 𝐮 = 𝐱
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::

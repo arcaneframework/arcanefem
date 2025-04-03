@@ -99,20 +99,19 @@ compute()
   _doStationarySolve();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"compute", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "compute", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Performs a stationary solve for the FEM system.
  *
- * This method follows a sequence of steps to solve FEM system:
- *
- *   1. _getMaterialParameters()     Retrieves material parameters via
- *   2. _assembleBilinearOperator()  Assembles the FEM  matrix A
- *   3. _assembleLinearOperator()    Assembles the FEM RHS vector b
- *   4. _solve()                     Solves for solution vector u = A^-1*b
- *   5. _updateVariables()           Updates FEM variables u = x
+ * This method follows via the following steps:
+ *   1. _getMaterialParameters()     Retrieves material parameters
+ *   2. _assembleBilinearOperator()  Assembles the FEM  matrix 𝐀
+ *   3. _assembleLinearOperator()    Assembles the FEM RHS vector 𝐛
+ *   4. _solve()                     Solves for solution vector 𝐮 = 𝐀⁻¹𝐛
+ *   5. _updateVariables()           Updates FEM variables 𝐮 = 𝐱
  *   6. _validateResults()           Regression test
  */
 /*---------------------------------------------------------------------------*/
@@ -156,10 +155,7 @@ _getMaterialParameters()
   lambda = options()->lambda();
   qdot = options()->qdot();
 
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-    m_cell_lambda[cell] = lambda;
-  }
+  m_cell_lambda.fill(lambda);
 
   for (const auto& bs : options()->materialProperty()) {
     CellGroup group = bs->volume();
@@ -173,7 +169,7 @@ _getMaterialParameters()
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"get-material-params", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "get-material-params", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -240,7 +236,7 @@ _assembleLinearOperator()
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-vector-assembly", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -265,7 +261,7 @@ _assembleBilinearOperator()
     });
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"lhs-matrix-assembly", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "lhs-matrix-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -326,7 +322,7 @@ _solve()
   m_linear_system.solve();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"solve-linear-system", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "solve-linear-system", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -369,7 +365,7 @@ _updateVariables()
     m_u_exact.synchronize();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "update-variables", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -404,7 +400,7 @@ _validateResults()
     checkNodeResultFile(traceMng(), filename, m_u, 1.0e-4);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"result-validation", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "result-validation", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/

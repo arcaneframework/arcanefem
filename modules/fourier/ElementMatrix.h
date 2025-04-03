@@ -25,8 +25,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<3, 3> FemModule::
-_computeElementMatrixTria3(Cell cell)
+RealMatrix<3, 3> FemModule::_computeElementMatrixTria3(Cell cell)
 {
   Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
 
@@ -41,7 +40,7 @@ _computeElementMatrixTria3(Cell cell)
  * @brief Computes the element matrix for a tetrahedral element (ℙ1 FE).
  *
  * This function calculates the integral of the expression:
- *       a(𝑢,𝑣) = ∫∫∫ (∂𝑢/∂𝑥 ∂𝑣/∂𝑥  + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦 + ∂𝑢/∂𝑧 ∂𝑣/∂𝑧)dΩ
+ *       a(𝑢,𝑣) = ∫∫∫ λ(∂𝑢/∂𝑥 ∂𝑣/∂𝑥  + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦 + ∂𝑢/∂𝑧 ∂𝑣/∂𝑧)dΩ
  *
  * Steps involved:
  * 1. Calculate the area of the triangle.
