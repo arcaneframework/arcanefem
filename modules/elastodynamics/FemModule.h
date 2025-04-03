@@ -22,22 +22,25 @@
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
 #include <arcane/CaseTable.h>
-
 #include <arcane/utils/PlatformUtils.h>
+#include <arcane/accelerator/core/IAcceleratorMng.h>
+#include <arcane/accelerator/core/RunQueue.h>
 
 #include "IDoFLinearSystemFactory.h"
 #include "Fem_axl.h"
 #include "FemUtils.h"
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
+#include "BSRFormat.h"
 #include "ArcaneFemFunctions.h"
-
+#include "ArcaneFemFunctionsGpu.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 using namespace Arcane;
 using namespace Arcane::FemUtils;
+namespace ax = Arcane::Accelerator;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -52,6 +55,7 @@ class FemModule
   explicit FemModule(const ModuleBuildInfo& mbi)
   : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
+  , m_bsr_format(mbi.subDomain()->traceMng(), *(mbi.subDomain()->acceleratorMng()->defaultQueue()), m_dofs_on_nodes)
   {
     ICaseMng* cm = mbi.subDomain()->caseMng();
     cm->setTreatWarningAsError(true);
@@ -66,6 +70,9 @@ class FemModule
  void startInit() override; //! Method called at the beginning of the simulation
  void compute() override; //! Method called at each iteration
  VersionInfo versionInfo() const override { return VersionInfo(1, 0, 0); }
+
+ void _assembleBilinearOperatorTria3Gpu();
+ void _assembleBilinearOperatorTetra4Gpu();
 
  private:
 
@@ -109,6 +116,7 @@ class FemModule
 
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
+  BSRFormat m_bsr_format;
 
   // Struct to make sure we are using a CaseTable associated
   // to the right file
@@ -127,7 +135,7 @@ class FemModule
   void _updateVariables();
   void _updateTime();
   void _solve();
-  void _assembleLinearOperator();
+  void _assembleLinearOperator(BSRMatrix* bsr_matrix = nullptr);
   void _validateResults();
   void _readCaseTables();
   void _assembleBilinearOperator();

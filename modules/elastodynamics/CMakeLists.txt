@@ -1,9 +1,12 @@
+set(ACCELERATOR_SOURCES FemModule.cc)
+
 add_executable(Elastodynamics
-  FemModule.cc
+  ${ACCELERATOR_SOURCES}
   main.cc
   Fem_axl.h
 )
 
+arcane_accelerator_add_source_files(${ACCELERATOR_SOURCES})
 arcane_generate_axl(Fem)
 arcane_add_arcane_libraries_to_target(Elastodynamics)
 target_include_directories(Elastodynamics PUBLIC . ../fem ${CMAKE_CURRENT_BINARY_DIR})
@@ -63,9 +66,32 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/solve-linear-system=false
     -A,//fem/cross-validation=false
     inputs/bar.arc)
+
+  arcanefem_add_gpu_test(NAME [elastodynamics]2D_bar_petsc_bsr COMMAND  ./Elastodynamics ARGS
+    -A,//fem/matrix-format=BSR
+    inputs/bar.arc)
+
+  arcanefem_add_gpu_test(NAME [elastodynamics]3D_bar_petsc_bsr COMMAND  ./Elastodynamics ARGS
+    -A,//fem/matrix-format=BSR
+    inputs/bar.3D.arc)
+
+  arcanefem_add_gpu_test(NAME [elastodynamics]2D_bar_petsc_af-bsr COMMAND  ./Elastodynamics ARGS
+    -A,//fem/matrix-format=AF-BSR
+    inputs/bar.arc)
+
+  arcanefem_add_gpu_test(NAME [elastodynamics]3D_bar_petsc_af-bsr COMMAND  ./Elastodynamics ARGS
+    -A,//fem/matrix-format=AF-BSR
+    inputs/bar.3D.arc)
+
 endif()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
+  set(SOLVER_HYPRE_CG
+  -A,//fem/linear-system/@name=HypreLinearSystem
+  -A,//fem/linear-system/solver=cg
+  -A,//fem/linear-system/atol=1e-9
+  -A,//fem/linear-system/rtol=0)
+
   add_test(NAME [elastodynamics]Dirichlet_traction_bodyforce COMMAND Elastodynamics
     inputs/bar.dirichlet.traction.bodyforce.arc)
   add_test(NAME [elastodynamics]Dirichlet_pointBc_Penalty COMMAND Elastodynamics
@@ -77,4 +103,25 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   add_test(NAME [elastodynamics]2D_pointBc_RowColumnElimination COMMAND Elastodynamics
     -A,//fem/enforce-Dirichlet-method=RowColumnElimination
     inputs/semi-circle.pointBC.arc)
+
+  arcanefem_add_gpu_test(NAME [elastodynamics]2D_bar_bsr_bsr COMMAND  ./Elastodynamics ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/bar.arc)
+
+  arcanefem_add_gpu_test(NAME [elastodynamics]3D_bar_hypre_bsr COMMAND  ./Elastodynamics ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/bar.3D.arc)
+
+  arcanefem_add_gpu_test(NAME [elastodynamics]2D_bar_bsr_af-bsr COMMAND  ./Elastodynamics ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/bar.arc)
+
+  arcanefem_add_gpu_test(NAME [elastodynamics]3D_bar_hypre_af-bsr COMMAND  ./Elastodynamics ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/bar.3D.arc)
+
 endif()

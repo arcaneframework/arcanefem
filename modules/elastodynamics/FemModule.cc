@@ -32,6 +32,12 @@ startInit()
 
   _getParameters();
 
+  bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem";
+  if (m_matrix_format == "BSR")
+    m_bsr_format.initialize(defaultMesh(), mesh()->dimension(), use_csr_in_linearsystem, 0);
+  else if (m_matrix_format == "AF-BSR")
+    m_bsr_format.initialize(defaultMesh(), mesh()->dimension(), use_csr_in_linearsystem, 1);
+
   t = dt;
   tmax = tmax - dt;
   m_global_deltat.assign(dt);
@@ -73,7 +79,7 @@ compute()
   else {
     m_linear_system.reset();
     m_linear_system.setLinearSystemFactory(options()->linearSystem());
-    m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
+    m_linear_system.initialize(subDomain(),  acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
   }
 
   if (m_petsc_flags != NULL) {
@@ -108,7 +114,10 @@ _doStationarySolve()
 {
   if(m_assemble_linear_system){
     _assembleBilinearOperator();
-    _assembleLinearOperator();
+    if(m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
+      _assembleLinearOperator(&(m_bsr_format.matrix()));
+    else
+      _assembleLinearOperator();
   }
   if(m_solve_linear_system){
     _solve();
@@ -353,7 +362,7 @@ _updateVariables()
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
-_assembleLinearOperator()
+_assembleLinearOperator(BSRMatrix* bsr_matrix)
 {
   info() << "[ArcaneFem-Info] Started module  _assembleLinearOperator()";
   Real elapsedTime = platform::getRealTime();
@@ -622,7 +631,10 @@ _assembleLinearOperator()
             for (Node node : iface->nodes()) {
               DoFLocalId dof_id = node_dof.dofId(node, i);
               if (node.isOwn()) {
-                m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
+                if (bsr_matrix)
+                  bsr_matrix->setValue(dof_id, dof_id, Penalty);
+                else
+                  m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
                 rhs_values[dof_id] = Penalty * u_dirichlet;
               }
             }
@@ -731,8 +743,53 @@ _assembleLinearOperator()
     }
   }
 
+  if(m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
+    m_bsr_format.toLinearSystem(m_linear_system);
+
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleBilinearOperatorTria3Gpu()
+{
+  UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+  auto cn_cv = m_connectivity_view.cellNode();
+  auto command = makeCommand(acceleratorMng()->defaultQueue());
+  auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
+  auto c0_copy = c0;
+  auto c1_copy = c1;
+  auto c2_copy = c2;
+
+  m_bsr_format.computeSparsity();
+  if (m_matrix_format == "BSR")
+    m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, c0_copy, c1_copy, c2_copy); });
+  else
+    m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, c0_copy, c1_copy, c2_copy, node_lid); });
+  }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModule::
+_assembleBilinearOperatorTetra4Gpu()
+{
+  UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+  auto cn_cv = m_connectivity_view.cellNode();
+  auto command = makeCommand(acceleratorMng()->defaultQueue());
+  auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
+  auto c0_copy = c0;
+  auto c1_copy = c1;
+  auto c2_copy = c2;
+
+  m_bsr_format.computeSparsity();
+  if (m_matrix_format == "BSR")
+    m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, c0_copy, c1_copy, c2_copy); });
+  else
+    m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, c0_copy, c1_copy, c2_copy, node_lid); });
 }
 
 /*---------------------------------------------------------------------------*/
@@ -844,10 +901,17 @@ _assembleBilinearOperator()
   Real elapsedTime = platform::getRealTime();
 
   if (t <= dt) {
+
     if (mesh()->dimension() == 2)
-      _assembleBilinearOperatorTria3();
+      if(m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
+        _assembleBilinearOperatorTria3Gpu();
+      else
+        _assembleBilinearOperatorTria3();
     else
-      _assembleBilinearOperatorTetra4();
+      if(m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
+        _assembleBilinearOperatorTetra4Gpu();
+      else
+        _assembleBilinearOperatorTetra4();
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;

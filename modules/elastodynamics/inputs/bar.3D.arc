@@ -38,9 +38,5 @@
       <surface>surfaceright</surface>
       <t>NULL 0.01 NULL</t>
     </traction-boundary-condition>
-    <linear-system>
-      <solver-backend>petsc</solver-backend>
-      <preconditioner>ic</preconditioner>
-    </linear-system>
   </fem>
 </case>
