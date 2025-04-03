@@ -22,6 +22,8 @@
 #include <arcane/IItemFamily.h>
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
+#include <arcane/accelerator/core/IAcceleratorMng.h>
+#include <arcane/accelerator/core/RunQueue.h>
 
 #include "IArcaneFemBC.h"
 #include "IDoFLinearSystemFactory.h"
@@ -30,12 +32,14 @@
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
 #include "ArcaneFemFunctions.h"
+#include "ArcaneFemFunctionsGpu.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 using namespace Arcane;
 using namespace Arcane::FemUtils;
+namespace ax = Arcane::Accelerator;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
