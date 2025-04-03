@@ -39,6 +39,21 @@ _computeElementMatrixTria3(Cell cell)
 }
 
 /*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE RealMatrix<3, 3> _computeElementMatrixTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, const ax::VariableCellRealInView& in_cell_lambda, Real in_dt)
+{
+  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+
+  RealVector<3> U = { 1., 1., 1. };
+  Real3 dxU = FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dyU = FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
+  Real lambda = in_cell_lambda[cell_lid];
+
+  return lambda * (area * (dxU ^ dxU) + area * (dyU ^ dyU)) + (1 / 12.) * massMatrix(U, U) * area / in_dt;
+}
+
+/*---------------------------------------------------------------------------*/
 /**
  * @brief Computes the element matrix for a tetrahedral element (ℙ1 FE).
  *
@@ -64,4 +79,21 @@ _computeElementMatrixTetra4(Cell cell)
 
   return lambda * (volume * (dxU ^ dxU) + volume * (dyU ^ dyU) + volume * (dzU ^ dzU))
          + (1 / 20.) * massMatrix(U, U) * volume / dt;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE RealMatrix<4, 4> _computeElementMatrixTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, const ax::VariableCellRealInView& in_cell_lambda, Real in_dt)
+{
+  Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
+
+  RealVector<4> U = { 1., 1., 1., 1. };
+  Real4 dxU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientXTetra4(cell_lid, cn_cv, in_node_coord);
+  Real4 dyU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientYTetra4(cell_lid, cn_cv, in_node_coord);
+  Real4 dzU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientZTetra4(cell_lid, cn_cv, in_node_coord);
+  Real lambda = in_cell_lambda[cell_lid];
+
+  return  lambda * (volume * (dxU ^ dxU) + volume * (dyU ^ dyU) + volume * (dzU ^ dzU))
+         + (1 / 20.) * massMatrix(U, U) * volume / in_dt;
 }
