@@ -67,12 +67,20 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/cross-validation=false
     inputs/bar.arc)
 
-  arcanefem_add_gpu_test(NAME [elastodynamics]2D_bar_bsr COMMAND  ./Elastodynamics ARGS
+  arcanefem_add_gpu_test(NAME [elastodynamics]2D_bar_petsc_bsr COMMAND  ./Elastodynamics ARGS
     -A,//fem/matrix-format=BSR
     inputs/bar.arc)
 
-  arcanefem_add_gpu_test(NAME [elastodynamics]3D_bar_bsr COMMAND  ./Elastodynamics ARGS
+  arcanefem_add_gpu_test(NAME [elastodynamics]3D_bar_petsc_bsr COMMAND  ./Elastodynamics ARGS
     -A,//fem/matrix-format=BSR
+    inputs/bar.3D.arc)
+
+  arcanefem_add_gpu_test(NAME [elastodynamics]2D_bar_petsc_af-bsr COMMAND  ./Elastodynamics ARGS
+    -A,//fem/matrix-format=AF-BSR
+    inputs/bar.arc)
+
+  arcanefem_add_gpu_test(NAME [elastodynamics]3D_bar_petsc_af-bsr COMMAND  ./Elastodynamics ARGS
+    -A,//fem/matrix-format=AF-BSR
     inputs/bar.3D.arc)
 
 endif()
@@ -105,4 +113,15 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG}
     inputs/bar.3D.arc)
+
+  arcanefem_add_gpu_test(NAME [elastodynamics]2D_bar_bsr_af-bsr COMMAND  ./Elastodynamics ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/bar.arc)
+
+  arcanefem_add_gpu_test(NAME [elastodynamics]3D_bar_hypre_af-bsr COMMAND  ./Elastodynamics ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/bar.3D.arc)
+
 endif()

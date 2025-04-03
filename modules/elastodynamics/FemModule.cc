@@ -114,7 +114,7 @@ _doStationarySolve()
 {
   if(m_assemble_linear_system){
     _assembleBilinearOperator();
-    if(m_matrix_format == "BSR")
+    if(m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
       _assembleLinearOperator(&(m_bsr_format.matrix()));
     else
       _assembleLinearOperator();
@@ -743,7 +743,7 @@ _assembleLinearOperator(BSRMatrix* bsr_matrix)
     }
   }
 
-  if(m_matrix_format == "BSR")
+  if(m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
     m_bsr_format.toLinearSystem(m_linear_system);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -767,7 +767,9 @@ _assembleBilinearOperatorTria3Gpu()
   m_bsr_format.computeSparsity();
   if (m_matrix_format == "BSR")
     m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, c0_copy, c1_copy, c2_copy); });
-}
+  else
+    m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, c0_copy, c1_copy, c2_copy, node_lid); });
+  }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -786,6 +788,8 @@ _assembleBilinearOperatorTetra4Gpu()
   m_bsr_format.computeSparsity();
   if (m_matrix_format == "BSR")
     m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, c0_copy, c1_copy, c2_copy); });
+  else
+    m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, c0_copy, c1_copy, c2_copy, node_lid); });
 }
 
 /*---------------------------------------------------------------------------*/
@@ -899,12 +903,12 @@ _assembleBilinearOperator()
   if (t <= dt) {
 
     if (mesh()->dimension() == 2)
-      if(m_matrix_format == "BSR")
+      if(m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
         _assembleBilinearOperatorTria3Gpu();
       else
         _assembleBilinearOperatorTria3();
     else
-      if(m_matrix_format == "BSR")
+      if(m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
         _assembleBilinearOperatorTetra4Gpu();
       else
         _assembleBilinearOperatorTetra4();
