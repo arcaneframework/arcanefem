@@ -43,6 +43,13 @@ startInit()
 }
 
 /*---------------------------------------------------------------------------*/
+/*
+ * @brief Computes the FEM simulation for all time step.
+ *
+ * This method performs the main computation of the FEM simulation.
+ * It assembles the linear system, solves it, and updates the variables.
+ * It also handles stopping the computation loop if the maximum time is reached.
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -51,7 +58,7 @@ compute()
   info() << "[ArcaneFem-Info] Started module  compute()";
   Real elapsedTime = platform::getRealTime();
 
-  // Stop code after computations
+  // Stop the computation loop if the maximum time is reached
   if (t >= tmax)
     subDomain()->timeLoopMng()->stopComputeLoop(true);
 
@@ -69,7 +76,7 @@ compute()
     m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
   }
 
-  if (m_petsc_flags != NULL){
+  if (m_petsc_flags != NULL) {
     CommandLineArguments args = ArcaneFemFunctions::GeneralFunctions::getPetscFlagsFromCommandline(m_petsc_flags);
     m_linear_system.setSolverCommandLineArguments(args);
   }
@@ -126,24 +133,24 @@ _getParameters()
   Real elapsedTime = platform::getRealTime();
 
   //--------- time parameters -----------//
-  tmax = options()->tmax(); // max time
-  dt = options()->dt(); // time step
+  tmax = options()->tmax(); // max time 𝑡ₘₐₓ
+  dt = options()->dt(); // time step δ𝑡
 
   //--- damping term parameter ---//
-  etam = options()->etam(); // damping param etam
-  etak = options()->etak(); // damping param etak
+  etam = options()->etam(); // damping parameter ηₘ
+  etak = options()->etak(); // damping parameter ηₖ
 
   //--- time discretization parameter ---//
-  alpm = options()->alpm(); // time discretization param alpm
-  alpf = options()->alpf(); // time discretization param alpf
+  alpm = options()->alpm(); // time discretization parameter αᵐ
+  alpf = options()->alpf(); // time discretization parameter ηᶠ
 
   //--------- material parameter ---------//
-  E = options()->E(); // Youngs modulus
-  nu = options()->nu(); // Poission ratio
-  rho = options()->rho(); // Density
+  E = options()->E(); // Youngs modulus 𝐸
+  nu = options()->nu(); // Poission ratio ν
+  rho = options()->rho(); // Density ρ
 
-  mu = E / (2 * (1 + nu)); // lame parameter mu
-  lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter lambda
+  mu = E / (2 * (1 + nu)); // lame parameter μ
+  lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
 
   if( options()->mu.isPresent())
     mu = options()->mu;
@@ -212,7 +219,7 @@ _getParameters()
   m_petsc_flags = options()->petscFlags();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"get-material-params", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "get-material-params", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -327,7 +334,7 @@ _updateVariables()
     }
 
     elapsedTime = platform::getRealTime() - elapsedTime;
-    ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
+    ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "update-variables", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -725,7 +732,7 @@ _assembleLinearOperator()
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-vector-assembly", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -859,7 +866,7 @@ _solve()
   m_linear_system.solve();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"solve-linear-system", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "solve-linear-system", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -893,7 +900,7 @@ _validateResults()
     Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_dU, epsilon, min_value_to_test);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"cross-validation", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "cross-validation", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
