@@ -1,10 +1,13 @@
+set(ACCELERATOR_SOURCES FemModule.cc)
+
 add_executable(Fourier
   FemModule.h
-  FemModule.cc
+  ${ACCELERATOR_SOURCES}
   main.cc
   Fem_axl.h
 )
 
+arcane_accelerator_add_source_files(${ACCELERATOR_SOURCES})
 arcane_generate_axl(Fem)
 arcane_add_arcane_libraries_to_target(Fourier)
 target_include_directories(Fourier PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
@@ -78,6 +81,22 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//meshes/mesh/filename=meshes/bar_dynamic_3D.msh 
     inputs/manufacture.solution.arc)
 
+  arcanefem_add_gpu_test(NAME [Fourier]conduction_petsc_bsr COMMAND ./Fourier ARGS
+    -A,//fem/matrix-format=BSR
+    inputs/conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [Fourier]conduction_petsc_af-bsr COMMAND ./Fourier ARGS
+    -A,//fem/matrix-format=AF-BSR
+    inputs/conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [Fourier]3d_conduction_petsc_bsr COMMAND ./Fourier ARGS
+    -A,//fem/matrix-format=BSR
+    inputs/conduction.3D.arc)
+
+  arcanefem_add_gpu_test(NAME [Fourier]3d_conduction_petsc_af-bsr COMMAND ./Fourier ARGS
+    -A,//fem/matrix-format=AF-BSR
+    inputs/conduction.3D.arc)
+
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [Fourier]conduction_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
       inputs/conduction.arc)
@@ -103,4 +122,33 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
         inputs/conduction.heterogeneous.arc)
     endif()
   endif()
+endif()
+
+if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
+  set(SOLVER_HYPRE_CG
+    -A,//fem/linear-system/@name=HypreLinearSystem
+    -A,//fem/linear-system/solver=cg
+    -A,//fem/linear-system/atol=1e-9
+    -A,//fem/linear-system/rtol=0)
+
+  arcanefem_add_gpu_test(NAME [Fourier]conduction_hypre_bsr COMMAND ./Fourier ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [Fourier]conduction_hypre_af-bsr COMMAND ./Fourier ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [Fourier]3d_conduction_hypre_bsr COMMAND ./Fourier ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/conduction.3D.arc)
+
+  arcanefem_add_gpu_test(NAME [Fourier]3d_conduction_hypre_af-bsr COMMAND ./Fourier ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/conduction.3D.arc)
+
 endif()
