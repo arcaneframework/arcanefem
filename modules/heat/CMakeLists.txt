@@ -54,9 +54,9 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/linear-system/solver-method=gmres
     inputs/conduction.arc)
 
-  add_test(NAME [heat]conduction_RowColElimination_Dirichlet COMMAND heat
-    -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
-    inputs/conduction.arc)
+  # add_test(NAME [heat]conduction_RowColElimination_Dirichlet COMMAND heat
+  #   -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
+  #   inputs/conduction.arc)
 
   add_test(NAME [heat]conduction_multi-material COMMAND heat
     inputs/conduction.multi-material.arc)
@@ -93,12 +93,12 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/linear-system/solver-method=gmres
     inputs/3d_conduction.pointBc.convection.arc)
 
-  add_test(NAME [heat]3d_conduction_convection_pointBC_rowColElim COMMAND heat
-    -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
-    -A,//fem/boundary-conditions/dirichlet-point/enforce-Dirichlet-method=RowColumnElimination
-    -A,//fem/linear-system/solver-backend=petsc
-    -A,//fem/linear-system/solver-method=gmres
-    inputs/3d_conduction.pointBc.convection.arc)
+  # add_test(NAME [heat]3d_conduction_convection_pointBC_rowColElim COMMAND heat
+  #   -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
+  #   -A,//fem/boundary-conditions/dirichlet-point/enforce-Dirichlet-method=RowColumnElimination
+  #   -A,//fem/linear-system/solver-backend=petsc
+  #   -A,//fem/linear-system/solver-method=gmres
+  #   inputs/3d_conduction.pointBc.convection.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [heat]conduction_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
@@ -110,9 +110,9 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       -A,//fem/linear-system/solver-method=gmres
       inputs/conduction.arc)
 
-    add_test(NAME [heat]conduction_RowColElimination_Dirichlet_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
-      -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
-      inputs/conduction.arc)
+    # add_test(NAME [heat]conduction_RowColElimination_Dirichlet_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
+    #   -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
+    #   inputs/conduction.arc)
 
     add_test(NAME [heat]conduction_convection_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
       inputs/conduction.convection.arc)

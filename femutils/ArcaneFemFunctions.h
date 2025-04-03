@@ -859,6 +859,15 @@ class ArcaneFemFunctions
     {
       public:
 
+      static inline void applyDirichletToNodeGroupRhsOnly(Real value, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& linear_system, VariableDoFReal& rhs_values, NodeGroup& node_group){
+        ENUMERATE_ (Node, inode, node_group) {
+          Node node = *inode;
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] = value;
+          }
+        }
+      }
+
       static inline void applyDirichletToNodeGroupViaPenalty(Real value, Real penalty, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& linear_system, VariableDoFReal& rhs_values, NodeGroup& node_group){
         ENUMERATE_ (Node, inode, node_group) {
           Node node = *inode;
