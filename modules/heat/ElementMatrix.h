@@ -116,3 +116,23 @@ ARCCORE_HOST_DEVICE RealMatrix<4, 4> _computeElementMatrixTetra4Gpu(CellLocalId 
   return  lambda * (volume * (dxU ^ dxU) + volume * (dyU ^ dyU) + volume * (dzU ^ dzU))
          + (1 / 20.) * massMatrix(U, U) * volume / in_dt;
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE RealMatrix<1, 4> _computeElementVectorTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, const ax::VariableCellRealInView& in_cell_lambda, Real in_dt, Int32 node_lid)
+{
+  Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
+
+  RealVector<4> U = { 1., 1., 1., 1. };
+  Real4 dxU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientXTetra4(cell_lid, cn_cv, in_node_coord);
+  Real4 dyU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientYTetra4(cell_lid, cn_cv, in_node_coord);
+  Real4 dzU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientZTetra4(cell_lid, cn_cv, in_node_coord);
+  Real lambda = in_cell_lambda[cell_lid];
+  RealMatrix<4, 4> massMat = (1 / 20.) * (massMatrix(U, U)) * volume / in_dt;
+  Real4 massVect = {massMat(node_lid,0) , massMat(node_lid,1) , massMat(node_lid,2), massMat(node_lid,3) };
+
+  Real4 node_vector_integral = lambda * volume * dxU[node_lid] * dxU + lambda * volume * dyU[node_lid] * dyU + lambda * volume * dzU[node_lid] * dzU + massVect;
+
+  return { node_vector_integral[0], node_vector_integral[1], node_vector_integral[2], node_vector_integral[3] };
+}

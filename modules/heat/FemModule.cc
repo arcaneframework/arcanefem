@@ -408,6 +408,8 @@ _assembleBilinearOperator()
       else
         if (mesh()->dimension() == 2)
           m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, in_dt, node_lid); });
+        else
+          m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, in_dt, node_lid); });
     }
     else {
       if (mesh()->dimension() == 3)

@@ -116,6 +116,10 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/matrix-format=BSR
     inputs/3d_conduction.arc)
 
+  arcanefem_add_gpu_test(NAME [heat]3d_conduction_petsc_af-bsr COMMAND heat ARGS
+    -A,//fem/matrix-format=AF-BSR
+    inputs/3d_conduction.arc)
+
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [heat]conduction_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
       inputs/conduction.arc)
@@ -166,6 +170,10 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     ${SOLVER_HYPRE_CG_2D}
     inputs/3d_conduction.arc)
 
+  arcanefem_add_gpu_test(NAME [heat]3d_conduction_hypre_af-bsr COMMAND heat ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG_2D}
+    inputs/3d_conduction.arc)
 
 
 endif()
