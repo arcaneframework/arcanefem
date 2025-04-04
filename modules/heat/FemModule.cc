@@ -387,7 +387,7 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (t <= dt - 1e-8){
+  if (t <= dt - 1e-8) {
     if (m_matrix_format == "BSR") {
       UnstructuredMeshConnectivityView m_connectivity_view(mesh());
       auto cn_cv = m_connectivity_view.cellNode();
@@ -399,17 +399,19 @@ _assembleBilinearOperator()
 
       if (mesh()->dimension() == 2)
         m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, in_dt); });
+      else
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, in_dt); });
     }
-  else{
-  if (mesh()->dimension() == 3)
-    _assembleBilinear<4>([this](const Cell& cell) {
-      return _computeElementMatrixTetra4(cell);
-    });
-  else
-    _assembleBilinear<3>([this](const Cell& cell) {
-      return _computeElementMatrixTria3(cell);
-    });
-  }
+    else {
+      if (mesh()->dimension() == 3)
+        _assembleBilinear<4>([this](const Cell& cell) {
+          return _computeElementMatrixTetra4(cell);
+        });
+      else
+        _assembleBilinear<3>([this](const Cell& cell) {
+          return _computeElementMatrixTria3(cell);
+        });
+    }
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
