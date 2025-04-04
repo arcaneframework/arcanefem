@@ -144,11 +144,23 @@ _assembleLinearOperator()
 
   const auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  BC::IArcaneFemBC* bc = options()->boundaryConditions();
-  if(bc){
-    for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions()){
-      ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+  auto applyBoundaryConditions = [&](auto BCFunctions) {
+    BC::IArcaneFemBC* bc = options()->boundaryConditions();
+    if (bc) {
+      for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions()) {
+        BCFunctions.applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+      }
     }
+  };
+
+  // Apply the correct boundary conditions based on mesh dimension
+  if (mesh()->dimension() == 3) {
+    using BCFunctions = ArcaneFemFunctions::BoundaryConditions3D;
+    applyBoundaryConditions(BCFunctions());
+  }
+  else {
+    using BCFunctions = ArcaneFemFunctions::BoundaryConditions2D;
+    applyBoundaryConditions(BCFunctions());
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -157,11 +169,7 @@ _assembleLinearOperator()
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Assembles the bilinear operator matrix for triangular elements.
- *
- * This method computes and assembles the global  matrix A for the FEM linear
- * system. For each cell (triangle), it calculates the local element matrix &
- * adds the contributions to the global matrix based on the nodes of the cell.
+ * @brief Calls the right function for LHS assembly
  */
 /*---------------------------------------------------------------------------*/
 
@@ -171,28 +179,51 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
+  if (mesh()->dimension() == 3)
+    _assembleBilinear<4>([this](const Cell& cell) {
+      return _computeElementMatrixTetra4(cell);
+    });
+  if (mesh()->dimension() == 2)
+    _assembleBilinear<3>([this](const Cell& cell) {
+      return _computeElementMatrixTria3(cell);
+    });
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "lhs-matrix-assembly", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Assembles the bilinear operator matrix for the FEM linear system.
+ *
+ * The method performs the following steps:
+ *   1. Computes element matrix using provided `compute_element_matrix` function.
+ *   2. Assembles global matrix by adding contributions from each cell's element
+ *      matrix to the corresponding entries in the global matrix.
+ */
+/*---------------------------------------------------------------------------*/
+template <int N>
+void FemModule::
+_assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
+{
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    auto K_e = _computeElementMatrixTria3(cell); // element matrix
+    auto K_e = compute_element_matrix(cell); // element matrix based on the provided function
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
       for (Node node2 : cell.nodes()) {
         Real v = K_e(n1_index, n2_index);
-        if (node1.isOwn()) {
+        if (node1.isOwn())
           m_linear_system.matrixAddValue(node_dof.dofId(node1, 0), node_dof.dofId(node2, 0), v);
-        }
         ++n2_index;
       }
       ++n1_index;
     }
   }
-
-  elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "lhs-matrix-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -272,7 +303,7 @@ _validateResults()
   if (allNodes().size() < 200)
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      info() << "u[" << node.localId() << "][" << node.uniqueId() << "] = " << m_u[node];
+      info() << "u[" << node.uniqueId() << "] = " << m_u[node];
     }
 
   String filename = options()->resultFile();
