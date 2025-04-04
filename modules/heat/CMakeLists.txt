@@ -1,9 +1,13 @@
+set(ACCELERATOR_SOURCES FemModule.cc)
+
 add_executable(heat
+  ${ACCELERATOR_SOURCES}
   FemModule.cc
   main.cc
   Fem_axl.h
 )
 
+arcane_accelerator_add_source_files(${ACCELERATOR_SOURCES})
 arcane_generate_axl(Fem)
 arcane_add_arcane_libraries_to_target(heat)
 target_include_directories(heat PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
@@ -100,6 +104,22 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   #   -A,//fem/linear-system/solver-method=gmres
   #   inputs/3d_conduction.pointBc.convection.arc)
 
+  arcanefem_add_gpu_test(NAME [heat]conduction_petsc_bsr COMMAND heat ARGS
+    -A,//fem/matrix-format=BSR
+    inputs/conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [heat]conduction_petsc_af-bsr COMMAND heat ARGS
+    -A,//fem/matrix-format=AF-BSR
+    inputs/conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [heat]3d_conduction_petsc_bsr COMMAND heat ARGS
+    -A,//fem/matrix-format=BSR
+    inputs/3d_conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [heat]3d_conduction_petsc_af-bsr COMMAND heat ARGS
+    -A,//fem/matrix-format=AF-BSR
+    inputs/3d_conduction.arc)
+
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [heat]conduction_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
       inputs/conduction.arc)
@@ -125,5 +145,35 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       add_test(NAME [heat]conduction_convection_fine_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat inputs/conduction.convection.fine.arc)
     endif()
   endif()
+
+endif()
+
+if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
+  set(SOLVER_HYPRE_CG_2D
+    -A,//fem/linear-system/@name=HypreLinearSystem
+    -A,//fem/linear-system/solver=cg
+    -A,//fem/linear-system/atol=1e-15
+    -A,//fem/linear-system/rtol=0)
+
+  arcanefem_add_gpu_test(NAME [heat]conduction_hypre_bsr COMMAND heat ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG_2D}
+    inputs/conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [heat]conduction_hypre_af-bsr COMMAND heat ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG_2D}
+    inputs/conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [heat]3d_conduction_hypre_bsr COMMAND heat ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG_2D}
+    inputs/3d_conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [heat]3d_conduction_hypre_af-bsr COMMAND heat ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG_2D}
+    inputs/3d_conduction.arc)
+
 
 endif()

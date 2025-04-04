@@ -22,6 +22,8 @@
 #include <arcane/IItemFamily.h>
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
+#include <arcane/accelerator/core/IAcceleratorMng.h>
+#include <arcane/accelerator/core/RunQueue.h>
 
 #include "IArcaneFemBC.h"
 #include "IDoFLinearSystemFactory.h"
@@ -29,13 +31,16 @@
 #include "FemUtils.h"
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
+#include "BSRFormat.h"
 #include "ArcaneFemFunctions.h"
+#include "ArcaneFemFunctionsGpu.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 using namespace Arcane;
 using namespace Arcane::FemUtils;
+namespace ax = Arcane::Accelerator;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -50,6 +55,7 @@ class FemModule
   explicit FemModule(const ModuleBuildInfo& mbi)
   : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
+  , m_bsr_format(mbi.subDomain()->traceMng(), *(mbi.subDomain()->acceleratorMng()->defaultQueue()), m_dofs_on_nodes)
   {
     ICaseMng* cm = mbi.subDomain()->caseMng();
     cm->setTreatWarningAsError(true);
@@ -62,6 +68,8 @@ class FemModule
   void compute() override; //! Method called at each iteration
   VersionInfo versionInfo() const override { return VersionInfo(1, 0, 0); }
 
+  void _assembleBilinearOperator();
+
  private:
 
   Real t, dt, tmax; //! Time variables
@@ -71,6 +79,7 @@ class FemModule
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnNodes m_dofs_on_nodes;
+  BSRFormat m_bsr_format;
 
   String m_petsc_flags;
   String m_matrix_format = "DOK";
@@ -87,7 +96,6 @@ class FemModule
   void _initTemperature();
   void _doStationarySolve();
   void _getParameters();
-  void _assembleBilinearOperator();
   void _solve();
   void _assembleLinearOperator();
   void _validateResults();

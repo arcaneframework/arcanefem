@@ -37,6 +37,15 @@ startInit()
   m_cross_validation = options()->crossValidation();
   m_petsc_flags = options()->petscFlags();
 
+  if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") {
+    auto use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
+    if (m_matrix_format == "BSR")
+      m_bsr_format.initialize(mesh(), 1, use_csr_in_linear_system, 0);
+    else
+      m_bsr_format.initialize(mesh(), 1, use_csr_in_linear_system, 1);
+    m_bsr_format.computeSparsity();
+  }
+
   _initTime(); // initialize time
   _getParameters(); // get material parameters
   _initTemperature(); // initialize temperature
@@ -68,7 +77,7 @@ compute()
   else {
     m_linear_system.reset();
     m_linear_system.setLinearSystemFactory(options()->linearSystem());
-    m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
+    m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
   }
 
   if (m_petsc_flags != NULL){
@@ -171,20 +180,31 @@ _initTemperature()
 }
 
 /*---------------------------------------------------------------------------*/
+/*
+ * @brief Solve a single time step of the FEM problem.
+ *
+ * This function performs the following steps: 
+ * 1. Assembles the bilinear operator (if required).
+ * 2. Assembles the linear operator (if required).
+ * 3. Solves the linear system (if required).
+ * 4. Updates the variables (temperature and flux).
+ * 5. Validates the results (if cross-validation is enabled).
+ *
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
 _doStationarySolve()
 {
-  if(m_assemble_linear_system){
+  if (m_assemble_linear_system) {
     _assembleBilinearOperator();
     _assembleLinearOperator();
   }
-  if(m_solve_linear_system){
+  if (m_solve_linear_system) {
     _solve();
     _updateVariables();
   }
-  if(m_cross_validation && (t >= tmax)){
+  if (m_cross_validation && (t >= tmax)) {
     _validateResults();
   }
 }
@@ -220,11 +240,16 @@ _getParameters()
 }
 
 /*---------------------------------------------------------------------------*/
-// Assemble the FEM linear operator
-//  - This function enforces a Dirichlet boundary condition in a weak sense
-//    via the penalty method
-//  - The method also adds source term
-//  - Also adds external fluxes
+/*
+  * @brief Assembles the linear operator for the FEM linear system.
+  *
+  * This method performs the following steps:
+  *   1. Initializes the right-hand side (RHS) vector.
+  *   2. Assembles the convection term for each boundary condition.
+  *   3. Applies the variable source term to the RHS vector.
+  *   4. Applies Neumann and Dirichlet boundary conditions.
+  *   5. Applies point Dirichlet boundary conditions.
+  */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -233,15 +258,16 @@ _assembleLinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
+  if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
+    m_bsr_format.toLinearSystem(m_linear_system);
+
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  //----------------------------------------------
-  // Convection term assembly $int_{dOmega_C}( h*Text*v^h)$
-  //----------------------------------------------
+  // Convective term ∫(𝒉 ⋅ 𝑇 ⋅ 𝑣ʰ ) for domain ∂Ωₐ
   for (const auto& bs : options()->convectionBoundaryCondition()) {
     FaceGroup group = bs->surface();
     h = bs->h();
@@ -364,15 +390,37 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (t <= dt - 1e-8){
-  if (mesh()->dimension() == 3)
-    _assembleBilinear<4>([this](const Cell& cell) {
-      return _computeElementMatrixTetra4(cell);
-    });
-  else
-    _assembleBilinear<3>([this](const Cell& cell) {
-      return _computeElementMatrixTria3(cell);
-    });
+  if (t <= dt - 1e-8) {
+    if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") {
+      UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+      auto cn_cv = m_connectivity_view.cellNode();
+      auto queue = subDomain()->acceleratorMng()->defaultQueue();
+      auto command = makeCommand(queue);
+      auto in_node_coord = ax::viewIn(command, m_node_coord);
+      auto in_cell_lambda = ax::viewIn(command, m_cell_lambda);
+      auto in_dt = dt;
+
+      if (m_matrix_format == "BSR")
+        if (mesh()->dimension() == 2)
+          m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, in_dt); });
+        else
+          m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, in_dt); });
+      else
+        if (mesh()->dimension() == 2)
+          m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, in_dt, node_lid); });
+        else
+          m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, in_dt, node_lid); });
+    }
+    else {
+      if (mesh()->dimension() == 3)
+        _assembleBilinear<4>([this](const Cell& cell) {
+          return _computeElementMatrixTetra4(cell);
+        });
+      else
+        _assembleBilinear<3>([this](const Cell& cell) {
+          return _computeElementMatrixTria3(cell);
+        });
+    }
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
