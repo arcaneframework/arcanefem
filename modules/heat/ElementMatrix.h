@@ -54,6 +54,25 @@ ARCCORE_HOST_DEVICE RealMatrix<3, 3> _computeElementMatrixTria3Gpu(CellLocalId c
 }
 
 /*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE RealMatrix<1, 3> _computeElementVectorTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, const ax::VariableCellRealInView& in_cell_lambda, Real in_dt, Int32 node_lid)
+{
+  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+
+  RealVector<3> U = { 1., 1., 1. };
+  Real3 dxU = FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dyU = FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
+  Real lambda = in_cell_lambda[cell_lid];
+
+  RealMatrix<3, 3> massMat = (1 / 12.) * (massMatrix(U, U)) * area / in_dt;
+  Real3 massVect = {massMat(node_lid,0) , massMat(node_lid,1) , massMat(node_lid,2) };
+
+  Real3 node_vector_integral = lambda * area * dxU[node_lid] * dxU + lambda * area * dyU[node_lid] * dyU + massVect;
+  return { node_vector_integral[0], node_vector_integral[1], node_vector_integral[2] };
+}
+
+/*---------------------------------------------------------------------------*/
 /**
  * @brief Computes the element matrix for a tetrahedral element (ℙ1 FE).
  *
