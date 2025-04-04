@@ -135,3 +135,17 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   endif()
 
 endif()
+
+if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
+  set(SOLVER_HYPRE_CG_2D
+    -A,//fem/linear-system/@name=HypreLinearSystem
+    -A,//fem/linear-system/solver=cg
+    -A,//fem/linear-system/atol=1e-15
+    -A,//fem/linear-system/rtol=0)
+
+  arcanefem_add_gpu_test(NAME [heat]conduction_hypre_bsr COMMAND heat ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG_2D}
+    inputs/conduction.arc)
+
+endif()

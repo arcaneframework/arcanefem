@@ -388,7 +388,6 @@ _assembleBilinearOperator()
   Real elapsedTime = platform::getRealTime();
 
   if (t <= dt - 1e-8){
-
     if (m_matrix_format == "BSR") {
       UnstructuredMeshConnectivityView m_connectivity_view(mesh());
       auto cn_cv = m_connectivity_view.cellNode();
