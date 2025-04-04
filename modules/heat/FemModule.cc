@@ -177,20 +177,31 @@ _initTemperature()
 }
 
 /*---------------------------------------------------------------------------*/
+/*
+ * @brief Solve a single time step of the FEM problem.
+ *
+ * This function performs the following steps: 
+ * 1. Assembles the bilinear operator (if required).
+ * 2. Assembles the linear operator (if required).
+ * 3. Solves the linear system (if required).
+ * 4. Updates the variables (temperature and flux).
+ * 5. Validates the results (if cross-validation is enabled).
+ *
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
 _doStationarySolve()
 {
-  if(m_assemble_linear_system){
+  if (m_assemble_linear_system) {
     _assembleBilinearOperator();
     _assembleLinearOperator();
   }
-  if(m_solve_linear_system){
+  if (m_solve_linear_system) {
     _solve();
     _updateVariables();
   }
-  if(m_cross_validation && (t >= tmax)){
+  if (m_cross_validation && (t >= tmax)) {
     _validateResults();
   }
 }
@@ -226,11 +237,16 @@ _getParameters()
 }
 
 /*---------------------------------------------------------------------------*/
-// Assemble the FEM linear operator
-//  - This function enforces a Dirichlet boundary condition in a weak sense
-//    via the penalty method
-//  - The method also adds source term
-//  - Also adds external fluxes
+/*
+  * @brief Assembles the linear operator for the FEM linear system.
+  *
+  * This method performs the following steps:
+  *   1. Initializes the right-hand side (RHS) vector.
+  *   2. Assembles the convection term for each boundary condition.
+  *   3. Applies the variable source term to the RHS vector.
+  *   4. Applies Neumann and Dirichlet boundary conditions.
+  *   5. Applies point Dirichlet boundary conditions.
+  */
 /*---------------------------------------------------------------------------*/
 
 void FemModule::
@@ -239,15 +255,16 @@ _assembleLinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
+  if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
+    m_bsr_format.toLinearSystem(m_linear_system);
+
   // Temporary variable to keep values for the RHS part of the linear system
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  //----------------------------------------------
-  // Convection term assembly $int_{dOmega_C}( h*Text*v^h)$
-  //----------------------------------------------
+  // Convective term ∫(𝒉 ⋅ 𝑇 ⋅ 𝑣ʰ ) for domain ∂Ωₐ
   for (const auto& bs : options()->convectionBoundaryCondition()) {
     FaceGroup group = bs->surface();
     h = bs->h();
@@ -383,7 +400,6 @@ _assembleBilinearOperator()
 
       if (mesh()->dimension() == 2)
         m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, in_dt); });
-      m_bsr_format.toLinearSystem(m_linear_system);
     }
   else{
   if (mesh()->dimension() == 3)
