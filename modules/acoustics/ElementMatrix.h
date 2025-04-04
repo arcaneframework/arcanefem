@@ -35,5 +35,33 @@ _computeElementMatrixTria3(Cell cell)
   Real3 dxU = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
   Real3 dyU = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
 
-  return -area * (dxU ^ dxU) - area * (dyU ^ dyU) + m_kc2 * area * (1/ 12.) *massMatrix(U,U);
+  return -area * (dxU ^ dxU) - area * (dyU ^ dyU) + m_kc2 * area * (1/ 12.) * massMatrix(U,U);
+}
+
+/*---------------------------------------------------------------------------*/
+/*
+  * @brief Computes the element matrix for a tetrahedral element (ℙ1 FE).
+  *
+  * This function calculates the integral of the expression:
+  *       a(𝑢,𝑣) = ∫∫∫ -(∂𝑢/∂𝑥 ∂𝑣/∂𝑥  + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦 + ∂𝑢/∂𝑧 ∂𝑣/∂𝑧)dΩ + ∫∫∫ (𝑘²𝑢𝑣)dΩ
+  * 
+  * Steps involved:
+  * 1. Calculate the volume of the tetrahedron.
+  * 2. Compute the gradients of the shape functions.
+  * 3. Return a(𝑢,𝑣);
+  */
+/*---------------------------------------------------------------------------*/
+
+RealMatrix<4, 4> FemModule::
+_computeElementMatrixTetra4(Cell cell)
+{
+  Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
+
+  RealVector<4> U = { 1, 1, 1, 1 };
+
+  Real4 dxU = ArcaneFemFunctions::FeOperation3D::computeGradientXTetra4(cell, m_node_coord);
+  Real4 dyU = ArcaneFemFunctions::FeOperation3D::computeGradientYTetra4(cell, m_node_coord);
+  Real4 dzU = ArcaneFemFunctions::FeOperation3D::computeGradientZTetra4(cell, m_node_coord);
+
+  return -volume * (dxU ^ dxU) - volume * (dyU ^ dyU) - volume * (dzU ^ dzU) + m_kc2 * volume * (1 / 20.) * massMatrix(U,U);
 }
