@@ -56,6 +56,15 @@ class GaussDoFsOnCells::Impl
   VariableDoFReal3x3* m_gauss_jacobmat = nullptr;
   VariableDoFReal* m_gauss_weight = nullptr;
   VariableDoFReal* m_gauss_jacobian = nullptr;
+  VariableDoFTensor* m_gauss_stress_init = nullptr;
+  VariableDoFTensor* m_gauss_stress_prev = nullptr;
+  VariableDoFTensor* m_gauss_stress_cur = nullptr;
+  VariableDoFTensor* m_gauss_strain_init = nullptr;
+  VariableDoFTensor* m_gauss_strain_prev = nullptr;
+  VariableDoFTensor* m_gauss_strain_cur = nullptr;
+  VariableDoFTensor* m_gauss_strain_plast_init = nullptr;
+  VariableDoFTensor* m_gauss_strain_plast_prev = nullptr;
+  VariableDoFTensor* m_gauss_strain_plast_cur = nullptr;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -132,7 +141,7 @@ initialize(IMesh* mesh, Int32 max_nb_gauss_per_cell)
     // Set the owners of the Gauss point (=DoF).
     IParallelMng* pm = mesh->parallelMng();
     Int32 my_rank = pm->commRank();
-    ItemInternalList gauss_dofs = m_gauss_family->itemsInternal();
+    ItemInternalArrayView gauss_dofs = m_gauss_family->itemsInternal();
     ENUMERATE_CELL (icell, mesh->allCells()) {
       Cell cell = *icell;
       Int32 cell_owner = cell.owner();
@@ -158,6 +167,15 @@ initialize(IMesh* mesh, Int32 max_nb_gauss_per_cell)
   m_p->m_gauss_jacobmat = new VariableDoFReal3x3(VariableBuildInfo(mesh, "GaussJacobMat", "GaussCellFamily"));
   m_p->m_gauss_shape = new VariableDoFArrayReal(VariableBuildInfo(mesh, "GaussShape", "GaussCellFamily"));
   m_p->m_gauss_shapederiv = new VariableDoFArrayReal3(VariableBuildInfo(mesh, "GaussShapeDeriv", "GaussCellFamily"));
+  m_p->m_gauss_stress_init = new VariableDoFTensor(VariableBuildInfo(mesh, "GaussStressInit", "GaussCellFamily"));
+  m_p->m_gauss_stress_prev = new VariableDoFTensor(VariableBuildInfo(mesh, "GaussStressPrev", "GaussCellFamily"));
+  m_p->m_gauss_stress_cur = new VariableDoFTensor(VariableBuildInfo(mesh, "GaussStressCur", "GaussCellFamily"));
+  m_p->m_gauss_strain_init = new VariableDoFTensor(VariableBuildInfo(mesh, "GaussStrainInit", "GaussCellFamily"));
+  m_p->m_gauss_strain_prev = new VariableDoFTensor(VariableBuildInfo(mesh, "GaussStrainPrev", "GaussCellFamily"));
+  m_p->m_gauss_strain_cur = new VariableDoFTensor(VariableBuildInfo(mesh, "GaussStrainCur", "GaussCellFamily"));
+  m_p->m_gauss_strain_plast_init = new VariableDoFTensor(VariableBuildInfo(mesh, "GaussStrainPlastInit", "GaussCellFamily"));
+  m_p->m_gauss_strain_plast_prev = new VariableDoFTensor(VariableBuildInfo(mesh, "GaussStrainPlastPrev", "GaussCellFamily"));
+  m_p->m_gauss_strain_plast_cur = new VariableDoFTensor(VariableBuildInfo(mesh, "GaussStrainPlastCur", "GaussCellFamily"));
 }
 
 /*---------------------------------------------------------------------------*/
@@ -208,6 +226,78 @@ VariableDoFArrayReal3& GaussDoFsOnCells::
 gaussShapeDeriv()
 {
   return *m_p->m_gauss_shapederiv;
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFTensor& GaussDoFsOnCells::
+gaussStressInit()
+{
+  return *m_p->m_gauss_stress_init;
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFTensor& GaussDoFsOnCells::
+gaussStressPrev()
+{
+  return *m_p->m_gauss_stress_prev;
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFTensor& GaussDoFsOnCells::
+gaussStressCur()
+{
+  return *m_p->m_gauss_stress_cur;
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFTensor& GaussDoFsOnCells::
+gaussStrainInit()
+{
+  return *m_p->m_gauss_strain_init;
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFTensor& GaussDoFsOnCells::
+gaussStrainPrev()
+{
+  return *m_p->m_gauss_strain_prev;
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFTensor& GaussDoFsOnCells::
+gaussStrainCur()
+{
+  return *m_p->m_gauss_strain_cur;
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFTensor& GaussDoFsOnCells::
+gaussStrainPlastInit()
+{
+  return *m_p->m_gauss_strain_plast_init;
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFTensor& GaussDoFsOnCells::
+gaussStrainPlastPrev()
+{
+  return *m_p->m_gauss_strain_plast_prev;
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFTensor& GaussDoFsOnCells::
+gaussStrainPlastCur()
+{
+  return *m_p->m_gauss_strain_plast_cur;
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

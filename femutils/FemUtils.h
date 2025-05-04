@@ -27,6 +27,7 @@
 
 #include <arccore/base/ArccoreGlobal.h>
 #include <array>
+#include <arcane/MeshVariableArrayRef.h>
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -343,7 +344,7 @@ class RealVector
 
   static constexpr Arcane::Int32 totalNbElement() { return N; }
 
-  ARCCORE_HOST_DEVICE RealVector() {};
+  ARCCORE_HOST_DEVICE RealVector() = default;
 
   ARCCORE_HOST_DEVICE RealVector(std::initializer_list<Arcane::Real> init_list)
   {
@@ -448,7 +449,7 @@ class RealVector
       m_values[i] -= b[i];
   }
 
-  //! Scalar multiplication: RealMatrix * scalar
+  //! Scalar multiplication: RealVector * scalar
   ARCCORE_HOST_DEVICE RealVector<N> operator*(Real scalar) const
   {
     RealVector<N> result;
@@ -458,7 +459,7 @@ class RealVector
     return result;
   }
 
-  //! Scalar multiplication: RealMatrix * scalar
+  //! Scalar division: RealVector / scalar
   ARCCORE_HOST_DEVICE RealVector<N> operator/(Real scalar) const
   {
     RealVector<N> result;
@@ -468,7 +469,7 @@ class RealVector
     return result;
   }
 
-  //! Friend function for scalar multiplication: scalar * RealMatrix
+  //! Friend function for scalar multiplication: scalar * RealVector
   ARCCORE_HOST_DEVICE friend RealVector<N> operator*(Real scalar, const RealVector<N>& vector)
   {
     RealVector<N> result;
@@ -478,7 +479,8 @@ class RealVector
     return result;
   }
 
- private:
+// private:
+ protected:
 
   std::array<Arcane::Real, totalNbElement()> m_values = {};
 };
@@ -542,11 +544,13 @@ using Tensor = RealVector<6>;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+
 inline Real
 trace(const Tensor& b)
 {
   return (b(0) + b(1) + b(3));
 }
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 inline Real3

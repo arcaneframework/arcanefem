@@ -69,6 +69,27 @@ class GaussDoFsOnCells
   Arcane::VariableDoFReal& gaussWeight();
   Arcane::VariableDoFReal& gaussJacobian();
 
+  VariableDoFTensor& gaussStressInit();
+  VariableDoFTensor& gaussStressPrev();
+  VariableDoFTensor& gaussStressCur();
+  VariableDoFTensor& gaussStrainInit();
+  VariableDoFTensor& gaussStrainPrev();
+  VariableDoFTensor& gaussStrainCur();
+  VariableDoFTensor& gaussStrainPlastInit();
+  VariableDoFTensor& gaussStrainPlastPrev();
+  VariableDoFTensor& gaussStrainPlastCur();
+/*
+  Arcane::VariableDoFReal3x3& gaussStressInit();
+  Arcane::VariableDoFReal3x3& gaussStressPrev();
+  Arcane::VariableDoFReal3x3& gaussStressCur();
+  Arcane::VariableDoFReal3x3& gaussStrainInit();
+  Arcane::VariableDoFReal3x3& gaussStrainPrev();
+  Arcane::VariableDoFReal3x3& gaussStrainCur();
+  Arcane::VariableDoFReal3x3& gaussStrainPlastInit();
+  Arcane::VariableDoFReal3x3& gaussStrainPlastPrev();
+  Arcane::VariableDoFReal3x3& gaussStrainPlastCur();
+*/
+
  private:
 
   Impl* m_p = nullptr;

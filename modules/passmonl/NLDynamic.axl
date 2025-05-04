@@ -1,0 +1,545 @@
+<?xml version="1.0" ?>
+<module name="NLDynamic" version="1.0">
+  <description>NLDynamic module</description>
+  <variables>
+    <variable field-name="acc" name="Acc" data-type="real3" item-kind="node" dim="0">
+      <description>Acceleration vectors on node coords at current step</description>
+    </variable>
+    <variable field-name="vel" name="Vel" data-type="real3" item-kind="node" dim="0">
+      <description>Velocity vectors on node coords at current step</description>
+    </variable>
+    <variable field-name="displ" name="Displ" data-type="real3" item-kind="node" dim="0">
+      <description>Displacement vectors on node coords at current step</description>
+    </variable>
+    <variable field-name="prev_acc" name="PrevAcc" data-type="real3" item-kind="node" dim="0">
+      <description>Acceleration vectors on node coords at previous step</description>
+    </variable>
+    <variable field-name="prev_vel" name="PrevVel" data-type="real3" item-kind="node" dim="0">
+      <description>Velocity vectors on node coords at previous step</description>
+    </variable>
+    <variable field-name="prev_displ" name="PrevDispl" data-type="real3" item-kind="node" dim="0">
+      <description>Displacement vectors on node coords at previous step</description>
+    </variable>
+    <variable field-name="force" name="Force" data-type="real3" item-kind="node" dim="0">
+      <description>Force resultants on node coords</description>
+    </variable>
+    <variable field-name="imposed_displ" name="ImposedDispl" data-type="real3" item-kind="node" dim="0">
+      <description>Nodal imposed displacements: spatial vector component = 1 if true, 0 otherwise </description>
+    </variable>
+    <variable field-name="imposed_vel" name="ImposedVel" data-type="real3" item-kind="node" dim="0">
+      <description>Nodal imposed velocities: spatial vector component = 1 if true, 0 otherwise </description>
+    </variable>
+    <variable field-name="imposed_acc" name="ImposedAcc" data-type="real3" item-kind="node" dim="0">
+      <description>Nodal imposed accelerations: spatial vector component = 1 if true, 0 otherwise </description>
+    </variable>
+    <variable field-name="imposed_force" name="ImposedForce" data-type="real3" item-kind="node" dim="0">
+      <description>Nodal imposed forces: spatial vector component = 1 if true, 0 otherwise </description>
+    </variable>
+    <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
+      <description>NodeCoord from Arcane variable</description>
+    </variable>
+    <variable field-name="imposed_traction" name="ImposedTraction" data-type="real3" item-kind="face" dim="0">
+      <description>Imposed traction vector on cell face</description>
+    </variable>
+    <variable field-name="e1_boundary" name="E1Boundary" data-type="real3" item-kind="face" dim="0">
+      <description>1st normalized vector (in-plane) of the local face referential</description>
+    </variable>
+    <variable field-name="e2_boundary" name="E2Boundary" data-type="real3" item-kind="face" dim="0">
+      <description>2nd normalized vector (in-plane in 3D and normal in 2D) of the local face referential</description>
+    </variable>
+    <variable field-name="e3_boundary" name="E3Boundary" data-type="real3" item-kind="face" dim="0">
+      <description>3rd normalized vector (normal in 3D only) of the local face referential</description>
+    </variable>
+    <variable field-name="rho_parax" name="RhoParax" data-type="real" item-kind="face" dim="0">
+      <description>Paraxial element density stored at initialization (on face or edge)</description>
+    </variable>
+    <variable field-name="vel_parax" name="VelParax" data-type="real3" item-kind="face" dim="0">
+      <description>Paraxial element wave velocities (cs, cp) stored at initialization (on face or edge)</description>
+    </variable>
+    <variable field-name="uin_parax" name="UinParax" data-type="real3" item-kind="face" dim="0">
+      <description>Incident wave motion (displacement) on paraxial element (face or edge)</description>
+    </variable>
+    <variable field-name="vin_parax" name="VinParax" data-type="real3" item-kind="face" dim="0">
+      <description>Incident wave motion (velocity) on paraxial element (face or edge)</description>
+    </variable>
+    <variable field-name="ain_parax" name="AinParax" data-type="real3" item-kind="face" dim="0">
+      <description>Incident wave motion (acceleration) on paraxial element (face or edge)</description>
+    </variable>
+
+    <!-- - - - - - elastic properties - - - - -->
+    <variable field-name="rho" name="Rho" data-type="real" item-kind="cell" dim="0">
+      <description>Bulk density value per cell</description>
+    </variable>
+    <variable field-name="young" name="Young" data-type="real" item-kind="cell" dim="0">
+      <description>Young Modulus value per cell</description>
+    </variable>
+    <variable field-name="nu" name="Nu" data-type="real" item-kind="cell" dim="0">
+      <description>Poisson Ratio value per cell</description>
+    </variable>
+    <variable field-name="lambda" name="Lambda" data-type="real" item-kind="cell" dim="0">
+      <description>First Lame parameter value per cell</description>
+    </variable>
+    <variable field-name="mu" name="Mu" data-type="real" item-kind="cell" dim="0">
+      <description>Second Lame parameter value per cell</description>
+    </variable>
+    <variable field-name="vs" name="Vs" data-type="real" item-kind="cell" dim="0">
+      <description>S-wave (shear) velocity value per cell</description>
+    </variable>
+    <variable field-name="vp" name="Vp" data-type="real" item-kind="cell" dim="0">
+      <description>P-wave (compression) velocity value per cell</description>
+    </variable>
+    <variable field-name="nb_gauss" name="NbGauss" data-type="integer" item-kind="cell" dim="0">
+      <description>Number of Gauss integration points per cell</description>
+    </variable>
+    <variable field-name="nb_neighbours" name="NbNeighbours"
+    family-name="PointsFamily" data-type="integer" item-kind="dof" dim="0">
+      <description>Number of neighbouring nodes per integration point</description>
+    </variable>
+    <variable field-name="integpoint_coord" name="IntegpointCoord"
+    family-name="PointsFamily" data-type="real3" item-kind="dof" dim="0">
+      <description>Coordinates of the integration points (in the physical space)</description>
+    </variable>
+  </variables>
+
+  <entry-points>
+    <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
+    <entry-point method-name="compute" name="Compute" where="compute-loop" property="none" />
+  </entry-points>
+
+  <options>
+
+    <simple name="init-elast-type" type="string" optional="false">
+      <description>Type of elastic properties provided by user on mesh cells (=string containing "young", "lame" or "veloc")</description>
+    </simple>
+    <simple name = "stress-results" type = "string" default="stress-result.txt" optional = "true">
+      <description>Filename containing the solution stresses per Cell</description>
+    </simple>
+    <simple name = "strain-results" type = "string" default="strain-result.txt" optional = "true">
+      <description>Filename containing the solution strains per Cell</description>
+    </simple>
+
+    <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
+      <description>Method via which Dirichlet boundary condition is imposed</description>
+    </simple>
+    <simple name = "penalty" type = "real" default="1.e64" optional="true">
+      <description> Penalty value for enforcing Dirichlet conditions </description>
+    </simple>
+    <simple name = "linop-nstep" type = "integer" default="1000" optional = "true">
+      <description>Reform the operator of the linear system every nstep</description>
+    </simple>
+
+    <simple name = "gx" type = "real" default="0.0" optional="true">
+      <description> Gravity along X direction </description>
+    </simple>
+    <simple name = "gy" type = "real" default="0.0" optional="true">
+      <description> Gravity along Y direction </description>
+    </simple>
+    <simple name = "gz" type = "real" default="0.0" optional="true">
+      <description> Gravity along Z direction </description>
+    </simple>
+
+    <!-- - - - - - init-elast-properties - - - - -->
+    <complex name="init-elast-properties"
+             type="InitElastProperties"
+             minOccurs="0"
+             maxOccurs="unbounded">
+
+        <description>Definition of initial elastic properties on a cell group</description>
+          <extended name="cell-group" type="Arcane::CellGroup">
+            <description>Cell group on which to apply this condition</description>
+          </extended>
+          <simple name="rho" type="real" default="2500.0" optional="true">
+            <description>Initial constant bulk density</description>
+          </simple>
+          <simple name="young" type="real" default="0.0" optional="true">
+            <description>Initial Young modulus</description>
+          </simple>
+          <simple name="nu" type="real" default="0.0" optional="true">
+            <description>Initial Poisson ratio</description>
+          </simple>
+          <simple name="lambda" type="real" default="0.0" optional="true">
+            <description>Initial 1st Lame coefficient</description>
+          </simple>
+          <simple name="mu" type="real" default="0.0" optional="true">
+            <description>Initial 2nd (shear) Lame coefficient</description>
+          </simple>
+          <simple name="vp" type="real" default="0.0" optional="true">
+            <description>Initial P-wave (compression) velocity</description>
+          </simple>
+          <simple name="vs" type="real" default="0.0" optional="true">
+            <description>Initial S-wave (shear) velocity</description>
+          </simple>
+    </complex>
+
+    <!-- - - - - - dirichlet-surface-condition - - - - -->
+    <complex name="dirichlet-surface-condition" type="DirichletSurfaceCondition" minOccurs="0" maxOccurs="unbounded">
+      <description>Definition of a Dirichlet (nodal) condition on a cell group (edges or surfaces)</description>
+        <extended name="surface" type="Arcane::FaceGroup">
+          <description>Surface on which to apply this condition</description>
+        </extended>
+        <simple name="Ux" type="real" default="0.0" optional="true">
+          <description>Constant displacement imposed along x axis</description>
+        </simple>
+        <simple name="Uy" type="real" default="0.0" optional="true">
+          <description>Constant displacement imposed along y axis</description>
+        </simple>
+        <simple name="Uz" type="real" default="0.0" optional="true">
+          <description>Constant displacement imposed along z axis</description>
+        </simple>
+        <simple name="Vx" type="real" default="0.0" optional="true">
+          <description>Constant velocity imposed along x axis</description>
+        </simple>
+        <simple name="Vy" type="real" default="0.0" optional="true">
+          <description>Constant velocity imposed along y axis</description>
+        </simple>
+        <simple name="Vz" type="real" default="0.0" optional="true">
+          <description>Constant velocity imposed along z axis</description>
+        </simple>
+        <simple name="Ax" type="real" default="0.0" optional="true">
+          <description>Constant acceleration imposed along x axis</description>
+        </simple>
+        <simple name="Ay" type="real" default="0.0" optional="true">
+          <description>Constant acceleration imposed along y axis</description>
+        </simple>
+        <simple name="Az" type="real" default="0.0" optional="true">
+          <description>Constant acceleration imposed along z axis</description>
+        </simple>
+        <simple name="Fx" type="real" default="0.0" optional="true">
+          <description>Constant force imposed along x axis</description>
+        </simple>
+        <simple name="Fy" type="real" default="0.0" optional="true">
+          <description>Constant force imposed along y axis</description>
+        </simple>
+        <simple name="Fz" type="real" default="0.0" optional="true">
+          <description>Constant force imposed along z axis</description>
+        </simple>
+        <!-- Directions for curves only: if not specified, none is imposed -->
+        <simple name="x-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose this condition along X axis</description>
+        </simple>
+        <simple name="y-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose this condition along Y axis</description>
+        </simple>
+        <simple name="z-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose this condition along Z axis</description>
+        </simple>
+        <simple name="U-curve" type="string" optional="true">
+          <description>Time history curve for displacements to impose (4 columns: time, ux, uy, uz)</description>
+        </simple>
+        <simple name="V-curve" type="string" optional="true">
+          <description>Time history curve for velocities to impose (4 columns: time, vx, vy, vz)</description>
+        </simple>
+        <simple name="A-curve" type="string" optional="true">
+          <description>Time history curve for accelerations to impose (4 columns: time, ax, ay, az)</description>
+        </simple>
+        <simple name="F-curve" type="string" optional="true">
+          <description>Time history curve for forces to impose (4 columns: time, fx, fy, fz)</description>
+        </simple>
+    </complex>
+    <!-- - - - - - dirichlet-point-condition - - - - -->
+    <complex name="dirichlet-point-condition" type="DirichletPointCondition" minOccurs="0" maxOccurs="unbounded">
+      <description>Definition of Dirichlet (nodal) conditions on a node group</description>
+        <extended name="node" type="Arcane::NodeGroup">
+          <description>Node(s) on which to apply this condition</description>
+        </extended>
+        <simple name="Ux" type="real" default="0.0" optional="true">
+          <description>Constant displacement imposed along x axis</description>
+        </simple>
+        <simple name="Uy" type="real" default="0.0" optional="true">
+          <description>Constant displacement imposed along y axis</description>
+        </simple>
+        <simple name="Uz" type="real" default="0.0" optional="true">
+          <description>Constant displacement imposed along z axis</description>
+        </simple>
+        <simple name="Vx" type="real" default="0.0" optional="true">
+          <description>Constant velocity imposed along x axis</description>
+        </simple>
+        <simple name="Vy" type="real" default="0.0" optional="true">
+          <description>Constant velocity imposed along y axis</description>
+        </simple>
+        <simple name="Vz" type="real" default="0.0" optional="true">
+          <description>Constant velocity imposed along z axis</description>
+        </simple>
+        <simple name="Ax" type="real" default="0.0" optional="true">
+          <description>Constant acceleration imposed along x axis</description>
+        </simple>
+        <simple name="Ay" type="real" default="0.0" optional="true">
+          <description>Constant acceleration imposed along y axis</description>
+        </simple>
+        <simple name="Az" type="real" default="0.0" optional="true">
+          <description>Constant acceleration imposed along z axis</description>
+        </simple>
+        <simple name="Fx" type="real" default="0.0" optional="true">
+          <description>Constant force imposed along x axis</description>
+        </simple>
+        <simple name="Fy" type="real" default="0.0" optional="true">
+          <description>Constant force imposed along y axis</description>
+        </simple>
+        <simple name="Fz" type="real" default="0.0" optional="true">
+          <description>Constant force imposed along z axis</description>
+        </simple>
+        <!-- Directions for curves only: if not specified, none is imposed -->
+        <simple name="x-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose this condition along X axis</description>
+        </simple>
+        <simple name="y-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose this condition along Y axis</description>
+        </simple>
+        <simple name="z-axis" type="bool" default="false" optional="true">
+          <description>Indicates to impose this condition along Z axis</description>
+        </simple>
+        <simple name="U-curve" type="string" optional="true">
+          <description>Time history curve for displacements to impose (4 columns: time, ux, uy, uz)</description>
+        </simple>
+        <simple name="V-curve" type="string" optional="true">
+          <description>Time history curve for velocities to impose (4 columns: time, vx, vy, vz)</description>
+        </simple>
+        <simple name="A-curve" type="string" optional="true">
+          <description>Time history curve for accelerations to impose (4 columns: time, ax, ay, az)</description>
+        </simple>
+        <simple name="F-curve" type="string" optional="true">
+          <description>Time history curve for forces to impose (4 columns: time, fx, fy, fz)</description>
+        </simple>
+    </complex>
+
+    <!-- - - - - - neumann-condition - - - - -->
+    <complex name="neumann-condition"
+             type="NeumannCondition"
+             minOccurs="0"
+             maxOccurs="unbounded">
+
+      <description>Definition of a Neumann (traction) condition on a cell group (edges or surfaces)</description>
+        <extended name="surface" type="Arcane::FaceGroup">
+          <description>Surface on which to apply this condition</description>
+        </extended>
+        <simple name="X-val" type="real" default="0.0" optional="true">
+          <description>Constant traction along x axis</description>
+        </simple>
+        <simple name="Y-val" type="real" default="0.0" optional="true">
+          <description>Constant traction along y axis</description>
+        </simple>
+        <simple name="Z-val" type="real" default="0.0" optional="true">
+          <description>Constant traction along z axis</description>
+        </simple>
+        <simple name = "curve" type = "string"  optional="true">
+          <description>Filename containing the traction time history (4 columns: time, tx, ty, tz)</description>
+        </simple>
+    </complex>
+
+    <!-- - - - - - paraxial-boundary-condition - - - - -->
+    <complex name  = "paraxial-boundary-condition"
+             type  = "ParaxialBoundaryCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded">
+      <description>Paraxial boundary condition to apply on a cell group (edges or surfaces)</description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>Surface on which to apply this condition</description>
+      </extended>
+        <simple name = "cs" type = "real" optional="true">
+          <description>Shear wave velocity for the outer domain (default=same as inner)</description>
+        </simple>
+        <simple name = "cp" type = "real" optional="true">
+          <description>P-wave velocity for the outer domain (default=same as inner)</description>
+        </simple>
+        <simple name = "E-par" type = "real" optional="true">
+          <description>Young modulus for the outer domain (default=same as inner)</description>
+        </simple>
+        <simple name = "nu-par" type = "real" optional="true">
+          <description>Poisson ration for the outer domain (default=same as inner)</description>
+        </simple>
+        <simple name = "lambda-par" type = "real" optional="true">
+          <description>1st Lame coefficient for the outer domain (default=same as inner)</description>
+        </simple>
+        <simple name = "mu-par" type = "real" optional="true">
+          <description>2nd Lame coefficient (shear modulus) for the outer domain (default=same as inner)</description>
+        </simple>
+        <simple name = "rhopar" type = "real" optional="true">
+          <description>Bulk density for the outer domain (default=same as inner)</description>
+        </simple>
+
+        <!-- - - - - - input-motion - - - - -->
+        <simple name = "input-motion-type" type = "integer" default="0" optional="true">
+          <description>Indicator for the type of incoming wave motion (1 to 5 = analytical, 6= file):
+                        0=none, 1=Harmonic, 2=Ricker, 3=Decay, 4=Tsang, 5=Dirac, 6=user-defined
+          </description>
+        </simple>
+        <simple name = "tp" type = "real" default="1.0" optional="true">
+          <description>Characteristic period if analytical input motion (Ricker/Harmonic/Tsang)</description>
+        </simple>
+        <simple name = "ts" type = "real" default="1.0" optional="true">
+          <description>Max amplitude time if analytical input motion (Ricker)</description>
+        </simple>
+        <simple name = "coef" type = "real" default="1.0" optional="true">
+          <description>Exponential coefficient if analytical input motion (Decay/Tsang)</description>
+        </simple>
+        <simple name = "amplit" type = "real" default="1.0" optional="true">
+          <description>Amplitude if analytical input motion (all)</description>
+        </simple>
+        <simple name = "phase" type = "real" default="0.0" optional="true">
+          <description>Phase if analytical input motion (Harmonic/Tsang)</description>
+        </simple>
+        <simple name = "order" type = "integer" default="2" optional="true">
+          <description>Order if analytical input motion (Ricker)</description>
+        </simple>
+        <simple name = "a-input" type = "string"  optional="true">
+          <description>For type=6, filename containing the input acceleration history (4 columns: time, ax, ay, az)</description>
+        </simple>
+        <simple name = "v-input" type = "string"  optional="true">
+          <description>For type=6, filename containing the input velocity history (4 columns: time, vx, vy, vz)</description>
+        </simple>
+        <simple name = "u-input" type = "string"  optional="true">
+          <description>For type=6, filename containing the input displacement history (4 columns: time, ux, uy, uz)</description>
+        </simple>
+        <simple name = "normal-angle" type = "real" default="0.0" optional="true">
+          <description>Angle w.r.t. the boundary normal (0.0 = normal to the boundary)</description>
+        </simple>
+        <simple name = "in-plane-angle" type = "real" default="0.0" optional="true">
+          <description>Angle w.r.t. the boundary plane (0.0 = along e1)</description>
+        </simple>
+    </complex>
+
+    <!-- - - - - - initial-node-condition - - - - -->
+    <complex name="initial-node-condition" type="InitialNodeCondition" minOccurs="0" maxOccurs="unbounded">
+      <description>Definition of initial conditions on a node group</description>
+        <extended name="node-group" type="Arcane::NodeGroup">
+          <description>NodeGroup on which initial node conditions will be applied</description>
+        </extended>
+        <simple name="U" type="real3" default="0." optional = "true">
+          <description>Initial nodal constant displacement vector</description>
+        </simple>
+        <simple name="V" type="real3" default="0." optional = "true">
+          <description>Initial nodal constant velocity vector</description>
+        </simple>
+        <simple name="A" type="real3" default="0." optional = "true">
+          <description>Initial nodal constant acceleration vector</description>
+        </simple>
+        <simple name="F" type="real3" default="0." optional = "true">
+          <description>Initial nodal constant force vector</description>
+        </simple>
+    </complex>
+
+    <simple name = "gauss-nint" type = "integer" default="2" optional = "true">
+    <description>Gauss-Legendre quadrature order</description>
+    </simple>
+
+    <!-- - - - - - analysis-type - - - - -->
+    <enumeration name="analysis-type" type="TypesNLDynamic::eAnalysisType">
+      <description>Type of analysis</description>
+      <enumvalue genvalue="TypesNLDynamic::PlaneStrain" name="planestrain" />
+      <enumvalue genvalue="TypesNLDynamic::PlaneStress" name="planestress" />
+      <enumvalue genvalue="TypesNLDynamic::Axi" name="axi" />
+      <enumvalue genvalue="TypesNLDynamic::ThreeD" name="3D" />
+    </enumeration>
+
+    <!-- - - - - - time-scenario - - - - -->
+    <simple name="start" type="real" default="0." optional="true">
+      <description>Start time for simulation</description>
+    </simple>
+    <simple name="final-time" type="real">
+      <description>Final time for simulation</description>
+    </simple>
+    <simple name="deltat" type="real">
+      <description>Timestep value for simulation</description>
+    </simple>
+
+    <!-- - - - - - time-integration-scheme-parameters - - - - -->
+    <simple name="beta" type="real" default="0.25" optional="true">
+      <description>Newmark Beta coefficient</description>
+    </simple>
+    <simple name="gamma" type="real" default="0.5" optional="true">
+      <description>Newmark Gamma coefficient</description>
+    </simple>
+    <simple name="alfam" type="real" default="0." optional="true">
+      <description>Coefficient related to mass terms in Newmark Generalized alfa-method</description>
+    </simple>
+    <simple name="alfaf" type="real" default="0." optional="true">
+      <description>Coefficient related to force terms in Newmark Generalized alfa-method</description>
+    </simple>
+    <simple name="alfa_method" type="bool" default="false" optional="true">
+      <description>Boolean which is true if Newmark Generalized alfa-method is used</description>
+    </simple>
+
+    <!-- - - - - - results-checking - - - - -->
+    <simple name="result-file" type="string" optional="true">
+      <description>File name of a file containing the values of the solution vector to check the results</description>
+    </simple>
+
+    <!-- - - - - - nonlinear-analysis-parameters - - - - -->
+    <simple name="Utol" type="real" default="0.001" optional="true">
+      <description> Tolerance for displacements</description>
+    </simple>
+    <simple name="Ftol" type="real" default="0.01" optional="true">
+      <description> Tolerance for forces </description>
+    </simple>
+    <simple name="Etol" type="real" optional="true">
+      <description>Tolerance for energy (default = Utol*Ftol)</description>
+    </simple>
+    <simple name="Itemax" type="integer" default="15" optional="true">
+      <description>Maximum number of iterations to convergence</description>
+    </simple>
+    <simple name="Compute-opt" type="integer" default="0" optional="true">
+      <description>Compute option in case of imbalance increase between 2 consecutive iterations: 0 = "stop", 1 = "go on"
+      </description>
+    </simple>
+    <simple name="stress0-per-cell-file" type="string" optional="true">
+      <description>File containing initial stress vector (xx yy zz) per cell</description>
+    </simple>
+
+    <!-- - - - - - nonlin-algo-type - - - - -->
+    <enumeration name="nonlin-algo-type" type="TypesNLDynamic::eAlgoType">
+      <description>Type of algorithm for nonlinear resolution</description>
+      <enumvalue genvalue="TypesNLDynamic::Linear" name="linear" />
+      <enumvalue genvalue="TypesNLDynamic::NewtonRaphson" name="newtonraphson" />
+      <enumvalue genvalue="TypesNLDynamic::ModNewtonRaphson" name="modnewtonraphson" />
+    </enumeration>
+
+    <!-- - - - - - integration-type - - - - -->
+    <enumeration name="integration-type" type="TypesNLDynamic::eIntegType">
+      <description>Type of loop to derive spatial integrated quantities: cell-wise (standard FEM) or point-wise</description>
+      <enumvalue genvalue="TypesNLDynamic::FemCell" name="femcell" />
+      <enumvalue genvalue="TypesNLDynamic::FemPoint" name="fempoint" />
+    </enumeration>
+
+    <!-- - - - - - double-couple - - - - -->
+    <complex name  = "double-couple"
+             type  = "DoubleCouple"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>Double-Couple force condition applied on 4 nodes of a source plane</description>
+      <extended name = "north-node" type = "Arcane::NodeGroup">
+        <description>Physical name in the mesh for node located North on the source plane</description>
+      </extended>
+      <extended name = "south-node" type = "Arcane::NodeGroup">
+        <description>Physical name in the mesh for node located South on the source plane</description>
+      </extended>
+      <extended name = "east-node" type = "Arcane::NodeGroup">
+        <description>Physical name in the mesh for node located East on the source plane</description>
+      </extended>
+      <extended name = "west-node" type = "Arcane::NodeGroup">
+        <description>Physical name in the mesh for node located West on the source plane</description>
+      </extended>
+    <simple name = "source-plane" type = "integer" default="0">
+      <description>Fault plane to impose double couple condition: 0=xy, 1=yz, 2=xz</description>
+    </simple>
+    <simple name="seismic-moment-file" type="string" optional="true">
+      <description>Seismic moment time-history M0(t) to be given (if no loading provided)</description>
+    </simple>
+    <simple name="dist-ew-seismic-moment" type="real" default = "1.0" optional="true">
+      <description>Distance between East and West nodes for the seismic moment implementation</description>
+    </simple>
+    <simple name="dist-ns-seismic-moment" type="real" default = "1.0" optional="true">
+      <description>Distance between North and South nodes for the seismic moment implementation</description>
+    </simple>
+    <simple name="loading-file" type="string" optional="true">
+      <description>Loading time history to impose on double couple nodes (if no seismic moment time history provided)</description>
+    </simple>
+    </complex>
+
+    <!-- - - - - - linear-system - - - - -->
+    <service-instance name = "linear-system"
+                      type = "Arcane::FemUtils::IDoFLinearSystemFactory"
+                      default = "AlephLinearSystem"/>
+
+  </options>
+</module>
