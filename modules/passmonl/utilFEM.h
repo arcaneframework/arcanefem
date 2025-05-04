@@ -26,7 +26,7 @@ using namespace Arcane::FemUtils;
 
 
 /*---------------------------------------------------------------------------*/
-Real trace(const Real3x3& mat) {
+Real real3x3Trace(const Real3x3& mat) {
   return mat[0][0] + mat[1][1] + mat[2][2];
 }
 /*---------------------------------------------------------------------------*/
@@ -57,10 +57,9 @@ bool	real3x3IsSym(const Real3x3& mat)
   return (matsup == matlow);
 }
 
-
 /*---------------------------------------------------------------------------*/
 /*!
- * \brief Symmetric Tensor used for stress and strain tensors
+ * \brief 2nd-order symmetric tensor used for stress and strain tensors
  */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -135,10 +134,10 @@ class Tensor2
 
  public:
   //! Multiply all the components by \a v
-  ARCCORE_HOST_DEVICE void multInPlace(Real v) { return m_vec.multInPlace(v); }
+  ARCCORE_HOST_DEVICE void multInPlace(Real v) { m_vec.multInPlace(v); }
 
   //! Add \a v to all the components
-  ARCCORE_HOST_DEVICE void addInPlace(Real v) { return m_vec.addInPlace(v); }
+  ARCCORE_HOST_DEVICE void addInPlace(Real v) { m_vec.addInPlace(v); }
 
   //! Dump values
   void dump(std::ostream& o) const { m_vec.dump(o); }
@@ -315,6 +314,208 @@ class Tensor2
 };
 typedef MeshVariableArrayRefT<Arcane::DoF,Tensor2> VariableDoFTensor;
 
+/*---------------------------------------------------------------------------*/
+/*!
+ * \brief 4th-order tensor used for constitutive operators
+//      _          _
+//     |  D     Sup |
+// C = |             | with D, S, Sup, Slow = Real3x3 blocks
+//     |             |
+//     |  Slow   S  |
+//     |_           _|
+//
+// example: for elastic Tensor4
+//      _                                      _
+//     | lambda + 2mu   lambda           lambda |
+// D = |                                        |
+//     | lambda       lambda + 2mu       lambda |
+//     |                                        |
+//     | lambda         lambda     lambda + 2mu |
+//     |_                                      _|
+//      _           _
+//     | mu   0    0 |
+// S = |             |  Sup = Slow = 0 (Real3x3)
+//     | 0    mu   0 |
+//     |             |
+//     | 0    0   mu |
+//     |_           _|
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+class Tensor4
+{
+ // ***** ATTRIBUTES
+ protected:
+  Real3x3 m_tab[4];
+  bool 	m_constitutive;// introduced if some special operations are required for constitutive models
+  bool 	m_sym; 		// all Tensor2 are symmetric in this case
+
+ public:
+
+  ARCCORE_HOST_DEVICE explicit Tensor4(bool constitutive = true, bool sym = true): m_constitutive(constitutive), m_sym(sym)
+  {}
+
+  ARCCORE_HOST_DEVICE Tensor4(const Real3x3& D,const Real3x3& S){
+    m_constitutive = true;
+    m_tab[0] = D;
+    m_tab[1] = S;
+    m_sym = (real3x3IsSym(D) && real3x3IsSym(S));
+  }
+
+  ARCCORE_HOST_DEVICE Tensor4(const Real3x3& D,const Real3x3& S,const Real3x3& Sup,const Real3x3& Slow,bool constitutive = true)  {
+    m_constitutive = constitutive;
+    m_tab[0] = D;
+    m_tab[1] = S;
+    m_tab[2] = Sup;
+    m_tab[3] = Slow;
+    m_sym = (real3x3IsSym(D) && real3x3IsSym(S) && Sup == Slow);
+  }
+
+  ARCCORE_HOST_DEVICE Tensor4(Real lambda, Real mu) {
+    m_sym = true;
+    m_constitutive = true;
+    m_tab[0] = lambda;
+    for (int i = 0; i < 3; i++) m_tab[0][i][i] += 2*mu;
+    m_tab[1] = mu*Real3x3::identity();
+  }
+
+  ARCCORE_HOST_DEVICE Tensor4(const Tensor4& tens)  {
+    for (int i = 0; i < 4; i++) m_tab[i] = tens.m_tab[i];
+    m_sym = tens.m_sym;
+    m_constitutive = tens.m_constitutive;
+  }
+
+  ARCCORE_HOST_DEVICE ~Tensor4() = default;
+
+ public:
+
+  ARCCORE_HOST_DEVICE Real3x3 operator[](Int32& i) const {
+    ARCANE_CHECK_AT(i,4);
+    return m_tab[i];
+  }
+  ARCCORE_HOST_DEVICE Real3x3& operator[](Int32& i) {
+    ARCANE_CHECK_AT(i,4);
+    return m_tab[i];
+  }
+
+  //! Return Identity Tensor4
+  static Tensor4 identity() {
+    return { Real3x3::identity(), Real3x3::identity() };
+  }
+
+  //! Return zero Tensor2
+  static Tensor4 zero() {
+    return { Real3x3::zero(), Real3x3::zero() };
+  }
+
+ public:
+  ARCCORE_HOST_DEVICE Tensor4& operator=(const Tensor4& tens) {
+    for (int i = 0; i < 4; i++) m_tab[i] = tens.m_tab[i];
+    m_sym = tens.m_sym;
+    m_constitutive = tens.m_constitutive;
+    return (*this);
+  }
+
+  //! Define the addition operator
+  ARCCORE_HOST_DEVICE Tensor4 operator+(const Tensor4& tens) const {
+    Tensor4 result;
+    for (Arcane::Int32 i = 0; i < 4; ++i) {
+      result.m_tab[i] = m_tab[i] + tens[i];
+    }
+    return result;
+  }
+
+  //! Define the += operator
+  ARCCORE_HOST_DEVICE Tensor4& operator+=(const Tensor4& tens) {
+    for (Int32 i = 0; i < 4; i++) m_tab[i] += tens[i];
+    return (*this);
+  }
+
+  //! Define the subtraction operator
+  ARCCORE_HOST_DEVICE Tensor4 operator-(const Tensor4& tens) const {
+    Tensor4 result;
+    for (Arcane::Int32 i = 0; i < 4; ++i) {
+      result.m_tab[i] = m_tab[i] + tens[i];
+    }
+    return result;
+  }
+
+  //! Define the -= operator
+  ARCCORE_HOST_DEVICE Tensor4& operator-=(const Tensor4& tens) {
+    for (Int32 i = 0; i < 4; i++) m_tab[i] -= tens[i];
+    return (*this);
+  }
+
+  //! Multiply all the components by \a v
+  ARCCORE_HOST_DEVICE void multInPlace(Real scalar) {
+    for (auto & i : m_tab) {
+      i *= scalar;
+    }
+  }
+
+  //! Define the unary negation operator
+  ARCCORE_HOST_DEVICE Tensor4 operator-() const {
+    Tensor4 tens(*this);
+    for (Int32 i = 0; i < 4; i++) tens[i] *= (-1);
+    return tens;
+  }
+
+  //! Add \a v to all the components
+  ARCCORE_HOST_DEVICE void addInPlace(Real scalar) {
+    for (auto & i : m_tab) {
+      i.addSame(Real3(scalar, scalar, scalar));
+    }
+  }
+
+  //! Substract \a v to all the components
+  ARCCORE_HOST_DEVICE void subInPlace(Real v) {
+    for (auto & i : m_tab) {
+      i.subSame(Real3(v, v, v));
+    }
+  }
+
+  //! Scalar multiplication: Tensor4 * scalar
+  ARCCORE_HOST_DEVICE Tensor4 operator*(Real scalar) const {
+    Tensor4 result;
+    for (auto & i : result.m_tab) {
+      i *= scalar;
+    }
+    return result;
+  }
+
+  //! Define the *= operator
+  ARCCORE_HOST_DEVICE Tensor4& operator*=(Real scalar) {
+    *this = this->operator*(scalar);
+    return (*this);
+  }
+
+  //! Scalar division: Tensor / scalar
+  ARCCORE_HOST_DEVICE Tensor4 operator/(Real scalar) const {
+    Tensor4 result;
+    for (auto & i : result.m_tab) {
+      i /= scalar;
+    }
+    return result;
+  }
+
+  //! Define the *= operator
+  ARCCORE_HOST_DEVICE Tensor4& operator/=(Real scalar) {
+    *this = this->operator/(scalar);
+    return (*this);
+  }
+
+  ARCCORE_HOST_DEVICE Real trace(const Tensor4& vec)  {
+    return real3x3Trace(m_tab[0]) + real3x3Trace(m_tab[1]);
+  }
+
+  //! Friend function for scalar multiplication: scalar * Tensor4
+  ARCCORE_HOST_DEVICE friend Tensor4 operator*(Real scalar, const Tensor4& tens) {
+    Tensor4 result;
+    for (Arcane::Int32 i = 0; i < 4; ++i) {
+      result.m_tab[i] = scalar * tens.m_tab[i];
+    }
+    return result;
+  }
+};
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*
