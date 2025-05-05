@@ -30,6 +30,8 @@ add_library(FemUtils
   SequentialBasicDoFLinearSystemFactory_axl.h
   HypreDoFLinearSystemFactory_axl.h
   FemBoundaryConditions_axl.h
+  MeshTensorVariable.h
+  MeshTensorVariable.H
   ${ACCELERATOR_SOURCES}
 )
 

@@ -269,9 +269,20 @@ _startInitGauss()
   }
 
   auto hasStressFile{ options()->hasStress0PerCellFile() };
-  VariableDoFTensor& gauss_stress_init(m_gauss_on_cells.gaussStressInit());
-  VariableDoFTensor& gauss_stress_prev(m_gauss_on_cells.gaussStressPrev());
-  Tensor sig0{}, sig{};
+
+  /* gauss tensors (stress, strains) during the global computing time loop:
+   * 0: values at start time (sig0, eps0, epsp0)
+   * 1: values at previous step (sign, epsn, epspn)
+   * 2: values at current step (sig, eps, epsp)
+   * */
+  VariableDoFArrayTensor2& gauss_stress(m_gauss_on_cells.gaussStress());
+  VariableDoFArrayTensor2& gauss_strain(m_gauss_on_cells.gaussStrain());
+  VariableDoFArrayTensor2& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
+  gauss_stress.resize(3);
+  gauss_strain.resize(3);
+  gauss_strain_plastic.resize(3);
+
+  Tensor2 sig0{};
   CaseTable* stress_table{ nullptr};
 
   if (hasStressFile) {
@@ -293,13 +304,27 @@ _startInitGauss()
         auto cell_type = cell.type();
         auto cell_nbgauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, ninteg);
         stress_table->value(numcell, sig3);
-        sig = {sig3.x, sig3.y,sig3.z,0., 0.,0.};
+        sig0 = {sig3.x, sig3.y,sig3.z,0., 0.,0.};
 
         for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
           DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
           Int32 gaussnum = gauss_pti.localId();
-          gauss_stress_init[gauss_pti].fill(sig);
-          gauss_stress_prev[gauss_pti].fill(sig);
+          gauss_stress[gauss_pti][0] = sig0;//sig0
+          gauss_stress[gauss_pti][1] = sig0;//sign
+          }
+        }
+      } else {
+        ENUMERATE_CELL (icell, allCells()) {
+          const Cell& cell = *icell;
+          auto numcell = cell.uniqueId().asInt32();
+          auto cell_type = cell.type();
+          auto cell_nbgauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, ninteg);
+
+          for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
+            DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
+            Int32 gaussnum = gauss_pti.localId();
+            gauss_stress[gauss_pti][0] = sig0;//sig0
+            gauss_stress[gauss_pti][1] = sig0;//sign
           }
         }
       }
