@@ -43,6 +43,13 @@ struct TypesNLDynamic
     ModNewtonRaphson //!< Modified Newton-Raphson: A is assembled every 'linop_nstep' timesteps
   };
 
+  // Type of nonlinear constitutive model
+  enum eLawType {
+    HOOKE = 0,
+    DRUCKP, //!< Drucker-Prager
+    MOHRC,//!< Mohr-Coulomb
+    UNKNOWN //!< Unknown type
+  };
 };
 
 #endif //PASSMO_TYPESNLDYNAMIC_H

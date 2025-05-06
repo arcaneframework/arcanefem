@@ -23,7 +23,7 @@
 #include <arcane/ItemTypes.h>
 #include <arcane/IndexedItemConnectivityView.h>
 #include <arcane/IMesh.h>
-#include "MeshTensorVariable.h"
+//#include "MeshTensorVariable.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

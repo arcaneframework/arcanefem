@@ -28,7 +28,6 @@
 
 using namespace Arcane;
 using namespace Arcane::FemUtils;
-Real REL_PREC{ 1.0e-15 };
 
 /*---------------------------------------------------------------------------*/
 /**

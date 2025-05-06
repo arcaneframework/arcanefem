@@ -6,7 +6,13 @@ add_executable(Passmonl
   main.cc
   analytic_func.cc
   analytical_func.h
-        utilFEM.h)
+  utilFEM.h
+  hooke.cc
+  druckerp.cc
+  LawDispatcher.h
+  LawDispatcher.cc
+  utilFEM.cc
+)
 
 arcane_generate_axl(NLDynamic)
 arcane_add_arcane_libraries_to_target(Passmonl)

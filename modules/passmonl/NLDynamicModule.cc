@@ -320,7 +320,7 @@ _startInitGauss()
           }
           gauss_stress[gauss_pti][2] = Real3x3::zero(); //sig
 
-          // all strain tensors initialized to zero
+          /* Initializing all strain tensors to zero*/
           for (Int32 is = 0; is < 3; is++) {
             gauss_strain[gauss_pti][is] = Real3x3::zero();
             gauss_strain_plastic[gauss_pti][is] = Real3x3::zero();
@@ -338,7 +338,7 @@ _startInitGauss()
             DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
             Int32 gaussnum = gauss_pti.localId();
 
-            // all tensors initialized to zero
+            /* Initializing all tensors to zero*/
             for (Int32 is = 0; is < 3; is++) {
               gauss_stress[gauss_pti][is] = Real3x3::zero();
               gauss_strain[gauss_pti][is] = Real3x3::zero();
@@ -519,6 +519,9 @@ _initGaussStep()
   VariableDoFReal3x3& gauss_jacobmat(m_gauss_on_cells.gaussJacobMat());
   VariableDoFArrayReal& gauss_shape(m_gauss_on_cells.gaussShape());
   VariableDoFArrayReal3& gauss_shapederiv(m_gauss_on_cells.gaussShapeDeriv());
+  VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
+  VariableDoFArrayReal3x3& gauss_strain(m_gauss_on_cells.gaussStrain());
+  VariableDoFArrayReal3x3& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
 
   ENUMERATE_CELL (icell, allCells()) {
     const Cell& cell = *icell;
@@ -559,6 +562,14 @@ _initGaussStep()
       }
       gauss_jacobian[gauss_pti] = jacobian;
       gauss_jacobmat[gauss_pti] = jac;
+
+      // Tensors are initialized to the value of previous step
+      gauss_stress[gauss_pti][1] = gauss_stress[gauss_pti][2];
+      gauss_strain[gauss_pti][1] = gauss_strain[gauss_pti][2];
+      gauss_strain_plastic[gauss_pti][1] = gauss_strain_plastic[gauss_pti][2];
+      gauss_stress[gauss_pti][2] = Real3x3::zero();
+      gauss_strain[gauss_pti][2] = Real3x3::zero();
+      gauss_strain_plastic[gauss_pti][2] = Real3x3::zero();
     }
   }
 }
@@ -579,17 +590,6 @@ _iterate(){
   Real	Fn{0.},Fn1{0.},DXnorm0{0.},DFnorm0{0.};
   bool	stop{false},diverge{false};
   int		ixconst{0},ifconst{0}, idiv{0}, nbiter{0};
-
-
-  // Apply Dirichlet/Neumann conditions if any
-  _applyDirichletBoundaryConditions();
-  _applyNeumannBoundaryConditions();
-
-  // Apply Paraxial conditions if any
-  _applyParaxialBoundaryConditions();
-
-  // Assemble the FEM global LHS operator (A matrix)
-  _assembleLinearLHS();
 
   // Starting the iteration loop until convergence is reached
   // Tolerance checks for convergence:
@@ -709,9 +709,47 @@ _checkResultFile()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void NLDynamicModule::
+_predictNewmark(){
+
+  // Predicting the nodal displacements and velocities (before solve)
+  auto dt = m_global_deltat();
+
+  ENUMERATE_NODE(inode, allNodes()){
+    Node node = *inode;
+    auto an = m_prev_acc[node];
+    auto vn = m_prev_vel[node];
+    auto dn = m_prev_displ[node];
+    auto dn1 = m_displ[node];
+
+    if (!is_alfa_method) {
+      for (Int32 i = 0; i < NDIM; ++i) {
+
+        auto bu = (bool)m_imposed_displ[node][i];
+        auto bv = (bool)m_imposed_vel[node][i];
+        auto vi = vn[i] + dt * (1. - gamma) * an[i];
+
+        if (!bu)
+          m_displ[node][i] = dn[i] + dt * vn[i] + (0.5 - beta) * dt2 * an[i];
+
+        if (!bv)
+          m_vel[node][i] = vn[i] + dt * (1. - gamma) * an[i];
+      }
+    } else {
+      // TO DO
+    }
+
+    m_prev_acc[node] = m_acc[node];
+    m_prev_vel[node] = m_vel[node];
+    m_prev_displ[node] = m_displ[node];
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+void NLDynamicModule::
 _updateNewmark(){
 
-  // Updating the nodal accelerations and velocities (after solve) with
+  // Updating the nodal accelerations and velocities (after solve)
   auto dt = m_global_deltat();
 
   ENUMERATE_NODE(inode, allNodes()){
@@ -2263,17 +2301,35 @@ _assembleLinearRHS(){
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+// ! Stress prediction
+//
+bool NLDynamicModule::stress_prediction(bool init, bool isRef)
+{
+  bool	stop = false;
+  return stop;
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+// ! Stress correction
+//
+bool NLDynamicModule::stress_correction(bool is_converge)
+{
+  bool stop = false;
+  return stop;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 // ! Assemble the 2D or 3D nonlinear contributions to the Right Hand Side
 //   operator (B vector)
 void NLDynamicModule::
 _assembleNonLinRHS(){
   if (NDIM == 3)
-    info() << "Assembly of the FEM 3D linear operator (RHS - vector B) ";
+    info() << "Assembly of the FEM 3D nonlinear contributions to RHS (vector B) ";
   else
-    info() << "Assembly of the FEM 2D linear operator (RHS - vector B) ";
+    info() << "Assembly of the FEM 2D nonlinear contributions to RHS (vector B) ";
 
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
-  rhs_values.fill(0.0);
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   auto dt = m_global_deltat();
 
@@ -2281,6 +2337,9 @@ _assembleNonLinRHS(){
   VariableDoFReal& gauss_weight(m_gauss_on_cells.gaussWeight());
   VariableDoFReal& gauss_jacobian(m_gauss_on_cells.gaussJacobian());
   VariableDoFArrayReal& gauss_shape(m_gauss_on_cells.gaussShape());
+  VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
+  VariableDoFArrayReal3x3& gauss_strain(m_gauss_on_cells.gaussStrain());
+  VariableDoFArrayReal3x3& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
@@ -2381,194 +2440,6 @@ _assembleNonLinRHS(){
         }
         ++n1_index;
       }
-    }
-  }
-
-  String dirichletMethod = options()->enforceDirichletMethod();
-  info() << "Applying Dirichlet boundary condition via "
-         << dirichletMethod << " method ";
-
-  dirichletMethod = dirichletMethod.lower();
-  // Looking for Dirichlet boundary nodes & modify linear operators accordingly
-  ENUMERATE_ (Node, inode, ownNodes()) {
-    auto node = *inode;
-
-    for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
-      bool is_node_dof_set = (bool)m_imposed_displ[node][iddl];
-
-      if (is_node_dof_set) {
-        /*----------------------------------------------------------
-            // if Dirichlet node, modify operators (LHS+RHS) allowing to
-            // Dirichlet method selected by user
-            //----------------------------------------------------------*/
-        auto node_dofi = node_dof.dofId(node, iddl);
-        auto u_iddl = m_displ[node][iddl];
-        if (dirichletMethod == "penalty") {
-          m_linear_system.matrixSetValue(node_dofi, node_dofi, penalty);
-          rhs_values[node_dofi] = u_iddl * penalty;
-        }
-        else if (dirichletMethod.contains("weak")) {
-          m_linear_system.matrixAddValue(node_dofi, node_dofi, penalty);
-          rhs_values[node_dofi] = u_iddl * penalty;
-        }
-        else if (dirichletMethod.contains("rowelim")) {
-          m_linear_system.eliminateRow(node_dofi, u_iddl);
-        }
-        else if (dirichletMethod.contains("rowcolumnelim")) {
-          m_linear_system.eliminateRowColumn(node_dofi, u_iddl);
-        }
-      }
-    }
-  }
-
-  //----------------------------------------------
-  // Traction contribution to RHS if any
-  //----------------------------------------------
-  _getTractionContribution(rhs_values);
-
-  //----------------------------------------------
-  // Paraxial contribution to RHS if any
-  //----------------------------------------------
-  _getParaxialContribution(rhs_values);
-
-  //----------------------------------------------
-  // Looking for double-couple contributions if any
-  //----------------------------------------------
-  {
-    Real time = globalTime();
-    Int32 bd_index{ 0 };
-    for (const auto& bd : options()->doubleCouple()) {
-
-      NodeGroup east = bd->getEastNode();
-      NodeGroup west = bd->getWestNode();
-      NodeGroup north = bd->getNorthNode();
-      NodeGroup south = bd->getSouthNode();
-
-      Real Ft{0.};
-      auto hasMoment = bd->hasSeismicMomentFile();
-      auto hasLoading = bd->hasLoadingFile();
-
-      if (hasMoment || hasLoading) {
-        const CaseTableInfo& table_info = m_dc_case_table_list[bd_index];
-
-        if (hasMoment) {
-          String file_name = bd->getSeismicMomentFile();
-          info() << "Applying the seismic moment for double-couple condition via CaseTable " << file_name;
-        }
-        else if (hasLoading){
-          String file_name = bd->getLoadingFile();
-          info() << "Applying the user loading for double-couple condition via CaseTable " << file_name;
-        }
-        CaseTable* inn = table_info.case_table;
-        if (inn != nullptr)
-          inn->value(time, Ft);
-      }
-
-      auto iplane = bd->getSourcePlane();
-      Int32 i1{0}, i2{0};
-
-      if (!iplane) i2 = 1;
-      else if (iplane == 1){
-        i1 = 1;
-        i2 = 2;
-      }
-      else
-        i2 = 2;
-
-      auto is_dew = bd->hasDistEwSeismicMoment();
-      auto is_dns = bd->hasDistNsSeismicMoment();
-      auto dew = bd->getDistEwSeismicMoment();// East-West distance
-      auto dns = bd->getDistNsSeismicMoment();// North-South distance
-
-      ENUMERATE_NODE (inode, west) {
-
-        if (!inode->null() && inode->isOwn()) {
-          const Node& dc_node_west = *inode;
-          DoFLocalId node_dof_id = node_dof.dofId(dc_node_west, i2);
-
-          //---- For debug only !!!
-          auto coords = m_node_coord[dc_node_west];
-          auto num = dc_node_west.uniqueId().asInt32();
-
-          rhs_values[node_dof_id] = Ft; // default = hasLoading
-          if (hasMoment) {
-            if (is_dew && dew != 0.) {
-              rhs_values[node_dof_id] /= dew;
-            }
-            else{
-              info() << "EW distance for seismic moment implementation is missing or equal to 0.0! "
-                     << "Applying the seismic moment as a user loading";
-
-            }
-          }
-        }
-      }
-      ENUMERATE_NODE (inode, east) {
-        if (!inode->null() && inode->isOwn()) {
-          const Node& dc_node_east = *inode;
-          DoFLocalId node_dof_id = node_dof.dofId(dc_node_east, i2);
-
-          //---- For debug only !!!
-          auto coords = m_node_coord[dc_node_east];
-          auto num = dc_node_east.uniqueId().asInt32();
-
-          rhs_values[node_dof_id] = -Ft;// default = hasLoading
-          if (hasMoment) {
-            if (is_dew && dew != 0.) {
-              rhs_values[node_dof_id] /= dew;
-            }
-            else{
-              info() << "EW distance for seismic moment implementation is missing or equal to 0.0! "
-                     << "Applying the seismic moment as a user loading";
-
-            }
-          }
-        }
-      }
-      ENUMERATE_NODE (inode, north) {
-        if (!inode->null() && inode->isOwn()) {
-          const Node& dc_node_north = *inode;
-          DoFLocalId node_dof_id = node_dof.dofId(dc_node_north, i1);
-
-          //---- For debug only !!!
-          auto coords = m_node_coord[dc_node_north];
-          auto num = dc_node_north.uniqueId().asInt32();
-
-          rhs_values[node_dof_id] = Ft;// default = hasLoading
-          if (hasMoment) {
-            if (is_dns && dns != 0.) {
-              rhs_values[node_dof_id] /= dns;
-            }
-            else{
-              info() << "NS distance for seismic moment implementation is missing or equal to 0.0! "
-                     << "Applying the seismic moment as a user loading";
-            }
-          }
-        }
-      }
-      ENUMERATE_NODE (inode, south) {
-        if (!inode->null() && inode->isOwn()) {
-          const Node& dc_node_south = *inode;
-          DoFLocalId node_dof_id = node_dof.dofId(dc_node_south, i1);
-
-          //---- For debug only !!!
-          auto coords = m_node_coord[dc_node_south];
-          auto num = dc_node_south.uniqueId().asInt32();
-
-          rhs_values[node_dof_id] = -Ft;// default = hasLoading
-          if (hasMoment) {
-            if (is_dns && dns != 0.) {
-              rhs_values[node_dof_id] /= dns;
-            }
-            else{
-              info() << "NS distance for seismic moment implementation is missing or equal to 0.0! "
-                     << "Applying the seismic moment as a user loading";
-            }
-          }
-        }
-      }
-
-      ++bd_index;
     }
   }
 }

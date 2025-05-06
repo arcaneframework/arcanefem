@@ -29,6 +29,9 @@
 using namespace Arcane;
 using namespace Arcane::FemUtils;
 
+Real PI{ acos(-1.) };
+Real REL_PREC{ 1.0e-15 };
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
@@ -156,6 +159,8 @@ class NLDynamicModule
   void _getTractionContribution(Arcane::VariableDoFReal& rhs_values);
   Real3x3 _computeJacobian(const ItemWithNodes& cell, const Int32& ig, const RealUniqueArray& vec, Real& jac);
 
+  /*  Predict nodal dofs vector for the Newmark or Generalized-alfa time integration schemes */
+  void _predictNewmark();
   /*  Update nodal dofs vector for the Newmark or Generalized-alfa time integration schemes */
   void _updateNewmark();
 
@@ -167,6 +172,9 @@ class NLDynamicModule
                       RealUniqueArray2& Ke, const Real3& RhoC);
 
   bool _iterate();
+  bool stress_prediction(bool init, bool isRef);
+  bool stress_correction(bool is_converge);
+
 };
 
 /*---------------------------------------------------------------------------*/

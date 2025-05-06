@@ -28,9 +28,9 @@
 #include <arccore/base/ArccoreGlobal.h>
 #include <array>
 #include <arcane/MeshVariableArrayRef.h>
-
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+extern Arcane::Real REL_PREC;
 
 struct Real4
 {
@@ -479,7 +479,17 @@ class RealVector
     return result;
   }
 
-// private:
+  //! Friend function for dot product of RealVector
+  ARCCORE_HOST_DEVICE friend Real dot(const RealVector<N>& u, const RealVector<N>& v)
+  {
+    Real result{0.};
+    for (Arcane::Int32 i = 0; i < N; ++i) {
+      result += u(i) * v(i);
+    }
+    return result;
+  }
+
+  // private:
  protected:
 
   std::array<Arcane::Real, totalNbElement()> m_values = {};
@@ -573,6 +583,8 @@ class Tensor2
     return m_vec(i);
   }
 
+  ARCCORE_HOST_DEVICE [[nodiscard]] RealVector<6> getVec() const {  return m_vec; }
+
   ARCCORE_HOST_DEVICE Real operator()(Int32 i) const {
     return m_vec(i);
   }
@@ -616,6 +628,15 @@ class Tensor2
 
   //! Dump values
   void dump(std::ostream& o) const { m_vec.dump(o); }
+
+  //! Define the == operator
+  ARCCORE_HOST_DEVICE bool operator==(const Tensor2& vec) {
+    for (Arcane::Int32 i = 0; i < 6; ++i) {
+      if (fabs(m_vec(i) - vec(i)) > REL_PREC)
+        return false;
+    }
+    return true;
+  }
 
   //! Define the = operator
   ARCCORE_HOST_DEVICE Tensor2& operator=(const Tensor2& vec) {
@@ -689,11 +710,21 @@ class Tensor2
     for (Arcane::Int32 i = 0; i < 6; ++i)
       m_vec(i) += b(i);
   }
+  //! Substract b to this Tensor2
+  ARCCORE_HOST_DEVICE void add(const Real3x3& b) {
+    Tensor2 tb(b);
+    this->add(tb);
+  }
 
   //! Substract b to this Tensor2
   ARCCORE_HOST_DEVICE void sub(const Tensor2& b) {
     for (Arcane::Int32 i = 0; i < 6; ++i)
       m_vec(i) -= b(i);
+  }
+  //! Substract b to this Tensor2
+  ARCCORE_HOST_DEVICE void sub(const Real3x3& b) {
+    Tensor2 tb(b);
+    this->sub(tb);
   }
 
   //! Scalar multiplication: Tensor * scalar
@@ -753,8 +784,12 @@ class Tensor2
     for (Int32 i = 3; i < 6; i++) m_vec(i) = s[i-3];
   }
 
-  ARCCORE_HOST_DEVICE Real trace(const Tensor2& vec)  {
+  ARCCORE_HOST_DEVICE [[nodiscard]] Real trace() const {
     return m_vec(0) + m_vec(1) + m_vec(2);
+  }
+
+  ARCCORE_HOST_DEVICE [[nodiscard]] Real norm() const {
+    return sqrt(dot(m_vec,m_vec));
   }
 
   //! Friend function for scalar multiplication: scalar * Tensor
