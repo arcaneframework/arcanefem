@@ -244,15 +244,21 @@ class ArcaneFemFunctions
       Real3 n2 = node_coord[item.nodeId(2)];
       Real3 n3 = node_coord[item.nodeId(3)];
       Real3 n4 = node_coord[item.nodeId(4)];
-      Real3 n5 = node_coord[item.nodeId(5)];
 
+      // Compute the area of the base triangle
       auto v = math::cross(n1 - n0, n2 - n0);
-      auto base = 0.5 * v.normL2();
-      auto h1 = (n3 - n0).normL2();
-      auto h2 = (n4 - n1).normL2();
-      auto h3 = (n5 - n2).normL2();
 
-      return base * (h1 + h2 + h3) / 3.0;
+      auto tri1x2 = math::cross(n2 - n1, n0 - n1);
+      auto tri2x2 = math::cross(n0 - n3, n2 - n3);
+      auto base = 0.5 * (tri1x2.normL2() + tri2x2.normL2());
+
+
+      // Compute the height of the pyramid
+      // The height is the distance from the apex (n4) to the base plane
+      // formed by the triangle (n0, n1, n2)
+      auto h = math::dot(n4 - n0, v) / v.normL2();
+
+      return (base * h) / 3.0;
     }
 
     /*---------------------------------------------------------------------------*/
