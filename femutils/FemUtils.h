@@ -648,7 +648,7 @@ class Tensor2
   }
 
   //! Define the subtraction operator
-  Tensor2 operator-(const Tensor2& other) const {
+  ARCCORE_HOST_DEVICE Tensor2 operator-(const Tensor2& other) const {
     Tensor2 result;
     for (Arcane::Int32 i = 0; i < 6; ++i) {
       result(i) = m_vec(i)-other(i);
@@ -663,7 +663,7 @@ class Tensor2
   }
 
   //! Define the unary negation operator
-  Tensor2 operator-() const {
+  ARCCORE_HOST_DEVICE Tensor2 operator-() const {
     Tensor2 result;
     for (Arcane::Int32 i = 0; i < 6; ++i) {
       result(i) = -m_vec(i);
