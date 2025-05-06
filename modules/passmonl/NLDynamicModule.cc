@@ -275,14 +275,18 @@ _startInitGauss()
    * 1: values at previous step (sign, epsn, epspn)
    * 2: values at current step (sig, eps, epsp)
    * */
-  VariableDoFArrayTensor2& gauss_stress(m_gauss_on_cells.gaussStress());
+/*  VariableDoFArrayTensor2& gauss_stress(m_gauss_on_cells.gaussStress());
   VariableDoFArrayTensor2& gauss_strain(m_gauss_on_cells.gaussStrain());
   VariableDoFArrayTensor2& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
+*/
+  VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
+  VariableDoFArrayReal3x3& gauss_strain(m_gauss_on_cells.gaussStrain());
+  VariableDoFArrayReal3x3& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
   gauss_stress.resize(3);
   gauss_strain.resize(3);
   gauss_strain_plastic.resize(3);
 
-  Tensor2 sig0{};
+  Real3x3 sig0{};
   CaseTable* stress_table{ nullptr};
 
   if (hasStressFile) {
@@ -304,15 +308,25 @@ _startInitGauss()
         auto cell_type = cell.type();
         auto cell_nbgauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, ninteg);
         stress_table->value(numcell, sig3);
-        sig0 = {sig3.x, sig3.y,sig3.z,0., 0.,0.};
+        Tensor2 t0 = {sig3.x, sig3.y, sig3.z, 0., 0., 0.};
+        sig0 = fromTensor2Real3x3(t0);
 
         for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
           DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
           Int32 gaussnum = gauss_pti.localId();
-          gauss_stress[gauss_pti][0] = sig0;//sig0
-          gauss_stress[gauss_pti][1] = sig0;//sign
+
+          for (Int32 is = 0; is < 2; is++) { //sig0, then sign
+            gauss_stress[gauss_pti][is] = sig0;
+          }
+          gauss_stress[gauss_pti][2] = Real3x3::zero(); //sig
+
+          // all strain tensors initialized to zero
+          for (Int32 is = 0; is < 3; is++) {
+            gauss_strain[gauss_pti][is] = Real3x3::zero();
+            gauss_strain_plastic[gauss_pti][is] = Real3x3::zero();
           }
         }
+      }
       } else {
         ENUMERATE_CELL (icell, allCells()) {
           const Cell& cell = *icell;
@@ -323,8 +337,13 @@ _startInitGauss()
           for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
             DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
             Int32 gaussnum = gauss_pti.localId();
-            gauss_stress[gauss_pti][0] = sig0;//sig0
-            gauss_stress[gauss_pti][1] = sig0;//sign
+
+            // all tensors initialized to zero
+            for (Int32 is = 0; is < 3; is++) {
+              gauss_stress[gauss_pti][is] = Real3x3::zero();
+              gauss_strain[gauss_pti][is] = Real3x3::zero();
+              gauss_strain_plastic[gauss_pti][is] = Real3x3::zero();
+            }
           }
         }
       }

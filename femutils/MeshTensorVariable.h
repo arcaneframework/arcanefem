@@ -54,6 +54,8 @@ public MeshVariableScalarRefT<ItemTypeT,FemUtils::Tensor2>
   //! Positionne la référence de l'instance à la variable \a rhs.
   ARCANE_CORE_EXPORT void refersTo(const MeshVariableScalarTensor2<ItemType>& rhs);
 
+  void resize(Int32 dim);
+
 //  ThatClass& operator=(const ThatClass& rhs) = delete;
   //! Constructeur vide
   MeshVariableScalarTensor2()= default;
@@ -133,7 +135,9 @@ public MeshVariableArrayRefT<ItemTypeT,FemUtils::Tensor2>
   //! Positionne la référence de l'instance à la variable \a rhs.
   ARCANE_CORE_EXPORT void refersTo(const MeshVariableArrayTensor2<ItemType>& rhs);
 
- private:
+ public:
+
+  private:
 
   static VariableFactoryRegisterer m_auto_registerer;
   static VariableInfo _buildVariableInfo(const VariableBuildInfo& vbi);

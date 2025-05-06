@@ -21,8 +21,8 @@ configure_file(${MSH_DIR}/bar_dynamic_quad.msh ${CMAKE_CURRENT_BINARY_DIR} COPYO
 configure_file(${MSH_DIR}/bar_dynamic_3D.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/bar_dynamic_3Dhexa.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
-file(COPY "tests/" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-file(COPY "inputs/" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+#file(COPY "tests/" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+#file(COPY "inputs/" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 #enable_testing()
 #if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)

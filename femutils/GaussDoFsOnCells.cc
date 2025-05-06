@@ -56,9 +56,12 @@ class GaussDoFsOnCells::Impl
   VariableDoFReal3x3* m_gauss_jacobmat = nullptr;
   VariableDoFReal* m_gauss_weight = nullptr;
   VariableDoFReal* m_gauss_jacobian = nullptr;
-  VariableDoFArrayTensor2* m_gauss_stress = nullptr;
+/*  VariableDoFArrayTensor2* m_gauss_stress = nullptr;
   VariableDoFArrayTensor2* m_gauss_strain = nullptr;
-  VariableDoFArrayTensor2* m_gauss_strain_plastic = nullptr;
+  VariableDoFArrayTensor2* m_gauss_strain_plastic = nullptr;*/
+  VariableDoFArrayReal3x3* m_gauss_stress = nullptr;
+  VariableDoFArrayReal3x3* m_gauss_strain = nullptr;
+  VariableDoFArrayReal3x3* m_gauss_strain_plastic = nullptr;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -164,9 +167,13 @@ initialize(IMesh* mesh, Int32 max_nb_gauss_per_cell)
   m_p->m_gauss_jacobmat = new VariableDoFReal3x3(VariableBuildInfo(mesh, "GaussJacobMat", "GaussCellFamily"));
   m_p->m_gauss_shape = new VariableDoFArrayReal(VariableBuildInfo(mesh, "GaussShape", "GaussCellFamily"));
   m_p->m_gauss_shapederiv = new VariableDoFArrayReal3(VariableBuildInfo(mesh, "GaussShapeDeriv", "GaussCellFamily"));
-  m_p->m_gauss_stress = new VariableDoFArrayTensor2(VariableBuildInfo(mesh, "GaussStress", "GaussCellFamily"));
+/*  m_p->m_gauss_stress = new VariableDoFArrayTensor2(VariableBuildInfo(mesh, "GaussStress", "GaussCellFamily"));
   m_p->m_gauss_strain = new VariableDoFArrayTensor2(VariableBuildInfo(mesh, "GaussStrain", "GaussCellFamily"));
   m_p->m_gauss_strain_plastic = new VariableDoFArrayTensor2(VariableBuildInfo(mesh, "GaussStrainPlastic", "GaussCellFamily"));
+*/
+  m_p->m_gauss_stress = new VariableDoFArrayReal3x3(VariableBuildInfo(mesh, "GaussStress", "GaussCellFamily"));
+  m_p->m_gauss_strain = new VariableDoFArrayReal3x3(VariableBuildInfo(mesh, "GaussStrain", "GaussCellFamily"));
+  m_p->m_gauss_strain_plastic = new VariableDoFArrayReal3x3(VariableBuildInfo(mesh, "GaussStrainPlastic", "GaussCellFamily"));
 }
 
 /*---------------------------------------------------------------------------*/
@@ -221,7 +228,8 @@ gaussShapeDeriv()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-VariableDoFArrayTensor2& GaussDoFsOnCells::
+//VariableDoFArrayTensor2& GaussDoFsOnCells::
+VariableDoFArrayReal3x3& GaussDoFsOnCells::
 gaussStress()
 {
   return *m_p->m_gauss_stress;
@@ -229,7 +237,8 @@ gaussStress()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-VariableDoFArrayTensor2& GaussDoFsOnCells::
+//VariableDoFArrayTensor2& GaussDoFsOnCells::
+VariableDoFArrayReal3x3& GaussDoFsOnCells::
 gaussStrain()
 {
   return *m_p->m_gauss_strain;
@@ -237,7 +246,8 @@ gaussStrain()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-VariableDoFArrayTensor2& GaussDoFsOnCells::
+//VariableDoFArrayTensor2& GaussDoFsOnCells::
+VariableDoFArrayReal3x3& GaussDoFsOnCells::
 gaussStrainPlastic()
 {
   return *m_p->m_gauss_strain_plastic;

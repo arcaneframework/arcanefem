@@ -213,6 +213,7 @@ refersTo(const MeshVariableArrayTensor2<ItemType>& rhs)
   MeshVariableArrayRefT<ItemType, DataType>::operator=(rhs);
 }
 
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
