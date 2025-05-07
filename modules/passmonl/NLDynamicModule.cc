@@ -206,6 +206,8 @@ _startInitGauss()
 {
   Integer max_gauss_per_cell{ 0 };
   Integer max_nbnodes_per_cell{ 0 };
+  Real lambda, mu;
+  Integer max_nb_law_param;
 
   ENUMERATE_CELL (icell, allCells()) {
     const Cell& cell = *icell;
@@ -228,9 +230,11 @@ _startInitGauss()
   VariableDoFReal3& gauss_refpos(m_gauss_on_cells.gaussRefPosition());
   VariableDoFArrayReal& gauss_shape(m_gauss_on_cells.gaussShape());
   VariableDoFArrayReal3& gauss_shapederiv(m_gauss_on_cells.gaussShapeDeriv());
+  VariableDoFArrayReal& gauss_lawparam(m_gauss_on_cells.gaussLawParam());
 
   gauss_shape.resize(max_nbnodes_per_cell);
   gauss_shapederiv.resize(max_nbnodes_per_cell);
+  gauss_lawparam.resize(m_nb_law_param);
 
   ENUMERATE_CELL (icell, allCells()) {
     const Cell& cell = *icell;
@@ -239,6 +243,16 @@ _startInitGauss()
     Int32 numcell = cell.localId();
     auto cell_nbgauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, ninteg);
     Int32 ndim = ArcaneFemFunctions::MeshOperation::getGeomDimension(cell);
+
+    lambda = m_lambda[cell];
+    mu = m_mu[cell];
+
+    auto is_default = m_default_law[cell];
+    auto lawtyp = static_cast<TypesNLDynamic::eLawType>(m_law[cell]);
+    auto ilaw = m_iparam_law[cell];
+    LawDispatcher cell_law(lawtyp,is_default);
+    RealUniqueArray lawparams = cell_law.readLawParams(lambda, mu, is_default, m_law_param_file,ilaw);
+    auto nblaw = lawparams.size();
 
     for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
       DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
@@ -264,6 +278,10 @@ _startInitGauss()
             dPhi.y = 0.;
         }
         gauss_shapederiv[gauss_pti][inod] = dPhi;
+      }
+
+      for (Int32 ip = 0; ip < nblaw; ++ip){
+        gauss_lawparam[gauss_pti][ip] = lawparams[ip];
       }
     }
   }
@@ -429,6 +447,28 @@ _applyInitialNodeConditions(){
 /*---------------------------------------------------------------------------*/
 void NLDynamicModule::
 _applyInitialCellConditions(){
+
+  m_nb_law_param = 2;
+  if (options()->hasLawInputParam())
+    m_law_param_file = options()->lawInputParam();
+
+  for (Integer i = 0, nb = options()->lawModel().size(); i < nb; ++i){
+
+    CellGroup cell_group = options()->lawModel[i]->cellGroup();
+    Integer ilaw = options()->lawModel[i]->iLawParam();
+    TypesNLDynamic::eLawType lawtyp = options()->lawModel[i]->lawType();
+    Integer nblaw = options()->lawModel[i]->nbLawParam();
+    m_nb_law_param = math::max(m_nb_law_param, nblaw);
+
+    bool is_default = (m_law_param_file.empty() || nblaw == 2);
+
+    ENUMERATE_CELL (icell, cell_group) {
+      const Cell& cell = *icell;
+      m_law[cell] = (int)lawtyp;
+      m_default_law[cell] = is_default;
+      m_iparam_law[cell] = ilaw;
+    }
+  }
 
   for (Integer i = 0, nb = options()->initElastProperties().size(); i < nb; ++i) {
 

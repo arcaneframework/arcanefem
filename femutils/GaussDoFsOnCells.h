@@ -69,6 +69,7 @@ class GaussDoFsOnCells
   Arcane::VariableDoFReal3x3& gaussJacobMat();
   Arcane::VariableDoFReal& gaussWeight();
   Arcane::VariableDoFReal& gaussJacobian();
+  Arcane::VariableDoFArrayReal& gaussLawParam();
 
 /*  Arcane::VariableDoFArrayTensor2& gaussStress();
   Arcane::VariableDoFArrayTensor2& gaussStrain();

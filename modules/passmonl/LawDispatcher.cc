@@ -32,7 +32,7 @@ extern Tensor4 HookeComputeElastTensor(RealConstArrayView& /*law_params*/, const
 extern Tensor4 HookeComputeTangentTensor(RealConstArrayView& /*law_params*/, RealArrayView& /*history_vars*/, const Tensor2& /*sig*/, const Tensor2& /*deps*/);
 extern RealUniqueArray HookeInitHistoryVars(RealConstArrayView& /*history_vars*/);
 extern bool HookeInitState(const Tensor2& /*sig*/, RealArrayView& /*history_vars*/);
-extern RealUniqueArray HookeReadLawParams(const String& name);
+extern RealUniqueArray HookeReadLawParams(Real /*lambda*/, Real /*mu*/, bool /*default_param*/, const String& /*name*/, Integer /*ilaw*/);
 extern Tensor4 HookeComputeStress(RealConstArrayView& /*law_params*/, RealArrayView& /*history_vars*/, Tensor2& /*sig*/, Tensor2& /*eps*/, Tensor2& /*epsp*/, Tensor2& /*dsig*/,
                                const Tensor2& /*deps*/, bool /*is_converge*/);
 
@@ -46,14 +46,14 @@ extern Tensor4 DruckPComputeElastTensor(RealConstArrayView& /*law_params*/, cons
 extern Tensor4 DruckPComputeTangentTensor(RealConstArrayView& /*law_params*/, RealArrayView& /*history_vars*/, const Tensor2& /*sig*/, const Tensor2& /*deps*/);
 extern RealUniqueArray DruckPInitHistoryVars(RealConstArrayView& /*history_vars*/);
 extern bool DruckPInitState(const Tensor2& /*sig*/, RealArrayView& /*history_vars*/);
-extern RealUniqueArray DruckPReadLawParams(const String& name);
+extern RealUniqueArray DruckPReadLawParams(Real /*lambda*/, Real /*mu*/, bool /*default_param*/, const String& /*name*/, Integer /*ilaw*/);
 extern Tensor4 DruckPComputeStress(RealConstArrayView& /*law_params*/, RealArrayView& /*history_vars*/, Tensor2& /*sig*/, Tensor2& /*eps*/, Tensor2& /*epsp*/, Tensor2& /*dsig*/,
                                const Tensor2& /*deps*/, bool /*is_converge*/);
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-LawDispatcher::LawDispatcher(const String& name, TypesNLDynamic::eLawType law_type) :
-        m_law_type(law_type) {
+LawDispatcher::LawDispatcher(TypesNLDynamic::eLawType law_type, bool default_param) :
+        m_law_type(law_type), m_default(default_param) {
 
     // Setting to null default value
     for (Integer i = 0; i < NB_LAW_TYPE; ++i) {
@@ -113,6 +113,8 @@ void	LawDispatcher::setStressIncrement(const Tensor2& tensor) { m_dsig = tensor;
 Tensor2	LawDispatcher::getStrainIncrement() const { return m_deps; }
 void	LawDispatcher::setStrainIncrement(const Tensor2& tensor) { m_deps = tensor; }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 void LawDispatcher::computeStress(bool is_converge) {
 
     auto f = m_compute_stress[m_law_type];
@@ -126,6 +128,8 @@ void LawDispatcher::computeStress(bool is_converge) {
     }
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 Tensor4 LawDispatcher::computeElastTensor(const Tensor2& sig) {
 
     auto f = m_compute_elast_tensor[m_law_type];
@@ -137,6 +141,8 @@ Tensor4 LawDispatcher::computeElastTensor(const Tensor2& sig) {
     return Tensor4();
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 Tensor4 LawDispatcher::computeTangentTensor(const Tensor2& sig) {
 
     auto f = m_compute_tangent_tensor[m_law_type];
@@ -149,6 +155,8 @@ Tensor4 LawDispatcher::computeTangentTensor(const Tensor2& sig) {
     return Tensor4();
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 bool LawDispatcher::initState(const Tensor2& sig, RealConstArrayView& history_vars)
 {
     if (sig == Tensor2::zero()) return true;
@@ -164,6 +172,8 @@ bool LawDispatcher::initState(const Tensor2& sig, RealConstArrayView& history_va
     return false;
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 RealUniqueArray LawDispatcher::initHistoryVars(RealConstArrayView& history_vars)
 {
     auto f = m_init_history_vars[m_law_type];
@@ -174,28 +184,38 @@ RealUniqueArray LawDispatcher::initHistoryVars(RealConstArrayView& history_vars)
     return {};
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 RealUniqueArray LawDispatcher::updateHistoryVars()
 {
     return m_history_vars;
 }
 
-bool LawDispatcher::readLawParams(const String& name)
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+RealUniqueArray LawDispatcher::readLawParams(Real lambda, Real mu, bool default_param, const String& name, Integer ilaw)
 {
     auto f = m_read_law_params[m_law_type];
+    m_default = default_param;
 
-    if (f != nullptr)
-        m_law_params = f(name);
+    if (f != nullptr) {
+      m_law_params = f(lambda, mu, default_param, name, ilaw);
 
-
-    if (m_law_params.empty())
-        return false;
-
-    RealConstArrayView lawparams = m_law_params.constView();
-    m_law_consts = initConsts(lawparams);
-
-    return true;
+      if (!m_law_params.empty()) {
+        RealConstArrayView lawparams = m_law_params.constView();
+        m_law_consts = initConsts(lawparams);
+      }
+    }
+    else{
+      m_law_params = RealUniqueArray(2);
+      m_law_params[0] = lambda;
+      m_law_params[1] = mu;
+    }
+    return m_law_params;
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 RealUniqueArray LawDispatcher::initConsts(RealConstArrayView& law_params)
 {
     auto f = m_init_consts[m_law_type];
@@ -204,4 +224,10 @@ RealUniqueArray LawDispatcher::initConsts(RealConstArrayView& law_params)
         return f(law_params);
 
     return {};
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+void ReadLawBlock(istream& is){
+
 }

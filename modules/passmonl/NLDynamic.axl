@@ -99,6 +99,15 @@
     family-name="PointsFamily" data-type="real3" item-kind="dof" dim="0">
       <description>Coordinates of the integration points (in the physical space)</description>
     </variable>
+    <variable field-name="law" name="Law" data-type="integer" item-kind="cell" dim="0">
+      <description>Constitutive model type per cell: 0=Hooke, 1= Drucker-Prager</description>
+    </variable>
+    <variable field-name="default_law" name="DefaultLaw" data-type="integer" item-kind="cell" dim="0">
+      <description>Constitutive model parameters indicator per cell: 0=default (no file provided), 1= input file</description>
+    </variable>
+    <variable field-name="iparam_law" name="IparamLaw" data-type="integer" item-kind="cell" dim="0">
+      <description>ith parameters block to read in the constitutive model parameters file</description>
+    </variable>
   </variables>
 
   <entry-points>
@@ -485,6 +494,30 @@
       <description>File containing initial stress vector (xx yy zz) per cell</description>
     </simple>
 
+    <simple name="law-input-param" type="string" optional="true">
+       <description>File containing all the input parameters for the constitutive models (default values taken if not provided)</description>
+    </simple>
+    <complex name="law-model" type="LawModel" minOccurs="0" maxOccurs="unbounded">
+      <description>Definition of the constitutive model on a cell group</description>
+        <extended name="cell-group" type="Arcane::CellGroup">
+          <description>CellGroup on which the constitutive model will be applied</description>
+        </extended>
+        <simple name="nb-law-param" type="integer" default = "2" optional="true">
+          <description>Number of law parameters for the selected constitutive model (including the 2 elastic coef.)</description>
+        </simple>
+        <simple name="i-law-param" type="integer" default = "0" optional="true">
+          <description>ith law parameters block in the constitutive models file</description>
+        </simple>
+
+        <!-- - - - - - law-type - - - - -->
+        <enumeration name="law-type" type="TypesNLDynamic::eLawType">
+          <description>Type of the nonlinear constitutive model selected for analysis</description>
+          <enumvalue genvalue="TypesNLDynamic::HOOKE" name="Hooke" />
+          <enumvalue genvalue="TypesNLDynamic::DRUCKP" name="Druckerprager" />
+          <enumvalue genvalue="TypesNLDynamic::MOHRC" name="Mohrcoulomb" />
+        </enumeration>
+    </complex>
+
     <!-- - - - - - nonlin-algo-type - - - - -->
     <enumeration name="nonlin-algo-type" type="TypesNLDynamic::eAlgoType">
       <description>Type of algorithm for nonlinear resolution</description>
@@ -492,6 +525,7 @@
       <enumvalue genvalue="TypesNLDynamic::NewtonRaphson" name="newtonraphson" />
       <enumvalue genvalue="TypesNLDynamic::ModNewtonRaphson" name="modnewtonraphson" />
     </enumeration>
+
 
     <!-- - - - - - integration-type - - - - -->
     <enumeration name="integration-type" type="TypesNLDynamic::eIntegType">

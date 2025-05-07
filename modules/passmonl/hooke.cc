@@ -35,14 +35,18 @@ using namespace Arcane::FemUtils;
 //! Initialize intern useful constants
 RealUniqueArray HookeInitConsts(RealConstArrayView& law_params)
 {
-    auto E = law_params[0];
-    auto Nu = law_params[1];
+  // auto E = law_params[0];
+  // auto Nu = law_params[1];
+  auto Lambda = law_params[0];
+  auto Mu = law_params[1];
 
-    RealUniqueArray consts(2);
-    consts[0] = E * Nu / (1. - 2. * Nu) / (1. + Nu); // Lame coefficient Lambda
-    consts[1] = E / 2. / (1. + Nu); // Lame coefficient Mu
+  RealUniqueArray consts(2);
+  //  consts[0] = E * Nu / (1. - 2. * Nu) / (1. + Nu); // Lame coefficient Lambda
+  //  consts[1] = E / 2. / (1. + Nu); // Lame coefficient Mu
+  consts[0] = Lambda;
+  consts[1] = Mu;
 
-    return consts;
+  return consts;
 }
 
 //! Computes elastic constitutive tensor
@@ -73,36 +77,16 @@ bool HookeInitState(const Tensor2& /*sig*/, RealArrayView& /*history_vars*/)
 }
 
 //! Read constitutive parameters from a file and initialize intern constants allowing to the material constitutive model type
-RealUniqueArray HookeReadLawParams(const String& name)
+RealUniqueArray HookeReadLawParams(Real lambda, Real mu, bool /*default_param*/, const String& /*name*/, Integer /*ilaw*/)
 {
-#ifdef DEBUG
-    if (name.empty())
-	{
-		info() << "\n Error filename for materials not found "
-		        "--> Process stopped in HookeReadLawParams\n";
-		return RealUniqueArray(0);
-	}
-#endif
-
-        std::filebuf MatFile;
-
-        if (MatFile.open(name.localstr(), ios::in) == nullptr)
-            return {};
-
-        istream isRead(&MatFile);
-        char    c[500];
-
-        // =================================================================================
-        // Hooke's model parameters :
-        // 0-E=Young modulus  1-Nu=Poisson ratio
-        // =================================================================================
-        RealUniqueArray lawparams(2);
-        for (int i = 0; i < 2; i++)
-            isRead >> lawparams[i];
-        isRead.getline(c, 500); // "\n"
-
-        MatFile.close();
-        return lawparams;
+  // =================================================================================
+  // Hooke's model parameters stored in the lawparams vector:
+  // 0-Lambda=1st Lame coef.  1-Mu=2nd Lame coef.
+  // =================================================================================
+  RealUniqueArray lawparams(2);
+  lawparams[0] = lambda;
+  lawparams[1] = mu;
+  return lawparams;
 }
 
 Tensor4 HookeComputeStress(RealConstArrayView& law_params, RealArrayView& /*history_vars*/, Tensor2& sig, Tensor2& eps, Tensor2& /*epsp*/, Tensor2& dsig,

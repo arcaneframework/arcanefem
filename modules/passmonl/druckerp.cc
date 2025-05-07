@@ -25,6 +25,7 @@ using namespace Arcane;
 using namespace Arcane::FemUtils;
 
 extern Real PI;
+extern void ReadLawBlock(istream&);
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -37,8 +38,10 @@ extern Real PI;
 //! Initialize intern useful constants
 RealUniqueArray DruckPInitConsts(RealConstArrayView& law_params) {
 
-  auto E = law_params[0];
-  auto Nu = law_params[1];
+  // auto E = law_params[0];
+  // auto Nu = law_params[1];
+  auto Lambda = law_params[0];
+  auto Mu = law_params[1];
   auto phi = law_params[2]; // already in radians (converted when reading data)
   auto psi = law_params[3]; // already in radians
   auto cohes = law_params[4];
@@ -48,8 +51,10 @@ RealUniqueArray DruckPInitConsts(RealConstArrayView& law_params) {
   auto sef = sqrt(3.) * (3. - sinphi);//compressive meridian
 
   RealUniqueArray consts(5);
-  consts[0] = E * Nu / (1. - 2. * Nu) / (1. + Nu); // Lame coefficient Lambda
-  consts[1] = E / 2. / (1. + Nu); // Lame coefficient Mu
+//  consts[0] = E * Nu / (1. - 2. * Nu) / (1. + Nu); // Lame coefficient Lambda
+//  consts[1] = E / 2. / (1. + Nu); // Lame coefficient Mu
+  consts[0] = Lambda;
+  consts[1] = Mu;
   consts[2] = 2. * sinphi / sef;//alfa
   consts[3] = 2. * sinpsi / sqrt(3.) / (3. - sinpsi);//alfpsi
   consts[4] = 6. * cohes * cosphi / sef;//xk
@@ -173,36 +178,47 @@ bool DruckPInitState(const Tensor2& /*sig*/, RealArrayView& history_vars)
 }
 
 //! Read constitutive parameters from a file and initialize intern constants allowing to the material constitutive model type
-RealUniqueArray DruckPReadLawParams(const String& name)
+RealUniqueArray DruckPReadLawParams(Real lambda, Real mu, bool default_param, const String& name, Integer ilaw)
 {
-#ifdef DEBUG
-  if (name.empty())
-  {
-    info() << "\n Error filename for materials not found "
-            "--> Process stopped in DruckPReadLawParams\n";
-    return RealUniqueArray(0);
-  }
-#endif
-
+  RealUniqueArray lawparams(7);
   std::filebuf MatFile;
-  if (MatFile.open(name.localstr(), ios::in) == nullptr)
-    return RealUniqueArray(0);
-
-  istream isRead(&MatFile);
-  char	c[500];
+  // Elastic parameters are taken from the general user data
+  // Only the plastic parameters are read from input file
+  lawparams[0] = lambda;
+  lawparams[1] = mu;
 
   // =========================================================================================================
-  // Drucker-Prager model parameters :
-  // 0-E=Young modulus  1-Nu=Poisson ratio  2-phi(°)=friction angle 3-psi(°)=dilatancy angle
+  // Drucker-Prager model parameters stored in the lawparams vector:
+  // 0-Lambda=1st Lame coef.  1-Mu=2nd Lame coef.  2-phi(°)=friction angle 3-psi(°)=dilatancy angle
   // 4-cohesion (Pa) 5-incmax=max number of sub-increments for law integration
   // 6-indaux= indicator for tangent tensor type: 0 = elastic (default, symmetric),1 = plastic (unsymmetric)
   // =========================================================================================================
-  RealUniqueArray lawparams(7);
-  for (int i = 0; i < 7; i++)
-    isRead >> lawparams[i];
-  isRead.getline(c, 500); // "\n"
 
-  MatFile.close();
+  bool is_file = (!name.empty() && MatFile.open(name.localstr(), ios::in) != nullptr);
+  bool is_default = (default_param || !is_file);
+
+  if (is_default) {
+    // Taking default input law parameters
+    lawparams[2] = 30.;
+    lawparams[3] = 30.;
+    lawparams[4] = 1.e3;
+    lawparams[5] = 15;
+    lawparams[6] = 0;
+
+  } else {
+
+    istream isRead(&MatFile);
+    char c[500];
+
+    int i{0};
+    while (i < ilaw) ReadLawBlock(isRead);
+
+    for (int i = 2; i < 7; i++)
+      isRead >> lawparams[i];
+    isRead.getline(c, 500); // "\n"
+
+    MatFile.close();
+  }
 
   const Real RAD = PI/180.;
   lawparams[2] *= RAD;

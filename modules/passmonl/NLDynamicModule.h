@@ -23,6 +23,7 @@
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
 #include "GaussDoFsOnCells.h"
+#include "LawDispatcher.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -128,6 +129,13 @@ class NLDynamicModule
   bool is_linear{true};
   bool compute_opt{false};
   bool converge{false};
+  Integer m_nb_law_param{2};
+  String  m_law_param_file{};
+/*
+  TypesNLDynamic::eLawType m_law_type{TypesNLDynamic::HOOKE};
+  LawDispatcher cell_law{};
+  bool  m_law_default_param{true};
+*/
 
   Real dt2{0.};
   Int32 linop_nstep{1000}, linop_nstep_counter{0}, ite_max{15};
