@@ -228,6 +228,24 @@ RealUniqueArray LawDispatcher::initConsts(RealConstArrayView& law_params)
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-void ReadLawBlock(istream& is){
+void ReadLawBlock(istream& is, Integer nblock){
+  char c[500];
+  String str;
+  bool stop { false};
+  String s_end_b{"</"};
 
+  for (Integer i = 0; i < nblock; ++i){
+
+    if (!i) {
+      is >> str;
+      is.getline(c, 500); // read until end of line "\n"
+      stop = (str.contains(s_end_b));
+    }
+
+    while(!stop) {
+      is >> str;
+      is.getline(c, 500); // read until end of line "\n"
+      stop = (str.contains(s_end_b));
+    }
+  }
 }

@@ -25,7 +25,7 @@ using namespace Arcane;
 using namespace Arcane::FemUtils;
 
 extern Real PI;
-extern void ReadLawBlock(istream&);
+extern void ReadLawBlock(istream&, Integer);
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -210,8 +210,7 @@ RealUniqueArray DruckPReadLawParams(Real lambda, Real mu, bool default_param, co
     istream isRead(&MatFile);
     char c[500];
 
-    int i{0};
-    while (i < ilaw) ReadLawBlock(isRead);
+    ReadLawBlock(isRead, ilaw);
 
     for (int i = 2; i < 7; i++)
       isRead >> lawparams[i];
