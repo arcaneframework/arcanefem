@@ -30,7 +30,6 @@
 #include <arcane/MeshVariableArrayRef.h>
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-extern Arcane::Real REL_PREC;
 
 struct Real4
 {
@@ -631,8 +630,9 @@ class Tensor2
 
   //! Define the == operator
   ARCCORE_HOST_DEVICE bool operator==(const Tensor2& vec) {
+    Real eps{1.0e-15};
     for (Arcane::Int32 i = 0; i < 6; ++i) {
-      if (fabs(m_vec(i) - vec(i)) > REL_PREC)
+      if (fabs(m_vec(i) - vec(i)) > eps)
         return false;
     }
     return true;
@@ -791,6 +791,14 @@ class Tensor2
   ARCCORE_HOST_DEVICE [[nodiscard]] Real norm() const {
     return sqrt(dot(m_vec,m_vec));
   }
+
+  //! Function to convert Real3x3 matrix (symmetric) to Tensor
+  ARCCORE_HOST_DEVICE void fromReal3x3ToTensor2(const Real3x3& mat) {
+    for (Arcane::Int32 i = 0; i < 3; i++) (*this)(i) = mat[i][i];
+    for (Arcane::Int32 i = 3; i < 5; i++) (*this)(i) = mat[0][i - 2];
+    (*this)(5) = mat[1][2];
+  }
+
 
   //! Friend function for scalar multiplication: scalar * Tensor
   ARCCORE_HOST_DEVICE friend Tensor2 operator*(Real scalar, const Tensor2& vector) {

@@ -93,6 +93,20 @@ LawDispatcher::LawDispatcher(TypesNLDynamic::eLawType law_type, bool default_par
     //! Initialize intern useful constants allowing to the material constitutive model type
     m_init_consts[TypesNLDynamic::HOOKE] = HookeInitConsts;
     m_init_consts[TypesNLDynamic::DRUCKP] = DruckPInitConsts;
+
+    switch(law_type){
+
+    case TypesNLDynamic::UNKNOWN:
+    case TypesNLDynamic::HOOKE: m_nb_law_param = 2;
+      break;
+
+    case TypesNLDynamic::DRUCKP:
+    case TypesNLDynamic::MOHRC: m_nb_law_param = 7;
+      break;
+
+    default: m_nb_law_param = 2;
+      break;
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -228,24 +242,22 @@ RealUniqueArray LawDispatcher::initConsts(RealConstArrayView& law_params)
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-void ReadLawBlock(istream& is, Integer nblock){
+void ReadLawBlock(istream& is, Integer nblock) {
+
   char c[500];
   String str;
-  bool stop { false};
-  String s_end_b{"</"};
+  bool stop{ false };
+  String str_nblock = String::fromNumber(nblock);
+  String sblock = String("<") + str_nblock + String(">");
 
-  for (Integer i = 0; i < nblock; ++i){
+  do {
 
-    if (!i) {
-      is >> str;
-      is.getline(c, 500); // read until end of line "\n"
-      stop = (str.contains(s_end_b));
+    is.getline(c, 500); // read whole line
+    std::istringstream iss(c);
+    String token;
+    while (iss >> token) {
+      if (token.contains(sblock))
+        stop = true;
     }
-
-    while(!stop) {
-      is >> str;
-      is.getline(c, 500); // read until end of line "\n"
-      stop = (str.contains(s_end_b));
-    }
-  }
+  } while(!stop);
 }

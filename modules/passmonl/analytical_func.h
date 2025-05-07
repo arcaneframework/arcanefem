@@ -20,7 +20,7 @@
 #include "arcane/MathUtils.h"
 #include <arcane/VariableTypes.h>
 using namespace Arcane;
-extern Real	REL_PREC;
+
 
 /*!
  * \brief Class to define analytical functions useful to define incident wave motions

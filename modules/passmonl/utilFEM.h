@@ -376,54 +376,5 @@ class Tensor4
 };
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-/*
-inline RealUniqueArray2
-bothMultiply(const ElastTensor& a, const RealUniqueArray2& b){
-#ifdef _DEBUG
-  assert(b.dim1Size() == 6);
-#endif
-  Int32 n{b.dim2Size()};
-  RealUniqueArray2 bt_ab(n,n);
-  RealUniqueArray2 bt(n,6);
-  RealUniqueArray2 ab(6,n);
-  for (Int32 i = 0; i < 6; ++i) {
-    for (Int32 j = 0; j < n; ++j) {
-        bt[j][i] = b[i][j];
-    }
-  }
-  for (Int32 i = 0; i < 6; ++i) {
-    for (Int32 j = 0; j < n; ++j) {
-      for (Int32 k = 0; k < 6; ++k) {
-        ab[i][j] += a(i, k)*b[k][j];
-      }
-    }
-  }
-  for (Int32 i = 0; i < n; ++i) {
-    for (Int32 j = 0; j < n; ++j) {
-      for (Int32 k = 0; k < 6; ++k) {
-        bt_ab[i][j] += bt[i][k]*ab[k][j];
-      }
-    }
-  }
-  return bt_ab;
-}
-*/
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-/*
-inline void
-addArray2(RealUniqueArray2& a, const RealUniqueArray2& b, const Real& wt){
-#ifdef _DEBUG
-  assert(a.dim1Size() == b.dim1Size() && a.dim2Size() == b.dim2Size());
-#endif
-  for (Int32 i = 0; i < a.dim1Size(); ++i) {
-    for (Int32 j = 0; j <  a.dim2Size(); ++j) {
-      a[i][j] += wt*b[i][j];
-    }
-  }
-}
-*/
-
 
 #endif // PASSMO_UTILFEM_H_

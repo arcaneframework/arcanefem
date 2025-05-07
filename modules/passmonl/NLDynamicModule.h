@@ -18,20 +18,15 @@
 #include "TypesNLdynamic.h"
 #include "NLDynamic_axl.h"
 #include "FemUtils.h"
-#include "utilFEM.h"
 #include "analytical_func.h"
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
 #include "GaussDoFsOnCells.h"
-#include "LawDispatcher.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 using namespace Arcane;
 using namespace Arcane::FemUtils;
-
-Real PI{ acos(-1.) };
-Real REL_PREC{ 1.0e-15 };
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -131,11 +126,6 @@ class NLDynamicModule
   bool converge{false};
   Integer m_nb_law_param{2};
   String  m_law_param_file{};
-/*
-  TypesNLDynamic::eLawType m_law_type{TypesNLDynamic::HOOKE};
-  LawDispatcher cell_law{};
-  bool  m_law_default_param{true};
-*/
 
   Real dt2{0.};
   Int32 linop_nstep{1000}, linop_nstep_counter{0}, ite_max{15};
@@ -169,6 +159,7 @@ class NLDynamicModule
 
   /*  Predict nodal dofs vector for the Newmark or Generalized-alfa time integration schemes */
   void _predictNewmark();
+
   /*  Update nodal dofs vector for the Newmark or Generalized-alfa time integration schemes */
   void _updateNewmark();
 
@@ -180,8 +171,8 @@ class NLDynamicModule
                       RealUniqueArray2& Ke, const Real3& RhoC);
 
   bool _iterate();
-  bool stress_prediction(bool init, bool isRef);
-  bool stress_correction(bool is_converge);
+  void stress_prediction(bool init, bool isRef);
+  void stress_correction(bool isRef);
 
 };
 

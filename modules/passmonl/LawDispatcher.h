@@ -68,10 +68,15 @@ public:
     [[nodiscard]] Tensor2	getStrainIncrement() const;
     void	setStrainIncrement(const Tensor2&);
 
+    [[nodiscard]] Integer getNbLawParam() const { return m_nb_law_param; }
+
     void  setLambda(Real lambda) { m_Lambda = lambda; }
     void  setMu(Real mu) { m_Mu = mu; }
     void  setName(const String& name) { m_name = name; }
     void  setDefault(bool is_default) { m_default = is_default; }
+    void setLawParams(const RealUniqueArray& lawparams) {
+      m_law_params = lawparams.clone();
+    }
 
 private:
     std::function<Tensor4(RealConstArrayView& law_params, RealArrayView& history_vars, Tensor2& sig, Tensor2& eps, Tensor2& epsp, Tensor2& dsig,
@@ -84,6 +89,7 @@ private:
     std::function<RealUniqueArray(RealConstArrayView& law_params)> m_init_consts[NB_LAW_TYPE];
 
     Tensor2 m_sig{};
+    Tensor2 m_sign{};
     Tensor2 m_eps{};
     Tensor2 m_dsig{};
     Tensor2 m_epsp{};
@@ -97,6 +103,7 @@ private:
     TypesNLDynamic::eLawType m_law_type{TypesNLDynamic::HOOKE};
     String m_name{};
     bool m_default{true};
+    Integer m_nb_law_param{2};
 };
 
 #endif //PASSMO_LAWDISPATCHER_H

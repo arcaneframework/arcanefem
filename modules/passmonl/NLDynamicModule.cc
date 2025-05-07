@@ -24,6 +24,7 @@
 #include "IDoFLinearSystemFactory.h"
 #include "ArcaneFemFunctions.h"
 #include "NLDynamicModule.h"
+#include "LawDispatcher.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -455,9 +456,9 @@ _applyInitialCellConditions(){
   for (Integer i = 0, nb = options()->lawModel().size(); i < nb; ++i){
 
     CellGroup cell_group = options()->lawModel[i]->cellGroup();
-    Integer ilaw = options()->lawModel[i]->iLawParam();
-    TypesNLDynamic::eLawType lawtyp = options()->lawModel[i]->lawType();
-    Integer nblaw = options()->lawModel[i]->nbLawParam();
+    auto ilaw = options()->lawModel[i]->iLawParam();
+    auto lawtyp = options()->lawModel[i]->lawType();
+    auto nblaw = options()->lawModel[i]->nbLawParam();
     m_nb_law_param = math::max(m_nb_law_param, nblaw);
 
     bool is_default = (m_law_param_file.empty() || nblaw == 2);
@@ -552,6 +553,7 @@ _applyInitialCellConditions(){
 void NLDynamicModule::
 _initGaussStep()
 {
+  Real eps{1.0e-15};
   auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
 
   VariableDoFReal& gauss_jacobian(m_gauss_on_cells.gaussJacobian());
@@ -597,7 +599,7 @@ _initGaussStep()
       else
         jacobian = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(cell, m_node_coord) / 2.;
 
-      if (fabs(jacobian) < REL_PREC) {
+      if (fabs(jacobian) < eps) {
         ARCANE_FATAL("Cell jacobian is null");
       }
       gauss_jacobian[gauss_pti] = jacobian;
@@ -1583,6 +1585,7 @@ Real3x3 NLDynamicModule::
 _computeJacobian(const ItemWithNodes& cell,const Int32& ig, const RealUniqueArray& vec, Real& jacobian) {
 
   auto	n = cell.nbNode();
+  Real eps{1.0e-15};
 
   // Jacobian matrix computed at the integration point
   Real3x3	jac;
@@ -1602,17 +1605,16 @@ _computeJacobian(const ItemWithNodes& cell,const Int32& ig, const RealUniqueArra
   }
 
   Int32 ndim = ArcaneFemFunctions::MeshOperation::getGeomDimension(cell);
-  //  if (NDIM == 3)
+
   if (ndim == 3)
     jacobian = math::matrixDeterminant(jac);
 
-  //  else if (NDIM == 2) {
   else if (ndim == 2)
     jacobian = jac.x.x * jac.y.y - jac.x.y * jac.y.x;
   else
     jacobian = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(cell, m_node_coord) / 2.;
 
-  if (fabs(jacobian) < REL_PREC) {
+  if (fabs(jacobian) < eps) {
     ARCANE_FATAL("Cell jacobian is null");
   }
   return jac;
@@ -2343,19 +2345,73 @@ _assembleLinearRHS(){
 /*---------------------------------------------------------------------------*/
 // ! Stress prediction
 //
-bool NLDynamicModule::stress_prediction(bool init, bool isRef)
+void NLDynamicModule::stress_prediction(bool init, bool isRef)
 {
-  bool	stop = false;
-  return stop;
+ auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
+
+  VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
+  VariableDoFArrayReal3x3& gauss_strain(m_gauss_on_cells.gaussStrain());
+  VariableDoFArrayReal3x3& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
+  VariableDoFArrayReal& gauss_lawparam(m_gauss_on_cells.gaussLawParam());
+
+  ENUMERATE_CELL (icell, allCells()) {
+    const Cell& cell = *icell;
+    auto cell_type = cell.type();
+    auto cell_nbnod = cell.nbNode();
+    Int32 numcell = cell.localId();
+
+    auto is_default = m_default_law[cell];
+    auto lawtyp = static_cast<TypesNLDynamic::eLawType>(m_law[cell]);
+    auto ilaw = m_iparam_law[cell];
+    LawDispatcher cell_law(lawtyp, is_default);
+    auto nblaw = cell_law.getNbLawParam();
+    RealUniqueArray lawparams(nblaw);
+
+    auto cell_nbgauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, ninteg);
+
+    for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
+      DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
+      Int32 gaussnum = gauss_pti.localId();
+
+      Tensor2 epsn;
+      epsn.fromReal3x3ToTensor2(gauss_strain[gauss_pti][1]);
+      Tensor2 sign;
+      sign.fromReal3x3ToTensor2(gauss_stress[gauss_pti][1]);
+      Tensor2 epspn;
+      epspn.fromReal3x3ToTensor2(gauss_strain_plastic[gauss_pti][1]);
+      Tensor2 deps;
+      {
+        // calcul deps à faire avec unodes
+      }
+
+      for (Int32 ip = 0; ip < nblaw; ++ip) {
+        lawparams[ip] = gauss_lawparam[gauss_pti][ip];
+      }
+      cell_law.setLawParams(lawparams);
+      cell_law.setStrain(epsn);
+      cell_law.setStress(sign);
+      cell_law.setPlasticStrain(epspn);
+      cell_law.setStrainIncrement(deps);
+
+      // bool isRef = false at prediction
+      // => it avoids computing tangent stiffness operator
+      cell_law.computeStress(isRef);
+
+      // Current plastic strains and stresses have been updated by the law
+      gauss_strain_plastic[gauss_pti][2] = fromTensor2Real3x3(cell_law.getPlasticStrain());
+      gauss_stress[gauss_pti][2] = fromTensor2Real3x3(cell_law.getStress());
+      gauss_strain[gauss_pti][2] = fromTensor2Real3x3(epsn + deps);
+
+      }
+    }
 }
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 // ! Stress correction
 //
-bool NLDynamicModule::stress_correction(bool is_converge)
+void NLDynamicModule::stress_correction(bool isRef)
 {
-  bool stop = false;
-  return stop;
 }
 
 /*---------------------------------------------------------------------------*/

@@ -219,7 +219,7 @@ RealUniqueArray DruckPReadLawParams(Real lambda, Real mu, bool default_param, co
     MatFile.close();
   }
 
-  const Real RAD = PI/180.;
+  const Real RAD = acos(-1.)/180.; //PI/180°
   lawparams[2] *= RAD;
   lawparams[3] *= RAD;
 
@@ -242,6 +242,7 @@ Tensor4 DruckPComputeStress(RealConstArrayView& law_params, RealArrayView& histo
   auto elast_tensor = DruckPComputeElastTensor(law_params,Tensor2::zero());
   Tensor4 tangent_tensor;
   Real3	un(1,1,1);
+  Real tol{1.0e-15};
 
   Tensor2 sign(sig);
   dsig = elast_tensor * deps;
@@ -265,7 +266,7 @@ Tensor4 DruckPComputeStress(RealConstArrayView& law_params, RealArrayView& histo
   // Computing yield surface
   auto    fseuil = RJ2 + alfa*I1 - xk;
 
-  if (fabs(fseuil) < REL_PREC)
+  if (fabs(fseuil) < tol)
     is_plastic = false;
 
   else  {
@@ -304,11 +305,11 @@ Tensor4 DruckPComputeStress(RealConstArrayView& law_params, RealArrayView& histo
 
     if (Discrim >= 0.)
     {
-      if (fabs(A) <= REL_PREC && fabs(B) > REL_PREC)
+      if (fabs(A) <= tol && fabs(B) > tol)
       {
         ratio = -E/2./B;
       }
-      else if (fabs(A) > REL_PREC)
+      else if (fabs(A) > tol)
         ratio = (-B + sqrt(Discrim))/A;
     }
 
@@ -320,7 +321,7 @@ Tensor4 DruckPComputeStress(RealConstArrayView& law_params, RealArrayView& histo
     // Plastic part: sub-increments are used to project back on the yield surface
     auto ninc = incmax;// default nb max of sub-increments
 
-    if (fabs(xk) < REL_PREC)
+    if (fabs(xk) < tol)
     {
       ninc = int(20.*sqrt(2.*fseuil/xk)) + 1;
       ninc = math::min(incmax,ninc);
@@ -329,7 +330,7 @@ Tensor4 DruckPComputeStress(RealConstArrayView& law_params, RealArrayView& histo
 
     Tensor2 deps1(dratio*deps);
 
-    if (deps1.norm() > REL_PREC)
+    if (deps1.norm() > tol)
     {
       // Loop on sub-increments
       for (int i = 0; i < ninc; i++)
@@ -348,9 +349,9 @@ Tensor4 DruckPComputeStress(RealConstArrayView& law_params, RealArrayView& histo
 
           fseuil = RJ2 + alfa*I1 - xk;
 
-          Real ft = fabs(fseuil),tol = 1.e-5;
+          Real ft = fabs(fseuil);
 
-          if (fabs(xk) > REL_PREC) {
+          if (fabs(xk) > tol) {
             ft /= xk;
             tol = 0.005;
           }

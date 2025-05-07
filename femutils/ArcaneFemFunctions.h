@@ -28,7 +28,7 @@
 
 using namespace Arcane;
 using namespace Arcane::FemUtils;
-
+Real REL_PREC{1.0e-15};
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Contains various functions & operations related to FEM calculations.
@@ -1436,7 +1436,7 @@ class ArcaneFemFunctions
   /**
    * @brief Provides methods based on the Dispatcher mechanism available in Arcane,
    * allowing to compute FEM methods without declaring the FE entity type
-   * (coming fro PASSMO).
+   * (coming from PASSMO).
    */
   /*---------------------------------------------------------------------------*/
   class CellFEMDispatcher
@@ -1464,7 +1464,7 @@ class ArcaneFemFunctions
    * This class includes static methods for computing shape functions and their
    * derivatives depending on finite element types. These methods are used within
    * the Dispatcher mechanism available in Arcane through the class
-   * CellFEMDispatcher (coming fro PASSMO).
+   * CellFEMDispatcher (coming from PASSMO).
    */
   /*---------------------------------------------------------------------------*/
   class FemShapeMethods
@@ -2560,7 +2560,7 @@ class ArcaneFemFunctions
    * @brief Provides methods for Gauss quadrature.
    *
    * This class includes static methods for computing Gauss-Legendre integration
-   * depending on finite element types (coming fro PASSMO).
+   * depending on finite element types (coming from PASSMO).
    */
   /*---------------------------------------------------------------------------*/
   class FemGaussQuadrature

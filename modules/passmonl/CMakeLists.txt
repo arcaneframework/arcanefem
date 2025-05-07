@@ -4,14 +4,14 @@ add_executable(Passmonl
   NLDynamicModule.h
   NLDynamicModule.cc
   main.cc
-  analytic_func.cc
-  analytical_func.h
   utilFEM.h
-  hooke.cc
-  druckerp.cc
+  utilFEM.cc
   LawDispatcher.h
   LawDispatcher.cc
-  utilFEM.cc
+  analytic_func.cc
+  analytical_func.h
+  hooke.cc
+  druckerp.cc
 )
 
 arcane_generate_axl(NLDynamic)

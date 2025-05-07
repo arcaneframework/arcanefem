@@ -29,6 +29,7 @@
 /*---------------------------------------------------------------------------*/
 using namespace Arcane;
 using namespace Arcane::FemUtils;
+extern Real REL_PREC;
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 ElastodynamicModule::ElastodynamicModule(const ModuleBuildInfo& mbi)
@@ -521,7 +522,7 @@ compute(){
   // Update the nodal variable according to the integration scheme (e.g. Newmark)
   _updateNewmark();
 
-
+/*
   if (t < tf) {
     if (t + dt > tf) {
       dt = tf - t;
@@ -529,6 +530,8 @@ compute(){
     }
   }
   else {
+*/
+  if (t >= tf) {
     // Save/Check results
     _checkResultFile();
     subDomain()->timeLoopMng()->stopComputeLoop(true);
@@ -546,7 +549,7 @@ _checkResultFile()
   if (filename.empty())
     return;
   const double epsilon = 1.0e-4;
-  const double min_value_to_test = 1.0e-10;
+  const double min_value_to_test = 1.0e-16;
   Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_displ, epsilon, min_value_to_test);
 }
 /*---------------------------------------------------------------------------*/
