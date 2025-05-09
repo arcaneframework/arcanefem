@@ -17,12 +17,10 @@
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-#include "FemUtils.h"
 #include <arcane/Assertion.h>
-#include "ArcaneFemFunctions.h"
+#include <arcane/VariableTypes.h>
 
 using namespace Arcane;
-using namespace Arcane::FemUtils;
 
 /*---------------------------------------------------------------------------*/
 extern Real real3x3Trace(const Real3x3& mat);
@@ -357,19 +355,6 @@ class Tensor4
     Tensor4 result;
     for (Arcane::Int32 i = 0; i < 4; ++i) {
       result.m_tab[i] = scalar * tens.m_tab[i];
-    }
-    return result;
-  }
-
-  //! Friend function for multiplication: Tensor4 * Tensor2
-  ARCCORE_HOST_DEVICE friend Tensor2 operator*(const Tensor4& tens, const Tensor2& vector) {
-    Tensor2 result;
-    for (Arcane::Int32 i = 0; i < 6; ++i) {
-      Real x{0};
-      for (Arcane::Int32 j = 0; j < 6; ++j) {
-        x += tens.value_at(i,j) * vector(j);
-      }
-      result(i) = x;
     }
     return result;
   }

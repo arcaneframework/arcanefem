@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* NLDModule.h                                                 (C) 2022-2025 */
+/* Hooke.cc                                                    (C) 2022-2025 */
 /*                                                                           */
 /* PASSMO : Performant Assessment for Seismic Site Modelling with finite-    */
 /* element (FEM) numerical modelling approach                                */
@@ -23,6 +23,8 @@
 /*---------------------------------------------------------------------------*/
 using namespace Arcane;
 using namespace Arcane::FemUtils;
+
+extern Arcane::FemUtils::Tensor2 operator*(const Tensor4& tens, const Arcane::FemUtils::Tensor2& vector);
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -57,7 +59,8 @@ Tensor4 HookeComputeElastTensor(RealConstArrayView& law_params, const Tensor2& /
 }
 
 //! Computes tangent constitutive tensor
-Tensor4 HookeComputeTangentTensor(RealConstArrayView& law_params, RealArrayView& /*history_params*/, const Tensor2& /*sig*/, const Tensor2& /*deps*/)
+Tensor4 HookeComputeTangentTensor(RealConstArrayView& law_params, RealArrayView& /*history_params*/,
+                                  const Tensor2& /*sig*/, const Tensor2& /*deps*/)
 {
     RealUniqueArray consts = HookeInitConsts(law_params);
     // Tangent stiffness tensor is equal to the elastic one
@@ -90,7 +93,7 @@ RealUniqueArray HookeReadLawParams(Real lambda, Real mu, bool /*default_param*/,
 }
 
 Tensor4 HookeComputeStress(RealConstArrayView& law_params, RealArrayView& /*history_vars*/, Tensor2& sig, Tensor2& eps, Tensor2& /*epsp*/, Tensor2& dsig,
-                        const Tensor2& deps, bool /*is_converge*/)
+                        const Tensor2& deps, bool /*isRef*/)
 {
   Tensor4 elast_tensor = HookeComputeElastTensor(law_params,sig);
 	sig += elast_tensor*deps;

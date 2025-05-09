@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* NLDModule.h                                                 (C) 2022-2025 */
+/* druckerp.cc                                                 (C) 2022-2025 */
 /*                                                                           */
 /* PASSMO : Performant Assessment for Seismic Site Modelling with finite-    */
 /* element (FEM) numerical modelling approach                                */
@@ -24,8 +24,8 @@
 using namespace Arcane;
 using namespace Arcane::FemUtils;
 
-extern Real PI;
 extern void ReadLawBlock(istream&, Integer);
+extern Arcane::FemUtils::Tensor2 operator*(const Tensor4& tens, const Arcane::FemUtils::Tensor2& vector);
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -69,7 +69,8 @@ Tensor4 DruckPComputeElastTensor(RealConstArrayView& law_params, const Tensor2& 
 }
 
 //! Computes tangent constitutive tensor
-Tensor4 DruckPComputeTangentTensor(RealConstArrayView& law_params, RealArrayView& history_vars, const Tensor2& sig, const Tensor2& deps)
+Tensor4 DruckPComputeTangentTensor(RealConstArrayView& law_params, RealArrayView& history_vars,
+                                   const Tensor2& sig, const Tensor2& deps)
 {
   RealUniqueArray consts = DruckPInitConsts(law_params);
 
@@ -210,6 +211,7 @@ RealUniqueArray DruckPReadLawParams(Real lambda, Real mu, bool default_param, co
     istream isRead(&MatFile);
     char c[500];
 
+    // Find this law "block" in the file containing all models
     ReadLawBlock(isRead, ilaw);
 
     for (int i = 2; i < 7; i++)
@@ -227,7 +229,7 @@ RealUniqueArray DruckPReadLawParams(Real lambda, Real mu, bool default_param, co
 }
 
 Tensor4 DruckPComputeStress(RealConstArrayView& law_params, RealArrayView& history_vars, Tensor2& sig, Tensor2& eps, Tensor2& epsp, Tensor2& dsig,
-                                     const Tensor2& deps, bool /*is_converge*/)
+                                     const Tensor2& deps, bool /*isRef*/)
 {
   RealUniqueArray consts = DruckPInitConsts(law_params);
 

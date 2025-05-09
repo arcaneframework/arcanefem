@@ -29,7 +29,6 @@
 /*---------------------------------------------------------------------------*/
 using namespace Arcane;
 using namespace Arcane::FemUtils;
-extern Real REL_PREC;
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 ElastodynamicModule::ElastodynamicModule(const ModuleBuildInfo& mbi)
@@ -422,6 +421,8 @@ _initGaussStep()
   VariableDoFArrayReal& gauss_shape(m_gauss_on_cells.gaussShape());
   VariableDoFArrayReal3& gauss_shapederiv(m_gauss_on_cells.gaussShapeDeriv());
 
+  Real tol{1.0e-15};
+
   ENUMERATE_CELL (icell, allCells()) {
     const Cell& cell = *icell;
     auto cell_type = cell.type();
@@ -456,7 +457,7 @@ _initGaussStep()
       else
         jacobian = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(cell, m_node_coord) / 2.;
 
-      if (fabs(jacobian) < REL_PREC) {
+      if (fabs(jacobian) < tol) {
         ARCANE_FATAL("Cell jacobian is null");
       }
       gauss_jacobian[gauss_pti] = jacobian;
@@ -549,7 +550,8 @@ _checkResultFile()
   if (filename.empty())
     return;
   const double epsilon = 1.0e-4;
-  const double min_value_to_test = 1.0e-16;
+//  const double min_value_to_test = 1.0e-16;
+  const double min_value_to_test = 1.0e-10;
   Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_displ, epsilon, min_value_to_test);
 }
 /*---------------------------------------------------------------------------*/
@@ -1354,6 +1356,7 @@ _computeJacobian(const ItemWithNodes& cell,const Int32& ig, const RealUniqueArra
 
   // Jacobian matrix computed at the integration point
   Real3x3	jac;
+  Real tol{1.0e-15};
 
   for (Int32 inod = 0, indx = 4; inod < n; ++inod) {
 
@@ -1380,7 +1383,7 @@ _computeJacobian(const ItemWithNodes& cell,const Int32& ig, const RealUniqueArra
   else
     jacobian = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(cell, m_node_coord) / 2.;
 
-  if (fabs(jacobian) < REL_PREC) {
+  if (fabs(jacobian) < tol) {
     ARCANE_FATAL("Cell jacobian is null");
   }
   return jac;

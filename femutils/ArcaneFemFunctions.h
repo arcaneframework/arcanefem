@@ -28,7 +28,6 @@
 
 using namespace Arcane;
 using namespace Arcane::FemUtils;
-Real REL_PREC{1.0e-15};
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Contains various functions & operations related to FEM calculations.
@@ -1752,6 +1751,7 @@ class ArcaneFemFunctions
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 8);
 #endif
+      Real tol{1.0e-15};
 
       auto r{ ref_coord[0] }, s{ ref_coord[1] };
       auto ri{ 1. }, si{ 1. };
@@ -1793,9 +1793,9 @@ class ArcaneFemFunctions
         Phi = (1 + r0) * (1 + s0) * t0 / 4.;
 
       else { // Middle nodes
-        if (fabs(ri) < REL_PREC)
+        if (fabs(ri) < tol)
           Phi = (1 - r * r) * (1 + s0) / 2.;
-        else if (fabs(si) < REL_PREC)
+        else if (fabs(si) < tol)
           Phi = (1 - s * s) * (1 + r0) / 2.;
       }
       return Phi;
@@ -1803,6 +1803,7 @@ class ArcaneFemFunctions
 
     static inline Real3 quad8ShapeFuncDeriv(Integer inod, Real3 ref_coord)
     {
+      Real tol{1.0e-15};
 
       auto r{ ref_coord[0] }, s{ ref_coord[1] };
       auto ri{ 1. }, si{ 1. };
@@ -1845,11 +1846,11 @@ class ArcaneFemFunctions
         dPhi.y = si * (1 + r0) * (t0 + 1. + s0) / 4.;
       }
       else { // Middle nodes
-        if (fabs(ri) < REL_PREC) {
+        if (fabs(ri) < tol) {
           dPhi.x = -r * (1 + s0);
           dPhi.y = si * (1 - r * r) / 2.;
         }
-        else if (fabs(si) < REL_PREC) {
+        else if (fabs(si) < tol) {
           dPhi.x = -s * (1 + r0);
           dPhi.y = ri * (1 - s * s) / 2.;
         }
@@ -1980,6 +1981,8 @@ class ArcaneFemFunctions
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 20);
 #endif
+      Real tol{1.0e-15};
+
       auto x{ ref_coord[0] }, y{ ref_coord[1] }, z{ ref_coord[2] };
       auto ri{ 1. }, si{ 1. }, ti{ 1. }; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
 
@@ -2059,11 +2062,11 @@ class ArcaneFemFunctions
         Phi = (1 + r0) * (1 + s0) * (1 + t0) * t / 8.;
 
       else { // Middle nodes
-        if (math::abs(ri) < REL_PREC)
+        if (math::abs(ri) < tol)
           Phi = (1 - x * x) * (1 + s0) * (1 + t0) / 4.;
-        else if (math::abs(si) < REL_PREC)
+        else if (math::abs(si) < tol)
           Phi = (1 - y * y) * (1 + r0) * (1 + t0) / 4.;
-        else if (math::abs(ti) < REL_PREC)
+        else if (math::abs(ti) < tol)
           Phi = (1 - z * z) * (1 + r0) * (1 + s0) / 4.;
       }
       return Phi;
@@ -2071,6 +2074,7 @@ class ArcaneFemFunctions
 
     static inline Real3 hexa20ShapeFuncDeriv(Integer inod, Real3 ref_coord)
     {
+      Real tol{1.0e-15};
 
       auto x{ ref_coord[0] }, y{ ref_coord[1] }, z{ ref_coord[2] };
       auto ri{ 1. }, si{ 1. }, ti{ 1. }; // Normalized coordinates (=+-1) =>node index 0 = (1,1,1)
@@ -2147,17 +2151,17 @@ class ArcaneFemFunctions
       }
       else { // Middle nodes
         auto x2{ x * x }, y2{ y * y }, z2{ z * z };
-        if (math::abs(ri) < REL_PREC) {
+        if (math::abs(ri) < tol) {
           dPhi.x = -x * (1 + s0) * (1 + t0) / 2.;
           dPhi.y = si * (1 - x2) * (1 + t0) / 4.;
           dPhi.z = ti * (1 - x2) * (1 + s0) / 4.;
         }
-        else if (math::abs(si) < REL_PREC) {
+        else if (math::abs(si) < tol) {
           dPhi.x = ri * (1 - y2) * (1 + t0) / 4.;
           dPhi.y = -y * (1 + r0) * (1 + t0) / 2.;
           dPhi.z = ti * (1 - y2) * (1 + r0) / 4.;
         }
-        else if (math::abs(ti) < REL_PREC) {
+        else if (math::abs(ti) < tol) {
           dPhi.x = ri * (1 - z2) * (1 + s0) / 4.;
           dPhi.y = si * (1 - z2) * (1 + r0) / 4.;
           dPhi.z = -z * (1 + r0) * (1 + s0) / 2.;
@@ -2468,6 +2472,8 @@ class ArcaneFemFunctions
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 5);
 #endif
+      Real tol{1.0e-15};
+
       auto r{ ref_coord[0] }, s{ ref_coord[1] }, t{ ref_coord[2] };
       auto r1{ -1. }, s1{ 1. }, r2{ -1. }, s2{ -1. };
 
@@ -2476,7 +2482,7 @@ class ArcaneFemFunctions
       auto ti{ t - 1. };
       auto t0{ 0. };
 
-      if (math::abs(ti) < REL_PREC)
+      if (math::abs(ti) < tol)
         ti = 0.;
       else
         t0 = -1. / ti / 4.;
@@ -2507,13 +2513,15 @@ class ArcaneFemFunctions
 #ifdef _DEBUG
       ARCANE_ASSERT(inod >= 0 && inod < 5);
 #endif
+      Real tol{1.0e-15};
+
       auto r{ ref_coord[0] }, s{ ref_coord[1] }, t{ ref_coord[2] };
       auto r1{ -1. }, s1{ 1. }, r2{ -1. }, s2{ -1. };
 
       auto ti{ t - 1. };
       auto t0{ 0. };
 
-      if (math::abs(ti) < REL_PREC)
+      if (math::abs(ti) < tol)
         ti = 0.;
       else
         t0 = -1. / ti / 4.;
@@ -2544,7 +2552,7 @@ class ArcaneFemFunctions
       dPhi.x = t0 * (rr * r + rs * s + r12 * ti);
       dPhi.y = t0 * (rs * r + ss * s + s12 * ti);
 
-      if (math::abs(ti) < REL_PREC)
+      if (math::abs(ti) < tol)
         dPhi.z = 0.;
       else
         dPhi.z = t0 * (r12 * r + s12 * s + 2. * ti) + t02 * (r1 * r + s1 * s + ti) * (r2 * r + s2 * s + ti);

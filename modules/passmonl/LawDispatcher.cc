@@ -34,7 +34,7 @@ extern RealUniqueArray HookeInitHistoryVars(RealConstArrayView& /*history_vars*/
 extern bool HookeInitState(const Tensor2& /*sig*/, RealArrayView& /*history_vars*/);
 extern RealUniqueArray HookeReadLawParams(Real /*lambda*/, Real /*mu*/, bool /*default_param*/, const String& /*name*/, Integer /*ilaw*/);
 extern Tensor4 HookeComputeStress(RealConstArrayView& /*law_params*/, RealArrayView& /*history_vars*/, Tensor2& /*sig*/, Tensor2& /*eps*/, Tensor2& /*epsp*/, Tensor2& /*dsig*/,
-                               const Tensor2& /*deps*/, bool /*is_converge*/);
+                               const Tensor2& /*deps*/, bool /*isRef*/);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -48,7 +48,7 @@ extern RealUniqueArray DruckPInitHistoryVars(RealConstArrayView& /*history_vars*
 extern bool DruckPInitState(const Tensor2& /*sig*/, RealArrayView& /*history_vars*/);
 extern RealUniqueArray DruckPReadLawParams(Real /*lambda*/, Real /*mu*/, bool /*default_param*/, const String& /*name*/, Integer /*ilaw*/);
 extern Tensor4 DruckPComputeStress(RealConstArrayView& /*law_params*/, RealArrayView& /*history_vars*/, Tensor2& /*sig*/, Tensor2& /*eps*/, Tensor2& /*epsp*/, Tensor2& /*dsig*/,
-                               const Tensor2& /*deps*/, bool /*is_converge*/);
+                               const Tensor2& /*deps*/, bool /*isRef*/);
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -129,7 +129,7 @@ void	LawDispatcher::setStrainIncrement(const Tensor2& tensor) { m_deps = tensor;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-void LawDispatcher::computeStress(bool is_converge) {
+void LawDispatcher::computeStress(bool isRef) {
 
     auto f = m_compute_stress[m_law_type];
     RealConstArrayView law_params = m_law_params.constView();
@@ -137,8 +137,8 @@ void LawDispatcher::computeStress(bool is_converge) {
 
     if (f != nullptr)
     {
-    	Tensor4 tangent_tensor = f(law_params,history_vars,m_sig,m_eps,m_epsp,m_dsig,m_deps,is_converge);
-    	if (is_converge) m_tangent_tensor = tangent_tensor;
+    	Tensor4 tangent_tensor = f(law_params,history_vars,m_sig,m_eps,m_epsp,m_dsig,m_deps,isRef);
+    	if (isRef) m_tangent_tensor = tangent_tensor;
     }
 }
 

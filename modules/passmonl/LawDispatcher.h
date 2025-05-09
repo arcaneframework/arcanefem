@@ -47,7 +47,7 @@ public:
     Tensor4 computeTangentTensor(const Tensor2& sig);
     bool initState(const Tensor2& sig, RealConstArrayView& history_vars);
     RealUniqueArray initHistoryVars(RealConstArrayView& history_vars);
-    void computeStress(bool is_converge);
+    void computeStress(bool isRef);
     RealUniqueArray initConsts(RealConstArrayView& law_params);
     RealUniqueArray readLawParams(Real lambda, Real mu, bool default_param, const String& name, Integer ilaw);
     RealUniqueArray updateHistoryVars();
@@ -79,13 +79,15 @@ public:
     }
 
 private:
-    std::function<Tensor4(RealConstArrayView& law_params, RealArrayView& history_vars, Tensor2& sig, Tensor2& eps, Tensor2& epsp, Tensor2& dsig,
-            const Tensor2& deps, bool is_converge)> m_compute_stress[NB_LAW_TYPE];
+ std::function<Tensor4(RealConstArrayView& law_params, RealArrayView& history_vars, Tensor2& sig, Tensor2& eps, Tensor2& epsp, Tensor2& dsig,
+                       const Tensor2& deps, bool isRef)> m_compute_stress[NB_LAW_TYPE];
     std::function<Tensor4(RealConstArrayView& law_params, const Tensor2& sig)> m_compute_elast_tensor[NB_LAW_TYPE];
-    std::function<Tensor4(RealConstArrayView& law_params, RealArrayView& history_vars, const Tensor2& sig, const Tensor2& deps)> m_compute_tangent_tensor[NB_LAW_TYPE];
+    std::function<Tensor4(RealConstArrayView& law_params, RealArrayView& history_vars,
+                          const Tensor2& sig, const Tensor2& deps)> m_compute_tangent_tensor[NB_LAW_TYPE];
     std::function<bool(const Tensor2& sig, RealArrayView& history_vars)> m_init_state[NB_LAW_TYPE];
     std::function<RealUniqueArray(RealConstArrayView& history_vars)> m_init_history_vars[NB_LAW_TYPE];
-    std::function<RealUniqueArray(Real lambda, Real mu, bool default_param, const String& name, Integer ilaw)> m_read_law_params[NB_LAW_TYPE];
+    std::function<RealUniqueArray(Real lambda, Real mu, bool default_param,
+                                  const String& name, Integer ilaw)> m_read_law_params[NB_LAW_TYPE];
     std::function<RealUniqueArray(RealConstArrayView& law_params)> m_init_consts[NB_LAW_TYPE];
 
     Tensor2 m_sig{};

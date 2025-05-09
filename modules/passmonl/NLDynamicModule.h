@@ -172,7 +172,7 @@ class NLDynamicModule
 
   bool _iterate();
   void stress_prediction(bool init, bool isRef);
-  void stress_correction(bool isRef);
+  void stress_correction(bool converge, bool isRef);
 
 };
 

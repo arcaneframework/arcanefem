@@ -2373,12 +2373,11 @@ void NLDynamicModule::stress_prediction(bool init, bool isRef)
       DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
       Int32 gaussnum = gauss_pti.localId();
 
-      Tensor2 epsn;
+      Tensor2 epsn, sign, epspn;
       epsn.fromReal3x3ToTensor2(gauss_strain[gauss_pti][1]);
-      Tensor2 sign;
       sign.fromReal3x3ToTensor2(gauss_stress[gauss_pti][1]);
-      Tensor2 epspn;
       epspn.fromReal3x3ToTensor2(gauss_strain_plastic[gauss_pti][1]);
+
       Tensor2 deps;
       {
         // calcul deps à faire avec unodes
@@ -2410,7 +2409,7 @@ void NLDynamicModule::stress_prediction(bool init, bool isRef)
 /*---------------------------------------------------------------------------*/
 // ! Stress correction
 //
-void NLDynamicModule::stress_correction(bool isRef)
+void NLDynamicModule::stress_correction(bool converge, bool isRef)
 {
 }
 

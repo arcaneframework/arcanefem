@@ -821,14 +821,6 @@ class Tensor2
 
     return mat;
   }
-  //! Friend function to convert Real3x3 matrix (symmetric) to Tensor
-  ARCCORE_HOST_DEVICE friend Tensor2 fromReal3x3ToTensor2(const Real3x3& mat) {
-    Tensor2 vector;
-    for (Arcane::Int32 i = 0; i < 3; i++) vector(i) = mat[i][i];
-    for (Arcane::Int32 i = 3; i < 5; i++) vector(i) = mat[0][i - 2];
-    vector(5) = mat[1][2];
-    return vector;
-  }
 };
 
 /*---------------------------------------------------------------------------*/

@@ -12,6 +12,8 @@
 /* Created by : E. Foerster                                                  */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+#include "FemUtils.h"
+#include "ArcaneFemFunctions.h"
 #include "utilFEM.h"
 
 using namespace Arcane;
@@ -47,4 +49,17 @@ bool	real3x3IsSym(const Real3x3& mat)
   Real3 matsup = real3x3GetSupOutdiagonal(mat);
   Real3 matlow = real3x3GetLowOutdiagonal(mat);
   return (matsup == matlow);
+}
+
+//! Friend function for multiplication: Tensor4 * Tensor2
+Arcane::FemUtils::Tensor2 operator*(const Tensor4& tens, const Arcane::FemUtils::Tensor2& vector) {
+  Arcane::FemUtils::Tensor2 result;
+  for (Arcane::Int32 i = 0; i < 6; ++i) {
+    Real x{0};
+    for (Arcane::Int32 j = 0; j < 6; ++j) {
+      x += tens.value_at(i,j) * vector(j);
+    }
+    result(i) = x;
+  }
+  return result;
 }
