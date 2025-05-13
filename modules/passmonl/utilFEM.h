@@ -19,21 +19,11 @@
 /*---------------------------------------------------------------------------*/
 #include <arcane/Assertion.h>
 #include <arcane/VariableTypes.h>
+#include "FemUtils.h"
 
 using namespace Arcane;
+using namespace Arcane::FemUtils;
 
-/*---------------------------------------------------------------------------*/
-extern Real real3x3Trace(const Real3x3& mat);
-/*---------------------------------------------------------------------------*/
-extern Real3 real3x3GetSupOutdiagonal(const Real3x3& mat);
-/*---------------------------------------------------------------------------*/
-extern Real3 real3x3GetLowOutdiagonal(const Real3x3& mat);
-/*---------------------------------------------------------------------------*/
-extern Real3x3 diagonalReal3x3(const Real3x3& mat);
-/*---------------------------------------------------------------------------*/
-extern Real3x3 outdiagonalReal3x3(const Real3x3& mat);
-
-extern bool	real3x3IsSym(const Real3x3& mat);
 /*---------------------------------------------------------------------------*/
 /*!
  * \brief 4th-order tensor used for constitutive operators

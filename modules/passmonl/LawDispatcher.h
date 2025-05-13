@@ -17,7 +17,7 @@
 #define PASSMO_LAWDISPATCHER_H
 
 #include "TypesNLdynamic.h"
-#include "FemUtils.h"
+//#include "FemUtils.h"
 #include "utilFEM.h"
 
 //! Number of available constitutive models: for the moment, defining max 10

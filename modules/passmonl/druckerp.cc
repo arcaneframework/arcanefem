@@ -16,7 +16,7 @@
  * \brief Implementation of Drücker-Prager constitutive law
  */
 #include "TypesNLdynamic.h"
-#include "FemUtils.h"
+//#include "FemUtils.h"
 #include "utilFEM.h"
 
 /*---------------------------------------------------------------------------*/

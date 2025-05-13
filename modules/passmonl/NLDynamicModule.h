@@ -171,6 +171,9 @@ class NLDynamicModule
                       RealUniqueArray2& Ke, const Real3& RhoC);
 
   bool _iterate();
+
+  RealUniqueArray2 _getB(const DoFLocalId& igauss, const Int32& nb_nodes);
+
   void stress_prediction(bool init, bool isRef);
   void stress_correction(bool converge, bool isRef);
 

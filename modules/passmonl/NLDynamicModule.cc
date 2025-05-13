@@ -1670,19 +1670,21 @@ _computeK(const Real& lambda, const Real& mu, const DoFLocalId& igauss, const In
   VariableDoFReal& gauss_jacobian(m_gauss_on_cells.gaussJacobian());
 
   auto jacobian = gauss_jacobian[igauss];
-
+  auto a{ lambda + 2.*mu };
   auto size{NDIM * nb_nodes};
 
   // Setting the "B" matrix size for the max number of nodes in 3D:
   // 8 nodes for a lin element/20 nodes for a quadratic one
-  RealUniqueArray2 Bmat(NDIM, size);
+  RealUniqueArray2 Bmat = _getB(igauss,nb_nodes);
 
-  auto a{ lambda + 2.*mu };
+/*
+  RealUniqueArray2 Bmat(NDIM, size);
 
   for (int i = 0; i <  NDIM; ++i)
     for (int j = 0; j < size; ++j) {
       Bmat(i, j) = 0.;
     }
+
 
   // ! Computes the Inverse Jacobian Matrix of a 2D or 3D finite-element
   auto jac = gauss_jacobmat[igauss];
@@ -1697,22 +1699,21 @@ _computeK(const Real& lambda, const Real& mu, const DoFLocalId& igauss, const In
     ijac.y.x = -jac.y.x / jacobian;
     ijac.y.y = jac.x.x / jacobian;
   }
-
-  auto wt = gauss_weight[igauss] * jacobian;
-
-  //------------------------------------------------------
-  // Elementary Derivation Matrix B at current Gauss point
-  //------------------------------------------------------
-  for (Int32 inod = 0; inod < nb_nodes; ++inod) {
-    auto dPhi = gauss_shapederiv[igauss][inod];
-    for (int i = 0; i < NDIM; ++i){
-      auto bi{0.};
-      for (int j = 0; j < NDIM; ++j) {
-        bi += ijac[i][j] * dPhi[j];
-      }
-      Bmat(i, inod) = bi;
+//------------------------------------------------------
+// Elementary Derivation Matrix B at current Gauss point
+//------------------------------------------------------
+for (Int32 inod = 0; inod < nb_nodes; ++inod) {
+  auto dPhi = gauss_shapederiv[igauss][inod];
+  for (int i = 0; i < NDIM; ++i){
+    auto bi{0.};
+    for (int j = 0; j < NDIM; ++j) {
+      bi += ijac[i][j] * dPhi[j];
     }
+    Bmat(i, inod) = bi;
   }
+}
+  */
+  auto wt = gauss_weight[igauss] * jacobian;
 
   //----------------------------------------------
   // Elementary Stiffness (Ke) Matrix assembly
@@ -1803,7 +1804,12 @@ _computeK(const Real& lambda, const Real& mu, const DoFLocalId& igauss, const In
       D(0,1) = D(0,2) = D(1,2) = lambda
       All other terms = 0.
 ------------------------------------------------------------------------------------*/
-          auto kij = wt * (Bii(0) * (a * Bjj(0) + lambda * Bjj(1) + lambda * Bjj(2)) + Bii(1) * (lambda * Bjj(0) + a * Bjj(1) + lambda * Bjj(2)) + Bii(2) * (lambda * Bjj(0) + lambda * Bjj(1) + a * Bjj(2)) + Bii(3) * (mu * Bjj(3)) + Bii(4) * (mu * Bjj(4)) + Bii(5) * (mu * Bjj(5)));
+          auto kij = wt * (Bii(0) * (a * Bjj(0) + lambda * Bjj(1) + lambda * Bjj(2))
+                           + Bii(1) * (lambda * Bjj(0) + a * Bjj(1) + lambda * Bjj(2))
+                           + Bii(2) * (lambda * Bjj(0) + lambda * Bjj(1) + a * Bjj(2))
+                           + Bii(3) * (mu * Bjj(3))
+                           + Bii(4) * (mu * Bjj(4))
+                           + Bii(5) * (mu * Bjj(5)));
 
           Ke(ii, jj) = kij;
           Ke(jj, ii) = kij;
@@ -2340,7 +2346,60 @@ _assembleLinearRHS(){
     }
   }
 }
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+// ! Compute Elementary Derivation Matrix B at current Gauss point
 
+RealUniqueArray2 NLDynamicModule::
+_getB(const DoFLocalId& igauss, const Int32& nb_nodes)
+{
+
+  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
+  VariableDoFArrayReal3& gauss_shapederiv(m_gauss_on_cells.gaussShapeDeriv());
+  VariableDoFReal3x3& gauss_jacobmat(m_gauss_on_cells.gaussJacobMat());
+  VariableDoFReal& gauss_jacobian(m_gauss_on_cells.gaussJacobian());
+
+  auto jacobian = gauss_jacobian[igauss];
+  auto size{ NDIM * nb_nodes };
+
+  // Setting the "B" matrix size for the max number of nodes in 3D:
+  // 8 nodes for a lin element/20 nodes for a quadratic one
+  RealUniqueArray2 Bmat(NDIM, size);
+
+  for (int i = 0; i < NDIM; ++i)
+    for (int j = 0; j < size; ++j) {
+      Bmat(i, j) = 0.;
+    }
+
+  // ! Computes the Inverse Jacobian Matrix of a 2D or 3D finite-element
+  auto jac = gauss_jacobmat[igauss];
+  Real3x3 ijac;
+
+  if (NDIM == 3) {
+    ijac = math::inverseMatrix(jac);
+  }
+  else {
+    ijac.x.x = jac.y.y / jacobian;
+    ijac.x.y = -jac.x.y / jacobian;
+    ijac.y.x = -jac.y.x / jacobian;
+    ijac.y.y = jac.x.x / jacobian;
+  }
+
+  //------------------------------------------------------
+  // Elementary Derivation Matrix B at current Gauss point
+  //------------------------------------------------------
+  for (Int32 inod = 0; inod < nb_nodes; ++inod) {
+    auto dPhi = gauss_shapederiv[igauss][inod];
+    for (int i = 0; i < NDIM; ++i) {
+      auto bi{ 0. };
+      for (int j = 0; j < NDIM; ++j) {
+        bi += ijac[i][j] * dPhi[j];
+      }
+      Bmat(i, inod) = bi;
+    }
+  }
+  return Bmat;
+}
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 // ! Stress prediction
@@ -2349,6 +2408,7 @@ void NLDynamicModule::stress_prediction(bool init, bool isRef)
 {
  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
 
+ VariableDoFReal& gauss_weight(m_gauss_on_cells.gaussWeight());
   VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
   VariableDoFArrayReal3x3& gauss_strain(m_gauss_on_cells.gaussStrain());
   VariableDoFArrayReal3x3& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
@@ -2378,9 +2438,10 @@ void NLDynamicModule::stress_prediction(bool init, bool isRef)
       sign.fromReal3x3ToTensor2(gauss_stress[gauss_pti][1]);
       epspn.fromReal3x3ToTensor2(gauss_strain_plastic[gauss_pti][1]);
 
+      // Compute strain increment for this interation
       Tensor2 deps;
       {
-        // calcul deps à faire avec unodes
+        RealUniqueArray2 Bmat = _getB(gauss_pti,cell_nbnod);
       }
 
       for (Int32 ip = 0; ip < nblaw; ++ip) {

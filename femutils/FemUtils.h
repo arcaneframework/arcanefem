@@ -28,6 +28,7 @@
 #include <arccore/base/ArccoreGlobal.h>
 #include <array>
 #include <arcane/MeshVariableArrayRef.h>
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -547,6 +548,58 @@ ARCCORE_HOST_DEVICE massMatrix(const RealVector<N>& lhs, const RealVector<N>& rh
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+/*!
+ * \brief Checking whether a Real3x3 is symmetric (useful for Passmo(nl) modules)
+ */
+extern "C++" bool
+real3x3IsSym(const Arcane::Real3x3& mat);
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*!
+ * \brief Diagonal of a Real3x3 obtained as a new Real3x3 (useful for Passmo(nl) modules)
+ */
+extern "C++" Real3
+diagonalReal3x3(const Real3x3& mat);
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*!
+ * \brief Diagonal of a Real3x3 obtained as a new Real3x3
+ * (useful for Passmo(nl) modules)
+ */
+extern "C++" Real3x3
+outdiagonalReal3x3(const Real3x3& mat);
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*!
+ * \brief Compute the trace of a Real3x3 (useful for Passmo(nl) modules)
+ */
+extern "C++" Real
+real3x3Trace(const Real3x3& mat);
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*!
+ * \brief Return the out-diagonal terms of the upper part of a Real3x3
+ * (useful for Passmo(nl) modules)
+ */
+extern "C++"
+Real3 real3x3GetSupOutdiagonal(const Real3x3& mat);
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*!
+ * \brief Return the out-diagonal terms of the lower part of a Real3x3
+ * (useful for Passmo(nl) modules)
+ */
+extern "C++"
+Real3 real3x3GetLowOutdiagonal(const Real3x3& mat);
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 class Tensor2
 {
   RealVector<6> m_vec;
