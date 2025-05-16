@@ -769,6 +769,12 @@ class Tensor2
     this->add(tb);
   }
 
+  //! Add b to this Tensor2
+  ARCCORE_HOST_DEVICE void add(const RealVector<6>& b) {
+    for (Arcane::Int32 i = 0; i < 6; ++i)
+      m_vec(i) += b(i);
+  }
+
   //! Substract b to this Tensor2
   ARCCORE_HOST_DEVICE void sub(const Tensor2& b) {
     for (Arcane::Int32 i = 0; i < 6; ++i)
@@ -778,6 +784,12 @@ class Tensor2
   ARCCORE_HOST_DEVICE void sub(const Real3x3& b) {
     Tensor2 tb(b);
     this->sub(tb);
+  }
+
+  //! Substract b to this Tensor2
+  ARCCORE_HOST_DEVICE void sub(const RealVector<6>& b) {
+    for (Arcane::Int32 i = 0; i < 6; ++i)
+      m_vec(i) -= b(i);
   }
 
   //! Scalar multiplication: Tensor * scalar

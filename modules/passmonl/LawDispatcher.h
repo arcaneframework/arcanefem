@@ -45,7 +45,7 @@ public:
 public:
     Tensor4 computeElastTensor(const Tensor2& sig);
     Tensor4 computeTangentTensor(const Tensor2& sig);
-    bool initState(const Tensor2& sig, RealConstArrayView& history_vars);
+    bool initState(const Tensor2& sig);
     RealUniqueArray initHistoryVars(RealConstArrayView& history_vars);
     void computeStress(bool isRef);
     RealUniqueArray initConsts(RealConstArrayView& law_params);
@@ -69,6 +69,7 @@ public:
     void	setStrainIncrement(const Tensor2&);
 
     [[nodiscard]] Integer getNbLawParam() const { return m_nb_law_param; }
+    [[nodiscard]] Integer getNbLawHistoryParam() const { return m_nb_law_history_param; }
 
     void  setLambda(Real lambda) { m_Lambda = lambda; }
     void  setMu(Real mu) { m_Mu = mu; }
@@ -77,9 +78,12 @@ public:
     void setLawParams(const RealUniqueArray& lawparams) {
       m_law_params = lawparams.clone();
     }
+    void setLawHistoryParams(const RealUniqueArray& lawhistparams) {
+      m_history_vars = lawhistparams.clone();
+    }
 
 private:
- std::function<Tensor4(RealConstArrayView& law_params, RealArrayView& history_vars, Tensor2& sig, Tensor2& eps, Tensor2& epsp, Tensor2& dsig,
+    std::function<Tensor4(RealConstArrayView& law_params, RealArrayView& history_vars, Tensor2& sig, Tensor2& eps, Tensor2& epsp, Tensor2& dsig,
                        const Tensor2& deps, bool isRef)> m_compute_stress[NB_LAW_TYPE];
     std::function<Tensor4(RealConstArrayView& law_params, const Tensor2& sig)> m_compute_elast_tensor[NB_LAW_TYPE];
     std::function<Tensor4(RealConstArrayView& law_params, RealArrayView& history_vars,
@@ -106,6 +110,7 @@ private:
     String m_name{};
     bool m_default{true};
     Integer m_nb_law_param{2};
+    Integer m_nb_law_history_param{0};
 };
 
 #endif //PASSMO_LAWDISPATCHER_H

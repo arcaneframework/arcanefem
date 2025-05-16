@@ -505,6 +505,9 @@
         <simple name="nb-law-param" type="integer" default = "2" optional="true">
           <description>Number of law parameters for the selected constitutive model (including the 2 elastic coef.)</description>
         </simple>
+        <simple name="nb-law-hist-param" type="integer" default = "0" optional="true">
+          <description>Number of law history parameters for the selected constitutive model</description>
+        </simple>
         <simple name="i-law-param" type="integer" default = "0" optional="true">
           <description>ith law parameters block in the constitutive models file</description>
         </simple>

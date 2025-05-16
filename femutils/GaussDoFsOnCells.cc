@@ -57,6 +57,7 @@ class GaussDoFsOnCells::Impl
   VariableDoFReal* m_gauss_weight = nullptr;
   VariableDoFReal* m_gauss_jacobian = nullptr;
   VariableDoFArrayReal*  m_gauss_law_param = nullptr;
+  VariableDoFArrayReal* m_gauss_law_history_param = nullptr;
 
 /*  VariableDoFArrayTensor2* m_gauss_stress = nullptr;
   VariableDoFArrayTensor2* m_gauss_strain = nullptr;
@@ -90,6 +91,7 @@ GaussDoFsOnCells::
   delete m_p->m_gauss_strain;
   delete m_p->m_gauss_strain_plastic;
   delete m_p->m_gauss_law_param;
+  delete m_p->m_gauss_law_history_param;
   delete m_p;
 }
 
@@ -171,6 +173,7 @@ initialize(IMesh* mesh, Int32 max_nb_gauss_per_cell)
   m_p->m_gauss_shape = new VariableDoFArrayReal(VariableBuildInfo(mesh, "GaussShape", "GaussCellFamily"));
   m_p->m_gauss_shapederiv = new VariableDoFArrayReal3(VariableBuildInfo(mesh, "GaussShapeDeriv", "GaussCellFamily"));
   m_p->m_gauss_law_param = new VariableDoFArrayReal(VariableBuildInfo(mesh, "GaussLawParam", "GaussCellFamily"));
+  m_p->m_gauss_law_history_param = new VariableDoFArrayReal(VariableBuildInfo(mesh, "GaussLawHistoryParam", "GaussCellFamily"));
 
 /*  m_p->m_gauss_stress = new VariableDoFArrayTensor2(VariableBuildInfo(mesh, "GaussStress", "GaussCellFamily"));
   m_p->m_gauss_strain = new VariableDoFArrayTensor2(VariableBuildInfo(mesh, "GaussStrain", "GaussCellFamily"));
@@ -236,6 +239,14 @@ VariableDoFArrayReal& GaussDoFsOnCells::
 gaussLawParam(){
   return *m_p->m_gauss_law_param;
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+VariableDoFArrayReal& GaussDoFsOnCells::
+gaussLawHistoryParam(){
+  return *m_p->m_gauss_law_param;
+}
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 

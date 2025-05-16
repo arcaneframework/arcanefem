@@ -96,15 +96,15 @@ LawDispatcher::LawDispatcher(TypesNLDynamic::eLawType law_type, bool default_par
 
     switch(law_type){
 
-    case TypesNLDynamic::UNKNOWN:
-    case TypesNLDynamic::HOOKE: m_nb_law_param = 2;
+    case TypesNLDynamic::HOOKE: m_nb_law_param = 2; m_nb_law_history_param = 0;
       break;
 
     case TypesNLDynamic::DRUCKP:
-    case TypesNLDynamic::MOHRC: m_nb_law_param = 7;
+    case TypesNLDynamic::MOHRC: m_nb_law_param = 7; m_nb_law_history_param = 1;
       break;
 
-    default: m_nb_law_param = 2;
+    case TypesNLDynamic::UNKNOWN:
+    default: m_nb_law_param = 2; m_nb_law_history_param = 0;
       break;
     }
 }
@@ -171,10 +171,11 @@ Tensor4 LawDispatcher::computeTangentTensor(const Tensor2& sig) {
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-bool LawDispatcher::initState(const Tensor2& sig, RealConstArrayView& history_vars)
+bool LawDispatcher::initState(const Tensor2& sig)
 {
     if (sig == Tensor2::zero()) return true;
 
+    ConstArrayView<Real> history_vars = m_history_vars.constView();
     m_history_vars = initHistoryVars(history_vars);
 
     auto f = m_init_state[m_law_type];
@@ -261,3 +262,4 @@ void ReadLawBlock(istream& is, Integer nblock) {
     }
   } while(!stop);
 }
+

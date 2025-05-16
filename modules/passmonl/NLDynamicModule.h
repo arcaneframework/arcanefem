@@ -124,7 +124,8 @@ class NLDynamicModule
   bool is_linear{true};
   bool compute_opt{false};
   bool converge{false};
-  Integer m_nb_law_param{2};
+  Integer m_nb_law_param{2};//max nb law constitutive parameters at Gauss points
+  Integer m_nb_law_hist_param{1};//max nb law history parameters at Gauss points
   String  m_law_param_file{};
 
   Real dt2{0.};
@@ -174,7 +175,7 @@ class NLDynamicModule
 
   RealUniqueArray2 _getB(const DoFLocalId& igauss, const Int32& nb_nodes);
 
-  void stress_prediction(bool init, bool isRef);
+  void stress_prediction(bool init);
   void stress_correction(bool converge, bool isRef);
 
 };

@@ -232,10 +232,24 @@ _startInitGauss()
   VariableDoFArrayReal& gauss_shape(m_gauss_on_cells.gaussShape());
   VariableDoFArrayReal3& gauss_shapederiv(m_gauss_on_cells.gaussShapeDeriv());
   VariableDoFArrayReal& gauss_lawparam(m_gauss_on_cells.gaussLawParam());
+  VariableDoFArrayReal& gauss_histparam(m_gauss_on_cells.gaussLawHistoryParam());
+  VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
+  VariableDoFArrayReal3x3& gauss_strain(m_gauss_on_cells.gaussStrain());
+  VariableDoFArrayReal3x3& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
 
   gauss_shape.resize(max_nbnodes_per_cell);
   gauss_shapederiv.resize(max_nbnodes_per_cell);
   gauss_lawparam.resize(m_nb_law_param);
+  gauss_histparam.resize(m_nb_law_hist_param);
+
+  /* gauss tensors (stress, strains) during the global computing time loop:
+   * 0: values at start time (sig0, eps0, epsp0)
+   * 1: values at previous step (sign, epsn, epspn)
+   * 2: values at current step (sig, eps, epsp)
+   * */
+  gauss_stress.resize(3);
+  gauss_strain.resize(3);
+  gauss_strain_plastic.resize(3);
 
   ENUMERATE_CELL (icell, allCells()) {
     const Cell& cell = *icell;
@@ -253,7 +267,9 @@ _startInitGauss()
     auto ilaw = m_iparam_law[cell];
     LawDispatcher cell_law(lawtyp,is_default);
     RealUniqueArray lawparams = cell_law.readLawParams(lambda, mu, is_default, m_law_param_file,ilaw);
-    auto nblaw = lawparams.size();
+
+    auto nblaw = lawparams.size();// For debug only
+    auto nbhist = cell_law.getNbLawHistoryParam();
 
     for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
       DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
@@ -281,29 +297,26 @@ _startInitGauss()
         gauss_shapederiv[gauss_pti][inod] = dPhi;
       }
 
-      for (Int32 ip = 0; ip < nblaw; ++ip){
-        gauss_lawparam[gauss_pti][ip] = lawparams[ip];
-      }
+      // Setting the law parameters on Gauss points for use during iterations
+      gauss_lawparam[gauss_pti] = lawparams;
+
+      // History parameters are set to 0. at this stage
+      // (we will see later for more complex laws)
+      gauss_histparam[gauss_pti] = RealUniqueArray(nbhist,0.);
+
+      // Initializing all strains/stresses to zero
+      gauss_strain[gauss_pti] = Real3x3UniqueArray(3);
+      gauss_strain_plastic[gauss_pti] = Real3x3UniqueArray(3);
+      gauss_stress[gauss_pti] = Real3x3UniqueArray(3);
     }
   }
 
   auto hasStressFile{ options()->hasStress0PerCellFile() };
 
-  /* gauss tensors (stress, strains) during the global computing time loop:
-   * 0: values at start time (sig0, eps0, epsp0)
-   * 1: values at previous step (sign, epsn, epspn)
-   * 2: values at current step (sig, eps, epsp)
-   * */
 /*  VariableDoFArrayTensor2& gauss_stress(m_gauss_on_cells.gaussStress());
   VariableDoFArrayTensor2& gauss_strain(m_gauss_on_cells.gaussStrain());
   VariableDoFArrayTensor2& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
 */
-  VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
-  VariableDoFArrayReal3x3& gauss_strain(m_gauss_on_cells.gaussStrain());
-  VariableDoFArrayReal3x3& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
-  gauss_stress.resize(3);
-  gauss_strain.resize(3);
-  gauss_strain_plastic.resize(3);
 
   Real3x3 sig0{};
   CaseTable* stress_table{ nullptr};
@@ -327,7 +340,7 @@ _startInitGauss()
         auto cell_type = cell.type();
         auto cell_nbgauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, ninteg);
         stress_table->value(numcell, sig3);
-        Tensor2 t0 = {sig3.x, sig3.y, sig3.z, 0., 0., 0.};
+        Tensor2 t0 = { sig3.x, sig3.y, sig3.z, 0., 0., 0. };
         sig0 = fromTensor2Real3x3(t0);
 
         for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
@@ -338,34 +351,9 @@ _startInitGauss()
             gauss_stress[gauss_pti][is] = sig0;
           }
           gauss_stress[gauss_pti][2] = Real3x3::zero(); //sig
-
-          /* Initializing all strain tensors to zero*/
-          for (Int32 is = 0; is < 3; is++) {
-            gauss_strain[gauss_pti][is] = Real3x3::zero();
-            gauss_strain_plastic[gauss_pti][is] = Real3x3::zero();
-          }
         }
       }
-      } else {
-        ENUMERATE_CELL (icell, allCells()) {
-          const Cell& cell = *icell;
-          auto numcell = cell.uniqueId().asInt32();
-          auto cell_type = cell.type();
-          auto cell_nbgauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, ninteg);
-
-          for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
-            DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
-            Int32 gaussnum = gauss_pti.localId();
-
-            /* Initializing all tensors to zero*/
-            for (Int32 is = 0; is < 3; is++) {
-              gauss_stress[gauss_pti][is] = Real3x3::zero();
-              gauss_strain[gauss_pti][is] = Real3x3::zero();
-              gauss_strain_plastic[gauss_pti][is] = Real3x3::zero();
-            }
-          }
-        }
-      }
+    }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -450,6 +438,7 @@ void NLDynamicModule::
 _applyInitialCellConditions(){
 
   m_nb_law_param = 2;
+  m_nb_law_hist_param = 0.;
   if (options()->hasLawInputParam())
     m_law_param_file = options()->lawInputParam();
 
@@ -459,7 +448,9 @@ _applyInitialCellConditions(){
     auto ilaw = options()->lawModel[i]->iLawParam();
     auto lawtyp = options()->lawModel[i]->lawType();
     auto nblaw = options()->lawModel[i]->nbLawParam();
+    auto nbhist = options()->lawModel[i]->nbLawHistParam();
     m_nb_law_param = math::max(m_nb_law_param, nblaw);
+    m_nb_law_hist_param = math::max(m_nb_law_hist_param, nbhist);
 
     bool is_default = (m_law_param_file.empty() || nblaw == 2);
 
@@ -641,7 +632,10 @@ _iterate(){
   do {
 
     // Assemble the FEM global RHS operator (B matrix)
-    _assembleLinearRHS();
+    // Linear contributions added only at first iteration
+    if (!nbiter)
+      _assembleLinearRHS();
+
     _assembleNonLinRHS();
 
     // Solve the linear system AX = B
@@ -2348,7 +2342,11 @@ _assembleLinearRHS(){
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-// ! Compute Elementary Derivation Matrix B at current Gauss point
+/*!
+ * \brief Compute Elementary Derivation Matrix B at current Gauss point of
+ * a given cell with nb_nodes
+ */
+
 
 RealUniqueArray2 NLDynamicModule::
 _getB(const DoFLocalId& igauss, const Int32& nb_nodes)
@@ -2362,7 +2360,7 @@ _getB(const DoFLocalId& igauss, const Int32& nb_nodes)
   auto jacobian = gauss_jacobian[igauss];
   auto size{ NDIM * nb_nodes };
 
-  // Setting the "B" matrix size for the max number of nodes in 3D:
+  // The "B" matrix size for the max number of nodes in 3D:
   // 8 nodes for a lin element/20 nodes for a quadratic one
   RealUniqueArray2 Bmat(NDIM, size);
 
@@ -2385,9 +2383,9 @@ _getB(const DoFLocalId& igauss, const Int32& nb_nodes)
     ijac.y.y = jac.x.x / jacobian;
   }
 
-  //------------------------------------------------------
-  // Elementary Derivation Matrix B at current Gauss point
-  //------------------------------------------------------
+  /*------------------------------------------------------*/
+  /* Elementary Derivation Matrix B at current Gauss point
+  */
   for (Int32 inod = 0; inod < nb_nodes; ++inod) {
     auto dPhi = gauss_shapederiv[igauss][inod];
     for (int i = 0; i < NDIM; ++i) {
@@ -2404,15 +2402,16 @@ _getB(const DoFLocalId& igauss, const Int32& nb_nodes)
 /*---------------------------------------------------------------------------*/
 // ! Stress prediction
 //
-void NLDynamicModule::stress_prediction(bool init, bool isRef)
+void NLDynamicModule::stress_prediction(bool init)
 {
  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
 
- VariableDoFReal& gauss_weight(m_gauss_on_cells.gaussWeight());
   VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
   VariableDoFArrayReal3x3& gauss_strain(m_gauss_on_cells.gaussStrain());
   VariableDoFArrayReal3x3& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
   VariableDoFArrayReal& gauss_lawparam(m_gauss_on_cells.gaussLawParam());
+  VariableDoFArrayReal& gauss_histparam(m_gauss_on_cells.gaussLawHistoryParam());
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_CELL (icell, allCells()) {
     const Cell& cell = *icell;
@@ -2425,7 +2424,9 @@ void NLDynamicModule::stress_prediction(bool init, bool isRef)
     auto ilaw = m_iparam_law[cell];
     LawDispatcher cell_law(lawtyp, is_default);
     auto nblaw = cell_law.getNbLawParam();
+    auto nbhist = cell_law.getNbLawHistoryParam();
     RealUniqueArray lawparams(nblaw);
+    RealUniqueArray histparams(nbhist);
 
     auto cell_nbgauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, ninteg);
 
@@ -2438,29 +2439,72 @@ void NLDynamicModule::stress_prediction(bool init, bool isRef)
       sign.fromReal3x3ToTensor2(gauss_stress[gauss_pti][1]);
       epspn.fromReal3x3ToTensor2(gauss_strain_plastic[gauss_pti][1]);
 
-      // Compute strain increment for this interation
+      Int32 n_index{ 0 };
       Tensor2 deps;
-      {
-        RealUniqueArray2 Bmat = _getB(gauss_pti,cell_nbnod);
+
+      // Get Elementary Derivation Matrix B at this Gauss point
+      // for a given node: Bmat(k, inod) = dkPhi with k=x,y or z direction
+      RealUniqueArray2 Bmat = _getB(gauss_pti, cell_nbnod);
+
+      // Compute the strain increment at this Gauss point
+      for (Node node : cell.nodes()) {
+
+        if (node.isOwn()) {
+          //---- For debug only !!!
+          auto coord = m_node_coord[node];
+          auto num = node.uniqueId().asInt32();
+          Real3 du;
+
+          for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
+            DoFLocalId node_dofi = node_dof.dofId(node, iddl);
+            auto ii = NDIM * n_index + iddl;
+
+            bool is_node_dofi_set = (bool)m_imposed_displ[node][iddl];
+
+            if (!init || (init && is_node_dofi_set)) {
+              auto dni = m_prev_displ[node][iddl];
+              auto ui = m_displ[node][iddl];
+              du[iddl] = ui - dni;
+            }
+          }
+
+          auto inod{ NDIM * n_index };
+          Real3 Bnod;
+          for (Int32 i = 0; i < NDIM; i++)
+            Bnod[i] = Bmat(i, inod);
+
+          RealVector<6> vdeps;
+          vdeps(0) = Bnod.x * du.x; // xx
+          vdeps(1) = Bnod.y * du.y; // yy
+          vdeps(NDIM) = Bnod.x * du.y + Bnod.y * du.x; // xy
+
+          if (NDIM == 3) {
+            vdeps(2) = Bnod.z * du.z; // zz
+            vdeps(4) = Bnod.x * du.z + Bnod.z * du.x; // xz
+            vdeps(5) = Bnod.y * du.z + Bnod.z * du.y; // yz
+          }
+          deps.add(vdeps);
+        }
+        ++n_index;
       }
 
-      for (Int32 ip = 0; ip < nblaw; ++ip) {
-        lawparams[ip] = gauss_lawparam[gauss_pti][ip];
-      }
-      cell_law.setLawParams(lawparams);
+      cell_law.setLawParams(gauss_lawparam[gauss_pti]);
+      cell_law.setLawHistoryParams(gauss_histparam[gauss_pti]);
       cell_law.setStrain(epsn);
       cell_law.setStress(sign);
       cell_law.setPlasticStrain(epspn);
       cell_law.setStrainIncrement(deps);
+      cell_law.initState(sign);
 
-      // bool isRef = false at prediction
-      // => it avoids computing tangent stiffness operator
-      cell_law.computeStress(isRef);
+      // Compute the current stress from the law at this Gauss point
+      // Tangent stiffness operator is not computed at prediction stage
+      cell_law.computeStress(false);
+      gauss_histparam[gauss_pti] = cell_law.updateHistoryVars();
 
       // Current plastic strains and stresses have been updated by the law
       gauss_strain_plastic[gauss_pti][2] = fromTensor2Real3x3(cell_law.getPlasticStrain());
       gauss_stress[gauss_pti][2] = fromTensor2Real3x3(cell_law.getStress());
-      gauss_strain[gauss_pti][2] = fromTensor2Real3x3(epsn + deps);
+      gauss_strain[gauss_pti][2] = fromTensor2Real3x3(cell_law.getStrain());
 
       }
     }
