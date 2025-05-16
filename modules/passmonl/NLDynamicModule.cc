@@ -618,7 +618,7 @@ _iterate(){
   auto dt = m_global_deltat();
   dt2 = dt * dt;
 
-  converge = false;
+  bool converge = false;
   // Imbalance iterations init for global dofs & forces vectors
   Real	Fn{0.},Fn1{0.},DXnorm0{0.},DFnorm0{0.};
   bool	stop{false},diverge{false};
@@ -708,14 +708,14 @@ compute(){
 
     // Update the nodal variable according to the integration scheme (e.g. Newmark)
     _updateNewmark();
-    converge = true;
+    m_converge = true;
   }
   else
   {
-    converge = _iterate();
+    m_converge = _iterate();
   }
 
-  if (t < tf && converge) {
+  if (t < tf && m_converge) {
     if (t + dt > tf) {
       dt = tf - t;
       m_global_deltat = dt;
@@ -2398,13 +2398,14 @@ _getB(const DoFLocalId& igauss, const Int32& nb_nodes)
   }
   return Bmat;
 }
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-// ! Stress prediction
+// ! Stress computation at each iteration
 //
-void NLDynamicModule::stress_prediction(bool init)
+void NLDynamicModule::compute_stress(bool init, bool store, bool isRef)
 {
- auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
+  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
 
   VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
   VariableDoFArrayReal3x3& gauss_strain(m_gauss_on_cells.gaussStrain());
@@ -2419,16 +2420,12 @@ void NLDynamicModule::stress_prediction(bool init)
     auto cell_nbnod = cell.nbNode();
     Int32 numcell = cell.localId();
 
+    auto cell_nbgauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, ninteg);
+
     auto is_default = m_default_law[cell];
     auto lawtyp = static_cast<TypesNLDynamic::eLawType>(m_law[cell]);
     auto ilaw = m_iparam_law[cell];
     LawDispatcher cell_law(lawtyp, is_default);
-    auto nblaw = cell_law.getNbLawParam();
-    auto nbhist = cell_law.getNbLawHistoryParam();
-    RealUniqueArray lawparams(nblaw);
-    RealUniqueArray histparams(nbhist);
-
-    auto cell_nbgauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, ninteg);
 
     for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
       DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
@@ -2455,18 +2452,10 @@ void NLDynamicModule::stress_prediction(bool init)
           auto num = node.uniqueId().asInt32();
           Real3 du;
 
-          for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
-            DoFLocalId node_dofi = node_dof.dofId(node, iddl);
-            auto ii = NDIM * n_index + iddl;
-
-            bool is_node_dofi_set = (bool)m_imposed_displ[node][iddl];
-
-            if (!init || (init && is_node_dofi_set)) {
-              auto dni = m_prev_displ[node][iddl];
-              auto ui = m_displ[node][iddl];
-              du[iddl] = ui - dni;
-            }
-          }
+          if (init)
+            du = m_displ[node] - m_prev_displ[node];// m_displ = u pred by Newmark
+          else
+            du = m_displ[node];// during iteration, m_displ = du
 
           auto inod{ NDIM * n_index };
           Real3 Bnod;
@@ -2506,16 +2495,35 @@ void NLDynamicModule::stress_prediction(bool init)
       gauss_stress[gauss_pti][2] = fromTensor2Real3x3(cell_law.getStress());
       gauss_strain[gauss_pti][2] = fromTensor2Real3x3(cell_law.getStrain());
 
+      if (store){ // when convergence is reached, updating the "prev" quantities for the next step
+        gauss_strain_plastic[gauss_pti][1] = gauss_strain_plastic[gauss_pti][2];
+        gauss_stress[gauss_pti][1] = gauss_stress[gauss_pti][2];
+        gauss_strain[gauss_pti][1] = gauss_strain[gauss_pti][2];
+
       }
+
+      if (isRef){
+        // To do: tangent operator updated => modification of global A
+      }
+
     }
+  }
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+// ! Stress prediction
+//
+void NLDynamicModule::stress_prediction(bool init)
+{
+  compute_stress(init, false, false);
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 // ! Stress correction
 //
-void NLDynamicModule::stress_correction(bool converge, bool isRef)
-{
+void NLDynamicModule::stress_correction(bool isRef){
+  compute_stress(false, m_converge, isRef);
 }
 
 /*---------------------------------------------------------------------------*/
