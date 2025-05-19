@@ -609,43 +609,44 @@ _initGaussStep()
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-bool NLDynamicModule::
+void NLDynamicModule::
 _iterate(){
 
   info() << "Module PASSMO-NL ITERATION LOOP";
 
-  Int32 iter{0}; // counter for imbalance iterations
   auto dt = m_global_deltat();
   dt2 = dt * dt;
 
-  bool converge = false;
-  // Imbalance iterations init for global dofs & forces vectors
-  Real	Fn{0.},Fn1{0.},DXnorm0{0.},DFnorm0{0.};
-  bool	stop{false},diverge{false};
-  int		ixconst{0},ifconst{0}, idiv{0}, nbiter{0};
+  m_converge = false;
+  Int32 iter{0}; // counter for imbalance iterations
 
   // Starting the iteration loop until convergence is reached
-  // Tolerance checks for convergence:
-  //    Displacements U (= dofs vector): checking if norm(Un+1 - Un) / norm(Un) < Utol
-  //    Forces F (= rhs vector): checking if norm(Fn+1 - Fn) / norm(Fn) < Ftol
-  //    Energy (default = Utol*Ftol): checking if norm([UF]n+1 - [UF]n) / norm([UF]n) < Etol
   do {
 
-    // Assemble the FEM global RHS operator (B matrix)
-    // Linear contributions added only at first iteration
-    if (!nbiter)
-      _assembleLinearRHS();
+    // Compute nonlinear contributions
+    // coming from nonlinear constitutive models
+    _stress_prediction(!iter);
+
+    // Linear contributions added only once
+    if (!iter){
+
+    }
 
     _assembleNonLinRHS();
 
     // Solve the linear system AX = B
     _doSolve();
 
+    _check_convergence(iter);
+
     // Update the nodal variable according to the integration scheme (e.g. Newmark)
     _updateNewmark();
-  } while (nbiter < ite_max && !converge);
+    _stress_correction();
 
-  return converge;
+    iter++;
+
+  } while (iter < ite_max && !m_converge);
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -669,13 +670,15 @@ compute(){
   // the rate is a user input (linop_nstep)
   // The matrix has to have the same structure (same structure for non-zero)
 
-//  if (m_linear_system.isInitialized() && (linop_nstep_counter < linop_nstep || keep_constop || is_linear)){
+  //  if (m_linear_system.isInitialized() && (linop_nstep_counter < linop_nstep || keep_constop || is_linear)){
   if ( m_linear_system.isInitialized() &&
       (is_linear || keep_constop || (algo_type == TypesNLDynamic::ModNewtonRaphson && linop_nstep_counter < linop_nstep)) ){
     m_linear_system.clearValues();
+    m_ref = false;
   }
   else {
 
+    m_ref = true;
     m_linear_system.reset();
     m_linear_system.setLinearSystemFactory(options()->linearSystem());
     m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
@@ -684,25 +687,31 @@ compute(){
     linop_nstep_counter = 0;
   }
 
-  // Update Gauss shape functions and their derivatives for this step
-  _initGaussStep();
+  // This part is in common for linear and nonlinear simulations
 
-  // Apply Dirichlet/Neumann conditions if any
-  _applyDirichletBoundaryConditions();
-  _applyNeumannBoundaryConditions();
+  { // Update Gauss shape functions and their derivatives for this step
+    _initGaussStep();
 
-  // Apply Paraxial conditions if any
-  _applyParaxialBoundaryConditions();
+    // Apply Dirichlet/Neumann conditions if any
+    _applyDirichletBoundaryConditions();
+    _applyNeumannBoundaryConditions();
 
-  // Assemble the FEM global LHS operator (A matrix)
-  _assembleLinearLHS();
+    // Apply Paraxial conditions if any
+    _applyParaxialBoundaryConditions();
 
-  // Starting the iteration loop in case of nonlinear problems
-  if (is_linear)
-  {
+    // Assemble the FEM global LHS operator (A matrix)
+    _assembleLinearLHS();
+
+    // Compute the predicted displacements and velocities
+    // at beginning of step (from previous step values)
+    _predictNewmark();
+
     // Assemble the FEM global RHS operator (B matrix)
     _assembleLinearRHS();
+  }
 
+  if (is_linear)
+  {
     // Solve the linear system AX = B
     _doSolve();
 
@@ -710,10 +719,8 @@ compute(){
     _updateNewmark();
     m_converge = true;
   }
-  else
-  {
-    m_converge = _iterate();
-  }
+  else  // Starting the iteration loop in case of nonlinear problems
+    _iterate();
 
   if (t < tf && m_converge) {
     if (t + dt > tf) {
@@ -793,7 +800,9 @@ _updateNewmark(){
     auto an = m_prev_acc[node];
     auto vn = m_prev_vel[node];
     auto dn = m_prev_displ[node];
-    auto dn1 = m_displ[node];
+    auto du = m_displ[node]; // incremental displacements are computed in the iteration loop
+//    auto dn1 = m_displ[node];
+    auto dn1 = dn + du;
 
     if (!is_alfa_method) {
       for (Int32 i = 0; i < NDIM; ++i) {
@@ -2032,7 +2041,7 @@ _assembleLinearLHS()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 // ! Assemble the 2D or 3D linear contributions to the Right Hand Side
-//   operator (B vector)
+//   operator (B vector) - For nonlinear loop, done only at iteration 0
 void NLDynamicModule::
 _assembleLinearRHS(){
   if (NDIM == 3)
@@ -2114,9 +2123,12 @@ _assembleLinearRHS(){
                 auto num2 = node2.uniqueId().asInt32();
 
                 auto an = m_prev_acc[node2][iddl];
+/* cef - Now, this is done with _predictNewmark()
                 auto vn = m_prev_vel[node2][iddl];
                 auto dn = m_prev_displ[node2][iddl];
                 auto u_iddl_pred = dn + dt * vn + dt2 * (0.5 - beta) * an;
+*/
+                auto u_iddl_pred = m_displ[node2][iddl];
                 auto jj = NDIM * n2_index + iddl;
                 auto mij = Me(ii, jj);
                 rhs_i += mij * (cm * u_iddl_pred - alfam * an);
@@ -2340,14 +2352,13 @@ _assembleLinearRHS(){
     }
   }
 }
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
  * \brief Compute Elementary Derivation Matrix B at current Gauss point of
  * a given cell with nb_nodes
  */
-
-
 RealUniqueArray2 NLDynamicModule::
 _getB(const DoFLocalId& igauss, const Int32& nb_nodes)
 {
@@ -2403,7 +2414,8 @@ _getB(const DoFLocalId& igauss, const Int32& nb_nodes)
 /*---------------------------------------------------------------------------*/
 // ! Stress computation at each iteration
 //
-void NLDynamicModule::compute_stress(bool init, bool store, bool isRef)
+void NLDynamicModule::
+_compute_stress(bool init, bool store)
 {
   auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
 
@@ -2452,10 +2464,10 @@ void NLDynamicModule::compute_stress(bool init, bool store, bool isRef)
           auto num = node.uniqueId().asInt32();
           Real3 du;
 
-          if (init)
-            du = m_displ[node] - m_prev_displ[node];// m_displ = u pred by Newmark
-          else
-            du = m_displ[node];// during iteration, m_displ = du
+          // init = iter0 =>m_displ = u pred by Newmark
+          // !init = iter > 0 : m_displ = current iteration value
+          // m_prev_displ = un
+          du = m_displ[node] - m_prev_displ[node];
 
           auto inod{ NDIM * n_index };
           Real3 Bnod;
@@ -2487,7 +2499,7 @@ void NLDynamicModule::compute_stress(bool init, bool store, bool isRef)
 
       // Compute the current stress from the law at this Gauss point
       // Tangent stiffness operator is not computed at prediction stage
-      cell_law.computeStress(false);
+      cell_law.computeStress(init, store);
       gauss_histparam[gauss_pti] = cell_law.updateHistoryVars();
 
       // Current plastic strains and stresses have been updated by the law
@@ -2500,12 +2512,9 @@ void NLDynamicModule::compute_stress(bool init, bool store, bool isRef)
         gauss_stress[gauss_pti][1] = gauss_stress[gauss_pti][2];
         gauss_strain[gauss_pti][1] = gauss_strain[gauss_pti][2];
 
+        // To do: tangent operator stored at Gauss points if we need to re-assemble A
+        Tensor4 tangent_op = cell_law.getTangentTensor();
       }
-
-      if (isRef){
-        // To do: tangent operator updated => modification of global A
-      }
-
     }
   }
 }
@@ -2513,17 +2522,19 @@ void NLDynamicModule::compute_stress(bool init, bool store, bool isRef)
 /*---------------------------------------------------------------------------*/
 // ! Stress prediction
 //
-void NLDynamicModule::stress_prediction(bool init)
+void NLDynamicModule::
+_stress_prediction(bool init)
 {
-  compute_stress(init, false, false);
+  _compute_stress(init, false);
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 // ! Stress correction
 //
-void NLDynamicModule::stress_correction(bool isRef){
-  compute_stress(false, m_converge, isRef);
+void NLDynamicModule::
+_stress_correction(){
+  _compute_stress(false, m_converge);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2652,6 +2663,23 @@ _assembleNonLinRHS(){
   }
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+// ! Add the linear contributions to B vector (rhs) at iteration 0
+
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+// ! Check convergence for the nonlinear iteration loop:
+//    Displacements U (= dofs vector): checking if norm(Un+1 - Un) / norm(Un) < Utol
+//    Out-of-balance forces (= rhs vector): checking if norm(R) / norm(R0) < Ftol
+//    R = residual (iteration i+1 - i) and R0 = norm of rhs at iteration 0
+//    Optional: Energy (default = Utol*Ftol): checking if norm([UF]n+1 - [UF]n) / norm([UF]n) < Etol
+//
+void NLDynamicModule::
+_check_convergence(Int32 iter){
+
+}
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void NLDynamicModule::

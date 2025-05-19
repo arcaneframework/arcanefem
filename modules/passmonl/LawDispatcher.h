@@ -47,11 +47,10 @@ public:
     Tensor4 computeTangentTensor(const Tensor2& sig);
     bool initState(const Tensor2& sig);
     RealUniqueArray initHistoryVars(RealConstArrayView& history_vars);
-    void computeStress(bool isRef);
+    void computeStress(bool init, bool isRef);
     RealUniqueArray initConsts(RealConstArrayView& law_params);
     RealUniqueArray readLawParams(Real lambda, Real mu, bool default_param, const String& name, Integer ilaw);
     RealUniqueArray updateHistoryVars();
-//    Tensor4 updateTangentTensor();
 
     [[nodiscard]] Tensor2	getStress() const;
     void	setStress(const Tensor2&);
@@ -70,6 +69,7 @@ public:
 
     [[nodiscard]] Integer getNbLawParam() const { return m_nb_law_param; }
     [[nodiscard]] Integer getNbLawHistoryParam() const { return m_nb_law_history_param; }
+    [[nodiscard]] Tensor4 getTangentTensor() const { return m_tangent_tensor; }
 
     void  setLambda(Real lambda) { m_Lambda = lambda; }
     void  setMu(Real mu) { m_Mu = mu; }
