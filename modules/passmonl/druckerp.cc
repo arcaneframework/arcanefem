@@ -74,6 +74,7 @@ Tensor4 DruckPComputeTangentTensor(RealConstArrayView& law_params, RealArrayView
 {
   RealUniqueArray consts = DruckPInitConsts(law_params);
 
+  Real tol{1.0e-15};
   auto phi = law_params[2];
   auto psi = law_params[3];
   auto indaux = (int)law_params[6];
@@ -87,6 +88,8 @@ Tensor4 DruckPComputeTangentTensor(RealConstArrayView& law_params, RealArrayView
 
   // Initializing tangent stiffness tensor with the elastic one
   Tensor4 tangent_tensor(elast_tensor);
+  tangent_tensor.isSymmetric(fabs(phi - psi) < tol);
+  tangent_tensor.isConstitutive(true);
 
   auto K = lambda + 2. * mu / 3.;
   auto depsv = deps.trace();
@@ -242,7 +245,10 @@ Tensor4 DruckPComputeStress(RealConstArrayView& law_params, RealArrayView& histo
   auto xk = consts[4];
   bool is_plastic = (history_vars[0] == 1);
   auto elast_tensor = DruckPComputeElastTensor(law_params,Tensor2::zero());
-  Tensor4 tangent_tensor;
+  elast_tensor.isSymmetric(true);
+  elast_tensor.isConstitutive(true);
+  Tensor4 tangent_tensor(elast_tensor);
+
   Real3	un(1,1,1);
   Real tol{1.0e-15};
 

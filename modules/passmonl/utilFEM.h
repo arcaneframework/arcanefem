@@ -118,6 +118,12 @@ class Tensor4
   }
 
  public:
+  ARCCORE_HOST_DEVICE [[nodiscard]] bool isSymmetric() const { return m_sym; }
+  ARCCORE_HOST_DEVICE void isSymmetric(bool sym) { m_sym = sym; }
+
+  ARCCORE_HOST_DEVICE [[nodiscard]] bool isConstitutive() const { return m_constitutive; }
+  ARCCORE_HOST_DEVICE void isConstitutive(bool b) { m_constitutive = b; }
+
   ARCCORE_HOST_DEVICE Tensor4& operator=(const Tensor4& tens) {
     for (int i = 0; i < 4; i++) m_tab[i] = tens.m_tab[i];
     m_sym = tens.m_sym;

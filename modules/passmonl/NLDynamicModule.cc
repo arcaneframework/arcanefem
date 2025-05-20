@@ -181,6 +181,9 @@ startInit(){
     m_prev_acc[node] = Real3::zero() ;
     m_prev_vel[node] = Real3::zero() ;
     m_prev_displ[node] = Real3::zero();
+    m_prev_acc_iter[node] = Real3::zero() ;
+    m_prev_vel_iter[node] = Real3::zero() ;
+    m_prev_displ_iter[node] = Real3::zero() ;
     m_acc[node] = Real3::zero() ;
     m_vel[node] = Real3::zero() ;
     m_displ[node] = Real3::zero();
@@ -236,6 +239,7 @@ _startInitGauss()
   VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
   VariableDoFArrayReal3x3& gauss_strain(m_gauss_on_cells.gaussStrain());
   VariableDoFArrayReal3x3& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
+  VariableDoFArrayReal3x3& gauss_tangent_operator(m_gauss_on_cells.gaussTangentOperator());
 
   gauss_shape.resize(max_nbnodes_per_cell);
   gauss_shapederiv.resize(max_nbnodes_per_cell);
@@ -250,6 +254,14 @@ _startInitGauss()
   gauss_stress.resize(3);
   gauss_strain.resize(3);
   gauss_strain_plastic.resize(3);
+
+  /* Tangent operator at Gauss points is useful for nonlinear simulations
+   * 0: 1st diagonal Real3x3 block (D)
+   * 1: 2nd diagonal Real3x3 block (S)
+   * 2: Upper out-of-diagonal Real3x3 block (Sup)
+   * 3: Lower out-of-diagonal Real3x3 block (Slow) => in case of symmetry, Slow = 0
+   * */
+  gauss_tangent_operator.resize(4);
 
   ENUMERATE_CELL (icell, allCells()) {
     const Cell& cell = *icell;
@@ -623,15 +635,11 @@ _iterate(){
   // Starting the iteration loop until convergence is reached
   do {
 
-    // Compute nonlinear contributions
-    // coming from nonlinear constitutive models
+    // Compute stresses from the nonlinear constitutive models
+    // with  displacements predicted according to the integration scheme (e.g. Newmark)
     _stress_prediction(!iter);
 
-    // Linear contributions added only once
-    if (!iter){
-
-    }
-
+    // Add the nonlinear contributions to the RHS (B)
     _assembleNonLinRHS();
 
     // Solve the linear system AX = B
@@ -639,9 +647,12 @@ _iterate(){
 
     _check_convergence(iter);
 
-    // Update the nodal variable according to the integration scheme (e.g. Newmark)
-    _updateNewmark();
+    // Update stresses from the nonlinear constitutive models and computed solution (displacements)
     _stress_correction();
+
+    // Update nodal quantities for this iteration (no convergence) or time step (if convergence reached)
+    // (according to the integration scheme, e.g. Newmark)
+    _updateNewmark();
 
     iter++;
 
@@ -719,9 +730,16 @@ compute(){
     _updateNewmark();
     m_converge = true;
   }
-  else  // Starting the iteration loop in case of nonlinear problems
-    _iterate();
+  else {
+    // Adding tangent_operators contributions at Gauss points
+    // to global LHS operator (A matrix)
+    if (m_ref){
+      // to do
+    }
 
+    // Starting the iteration loop in case of nonlinear problems
+    _iterate();
+  }
   if (t < tf && m_converge) {
     if (t + dt > tf) {
       dt = tf - t;
@@ -800,9 +818,7 @@ _updateNewmark(){
     auto an = m_prev_acc[node];
     auto vn = m_prev_vel[node];
     auto dn = m_prev_displ[node];
-    auto du = m_displ[node]; // incremental displacements are computed in the iteration loop
-//    auto dn1 = m_displ[node];
-    auto dn1 = dn + du;
+    auto dn1 = m_displ[node]; // displacements for the current iteration
 
     if (!is_alfa_method) {
       for (Int32 i = 0; i < NDIM; ++i) {
@@ -824,9 +840,15 @@ _updateNewmark(){
       // TO DO
     }
 
-    m_prev_acc[node] = m_acc[node];
-    m_prev_vel[node] = m_vel[node];
-    m_prev_displ[node] = m_displ[node];
+    m_prev_acc_iter[node] = m_acc[node];
+    m_prev_vel_iter[node] = m_vel[node];
+    m_prev_displ_iter[node] = m_displ[node];
+
+    if (m_converge) {
+      m_prev_acc[node] = m_acc[node];
+      m_prev_vel[node] = m_vel[node];
+      m_prev_displ[node] = m_displ[node];
+    }
   }
 }
 
@@ -2424,6 +2446,7 @@ _compute_stress(bool init, bool store)
   VariableDoFArrayReal3x3& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
   VariableDoFArrayReal& gauss_lawparam(m_gauss_on_cells.gaussLawParam());
   VariableDoFArrayReal& gauss_histparam(m_gauss_on_cells.gaussLawHistoryParam());
+  VariableDoFArrayReal3x3& gauss_tangent_operator(m_gauss_on_cells.gaussTangentOperator());
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_CELL (icell, allCells()) {
@@ -2514,6 +2537,12 @@ _compute_stress(bool init, bool store)
 
         // To do: tangent operator stored at Gauss points if we need to re-assemble A
         Tensor4 tangent_op = cell_law.getTangentTensor();
+
+        for (Int32 it = 0; it < 3; it++) {
+          gauss_tangent_operator[gauss_pti][it] = tangent_op[it];
+        }
+        if (!tangent_op.isSymmetric())
+          gauss_tangent_operator[gauss_pti][3] = tangent_op[3];
       }
     }
   }

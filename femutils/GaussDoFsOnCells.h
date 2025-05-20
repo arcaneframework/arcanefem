@@ -78,6 +78,7 @@ class GaussDoFsOnCells
   Arcane::VariableDoFArrayReal3x3& gaussStress();
   Arcane::VariableDoFArrayReal3x3& gaussStrain();
   Arcane::VariableDoFArrayReal3x3& gaussStrainPlastic();
+  Arcane::VariableDoFArrayReal3x3& gaussTangentOperator();
 
  private:
 

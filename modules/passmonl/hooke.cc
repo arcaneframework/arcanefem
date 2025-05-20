@@ -96,6 +96,9 @@ Tensor4 HookeComputeStress(RealConstArrayView& law_params, RealArrayView& /*hist
                         const Tensor2& deps, bool /*isRef*/)
 {
   Tensor4 elast_tensor = HookeComputeElastTensor(law_params,sig);
+  elast_tensor.isSymmetric(true);
+  elast_tensor.isConstitutive(true);
+
 	sig += elast_tensor*deps;
 	eps += deps;
   return elast_tensor;
