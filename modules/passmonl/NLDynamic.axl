@@ -20,12 +20,6 @@
     <variable field-name="prev_displ" name="PrevDispl" data-type="real3" item-kind="node" dim="0">
       <description>Displacement vectors on node coords at previous step</description>
     </variable>
-    <variable field-name="prev_acc_iter" name="PrevAccIter" data-type="real3" item-kind="node" dim="0">
-      <description>Acceleration vectors on node coords at previous iteration during the step</description>
-    </variable>
-    <variable field-name="prev_vel_iter" name="PrevVelIter" data-type="real3" item-kind="node" dim="0">
-      <description>Velocity vectors on node coords at previous iteration during the step</description>
-    </variable>
     <variable field-name="prev_displ_iter" name="PrevDisplIter" data-type="real3" item-kind="node" dim="0">
       <description>Displacement vectors on node coords at previous iteration during the step</description>
     </variable>

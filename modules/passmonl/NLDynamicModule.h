@@ -119,15 +119,13 @@ class NLDynamicModule
   Real alfam{0.};
   Real alfaf{0.};
   Real utol{0.001}, ftol{0.01}, etol{0.};
-
-  // Imbalance norms of dofs & forces for iterations
-  Real m_norm_R0{1.}, m_norm_R{0.};
-  Real m_norm_X0{1.}, m_norm_X{0.};
+  Real m_norm_R0{0.};
 
   bool is_alfa_method{false};
   bool keep_constop{false};
   bool is_linear{true};
   bool m_converge{false};
+  bool m_law_stop{ false};
   bool m_ref{false};
   bool m_deseq{false}; // indicator for initial unbalance due to stresses (set by user)
   Integer m_nb_law_param{2};//max nb law constitutive parameters at Gauss points
@@ -151,7 +149,7 @@ class NLDynamicModule
   void _applyInitialCellConditions();
   void _assembleLinearLHS();
   void _assembleLinearRHS();
-  void _assembleNonLinRHS();
+  void _assembleNonLinRHS(bool init);
   void _doSolve();
   void _initBoundaryConditions();
   void _initDCConditions();
