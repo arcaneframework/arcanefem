@@ -129,6 +129,7 @@ class NLDynamicModule
   bool is_linear{true};
   bool m_converge{false};
   bool m_ref{false};
+  bool m_deseq{false}; // indicator for initial unbalance due to stresses (set by user)
   Integer m_nb_law_param{2};//max nb law constitutive parameters at Gauss points
   Integer m_nb_law_hist_param{1};//max nb law history parameters at Gauss points
   String  m_law_param_file{};

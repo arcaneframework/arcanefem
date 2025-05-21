@@ -642,6 +642,8 @@ _iterate(){
     // Add the nonlinear contributions to the RHS (B)
     _assembleNonLinRHS();
 
+    // to do: add contributions of the set dofs to the RHS (B)
+
     // Solve the linear system AX = B
     _doSolve();
 
@@ -716,13 +718,13 @@ compute(){
     // Compute the predicted displacements and velocities
     // at beginning of step (from previous step values)
     _predictNewmark();
-
-    // Assemble the FEM global RHS operator (B matrix)
-    _assembleLinearRHS();
   }
 
   if (is_linear)
   {
+    // Assemble the FEM global RHS operator (B matrix)
+    _assembleLinearRHS();
+
     // Solve the linear system AX = B
     _doSolve();
 
@@ -774,34 +776,52 @@ _predictNewmark(){
 
   // Predicting the nodal displacements and velocities (before solve)
   auto dt = m_global_deltat();
+  auto betadt2 = 1/beta/dt2;
+  auto gammadt = 1./gamma/dt;
 
   ENUMERATE_NODE(inode, allNodes()){
     Node node = *inode;
     auto an = m_prev_acc[node];
     auto vn = m_prev_vel[node];
     auto dn = m_prev_displ[node];
-    auto dn1 = m_displ[node];
 
     if (!is_alfa_method) {
       for (Int32 i = 0; i < NDIM; ++i) {
 
         auto bu = (bool)m_imposed_displ[node][i];
         auto bv = (bool)m_imposed_vel[node][i];
+        auto ba = (bool)m_imposed_acc[node][i];
         auto vi = vn[i] + dt * (1. - gamma) * an[i];
+        auto di = dn[i] + dt * vn[i] + (0.5 - beta) * dt2 * an[i];
 
-        if (!bu)
-          m_displ[node][i] = dn[i] + dt * vn[i] + (0.5 - beta) * dt2 * an[i];
+        if (ba){
+          auto ai = m_acc[node][i];
+          m_displ[node][i] = di + beta * dt2 * ai;
+          m_vel[node][i] = vi + gamma * dt * ai;
+        }
+        else {
+          if (!bu)
+            m_displ[node][i] = di;
 
-        if (!bv)
-          m_vel[node][i] = vn[i] + dt * (1. - gamma) * an[i];
+          else {
+            auto ai = betadt2 * (m_displ[node][i] - di);
+            m_acc[node][i] = ai;
+            m_vel[node][i] = vi + gamma * dt * ai;
+          }
+
+          if (!bv)
+            m_vel[node][i] = vi;
+
+          else {
+            auto ai = gammadt * (m_vel[node][i] - vi);
+            m_acc[node][i] = ai;
+            m_displ[node][i] = di + beta * dt2 * ai;
+          }
+        }
       }
     } else {
       // TO DO
     }
-
-    m_prev_acc[node] = m_acc[node];
-    m_prev_vel[node] = m_vel[node];
-    m_prev_displ[node] = m_displ[node];
   }
 }
 
@@ -2609,12 +2629,16 @@ _assembleNonLinRHS(){
     auto nc = cell.uniqueId().asInt32();
 
     // Loop on the cell Gauss points to compute integrals terms
-    auto cm = (1 - alfam)/beta/dt2;
+    //    auto cm = (1 - alfam)/beta/dt2;
+    auto betadt2 = 1/beta/dt2; // Newmark coefficient
 
     for (Int32 igauss = 0; igauss < nbgauss; ++igauss) {
 
       DoFLocalId gauss_pti = gauss_point.dofId(cell, igauss);
       auto jacobian = gauss_jacobian[gauss_pti];
+      auto Bmat = _getB(gauss_pti,nb_nodes);
+      auto sig = gauss_stress[gauss_pti][2];
+      auto sig0 = gauss_stress[gauss_pti][0];
 
       // Computing elementary mass matrix at Gauss point ig
       _computeElemMass(rho, gauss_pti, nb_nodes, Me);
@@ -2630,6 +2654,31 @@ _assembleNonLinRHS(){
           //---- For debug only !!!
           auto coord1 = m_node_coord[node1];
           auto num1 = node1.uniqueId().asInt32();
+          Real3 Bnod;
+          for (Int32 i = 0; i < NDIM; i++)
+            Bnod[i] = Bmat(i, n1_index);
+
+          Real3 Btsig, Btsig0;
+          Btsig.x = Bnod.x * sig.x.x + Bnod.y * sig.x.y;
+          Btsig.y = Bnod.y * sig.y.y + Bnod.x * sig.x.y;
+
+          if (NDIM == 3){
+            Btsig.x += Bnod.z * sig.x.z;
+            Btsig.y += Bnod.z * sig.y.z;
+            Btsig.z = Bnod.z * sig.z.z + Bnod.x * sig.x.z + Bnod.y * sig.y.z;
+          }
+
+          if (!m_deseq){
+
+            Btsig0.x = Bnod.x * sig0.x.x + Bnod.y * sig0.x.y;
+            Btsig0.y = Bnod.y * sig0.y.y + Bnod.x * sig0.x.y;
+
+            if (NDIM == 3) {
+              Btsig0.x += Bnod.z * sig0.x.z;
+              Btsig0.y += Bnod.z * sig0.y.z;
+              Btsig0.z = Bnod.z * sig0.z.z + Bnod.x * sig0.x.z + Bnod.y * sig0.y.z;
+            }
+          }
 
           for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
             DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
@@ -2638,13 +2687,16 @@ _assembleNonLinRHS(){
             bool is_node1_dofi_set = (bool)m_imposed_displ[node1][iddl];
             auto rhs_i{ 0. };
 
-            //          if (node1.isOwn() && !is_node1_dofi_set) {
             if (!is_node1_dofi_set) {
 
-              /*----------------------------------------------------------
-            // Mass contribution to the RHS:
-            // (1 - alfm)*Mij/(beta*dt2)*uj_pred - alfm*aj_n
-            //----------------------------------------------------------*/
+              /*------------------------------------------------------------------
+                 * Stress contribution to the RHS (Newmark only at this stage):
+                 * -Bt*sig(ui) with Bt, the transposed derivative operator and sig(ui),
+                 * the stresses obtained by strain increments due to previous
+                 * iteration displacements
+                 * if m_deseq is true, Btsig0 = 0
+               */
+              rhs_i += wt * (Btsig0[iddl] - Btsig[iddl]);
 
               Int32 n2_index{ 0 };
               for (Node node2 : cell.nodes()) {
@@ -2652,35 +2704,19 @@ _assembleNonLinRHS(){
                 auto coord2 = m_node_coord[node2];
                 auto num2 = node2.uniqueId().asInt32();
 
-                auto an = m_prev_acc[node2][iddl];
-                auto vn = m_prev_vel[node2][iddl];
-                auto dn = m_prev_displ[node2][iddl];
-                auto u_iddl_pred = dn + dt * vn + dt2 * (0.5 - beta) * an;
+                /*------------------------------------------------------------
+                 * Mass contribution to the RHS (Newmark only at this stage):
+                 * Mij/(beta*dt2)*(u_pred - ui) with ui, the displacement at
+                 * previous iteration and u_pred, the predicted displacements
+                 * for the current time step
+                */
+                auto ui = m_prev_displ_iter[node2][iddl];
+                auto u_pred = m_displ[node2][iddl];
                 auto jj = NDIM * n2_index + iddl;
                 auto mij = Me(ii, jj);
-                rhs_i += mij * (cm * u_iddl_pred - alfam * an);
+                rhs_i += mij * betadt2 * (u_pred - ui);
+
                 ++n2_index;
-              }
-
-              /*-------------------------------------------------
-            // Other forces (imposed nodal forces, body forces)
-            //-------------------------------------------------*/
-
-              {
-                //----------------------------------------------
-                // Body force terms
-                //----------------------------------------------
-                auto Phi_i = gauss_shape[gauss_pti][n1_index];
-                auto rhoPhi_i = wt * rho * Phi_i;
-                rhs_i += rhoPhi_i * gravity[iddl];
-              }
-
-              {
-                //----------------------------------------------
-                // Imposed nodal forces
-                //----------------------------------------------
-                if ((bool)m_imposed_force[node1][iddl])
-                  rhs_i += m_force[node1][iddl];
               }
               rhs_values[node1_dofi] += rhs_i;
             }
@@ -2691,11 +2727,6 @@ _assembleNonLinRHS(){
     }
   }
 }
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-// ! Add the linear contributions to B vector (rhs) at iteration 0
-
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
