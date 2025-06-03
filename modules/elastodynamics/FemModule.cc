@@ -264,83 +264,47 @@ _updateVariables()
   info() << "[ArcaneFem-Info] Started module  _updateVariables()";
   Real elapsedTime = platform::getRealTime();
 
-  {
-    VariableDoFReal& dof_u(m_linear_system.solutionVariable());
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    if (mesh()->dimension() == 2)
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      Node node = *inode;
-      Real u1_val = dof_u[node_dof.dofId(node, 0)];
-      Real u2_val = dof_u[node_dof.dofId(node, 1)];
-      Real3 u_disp;
-      u_disp.x = u1_val;
-      u_disp.y = u2_val;
-      u_disp.z = 0.0;
-      m_dU[node] = u_disp;
+  VariableDoFReal& dof_u(m_linear_system.solutionVariable());
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  // First loop: Update displacement values
+  const Int8 dim = mesh()->dimension();
+  ENUMERATE_ (Node, inode, ownNodes()) {
+    Node node = *inode;
+    Real3 u_disp = Real3::zero();
+    for (Int8 i = 0; i < dim; ++i) {
+      u_disp[i] = dof_u[node_dof.dofId(node, i)];
     }
-    if (mesh()->dimension() == 3)
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      Node node = *inode;
-      Real u1_val = dof_u[node_dof.dofId(node, 0)];
-      Real u2_val = dof_u[node_dof.dofId(node, 1)];
-      Real u3_val = dof_u[node_dof.dofId(node, 2)];
-      Real3 u_disp;
-      u_disp.x = u1_val;
-      u_disp.y = u2_val;
-      u_disp.z = u3_val;
-      m_dU[node] = u_disp;
-    }
+    m_dU[node] = u_disp;
   }
 
+  // Synchronize the variables
   m_dU.synchronize();
   m_U.synchronize();
   m_V.synchronize();
   m_A.synchronize();
 
-  // Note at this stage we already have calculated dU
-  Real alocX;
-  Real alocY;
-  Real alocZ;
+  // Second loop: Update acceleration, velocity and displacement
+  ENUMERATE_ (Node, inode, allNodes()) {
+    Node node = *inode;
+    Real3 aloc = Real3::zero(); // Local acceleration vector
 
-  VariableDoFReal& dof_u(m_linear_system.solutionVariable());
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    // Constants for Newmark-beta method
+    const Real beta_dt2 = beta * (dt * dt);
+    const Real beta_factor = (1. - 2. * beta) / (2. * beta);
+    const Real gamma_factor = (1. - gamma);
 
-  if (mesh()->dimension() == 2)
-    ENUMERATE_ (Node, inode, allNodes()) {
-      Node node = *inode;
+    // Update each component
+    for (Integer i = 0; i < dim; ++i) {
+      // Calculate new acceleration
+      aloc[i] = (m_dU[node][i] - m_U[node][i] - dt * m_V[node][i]) / beta_dt2 - beta_factor * m_A[node][i];
 
-      alocX = (m_dU[node].x - m_U[node].x - dt * m_V[node].x) / beta / (dt * dt) - (1. - 2. * beta) / 2. / beta * m_A[node].x;
-      alocY = (m_dU[node].y - m_U[node].y - dt * m_V[node].y) / beta / (dt * dt) - (1. - 2. * beta) / 2. / beta * m_A[node].y;
-
-      m_V[node].x = m_V[node].x + dt * ((1. - gamma) * m_A[node].x + gamma * alocX);
-      m_V[node].y = m_V[node].y + dt * ((1. - gamma) * m_A[node].y + gamma * alocY);
-
-      m_A[node].x = alocX;
-      m_A[node].y = alocY;
-
-      m_U[node].x = m_dU[node].x;
-      m_U[node].y = m_dU[node].y;
+      // Update velocity, acceleration, and displacement
+      m_V[node][i] += dt * (gamma_factor * m_A[node][i] + gamma * aloc[i]);
+      m_A[node][i] = aloc[i];
+      m_U[node][i] = m_dU[node][i];
     }
-  if (mesh()->dimension() == 3)
-    ENUMERATE_ (Node, inode, allNodes()) {
-      Node node = *inode;
-
-      alocX = (m_dU[node].x - m_U[node].x - dt * m_V[node].x) / beta / (dt * dt) - (1. - 2. * beta) / 2. / beta * m_A[node].x;
-      alocY = (m_dU[node].y - m_U[node].y - dt * m_V[node].y) / beta / (dt * dt) - (1. - 2. * beta) / 2. / beta * m_A[node].y;
-      alocZ = (m_dU[node].z - m_U[node].z - dt * m_V[node].z) / beta / (dt * dt) - (1. - 2. * beta) / 2. / beta * m_A[node].z;
-
-      m_V[node].x = m_V[node].x + dt * ((1. - gamma) * m_A[node].x + gamma * alocX);
-      m_V[node].y = m_V[node].y + dt * ((1. - gamma) * m_A[node].y + gamma * alocY);
-      m_V[node].z = m_V[node].z + dt * ((1. - gamma) * m_A[node].z + gamma * alocZ);
-
-      m_A[node].x = alocX;
-      m_A[node].y = alocY;
-      m_A[node].z = alocZ;
-
-      m_U[node].x = m_dU[node].x;
-      m_U[node].y = m_dU[node].y;
-      m_U[node].z = m_dU[node].z;
-    }
+  }
 
     elapsedTime = platform::getRealTime() - elapsedTime;
     ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "update-variables", elapsedTime);
