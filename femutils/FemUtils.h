@@ -621,7 +621,7 @@ class Tensor2
   }
 
   ARCCORE_HOST_DEVICE explicit Tensor2(const Real3x3& mat) {
-    ARCANE_ASSERT(real3x3IsSym(mat), true);
+    ARCANE_ASSERT(real3x3IsSym(mat), ("true"));
     for (Arcane::Int32 i = 0; i < 3; i++) m_vec(i) = mat[i][i];
     for (Arcane::Int32 i = 3; i < 5; i++) m_vec(i) = mat[0][i - 2];
     m_vec(5) = mat[1][2];
@@ -699,7 +699,7 @@ class Tensor2
 
   //! Define the = operator
   ARCCORE_HOST_DEVICE Tensor2& operator=(const Real3x3& mat) {
-    ARCANE_ASSERT(real3x3IsSym(mat), true);
+    ARCANE_ASSERT(real3x3IsSym(mat), ("true"));
     for (Arcane::Int32 i = 0; i < 3; i++) m_vec(i) = mat[i][i];
     for (Arcane::Int32 i = 3; i < 5; i++) m_vec(i) = mat[0][i - 2];
     m_vec(5) = mat[1][2];
