@@ -65,6 +65,7 @@ class GaussDoFsOnCells::Impl
   VariableDoFArrayReal3x3* m_gauss_stress = nullptr;
   VariableDoFArrayReal3x3* m_gauss_strain = nullptr;
   VariableDoFArrayReal3x3* m_gauss_strain_plastic = nullptr;
+  VariableDoFArrayReal3x3* m_gauss_tangent_operator = nullptr;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -92,6 +93,7 @@ GaussDoFsOnCells::
   delete m_p->m_gauss_strain_plastic;
   delete m_p->m_gauss_law_param;
   delete m_p->m_gauss_law_history_param;
+  delete m_p->m_gauss_tangent_operator;
   delete m_p;
 }
 
@@ -182,6 +184,7 @@ initialize(IMesh* mesh, Int32 max_nb_gauss_per_cell)
   m_p->m_gauss_stress = new VariableDoFArrayReal3x3(VariableBuildInfo(mesh, "GaussStress", "GaussCellFamily"));
   m_p->m_gauss_strain = new VariableDoFArrayReal3x3(VariableBuildInfo(mesh, "GaussStrain", "GaussCellFamily"));
   m_p->m_gauss_strain_plastic = new VariableDoFArrayReal3x3(VariableBuildInfo(mesh, "GaussStrainPlastic", "GaussCellFamily"));
+  m_p->m_gauss_tangent_operator = new VariableDoFArrayReal3x3(VariableBuildInfo(mesh, "GaussTangentOperator", "GaussCellFamily"));
 }
 
 /*---------------------------------------------------------------------------*/
@@ -274,7 +277,13 @@ gaussStrainPlastic()
 {
   return *m_p->m_gauss_strain_plastic;
 }
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
+Arcane::VariableDoFArrayReal3x3& GaussDoFsOnCells::gaussTangentOperator()
+{
+  return *m_p->m_gauss_tangent_operator;
+}
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 IndexedCellDoFConnectivityView GaussDoFsOnCells::

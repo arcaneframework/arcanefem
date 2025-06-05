@@ -20,6 +20,9 @@
     <variable field-name="prev_displ" name="PrevDispl" data-type="real3" item-kind="node" dim="0">
       <description>Displacement vectors on node coords at previous step</description>
     </variable>
+    <variable field-name="prev_displ_iter" name="PrevDisplIter" data-type="real3" item-kind="node" dim="0">
+      <description>Displacement vectors on node coords at previous iteration during the step</description>
+    </variable>
     <variable field-name="force" name="Force" data-type="real3" item-kind="node" dim="0">
       <description>Force resultants on node coords</description>
     </variable>

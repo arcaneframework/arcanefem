@@ -129,7 +129,7 @@ void	LawDispatcher::setStrainIncrement(const Tensor2& tensor) { m_deps = tensor;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-void LawDispatcher::computeStress(bool isRef) {
+void LawDispatcher::computeStress(bool init, bool isRef) {
 
     auto f = m_compute_stress[m_law_type];
     RealConstArrayView law_params = m_law_params.constView();
@@ -138,7 +138,7 @@ void LawDispatcher::computeStress(bool isRef) {
     if (f != nullptr)
     {
     	Tensor4 tangent_tensor = f(law_params,history_vars,m_sig,m_eps,m_epsp,m_dsig,m_deps,isRef);
-    	if (isRef) m_tangent_tensor = tangent_tensor;
+    	if (init || isRef) m_tangent_tensor = tangent_tensor;
     }
 }
 

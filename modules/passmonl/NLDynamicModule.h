@@ -119,11 +119,15 @@ class NLDynamicModule
   Real alfam{0.};
   Real alfaf{0.};
   Real utol{0.001}, ftol{0.01}, etol{0.};
+  Real m_norm_R0{0.};
+
   bool is_alfa_method{false};
   bool keep_constop{false};
   bool is_linear{true};
-  bool compute_opt{false};
-  bool converge{false};
+  bool m_converge{false};
+  bool m_law_stop{ false};
+  bool m_ref{false};
+  bool m_deseq{false}; // indicator for initial unbalance due to stresses (set by user)
   Integer m_nb_law_param{2};//max nb law constitutive parameters at Gauss points
   Integer m_nb_law_hist_param{1};//max nb law history parameters at Gauss points
   String  m_law_param_file{};
@@ -135,7 +139,6 @@ class NLDynamicModule
   TypesNLDynamic::eIntegType integ_type{TypesNLDynamic::FemCell};
   TypesNLDynamic::eAlgoType algo_type{TypesNLDynamic::ModNewtonRaphson};
   AnalyticFunc m_inputfunc{};
-  RealUniqueArray Rnlin{};
  private:
 
   void _initDofs();
@@ -146,7 +149,7 @@ class NLDynamicModule
   void _applyInitialCellConditions();
   void _assembleLinearLHS();
   void _assembleLinearRHS();
-  void _assembleNonLinRHS();
+  void _assembleNonLinRHS(bool init);
   void _doSolve();
   void _initBoundaryConditions();
   void _initDCConditions();
@@ -171,12 +174,14 @@ class NLDynamicModule
   void _computeKParax(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
                       RealUniqueArray2& Ke, const Real3& RhoC);
 
-  bool _iterate();
+  void _iterate();
+  void _check_convergence(Int32 iter);
 
   RealUniqueArray2 _getB(const DoFLocalId& igauss, const Int32& nb_nodes);
 
-  void stress_prediction(bool init);
-  void stress_correction(bool converge, bool isRef);
+  void _compute_stress(bool init, bool store);
+  void _stress_prediction(bool init);
+  void _stress_correction();
 
 };
 

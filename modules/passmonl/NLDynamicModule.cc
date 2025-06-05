@@ -181,6 +181,7 @@ startInit(){
     m_prev_acc[node] = Real3::zero() ;
     m_prev_vel[node] = Real3::zero() ;
     m_prev_displ[node] = Real3::zero();
+    m_prev_displ_iter[node] = Real3::zero() ;
     m_acc[node] = Real3::zero() ;
     m_vel[node] = Real3::zero() ;
     m_displ[node] = Real3::zero();
@@ -236,6 +237,7 @@ _startInitGauss()
   VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
   VariableDoFArrayReal3x3& gauss_strain(m_gauss_on_cells.gaussStrain());
   VariableDoFArrayReal3x3& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
+  VariableDoFArrayReal3x3& gauss_tangent_operator(m_gauss_on_cells.gaussTangentOperator());
 
   gauss_shape.resize(max_nbnodes_per_cell);
   gauss_shapederiv.resize(max_nbnodes_per_cell);
@@ -250,6 +252,14 @@ _startInitGauss()
   gauss_stress.resize(3);
   gauss_strain.resize(3);
   gauss_strain_plastic.resize(3);
+
+  /* Tangent operator at Gauss points is useful for nonlinear simulations
+   * 0: 1st diagonal Real3x3 block (D)
+   * 1: 2nd diagonal Real3x3 block (S)
+   * 2: Upper out-of-diagonal Real3x3 block (Sup)
+   * 3: Lower out-of-diagonal Real3x3 block (Slow) => in case of symmetry, Slow = 0
+   * */
+  gauss_tangent_operator.resize(4);
 
   ENUMERATE_CELL (icell, allCells()) {
     const Cell& cell = *icell;
@@ -609,43 +619,36 @@ _initGaussStep()
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-bool NLDynamicModule::
+void NLDynamicModule::
 _iterate(){
 
   info() << "Module PASSMO-NL ITERATION LOOP";
 
-  Int32 iter{0}; // counter for imbalance iterations
   auto dt = m_global_deltat();
   dt2 = dt * dt;
 
-  converge = false;
-  // Imbalance iterations init for global dofs & forces vectors
-  Real	Fn{0.},Fn1{0.},DXnorm0{0.},DFnorm0{0.};
-  bool	stop{false},diverge{false};
-  int		ixconst{0},ifconst{0}, idiv{0}, nbiter{0};
+  m_converge = false;
+  Int32 iter{0}; // counter for imbalance iterations
 
   // Starting the iteration loop until convergence is reached
-  // Tolerance checks for convergence:
-  //    Displacements U (= dofs vector): checking if norm(Un+1 - Un) / norm(Un) < Utol
-  //    Forces F (= rhs vector): checking if norm(Fn+1 - Fn) / norm(Fn) < Ftol
-  //    Energy (default = Utol*Ftol): checking if norm([UF]n+1 - [UF]n) / norm([UF]n) < Etol
   do {
 
-    // Assemble the FEM global RHS operator (B matrix)
-    // Linear contributions added only at first iteration
-    if (!nbiter)
-      _assembleLinearRHS();
+    // Predict stresses from the nonlinear constitutive models
+    _stress_prediction(!iter);
 
-    _assembleNonLinRHS();
+    // Add the nonlinear contributions to the RHS (B)
+    _assembleNonLinRHS(!iter);
+
+    // to do: add contributions of the set dofs to the RHS (B)
 
     // Solve the linear system AX = B
     _doSolve();
 
-    // Update the nodal variable according to the integration scheme (e.g. Newmark)
-    _updateNewmark();
-  } while (nbiter < ite_max && !converge);
+    _check_convergence(iter);
 
-  return converge;
+    iter++;
+
+  } while (iter < ite_max && !m_converge);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -669,13 +672,15 @@ compute(){
   // the rate is a user input (linop_nstep)
   // The matrix has to have the same structure (same structure for non-zero)
 
-//  if (m_linear_system.isInitialized() && (linop_nstep_counter < linop_nstep || keep_constop || is_linear)){
+  //  if (m_linear_system.isInitialized() && (linop_nstep_counter < linop_nstep || keep_constop || is_linear)){
   if ( m_linear_system.isInitialized() &&
       (is_linear || keep_constop || (algo_type == TypesNLDynamic::ModNewtonRaphson && linop_nstep_counter < linop_nstep)) ){
     m_linear_system.clearValues();
+    m_ref = false;
   }
   else {
 
+    m_ref = true;
     m_linear_system.reset();
     m_linear_system.setLinearSystemFactory(options()->linearSystem());
     m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
@@ -684,20 +689,23 @@ compute(){
     linop_nstep_counter = 0;
   }
 
-  // Update Gauss shape functions and their derivatives for this step
-  _initGaussStep();
+  // This part is in common for linear and nonlinear simulations
 
-  // Apply Dirichlet/Neumann conditions if any
-  _applyDirichletBoundaryConditions();
-  _applyNeumannBoundaryConditions();
+  { // Update Gauss shape functions and their derivatives for this step
+    _initGaussStep();
 
-  // Apply Paraxial conditions if any
-  _applyParaxialBoundaryConditions();
+    // Apply Dirichlet/Neumann conditions if any
+    _applyDirichletBoundaryConditions();
+    _applyNeumannBoundaryConditions();
 
-  // Assemble the FEM global LHS operator (A matrix)
-  _assembleLinearLHS();
+    // Apply Paraxial conditions if any
+    _applyParaxialBoundaryConditions();
 
-  // Starting the iteration loop in case of nonlinear problems
+    // Assemble the FEM global LHS operator (A matrix)
+    _assembleLinearLHS();
+
+  }
+
   if (is_linear)
   {
     // Assemble the FEM global RHS operator (B matrix)
@@ -706,16 +714,30 @@ compute(){
     // Solve the linear system AX = B
     _doSolve();
 
-    // Update the nodal variable according to the integration scheme (e.g. Newmark)
-    _updateNewmark();
-    converge = true;
+    m_converge = true;
   }
-  else
-  {
-    converge = _iterate();
+  else {
+    // Compute the predicted displacements, velocities (and/or accelerations)
+    // at beginning of step (Newmark integration scheme)
+    _predictNewmark();
+
+    // Adding tangent_operators contributions at Gauss points
+    // to global LHS operator (A matrix)
+    if (m_ref){
+      // to do
+    }
+
+    // Starting the iteration loop in case of nonlinear problems
+    _iterate();
+
+    // Update stresses from the nonlinear constitutive models and computed solution (displacements)
+    _stress_correction();
   }
 
-  if (t < tf && converge) {
+  // Update the nodal variable according to the integration scheme (e.g. Newmark)
+  _updateNewmark();
+
+  if (t < tf && m_converge) {
     if (t + dt > tf) {
       dt = tf - t;
       m_global_deltat = dt;
@@ -749,34 +771,54 @@ _predictNewmark(){
 
   // Predicting the nodal displacements and velocities (before solve)
   auto dt = m_global_deltat();
+  auto betadt2 = 1/beta/dt2;
+  auto gammadt = 1./gamma/dt;
 
   ENUMERATE_NODE(inode, allNodes()){
     Node node = *inode;
     auto an = m_prev_acc[node];
     auto vn = m_prev_vel[node];
     auto dn = m_prev_displ[node];
-    auto dn1 = m_displ[node];
 
     if (!is_alfa_method) {
       for (Int32 i = 0; i < NDIM; ++i) {
 
         auto bu = (bool)m_imposed_displ[node][i];
         auto bv = (bool)m_imposed_vel[node][i];
+        auto ba = (bool)m_imposed_acc[node][i];
         auto vi = vn[i] + dt * (1. - gamma) * an[i];
+        auto di = dn[i] + dt * vn[i] + (0.5 - beta) * dt2 * an[i];
 
-        if (!bu)
-          m_displ[node][i] = dn[i] + dt * vn[i] + (0.5 - beta) * dt2 * an[i];
+        if (ba){
+          auto ai = m_acc[node][i];
+          m_displ[node][i] = di + beta * dt2 * ai;
+          m_vel[node][i] = vi + gamma * dt * ai;
+        }
+        else {
+          if (!bu)
+            m_displ[node][i] = di;
 
-        if (!bv)
-          m_vel[node][i] = vn[i] + dt * (1. - gamma) * an[i];
+          else {
+            auto ai = betadt2 * (m_displ[node][i] - di);
+            m_acc[node][i] = ai;
+            m_vel[node][i] = vi + gamma * dt * ai;
+          }
+
+          if (!bv)
+            m_vel[node][i] = vi;
+
+          else {
+            auto ai = gammadt * (m_vel[node][i] - vi);
+            m_acc[node][i] = ai;
+            m_displ[node][i] = di + beta * dt2 * ai;
+          }
+        }
       }
     } else {
       // TO DO
     }
 
-    m_prev_acc[node] = m_acc[node];
-    m_prev_vel[node] = m_vel[node];
-    m_prev_displ[node] = m_displ[node];
+    m_prev_displ_iter[node] = m_prev_displ[node];
   }
 }
 
@@ -785,15 +827,17 @@ _predictNewmark(){
 void NLDynamicModule::
 _updateNewmark(){
 
-  // Updating the nodal accelerations and velocities (after solve)
+  // Updating the nodal accelerations and velocities (after final solve)
   auto dt = m_global_deltat();
+  auto betadt2 = 1/beta/dt2;
+  auto gammadt = 1./gamma/dt;
 
   ENUMERATE_NODE(inode, allNodes()){
     Node node = *inode;
     auto an = m_prev_acc[node];
     auto vn = m_prev_vel[node];
     auto dn = m_prev_displ[node];
-    auto dn1 = m_displ[node];
+    auto dn1 = m_displ[node]; // computed solution for the current iteration or time step
 
     if (!is_alfa_method) {
       for (Int32 i = 0; i < NDIM; ++i) {
@@ -804,9 +848,7 @@ _updateNewmark(){
         auto vi = vn[i] + dt * (1. - gamma) * an[i];
 
         if (!ba)
-          m_acc[node][i] = (dn1[i] - ui)/beta/dt2;
-        else
-          m_displ[node][i] = ui + beta * dt2 * m_acc[node][i];
+          m_acc[node][i] = betadt2 * (dn1[i] - ui);
 
         if (!bv)
           m_vel[node][i] = vi + dt*gamma*m_acc[node][i];
@@ -2032,7 +2074,7 @@ _assembleLinearLHS()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 // ! Assemble the 2D or 3D linear contributions to the Right Hand Side
-//   operator (B vector)
+//   operator (B vector) - For linear simulations only
 void NLDynamicModule::
 _assembleLinearRHS(){
   if (NDIM == 3)
@@ -2340,14 +2382,13 @@ _assembleLinearRHS(){
     }
   }
 }
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
  * \brief Compute Elementary Derivation Matrix B at current Gauss point of
  * a given cell with nb_nodes
  */
-
-
 RealUniqueArray2 NLDynamicModule::
 _getB(const DoFLocalId& igauss, const Int32& nb_nodes)
 {
@@ -2398,19 +2439,22 @@ _getB(const DoFLocalId& igauss, const Int32& nb_nodes)
   }
   return Bmat;
 }
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-// ! Stress prediction
+// ! Stress computation at each iteration
 //
-void NLDynamicModule::stress_prediction(bool init)
+void NLDynamicModule::
+_compute_stress(bool init, bool store)
 {
- auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
+  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
 
   VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
   VariableDoFArrayReal3x3& gauss_strain(m_gauss_on_cells.gaussStrain());
   VariableDoFArrayReal3x3& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
   VariableDoFArrayReal& gauss_lawparam(m_gauss_on_cells.gaussLawParam());
   VariableDoFArrayReal& gauss_histparam(m_gauss_on_cells.gaussLawHistoryParam());
+  VariableDoFArrayReal3x3& gauss_tangent_operator(m_gauss_on_cells.gaussTangentOperator());
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_CELL (icell, allCells()) {
@@ -2419,16 +2463,12 @@ void NLDynamicModule::stress_prediction(bool init)
     auto cell_nbnod = cell.nbNode();
     Int32 numcell = cell.localId();
 
+    auto cell_nbgauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, ninteg);
+
     auto is_default = m_default_law[cell];
     auto lawtyp = static_cast<TypesNLDynamic::eLawType>(m_law[cell]);
     auto ilaw = m_iparam_law[cell];
     LawDispatcher cell_law(lawtyp, is_default);
-    auto nblaw = cell_law.getNbLawParam();
-    auto nbhist = cell_law.getNbLawHistoryParam();
-    RealUniqueArray lawparams(nblaw);
-    RealUniqueArray histparams(nbhist);
-
-    auto cell_nbgauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, ninteg);
 
     for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
       DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
@@ -2457,14 +2497,13 @@ void NLDynamicModule::stress_prediction(bool init)
 
           for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
             DoFLocalId node_dofi = node_dof.dofId(node, iddl);
-            auto ii = NDIM * n_index + iddl;
 
-            bool is_node_dofi_set = (bool)m_imposed_displ[node][iddl];
+            // For the 1st iteration (init = true), initializing with stresses
+            // from previous step and contributions of non zero imposed dofs
+            bool is_u { init && (bool)m_imposed_displ[node][iddl] && fabs(m_displ[node][iddl]) > 0. };
 
-            if (!init || (init && is_node_dofi_set)) {
-              auto dni = m_prev_displ[node][iddl];
-              auto ui = m_displ[node][iddl];
-              du[iddl] = ui - dni;
+            if (!init || is_u) {
+              du = m_displ[node] - m_prev_displ[node];
             }
           }
 
@@ -2498,7 +2537,7 @@ void NLDynamicModule::stress_prediction(bool init)
 
       // Compute the current stress from the law at this Gauss point
       // Tangent stiffness operator is not computed at prediction stage
-      cell_law.computeStress(false);
+      cell_law.computeStress(init, store);
       gauss_histparam[gauss_pti] = cell_law.updateHistoryVars();
 
       // Current plastic strains and stresses have been updated by the law
@@ -2506,16 +2545,40 @@ void NLDynamicModule::stress_prediction(bool init)
       gauss_stress[gauss_pti][2] = fromTensor2Real3x3(cell_law.getStress());
       gauss_strain[gauss_pti][2] = fromTensor2Real3x3(cell_law.getStrain());
 
+      if (store){ // when convergence is reached, updating the "prev" quantities for the next step
+        gauss_strain_plastic[gauss_pti][1] = gauss_strain_plastic[gauss_pti][2];
+        gauss_stress[gauss_pti][1] = gauss_stress[gauss_pti][2];
+        gauss_strain[gauss_pti][1] = gauss_strain[gauss_pti][2];
+
+        // To do: tangent operator stored at Gauss points if we need to re-assemble A
+        Tensor4 tangent_op = cell_law.getTangentTensor();
+
+        for (Int32 it = 0; it < 3; it++) {
+          gauss_tangent_operator[gauss_pti][it] = tangent_op[it];
+        }
+        if (!tangent_op.isSymmetric())
+          gauss_tangent_operator[gauss_pti][3] = tangent_op[3];
       }
     }
+  }
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+// ! Stress prediction
+//
+void NLDynamicModule::
+_stress_prediction(bool init)
+{
+  _compute_stress(init, false);
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 // ! Stress correction
 //
-void NLDynamicModule::stress_correction(bool converge, bool isRef)
-{
+void NLDynamicModule::
+_stress_correction(){
+  _compute_stress(false, m_converge);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -2523,13 +2586,18 @@ void NLDynamicModule::stress_correction(bool converge, bool isRef)
 // ! Assemble the 2D or 3D nonlinear contributions to the Right Hand Side
 //   operator (B vector)
 void NLDynamicModule::
-_assembleNonLinRHS(){
+_assembleNonLinRHS(bool init){
   if (NDIM == 3)
     info() << "Assembly of the FEM 3D nonlinear contributions to RHS (vector B) ";
   else
     info() << "Assembly of the FEM 2D nonlinear contributions to RHS (vector B) ";
 
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
+  if (init) {
+    rhs_values.fill(0.0);
+    m_norm_R0 = 0.;
+  }
+
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   auto dt = m_global_deltat();
 
@@ -2561,12 +2629,16 @@ _assembleNonLinRHS(){
     auto nc = cell.uniqueId().asInt32();
 
     // Loop on the cell Gauss points to compute integrals terms
-    auto cm = (1 - alfam)/beta/dt2;
+    //    auto cm = (1 - alfam)/beta/dt2;
+    auto betadt2 = 1/beta/dt2; // Newmark coefficient
 
     for (Int32 igauss = 0; igauss < nbgauss; ++igauss) {
 
       DoFLocalId gauss_pti = gauss_point.dofId(cell, igauss);
       auto jacobian = gauss_jacobian[gauss_pti];
+      auto Bmat = _getB(gauss_pti,nb_nodes);
+      auto sig = gauss_stress[gauss_pti][2];
+      auto sig0 = gauss_stress[gauss_pti][0];
 
       // Computing elementary mass matrix at Gauss point ig
       _computeElemMass(rho, gauss_pti, nb_nodes, Me);
@@ -2582,68 +2654,380 @@ _assembleNonLinRHS(){
           //---- For debug only !!!
           auto coord1 = m_node_coord[node1];
           auto num1 = node1.uniqueId().asInt32();
+          Real3 Bnod;
+          for (Int32 i = 0; i < NDIM; i++)
+            Bnod[i] = Bmat(i, n1_index);
+
+          Real3 Btsig, Btsig0;
+          Btsig.x = Bnod.x * sig.x.x + Bnod.y * sig.x.y;
+          Btsig.y = Bnod.y * sig.y.y + Bnod.x * sig.x.y;
+
+          if (NDIM == 3){
+            Btsig.x += Bnod.z * sig.x.z;
+            Btsig.y += Bnod.z * sig.y.z;
+            Btsig.z = Bnod.z * sig.z.z + Bnod.x * sig.x.z + Bnod.y * sig.y.z;
+          }
+
+          if (!m_deseq){
+
+            Btsig0.x = Bnod.x * sig0.x.x + Bnod.y * sig0.x.y;
+            Btsig0.y = Bnod.y * sig0.y.y + Bnod.x * sig0.x.y;
+
+            if (NDIM == 3) {
+              Btsig0.x += Bnod.z * sig0.x.z;
+              Btsig0.y += Bnod.z * sig0.y.z;
+              Btsig0.z = Bnod.z * sig0.z.z + Bnod.x * sig0.x.z + Bnod.y * sig0.y.z;
+            }
+          }
 
           for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
+
             DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
             auto ii = NDIM * n1_index + iddl;
 
             bool is_node1_dofi_set = (bool)m_imposed_displ[node1][iddl];
             auto rhs_i{ 0. };
 
-            //          if (node1.isOwn() && !is_node1_dofi_set) {
             if (!is_node1_dofi_set) {
 
-              /*----------------------------------------------------------
-            // Mass contribution to the RHS:
-            // (1 - alfm)*Mij/(beta*dt2)*uj_pred - alfm*aj_n
-            //----------------------------------------------------------*/
+              /*------------------------------------------------------------------
+                 * Stress contribution to the RHS (Newmark only at this stage):
+                 * -Bt*sig(ui) with Bt, the transposed derivative operator and sig(ui),
+                 * the stresses obtained by strain increments due to previous
+                 * iteration displacements
+                 * if m_deseq is true, Btsig0 = 0
+               */
+              rhs_i += wt * (Btsig0[iddl] - Btsig[iddl]);
 
+              /*------------------------------------------------------------
+               * Mass contributions to the RHS
+              */
               Int32 n2_index{ 0 };
               for (Node node2 : cell.nodes()) {
                 //---- For debug only !!!
                 auto coord2 = m_node_coord[node2];
                 auto num2 = node2.uniqueId().asInt32();
 
+                /*------------------------------------------------------------
+                 * Mij/(beta*dt2)*(u_pred - ui) with ui, the displacement at
+                 * previous iteration and u_pred, the predicted displacements
+                 * for the current time step
+                */
+                auto ui = m_prev_displ_iter[node2][iddl];
                 auto an = m_prev_acc[node2][iddl];
                 auto vn = m_prev_vel[node2][iddl];
                 auto dn = m_prev_displ[node2][iddl];
-                auto u_iddl_pred = dn + dt * vn + dt2 * (0.5 - beta) * an;
+                auto u_pred = dn + dt * vn + dt2 * (0.5 - beta) * an;
                 auto jj = NDIM * n2_index + iddl;
                 auto mij = Me(ii, jj);
-                rhs_i += mij * (cm * u_iddl_pred - alfam * an);
+                rhs_i += mij * betadt2 * (u_pred - ui);
+
+                /*------------------------------------------------------------
+                 * -Mij * ai, with ai, the imposed non-zero accelerations at
+                 * current step = imposed directly or computed from imposed
+                 * displacements (Newmark integration)
+                */
+                bool is_u { (bool)m_imposed_displ[node2][iddl] && fabs(m_displ[node2][iddl]) > 0. };
+
+                if (is_u) {
+                  auto ai = m_acc[node2][iddl];
+                  rhs_i -= mij*ai;
+                }
                 ++n2_index;
               }
 
               /*-------------------------------------------------
-            // Other forces (imposed nodal forces, body forces)
-            //-------------------------------------------------*/
+               * Other forces (imposed nodal forces, body forces)
+               * Only done at 1st iteration
+              */
 
-              {
-                //----------------------------------------------
-                // Body force terms
-                //----------------------------------------------
-                auto Phi_i = gauss_shape[gauss_pti][n1_index];
-                auto rhoPhi_i = wt * rho * Phi_i;
-                rhs_i += rhoPhi_i * gravity[iddl];
-              }
+              if (init) {
 
-              {
-                //----------------------------------------------
-                // Imposed nodal forces
-                //----------------------------------------------
-                if ((bool)m_imposed_force[node1][iddl])
-                  rhs_i += m_force[node1][iddl];
+                {
+                  //----------------------------------------------
+                  // Body force terms
+                  //----------------------------------------------
+                  auto Phi_i = gauss_shape[gauss_pti][n1_index];
+                  auto rhoPhi_i = wt * rho * Phi_i;
+                  rhs_i += rhoPhi_i * gravity[iddl];
+                }
+
+                {
+                  //----------------------------------------------
+                  // Imposed nodal forces
+                  //----------------------------------------------
+                  if ((bool)m_imposed_force[node1][iddl])
+                    rhs_i += m_force[node1][iddl];
+                }
+                m_norm_R0 += rhs_i * rhs_i;
               }
-              rhs_values[node1_dofi] += rhs_i;
             }
+            rhs_values[node1_dofi] += rhs_i;
           }
         }
         ++n1_index;
       }
     }
   }
+
+  if (init){
+    String dirichletMethod = options()->enforceDirichletMethod();
+    info() << "Applying Dirichlet boundary condition via "
+           << dirichletMethod << " method ";
+
+    dirichletMethod = dirichletMethod.lower();
+    // Looking for Dirichlet boundary nodes & modify linear operators accordingly
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      auto node = *inode;
+
+      for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
+        bool is_node_dof_set = (bool)m_imposed_displ[node][iddl];
+
+        if (is_node_dof_set) {
+          /*----------------------------------------------------------
+            // if Dirichlet node, modify operators (LHS+RHS) allowing to
+            // Dirichlet method selected by user
+            //----------------------------------------------------------*/
+          auto node_dofi = node_dof.dofId(node, iddl);
+          auto u_iddl = m_displ[node][iddl];
+          if (dirichletMethod == "penalty") {
+            m_linear_system.matrixSetValue(node_dofi, node_dofi, penalty);
+            rhs_values[node_dofi] = u_iddl * penalty;
+          }
+          else if (dirichletMethod.contains("weak")) {
+            m_linear_system.matrixAddValue(node_dofi, node_dofi, penalty);
+            rhs_values[node_dofi] = u_iddl * penalty;
+          }
+          else if (dirichletMethod.contains("rowelim")) {
+            m_linear_system.eliminateRow(node_dofi, u_iddl);
+          }
+          else if (dirichletMethod.contains("rowcolumnelim")) {
+            m_linear_system.eliminateRowColumn(node_dofi, u_iddl);
+          }
+        }
+      }
+    }
+
+    //----------------------------------------------
+    // Traction contribution to RHS if any
+    //----------------------------------------------
+    _getTractionContribution(rhs_values);
+
+    //----------------------------------------------
+    // Paraxial contribution to RHS if any
+    //----------------------------------------------
+    _getParaxialContribution(rhs_values);
+
+    //----------------------------------------------
+    // Looking for double-couple contributions if any
+    //----------------------------------------------
+    {
+      Real time = globalTime();
+      Int32 bd_index{ 0 };
+      for (const auto& bd : options()->doubleCouple()) {
+
+        NodeGroup east = bd->getEastNode();
+        NodeGroup west = bd->getWestNode();
+        NodeGroup north = bd->getNorthNode();
+        NodeGroup south = bd->getSouthNode();
+
+        Real Ft{0.};
+        auto hasMoment = bd->hasSeismicMomentFile();
+        auto hasLoading = bd->hasLoadingFile();
+
+        if (hasMoment || hasLoading) {
+          const CaseTableInfo& table_info = m_dc_case_table_list[bd_index];
+
+          if (hasMoment) {
+            String file_name = bd->getSeismicMomentFile();
+            info() << "Applying the seismic moment for double-couple condition via CaseTable " << file_name;
+          }
+          else if (hasLoading){
+            String file_name = bd->getLoadingFile();
+            info() << "Applying the user loading for double-couple condition via CaseTable " << file_name;
+          }
+          CaseTable* inn = table_info.case_table;
+          if (inn != nullptr)
+            inn->value(time, Ft);
+        }
+
+        auto iplane = bd->getSourcePlane();
+        Int32 i1{0}, i2{0};
+
+        if (!iplane) i2 = 1;
+        else if (iplane == 1){
+          i1 = 1;
+          i2 = 2;
+        }
+        else
+          i2 = 2;
+
+        auto is_dew = bd->hasDistEwSeismicMoment();
+        auto is_dns = bd->hasDistNsSeismicMoment();
+        auto dew = bd->getDistEwSeismicMoment();// East-West distance
+        auto dns = bd->getDistNsSeismicMoment();// North-South distance
+
+        ENUMERATE_NODE (inode, west) {
+
+          if (!inode->null() && inode->isOwn()) {
+            const Node& dc_node_west = *inode;
+            DoFLocalId node_dof_id = node_dof.dofId(dc_node_west, i2);
+
+            //---- For debug only !!!
+            auto coords = m_node_coord[dc_node_west];
+            auto num = dc_node_west.uniqueId().asInt32();
+
+            rhs_values[node_dof_id] = Ft; // default = hasLoading
+            if (hasMoment) {
+              if (is_dew && dew != 0.) {
+                rhs_values[node_dof_id] /= dew;
+              }
+              else{
+                info() << "EW distance for seismic moment implementation is missing or equal to 0.0! "
+                       << "Applying the seismic moment as a user loading";
+
+              }
+            }
+          }
+        }
+        ENUMERATE_NODE (inode, east) {
+          if (!inode->null() && inode->isOwn()) {
+            const Node& dc_node_east = *inode;
+            DoFLocalId node_dof_id = node_dof.dofId(dc_node_east, i2);
+
+            //---- For debug only !!!
+            auto coords = m_node_coord[dc_node_east];
+            auto num = dc_node_east.uniqueId().asInt32();
+
+            rhs_values[node_dof_id] = -Ft;// default = hasLoading
+            if (hasMoment) {
+              if (is_dew && dew != 0.) {
+                rhs_values[node_dof_id] /= dew;
+              }
+              else{
+                info() << "EW distance for seismic moment implementation is missing or equal to 0.0! "
+                       << "Applying the seismic moment as a user loading";
+
+              }
+            }
+          }
+        }
+        ENUMERATE_NODE (inode, north) {
+          if (!inode->null() && inode->isOwn()) {
+            const Node& dc_node_north = *inode;
+            DoFLocalId node_dof_id = node_dof.dofId(dc_node_north, i1);
+
+            //---- For debug only !!!
+            auto coords = m_node_coord[dc_node_north];
+            auto num = dc_node_north.uniqueId().asInt32();
+
+            rhs_values[node_dof_id] = Ft;// default = hasLoading
+            if (hasMoment) {
+              if (is_dns && dns != 0.) {
+                rhs_values[node_dof_id] /= dns;
+              }
+              else{
+                info() << "NS distance for seismic moment implementation is missing or equal to 0.0! "
+                       << "Applying the seismic moment as a user loading";
+              }
+            }
+          }
+        }
+        ENUMERATE_NODE (inode, south) {
+          if (!inode->null() && inode->isOwn()) {
+            const Node& dc_node_south = *inode;
+            DoFLocalId node_dof_id = node_dof.dofId(dc_node_south, i1);
+
+            //---- For debug only !!!
+            auto coords = m_node_coord[dc_node_south];
+            auto num = dc_node_south.uniqueId().asInt32();
+
+            rhs_values[node_dof_id] = -Ft;// default = hasLoading
+            if (hasMoment) {
+              if (is_dns && dns != 0.) {
+                rhs_values[node_dof_id] /= dns;
+              }
+              else{
+                info() << "NS distance for seismic moment implementation is missing or equal to 0.0! "
+                       << "Applying the seismic moment as a user loading";
+              }
+            }
+          }
+        }
+
+        ++bd_index;
+      }
+    }
+  }
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+// ! Check convergence for the nonlinear iteration loop:
+//    Displacements U (= dofs vector): checking if norm(Un+1 - Un) / norm(Un) < Utol
+//    Out-of-balance forces (= rhs vector): checking if norm(R) / norm(R0) < Ftol
+//    R = residual (iteration i+1 - i) and R0 = norm of rhs at iteration 0
+//    Optional: Energy (default = Utol*Ftol): checking if norm([UF]n+1 - [UF]n) / norm([UF]n) < Etol
+//
+void NLDynamicModule::
+_check_convergence(Int32 iter){
+
+  Real tol{1.0e-15};
+  /*------------------------------------------------------------
+   * Check the solution (X) convergence
+  */
+  Real dxnorm{0.}, xinorm{0.};
+
+  ENUMERATE_ (Node, inode, allNodes()) {
+    Node node = *inode;
+    auto xi = m_prev_displ_iter[node];
+    auto dx = m_displ[node] - xi;
+    xinorm += math::dot(xi,xi);
+    dxnorm += math::dot(dx,dx);
+  }
+  xinorm = math::sqrt(xinorm);
+  if (fabs(xinorm) < tol) xinorm = 1.; // at 1st step&iteration, xi(=u0) maybe 0
+
+  dxnorm = math::sqrt(dxnorm);
+
+  m_converge = (dxnorm/xinorm < utol);
+
+  if (m_converge) {
+    VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    Real dfnorm{0.};
+
+    /*------------------------------------------------------------
+     * Check the forces (rhs) convergence
+    */
+    ENUMERATE_ (Node, inode, allNodes()) {
+      Node node = *inode;
+      auto xi = m_prev_displ_iter[node];
+      auto dx = m_displ[node] - xi;
+      xinorm += math::dot(xi,xi);
+      dxnorm += math::dot(dx,dx);
+      for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
+
+        DoFLocalId node_dofi = node_dof.dofId(node, iddl);
+        auto rhs_i= rhs_values[node_dofi];
+        dfnorm += rhs_i*rhs_i;
+      }
+    }
+    dfnorm = math::sqrt(dfnorm);
+    // Setting reference m_norm_R0 to 1. if zero at 1st step/1st iteration
+    if (m_norm_R0 < tol) m_norm_R0 = 1.;
+    m_converge = (dfnorm/m_norm_R0 < ftol);
+  }
+
+  // Store nodal quantities for this iteration (no convergence)
+  if (!m_converge) {
+
+    ENUMERATE_NODE(inode, allNodes()){
+      Node node = *inode;
+      m_prev_displ_iter[node] = m_displ[node];
+    }
+  }
+}
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void NLDynamicModule::
