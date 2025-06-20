@@ -242,24 +242,33 @@ _startInitGauss()
   gauss_shape.resize(max_nbnodes_per_cell);
   gauss_shapederiv.resize(max_nbnodes_per_cell);
   gauss_lawparam.resize(m_nb_law_param);
+  gauss_lawparam.fill(0.);
   gauss_histparam.resize(m_nb_law_hist_param);
+  // History parameters are set to 0. at this stage (we will see later for more complex laws)
+  gauss_histparam.fill(0.);
 
-  /* gauss tensors (stress, strains) during the global computing time loop:
+  /* For gauss tensors (stress, strains) during the global computing time loop,
+   * second dim of VariableDofArrayReal3x3 set to 3:
    * 0: values at start time (sig0, eps0, epsp0)
    * 1: values at previous step (sign, epsn, epspn)
    * 2: values at current step (sig, eps, epsp)
    * */
   gauss_stress.resize(3);
+  gauss_stress.fill(Real3x3::zero());
   gauss_strain.resize(3);
+  gauss_strain.fill(Real3x3::zero());
   gauss_strain_plastic.resize(3);
+  gauss_strain_plastic.fill(Real3x3::zero());
 
-  /* Tangent operator at Gauss points is useful for nonlinear simulations
+  /* For tangent operator at Gauss points (useful for nonlinear simulations),
+   * second dim of VariableDofArrayReal3x3 set to 4:
    * 0: 1st diagonal Real3x3 block (D)
    * 1: 2nd diagonal Real3x3 block (S)
    * 2: Upper out-of-diagonal Real3x3 block (Sup)
    * 3: Lower out-of-diagonal Real3x3 block (Slow) => in case of symmetry, Slow = 0
    * */
   gauss_tangent_operator.resize(4);
+  gauss_tangent_operator.fill(Real3x3::zero());
 
   ENUMERATE_CELL (icell, allCells()) {
     const Cell& cell = *icell;
@@ -278,8 +287,11 @@ _startInitGauss()
     LawDispatcher cell_law(lawtyp,is_default);
     RealUniqueArray lawparams = cell_law.readLawParams(lambda, mu, is_default, m_law_param_file,ilaw);
 
-    auto nblaw = lawparams.size();// For debug only
+    // For debug only
+    auto nblaw = lawparams.size();
     auto nbhist = cell_law.getNbLawHistoryParam();
+    if (nblaw > m_nb_law_param) ARCANE_FATAL("nblaw > m_nb_law_param");
+    if (nbhist > m_nb_law_hist_param) ARCANE_FATAL("nbhist > m_nb_law_hist_param");
 
     for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
       DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
@@ -308,18 +320,26 @@ _startInitGauss()
       }
 
       // Setting the law parameters on Gauss points for use during iterations
-      gauss_lawparam[gauss_pti] = lawparams;
-
-      // History parameters are set to 0. at this stage
-      // (we will see later for more complex laws)
-      gauss_histparam[gauss_pti] = RealUniqueArray(nbhist,0.);
+      for (Int32 ih = 0; ih < nblaw; ++ih)
+        gauss_lawparam[gauss_pti][ih] = lawparams[ih];
 
       // Initializing all strains/stresses to zero
+/*
       gauss_strain[gauss_pti] = Real3x3UniqueArray(3);
       gauss_strain_plastic[gauss_pti] = Real3x3UniqueArray(3);
       gauss_stress[gauss_pti] = Real3x3UniqueArray(3);
+*/
     }
   }
+  gauss_weight.synchronize();
+  gauss_refpos.synchronize();
+  gauss_shape.synchronize();
+  gauss_shapederiv.synchronize();
+  gauss_lawparam.synchronize();
+  gauss_histparam.synchronize();
+  gauss_stress.synchronize();
+  gauss_strain.synchronize();
+  gauss_strain_plastic.synchronize();
 
   auto hasStressFile{ options()->hasStress0PerCellFile() };
 
@@ -615,6 +635,10 @@ _initGaussStep()
       gauss_strain_plastic[gauss_pti][2] = Real3x3::zero();
     }
   }
+  gauss_jacobmat.synchronize();
+  gauss_stress.synchronize();
+  gauss_strain.synchronize();
+  gauss_strain_plastic.synchronize();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -761,7 +785,8 @@ _checkResultFile()
   if (filename.empty())
     return;
   const double epsilon = 1.0e-4;
-  const double min_value_to_test = 1.0e-10;
+//  const double min_value_to_test = 1.0e-10;
+  const double min_value_to_test = 1.0e-16;
   Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_displ, epsilon, min_value_to_test);
 }
 /*---------------------------------------------------------------------------*/
@@ -2561,6 +2586,14 @@ _compute_stress(bool init, bool store)
       }
     }
   }
+  gauss_strain.synchronize();
+  gauss_stress.synchronize();
+  gauss_strain_plastic.synchronize();
+  gauss_histparam.synchronize();
+
+  if (store)
+    gauss_tangent_operator.synchronize();
+
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
