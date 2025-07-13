@@ -1,11 +1,7 @@
 
 This document is intended to guide users in compiling ArcaneFEM on various clusters with different architectures. Installing codes on clusters can be challenging, so this serves as a starting point to simplify the process. The focus is on providing practical help rather than being overly detailed or perfect.
-
-<details>
-  <summary>
   
-  # Adastra 
-</summary>
+### Adastra 
 In 2024, Adastra is the Fastest supercomputer in France. 
 Adastra is a French supercomputer hosted at CINES, a Tier 1 computing site located in Montpellier. 
 The Adastra supercomputer is an HPE-Cray EX system, combined with two ClusterStor E1000 storage systems.
@@ -15,19 +11,16 @@ on GPUs (GPGPU) computations (1 AMD Trento EPYC 7A53 64 cores 2.0 GHz processor 
 8 GPUs devices (4 AMD MI250X accelerator, each with 2 GPUs) with a total of 512 Gio of HBM2 per node).
 
 In order to be able to run ArcaneFEM on Adastra in multi-gpu mode, you will need to compile dotnet, Arcane, and then ArcaneFEM, in that order. An example compilation is explained below.
+
+#### Compile dotnet on Adastra
+
   
+Arcane depends on `.Net`, this dependencie is not found on Adastra, hence we begin by installaing dotnet. 
+If you have this already installed please skip this section.
 
-  <details>
-    <summary>
-
-  #### Compile dotnet on Adastra
-  </summary>
-  
-  Arcane depends on `.Net`, this dependencie is not found on Adastra, hence we begin by installaing dotnet. 
-  If you have this already installed please skip this section.
-
-  - On your personal PC, Locally download dotNet `tar.gz` and move it to move it to Adastra.
-    Note please fill in your `ADASTRA_USERNAME`, and your `ADASTRA_PROJECT`
+- On your personal PC, Locally download dotNet `tar.gz` and move it to move it to Adastra.
+    
+> *Note*: please fill in your `ADASTRA_USERNAME`, and your `ADASTRA_PROJECT`
 
 ```bash
 export ADASTRA_USERNAME="XXXXX"
@@ -38,7 +31,7 @@ wget https://download.visualstudio.microsoft.com/download/pr/db901b0a-3144-4d07-
 scp dotnet-sdk-8.0.401-linux-x64.tar.gz ${ADASTRA_USERNAME}@adastra2.cines.fr:/lus/work/RES1/${ADASTRA_PROJECT}/${ADASTRA_USERNAME}/.
 ```
 
-  - On Adastra create working directory
+- On Adastra create working directory
 
 ```bash
 export ROOT_DIR=${WORKDIR}/ArcaneFEM
@@ -46,6 +39,7 @@ mkdir -p $ROOT_DIR
 mkdir -p $ROOT_DIR/dotnet
 cd $ROOT_DIR
 ```
+
 - Extract the archive on Adastra
 
 ```bash
@@ -53,18 +47,14 @@ cd $ROOT_DIR/dotnet
 tar xvzf ./../../dotnet-sdk-8.0.401-linux-x64.tar.gz
 rm -rf ./../../dotnet-sdk-8.0.401-linux-x64.tar.gz
 ```
- </details>
- 
-  <details>
-    <summary>
 
-  #### Compile Arcane with GPU support on Adastra
-  </summary>
+#### Compile Arcane with GPU support on Adastra
  
  - Make sure `dotnet` is installed as it is a prerequiste of Arcane, see section above on dotnet installation. If it already installed you can proceed.
+ 
  - In the following you will need to add your assocatied allocation project in the `ADASTRA_PROJECT` variable.
 
-  ```bash
+```bash
 export ADASTRA_PROJECT="XXXX"
 
 export ROOT_DIR=${WORKDIR}/ArcaneFEM
@@ -102,18 +92,15 @@ cmake -S ${SOURCE_DIR} -B ${BUILD_DIR} -DARCANEFRAMEWORK_BUILD_COMPONENTS=Arcane
 
 cd $BUILD_DIR
 make -j all install
-  ```
-**NOTE:** you will need to patch a file `ArcaneMpi.cc`    replace `is_aware = (MPIX_Query_hip_support()==1);`  to `is_aware = 0;`
-</details>
+```
 
-  <details>
-    <summary>
+**NOTE:** you will need to patch a file `ArcaneMpi.cc`    replace `is_aware = (MPIX_Query_hip_support()==1);`  to `is_aware = 0;`
+
   
-  #### Compile ArcaneFEM with GPU support on Adastra
-  </summary>
+#### Compile ArcaneFEM with GPU support on Adastra
  - In the following you will need to add your assocatied allocation project in the `ADASTRA_PROJECT` variable.
 
-  ```bash
+```bash
 export ADASTRA_PROJECT="XXXX"
 
 export ROOT_DIR=${WORKDIR}/ArcaneFEM
@@ -149,28 +136,21 @@ cmake -S ${SOURCE_PATH} -B ${BUILD_DIR} -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFI
 
 cd $BUILD_DIR
 make -j all install
-  ```
-</details>
-</details>
-
-<details>
-  <summary>
+```
   
-  # Topaz 
-</summary>
+### Topaz 
+
 Topaz is a French supercomputer hosted at CEA, designed for both CPU and GPU computing. It features 994 CPU nodes, each with 2 AMD EPYC Milan 7763 processors (128 cores per node) and 256 GB of memory, delivering 4.5 Pflops peak performance with InfiniBand HDR-100 interconnects. Additionally, it includes 75 hybrid nodes, each with 2 AMD EPYC Milan 7763 processors, 4 NVIDIA A100 GPUs, 512 GB of memory, and InfiniBand HDR interconnects, achieving 4.3 Pflops peak performance.
 
 To run ArcaneFEM on Topaz, you need to compile dotnet, Arcane, and ArcaneFEM, following the steps detailed below.
 
-<details>
-    <summary>
 
-  #### Compile dotnet on Topaz
-  </summary>
+#### Compile dotnet on Topaz
+
   
 Arcane depends on `.Net`, this dependencie is not found on Topaz, hence we begin by installaing dotnet. If you have this already installed please skip this section.
-
-  - On your personal PC, locally download dotNet `tar.gz` and move it to move it to Topaz. Note please fill in your `TOPAZ_USERNAME`, and your `TOPAZ_PROJECT`
+  
+- On your personal PC, locally download dotNet `tar.gz` and move it to move it to Topaz. Note please fill in your `TOPAZ_USERNAME`, and your `TOPAZ_PROJECT`
 
 ```bash
 export TOPAZ_USERNAME="XXXXX"
@@ -181,7 +161,7 @@ wget https://download.visualstudio.microsoft.com/download/pr/db901b0a-3144-4d07-
 scp dotnet-sdk-8.0.401-linux-x64.tar.gz ${TOPAZ_USERNAME}@topaze.ccc.cea.fr:/ccc/work/${TOPAZ_PROJECT}/${TOPAZ_USERNAME}/.
 ```
 
-  - On Topaz create working directory
+- On Topaz create working directory
 
 ```bash
 export ROOT_DIR=${CCCWORKDIR}/ArcaneFEM
@@ -189,6 +169,7 @@ mkdir -p $ROOT_DIR
 mkdir -p $ROOT_DIR/dotnet
 cd $ROOT_DIR
 ```
+
 - Extract the archive on Topaz
 
 ```bash
@@ -196,15 +177,12 @@ cd $ROOT_DIR/dotnet
 tar xvzf ./../../dotnet-sdk-8.0.401-linux-x64.tar.gz
 rm -rf ./../../dotnet-sdk-8.0.401-linux-x64.tar.gz
 ```
-</details>
 
-<details>
-    <summary>
 
-  #### Compile Arcane on Topaz
-  </summary>
+#### Compile Arcane on Topaz
+
   
-  - On your personal PC, locally checkout Arcane from GitHub and move it to Topaz. Note please fill in your `TOPAZ_USERNAME`, and your `TOPAZ_PROJECT`
+- On your personal PC, locally checkout Arcane from GitHub and move it to Topaz. Note please fill in your `TOPAZ_USERNAME`, and your `TOPAZ_PROJECT`
 
 ```bash
 export TOPAZ_USERNAME="XXXXX"
@@ -218,7 +196,8 @@ rm -rf framework
 ```
 
 - On Topaz you will need to do the following. Please note, here the idea is to pick up `hypre` and `parmetis` that was precopiled and add it locally on Topaz, since the locally avaliable packages on Topaz are not compile with CUDA version 12 support on Topaz and this is necessary for C++ 20 that ArcaneFEM absolutely needs.
-  - move framework to `ArcaneFEM` directory
+
+- move framework to `ArcaneFEM` directory
 
 ```bash
 export ROOT_DIR=${CCCWORKDIR}/ArcaneFEM
@@ -226,7 +205,8 @@ mkdir -p $ROOT_DIR
 cd $ROOT_DIR
 mv ${CCCWORKDIR}/framework .
 ```
-  - configure Arcane framework
+
+- configure Arcane framework
 
 ```bash
 export TOPAZ_USERNAME="XXXXX"
@@ -269,15 +249,10 @@ cmake --preset Arcane -DARCANEFRAMEWORK_BUILD_COMPONENTS=Arcane -DCMAKE_PREFIX_P
 cd $BUILD_DIR
 make -j all install
 ```
-  </details>
 
-<details>
-    <summary>
+#### Compile ArcaneFEM on Topaz
 
-  #### Compile ArcaneFEM on Topaz
-  </summary>
-
-  - On your personal PC, locally checkout ArcaneFEM from GitHub and move it to Topaz. Note please fill in your `TOPAZ_USERNAME`, and your `TOPAZ_PROJECT`
+- On your personal PC, locally checkout ArcaneFEM from GitHub and move it to Topaz. Note please fill in your `TOPAZ_USERNAME`, and your `TOPAZ_PROJECT`
 
 ```bash
 export TOPAZ_USERNAME="XXXXX"
@@ -337,8 +312,4 @@ cmake -S ${SOURCE_DIR} -B ${BUILD_DIR}  -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFI
 cd $BUILD_DIR
 make -j all install
 ```
-
-</details>
-
-</details>
 
