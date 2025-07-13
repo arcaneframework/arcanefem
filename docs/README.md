@@ -1,8 +1,16 @@
 # Introduction
 
-**ArcaneFEM** is a collection of high-performance Finite Element Method (FEM) solvers built on the [Arcane Framework](https://github.com/arcaneframework/framework), designed for massively parallel computing on both CPU and GPU architectures. The solver showcases advanced numerical algorithms optimized for large-scale scientific computing in heterogeneous computing environments.
-
-ArcaneFEM provides a comprehensive suite of FEM-based solvers that leverage the power of modern parallel computing architectures. Built upon the robust Arcane Framework, these solvers are engineered to handle complex engineering and scientific problems with exceptional performance and scalability.
+**ArcaneFEM** is a collection of high-performance Finite Element Method (FEM) solvers built on the [Arcane Framework](https://github.com/arcaneframework/framework), designed for massively parallel computing on both CPU and GPU architectures. The solver showcases advanced numerical algorithms optimized for large-scale scientific computing in heterogeneous computing environments.ArcaneFEM provides a comprehensive suite of FEM-based solvers that leverage the power of modern parallel computing architectures,these solvers are engineered to handle complex engineering and scientific problems with exceptional performance and scalability. ArcaneFEM provides the following solvers in 2D and 3D:
+- Laplace equation
+- Poisson equation
+- Fourier conduction (steady-state heat transfer)
+- Electrostatics
+- Potential Flow Theory (Aerodynamics)
+- Transient Heat Transfer
+- Bilaplacian problems
+- Linear Elasticity
+- Elastodynamics
+- Soildynamics
 
 ### Key Features
 
@@ -21,7 +29,6 @@ ArcaneFEM is well-suited for:
 - Structural mechanics and elasticity problems
 - Large-scale engineering simulations
 - High-performance computing research
-- Multi-physics simulations requiring scalable numerical methods
 
 ### Architecture
 
