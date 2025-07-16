@@ -48,6 +48,7 @@ export ARCANE_INSTALL_DIR=/path/to/arcane/installation
 # Optional: Add to your shell profile (.bashrc, .zshrc, etc.)
 echo "export ARCANE_INSTALL_DIR=/path/to/arcane/installation" >> ~/.bashrc
 ```
+> Note: How to compile Arcane has been explained in the next section. 
 
 #### Step 3: Configure Build
 ```bash
@@ -86,10 +87,12 @@ cd elasticity
 
 ## System-Specific Install
 
+<!-- tabs:start -->
+
 ### **Ubuntu 24.04 NVIDIA**
+- Install required packages
 
 ```bash
-# Install required packages
 sudo apt-get update
 sudo apt install -y apt-utils build-essential iputils-ping python3 swig \
   git g++-12 gcc-12 gfortran nvidia-cuda-toolkit \
@@ -102,8 +105,11 @@ sudo apt install -y apt-utils build-essential iputils-ping python3 swig \
   libtrilinos-triutils-dev libtrilinos-thyra-dev \
   libtrilinos-kokkos-kernels-dev libtrilinos-rtop-dev \
   libtrilinos-isorropia-dev libtrilinos-belos-dev
+```
 
-# Cmake configure Arcane Framework
+- Cmake configure Arcane Framework
+
+```bash
 cmake -S /path/to/Arcane/sources -B /path/to/Arcane/build \
    -DCMAKE_INSTALL_PREFIX=$HOME/framework-install \
    -DARCANEFRAMEWORK_BUILD_COMPONENTS=Arcane \
@@ -113,32 +119,42 @@ cmake -S /path/to/Arcane/sources -B /path/to/Arcane/build \
    -DARCANE_ACCELERATOR_MODE=CUDANVCC \
    -DCMAKE_CUDA_COMPILER=/usr/local/cuda-12.8/bin/nvcc \
    -DARCCORE_CXX_STANDARD=20
+```
 
-# Install Arcane Framework
+- Install Arcane Framework
+
+```bash
 cd /path/to/Arcane/build
 make -j all
 make install
+```
 
-# Cmake configure ArcaneFEM
+- Cmake configure ArcaneFEM
+
+```bash
 cmake -S /path/to/ArcaneFEM/sources -B /path/to/ArcaneFEM/build \ 
    -DCMAKE_PREFIX_PATH=$HOME/framework-install \
    -DCMAKE_BUILD_TYPE=Release \
    -DCMAKE_CXX_STANDARD=20
+```
 
-# Install ArcaneFEM
+- Install ArcaneFEM
+
+```bash
 cd /path/to/ArcaneFEM/build
 make -j all
+```
 
-# Testing
+- Testing
+
+```bash
 ctest
 ```
 
 ### **Ubuntu 24.04 AMD**
-
-- Follow ROCm and AMDGPU [installation instructions](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/install/quick-start.html) to have the `rocm` and `amdgpu-dkms` packages avaliable for install. 
+- Install required packages
 
 ```bash
-# Install required packages
 sudo apt-get update
 sudo apt install -y apt-utils build-essential iputils-ping python3 swig \
   git g++-12 gcc-12 gfortran rocm amdgpu-dkms \
@@ -151,14 +167,22 @@ sudo apt install -y apt-utils build-essential iputils-ping python3 swig \
   libtrilinos-triutils-dev libtrilinos-thyra-dev \
   libtrilinos-kokkos-kernels-dev libtrilinos-rtop-dev \
   libtrilinos-isorropia-dev libtrilinos-belos-dev
+```
+> Note: Follow ROCm and AMDGPU [installation instructions](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/install/quick-start.html) to have the `rocm` and `amdgpu-dkms` packages avaliable for install.
 
-# Set env variables
+
+- Set env variables
+
+```bash
 export ROCM_ROOT=/opt/rocm-6.4.1-60401
 export CC=/opt/rocm/llvm/bin/clang
 export CXX=/opt/rocm/llvm/bin/clang++
 export CMAKE_HIP_COMPILER=/opt/rocm/hip/bin/hipcc
+```
 
-# Cmake configure Arcane Framework (use rocminfo to get DCMAKE_HIP_ARCHITECTURES)
+- Cmake configure Arcane Framework (use rocminfo to get DCMAKE_HIP_ARCHITECTURES)
+
+```bash
 cmake -S /path/to/Arcane/sources -B /path/to/Arcane/build \
    -DCMAKE_INSTALL_PREFIX=$HOME/framework-install \
    -DARCANEFRAMEWORK_BUILD_COMPONENTS=Arcane \
@@ -166,32 +190,49 @@ cmake -S /path/to/Arcane/sources -B /path/to/Arcane/build \
    -DARCANE_ACCELERATOR_MODE=ROCMHIP \
    -DCMAKE_HIP_ARCHITECTURES=gfx90a \
    -DARCCORE_CXX_STANDARD=20
+```
 
-# Install Arcane Framework
+- Install Arcane Framework
+
+```bash
 cd /path/to/Arcane/build
 make -j all
 make install
+```
 
-# Cmake configure ArcaneFEM
+- Cmake configure ArcaneFEM
+
+```bash
 cmake -S /path/to/ArcaneFEM/sources -B /path/to/ArcaneFEM/build \ 
    -DCMAKE_PREFIX_PATH=$HOME/framework-install \
    -DCMAKE_BUILD_TYPE=Release \
    -DCMAKE_CXX_STANDARD=20
+```
 
-# Install ArcaneFEM
+- Install ArcaneFEM
+
+```bash
 cd /path/to/ArcaneFEM/build
 make -j all
+```
 
-# Testing
+- Testing
+
+```bash
 ctest
 ```
 
-### macOS 15.5
-```bash
-# Using Homebrew
-brew install git cmake gcc open-mpi hdf5-mpi scotch glib dotnet
+### **macOS 15.5**
 
-# Cmake configure Arcane Framework
+- Using Homebrew
+
+```bash
+brew install git cmake gcc open-mpi hdf5-mpi scotch glib dotnet
+```
+
+- Cmake configure Arcane Framework
+
+```bash
 cmake -S /path/to/Arcane/sources -B /path/to/Arcane/build \
     -DCMAKE_INSTALL_PREFIX=$HOME/framework-install \
     -DARCANEFRAMEWORK_BUILD_COMPONENTS=Arcane \
@@ -202,25 +243,43 @@ cmake -S /path/to/Arcane/sources -B /path/to/Arcane/build \
     -DCMAKE_DISABLE_FIND_PACKAGE_SWIG=TRUE \
     -DCMAKE_DISABLE_FIND_PACKAGE_Hypre=TRUE \
     -DCMAKE_DISABLE_FIND_PACKAGE_PETSc=TRUE
+```
 
-# Install Arcane Framework
+- Install Arcane Framework
+
+```bash
 cd /path/to/Arcane/build
 make -j$(sysctl -n hw.ncpu)
 make install
+```
 
-# Cmake configure ArcaneFEM
+- Cmake configure ArcaneFEM
+
+```bash
 cmake -S /path/to/ArcaneFEM/sources -B /path/to/ArcaneFEM/build \ 
    -DCMAKE_PREFIX_PATH=$HOME/framework-install \
    -DCMAKE_BUILD_TYPE=Release \
    -DCMAKE_CXX_STANDARD=20
+```
 
-# Install ArcaneFEM
+- Install ArcaneFEM
+
+```bash
 cd /path/to/ArcaneFEM/build
 make -j$(sysctl -n hw.ncpu)
+```
 
-# Testing
+- Testing
+
+```bash
 ctest
 ```
+
+<!-- tabs:end -->
+
+
+
+
 
 ## Troubleshooting
 
