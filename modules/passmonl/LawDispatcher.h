@@ -76,10 +76,14 @@ public:
     void  setName(const String& name) { m_name = name; }
     void  setDefault(bool is_default) { m_default = is_default; }
     void setLawParams(const RealUniqueArray& lawparams) {
-      m_law_params = lawparams.clone();
+        Int32 i{0};
+        for (const auto& r : lawparams)
+            m_law_params[i++] = r;
     }
     void setLawHistoryParams(const RealUniqueArray& lawhistparams) {
-      m_history_vars = lawhistparams.clone();
+        Int32 i{0};
+        for (const auto& r : lawhistparams)
+            m_history_vars[i++] = r;
     }
 
 private:

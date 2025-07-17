@@ -468,7 +468,7 @@ void NLDynamicModule::
 _applyInitialCellConditions(){
 
   m_nb_law_param = 2;
-  m_nb_law_hist_param = 0.;
+  m_nb_law_hist_param = 0;
   if (options()->hasLawInputParam())
     m_law_param_file = options()->lawInputParam();
 
@@ -580,7 +580,6 @@ _initGaussStep()
   VariableDoFReal& gauss_jacobian(m_gauss_on_cells.gaussJacobian());
   VariableDoFReal3& gauss_refpos(m_gauss_on_cells.gaussRefPosition());
   VariableDoFReal3x3& gauss_jacobmat(m_gauss_on_cells.gaussJacobMat());
-  VariableDoFArrayReal& gauss_shape(m_gauss_on_cells.gaussShape());
   VariableDoFArrayReal3& gauss_shapederiv(m_gauss_on_cells.gaussShapeDeriv());
   VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
   VariableDoFArrayReal3x3& gauss_strain(m_gauss_on_cells.gaussStrain());
@@ -633,6 +632,7 @@ _initGaussStep()
       gauss_stress[gauss_pti][2] = Real3x3::zero();
       gauss_strain[gauss_pti][2] = Real3x3::zero();
       gauss_strain_plastic[gauss_pti][2] = Real3x3::zero();
+
     }
   }
   gauss_jacobmat.synchronize();
