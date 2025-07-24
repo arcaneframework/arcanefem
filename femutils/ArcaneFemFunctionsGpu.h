@@ -406,20 +406,23 @@ namespace BoundaryConditionsHelpers
     NodeInfoListView nodes_infos(mesh->nodeFamily());
     auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
     auto cn_cv = connectivity_view.cellNode();
+    auto nc_cv = connectivity_view.nodeCell();
 
     auto command = Accelerator::makeCommand(queue);
 
     auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
     auto in_node_coord = Accelerator::viewIn(command, node_coord);
 
-    command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh->allCells())
+    // Iterate over all nodes and compute the contribution to the RHS
+    command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, mesh->allNodes())
     {
-      Real domain = computeSpatialIntegral(cell_lid, cn_cv, in_node_coord);
-      for (NodeLocalId node_lid : cn_cv.nodes(cell_lid)) {
-        if (nodes_infos.isOwn(node_lid)) {
-          Real value = qdot * domain / cn_cv.nbItem(cell_lid);
-          Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], value);
+      if (nodes_infos.isOwn(node_lid)) {
+        Real sum = 0.0;
+        for (CellLocalId cell_lid : nc_cv.cells(node_lid)) {
+          Real domain = computeSpatialIntegral(cell_lid, cn_cv, in_node_coord);
+          sum += qdot * domain / cn_cv.nbItem(cell_lid);
         }
+        in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)] = sum;
       }
     };
   }
