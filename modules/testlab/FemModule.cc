@@ -1394,50 +1394,107 @@ _assembleCsrGpuLinearOperator()
     };
   }
 
+  // If the mesh is 3D, we need to handle the tetrahedral elements
+  // for the constant source term assembly
   if (mesh()->dimension() == 3) {
+
     Timer::Action timer_action(m_time_stats, "CsrGpuConstantSourceTermAssembly");
-    //----------------------------------------------
-    // Constant source term assembly
-    //----------------------------------------------
-    //
-    //  $int_{Omega}(f*v^h)$
-    //  only for noded that are non-Dirichlet
-    //----------------------------------------------
 
-    RunQueue* queue = acceleratorMng()->defaultQueue();
-    auto command = makeCommand(queue);
+    // Cell-wise assembly for constant source term
+    // This is the default method for CSR GPU
+    // It uses atomic operations to ensure thread safety
+    if (m_use_csr_gpu || m_use_csr) {
 
-    auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
+      info() << "[ArcaneFem-Info] Started CsrGpuConstantSourceTermAssembly_CellWise";
+      Real elapsedTime = platform::getRealTime();
 
-    auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+      //----------------------------------------------
+      // Constant source term assembly
+      //----------------------------------------------
+      //
+      //  $int_{Omega}(f*v^h)$
+      //  only for noded that are non-Dirichlet
+      //----------------------------------------------
 
-    Real tmp_f = f;
-    Real tmp_ElementNodes = ElementNodes;
+      RunQueue* queue = acceleratorMng()->defaultQueue();
+      auto command = makeCommand(queue);
 
-    UnstructuredMeshConnectivityView m_connectivity_view;
-    auto in_node_coord = ax::viewIn(command, m_node_coord);
-    m_connectivity_view.setMesh(this->mesh());
-    auto cnc = m_connectivity_view.cellNode();
-    Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    // In this loop :
-    // m_u_dirichlet must be adapted
-    // node.isOwn must be adapted
-    // m_rhs_vect must also be replaced
-    // f and Element nodes must be put in local variable
-    // computeArea must be replaced
+      auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
 
-    command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
-    {
-      Real area = _computeAreaTetra4Gpu(icell, cnc, in_node_coord);
-      for (NodeLocalId node : cnc.nodes(icell)) {
-        if (!(in_m_u_dirichlet(node)) && nodes_infos.isOwn(node)) {
-          // Original code
-          Real val = tmp_f * area / tmp_ElementNodes;
-          ax::doAtomic<ax::eAtomicOperation::Add>(in_out_rhs_vect(node_dof.dofId(node, 0)), val);
+      auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+
+      Real tmp_f = f;
+      Real tmp_ElementNodes = ElementNodes;
+
+      UnstructuredMeshConnectivityView m_connectivity_view;
+      auto in_node_coord = ax::viewIn(command, m_node_coord);
+      m_connectivity_view.setMesh(this->mesh());
+      auto cnc = m_connectivity_view.cellNode();
+      Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+      auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+      // In this loop :
+      // m_u_dirichlet must be adapted
+      // node.isOwn must be adapted
+      // m_rhs_vect must also be replaced
+      // f and Element nodes must be put in local variable
+      // computeArea must be replaced
+
+      // Cell-wise parallel loop: each cell accumulates its own RHS value
+      command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
+      {
+        Real area = _computeAreaTetra4Gpu(icell, cnc, in_node_coord);
+        for (NodeLocalId node : cnc.nodes(icell)) {
+          if (!(in_m_u_dirichlet(node)) && nodes_infos.isOwn(node)) {
+            // Original code
+            Real val = tmp_f * area / tmp_ElementNodes;
+            ax::doAtomic<ax::eAtomicOperation::Add>(in_out_rhs_vect(node_dof.dofId(node, 0)), val);
+          }
         }
-      }
-    };
+      };
+
+      elapsedTime = platform::getRealTime() - elapsedTime;
+      _printArcaneFemTime("[ArcaneFem-Timer] csr-Gpu-source-trm-asmbl", elapsedTime);
+    }
+
+    // Node-wise assembly for constant source term
+    // This is an alternative to the cell-wise assembly (no atomic operations)
+    if (m_use_buildless_csr || m_use_nodewise_csr) {
+      info() << "[ArcaneFem-Info] Started CsrGpuConstantSourceTermAssembly_NodeWise";
+      Real elapsedTime = platform::getRealTime();
+
+      RunQueue* queue = acceleratorMng()->defaultQueue();
+      auto command = makeCommand(queue);
+
+      auto in_m_u_dirichlet = ax::viewIn(command, m_u_dirichlet);
+      auto in_node_coord = ax::viewIn(command, m_node_coord);
+      auto in_out_rhs_vect = ax::viewInOut(command, m_rhs_vect);
+
+      Real tmp_f = f;
+      Real tmp_ElementNodes = ElementNodes;
+
+      UnstructuredMeshConnectivityView connectivity_view;
+      connectivity_view.setMesh(this->mesh());
+      auto n_c_connectivity = connectivity_view.nodeCell();
+      auto c_n_connectivity = connectivity_view.cellNode();
+      Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
+      auto node_dof = m_dofs_on_nodes.nodeDoFConnectivityView();
+
+      // Node-wise parallel loop: each node accumulates its own RHS value
+      command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
+      {
+        if (!in_m_u_dirichlet(inode) && nodes_infos.isOwn(inode)) {
+          Real sum = 0.0;
+          for (CellLocalId icell : n_c_connectivity.cells(inode)) {
+            Real volume = _computeAreaTetra4Gpu(icell, c_n_connectivity, in_node_coord);
+            sum += tmp_f * volume / tmp_ElementNodes;
+          }
+          in_out_rhs_vect(node_dof.dofId(inode, 0)) = sum;
+        }
+      };
+
+      elapsedTime = platform::getRealTime() - elapsedTime;
+      _printArcaneFemTime("[ArcaneFem-Timer] af-csr-Gpu-source-trm-asmbl", elapsedTime);
+    }
   }
 
   {
