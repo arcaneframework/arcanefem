@@ -295,9 +295,9 @@ void FemModule::_assembleNodeWiseCsrBilinearOperatorTetra4()
   auto ncc = m_connectivity_view.nodeCell();
   auto cnc = m_connectivity_view.cellNode();
   Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
-  Arcane::ItemGenericInfoListView cells_infos(this->mesh()->cellFamily());
 
   Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
+
   command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
   {
     Int32 inode_index = 0;
