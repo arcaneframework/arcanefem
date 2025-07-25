@@ -86,25 +86,14 @@ void FemModule::_buildMatrixGpuBuildLessCsr()
   UnstructuredMeshConnectivityView connectivity_view;
   connectivity_view.setMesh(this->mesh());
 
-  if (mesh()->dimension() == 2) {
-    auto nfc = connectivity_view.nodeFace();
-    command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
-    {
-      Int64 index = node_dof.dofId(inode, 0).localId();
-      in_out_tmp_row[index] = nfc.nbFace(inode) + 1;
-    };
-  }
-  else { // 3D mesh via node-node connectivity
-    auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
-    ARCANE_CHECK_POINTER(connectivity_ptr);
-    IndexedNodeNodeConnectivityView node_node_connectivity_view = connectivity_ptr->view();
-    auto command = makeCommand(queue);
-    command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
-    {
-      Int64 index = node_dof.dofId(inode, 0).localId();
-      in_out_tmp_row[index] = node_node_connectivity_view.nbNode(inode) + 1;
-    };
-  }
+  auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
+  ARCANE_CHECK_POINTER(connectivity_ptr);
+  IndexedNodeNodeConnectivityView node_node_connectivity_view = connectivity_ptr->view();
+  command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
+  {
+    Int64 index = node_dof.dofId(inode, 0).localId();
+    in_out_tmp_row[index] = node_node_connectivity_view.nbNode(inode) + 1;
+  };
 
   ax::Scanner<Int32> scanner;
   scanner.exclusiveSum(queue, tmp_row, m_csr_matrix.m_matrix_row);
