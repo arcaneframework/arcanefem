@@ -96,28 +96,15 @@ void FemModule::_buildOffsetsNodeWiseCsr(const SmallSpan<uint>& offsets_smallspa
   neighbors[0] = 0;
   SmallSpan<uint> in_data = neighbors.to1DSmallSpan();
 
-  // Select and execute the appropriate offset update based on mesh type
-  if (mesh()->dimension() == 2) { // 2D mesh via node-face connectivity
-    UnstructuredMeshConnectivityView connectivity_view(mesh());
-    auto node_face_connectivity_view = connectivity_view.nodeFace();
+  auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
+  ARCANE_CHECK_POINTER(connectivity_ptr);
+  IndexedNodeNodeConnectivityView node_node_connectivity_view = connectivity_ptr->view();
 
-    auto command = makeCommand(queue);
-    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
-    {
-      in_data[node_id + 1] = node_face_connectivity_view.nbFace(node_id) + 1;
-    };
-  }
-  else { // 3D mesh via node-node connectivity
-    auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
-    ARCANE_CHECK_POINTER(connectivity_ptr);
-    IndexedNodeNodeConnectivityView node_node_connectivity_view = connectivity_ptr->view();
-
-    auto command = makeCommand(queue);
-    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
-    {
-      in_data[node_id + 1] = node_node_connectivity_view.nbNode(node_id) + 1;
-    };
-  }
+  auto command = makeCommand(queue);
+  command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
+  {
+    in_data[node_id + 1] = node_node_connectivity_view.nbNode(node_id) + 1;
+  };
   queue->barrier();
 
   // Do the inclusive sum for CSR row array (in_data)
@@ -146,51 +133,22 @@ _buildMatrixNodeWiseCsr()
   auto out_m_matrix_row = viewOut(command, m_csr_matrix.m_matrix_row);
   auto inout_m_matrix_column = viewInOut(command, m_csr_matrix.m_matrix_column);
 
-  // Select and execute the CSR matrix population based on mesh type
-  if (mesh_dim == 2) { // 2D mesh via node-face & face-node connectivity
-    UnstructuredMeshConnectivityView connectivity_view(mesh());
+  auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
+  ARCANE_CHECK_POINTER(connectivity_ptr);
+  IndexedNodeNodeConnectivityView node_node_connectivity_view = connectivity_ptr->view();
 
-    auto node_face_connectivity_view = connectivity_view.nodeFace();
-    auto face_node_connectivity_view = connectivity_view.faceNode();
+  command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
+  {
+    auto offset = offsets_smallspan[node_id];
+    out_m_matrix_row[node_id] = offset;
 
-    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
-    {
-      // Retrieve the offset from the inclusive sum
-      auto offset = offsets_smallspan[node_id];
+    for (auto neighbor_idx : node_node_connectivity_view.nodeIds(node_id)) {
+      inout_m_matrix_column[offset] = neighbor_idx;
+      ++offset;
+    }
 
-      // Put the offset into CSR row array
-      out_m_matrix_row[node_id] = offset;
-
-      for (auto face_id : node_face_connectivity_view.faceIds(node_id)) {
-        auto nodes = face_node_connectivity_view.nodes(face_id);
-
-        // Put the neighbor of the current node into CSR column array
-        inout_m_matrix_column[offset] = nodes[0] == node_id ? nodes[1] : nodes[0];
-
-        ++offset;
-      }
-
-      inout_m_matrix_column[offset] = node_id; // Self-relation
-    };
-  }
-  else { // 3D mesh via node-node connectivity
-    auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
-    ARCANE_CHECK_POINTER(connectivity_ptr);
-    IndexedNodeNodeConnectivityView node_node_connectivity_view = connectivity_ptr->view();
-
-    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
-    {
-      auto offset = offsets_smallspan[node_id];
-      out_m_matrix_row[node_id] = offset;
-
-      for (auto neighbor_idx : node_node_connectivity_view.nodeIds(node_id)) {
-        inout_m_matrix_column[offset] = neighbor_idx;
-        ++offset;
-      }
-
-      inout_m_matrix_column[offset] = node_id;
-    };
-  }
+    inout_m_matrix_column[offset] = node_id;
+  };
 }
 
 /*---------------------------------------------------------------------------*/

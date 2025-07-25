@@ -133,6 +133,7 @@ startInit()
       _printArcaneFemTime("[ArcaneFem-Timer] init-nde-nde-contvty", (platform::getRealTime() - TimeStart));
     }
     else {
+      m_node_node_via_edge_connectivity = MeshUtils::computeNodeNodeViaEdgeConnectivity(defaultMesh(), "NodeNodeViaEdge");
       m_nb_edge = mesh->nbEdge();
     }
 
