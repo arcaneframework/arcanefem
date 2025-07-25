@@ -1596,7 +1596,7 @@ _assembleCsrGpuLinearOperator()
         m_connectivity_view.setMesh(this->mesh());
         auto fnc = m_connectivity_view.faceNode();
         Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
-        Arcane::FaceInfoListView faces_infos(this->mesh()->nodeFamily());
+        Arcane::FaceInfoListView faces_infos(this->mesh()->faceFamily());
         auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
         // In this loop :
@@ -1635,7 +1635,7 @@ _assembleCsrGpuLinearOperator()
         m_connectivity_view.setMesh(this->mesh());
         auto fnc = m_connectivity_view.faceNode();
         Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
-        Arcane::FaceInfoListView faces_infos(this->mesh()->nodeFamily());
+        Arcane::FaceInfoListView faces_infos(this->mesh()->faceFamily());
         auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
         // In this loop :
@@ -1674,7 +1674,7 @@ _assembleCsrGpuLinearOperator()
         m_connectivity_view.setMesh(this->mesh());
         auto fnc = m_connectivity_view.faceNode();
         Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
-        Arcane::FaceInfoListView faces_infos(this->mesh()->nodeFamily());
+        Arcane::FaceInfoListView faces_infos(this->mesh()->faceFamily());
         auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
         // In this loop :
@@ -2019,10 +2019,7 @@ _solve()
   if (do_print) {
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      info() << "u[" << node.localId() << "][" << node.uniqueId() << "] = "
-             << m_u[node];
-      //info() << "u[]" << node.uniqueId() << " "
-      //       << m_u[node];
+      info() << "u[" << node.uniqueId() << "] = " << m_u[node];
     }
   }
 }
