@@ -1436,7 +1436,7 @@ _assembleCsrGpuLinearOperator()
             Real volume = _computeAreaTriangle3Gpu(icell, c_n_connectivity, in_node_coord);
             sum += source_term * volume / element_node_count;
           }
-          in_out_rhs_vect(node_dof.dofId(inode, 0)) = sum;
+          in_out_rhs_vect(node_dof.dofId(inode, 0)) += sum;
         }
       };
     }
@@ -1531,6 +1531,8 @@ _assembleCsrGpuLinearOperator()
 
   {
     Timer::Action timer_action(m_time_stats, "CsrGpuConstantFluxTermAssembly");
+    info() << "[ArcaneFem-Info] Started CsrGpuConstantFluxTermAssembly";
+    Real elapsedTime = platform::getRealTime();
 
     //----------------------------------------------
     // Constant flux term assembly
@@ -1696,6 +1698,9 @@ _assembleCsrGpuLinearOperator()
         continue;
       }
     }
+
+    elapsedTime = platform::getRealTime() - elapsedTime;
+    _printArcaneFemTime("[ArcaneFem-Timer] csr-Gpu-flux-asmbl", elapsedTime);
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;

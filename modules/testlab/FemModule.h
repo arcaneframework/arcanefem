@@ -213,7 +213,6 @@ class FemModule
 
   void _handleFlags();
   void _getMaterialParameters();
-  void _updateBoundayConditions();
   void _checkCellType();
   void _assembleBilinearOperatorTRIA3();
   void _assembleBilinearOperatorTETRA4();
