@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Testlab" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>Cut circle 2D with CSR sparse matrix format Gpu compatible and node wise technique. The result of this test is compared with poisson_test_ref_circle_2D.txt</title>
+    <title>Cut circle 2D with DOK sparse matrix format. PETSc is used as linear-system backend. The result of this test is compared with poisson_test_ref_circle_x.txt</title>
     <timeloop>TestlabLoop</timeloop>
   </arcane>
 

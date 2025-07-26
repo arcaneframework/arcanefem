@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Testlab" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>Sample</title>
+    <title>Testlab: L-shape 2D with Homogeneous Dirichlet boundary and Trilinos Linear System solver.</title>
     <timeloop>TestlabLoop</timeloop>
   </arcane>
 

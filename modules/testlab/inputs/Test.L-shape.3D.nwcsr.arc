@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Testlab" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>L-shape 3D with CSR sparse matrix format Gpu compatible and node wise technique. The result of this test is compared with poisson_test_ref_L-shape_3D.txt</title>
+    <title>Testlab: 3D L-Shape with Node-Wise CSR (NWCSR) Format and PETSc Linear System Solver</title>
     <timeloop>TestlabLoop</timeloop>
   </arcane>
 

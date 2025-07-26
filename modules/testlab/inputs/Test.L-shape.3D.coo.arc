@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Testlab" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>L-Shape 3D with COO sparse matrix format. The result of this test is compared with poisson_test_ref_L-shape_3D.txt.</title>
+    <title>Testlab: 3D L-Shape with COO Format and PETSc Linear System Solver</title>
     <timeloop>TestlabLoop</timeloop>
   </arcane>
 

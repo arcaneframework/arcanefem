@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Testlab" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>Sample</title>
+    <title>Testlab: 3D Sphere with Horizontal Dirichlet Boundary (Atomic Free BSR-GPU Format, Hypre Linear System Solver, Penalty Method)</title>
     <timeloop>TestlabLoop</timeloop>
   </arcane>
 

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Testlab" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>Sphere 3D with CSR sparse matrix format Gpu compatible. The result of this test is compared with poisson_test_ref_sphere_3D.txt</title>
+    <title>Testlab: 3D Sphere with Horizontal Dirichlet Boundary (CSR-GPU Format, Hypre Linear System Solver, Penalty Method)</title>
     <timeloop>TestlabLoop</timeloop>
   </arcane>
 

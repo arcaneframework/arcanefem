@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Testlab" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>Cut circle 2D with CSR sparse matrix format Gpu compatible and node wise technique. The result of this test is compared with poisson_test_ref_circle_2D.txt</title>
+    <title>Testlab: 2D Circle with Horizontal Dirichlet Boundaries (CSR Format, Hypre Linear System Solver)</title>
     <timeloop>TestlabLoop</timeloop>
   </arcane>
 
