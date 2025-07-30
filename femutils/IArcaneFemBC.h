@@ -29,7 +29,7 @@ class IDirichletBoundaryCondition
 {
  public:
   virtual Arcane::FaceGroup getSurface() =0;
-  virtual Real getValue() =0;
+  virtual StringConstArrayView getValue() =0;
   virtual Real getPenalty() =0;
   virtual String getEnforceDirichletMethod() =0;
 };
