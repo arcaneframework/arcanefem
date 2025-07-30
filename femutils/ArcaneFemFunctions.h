@@ -1055,19 +1055,24 @@ class ArcaneFemFunctions
     static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& /*node_coord*/, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
     {
       NodeGroup node_group = bs->getNode();
-      Real value = bs->getValue();
-      if( bs->getEnforceDirichletMethod() == "Penalty" ){
-        Real penalty = bs->getPenalty();
-        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
-      }
-      else if( bs->getEnforceDirichletMethod() == "RowElimination"){
-        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
-      }
-      else if ( bs->getEnforceDirichletMethod() == "RowColumnElimination"){
-        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
-      }
-      else{
-        ARCANE_FATAL("Unknown Dirichlet method");
+      const StringConstArrayView u_dirichlet_string = bs->getValue();
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real value = std::stod(u_dirichlet_string[i].localstr());
+          if (bs->getEnforceDirichletMethod() == "Penalty") {
+            Real penalty = bs->getPenalty();
+            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
+          }
+          else if (bs->getEnforceDirichletMethod() == "RowElimination") {
+            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+          }
+          else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
+            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+          }
+          else {
+            ARCANE_FATAL("Unknown Dirichlet method");
+          }
+        }
       }
     }
 
@@ -1382,19 +1387,24 @@ class ArcaneFemFunctions
     static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& /*node_coord*/, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
     {
       NodeGroup node_group = bs->getNode();
-      Real value = bs->getValue();
-      if( bs->getEnforceDirichletMethod() == "Penalty" ){
-        Real penalty = bs->getPenalty();
-        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
-      }
-      else if( bs->getEnforceDirichletMethod() == "RowElimination"){
-        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
-      }
-      else if ( bs->getEnforceDirichletMethod() == "RowColumnElimination"){
-        ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
-      }
-      else{
-        ARCANE_FATAL("Unknown Dirichlet method");
+      const StringConstArrayView u_dirichlet_string = bs->getValue();
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real value = std::stod(u_dirichlet_string[i].localstr());
+          if (bs->getEnforceDirichletMethod() == "Penalty") {
+            Real penalty = bs->getPenalty();
+            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
+          }
+          else if (bs->getEnforceDirichletMethod() == "RowElimination") {
+            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+          }
+          else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
+            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+          }
+          else {
+            ARCANE_FATAL("Unknown Dirichlet method");
+          }
+        }
       }
     }
 

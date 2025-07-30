@@ -54,7 +54,7 @@
           NodeGroup on which to apply these point Dirichlet condition
         </description>
       </extended>
-      <simple name = "value" type = "real">
+      <simple name = "value" type = "string[]">
         <description>
           Value of the point Dirichlet condition
         </description>

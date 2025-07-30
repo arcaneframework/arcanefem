@@ -545,10 +545,15 @@ namespace BoundaryConditions
   inline void applyPointDirichletViaPenalty(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
   {
     ARCANE_CHECK_PTR(bs);
-    Real value = bs->getValue();
-    Real penalty = bs->getPenalty();
     NodeGroup node_group = bs->getNode();
-    BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
+    Real penalty = bs->getPenalty();
+    const StringConstArrayView u_dirichlet_str = bs->getValue();
+    for (Int32 i = 0; i < u_dirichlet_str.size(); ++i) {
+      if (u_dirichlet_str[i] != "NULL") {
+        Real value = std::stod(u_dirichlet_str[i].localstr());
+        BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
+      }
+    }
   }
 
   /*---------------------------------------------------------------------------*/
