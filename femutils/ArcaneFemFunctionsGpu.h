@@ -497,11 +497,16 @@ namespace BoundaryConditions
   inline void applyDirichletViaPenalty(BC::IDirichletBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
   {
     ARCANE_CHECK_PTR(bs);
-    Real value = bs->getValue();
     Real penalty = bs->getPenalty();
     FaceGroup face_group = bs->getSurface();
     NodeGroup node_group = face_group.nodeGroup();
-    BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
+    const StringConstArrayView u_dirichlet_string = bs->getValue();
+    for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+      if (u_dirichlet_string[i] != "NULL") {
+        Real value = std::stod(u_dirichlet_string[i].localstr());
+        BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
+      }
+    }
   }
 
   /*---------------------------------------------------------------------------*/
@@ -545,10 +550,15 @@ namespace BoundaryConditions
   inline void applyPointDirichletViaPenalty(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
   {
     ARCANE_CHECK_PTR(bs);
-    Real value = bs->getValue();
-    Real penalty = bs->getPenalty();
     NodeGroup node_group = bs->getNode();
-    BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
+    Real penalty = bs->getPenalty();
+    const StringConstArrayView u_dirichlet_str = bs->getValue();
+    for (Int32 i = 0; i < u_dirichlet_str.size(); ++i) {
+      if (u_dirichlet_str[i] != "NULL") {
+        Real value = std::stod(u_dirichlet_str[i].localstr());
+        BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
+      }
+    }
   }
 
   /*---------------------------------------------------------------------------*/
@@ -617,7 +627,12 @@ class BoundaryConditions2D
     ARCANE_CHECK_PTR(mesh);
 
     FaceGroup group = bs->getSurface();
-    bool has_value = bs->hasValue();
+    bool scalarNeumann = false;
+    const StringConstArrayView neumann_str = bs->getValue();
+
+    if (neumann_str.size() == 1 && neumann_str[0] != "NULL") {
+      scalarNeumann = true;
+    }
 
     UnstructuredMeshConnectivityView connectivity_view;
     connectivity_view.setMesh(mesh);
@@ -625,9 +640,9 @@ class BoundaryConditions2D
     auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
     auto fn_cv = connectivity_view.faceNode();
 
-    if (has_value) {
+    if (scalarNeumann) {
       {
-        Real value = bs->getValue();
+        Real value = std::stod(neumann_str[0].localstr());
 
         auto command = Accelerator::makeCommand(queue);
         auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
@@ -646,8 +661,8 @@ class BoundaryConditions2D
     }
     else {
       {
-        Real value_x = bs->hasValueX() ? bs->getValueX() : 0.0;
-        Real value_y = bs->hasValueY() ? bs->getValueY() : 0.0;
+        Real value_x = neumann_str[0] != "NULL" ? std::stod(neumann_str[0].localstr()) : 0.0;
+        Real value_y = neumann_str[1] != "NULL" ? std::stod(neumann_str[1].localstr()) : 0.0;
 
         auto command = Accelerator::makeCommand(queue);
         auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
@@ -707,7 +722,13 @@ class BoundaryConditions3D
     ARCANE_CHECK_PTR(mesh);
 
     FaceGroup group = bs->getSurface();
-    bool has_value = bs->hasValue();
+
+    bool scalarNeumann = false;
+    const StringConstArrayView neumann_str = bs->getValue();
+
+    if (neumann_str.size() == 1 && neumann_str[0] != "NULL") {
+      scalarNeumann = true;
+    }
 
     UnstructuredMeshConnectivityView connectivity_view;
     connectivity_view.setMesh(mesh);
@@ -715,9 +736,9 @@ class BoundaryConditions3D
     auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
     auto fn_cv = connectivity_view.faceNode();
 
-    if (has_value) {
+    if (scalarNeumann) {
       {
-        Real value = bs->getValue();
+        Real value = std::stod(neumann_str[0].localstr());
 
         auto command = Accelerator::makeCommand(queue);
         auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
@@ -736,9 +757,9 @@ class BoundaryConditions3D
     }
     else {
       {
-        Real value_x = bs->hasValueX() ? bs->getValueX() : 0.0;
-        Real value_y = bs->hasValueY() ? bs->getValueY() : 0.0;
-        Real value_z = bs->hasValueZ() ? bs->getValueZ() : 0.0;
+        Real value_x = neumann_str[0] != "NULL" ? std::stod(neumann_str[0].localstr()) : 0.0;
+        Real value_y = neumann_str[1] != "NULL" ? std::stod(neumann_str[1].localstr()) : 0.0;
+        Real value_z = neumann_str[2] != "NULL" ? std::stod(neumann_str[2].localstr()) : 0.0;
 
         auto command = Accelerator::makeCommand(queue);
         auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);

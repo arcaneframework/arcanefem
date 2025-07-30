@@ -20,7 +20,7 @@ class IDirichletPointCondition
 {
  public:
   virtual Arcane::NodeGroup getNode() =0;
-  virtual Real getValue() =0;
+  virtual StringConstArrayView getValue() =0;
   virtual Real getPenalty() =0;
   virtual String getEnforceDirichletMethod() =0;
 };
@@ -29,7 +29,7 @@ class IDirichletBoundaryCondition
 {
  public:
   virtual Arcane::FaceGroup getSurface() =0;
-  virtual Real getValue() =0;
+  virtual StringConstArrayView getValue() =0;
   virtual Real getPenalty() =0;
   virtual String getEnforceDirichletMethod() =0;
 };
@@ -38,14 +38,7 @@ class INeumannBoundaryCondition
 {
  public:
   virtual Arcane::FaceGroup getSurface() =0;
-  virtual Real getValue() =0;
-  virtual Real getValueX() =0;
-  virtual Real getValueY() =0;
-  virtual Real getValueZ() =0;
-  virtual bool hasValue() const =0;
-  virtual bool hasValueX() const =0;
-  virtual bool hasValueY() const =0;
-  virtual bool hasValueZ() const =0;
+  virtual StringConstArrayView getValue() =0;
 };
 
 class IManufacturedSolution
