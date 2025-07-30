@@ -1105,22 +1105,22 @@ class ArcaneFemFunctions
       Real valueY = 0.0;
       Real valueZ = 0.0;
 
-      bool hasValue = bs->hasValue();
+      bool scalarNeumann = false;
+      const StringConstArrayView neumann_str = bs->getValue();
 
-      bool hasValueX = bs->hasValueX();
-      bool hasValueY = bs->hasValueY();
-      bool hasValueZ = bs->hasValueZ();
-
-      if (hasValue) {
-        value = bs->getValue();
+      if(neumann_str.size() == 1 && neumann_str[0] != "NULL") {
+        scalarNeumann = true;
+        value =  std::stod(neumann_str[0].localstr());
       }
       else {
-        if (hasValueX)
-          valueX = bs->getValueX();
-        if (hasValueY)
-          valueY = bs->getValueY();
-        if (hasValueZ)
-          valueZ = bs->getValueZ();
+        if (neumann_str.size() > 1) {
+          if (neumann_str[0] != "NULL")
+            valueX = std::stod(neumann_str[0].localstr());
+          if (neumann_str[1] != "NULL")
+            valueY = std::stod(neumann_str[1].localstr());
+          if (neumann_str[2] != "NULL")
+            valueZ = std::stod(neumann_str[2].localstr());
+        }
       }
 
       ENUMERATE_ (Face, iface, group) {
@@ -1134,7 +1134,7 @@ class ArcaneFemFunctions
             continue;
           Real rhs_value;
 
-          if (hasValue) {
+          if (scalarNeumann) {
             rhs_value = value * area / 3.0;
           }
           else {
@@ -1299,19 +1299,21 @@ class ArcaneFemFunctions
       Real value = 0.0;
       Real valueX = 0.0;
       Real valueY = 0.0;
-      bool hasValue = bs->hasValue();
 
-      bool hasValueX = bs->hasValueX();
-      bool hasValueY = bs->hasValueY();
+      bool scalarNeumann = false;
+      const StringConstArrayView neumann_str = bs->getValue();
 
-      if (hasValue) {
-        value = bs->getValue();
+      if(neumann_str.size() == 1 && neumann_str[0] != "NULL") {
+        scalarNeumann = true;
+        value =  std::stod(neumann_str[0].localstr());
       }
       else {
-        if (hasValueX)
-          valueX = bs->getValueX();
-        if (hasValueY)
-          valueY = bs->getValueY();
+        if (neumann_str.size() > 1) {
+          if (neumann_str[0] != "NULL")
+            valueX = std::stod(neumann_str[0].localstr());
+          if (neumann_str[1] != "NULL")
+            valueY = std::stod(neumann_str[1].localstr());
+        }
       }
 
       ENUMERATE_ (Face, iface, group) {
@@ -1325,7 +1327,7 @@ class ArcaneFemFunctions
             continue;
           Real rhs_value;
 
-          if (hasValue) {
+          if (scalarNeumann) {
             rhs_value = value * length / 2.0;
           }
           else {

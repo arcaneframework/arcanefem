@@ -28,9 +28,7 @@
       </dirichlet>
       <neumann>
         <surface>curved</surface>
-        <valueX>0.35</valueX>
-        <valueY>1.65</valueY>
-        <valueZ>3.75</valueZ>
+        <value>0.35 1.65 3.75</value>
       </neumann>
     </boundary-conditions>
   </fem>
