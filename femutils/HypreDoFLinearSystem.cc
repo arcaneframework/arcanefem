@@ -771,11 +771,11 @@ solve()
       HYPRE_BoomerAMGSetInterpType(precond, m_amg_interp_type); // GPU supported: 3, 15, extended+i 6, 14, 18 //
       HYPRE_BoomerAMGSetRelaxType(precond, m_amg_smoother); // GPU support: 3, 4, 6 Sym G.S./Jacobi hybrid, 7, 18, 11, 12//
       HYPRE_BoomerAMGSetRelaxOrder(precond, 0); // must be false //
-      HYPRE_BoomerAMGSetNumSweeps(precond, 1);
       HYPRE_BoomerAMGSetTol(precond, 0.0); // conv. tolerance zero //
       HYPRE_BoomerAMGSetMaxIter(precond, 1); // do only one iteration! //
       HYPRE_BoomerAMGSetStrongThreshold(precond, m_amg_threshold); // amg threshold strength //
       HYPRE_BoomerAMGSetKeepTranspose(precond, 1); // for GPU the local interp. trnsp saved//
+      HYPRE_BoomerAMGSetRAP2(precond, 0); // RAP in two multiplications //
 
       switch (m_solver) {
       case solver::CG:
