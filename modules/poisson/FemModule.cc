@@ -13,6 +13,7 @@
 
 #include "FemModule.h"
 #include "ElementMatrix.h"
+#include "ElementMatrixHexQuad.h"
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -36,6 +37,7 @@ startInit()
   m_solve_linear_system = options()->solveLinearSystem();
   m_cross_validation = options()->crossValidation();
   m_petsc_flags = options()->petscFlags();
+  m_hex_quad_mesh = options()->hexQuadMesh();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
@@ -240,11 +242,23 @@ void FemModule::_assembleLinearOperatorCpu()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
+  if (options()->f.isPresent()) {
+    if (mesh()->dimension() == 2) {
+      if (m_hex_quad_mesh)
+        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhsQuad4(f, mesh(), node_dof, m_node_coord, rhs_values);
+      else
+        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhs(f, mesh(), node_dof, m_node_coord, rhs_values);
+    }
+    else {
+      if (m_hex_quad_mesh)
+        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhsHexa8(f, mesh(), node_dof, m_node_coord, rhs_values);
+      else
+        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhs(f, mesh(), node_dof, m_node_coord, rhs_values);
+    }
+  }
+
   // Helper lambda to apply boundary conditions
   auto applyBoundaryConditions = [&](auto BCFunctions) {
-    if (options()->f.isPresent())
-      BCFunctions.applyConstantSourceToRhs(f, mesh(), node_dof, m_node_coord, rhs_values);
-
     BC::IArcaneFemBC* bc = options()->boundaryConditions();
     if (bc) {
       for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
@@ -269,7 +283,7 @@ void FemModule::_assembleLinearOperatorCpu()
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-vector-assembly", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -316,13 +330,15 @@ _assembleBilinearOperator()
 
   if (m_matrix_format == "DOK") {
     if (mesh()->dimension() == 3)
-      _assembleBilinear<4>([this](const Cell& cell) {
-        return _computeElementMatrixTetra4(cell);
-      });
+      if(m_hex_quad_mesh)
+        _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
+      else
+        _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
     else
-      _assembleBilinear<3>([this](const Cell& cell) {
-        return _computeElementMatrixTria3(cell);
-      });
+      if(m_hex_quad_mesh)
+        _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+      else
+        _assembleBilinear<3>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
