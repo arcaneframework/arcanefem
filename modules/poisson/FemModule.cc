@@ -454,7 +454,7 @@ _validateResults()
   if (allNodes().size() < 200)
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      info() << "u[" << node.localId() << "][" << node.uniqueId() << "] = " << m_u[node];
+      info() << "u["  << node.uniqueId() << "] = " << m_u[node];
     }
 
   String filename = options()->resultFile();

@@ -29,7 +29,7 @@
       <description>Which matrix format to use DOK|BSR|AF-BSR.</description>
     </simple>
 
-    <simple name="petsc-flags" type="string" default="" optional="true">
+    <simple name="petsc-flags" type="string" default="-mat_type baij" optional="true">
       <description>Flags for PETSc from commandline.</description>
     </simple>
 

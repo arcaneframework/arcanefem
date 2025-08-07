@@ -26,7 +26,9 @@ file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
     sphere_cut.msh
+    sphere_cut.hexa.msh
     circle_cut.msh
+    circle_cut.quad.msh
     plancher.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
@@ -43,10 +45,14 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/circle.2D.arc)
   add_test(NAME [poisson]2D_neumann COMMAND Poisson
     inputs/circle.neumann.2D.arc)
+  add_test(NAME [poisson]2D_quad COMMAND Poisson
+    inputs/circle.2D.quad.arc)
   add_test(NAME [poisson]3D COMMAND Poisson
     inputs/sphere.3D.arc)
   add_test(NAME [poisson]3D_neumann COMMAND Poisson
     inputs/sphere.neumann.3D.arc)
+  add_test(NAME [poisson]3D_hexa COMMAND Poisson
+    inputs/sphere.3D.hexa.arc)
   add_test(NAME [poisson]2D_petsc COMMAND Poisson
     -A,//fem/petsc-flags=-ksp_monitor
     inputs/circle.2D.arc)
@@ -79,8 +85,12 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   if(FEMUTILS_HAS_PARALLEL_SOLVER)
     add_test(NAME [poisson]2D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
       inputs/circle.2D.arc)
+    add_test(NAME [poisson]2D_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+      inputs/circle.2D.quad.arc)
     add_test(NAME [poisson]3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
       inputs/sphere.3D.arc)
+    add_test(NAME [poisson]3D_hexa_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+      inputs/sphere.3D.hexa.arc)
   endif()
 
 endif()
