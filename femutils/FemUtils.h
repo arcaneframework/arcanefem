@@ -111,6 +111,13 @@ class RealMatrix
     }
   }
 
+  //! Fill all elements with a given value
+  ARCCORE_HOST_DEVICE void fill(Arcane::Real value)
+  {
+    for (Arcane::Int32 i = 0; i < N * M; ++i)
+      m_values[i] = value;
+  }
+
  public:
 
   ARCCORE_HOST_DEVICE Arcane::Real& operator()(Arcane::Int32 i, Arcane::Int32 j)
@@ -161,6 +168,17 @@ class RealMatrix
       }
     }
     return result;
+  }
+
+  //! Define the addition-assignment operator
+  ARCCORE_HOST_DEVICE RealMatrix<N, M>& operator+=(const RealMatrix<N, M>& other)
+  {
+    for (Arcane::Int32 i = 0; i < N; ++i) {
+      for (Arcane::Int32 j = 0; j < M; ++j) {
+        (*this)(i, j) += other(i, j);
+      }
+    }
+    return *this;
   }
 
   //! Define the subtraction operator
