@@ -187,7 +187,7 @@ class ArcaneFemFunctions
      * @brief Computes the volume of a hexaedron defined by eight nodes.
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real hexa8Volume(ItemWithNodes item, const VariableNodeReal3& node_coord)
+    static inline Real computeVolumeHexa8(ItemWithNodes item, const VariableNodeReal3& node_coord)
     {
       Real3 n0 = node_coord[item.nodeId(0)];
       Real3 n1 = node_coord[item.nodeId(1)];
@@ -942,6 +942,18 @@ class ArcaneFemFunctions
       }
     }
 
+    static inline void applyConstantSourceToRhsHexa8(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      ENUMERATE_ (Cell, icell, mesh->allCells()) {
+        Cell cell = *icell;
+        Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeHexa8(cell, node_coord);
+        for (Node node : cell.nodes()) {
+          if (node.isOwn())
+            rhs_values[node_dof.dofId(node, 0)] += qdot * volume / cell.nbNode();
+        }
+      }
+    }
+
     /*---------------------------------------------------------------------------*/
     /**
      * @brief Applies a constant source term to the RHS vector.
@@ -1212,6 +1224,18 @@ class ArcaneFemFunctions
       ENUMERATE_ (Cell, icell, mesh->allCells()) {
         Cell cell = *icell;
         Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, node_coord);
+        for (Node node : cell.nodes()) {
+          if (node.isOwn())
+            rhs_values[node_dof.dofId(node, 0)] += qdot * area / cell.nbNode();
+        }
+      }
+    }
+
+    static inline void applyConstantSourceToRhsQuad4(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      ENUMERATE_ (Cell, icell, mesh->allCells()) {
+        Cell cell = *icell;
+        Real area = ArcaneFemFunctions::MeshOperation::computeAreaQuad4(cell, node_coord);
         for (Node node : cell.nodes()) {
           if (node.isOwn())
             rhs_values[node_dof.dofId(node, 0)] += qdot * area / cell.nbNode();
