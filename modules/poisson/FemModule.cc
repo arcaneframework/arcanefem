@@ -262,7 +262,13 @@ void FemModule::_assembleLinearOperatorCpu()
     BC::IArcaneFemBC* bc = options()->boundaryConditions();
     if (bc) {
       for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
-        BCFunctions.applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+        if (mesh()->dimension() == 2)
+          if (m_hex_quad_mesh)
+            ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhsQuad4(bs, node_dof, m_node_coord, rhs_values);
+          else
+            ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+        else
+          ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
 
       for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
         BCFunctions.applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);

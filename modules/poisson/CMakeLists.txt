@@ -47,6 +47,8 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/circle.neumann.2D.arc)
   add_test(NAME [poisson]2D_quad COMMAND Poisson
     inputs/circle.2D.quad.arc)
+  add_test(NAME [poisson]2D_neumann_quad COMMAND Poisson
+    inputs/circle.neumann.2D.quad.arc)
   add_test(NAME [poisson]3D COMMAND Poisson
     inputs/sphere.3D.arc)
   add_test(NAME [poisson]3D_neumann COMMAND Poisson

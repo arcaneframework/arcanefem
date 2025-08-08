@@ -1527,8 +1527,78 @@ class ArcaneFemFunctions
       }
     }
 
-    /*---------------------------------------------------------------------------*/
-    /**
+    static inline void applyNeumannToRhsQuad4(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      FaceGroup group = bs->getSurface();
+
+      Real value = 0.0;
+      Real valueX = 0.0;
+      Real valueY = 0.0;
+
+      bool scalarNeumann = false;
+      const StringConstArrayView neumann_str = bs->getValue();
+
+      if (neumann_str.size() == 1 && neumann_str[0] != "NULL") {
+        scalarNeumann = true;
+        value = std::stod(neumann_str[0].localstr());
+      }
+      else {
+        if (neumann_str.size() > 1) {
+          if (neumann_str[0] != "NULL")
+            valueX = std::stod(neumann_str[0].localstr());
+          if (neumann_str[1] != "NULL")
+            valueY = std::stod(neumann_str[1].localstr());
+        }
+      }
+
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+
+        // 2-point Gauss integration for line element
+        constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // -1/sqrt(3), 1/sqrt(3)
+        constexpr Real weights[2] = { 1.0, 1.0 };
+
+        Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, node_coord);
+        Real2 normal = ArcaneFemFunctions::MeshOperation::computeNormalEdge2(face, node_coord);
+
+        Node node0 = face.node(0);
+        Node node1 = face.node(1);
+
+        for (Int32 i = 0; i < 2; ++i) {
+          Real xi = gp[i];
+          Real weight = weights[i];
+
+          // Linear shape functions for Line2
+          Real N[2];
+          N[0] = 0.5 * (1 - xi);
+          N[1] = 0.5 * (1 + xi);
+
+          // Integration weight: weight * jacobian (length/2 for reference element [-1,1])
+          Real integration_weight = weight * length * 0.5;
+
+          // Apply to both nodes
+          Node nodes[2] = { node0, node1 };
+          for (Int32 j = 0; j < 2; ++j) {
+            Node node = nodes[j];
+            if (!node.isOwn())
+              continue;
+
+            Real rhs_value;
+            if (scalarNeumann) {
+              rhs_value = value * N[j] * integration_weight;
+            }
+            else {
+              rhs_value = (normal.x * valueX + normal.y * valueY) * N[j] * integration_weight;
+            }
+
+            rhs_values[node_dof.dofId(node, 0)] += rhs_value;
+          }
+        }
+      }
+    }
+
+  /*---------------------------------------------------------------------------*/
+  /**
      * @brief Applies Dirichlet boundary conditions to RHS and LHS.
      *
      * Updates the LHS matrix and RHS vector to enforce Dirichlet conditions.
@@ -1542,8 +1612,8 @@ class ArcaneFemFunctions
      * @param [OUT] m_linear_system : Linear system for LHS.
      * @param [OUT] rhs_values RHS  : RHS values to update.
      */
-    /*---------------------------------------------------------------------------*/
-    static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& /*node_coord*/, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
+  /*---------------------------------------------------------------------------*/
+  static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& /*node_coord*/, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
     {
       FaceGroup face_group = bs->getSurface();
       NodeGroup node_group = face_group.nodeGroup();
