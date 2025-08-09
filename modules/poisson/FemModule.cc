@@ -464,8 +464,6 @@ _validateResults()
     }
 
   String filename = options()->resultFile();
-  info() << "ValidateResultFile filename=" << filename;
-
   if (!filename.empty())
     checkNodeResultFile(traceMng(), filename, m_u, 1.0e-4);
 
