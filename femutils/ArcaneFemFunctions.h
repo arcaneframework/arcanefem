@@ -1384,8 +1384,8 @@ class ArcaneFemFunctions
             Real J00 = 0, J01 = 0, J10 = 0, J11 = 0;
             for (Int8 a = 0; a < 4; ++a) {
               J00 += dN_dxi[a] * node_coord[cell.nodeId(a)].x;
-              J01 += dN_deta[a] * node_coord[cell.nodeId(a)].x;
-              J10 += dN_dxi[a] * node_coord[cell.nodeId(a)].y;
+              J01 += dN_dxi[a] * node_coord[cell.nodeId(a)].y;
+              J10 += dN_deta[a] * node_coord[cell.nodeId(a)].x;
               J11 += dN_deta[a] * node_coord[cell.nodeId(a)].y;
             }
 
