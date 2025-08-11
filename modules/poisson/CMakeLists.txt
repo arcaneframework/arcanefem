@@ -55,6 +55,8 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/sphere.neumann.3D.arc)
   add_test(NAME [poisson]3D_hexa COMMAND Poisson
     inputs/sphere.3D.hexa.arc)
+  add_test(NAME [poisson]3D_neumann_hexa COMMAND Poisson
+    inputs/sphere.neumann.3D.hexa.arc)
   add_test(NAME [poisson]2D_petsc COMMAND Poisson
     -A,//fem/petsc-flags=-ksp_monitor
     inputs/circle.2D.arc)
