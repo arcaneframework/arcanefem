@@ -12,6 +12,8 @@
 #ifndef ARCANE_FEM_FUNCTIONS_H
 #define ARCANE_FEM_FUNCTIONS_H
 
+# define M_SQRT1_3	0.57735026918962576451	/* 1/sqrt(3) */
+
 #include <arcane/core/IStandardFunction.h>
 
 #include <arcane/utils/ITraceMng.h>
@@ -187,7 +189,7 @@ class ArcaneFemFunctions
      * @brief Computes the volume of a hexaedron defined by eight nodes.
      */
     /*---------------------------------------------------------------------------*/
-    static inline Real hexa8Volume(ItemWithNodes item, const VariableNodeReal3& node_coord)
+    static inline Real computeVolumeHexa8(ItemWithNodes item, const VariableNodeReal3& node_coord)
     {
       Real3 n0 = node_coord[item.nodeId(0)];
       Real3 n1 = node_coord[item.nodeId(1)];
@@ -942,6 +944,117 @@ class ArcaneFemFunctions
       }
     }
 
+    static inline void applyConstantSourceToRhsHexa8(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      ENUMERATE_ (Cell, icell, mesh->allCells()) {
+        Cell cell = *icell;
+        // Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeHexa8(cell, node_coord);
+        // for (Node node : cell.nodes()) {
+        //   if (node.isOwn())
+        //     rhs_values[node_dof.dofId(node, 0)] += qdot * volume / cell.nbNode();
+        // }
+
+        // Gauss quadrature for Hexa8
+        // Using 2x2x2 Gauss points for integration
+        constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // {-1/sqrt(3) 1/sqrt(3)}
+        constexpr Real weights[2] = { 1.0, 1.0 };
+
+        for (Int32 ixi = 0; ixi < 2; ++ixi) {
+          for (Int32 ieta = 0; ieta < 2; ++ieta) {
+            for (Int32 izeta = 0; izeta < 2; ++izeta) {
+
+              // Gauss point coordinates in reference space
+              Real xi = gp[ixi]; // ξ coordinate
+              Real eta = gp[ieta]; // η coordinate
+              Real zeta = gp[izeta]; // ζ coordinate
+              Real weight = weights[ixi] * weights[ieta] * weights[izeta];
+
+              // Shape functions 𝐍 for Hexa8
+              //   𝐍 = [𝑁₁  𝑁₂  𝑁₃  𝑁₄  𝑁₅  𝑁₆  𝑁₇  𝑁₈]
+              //   𝑁₁ = 1/8 * (1 - ξ) * (1 - η) * (1 - ζ)
+              //   𝑁₂ = 1/8 * (1 + ξ) * (1 - η) * (1 - ζ)
+              //   𝑁₃ = 1/8 * (1 + ξ) * (1 + η) * (1 - ζ)
+              //   𝑁₄ = 1/8 * (1 - ξ) * (1 + η) * (1 - ζ)
+              //   𝑁₅ = 1/8 * (1 - ξ) * (1 - η) * (1 + ζ)
+              //   𝑁₆ = 1/8 * (1 + ξ) * (1 - η) * (1 + ζ)
+              //   𝑁₇ = 1/8 * (1 + ξ) * (1 + η) * (1 + ζ)
+              //   𝑁₈ = 1/8 * (1 - ξ) * (1 + η) * (1 + ζ)
+              Real N[8];
+              N[0] = 0.125 * (1 - xi) * (1 - eta) * (1 - zeta);
+              N[1] = 0.125 * (1 + xi) * (1 - eta) * (1 - zeta);
+              N[2] = 0.125 * (1 + xi) * (1 + eta) * (1 - zeta);
+              N[3] = 0.125 * (1 - xi) * (1 + eta) * (1 - zeta);
+              N[4] = 0.125 * (1 - xi) * (1 - eta) * (1 + zeta);
+              N[5] = 0.125 * (1 + xi) * (1 - eta) * (1 + zeta);
+              N[6] = 0.125 * (1 + xi) * (1 + eta) * (1 + zeta);
+              N[7] = 0.125 * (1 - xi) * (1 + eta) * (1 + zeta);
+
+              // Shape function derivatives in reference space
+              //  ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ  ∂𝑁₅/∂ξ  ∂𝑁₆/∂ξ  ∂𝑁₇/∂ξ  ∂𝑁₈/∂ξ ]
+              //  ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ∂𝑁₃/∂η  ∂𝑁₄/∂η  ∂𝑁₅/∂η  ∂𝑁₆/∂η  ∂𝑁₇/∂η  ∂𝑁₈/∂η ]
+              //  ∂𝐍/∂ζ = [ ∂𝑁₁/∂ζ  ∂𝑁₂/∂ζ  ∂𝑁₃/∂ζ  ∂𝑁₄/∂ζ  ∂𝑁₅/∂ζ  ∂𝑁₆/∂ζ  ∂𝑁₇/∂ζ  ∂𝑁₈/∂ζ ]
+              Real dN_dxi[8], dN_deta[8], dN_dzeta[8];
+              dN_dxi[0] = -0.125 * (1 - eta) * (1 - zeta);
+              dN_dxi[1] = 0.125 * (1 - eta) * (1 - zeta);
+              dN_dxi[2] = 0.125 * (1 + eta) * (1 - zeta);
+              dN_dxi[3] = -0.125 * (1 + eta) * (1 - zeta);
+              dN_dxi[4] = -0.125 * (1 - eta) * (1 + zeta);
+              dN_dxi[5] = 0.125 * (1 - eta) * (1 + zeta);
+              dN_dxi[6] = 0.125 * (1 + eta) * (1 + zeta);
+              dN_dxi[7] = -0.125 * (1 + eta) * (1 + zeta);
+
+              dN_deta[0] = -0.125 * (1 - xi) * (1 - zeta);
+              dN_deta[1] = -0.125 * (1 + xi) * (1 - zeta);
+              dN_deta[2] = 0.125 * (1 + xi) * (1 - zeta);
+              dN_deta[3] = 0.125 * (1 - xi) * (1 - zeta);
+              dN_deta[4] = -0.125 * (1 - xi) * (1 + zeta);
+              dN_deta[5] = -0.125 * (1 + xi) * (1 + zeta);
+              dN_deta[6] = 0.125 * (1 + xi) * (1 + zeta);
+              dN_deta[7] = 0.125 * (1 - xi) * (1 + zeta);
+
+              dN_dzeta[0] = -0.125 * (1 - xi) * (1 - eta);
+              dN_dzeta[1] = -0.125 * (1 + xi) * (1 - eta);
+              dN_dzeta[2] = -0.125 * (1 + xi) * (1 + eta);
+              dN_dzeta[3] = -0.125 * (1 - xi) * (1 + eta);
+              dN_dzeta[4] = 0.125 * (1 - xi) * (1 - eta);
+              dN_dzeta[5] = 0.125 * (1 + xi) * (1 - eta);
+              dN_dzeta[6] = 0.125 * (1 + xi) * (1 + eta);
+              dN_dzeta[7] = 0.125 * (1 - xi) * (1 + eta);
+
+              // Jacobian for 3D (using your working stiffness matrix approach)
+              Real3x3 J;
+              for (Int8 a = 0; a < 8; ++a) {
+                const Real3& n = node_coord[cell.nodeId(a)];
+                J[0][0] += dN_dxi[a] * n.x; // ∂x/∂ξ
+                J[0][1] += dN_dxi[a] * n.y; // ∂y/∂ξ
+                J[0][2] += dN_dxi[a] * n.z; // ∂z/∂ξ
+                J[1][0] += dN_deta[a] * n.x; // ∂x/∂η
+                J[1][1] += dN_deta[a] * n.y; // ∂y/∂η
+                J[1][2] += dN_deta[a] * n.z; // ∂z/∂η
+                J[2][0] += dN_dzeta[a] * n.x; // ∂x/∂ζ
+                J[2][1] += dN_dzeta[a] * n.y; // ∂y/∂ζ
+                J[2][2] += dN_dzeta[a] * n.z; // ∂z/∂ζ
+              }
+
+              // Compute determinant of Jacobian
+              Real detJ = math::matrixDeterminant(J);
+
+              // Compute integration weight
+              Real integration_weight = weight * detJ;
+
+              // Assemble RHS
+              for (Int32 i = 0; i < 8; ++i) {
+                Node node = cell.node(i);
+                if (node.isOwn()) {
+                  rhs_values[node_dof.dofId(node, 0)] += N[i] * qdot * integration_weight;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
     /*---------------------------------------------------------------------------*/
     /**
      * @brief Applies a constant source term to the RHS vector.
@@ -1146,6 +1259,134 @@ class ArcaneFemFunctions
       }
     }
 
+    static inline void applyNeumannToRhsHexa8(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      FaceGroup group = bs->getSurface();
+
+      Real value = 0.0;
+      Real valueX = 0.0;
+      Real valueY = 0.0;
+      Real valueZ = 0.0;
+
+      bool scalarNeumann = false;
+      const StringConstArrayView neumann_str = bs->getValue();
+
+      if (neumann_str.size() == 1 && neumann_str[0] != "NULL") {
+        scalarNeumann = true;
+        value = std::stod(neumann_str[0].localstr());
+      }
+      else {
+        if (neumann_str.size() > 2) {
+          if (neumann_str[0] != "NULL")
+            valueX = std::stod(neumann_str[0].localstr());
+          if (neumann_str[1] != "NULL")
+            valueY = std::stod(neumann_str[1].localstr());
+          if (neumann_str[2] != "NULL")
+            valueZ = std::stod(neumann_str[2].localstr());
+        }
+      }
+
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+
+        // 2x2 Gauss integration for quadrilateral face
+        constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // -1/sqrt(3), 1/sqrt(3)
+        constexpr Real w = 1.0;
+
+        // Get face nodes (assuming quad4 face)
+        Node node0 = face.node(0);
+        Node node1 = face.node(1);
+        Node node2 = face.node(2);
+        Node node3 = face.node(3);
+        Node nodes[4] = { node0, node1, node2, node3 };
+
+        // Get node coordinates
+        Real3 coords[4];
+        for (Int32 i = 0; i < 4; ++i) {
+          coords[i] = node_coord[nodes[i]];
+        }
+
+        // Loop through 2x2 Gauss points
+        for (Int32 ixi = 0; ixi < 2; ++ixi) {
+          for (Int32 ieta = 0; ieta < 2; ++ieta) {
+            Real xi = gp[ixi];
+            Real eta = gp[ieta];
+
+            // Quad4 shape functions
+            Real N[4];
+            N[0] = 0.25 * (1 - xi) * (1 - eta);
+            N[1] = 0.25 * (1 + xi) * (1 - eta);
+            N[2] = 0.25 * (1 + xi) * (1 + eta);
+            N[3] = 0.25 * (1 - xi) * (1 + eta);
+
+            // Shape function derivatives w.r.t. natural coordinates
+            Real dN_dxi[4], dN_deta[4];
+            dN_dxi[0] = -0.25 * (1 - eta);
+            dN_dxi[1] = 0.25 * (1 - eta);
+            dN_dxi[2] = 0.25 * (1 + eta);
+            dN_dxi[3] = -0.25 * (1 + eta);
+
+            dN_deta[0] = -0.25 * (1 - xi);
+            dN_deta[1] = -0.25 * (1 + xi);
+            dN_deta[2] = 0.25 * (1 + xi);
+            dN_deta[3] = 0.25 * (1 - xi);
+
+            // Compute tangent vectors
+            Real3 t1(0.0, 0.0, 0.0); // ∂r/∂ξ
+            Real3 t2(0.0, 0.0, 0.0); // ∂r/∂η
+
+            for (Int32 i = 0; i < 4; ++i) {
+              t1.x += dN_dxi[i] * coords[i].x;
+              t1.y += dN_dxi[i] * coords[i].y;
+              t1.z += dN_dxi[i] * coords[i].z;
+
+              t2.x += dN_deta[i] * coords[i].x;
+              t2.y += dN_deta[i] * coords[i].y;
+              t2.z += dN_deta[i] * coords[i].z;
+            }
+
+            // Normal vector (cross product of tangent vectors)
+            Real3 normal;
+            normal.x = t1.y * t2.z - t1.z * t2.y;
+            normal.y = t1.z * t2.x - t1.x * t2.z;
+            normal.z = t1.x * t2.y - t1.y * t2.x;
+
+            // Jacobian (magnitude of normal vector for surface integration)
+            Real detJ = sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+
+            if (detJ <= 0.0) {
+              ARCANE_FATAL("Invalid (non-positive) surface Jacobian: {0}", detJ);
+            }
+
+            // Unit normal
+            normal.x /= detJ;
+            normal.y /= detJ;
+            normal.z /= detJ;
+
+            // Integration weight
+            Real integration_weight = w * w * detJ;
+
+            // Apply to all four nodes of the face
+            for (Int32 j = 0; j < 4; ++j) {
+              Node node = nodes[j];
+              if (!node.isOwn())
+                continue;
+
+              Real rhs_value;
+              if (scalarNeumann) {
+                rhs_value = value * N[j] * integration_weight;
+              }
+              else {
+                rhs_value = (normal.x * valueX + normal.y * valueY + normal.z * valueZ) * N[j] * integration_weight;
+              }
+
+              rhs_values[node_dof.dofId(node, 0)] += rhs_value;
+            }
+          }
+        }
+      }
+    }
+
     /*---------------------------------------------------------------------------*/
     /**
      * @brief Applies Manufactured Dirichlet boundary conditions to RHS and LHS.
@@ -1215,6 +1456,81 @@ class ArcaneFemFunctions
         for (Node node : cell.nodes()) {
           if (node.isOwn())
             rhs_values[node_dof.dofId(node, 0)] += qdot * area / cell.nbNode();
+        }
+      }
+    }
+
+    static inline void applyConstantSourceToRhsQuad4(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      ENUMERATE_ (Cell, icell, mesh->allCells()) {
+        Cell cell = *icell;
+        // Real area = ArcaneFemFunctions::MeshOperation::computeAreaQuad4(cell, node_coord);
+        // for (Node node : cell.nodes()) {
+        //   if (node.isOwn())
+        //     rhs_values[node_dof.dofId(node, 0)] += qdot * area / cell.nbNode();
+        // }
+
+        constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
+        constexpr Real weights[2] = { 1.0, 1.0 };
+
+        for (Int32 ixi = 0; ixi < 2; ++ixi) {
+          for (Int32 ieta = 0; ieta < 2; ++ieta) {
+
+            // Get the coordinates of the Gauss point
+            Real xi = gp[ixi]; // Get the ξ coordinate of the Gauss point
+            Real eta = gp[ieta]; // Get the η coordinate of the Gauss point
+            Real weight = weights[ixi] * weights[ieta];
+
+            // Shape functions 𝐍 for Quad4
+            //   𝐍 = [𝑁₁  𝑁₂  𝑁₃  𝑁₄]
+            //   𝑁₁ = 1/4 * (1 - ξ) * (1 - η)
+            //   𝑁₂ = 1/4 * (1 + ξ) * (1 - η)
+            //   𝑁₃ = 1/4 * (1 + ξ) * (1 + η)
+            //   𝑁₄ = 1/4 * (1 - ξ) * (1 + η)
+            Real N[4];
+            N[0] = 0.25 * (1 - xi) * (1 - eta);
+            N[1] = 0.25 * (1 + xi) * (1 - eta);
+            N[2] = 0.25 * (1 + xi) * (1 + eta);
+            N[3] = 0.25 * (1 - xi) * (1 + eta);
+
+            // Shape function derivatives ∂𝐍/∂ξ and ∂𝐍/∂η
+            //     ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ ]
+            //     ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ∂𝑁₃/∂η  ∂𝑁₄/∂η ]
+            Real dN_dxi[4] = { -0.25 * (1 - eta), 0.25 * (1 - eta), 0.25 * (1 + eta), -0.25 * (1 + eta) };
+            Real dN_deta[4] = { -0.25 * (1 - xi), -0.25 * (1 + xi), 0.25 * (1 + xi), 0.25 * (1 - xi) };
+
+            // Jacobian calculation 𝑱
+            //    𝑱 = [ 𝒋₀₀  𝒋₀₁ ] = [ ∂x/∂ξ  ∂y/∂ξ ]
+            //        [ 𝒋₁₀  𝒋₁₁ ]   [ ∂x/∂η  ∂y/∂η ]
+            //
+            // The Jacobian is computed as follows:
+            //   𝒋₀₀ = ∑ (∂𝑁ᵢ/∂ξ * xᵢ) ∀ 𝑖= 𝟏,……,𝟒
+            //   𝒋₀₁ = ∑ (∂𝑁ᵢ/∂ξ * yᵢ) ∀ 𝑖= 𝟏,……,𝟒
+            //   𝒋₁₀ = ∑ (∂𝑁ᵢ/∂η * xᵢ) ∀ 𝑖= 𝟏,……,𝟒
+            //   𝒋₁₁ = ∑ (∂𝑁ᵢ/∂η * yᵢ) ∀ 𝑖= 𝟏,……,𝟒
+
+            Real J00 = 0, J01 = 0, J10 = 0, J11 = 0;
+            for (Int8 a = 0; a < 4; ++a) {
+              J00 += dN_dxi[a] * node_coord[cell.nodeId(a)].x;
+              J01 += dN_dxi[a] * node_coord[cell.nodeId(a)].y;
+              J10 += dN_deta[a] * node_coord[cell.nodeId(a)].x;
+              J11 += dN_deta[a] * node_coord[cell.nodeId(a)].y;
+            }
+
+            // Determinant of the Jacobian
+            Real detJ = J00 * J11 - J01 * J10;
+
+            // Compute integration weight
+            Real integration_weight = weight * detJ;
+
+            // Assemble RHS
+            for (Int32 i = 0; i < 4; ++i) {
+              Node node = cell.node(i);
+              if (node.isOwn()) {
+                rhs_values[node_dof.dofId(node, 0)] += N[i] * qdot * integration_weight;
+              }
+            }
+          }
         }
       }
     }
@@ -1339,8 +1655,78 @@ class ArcaneFemFunctions
       }
     }
 
-    /*---------------------------------------------------------------------------*/
-    /**
+    static inline void applyNeumannToRhsQuad4(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      FaceGroup group = bs->getSurface();
+
+      Real value = 0.0;
+      Real valueX = 0.0;
+      Real valueY = 0.0;
+
+      bool scalarNeumann = false;
+      const StringConstArrayView neumann_str = bs->getValue();
+
+      if (neumann_str.size() == 1 && neumann_str[0] != "NULL") {
+        scalarNeumann = true;
+        value = std::stod(neumann_str[0].localstr());
+      }
+      else {
+        if (neumann_str.size() > 1) {
+          if (neumann_str[0] != "NULL")
+            valueX = std::stod(neumann_str[0].localstr());
+          if (neumann_str[1] != "NULL")
+            valueY = std::stod(neumann_str[1].localstr());
+        }
+      }
+
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+
+        // 2-point Gauss integration for line element
+        constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // -1/sqrt(3), 1/sqrt(3)
+        constexpr Real weights[2] = { 1.0, 1.0 };
+
+        Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, node_coord);
+        Real2 normal = ArcaneFemFunctions::MeshOperation::computeNormalEdge2(face, node_coord);
+
+        Node node0 = face.node(0);
+        Node node1 = face.node(1);
+
+        for (Int32 i = 0; i < 2; ++i) {
+          Real xi = gp[i];
+          Real weight = weights[i];
+
+          // Linear shape functions for Line2
+          Real N[2];
+          N[0] = 0.5 * (1 - xi);
+          N[1] = 0.5 * (1 + xi);
+
+          // Integration weight: weight * jacobian (length/2 for reference element [-1,1])
+          Real integration_weight = weight * length * 0.5;
+
+          // Apply to both nodes
+          Node nodes[2] = { node0, node1 };
+          for (Int32 j = 0; j < 2; ++j) {
+            Node node = nodes[j];
+            if (!node.isOwn())
+              continue;
+
+            Real rhs_value;
+            if (scalarNeumann) {
+              rhs_value = value * N[j] * integration_weight;
+            }
+            else {
+              rhs_value = (normal.x * valueX + normal.y * valueY) * N[j] * integration_weight;
+            }
+
+            rhs_values[node_dof.dofId(node, 0)] += rhs_value;
+          }
+        }
+      }
+    }
+
+  /*---------------------------------------------------------------------------*/
+  /**
      * @brief Applies Dirichlet boundary conditions to RHS and LHS.
      *
      * Updates the LHS matrix and RHS vector to enforce Dirichlet conditions.
@@ -1354,8 +1740,8 @@ class ArcaneFemFunctions
      * @param [OUT] m_linear_system : Linear system for LHS.
      * @param [OUT] rhs_values RHS  : RHS values to update.
      */
-    /*---------------------------------------------------------------------------*/
-    static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& /*node_coord*/, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
+  /*---------------------------------------------------------------------------*/
+  static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& /*node_coord*/, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
     {
       FaceGroup face_group = bs->getSurface();
       NodeGroup node_group = face_group.nodeGroup();

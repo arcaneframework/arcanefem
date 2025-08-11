@@ -7,7 +7,6 @@
 
   <arcane-post-processing>
    <output-period>1</output-period>
-   <format name="VtkHdfV2PostProcessor" />
    <output>
      <variable>U</variable>
    </output>
@@ -15,18 +14,23 @@
 
   <meshes>
     <mesh>
-      <filename>meshes/sphere_cut.msh</filename>
+      <filename>meshes/sphere_cut.hexa.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <result-file>check/poisson_test_ref_sphere_3D.txt</result-file>
+    <result-file>check/poisson_test_ref_sphere_neumann_3D_hexa.txt</result-file>
+    <hex-quad-mesh>true</hex-quad-mesh>
     <f>5.5</f>
     <boundary-conditions>
       <dirichlet>
         <surface>horizontal</surface>
         <value>0.5</value>
       </dirichlet>
+      <neumann>
+        <surface>curved</surface>
+        <value>0.35 1.65 3.75</value>
+      </neumann>
     </boundary-conditions>
   </fem>
 </case>
