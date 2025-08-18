@@ -186,7 +186,7 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-     * @brief Computes the volume of a hexaedron defined by eight nodes.
+     * @brief Computes the volume of a hexahedron defined by eight nodes.
      */
     /*---------------------------------------------------------------------------*/
     static inline Real computeVolumeHexa8(ItemWithNodes item, const VariableNodeReal3& node_coord)
@@ -208,7 +208,7 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-     * @brief Computes the volume of a pentaedron (wedge or triangular prism)
+     * @brief Computes the volume of a pentahedron (wedge or triangular prism)
      * defined by six nodes.
      */
     /*---------------------------------------------------------------------------*/
@@ -425,7 +425,7 @@ class ArcaneFemFunctions
     /**
      * @brief Computes finite-element entity (Edge, Face or Cell) geometric dimension
      * This method is used for the FEM 2D & 3D needs (coming from PASSMO)
-     * for jacobians & elementary matrices computations
+     * for Jacobian & elementary matrices computations
      */
     /*---------------------------------------------------------------------------*/
     static inline Int32 getGeomDimension(ItemWithNodes item)
@@ -552,7 +552,7 @@ class ArcaneFemFunctions
      *
      *         ∂𝐍/∂𝑥 = [ ∂𝑁₁/∂𝑥  ∂𝑁₂/∂𝑥  ∂𝑁₃/∂𝑥 ]
      *
-     *         ∂𝐍/∂𝑥 = 1/(2𝐴) [ y2-y3  y3−y1  y1−y2 ]
+     *         ∂𝐍/∂𝑥 = 1/(2𝐴) [ 𝑦₂-𝑦₃  𝑦₃-𝑦₁  𝑦₁-𝑦₂ ]
      */
     /*---------------------------------------------------------------------------*/
 
@@ -575,9 +575,9 @@ class ArcaneFemFunctions
      * cell with i = 1,..,3 for the three shape function  𝑁ᵢ  hence output
      * is a vector of size 3
      *
-     *         ∂𝐍/∂𝑥 = [ ∂𝑁₁/∂𝑦  ∂𝑁₂/∂𝑦  ∂𝑁₃/∂𝑦 ]
+     *         ∂𝐍/∂𝑦 = [ ∂𝑁₁/∂𝑦  ∂𝑁₂/∂𝑦  ∂𝑁₃/∂𝑦 ]
      *
-     *         ∂𝐍/∂𝑥 = 1/(2𝐴) [ 𝑥₃−𝑥₂  𝑥₁−𝑥₃  𝑥₂−𝑥₁ ]
+     *         ∂𝐍/∂𝑦 = 1/(2𝐴) [ 𝑥₃−𝑥₂  𝑥₁−𝑥₃  𝑥₂−𝑥₁ ]
      */
     /*---------------------------------------------------------------------------*/
 

@@ -16,9 +16,9 @@
  * @brief Computes the element matrix for a quadrilateral element (QUAD4, ℙ1 FE).
  *
  * This function calculates the integral of:
- *       a(u,v) = ∫∫ (∂𝑢/∂𝑥 ∂𝑣/∂𝑥  + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦)dΩ
- * 
- * steps involved:
+ *       𝑎(𝑢,𝑣) = ∫∫ (∂𝑢/∂𝑥 ∂𝑣/∂𝑥  + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦)dΩ
+ *
+ * Steps involved:
  * 1. Define Gauss points (2x2) and weights.
  * 2. Loop over Gauss points to compute the gradients in physical space
  *    and the determinant of the Jacobian, via computeGradientsAndJacobianQuad4.
@@ -44,7 +44,7 @@ RealMatrix<4, 4> FemModule::_computeElementMatrixQuad4(Cell cell)
   for (Int8 ixi = 0; ixi < 2; ++ixi) {
     for (Int8 ieta = 0; ieta < 2; ++ieta) {
 
-      // Get the coordinates of the Gauss point in natural coordiantes (ξ,η,ζ)
+      // Get the coordinates of the Gauss point in natural coordinates (ξ,η,ζ)
       const Real xi = gp[ixi];
       const Real eta = gp[ieta];
 
@@ -54,7 +54,7 @@ RealMatrix<4, 4> FemModule::_computeElementMatrixQuad4(Cell cell)
       const RealVector<4>& dyU = gp_info.dN_dy;
       const Real detJ = gp_info.det_j;
 
-      // integration weight
+      // Integration weight
       const Real integration_weight = detJ * w * w;
 
       // stiffness matrix assembly
@@ -67,9 +67,11 @@ RealMatrix<4, 4> FemModule::_computeElementMatrixQuad4(Cell cell)
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Computes the element matrix for a hexahedral element (HEXA8, ℙ1 FE).
+ *
  * This function calculates the integral of:
- *       a(u,v) = ∫∫∫ (∂𝑢/∂𝑥 ∂𝑣/∂𝑥 + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦 + ∂𝑢/∂𝑧 ∂𝑣/∂𝑧)dΩ
- * steps involved:
+ *       𝑎(𝑢,𝑣) = ∫∫∫ (∂𝑢/∂𝑥 ∂𝑣/∂𝑥 + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦 + ∂𝑢/∂𝑧 ∂𝑣/∂𝑧)dΩ
+ *
+ * Steps involved:
  * 1. Define Gauss points (2x2x2) and weights.
  * 2. Loop over Gauss points to compute the gradients in physical space (𝑥,𝑦,𝑧)
  *    and the determinant of the Jacobian via computeGradientsAndJacobianHexa8.
@@ -96,10 +98,10 @@ RealMatrix<8, 8> FemModule::_computeElementMatrixHexa8(Cell cell)
     for (Int8 ieta = 0; ieta < 2; ++ieta) {
       for (Int8 izeta = 0; izeta < 2; ++izeta) {
 
-        // Get the coordinates of Gauss points in natural coordiantes (ξ,η,ζ)
-        Real xi = gp[ixi];
-        Real eta = gp[ieta];
-        Real zeta = gp[izeta];
+        // Get the coordinates of Gauss points in natural coordinates (ξ,η,ζ)
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const Real zeta = gp[izeta];
 
         // Get shape function gradients w.r.t (𝑥,𝑦,𝑧) and determinant of Jacobian
         const auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa8(cell, m_node_coord, xi, eta, zeta);
@@ -108,7 +110,7 @@ RealMatrix<8, 8> FemModule::_computeElementMatrixHexa8(Cell cell)
         const RealVector<8>& dzU = gp_info.dN_dz;
         const Real detJ = gp_info.det_j;
 
-        // integration weight
+        // Integration weight
         const Real integration_weight = detJ * w * w;
 
         // Assemble element matrix (variational form)
