@@ -188,7 +188,7 @@ class ArcaneFemFunctions
     /**
      * @brief Computes the volume of a hexahedron defined by eight nodes.
      */
-    /*---------------------------------------------------------------------------*/
+    /*---------------------------------------------------------------------------
     static inline Real computeVolumeHexa8(ItemWithNodes item, const VariableNodeReal3& node_coord)
     {
       Real3 n0 = node_coord[item.nodeId(0)];
@@ -211,7 +211,7 @@ class ArcaneFemFunctions
      * @brief Computes the volume of a pentahedron (wedge or triangular prism)
      * defined by six nodes.
      */
-    /*---------------------------------------------------------------------------*/
+    /*---------------------------------------------------------------------------
 
     static inline Real penta6Volume(ItemWithNodes item, const VariableNodeReal3& node_coord)
     {
@@ -235,7 +235,7 @@ class ArcaneFemFunctions
     /**
      * @brief Computes the volume of a pyramid defined by five nodes.
      */
-    /*---------------------------------------------------------------------------*/
+    /*---------------------------------------------------------------------------
 
     static inline Real pyramid5Volume(ItemWithNodes item, const VariableNodeReal3& node_coord)
     {
@@ -1081,11 +1081,6 @@ class ArcaneFemFunctions
     {
       ENUMERATE_ (Cell, icell, mesh->allCells()) {
         Cell cell = *icell;
-        // Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeHexa8(cell, node_coord);
-        // for (Node node : cell.nodes()) {
-        //   if (node.isOwn())
-        //     rhs_values[node_dof.dofId(node, 0)] += qdot * volume / cell.nbNode();
-        // }
 
         // Gauss quadrature for Hexa8
         // Using 2x2x2 Gauss points for integration
