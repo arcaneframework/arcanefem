@@ -1065,7 +1065,7 @@ class ArcaneFemFunctions
       Real grad_x = 0.0;
       Real grad_y = 0.0;
       Real grad_z = 0.0;
-      for (Int8 a = 0; a < 4; ++a) {
+      for (Int8 a = 0; a < 8; ++a) {
         grad_x += dN_dx(a) * u_nodes[a];
         grad_y += dN_dy(a) * u_nodes[a];
         grad_z += dN_dz(a) * u_nodes[a];
