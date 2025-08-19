@@ -13,6 +13,7 @@
 
 #include "FemModule.h"
 #include "ElementMatrix.h"
+#include "ElementMatrixHexQuad.h"
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -36,6 +37,7 @@ startInit()
   m_solve_linear_system = options()->solveLinearSystem();
   m_cross_validation = options()->crossValidation();
   m_petsc_flags = options()->petscFlags();
+  m_hex_quad_mesh = options()->hexQuadMesh();
 
   if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") {
     auto use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
@@ -98,18 +100,32 @@ _getPsi()
   Real elapsedTime = platform::getRealTime();
 
   if (mesh()->dimension() == 2)
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-      Real2 grad = _computeGradientOfRealTria3(cell);
-      m_psi[cell] = -grad.x * grad.x - grad.y * grad.y;
-    }
+    if (m_hex_quad_mesh)
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real3 grad = ArcaneFemFunctions::FeOperation2D::computeGradientQuad4(cell, m_node_coord, m_u);
+        m_psi[cell] = -grad.x * grad.x - grad.y * grad.y;
+      }
+    else
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real3 grad = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_u);
+        m_psi[cell] = -grad.x * grad.x - grad.y * grad.y;
+      }
 
   if (mesh()->dimension() == 3)
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-      Real3 grad = _computeGradientOfRealTetra4(cell);
-      m_psi[cell] = -grad.x * grad.x - grad.y * grad.y - grad.z * grad.z;
-    }
+    if (m_hex_quad_mesh)
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real3 grad = ArcaneFemFunctions::FeOperation3D::computeGradientHexa8(cell, m_node_coord, m_u);
+        m_psi[cell] = -grad.x * grad.x - grad.y * grad.y - grad.z * grad.z;
+      }
+    else
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real3 grad = ArcaneFemFunctions::FeOperation3D::computeGradientTetra4(cell, m_node_coord, m_u);
+        m_psi[cell] = -grad.x * grad.x - grad.y * grad.y - grad.z * grad.z;
+      }
 
   m_psi.synchronize();
 
@@ -196,7 +212,10 @@ _assembleLinearOperatorCpu()
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
   if (bc)
     for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
-      ArcaneFemFunctions::BoundaryConditions2D::applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+      if (mesh()->dimension() == 2)
+        ArcaneFemFunctions::BoundaryConditions2D::applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+      else
+        ArcaneFemFunctions::BoundaryConditions3D::applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
 
   for (const auto& bs : options()->farfieldBoundaryCondition()) {
     FaceGroup group = bs->surface();
@@ -302,69 +321,6 @@ _assembleLinearOperatorGpu()
 }
 
 /*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real3 FemModule::
-_computeGradientOfRealTetra4(Cell cell)
-{
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-  Real3 m3 = m_node_coord[cell.nodeId(3)];
-
-  Real f0 = m_u[cell.nodeId(0)];
-  Real f1 = m_u[cell.nodeId(1)];
-  Real f2 = m_u[cell.nodeId(2)];
-  Real f3 = m_u[cell.nodeId(3)];
-
-  Real3 v0 = m1 - m0;
-  Real3 v1 = m2 - m0;
-  Real3 v2 = m3 - m0;
-
-  // 6 x Volume of tetrahedron
-  Real V6 = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
-
-  // Compute gradient components
-  Real3 grad;
-  grad.x = (f0 * (m1.y * m2.z + m2.y * m3.z + m3.y * m1.z - m3.y * m2.z - m2.y * m1.z - m1.y * m3.z)
-           - f1 * (m0.y * m2.z + m2.y * m3.z + m3.y * m0.z - m3.y * m2.z - m2.y * m0.z - m0.y * m3.z)
-           + f2 * (m0.y * m1.z + m1.y * m3.z + m3.y * m0.z - m3.y * m1.z - m1.y * m0.z - m0.y * m3.z)
-           - f3 * (m0.y * m1.z + m1.y * m2.z + m2.y * m0.z - m2.y * m1.z - m1.y * m0.z - m0.y * m2.z)) / V6;
-  grad.y = (f0 * (m1.z * m2.x + m2.z * m3.x + m3.z * m1.x - m3.z * m2.x - m2.z * m1.x - m1.z * m3.x)
-           - f1 * (m0.z * m2.x + m2.z * m3.x + m3.z * m0.x - m3.z * m2.x - m2.z * m0.x - m0.z * m3.x)
-           + f2 * (m0.z * m1.x + m1.z * m3.x + m3.z * m0.x - m3.z * m1.x - m1.z * m0.x - m0.z * m3.x)
-           - f3 * (m0.z * m1.x + m1.z * m2.x + m2.z * m0.x - m2.z * m1.x - m1.z * m0.x - m0.z * m2.x)) / V6;
-  grad.z = (f0 * (m1.x * m2.y + m2.x * m3.y + m3.x * m1.y - m3.x * m2.y - m2.x * m1.y - m1.x * m3.y)
-           - f1 * (m0.x * m2.y + m2.x * m3.y + m3.x * m0.y - m3.x * m2.y - m2.x * m0.y - m0.x * m3.y)
-           + f2 * (m0.x * m1.y + m1.x * m3.y + m3.x * m0.y - m3.x * m1.y - m1.x * m0.y - m0.x * m3.y)
-           - f3 * (m0.x * m1.y + m1.x * m2.y + m2.x * m0.y - m2.x * m1.y - m1.x * m0.y - m0.x * m2.y)) / V6;
-  return grad;
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-Real2 FemModule::
-_computeGradientOfRealTria3(Cell cell)
-{
-  Real3 m0 = m_node_coord[cell.nodeId(0)];
-  Real3 m1 = m_node_coord[cell.nodeId(1)];
-  Real3 m2 = m_node_coord[cell.nodeId(2)];
-
-  Real f0 = m_u[cell.nodeId(0)];
-  Real f1 = m_u[cell.nodeId(1)];
-  Real f2 = m_u[cell.nodeId(2)];
-
-  Real detA = (m0.x * (m1.y - m2.y) - m0.y * (m1.x - m2.x) + (m1.x * m2.y - m2.x * m1.y));
-
-  Real2 grad;
-  grad.x = (m0.x * (f1 - f2) - f0 * (m1.x - m2.x) + (f2 * m1.x - f1 * m2.x)) / detA;
-  grad.y = (f0 * (m1.y - m2.y) - m0.y * (f1 - f2) + (f1 * m2.y - f2 * m1.y)) / detA;
-
-  return grad;
-}
-
-/*---------------------------------------------------------------------------*/
 /**
  * @brief Calls the right function for LHS assembly
  */
@@ -397,13 +353,15 @@ _assembleBilinearOperator()
   }
   else {
     if (mesh()->dimension() == 3)
-      _assembleBilinear<4>([this](const Cell& cell) {
-        return _computeElementMatrixTetra4(cell);
-      });
+      if (m_hex_quad_mesh)
+        _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
+      else
+        _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
     if (mesh()->dimension() == 2)
-      _assembleBilinear<3>([this](const Cell& cell) {
-        return _computeElementMatrixTria3(cell);
-      });
+      if (m_hex_quad_mesh)
+        _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+      else
+        _assembleBilinear<3>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -513,11 +471,10 @@ _validateResults()
   if (allNodes().size() < 200)
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      info() << "u[" << node.localId() << "][" << node.uniqueId() << "] = " << m_u[node];
+      info() << "u[" << node.uniqueId() << "] = " << m_u[node];
     }
 
   String filename = options()->resultFile();
-  info() << "ValidateResultFile filename=" << filename;
 
   if (!filename.empty())
     checkNodeResultFile(traceMng(), filename, m_u, 1.0e-4);

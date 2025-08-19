@@ -24,7 +24,9 @@ file(COPY "check" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
   NACA0012.msh
+  NACA0012.quad.msh
   aerodynamics_3d_coarse.msh
+  aerodynamics_3d_coarse.hexa.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
     file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
@@ -34,6 +36,7 @@ enable_testing()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [aerodynamics]2d_Joukowski COMMAND aerodynamics inputs/Joukowski.arc)
+  add_test(NAME [aerodynamics]2d_Joukowski_quad COMMAND aerodynamics inputs/Joukowski.quad.arc)
   add_test(NAME [aerodynamics]parse_and_exit COMMAND aerodynamics
     -A,//fem/assemble-linear-system=false
     -A,//fem/solve-linear-system=false
@@ -55,7 +58,9 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 
     if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
       add_test(NAME [aerodynamics]2d_Joukowski_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./aerodynamics inputs/Joukowski.arc)
+      add_test(NAME [aerodynamics]2d_Joukowski_quad_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./aerodynamics inputs/Joukowski.quad.arc)
       add_test(NAME [aerodynamics]3d_Joukowski_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./aerodynamics inputs/Joukowski_3d.arc)
+      add_test(NAME [aerodynamics]3d_Joukowski_hexa_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./aerodynamics inputs/Joukowski_3d.hexa.arc)
       add_test(NAME [aerodynamics]3d_Joukowski_bjacobi_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./aerodynamics
         -A,//fem/petsc-flags=-ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15
         inputs/Joukowski_3d.arc)

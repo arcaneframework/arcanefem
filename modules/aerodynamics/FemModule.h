@@ -94,6 +94,7 @@ class FemModule
   bool m_assemble_linear_system = true;
   bool m_solve_linear_system = true;
   bool m_cross_validation = true;
+  bool m_hex_quad_mesh = false;
 
   void _doStationarySolve();
   void _solve();
@@ -105,12 +106,10 @@ class FemModule
 
   RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
   RealMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);
-
+  RealMatrix<4, 4> _computeElementMatrixQuad4(Cell cell);
+  RealMatrix<8, 8> _computeElementMatrixHexa8(Cell cell);
   template <int N>
   void _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
-
-  Real2 _computeGradientOfRealTria3(Cell cell);
-  Real3 _computeGradientOfRealTetra4(Cell cell);
 };
 
 #endif
