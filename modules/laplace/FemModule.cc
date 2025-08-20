@@ -13,6 +13,7 @@
 
 #include "FemModule.h"
 #include "ElementMatrix.h"
+#include "ElementMatrixHexQuad.h"
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -35,6 +36,7 @@ startInit()
   m_solve_linear_system = options()->solveLinearSystem();
   m_cross_validation = options()->crossValidation();
   m_petsc_flags = options()->petscFlags();
+  m_hex_quad_mesh = options()->hexQuadMesh();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
@@ -167,7 +169,16 @@ _assembleLinearOperatorCpu()
     BC::IArcaneFemBC* bc = options()->boundaryConditions();
     if (bc) {
       for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
-        BCFunctions.applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+        if (mesh()->dimension() == 2)
+          if (m_hex_quad_mesh)
+            ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhsQuad4(bs, node_dof, m_node_coord, rhs_values);
+          else
+            ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+        else
+          if (m_hex_quad_mesh)
+            ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsHexa8(bs, node_dof, m_node_coord, rhs_values);
+          else
+            ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
 
       for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
         BCFunctions.applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
@@ -277,15 +288,18 @@ _assembleBilinearOperator()
         m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
     }
   }
-  else {
+
+  if (m_matrix_format == "DOK") {
     if (mesh()->dimension() == 3)
-      _assembleBilinear<4>([this](const Cell& cell) {
-        return _computeElementMatrixTetra4(cell);
-      });
-    if (mesh()->dimension() == 2)
-      _assembleBilinear<3>([this](const Cell& cell) {
-        return _computeElementMatrixTria3(cell);
-      });
+      if(m_hex_quad_mesh)
+        _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
+      else
+        _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
+    else
+      if(m_hex_quad_mesh)
+        _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+      else
+        _assembleBilinear<3>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -400,7 +414,7 @@ _validateResults()
   if (allNodes().size() < 200)
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      info() << "u[" << node.localId() << "][" << node.uniqueId() << "] = " << m_u[node];
+      info() << "u[" << node.uniqueId() << "] = " << m_u[node];
     }
 
   String filename = options()->resultFile();
