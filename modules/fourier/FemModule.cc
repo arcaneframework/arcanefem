@@ -378,7 +378,8 @@ _assembleBilinearOperator()
         _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
       else
         _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
-    else
+
+    if (mesh()->dimension() == 2)
       if(m_hex_quad_mesh)
         _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
       else
@@ -512,7 +513,7 @@ _validateResults()
   info() << "[ArcaneFem-Info] Started module _validateResults()";
   Real elapsedTime = platform::getRealTime();
 
-  //if (allNodes().size() < 200)
+  if (allNodes().size() < 200)
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
       info() << "u[" << node.uniqueId() << "] = " << m_u[node];
