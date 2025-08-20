@@ -13,6 +13,7 @@
 
 #include "FemModule.h"
 #include "ElementMatrix.h"
+#include "ElementMatrixHexQuad.h"
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -36,6 +37,7 @@ startInit()
   m_solve_linear_system = options()->solveLinearSystem();
   m_cross_validation = options()->crossValidation();
   m_petsc_flags = options()->petscFlags();
+  m_hex_quad_mesh = options()->hexQuadMesh();
 
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
@@ -221,20 +223,43 @@ _assembleLinearOperatorCpu()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  BC::IArcaneFemBC* bc = options()->boundaryConditions();
+  if (options()->qdot.isPresent()) {
+    if (mesh()->dimension() == 2) {
+      if (m_hex_quad_mesh)
+        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhsQuad4(qdot, mesh(), node_dof, m_node_coord, rhs_values);
+      else
+        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhs(qdot, mesh(), node_dof, m_node_coord, rhs_values);
+    }
+    else {
+      if (m_hex_quad_mesh)
+        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhsHexa8(qdot, mesh(), node_dof, m_node_coord, rhs_values);
+      else
+        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhs(qdot, mesh(), node_dof, m_node_coord, rhs_values);
+    }
+  }
 
-  if (bc) {
-    auto applyBoundaryConditions = [&](auto BCFunctions) {
-      if (options()->qdot.isPresent())
-        BCFunctions.applyConstantSourceToRhs(qdot, mesh(), node_dof, m_node_coord, rhs_values);
+  // Helper lambda to apply boundary conditions
+  auto applyBoundaryConditions = [&](auto BCFunctions) {
+    BC::IArcaneFemBC* bc = options()->boundaryConditions();
+    if (bc) {
 
-      BC::IArcaneFemBC* bc = options()->boundaryConditions();
+      // Neumann
       for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
-        BCFunctions.applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+        if (mesh()->dimension() == 2)
+          if (m_hex_quad_mesh)
+            ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhsQuad4(bs, node_dof, m_node_coord, rhs_values);
+          else
+            ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+        else if (m_hex_quad_mesh)
+          ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsHexa8(bs, node_dof, m_node_coord, rhs_values);
+        else
+          ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
 
+      // Dirichlet
       for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
         BCFunctions.applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
 
+      // Manufactured boundary conditions
       for (BC::IManufacturedSolution* bs : bc->manufacturedSolutions()) {
         if (bs->getManufacturedSource()) {
           ARCANE_CHECK_POINTER(m_manufactured_source);
@@ -248,13 +273,13 @@ _assembleLinearOperatorCpu()
           BCFunctions.applyManufacturedDirichletToLhsAndRhs(m_manufactured_dirichlet, lambda, group, bs, node_dof, m_node_coord, m_linear_system, rhs_values);
         }
       }
-    };
+    }
+  };
 
-    if (mesh()->dimension() == 3)
-      applyBoundaryConditions(ArcaneFemFunctions::BoundaryConditions3D());
-    else
-      applyBoundaryConditions(ArcaneFemFunctions::BoundaryConditions2D());
-  }
+  if (mesh()->dimension() == 3)
+    applyBoundaryConditions(ArcaneFemFunctions::BoundaryConditions3D());
+  else
+    applyBoundaryConditions(ArcaneFemFunctions::BoundaryConditions2D());
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
@@ -346,15 +371,18 @@ _assembleBilinearOperator()
       else
         m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, node_lid); });
   }
-  else {
-    if (mesh()->dimension() == 2)
-      _assembleBilinear<3>([this](const Cell& cell) {
-        return _computeElementMatrixTria3(cell);
-      });
+
+  if (m_matrix_format == "DOK") {
+    if (mesh()->dimension() == 3)
+      if(m_hex_quad_mesh)
+        _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
+      else
+        _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
     else
-      _assembleBilinear<4>([this](const Cell& cell) {
-        return _computeElementMatrixTetra4(cell);
-      });
+      if(m_hex_quad_mesh)
+        _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+      else
+        _assembleBilinear<3>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -484,14 +512,13 @@ _validateResults()
   info() << "[ArcaneFem-Info] Started module _validateResults()";
   Real elapsedTime = platform::getRealTime();
 
-  if (allNodes().size() < 200)
+  //if (allNodes().size() < 200)
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
       info() << "u[" << node.uniqueId() << "] = " << m_u[node];
     }
 
   String filename = options()->resultFile();
-  info() << "ValidateResultFile filename=" << filename;
 
   if (!filename.empty())
     checkNodeResultFile(traceMng(), filename, m_u, 1.0e-4);

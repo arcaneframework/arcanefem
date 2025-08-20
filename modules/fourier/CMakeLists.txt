@@ -34,10 +34,14 @@ file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
   plancher.msh
+  plancher.quad4.msh
   multi-material.msh
+  multi-material.quad.msh
   square_-2pi_to_2pi.msh
+  sphere_cut.hexa.msh
   bar_dynamic_3D.msh
   pipe.msh
+  circle_cut.quad.msh
   boolean.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
@@ -69,6 +73,10 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/conduction.arc)
   add_test(NAME [fourier]conduction_heterogeneous COMMAND Fourier
     inputs/conduction.heterogeneous.arc)
+  add_test(NAME [fourier]conduction_quad COMMAND Fourier
+    inputs/conduction.quad.arc)
+  add_test(NAME [fourier]conduction_heterogeneous_quad COMMAND Fourier
+    inputs/conduction.heterogeneous.quad.arc)
   add_test(NAME [fourier]manufacture_solution COMMAND Fourier
     -A,UsingDotNet=1
     inputs/manufacture.solution.arc)
@@ -76,6 +84,8 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/conduction.3D.arc)
   add_test(NAME [fourier]conduction_boolean_3D COMMAND Fourier
     inputs/conduction.boolean.3D.arc)
+  add_test(NAME [fourier]conduction_sphere-cut_hexa COMMAND Fourier
+    inputs/conduction.sphere-cut.hexa.arc)
   add_test(NAME [fourier]manufacture_solution_3D COMMAND Fourier
     -A,UsingDotNet=1
     -A,//meshes/mesh/filename=meshes/bar_dynamic_3D.msh 
@@ -102,11 +112,17 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       inputs/conduction.arc)
     add_test(NAME [fourier]conduction_heterogeneous_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
       inputs/conduction.heterogeneous.arc)
+    add_test(NAME [fourier]conduction_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+      inputs/conduction.quad.arc)
+    add_test(NAME [fourier]conduction_heterogeneous_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+      inputs/conduction.heterogeneous.quad.arc)
     add_test(NAME [fourier]manufacture_solution_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
       -A,UsingDotNet=1
       inputs/manufacture.solution.arc)
     add_test(NAME [fourier]conduction_heterogeneous_3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
       inputs/conduction.pipe.3D.arc)
+    add_test(NAME [fourier]conduction_sphere-cut_3D_hexa_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+      inputs/conduction.sphere-cut.hexa.arc)
     add_test(NAME [fourier]manufacture_solution_3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
       -A,UsingDotNet=1
       -A,//meshes/mesh/filename=meshes/bar_dynamic_3D.msh 
