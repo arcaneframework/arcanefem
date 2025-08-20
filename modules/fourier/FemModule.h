@@ -90,6 +90,7 @@ class FemModule
   bool m_assemble_linear_system = true;
   bool m_solve_linear_system = true;
   bool m_cross_validation = true;
+  bool m_hex_quad_mesh = false;
 
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
@@ -106,7 +107,8 @@ class FemModule
 
   RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
   RealMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);
-
+  RealMatrix<4, 4> _computeElementMatrixQuad4(Cell cell);
+  RealMatrix<8, 8> _computeElementMatrixHexa8(Cell cell);
   IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_dirichlet = nullptr;
   IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_source = nullptr;
 
