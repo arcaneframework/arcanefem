@@ -710,6 +710,25 @@ class ArcaneFemFunctions
 
       return { grad_x, grad_y, 0.0 };
     }
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Computes the shape functions for a Quad4 element at a given point (ξ, η).
+     * 
+     * @param xi The ξ coordinate of the evaluation point (-1 to 1).
+     * @param eta The η coordinate of the evaluation point (-1 to 1).
+     * @return A RealVector<4> containing the shape functions {𝑁₁, 𝑁₂, 𝑁₃, 𝑁₄}.
+     */
+    /*---------------------------------------------------------------------------*/
+    static inline RealVector<4> computeShapeFunctionsQuad4(Real xi, Real eta)
+    {
+      RealVector<4> N;
+      N(0) = 0.25 * (1. - xi) * (1. - eta); // 𝑁₁
+      N(1) = 0.25 * (1. + xi) * (1. - eta); // 𝑁₂
+      N(2) = 0.25 * (1. + xi) * (1. + eta); // 𝑁₃
+      N(3) = 0.25 * (1. - xi) * (1. + eta); // 𝑁₄
+      return N;
+    }
   };
 
   /*---------------------------------------------------------------------------*/
@@ -908,7 +927,7 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-     * @brief Holds information for a Quad4 element at a single Gauss point.
+     * @brief Holds information for a Hexa8 element at a single Gauss point.
      *
      * This includes the gradients of the shape functions in the physical space (𝑥,𝑦,𝑧)
      * and the determinant of the Jacobian matrix.
@@ -1072,6 +1091,39 @@ class ArcaneFemFunctions
       }
 
       return { grad_x, grad_y, grad_z };
+    }
+
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Computes the shape functions for a Hexa8 element at a given point (ξ,η,ζ).
+     * 
+     * @param xi The ξ coordinate of the evaluation point (-1 to 1).
+     * @param eta The η coordinate of the evaluation point (-1 to 1).
+     * @param zeta The ζ coordinate of the evaluation point (-1 to 1).
+     * @return A RealVector<8> containing the shape functions {𝑁₁, 𝑁₂, 𝑁₃, 𝑁₄, 𝑁₅, 𝑁₆, 𝑁₇, 𝑁₈}.
+     */
+    /*---------------------------------------------------------------------------*/
+    static inline RealVector<8> computeShapeFunctionsHexa8(Real xi, Real eta, Real zeta)
+    {
+      RealVector<8> N;
+      const Real one_minus_eta = 1.0 - eta;
+      const Real one_plus_eta = 1.0 + eta;
+      const Real one_minus_xi = 1.0 - xi;
+      const Real one_plus_xi = 1.0 + xi;
+      const Real one_minus_zeta = 1.0 - zeta;
+      const Real one_plus_zeta = 1.0 + zeta;
+
+      N(0) = 0.125 * one_minus_xi * one_minus_eta * one_minus_zeta; // 𝑁₁
+      N(1) = 0.125 * one_plus_xi * one_minus_eta * one_minus_zeta; // 𝑁₂
+      N(2) = 0.125 * one_plus_xi * one_plus_eta * one_minus_zeta; // 𝑁₃
+      N(3) = 0.125 * one_minus_xi * one_plus_eta * one_minus_zeta; // 𝑁₄
+      N(4) = 0.125 * one_minus_xi * one_minus_eta * one_plus_zeta; // 𝑁₅
+      N(5) = 0.125 * one_plus_xi * one_minus_eta * one_plus_zeta; // 𝑁₆
+      N(6) = 0.125 * one_plus_xi * one_plus_eta * one_plus_zeta; // 𝑁₇
+      N(7) = 0.125 * one_minus_xi * one_plus_eta * one_plus_zeta; // 𝑁₈
+
+      return N;
     }
   };
 

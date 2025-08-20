@@ -13,6 +13,7 @@
 
 #include "FemModule.h"
 #include "ElementMatrix.h"
+#include "ElementMatrixHexQuad.h"
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -36,6 +37,7 @@ startInit()
   m_solve_linear_system = options()->solveLinearSystem();
   m_cross_validation = options()->crossValidation();
   m_petsc_flags = options()->petscFlags();
+  m_hex_quad_mesh = options()->hexQuadMesh();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "initialize", elapsedTime);
@@ -144,23 +146,19 @@ _assembleLinearOperator()
 
   const auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  auto applyBoundaryConditions = [&](auto BCFunctions) {
-    BC::IArcaneFemBC* bc = options()->boundaryConditions();
-    if (bc) {
-      for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions()) {
-        BCFunctions.applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
-      }
-    }
-  };
-
-  // Apply the correct boundary conditions based on mesh dimension
-  if (mesh()->dimension() == 3) {
-    using BCFunctions = ArcaneFemFunctions::BoundaryConditions3D;
-    applyBoundaryConditions(BCFunctions());
-  }
-  else {
-    using BCFunctions = ArcaneFemFunctions::BoundaryConditions2D;
-    applyBoundaryConditions(BCFunctions());
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
+  if (bc) {
+    for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
+      if (mesh()->dimension() == 2)
+        if (m_hex_quad_mesh)
+          ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhsQuad4(bs, node_dof, m_node_coord, rhs_values);
+        else
+          ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+      else
+        if (m_hex_quad_mesh)
+          ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsHexa8(bs, node_dof, m_node_coord, rhs_values);
+        else
+          ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -180,13 +178,16 @@ _assembleBilinearOperator()
   Real elapsedTime = platform::getRealTime();
 
   if (mesh()->dimension() == 3)
-    _assembleBilinear<4>([this](const Cell& cell) {
-      return _computeElementMatrixTetra4(cell);
-    });
+    if(m_hex_quad_mesh)
+      _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
+    else
+      _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
+
   if (mesh()->dimension() == 2)
-    _assembleBilinear<3>([this](const Cell& cell) {
-      return _computeElementMatrixTria3(cell);
-    });
+    if(m_hex_quad_mesh)
+      _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+    else
+      _assembleBilinear<3>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "lhs-matrix-assembly", elapsedTime);

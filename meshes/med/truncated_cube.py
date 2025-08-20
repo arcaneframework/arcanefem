@@ -10,7 +10,6 @@ import salome
 salome.salome_init()
 import salome_notebook
 notebook = salome_notebook.NoteBook()
-sys.path.insert(0, r'/home/catA/mb258512/Install/arcanefem/arcanefem/meshes/med')
 
 ###
 ### SHAPER component

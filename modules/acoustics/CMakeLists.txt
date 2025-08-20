@@ -21,7 +21,9 @@ file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
   sub.msh
+  sub.quad.msh
   sub_3d.msh
+  sphere_in_sphere.hexa.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
     file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
@@ -32,7 +34,9 @@ target_link_libraries(Acoustics PUBLIC FemUtils)
 enable_testing()
 
 add_test(NAME [acoustics]2D_submarine COMMAND Acoustics inputs/sub.arc)
+add_test(NAME [acoustics]2D_submarine_quad COMMAND Acoustics inputs/sub.quad.arc)
 add_test(NAME [acoustics]3D_sphere COMMAND Acoustics inputs/3d_sub.arc)
+add_test(NAME [acoustics]3D_sphere_hexa COMMAND Acoustics inputs/3d_sphere_in_sphere.hexa.arc)
 
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
