@@ -24,9 +24,11 @@ file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
   box-rods.msh
+  box-rods.quad.msh
   box-rod-circle.msh
   interdigital_capacitor.msh
   truncated_cube.msh
+  truncated_cube.hexa.msh
   spheres_in_sphere.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
@@ -37,9 +39,13 @@ enable_testing()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [electrostatics]box-rods COMMAND Electrostatics inputs/box-rods.arc)
+  add_test(NAME [electrostatics]box-rods_neumann COMMAND Electrostatics inputs/box-rods.neumann.arc)
+  add_test(NAME [electrostatics]box-rods_quad COMMAND Electrostatics inputs/box-rods.quad.arc)
+  add_test(NAME [electrostatics]box-rods_neumann_quad COMMAND Electrostatics inputs/box-rods.neumann.quad.arc)
   add_test(NAME [electrostatics]capacitor COMMAND Electrostatics inputs/Capacitor.arc)
   add_test(NAME [electrostatics]rod-circle COMMAND Electrostatics inputs/rod-circle.arc)
   add_test(NAME [electrostatics]spheres COMMAND Electrostatics inputs/spheres.arc)
+  add_test(NAME [electrostatics]truncated-cube_hexa COMMAND Electrostatics inputs/truncated_cube.hexa.arc)
   add_test(NAME [electrostatics]box-rods_petsc_monitor COMMAND Electrostatics
     -A,//fem/petsc-flags=-ksp_monitor
     inputs/box-rods.arc)
@@ -67,6 +73,8 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [electrostatics]box-rods_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Electrostatics inputs/box-rods.arc)
+    add_test(NAME [electrostatics]box-rods_quad_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Electrostatics inputs/box-rods.quad.arc)
+    add_test(NAME [electrostatics]truncated-cube_hexa_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Electrostatics inputs/truncated_cube.hexa.arc)
   endif()
 endif()
 

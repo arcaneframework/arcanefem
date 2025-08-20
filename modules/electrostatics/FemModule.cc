@@ -12,6 +12,7 @@
 /*---------------------------------------------------------------------------*/
 #include "FemModule.h"
 #include "ElementMatrix.h"
+#include "ElementMatrixHexQuad.h"
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -36,6 +37,7 @@ startInit()
   m_solve_linear_system = options()->solveLinearSystem();
   m_cross_validation = options()->crossValidation();
   m_petsc_flags = options()->petscFlags();
+  m_hex_quad_mesh = options()->hexQuadMesh();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
@@ -188,15 +190,36 @@ _assembleLinearOperatorCpu()
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   if (options()->rho.isPresent()) {
-    Real qdot = -rho / epsilon;
-    ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhs(qdot, mesh(), node_dof, m_node_coord, rhs_values);
+    Real f = -rho / epsilon;
+    if (mesh()->dimension() == 2) {
+      if (m_hex_quad_mesh)
+        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhsQuad4(f, mesh(), node_dof, m_node_coord, rhs_values);
+      else
+        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhs(f, mesh(), node_dof, m_node_coord, rhs_values);
+    }
+
+    if (mesh()->dimension() == 3) {
+      if (m_hex_quad_mesh)
+        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhsHexa8(f, mesh(), node_dof, m_node_coord, rhs_values);
+      else
+        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhs(f, mesh(), node_dof, m_node_coord, rhs_values);
+    }
   }
 
   auto applyBoundaryConditions = [&](auto BCFunctions) {
     BC::IArcaneFemBC* bc = options()->boundaryConditions();
     if (bc) {
       for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
-        BCFunctions.applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+        if (mesh()->dimension() == 2)
+          if (m_hex_quad_mesh)
+            ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhsQuad4(bs, node_dof, m_node_coord, rhs_values);
+          else
+            ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+        else
+          if (m_hex_quad_mesh)
+            ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsHexa8(bs, node_dof, m_node_coord, rhs_values);
+          else
+            ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
 
       for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
         BCFunctions.applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
@@ -318,13 +341,15 @@ _assembleBilinearOperator()
 
   if (m_matrix_format == "DOK") {
     if (mesh()->dimension() == 3)
-      _assembleBilinear<4>([this](const Cell& cell) {
-        return _computeElementMatrixTetra4(cell);
-      });
+      if(m_hex_quad_mesh)
+        _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
+      else
+        _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
     else
-      _assembleBilinear<3>([this](const Cell& cell) {
-        return _computeElementMatrixTria3(cell);
-      });
+      if(m_hex_quad_mesh)
+        _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+      else
+        _assembleBilinear<3>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -422,15 +447,32 @@ _updateVariables()
   m_phi.synchronize();
 
   if (mesh()->dimension() == 2)
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-      m_E[cell] = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_phi);
-    }
-  else
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-      m_E[cell] = ArcaneFemFunctions::FeOperation3D::computeGradientTetra4(cell, m_node_coord, m_phi);
-    }
+    if (m_hex_quad_mesh)
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real3 grad = ArcaneFemFunctions::FeOperation2D::computeGradientQuad4(cell, m_node_coord, m_phi);
+        m_E[cell] = -grad.x * grad.x - grad.y * grad.y;
+      }
+    else
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real3 grad = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_phi);
+        m_E[cell] = -grad.x * grad.x - grad.y * grad.y;
+      }
+
+  if (mesh()->dimension() == 3)
+    if (m_hex_quad_mesh)
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real3 grad = ArcaneFemFunctions::FeOperation3D::computeGradientHexa8(cell, m_node_coord, m_phi);
+        m_E[cell] = -grad.x * grad.x - grad.y * grad.y - grad.z * grad.z;
+      }
+    else
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real3 grad = ArcaneFemFunctions::FeOperation3D::computeGradientTetra4(cell, m_node_coord, m_phi);
+        m_E[cell] = -grad.x * grad.x - grad.y * grad.y - grad.z * grad.z;
+      }
 
   m_E.synchronize();
 
@@ -460,11 +502,10 @@ _validateResults()
   if (allNodes().size() < 200)
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-      info() << "phi[" << node.localId() << "][" << node.uniqueId() << "] = " << m_phi[node];
+      info() << "phi[" << node.uniqueId() << "] = " << m_phi[node];
     }
 
   String filename = options()->resultFile();
-  info() << "ValidateResultFile filename=" << filename;
 
   if (!filename.empty())
     checkNodeResultFile(traceMng(), filename, m_phi, 1.0e-4, 1.0e-16);
