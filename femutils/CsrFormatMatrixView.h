@@ -28,6 +28,7 @@ namespace Arcane::FemUtils
 class CsrRowColumnIterator;
 class CsrFormatMatrixView;
 class CsrRow;
+class CsrFormat;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -131,9 +132,14 @@ class CsrRow
  */
 class CsrFormatMatrixView
 {
+  friend CsrFormat;
+
  public:
 
   CsrFormatMatrixView() = default;
+
+ private:
+
   CsrFormatMatrixView(Span<const Int32> rows,
                       Span<const Int32> matrix_rows_nb_column,
                       Span<const Int32> columns,
