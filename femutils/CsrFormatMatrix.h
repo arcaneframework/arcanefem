@@ -20,18 +20,13 @@
 #include <arcane/VariableTypes.h>
 #include <arcane/IItemFamily.h>
 
-#include <arcane/aleph/AlephTypesSolver.h>
-#include <arcane/aleph/Aleph.h>
-
 #include "FemUtils.h"
-#include "DoFLinearSystem.h"
-#include "arcane_version.h"
-
-#include <iostream>
-#include <fstream>
+#include "CsrFormatMatrixView.h"
 
 namespace Arcane::FemUtils
 {
+class DoFLinearSystem;
+
 using namespace Arcane;
 
 class CsrFormat
@@ -116,6 +111,9 @@ class CsrFormat
   {
     m_matrix_value(indexValue(row, column)) = value;
   }
+
+  //! View of the matrix
+  CsrFormatMatrixView view();
 
  public:
 

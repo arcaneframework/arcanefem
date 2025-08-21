@@ -28,6 +28,7 @@ namespace Arcane::FemUtils
 class CsrRowColumnIterator;
 class CsrFormatMatrixView;
 class CsrRow;
+class CsrFormat;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -131,13 +132,18 @@ class CsrRow
  */
 class CsrFormatMatrixView
 {
+  friend CsrFormat;
+
  public:
 
   CsrFormatMatrixView() = default;
-  CsrFormatMatrixView(Span<const Int32> rows,
-                      Span<const Int32> matrix_rows_nb_column,
-                      Span<const Int32> columns,
-                      Span<Real> values)
+
+ private:
+
+  CsrFormatMatrixView(SmallSpan<const Int32> rows,
+                      SmallSpan<const Int32> matrix_rows_nb_column,
+                      SmallSpan<const Int32> columns,
+                      SmallSpan<Real> values)
   : m_matrix_rows(rows)
   , m_matrix_rows_nb_column(matrix_rows_nb_column)
   , m_matrix_columns(columns)
@@ -149,7 +155,7 @@ class CsrFormatMatrixView
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Span<const Int32> rows() const { return m_matrix_rows; }
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Span<const Int32> rowsNbColumn() const { return m_matrix_rows_nb_column; }
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Span<const Int32> columns() const { return m_matrix_columns; }
-  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Span<Real> values() { return m_values; }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Span<Real> values() const { return m_values; }
 
   //! Number of the rows in the matrix
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 nbRow() const { return m_matrix_rows.size(); }
@@ -158,7 +164,7 @@ class CsrFormatMatrixView
   //! Number of the values in the matrix
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 nbValue() const { return m_values.size(); }
 
-  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 row(Int32 index) { return m_matrix_rows[index]; }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 row(Int32 index) const { return m_matrix_rows[index]; }
 
   //! Local index of the column for the given RowColumnIndex \a rc_index
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 column(CsrRowColumnIndex rc_index) const { return m_matrix_columns[rc_index]; }
@@ -176,10 +182,10 @@ class CsrFormatMatrixView
 
  private:
 
-  Span<const Int32> m_matrix_rows;
-  Span<const Int32> m_matrix_rows_nb_column;
-  Span<const Int32> m_matrix_columns;
-  Span<Real> m_values;
+  SmallSpan<const Int32> m_matrix_rows;
+  SmallSpan<const Int32> m_matrix_rows_nb_column;
+  SmallSpan<const Int32> m_matrix_columns;
+  SmallSpan<Real> m_values;
 };
 
 /*---------------------------------------------------------------------------*/
