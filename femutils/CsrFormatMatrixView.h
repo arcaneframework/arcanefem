@@ -31,15 +31,15 @@ namespace Arcane::FemUtils
  * This view is a temporary object and is invalided when the underlying matrix
  * structure is modified.
  */
-class CSRFormatView
+class CsrFormatMatrixView
 {
  public:
 
-  CSRFormatView() = default;
-  CSRFormatView(Span<const Int32> rows,
-                Span<const Int32> matrix_rows_nb_column,
-                Span<const Int32> columns,
-                Span<Real> values)
+  CsrFormatMatrixView() = default;
+  CsrFormatMatrixView(Span<const Int32> rows,
+                      Span<const Int32> matrix_rows_nb_column,
+                      Span<const Int32> columns,
+                      Span<Real> values)
   : m_matrix_rows(rows)
   , m_matrix_rows_nb_column(matrix_rows_nb_column)
   , m_matrix_columns(columns)
@@ -66,6 +66,8 @@ class CSRFormatView
   Span<const Int32> m_matrix_columns;
   Span<Real> m_values;
 };
+
+using CSRFormatView = CsrFormatMatrixView;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
