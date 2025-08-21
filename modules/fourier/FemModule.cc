@@ -244,16 +244,21 @@ _assembleLinearOperatorCpu()
     if (bc) {
 
       // Neumann
-      for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
-        if (mesh()->dimension() == 2)
+      for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions()) {
+        if (mesh()->dimension() == 2) {
           if (m_hex_quad_mesh)
             ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhsQuad4(bs, node_dof, m_node_coord, rhs_values);
           else
             ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
-        else if (m_hex_quad_mesh)
-          ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsHexa8(bs, node_dof, m_node_coord, rhs_values);
-        else
-          ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+        }
+
+        if (mesh()->dimension() == 3) {
+          if (m_hex_quad_mesh)
+            ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsHexa8(bs, node_dof, m_node_coord, rhs_values);
+          else
+            ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+        }
+      }
 
       // Dirichlet
       for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
