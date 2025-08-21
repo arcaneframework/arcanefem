@@ -355,25 +355,17 @@ void HypreDoFLinearSystemImpl::_applyRowElimination()
   auto in_elimination_info = Accelerator::viewIn(command, m_dof_elimination_info);
   auto in_elimination_value = Accelerator::viewIn(command, m_dof_elimination_value);
 
-  auto csr_row_size = m_csr_view.nbRow();
-  auto csr_columns_size = m_csr_view.nbColumn();
-  auto in_csr_row = m_csr_view.rows();
-  auto in_csr_columns = m_csr_view.columns();
-  auto in_out_csr_values = m_csr_view.values();
-
   auto in_out_rhs_variable = Accelerator::viewInOut(command, m_rhs_variable);
-
+  auto csr_view = m_csr_view;
   command << RUNCOMMAND_LOOP1(iter, nb_dof)
   {
     auto [thread_id] = iter();
     DoFLocalId dof_id(thread_id);
     auto elimination_info = in_elimination_info[dof_id];
     if (elimination_info == ELIMINATE_ROW) {
-      auto begin = in_csr_row[dof_id];
-      auto end = dof_id == csr_row_size - 1 ? csr_columns_size : in_csr_row[dof_id + 1];
       auto elimination_value = in_elimination_value[dof_id];
-      for (Int32 i = begin; i < end; ++i)
-        in_out_csr_values[i] = in_csr_columns[i] == dof_id ? 1 : 0;
+      for (CsrRowColumnIndex csr_index : csr_view.rowRange(dof_id))
+        csr_view.value(csr_index) = (csr_view.column(csr_index) == dof_id) ? 1.0 : 0.0;
       in_out_rhs_variable[dof_id] = elimination_value;
     }
   };

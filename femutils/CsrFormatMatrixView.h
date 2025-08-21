@@ -22,6 +22,104 @@
 
 namespace Arcane::FemUtils
 {
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+class CsrRowColumnIterator;
+class CsrFormatMatrixView;
+class CsrRow;
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*!
+ * \brief Index in the RowColumn list of a CSR Matrix.
+ */
+class CsrRowColumnIndex
+{
+ public:
+
+  using IndexType = Int32;
+
+ public:
+
+  CsrRowColumnIndex() = default;
+  explicit constexpr ARCCORE_HOST_DEVICE CsrRowColumnIndex(IndexType index)
+  : m_index(index)
+  {}
+
+ public:
+
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE IndexType value() const { return m_index; }
+  constexpr ARCCORE_HOST_DEVICE operator IndexType() const { return m_index; }
+
+ private:
+
+  IndexType m_index = -1;
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*!
+ * \brief Represents an iterator over the indexes of the columns of a CsrRow.
+ */
+class CsrRowColumnIterator
+{
+  friend CsrRow;
+
+ public:
+
+  CsrRowColumnIterator() = default;
+
+ private:
+
+  explicit constexpr ARCCORE_HOST_DEVICE CsrRowColumnIterator(Int32 index)
+  : m_index(index)
+  {}
+
+ public:
+
+  constexpr ARCCORE_HOST_DEVICE CsrRowColumnIndex operator*() const { return CsrRowColumnIndex(m_index); }
+  constexpr ARCCORE_HOST_DEVICE void operator++() { ++m_index; }
+  friend constexpr ARCCORE_HOST_DEVICE bool operator!=(const CsrRowColumnIterator& lhs, const CsrRowColumnIterator& rhs)
+  {
+    return lhs.m_index != rhs.m_index;
+  }
+
+ private:
+
+  Int32 m_index = -1;
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*!
+ * \brief Represents a row of a CSR Matrix.
+ */
+class CsrRow
+{
+  friend CsrFormatMatrixView;
+
+ public:
+
+  CsrRow() = default;
+
+ private:
+
+  constexpr ARCCORE_HOST_DEVICE CsrRow(Int32 begin, Int32 end)
+  : m_begin(begin)
+  , m_end(end)
+  {}
+
+ public:
+
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE CsrRowColumnIterator begin() const { return CsrRowColumnIterator(m_begin); }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE CsrRowColumnIterator end() const { return CsrRowColumnIterator(m_end); }
+
+ private:
+
+  Int32 m_begin = -1;
+  Int32 m_end = -1;
+};
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -48,16 +146,33 @@ class CsrFormatMatrixView
 
  public:
 
-  constexpr ARCCORE_HOST_DEVICE Span<const Int32> rows() const { return m_matrix_rows; }
-  constexpr ARCCORE_HOST_DEVICE Span<const Int32> rowsNbColumn() const { return m_matrix_rows_nb_column; }
-  constexpr ARCCORE_HOST_DEVICE Span<const Int32> columns() const { return m_matrix_columns; }
-  constexpr ARCCORE_HOST_DEVICE Span<Real> values() { return m_values; }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Span<const Int32> rows() const { return m_matrix_rows; }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Span<const Int32> rowsNbColumn() const { return m_matrix_rows_nb_column; }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Span<const Int32> columns() const { return m_matrix_columns; }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Span<Real> values() { return m_values; }
 
-  constexpr ARCCORE_HOST_DEVICE Int32 nbRow() { return m_matrix_rows.size(); }
-  constexpr ARCCORE_HOST_DEVICE Int32 nbColumn() { return m_matrix_columns.size(); }
-  constexpr ARCCORE_HOST_DEVICE Int32 nbValue() { return m_values.size(); }
+  //! Number of the rows in the matrix
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 nbRow() const { return m_matrix_rows.size(); }
+  //! Number of the values in the matrix
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 nbColumn() const { return m_matrix_columns.size(); }
+  //! Number of the values in the matrix
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 nbValue() const { return m_values.size(); }
 
-  constexpr ARCCORE_HOST_DEVICE Int32 row(Int32 index) { return m_matrix_rows[index]; }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 row(Int32 index) { return m_matrix_rows[index]; }
+
+  //! Local index of the column for the given RowColumnIndex \a rc_index
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 column(CsrRowColumnIndex rc_index) const { return m_matrix_columns[rc_index]; }
+  //! Value of the matrix for the given RowColumnIndex \a rc_index
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Real& value(CsrRowColumnIndex rc_index) const { return m_values[rc_index]; }
+
+  //! Range of CsrRowColumnIndex for the given row \a row
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE CsrRow rowRange(Int32 row) const
+  {
+    // TODO: look if we can use rowsNbColumn() to compute 'end'.
+    auto begin = m_matrix_rows[row];
+    auto end = (row == (nbRow() - 1)) ? nbColumn() : m_matrix_rows[row + 1];
+    return { begin, end };
+  }
 
  private:
 
@@ -67,6 +182,10 @@ class CsrFormatMatrixView
   Span<Real> m_values;
 };
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+//! Old name to keep compatibility with existing code.
 using CSRFormatView = CsrFormatMatrixView;
 
 /*---------------------------------------------------------------------------*/
