@@ -9,17 +9,10 @@
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b wit DoFs.          */
 /*---------------------------------------------------------------------------*/
-#ifndef FEMTEST_DOFLINEARSYSTEM_H
-#define FEMTEST_DOFLINEARSYSTEM_H
+#ifndef ARCANEFEM_FEMUTILS_DOFLINEARSYSTEM_H
+#define ARCANEFEM_FEMUTILS_DOFLINEARSYSTEM_H
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
-#include "arcane/core/VariableTypedef.h"
-#include <arcane/ItemTypes.h>
-#include <arcane/VariableTypedef.h>
-
-#include <arcane/accelerator/NumArrayViews.h>
-#include <arcane/accelerator/ViewsCommon.h>
 
 #include <arcane/utils/ArrayLayout.h>
 #include <arcane/utils/UtilsTypes.h>
@@ -27,53 +20,21 @@
 #include <arcane/utils/NumArray.h>
 #include <arcane/utils/MDDim.h>
 
+#include <arcane/core/VariableTypedef.h>
+#include <arcane/core/ItemTypes.h>
+#include <arcane/core/VariableTypedef.h>
+
+#include <arcane/accelerator/NumArrayViews.h>
+#include <arcane/accelerator/ViewsCommon.h>
+
+#include "CsrFormatMatrixView.h"
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 namespace Arcane::FemUtils
 {
 class IDoFLinearSystemFactory;
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-/*!
- * \brief Vue au format CSR pour le solveur linéaire.
- */
-class CSRFormatView
-{
- public:
-
-  CSRFormatView() = default;
-  CSRFormatView(Span<const Int32> rows,
-                Span<const Int32> matrix_rows_nb_column,
-                Span<const Int32> columns,
-                Span<Real> values)
-  : m_matrix_rows(rows)
-  , m_matrix_rows_nb_column(matrix_rows_nb_column)
-  , m_matrix_columns(columns)
-  , m_values(values)
-  {}
-
- public:
-
-  Span<const Int32> rows() const { return m_matrix_rows; }
-  Span<const Int32> rowsNbColumn() const { return m_matrix_rows_nb_column; }
-  Span<const Int32> columns() const { return m_matrix_columns; }
-  Span<Real> values() { return m_values; }
-
-  Int32 nbRow() { return m_matrix_rows.size(); }
-  Int32 nbColumn() { return m_matrix_columns.size(); }
-  Int32 nbValue() { return m_values.size(); }
-
-  Int32 row(Int32 index) { return m_matrix_rows[index]; }
-
- private:
-
-  Span<const Int32> m_matrix_rows;
-  Span<const Int32> m_matrix_rows_nb_column;
-  Span<const Int32> m_matrix_columns;
-  Span<Real> m_values;
-};
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -185,6 +146,7 @@ class DoFLinearSystem
    * - matrixSetValue(i,rc,0) for i!=rc
    * - matrixSetValue(rcw,rc,1.0)
    * - RHS[i] = RHS[i] - A[rc,i] * value for i!=rc
+   * - RHS[rc] = value
    *
    * The row is only eliminated solve() is called.
    * Any call to matrixAddValue(row,...), matrixSetValue(row,...),
