@@ -14,6 +14,8 @@ add_library(FemUtils
   CooFormatMatrix.h
   CsrFormatMatrix.h
   CsrFormatMatrix.cc
+  CsrFormatMatrixView.h
+  CsrFormatMatrixView.cc
   FemDoFsOnNodes.h
   FemDoFsOnNodes.cc
   FemBoundaryConditions.cc
