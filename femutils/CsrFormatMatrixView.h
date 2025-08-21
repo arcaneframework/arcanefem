@@ -48,16 +48,16 @@ class CSRFormatView
 
  public:
 
-  Span<const Int32> rows() const { return m_matrix_rows; }
-  Span<const Int32> rowsNbColumn() const { return m_matrix_rows_nb_column; }
-  Span<const Int32> columns() const { return m_matrix_columns; }
-  Span<Real> values() { return m_values; }
+  constexpr ARCCORE_HOST_DEVICE Span<const Int32> rows() const { return m_matrix_rows; }
+  constexpr ARCCORE_HOST_DEVICE Span<const Int32> rowsNbColumn() const { return m_matrix_rows_nb_column; }
+  constexpr ARCCORE_HOST_DEVICE Span<const Int32> columns() const { return m_matrix_columns; }
+  constexpr ARCCORE_HOST_DEVICE Span<Real> values() { return m_values; }
 
-  Int32 nbRow() { return m_matrix_rows.size(); }
-  Int32 nbColumn() { return m_matrix_columns.size(); }
-  Int32 nbValue() { return m_values.size(); }
+  constexpr ARCCORE_HOST_DEVICE Int32 nbRow() { return m_matrix_rows.size(); }
+  constexpr ARCCORE_HOST_DEVICE Int32 nbColumn() { return m_matrix_columns.size(); }
+  constexpr ARCCORE_HOST_DEVICE Int32 nbValue() { return m_values.size(); }
 
-  Int32 row(Int32 index) { return m_matrix_rows[index]; }
+  constexpr ARCCORE_HOST_DEVICE Int32 row(Int32 index) { return m_matrix_rows[index]; }
 
  private:
 
