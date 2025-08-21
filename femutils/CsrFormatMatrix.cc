@@ -19,6 +19,7 @@
 #include <arcane/accelerator/core/RunQueue.h>
 
 #include "CsrFormatMatrix.h"
+#include "DoFLinearSystem.h"
 
 namespace Arcane::FemUtils
 {
@@ -86,9 +87,15 @@ translateToLinearSystem(DoFLinearSystem& linear_system, const RunQueue& queue)
   }
 
   if (do_set_csr) {
-    CSRFormatView csr_view(m_matrix_row.to1DSpan(), m_matrix_rows_nb_column.to1DSpan(), m_matrix_column.to1DSpan(), m_matrix_value.to1DSpan());
+    CSRFormatView csr_view(view());
     linear_system.setCSRValues(csr_view);
   }
+}
+CsrFormatMatrixView CsrFormat::
+view()
+{
+  return CSRFormatView(m_matrix_row.to1DSmallSpan(), m_matrix_rows_nb_column.to1DSmallSpan(),
+                       m_matrix_column.to1DSmallSpan(), m_matrix_value.to1DSmallSpan());
 }
 
 void CsrFormat::
