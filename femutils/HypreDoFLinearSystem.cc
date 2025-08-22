@@ -14,18 +14,13 @@
 #include "DoFLinearSystem.h"
 
 #include <arcane/accelerator/RunCommandLoop.h>
-#include <arcane/core/ItemTypes.h>
-#include <arcane/core/VariableTypedef.h>
 #include <arcane/utils/FatalErrorException.h>
 #include <arcane/utils/PlatformUtils.h>
 #include <arcane/utils/ArcaneGlobal.h>
-#include <arcane/utils/ArrayLayout.h>
 #include <arcane/utils/MemoryUtils.h>
 #include <arcane/utils/MemoryView.h>
 #include <arcane/utils/ITraceMng.h>
-#include <arcane/core/DataView.h>
 #include <arcane/utils/NumArray.h>
-#include <arcane/utils/MDDim.h>
 
 #include <arcane/core/ServiceFactory.h>
 #include <arcane/core/VariableTypes.h>
@@ -36,12 +31,10 @@
 #include <arcane/core/ItemPrinter.h>
 #include <arcane/core/Timer.h>
 
-#include <arcane/accelerator/NumArrayViews.h>
 #include <arcane/accelerator/VariableViews.h>
 #include <arcane/accelerator/core/Runner.h>
 #include <arcane/accelerator/core/Memory.h>
 
-#include "FemUtils.h"
 #include "IDoFLinearSystemFactory.h"
 
 namespace Arcane::FemUtils
@@ -74,8 +67,6 @@ enum class preconditioner
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
-
 
 namespace Arcane::FemUtils
 {
@@ -114,14 +105,16 @@ namespace
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
-class HypreDoFLinearSystemImpl
+/*!
+ * \brief Implementation of IDoFLinearSystemImpl using a matrix with CSR format.
+ */
+class CsrDoFLinearSystemImpl
 : public TraceAccessor
 , public DoFLinearSystemImpl
 {
  public:
 
-  HypreDoFLinearSystemImpl(IItemFamily* dof_family, const String& solver_name)
+  CsrDoFLinearSystemImpl(IItemFamily* dof_family, const String& solver_name)
   : TraceAccessor(dof_family->traceMng())
   , m_dof_family(dof_family)
   , m_rhs_variable(VariableBuildInfo(dof_family, solver_name + "RHSVariable"))
@@ -132,26 +125,7 @@ class HypreDoFLinearSystemImpl
   , m_dof_elimination_info(VariableBuildInfo(dof_family, solver_name + "DoFEliminationInfo"))
   , m_dof_elimination_value(VariableBuildInfo(dof_family, solver_name + "DoFEliminationValue"))
   , m_dof_matrix_numbering(VariableBuildInfo(dof_family, solver_name + "MatrixNumbering"))
-  {
-    info() << "[Hypre-Info] Creating HypreDoFLinearSystemImpl()";
-  }
-
-  ~HypreDoFLinearSystemImpl()
-  {
-    info() << "[Hypre-Info] Calling HYPRE_Finalize";
-#if HYPRE_RELEASE_NUMBER >= 21500
-    HYPRE_Finalize(); // must be the last HYPRE function call //
-#endif
-  }
-
- public:
-
-  void build()
-  {
-#if HYPRE_RELEASE_NUMBER >= 22700
-    HYPRE_Init(); // must be the first HYPRE function call //
-#endif
-  }
+  {}
 
  public:
 
@@ -185,8 +159,6 @@ class HypreDoFLinearSystemImpl
     ARCANE_THROW(NotImplementedException, "");
   }
 
-  void solve() override;
-
   VariableDoFReal& solutionVariable() override
   {
     return m_dof_variable;
@@ -195,10 +167,6 @@ class HypreDoFLinearSystemImpl
   VariableDoFReal& rhsVariable() override
   {
     return m_rhs_variable;
-  }
-
-  void setSolverCommandLineArguments(const CommandLineArguments& args) override
-  {
   }
 
   void clearValues() override
@@ -226,35 +194,15 @@ class HypreDoFLinearSystemImpl
   void setRunner(Runner* r) override { m_runner = r; }
   Runner* runner() const override { return m_runner; }
 
-  void setMaxIter(Int32 v) { m_max_iter = v; }
-  void setVerbosityLevel(Int32 v) { m_verbosity = v; }
-  void setAmgCoarsener(Int32 v) { m_amg_coarsener = v; }
-  void setAmgInterpType(Int32 v) { m_amg_interp_type = v; }
-  void setAmgSmoother(Int32 v) { m_amg_smoother = v; }
-  void setKrylovDim(Int32 v) { m_krylov_dim = v; }
+ protected:
 
-
-  void setRelTolerance(Real v) { m_rtol = v; }
-  void setAbsTolerance(Real v) { m_atol = v; }
-  void setAmgThreshold(Real v) { m_amg_threshold = v; }
-
-  void setSolver(solver v) { m_solver = v; }
-  void setPreconditioner(preconditioner v) { m_preconditioner = v; }
-
-  void _applyRowElimination();
-  void _applyForcedValuesToLhs();
-
- private:
+  // TODO: make all these fields private
 
   IItemFamily* m_dof_family = nullptr;
   VariableDoFReal m_rhs_variable;
   VariableDoFReal m_dof_variable;
   VariableDoFInt32 m_dof_matrix_indexes;
   VariableDoFInt32 m_dof_matrix_numbering;
-  NumArray<Int32, MDDim1> m_parallel_columns_index;
-  NumArray<Int32, MDDim1> m_parallel_rows_index;
-  //! Work array to store values of solution vector in parallel
-  NumArray<Real, MDDim1> m_result_work_values;
   Runner* m_runner = nullptr;
 
   CSRFormatView m_csr_view;
@@ -265,6 +213,138 @@ class HypreDoFLinearSystemImpl
   static constexpr Byte ELIMINATE_ROW = 1;
   VariableDoFByte m_dof_elimination_info;
   VariableDoFReal m_dof_elimination_value;
+
+ public:
+
+  // These methods should be private but has to be public because of NVidia compiler
+  void _applyRowElimination();
+  void _applyForcedValuesToLhs();
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void CsrDoFLinearSystemImpl::
+_applyForcedValuesToLhs()
+{
+  auto nb_dof = m_dof_family->nbItem();
+
+  RunQueue queue = makeQueue(m_runner);
+  auto command = makeCommand(queue);
+
+  auto in_out_forced_info = Accelerator::viewInOut(command, m_dof_forced_info);
+  auto in_out_forced_value = Accelerator::viewInOut(command, m_dof_forced_value);
+
+  auto csr_row_size = m_csr_view.nbRow();
+  auto csr_columns_size = m_csr_view.nbColumn();
+  auto in_csr_row = m_csr_view.rows();
+  auto in_csr_columns = m_csr_view.columns();
+  auto in_out_csr_values = m_csr_view.values();
+
+  command << RUNCOMMAND_LOOP1(iter, nb_dof)
+  {
+    auto [dof_id] = iter();
+    if (in_out_forced_info[(DoFLocalId)dof_id]) {
+      auto begin = in_csr_row[dof_id];
+      auto end = dof_id == csr_row_size - 1 ? csr_columns_size : in_csr_row[dof_id + 1];
+      auto index = FemUtils::Gpu::Csr::findIndex(begin, end, dof_id, in_csr_columns);
+      in_out_csr_values[index] = in_out_forced_value[(DoFLocalId)dof_id];
+    }
+  };
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void CsrDoFLinearSystemImpl::
+_applyRowElimination()
+{
+  auto nb_dof = m_dof_family->nbItem();
+
+  RunQueue queue = makeQueue(m_runner);
+  auto command = makeCommand(queue);
+
+  auto in_elimination_info = Accelerator::viewIn(command, m_dof_elimination_info);
+  auto in_elimination_value = Accelerator::viewIn(command, m_dof_elimination_value);
+
+  auto in_out_rhs_variable = Accelerator::viewInOut(command, m_rhs_variable);
+  auto csr_view = m_csr_view;
+  command << RUNCOMMAND_LOOP1(iter, nb_dof)
+  {
+    auto [thread_id] = iter();
+    DoFLocalId dof_id(thread_id);
+    auto elimination_info = in_elimination_info[dof_id];
+    if (elimination_info == ELIMINATE_ROW) {
+      auto elimination_value = in_elimination_value[dof_id];
+      for (CsrRowColumnIndex csr_index : csr_view.rowRange(dof_id))
+        csr_view.value(csr_index) = (csr_view.column(csr_index) == dof_id) ? 1.0 : 0.0;
+      in_out_rhs_variable[dof_id] = elimination_value;
+    }
+  };
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+class HypreDoFLinearSystemImpl
+: public CsrDoFLinearSystemImpl
+{
+ public:
+
+  HypreDoFLinearSystemImpl(IItemFamily* dof_family, const String& solver_name)
+  : CsrDoFLinearSystemImpl(dof_family, solver_name)
+  {
+    info() << "[Hypre-Info] Creating HypreDoFLinearSystemImpl()";
+  }
+
+  ~HypreDoFLinearSystemImpl() override
+  {
+    info() << "[Hypre-Info] Calling HYPRE_Finalize";
+#if HYPRE_RELEASE_NUMBER >= 21500
+    HYPRE_Finalize(); // must be the last HYPRE function call //
+#endif
+  }
+
+ public:
+
+  void build()
+  {
+#if HYPRE_RELEASE_NUMBER >= 22700
+    HYPRE_Init(); // must be the first HYPRE function call //
+#endif
+  }
+
+ public:
+
+  void solve() override;
+
+  void setSolverCommandLineArguments(const CommandLineArguments& args) override
+  {
+  }
+
+  void setMaxIter(Int32 v) { m_max_iter = v; }
+  void setVerbosityLevel(Int32 v) { m_verbosity = v; }
+  void setAmgCoarsener(Int32 v) { m_amg_coarsener = v; }
+  void setAmgInterpType(Int32 v) { m_amg_interp_type = v; }
+  void setAmgSmoother(Int32 v) { m_amg_smoother = v; }
+  void setKrylovDim(Int32 v) { m_krylov_dim = v; }
+
+  void setRelTolerance(Real v) { m_rtol = v; }
+  void setAbsTolerance(Real v) { m_atol = v; }
+  void setAmgThreshold(Real v) { m_amg_threshold = v; }
+
+  void setSolver(solver v) { m_solver = v; }
+  void setPreconditioner(preconditioner v) { m_preconditioner = v; }
+
+ private:
+
+  NumArray<Int32, MDDim1> m_parallel_columns_index;
+  NumArray<Int32, MDDim1> m_parallel_rows_index;
+  //! Work array to store values of solution vector in parallel
+  NumArray<Real, MDDim1> m_result_work_values;
 
   Int32 m_first_own_row = -1;
   Int32 m_nb_own_row = -1;
@@ -284,14 +364,18 @@ class HypreDoFLinearSystemImpl
 
  private:
 
-  void _computeMatrixNumerotation();
+  void _computeMatrixNumeration();
 };
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
+/*!
+ * \brief Compute global numeration of the matrix.
+ *
+ * Each rank owns consecutive rows of the matrix in increasing order.
+ */
 void HypreDoFLinearSystemImpl::
-_computeMatrixNumerotation()
+_computeMatrixNumeration()
 {
   IParallelMng* pm = m_dof_family->parallelMng();
   const bool is_parallel = pm->isParallel();
@@ -345,66 +429,6 @@ namespace
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void HypreDoFLinearSystemImpl::_applyRowElimination()
-{
-  auto nb_dof = m_dof_family->nbItem();
-
-  RunQueue queue = makeQueue(m_runner);
-  auto command = makeCommand(queue);
-
-  auto in_elimination_info = Accelerator::viewIn(command, m_dof_elimination_info);
-  auto in_elimination_value = Accelerator::viewIn(command, m_dof_elimination_value);
-
-  auto in_out_rhs_variable = Accelerator::viewInOut(command, m_rhs_variable);
-  auto csr_view = m_csr_view;
-  command << RUNCOMMAND_LOOP1(iter, nb_dof)
-  {
-    auto [thread_id] = iter();
-    DoFLocalId dof_id(thread_id);
-    auto elimination_info = in_elimination_info[dof_id];
-    if (elimination_info == ELIMINATE_ROW) {
-      auto elimination_value = in_elimination_value[dof_id];
-      for (CsrRowColumnIndex csr_index : csr_view.rowRange(dof_id))
-        csr_view.value(csr_index) = (csr_view.column(csr_index) == dof_id) ? 1.0 : 0.0;
-      in_out_rhs_variable[dof_id] = elimination_value;
-    }
-  };
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void HypreDoFLinearSystemImpl::_applyForcedValuesToLhs()
-{
-  auto nb_dof = m_dof_family->nbItem();
-
-  RunQueue queue = makeQueue(m_runner);
-  auto command = makeCommand(queue);
-
-  auto in_out_forced_info = Accelerator::viewInOut(command, m_dof_forced_info);
-  auto in_out_forced_value = Accelerator::viewInOut(command, m_dof_forced_value);
-
-  auto csr_row_size = m_csr_view.nbRow();
-  auto csr_columns_size = m_csr_view.nbColumn();
-  auto in_csr_row = m_csr_view.rows();
-  auto in_csr_columns = m_csr_view.columns();
-  auto in_out_csr_values = m_csr_view.values();
-
-  command << RUNCOMMAND_LOOP1(iter, nb_dof)
-  {
-    auto [dof_id] = iter();
-    if (in_out_forced_info[(DoFLocalId)dof_id]) {
-      auto begin = in_csr_row[dof_id];
-      auto end = dof_id == csr_row_size - 1 ? csr_columns_size : in_csr_row[dof_id + 1];
-      auto index = FemUtils::Gpu::Csr::findIndex(begin, end, dof_id, in_csr_columns);
-      in_out_csr_values[index] = in_out_forced_value[(DoFLocalId)dof_id];
-    }
-  };
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
 void HypreDoFLinearSystemImpl::
 solve()
 {
@@ -429,7 +453,7 @@ solve()
   const Int32 my_rank = pm->commRank();
 
   // TODO: A ne faire qu'un fois sauf si les DoFs évoluent
-  _computeMatrixNumerotation();
+  _computeMatrixNumeration();
 
   bool is_use_device = false;
   if (m_runner) {
