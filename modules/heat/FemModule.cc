@@ -157,7 +157,7 @@ _updateVariables()
         Real3 grad = ArcaneFemFunctions::FeOperation3D::computeGradientTetra4(cell, m_node_coord, m_node_temperature);
         m_flux[cell].x = -m_cell_lambda[cell] * grad.x;
         m_flux[cell].y = -m_cell_lambda[cell] * grad.y;
-        m_flux[cell].z = 0.;
+        m_flux[cell].z = -m_cell_lambda[cell] * grad.z;
       }
 
     m_flux.synchronize();
