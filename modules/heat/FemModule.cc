@@ -307,10 +307,17 @@ _assembleLinearOperator()
       processConvectionBoundaryCondition(RealVector<3>{1., 1., 1.}, 1 / 12., ArcaneFemFunctions::MeshOperation::computeAreaTria3, 3);
   }
 
+  // RHS old termprature term ∫∫ [(1/δ𝑡)(𝑢ₙ 𝑣ʰ)]dΩ  for domain Ω
+  m_node_temperature_old.mult(1.0 / dt);
+  if (mesh()->dimension() == 2) {
+    ArcaneFemFunctions::BoundaryConditions2D::integrateNodalFieldToRhsTria3(m_node_temperature_old, mesh(), node_dof, m_node_coord, rhs_values);
+  }
+  if (mesh()->dimension() == 3) {
+    ArcaneFemFunctions::BoundaryConditions3D::integrateNodalFieldToRhsTetra4(m_node_temperature_old, mesh(), node_dof, m_node_coord, rhs_values);
+  }
+
   // Helper lambda to apply boundary conditions
   auto applyBoundaryConditions = [&](auto BCFunctions) {
-    m_node_temperature_old.mult(1.0 / dt);
-    BCFunctions.applyVariableSourceToRhs(m_node_temperature_old, mesh(), node_dof, m_node_coord, rhs_values);
 
     BC::IArcaneFemBC* bc = options()->boundaryConditions();
     if (bc) {
@@ -505,7 +512,6 @@ _validateResults()
     }
 
   String filename = options()->resultFile();
-  info() << "ValidateResultFile filename=" << filename;
 
   if (!filename.empty())
     checkNodeResultFile(traceMng(), filename, m_node_temperature, 1.0e-4);
