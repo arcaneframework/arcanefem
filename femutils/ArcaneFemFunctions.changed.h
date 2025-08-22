@@ -1323,9 +1323,13 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-     * @brief Applies a nodal field as a source term to the RHS vector.
+     * @brief Applies a constant source term to the RHS vector.
      *
-     * @param [IN]  field      : The field values at cell nodes.
+     * This method adds a constant source term `qdot` to the RHS vector for each
+     * node in the mesh. The contribution to each node is weighted by the area of
+     * the cell and evenly distributed among the number of nodes of the cell.
+     *
+     * @param [IN]  qdot       : The constant source term.
      * @param [IN]  mesh       : The mesh containing all cells.
      * @param [IN]  node_dof   : DOF connectivity view.
      * @param [IN]  node_coord : The coordinates of the nodes.
@@ -1333,139 +1337,14 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline void integrateNodalFieldToRhsTetra4(VariableNodeReal& field, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    static inline void applyVariableSourceToRhs(VariableNodeReal& qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
     {
       ENUMERATE_ (Cell, icell, mesh->allCells()) {
         Cell cell = *icell;
         Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, node_coord);
-
-        // Get nodal values for this tetrahedral cell
-        const Real field_at_nodes[4] = {
-          field[cell.nodeId(0)],
-          field[cell.nodeId(1)],
-          field[cell.nodeId(2)],
-          field[cell.nodeId(3)]
-        };
-
-        // Apply mass matrix integration: ∫(T^n * N_i)dV
-        Real node_contributions[4] = { 0.0, 0.0, 0.0, 0.0 };
-
-        for (Int8 i = 0; i < 4; ++i) {
-          for (Int8 j = 0; j < 4; ++j) {
-            Real mass_coeff;
-            if (i == j) {
-              mass_coeff = volume / 10.0; // diagonal: volume * (2/20) = volume/10
-            }
-            else {
-              mass_coeff = volume / 20.0; // off-diagonal: volume * (1/20)
-            }
-            node_contributions[i] += mass_coeff * field_at_nodes[j];
-          }
-        }
-
-        // Add contributions to global RHS
-        for (Int8 i = 0; i < 4; ++i) {
-          Node node = cell.node(i);
-          if (node.isOwn()) {
-            rhs_values[node_dof.dofId(node, 0)] += node_contributions[i];
-          }
-        }
-      }
-    }
-
-    /*---------------------------------------------------------------------------*/
-    /**
-     * @brief Applies a nodal field to the RHS vector.
-     *
-     * @param [IN]  field      : The field term defined on nodes.
-     * @param [IN]  mesh       : The mesh containing all cells.
-     * @param [IN]  node_dof   : DOF connectivity view.
-     * @param [IN]  node_coord : The coordinates of the nodes.
-     * @param [OUT] rhs_values : The RHS values to update.
-     */
-    /*---------------------------------------------------------------------------*/
-
-    static inline void integrateNodalFieldToRhsHexa8(VariableNodeReal& field, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
-    {
-      ENUMERATE_ (Cell, icell, mesh->allCells()) {
-        Cell cell = *icell;
-
-        // Get nodal values of field for this cell
-        const Real field_at_nodes[8] = {
-          field[cell.nodeId(0)],
-          field[cell.nodeId(1)],
-          field[cell.nodeId(2)],
-          field[cell.nodeId(3)],
-          field[cell.nodeId(4)],
-          field[cell.nodeId(5)],
-          field[cell.nodeId(6)],
-          field[cell.nodeId(7)]
-        };
-
-        // Initialize contributions for each node in this cell
-        Real node_contributions[8] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
-
-        // 2x2 Gauss integration for quadrilateral element
-        constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // -1/sqrt(3), 1/sqrt(3)
-        constexpr Real w = 1.0;
-
-        for (Int32 ixi = 0; ixi < 2; ++ixi) {
-          for (Int32 ieta = 0; ieta < 2; ++ieta) {
-            for (Int32 izeta = 0; izeta < 2; ++izeta) {
-
-              // Get the coordinates of the Gauss point
-              Real xi = gp[ixi]; // Get the ξ coordinate of the Gauss point
-              Real eta = gp[ieta]; // Get the η coordinate of the Gauss point
-              Real zeta = gp[izeta]; // ζ coordinate
-              Real weight = w * w * w; // Weight for 3D Gauss integration
-
-              // Shape functions 𝐍 for Hexa8
-              //   𝐍 = [𝑁₁  𝑁₂  𝑁₃  𝑁₄  𝑁₅  𝑁₆  𝑁₇  𝑁₈]
-              //   𝑁₁ = 1/8 * (1 - ξ) * (1 - η) * (1 - ζ)
-              //   𝑁₂ = 1/8 * (1 + ξ) * (1 - η) * (1 - ζ)
-              //   𝑁₃ = 1/8 * (1 + ξ) * (1 + η) * (1 - ζ)
-              //   𝑁₄ = 1/8 * (1 - ξ) * (1 + η) * (1 - ζ)
-              //   𝑁₅ = 1/8 * (1 - ξ) * (1 - η) * (1 + ζ)
-              //   𝑁₆ = 1/8 * (1 + ξ) * (1 - η) * (1 + ζ)
-              //   𝑁₇ = 1/8 * (1 + ξ) * (1 + η) * (1 + ζ)
-              //   𝑁₈ = 1/8 * (1 - ξ) * (1 + η) * (1 + ζ)
-              Real N[8];
-              N[0] = 0.125 * (1 - xi) * (1 - eta) * (1 - zeta);
-              N[1] = 0.125 * (1 + xi) * (1 - eta) * (1 - zeta);
-              N[2] = 0.125 * (1 + xi) * (1 + eta) * (1 - zeta);
-              N[3] = 0.125 * (1 - xi) * (1 + eta) * (1 - zeta);
-              N[4] = 0.125 * (1 - xi) * (1 - eta) * (1 + zeta);
-              N[5] = 0.125 * (1 + xi) * (1 - eta) * (1 + zeta);
-              N[6] = 0.125 * (1 + xi) * (1 + eta) * (1 + zeta);
-              N[7] = 0.125 * (1 - xi) * (1 + eta) * (1 + zeta);
-
-              // compute the det(Jacobian)
-              const auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa8(cell, node_coord, xi, eta, zeta);
-              const Real detJ = gp_info.det_j;
-
-              // compute integration weight
-              const Real integration_weight = weight * detJ;
-
-              // Interpolate qdot at the quadrature point: qdot_gp = ∑ 𝑁ᵢ * q̇
-              Real qdot_gp = 0.0;
-              for (Int8 a = 0; a < 8; ++a) {
-                qdot_gp += N[a] * field_at_nodes[a];
-              }
-
-              // Add contribution to each test function: ∫ q̇ * 𝑁ᵢ dΩ
-              for (Int8 i = 0; i < 8; ++i) {
-                node_contributions[i] += qdot_gp * N[i] * integration_weight;
-              }
-            }
-          }
-        }
-
-        // Add contributions to global RHS vector
-        for (Int8 i = 0; i < 8; ++i) {
-          Node node = cell.node(i);
-          if (node.isOwn()) {
-            rhs_values[node_dof.dofId(node, 0)] += node_contributions[i];
-          }
+        for (Node node : cell.nodes()) {
+          if (node.isOwn())
+            rhs_values[node_dof.dofId(node, 0)] += qdot[node] * volume / cell.nbNode();
         }
       }
     }
@@ -1924,9 +1803,13 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-     * @brief Applies a nodal field to the RHS vector.
+     * @brief Applies a variable source term to the RHS vector.
      *
-     * @param [IN]  field      : The field term defined on nodes.
+     * This method adds a variable source term `source` to the RHS vector for each
+     * node in the mesh. The contribution to each node is weighted by the area of
+     * the cell and evenly distributed among the number of nodes of the cell.
+     *
+     * @param [IN]  source     : The variable source term.
      * @param [IN]  mesh       : The mesh containing all cells.
      * @param [IN]  node_dof   : DOF connectivity view.
      * @param [IN]  node_coord : The coordinates of the nodes.
@@ -1934,17 +1817,17 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline void integrateNodalFieldToRhsTria3(VariableNodeReal& field, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    static inline void applyVariableSourceToRhs(VariableNodeReal& source, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
     {
       ENUMERATE_ (Cell, icell, mesh->allCells()) {
         Cell cell = *icell;
         Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, node_coord);
 
         // Get nodal values for this triangular cell
-        const Real field_at_nodes[3] = {
-          field[cell.nodeId(0)],
-          field[cell.nodeId(1)],
-          field[cell.nodeId(2)]
+        const Real source_at_nodes[3] = {
+          source[cell.nodeId(0)],
+          source[cell.nodeId(1)],
+          source[cell.nodeId(2)]
         };
 
         // Apply mass matrix integration
@@ -1959,7 +1842,7 @@ class ArcaneFemFunctions
             else {
               mass_coeff = area / 12.0; // off-diagonal: area * (1/12)
             }
-            node_contributions[i] += mass_coeff * field_at_nodes[j];
+            node_contributions[i] += mass_coeff * source_at_nodes[j];
           }
         }
 
@@ -1975,27 +1858,27 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-     * @brief Applies a nodal field to the RHS vector.
-     *
-     * @param [IN]  field      : The field term defined on nodes.
+     * @brief Applies a variable source term to the RHS vector for Quad4 elements.
+     * 
+     * @param [IN]  source     : The variable source term.
      * @param [IN]  mesh       : The mesh containing all cells.
      * @param [IN]  node_dof   : DOF connectivity view.
      * @param [IN]  node_coord : The coordinates of the nodes.
      * @param [OUT] rhs_values : The RHS values to update.
-     */
+     * 
     /*---------------------------------------------------------------------------*/
 
-    static inline void integrateNodalFieldToRhsQuad4(VariableNodeReal& field, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    static inline void applyVariableSourceToRhsQuad4(VariableNodeReal& source, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
     {
       ENUMERATE_ (Cell, icell, mesh->allCells()) {
         Cell cell = *icell;
 
-        // Get nodal values of field for this cell
-        const Real field_at_nodes[4] = {
-          field[cell.nodeId(0)],
-          field[cell.nodeId(1)],
-          field[cell.nodeId(2)],
-          field[cell.nodeId(3)]
+        // Get nodal values of source for this cell
+        const Real source_at_nodes[4] = {
+          source[cell.nodeId(0)],
+          source[cell.nodeId(1)],
+          source[cell.nodeId(2)],
+          source[cell.nodeId(3)]
         };
 
         // Initialize contributions for each node in this cell
@@ -2030,7 +1913,7 @@ class ArcaneFemFunctions
             // Interpolate qdot at the quadrature point: qdot_gp = ∑ 𝑁ᵢ * q̇
             Real qdot_gp = 0.0;
             for (Int8 a = 0; a < 4; ++a) {
-              qdot_gp += N[a] * field_at_nodes[a];
+              qdot_gp += N[a] * source_at_nodes[a];
             }
 
             // Add contribution to each test function: ∫ q̇ * 𝑁ᵢ dΩ
@@ -2049,7 +1932,7 @@ class ArcaneFemFunctions
         }
       }
     }
-  
+
     /*---------------------------------------------------------------------------*/
     /**
      * @brief Applies a manufactured source term to the RHS vector.

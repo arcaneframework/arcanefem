@@ -23,7 +23,9 @@ file(COPY "check" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
   plate.msh
+  plate.quad.msh
   multi-material.msh
+  multi-material.quad.msh
   truncated_cube.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
@@ -51,6 +53,9 @@ enable_testing()
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [heat]conduction COMMAND heat
     inputs/conduction.arc)
+  
+  add_test(NAME [heat]conduction_quad COMMAND heat
+    inputs/conduction.quad.arc)
 
   add_test(NAME [heat]conduction_RowElimination_Dirichlet COMMAND heat
     -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowElimination
@@ -58,18 +63,30 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/linear-system/solver-method=gmres
     inputs/conduction.arc)
 
+  add_test(NAME [heat]conduction_quad_RowElimination_Dirichlet COMMAND heat
+    -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowElimination
+    -A,//fem/linear-system/solver-backend=petsc
+    -A,//fem/linear-system/solver-method=gmres
+    inputs/conduction.quad.arc)
+
   # add_test(NAME [heat]conduction_RowColElimination_Dirichlet COMMAND heat
   #   -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
   #   inputs/conduction.arc)
 
   add_test(NAME [heat]conduction_multi-material COMMAND heat
     inputs/conduction.multi-material.arc)
+  
+  add_test(NAME [heat]conduction_multi-material_quad COMMAND heat
+    inputs/conduction.multi-material.quad.arc)
 
   add_test(NAME [heat]conduction_convection COMMAND heat
     inputs/conduction.convection.arc)
 
     add_test(NAME [heat]conduction_neumann_pointBC COMMAND heat
     inputs/conduction.neumann.point-dirichlet.arc)
+
+    add_test(NAME [heat]conduction_neumann_pointBC_quad COMMAND heat
+    inputs/conduction.neumann.point-dirichlet.quad.arc)
 
   add_test(NAME [heat]conduction_petsc_monitor COMMAND heat
     -A,//fem/petsc-flags=-ksp_monitor

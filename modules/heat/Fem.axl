@@ -46,7 +46,7 @@
       <description>Which matrix format to use DOK|BSR|AF-BSR.</description>
     </simple>
 
-    <simple name="petsc-flags" type="string" default="" optional="true">
+    <simple name="petsc-flags" type="string" default="-mat_type baij" optional="true">
       <description>Flags for PETSc from commandline.</description>
     </simple>
 
@@ -60,6 +60,10 @@
 
     <simple name="cross-validation" type="bool" default="true" optional="true">
       <description>Boolean to enable cross validation.</description>
+    </simple>
+
+    <simple name="hex-quad-mesh" type="bool" default="false" optional="true">
+      <description>Boolean to use hexagonal quadrature for element matrix assembly.</description>
     </simple>
 
     <!-- - - - - - convection-boundary-condition - - - - -->
