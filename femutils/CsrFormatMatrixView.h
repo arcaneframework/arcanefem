@@ -85,6 +85,7 @@ class CsrRowColumnIterator
   {
     return lhs.m_index != rhs.m_index;
   }
+  constexpr ARCCORE_HOST_DEVICE bool isValid() const { return m_index != (-1); }
 
  private:
 
@@ -178,6 +179,21 @@ class CsrFormatMatrixView
     auto begin = m_matrix_rows[row];
     auto end = (row == (nbRow() - 1)) ? nbColumn() : m_matrix_rows[row + 1];
     return { begin, end };
+  }
+
+  /*!
+   * \brief Try to find a column in a row.
+   *
+   * Try to find the column \a column_id in the row \a row.
+   * If not found return a null index.
+   */
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE CsrRowColumnIndex
+  tryFindColumnInRow(Int32 row, Int32 column_id) const
+  {
+    for (CsrRowColumnIndex csr_index : rowRange(row))
+      if (column(csr_index) == column_id)
+        return csr_index;
+    return {};
   }
 
  private:

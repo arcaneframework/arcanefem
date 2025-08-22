@@ -64,21 +64,15 @@ _applyForcedValuesToLhs()
 
   auto in_out_forced_info = Accelerator::viewInOut(command, m_dof_forced_info);
   auto in_out_forced_value = Accelerator::viewInOut(command, m_dof_forced_value);
-
-  auto csr_row_size = m_csr_view.nbRow();
-  auto csr_columns_size = m_csr_view.nbColumn();
-  auto in_csr_row = m_csr_view.rows();
-  auto in_csr_columns = m_csr_view.columns();
-  auto in_out_csr_values = m_csr_view.values();
+  auto csr_view = m_csr_view;
 
   command << RUNCOMMAND_LOOP1(iter, nb_dof)
   {
-    auto [dof_id] = iter();
-    if (in_out_forced_info[(DoFLocalId)dof_id]) {
-      auto begin = in_csr_row[dof_id];
-      auto end = dof_id == csr_row_size - 1 ? csr_columns_size : in_csr_row[dof_id + 1];
-      auto index = FemUtils::Gpu::Csr::findIndex(begin, end, dof_id, in_csr_columns);
-      in_out_csr_values[index] = in_out_forced_value[(DoFLocalId)dof_id];
+    auto [i] = iter();
+    DoFLocalId dof_id(i);
+    if (in_out_forced_info[dof_id]) {
+      auto index = csr_view.tryFindColumnInRow(dof_id, dof_id);
+      csr_view.value(index) = in_out_forced_value[dof_id];
     }
   };
 }
