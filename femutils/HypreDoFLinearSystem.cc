@@ -36,6 +36,7 @@
 #include <arcane/accelerator/core/Memory.h>
 
 #include "IDoFLinearSystemFactory.h"
+#include "CsrDoFLinearSystemImpl.h"
 
 namespace Arcane::FemUtils
 {
@@ -52,7 +53,7 @@ enum class preconditioner
   AMG,
   BJACOBI
 };
-}
+} // namespace Arcane::FemUtils
 
 #include "HypreDoFLinearSystemFactory_axl.h"
 #include "ArcaneFemFunctionsGpu.h"
@@ -61,9 +62,6 @@ enum class preconditioner
 #include <HYPRE_parcsr_ls.h>
 #include <krylov.h>
 
-// NOTE:
-// DoF family must be compacted (i.e maxLocalId()==nbItem()) and sorted
-// for this implementation to works.
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -106,185 +104,6 @@ namespace
   }
 } // namespace
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-/*!
- * \brief Implementation of IDoFLinearSystemImpl using a matrix with CSR format.
- */
-class CsrDoFLinearSystemImpl
-: public TraceAccessor
-, public DoFLinearSystemImpl
-{
- public:
-
-  CsrDoFLinearSystemImpl(IItemFamily* dof_family, const String& solver_name)
-  : TraceAccessor(dof_family->traceMng())
-  , m_dof_family(dof_family)
-  , m_rhs_variable(VariableBuildInfo(dof_family, solver_name + "RHSVariable"))
-  , m_dof_variable(VariableBuildInfo(dof_family, solver_name + "SolutionVariable"))
-  , m_dof_forced_info(VariableBuildInfo(dof_family, solver_name + "DoFForcedInfo"))
-  , m_dof_forced_value(VariableBuildInfo(dof_family, solver_name + "DoFForcedValue"))
-  , m_dof_elimination_info(VariableBuildInfo(dof_family, solver_name + "DoFEliminationInfo"))
-  , m_dof_elimination_value(VariableBuildInfo(dof_family, solver_name + "DoFEliminationValue"))
-  {}
-
- public:
-
-  Int32 indexValue(DoFLocalId row_lid, DoFLocalId column_lid)
-  {
-    auto begin = m_csr_view.rows()[row_lid];
-    auto end = row_lid == m_csr_view.nbRow() - 1 ? m_csr_view.nbColumn() : m_csr_view.row(row_lid + 1);
-    for (auto i = begin; i < end; ++i)
-      if (m_csr_view.columns()[i] == column_lid)
-        return i;
-    return -1;
-  }
-
-  void matrixAddValue(DoFLocalId row, DoFLocalId column, Real value) override
-  {
-    m_csr_view.values()[indexValue(row, column)] += value;
-  }
-
-  void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value) override
-  {
-    m_csr_view.values()[indexValue(row, column)] = value;
-  }
-
-  void eliminateRow(DoFLocalId row, Real value) override
-  {
-    ARCANE_THROW(NotImplementedException, "");
-  }
-
-  void eliminateRowColumn(DoFLocalId row, Real value) override
-  {
-    ARCANE_THROW(NotImplementedException, "");
-  }
-
-  VariableDoFReal& solutionVariable() override
-  {
-    return m_dof_variable;
-  }
-
-  VariableDoFReal& rhsVariable() override
-  {
-    return m_rhs_variable;
-  }
-
-  void clearValues() override
-  {
-    info() << "[Hypre-Info]: Clear values";
-    m_csr_view = {};
-    m_dof_forced_info.fill(false);
-    m_dof_elimination_info.fill(ELIMINATE_NONE);
-    m_dof_elimination_value.fill(0);
-  }
-
-  CSRFormatView& getCSRValues() override { return m_csr_view; };
-  VariableDoFBool& getForcedInfo() override { return m_dof_forced_info; }
-  VariableDoFReal& getForcedValue() override { return m_dof_forced_value; }
-  VariableDoFByte& getEliminationInfo() override { return m_dof_elimination_info; }
-  VariableDoFReal& getEliminationValue() override { return m_dof_elimination_value; }
-
-  void setCSRValues(const CSRFormatView& csr_view) override
-  {
-    m_csr_view = csr_view;
-  }
-
-  bool hasSetCSRValues() const override { return true; }
-
-  void setRunner(Runner* r) override { m_runner = r; }
-  Runner* runner() const override { return m_runner; }
-
- public:
-
-  IItemFamily* dofFamily() const { return m_dof_family; }
-
- private:
-
-  // TODO: make all these fields private
-
-  IItemFamily* m_dof_family = nullptr;
-  VariableDoFReal m_rhs_variable;
-  VariableDoFReal m_dof_variable;
-  Runner* m_runner = nullptr;
-
-  CSRFormatView m_csr_view;
-
-  VariableDoFBool m_dof_forced_info;
-  VariableDoFReal m_dof_forced_value;
-  static constexpr Byte ELIMINATE_NONE = 0;
-  static constexpr Byte ELIMINATE_ROW = 1;
-  VariableDoFByte m_dof_elimination_info;
-  VariableDoFReal m_dof_elimination_value;
-
- public:
-
-  // These methods should be private but has to be public because of NVidia compiler
-  void _applyRowElimination();
-  void _applyForcedValuesToLhs();
-};
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void CsrDoFLinearSystemImpl::
-_applyForcedValuesToLhs()
-{
-  auto nb_dof = m_dof_family->nbItem();
-
-  RunQueue queue = makeQueue(m_runner);
-  auto command = makeCommand(queue);
-
-  auto in_out_forced_info = Accelerator::viewInOut(command, m_dof_forced_info);
-  auto in_out_forced_value = Accelerator::viewInOut(command, m_dof_forced_value);
-
-  auto csr_row_size = m_csr_view.nbRow();
-  auto csr_columns_size = m_csr_view.nbColumn();
-  auto in_csr_row = m_csr_view.rows();
-  auto in_csr_columns = m_csr_view.columns();
-  auto in_out_csr_values = m_csr_view.values();
-
-  command << RUNCOMMAND_LOOP1(iter, nb_dof)
-  {
-    auto [dof_id] = iter();
-    if (in_out_forced_info[(DoFLocalId)dof_id]) {
-      auto begin = in_csr_row[dof_id];
-      auto end = dof_id == csr_row_size - 1 ? csr_columns_size : in_csr_row[dof_id + 1];
-      auto index = FemUtils::Gpu::Csr::findIndex(begin, end, dof_id, in_csr_columns);
-      in_out_csr_values[index] = in_out_forced_value[(DoFLocalId)dof_id];
-    }
-  };
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void CsrDoFLinearSystemImpl::
-_applyRowElimination()
-{
-  auto nb_dof = m_dof_family->nbItem();
-
-  RunQueue queue = makeQueue(m_runner);
-  auto command = makeCommand(queue);
-
-  auto in_elimination_info = Accelerator::viewIn(command, m_dof_elimination_info);
-  auto in_elimination_value = Accelerator::viewIn(command, m_dof_elimination_value);
-
-  auto in_out_rhs_variable = Accelerator::viewInOut(command, m_rhs_variable);
-  auto csr_view = m_csr_view;
-  command << RUNCOMMAND_LOOP1(iter, nb_dof)
-  {
-    auto [thread_id] = iter();
-    DoFLocalId dof_id(thread_id);
-    auto elimination_info = in_elimination_info[dof_id];
-    if (elimination_info == ELIMINATE_ROW) {
-      auto elimination_value = in_elimination_value[dof_id];
-      for (CsrRowColumnIndex csr_index : csr_view.rowRange(dof_id))
-        csr_view.value(csr_index) = (csr_view.column(csr_index) == dof_id) ? 1.0 : 0.0;
-      in_out_rhs_variable[dof_id] = elimination_value;
-    }
-  };
-}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

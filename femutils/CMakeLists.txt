@@ -4,6 +4,7 @@ set(ACCELERATOR_SOURCES
   BSRFormat.h
   ArcaneFemFunctionsGpu.h
   HypreDoFLinearSystem.cc
+  CsrDoFLinearSystemImpl.cc
 )
 
 add_library(FemUtils
@@ -16,6 +17,7 @@ add_library(FemUtils
   CsrFormatMatrix.cc
   CsrFormatMatrixView.h
   CsrFormatMatrixView.cc
+  CsrDoFLinearSystemImpl.h
   FemDoFsOnNodes.h
   FemDoFsOnNodes.cc
   FemBoundaryConditions.cc
