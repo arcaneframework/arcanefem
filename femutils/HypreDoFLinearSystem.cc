@@ -14,18 +14,13 @@
 #include "DoFLinearSystem.h"
 
 #include <arcane/accelerator/RunCommandLoop.h>
-#include <arcane/core/ItemTypes.h>
-#include <arcane/core/VariableTypedef.h>
 #include <arcane/utils/FatalErrorException.h>
 #include <arcane/utils/PlatformUtils.h>
 #include <arcane/utils/ArcaneGlobal.h>
-#include <arcane/utils/ArrayLayout.h>
 #include <arcane/utils/MemoryUtils.h>
 #include <arcane/utils/MemoryView.h>
 #include <arcane/utils/ITraceMng.h>
-#include <arcane/core/DataView.h>
 #include <arcane/utils/NumArray.h>
-#include <arcane/utils/MDDim.h>
 
 #include <arcane/core/ServiceFactory.h>
 #include <arcane/core/VariableTypes.h>
@@ -36,13 +31,12 @@
 #include <arcane/core/ItemPrinter.h>
 #include <arcane/core/Timer.h>
 
-#include <arcane/accelerator/NumArrayViews.h>
 #include <arcane/accelerator/VariableViews.h>
 #include <arcane/accelerator/core/Runner.h>
 #include <arcane/accelerator/core/Memory.h>
 
-#include "FemUtils.h"
 #include "IDoFLinearSystemFactory.h"
+#include "CsrDoFLinearSystemImpl.h"
 
 namespace Arcane::FemUtils
 {
@@ -59,7 +53,7 @@ enum class preconditioner
   AMG,
   BJACOBI
 };
-}
+} // namespace Arcane::FemUtils
 
 #include "HypreDoFLinearSystemFactory_axl.h"
 #include "ArcaneFemFunctionsGpu.h"
@@ -68,17 +62,15 @@ enum class preconditioner
 #include <HYPRE_parcsr_ls.h>
 #include <krylov.h>
 
-// NOTE:
-// DoF family must be compacted (i.e maxLocalId()==nbItem()) and sorted
-// for this implementation to works.
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
-
 
 namespace Arcane::FemUtils
 {
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 using namespace Arcane;
 
@@ -112,31 +104,26 @@ namespace
   }
 } // namespace
 
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 class HypreDoFLinearSystemImpl
-: public TraceAccessor
-, public DoFLinearSystemImpl
+: public CsrDoFLinearSystemImpl
 {
  public:
 
   HypreDoFLinearSystemImpl(IItemFamily* dof_family, const String& solver_name)
-  : TraceAccessor(dof_family->traceMng())
-  , m_dof_family(dof_family)
-  , m_rhs_variable(VariableBuildInfo(dof_family, solver_name + "RHSVariable"))
-  , m_dof_variable(VariableBuildInfo(dof_family, solver_name + "SolutionVariable"))
-  , m_dof_matrix_indexes(VariableBuildInfo(m_dof_family, solver_name + "DoFMatrixIndexes"))
-  , m_dof_forced_info(VariableBuildInfo(dof_family, solver_name + "DoFForcedInfo"))
-  , m_dof_forced_value(VariableBuildInfo(dof_family, solver_name + "DoFForcedValue"))
-  , m_dof_elimination_info(VariableBuildInfo(dof_family, solver_name + "DoFEliminationInfo"))
-  , m_dof_elimination_value(VariableBuildInfo(dof_family, solver_name + "DoFEliminationValue"))
+  : CsrDoFLinearSystemImpl(dof_family, solver_name)
   , m_dof_matrix_numbering(VariableBuildInfo(dof_family, solver_name + "MatrixNumbering"))
   {
     info() << "[Hypre-Info] Creating HypreDoFLinearSystemImpl()";
   }
 
-  ~HypreDoFLinearSystemImpl()
+  ~HypreDoFLinearSystemImpl() override
   {
     info() << "[Hypre-Info] Calling HYPRE_Finalize";
 #if HYPRE_RELEASE_NUMBER >= 21500
@@ -155,76 +142,11 @@ class HypreDoFLinearSystemImpl
 
  public:
 
-  Int32 indexValue(DoFLocalId row_lid, DoFLocalId column_lid)
-  {
-    auto begin = m_csr_view.rows()[row_lid];
-    auto end = row_lid == m_csr_view.nbRow() - 1 ? m_csr_view.nbColumn() : m_csr_view.row(row_lid + 1);
-    for (auto i = begin; i < end; ++i)
-      if (m_csr_view.columns()[i] == column_lid)
-        return i;
-    return -1;
-  }
-
-  void matrixAddValue(DoFLocalId row, DoFLocalId column, Real value) override
-  {
-    m_csr_view.values()[indexValue(row, column)] += value;
-  }
-
-  void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value) override
-  {
-    m_csr_view.values()[indexValue(row, column)] = value;
-  }
-
-  void eliminateRow(DoFLocalId row, Real value) override
-  {
-    ARCANE_THROW(NotImplementedException, "");
-  }
-
-  void eliminateRowColumn(DoFLocalId row, Real value) override
-  {
-    ARCANE_THROW(NotImplementedException, "");
-  }
-
   void solve() override;
-
-  VariableDoFReal& solutionVariable() override
-  {
-    return m_dof_variable;
-  }
-
-  VariableDoFReal& rhsVariable() override
-  {
-    return m_rhs_variable;
-  }
 
   void setSolverCommandLineArguments(const CommandLineArguments& args) override
   {
   }
-
-  void clearValues() override
-  {
-    info() << "[Hypre-Info]: Clear values";
-    m_csr_view = {};
-    m_dof_forced_info.fill(false);
-    m_dof_elimination_info.fill(ELIMINATE_NONE);
-    m_dof_elimination_value.fill(0);
-  }
-
-  CSRFormatView& getCSRValues() override { return m_csr_view; };
-  VariableDoFBool& getForcedInfo() override { return m_dof_forced_info; }
-  VariableDoFReal& getForcedValue() override { return m_dof_forced_value; }
-  VariableDoFByte& getEliminationInfo() override { return m_dof_elimination_info; }
-  VariableDoFReal& getEliminationValue() override { return m_dof_elimination_value; }
-
-  void setCSRValues(const CSRFormatView& csr_view) override
-  {
-    m_csr_view = csr_view;
-  }
-
-  bool hasSetCSRValues() const override { return true; }
-
-  void setRunner(Runner* r) override { m_runner = r; }
-  Runner* runner() const override { return m_runner; }
 
   void setMaxIter(Int32 v) { m_max_iter = v; }
   void setVerbosityLevel(Int32 v) { m_verbosity = v; }
@@ -233,7 +155,6 @@ class HypreDoFLinearSystemImpl
   void setAmgSmoother(Int32 v) { m_amg_smoother = v; }
   void setKrylovDim(Int32 v) { m_krylov_dim = v; }
 
-
   void setRelTolerance(Real v) { m_rtol = v; }
   void setAbsTolerance(Real v) { m_atol = v; }
   void setAmgThreshold(Real v) { m_amg_threshold = v; }
@@ -241,30 +162,14 @@ class HypreDoFLinearSystemImpl
   void setSolver(solver v) { m_solver = v; }
   void setPreconditioner(preconditioner v) { m_preconditioner = v; }
 
-  void _applyRowElimination();
-  void _applyForcedValuesToLhs();
-
  private:
 
-  IItemFamily* m_dof_family = nullptr;
-  VariableDoFReal m_rhs_variable;
-  VariableDoFReal m_dof_variable;
-  VariableDoFInt32 m_dof_matrix_indexes;
   VariableDoFInt32 m_dof_matrix_numbering;
+
   NumArray<Int32, MDDim1> m_parallel_columns_index;
   NumArray<Int32, MDDim1> m_parallel_rows_index;
   //! Work array to store values of solution vector in parallel
   NumArray<Real, MDDim1> m_result_work_values;
-  Runner* m_runner = nullptr;
-
-  CSRFormatView m_csr_view;
-
-  VariableDoFBool m_dof_forced_info;
-  VariableDoFReal m_dof_forced_value;
-  static constexpr Byte ELIMINATE_NONE = 0;
-  static constexpr Byte ELIMINATE_ROW = 1;
-  VariableDoFByte m_dof_elimination_info;
-  VariableDoFReal m_dof_elimination_value;
 
   Int32 m_first_own_row = -1;
   Int32 m_nb_own_row = -1;
@@ -284,21 +189,26 @@ class HypreDoFLinearSystemImpl
 
  private:
 
-  void _computeMatrixNumerotation();
+  void _computeMatrixNumeration();
 };
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
+/*!
+ * \brief Compute global numeration of the matrix.
+ *
+ * Each rank owns consecutive rows of the matrix in increasing order.
+ */
 void HypreDoFLinearSystemImpl::
-_computeMatrixNumerotation()
+_computeMatrixNumeration()
 {
-  IParallelMng* pm = m_dof_family->parallelMng();
+  IItemFamily* dof_family = dofFamily();
+  IParallelMng* pm = dof_family->parallelMng();
   const bool is_parallel = pm->isParallel();
   const Int32 nb_rank = pm->commSize();
   const Int32 my_rank = pm->commRank();
 
-  DoFGroup all_dofs = m_dof_family->allItems();
+  DoFGroup all_dofs = dof_family->allItems();
   DoFGroup own_dofs = all_dofs.own();
   const Int32 nb_own_row = own_dofs.size();
 
@@ -324,7 +234,7 @@ _computeMatrixNumerotation()
     m_dof_matrix_numbering[idof] = own_first_index + idof.index();
     //info() << "Numbering dof_uid=" << dof.uniqueId() << " M=" << m_dof_matrix_numbering[idof];
   }
-  info() << " nb_own_row=" << nb_own_row << " nb_item=" << m_dof_family->nbItem();
+  info() << " nb_own_row=" << nb_own_row << " nb_item=" << dof_family->nbItem();
   m_dof_matrix_numbering.synchronize();
 
   m_parallel_rows_index.resize(nb_own_row);
@@ -345,66 +255,6 @@ namespace
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void HypreDoFLinearSystemImpl::_applyRowElimination()
-{
-  auto nb_dof = m_dof_family->nbItem();
-
-  RunQueue queue = makeQueue(m_runner);
-  auto command = makeCommand(queue);
-
-  auto in_elimination_info = Accelerator::viewIn(command, m_dof_elimination_info);
-  auto in_elimination_value = Accelerator::viewIn(command, m_dof_elimination_value);
-
-  auto in_out_rhs_variable = Accelerator::viewInOut(command, m_rhs_variable);
-  auto csr_view = m_csr_view;
-  command << RUNCOMMAND_LOOP1(iter, nb_dof)
-  {
-    auto [thread_id] = iter();
-    DoFLocalId dof_id(thread_id);
-    auto elimination_info = in_elimination_info[dof_id];
-    if (elimination_info == ELIMINATE_ROW) {
-      auto elimination_value = in_elimination_value[dof_id];
-      for (CsrRowColumnIndex csr_index : csr_view.rowRange(dof_id))
-        csr_view.value(csr_index) = (csr_view.column(csr_index) == dof_id) ? 1.0 : 0.0;
-      in_out_rhs_variable[dof_id] = elimination_value;
-    }
-  };
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void HypreDoFLinearSystemImpl::_applyForcedValuesToLhs()
-{
-  auto nb_dof = m_dof_family->nbItem();
-
-  RunQueue queue = makeQueue(m_runner);
-  auto command = makeCommand(queue);
-
-  auto in_out_forced_info = Accelerator::viewInOut(command, m_dof_forced_info);
-  auto in_out_forced_value = Accelerator::viewInOut(command, m_dof_forced_value);
-
-  auto csr_row_size = m_csr_view.nbRow();
-  auto csr_columns_size = m_csr_view.nbColumn();
-  auto in_csr_row = m_csr_view.rows();
-  auto in_csr_columns = m_csr_view.columns();
-  auto in_out_csr_values = m_csr_view.values();
-
-  command << RUNCOMMAND_LOOP1(iter, nb_dof)
-  {
-    auto [dof_id] = iter();
-    if (in_out_forced_info[(DoFLocalId)dof_id]) {
-      auto begin = in_csr_row[dof_id];
-      auto end = dof_id == csr_row_size - 1 ? csr_columns_size : in_csr_row[dof_id + 1];
-      auto index = FemUtils::Gpu::Csr::findIndex(begin, end, dof_id, in_csr_columns);
-      in_out_csr_values[index] = in_out_forced_value[(DoFLocalId)dof_id];
-    }
-  };
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
 void HypreDoFLinearSystemImpl::
 solve()
 {
@@ -417,7 +267,8 @@ solve()
 #endif
 
   // Récupère le communicateur MPI associé
-  IParallelMng* pm = m_dof_family->parallelMng();
+  IItemFamily* dof_family = dofFamily();
+  IParallelMng* pm = dof_family->parallelMng();
   ITimeStats* tstat = pm->timeStats();
   Parallel::Communicator arcane_comm = pm->communicator();
   MPI_Comm mpi_comm = MPI_COMM_WORLD;
@@ -429,12 +280,13 @@ solve()
   const Int32 my_rank = pm->commRank();
 
   // TODO: A ne faire qu'un fois sauf si les DoFs évoluent
-  _computeMatrixNumerotation();
+  _computeMatrixNumeration();
 
   bool is_use_device = false;
-  if (m_runner) {
-    is_use_device = isAcceleratorPolicy(m_runner->executionPolicy());
-    info() << "[Hypre-Info] Runner for Hypre=" << m_runner->executionPolicy() << " wanted_is_device=" << is_use_device;
+  Runner* runner = this->runner();
+  if (runner) {
+    is_use_device = isAcceleratorPolicy(runner->executionPolicy());
+    info() << "[Hypre-Info] Runner for Hypre=" << runner->executionPolicy() << " wanted_is_device=" << is_use_device;
   }
 
   // Si HYPRE n'est pas compilé avec le support GPU, alors on utilise l'hôte.
@@ -451,7 +303,7 @@ solve()
 
 #if HYPRE_RELEASE_NUMBER >= 22700
   if (is_use_device) {
-    m_runner->setAsCurrentDevice();
+    runner->setAsCurrentDevice();
     hypre_memory = HYPRE_MEMORY_DEVICE;
     hypre_exec_policy = HYPRE_EXEC_DEVICE;
   }
@@ -495,12 +347,13 @@ solve()
   Span<const Int32> rows_index_span = m_dof_matrix_numbering.asArray();
   const Int32 nb_local_row = rows_index_span.size();
 
+  CSRFormatView csr_view = this->getCSRValues();
   if (do_debug_print) {
     info() << "ROWS_INDEX=" << rows_index_span;
-    info() << "ROWS=" << m_csr_view.rows();
-    info() << "ROWS_NB_COLUMNS=" << m_csr_view.rowsNbColumn();
-    info() << "COLUMNS=" << m_csr_view.columns();
-    info() << "VALUE=" << m_csr_view.values();
+    info() << "ROWS=" << csr_view.rows();
+    info() << "ROWS_NB_COLUMNS=" << csr_view.rowsNbColumn();
+    info() << "COLUMNS=" << csr_view.columns();
+    info() << "VALUE=" << csr_view.values();
   }
 
   const int first_row = m_first_own_row;
@@ -509,7 +362,7 @@ solve()
   info() << "[Hypre-Info] CreateMatrix first_row=" << first_row << " last_row " << last_row;
   HYPRE_IJMatrixCreate(mpi_comm, first_row, last_row, first_row, last_row, &ij_A);
 
-  int* rows_nb_column_data = const_cast<int*>(m_csr_view.rowsNbColumn().data());
+  int* rows_nb_column_data = const_cast<int*>(csr_view.rowsNbColumn().data());
 
   Real m1 = platform::getRealTime();
   HYPRE_IJMatrixSetObjectType(ij_A, HYPRE_PARCSR);
@@ -520,7 +373,7 @@ solve()
 #endif
   // m_csr_view.columns() use matrix coordinates local to sub-domain
   // We need to translate them to global matrix coordinates
-  Span<const Int32> columns_index_span = m_csr_view.columns();
+  Span<const Int32> columns_index_span = csr_view.columns();
   if (is_parallel) {
     // TODO: Faire sur accélérateur et ne faire qu'une fois si la structure
     // ne change pas.
@@ -541,20 +394,20 @@ solve()
 
   if (do_debug_print) {
     info() << "FINAL_COLUMNS=" << columns_index_span;
-    info() << "NbValue=" << m_csr_view.nbValue();
+    info() << "NbValue=" << csr_view.nbValue();
   }
 
-  Span<const Real> matrix_values = m_csr_view.values();
+  Span<const Real> matrix_values = csr_view.values();
 
   if (do_debug_print) {
-    ENUMERATE_ (DoF, idof, m_dof_family->allItems()) {
+    ENUMERATE_ (DoF, idof, dof_family->allItems()) {
       DoF dof = *idof;
-      Int32 nb_col = m_csr_view.rowsNbColumn()[idof.index()];
-      Int32 row_csr_index = m_csr_view.rows()[idof.index()];
+      Int32 nb_col = csr_view.rowsNbColumn()[idof.index()];
+      Int32 row_csr_index = csr_view.rows()[idof.index()];
       info() << "DoF dof=" << ItemPrinter(dof) << " nb_col=" << nb_col << " row_csr_index=" << row_csr_index
              << " global_row=" << rows_index_span[idof.index()];
       for (Int32 i = 0; i < nb_col; ++i) {
-        Int32 col_index = m_csr_view.columns()[row_csr_index + i];
+        Int32 col_index = csr_view.columns()[row_csr_index + i];
         if (col_index >= 0)
           info() << "COL=" << col_index
                  << " T_COL=" << m_dof_matrix_numbering[DoFLocalId(col_index)]
@@ -571,11 +424,11 @@ solve()
     // Fill 'm_parallel_rows_index' with only rows we owns
     // NOTE: This is only needed if matrix structure has changed.
     Int32 index = 0;
-    ENUMERATE_ (DoF, idof, m_dof_family->allItems()) {
+    ENUMERATE_ (DoF, idof, dof_family->allItems()) {
       DoF dof = *idof;
       if (!dof.isOwn())
         continue;
-      Int32 nb_col = m_csr_view.rowsNbColumn()[idof.index()];
+      Int32 nb_col = csr_view.rowsNbColumn()[idof.index()];
       m_parallel_rows_index[index] = rows_index_span[idof.index()];
       ++index;
     }
@@ -592,19 +445,22 @@ solve()
   const Int32* columns_index_data = columns_index_span.data();
   const Real* matrix_values_data = matrix_values.data();
 
-  RunQueue q = makeQueue(m_runner);
+  RunQueue q = makeQueue(runner);
+
+  VariableDoFReal& rhs_variable = this->rhsVariable();
+  VariableDoFReal& dof_variable = this->solutionVariable();
 
   if (is_use_device) {
     info() << "[Hypre-Info] Prefetching memory";
-    q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(m_csr_view.rowsNbColumn())).addAsync());
+    q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(csr_view.rowsNbColumn())).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(rows_index_span)).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(columns_index_span)).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(matrix_values)).addAsync());
 
-    VariableUtils::prefetchVariableAsync(m_rhs_variable, &q);
-    VariableUtils::prefetchVariableAsync(m_dof_variable, &q);
+    VariableUtils::prefetchVariableAsync(rhs_variable, &q);
+    VariableUtils::prefetchVariableAsync(dof_variable, &q);
   }
-  Span<const Int32> rows_nb_column_span = m_csr_view.rowsNbColumn();
+  Span<const Int32> rows_nb_column_span = csr_view.rowsNbColumn();
   if (is_use_device && is_use_device_memory) {
     _doCopy(na_rows_nb_column_data, rows_nb_column_span, &q);
     _doCopy(na_rows_index, rows_index_span, &q);
@@ -665,24 +521,24 @@ solve()
   HYPRE_IJVectorInitialize(ij_vector_x);
 #endif
 
-  const Real* rhs_data = m_rhs_variable.asArray().data();
-  const Real* result_data = m_dof_variable.asArray().data();
+  const Real* rhs_data = rhs_variable.asArray().data();
+  const Real* result_data = dof_variable.asArray().data();
   NumArray<Real, MDDim1> na_rhs_values(mem_ressource);
   NumArray<Real, MDDim1> na_result_values(mem_ressource);
   if (is_use_device) {
-    _doCopy(na_rhs_values, Span<const Real>(m_rhs_variable.asArray()), &q);
+    _doCopy(na_rhs_values, Span<const Real>(rhs_variable.asArray()), &q);
     rhs_data = na_rhs_values.to1DSpan().data();
-    na_result_values.resize(m_dof_variable.asArray().size());
+    na_result_values.resize(dof_variable.asArray().size());
   }
 
   Real v1 = platform::getRealTime();
   hypreCheck("HYPRE_IJVectorSetValues",
              HYPRE_IJVectorSetValues(ij_vector_b, nb_local_row, rows_index_data,
-                                     m_rhs_variable.asArray().data()));
+                                     rhs_variable.asArray().data()));
 
   hypreCheck("HYPRE_IJVectorSetValues",
              HYPRE_IJVectorSetValues(ij_vector_x, nb_local_row, rows_index_data,
-                                     m_dof_variable.asArray().data()));
+                                     dof_variable.asArray().data()));
 
   hypreCheck("HYPRE_IJVectorAssemble",
              HYPRE_IJVectorAssemble(ij_vector_b));
@@ -893,14 +749,14 @@ solve()
                HYPRE_IJVectorGetValues(ij_vector_x, nb_wanted_row,
                                        m_parallel_rows_index.to1DSpan().data(),
                                        m_result_work_values.to1DSpan().data()));
-    ENUMERATE_ (DoF, idof, m_dof_family->allItems().own()) {
-      m_dof_variable[idof] = m_result_work_values[idof.index()];
+    ENUMERATE_ (DoF, idof, dof_family->allItems().own()) {
+      dof_variable[idof] = m_result_work_values[idof.index()];
     }
   }
   else {
     hypreCheck("HYPRE_IJVectorGetValues",
                HYPRE_IJVectorGetValues(ij_vector_x, nb_local_row, rows_index_span.data(),
-                                       m_dof_variable.asArray().data()));
+                                       dof_variable.asArray().data()));
   }
 }
 
