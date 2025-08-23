@@ -54,7 +54,7 @@ enable_testing()
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [heat]conduction COMMAND heat
     inputs/conduction.arc)
-  
+
   add_test(NAME [heat]conduction_quad COMMAND heat
     inputs/conduction.quad.arc)
 
@@ -76,17 +76,20 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 
   add_test(NAME [heat]conduction_multi-material COMMAND heat
     inputs/conduction.multi-material.arc)
-  
+
   add_test(NAME [heat]conduction_multi-material_quad COMMAND heat
     inputs/conduction.multi-material.quad.arc)
 
   add_test(NAME [heat]conduction_convection COMMAND heat
     inputs/conduction.convection.arc)
 
-    add_test(NAME [heat]conduction_neumann_pointBC COMMAND heat
+  add_test(NAME [heat]conduction_convection_quad COMMAND heat
+    inputs/conduction.convection.quad.arc)
+
+  add_test(NAME [heat]conduction_neumann_pointBC COMMAND heat
     inputs/conduction.neumann.point-dirichlet.arc)
 
-    add_test(NAME [heat]conduction_neumann_pointBC_quad COMMAND heat
+  add_test(NAME [heat]conduction_neumann_pointBC_quad COMMAND heat
     inputs/conduction.neumann.point-dirichlet.quad.arc)
 
   add_test(NAME [heat]conduction_petsc_monitor COMMAND heat
@@ -175,6 +178,9 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 
     add_test(NAME [heat]conduction_convection_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
       inputs/conduction.convection.arc)
+
+    add_test(NAME [heat]conduction_convection_quad_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
+      inputs/conduction.convection.quad.arc)
 
     add_test(NAME [heat]conduction_neumann_pointBC_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
       inputs/conduction.neumann.point-dirichlet.arc)
