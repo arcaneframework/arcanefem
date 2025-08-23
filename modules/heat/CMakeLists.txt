@@ -23,8 +23,11 @@ file(COPY "check" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
   plate.msh
+  plate.quad.msh
   multi-material.msh
+  multi-material.quad.msh
   truncated_cube.msh
+  truncated_cube.hexa.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
     file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
@@ -52,11 +55,20 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [heat]conduction COMMAND heat
     inputs/conduction.arc)
 
+  add_test(NAME [heat]conduction_quad COMMAND heat
+    inputs/conduction.quad.arc)
+
   add_test(NAME [heat]conduction_RowElimination_Dirichlet COMMAND heat
     -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowElimination
     -A,//fem/linear-system/solver-backend=petsc
     -A,//fem/linear-system/solver-method=gmres
     inputs/conduction.arc)
+
+  add_test(NAME [heat]conduction_quad_RowElimination_Dirichlet COMMAND heat
+    -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowElimination
+    -A,//fem/linear-system/solver-backend=petsc
+    -A,//fem/linear-system/solver-method=gmres
+    inputs/conduction.quad.arc)
 
   # add_test(NAME [heat]conduction_RowColElimination_Dirichlet COMMAND heat
   #   -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
@@ -65,11 +77,20 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [heat]conduction_multi-material COMMAND heat
     inputs/conduction.multi-material.arc)
 
+  add_test(NAME [heat]conduction_multi-material_quad COMMAND heat
+    inputs/conduction.multi-material.quad.arc)
+
   add_test(NAME [heat]conduction_convection COMMAND heat
     inputs/conduction.convection.arc)
 
-    add_test(NAME [heat]conduction_neumann_pointBC COMMAND heat
+  add_test(NAME [heat]conduction_convection_quad COMMAND heat
+    inputs/conduction.convection.quad.arc)
+
+  add_test(NAME [heat]conduction_neumann_pointBC COMMAND heat
     inputs/conduction.neumann.point-dirichlet.arc)
+
+  add_test(NAME [heat]conduction_neumann_pointBC_quad COMMAND heat
+    inputs/conduction.neumann.point-dirichlet.quad.arc)
 
   add_test(NAME [heat]conduction_petsc_monitor COMMAND heat
     -A,//fem/petsc-flags=-ksp_monitor
@@ -84,8 +105,17 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [heat]3d_conduction COMMAND heat
     inputs/3d_conduction.arc)
 
+  add_test(NAME [heat]3d_conduction_hexa COMMAND heat
+    inputs/3d_conduction.hexa.arc)
+
   add_test(NAME [heat]3d_conduction_neumann COMMAND heat
     inputs/3d_conduction.neumann.arc)
+
+  add_test(NAME [heat]3d_conduction_neumann_hexa COMMAND heat
+    inputs/3d_conduction.neumann.hexa.arc)
+
+  add_test(NAME [heat]3d_conduction_convection_hexa COMMAND heat
+    inputs/3d_conduction.convection.hexa.arc)
 
   add_test(NAME [heat]3d_conduction_convection_pointBC COMMAND heat
     inputs/3d_conduction.pointBc.convection.arc)
@@ -124,6 +154,24 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     add_test(NAME [heat]conduction_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
       inputs/conduction.arc)
 
+    add_test(NAME [heat]conduction_quad_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
+      inputs/conduction.quad.arc)
+
+    add_test(NAME [heat]3d_conduction_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
+      inputs/3d_conduction.arc)
+
+    add_test(NAME [heat]3d_conduction_hexa_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
+      inputs/3d_conduction.hexa.arc)
+
+    add_test(NAME [heat]3d_conduction__convection_hexa_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
+      inputs/3d_conduction.convection.hexa.arc)
+
+    add_test(NAME [heat]conduction_neumann_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
+      inputs/conduction.neumann.point-dirichlet.arc)
+
+    add_test(NAME [heat]conduction_neumann_quad_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
+      inputs/conduction.neumann.point-dirichlet.quad.arc)
+
     add_test(NAME [heat]conduction_RowElimination_Dirichlet_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
       -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowElimination
       -A,//fem/linear-system/solver-backend=petsc
@@ -136,6 +184,9 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 
     add_test(NAME [heat]conduction_convection_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
       inputs/conduction.convection.arc)
+
+    add_test(NAME [heat]conduction_convection_quad_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
+      inputs/conduction.convection.quad.arc)
 
     add_test(NAME [heat]conduction_neumann_pointBC_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./heat
       inputs/conduction.neumann.point-dirichlet.arc)
@@ -174,6 +225,4 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG_2D}
     inputs/3d_conduction.arc)
-
-
 endif()

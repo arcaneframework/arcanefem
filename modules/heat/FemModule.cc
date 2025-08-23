@@ -13,6 +13,7 @@
 
 #include "FemModule.h"
 #include "ElementMatrix.h"
+#include "ElementMatrixHexQuad.h"
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -36,6 +37,7 @@ startInit()
   m_solve_linear_system = options()->solveLinearSystem();
   m_cross_validation = options()->crossValidation();
   m_petsc_flags = options()->petscFlags();
+  m_hex_quad_mesh = options()->hexQuadMesh();
 
   if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") {
     auto use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
@@ -140,25 +142,44 @@ _updateVariables()
 
     m_node_temperature.synchronize();
     m_node_temperature_old.synchronize();
-    if (mesh()->dimension() == 2)
-      ENUMERATE_ (Cell, icell, allCells()) {
-        Cell cell = *icell;
 
-        Real3 grad = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_node_temperature);
-        m_flux[cell].x = -m_cell_lambda[cell] * grad.x;
-        m_flux[cell].y = -m_cell_lambda[cell] * grad.y;
-        m_flux[cell].z = 0.;
-      }
+    if (mesh()->dimension() == 2) {
+      if (m_hex_quad_mesh)
+        ENUMERATE_ (Cell, icell, allCells()) {
+          Cell cell = *icell;
+          Real3 grad = ArcaneFemFunctions::FeOperation2D::computeGradientQuad4(cell, m_node_coord, m_node_temperature);
+          m_flux[cell].x = -m_cell_lambda[cell] * grad.x;
+          m_flux[cell].y = -m_cell_lambda[cell] * grad.y;
+          m_flux[cell].z = 0.;
+        }
+      else
+        ENUMERATE_ (Cell, icell, allCells()) {
+          Cell cell = *icell;
+          Real3 grad = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_node_temperature);
+          m_flux[cell].x = -m_cell_lambda[cell] * grad.x;
+          m_flux[cell].y = -m_cell_lambda[cell] * grad.y;
+          m_flux[cell].z = 0.;
+        }
+    }
 
-    if (mesh()->dimension() == 3)
-      ENUMERATE_ (Cell, icell, allCells()) {
-        Cell cell = *icell;
-
-        Real3 grad = ArcaneFemFunctions::FeOperation3D::computeGradientTetra4(cell, m_node_coord, m_node_temperature);
-        m_flux[cell].x = -m_cell_lambda[cell] * grad.x;
-        m_flux[cell].y = -m_cell_lambda[cell] * grad.y;
-        m_flux[cell].z = -m_cell_lambda[cell] * grad.z;
-      }
+    if (mesh()->dimension() == 3) {
+      if (m_hex_quad_mesh)
+        ENUMERATE_ (Cell, icell, allCells()) {
+          Cell cell = *icell;
+          Real3 grad = ArcaneFemFunctions::FeOperation3D::computeGradientHexa8(cell, m_node_coord, m_node_temperature);
+          m_flux[cell].x = -m_cell_lambda[cell] * grad.x;
+          m_flux[cell].y = -m_cell_lambda[cell] * grad.y;
+          m_flux[cell].z = -m_cell_lambda[cell] * grad.z;
+        }
+      else
+        ENUMERATE_ (Cell, icell, allCells()) {
+          Cell cell = *icell;
+          Real3 grad = ArcaneFemFunctions::FeOperation3D::computeGradientTetra4(cell, m_node_coord, m_node_temperature);
+          m_flux[cell].x = -m_cell_lambda[cell] * grad.x;
+          m_flux[cell].y = -m_cell_lambda[cell] * grad.y;
+          m_flux[cell].z = -m_cell_lambda[cell] * grad.z;
+        }
+    }
 
     m_flux.synchronize();
   }
@@ -267,7 +288,7 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  // Convective term ∫(𝒉 ⋅ 𝑇 ⋅ 𝑣ʰ ) for domain ∂Ωₐ
+  // Convective term
   for (const auto& bs : options()->convectionBoundaryCondition()) {
     FaceGroup group = bs->surface();
     h = bs->h();
@@ -278,8 +299,9 @@ _assembleLinearOperator()
         Face face = *iface;
         Real measure = computeMeasure(face, m_node_coord);
 
+        // LHS ∫(𝒉 ⋅ 𝑇 ⋅ 𝑣ʰ ) for surface ∂Ωₐ
         if (t <= dt - 1e-8) {
-          auto K_e = factor * massMatrix(U, U) * measure;
+          auto K_e = h * factor * massMatrix(U, U) * measure;
 
           Int32 n1_index = 0;
           for (Node node1 : face.nodes()) {
@@ -294,102 +316,113 @@ _assembleLinearOperator()
           }
         }
 
+        // RHS ∫(𝒉 ⋅ 𝑇ₑ ⋅ 𝑣ʰ ) for surface ∂Ωₐ
         for (Node node : iface->nodes()) {
           if (node.isOwn())
-            rhs_values[node_dof.dofId(node, 0)] += h * Text * measure / num_nodes;
+            rhs_values[node_dof.dofId(node, 0)] += (h * Text) * measure / num_nodes;
         }
       }
     };
 
     if (mesh()->dimension() == 2)
-      processConvectionBoundaryCondition(RealVector<2>{1., 1.}, 1 / 6., ArcaneFemFunctions::MeshOperation::computeLengthEdge2, 2);
-    else if (mesh()->dimension() == 3)
-      processConvectionBoundaryCondition(RealVector<3>{1., 1., 1.}, 1 / 12., ArcaneFemFunctions::MeshOperation::computeAreaTria3, 3);
+      processConvectionBoundaryCondition(RealVector<2>{ 1., 1. }, 1 / 6., ArcaneFemFunctions::MeshOperation::computeLengthEdge2, 2);
+    if (mesh()->dimension() == 3)
+      if(m_hex_quad_mesh)
+        processConvectionBoundaryCondition(RealVector<4>{1., 1., 1., 1}, 1 / 20., ArcaneFemFunctions::MeshOperation::computeAreaQuad4, 4);
+      else
+        processConvectionBoundaryCondition(RealVector<3>{1., 1., 1.}, 1 / 12., ArcaneFemFunctions::MeshOperation::computeAreaTria3, 3);
   }
 
   // RHS old termprature term ∫∫ [(1/δ𝑡)(𝑢ₙ 𝑣ʰ)]dΩ  for domain Ω
   m_node_temperature_old.mult(1.0 / dt);
   if (mesh()->dimension() == 2) {
-    ArcaneFemFunctions::BoundaryConditions2D::integrateNodalFieldToRhsTria3(m_node_temperature_old, mesh(), node_dof, m_node_coord, rhs_values);
+    if (m_hex_quad_mesh)
+      ArcaneFemFunctions::BoundaryConditions2D::integrateNodalFieldToRhsQuad4(m_node_temperature_old, mesh(), node_dof, m_node_coord, rhs_values);
+    else
+      ArcaneFemFunctions::BoundaryConditions2D::integrateNodalFieldToRhsTria3(m_node_temperature_old, mesh(), node_dof, m_node_coord, rhs_values);
   }
   if (mesh()->dimension() == 3) {
-    ArcaneFemFunctions::BoundaryConditions3D::integrateNodalFieldToRhsTetra4(m_node_temperature_old, mesh(), node_dof, m_node_coord, rhs_values);
+    if (m_hex_quad_mesh)
+      ArcaneFemFunctions::BoundaryConditions3D::integrateNodalFieldToRhsHexa8(m_node_temperature_old, mesh(), node_dof, m_node_coord, rhs_values);
+    else
+      ArcaneFemFunctions::BoundaryConditions3D::integrateNodalFieldToRhsTetra4(m_node_temperature_old, mesh(), node_dof, m_node_coord, rhs_values);
   }
 
-  // Helper lambda to apply boundary conditions
-  auto applyBoundaryConditions = [&](auto BCFunctions) {
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
+  if (bc) {
 
-    BC::IArcaneFemBC* bc = options()->boundaryConditions();
-    if (bc) {
-      for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
-        BCFunctions.applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
-
-      for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions()) {
-        //  BCFunctions.applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
-        FaceGroup face_group = bs->getSurface();
-        NodeGroup node_group = face_group.nodeGroup();
-
-        const StringConstArrayView u_dirichlet_string = bs->getValue();
-        for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-          if (u_dirichlet_string[i] != "NULL") {
-            Real value = std::stod(u_dirichlet_string[i].localstr());
-            if (bs->getEnforceDirichletMethod() == "Penalty") {
-              Real penalty = bs->getPenalty();
-              ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
-            }
-            else if (bs->getEnforceDirichletMethod() == "RowElimination") {
-              if (t <= dt - 1e-8)
-                ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
-              else
-                ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(value, node_dof, m_linear_system, rhs_values, node_group);
-            }
-            // else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
-            //     ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
-            // }
-            else {
-              ARCANE_FATAL("Unknown Dirichlet method");
-            }
-          }
-        }
+    // Neumann BCs
+    for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions()) {
+      if (mesh()->dimension() == 2) {
+        if (m_hex_quad_mesh)
+          ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhsQuad4(bs, node_dof, m_node_coord, rhs_values);
+        else
+          ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
       }
 
-      for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions()) {
-        //  BCFunctions.applyPointDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
-        NodeGroup node_group = bs->getNode();
-        const StringConstArrayView u_dirichlet_string = bs->getValue();
-        for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-          if (u_dirichlet_string[i] != "NULL") {
-            Real value = std::stod(u_dirichlet_string[i].localstr());
-            if (bs->getEnforceDirichletMethod() == "Penalty") {
-              Real penalty = bs->getPenalty();
-              ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
-            }
-            else if (bs->getEnforceDirichletMethod() == "RowElimination") {
-              if (t <= dt - 1e-8)
-                ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
-              else
-                ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(value, node_dof, m_linear_system, rhs_values, node_group);
-            }
-            // else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
-            //     ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
-            // }
-            else {
-              ARCANE_FATAL("Unknown Dirichlet method");
-            }
+      if (mesh()->dimension() == 3) {
+        if (m_hex_quad_mesh)
+          ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsHexa8(bs, node_dof, m_node_coord, rhs_values);
+        else
+          ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+      }
+    }
+
+    // Dirichlet BCs
+    for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions()) {
+      FaceGroup face_group = bs->getSurface();
+      NodeGroup node_group = face_group.nodeGroup();
+
+      const StringConstArrayView u_dirichlet_string = bs->getValue();
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real value = std::stod(u_dirichlet_string[i].localstr());
+          if (bs->getEnforceDirichletMethod() == "Penalty") {
+            Real penalty = bs->getPenalty();
+            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
+          }
+          else if (bs->getEnforceDirichletMethod() == "RowElimination") {
+            if (t <= dt - 1e-8)
+              ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+            else
+              ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(value, node_dof, m_linear_system, rhs_values, node_group);
+          }
+          // else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
+          //     ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+          // }
+          else {
+            ARCANE_FATAL("Unknown Dirichlet method");
           }
         }
       }
     }
-  };
 
-  // Apply the correct boundary conditions based on mesh dimension
-  if (mesh()->dimension() == 3) {
-    using BCFunctions = ArcaneFemFunctions::BoundaryConditions3D;
-    applyBoundaryConditions(BCFunctions());
-  }
-  else {
-    using BCFunctions = ArcaneFemFunctions::BoundaryConditions2D;
-    applyBoundaryConditions(BCFunctions());
+    // Point Dirichlet BCs
+    for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions()) {
+      NodeGroup node_group = bs->getNode();
+      const StringConstArrayView u_dirichlet_string = bs->getValue();
+      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
+        if (u_dirichlet_string[i] != "NULL") {
+          Real value = std::stod(u_dirichlet_string[i].localstr());
+          if (bs->getEnforceDirichletMethod() == "Penalty") {
+            Real penalty = bs->getPenalty();
+            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
+          }
+          else if (bs->getEnforceDirichletMethod() == "RowElimination") {
+            if (t <= dt - 1e-8)
+              ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+            else
+              ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(value, node_dof, m_linear_system, rhs_values, node_group);
+          }
+          // else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
+          //     ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+          // }
+          else {
+            ARCANE_FATAL("Unknown Dirichlet method");
+          }
+        }
+      }
+    }
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -423,21 +456,25 @@ _assembleBilinearOperator()
           m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, in_dt); });
         else
           m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, in_dt); });
-      else
+
+      if (m_matrix_format == "AF-BSR")
         if (mesh()->dimension() == 2)
           m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, in_dt, node_lid); });
         else
           m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, in_dt, node_lid); });
     }
-    else {
+
+    if (m_matrix_format == "DOK") {
       if (mesh()->dimension() == 3)
-        _assembleBilinear<4>([this](const Cell& cell) {
-          return _computeElementMatrixTetra4(cell);
-        });
-      else
-        _assembleBilinear<3>([this](const Cell& cell) {
-          return _computeElementMatrixTria3(cell);
-        });
+        if (m_hex_quad_mesh)
+          _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
+        else
+          _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
+      if (mesh()->dimension() == 2) 
+        if (m_hex_quad_mesh)
+          _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+        else
+          _assembleBilinear<3>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
     }
   }
 
