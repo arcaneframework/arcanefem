@@ -288,7 +288,7 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  // Convective term ∫(𝒉 ⋅ 𝑇 ⋅ 𝑣ʰ ) for domain ∂Ωₐ
+  // Convective term
   for (const auto& bs : options()->convectionBoundaryCondition()) {
     FaceGroup group = bs->surface();
     h = bs->h();
@@ -299,8 +299,9 @@ _assembleLinearOperator()
         Face face = *iface;
         Real measure = computeMeasure(face, m_node_coord);
 
+        // LHS ∫(𝒉 ⋅ 𝑇 ⋅ 𝑣ʰ ) for surface ∂Ωₐ
         if (t <= dt - 1e-8) {
-          auto K_e = factor * massMatrix(U, U) * measure;
+          auto K_e = h * factor * massMatrix(U, U) * measure;
 
           Int32 n1_index = 0;
           for (Node node1 : face.nodes()) {
@@ -315,15 +316,16 @@ _assembleLinearOperator()
           }
         }
 
+        // RHS ∫(𝒉 ⋅ 𝑇ₑ ⋅ 𝑣ʰ ) for surface ∂Ωₐ
         for (Node node : iface->nodes()) {
           if (node.isOwn())
-            rhs_values[node_dof.dofId(node, 0)] += h * Text * measure / num_nodes;
+            rhs_values[node_dof.dofId(node, 0)] += (h * Text) * measure / num_nodes;
         }
       }
     };
 
     if (mesh()->dimension() == 2)
-      processConvectionBoundaryCondition(RealVector<2>{1., 1.}, 1 / 6., ArcaneFemFunctions::MeshOperation::computeLengthEdge2, 2);
+      processConvectionBoundaryCondition(RealVector<2>{ 1., 1. }, 1 / 6., ArcaneFemFunctions::MeshOperation::computeLengthEdge2, 2);
     else if (mesh()->dimension() == 3)
       processConvectionBoundaryCondition(RealVector<3>{1., 1., 1.}, 1 / 12., ArcaneFemFunctions::MeshOperation::computeAreaTria3, 3);
   }
