@@ -326,8 +326,11 @@ _assembleLinearOperator()
 
     if (mesh()->dimension() == 2)
       processConvectionBoundaryCondition(RealVector<2>{ 1., 1. }, 1 / 6., ArcaneFemFunctions::MeshOperation::computeLengthEdge2, 2);
-    else if (mesh()->dimension() == 3)
-      processConvectionBoundaryCondition(RealVector<3>{1., 1., 1.}, 1 / 12., ArcaneFemFunctions::MeshOperation::computeAreaTria3, 3);
+    if (mesh()->dimension() == 3)
+      if(m_hex_quad_mesh)
+        processConvectionBoundaryCondition(RealVector<4>{1., 1., 1., 1}, 1 / 20., ArcaneFemFunctions::MeshOperation::computeAreaQuad4, 4);
+      else
+        processConvectionBoundaryCondition(RealVector<3>{1., 1., 1.}, 1 / 12., ArcaneFemFunctions::MeshOperation::computeAreaTria3, 3);
   }
 
   // RHS old termprature term ∫∫ [(1/δ𝑡)(𝑢ₙ 𝑣ʰ)]dΩ  for domain Ω
