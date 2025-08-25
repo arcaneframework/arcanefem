@@ -15,6 +15,10 @@
 
 #include "FemModule.h"
 #include "ElementMatrix.h"
+#include "ElementMatrixHexQuad.h"
+#include "BodyForce.h"
+#include "Traction.h"
+
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -170,6 +174,7 @@ _getMaterialParameters()
   m_solve_linear_system = options()->solveLinearSystem();
   m_cross_validation = options()->crossValidation();
   m_petsc_flags = options()->petscFlags();
+  m_hex_quad_mesh = options()->hexQuadMesh();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"get-material-params", elapsedTime);
@@ -248,88 +253,8 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  //----------------------------------------------------------------------
-  // body force ∫∫∫ (𝐟.𝐯)  with 𝐟 = (𝑓𝑥, 𝑓𝑦, 𝑓𝑧) = (f[0], f[1], f[2])
-  //----------------------------------------------------------------------
-  const UniqueArray<String> f_string = options()->f();
-  info() << "[ArcaneFem-Info] Applying Bodyforce " << f_string;
-  for (Int32 i = 0; i < f_string.size(); ++i) {
-    f[i] = 0.0;
-    if (f_string[i] != "NULL") {
-      f[i] = std::stod(f_string[i].localstr());
-    }
-  }
-
-  if (mesh()->dimension() == 2)
-    if (f_string[0] != "NULL" || f_string[1] != "NULL")
-      ENUMERATE_ (Cell, icell, allCells()) {
-        Cell cell = *icell;
-        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
-        for (Node node : cell.nodes()) {
-          if (node.isOwn()) {
-            rhs_values[node_dof.dofId(node, 0)] += f[0] * area / 3;
-            rhs_values[node_dof.dofId(node, 1)] += f[1] * area / 3;
-          }
-        }
-      }
-  if (mesh()->dimension() == 3)
-    if (f_string[0] != "NULL" || f_string[1] != "NULL" || f_string[1] != "NULL")
-      ENUMERATE_ (Cell, icell, allCells()) {
-        Cell cell = *icell;
-        Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
-        for (Node node : cell.nodes()) {
-          if (node.isOwn()) {
-            rhs_values[node_dof.dofId(node, 0)] += f[0] * volume / 4;
-            rhs_values[node_dof.dofId(node, 1)] += f[1] * volume / 4;
-            rhs_values[node_dof.dofId(node, 2)] += f[2] * volume / 4;
-          }
-        }
-      }
-
-  //----------------------------------------------------------------------
-  // traction term ∫∫ (𝐭.𝐯)  with 𝐭 = (𝑡𝑥, 𝑡𝑦, 𝑡𝑧) = (t[0], t[1], t[2])
-  //----------------------------------------------------------------------
-  for (const auto& bs : options()->tractionBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    const UniqueArray<String> t_string = bs->t();
-
-    info() << "[ArcaneFem-Info] Applying Traction " << t_string;
-    info() << "[ArcaneFem-Info] Traction surface '" << bs->surface().name() << "'";
-
-    for (Int32 i = 0; i < t_string.size(); ++i) {
-      t[i] = 0.0;
-      if (t_string[i] != "NULL") {
-        t[i] = std::stod(t_string[i].localstr());
-      }
-    }
-
-    if (mesh()->dimension() == 2)
-      if (t_string[0] != "NULL" || t_string[1] != "NULL")
-        ENUMERATE_ (Face, iface, group) {
-          Face face = *iface;
-          Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-          for (Node node : iface->nodes()) {
-            if (node.isOwn()) {
-              rhs_values[node_dof.dofId(node, 0)] += t[0] * length / 2.;
-              rhs_values[node_dof.dofId(node, 1)] += t[1] * length / 2.;
-            }
-          }
-        }
-
-    if (mesh()->dimension() == 3)
-      if (t_string[0] != "NULL" || t_string[1] != "NULL" || t_string[2] != "NULL")
-        ENUMERATE_ (Face, iface, group) {
-          Face face = *iface;
-          Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
-          for (Node node : iface->nodes()) {
-            if (node.isOwn()) {
-              rhs_values[node_dof.dofId(node, 0)] += t[0] * area / 3.;
-              rhs_values[node_dof.dofId(node, 1)] += t[1] * area / 3.;
-              rhs_values[node_dof.dofId(node, 2)] += t[2] * area / 3.;
-            }
-          }
-        }
-  }
+  _applyBodyForceToRHS(rhs_values, node_dof);
+  _applyTractionToRHS(rhs_values, node_dof);
 
   auto use_hypre = options()->linearSystem.serviceName() == "HypreLinearSystem";
   if (use_hypre) {
@@ -505,10 +430,22 @@ _assembleBilinearOperator()
     m_bsr_format.toLinearSystem(m_linear_system);
   }
   else if (m_matrix_format == "DOK") {
-    if (mesh()->dimension() == 2)
-      _assembleBilinearOperatorTria3();
-    if (mesh()->dimension() == 3)
-    _assembleBilinearOperatorTetra4();
+    if (mesh()->dimension() == 2) {
+      if (m_hex_quad_mesh) {
+        _assembleBilinearOperator2d<8>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+      }
+      else {
+        _assembleBilinearOperator2d<6>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
+      }
+    }
+    if (mesh()->dimension() == 3) {
+      if (m_hex_quad_mesh) {
+        _assembleBilinearOperator3d<24>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
+      }
+      else {
+        _assembleBilinearOperator3d<12>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
+      }
+    }
   }
   else {
     ARCANE_FATAL("Unsupported matrix type, only DOK| BSR|AF-BSR is supported.");
@@ -519,17 +456,28 @@ _assembleBilinearOperator()
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Assembles the FEM bilinear operator for 3D problems.
+ *
+ * This method assembles the FEM stiffness matrix by iterating over each cell,
+ * computing the element stiffness matrix using the provided function, and
+ * populating the global stiffness matrix accordingly.
+ *
+ * @tparam N The number of nodes per element (e.g., 4 for tetrahedra, 8 for hexahedra).
+ * @param compute_element_matrix A function that computes the element stiffness matrix for a given cell.
+ */
 /*---------------------------------------------------------------------------*/
 
+template <int N>
 void FemModule::
-_assembleBilinearOperatorTetra4()
+_assembleBilinearOperator3d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    auto K_e = _computeElementMatrixTetra4(cell);
+    auto K_e = compute_element_matrix(cell); // Element stiffness matrix
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
@@ -573,25 +521,28 @@ _assembleBilinearOperatorTetra4()
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Assembles the FEM bilinear operator for 2D problems.
+ *
+ * This method assembles the FEM stiffness matrix by iterating over each cell,
+ * computing the element stiffness matrix using the provided function, and
+ * populating the global stiffness matrix accordingly.
+ *
+ * @tparam N The number of nodes per element (e.g., 3 for triangles, 4 for quadrilaterals).
+ * @param compute_element_matrix A function that computes the element stiffness matrix for a given cell.
+ */
 /*---------------------------------------------------------------------------*/
 
+template <int N>
 void FemModule::
-_assembleBilinearOperatorTria3()
+_assembleBilinearOperator2d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    if (cell.type() != IT_Triangle3)
-      ARCANE_FATAL("Only Triangle3 cell type is supported");
 
-    auto K_e = _computeElementMatrixTria3(cell); // element stiffness matrix
-    // assemble elementary matrix into the global one elementary terms are
-    // positioned into K according to the rank  of  associated  node in the
-    // mesh.nodes list and according the dof  number. Here  for  each  node
-    // two dofs exists [u1,u2].  For each TRIA3 there are 3 nodes hence the
-    // elementary stiffness matrix size is (3*2 x 3*2)=(6x6). We will  fill
-    // this below in 4 at a time.
+    auto K_e = compute_element_matrix(cell);
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;

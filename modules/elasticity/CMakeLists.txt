@@ -28,7 +28,10 @@ file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
     bar.msh
+    plate.quad.msh
+    five_quads.msh
     bar_dynamic_3D.msh
+    truncated_cube.hexa.msh
     sphere_cut.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
@@ -43,6 +46,9 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 
   add_test(NAME [elasticity]Dirichlet COMMAND Elasticity
     inputs/bar.2D.arc)
+
+  add_test(NAME [elasticity]Dirichlet_quad COMMAND Elasticity
+    inputs/bar.2D.quad.arc)
 
   add_test(NAME [elasticity]Dirichlet_traction COMMAND Elasticity
     inputs/bar.2D.traction.arc)
@@ -68,8 +74,17 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/enforce-Dirichlet-method=RowColumnElimination
     inputs/bar.2D.arc)
 
+  add_test(NAME [elasticity]Dirichlet_bodyforce_quad COMMAND Elasticity
+    inputs/2D.dirichlet.bodyforce.quad.arc)
+
+  add_test(NAME [elasticity]Dirichlet_traction_bodyforce_quad COMMAND Elasticity
+    inputs/2D.dirichlet.traction.bodyforce.quad.arc)
+
   add_test(NAME [elasticity]Dirichlet_traction_bodyforce COMMAND Elasticity
     inputs/bar.2D.traction.bodyforce.arc)
+
+  add_test(NAME [elasticity]2D_Dirichlet_traction_bodyforce_quad COMMAND Elasticity
+    inputs/bar.2D.traction.bodyforce.quad.arc)
 
   add_test(NAME [elasticity]bar_parse_and_exit COMMAND Elasticity
     -A,//fem/assemble-linear-system=false
@@ -77,14 +92,20 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/cross-validation=false
     inputs/bar.2D.arc)
 
-  add_test(NAME [elasticity]3D_Dirichlet_bodyforce_dok COMMAND Elasticity
+  add_test(NAME [elasticity]2D_Dirichlet_bodyforce_dok COMMAND Elasticity
     -A,//fem/matrix-format=DOK
     inputs/bar.2D.PointDirichlet.arc)
 
+  add_test(NAME [elasticity]3D_Dirichlet_bodyforce_hexa COMMAND Elasticity
+    inputs/3D.dirichlet.bodyforce.hexa.arc)
+
+  add_test(NAME [elasticity]3D_Dirichlet_traction_bodyforce_hexa COMMAND Elasticity
+    inputs/3D.dirichlet.traction.bodyforce.hexa.arc)
+
   add_test(NAME [elasticity]3D_Dirichlet_bodyforce_subdivider COMMAND Elasticity ARGS
-  -A,//fem/cross-validation=false 
-  -A,//meshes/mesh/subdivider/nb-subdivision=2
-  inputs/bar.3D.Dirichlet.bodyForce.arc)
+    -A,//fem/cross-validation=false
+    -A,//meshes/mesh/subdivider/nb-subdivision=2
+    inputs/bar.3D.Dirichlet.bodyForce.arc)
 
   arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_pointBC_bsr COMMAND  ./Elasticity ARGS
     -A,//fem/matrix-format=BSR
@@ -113,10 +134,19 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   if(FEMUTILS_HAS_PARALLEL_SOLVER)
     add_test(NAME [elasticity]Dirichlet_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity
       inputs/bar.2D.arc)
+
+    add_test(NAME [elasticity]Dirichlet_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity
+      inputs/bar.2D.quad.arc)
+
     add_test(NAME [elasticity]Dirichlet_via_RowElimination_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity
       -A,//fem/enforce-Dirichlet-method=RowElimination
       ${SOLVER_PETSC_GMRES}
       inputs/bar.2D.arc)
+
+    add_test(NAME [elasticity]Dirichlet_RowColumnElim_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity
+      -A,//fem/enforce-Dirichlet-method=RowColumnElimination
+      inputs/bar.2D.quad.arc)
+
     add_test(NAME [elasticity]Dirichlet_via_RowColElimination_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity
       -A,//fem/enforce-Dirichlet-method=RowColumnElimination
       inputs/bar.2D.arc)
