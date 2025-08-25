@@ -101,9 +101,9 @@ class FemModule
   bool m_assemble_linear_system = true;
   bool m_solve_linear_system = true;
   bool m_cross_validation = true;
+  bool m_hex_quad_mesh = false;
 
   void _getMaterialParameters();
-  void _assembleBilinearOperatorTria3();
   void _assembleBilinearOperatorTetra4();
   void _solve();
   void _assembleLinearOperator();
@@ -111,8 +111,14 @@ class FemModule
   void _updateVariables();
   void _initBsr();
 
+  inline void _applyBodyForceToRHS(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+
   RealMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
   RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
+  RealMatrix<8, 8> _computeElementMatrixQuad4(Cell cell);
+
+  template <int N>
+  void _assembleBilinearOperator2d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
 };
 
 #endif
