@@ -116,6 +116,7 @@ class FemModule
   RealMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
   RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
   RealMatrix<8, 8> _computeElementMatrixQuad4(Cell cell);
+  RealMatrix<24, 24> _computeElementMatrixHexa8(Cell cell);
 
   template <int N>
   void _assembleBilinearOperator2d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);

@@ -103,14 +103,59 @@ _applyBodyForceToRHS(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivi
     }
   }
   if (mesh()->dimension() == 3) {
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-      Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
-      for (Node node : cell.nodes()) {
-        if (node.isOwn()) {
-          rhs_values[node_dof.dofId(node, 0)] += f[0] * volume / 4;
-          rhs_values[node_dof.dofId(node, 1)] += f[1] * volume / 4;
-          rhs_values[node_dof.dofId(node, 2)] += f[2] * volume / 4;
+    if (m_hex_quad_mesh) {
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+
+        constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // [-1/sqrt(3), 1/sqrt(3)]
+        constexpr Real weights[2] = { 1.0, 1.0 };
+
+        for (Int32 ixi = 0; ixi < 2; ++ixi) {
+          for (Int32 ieta = 0; ieta < 2; ++ieta) {
+            for (Int32 izeta = 0; izeta < 2; ++izeta) {
+
+              // set the coordinates of the Gauss point
+              Real xi = gp[ixi];
+              Real eta = gp[ieta];
+              Real zeta = gp[izeta];
+
+              // set the weight of the Gauss point
+              Real weight = weights[ixi] * weights[ieta] * weights[izeta];
+
+              // Get shape functions for Hexa8: 𝐍(ξ,η,ζ) = [𝑁₁  𝑁₂  𝑁₃  𝑁₄  𝑁₅  𝑁₆  𝑁₇  𝑁₈]
+              RealVector<8> N = ArcaneFemFunctions::FeOperation3D::computeShapeFunctionsHexa8(xi, eta, zeta);
+
+              // get determinant of Jacobian
+              const auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa8(cell, m_node_coord, xi, eta, zeta);
+              const Real detJ = gp_info.det_j;
+
+              // compute integration weight
+              Real integration_weight = detJ * weight;
+
+              // Assemble RHS
+              for (Int32 i = 0; i < 8; ++i) {
+                Node node = cell.node(i);
+                if (node.isOwn()) {
+                  rhs_values[node_dof.dofId(node, 0)] += N[i] * f[0] * integration_weight;
+                  rhs_values[node_dof.dofId(node, 1)] += N[i] * f[1] * integration_weight;
+                  rhs_values[node_dof.dofId(node, 2)] += N[i] * f[2] * integration_weight;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    else {
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+        Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
+        for (Node node : cell.nodes()) {
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += f[0] * volume / 4;
+            rhs_values[node_dof.dofId(node, 1)] += f[1] * volume / 4;
+            rhs_values[node_dof.dofId(node, 2)] += f[2] * volume / 4;
+          }
         }
       }
     }

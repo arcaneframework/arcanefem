@@ -438,8 +438,13 @@ _assembleBilinearOperator()
         _assembleBilinearOperator2d<6>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
       }
     }
-    if (mesh()->dimension() == 3){
-       _assembleBilinearOperator3d<12>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
+    if (mesh()->dimension() == 3) {
+      if (m_hex_quad_mesh) {
+        _assembleBilinearOperator3d<24>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
+      }
+      else {
+        _assembleBilinearOperator3d<12>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
+      }
     }
   }
   else {

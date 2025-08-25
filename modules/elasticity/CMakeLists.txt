@@ -31,6 +31,7 @@ set(MESH_FILES
     plate.quad.msh
     five_quads.msh
     bar_dynamic_3D.msh
+    truncated_cube.hexa.msh
     sphere_cut.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
@@ -91,14 +92,17 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/cross-validation=false
     inputs/bar.2D.arc)
 
-  add_test(NAME [elasticity]3D_Dirichlet_bodyforce_dok COMMAND Elasticity
+  add_test(NAME [elasticity]2D_Dirichlet_bodyforce_dok COMMAND Elasticity
     -A,//fem/matrix-format=DOK
     inputs/bar.2D.PointDirichlet.arc)
 
+  add_test(NAME [elasticity]Dirichlet_bodyforce_hexa COMMAND Elasticity
+    inputs/3D.dirichlet.bodyforce.hexa.arc)
+
   add_test(NAME [elasticity]3D_Dirichlet_bodyforce_subdivider COMMAND Elasticity ARGS
-  -A,//fem/cross-validation=false 
-  -A,//meshes/mesh/subdivider/nb-subdivision=2
-  inputs/bar.3D.Dirichlet.bodyForce.arc)
+    -A,//fem/cross-validation=false
+    -A,//meshes/mesh/subdivider/nb-subdivision=2
+    inputs/bar.3D.Dirichlet.bodyForce.arc)
 
   arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_pointBC_bsr COMMAND  ./Elasticity ARGS
     -A,//fem/matrix-format=BSR
