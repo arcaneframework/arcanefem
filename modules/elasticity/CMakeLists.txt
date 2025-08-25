@@ -96,8 +96,11 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/matrix-format=DOK
     inputs/bar.2D.PointDirichlet.arc)
 
-  add_test(NAME [elasticity]Dirichlet_bodyforce_hexa COMMAND Elasticity
+  add_test(NAME [elasticity]3D_Dirichlet_bodyforce_hexa COMMAND Elasticity
     inputs/3D.dirichlet.bodyforce.hexa.arc)
+
+  add_test(NAME [elasticity]3D_Dirichlet_traction_bodyforce_hexa COMMAND Elasticity
+    inputs/3D.dirichlet.traction.bodyforce.hexa.arc)
 
   add_test(NAME [elasticity]3D_Dirichlet_bodyforce_subdivider COMMAND Elasticity ARGS
     -A,//fem/cross-validation=false

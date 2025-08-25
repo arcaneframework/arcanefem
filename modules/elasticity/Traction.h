@@ -111,17 +111,107 @@ _applyTractionToRHS(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivit
       }
     }
 
-    if (mesh()->dimension() == 3)
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
-        for (Node node : iface->nodes()) {
-          if (node.isOwn()) {
-            rhs_values[node_dof.dofId(node, 0)] += t[0] * area / 3.;
-            rhs_values[node_dof.dofId(node, 1)] += t[1] * area / 3.;
-            rhs_values[node_dof.dofId(node, 2)] += t[2] * area / 3.;
+    if (mesh()->dimension() == 3) {
+      if (m_hex_quad_mesh) {
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+
+          // 2x2 Gauss integration for quadrilateral face
+          constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // -1/sqrt(3), 1/sqrt(3)
+          constexpr Real w = 1.0;
+
+          // Get face nodes (assuming quad4 face)
+          Node node0 = face.node(0);
+          Node node1 = face.node(1);
+          Node node2 = face.node(2);
+          Node node3 = face.node(3);
+          Node nodes[4] = { node0, node1, node2, node3 };
+
+          // Get node coordinates
+          Real3 coords[4];
+          for (Int32 i = 0; i < 4; ++i) {
+            coords[i] = m_node_coord[nodes[i]];
+          }
+
+          // Loop through 2x2 Gauss points
+          for (Int32 ixi = 0; ixi < 2; ++ixi) {
+            for (Int32 ieta = 0; ieta < 2; ++ieta) {
+              Real xi = gp[ixi];
+              Real eta = gp[ieta];
+
+              // Quad4 shape functions
+              Real N[4];
+              N[0] = 0.25 * (1 - xi) * (1 - eta);
+              N[1] = 0.25 * (1 + xi) * (1 - eta);
+              N[2] = 0.25 * (1 + xi) * (1 + eta);
+              N[3] = 0.25 * (1 - xi) * (1 + eta);
+
+              // Shape function derivatives w.r.t. natural coordinates
+              Real dN_dxi[4], dN_deta[4];
+              dN_dxi[0] = -0.25 * (1 - eta);
+              dN_dxi[1] = 0.25 * (1 - eta);
+              dN_dxi[2] = 0.25 * (1 + eta);
+              dN_dxi[3] = -0.25 * (1 + eta);
+
+              dN_deta[0] = -0.25 * (1 - xi);
+              dN_deta[1] = -0.25 * (1 + xi);
+              dN_deta[2] = 0.25 * (1 + xi);
+              dN_deta[3] = 0.25 * (1 - xi);
+
+              // Compute tangent vectors
+              Real3 t1(0.0, 0.0, 0.0); // ∂r/∂ξ
+              Real3 t2(0.0, 0.0, 0.0); // ∂r/∂η
+
+              for (Int32 i = 0; i < 4; ++i) {
+                t1.x += dN_dxi[i] * coords[i].x;
+                t1.y += dN_dxi[i] * coords[i].y;
+                t1.z += dN_dxi[i] * coords[i].z;
+
+                t2.x += dN_deta[i] * coords[i].x;
+                t2.y += dN_deta[i] * coords[i].y;
+                t2.z += dN_deta[i] * coords[i].z;
+              }
+
+              // Normal vector (cross product of tangent vectors)
+              Real3 normal;
+              normal.x = t1.y * t2.z - t1.z * t2.y;
+              normal.y = t1.z * t2.x - t1.x * t2.z;
+              normal.z = t1.x * t2.y - t1.y * t2.x;
+
+              // Jacobian (magnitude of normal vector for surface integration)
+              Real detJ = sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+
+              // Integration weight
+              Real integration_weight = w * w * detJ;
+
+              // Apply to all four nodes of the face
+              for (Int32 j = 0; j < 4; ++j) {
+                Node node = nodes[j];
+                if (!node.isOwn())
+                  continue;
+
+                rhs_values[node_dof.dofId(node, 0)] += t[0] * N[j] * integration_weight;
+                rhs_values[node_dof.dofId(node, 1)] += t[1] * N[j] * integration_weight;
+                rhs_values[node_dof.dofId(node, 2)] += t[2] * N[j] * integration_weight;
+              }
+            }
           }
         }
       }
+      else {
+
+        ENUMERATE_ (Face, iface, group) {
+          Face face = *iface;
+          Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
+          for (Node node : iface->nodes()) {
+            if (node.isOwn()) {
+              rhs_values[node_dof.dofId(node, 0)] += t[0] * area / 3.;
+              rhs_values[node_dof.dofId(node, 1)] += t[1] * area / 3.;
+              rhs_values[node_dof.dofId(node, 2)] += t[2] * area / 3.;
+            }
+          }
+        }
+      }
+    }
   }
 }
