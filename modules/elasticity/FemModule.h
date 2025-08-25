@@ -104,7 +104,6 @@ class FemModule
   bool m_hex_quad_mesh = false;
 
   void _getMaterialParameters();
-  void _assembleBilinearOperatorTetra4();
   void _solve();
   void _assembleLinearOperator();
   void _validateResults();
@@ -120,6 +119,9 @@ class FemModule
 
   template <int N>
   void _assembleBilinearOperator2d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
+
+  template <int N>
+  void _assembleBilinearOperator3d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
 };
 
 #endif
