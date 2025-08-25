@@ -13,13 +13,6 @@
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Apply body-force vector to RHS.
- * 
- * body force ∫∫∫ (𝐟.𝐯)  with 𝐟 = (𝑓𝑥, 𝑓𝑦, 𝑓𝑧) = (f[0], f[1], f[2])
-/*---------------------------------------------------------------------------*/
-
-/*---------------------------------------------------------------------------*/
-/**
  * @brief Applies body force to the RHS vector of the linear system.
  * 
  * This function computes the contribution of body forces to the RHS vector 
@@ -34,7 +27,8 @@
  *                 degrees of freedom (DoFs).
  * 
 /*---------------------------------------------------------------------------*/
-void FemModule::
+
+inline void FemModule::
 _applyBodyForceToRHS(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
 

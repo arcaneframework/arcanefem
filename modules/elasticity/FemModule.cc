@@ -17,6 +17,8 @@
 #include "ElementMatrix.h"
 #include "ElementMatrixHexQuad.h"
 #include "BodyForce.h"
+#include "Traction.h"
+
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -252,51 +254,7 @@ _assembleLinearOperator()
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   _applyBodyForceToRHS(rhs_values, node_dof);
-
-  //----------------------------------------------------------------------
-  // traction term ∫∫ (𝐭.𝐯)  with 𝐭 = (𝑡𝑥, 𝑡𝑦, 𝑡𝑧) = (t[0], t[1], t[2])
-  //----------------------------------------------------------------------
-  for (const auto& bs : options()->tractionBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    const UniqueArray<String> t_string = bs->t();
-
-    info() << "[ArcaneFem-Info] Applying Traction " << t_string;
-    info() << "[ArcaneFem-Info] Traction surface '" << bs->surface().name() << "'";
-
-    for (Int32 i = 0; i < t_string.size(); ++i) {
-      t[i] = 0.0;
-      if (t_string[i] != "NULL") {
-        t[i] = std::stod(t_string[i].localstr());
-      }
-    }
-
-    if (mesh()->dimension() == 2)
-      if (t_string[0] != "NULL" || t_string[1] != "NULL")
-        ENUMERATE_ (Face, iface, group) {
-          Face face = *iface;
-          Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-          for (Node node : iface->nodes()) {
-            if (node.isOwn()) {
-              rhs_values[node_dof.dofId(node, 0)] += t[0] * length / 2.;
-              rhs_values[node_dof.dofId(node, 1)] += t[1] * length / 2.;
-            }
-          }
-        }
-
-    if (mesh()->dimension() == 3)
-      if (t_string[0] != "NULL" || t_string[1] != "NULL" || t_string[2] != "NULL")
-        ENUMERATE_ (Face, iface, group) {
-          Face face = *iface;
-          Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
-          for (Node node : iface->nodes()) {
-            if (node.isOwn()) {
-              rhs_values[node_dof.dofId(node, 0)] += t[0] * area / 3.;
-              rhs_values[node_dof.dofId(node, 1)] += t[1] * area / 3.;
-              rhs_values[node_dof.dofId(node, 2)] += t[2] * area / 3.;
-            }
-          }
-        }
-  }
+  _applyTractionToRHS(rhs_values, node_dof);
 
   auto use_hypre = options()->linearSystem.serviceName() == "HypreLinearSystem";
   if (use_hypre) {

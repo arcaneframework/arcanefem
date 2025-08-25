@@ -76,8 +76,14 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [elasticity]Dirichlet_bodyforce_quad COMMAND Elasticity
     inputs/2D.dirichlet.bodyforce.quad.arc)
 
+  add_test(NAME [elasticity]Dirichlet_traction_bodyforce_quad COMMAND Elasticity
+    inputs/2D.dirichlet.traction.bodyforce.quad.arc)
+
   add_test(NAME [elasticity]Dirichlet_traction_bodyforce COMMAND Elasticity
     inputs/bar.2D.traction.bodyforce.arc)
+
+  add_test(NAME [elasticity]2D_Dirichlet_traction_bodyforce_quad COMMAND Elasticity
+    inputs/bar.2D.traction.bodyforce.quad.arc)
 
   add_test(NAME [elasticity]bar_parse_and_exit COMMAND Elasticity
     -A,//fem/assemble-linear-system=false
