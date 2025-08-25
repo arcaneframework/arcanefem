@@ -374,13 +374,29 @@ class RealVector
 
  public:
 
+  //! Add operator()
   ARCCORE_HOST_DEVICE Arcane::Real& operator()(Arcane::Int32 i)
   {
     ARCANE_CHECK_AT(i, N);
     return m_values[i];
   }
 
+  //! Add operator()
   ARCCORE_HOST_DEVICE Arcane::Real operator()(Arcane::Int32 i) const
+  {
+    ARCANE_CHECK_AT(i, N);
+    return m_values[i];
+  }
+
+  //! Add operator[]
+  ARCCORE_HOST_DEVICE Arcane::Real& operator[](Arcane::Int32 i)
+  {
+    ARCANE_CHECK_AT(i, N);
+    return m_values[i];
+  }
+
+  //! Add operator[]
+  ARCCORE_HOST_DEVICE Arcane::Real operator[](Arcane::Int32 i) const
   {
     ARCANE_CHECK_AT(i, N);
     return m_values[i];
