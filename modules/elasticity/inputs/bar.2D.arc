@@ -27,10 +27,11 @@
     <E>21.0e5</E>
     <nu>0.28</nu>
     <f>NULL -1.0</f>
-    <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-    <dirichlet-boundary-condition>
-      <surface>left</surface>
-      <u>0.0 0.0</u>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>left</surface>
+        <value>0.0 0.0</value>
+      </dirichlet>
+    </boundary-conditions>
   </fem>
 </case>

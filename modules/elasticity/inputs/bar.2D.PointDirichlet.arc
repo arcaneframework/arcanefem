@@ -23,25 +23,27 @@
   </meshes>
 
   <fem>
+    <result-file>check/elasticity_point-dirichlet_bar_test_ref.txt</result-file>
     <E>21.0e5</E>
     <nu>0.28</nu>
     <f>NULL -1.0</f>
-    <dirichlet-boundary-condition>
-      <surface>left</surface>
-      <u>0.0 NULL</u>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>right</surface>
-      <u>1.0 NULL</u>
-    </dirichlet-boundary-condition>
-    <dirichlet-point-condition>
-      <node>botLeft</node>
-      <u>0.0 0.0</u>
-    </dirichlet-point-condition>
-    <dirichlet-point-condition>
-      <node>botRight</node>
-      <u>NULL 0.0</u>
-    </dirichlet-point-condition>
-    <result-file>check/elasticity_point-dirichlet_bar_test_ref.txt</result-file>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>left</surface>
+        <value>0.0 NULL</value>
+      </dirichlet>
+      <dirichlet>
+        <surface>right</surface>
+        <value>1.0 NULL</value>
+      </dirichlet>
+      <dirichlet-point>
+        <node>botLeft</node>
+        <value>0.0 0.0</value>
+      </dirichlet-point>
+      <dirichlet-point>
+        <node>botRight</node>
+        <value>NULL 0.0</value>
+      </dirichlet-point>
+    </boundary-conditions>
   </fem>
 </case>

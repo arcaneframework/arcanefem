@@ -18,7 +18,7 @@
 #include "ElementMatrixHexQuad.h"
 #include "BodyForce.h"
 #include "Traction.h"
-
+#include "Dirichlet.h"
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -183,52 +183,7 @@ _getMaterialParameters()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleDirichletsGpu()
-{
-  info() << "[ArcaneFem-Info] Started module  _assembleLinearOperatorGpu()";
 
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  auto queue = subDomain()->acceleratorMng()->defaultQueue();
-  auto mesh_ptr = mesh();
-
-  // Dirichlet conditions to LHS and RHS
-  for (const auto& bs : options()->dirichletBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    const UniqueArray<String> u_dirichlet_string = bs->u();
-
-    auto method = options()->enforceDirichletMethod();
-
-    info() << "[ArcaneFem-Info] Applying Dirichlet " << u_dirichlet_string << " on Gpu";
-    info() << "[ArcaneFem-Info] Dirichlet surface '" << bs->surface().name() << "'";
-    info() << "[ArcaneFem-Info] Dirichlet method '" << method << "'";
-
-    if (method == "Penalty")
-      FemUtils::Gpu::BoundaryConditions::applyDirichletViaPenaltyVectorial(m_dofs_on_nodes, m_linear_system, mesh_ptr, queue, group, options()->penalty(), u_dirichlet_string);
-    else if (method == "RowElimination")
-      FemUtils::Gpu::BoundaryConditions::applyDirichletViaRowEliminationVectorial(m_dofs_on_nodes, m_linear_system, mesh_ptr, queue, group, u_dirichlet_string);
-    else
-      ARCANE_THROW(Arccore::NotImplementedException, "Method is not supported.");
-  }
-
-  for (const auto& bs : options()->dirichletPointCondition()) {
-    NodeGroup group = bs->node();
-    const UniqueArray<String> u_dirichlet_string = bs->u();
-
-    auto method = options()->enforceDirichletMethod();
-
-    info() << "[ArcaneFem-Info] Applying point Dirichlet " << u_dirichlet_string << " on Gpu";
-    info() << "[ArcaneFem-Info] Dirichlet points '" << group.name() << "'";
-    info() << "[ArcaneFem-Info] Dirichlet method '" << method << "'";
-
-    if (method == "Penalty")
-      FemUtils::Gpu::BoundaryConditions::applyPointDirichletViaPenaltyVectorial(m_dofs_on_nodes, m_linear_system, mesh(), queue, group, options()->penalty(), u_dirichlet_string);
-    else if (method == "RowElimination")
-      FemUtils::Gpu::BoundaryConditions::applyPointDirichletViaRowEliminationVectorial(m_dofs_on_nodes, m_linear_system, mesh_ptr, queue, group, u_dirichlet_string);
-    else
-      ARCANE_THROW(Arccore::NotImplementedException, "Method is not supported.");
-  }
-}
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -253,135 +208,9 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  _applyBodyForceToRHS(rhs_values, node_dof);
-  _applyTractionToRHS(rhs_values, node_dof);
-
-  auto use_hypre = options()->linearSystem.serviceName() == "HypreLinearSystem";
-  if (use_hypre) {
-    // The rest of the assembly can be handled on Gpu because of Hypre solver.
-    _assembleDirichletsGpu();
-    return;
-  }
-
-  //----------------------------------------------
-  // Dirichlet conditions to LHS and RHS
-  //----------------------------------------------
-
-  for (const auto& bs : options()->dirichletBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    const UniqueArray<String> u_dirichlet_string = bs->u();
-
-    info() << "[ArcaneFem-Info] Applying Dirichlet " << u_dirichlet_string;
-    info() << "[ArcaneFem-Info] Dirichlet surface '" << bs->surface().name() << "'";
-    info() << "[ArcaneFem-Info] Dirichlet method '" << options()->enforceDirichletMethod() << "'";
-
-    if (options()->enforceDirichletMethod() == "Penalty") {
-
-      Real Penalty = options()->penalty();
-
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
-          ENUMERATE_ (Face, iface, group) {
-            for (Node node : iface->nodes()) {
-              DoFLocalId dof_id = node_dof.dofId(node, i);
-              if (node.isOwn()) {
-                m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
-                rhs_values[dof_id] = Penalty * u_dirichlet;
-              }
-            }
-          }
-        }
-      }
-    }
-    else if (options()->enforceDirichletMethod() == "RowElimination") {
-
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
-          ENUMERATE_ (Face, iface, group) {
-            for (Node node : iface->nodes()) {
-              DoFLocalId dof_id = node_dof.dofId(node, i);
-              if (node.isOwn()) {
-                m_linear_system.eliminateRow(dof_id, u_dirichlet);
-              }
-            }
-          }
-        }
-      }
-    }
-    else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
-
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
-          ENUMERATE_ (Face, iface, group) {
-            for (Node node : iface->nodes()) {
-              DoFLocalId dof_id = node_dof.dofId(node, i);
-              if (node.isOwn()) {
-                m_linear_system.eliminateRowColumn(dof_id, u_dirichlet);
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  for (const auto& bs : options()->dirichletPointCondition()) {
-    NodeGroup group = bs->node();
-    const UniqueArray<String> u_dirichlet_string = bs->u();
-
-    info() << "[ArcaneFem-Info] Applying point Dirichlet " << u_dirichlet_string;
-    info() << "[ArcaneFem-Info] Dirichlet points '" << group.name() << "'";
-    info() << "[ArcaneFem-Info] Dirichlet method '" << options()->enforceDirichletMethod() << "'";
-
-    if (options()->enforceDirichletMethod() == "Penalty") {
-      Real Penalty = options()->penalty();
-
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
-          ENUMERATE_ (Node, inode, group) {
-            Node node = *inode;
-            DoFLocalId dof_id = node_dof.dofId(node, i);
-            if (node.isOwn()) {
-              m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
-              rhs_values[dof_id] = Penalty * u_dirichlet;
-            }
-          }
-        }
-      }
-    }
-    else if (options()->enforceDirichletMethod() == "RowElimination") {
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
-          ENUMERATE_ (Node, inode, group) {
-            Node node = *inode;
-            DoFLocalId dof_id = node_dof.dofId(node, i);
-            if (node.isOwn()) {
-              m_linear_system.eliminateRow(dof_id, u_dirichlet);
-            }
-          }
-        }
-      }
-    }
-    else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
-          ENUMERATE_ (Node, inode, group) {
-            Node node = *inode;
-            DoFLocalId dof_id = node_dof.dofId(node, i);
-            if (node.isOwn()) {
-              m_linear_system.eliminateRowColumn(dof_id, u_dirichlet);
-            }
-          }
-        }
-      }
-    }
-  }
+  _applyBodyForce(rhs_values, node_dof);
+  _applyTraction(rhs_values, node_dof);
+  _applyDirichlet(rhs_values, node_dof);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-vector-assembly", elapsedTime);

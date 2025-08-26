@@ -148,17 +148,20 @@ _assembleLinearOperator()
 
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
   if (bc) {
-    for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
-      if (mesh()->dimension() == 2)
+    for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions()) {
+      if (mesh()->dimension() == 2) {
         if (m_hex_quad_mesh)
           ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhsQuad4(bs, node_dof, m_node_coord, rhs_values);
         else
           ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
-      else
+      }
+      if (mesh()->dimension() == 3) {
         if (m_hex_quad_mesh)
           ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsHexa8(bs, node_dof, m_node_coord, rhs_values);
         else
           ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
+      }
+    }
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;

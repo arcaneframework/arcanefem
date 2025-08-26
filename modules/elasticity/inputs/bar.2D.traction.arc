@@ -26,10 +26,12 @@
     <result-file>check/elasticity_traction_bar_test_ref.txt</result-file>
     <E>21.0e5</E>
     <nu>0.28</nu>
-    <dirichlet-boundary-condition>
-      <surface>left</surface>
-      <u>0.0 0.0</u>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>left</surface>
+        <value>0.0 0.0</value>
+      </dirichlet>
+    </boundary-conditions>
     <traction-boundary-condition>
       <surface>right</surface>
       <t>1.0 NULL</t>

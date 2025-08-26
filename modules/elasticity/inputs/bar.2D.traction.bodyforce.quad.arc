@@ -27,10 +27,12 @@
     <E>21.0e5</E>
     <nu>0.28</nu>
     <f>3.33 -6.66</f>
-    <dirichlet-boundary-condition>
-      <surface>left</surface>
-      <u>0.0 0.0</u>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>left</surface>
+        <value>0.0 0.0</value>
+      </dirichlet>
+    </boundary-conditions>
     <traction-boundary-condition>
       <surface>right</surface>
       <t>1.33 2.13</t>

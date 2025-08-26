@@ -27,11 +27,12 @@
     <E>200e9</E>
     <nu>0.3</nu>
     <f>9.8e9 7.3e9</f>
-    <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-    <dirichlet-boundary-condition>
-      <surface>bot</surface>
-      <u>0.0 0.0</u>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>bot</surface>
+        <value>0.0 0.0</value>
+      </dirichlet>
+    </boundary-conditions>
     <traction-boundary-condition>
       <surface>top</surface>
       <t>13.3e9 14.5e5</t>

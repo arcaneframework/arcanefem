@@ -251,7 +251,6 @@ _assembleLinearOperatorCpu()
           else
             ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
         }
-
         if (mesh()->dimension() == 3) {
           if (m_hex_quad_mesh)
             ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsHexa8(bs, node_dof, m_node_coord, rhs_values);
@@ -262,7 +261,7 @@ _assembleLinearOperatorCpu()
 
       // Dirichlet
       for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
-        BCFunctions.applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+        ArcaneFemFunctions::BoundaryConditions::applyDirichletToLhsAndRhs(bs, node_dof, m_linear_system, rhs_values);
 
       // Manufactured boundary conditions
       for (BC::IManufacturedSolution* bs : bc->manufacturedSolutions()) {
@@ -281,10 +280,10 @@ _assembleLinearOperatorCpu()
     }
   };
 
-  if (mesh()->dimension() == 3)
-    applyBoundaryConditions(ArcaneFemFunctions::BoundaryConditions3D());
-  else
-    applyBoundaryConditions(ArcaneFemFunctions::BoundaryConditions2D());
+   if (mesh()->dimension() == 3)
+     applyBoundaryConditions(ArcaneFemFunctions::BoundaryConditions3D());
+   else
+     applyBoundaryConditions(ArcaneFemFunctions::BoundaryConditions2D());
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
@@ -331,7 +330,7 @@ void FemModule::_assembleLinearOperatorGpu()
         BCFunctions.applyNeumannToRhs(bs, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
 
       for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
-        FemUtils::Gpu::BoundaryConditions::applyDirichletViaPenalty(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
+        FemUtils::Gpu::BoundaryConditions::applyDirichletToLhsAndRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
 
     }
   };

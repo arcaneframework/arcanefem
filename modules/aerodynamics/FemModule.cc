@@ -140,7 +140,7 @@ _getPsi()
  * This method follows a sequence of steps to solve FEM system:
  *   1. _assembleBilinearOperator()       Assembles the FEM  matrix 𝑨
  *   2. _assembleLinearOperator()         Assembles the FEM RHS vector 𝒃
- *   3.  _solve()                         Solves for solution vector 𝒖 = 𝑨⁻¹𝒃
+ *   3. _solve()                          Solves for solution vector 𝒖 = 𝑨⁻¹𝒃
  *   4. _updateVariables()                Updates FEM variables 𝒖 = 𝒙
  *   5. _validateResults()                Regression test
  */
@@ -210,12 +210,10 @@ _assembleLinearOperatorCpu()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
-  if (bc)
+  if (bc){
     for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
-      if (mesh()->dimension() == 2)
-        ArcaneFemFunctions::BoundaryConditions2D::applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
-      else
-        ArcaneFemFunctions::BoundaryConditions3D::applyDirichletToLhsAndRhs(bs, node_dof, m_node_coord, m_linear_system, rhs_values);
+      ArcaneFemFunctions::BoundaryConditions::applyDirichletToLhsAndRhs(bs, node_dof, m_linear_system, rhs_values);
+  }
 
   for (const auto& bs : options()->farfieldBoundaryCondition()) {
     FaceGroup group = bs->surface();
@@ -273,14 +271,12 @@ _assembleLinearOperatorGpu()
   auto queue = subDomain()->acceleratorMng()->defaultQueue();
   auto mesh_ptr = mesh();
   auto dim = mesh()->dimension();
-  auto applyBoundaryConditions = [&](auto BCFunctions) {
-    BC::IArcaneFemBC* bc = options()->boundaryConditions();
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
-    if (bc) {
-      for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
-        FemUtils::Gpu::BoundaryConditions::applyDirichletViaPenalty(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
-    }
-  };
+  if (bc) {
+    for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
+      FemUtils::Gpu::BoundaryConditions::applyDirichletToLhsAndRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
+  }
 
   for (const auto& bs : options()->farfieldBoundaryCondition()) {
     Real angle = bs->angle();
@@ -310,11 +306,6 @@ _assembleLinearOperatorGpu()
       }
     };
   }
-
-  if (mesh()->dimension() == 3)
-    applyBoundaryConditions(FemUtils::Gpu::BoundaryConditions3D());
-  else
-    applyBoundaryConditions(FemUtils::Gpu::BoundaryConditions2D());
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly-gpu", elapsedTime);

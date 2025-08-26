@@ -359,7 +359,6 @@ _assembleLinearOperator()
         else
           ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
       }
-
       if (mesh()->dimension() == 3) {
         if (m_hex_quad_mesh)
           ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsHexa8(bs, node_dof, m_node_coord, rhs_values);
@@ -374,18 +373,18 @@ _assembleLinearOperator()
       NodeGroup node_group = face_group.nodeGroup();
 
       const StringConstArrayView u_dirichlet_string = bs->getValue();
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real value = std::stod(u_dirichlet_string[i].localstr());
+      for (Int32 dof_index = 0; dof_index < u_dirichlet_string.size(); ++dof_index) {
+        if (u_dirichlet_string[dof_index] != "NULL") {
+          Real value = std::stod(u_dirichlet_string[dof_index].localstr());
           if (bs->getEnforceDirichletMethod() == "Penalty") {
             Real penalty = bs->getPenalty();
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
+            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(dof_index, value, penalty, node_dof, m_linear_system, rhs_values, node_group);
           }
           else if (bs->getEnforceDirichletMethod() == "RowElimination") {
             if (t <= dt - 1e-8)
-              ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+              ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(dof_index, value, node_dof, m_linear_system, rhs_values, node_group);
             else
-              ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(value, node_dof, m_linear_system, rhs_values, node_group);
+              ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(dof_index, value, node_dof, m_linear_system, rhs_values, node_group);
           }
           // else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
           //     ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
@@ -401,18 +400,18 @@ _assembleLinearOperator()
     for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions()) {
       NodeGroup node_group = bs->getNode();
       const StringConstArrayView u_dirichlet_string = bs->getValue();
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real value = std::stod(u_dirichlet_string[i].localstr());
+      for (Int32 dof_index = 0; dof_index < u_dirichlet_string.size(); ++dof_index) {
+        if (u_dirichlet_string[dof_index] != "NULL") {
+          Real value = std::stod(u_dirichlet_string[dof_index].localstr());
           if (bs->getEnforceDirichletMethod() == "Penalty") {
             Real penalty = bs->getPenalty();
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
+            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(dof_index, value, penalty, node_dof, m_linear_system, rhs_values, node_group);
           }
           else if (bs->getEnforceDirichletMethod() == "RowElimination") {
             if (t <= dt - 1e-8)
-              ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
+              ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(dof_index, value, node_dof, m_linear_system, rhs_values, node_group);
             else
-              ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(value, node_dof, m_linear_system, rhs_values, node_group);
+              ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(dof_index, value, node_dof, m_linear_system, rhs_values, node_group);
           }
           // else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
           //     ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);

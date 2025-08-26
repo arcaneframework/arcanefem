@@ -30,18 +30,6 @@
       <description>File name of a file containing the values of the solution vector to check the results</description>
     </simple>
 
-    <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
-      <description>
-        Method via which Dirichlet boundary condition is imposed
-      </description>
-    </simple>
-
-    <simple name = "penalty" type = "real" default="1.e30" optional="true">
-      <description>
-        Penalty value for enforcing Dirichlet condition
-      </description>
-    </simple>
-
     <simple name="matrix-format" type="string" default="DOK" optional="true">
       <description>Which matrix format to use DOK|BSR|AF-BSR.</description>
     </simple>
@@ -66,48 +54,6 @@
       <description>Boolean to use hexagonal quadrature for element matrix assembly.</description>
     </simple>
 
-    <!-- - - - - - dirichlet-boundary-condition - - - - -->
-    <complex name  = "dirichlet-boundary-condition"
-             type  = "DirichletBoundaryCondition"
-             minOccurs = "0"
-             maxOccurs = "unbounded"
-      >
-      <description>
-        Dirichlet boundary condition
-      </description>
-      <extended name = "surface" type = "Arcane::FaceGroup">
-        <description>
-          FaceGroup on which to apply these boundary condition
-        </description>
-      </extended>
-      <simple name = "u" type = "string[]" default="NULL NULL NULL" optional="true">
-        <description>
-          Dirichlet conditions on the surface (space separated list).
-        </description>
-      </simple>
-    </complex>
-
-    <!-- - - - - - dirichlet-point-condition - - - - -->
-    <complex name  = "dirichlet-point-condition"
-             type  = "DirichletPointCondition"
-             minOccurs = "0"
-             maxOccurs = "unbounded"
-      >
-      <description>
-        Dirichlet point condition
-      </description>
-      <extended name = "node" type = "Arcane::NodeGroup">
-        <description>
-          NodeGroup on which to apply these point Dirichlet condition
-        </description>
-      </extended>
-      <simple name = "u" type = "string[]" default="NULL NULL NULL" optional="true">
-        <description>
-          Dirichlet conditions on the points (space separated list).
-        </description>
-      </simple>
-    </complex>
-
     <!-- - - - - - neumann-boundary-condition - - - - -->
     <complex name  = "traction-boundary-condition"
              type  = "TractionBoundaryCondition"
@@ -129,11 +75,10 @@
       </simple>
     </complex>
 
+    <!-- Linear system service instance -->
+    <service-instance name="linear-system" type="Arcane::FemUtils::IDoFLinearSystemFactory" default="AlephLinearSystem" />
 
-    <!-- - - - - - linear-system - - - - -->
-    <service-instance name = "linear-system"
-                      type = "Arcane::FemUtils::IDoFLinearSystemFactory"
-                      default = "AlephLinearSystem"
-                      />
+    <!-- Boundary conditions service instance -->
+    <service-instance name = "boundary-conditions" type = "BC::IArcaneFemBC" optional = "true" default="FemBoundaryConditions" />
   </options>
 </module>
