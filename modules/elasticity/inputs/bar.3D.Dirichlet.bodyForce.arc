@@ -25,14 +25,16 @@
     <E>21.0e5</E>
     <nu>0.28</nu>
     <f>-1.0</f>
-    <dirichlet-boundary-condition>
-      <surface>surfaceleft</surface>
-      <u>0.0 0.0 0.0</u>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>surfaceright</surface>
-      <u>NULL 1.0 NULL</u>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>surfaceleft</surface>
+        <value>0.0 0.0 0.0</value>
+      </dirichlet>
+      <dirichlet>
+        <surface>surfaceright</surface>
+        <value>NULL 1.0 NULL</value>
+      </dirichlet>
+    </boundary-conditions>
     <result-file>check/3D_dirichlet_bodyforce_test_ref.txt</result-file>
   </fem>
 </case>

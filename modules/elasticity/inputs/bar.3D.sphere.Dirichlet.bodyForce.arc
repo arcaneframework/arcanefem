@@ -25,18 +25,20 @@
     <E>21.0e3</E>
     <nu>0.28</nu>
     <f>-19 -23 -42</f>
-    <dirichlet-boundary-condition>
-      <surface>verticalXY</surface>
-      <u>NULL NULL 0.0</u>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>verticalYZ</surface>
-      <u>0.0 NULL NULL</u>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>horizontal</surface>
-      <u>NULL 0.0 NULL</u>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>verticalXY</surface>
+        <value>NULL NULL 0.0</value>
+      </dirichlet>
+      <dirichlet>
+        <surface>verticalYZ</surface>
+        <value>0.0 NULL NULL</value>
+      </dirichlet>
+      <dirichlet>
+        <surface>horizontal</surface>
+        <value>NULL 0.0 NULL</value>
+      </dirichlet>
+    </boundary-conditions>
     <traction-boundary-condition>
       <surface>curved</surface>
       <t>1.99 1.5 2.4</t>

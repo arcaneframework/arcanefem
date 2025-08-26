@@ -430,7 +430,7 @@ namespace BoundaryConditionsHelpers
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  inline void applyDirichletToNodeGroupViaPenalty(Real value, Real penalty, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NodeGroup& node_group, Int32 dof_index = 0)
+  inline void applyDirichletToNodeGroupViaPenalty(const Int32 dof_index, Real value, Real penalty, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NodeGroup& node_group)
   {
     ARCANE_CHECK_PTR(queue);
     ARCANE_CHECK_PTR(mesh);
@@ -458,7 +458,7 @@ namespace BoundaryConditionsHelpers
   /*---------------------------------------------------------------------------*/
 
   template <Byte ELIMINATION_MODE>
-  inline void applyDirichletToNodeGroupViaRowElimination(Real value, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NodeGroup& node_group, Int32 dof_index = 0)
+  inline void applyDirichletToNodeGroupViaRowElimination(const Int32 dof_index, Real value, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NodeGroup& node_group)
   {
     ARCANE_CHECK_PTR(queue);
     ARCANE_CHECK_PTR(mesh);
@@ -494,46 +494,34 @@ namespace BoundaryConditions
    */
   /*---------------------------------------------------------------------------*/
 
-  inline void applyDirichletViaPenalty(BC::IDirichletBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
+  inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
   {
     ARCANE_CHECK_PTR(bs);
-    Real penalty = bs->getPenalty();
+
     FaceGroup face_group = bs->getSurface();
     NodeGroup node_group = face_group.nodeGroup();
+
     const StringConstArrayView u_dirichlet_string = bs->getValue();
-    for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-      if (u_dirichlet_string[i] != "NULL") {
-        Real value = std::stod(u_dirichlet_string[i].localstr());
-        BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
-      }
-    }
-  }
 
-  /*---------------------------------------------------------------------------*/
-  /*---------------------------------------------------------------------------*/
+    for (Int32 dof_index = 0; dof_index < u_dirichlet_string.size(); ++dof_index) {
+      if (u_dirichlet_string[dof_index] != "NULL") {
 
-  inline void applyDirichletViaPenaltyVectorial(const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue, FaceGroup face_group, Real penalty, const UniqueArray<String> u_dirichlet_str)
-  {
-    NodeGroup node_group = face_group.nodeGroup();
-    for (auto dof_index = 0; dof_index < u_dirichlet_str.size(); ++dof_index) {
-      if (u_dirichlet_str[dof_index] != "NULL") {
-        Real u_dirichlet = std::stod(u_dirichlet_str[dof_index].localstr());
-        BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(u_dirichlet, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group, dof_index);
-      }
-    }
-  }
+        Real value = std::stod(u_dirichlet_string[dof_index].localstr());
 
-  /*---------------------------------------------------------------------------*/
-  /*---------------------------------------------------------------------------*/
-
-  inline void applyDirichletViaRowEliminationVectorial(const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue, FaceGroup face_group, const UniqueArray<String> u_dirichlet_str)
-  {
-    constexpr Byte ELIMINATE_ROW = 1;
-    NodeGroup node_group = face_group.nodeGroup();
-    for (auto dof_index = 0; dof_index < u_dirichlet_str.size(); ++dof_index) {
-      if (u_dirichlet_str[dof_index] != "NULL") {
-        Real u_dirichlet = std::stod(u_dirichlet_str[dof_index].localstr());
-        BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination<ELIMINATE_ROW>(u_dirichlet, queue, mesh, linear_system, dofs_on_nodes, node_group, dof_index);
+        if (bs->getEnforceDirichletMethod() == "Penalty") {
+          Real penalty = bs->getPenalty();
+          BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(dof_index, value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
+        }
+        else if (bs->getEnforceDirichletMethod() == "RowElimination") {
+          constexpr Byte ELIMINATE_ROW = 1;
+          BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination<ELIMINATE_ROW>(dof_index, value, queue, mesh, linear_system, dofs_on_nodes, node_group);
+        }
+        else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
+          ARCANE_THROW(Arccore::NotImplementedException, "RowColumnElimination is not supported.");
+        }
+        else {
+          ARCANE_FATAL("Unknown method to enforce Dirichlet BC: '{0}'", bs->getEnforceDirichletMethod());
+        }
       }
     }
   }
@@ -547,46 +535,35 @@ namespace BoundaryConditions
    */
   /*---------------------------------------------------------------------------*/
 
-  inline void applyPointDirichletViaPenalty(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
+  inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
   {
     ARCANE_CHECK_PTR(bs);
     NodeGroup node_group = bs->getNode();
-    Real penalty = bs->getPenalty();
+
     const StringConstArrayView u_dirichlet_str = bs->getValue();
-    for (Int32 i = 0; i < u_dirichlet_str.size(); ++i) {
-      if (u_dirichlet_str[i] != "NULL") {
-        Real value = std::stod(u_dirichlet_str[i].localstr());
-        BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
-      }
-    }
-  }
 
-  /*---------------------------------------------------------------------------*/
-  /*---------------------------------------------------------------------------*/
-
-  inline void applyPointDirichletViaPenaltyVectorial(const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue, NodeGroup node_group, Real penalty, const UniqueArray<String> u_dirichlet_str)
-  {
-    for (auto dof_index = 0; dof_index < u_dirichlet_str.size(); ++dof_index) {
+    for (Int32 dof_index = 0; dof_index < u_dirichlet_str.size(); ++dof_index) {
       if (u_dirichlet_str[dof_index] != "NULL") {
-        Real u_dirichlet = std::stod(u_dirichlet_str[dof_index].localstr());
-        BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(u_dirichlet, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group, dof_index);
+        Real value = std::stod(u_dirichlet_str[dof_index].localstr());
+
+        if (bs->getEnforceDirichletMethod() == "Penalty"){
+          Real penalty = bs->getPenalty();
+          BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(dof_index, value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
+        }
+        else if (bs->getEnforceDirichletMethod() == "RowElimination") {
+          constexpr Byte ELIMINATE_ROW = 1;
+          BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination<ELIMINATE_ROW>(dof_index, value, queue, mesh, linear_system, dofs_on_nodes, node_group);
+        }
+        else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
+          ARCANE_THROW(Arccore::NotImplementedException, "RowColumnElimination is not supported.");
+        }
+        else {
+          ARCANE_FATAL("Unknown method to enforce Dirichlet BC: '{0}'", bs->getEnforceDirichletMethod());
+        }
       }
     }
   }
 
-  /*---------------------------------------------------------------------------*/
-  /*---------------------------------------------------------------------------*/
-
-  inline void applyPointDirichletViaRowEliminationVectorial(const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue, NodeGroup node_group, const UniqueArray<String> u_dirichlet_str)
-  {
-    constexpr Byte ELIMINATE_ROW = 1;
-    for (auto dof_index = 0; dof_index < u_dirichlet_str.size(); ++dof_index) {
-      if (u_dirichlet_str[dof_index] != "NULL") {
-        Real u_dirichlet = std::stod(u_dirichlet_str[dof_index].localstr());
-        BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination<ELIMINATE_ROW>(u_dirichlet, queue, mesh, linear_system, dofs_on_nodes, node_group, dof_index);
-      }
-    }
-  }
 }; // namespace BoundaryConditions
 
 class BoundaryConditions2D

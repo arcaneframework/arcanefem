@@ -1127,53 +1127,152 @@ class ArcaneFemFunctions
     }
   };
 
-    /*---------------------------------------------------------------------------*/
-    /**
+  /*---------------------------------------------------------------------------*/
+  /**
      * @brief Provides methods to help build boundary conditions in 2D/3D.
      */
-    /*---------------------------------------------------------------------------*/
-    class BoundaryConditionsHelpers
+  /*---------------------------------------------------------------------------*/
+  class BoundaryConditionsHelpers
+  {
+   public:
+
+    static inline void applyDirichletToNodeGroupRhsOnly(const Int32 dof_index, Real value, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& linear_system, VariableDoFReal& rhs_values, NodeGroup& node_group)
     {
-      public:
+      ENUMERATE_ (Node, inode, node_group) {
+        Node node = *inode;
+        if (node.isOwn()) {
+          rhs_values[node_dof.dofId(node, dof_index)] = value;
+        }
+      }
+    }
 
-      static inline void applyDirichletToNodeGroupRhsOnly(Real value, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& linear_system, VariableDoFReal& rhs_values, NodeGroup& node_group){
-        ENUMERATE_ (Node, inode, node_group) {
-          Node node = *inode;
-          if (node.isOwn()) {
-            rhs_values[node_dof.dofId(node, 0)] = value;
+    static inline void applyDirichletToNodeGroupViaPenalty(const Int32 dof_index, Real value, Real penalty, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& linear_system, VariableDoFReal& rhs_values, NodeGroup& node_group)
+    {
+      ENUMERATE_ (Node, inode, node_group) {
+        Node node = *inode;
+        if (node.isOwn()) {
+          linear_system.matrixSetValue(node_dof.dofId(node, dof_index), node_dof.dofId(node, dof_index), penalty);
+          Real u_g = penalty * value;
+          rhs_values[node_dof.dofId(node, dof_index)] = u_g;
+        }
+      }
+    }
+
+    static inline void applyDirichletToNodeGroupViaRowElimination(const Int32 dof_index, Real value, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& linear_system, VariableDoFReal& rhs_values, NodeGroup& node_group)
+    {
+      ENUMERATE_ (Node, inode, node_group) {
+        Node node = *inode;
+        if (node.isOwn()) {
+          linear_system.eliminateRow(node_dof.dofId(*inode, dof_index), value);
+        }
+      }
+    }
+
+    static inline void applyDirichletToNodeGroupViaRowColumnElimination(const Int32 dof_index, Real value, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& linear_system, VariableDoFReal& rhs_values, NodeGroup& node_group)
+    {
+      ENUMERATE_ (Node, inode, node_group) {
+        Node node = *inode;
+        if (node.isOwn()) {
+          linear_system.eliminateRowColumn(node_dof.dofId(*inode, dof_index), value);
+        }
+      }
+    }
+  };
+
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Provides methods for applying boundary conditions in 2D/3D FEM.
+   *
+   * This class includes static methods for applying:
+   * - Dirichlet boundary condition
+   * - Point Dirichlet condition
+   */
+  /*---------------------------------------------------------------------------*/
+  class BoundaryConditions
+  {
+   public:
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Applies Dirichlet boundary conditions to RHS and LHS.
+     *
+     * Updates the LHS matrix and RHS vector to enforce Dirichlet conditions.
+     *
+     * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
+     * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
+     *
+     * @param [IN]  bs              : Boundary condition values.
+     * @param [IN]  node_dof        : DOF connectivity view.
+     * @param [IN]  node_coord      : Node coordinates.
+     * @param [OUT] m_linear_system : Linear system for LHS.
+     * @param [OUT] rhs_values RHS  : RHS values to update.
+     */
+    /*---------------------------------------------------------------------------*/
+    static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
+    {
+      FaceGroup face_group = bs->getSurface();
+      NodeGroup node_group = face_group.nodeGroup();
+      const StringConstArrayView u_dirichlet_string = bs->getValue();
+      for (Int32 dof_index = 0; dof_index < u_dirichlet_string.size(); ++dof_index) {
+        if (u_dirichlet_string[dof_index] != "NULL") {
+          Real value = std::stod(u_dirichlet_string[dof_index].localstr());
+          if (bs->getEnforceDirichletMethod() == "Penalty") {
+            Real penalty = bs->getPenalty();
+            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(dof_index, value, penalty, node_dof, m_linear_system, rhs_values, node_group);
+          }
+          else if (bs->getEnforceDirichletMethod() == "RowElimination") {
+            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(dof_index, value, node_dof, m_linear_system, rhs_values, node_group);
+          }
+          else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
+            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(dof_index, value, node_dof, m_linear_system, rhs_values, node_group);
+          }
+          else {
+            ARCANE_FATAL("Unknown Dirichlet method");
           }
         }
       }
+    }
 
-      static inline void applyDirichletToNodeGroupViaPenalty(Real value, Real penalty, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& linear_system, VariableDoFReal& rhs_values, NodeGroup& node_group){
-        ENUMERATE_ (Node, inode, node_group) {
-          Node node = *inode;
-          if (node.isOwn()) {
-            linear_system.matrixSetValue(node_dof.dofId(node, 0), node_dof.dofId(node, 0), penalty);
-            Real u_g = penalty * value;
-            rhs_values[node_dof.dofId(node, 0)] = u_g;
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Applies Point Dirichlet boundary conditions to RHS and LHS.
+     *
+     * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
+     *
+     * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
+     * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
+     *
+     * @param [IN]  bs              : Boundary condition values.
+     * @param [IN]  node_dof        : DOF connectivity view.
+     * @param [IN]  node_coord      : Node coordinates.
+     * @param [OUT] m_linear_system : Linear system for LHS.
+     * @param [OUT] rhs_values RHS  : RHS values to update.
+     */
+    /*---------------------------------------------------------------------------*/
+    static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
+    {
+      NodeGroup node_group = bs->getNode();
+      const StringConstArrayView u_dirichlet_string = bs->getValue();
+      for (Int32 dof_index = 0; dof_index < u_dirichlet_string.size(); ++dof_index) {
+        if (u_dirichlet_string[dof_index] != "NULL") {
+          Real value = std::stod(u_dirichlet_string[dof_index].localstr());
+          if (bs->getEnforceDirichletMethod() == "Penalty") {
+            Real penalty = bs->getPenalty();
+            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(dof_index, value, penalty, node_dof, m_linear_system, rhs_values, node_group);
+          }
+          else if (bs->getEnforceDirichletMethod() == "RowElimination") {
+            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(dof_index, value, node_dof, m_linear_system, rhs_values, node_group);
+          }
+          else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
+            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(dof_index, value, node_dof, m_linear_system, rhs_values, node_group);
+          }
+          else {
+            ARCANE_FATAL("Unknown Dirichlet method");
           }
         }
       }
-
-      static inline void applyDirichletToNodeGroupViaRowElimination(Real value, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& linear_system, VariableDoFReal& rhs_values, NodeGroup& node_group){
-        ENUMERATE_ (Node, inode, node_group) {
-          Node node = *inode;
-          if (node.isOwn()) {
-            linear_system.eliminateRow(node_dof.dofId(*inode, 0), value);
-          }
-        }
-      }
-
-      static inline void applyDirichletToNodeGroupViaRowColumnElimination(Real value, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& linear_system, VariableDoFReal& rhs_values, NodeGroup& node_group){
-        ENUMERATE_ (Node, inode, node_group) {
-          Node node = *inode;
-          if (node.isOwn()) {
-            linear_system.eliminateRowColumn(node_dof.dofId(*inode, 0), value);
-          }
-        }
-      }
-    };
+    }
+  };
 
   /*---------------------------------------------------------------------------*/
   /**
@@ -1496,87 +1595,6 @@ class ArcaneFemFunctions
         for (Node node : cell.nodes()) {
           if (node.isOwn())
             rhs_values[node_dof.dofId(node, 0)] += manufactured_source->apply(volume / cell.nbNode(), bcenter);
-        }
-      }
-    }
-
-    /*---------------------------------------------------------------------------*/
-    /**
-     * @brief Applies Dirichlet boundary conditions to RHS and LHS.
-     *
-     * Updates the LHS matrix and RHS vector to enforce Dirichlet conditions.
-     *
-     * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
-     * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
-     *
-     * @param [IN]  bs              : Boundary condition values.
-     * @param [IN]  node_dof        : DOF connectivity view.
-     * @param [IN]  node_coord      : Node coordinates.
-     * @param [OUT] m_linear_system : Linear system for LHS.
-     * @param [OUT] rhs_values RHS  : RHS values to update.
-     */
-    /*---------------------------------------------------------------------------*/
-    static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& /*node_coord*/, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
-    {
-      FaceGroup face_group = bs->getSurface();
-      NodeGroup node_group = face_group.nodeGroup();
-      const StringConstArrayView u_dirichlet_string = bs->getValue();
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real value = std::stod(u_dirichlet_string[i].localstr());
-          if (bs->getEnforceDirichletMethod() == "Penalty") {
-            Real penalty = bs->getPenalty();
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
-          }
-          else if (bs->getEnforceDirichletMethod() == "RowElimination") {
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
-          }
-          else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
-          }
-          else {
-            ARCANE_FATAL("Unknown Dirichlet method");
-          }
-        }
-      }
-    }
-
-    /*---------------------------------------------------------------------------*/
-    /**
-     * @brief Applies Point Dirichlet boundary conditions to RHS and LHS.
-     *
-     * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
-     *
-     * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
-     * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
-     *
-     * @param [IN]  bs              : Boundary condition values.
-     * @param [IN]  node_dof        : DOF connectivity view.
-     * @param [IN]  node_coord      : Node coordinates.
-     * @param [OUT] m_linear_system : Linear system for LHS.
-     * @param [OUT] rhs_values RHS  : RHS values to update.
-     */
-    /*---------------------------------------------------------------------------*/
-    static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& /*node_coord*/, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
-    {
-      NodeGroup node_group = bs->getNode();
-      const StringConstArrayView u_dirichlet_string = bs->getValue();
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real value = std::stod(u_dirichlet_string[i].localstr());
-          if (bs->getEnforceDirichletMethod() == "Penalty") {
-            Real penalty = bs->getPenalty();
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
-          }
-          else if (bs->getEnforceDirichletMethod() == "RowElimination") {
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
-          }
-          else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
-          }
-          else {
-            ARCANE_FATAL("Unknown Dirichlet method");
-          }
         }
       }
     }
@@ -2207,87 +2225,6 @@ class ArcaneFemFunctions
             }
 
             rhs_values[node_dof.dofId(node, 0)] += rhs_value;
-          }
-        }
-      }
-    }
-
-  /*---------------------------------------------------------------------------*/
-  /**
-     * @brief Applies Dirichlet boundary conditions to RHS and LHS.
-     *
-     * Updates the LHS matrix and RHS vector to enforce Dirichlet conditions.
-     *
-     * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
-     * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
-     *
-     * @param [IN]  bs              : Boundary condition values.
-     * @param [IN]  node_dof        : DOF connectivity view.
-     * @param [IN]  node_coord      : Node coordinates.
-     * @param [OUT] m_linear_system : Linear system for LHS.
-     * @param [OUT] rhs_values RHS  : RHS values to update.
-     */
-  /*---------------------------------------------------------------------------*/
-  static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& /*node_coord*/, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
-    {
-      FaceGroup face_group = bs->getSurface();
-      NodeGroup node_group = face_group.nodeGroup();
-      const StringConstArrayView u_dirichlet_string = bs->getValue();
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real value = std::stod(u_dirichlet_string[i].localstr());
-          if (bs->getEnforceDirichletMethod() == "Penalty") {
-            Real penalty = bs->getPenalty();
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
-          }
-          else if (bs->getEnforceDirichletMethod() == "RowElimination") {
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
-          }
-          else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
-          }
-          else {
-            ARCANE_FATAL("Unknown Dirichlet method");
-          }
-        }
-      }
-    }
-
-    /*---------------------------------------------------------------------------*/
-    /**
-     * @brief Applies Point Dirichlet boundary conditions to RHS and LHS.
-     *
-     * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
-     *
-     * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
-     * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
-     *
-     * @param [IN]  bs              : Boundary condition values.
-     * @param [IN]  node_dof        : DOF connectivity view.
-     * @param [IN]  node_coord      : Node coordinates.
-     * @param [OUT] m_linear_system : Linear system for LHS.
-     * @param [OUT] rhs_values RHS  : RHS values to update.
-     */
-    /*---------------------------------------------------------------------------*/
-    static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& /*node_coord*/, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
-    {
-      NodeGroup node_group = bs->getNode();
-      const StringConstArrayView u_dirichlet_string = bs->getValue();
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real value = std::stod(u_dirichlet_string[i].localstr());
-          if (bs->getEnforceDirichletMethod() == "Penalty") {
-            Real penalty = bs->getPenalty();
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(value, penalty, node_dof, m_linear_system, rhs_values, node_group);
-          }
-          else if (bs->getEnforceDirichletMethod() == "RowElimination") {
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(value, node_dof, m_linear_system, rhs_values, node_group);
-          }
-          else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
-          }
-          else {
-            ARCANE_FATAL("Unknown Dirichlet method");
           }
         }
       }

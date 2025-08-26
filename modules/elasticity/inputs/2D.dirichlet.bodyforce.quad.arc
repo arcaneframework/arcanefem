@@ -27,14 +27,15 @@
     <E>200e9</E>
     <nu>0.3</nu>
     <f>-9818949214245.0, -7818949234281.0</f>
-    <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-    <dirichlet-boundary-condition>
-      <surface>bot</surface>
-      <u>0.0 0.0</u>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>top</surface>
-      <u>1.9 14.5</u>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>bot</surface>
+        <value>0.0 0.0</value>
+      </dirichlet>
+      <dirichlet>
+        <surface>top</surface>
+        <value>1.9 14.5</value>
+      </dirichlet>
+    </boundary-conditions>
   </fem>
 </case>

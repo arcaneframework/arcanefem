@@ -29,7 +29,7 @@
 /*---------------------------------------------------------------------------*/
 
 inline void FemModule::
-_applyTractionToRHS(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
+_applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
   // loop over all traction boundries
   for (const auto& bs : options()->tractionBoundaryCondition()) {
