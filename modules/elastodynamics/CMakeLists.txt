@@ -138,7 +138,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   add_test(NAME [elastodynamics]Dirichlet_traction_bodyforce COMMAND Elastodynamics
     inputs/bar.dirichlet.traction.bodyforce.arc)
 
-  arcanefem_add_gpu_test(NAME [elastodynamics]2D_bar_bsr_bsr COMMAND  ./Elastodynamics ARGS
+  arcanefem_add_gpu_test(NAME [elastodynamics]2D_bar_hypre_bsr COMMAND  ./Elastodynamics ARGS
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG}
     inputs/bar.arc)
@@ -158,4 +158,8 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     ${SOLVER_HYPRE_CG}
     inputs/bar.3D.arc)
 
+  add_test(NAME [elastodynamics]3D_truncated-cube_hypre_pointBc_Penalty COMMAND Elastodynamics
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/truncated-cube.pointBC.arc)
 endif()

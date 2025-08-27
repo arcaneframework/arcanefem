@@ -38,25 +38,29 @@ _applyDirichlet(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityVie
 
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
   if (bc) {
-    for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
-      if (bs->getEnforceDirichletMethod() == "Penalty")
+    for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions()) {
+      if (bs->getEnforceDirichletMethod() == "Penalty") {
         ArcaneFemFunctions::BoundaryConditions::applyDirichletToLhsAndRhs(bs, node_dof, m_linear_system, rhs_values);
+      }
       else {
         if (t <= dt)
           ArcaneFemFunctions::BoundaryConditions::applyDirichletToLhsAndRhs(bs, node_dof, m_linear_system, rhs_values);
         else
           ArcaneFemFunctions::BoundaryConditions::applyDirichletToRhs(bs, node_dof, rhs_values);
       }
+    }
 
-    for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions())
-      if (bs->getEnforceDirichletMethod() == "Penalty")
+    for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions()) {
+      if (bs->getEnforceDirichletMethod() == "Penalty") {
         ArcaneFemFunctions::BoundaryConditions::applyPointDirichletToLhsAndRhs(bs, node_dof, m_linear_system, rhs_values);
+      }
       else {
         if (t <= dt)
           ArcaneFemFunctions::BoundaryConditions::applyPointDirichletToLhsAndRhs(bs, node_dof, m_linear_system, rhs_values);
         else
           ArcaneFemFunctions::BoundaryConditions::applyPointDirichletToRhs(bs, node_dof, rhs_values);
       }
+    }
   }
 }
 
@@ -83,25 +87,17 @@ void FemModule::_assembleDirichletsGpu()
 
   if (bc) {
     for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions()) {
-      if (bs->getEnforceDirichletMethod() == "Penalty")
+      if (t <= dt)
         FemUtils::Gpu::BoundaryConditions::applyDirichletToLhsAndRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
-      else {
-        if (t <= dt)
-          FemUtils::Gpu::BoundaryConditions::applyDirichletToLhsAndRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
-        else
-          FemUtils::Gpu::BoundaryConditions::applyDirichletToRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
-      }
+      else
+        FemUtils::Gpu::BoundaryConditions::applyDirichletToRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
     }
 
     for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions()) {
-      if (bs->getEnforceDirichletMethod() == "Penalty")
+      if (t <= dt)
         FemUtils::Gpu::BoundaryConditions::applyPointDirichletToLhsAndRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
-      else {
-        if (t <= dt)
-          FemUtils::Gpu::BoundaryConditions::applyPointDirichletToLhsAndRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
-        else
-          FemUtils::Gpu::BoundaryConditions::applyPointDirichletToRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
-      }
+      else
+        FemUtils::Gpu::BoundaryConditions::applyPointDirichletToRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
     }
   }
 }
