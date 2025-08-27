@@ -28,7 +28,8 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
   bar_dynamic.msh
   bar_dynamic_3D.msh
-  semi-circle.msh 
+  semi-circle.msh
+  truncated_cube.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
     file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
@@ -41,26 +42,49 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [elastodynamics]2D_bar COMMAND Elastodynamics
     -A,//fem/petsc-flags=-ksp_monitor
     inputs/bar.arc)
+
   add_test(NAME [elastodynamics]2D_bar_RowElimination COMMAND Elastodynamics
     -A,//fem/enforce-Dirichlet-method=RowElimination
     inputs/bar.arc)
+
   add_test(NAME [elastodynamics]2D_bar_RowColumnElimination COMMAND Elastodynamics
     -A,//fem/enforce-Dirichlet-method=RowColumnElimination
     inputs/bar.arc)
+
   add_test(NAME [elastodynamics]3D_bar COMMAND Elastodynamics
     inputs/bar.3D.arc)
+
   add_test(NAME [elastodynamics]3D_bar_RowColumnElimination_bjacobi COMMAND Elastodynamics
     -A,//fem/enforce-Dirichlet-method=RowColumnElimination
-    -A,//fem/petsc-flags=-ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-8
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-8
     inputs/bar.3D.arc)
+
   add_test(NAME [elastodynamics]2D_transient_traction COMMAND Elastodynamics
     inputs/bar.transient-traction.arc)
+
+  add_test(NAME [elastodynamics]Dirichlet_pointBc_Penalty COMMAND Elastodynamics
+    -A,//fem/enforce-Dirichlet-method=Penalty
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor\ -ksp_type\ cg\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15
+    inputs/semi-circle.pointBC.arc)
+
+  add_test(NAME [elastodynamics]2D_pointBc_RowElimination COMMAND Elastodynamics
+    -A,//fem/enforce-Dirichlet-method=RowElimination
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15
+    inputs/semi-circle.pointBC.arc)
+
+  add_test(NAME [elastodynamics]3D_truncated-cube_pointBc_Penalty COMMAND Elastodynamics
+    -A,//fem/enforce-Dirichlet-method=Penalty
+    inputs/truncated-cube.pointBC.arc)
+
   add_test(NAME [elastodynamics]3D_transient_traction COMMAND Elastodynamics
     inputs/bar.3D.transient-traction.arc)
+
   add_test(NAME [elastodynamics]2D_constant_traction_and_damping COMMAND Elastodynamics
     inputs/bar.damping.arc)
+
   add_test(NAME [elastodynamics]2D_time-discretization_Galpha COMMAND Elastodynamics
     inputs/bar.Galpha.arc)
+
   add_test(NAME [elastodynamics]parse_and_exit COMMAND Elastodynamics
     -A,//fem/assemble-linear-system=false
     -A,//fem/solve-linear-system=false
@@ -94,15 +118,6 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
 
   add_test(NAME [elastodynamics]Dirichlet_traction_bodyforce COMMAND Elastodynamics
     inputs/bar.dirichlet.traction.bodyforce.arc)
-  add_test(NAME [elastodynamics]Dirichlet_pointBc_Penalty COMMAND Elastodynamics
-    -A,//fem/enforce-Dirichlet-method=Penalty
-    inputs/semi-circle.pointBC.arc)
-  add_test(NAME [elastodynamics]2D_pointBc_RowElimination COMMAND Elastodynamics
-    -A,//fem/enforce-Dirichlet-method=RowElimination
-    inputs/semi-circle.pointBC.arc)
-  add_test(NAME [elastodynamics]2D_pointBc_RowColumnElimination COMMAND Elastodynamics
-    -A,//fem/enforce-Dirichlet-method=RowColumnElimination
-    inputs/semi-circle.pointBC.arc)
 
   arcanefem_add_gpu_test(NAME [elastodynamics]2D_bar_bsr_bsr COMMAND  ./Elastodynamics ARGS
     -A,//fem/matrix-format=BSR

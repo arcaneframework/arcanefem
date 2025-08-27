@@ -21,6 +21,7 @@
   </meshes>
 
   <fem>
+    <result-file>check/bar_3d_transient-traction.txt</result-file>
     <tmax>0.5</tmax>
     <dt>0.1</dt>
     <rho>1.0</rho>
