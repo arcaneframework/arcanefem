@@ -16,28 +16,32 @@
 
   <meshes>
     <mesh>
-      <filename>meshes/bar_dynamic_3D.msh</filename>
+      <filename>meshes/truncated_cube.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <result-file>check/bar_3d.txt</result-file>
-    <time-discretization>Newmark-beta</time-discretization>
-    <tmax>.5</tmax>
+    <result-file>check/truncated-cube_point-bc.txt</result-file>
+    <tmax>1.</tmax>
     <dt>0.08</dt>
     <rho>1.0</rho>
-    <f>131.0e2 113.8e6 567.0e8</f>
     <lambda>576.9230769</lambda>
     <mu>384.6153846</mu>
-    <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-    <penalty>1.e64</penalty>
+    <f>145.5e5 56456.5e6 87842.5e5</f>
+    <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
+    <time-discretization>Newmark-beta</time-discretization>
     <dirichlet-boundary-condition>
-      <surface>surfaceleft</surface>
+      <surface>bottom</surface>
       <u>0.0 0.0 0.0</u>
     </dirichlet-boundary-condition>
-    <traction-boundary-condition>
-      <surface>surfaceright</surface>
-      <t>NULL 1869.1e2 NULL</t>
-    </traction-boundary-condition>
+    <dirichlet-point-condition>
+      <node>center</node>
+      <u>18.0 13.0 14.0</u>
+    </dirichlet-point-condition>
+    <linear-system>
+      <solver-backend>hypre</solver-backend>
+      <solver-method>bicgstab</solver-method>
+      <epsilon>1e-8</epsilon>
+    </linear-system>
   </fem>
 </case>
