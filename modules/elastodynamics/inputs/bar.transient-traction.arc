@@ -29,14 +29,14 @@
     <rho>1.0</rho>
     <lambda>576.9230769</lambda>
     <mu>384.6153846</mu>
-    <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-    <penalty>1.e64</penalty>
     <time-discretization>Newmark-beta</time-discretization>
     <result-file>check/2D_elastodynamics_bar_transient_traction.txt</result-file>
-    <dirichlet-boundary-condition>
-      <surface>surfaceleft</surface>
-      <u>0.0 0.0</u>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>surfaceleft</surface>
+        <value>0.0 0.0</value>
+      </dirichlet>
+    </boundary-conditions>
     <traction-boundary-condition>
       <surface>surfaceright</surface>
       <traction-input-file>data/traction_bar_test_1.txt</traction-input-file>

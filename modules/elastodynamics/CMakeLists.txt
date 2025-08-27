@@ -40,40 +40,55 @@ enable_testing()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [elastodynamics]2D_bar COMMAND Elastodynamics
-    -A,//fem/petsc-flags=-ksp_monitor
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor
     inputs/bar.arc)
 
   add_test(NAME [elastodynamics]2D_bar_RowElimination COMMAND Elastodynamics
-    -A,//fem/enforce-Dirichlet-method=RowElimination
+    -A,//fem/boundary-conditions/dirichlet[1]/enforce-Dirichlet-method=RowElimination
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-10
     inputs/bar.arc)
 
   add_test(NAME [elastodynamics]2D_bar_RowColumnElimination COMMAND Elastodynamics
-    -A,//fem/enforce-Dirichlet-method=RowColumnElimination
+    -A,//fem/boundary-conditions/dirichlet[1]/enforce-Dirichlet-method=RowColumnElimination
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor\  -ksp_type\ gmres\ -pc_type\ bjacobi
     inputs/bar.arc)
 
   add_test(NAME [elastodynamics]3D_bar COMMAND Elastodynamics
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_view\ -ksp_monitor
     inputs/bar.3D.arc)
 
   add_test(NAME [elastodynamics]3D_bar_RowColumnElimination_bjacobi COMMAND Elastodynamics
-    -A,//fem/enforce-Dirichlet-method=RowColumnElimination
-    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-8
+    -A,//fem/boundary-conditions/dirichlet[1]/enforce-Dirichlet-method=RowColumnElimination
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-10
     inputs/bar.3D.arc)
 
   add_test(NAME [elastodynamics]2D_transient_traction COMMAND Elastodynamics
     inputs/bar.transient-traction.arc)
 
   add_test(NAME [elastodynamics]Dirichlet_pointBc_Penalty COMMAND Elastodynamics
-    -A,//fem/enforce-Dirichlet-method=Penalty
     -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor\ -ksp_type\ cg\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15
     inputs/semi-circle.pointBC.arc)
 
   add_test(NAME [elastodynamics]2D_pointBc_RowElimination COMMAND Elastodynamics
-    -A,//fem/enforce-Dirichlet-method=RowElimination
-    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15
+    -A,//fem/boundary-conditions/dirichlet[1]/enforce-Dirichlet-method=RowElimination
+    -A,//fem/boundary-conditions/dirichlet-point[1]/enforce-Dirichlet-method=RowElimination
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-10
     inputs/semi-circle.pointBC.arc)
 
   add_test(NAME [elastodynamics]3D_truncated-cube_pointBc_Penalty COMMAND Elastodynamics
-    -A,//fem/enforce-Dirichlet-method=Penalty
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_view\ -ksp_monitor\ -ksp_type\ cg\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15
+    inputs/truncated-cube.pointBC.arc)
+
+  add_test(NAME [elastodynamics]3D_truncated-cube_pointBc_RowColElim COMMAND Elastodynamics
+    -A,//fem/boundary-conditions/dirichlet[1]/enforce-Dirichlet-method=RowColumnElimination
+    -A,//fem/boundary-conditions/dirichlet-point[1]/enforce-Dirichlet-method=RowColumnElimination
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_view\ -ksp_monitor\ -ksp_type\ cg\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15
+    inputs/truncated-cube.pointBC.arc)
+
+  add_test(NAME [elastodynamics]3D_truncated-cube_pointBc_RowElim COMMAND Elastodynamics
+    -A,//fem/boundary-conditions/dirichlet[1]/enforce-Dirichlet-method=RowElimination
+    -A,//fem/boundary-conditions/dirichlet-point[1]/enforce-Dirichlet-method=RowElimination
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_view\ -ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15
     inputs/truncated-cube.pointBC.arc)
 
   add_test(NAME [elastodynamics]3D_transient_traction COMMAND Elastodynamics
@@ -93,18 +108,22 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 
   arcanefem_add_gpu_test(NAME [elastodynamics]2D_bar_petsc_bsr COMMAND  ./Elastodynamics ARGS
     -A,//fem/matrix-format=BSR
+    -A,//fem/petsc-flags=-ksp_view\ -ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-10
     inputs/bar.arc)
 
   arcanefem_add_gpu_test(NAME [elastodynamics]3D_bar_petsc_bsr COMMAND  ./Elastodynamics ARGS
     -A,//fem/matrix-format=BSR
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_view\ -ksp_monitor
     inputs/bar.3D.arc)
 
   arcanefem_add_gpu_test(NAME [elastodynamics]2D_bar_petsc_af-bsr COMMAND  ./Elastodynamics ARGS
     -A,//fem/matrix-format=AF-BSR
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor
     inputs/bar.arc)
 
   arcanefem_add_gpu_test(NAME [elastodynamics]3D_bar_petsc_af-bsr COMMAND  ./Elastodynamics ARGS
     -A,//fem/matrix-format=AF-BSR
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_view\ -ksp_monitor
     inputs/bar.3D.arc)
 
 endif()

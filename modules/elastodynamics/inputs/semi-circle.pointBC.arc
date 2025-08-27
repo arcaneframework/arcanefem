@@ -28,15 +28,16 @@
     <rho>1.0</rho>
     <lambda>576.9230769</lambda>
     <mu>384.6153846</mu>
-    <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
     <time-discretization>Newmark-beta</time-discretization>
-    <dirichlet-boundary-condition>
-      <surface>boderCircle</surface>
-      <u>0.0 0.0</u>
-    </dirichlet-boundary-condition>
-    <dirichlet-point-condition>
-      <node>source</node>
-      <u>10.0 10.0</u>
-    </dirichlet-point-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>boderCircle</surface>
+        <value>0.0 0.0</value>
+      </dirichlet>
+      <dirichlet-point>
+        <node>source</node>
+        <value>10.0 10.0</value>
+      </dirichlet-point>
+    </boundary-conditions>
   </fem>
 </case>
