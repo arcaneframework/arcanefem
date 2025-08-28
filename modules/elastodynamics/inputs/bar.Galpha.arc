@@ -27,15 +27,17 @@
     <rho>1.0</rho>
     <lambda>576.9230769</lambda>
     <mu>384.6153846</mu>
-    <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
     <time-discretization>Generalized-alpha</time-discretization>
     <alpm>0.20</alpm>
     <alpf>0.40</alpf>
     <result-file>check/2D_elastodynamics_Galpha_time_discretization.txt</result-file>
-    <dirichlet-boundary-condition>
-      <surface>surfaceleft</surface>
-      <u>0.0 0.0</u>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
+        <surface>surfaceleft</surface>
+        <value>0.0 0.0</value>
+      </dirichlet>
+    </boundary-conditions>
     <traction-boundary-condition>
       <surface>surfaceright</surface>
       <t>NULL 0.01</t>

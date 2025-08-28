@@ -24,7 +24,7 @@
     <rho>0.0</rho>
     <epsilon>1.0</epsilon>
 
-    <boundary-conditions>     
+    <boundary-conditions>
       <neumann>
         <surface>verticalXY</surface>
         <value>-1.0</value>

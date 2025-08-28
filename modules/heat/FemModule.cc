@@ -384,7 +384,7 @@ _assembleLinearOperator()
             if (t <= dt - 1e-8)
               ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(dof_index, value, node_dof, m_linear_system, rhs_values, node_group);
             else
-              ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(dof_index, value, node_dof, m_linear_system, rhs_values, node_group);
+              ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(dof_index, value, node_dof, rhs_values, node_group);
           }
           // else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
           //     ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);
@@ -411,7 +411,7 @@ _assembleLinearOperator()
             if (t <= dt - 1e-8)
               ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(dof_index, value, node_dof, m_linear_system, rhs_values, node_group);
             else
-              ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(dof_index, value, node_dof, m_linear_system, rhs_values, node_group);
+              ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(dof_index, value, node_dof, rhs_values, node_group);
           }
           // else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
           //     ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(value, node_dof, m_linear_system, rhs_values, node_group);

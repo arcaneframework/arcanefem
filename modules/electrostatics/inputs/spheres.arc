@@ -27,7 +27,7 @@
       <dirichlet>
         <surface>outerSphere3</surface>
         <value>-1.0</value>
-      </dirichlet>   
+      </dirichlet>
       <dirichlet>
         <surface>outerSphere2</surface>
         <value>-1.0</value>

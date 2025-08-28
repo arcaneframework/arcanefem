@@ -430,6 +430,31 @@ namespace BoundaryConditionsHelpers
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
+  inline void applyDirichletToNodeGroupRhsOnly(const Int32 dof_index, Real value, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NodeGroup& node_group)
+  {
+    ARCANE_CHECK_PTR(queue);
+    ARCANE_CHECK_PTR(mesh);
+
+    NodeInfoListView nodes_infos(mesh->nodeFamily());
+    auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
+
+    auto command = Accelerator::makeCommand(queue);
+    auto in_out_forced_info = Accelerator::viewInOut(command, linear_system.getForcedInfo());
+    auto in_out_rhs_variable = Accelerator::viewInOut(command, linear_system.rhsVariable());
+
+    command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
+    {
+      if (nodes_infos.isOwn(node_lid)) {
+        DoFLocalId dof_id = node_dof.dofId(node_lid, dof_index);
+        in_out_forced_info[dof_id] = true;
+        in_out_rhs_variable[dof_id] = value;
+      }
+    };
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /*---------------------------------------------------------------------------*/
+
   inline void applyDirichletToNodeGroupViaPenalty(const Int32 dof_index, Real value, Real penalty, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NodeGroup& node_group)
   {
     ARCANE_CHECK_PTR(queue);
@@ -553,6 +578,83 @@ namespace BoundaryConditions
         else if (bs->getEnforceDirichletMethod() == "RowElimination") {
           constexpr Byte ELIMINATE_ROW = 1;
           BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination<ELIMINATE_ROW>(dof_index, value, queue, mesh, linear_system, dofs_on_nodes, node_group);
+        }
+        else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
+          ARCANE_THROW(Arccore::NotImplementedException, "RowColumnElimination is not supported.");
+        }
+        else {
+          ARCANE_FATAL("Unknown method to enforce Dirichlet BC: '{0}'", bs->getEnforceDirichletMethod());
+        }
+      }
+    }
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Applies Dirichlet boundary conditions to RHS.
+   *
+   * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
+   */
+  /*---------------------------------------------------------------------------*/
+
+  inline void applyDirichletToRhs(BC::IDirichletBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
+  {
+    ARCANE_CHECK_PTR(bs);
+
+    FaceGroup face_group = bs->getSurface();
+    NodeGroup node_group = face_group.nodeGroup();
+
+    const StringConstArrayView u_dirichlet_string = bs->getValue();
+
+    for (Int32 dof_index = 0; dof_index < u_dirichlet_string.size(); ++dof_index) {
+      if (u_dirichlet_string[dof_index] != "NULL") {
+
+        Real value = std::stod(u_dirichlet_string[dof_index].localstr());
+
+        if (bs->getEnforceDirichletMethod() == "Penalty") {
+          Real penalty = bs->getPenalty();
+          value = value * penalty;
+          BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(dof_index, value, queue, mesh, linear_system, dofs_on_nodes, node_group);
+        }
+        else if (bs->getEnforceDirichletMethod() == "RowElimination") {
+          BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(dof_index, value, queue, mesh, linear_system, dofs_on_nodes, node_group);
+        }
+        else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
+          ARCANE_THROW(Arccore::NotImplementedException, "RowColumnElimination is not supported.");
+        }
+        else {
+          ARCANE_FATAL("Unknown method to enforce Dirichlet BC: '{0}'", bs->getEnforceDirichletMethod());
+        }
+      }
+    }
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Applies Point Dirichlet boundary conditions to RHS.
+   *
+   * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
+   */
+  /*---------------------------------------------------------------------------*/
+
+  inline void applyPointDirichletToRhs(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
+  {
+    ARCANE_CHECK_PTR(bs);
+    NodeGroup node_group = bs->getNode();
+
+    const StringConstArrayView u_dirichlet_str = bs->getValue();
+
+    for (Int32 dof_index = 0; dof_index < u_dirichlet_str.size(); ++dof_index) {
+      if (u_dirichlet_str[dof_index] != "NULL") {
+        Real value = std::stod(u_dirichlet_str[dof_index].localstr());
+
+        if (bs->getEnforceDirichletMethod() == "Penalty"){
+          Real penalty = bs->getPenalty();
+          value = value * penalty;
+          BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(dof_index, value, queue, mesh, linear_system, dofs_on_nodes, node_group);
+        }
+        else if (bs->getEnforceDirichletMethod() == "RowElimination") {
+          BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(dof_index, value, queue, mesh, linear_system, dofs_on_nodes, node_group);
         }
         else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
           ARCANE_THROW(Arccore::NotImplementedException, "RowColumnElimination is not supported.");
