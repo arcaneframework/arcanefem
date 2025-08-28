@@ -141,8 +141,6 @@ class FemModule
   void _validateResults();
   void _readCaseTables();
   void _assembleBilinearOperator();
-  void _assembleBilinearOperatorTria3();
-  void _assembleBilinearOperatorTetra4();
 
   inline void _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyDirichlet(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
@@ -151,6 +149,11 @@ class FemModule
   RealMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
   RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
 
+  template <int N>
+  void _assembleBilinearOperator2d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
+
+  template <int N>
+  void _assembleBilinearOperator3d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
 };
 
 #endif
