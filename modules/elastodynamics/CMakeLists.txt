@@ -29,6 +29,7 @@ set(MESH_FILES
   bar_dynamic.msh
   bar_dynamic_quad.msh
   bar_dynamic_3D.msh
+  bar_dynamic_3Dhexa.msh
   semi-circle.msh
   truncated_cube.msh
 )
