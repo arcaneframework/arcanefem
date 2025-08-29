@@ -58,6 +58,10 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor
     inputs/bar.quad.arc)
 
+  add_test(NAME [elastodynamics]2D_bar_dirichlet-traction_quad COMMAND Elastodynamics
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor
+    inputs/bar.dirichlet-traction.quad.arc)
+
   add_test(NAME [elastodynamics]3D_bar COMMAND Elastodynamics
     -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_view\ -ksp_monitor
     inputs/bar.3D.arc)
@@ -67,7 +71,11 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-10
     inputs/bar.3D.arc)
 
-  add_test(NAME [elastodynamics]3D_bar_hexa COMMAND Elastodynamics
+  add_test(NAME [elastodynamics]3D_bar_dirichlet-traction_hexa COMMAND Elastodynamics
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_view\ -ksp_monitor
+    inputs/bar.3D.dirichlet-traction.hexa.arc)
+
+  add_test(NAME [elastodynamics]3D_hexa COMMAND Elastodynamics
     -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_view\ -ksp_monitor
     inputs/bar.3D.hexa.arc)
 
