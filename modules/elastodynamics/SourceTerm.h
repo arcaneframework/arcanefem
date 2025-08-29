@@ -30,94 +30,10 @@ _applySourceTerm(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityVi
       _applySourceTermTria3(rhs_values, node_dof);
 
   if (mesh()->dimension() == 3)
-    ENUMERATE_ (Cell, icell, allCells()) {
-      Cell cell = *icell;
-      Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
-      Real4 dxu = ArcaneFemFunctions::FeOperation3D::computeGradientXTetra4(cell, m_node_coord);
-      Real4 dyu = ArcaneFemFunctions::FeOperation3D::computeGradientYTetra4(cell, m_node_coord);
-      Real4 dzu = ArcaneFemFunctions::FeOperation3D::computeGradientZTetra4(cell, m_node_coord);
-
-      RealVector<12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
-      RealVector<12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. };
-      RealVector<12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. };
-
-      RealVector<12> F = { f[0], f[1], f[2], f[0], f[1], f[2], f[0], f[1], f[2], f[0], f[1], f[2] };
-      RealVector<12> dxUx = { dxu[0], 0., 0., dxu[1], 0., 0., dxu[2], 0., 0., dxu[3], 0., 0. };
-      RealVector<12> dyUx = { dyu[0], 0., 0., dyu[1], 0., 0., dyu[2], 0., 0., dyu[3], 0., 0. };
-      RealVector<12> dzUx = { dzu[0], 0., 0., dzu[1], 0., 0., dzu[2], 0., 0., dzu[3], 0., 0. };
-
-      RealVector<12> dxUy = { 0., dxu[0], 0., 0., dxu[1], 0., 0., dxu[2], 0., 0., dxu[3], 0. };
-      RealVector<12> dyUy = { 0., dyu[0], 0., 0., dyu[1], 0., 0., dyu[2], 0., 0., dyu[3], 0. };
-      RealVector<12> dzUy = { 0., dzu[0], 0., 0., dzu[1], 0., 0., dzu[2], 0., 0., dzu[3], 0. };
-
-      RealVector<12> dxUz = { 0., 0., dxu[0], 0., 0., dxu[1], 0., 0., dxu[2], 0., 0., dxu[3] };
-      RealVector<12> dyUz = { 0., 0., dyu[0], 0., 0., dyu[1], 0., 0., dyu[2], 0., 0., dyu[3] };
-      RealVector<12> dzUz = { 0., 0., dzu[0], 0., 0., dzu[1], 0., 0., dzu[2], 0., 0., dzu[3] };
-
-      RealVector<12> Un = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y, m_U[cell.nodeId(0)].z,
-                            m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y, m_U[cell.nodeId(1)].z,
-                            m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y, m_U[cell.nodeId(2)].z,
-                            m_U[cell.nodeId(3)].x, m_U[cell.nodeId(3)].y, m_U[cell.nodeId(3)].z };
-
-      RealVector<12> Vn = { m_V[cell.nodeId(0)].x, m_V[cell.nodeId(0)].y, m_V[cell.nodeId(0)].z,
-                            m_V[cell.nodeId(1)].x, m_V[cell.nodeId(1)].y, m_V[cell.nodeId(1)].z,
-                            m_V[cell.nodeId(2)].x, m_V[cell.nodeId(2)].y, m_V[cell.nodeId(2)].z,
-                            m_V[cell.nodeId(3)].x, m_V[cell.nodeId(3)].y, m_V[cell.nodeId(3)].z };
-
-      RealVector<12> An = { m_A[cell.nodeId(0)].x, m_A[cell.nodeId(0)].y, m_A[cell.nodeId(0)].z,
-                            m_A[cell.nodeId(1)].x, m_A[cell.nodeId(1)].y, m_A[cell.nodeId(1)].z,
-                            m_A[cell.nodeId(2)].x, m_A[cell.nodeId(2)].y, m_A[cell.nodeId(2)].z,
-                            m_A[cell.nodeId(3)].x, m_A[cell.nodeId(3)].y, m_A[cell.nodeId(3)].z };
-
-      //----------------------------------------------------------------------
-      //  ∫∫∫ (𝐟.𝐯) + ∫∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯) +
-      //  ∫∫∫ (c₅)(∇𝐮ₙ.∇𝐯) + ∫∫∫ (c₆)(ε(𝐮ₙ):ε(𝐯)) +
-      //  ∫∫∫ (c₇)(∇𝐮ᵗₙ.∇𝐯) + ∫∫∫ (c₉)(ε(𝐮ᵗₙ):ε(𝐯)) +
-      //  ∫∫∫ (c₈)(∇𝐮ᵗᵗₙ.∇𝐯) + ∫∫∫ (c₁₀)(ε(𝐮ᵗᵗₙ):ε(𝐯))
-      //----------------------------------------------------------------------
-      RealVector<12> rhs = ( F * (1/4.)
-                              + Un * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz))*(c0*1/20.)
-                              + Vn * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz))*(c3*1/20.)
-                              + An * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz))*(c4*1/20.)
-                              - Un * ((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) +
-                                      (dyUy ^ dxUx) + (dxUx ^ dyUy) +
-                                      (dzUz ^ dxUx) + (dxUx ^ dzUz) +
-                                      (dyUy ^ dzUz) + (dzUz ^ dyUy)) * c5
-                              - Un * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) ) +
-                                         ( ((dxUy + dyUx) ^ (dyUx + dxUy)) +
-                                           ((dzUy + dyUz) ^ (dyUz + dzUy)) +
-                                           ((dxUz + dzUx) ^ (dzUx + dxUz)) ))*c6
-                              + Vn * ((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) +
-                                      (dyUy ^ dxUx) + (dxUx ^ dyUy) +
-                                      (dzUz ^ dxUx) + (dxUx ^ dzUz) +
-                                      (dyUy ^ dzUz) + (dzUz ^ dyUy)) * c7
-                              + Vn * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) ) +
-                                      ( ((dxUy + dyUx) ^ (dyUx + dxUy)) +
-                                        ((dzUy + dyUz) ^ (dyUz + dzUy)) +
-                                        ((dxUz + dzUx) ^ (dzUx + dxUz)) ))*c9
-                                        + An * ((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) +
-                                        (dyUy ^ dxUx) + (dxUx ^ dyUy) +
-                                        (dzUz ^ dxUx) + (dxUx ^ dzUz) +
-                                        (dyUy ^ dzUz) + (dzUz ^ dyUy)) * c8
-                                + An * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) ) +
-                                        ( ((dxUy + dyUx) ^ (dyUx + dxUy)) +
-                                          ((dzUy + dyUz) ^ (dyUz + dzUy)) +
-                                          ((dxUz + dzUx) ^ (dzUx + dxUz)) ))*c10
-                              ) * volume;
-
-      rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0);
-      rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(1);
-      rhs_values[node_dof.dofId(cell.nodeId(0), 2)] += rhs(2);
-      rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(3);
-      rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(4);
-      rhs_values[node_dof.dofId(cell.nodeId(1), 2)] += rhs(5);
-      rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(6);
-      rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(7);
-      rhs_values[node_dof.dofId(cell.nodeId(2), 2)] += rhs(8);
-      rhs_values[node_dof.dofId(cell.nodeId(3), 0)] += rhs(9);
-      rhs_values[node_dof.dofId(cell.nodeId(3), 1)] += rhs(10);
-      rhs_values[node_dof.dofId(cell.nodeId(3), 2)] += rhs(11);
-    }
+    if (m_hex_quad_mesh)
+      _applySourceTermHexa8(rhs_values, node_dof);
+    else
+      _applySourceTermTetra4(rhs_values, node_dof);
 }
 
 inline void FemModule::
@@ -227,7 +143,7 @@ _applySourceTermQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectiv
         // Source force term 𝐟
         Real2 f_gp(f[0], f[1]);
 
-        // ∫∫∫ (𝐟.𝐯) + ∫∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯)
+        // ∫∫ (𝐟.𝐯) + ∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯)
         for (Int8 a = 0; a < 4; ++a) {
           rhs_x_contributions[a] += (f_gp.x + c0 * u_gp.x + c3 * v_gp.x + c4 * a_gp.x) * N[a] * integration_weight;
           rhs_y_contributions[a] += (f_gp.y + c0 * u_gp.y + c3 * v_gp.y + c4 * a_gp.y) * N[a] * integration_weight;
@@ -241,6 +157,167 @@ _applySourceTermQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectiv
       if (node.isOwn()) {
         rhs_values[node_dof.dofId(node, 0)] += rhs_x_contributions[a];
         rhs_values[node_dof.dofId(node, 1)] += rhs_y_contributions[a];
+      }
+    }
+  }
+}
+
+inline void FemModule::
+_applySourceTermTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
+{
+  RealVector<12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
+  RealVector<12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. };
+  RealVector<12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. };
+  RealVector<12> F = { f[0], f[1], f[2], f[0], f[1], f[2], f[0], f[1], f[2], f[0], f[1], f[2] };
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
+    Real4 dxu = ArcaneFemFunctions::FeOperation3D::computeGradientXTetra4(cell, m_node_coord);
+    Real4 dyu = ArcaneFemFunctions::FeOperation3D::computeGradientYTetra4(cell, m_node_coord);
+    Real4 dzu = ArcaneFemFunctions::FeOperation3D::computeGradientZTetra4(cell, m_node_coord);
+    RealVector<12> dxUx = { dxu[0], 0., 0., dxu[1], 0., 0., dxu[2], 0., 0., dxu[3], 0., 0. };
+    RealVector<12> dyUx = { dyu[0], 0., 0., dyu[1], 0., 0., dyu[2], 0., 0., dyu[3], 0., 0. };
+    RealVector<12> dzUx = { dzu[0], 0., 0., dzu[1], 0., 0., dzu[2], 0., 0., dzu[3], 0., 0. };
+    RealVector<12> dxUy = { 0., dxu[0], 0., 0., dxu[1], 0., 0., dxu[2], 0., 0., dxu[3], 0. };
+    RealVector<12> dyUy = { 0., dyu[0], 0., 0., dyu[1], 0., 0., dyu[2], 0., 0., dyu[3], 0. };
+    RealVector<12> dzUy = { 0., dzu[0], 0., 0., dzu[1], 0., 0., dzu[2], 0., 0., dzu[3], 0. };
+    RealVector<12> dxUz = { 0., 0., dxu[0], 0., 0., dxu[1], 0., 0., dxu[2], 0., 0., dxu[3] };
+    RealVector<12> dyUz = { 0., 0., dyu[0], 0., 0., dyu[1], 0., 0., dyu[2], 0., 0., dyu[3] };
+    RealVector<12> dzUz = { 0., 0., dzu[0], 0., 0., dzu[1], 0., 0., dzu[2], 0., 0., dzu[3] };
+    RealVector<12> Un = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y, m_U[cell.nodeId(0)].z,
+                          m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y, m_U[cell.nodeId(1)].z,
+                          m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y, m_U[cell.nodeId(2)].z,
+                          m_U[cell.nodeId(3)].x, m_U[cell.nodeId(3)].y, m_U[cell.nodeId(3)].z };
+    RealVector<12> Vn = { m_V[cell.nodeId(0)].x, m_V[cell.nodeId(0)].y, m_V[cell.nodeId(0)].z,
+                          m_V[cell.nodeId(1)].x, m_V[cell.nodeId(1)].y, m_V[cell.nodeId(1)].z,
+                          m_V[cell.nodeId(2)].x, m_V[cell.nodeId(2)].y, m_V[cell.nodeId(2)].z,
+                          m_V[cell.nodeId(3)].x, m_V[cell.nodeId(3)].y, m_V[cell.nodeId(3)].z };
+    RealVector<12> An = { m_A[cell.nodeId(0)].x, m_A[cell.nodeId(0)].y, m_A[cell.nodeId(0)].z,
+                          m_A[cell.nodeId(1)].x, m_A[cell.nodeId(1)].y, m_A[cell.nodeId(1)].z,
+                          m_A[cell.nodeId(2)].x, m_A[cell.nodeId(2)].y, m_A[cell.nodeId(2)].z,
+                          m_A[cell.nodeId(3)].x, m_A[cell.nodeId(3)].y, m_A[cell.nodeId(3)].z };
+    //----------------------------------------------------------------------
+    //  ∫∫∫ (𝐟.𝐯) + ∫∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯) +
+    //  ∫∫∫ (c₅)(∇𝐮ₙ.∇𝐯) + ∫∫∫ (c₆)(ε(𝐮ₙ):ε(𝐯)) +
+    //  ∫∫∫ (c₇)(∇𝐮ᵗₙ.∇𝐯) + ∫∫∫ (c₉)(ε(𝐮ᵗₙ):ε(𝐯)) +
+    //  ∫∫∫ (c₈)(∇𝐮ᵗᵗₙ.∇𝐯) + ∫∫∫ (c₁₀)(ε(𝐮ᵗᵗₙ):ε(𝐯))
+    //----------------------------------------------------------------------
+    RealVector<12> rhs = ( F * (1/4.)
+                            + Un * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz))*(c0*1/20.)
+                            + Vn * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz))*(c3*1/20.)
+                            + An * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz))*(c4*1/20.)
+                            - Un * ((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) +
+                                    (dyUy ^ dxUx) + (dxUx ^ dyUy) +
+                                    (dzUz ^ dxUx) + (dxUx ^ dzUz) +
+                                    (dyUy ^ dzUz) + (dzUz ^ dyUy)) * c5
+                            - Un * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) ) +
+                                       ( ((dxUy + dyUx) ^ (dyUx + dxUy)) +
+                                         ((dzUy + dyUz) ^ (dyUz + dzUy)) +
+                                         ((dxUz + dzUx) ^ (dzUx + dxUz)) ))*c6
+                            + Vn * ((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) +
+                                    (dyUy ^ dxUx) + (dxUx ^ dyUy) +
+                                    (dzUz ^ dxUx) + (dxUx ^ dzUz) +
+                                    (dyUy ^ dzUz) + (dzUz ^ dyUy)) * c7
+                            + Vn * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) ) +
+                                    ( ((dxUy + dyUx) ^ (dyUx + dxUy)) +
+                                      ((dzUy + dyUz) ^ (dyUz + dzUy)) +
+                                      ((dxUz + dzUx) ^ (dzUx + dxUz)) ))*c9
+                                      + An * ((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) +
+                                      (dyUy ^ dxUx) + (dxUx ^ dyUy) +
+                                      (dzUz ^ dxUx) + (dxUx ^ dzUz) +
+                                      (dyUy ^ dzUz) + (dzUz ^ dyUy)) * c8
+                              + An * (2.*((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) ) +
+                                      ( ((dxUy + dyUx) ^ (dyUx + dxUy)) +
+                                        ((dzUy + dyUz) ^ (dyUz + dzUy)) +
+                                        ((dxUz + dzUx) ^ (dzUx + dxUz)) ))*c10
+                            ) * volume;
+    rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0);
+    rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(1);
+    rhs_values[node_dof.dofId(cell.nodeId(0), 2)] += rhs(2);
+    rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(3);
+    rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(4);
+    rhs_values[node_dof.dofId(cell.nodeId(1), 2)] += rhs(5);
+    rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(6);
+    rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(7);
+    rhs_values[node_dof.dofId(cell.nodeId(2), 2)] += rhs(8);
+    rhs_values[node_dof.dofId(cell.nodeId(3), 0)] += rhs(9);
+    rhs_values[node_dof.dofId(cell.nodeId(3), 1)] += rhs(10);
+    rhs_values[node_dof.dofId(cell.nodeId(3), 2)] += rhs(11);
+  }
+}
+
+void FemModule::
+_applySourceTermHexa8(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
+{
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+
+    // Initialize RHS contributions (2 dof/node for 8 hexa nodes)
+    Real rhs_x_contributions[8] = { 0., 0., 0., 0., 0., 0., 0., 0. };
+    Real rhs_y_contributions[8] = { 0., 0., 0., 0., 0., 0., 0., 0. };
+    Real rhs_z_contributions[8] = { 0., 0., 0., 0., 0., 0., 0., 0. };
+
+    // 2x2 Gauss integration for quadrilateral element
+    constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
+    constexpr Real w = 1.0;
+
+    for (Int8 ixi = 0; ixi < 2; ++ixi) {
+      for (Int8 ieta = 0; ieta < 2; ++ieta) {
+        for (Int8 izeta = 0; izeta < 2; ++izeta) {
+
+          // Get the coordinates of the Gauss point
+          Real xi = gp[ixi]; // Get the ξ
+          Real eta = gp[ieta]; // Get the η
+          Real zeta = gp[izeta]; // Get the ζ
+          Real weight = w * w * w; // Weight
+
+          // Shape functions  𝐍 for Hexa8
+          RealVector<8> N = ArcaneFemFunctions::FeOperation3D::computeShapeFunctionsHexa8(xi, eta, zeta);
+
+          // compute the det(Jacobian)
+          auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa8(cell, m_node_coord, xi, eta, zeta);
+          const Real detJ = gp_info.det_j;
+
+          // compute integration weight
+          Real integration_weight = weight * detJ;
+
+          // Interpolate fields (𝐮ₙ,𝐮ᵗₙ,𝐮ᵗᵗ) at the quadrature point: (.)_gp = ∑ 𝑁ᵢ * (.)
+          Real3 u_gp = { 0, 0, 0 };
+          Real3 v_gp = { 0, 0, 0 };
+          Real3 a_gp = { 0, 0, 0 };
+          for (Int8 a = 0; a < 8; ++a) {
+            u_gp.x += N[a] * m_U[cell.nodeId(a)].x;
+            u_gp.y += N[a] * m_U[cell.nodeId(a)].y;
+            u_gp.z += N[a] * m_U[cell.nodeId(a)].z;
+
+            v_gp.x += N[a] * m_V[cell.nodeId(a)].x;
+            v_gp.y += N[a] * m_V[cell.nodeId(a)].y;
+            v_gp.z += N[a] * m_V[cell.nodeId(a)].z;
+
+            a_gp.x += N[a] * m_A[cell.nodeId(a)].x;
+            a_gp.y += N[a] * m_A[cell.nodeId(a)].y;
+            a_gp.z += N[a] * m_A[cell.nodeId(a)].z;
+          }
+
+          // Source force term 𝐟
+          Real3 f_gp(f[0], f[1], f[2]);
+
+          // ∫∫∫ (𝐟.𝐯) + ∫∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯)
+          for (Int8 a = 0; a < 8; ++a) {
+            rhs_x_contributions[a] += (f_gp.x + c0 * u_gp.x + c3 * v_gp.x + c4 * a_gp.x) * N[a] * integration_weight;
+            rhs_y_contributions[a] += (f_gp.y + c0 * u_gp.y + c3 * v_gp.y + c4 * a_gp.y) * N[a] * integration_weight;
+            rhs_z_contributions[a] += (f_gp.z + c0 * u_gp.z + c3 * v_gp.z + c4 * a_gp.z) * N[a] * integration_weight;
+          }
+        }
+      }
+    }
+    // Add contributions to global RHS
+    for (Int8 a = 0; a < 8; ++a) {
+      Node node = cell.node(a);
+      if (node.isOwn()) {
+        rhs_values[node_dof.dofId(node, 0)] += rhs_x_contributions[a];
+        rhs_values[node_dof.dofId(node, 1)] += rhs_y_contributions[a];
+        rhs_values[node_dof.dofId(node, 2)] += rhs_z_contributions[a];
       }
     }
   }

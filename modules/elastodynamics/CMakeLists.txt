@@ -66,6 +66,10 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-10
     inputs/bar.3D.arc)
 
+  add_test(NAME [elastodynamics]3D_bar_hexa COMMAND Elastodynamics
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_view\ -ksp_monitor
+    inputs/bar.3D.hexa.arc)
+
   add_test(NAME [elastodynamics]2D_transient_traction COMMAND Elastodynamics
     inputs/bar.transient-traction.arc)
 

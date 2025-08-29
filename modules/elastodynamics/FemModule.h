@@ -148,10 +148,13 @@ class FemModule
   inline void _applySourceTerm(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applySourceTermTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applySourceTermQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applySourceTermTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applySourceTermHexa8(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
 
   RealMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
   RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
   RealMatrix<8, 8> _computeElementMatrixQuad4(Cell cell);
+  RealMatrix<24, 24> _computeElementMatrixHexa8(Cell cell);
 
   template <int N>
   void _assembleBilinearOperator2d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
