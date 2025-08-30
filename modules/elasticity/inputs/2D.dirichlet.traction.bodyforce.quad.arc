@@ -32,10 +32,10 @@
         <surface>bot</surface>
         <value>0.0 0.0</value>
       </dirichlet>
+      <traction>
+        <surface>top</surface>
+        <value>13.3e9 14.5e5</value>
+      </traction>
     </boundary-conditions>
-    <traction-boundary-condition>
-      <surface>top</surface>
-      <t>13.3e9 14.5e5</t>
-    </traction-boundary-condition>
   </fem>
 </case>

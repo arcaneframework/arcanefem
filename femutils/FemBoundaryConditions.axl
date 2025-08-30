@@ -4,6 +4,32 @@
   <interface name="BC::IArcaneFemBC" />
   <options>
 
+    <complex name  = "traction"
+             type  = "Traction"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+             interface ="BC::ITractionBoundaryCondition"
+      >
+      <description>
+        Traction boundary condition
+      </description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>
+          FaceGroup on which to apply these boundary condition
+        </description>
+      </extended>
+      <simple name = "value" type = "string[]" default="NULL NULL NULL" optional = "true">
+        <description>
+          Value of the boundary condition
+        </description>
+      </simple>
+      <simple name = "traction-input-file" type = "string"  optional="true">
+        <description>
+          File containing traction inputs (three columns: (T,t_x,t_y,t_z))
+        </description>
+      </simple>
+    </complex>
+
     <complex name  = "neumann"
              type  = "Neumann"
              minOccurs = "0"
@@ -18,7 +44,7 @@
           FaceGroup on which to apply these boundary condition
         </description>
       </extended>
-      <simple name = "value" type = "string[]" optional = "true">
+      <simple name = "value" type = "string[]" default="NULL NULL NULL" optional = "true">
         <description>
           Value of the boundary condition
         </description>
@@ -39,7 +65,7 @@
           NodeGroup on which to apply these point Dirichlet condition
         </description>
       </extended>
-      <simple name = "value" type = "string[]">
+      <simple name = "value" type = "string[]" default="NULL NULL NULL" optional = "true">
         <description>
           Value of the point Dirichlet condition
         </description>
@@ -70,7 +96,7 @@
           NodeGroup on which to apply these point Dirichlet condition
         </description>
       </extended>
-      <simple name = "value" type = "string[]">
+      <simple name = "value" type = "string[]" default="NULL NULL NULL" optional = "true">
         <description>
           Value of the point Dirichlet condition
         </description>

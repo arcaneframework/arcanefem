@@ -34,10 +34,10 @@
         <surface>surfaceleft</surface>
         <value>0.0 0.0 0.0</value>
       </dirichlet>
+      <traction>
+        <surface>surfaceright</surface>
+        <value>NULL 1869.1e2 NULL</value>
+      </traction>
     </boundary-conditions>
-    <traction-boundary-condition>
-      <surface>surfaceright</surface>
-      <t>NULL 1869.1e2 NULL</t>
-    </traction-boundary-condition>
   </fem>
 </case>

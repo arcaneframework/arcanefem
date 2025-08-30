@@ -31,10 +31,10 @@
         <surface>left</surface>
         <value>0.0 0.0</value>
       </dirichlet>
+      <traction>
+        <surface>right</surface>
+        <value>1.0 NULL</value>
+      </traction>
     </boundary-conditions>
-    <traction-boundary-condition>
-      <surface>right</surface>
-      <t>1.0 NULL</t>
-    </traction-boundary-condition>
   </fem>
 </case>

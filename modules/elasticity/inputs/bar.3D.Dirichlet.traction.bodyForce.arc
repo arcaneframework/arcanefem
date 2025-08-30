@@ -30,11 +30,11 @@
         <surface>surfaceleft</surface>
         <value>0.0 0.0 0.0</value>
       </dirichlet>
+      <traction>
+        <surface>surfaceright</surface>
+        <value>NULL 1.0 NULL</value>
+      </traction>
     </boundary-conditions>
-    <traction-boundary-condition>
-      <surface>surfaceright</surface>
-      <t>NULL 1.0 NULL</t>
-    </traction-boundary-condition>
     <linear-system name="HypreLinearSystem">
       <solver>bicgstab</solver>
       <rtol>1e-9</rtol>

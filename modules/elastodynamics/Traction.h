@@ -34,32 +34,35 @@ _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView
   // Index of the boundary condition. Needed to associate a CaseTable
   Int32 boundary_condition_index = 0;
 
-  for (const auto& bs : options()->tractionBoundaryCondition()) {
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
-    FaceGroup group = bs->surface();
+  // loop over all traction boundries
+  for (BC::ITractionBoundaryCondition* bs : bc->tractionBoundaryConditions()) {
+
+    FaceGroup group = bs->getSurface();
 
     // get traction components
     Real3 trac = { 0, 0, 0 };
     {
-      bool getTractionFromTable = bs->tractionInputFile.isPresent();
+      auto traction_table_file_name = bs->getTractionInputFile();
+      bool getTractionFromTable = !traction_table_file_name.empty();
 
       if (getTractionFromTable) {
 
         const CaseTableInfo& case_table_info = m_traction_case_table_list[boundary_condition_index++];
-        String file_name = bs->tractionInputFile();
-        info() << "Applying traction boundary conditions for surface " << group.name() << " via CaseTable" << file_name;
+        info() << "Applying traction boundary conditions for surface " << group.name() << " via CaseTable " << traction_table_file_name;
 
         CaseTable* ct = case_table_info.case_table;
         if (!ct)
           ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _readCaseTables()");
-        if (file_name != case_table_info.file_name)
+        if (traction_table_file_name != case_table_info.file_name)
           ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'", case_table_info.file_name);
 
         ct->value(t, trac);
       }
       else {
 
-        const UniqueArray<String> t_string = bs->t();
+        const UniqueArray<String> t_string = bs->getValue();
 
         for (Int32 i = 0; i < t_string.size(); ++i) {
           trac[i] = 0.0;
@@ -75,7 +78,7 @@ _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView
       return;
 
     info() << "[ArcaneFem-Info] Applying Traction " << trac;
-    info() << "[ArcaneFem-Info] Traction surface '" << bs->surface().name() << "'";
+    info() << "[ArcaneFem-Info] Traction surface '" << bs->getSurface().name() << "'";
 
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {

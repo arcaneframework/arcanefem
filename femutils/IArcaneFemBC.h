@@ -41,6 +41,14 @@ class INeumannBoundaryCondition
   virtual StringConstArrayView getValue() =0;
 };
 
+class ITractionBoundaryCondition
+{
+ public:
+  virtual Arcane::FaceGroup getSurface() =0;
+  virtual StringConstArrayView getValue() =0;
+  virtual String getTractionInputFile() =0;
+};
+
 class IManufacturedSolution
 {
  public:
@@ -61,6 +69,7 @@ class IArcaneFemBC
   virtual ConstArrayView<BC::IDirichletPointCondition*> dirichletPointConditions() =0;
   virtual ConstArrayView<BC::IDirichletBoundaryCondition*> dirichletBoundaryConditions() =0;
   virtual ConstArrayView<BC::INeumannBoundaryCondition*> neumannBoundaryConditions() =0;
+  virtual ConstArrayView<BC::ITractionBoundaryCondition*> tractionBoundaryConditions() =0;
   virtual ConstArrayView<BC::IManufacturedSolution*> manufacturedSolutions() =0;
   virtual String getHandler() =0;
 };

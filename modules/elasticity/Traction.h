@@ -31,15 +31,17 @@
 inline void FemModule::
 _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
+
   // loop over all traction boundries
-  for (const auto& bs : options()->tractionBoundaryCondition()) {
+  for (BC::ITractionBoundaryCondition* bs : bc->tractionBoundaryConditions()) {
 
     // mesh boundary group on which traction is applied
-    FaceGroup group = bs->surface();
+    FaceGroup group = bs->getSurface();
 
     // get traction force vector
     bool applyTraction = false;
-    const UniqueArray<String> t_string = bs->t();
+    const UniqueArray<String> t_string = bs->getValue();
     for (Int32 i = 0; i < t_string.size(); ++i) {
       t[i] = 0.0;
       if (t_string[i] != "NULL") {
@@ -54,7 +56,7 @@ _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView
 
     // print traction info
     info() << "[ArcaneFem-Info] Applying Traction " << t_string;
-    info() << "[ArcaneFem-Info] Traction surface '" << bs->surface().name() << "'";
+    info() << "[ArcaneFem-Info] Traction surface '" << bs->getSurface().name() << "'";
 
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {
