@@ -16,33 +16,33 @@
 
   <meshes>
     <mesh>
-      <filename>meshes/bar_dynamic.msh</filename>
+      <filename>meshes/bar_dynamic_3Dhexa.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
-    <tmax>1.</tmax>
-    <dt>0.08</dt>
-    <alpm>0.00</alpm>
-    <alpf>0.00</alpf>
+    <hex-quad-mesh>true</hex-quad-mesh>
+    <result-file>check/bar_3d_transient-traction.hexa.txt</result-file>
+    <tmax>0.5</tmax>
+    <dt>0.1</dt>
     <rho>1.0</rho>
-    <f>NULL -2000.</f>
     <lambda>576.9230769</lambda>
     <mu>384.6153846</mu>
     <time-discretization>Newmark-beta</time-discretization>
     <boundary-conditions>
       <dirichlet>
         <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-        <surface>surfaceleft</surface>
-        <value>0.0 0.0</value>
+        <surface>left</surface>
+        <value>0.0 0.0 0.0</value>
       </dirichlet>
       <traction>
-        <surface>surfaceright</surface>
-        <value>NULL -1.</value>
+        <surface>right</surface>
+        <traction-input-file>data/traction_bar_test_1.txt</traction-input-file>
       </traction>
     </boundary-conditions>
     <linear-system>
-      <solver-backend>hypre</solver-backend>
+      <solver-backend>petsc</solver-backend>
+      <preconditioner>ic</preconditioner>
     </linear-system>
   </fem>
 </case>

@@ -16,11 +16,13 @@
 
   <meshes>
     <mesh>
-      <filename>meshes/bar_dynamic.msh</filename>
+      <filename>meshes/bar_dynamic_quad.msh</filename>
     </mesh>
   </meshes>
 
   <fem>
+    <hex-quad-mesh>true</hex-quad-mesh>
+    <result-file>check/2D_elastodynamics_bar_transient_traction.quad.txt</result-file>
     <tmax>1.</tmax>
     <dt>0.08</dt>
     <alpm>0.00</alpm>
