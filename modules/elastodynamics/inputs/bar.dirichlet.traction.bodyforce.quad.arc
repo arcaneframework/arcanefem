@@ -43,8 +43,5 @@
         <value>NULL -1.</value>
       </traction>
     </boundary-conditions>
-    <linear-system>
-      <solver-backend>hypre</solver-backend>
-    </linear-system>
   </fem>
 </case>

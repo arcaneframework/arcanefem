@@ -80,8 +80,13 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/bar.3D.hexa.arc)
 
   add_test(NAME [elastodynamics]2D_transient_traction COMMAND Elastodynamics
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor\ -ksp_type\ cg\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15
     inputs/bar.transient-traction.arc)
-  
+
+  add_test(NAME [elastodynamics]2D_transient_traction_quad COMMAND Elastodynamics
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor\ -ksp_type\ cg\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15
+    inputs/bar.dirichlet.traction.bodyforce.quad.arc)
+
   add_test(NAME [elastodynamics]Dirichlet_pointBc_Penalty COMMAND Elastodynamics
     -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor\ -ksp_type\ cg\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15
     inputs/semi-circle.pointBC.arc)
@@ -157,9 +162,6 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
 
   add_test(NAME [elastodynamics]Dirichlet_traction_bodyforce COMMAND Elastodynamics
     inputs/bar.dirichlet.traction.bodyforce.arc)
-
-  add_test(NAME [elastodynamics]2D_transient_traction_quad COMMAND Elastodynamics
-    inputs/bar.dirichlet.traction.bodyforce.quad.arc)
 
   arcanefem_add_gpu_test(NAME [elastodynamics]2D_bar_hypre_bsr COMMAND  ./Elastodynamics ARGS
     -A,//fem/matrix-format=BSR
