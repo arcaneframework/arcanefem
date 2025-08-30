@@ -75,6 +75,12 @@ struct Real4
 namespace Arcane::FemUtils
 {
 
+//! Struct to associate a CaseTable with the right file
+struct CaseTableInfo
+{
+  String file_name;
+  CaseTable* case_table = nullptr;
+};
 /*---------------------------------------------------------------------------*/
 /*!
  * \brief Matrix of size NxM.
