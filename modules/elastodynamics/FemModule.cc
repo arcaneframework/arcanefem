@@ -13,6 +13,7 @@
 
 #include "FemModule.h"
 #include "ElementMatrix.h"
+#include "ElementMatrixHexQuad.h"
 #include "Traction.h"
 #include "Dirichlet.h"
 #include "SourceTerm.h"
@@ -157,6 +158,9 @@ _getParameters()
   E = options()->E(); // Youngs modulus 𝐸
   nu = options()->nu(); // Poisson ratio ν
   rho = options()->rho(); // Density ρ
+
+  //--------- mesh parameter ------------//
+  m_hex_quad_mesh = options()->hexQuadMesh();
 
   mu = E / (2 * (1 + nu)); // lame parameter μ
   lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
@@ -518,10 +522,20 @@ _assembleBilinearOperator()
   if (t <= dt) {
     if (m_matrix_format == "DOK") {
       if (mesh()->dimension() == 2) {
-        _assembleBilinearOperator2d<6>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
+        if (m_hex_quad_mesh) {
+          _assembleBilinearOperator2d<8>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+        }
+        else {
+          _assembleBilinearOperator2d<6>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
+        }
       }
       if (mesh()->dimension() == 3) {
-        _assembleBilinearOperator3d<12>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
+        if (m_hex_quad_mesh) {
+          _assembleBilinearOperator3d<24>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
+        }
+        else{
+          _assembleBilinearOperator3d<12>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
+        }
       }
     }
     else if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") {

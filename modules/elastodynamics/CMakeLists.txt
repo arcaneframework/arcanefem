@@ -27,14 +27,15 @@ file(COPY "check" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
   bar_dynamic.msh
+  bar_dynamic_quad.msh
   bar_dynamic_3D.msh
+  bar_dynamic_3Dhexa.msh
   semi-circle.msh
   truncated_cube.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
     file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 endforeach()
-
 
 enable_testing()
 
@@ -53,6 +54,14 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor\  -ksp_type\ gmres\ -pc_type\ bjacobi
     inputs/bar.arc)
 
+  add_test(NAME [elastodynamics]2D_bar_quad COMMAND Elastodynamics
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor
+    inputs/bar.quad.arc)
+
+  add_test(NAME [elastodynamics]2D_bar_dirichlet-traction_quad COMMAND Elastodynamics
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor
+    inputs/bar.dirichlet-traction.quad.arc)
+
   add_test(NAME [elastodynamics]3D_bar COMMAND Elastodynamics
     -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_view\ -ksp_monitor
     inputs/bar.3D.arc)
@@ -61,6 +70,14 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/boundary-conditions/dirichlet[1]/enforce-Dirichlet-method=RowColumnElimination
     -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-10
     inputs/bar.3D.arc)
+
+  add_test(NAME [elastodynamics]3D_bar_dirichlet-traction_hexa COMMAND Elastodynamics
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_view\ -ksp_monitor
+    inputs/bar.3D.dirichlet-traction.hexa.arc)
+
+  add_test(NAME [elastodynamics]3D_hexa COMMAND Elastodynamics
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_view\ -ksp_monitor
+    inputs/bar.3D.hexa.arc)
 
   add_test(NAME [elastodynamics]2D_transient_traction COMMAND Elastodynamics
     inputs/bar.transient-traction.arc)
