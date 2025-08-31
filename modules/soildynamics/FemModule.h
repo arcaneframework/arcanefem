@@ -150,6 +150,11 @@ class FemModule
   RealMatrix<9, 9> _computeParaxialElementMatrixTria3(Face face);
   RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
 
+  inline void _applySourceTerm2d(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applySourceTerm3d(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applySourceTermTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applySourceTermTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+
   template <int N>
   void _assembleBilinearOperator2d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
 
