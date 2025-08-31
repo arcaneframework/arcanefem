@@ -248,14 +248,16 @@ void FemModule::
 _readCaseTables()
 {
   IParallelMng* pm = subDomain()->parallelMng();
-  for (const auto& bs : options()->tractionBoundaryCondition()) {
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
+
+  // loop over all traction boundries
+  for (BC::ITractionBoundaryCondition* bs : bc->tractionBoundaryConditions()) {
     CaseTable* case_table = nullptr;
-    String file_name;
-    if (bs->tractionInputFile.isPresent()) {
-      file_name = bs->tractionInputFile();
-      case_table = readFileAsCaseTable(pm, file_name, 3);
-    }
-    m_traction_case_table_list.add(CaseTableInfo{ file_name, case_table });
+    auto traction_table_file_name = bs->getTractionInputFile();
+    bool getTractionFromTable = !traction_table_file_name.empty();
+    if (getTractionFromTable)
+      case_table = readFileAsCaseTable(pm, traction_table_file_name, 3);
+    m_traction_case_table_list.add(CaseTableInfo{ traction_table_file_name, case_table });
   }
 }
 

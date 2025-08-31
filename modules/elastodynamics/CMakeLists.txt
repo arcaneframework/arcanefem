@@ -80,7 +80,16 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/bar.3D.hexa.arc)
 
   add_test(NAME [elastodynamics]2D_transient_traction COMMAND Elastodynamics
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor\ -ksp_type\ cg\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15
     inputs/bar.transient-traction.arc)
+
+  add_test(NAME [elastodynamics]2D_bar_transient_traction_quad COMMAND Elastodynamics
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor\ -ksp_type\ cg\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15
+    inputs/bar.transient-traction.quad.arc)
+
+  add_test(NAME [elastodynamics]2D_dirichlet-traction-bodyforce_quad COMMAND Elastodynamics
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor\ -ksp_type\ cg\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15
+    inputs/bar.dirichlet.traction.bodyforce.quad.arc)
 
   add_test(NAME [elastodynamics]Dirichlet_pointBc_Penalty COMMAND Elastodynamics
     -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor\ -ksp_type\ cg\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15
@@ -110,6 +119,9 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 
   add_test(NAME [elastodynamics]3D_transient_traction COMMAND Elastodynamics
     inputs/bar.3D.transient-traction.arc)
+
+  add_test(NAME [elastodynamics]3D_transient_traction_hexa COMMAND Elastodynamics
+    inputs/bar.3D.transient-traction.hexa.arc)
 
   add_test(NAME [elastodynamics]2D_constant_traction_and_damping COMMAND Elastodynamics
     inputs/bar.damping.arc)

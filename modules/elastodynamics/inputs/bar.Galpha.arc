@@ -37,11 +37,11 @@
         <surface>surfaceleft</surface>
         <value>0.0 0.0</value>
       </dirichlet>
+      <traction>
+        <surface>surfaceright</surface>
+        <value>NULL 0.01</value>
+      </traction>
     </boundary-conditions>
-    <traction-boundary-condition>
-      <surface>surfaceright</surface>
-      <t>NULL 0.01</t>
-    </traction-boundary-condition>
     <linear-system>
       <solver-backend>petsc</solver-backend>
       <preconditioner>ilu</preconditioner>

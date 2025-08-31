@@ -21,6 +21,7 @@ class FemBoundaryConditionsService
   ConstArrayView<BC::IDirichletPointCondition*> dirichletPointConditions() { return options()->getDirichletPoint(); }
   ConstArrayView<BC::IDirichletBoundaryCondition*> dirichletBoundaryConditions() { return options()->getDirichlet(); }
   ConstArrayView<BC::INeumannBoundaryCondition*> neumannBoundaryConditions() { return options()->getNeumann(); }
+  ConstArrayView<BC::ITractionBoundaryCondition*> tractionBoundaryConditions() { return options()->getTraction(); }
   ConstArrayView<BC::IManufacturedSolution*> manufacturedSolutions() { return options()->getManufacturedSolution(); }
   String getHandler() { return options()->getHandler();}
 };

@@ -38,10 +38,10 @@
         <surface>horizontal</surface>
         <value>NULL 0.0 NULL</value>
       </dirichlet>
+      <traction>
+        <surface>curved</surface>
+        <value>1.99 1.5 2.4</value>
+      </traction>
     </boundary-conditions>
-    <traction-boundary-condition>
-      <surface>curved</surface>
-      <t>1.99 1.5 2.4</t>
-    </traction-boundary-condition>
   </fem>
 </case>

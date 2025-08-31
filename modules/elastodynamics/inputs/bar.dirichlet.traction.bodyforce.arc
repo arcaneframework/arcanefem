@@ -7,7 +7,6 @@
 
   <arcane-post-processing>
    <output-period>1</output-period>
-   <format name="VtkHdfV2PostProcessor" />
    <output>
      <variable>U</variable>
      <variable>V</variable>
@@ -37,11 +36,11 @@
         <surface>surfaceleft</surface>
         <value>0.0 0.0</value>
       </dirichlet>
+      <traction>
+        <surface>surfaceright</surface>
+        <value>NULL -1.</value>
+      </traction>
     </boundary-conditions>
-    <traction-boundary-condition>
-      <surface>surfaceright</surface>
-      <t>NULL -1.</t>
-    </traction-boundary-condition>
     <linear-system>
       <solver-backend>hypre</solver-backend>
     </linear-system>

@@ -57,9 +57,9 @@ class ArcaneFemFunctions
      /**
       * @brief Logs the execution time with ArcaneFem-Timer.
       *
-      * @param `tm` The Arcane trace manager for logging.
-      * @param `label` A short description of the event being timed.
-      * @param `value` The elapsed time associated with the event.
+      * @param tm The Arcane trace manager for logging.
+      * @param label A short description of the event being timed.
+      * @param value The elapsed time associated with the event.
       */
      /*---------------------------------------------------------------------------*/
      static inline void printArcaneFemTime(ITraceMng* tm, const String& label, const Real& value)
@@ -1201,11 +1201,11 @@ class ArcaneFemFunctions
      * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
      * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
      *
-     * @param [IN]  bs              : Boundary condition values.
-     * @param [IN]  node_dof        : DOF connectivity view.
-     * @param [IN]  node_coord      : Node coordinates.
-     * @param [OUT] m_linear_system : Linear system for LHS.
-     * @param [OUT] rhs_values RHS  : RHS values to update.
+     * @param bs Boundary condition values.
+     * @param node_dof DOF connectivity view.
+     * @param node_coord Node coordinates.
+     * @param m_linear_system Linear system for LHS.
+     * @param rhs_values RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
     static inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
@@ -1242,11 +1242,11 @@ class ArcaneFemFunctions
      * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
      * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
      *
-     * @param [IN]  bs              : Boundary condition values.
-     * @param [IN]  node_dof        : DOF connectivity view.
-     * @param [IN]  node_coord      : Node coordinates.
-     * @param [OUT] m_linear_system : Linear system for LHS.
-     * @param [OUT] rhs_values RHS  : RHS values to update.
+     * @param bs Boundary condition values.
+     * @param node_dof DOF connectivity view.
+     * @param node_coord Node coordinates.
+     * @param m_linear_system Linear system for LHS.
+     * @param rhs_values RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
     static inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
@@ -1281,10 +1281,10 @@ class ArcaneFemFunctions
      *
      * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
      *
-     * @param [IN]  bs              : Boundary condition values.
-     * @param [IN]  node_dof        : DOF connectivity view.
-     * @param [IN]  node_coord      : Node coordinates.
-     * @param [OUT] rhs_values RHS  : RHS values to update.
+     * @param bs Boundary condition values.
+     * @param node_dof DOF connectivity view.
+     * @param node_coord Node coordinates.
+     * @param rhs_values RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
     static inline void applyDirichletToRhs(BC::IDirichletBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, VariableDoFReal& rhs_values)
@@ -1321,10 +1321,10 @@ class ArcaneFemFunctions
      *
      * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
      *
-     * @param [IN]  bs              : Boundary condition values.
-     * @param [IN]  node_dof        : DOF connectivity view.
-     * @param [IN]  node_coord      : Node coordinates.
-     * @param [OUT] rhs_values RHS  : RHS values to update.
+     * @param bs Boundary condition values.
+     * @param node_dof DOF connectivity view.
+     * @param node_coord Node coordinates.
+     * @param rhs_values RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
     static inline void applyPointDirichletToRhs(BC::IDirichletPointCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, VariableDoFReal& rhs_values)
@@ -1373,11 +1373,11 @@ class ArcaneFemFunctions
      * node in the mesh. The contribution to each node is weighted by the area of
      * the cell and evenly distributed among the number of nodes of the cell.
      *
-     * @param [IN]  qdot       : The constant source term.
-     * @param [IN]  mesh       : The mesh containing all cells.
-     * @param [IN]  node_dof   : DOF connectivity view.
-     * @param [IN]  node_coord : The coordinates of the nodes.
-     * @param [OUT] rhs_values : The RHS values to update.
+     * @param qdot The constant source term.
+     * @param mesh The mesh containing all cells.
+     * @param node_dof DOF connectivity view.
+     * @param node_coord The coordinates of the nodes.
+     * @param rhs_values The RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
 
@@ -1503,11 +1503,11 @@ class ArcaneFemFunctions
     /**
      * @brief Applies a nodal field as a source term to the RHS vector.
      *
-     * @param [IN]  field      : The field values at cell nodes.
-     * @param [IN]  mesh       : The mesh containing all cells.
-     * @param [IN]  node_dof   : DOF connectivity view.
-     * @param [IN]  node_coord : The coordinates of the nodes.
-     * @param [OUT] rhs_values : The RHS values to update.
+     * @param field The field values at cell nodes.
+     * @param mesh The mesh containing all cells.
+     * @param node_dof DOF connectivity view.
+     * @param node_coord The coordinates of the nodes.
+     * @param rhs_values The RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
 
@@ -1555,11 +1555,11 @@ class ArcaneFemFunctions
     /**
      * @brief Applies a nodal field to the RHS vector.
      *
-     * @param [IN]  field      : The field term defined on nodes.
-     * @param [IN]  mesh       : The mesh containing all cells.
-     * @param [IN]  node_dof   : DOF connectivity view.
-     * @param [IN]  node_coord : The coordinates of the nodes.
-     * @param [OUT] rhs_values : The RHS values to update.
+     * @param field The field term defined on nodes.
+     * @param mesh The mesh containing all cells.
+     * @param node_dof DOF connectivity view.
+     * @param node_coord The coordinates of the nodes.
+     * @param rhs_values The RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
 
@@ -1656,11 +1656,11 @@ class ArcaneFemFunctions
      * node in the mesh. The contribution to each node is weighted by the area of
      * the cell and evenly distributed among the nodes of the cell.
      *
-     * @param [IN]  qdot       : The constant source term.
-     * @param [IN]  mesh       : The mesh containing all cells.
-     * @param [IN]  node_dof   : DOF connectivity view.
-     * @param [IN]  node_coord : The coordinates of the nodes.
-     * @param [OUT] rhs_values : The RHS values to update.
+     * @param qdot The constant source term.
+     * @param mesh The mesh containing all cells.
+     * @param node_dof DOF connectivity view.
+     * @param node_coord The coordinates of the nodes.
+     * @param rhs_values The RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
 
@@ -1686,10 +1686,10 @@ class ArcaneFemFunctions
      * based on the provided Neumann boundary condition. The boundary condition
      * can specify a value or its components along the x and y directions.
      *
-     * @param [IN]  bs         : The Neumann boundary condition values.
-     * @param [IN]  node_dof   : Connectivity view for degrees of freedom at nodes.
-     * @param [IN]  node_coord : Coordinates of the nodes in the mesh.
-     * @param [OUT] rhs_values : The right-hand side values to be updated.
+     * @param bs The Neumann boundary condition values.
+     * @param node_dof Connectivity view for degrees of freedom at nodes.
+     * @param node_coord Coordinates of the nodes in the mesh.
+     * @param rhs_values The right-hand side values to be updated.
      */
     /*---------------------------------------------------------------------------*/
 
@@ -1871,6 +1871,331 @@ class ArcaneFemFunctions
       }
     }
 
+   /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Applies traction conditions to the right-hand side (RHS) values.
+     *
+     * This method updates the RHS values of the finite element method equations
+     * based on the provided traction boundary condition. The boundary condition
+     * can specify a value or its components along the x and y directions.
+     *
+     * @param bs The traction boundary condition values.
+     * @param node_dof Connectivity view for degrees of freedom at nodes.
+     * @param node_coord Coordinates of the nodes in the mesh.
+     * @param rhs_values The right-hand side values to be updated.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline void applyTractionToRhsTetra4(BC::ITractionBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      // mesh boundary group on which traction is applied
+      FaceGroup group = bs->getSurface();
+
+      Real3 t;
+      // get traction force vector
+      bool applyTraction = false;
+      const UniqueArray<String> t_string = bs->getValue();
+      for (Int32 i = 0; i < t_string.size(); ++i) {
+        t[i] = 0.0;
+        if (t_string[i] != "NULL") {
+          applyTraction = true;
+          t[i] = std::stod(t_string[i].localstr());
+        }
+      }
+
+      // no traction to apply hence return
+      if (!applyTraction)
+        return;
+
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, node_coord);
+        for (Node node : iface->nodes()) {
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += t[0] * area / 3.;
+            rhs_values[node_dof.dofId(node, 1)] += t[1] * area / 3.;
+            rhs_values[node_dof.dofId(node, 2)] += t[2] * area / 3.;
+          }
+        }
+      }
+    }
+
+    static inline void applyTractionToRhsHexa8(BC::ITractionBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      // mesh boundary group on which traction is applied
+      FaceGroup group = bs->getSurface();
+
+      Real3 t;
+      // get traction force vector
+      bool applyTraction = false;
+      const UniqueArray<String> t_string = bs->getValue();
+      for (Int32 i = 0; i < t_string.size(); ++i) {
+        t[i] = 0.0;
+        if (t_string[i] != "NULL") {
+          applyTraction = true;
+          t[i] = std::stod(t_string[i].localstr());
+        }
+      }
+
+      // no traction to apply hence return
+      if (!applyTraction)
+        return;
+
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+
+        // 2x2 Gauss integration for quadrilateral face
+        constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // -1/sqrt(3), 1/sqrt(3)
+        constexpr Real w = 1.0;
+
+        // Get face nodes (assuming quad4 face)
+        Node node0 = face.node(0);
+        Node node1 = face.node(1);
+        Node node2 = face.node(2);
+        Node node3 = face.node(3);
+        Node nodes[4] = { node0, node1, node2, node3 };
+
+        // Get node coordinates
+        Real3 coords[4];
+        for (Int32 i = 0; i < 4; ++i) {
+          coords[i] = node_coord[nodes[i]];
+        }
+
+        // Loop through 2x2 Gauss points
+        for (Int32 ixi = 0; ixi < 2; ++ixi) {
+          for (Int32 ieta = 0; ieta < 2; ++ieta) {
+            Real xi = gp[ixi];
+            Real eta = gp[ieta];
+
+            // Quad4 shape functions
+            Real N[4];
+            N[0] = 0.25 * (1 - xi) * (1 - eta);
+            N[1] = 0.25 * (1 + xi) * (1 - eta);
+            N[2] = 0.25 * (1 + xi) * (1 + eta);
+            N[3] = 0.25 * (1 - xi) * (1 + eta);
+
+            // Shape function derivatives w.r.t. natural coordinates
+            Real dN_dxi[4], dN_deta[4];
+            dN_dxi[0] = -0.25 * (1 - eta);
+            dN_dxi[1] = 0.25 * (1 - eta);
+            dN_dxi[2] = 0.25 * (1 + eta);
+            dN_dxi[3] = -0.25 * (1 + eta);
+
+            dN_deta[0] = -0.25 * (1 - xi);
+            dN_deta[1] = -0.25 * (1 + xi);
+            dN_deta[2] = 0.25 * (1 + xi);
+            dN_deta[3] = 0.25 * (1 - xi);
+
+            // Compute tangent vectors
+            Real3 t1(0.0, 0.0, 0.0); // ∂r/∂ξ
+            Real3 t2(0.0, 0.0, 0.0); // ∂r/∂η
+
+            for (Int32 i = 0; i < 4; ++i) {
+              t1.x += dN_dxi[i] * coords[i].x;
+              t1.y += dN_dxi[i] * coords[i].y;
+              t1.z += dN_dxi[i] * coords[i].z;
+
+              t2.x += dN_deta[i] * coords[i].x;
+              t2.y += dN_deta[i] * coords[i].y;
+              t2.z += dN_deta[i] * coords[i].z;
+            }
+
+            // Normal vector (cross product of tangent vectors)
+            Real3 normal;
+            normal.x = t1.y * t2.z - t1.z * t2.y;
+            normal.y = t1.z * t2.x - t1.x * t2.z;
+            normal.z = t1.x * t2.y - t1.y * t2.x;
+
+            // Jacobian (magnitude of normal vector for surface integration)
+            Real detJ = sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+
+            // Integration weight
+            Real integration_weight = w * w * detJ;
+
+            // Apply to all four nodes of the face
+            for (Int32 j = 0; j < 4; ++j) {
+              Node node = nodes[j];
+              if (!node.isOwn())
+                continue;
+
+              rhs_values[node_dof.dofId(node, 0)] += t[0] * N[j] * integration_weight;
+              rhs_values[node_dof.dofId(node, 1)] += t[1] * N[j] * integration_weight;
+              rhs_values[node_dof.dofId(node, 2)] += t[2] * N[j] * integration_weight;
+            }
+          }
+        }
+      }
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Applies trasient traction conditions to the right-hand side (RHS) values.
+     *
+     * @param bs The traction boundary condition values.
+     * @param t Time at which traction is applied.
+     * @param boundary_condition_index Boundary condition index iterator.
+     * @param traction_case_table_list Traction case table list.
+     * @param node_dof Connectivity view for dof at nodes.
+     * @param node_coord Coordinates of the nodes in the mesh.
+     * @param rhs_values The right-hand side values to be updated.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline void applyTractionTableToRhsTetra4(BC::ITractionBoundaryCondition* bs, const Real t, Int32 boundary_condition_index, const UniqueArray<Arcane::FemUtils::CaseTableInfo>& traction_case_table_list, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      // mesh boundary group on which traction is applied
+      FaceGroup group = bs->getSurface();
+
+      bool applyTraction = false;
+      Real3 trac;
+      auto traction_table_file_name = bs->getTractionInputFile();
+      bool getTractionFromTable = !traction_table_file_name.empty();
+
+      if (getTractionFromTable) {
+
+        const Arcane::FemUtils::CaseTableInfo& case_table_info = traction_case_table_list[boundary_condition_index++];
+        applyTraction = true;
+
+        CaseTable* ct = case_table_info.case_table;
+        if (!ct)
+          ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _readCaseTables()");
+        if (traction_table_file_name != case_table_info.file_name)
+          ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'", case_table_info.file_name);
+
+        ct->value(t, trac);
+      }
+
+      // no traction to apply hence return
+      if (!applyTraction)
+        return;
+
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, node_coord);
+        for (Node node : iface->nodes()) {
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += trac[0] * area / 3.;
+            rhs_values[node_dof.dofId(node, 1)] += trac[1] * area / 3.;
+            rhs_values[node_dof.dofId(node, 2)] += trac[2] * area / 3.;
+          }
+        }
+      }
+    }
+
+    static inline void applyTractionTableToRhsHexa8(BC::ITractionBoundaryCondition* bs, const Real t, Int32 boundary_condition_index, const ConstArrayView<CaseTableInfo>& traction_case_table_list, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      // mesh boundary group on which traction is applied
+      FaceGroup group = bs->getSurface();
+
+      bool applyTraction = false;
+      Real3 trac;
+      auto traction_table_file_name = bs->getTractionInputFile();
+      bool getTractionFromTable = !traction_table_file_name.empty();
+
+      if (getTractionFromTable) {
+
+        const CaseTableInfo& case_table_info = traction_case_table_list[boundary_condition_index++];
+        applyTraction = true;
+
+        CaseTable* ct = case_table_info.case_table;
+        if (!ct)
+          ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _readCaseTables()");
+        if (traction_table_file_name != case_table_info.file_name)
+          ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'", case_table_info.file_name);
+
+        ct->value(t, trac);
+      }
+
+      // no traction to apply hence return
+      if (!applyTraction)
+        return;
+
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+
+        // 2x2 Gauss integration for quadrilateral face
+        constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // -1/sqrt(3), 1/sqrt(3)
+        constexpr Real w = 1.0;
+
+        // Get face nodes (assuming quad4 face)
+        Node node0 = face.node(0);
+        Node node1 = face.node(1);
+        Node node2 = face.node(2);
+        Node node3 = face.node(3);
+        Node nodes[4] = { node0, node1, node2, node3 };
+
+        // Get node coordinates
+        Real3 coords[4];
+        for (Int32 i = 0; i < 4; ++i) {
+          coords[i] = node_coord[nodes[i]];
+        }
+
+        // Loop through 2x2 Gauss points
+        for (Int32 ixi = 0; ixi < 2; ++ixi) {
+          for (Int32 ieta = 0; ieta < 2; ++ieta) {
+            Real xi = gp[ixi];
+            Real eta = gp[ieta];
+
+            // Quad4 shape functions
+            Real N[4];
+            N[0] = 0.25 * (1 - xi) * (1 - eta);
+            N[1] = 0.25 * (1 + xi) * (1 - eta);
+            N[2] = 0.25 * (1 + xi) * (1 + eta);
+            N[3] = 0.25 * (1 - xi) * (1 + eta);
+
+            // Shape function derivatives w.r.t. natural coordinates
+            Real dN_dxi[4], dN_deta[4];
+            dN_dxi[0] = -0.25 * (1 - eta);
+            dN_dxi[1] = 0.25 * (1 - eta);
+            dN_dxi[2] = 0.25 * (1 + eta);
+            dN_dxi[3] = -0.25 * (1 + eta);
+
+            dN_deta[0] = -0.25 * (1 - xi);
+            dN_deta[1] = -0.25 * (1 + xi);
+            dN_deta[2] = 0.25 * (1 + xi);
+            dN_deta[3] = 0.25 * (1 - xi);
+
+            // Compute tangent vectors
+            Real3 t1(0.0, 0.0, 0.0); // ∂r/∂ξ
+            Real3 t2(0.0, 0.0, 0.0); // ∂r/∂η
+
+            for (Int32 i = 0; i < 4; ++i) {
+              t1.x += dN_dxi[i] * coords[i].x;
+              t1.y += dN_dxi[i] * coords[i].y;
+              t1.z += dN_dxi[i] * coords[i].z;
+
+              t2.x += dN_deta[i] * coords[i].x;
+              t2.y += dN_deta[i] * coords[i].y;
+              t2.z += dN_deta[i] * coords[i].z;
+            }
+
+            // Normal vector (cross product of tangent vectors)
+            Real3 normal;
+            normal.x = t1.y * t2.z - t1.z * t2.y;
+            normal.y = t1.z * t2.x - t1.x * t2.z;
+            normal.z = t1.x * t2.y - t1.y * t2.x;
+
+            // Jacobian (magnitude of normal vector for surface integration)
+            Real detJ = sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+
+            // Integration weight
+            Real integration_weight = w * w * detJ;
+
+            // Apply to all four nodes of the face
+            for (Int32 j = 0; j < 4; ++j) {
+              Node node = nodes[j];
+              if (!node.isOwn())
+                continue;
+
+              rhs_values[node_dof.dofId(node, 0)] += trac[0] * N[j] * integration_weight;
+              rhs_values[node_dof.dofId(node, 1)] += trac[1] * N[j] * integration_weight;
+              rhs_values[node_dof.dofId(node, 2)] += trac[2] * N[j] * integration_weight;
+            }
+          }
+        }
+      }
+    }
+
     /*---------------------------------------------------------------------------*/
     /**
      * @brief Applies Manufactured Dirichlet boundary conditions to RHS and LHS.
@@ -1880,13 +2205,13 @@ class ArcaneFemFunctions
      * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
      * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
      *
-     * @param [IN]  manufactured_dirichlet   : External function for Dirichlet.
-     * @param [IN]  group           : Group of all external faces.
-     * @param [IN]  bs              : Boundary condition values.
-     * @param [IN]  node_dof        : DOF connectivity view.
-     * @param [IN]  node_coord      : Node coordinates.
-     * @param [OUT] m_linear_system : Linear system for LHS.
-     * @param [OUT] rhs_values RHS  : RHS values to update.
+     * @param manufactured_dirichlet External function for Dirichlet.
+     * @param group Group of all external faces.
+     * @param bs Boundary condition values.
+     * @param node_dof DOF connectivity view.
+     * @param node_coord Node coordinates.
+     * @param m_linear_system Linear system for LHS.
+     * @param rhs_values RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
     static inline void applyManufacturedDirichletToLhsAndRhs(IBinaryMathFunctor<Real, Real3, Real>* manufactured_dirichlet, Real /*lambda*/, const FaceGroup& group, BC::IManufacturedSolution* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
@@ -1924,11 +2249,11 @@ class ArcaneFemFunctions
      * node in the mesh. The contribution to each node is weighted by the area of
      * the cell and evenly distributed among the number of nodes of the cell.
      *
-     * @param [IN]  qdot       : The constant source term.
-     * @param [IN]  mesh       : The mesh containing all cells.
-     * @param [IN]  node_dof   : DOF connectivity view.
-     * @param [IN]  node_coord : The coordinates of the nodes.
-     * @param [OUT] rhs_values : The RHS values to update.
+     * @param qdot The constant source term.
+     * @param mesh The mesh containing all cells.
+     * @param node_dof DOF connectivity view.
+     * @param node_coord The coordinates of the nodes.
+     * @param rhs_values The RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
 
@@ -2023,11 +2348,11 @@ class ArcaneFemFunctions
     /**
      * @brief Applies a nodal field to the RHS vector.
      *
-     * @param [IN]  field      : The field term defined on nodes.
-     * @param [IN]  mesh       : The mesh containing all cells.
-     * @param [IN]  node_dof   : DOF connectivity view.
-     * @param [IN]  node_coord : The coordinates of the nodes.
-     * @param [OUT] rhs_values : The RHS values to update.
+     * @param field The field term defined on nodes.
+     * @param mesh  The mesh containing all cells.
+     * @param node_dof DOF connectivity view.
+     * @param node_coord The coordinates of the nodes.
+     * @param rhs_values The RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
 
@@ -2074,11 +2399,11 @@ class ArcaneFemFunctions
     /**
      * @brief Applies a nodal field to the RHS vector.
      *
-     * @param [IN]  field      : The field term defined on nodes.
-     * @param [IN]  mesh       : The mesh containing all cells.
-     * @param [IN]  node_dof   : DOF connectivity view.
-     * @param [IN]  node_coord : The coordinates of the nodes.
-     * @param [OUT] rhs_values : The RHS values to update.
+     * @param field The field term defined on nodes.
+     * @param mesh  The mesh containing all cells.
+     * @param node_dof DOF connectivity view.
+     * @param node_coord The coordinates of the nodes.
+     * @param rhs_values The RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
 
@@ -2155,11 +2480,11 @@ class ArcaneFemFunctions
      * node in the mesh. The contribution to each node is weighted by the area of
      * the cell and evenly distributed among the nodes of the cell.
      *
-     * @param [IN]  qdot       : The constant source term.
-     * @param [IN]  mesh       : The mesh containing all cells.
-     * @param [IN]  node_dof   : DOF connectivity view.
-     * @param [IN]  node_coord : The coordinates of the nodes.
-     * @param [OUT] rhs_values : The RHS values to update.
+     * @param qdot The constant source term.
+     * @param mesh The mesh containing all cells.
+     * @param node_dof DOF connectivity view.
+     * @param node_coord The coordinates of the nodes.
+     * @param rhs_values The RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
 
@@ -2185,10 +2510,10 @@ class ArcaneFemFunctions
      * based on the provided Neumann boundary condition. The boundary condition
      * can specify a value or its components along the x and y directions.
      *
-     * @param [IN]  bs         : The Neumann boundary condition values.
-     * @param [IN]  node_dof   : Connectivity view for degrees of freedom at nodes.
-     * @param [IN]  node_coord : Coordinates of the nodes in the mesh.
-     * @param [OUT] rhs_values : The right-hand side values to be updated.
+     * @param bs The Neumann boundary condition values.
+     * @param node_dof Connectivity view for degrees of freedom at nodes.
+     * @param node_coord Coordinates of the nodes in the mesh.
+     * @param rhs_values The right-hand side values to be updated.
      */
     /*---------------------------------------------------------------------------*/
 
@@ -2311,6 +2636,231 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
+     * @brief Applies traction conditions to the right-hand side (RHS) values.
+     *
+     * @param bs The traction boundary condition values.
+     * @param node_dof Connectivity view for degrees of freedom at nodes.
+     * @param node_coord Coordinates of the nodes in the mesh.
+     * @param rhs_values The right-hand side values to be updated.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline void applyTractionToRhsTria3(BC::ITractionBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      // mesh boundary group on which traction is applied
+      FaceGroup group = bs->getSurface();
+
+      Real3 t;
+      // get traction force vector
+      bool applyTraction = false;
+      const UniqueArray<String> t_string = bs->getValue();
+      for (Int32 i = 0; i < t_string.size(); ++i) {
+        t[i] = 0.0;
+        if (t_string[i] != "NULL") {
+          applyTraction = true;
+          t[i] = std::stod(t_string[i].localstr());
+        }
+      }
+
+      // no traction to apply hence return
+      if (!applyTraction)
+        return;
+
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, node_coord);
+        for (Node node : iface->nodes()) {
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += t[0] * length / 2.;
+            rhs_values[node_dof.dofId(node, 1)] += t[1] * length / 2.;
+          }
+        }
+      }
+    }
+
+    static inline void applyTractionToRhsQuad4(BC::ITractionBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      // mesh boundary group on which traction is applied
+      FaceGroup group = bs->getSurface();
+
+      Real3 t;
+      // get traction force vector
+      bool applyTraction = false;
+      const UniqueArray<String> t_string = bs->getValue();
+      for (Int32 i = 0; i < t_string.size(); ++i) {
+        t[i] = 0.0;
+        if (t_string[i] != "NULL") {
+          applyTraction = true;
+          t[i] = std::stod(t_string[i].localstr());
+        }
+      }
+
+      // no traction to apply hence return
+      if (!applyTraction)
+        return;
+
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+
+        // 2-point Gauss integration for line element
+        constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // -1/sqrt(3), 1/sqrt(3)
+        constexpr Real weights[2] = { 1.0, 1.0 };
+
+        Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, node_coord);
+        Real2 normal = ArcaneFemFunctions::MeshOperation::computeNormalEdge2(face, node_coord);
+
+        Node node0 = face.node(0);
+        Node node1 = face.node(1);
+
+        for (Int32 i = 0; i < 2; ++i) {
+          Real xi = gp[i];
+          Real weight = weights[i];
+
+          // Linear shape functions for Line2
+          Real N[2];
+          N[0] = 0.5 * (1 - xi);
+          N[1] = 0.5 * (1 + xi);
+
+          // Integration weight: weight * jacobian (length/2 for reference element [-1,1])
+          Real integration_weight = weight * length * 0.5;
+
+          // Apply to both nodes
+          Node nodes[2] = { node0, node1 };
+          for (Int32 j = 0; j < 2; ++j) {
+            Node node = nodes[j];
+            if (!node.isOwn())
+              continue;
+
+            rhs_values[node_dof.dofId(node, 0)] += t[0] * N[j] * integration_weight;
+            rhs_values[node_dof.dofId(node, 1)] += t[1] * N[j] * integration_weight;
+          }
+        }
+      }
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Applies trasient traction conditions to the right-hand side (RHS) values.
+     *
+     * @param bs The traction boundary condition values.
+     * @param t Time at which traction is applied.
+     * @param boundary_condition_index Boundary condition index iterator.
+     * @param traction_case_table_list Traction case table list.
+     * @param node_dof Connectivity view for dof at nodes.
+     * @param node_coord Coordinates of the nodes in the mesh.
+     * @param rhs_values The right-hand side values to be updated.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline void applyTractionTableToRhsTria3(BC::ITractionBoundaryCondition* bs, const Real t, Int32 boundary_condition_index, const UniqueArray<Arcane::FemUtils::CaseTableInfo>& traction_case_table_list, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      // mesh boundary group on which traction is applied
+      FaceGroup group = bs->getSurface();
+
+      bool applyTraction = false;
+      Real3 trac;
+      auto traction_table_file_name = bs->getTractionInputFile();
+      bool getTractionFromTable = !traction_table_file_name.empty();
+
+      if (getTractionFromTable) {
+
+        const Arcane::FemUtils::CaseTableInfo& case_table_info = traction_case_table_list[boundary_condition_index++];
+        applyTraction = true;
+
+        CaseTable* ct = case_table_info.case_table;
+        if (!ct)
+          ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _readCaseTables()");
+        if (traction_table_file_name != case_table_info.file_name)
+          ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'", case_table_info.file_name);
+
+        ct->value(t, trac);
+      }
+
+      // no traction to apply hence return
+      if (!applyTraction)
+        return;
+
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, node_coord);
+        for (Node node : iface->nodes()) {
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += trac[0] * length / 2.;
+            rhs_values[node_dof.dofId(node, 1)] += trac[1] * length / 2.;
+          }
+        }
+      }
+    }
+
+    static inline void applyTractionTableToRhsQuad4(BC::ITractionBoundaryCondition* bs, const Real t, Int32 boundary_condition_index, const UniqueArray<CaseTableInfo>& traction_case_table_list, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      // mesh boundary group on which traction is applied
+      FaceGroup group = bs->getSurface();
+
+      bool applyTraction = false;
+      Real3 trac;
+      auto traction_table_file_name = bs->getTractionInputFile();
+      bool getTractionFromTable = !traction_table_file_name.empty();
+
+      if (getTractionFromTable) {
+
+        const CaseTableInfo& case_table_info = traction_case_table_list[boundary_condition_index++];
+        applyTraction = true;
+
+        CaseTable* ct = case_table_info.case_table;
+        if (!ct)
+          ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _readCaseTables()");
+        if (traction_table_file_name != case_table_info.file_name)
+          ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'", case_table_info.file_name);
+
+        ct->value(t, trac);
+      }
+
+      // no traction to apply hence return
+      if (!applyTraction)
+        return;
+
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+
+        // 2-point Gauss integration for line element
+        constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // -1/sqrt(3), 1/sqrt(3)
+        constexpr Real weights[2] = { 1.0, 1.0 };
+
+        Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, node_coord);
+        Real2 normal = ArcaneFemFunctions::MeshOperation::computeNormalEdge2(face, node_coord);
+
+        Node node0 = face.node(0);
+        Node node1 = face.node(1);
+
+        for (Int32 i = 0; i < 2; ++i) {
+          Real xi = gp[i];
+          Real weight = weights[i];
+
+          // Linear shape functions for Line2
+          Real N[2];
+          N[0] = 0.5 * (1 - xi);
+          N[1] = 0.5 * (1 + xi);
+
+          // Integration weight: weight * jacobian (length/2 for reference element [-1,1])
+          Real integration_weight = weight * length * 0.5;
+
+          // Apply to both nodes
+          Node nodes[2] = { node0, node1 };
+          for (Int32 j = 0; j < 2; ++j) {
+            Node node = nodes[j];
+            if (!node.isOwn())
+              continue;
+
+            rhs_values[node_dof.dofId(node, 0)] += trac[0] * N[j] * integration_weight;
+            rhs_values[node_dof.dofId(node, 1)] += trac[1] * N[j] * integration_weight;
+          }
+        }
+      }
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
      * @brief Applies Manufactured Dirichlet boundary conditions to RHS and LHS.
      *
      * Updates the LHS matrix and RHS vector to enforce the Dirichlet.
@@ -2318,13 +2868,13 @@ class ArcaneFemFunctions
      * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
      * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
      *
-     * @param [IN]  manufactured_dirichlet   : External function for Dirichlet.
-     * @param [IN]  group           : Group of all external faces.
-     * @param [IN]  bs              : Boundary condition values.
-     * @param [IN]  node_dof        : DOF connectivity view.
-     * @param [IN]  node_coord      : Node coordinates.
-     * @param [OUT] m_linear_system : Linear system for LHS.
-     * @param [OUT] rhs_values RHS  : RHS values to update.
+     * @param manufactured_dirichlet External function for Dirichlet.
+     * @param group Group of all external faces.
+     * @param bs Boundary condition values.
+     * @param node_dof DOF connectivity view.
+     * @param node_coord Node coordinates.
+     * @param m_linear_system Linear system for LHS.
+     * @param rhs_values RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
     static inline void applyManufacturedDirichletToLhsAndRhs(IBinaryMathFunctor<Real, Real3, Real>* manufactured_dirichlet, Real /*lambda*/, const FaceGroup& group, BC::IManufacturedSolution* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, DoFLinearSystem& m_linear_system, VariableDoFReal& rhs_values)
@@ -3489,9 +4039,9 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-   * @brief Provides the number of Gauss Points for a given finite element type,
-   * depending on the integration order chosen by user (coming fro PASSMO).
-   */
+     * @brief Provides the number of Gauss Points for a given finite element type,
+     * depending on the integration order chosen by user (coming fro PASSMO).
+     */
     /*---------------------------------------------------------------------------*/
     static inline Integer getNbGaussPointsfromOrder(Int16 cell_type, Integer ninteg)
     {
@@ -3585,10 +4135,10 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-   * @brief Provides the position of a Gauss Point in the reference (local) element
-   * for a given finite element, depending on the rank of the point in the
-   * element loop (coming fro PASSMO).
-   */
+     * @brief Provides the position of a Gauss Point in the reference (local) element
+     * for a given finite element, depending on the rank of the point in the
+     * element loop (coming fro PASSMO).
+     */
     /*---------------------------------------------------------------------------*/
     static inline Real3 getGaussRefPosition(ItemWithNodes cell, Integer ninteg, Integer rank)
     {
@@ -3665,10 +4215,10 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-   * @brief Provides the integration weight of a Gauss Point for a given
-   * finite element, depending on the rank of the point in the element loop
-   * (coming fro PASSMO).
-   */
+     * @brief Provides the integration weight of a Gauss Point for a given
+     * finite element, depending on the rank of the point in the element loop
+     * (coming fro PASSMO).
+     */
     /*---------------------------------------------------------------------------*/
     static inline Real getGaussWeight(ItemWithNodes cell, Integer ninteg, Integer rank)
     {
@@ -3754,12 +4304,12 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-   * @brief Provides the position of a Gauss Point in the reference (local) element
-   * coordinates, depending on the index of the Gauss Point and integration order
-   * chosen by user (coming fro PASSMO).
-   * This method is generic (not depending on the finite element type) and is called
-   * by specialized methods (depending on FE type)
-   */
+     * @brief Provides the position of a Gauss Point in the reference (local) element
+     * coordinates, depending on the index of the Gauss Point and integration order
+     * chosen by user (coming fro PASSMO).
+     * This method is generic (not depending on the finite element type) and is called
+     * by specialized methods (depending on FE type)
+     */
     /*---------------------------------------------------------------------------*/
     static inline Real getRefPosition(Integer indx, Integer ordre)
     {
@@ -3798,11 +4348,11 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-   * @brief Provides the integration weight depending on the index of the Gauss Point
-   * and integration order chosen by user (coming fro PASSMO).
-   * This method is generic (not depending on the finite element type) and is called
-   * by specialized methods (depending on FE type)
-   */
+     * @brief Provides the integration weight depending on the index of the Gauss Point
+     * and integration order chosen by user (coming fro PASSMO).
+     * This method is generic (not depending on the finite element type) and is called
+     * by specialized methods (depending on FE type)
+     */
     /*---------------------------------------------------------------------------*/
     static inline Real getWeight(Integer indx, Integer ordre)
     {
@@ -3841,11 +4391,11 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-   * @brief Provides the reference coordinates of a Gauss Point for edge elements
-   * (coming fro PASSMO).
-   * This method takes the indices and integration orders chosen
-   * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
-   */
+     * @brief Provides the reference coordinates of a Gauss Point for edge elements
+     * (coming fro PASSMO).
+     * This method takes the indices and integration orders chosen
+     * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
+     */
     /*---------------------------------------------------------------------------*/
 
     static inline Real3 lineRefPosition(Integer3 indices, Integer3 ordre)
@@ -3855,11 +4405,11 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-   * @brief Provides the reference coordinates of a Gauss Point for triangle elements
-   * (coming fro PASSMO).
-   * This method takes the indices and integration orders chosen
-   * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
-   */
+     * @brief Provides the reference coordinates of a Gauss Point for triangle elements
+     * (coming fro PASSMO).
+     * This method takes the indices and integration orders chosen
+     * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
+     */
     /*---------------------------------------------------------------------------*/
     static inline Real3 triRefPosition(Integer3 indices, Integer3 ordre)
     {
@@ -3870,11 +4420,11 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-   * @brief Provides the reference coordinates of a Gauss Point for quadrangle elements
-   * (coming fro PASSMO).
-   * This method takes the indices and integration orders chosen
-   * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
-   */
+     * @brief Provides the reference coordinates of a Gauss Point for quadrangle elements
+     * (coming fro PASSMO).
+     * This method takes the indices and integration orders chosen
+     * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
+     */
     /*---------------------------------------------------------------------------*/
     static inline Real3 quadRefPosition(Integer3 indices, Integer3 ordre)
     {
@@ -3886,11 +4436,11 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-   * @brief Provides the reference coordinates of a Gauss Point for hexaedron elements
-   * (coming fro PASSMO).
-   * This method takes the indices and integration orders chosen
-   * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
-   */
+     * @brief Provides the reference coordinates of a Gauss Point for hexaedron elements
+     * (coming fro PASSMO).
+     * This method takes the indices and integration orders chosen
+     * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
+     */
     /*---------------------------------------------------------------------------*/
     static inline Real3 hexaRefPosition(Integer3 indices, Integer3 ordre)
     {
@@ -3902,11 +4452,11 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-   * @brief Provides the reference coordinates of a Gauss Point for tetraedron elements
-   * (coming fro PASSMO).
-   * This method takes the indices and integration orders chosen
-   * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
-   */
+     * @brief Provides the reference coordinates of a Gauss Point for tetraedron elements
+     * (coming fro PASSMO).
+     * This method takes the indices and integration orders chosen
+     * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
+     */
     /*---------------------------------------------------------------------------*/
     [[maybe_unused]] static inline Real3 tetraRefPosition(Integer3 indices, Integer3 /*ordre*/)
     {
@@ -3916,11 +4466,11 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-   * @brief Provides the reference coordinates of a Gauss Point for wedge (pentaedron)
-   * elements (coming fro PASSMO).
-   * This method takes the indices and integration orders chosen
-   * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
-   */
+     * @brief Provides the reference coordinates of a Gauss Point for wedge (pentaedron)
+     * elements (coming fro PASSMO).
+     * This method takes the indices and integration orders chosen
+     * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
+     */
     /*---------------------------------------------------------------------------*/
     [[maybe_unused]] static inline Real3 pentaRefPosition(Integer3 indices, Integer3 ordre)
     {
@@ -3935,11 +4485,11 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-   * @brief Provides the integration weight of a Gauss Point for edge elements
-   * (coming fro PASSMO).
-   * This method takes the indices and integration orders chosen
-   * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
-   */
+     * @brief Provides the integration weight of a Gauss Point for edge elements
+     * (coming fro PASSMO).
+     * This method takes the indices and integration orders chosen
+     * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
+     */
     /*---------------------------------------------------------------------------*/
     static inline Real lineWeight(Integer3 indices, Integer3 ordre)
     {
@@ -3948,11 +4498,11 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-   * @brief Provides the integration weight of a Gauss Point for triangle elements
-   * (coming fro PASSMO).
-   * This method takes the indices and integration orders chosen
-   * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
-   */
+     * @brief Provides the integration weight of a Gauss Point for triangle elements
+     * (coming fro PASSMO).
+     * This method takes the indices and integration orders chosen
+     * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
+     */
     /*---------------------------------------------------------------------------*/
     static inline Real triWeight(Integer3 indices, Integer3 ordre)
     {
@@ -3961,11 +4511,11 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-   * @brief Provides the integration weight of a Gauss Point for quadrangle elements
-   * (coming fro PASSMO).
-   * This method takes the indices and integration orders chosen
-   * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
-   */
+     * @brief Provides the integration weight of a Gauss Point for quadrangle elements
+     * (coming fro PASSMO).
+     * This method takes the indices and integration orders chosen
+     * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
+     */
     /*---------------------------------------------------------------------------*/
     static inline Real quadWeight(Integer3 indices, Integer3 ordre)
     {
@@ -3977,11 +4527,11 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-   * @brief Provides the integration weight of a Gauss Point for hexadron elements
-   * (coming fro PASSMO).
-   * This method takes the indices and integration orders chosen
-   * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
-   */
+     * @brief Provides the integration weight of a Gauss Point for hexadron elements
+     * (coming fro PASSMO).
+     * This method takes the indices and integration orders chosen
+     * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
+     */
     /*---------------------------------------------------------------------------*/
     static inline Real hexaWeight(Integer3 indices, Integer3 ordre)
     {
@@ -3993,11 +4543,11 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-   * @brief Provides the integration weight of a Gauss Point for tetraedron elements
-   * (coming fro PASSMO).
-   * This method takes the indices and integration orders chosen
-   * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
-   */
+     * @brief Provides the integration weight of a Gauss Point for tetraedron elements
+     * (coming fro PASSMO).
+     * This method takes the indices and integration orders chosen
+     * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
+     */
     /*---------------------------------------------------------------------------*/
     [[maybe_unused]] static inline Real tetraWeight(Integer3 /*indices*/, Integer3 /*ordre*/)
     {
@@ -4006,11 +4556,11 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-   * @brief Provides the integration weight of a Gauss Point for wedge (pentaedron)
-   * elements (coming fro PASSMO).
-   * This method takes the indices and integration orders chosen
-   * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
-   */
+     * @brief Provides the integration weight of a Gauss Point for wedge (pentaedron)
+     * elements (coming fro PASSMO).
+     * This method takes the indices and integration orders chosen
+     * by user as inputs (in (1, 2, 3 directions depending on the space dimension)
+     */
     /*---------------------------------------------------------------------------*/
     [[maybe_unused]] static inline Real pentaWeight(Integer3 indices, Integer3 ordre)
     {

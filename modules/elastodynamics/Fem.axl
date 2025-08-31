@@ -85,32 +85,6 @@
       <description>Boolean to use hexagonal quadrature for element matrix assembly.</description>
     </simple>
 
-    <!-- - - - - - neumann-boundary-condition - - - - -->
-    <complex name  = "traction-boundary-condition"
-             type  = "TractionBoundaryCondition"
-             minOccurs = "0"
-             maxOccurs = "unbounded"
-      >
-      <description>
-        Traction boundary condition
-      </description>
-      <extended name = "surface" type = "Arcane::FaceGroup">
-        <description>
-          FaceGroup on which to apply these boundary condition
-        </description>
-      </extended>
-      <simple name = "traction-input-file" type = "string"  optional="true">
-        <description>
-          File containing traction inputs (three columns: (T,t_x,t_y))
-        </description>
-      </simple>
-      <simple name = "t" type = "string[]" default="NULL NULL NULL" optional="true">
-        <description>
-          Traction vector (space separated list).
-        </description>
-      </simple>
-    </complex>
-
     <!-- Linear system service instance -->
     <service-instance name="linear-system" type="Arcane::FemUtils::IDoFLinearSystemFactory" default="AlephLinearSystem" />
 

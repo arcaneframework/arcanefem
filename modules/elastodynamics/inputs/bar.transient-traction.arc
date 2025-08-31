@@ -36,11 +36,11 @@
         <surface>surfaceleft</surface>
         <value>0.0 0.0</value>
       </dirichlet>
+      <traction>
+        <surface>surfaceright</surface>
+        <traction-input-file>data/traction_bar_test_1.txt</traction-input-file>
+      </traction>
     </boundary-conditions>
-    <traction-boundary-condition>
-      <surface>surfaceright</surface>
-      <traction-input-file>data/traction_bar_test_1.txt</traction-input-file>
-    </traction-boundary-condition>
     <linear-system>
       <solver-backend>petsc</solver-backend>
       <preconditioner>ilu</preconditioner>

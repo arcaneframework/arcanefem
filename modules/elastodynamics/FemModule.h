@@ -121,13 +121,6 @@ class FemModule
   FemDoFsOnNodes m_dofs_on_nodes;
   BSRFormat m_bsr_format;
 
-  // Struct to make sure we are using a CaseTable associated
-  // to the right file
-  struct CaseTableInfo
-  {
-    String file_name;
-    CaseTable* case_table = nullptr;
-  };
   // List of CaseTable for traction boundary conditions
   UniqueArray<CaseTableInfo> m_traction_case_table_list;
 

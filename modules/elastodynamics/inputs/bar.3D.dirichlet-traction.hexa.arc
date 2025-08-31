@@ -35,10 +35,10 @@
         <surface>left</surface>
         <value>0.0 0.0 0.0</value>
       </dirichlet>
+      <traction>
+        <surface>right</surface>
+        <value>1.7e6, 2.7e6, 2.4e7</value>
+      </traction>
     </boundary-conditions>
-    <traction-boundary-condition>
-      <surface>right</surface>
-      <t>1.7e6, 2.7e6, 2.4e7</t>
-    </traction-boundary-condition>
   </fem>
 </case>
