@@ -137,8 +137,6 @@ class FemModule
   void _updateVariables();
   void _updateTime();
   void _assembleBilinearOperator();
-  void _assembleBilinearOperatorTria3();
-  void _assembleBilinearOperatorTetra4();
   void _solve();
   void _assembleLinearOperator();
   void _assembleLinearOperator2d(BSRMatrix* bsr_matrix = nullptr);
@@ -151,6 +149,12 @@ class FemModule
   RealMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
   RealMatrix<9, 9> _computeParaxialElementMatrixTria3(Face face);
   RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
+
+  template <int N>
+  void _assembleBilinearOperator2d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
+
+  template <int N>
+  void _assembleBilinearOperator3d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
 };
 
 #endif

@@ -942,12 +942,12 @@ _assembleBilinearOperator()
   if (t <= dt) {
     if (mesh()->dimension() == 2)
       if(m_matrix_format == "DOK")
-        _assembleBilinearOperatorTria3();
+        _assembleBilinearOperator2d<6>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
       else if(m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
         _assembleBilinearOperatorTria3Gpu();
     if (mesh()->dimension() == 3)
       if(m_matrix_format == "DOK")
-        _assembleBilinearOperatorTetra4();
+        _assembleBilinearOperator3d<12>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
       else if(m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
         _assembleBilinearOperatorTetra4Gpu();
   }
@@ -999,23 +999,28 @@ _assembleBilinearOperatorTetra4Gpu()
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Assembles the FEM bilinear operator for 2D problems.
+ *
+ * This method assembles the FEM stiffness matrix by iterating over each cell,
+ * computing the element stiffness matrix using the provided function, and
+ * populating the global stiffness matrix accordingly.
+ *
+ * @tparam N The number of nodes per element (e.g., 3 for triangles, 4 for quadrilaterals).
+ * @param compute_element_matrix A function that computes the element stiffness matrix for a given cell.
+ */
 /*---------------------------------------------------------------------------*/
 
+template <int N>
 void FemModule::
-_assembleBilinearOperatorTria3()
+_assembleBilinearOperator2d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    auto K_e = _computeElementMatrixTria3(cell); // element stiffness matrix
-    // assemble elementary matrix into  the global one elementary terms are
-    // positioned into  K according  to the rank of associated  node in the
-    // mesh.nodes list  and according the dof number. Here  for  each  node
-    // two dofs  exists [u1,u2]. For each TRIA3 there are 3 nodes hence the
-    // elementary stiffness matrix size is (3*2 x 3*2)=(6x6). We will  fill
-    // this below in 4 at a time.
+    auto K_e = compute_element_matrix(cell);
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
@@ -1044,17 +1049,28 @@ _assembleBilinearOperatorTria3()
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Assembles the FEM bilinear operator for 3D problems.
+ *
+ * This method assembles the FEM stiffness matrix by iterating over each cell,
+ * computing the element stiffness matrix using the provided function, and
+ * populating the global stiffness matrix accordingly.
+ *
+ * @tparam N The number of nodes per element (e.g., 4 for tetrahedra, 8 for hexahedra).
+ * @param compute_element_matrix A function that computes the element stiffness matrix for a given cell.
+ */
 /*---------------------------------------------------------------------------*/
 
+template <int N>
 void FemModule::
-_assembleBilinearOperatorTetra4()
+_assembleBilinearOperator3d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    auto K_e = _computeElementMatrixTetra4(cell);
+    auto K_e = compute_element_matrix(cell);
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
       Int32 n2_index = 0;
@@ -1096,7 +1112,6 @@ _assembleBilinearOperatorTetra4()
     }
   }
 }
-
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
