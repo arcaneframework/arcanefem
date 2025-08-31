@@ -50,7 +50,7 @@
 
 namespace Arcane::FemUtils::Gpu::Csr
 {
-ARCCORE_HOST_DEVICE static Int32 findIndex(Int32 begin, Int32 end, Int32 column_lid, Span<const Int32> in_csr_columns)
+ARCCORE_HOST_DEVICE inline Int32 findIndex(Int32 begin, Int32 end, Int32 column_lid, Span<const Int32> in_csr_columns)
 {
   for (auto i = begin; i < end; ++i)
     if (in_csr_columns[i] == column_lid)
@@ -71,7 +71,7 @@ namespace Arcane::FemUtils::Gpu::MeshOperation
  */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE static inline Real computeAreaTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE inline Real computeAreaTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real3 n0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
   Real3 n1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
@@ -84,7 +84,7 @@ ARCCORE_HOST_DEVICE static inline Real computeAreaTria3(CellLocalId cell_lid, co
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE static inline Real computeAreaTria(FaceLocalId face_lid, const IndexedFaceNodeConnectivityView& fn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE inline Real computeAreaTria(FaceLocalId face_lid, const IndexedFaceNodeConnectivityView& fn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real3 n0 = in_node_coord[fn_cv.nodeId(face_lid, 0)];
   Real3 n1 = in_node_coord[fn_cv.nodeId(face_lid, 1)];
@@ -103,7 +103,7 @@ ARCCORE_HOST_DEVICE static inline Real computeAreaTria(FaceLocalId face_lid, con
  */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE static inline Real computeVolumeTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE inline Real computeVolumeTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real3 n0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
   Real3 n1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
@@ -125,7 +125,7 @@ ARCCORE_HOST_DEVICE static inline Real computeVolumeTetra4(CellLocalId cell_lid,
  */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE static inline Real computeLengthFace(FaceLocalId face_lid, IndexedFaceNodeConnectivityView fn_cv, Accelerator::VariableNodeReal3InView in_node_coord)
+ARCCORE_HOST_DEVICE inline Real computeLengthFace(FaceLocalId face_lid, IndexedFaceNodeConnectivityView fn_cv, Accelerator::VariableNodeReal3InView in_node_coord)
 {
   Real3 n0 = in_node_coord[fn_cv.nodeId(face_lid, 0)];
   Real3 n1 = in_node_coord[fn_cv.nodeId(face_lid, 1)];
@@ -142,7 +142,7 @@ ARCCORE_HOST_DEVICE static inline Real computeLengthFace(FaceLocalId face_lid, I
  */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE static inline Real2 computeNormalFace(FaceLocalId face_lid, IndexedFaceNodeConnectivityView fn_cv, Accelerator::VariableNodeReal3InView in_node_coord, FaceInfoListView faces_infos)
+ARCCORE_HOST_DEVICE inline Real2 computeNormalFace(FaceLocalId face_lid, IndexedFaceNodeConnectivityView fn_cv, Accelerator::VariableNodeReal3InView in_node_coord, FaceInfoListView faces_infos)
 {
   Real3 n0 = in_node_coord[fn_cv.nodeId(face_lid, 0)];
   Real3 n1 = in_node_coord[fn_cv.nodeId(face_lid, 1)];
@@ -169,7 +169,7 @@ ARCCORE_HOST_DEVICE static inline Real2 computeNormalFace(FaceLocalId face_lid, 
  */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE static inline Real3 computeNormalTriangle(FaceLocalId face_lid, IndexedFaceNodeConnectivityView fn_cv, Accelerator::VariableNodeReal3InView in_node_coord, FaceInfoListView faces_infos)
+ARCCORE_HOST_DEVICE inline Real3 computeNormalTriangle(FaceLocalId face_lid, IndexedFaceNodeConnectivityView fn_cv, Accelerator::VariableNodeReal3InView in_node_coord, FaceInfoListView faces_infos)
 {
 
   Real3 n0 = in_node_coord[fn_cv.nodeId(face_lid, 0)];
@@ -211,7 +211,7 @@ namespace Arcane::FemUtils::Gpu::FeOperation2D
  */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE static inline Real3 computeGradientXTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE inline Real3 computeGradientXTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real3 n0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
   Real3 n1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
@@ -236,7 +236,7 @@ ARCCORE_HOST_DEVICE static inline Real3 computeGradientXTria3(CellLocalId cell_l
  */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE static inline Real3 computeGradientYTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE inline Real3 computeGradientYTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real3 n0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
   Real3 n1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
@@ -273,7 +273,7 @@ namespace Arcane::FemUtils::Gpu::FeOperation3D
  */
 /*-------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE static inline Real4 computeGradientXTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE inline Real4 computeGradientXTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real3 n0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
   Real3 n1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
@@ -318,7 +318,7 @@ ARCCORE_HOST_DEVICE static inline Real4 computeGradientXTetra4(CellLocalId cell_
  */
 /*-------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE static inline Real4 computeGradientYTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE inline Real4 computeGradientYTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real3 n0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
   Real3 n1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
@@ -363,7 +363,7 @@ ARCCORE_HOST_DEVICE static inline Real4 computeGradientYTetra4(CellLocalId cell_
  */
 /*-------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE static inline Real4 computeGradientZTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE inline Real4 computeGradientZTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real3 n0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
   Real3 n1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
