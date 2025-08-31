@@ -22,26 +22,28 @@
 
   <fem>
     <hex-quad-mesh>true</hex-quad-mesh>
-    <result-file>check/bar_dirichlet_traction_bodyforce.quad.txt</result-file>
-    <tmax>1.</tmax>
+    <result-file>check/bar_transient-traction.quad.txt</result-file>
+    <tmax>2.</tmax>
     <dt>0.08</dt>
-    <alpm>0.00</alpm>
-    <alpf>0.00</alpf>
+    <alpm>0.20</alpm>
+    <alpf>0.40</alpf>
     <rho>1.0</rho>
-    <f>NULL -2000.</f>
     <lambda>576.9230769</lambda>
     <mu>384.6153846</mu>
     <time-discretization>Newmark-beta</time-discretization>
     <boundary-conditions>
       <dirichlet>
-        <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
         <surface>surfaceleft</surface>
         <value>0.0 0.0</value>
       </dirichlet>
       <traction>
         <surface>surfaceright</surface>
-        <value>NULL -1.</value>
+        <traction-input-file>data/traction_bar_test_1.txt</traction-input-file>
       </traction>
     </boundary-conditions>
+    <linear-system>
+      <solver-backend>petsc</solver-backend>
+      <preconditioner>ic</preconditioner>
+    </linear-system>
   </fem>
 </case>
