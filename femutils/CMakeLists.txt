@@ -18,6 +18,7 @@ add_library(FemUtils
   CsrFormatMatrix.cc
   CsrFormatMatrixView.h
   CsrFormatMatrixView.cc
+  DoFLinearSystemImplBase.cc
   FemDoFsOnNodes.h
   FemDoFsOnNodes.cc
   FemBoundaryConditions.cc
@@ -39,6 +40,7 @@ add_library(FemUtils
   MeshTensorVariable.H
   internal/IDoFLinearSystemImpl.h
   internal/CsrDoFLinearSystemImpl.h
+  internal/DoFLinearSystemImplBase.h
   ${ACCELERATOR_SOURCES}
 )
 
