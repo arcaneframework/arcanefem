@@ -40,6 +40,8 @@ enum class eSolverBackend
 
 #include "AlephDoFLinearSystemFactory_axl.h"
 
+#include "internal/IDoFLinearSystemImpl.h"
+
 #include <map>
 
 /*---------------------------------------------------------------------------*/

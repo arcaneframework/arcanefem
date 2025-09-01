@@ -10,6 +10,7 @@ set(ACCELERATOR_SOURCES
 add_library(FemUtils
   FemUtils.h
   FemUtils.cc
+  FemUtilsGlobal.h
   DoFLinearSystem.h
   DoFLinearSystem.cc
   CooFormatMatrix.h
@@ -17,7 +18,6 @@ add_library(FemUtils
   CsrFormatMatrix.cc
   CsrFormatMatrixView.h
   CsrFormatMatrixView.cc
-  CsrDoFLinearSystemImpl.h
   FemDoFsOnNodes.h
   FemDoFsOnNodes.cc
   FemBoundaryConditions.cc
@@ -37,6 +37,8 @@ add_library(FemUtils
   FemBoundaryConditions_axl.h
   MeshTensorVariable.h
   MeshTensorVariable.H
+  internal/IDoFLinearSystemImpl.h
+  internal/CsrDoFLinearSystemImpl.h
   ${ACCELERATOR_SOURCES}
 )
 

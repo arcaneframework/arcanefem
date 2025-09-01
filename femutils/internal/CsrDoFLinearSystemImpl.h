@@ -10,15 +10,16 @@
 /* Implementation of IDoFLinearSystemImpl using a matrix with CSR format.    */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-#ifndef ARCANEFEM_FEMUTILS_CSRDOFLINEARSYSTEMIMPL_H
-#define ARCANEFEM_FEMUTILS_CSRDOFLINEARSYSTEMIMPL_H
+#ifndef ARCANEFEM_FEMUTILS_INTERNAL_CSRDOFLINEARSYSTEMIMPL_H
+#define ARCANEFEM_FEMUTILS_INTERNAL_CSRDOFLINEARSYSTEMIMPL_H
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 #include <arcane/core/VariableTypes.h>
 #include <arcane/accelerator/core/Runner.h>
 
-#include "DoFLinearSystem.h"
+#include "internal/IDoFLinearSystemImpl.h"
+#include "CsrFormatMatrixView.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -29,6 +30,7 @@ namespace Arcane::FemUtils
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
+ * \internal
  * \brief Implementation of IDoFLinearSystemImpl using a matrix with CSR format.
  */
 class CsrDoFLinearSystemImpl

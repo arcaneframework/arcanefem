@@ -36,7 +36,7 @@
 #include <arcane/accelerator/core/Memory.h>
 
 #include "IDoFLinearSystemFactory.h"
-#include "CsrDoFLinearSystemImpl.h"
+#include "internal/CsrDoFLinearSystemImpl.h"
 
 namespace Arcane::FemUtils
 {

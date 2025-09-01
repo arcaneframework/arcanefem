@@ -11,7 +11,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include "CsrDoFLinearSystemImpl.h"
+#include "internal/CsrDoFLinearSystemImpl.h"
 
 #include <arcane/core/IItemFamily.h>
 

@@ -27,6 +27,7 @@
 
 #include "FemUtils.h"
 #include "IDoFLinearSystemFactory.h"
+#include "internal/IDoFLinearSystemImpl.h"
 
 namespace Arcane::FemUtils
 {
