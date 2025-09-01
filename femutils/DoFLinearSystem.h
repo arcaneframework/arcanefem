@@ -14,18 +14,10 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/utils/ArrayLayout.h>
 #include <arcane/utils/UtilsTypes.h>
-#include <arcane/utils/ArrayView.h>
-#include <arcane/utils/NumArray.h>
-#include <arcane/utils/MDDim.h>
 
 #include <arcane/core/VariableTypedef.h>
 #include <arcane/core/ItemTypes.h>
-#include <arcane/core/VariableTypedef.h>
-
-#include <arcane/accelerator/NumArrayViews.h>
-#include <arcane/accelerator/ViewsCommon.h>
 
 #include "CsrFormatMatrixView.h"
 
@@ -35,6 +27,7 @@
 namespace Arcane::FemUtils
 {
 class IDoFLinearSystemFactory;
+class DoFLinearSystem;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -73,6 +66,116 @@ class DoFLinearSystemImpl
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
+ * \brief Helper class to handle Row elimination.
+ *
+ * Instances of this class are temporary and are created via a
+ * call to DoFLinearSystem::rowEliminationHelper().
+ *
+ * There is two ways to use this class.
+ *
+ * 1. use the method addElimination() and specify the row and the value
+ * 2. get the variables handling elimination info (getEliminationInfo())
+ * and elimination value (getEliminationValue()) and set the corresponding
+ * row with ELIMINATION_ROW and the value of the elimination.
+ *
+ * Only the method 2 is available on accelerator.
+*/
+class DoFLinearSystemRowEliminationHelper
+{
+  friend DoFLinearSystem;
+
+ private:
+
+  explicit DoFLinearSystemRowEliminationHelper(DoFLinearSystem* dof_ls);
+
+ public:
+
+  ~DoFLinearSystemRowEliminationHelper();
+
+ public:
+
+  /*
+   * \brief Eliminate the row \a row of the linear system.
+   *
+   * The elimination is equivalent to the following calls:
+   * - matrixSetValue(row,j,0) for j!=row
+   * - matrixSetValue(row,row,1.0)
+   * - RHS[rc] = value
+   *
+   * The row is only eliminated when solve() is called.
+   * Any call to matrixAddValue(row,...)
+   * or matrixSetValue(row,...) are discarded.
+   *
+   * \note After a row elimination the matrix may no longer be symmetric.
+   */
+  void addElimination(DoFLocalId row, Real value);
+
+  VariableDoFByte& getEliminationInfo();
+  VariableDoFReal& getEliminationValue();
+
+ private:
+
+  DoFLinearSystem* m_dof_linear_system = nullptr;
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*!
+ * \brief Helper class to handle RowColumn elimination.
+ *
+ * Instances of this class are temporary and are created via a
+ * call to DoFLinearSystem::rowColumnEliminationHelper().
+ *
+ * There is two ways to use this class.
+ *
+ * 1. use the method addElimination() and specify the row and the value
+ * 2. get the variables handling elimination info (getEliminationInfo())
+ * and elimination value (getEliminationValue()) and set the corresponding
+ * row with ELIMINATION_ROW_COLUMN and the value of the elimination.
+ *
+ * Only the method 2 is available on accelerator.
+*/
+class DoFLinearSystemRowColumnEliminationHelper
+{
+  friend DoFLinearSystem;
+
+ private:
+
+  explicit DoFLinearSystemRowColumnEliminationHelper(DoFLinearSystem* dof_ls);
+
+ public:
+
+  ~DoFLinearSystemRowColumnEliminationHelper();
+
+ public:
+
+  /*
+   * \brief Eliminate the row \a row of the linear system.
+   *
+   * The elimination is equivalent to the following calls:
+   * - matrixSetValue(row,j,0) for j!=row
+   * - matrixSetValue(row,row,1.0)
+   * - RHS[rc] = value
+   *
+   * The row is only eliminated when solve() is called.
+   * Any call to matrixAddValue(row,...)
+   * or matrixSetValue(row,...) are discarded.
+   *
+   * \note After a row elimination the matrix may no longer be symmetric.
+   */
+  void addElimination(DoFLocalId row, Real value);
+
+  VariableDoFByte& getEliminationInfo();
+  VariableDoFReal& getEliminationValue();
+
+ private:
+
+  DoFLinearSystem* m_dof_linear_system = nullptr;
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*!
  * \brief Linear system Matrix A + Vector x + Vector b for Ax=b.
  *
  * Before using an instance of this class you need to call method
@@ -86,6 +189,9 @@ class DoFLinearSystemImpl
  */
 class DoFLinearSystem
 {
+  friend DoFLinearSystemRowEliminationHelper;
+  friend DoFLinearSystemRowColumnEliminationHelper;
+
  public:
 
   DoFLinearSystem();
@@ -110,7 +216,7 @@ class DoFLinearSystem
   void initialize(ISubDomain* sd, Runner* runner, IItemFamily* dof_family, const String& solver_name);
 
   //! Indicate if method initialize() has been called
-  bool isInitialized() const;
+  [[nodiscard]] bool isInitialized() const;
 
   //! Add the value \a value to the (row,column) element of the matrix
   void matrixAddValue(DoFLocalId row, DoFLocalId column, Real value);
@@ -124,35 +230,37 @@ class DoFLinearSystem
   void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value);
 
   /*
-   * \brief Eliminate the row \a row of the linear system.
+   * \brief Helper class to eliminate rows in the linear system.
    *
-   * The elimination is equivalent to the following calls:
+   * The elimination of row \a row is equivalent to the following calls:
    * - matrixSetValue(row,j,0) for j!=row
    * - matrixSetValue(row,row,1.0)
    * - RHS[rc] = value
    *
-   * The row is only eliminated when solve() is called. Any call to matrixAddValue(row,...)
-   * or matrixSetValue(row,...) are discarded.
+   * The rows are only eliminated when solve() is called.
+   * Any call to matrixAddValue(row,...)
+   * or matrixSetValue(row,...) for eliminated rows are discarded.
    *
    * \note After a row elimination the matrix may no longer be symmetric.
    */
-  void eliminateRow(DoFLocalId row, Real value);
+  DoFLinearSystemRowEliminationHelper rowEliminationHelper();
 
   /*
-   * \brief Eliminate the row \a rc and column \a rc of the linear system.
+   * \brief Eliminate rows and columns of the linear system.
    *
-   * The elimination is equivalent to the following calls:
+   * The elimination for a row \a row is equivalent to the following calls:
    * - matrixSetValue(rc,j,0) for j!=rc
    * - matrixSetValue(i,rc,0) for i!=rc
    * - matrixSetValue(rcw,rc,1.0)
    * - RHS[i] = RHS[i] - A[rc,i] * value for i!=rc
    * - RHS[rc] = value
    *
-   * The row is only eliminated solve() is called.
+   * The rows are only eliminated solve() when solve() is called.
    * Any call to matrixAddValue(row,...), matrixSetValue(row,...),
-   * matrixAddValue(...,row) or matrixSetValue(...,row) are discarded.
+   * matrixAddValue(...,row) or matrixSetValue(...,row) for eliminated row
+   * are discarded.
    */
-  void eliminateRowColumn(DoFLocalId row, Real value);
+  DoFLinearSystemRowColumnEliminationHelper rowColumnEliminationHelper();
 
   /*!
    * \brief Solve the current linear system.
@@ -220,15 +328,13 @@ class DoFLinearSystem
   void setCSRValues(const CSRFormatView& csr_view);
 
   //! Indique si l'implémentation supporte d'utiliser setCSRValue()
-  bool hasSetCSRValues() const;
+  [[nodiscard]] bool hasSetCSRValues() const;
 
  public:
 
   CSRFormatView& getCSRValues();
   VariableDoFReal& getForcedValue();
   VariableDoFBool& getForcedInfo();
-  VariableDoFByte& getEliminationInfo();
-  VariableDoFReal& getEliminationValue();
 
   IDoFLinearSystemFactory* linearSystemFactory() const
   {
@@ -245,6 +351,16 @@ class DoFLinearSystem
  private:
 
   void _checkInit() const;
+
+  // Used by DoFLinearSystemRowEliminationHelper
+  void _eliminateRow(DoFLocalId row, Real value);
+  // Used by DoFLinearSystemRowColumnEliminationHelper
+  void _eliminateRowColumn(DoFLocalId row, Real value);
+
+  // Used by DoFLinearSystemRowEliminationHelper and DoFLinearSystemRowColumnEliminationHelper
+  VariableDoFByte& _getEliminationInfo();
+  // Used by DoFLinearSystemRowEliminationHelper and DoFLinearSystemRowColumnEliminationHelper
+  VariableDoFReal& _getEliminationValue();
 };
 
 /*---------------------------------------------------------------------------*/

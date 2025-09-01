@@ -218,7 +218,7 @@ _assembleLinearOperator()
       }
     }
     else if (options()->enforceDirichletMethod() == "RowElimination") {
-
+      DoFLinearSystemRowEliminationHelper elimination_helper(m_linear_system.rowEliminationHelper());
       for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
         if (u_dirichlet_string[i] != "NULL") {
           Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
@@ -226,7 +226,7 @@ _assembleLinearOperator()
             for (Node node : iface->nodes()) {
               DoFLocalId dof_id = node_dof.dofId(node, i);
               if (node.isOwn()) {
-                m_linear_system.eliminateRow(dof_id, u_dirichlet);
+                elimination_helper.addElimination(dof_id, u_dirichlet);
               }
             }
           }
@@ -234,7 +234,7 @@ _assembleLinearOperator()
       }
     }
     else if (options()->enforceDirichletMethod() == "RowColumnElimination") {
-
+      DoFLinearSystemRowColumnEliminationHelper elimination_helper(m_linear_system.rowColumnEliminationHelper());
       for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
         if (u_dirichlet_string[i] != "NULL") {
           Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
@@ -242,7 +242,7 @@ _assembleLinearOperator()
             for (Node node : iface->nodes()) {
               DoFLocalId dof_id = node_dof.dofId(node, i);
               if (node.isOwn()) {
-                m_linear_system.eliminateRowColumn(dof_id, u_dirichlet);
+                elimination_helper.addElimination(dof_id, u_dirichlet);
               }
             }
           }
