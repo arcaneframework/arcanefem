@@ -482,24 +482,26 @@ namespace BoundaryConditionsHelpers
   /*---------------------------------------------------------------------------*/
   /*---------------------------------------------------------------------------*/
 
-  template <Byte ELIMINATION_MODE>
-  inline void applyDirichletToNodeGroupViaRowElimination(const Int32 dof_index, Real value, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NodeGroup& node_group)
+  static inline void applyDirichletToNodeGroupViaRowElimination(const Int32 dof_index, Real value, Accelerator::RunQueue* queue,
+                                                                DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes,
+                                                                const NodeGroup& node_group)
   {
     ARCANE_CHECK_PTR(queue);
-    ARCANE_CHECK_PTR(mesh);
 
-    NodeInfoListView nodes_infos(mesh->nodeFamily());
+    constexpr Byte ELIMINATE_ROW = 1;
+    DoFLinearSystemRowEliminationHelper elimination_helper(linear_system.rowEliminationHelper());
+    NodeInfoListView nodes_infos(node_group.itemFamily());
     auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
 
     auto command = Accelerator::makeCommand(queue);
-    auto in_out_elimination_info = Accelerator::viewInOut(command, linear_system.getEliminationInfo());
-    auto in_out_elimination_value = Accelerator::viewInOut(command, linear_system.getEliminationValue());
+    auto in_out_elimination_info = Accelerator::viewInOut(command, elimination_helper.getEliminationInfo());
+    auto in_out_elimination_value = Accelerator::viewInOut(command, elimination_helper.getEliminationValue());
 
     command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
     {
       if (nodes_infos.isOwn(node_lid)) {
         DoFLocalId dof_id = node_dof.dofId(node_lid, dof_index);
-        in_out_elimination_info[dof_id] = ELIMINATION_MODE;
+        in_out_elimination_info[dof_id] = ELIMINATE_ROW;
         in_out_elimination_value[dof_id] = value;
       }
     };
@@ -538,8 +540,7 @@ namespace BoundaryConditions
           BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(dof_index, value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
         }
         else if (bs->getEnforceDirichletMethod() == "RowElimination") {
-          constexpr Byte ELIMINATE_ROW = 1;
-          BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination<ELIMINATE_ROW>(dof_index, value, queue, mesh, linear_system, dofs_on_nodes, node_group);
+          BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(dof_index, value, queue, linear_system, dofs_on_nodes, node_group);
         }
         else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
           ARCANE_THROW(Arccore::NotImplementedException, "RowColumnElimination is not supported.");
@@ -576,8 +577,7 @@ namespace BoundaryConditions
           BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(dof_index, value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
         }
         else if (bs->getEnforceDirichletMethod() == "RowElimination") {
-          constexpr Byte ELIMINATE_ROW = 1;
-          BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination<ELIMINATE_ROW>(dof_index, value, queue, mesh, linear_system, dofs_on_nodes, node_group);
+          BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(dof_index, value, queue, linear_system, dofs_on_nodes, node_group);
         }
         else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
           ARCANE_THROW(Arccore::NotImplementedException, "RowColumnElimination is not supported.");

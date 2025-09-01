@@ -335,8 +335,6 @@ class DoFLinearSystem
   CSRFormatView& getCSRValues();
   VariableDoFReal& getForcedValue();
   VariableDoFBool& getForcedInfo();
-  VariableDoFByte& getEliminationInfo();
-  VariableDoFReal& getEliminationValue();
 
   IDoFLinearSystemFactory* linearSystemFactory() const
   {
@@ -358,6 +356,11 @@ class DoFLinearSystem
   void _eliminateRow(DoFLocalId row, Real value);
   // Used by DoFLinearSystemRowColumnEliminationHelper
   void _eliminateRowColumn(DoFLocalId row, Real value);
+
+  // Used by DoFLinearSystemRowEliminationHelper and DoFLinearSystemRowColumnEliminationHelper
+  VariableDoFByte& _getEliminationInfo();
+  // Used by DoFLinearSystemRowEliminationHelper and DoFLinearSystemRowColumnEliminationHelper
+  VariableDoFReal& _getEliminationValue();
 };
 
 /*---------------------------------------------------------------------------*/

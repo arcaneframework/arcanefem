@@ -502,7 +502,8 @@ VariableDoFBool& DoFLinearSystem::getForcedInfo()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-VariableDoFByte& DoFLinearSystem::getEliminationInfo()
+VariableDoFByte& DoFLinearSystem::
+_getEliminationInfo()
 {
   _checkInit();
   return m_p->getEliminationInfo();
@@ -511,7 +512,8 @@ VariableDoFByte& DoFLinearSystem::getEliminationInfo()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-VariableDoFReal& DoFLinearSystem::getEliminationValue()
+VariableDoFReal& DoFLinearSystem::
+_getEliminationValue()
 {
   _checkInit();
   return m_p->getEliminationValue();
@@ -591,7 +593,7 @@ addElimination(DoFLocalId row, Real value)
 VariableDoFByte& DoFLinearSystemRowEliminationHelper::
 getEliminationInfo()
 {
-  return m_dof_linear_system->getEliminationInfo();
+  return m_dof_linear_system->_getEliminationInfo();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -600,7 +602,7 @@ getEliminationInfo()
 VariableDoFReal& DoFLinearSystemRowEliminationHelper::
 getEliminationValue()
 {
-  return m_dof_linear_system->getEliminationValue();
+  return m_dof_linear_system->_getEliminationValue();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -637,7 +639,7 @@ addElimination(DoFLocalId row, Real value)
 VariableDoFByte& DoFLinearSystemRowColumnEliminationHelper::
 getEliminationInfo()
 {
-  return m_dof_linear_system->getEliminationInfo();
+  return m_dof_linear_system->_getEliminationInfo();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -646,7 +648,7 @@ getEliminationInfo()
 VariableDoFReal& DoFLinearSystemRowColumnEliminationHelper::
 getEliminationValue()
 {
-  return m_dof_linear_system->getEliminationValue();
+  return m_dof_linear_system->_getEliminationValue();
 }
 
 /*---------------------------------------------------------------------------*/
