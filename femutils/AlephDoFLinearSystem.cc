@@ -14,7 +14,6 @@
 #include "DoFLinearSystem.h"
 
 #include <arcane/utils/FatalErrorException.h>
-#include <arcane/utils/NumArray.h>
 
 #include <arcane/core/VariableTypes.h>
 #include <arcane/core/IItemFamily.h>
@@ -104,7 +103,7 @@ class AlephDoFLinearSystemImpl
     info() << "Creating AlephDoFLinearSystemImpl()";
   }
 
-  ~AlephDoFLinearSystemImpl()
+  ~AlephDoFLinearSystemImpl() override
   {
     delete m_aleph_params;
     if (m_need_destroy_matrix_and_vector){
@@ -132,53 +131,7 @@ class AlephDoFLinearSystemImpl
 
  private:
 
-  void _computeMatrixInfo()
-  {
-    int solver_backend = (int)m_solver_backend;
-    info() << "[AlephFem] COMPUTE_MATRIX_INFO solver_backend=" << solver_backend;
-    // Aleph solver:
-    // Hypre = 2
-    // Trilinos = 3
-    // Cuda = 4 (not available)
-    // PETSc = 5
-    // We need to compile Arcane with the needed library and link
-    // the code with the associated aleph library (see CMakeLists.txt)
-    // TODO: Linear algebra backend should be accessed from arc file.
-    if (!m_aleph_kernel){
-      info() << "Creating Aleph Kernel";
-      // We can use less than the number of MPI ranks
-      // but for the moment we use all the available cores.
-      Int32 nb_core = m_sub_domain->parallelMng()->commSize();
-      m_aleph_kernel = new AlephKernel(m_sub_domain, solver_backend, nb_core);
-    }
-    else{
-      //
-      m_need_destroy_matrix_and_vector = false;
-    }
-    IItemFamily* dof_family = dofFamily();
-    VariableDoFReal& solution_variable(solutionVariable());
-    DoFGroup own_dofs = dof_family->allItems().own();
-    //Int32 nb_node = own_nodes.size();
-    //Int32 total_nb_node = m_sub_domain->parallelMng()->reduce(Parallel::ReduceSum, nb_node);
-    m_dof_matrix_indexes.fill(-1);
-    AlephIndexing* indexing = m_aleph_kernel->indexing();
-    ENUMERATE_ (DoF, idof, own_dofs) {
-      DoF dof = *idof;
-      Integer row = indexing->get(solution_variable, dof);
-      //info() << "ROW=" << row;
-      m_dof_matrix_indexes[dof] = row;
-    }
-    // Do not print information about setting matrix if matrix is too big
-    if (own_dofs.size()>200)
-      m_do_print_filling = false;
-
-    m_aleph_matrix = m_aleph_kernel->createSolverMatrix();
-    m_aleph_rhs_vector = m_aleph_kernel->createSolverVector();
-    m_aleph_solution_vector = m_aleph_kernel->createSolverVector();
-    m_aleph_matrix->create();
-    m_aleph_rhs_vector->create();
-    m_aleph_solution_vector->create();
-  }
+  void _computeMatrixInfo();
 
  public:
 
@@ -190,12 +143,12 @@ class AlephDoFLinearSystemImpl
       ARCANE_FATAL("Column is null");
     if (value == 0.0)
       return;
-      RowColumn rc{ row.localId(), column.localId() };
-      auto x = m_values_map.find(rc);
-      if (x == m_values_map.end())
-        m_values_map.insert(std::make_pair(rc, value));
-      else
-        x->second += value;
+    RowColumn rc{ row.localId(), column.localId() };
+    auto x = m_values_map.find(rc);
+    if (x == m_values_map.end())
+      m_values_map.insert(std::make_pair(rc, value));
+    else
+      x->second += value;
   }
 
   void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value) override
@@ -225,63 +178,7 @@ class AlephDoFLinearSystemImpl
     info() << "EliminateRowColumn row=" << row.localId() << " v=" << value;
   }
 
-  void solve() override
-  {
-    UniqueArray<Real> aleph_result;
-
-    // _fillMatrix() may change the values of RHS vector
-    // with row or row-column elimination so we has to fill the RHS vector
-    // before the matrix.
-    _fillMatrix();
-    _fillRHSVector();
-
-    info() << "[AlephFem] Assemble matrix ptr=" << m_aleph_matrix;
-    m_aleph_matrix->assemble();
-    m_aleph_rhs_vector->assemble();
-    auto* aleph_solution_vector = m_aleph_solution_vector;
-    IItemFamily* dof_family = dofFamily();
-    DoFGroup own_dofs = dof_family->allItems().own();
-    const Int32 nb_dof = own_dofs.size();
-    m_vector_zero.resize(nb_dof);
-    m_vector_zero.fill(0.0);
-
-    aleph_solution_vector->setLocalComponents(m_vector_zero);
-    aleph_solution_vector->assemble();
-
-    Int32 nb_iteration = 0;
-    Real residual_norm = 0.0;
-    info() << "[AlephFem] BEGIN SOLVING WITH ALEPH solver_backend=" << (int)m_solver_backend;
-
-    m_aleph_matrix->solve(aleph_solution_vector,
-                          m_aleph_rhs_vector,
-                          nb_iteration,
-                          &residual_norm,
-                          m_aleph_params,
-                          false);
-    info() << "[AlephFem] END SOLVING WITH ALEPH r=" << residual_norm
-           << " nb_iter=" << nb_iteration;
-    auto* rhs_vector = m_aleph_kernel->createSolverVector();
-    auto* solution_vector = m_aleph_kernel->createSolverVector();
-
-    UniqueArray<Real> rhs_results;
-    rhs_vector->getLocalComponents(rhs_results);
-    solution_vector->getLocalComponents(aleph_result);
-
-    bool do_verbose = nb_dof < 200;
-    do_verbose = false;
-    Int32 index = 0;
-    VariableDoFReal& solution_variable(this->solutionVariable());
-    ENUMERATE_ (DoF, idof, dof_family->allItems().own()) {
-      DoF dof = *idof;
-
-      solution_variable[dof] = aleph_result[m_aleph_kernel->indexing()->get(solution_variable, dof)];
-      if (do_verbose)
-        info() << "Node uid=" << dof.uniqueId() << " V=" << aleph_result[index] << " T=" << solution_variable[dof]
-               << " RHS=" << rhs_results[index];
-
-      ++index;
-    }
-  }
+  void solve() override;
 
   void setSolverCommandLineArguments(const CommandLineArguments& args) override
   {
@@ -292,7 +189,7 @@ class AlephDoFLinearSystemImpl
 #endif
   }
 
-  void clearValues()
+  void clearValues() override
   {
     info() << "[Aleph] Clear values of current solver";
     DoFLinearSystemImplBase::clearValues();
@@ -305,52 +202,11 @@ class AlephDoFLinearSystemImpl
   {
     ARCANE_THROW(NotImplementedException,"");
   }
-
-  bool hasSetCSRValues() const { return false; }
-
- private:
-
-  AlephParams* _createAlephParam()
-  {
-    auto* p = new AlephParams(traceMng(),
-                              1.0e-15, // m_param_epsilon epsilon de convergence
-                              2000, // m_param_max_iteration nb max iterations
-                              TypesSolver::AMG, // m_param_preconditioner_method préconditionnement: DIAGONAL, AMG, IC
-                              TypesSolver::PCG, // m_param_solver_method méthode de résolution
-                              -1, // m_param_gamma
-                              -1.0, // m_param_alpha
-                              false, // m_param_xo_user par défaut Xo n'est pas égal à 0
-                              false, // m_param_check_real_residue
-                              false, // m_param_print_real_residue
-                              // Default: false
-                              false, // m_param_debug_info
-                              1.e-40, // m_param_min_rhs_norm
-                              false, // m_param_convergence_analyse
-                              true, // m_param_stop_error_strategy
-                              true, // m_param_write_matrix_to_file_error_strategy
-                              "SolveErrorAlephMatrix.dbg", // m_param_write_matrix_name_error_strategy
-                              false, // m_param_listing_output
-                              0., // m_param_threshold
-                              false, // m_param_print_cpu_time_resolution
-                              0, // m_param_amg_coarsening_method: par défault celui de Sloop,
-                              100, // m_param_output_level
-                              1, // m_param_amg_cycle: 1-cycle amg en V, 2= cycle amg en W, 3=cycle en Full Multigrid V
-                              1, // m_param_amg_solver_iterations
-                              1, // m_param_amg_smoother_iterations
-                              TypesSolver::SymHybGSJ_smoother, // m_param_amg_smootherOption
-                              TypesSolver::ParallelRugeStuben, // m_param_amg_coarseningOption
-                              TypesSolver::CG_coarse_solver, // m_param_amg_coarseSolverOption
-                              // Default: false
-                              true, // m_param_keep_solver_structure
-                              false, // m_param_sequential_solver
-                              TypesSolver::RB); // m_param_criteria_stop
-    return p;
-  }
-
   CSRFormatView& getCSRValues() override
   {
     ARCANE_THROW(NotImplementedException, "");
   }
+  bool hasSetCSRValues() const override { return false; }
 
  private:
 
@@ -377,6 +233,7 @@ class AlephDoFLinearSystemImpl
 
  private:
 
+  AlephParams* _createAlephParam() const;
   void _fillMatrix();
   void _fillRHSVector();
   void _setMatrixValue(DoF row, DoF column, Real value)
@@ -478,7 +335,7 @@ _fillMatrix()
 
   // Apply Row+Column elimination
   // Phase 1:
-  // - substract values of the RHS vector if Row+Column elimination
+  // - subtract values of the RHS vector if Row+Column elimination
   for (const auto& rc_value : row_column_elimination_map) {
     RowColumn rc = rc_value.first;
     Real matrix_value = rc_value.second;
@@ -490,7 +347,7 @@ _fillMatrix()
       continue;
     Byte row_elimination_info = dof_elimination_info[dof_row];
     Real elimination_value = dof_elimination_value[dof_row];
-    // Substract the value of RHS vector for current column.
+    // Subtract the value of RHS vector for current column.
     if (row_elimination_info == ELIMINATE_ROW_COLUMN) {
       Real v = rhs_variable[dof_column];
       rhs_variable[dof_column] = v - matrix_value * elimination_value;
@@ -514,7 +371,7 @@ _fillMatrix()
     if (elimination_info == ELIMINATE_ROW || elimination_info == ELIMINATE_ROW_COLUMN) {
       Real elimination_value = dof_elimination_value[dof];
       rhs_variable[dof] = elimination_value;
-      info() << "Eliminate info=" << (int)elimination_info << " row="
+      info() << "Eliminate info=" << static_cast<int>(elimination_info) << " row="
              << std::setw(4) << dof.localId() << " value=" << elimination_value;
       _setMatrixValue(dof, dof, 1.0);
     }
@@ -541,6 +398,160 @@ _fillRHSVector()
     rhs_values_for_linear_system.add(rhs_values[idof]);
   }
   m_aleph_rhs_vector->setLocalComponents(rhs_values_for_linear_system.view());
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+AlephParams* AlephDoFLinearSystemImpl::
+_createAlephParam() const
+{
+  auto* p = new AlephParams(traceMng(),
+                            1.0e-15, // m_param_epsilon epsilon de convergence
+                            2000, // m_param_max_iteration nb max iterations
+                            TypesSolver::AMG, // m_param_preconditioner_method préconditionnement: DIAGONAL, AMG, IC
+                            TypesSolver::PCG, // m_param_solver_method méthode de résolution
+                            -1, // m_param_gamma
+                            -1.0, // m_param_alpha
+                            false, // m_param_xo_user par défaut Xo n'est pas égal à 0
+                            false, // m_param_check_real_residue
+                            false, // m_param_print_real_residue
+                            // Default: false
+                            false, // m_param_debug_info
+                            1.e-40, // m_param_min_rhs_norm
+                            false, // m_param_convergence_analyse
+                            true, // m_param_stop_error_strategy
+                            true, // m_param_write_matrix_to_file_error_strategy
+                            "SolveErrorAlephMatrix.dbg", // m_param_write_matrix_name_error_strategy
+                            false, // m_param_listing_output
+                            0., // m_param_threshold
+                            false, // m_param_print_cpu_time_resolution
+                            0, // m_param_amg_coarsening_method: par défault celui de Sloop,
+                            100, // m_param_output_level
+                            1, // m_param_amg_cycle: 1-cycle amg en V, 2= cycle amg en W, 3=cycle en Full Multigrid V
+                            1, // m_param_amg_solver_iterations
+                            1, // m_param_amg_smoother_iterations
+                            TypesSolver::SymHybGSJ_smoother, // m_param_amg_smootherOption
+                            TypesSolver::ParallelRugeStuben, // m_param_amg_coarseningOption
+                            TypesSolver::CG_coarse_solver, // m_param_amg_coarseSolverOption
+                            // Default: false
+                            true, // m_param_keep_solver_structure
+                            false, // m_param_sequential_solver
+                            TypesSolver::RB); // m_param_criteria_stop
+  return p;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void AlephDoFLinearSystemImpl::
+_computeMatrixInfo()
+{
+  int solver_backend = static_cast<int>(m_solver_backend);
+  info() << "[AlephFem] COMPUTE_MATRIX_INFO solver_backend=" << solver_backend;
+  // Aleph solver:
+  // Hypre = 2
+  // Trilinos = 3
+  // Cuda = 4 (not available)
+  // PETSc = 5
+  // We need to compile Arcane with the needed library and link
+  // the code with the associated aleph library (see CMakeLists.txt)
+  // TODO: Linear algebra backend should be accessed from arc file.
+  if (!m_aleph_kernel) {
+    info() << "Creating Aleph Kernel";
+    // We can use less than the number of MPI ranks
+    // but for the moment we use all the available cores.
+    Int32 nb_core = m_sub_domain->parallelMng()->commSize();
+    m_aleph_kernel = new AlephKernel(m_sub_domain, solver_backend, nb_core);
+  }
+  else {
+    //
+    m_need_destroy_matrix_and_vector = false;
+  }
+  IItemFamily* dof_family = dofFamily();
+  VariableDoFReal& solution_variable(solutionVariable());
+  DoFGroup own_dofs = dof_family->allItems().own();
+  //Int32 nb_node = own_nodes.size();
+  //Int32 total_nb_node = m_sub_domain->parallelMng()->reduce(Parallel::ReduceSum, nb_node);
+  m_dof_matrix_indexes.fill(-1);
+  AlephIndexing* indexing = m_aleph_kernel->indexing();
+  ENUMERATE_ (DoF, idof, own_dofs) {
+    DoF dof = *idof;
+    Integer row = indexing->get(solution_variable, dof);
+    //info() << "ROW=" << row;
+    m_dof_matrix_indexes[dof] = row;
+  }
+  // Do not print information about setting matrix if matrix is too big
+  if (own_dofs.size() > 200)
+    m_do_print_filling = false;
+
+  m_aleph_matrix = m_aleph_kernel->createSolverMatrix();
+  m_aleph_rhs_vector = m_aleph_kernel->createSolverVector();
+  m_aleph_solution_vector = m_aleph_kernel->createSolverVector();
+  m_aleph_matrix->create();
+  m_aleph_rhs_vector->create();
+  m_aleph_solution_vector->create();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void AlephDoFLinearSystemImpl::
+solve()
+{
+  UniqueArray<Real> aleph_result;
+
+  // _fillMatrix() may change the values of RHS vector
+  // with row or row-column elimination so we have to fill the RHS vector
+  // before the matrix.
+  _fillMatrix();
+  _fillRHSVector();
+
+  info() << "[AlephFem] Assemble matrix ptr=" << m_aleph_matrix;
+  m_aleph_matrix->assemble();
+  m_aleph_rhs_vector->assemble();
+  auto* aleph_solution_vector = m_aleph_solution_vector;
+  IItemFamily* dof_family = dofFamily();
+  DoFGroup own_dofs = dof_family->allItems().own();
+  const Int32 nb_dof = own_dofs.size();
+  m_vector_zero.resize(nb_dof);
+  m_vector_zero.fill(0.0);
+
+  aleph_solution_vector->setLocalComponents(m_vector_zero);
+  aleph_solution_vector->assemble();
+
+  Int32 nb_iteration = 0;
+  Real residual_norm = 0.0;
+  info() << "[AlephFem] BEGIN SOLVING WITH ALEPH solver_backend=" << static_cast<int>(m_solver_backend);
+
+  m_aleph_matrix->solve(aleph_solution_vector,
+                        m_aleph_rhs_vector,
+                        nb_iteration,
+                        &residual_norm,
+                        m_aleph_params,
+                        false);
+  info() << "[AlephFem] END SOLVING WITH ALEPH r=" << residual_norm
+         << " nb_iter=" << nb_iteration;
+  auto* rhs_vector = m_aleph_kernel->createSolverVector();
+  auto* solution_vector = m_aleph_kernel->createSolverVector();
+
+  UniqueArray<Real> rhs_results;
+  rhs_vector->getLocalComponents(rhs_results);
+  solution_vector->getLocalComponents(aleph_result);
+
+  const bool do_verbose = (nb_dof < 200) && false;
+  Int32 index = 0;
+  VariableDoFReal& solution_variable(this->solutionVariable());
+  ENUMERATE_ (DoF, idof, dof_family->allItems().own()) {
+    DoF dof = *idof;
+
+    solution_variable[dof] = aleph_result[m_aleph_kernel->indexing()->get(solution_variable, dof)];
+    if (do_verbose)
+      info() << "Node uid=" << dof.uniqueId() << " V=" << aleph_result[index] << " T=" << solution_variable[dof]
+             << " RHS=" << rhs_results[index];
+
+    ++index;
+  }
 }
 
 /*---------------------------------------------------------------------------*/
