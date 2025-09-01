@@ -33,7 +33,7 @@ namespace Arcane::FemUtils
  */
 class CsrDoFLinearSystemImpl
 : public TraceAccessor
-, public DoFLinearSystemImpl
+, public IDoFLinearSystemImpl
 {
  public:
 

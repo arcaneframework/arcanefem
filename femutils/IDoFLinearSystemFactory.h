@@ -26,7 +26,7 @@ namespace Arcane::FemUtils
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-class DoFLinearSystemImpl;
+class IDoFLinearSystemImpl;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -39,7 +39,7 @@ class IDoFLinearSystemFactory
 
  public:
 
-  virtual DoFLinearSystemImpl*
+  virtual IDoFLinearSystemImpl*
   createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) = 0;
 };
 

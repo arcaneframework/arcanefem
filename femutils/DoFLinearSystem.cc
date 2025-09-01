@@ -48,7 +48,7 @@ enum class eInternalSolverMethod
 
 namespace Arcane::FemUtils
 {
-extern "C++" DoFLinearSystemImpl*
+extern "C++" IDoFLinearSystemImpl*
 createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name);
 
 /*---------------------------------------------------------------------------*/
@@ -56,7 +56,7 @@ createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const St
 
 class SequentialDoFLinearSystemImpl
 : public TraceAccessor
-, public DoFLinearSystemImpl
+, public IDoFLinearSystemImpl
 {
  public:
 
@@ -281,7 +281,7 @@ class DefaultDoFLinearSystemFactory
 {
  public:
 
-  DoFLinearSystemImpl* createInstance(ISubDomain* sd, IItemFamily* dof_family,
+  IDoFLinearSystemImpl* createInstance(ISubDomain* sd, IItemFamily* dof_family,
                                       const String& solver_name) override
   {
     IParallelMng* pm = sd->parallelMng();
@@ -291,7 +291,7 @@ class DefaultDoFLinearSystemFactory
 #ifdef ENABLE_DEBUG_MATRIX
     use_debug_dense_matrix = true;
 #endif
-    DoFLinearSystemImpl* p = nullptr;
+    IDoFLinearSystemImpl* p = nullptr;
     if (is_parallel || !use_debug_dense_matrix) {
       p = createAlephDoFLinearSystemImpl(sd, dof_family, solver_name);
     }
@@ -670,7 +670,7 @@ class SequentialBasicDoFLinearSystemFactoryService
   {
   }
 
-  DoFLinearSystemImpl*
+  IDoFLinearSystemImpl*
   createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
   {
     IParallelMng* pm = sd->parallelMng();

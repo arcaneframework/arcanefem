@@ -54,7 +54,7 @@ using namespace Arcane;
 
 class AlephDoFLinearSystemImpl
 : public TraceAccessor
-, public DoFLinearSystemImpl
+, public IDoFLinearSystemImpl
 {
   static constexpr Byte ELIMINATE_NONE = 0;
   static constexpr Byte ELIMINATE_ROW = 1;
@@ -469,7 +469,7 @@ class AlephDoFLinearSystemFactoryService
   {
   }
 
-  DoFLinearSystemImpl*
+  IDoFLinearSystemImpl*
   createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
   {
     auto* x = new AlephDoFLinearSystemImpl(sd, dof_family, solver_name);
@@ -489,7 +489,7 @@ class AlephDoFLinearSystemFactoryService
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-extern "C++" DoFLinearSystemImpl*
+extern "C++" IDoFLinearSystemImpl*
 createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
 {
   auto* x = new AlephDoFLinearSystemImpl(sd, dof_family, solver_name);

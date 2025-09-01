@@ -33,13 +33,13 @@ class DoFLinearSystem;
 /*---------------------------------------------------------------------------*/
 /*!
  * \internal.
- * \brief Implementation for NodeLinearSystem.
+ * \brief Interface of the implementation of a DoFLinearSystem.
  */
-class DoFLinearSystemImpl
+class IDoFLinearSystemImpl
 {
  public:
 
-  virtual ~DoFLinearSystemImpl() = default;
+  virtual ~IDoFLinearSystemImpl() = default;
 
  public:
 
@@ -58,9 +58,9 @@ class DoFLinearSystemImpl
   virtual VariableDoFBool& getForcedInfo() = 0;
   virtual VariableDoFByte& getEliminationInfo() = 0;
   virtual VariableDoFReal& getEliminationValue() = 0;
-  virtual bool hasSetCSRValues() const = 0;
+  [[nodiscard]] virtual bool hasSetCSRValues() const = 0;
   virtual void setRunner(const Runner& r) = 0;
-  virtual Runner runner() const = 0;
+  [[nodiscard]] virtual Runner runner() const = 0;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -343,7 +343,7 @@ class DoFLinearSystem
 
  private:
 
-  DoFLinearSystemImpl* m_p = nullptr;
+  IDoFLinearSystemImpl* m_p = nullptr;
   IItemFamily* m_item_family = nullptr;
   IDoFLinearSystemFactory* m_linear_system_factory = nullptr;
   IDoFLinearSystemFactory* m_default_linear_system_factory = nullptr;

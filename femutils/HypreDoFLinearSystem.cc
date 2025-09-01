@@ -774,7 +774,7 @@ class HypreDoFLinearSystemFactoryService
     info() << "[Hypre-Info] Create HypreDoF";
   }
 
-  DoFLinearSystemImpl*
+  IDoFLinearSystemImpl*
   createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
   {
     auto* x = new HypreDoFLinearSystemImpl(dof_family, solver_name);
