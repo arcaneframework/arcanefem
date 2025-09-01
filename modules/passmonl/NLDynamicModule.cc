@@ -2197,6 +2197,8 @@ _assembleLinearRHS(){
   String dirichletMethod = options()->enforceDirichletMethod();
   info() << "Applying Dirichlet boundary condition via "
          << dirichletMethod << " method ";
+  DoFLinearSystemRowEliminationHelper row_elimination_helper(m_linear_system.rowEliminationHelper());
+  DoFLinearSystemRowColumnEliminationHelper row_column_elimination_helper(m_linear_system.rowColumnEliminationHelper());
 
   dirichletMethod = dirichletMethod.lower();
   // Looking for Dirichlet boundary nodes & modify linear operators accordingly
@@ -2222,10 +2224,10 @@ _assembleLinearRHS(){
           rhs_values[node_dofi] = u_iddl * penalty;
         }
         else if (dirichletMethod.contains("rowelim")) {
-          m_linear_system.eliminateRow(node_dofi, u_iddl);
+          row_elimination_helper.addElimination(node_dofi, u_iddl);
         }
         else if (dirichletMethod.contains("rowcolumnelim")) {
-          m_linear_system.eliminateRowColumn(node_dofi, u_iddl);
+          row_column_elimination_helper.addElimination(node_dofi, u_iddl);
         }
       }
     }
@@ -2774,6 +2776,8 @@ _assembleNonLinRHS(bool init){
     String dirichletMethod = options()->enforceDirichletMethod();
     info() << "Applying Dirichlet boundary condition via "
            << dirichletMethod << " method ";
+    DoFLinearSystemRowEliminationHelper row_elimination_helper(m_linear_system.rowEliminationHelper());
+    DoFLinearSystemRowColumnEliminationHelper row_column_elimination_helper(m_linear_system.rowColumnEliminationHelper());
 
     dirichletMethod = dirichletMethod.lower();
     // Looking for Dirichlet boundary nodes & modify linear operators accordingly
@@ -2799,10 +2803,10 @@ _assembleNonLinRHS(bool init){
             rhs_values[node_dofi] = u_iddl * penalty;
           }
           else if (dirichletMethod.contains("rowelim")) {
-            m_linear_system.eliminateRow(node_dofi, u_iddl);
+            row_elimination_helper.addElimination(node_dofi, u_iddl);
           }
           else if (dirichletMethod.contains("rowcolumnelim")) {
-            m_linear_system.eliminateRowColumn(node_dofi, u_iddl);
+            row_column_elimination_helper.addElimination(node_dofi, u_iddl);
           }
         }
       }

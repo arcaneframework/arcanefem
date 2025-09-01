@@ -1158,22 +1158,33 @@ class ArcaneFemFunctions
       }
     }
 
-    static inline void applyDirichletToNodeGroupViaRowElimination(const Int32 dof_index, Real value, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& linear_system, VariableDoFReal& rhs_values, NodeGroup& node_group)
+    static inline void applyDirichletToNodeGroupViaRowElimination(const Int32 dof_index, Real value,
+                                                                  const IndexedNodeDoFConnectivityView& node_dof,
+                                                                  DoFLinearSystem& linear_system,
+                                                                  VariableDoFReal& rhs_values,
+                                                                  NodeGroup& node_group)
     {
+      DoFLinearSystemRowEliminationHelper elimination_helper(linear_system.rowEliminationHelper());
       ENUMERATE_ (Node, inode, node_group) {
         Node node = *inode;
         if (node.isOwn()) {
-          linear_system.eliminateRow(node_dof.dofId(*inode, dof_index), value);
+          elimination_helper.addElimination(node_dof.dofId(*inode, dof_index), value);
         }
       }
     }
 
-    static inline void applyDirichletToNodeGroupViaRowColumnElimination(const Int32 dof_index, Real value, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& linear_system, VariableDoFReal& rhs_values, NodeGroup& node_group)
+    static inline void applyDirichletToNodeGroupViaRowColumnElimination(const Int32 dof_index, Real value,
+                                                                        const IndexedNodeDoFConnectivityView& node_dof,
+                                                                        DoFLinearSystem& linear_system,
+                                                                        VariableDoFReal& rhs_values,
+                                                                        NodeGroup& node_group)
     {
+      DoFLinearSystemRowColumnEliminationHelper elimination_helper(linear_system.rowColumnEliminationHelper());
+
       ENUMERATE_ (Node, inode, node_group) {
         Node node = *inode;
         if (node.isOwn()) {
-          linear_system.eliminateRowColumn(node_dof.dofId(*inode, dof_index), value);
+          elimination_helper.addElimination(node_dof.dofId(*inode, dof_index), value);
         }
       }
     }

@@ -46,7 +46,6 @@ enum class eInternalSolverMethod
 
 namespace Arcane::FemUtils
 {
-
 extern "C++" DoFLinearSystemImpl*
 createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name);
 
@@ -389,9 +388,8 @@ matrixSetValue(DoFLocalId row, DoFLocalId column, Real value)
 /*---------------------------------------------------------------------------*/
 
 void DoFLinearSystem::
-eliminateRow(DoFLocalId row, Real value)
+_eliminateRow(DoFLocalId row, Real value)
 {
-  _checkInit();
   m_p->eliminateRow(row, value);
 }
 
@@ -399,10 +397,29 @@ eliminateRow(DoFLocalId row, Real value)
 /*---------------------------------------------------------------------------*/
 
 void DoFLinearSystem::
-eliminateRowColumn(DoFLocalId row, Real value)
+_eliminateRowColumn(DoFLocalId row, Real value)
+{
+  m_p->eliminateRowColumn(row, value);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+DoFLinearSystemRowEliminationHelper DoFLinearSystem::
+rowEliminationHelper()
 {
   _checkInit();
-  m_p->eliminateRowColumn(row, value);
+  return DoFLinearSystemRowEliminationHelper(this);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+DoFLinearSystemRowColumnEliminationHelper DoFLinearSystem::
+rowColumnEliminationHelper()
+{
+  _checkInit();
+  return DoFLinearSystemRowColumnEliminationHelper(this);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -546,12 +563,104 @@ isInitialized() const
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+DoFLinearSystemRowEliminationHelper::
+DoFLinearSystemRowEliminationHelper(DoFLinearSystem* dof_ls)
+: m_dof_linear_system(dof_ls)
+{
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+DoFLinearSystemRowEliminationHelper::
+~DoFLinearSystemRowEliminationHelper()
+{}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystemRowEliminationHelper::
+addElimination(DoFLocalId row, Real value)
+{
+  m_dof_linear_system->_eliminateRow(row, value);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFByte& DoFLinearSystemRowEliminationHelper::
+getEliminationInfo()
+{
+  return m_dof_linear_system->getEliminationInfo();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFReal& DoFLinearSystemRowEliminationHelper::
+getEliminationValue()
+{
+  return m_dof_linear_system->getEliminationValue();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+DoFLinearSystemRowColumnEliminationHelper::
+DoFLinearSystemRowColumnEliminationHelper(DoFLinearSystem* dof_ls)
+: m_dof_linear_system(dof_ls)
+{
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+DoFLinearSystemRowColumnEliminationHelper::
+~DoFLinearSystemRowColumnEliminationHelper()
+{}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystemRowColumnEliminationHelper::
+addElimination(DoFLocalId row, Real value)
+{
+  m_dof_linear_system->_eliminateRowColumn(row, value);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFByte& DoFLinearSystemRowColumnEliminationHelper::
+getEliminationInfo()
+{
+  return m_dof_linear_system->getEliminationInfo();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+VariableDoFReal& DoFLinearSystemRowColumnEliminationHelper::
+getEliminationValue()
+{
+  return m_dof_linear_system->getEliminationValue();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 class SequentialBasicDoFLinearSystemFactoryService
 : public ArcaneSequentialBasicDoFLinearSystemFactoryObject
 {
  public:
 
-  SequentialBasicDoFLinearSystemFactoryService(const ServiceBuildInfo& sbi)
+  explicit SequentialBasicDoFLinearSystemFactoryService(const ServiceBuildInfo& sbi)
   : ArcaneSequentialBasicDoFLinearSystemFactoryObject(sbi)
   {
   }

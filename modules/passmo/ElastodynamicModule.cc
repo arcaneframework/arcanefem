@@ -1925,6 +1925,8 @@ _assembleLinearRHS(){
          << dirichletMethod << " method ";
 
   dirichletMethod = dirichletMethod.lower();
+  DoFLinearSystemRowEliminationHelper row_elimination_helper(m_linear_system.rowEliminationHelper());
+  DoFLinearSystemRowColumnEliminationHelper row_column_elimination_helper(m_linear_system.rowColumnEliminationHelper());
   // Looking for Dirichlet boundary nodes & modify linear operators accordingly
   ENUMERATE_ (Node, inode, ownNodes()) {
     auto node = *inode;
@@ -1948,10 +1950,10 @@ _assembleLinearRHS(){
           rhs_values[node_dofi] = u_iddl * penalty;
         }
         else if (dirichletMethod.contains("rowelim")) {
-          m_linear_system.eliminateRow(node_dofi, u_iddl);
+          row_elimination_helper.addElimination(node_dofi, u_iddl);
         }
         else if (dirichletMethod.contains("rowcolumnelim")) {
-          m_linear_system.eliminateRowColumn(node_dofi, u_iddl);
+          row_column_elimination_helper.addElimination(node_dofi, u_iddl);
         }
       }
     }
