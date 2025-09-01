@@ -190,20 +190,12 @@ class AlephDoFLinearSystemImpl
       ARCANE_FATAL("Column is null");
     if (value == 0.0)
       return;
-    if (m_use_value_map) {
       RowColumn rc{ row.localId(), column.localId() };
       auto x = m_values_map.find(rc);
       if (x == m_values_map.end())
         m_values_map.insert(std::make_pair(rc, value));
       else
         x->second += value;
-    }
-    else {
-      VariableDoFReal& solution_variable(solutionVariable());
-      ItemInfoListView item_list_view(dofFamily());
-      info() << "AlephAdd R=" << row.localId() << " C=" << column.localId() << " V=" << value;
-      m_aleph_matrix->addValue(solution_variable, item_list_view[row], solution_variable, item_list_view[column], value);
-    }
   }
 
   void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value) override
@@ -212,8 +204,6 @@ class AlephDoFLinearSystemImpl
       ARCANE_FATAL("Row is null");
     if (column.isNull())
       ARCANE_FATAL("Column is null");
-    if (!m_use_value_map)
-      ARCANE_FATAL("matrixSetValue() is only allowed if 'm_use_value_map' is true");
     m_forced_set_values_map[{ row.localId(), column.localId() }] = value;
   }
 
@@ -221,8 +211,6 @@ class AlephDoFLinearSystemImpl
   {
     if (row.isNull())
       ARCANE_FATAL("Row is null");
-    if (!m_use_value_map)
-      ARCANE_FATAL("matrixEliminateRow() is only allowed if 'm_use_value_map' is true");
     getEliminationInfo()[row] = ELIMINATE_ROW;
     getEliminationValue()[row] = value;
     info() << "EliminateRow row=" << row.localId() << " v=" << value;
@@ -232,8 +220,6 @@ class AlephDoFLinearSystemImpl
   {
     if (row.isNull())
       ARCANE_FATAL("Row is null");
-    if (!m_use_value_map)
-      ARCANE_FATAL("matrixEliminateRowColumn() is only allowed if 'm_use_value_map' is true");
     getEliminationInfo()[row] = ELIMINATE_ROW_COLUMN;
     getEliminationValue()[row] = value;
     info() << "EliminateRowColumn row=" << row.localId() << " v=" << value;
@@ -380,13 +366,6 @@ class AlephDoFLinearSystemImpl
   RowColumnMap m_values_map;
   //! List of (i,j) whose value is fixed. This will override added values in m_values_map.
   RowColumnMap m_forced_set_values_map;
-  /*!
-   * \brief True is we use 'm_values_map' to mix add and set.
-   *
-   * You may set the value to 'false' if you want the old behavior when
-   * there is only matrixAddValue() calls.
-   */
-  bool m_use_value_map = true;
 
   //! True to print matrix values during filling
   bool m_do_print_filling = true;
@@ -419,7 +398,7 @@ class AlephDoFLinearSystemFactoryService
 {
  public:
 
-  AlephDoFLinearSystemFactoryService(const ServiceBuildInfo& sbi)
+  explicit AlephDoFLinearSystemFactoryService(const ServiceBuildInfo& sbi)
   : ArcaneAlephDoFLinearSystemFactoryObject(sbi)
   {
   }
@@ -459,9 +438,6 @@ void AlephDoFLinearSystemImpl::
 _fillMatrix()
 {
   // Fill the matrix
-  if (!m_use_value_map)
-    return;
-
   RowColumnMap row_column_elimination_map;
 
   IItemFamily* dof_family = dofFamily();
