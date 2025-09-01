@@ -2,7 +2,7 @@ option(ENABLE_DEBUG_MATRIX "Enable Debug matrix instead of a sparse one" OFF)
 
 set(ACCELERATOR_SOURCES
   BSRFormat.h
-  ArcaneFemFunctionsGpu.h
+  ArcaneFemFunctionsGpu.cc
   HypreDoFLinearSystem.cc
   CsrDoFLinearSystemImpl.cc
 )
@@ -21,6 +21,7 @@ add_library(FemUtils
   FemDoFsOnNodes.h
   FemDoFsOnNodes.cc
   FemBoundaryConditions.cc
+  ArcaneFemFunctionsGpu.h
   ArcaneFemFunctions.h
   ArcaneFemFunctions.cc
   AlephDoFLinearSystem.cc
