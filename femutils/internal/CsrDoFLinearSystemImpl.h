@@ -18,7 +18,7 @@
 #include <arcane/core/VariableTypes.h>
 #include <arcane/accelerator/core/Runner.h>
 
-#include "internal/IDoFLinearSystemImpl.h"
+#include "internal/DoFLinearSystemImplBase.h"
 #include "CsrFormatMatrixView.h"
 
 /*---------------------------------------------------------------------------*/
@@ -34,8 +34,7 @@ namespace Arcane::FemUtils
  * \brief Implementation of IDoFLinearSystemImpl using a matrix with CSR format.
  */
 class CsrDoFLinearSystemImpl
-: public TraceAccessor
-, public IDoFLinearSystemImpl
+: public DoFLinearSystemImplBase
 {
  public:
 
@@ -52,6 +51,8 @@ class CsrDoFLinearSystemImpl
         return i;
     return -1;
   }
+
+ public:
 
   void matrixAddValue(DoFLocalId row, DoFLocalId column, Real value) override
   {
@@ -73,30 +74,14 @@ class CsrDoFLinearSystemImpl
     ARCANE_THROW(NotImplementedException, "");
   }
 
-  VariableDoFReal& solutionVariable() override
-  {
-    return m_dof_variable;
-  }
-
-  VariableDoFReal& rhsVariable() override
-  {
-    return m_rhs_variable;
-  }
-
   void clearValues() override
   {
-    info() << "[Hypre-Info]: Clear values";
+    info() << "[CsrImpl]: Clear values";
+    DoFLinearSystemImplBase::clearValues();
     m_csr_view = {};
-    m_dof_forced_info.fill(false);
-    m_dof_elimination_info.fill(ELIMINATE_NONE);
-    m_dof_elimination_value.fill(0);
   }
 
   CSRFormatView& getCSRValues() override { return m_csr_view; };
-  VariableDoFBool& getForcedInfo() override { return m_dof_forced_info; }
-  VariableDoFReal& getForcedValue() override { return m_dof_forced_value; }
-  VariableDoFByte& getEliminationInfo() override { return m_dof_elimination_info; }
-  VariableDoFReal& getEliminationValue() override { return m_dof_elimination_value; }
 
   void setCSRValues(const CSRFormatView& csr_view) override
   {
@@ -105,30 +90,9 @@ class CsrDoFLinearSystemImpl
 
   bool hasSetCSRValues() const override { return true; }
 
-  void setRunner(const Runner& r) override { m_runner = r; }
-  Runner runner() const override { return m_runner; }
-
- public:
-
-  IItemFamily* dofFamily() const { return m_dof_family; }
-
  private:
 
-  // TODO: make all these fields private
-
-  IItemFamily* m_dof_family = nullptr;
-  VariableDoFReal m_rhs_variable;
-  VariableDoFReal m_dof_variable;
-  Runner m_runner;
-
   CSRFormatView m_csr_view;
-
-  VariableDoFBool m_dof_forced_info;
-  VariableDoFReal m_dof_forced_value;
-  static constexpr Byte ELIMINATE_NONE = 0;
-  static constexpr Byte ELIMINATE_ROW = 1;
-  VariableDoFByte m_dof_elimination_info;
-  VariableDoFReal m_dof_elimination_value;
 
  public:
 

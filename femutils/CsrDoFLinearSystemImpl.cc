@@ -38,14 +38,7 @@ namespace Arcane::FemUtils
 
 CsrDoFLinearSystemImpl::
 CsrDoFLinearSystemImpl(IItemFamily* dof_family, const String& solver_name)
-: TraceAccessor(dof_family->traceMng())
-, m_dof_family(dof_family)
-, m_rhs_variable(VariableBuildInfo(dof_family, solver_name + "RHSVariable"))
-, m_dof_variable(VariableBuildInfo(dof_family, solver_name + "SolutionVariable"))
-, m_dof_forced_info(VariableBuildInfo(dof_family, solver_name + "DoFForcedInfo"))
-, m_dof_forced_value(VariableBuildInfo(dof_family, solver_name + "DoFForcedValue"))
-, m_dof_elimination_info(VariableBuildInfo(dof_family, solver_name + "DoFEliminationInfo"))
-, m_dof_elimination_value(VariableBuildInfo(dof_family, solver_name + "DoFEliminationValue"))
+: DoFLinearSystemImplBase(dof_family, solver_name)
 {}
 
 /*---------------------------------------------------------------------------*/
@@ -57,13 +50,14 @@ CsrDoFLinearSystemImpl(IItemFamily* dof_family, const String& solver_name)
 void CsrDoFLinearSystemImpl::
 _applyForcedValuesToLhs()
 {
-  auto nb_dof = m_dof_family->nbItem();
+  IItemFamily* dof_family = dofFamily();
+  auto nb_dof = dof_family->nbItem();
 
-  RunQueue queue = makeQueue(m_runner);
+  RunQueue queue = makeQueue(runner());
   auto command = makeCommand(queue);
 
-  auto in_out_forced_info = Accelerator::viewInOut(command, m_dof_forced_info);
-  auto in_out_forced_value = Accelerator::viewInOut(command, m_dof_forced_value);
+  auto in_out_forced_info = Accelerator::viewInOut(command, getForcedInfo());
+  auto in_out_forced_value = Accelerator::viewInOut(command, getForcedValue());
   auto csr_view = m_csr_view;
 
   command << RUNCOMMAND_LOOP1(iter, nb_dof)
@@ -83,15 +77,17 @@ _applyForcedValuesToLhs()
 void CsrDoFLinearSystemImpl::
 _applyRowElimination()
 {
-  auto nb_dof = m_dof_family->nbItem();
+  IItemFamily* dof_family = dofFamily();
 
-  RunQueue queue = makeQueue(m_runner);
+  auto nb_dof = dof_family->nbItem();
+
+  RunQueue queue = makeQueue(runner());
   auto command = makeCommand(queue);
 
-  auto in_elimination_info = Accelerator::viewIn(command, m_dof_elimination_info);
-  auto in_elimination_value = Accelerator::viewIn(command, m_dof_elimination_value);
+  auto in_elimination_info = Accelerator::viewIn(command, getEliminationInfo());
+  auto in_elimination_value = Accelerator::viewIn(command, getEliminationValue());
 
-  auto in_out_rhs_variable = Accelerator::viewInOut(command, m_rhs_variable);
+  auto in_out_rhs_variable = Accelerator::viewInOut(command, rhsVariable());
   auto csr_view = m_csr_view;
   command << RUNCOMMAND_LOOP1(iter, nb_dof)
   {

@@ -25,6 +25,7 @@
 #include <arcane/aleph/Aleph.h>
 
 #include "FemUtils.h"
+#include "internal/DoFLinearSystemImplBase.h"
 #include "IDoFLinearSystemFactory.h"
 #include "arcane_version.h"
 
@@ -40,8 +41,6 @@ enum class eSolverBackend
 
 #include "AlephDoFLinearSystemFactory_axl.h"
 
-#include "internal/IDoFLinearSystemImpl.h"
-
 #include <map>
 
 /*---------------------------------------------------------------------------*/
@@ -55,13 +54,8 @@ using namespace Arcane;
 /*---------------------------------------------------------------------------*/
 
 class AlephDoFLinearSystemImpl
-: public TraceAccessor
-, public IDoFLinearSystemImpl
+: public DoFLinearSystemImplBase
 {
-  static constexpr Byte ELIMINATE_NONE = 0;
-  static constexpr Byte ELIMINATE_ROW = 1;
-  static constexpr Byte ELIMINATE_ROW_COLUMN = 2;
-
   struct RowColumn
   {
     Int32 row_id = 0;
@@ -103,14 +97,9 @@ class AlephDoFLinearSystemImpl
 
   // TODO: do not use subDomain() but we need to modify aleph before
   AlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
-  : TraceAccessor(sd->traceMng())
+  : DoFLinearSystemImplBase(dof_family, solver_name)
   , m_sub_domain(sd)
-  , m_dof_family(dof_family)
-  , m_rhs_variable(VariableBuildInfo(dof_family, solver_name + "RHSVariable"))
-  , m_dof_variable(VariableBuildInfo(dof_family, solver_name + "SolutionVariable"))
-  , m_dof_matrix_indexes(VariableBuildInfo(m_dof_family, solver_name + "DoFMatrixIndexes"))
-  , m_dof_elimination_info(VariableBuildInfo(m_dof_family, solver_name + "DoFEliminationInfo"))
-  , m_dof_elimination_value(VariableBuildInfo(m_dof_family, solver_name + "DoFEliminationValue"))
+  , m_dof_matrix_indexes(VariableBuildInfo(dof_family, solver_name + "DoFMatrixIndexes"))
   {
     info() << "Creating AlephDoFLinearSystemImpl()";
   }
@@ -134,8 +123,7 @@ class AlephDoFLinearSystemImpl
   {
     _computeMatrixInfo();
     m_aleph_params = _createAlephParam();
-    m_dof_elimination_info.fill(ELIMINATE_NONE);
-    m_dof_elimination_info.fill(0.0);
+    DoFLinearSystemImplBase::clearValues();
   }
 
   AlephParams* params() const { return m_aleph_params; }
@@ -167,19 +155,20 @@ class AlephDoFLinearSystemImpl
       //
       m_need_destroy_matrix_and_vector = false;
     }
-
-    DoFGroup own_dofs = m_dof_family->allItems().own();
+    IItemFamily* dof_family = dofFamily();
+    VariableDoFReal& solution_variable(solutionVariable());
+    DoFGroup own_dofs = dof_family->allItems().own();
     //Int32 nb_node = own_nodes.size();
     //Int32 total_nb_node = m_sub_domain->parallelMng()->reduce(Parallel::ReduceSum, nb_node);
     m_dof_matrix_indexes.fill(-1);
     AlephIndexing* indexing = m_aleph_kernel->indexing();
     ENUMERATE_ (DoF, idof, own_dofs) {
       DoF dof = *idof;
-      Integer row = indexing->get(m_dof_variable, dof);
+      Integer row = indexing->get(solution_variable, dof);
       //info() << "ROW=" << row;
       m_dof_matrix_indexes[dof] = row;
     }
-    // Do not print informations about setting matrix if matrix is too big
+    // Do not print information about setting matrix if matrix is too big
     if (own_dofs.size()>200)
       m_do_print_filling = false;
 
@@ -210,9 +199,10 @@ class AlephDoFLinearSystemImpl
         x->second += value;
     }
     else {
-      ItemInfoListView item_list_view(m_dof_family);
+      VariableDoFReal& solution_variable(solutionVariable());
+      ItemInfoListView item_list_view(dofFamily());
       info() << "AlephAdd R=" << row.localId() << " C=" << column.localId() << " V=" << value;
-      m_aleph_matrix->addValue(m_dof_variable, item_list_view[row], m_dof_variable, item_list_view[column], value);
+      m_aleph_matrix->addValue(solution_variable, item_list_view[row], solution_variable, item_list_view[column], value);
     }
   }
 
@@ -233,8 +223,8 @@ class AlephDoFLinearSystemImpl
       ARCANE_FATAL("Row is null");
     if (!m_use_value_map)
       ARCANE_FATAL("matrixEliminateRow() is only allowed if 'm_use_value_map' is true");
-    m_dof_elimination_info[row] = ELIMINATE_ROW;
-    m_dof_elimination_value[row] = value;
+    getEliminationInfo()[row] = ELIMINATE_ROW;
+    getEliminationValue()[row] = value;
     info() << "EliminateRow row=" << row.localId() << " v=" << value;
   }
 
@@ -244,8 +234,8 @@ class AlephDoFLinearSystemImpl
       ARCANE_FATAL("Row is null");
     if (!m_use_value_map)
       ARCANE_FATAL("matrixEliminateRowColumn() is only allowed if 'm_use_value_map' is true");
-    m_dof_elimination_info[row] = ELIMINATE_ROW_COLUMN;
-    m_dof_elimination_value[row] = value;
+    getEliminationInfo()[row] = ELIMINATE_ROW_COLUMN;
+    getEliminationValue()[row] = value;
     info() << "EliminateRowColumn row=" << row.localId() << " v=" << value;
   }
 
@@ -263,7 +253,8 @@ class AlephDoFLinearSystemImpl
     m_aleph_matrix->assemble();
     m_aleph_rhs_vector->assemble();
     auto* aleph_solution_vector = m_aleph_solution_vector;
-    DoFGroup own_dofs = m_dof_family->allItems().own();
+    IItemFamily* dof_family = dofFamily();
+    DoFGroup own_dofs = dof_family->allItems().own();
     const Int32 nb_dof = own_dofs.size();
     m_vector_zero.resize(nb_dof);
     m_vector_zero.fill(0.0);
@@ -293,26 +284,17 @@ class AlephDoFLinearSystemImpl
     bool do_verbose = nb_dof < 200;
     do_verbose = false;
     Int32 index = 0;
-    ENUMERATE_ (DoF, idof, m_dof_family->allItems().own()) {
+    VariableDoFReal& solution_variable(this->solutionVariable());
+    ENUMERATE_ (DoF, idof, dof_family->allItems().own()) {
       DoF dof = *idof;
 
-      m_dof_variable[dof] = aleph_result[m_aleph_kernel->indexing()->get(m_dof_variable, dof)];
+      solution_variable[dof] = aleph_result[m_aleph_kernel->indexing()->get(solution_variable, dof)];
       if (do_verbose)
-        info() << "Node uid=" << dof.uniqueId() << " V=" << aleph_result[index] << " T=" << m_dof_variable[dof]
+        info() << "Node uid=" << dof.uniqueId() << " V=" << aleph_result[index] << " T=" << solution_variable[dof]
                << " RHS=" << rhs_results[index];
 
       ++index;
     }
-  }
-
-  VariableDoFReal& solutionVariable() override
-  {
-    return m_dof_variable;
-  }
-
-  VariableDoFReal& rhsVariable() override
-  {
-    return m_rhs_variable;
   }
 
   void setSolverCommandLineArguments(const CommandLineArguments& args) override
@@ -327,8 +309,7 @@ class AlephDoFLinearSystemImpl
   void clearValues()
   {
     info() << "[Aleph] Clear values of current solver";
-    m_dof_elimination_info.fill(ELIMINATE_NONE);
-    m_dof_elimination_info.fill(0.0);
+    DoFLinearSystemImplBase::clearValues();
     m_values_map.clear();
     m_forced_set_values_map.clear();
     _computeMatrixInfo();
@@ -340,8 +321,6 @@ class AlephDoFLinearSystemImpl
   }
 
   bool hasSetCSRValues() const { return false; }
-  void setRunner(const Runner& r) override { m_runner = r; }
-  Runner runner() const { return m_runner; }
 
  private:
 
@@ -387,35 +366,10 @@ class AlephDoFLinearSystemImpl
     ARCANE_THROW(NotImplementedException, "");
   }
 
-  VariableDoFReal& getForcedValue() override
-  {
-    ARCANE_THROW(NotImplementedException, "");
-  }
-
-  VariableDoFBool& getForcedInfo() override
-  {
-    ARCANE_THROW(NotImplementedException, "");
-  }
-
-  VariableDoFReal& getEliminationValue() override
-  {
-    ARCANE_THROW(NotImplementedException, "");
-  }
-
-  VariableDoFByte& getEliminationInfo() override
-  {
-    ARCANE_THROW(NotImplementedException, "");
-  }
-
  private:
 
   ISubDomain* m_sub_domain = nullptr;
-  IItemFamily* m_dof_family = nullptr;
-  VariableDoFReal m_rhs_variable;
-  VariableDoFReal m_dof_variable;
   VariableDoFInt32 m_dof_matrix_indexes;
-  VariableDoFByte m_dof_elimination_info;
-  VariableDoFReal m_dof_elimination_value;
   AlephKernel* m_aleph_kernel = nullptr;
   AlephMatrix* m_aleph_matrix = nullptr;
   AlephVector* m_aleph_rhs_vector = nullptr;
@@ -442,8 +396,6 @@ class AlephDoFLinearSystemImpl
 
   UniqueArray<Real> m_vector_zero;
 
-  Runner m_runner;
-
  private:
 
   void _fillMatrix();
@@ -454,7 +406,8 @@ class AlephDoFLinearSystemImpl
       info() << "SET MATRIX VALUE (" << std::setw(4) << row.localId()
              << "," << std::setw(4) << column.localId() << ")"
              << " v=" << std::setw(25) << value;
-    m_aleph_matrix->setValue(m_dof_variable, row, m_dof_variable, column, value);
+    VariableDoFReal& solution_variable = solutionVariable();
+    m_aleph_matrix->setValue(solution_variable, row, solution_variable, column, value);
   }
 };
 
@@ -511,15 +464,21 @@ _fillMatrix()
 
   RowColumnMap row_column_elimination_map;
 
-  DoFInfoListView item_list_view(m_dof_family);
+  IItemFamily* dof_family = dofFamily();
+  DoFInfoListView item_list_view(dof_family);
+
+  auto& dof_elimination_info = getEliminationInfo();
+  auto& dof_elimination_value = getEliminationValue();
+  auto& rhs_variable = rhsVariable();
+
   for (const auto& rc_value : m_values_map) {
     RowColumn rc = rc_value.first;
     Real value = rc_value.second;
     DoF dof_row = item_list_view[rc.row_id];
     DoF dof_column = item_list_view[rc.column_id];
 
-    Byte row_elimination_info = m_dof_elimination_info[dof_row];
-    Byte column_elimination_info = m_dof_elimination_info[dof_column];
+    Byte row_elimination_info = dof_elimination_info[dof_row];
+    Byte column_elimination_info = dof_elimination_info[dof_column];
 
     if (row_elimination_info == ELIMINATE_ROW_COLUMN || column_elimination_info == ELIMINATE_ROW_COLUMN) {
       row_column_elimination_map[{ rc.row_id, rc.column_id }] = value;
@@ -553,32 +512,32 @@ _fillMatrix()
       continue;
     if (!dof_column.isOwn())
       continue;
-    Byte row_elimination_info = m_dof_elimination_info[dof_row];
-    Real elimination_value = m_dof_elimination_value[dof_row];
+    Byte row_elimination_info = dof_elimination_info[dof_row];
+    Real elimination_value = dof_elimination_value[dof_row];
     // Substract the value of RHS vector for current column.
     if (row_elimination_info == ELIMINATE_ROW_COLUMN) {
-      Real v = m_rhs_variable[dof_column];
-      m_rhs_variable[dof_column] = v - matrix_value * elimination_value;
+      Real v = rhs_variable[dof_column];
+      rhs_variable[dof_column] = v - matrix_value * elimination_value;
       if (m_do_print_filling)
         info() << "EliminateRowColumn (" << std::setw(4) << rc.row_id
                << "," << std::setw(4) << rc.column_id << ")"
                << " elimination_value=" << std::setw(25) << elimination_value
                << "  old_rhs=" << std::setw(25) << v
-               << "  new_rhs=" << std::setw(25) << m_rhs_variable[dof_column];
+               << "  new_rhs=" << std::setw(25) << rhs_variable[dof_column];
     }
   }
 
   // Apply Row or Row+Column elimination
   // Phase 2: set the value of the RHS if Row elimination
   // Phase 2: fill the diagonal with 1.0
-  ENUMERATE_ (DoF, idof, m_dof_family->allItems()) {
+  ENUMERATE_ (DoF, idof, dof_family->allItems()) {
     DoF dof = *idof;
     if (!dof.isOwn())
       continue;
-    Byte elimination_info = m_dof_elimination_info[dof];
+    Byte elimination_info = dof_elimination_info[dof];
     if (elimination_info == ELIMINATE_ROW || elimination_info == ELIMINATE_ROW_COLUMN) {
-      Real elimination_value = m_dof_elimination_value[dof];
-      m_rhs_variable[dof] = elimination_value;
+      Real elimination_value = dof_elimination_value[dof];
+      rhs_variable[dof] = elimination_value;
       info() << "Eliminate info=" << (int)elimination_info << " row="
              << std::setw(4) << dof.localId() << " value=" << elimination_value;
       _setMatrixValue(dof, dof, 1.0);
@@ -598,7 +557,8 @@ _fillRHSVector()
   // this call.
   UniqueArray<Real> rhs_values_for_linear_system;
   VariableDoFReal& rhs_values(rhsVariable());
-  ENUMERATE_ (DoF, idof, m_dof_family->allItems().own()) {
+  IItemFamily* dof_family = dofFamily();
+  ENUMERATE_ (DoF, idof, dof_family->allItems().own()) {
     Real v = rhs_values[idof];
     if (m_do_print_filling)
       info() << "SET VECTOR VALUE (" << std::setw(4) << idof.itemLocalId() << ") = " << v;
