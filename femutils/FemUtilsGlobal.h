@@ -5,17 +5,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* IDoFLinearSystemFactory.h                                   (C) 2022-2025 */
+/* FemUtilsGlobal.h                                            (C) 2022-2025 */
 /*                                                                           */
-/* Interface to a factory to build a linear system implementation.           */
+/* Defines types for FemUtils component.                                     */
 /*---------------------------------------------------------------------------*/
-#ifndef FEMTEST_IDOFLINEARSYSTEMFACTORY_H
-#define FEMTEST_IDOFLINEARSYSTEMFACTORY_H
+#ifndef ARCANEFEM_FEMUTILS_FEMUTILSGLOBAL_H
+#define ARCANEFEM_FEMUTILS_FEMUTILSGLOBAL_H
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/ItemTypes.h>
-#include <arcane/VariableTypedef.h>
+#include <arcane/utils/ArcaneGlobal.h>
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -26,22 +26,20 @@ namespace Arcane::FemUtils
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+class CsrRowColumnIterator;
+class CsrFormatMatrixView;
+class CsrRow;
+class CsrFormat;
+class CsrRowColumnIndex;
+class IDoFLinearSystemFactory;
+class DoFLinearSystem;
 class IDoFLinearSystemImpl;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-class IDoFLinearSystemFactory
-{
- public:
-
-  virtual ~IDoFLinearSystemFactory() = default;
-
- public:
-
-  virtual IDoFLinearSystemImpl*
-  createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) = 0;
-};
+//! Old name to keep compatibility with existing code.
+using CSRFormatView = CsrFormatMatrixView;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

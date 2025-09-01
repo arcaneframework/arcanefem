@@ -19,49 +19,13 @@
 #include <arcane/core/VariableTypedef.h>
 #include <arcane/core/ItemTypes.h>
 
-#include "CsrFormatMatrixView.h"
+#include "FemUtilsGlobal.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 namespace Arcane::FemUtils
 {
-class IDoFLinearSystemFactory;
-class DoFLinearSystem;
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-/*!
- * \internal.
- * \brief Implementation for NodeLinearSystem.
- */
-class DoFLinearSystemImpl
-{
- public:
-
-  virtual ~DoFLinearSystemImpl() = default;
-
- public:
-
-  virtual void matrixAddValue(DoFLocalId row, DoFLocalId column, Real value) = 0;
-  virtual void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value) = 0;
-  virtual void eliminateRow(DoFLocalId row, Real value) = 0;
-  virtual void eliminateRowColumn(DoFLocalId row, Real value) = 0;
-  virtual void solve() = 0;
-  virtual VariableDoFReal& solutionVariable() = 0;
-  virtual VariableDoFReal& rhsVariable() = 0;
-  virtual void setSolverCommandLineArguments(const CommandLineArguments& args) = 0;
-  virtual void clearValues() = 0;
-  virtual void setCSRValues(const CSRFormatView& csr_view) = 0;
-  virtual CSRFormatView& getCSRValues() = 0;
-  virtual VariableDoFReal& getForcedValue() = 0;
-  virtual VariableDoFBool& getForcedInfo() = 0;
-  virtual VariableDoFByte& getEliminationInfo() = 0;
-  virtual VariableDoFReal& getEliminationValue() = 0;
-  virtual bool hasSetCSRValues() const = 0;
-  virtual void setRunner(Runner* r) = 0;
-  virtual Runner* runner() const = 0;
-};
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -208,8 +172,8 @@ class DoFLinearSystem
    */
   void initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name);
 
-  /*
-   * \brief Initialize the instance.
+  /*!
+   * \brief Initialize the instance with a specific runner.
    *
    * \a runner may be null.
    */
@@ -343,7 +307,7 @@ class DoFLinearSystem
 
  private:
 
-  DoFLinearSystemImpl* m_p = nullptr;
+  IDoFLinearSystemImpl* m_p = nullptr;
   IItemFamily* m_item_family = nullptr;
   IDoFLinearSystemFactory* m_linear_system_factory = nullptr;
   IDoFLinearSystemFactory* m_default_linear_system_factory = nullptr;

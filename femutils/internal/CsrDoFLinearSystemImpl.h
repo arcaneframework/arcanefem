@@ -10,16 +10,16 @@
 /* Implementation of IDoFLinearSystemImpl using a matrix with CSR format.    */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-#ifndef ARCANEFEM_FEMUTILS_CSRDOFLINEARSYSTEMIMPL_H
-#define ARCANEFEM_FEMUTILS_CSRDOFLINEARSYSTEMIMPL_H
+#ifndef ARCANEFEM_FEMUTILS_INTERNAL_CSRDOFLINEARSYSTEMIMPL_H
+#define ARCANEFEM_FEMUTILS_INTERNAL_CSRDOFLINEARSYSTEMIMPL_H
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
-#include <arcane/utils/TraceAccessor.h>
 
 #include <arcane/core/VariableTypes.h>
+#include <arcane/accelerator/core/Runner.h>
 
-#include "DoFLinearSystem.h"
+#include "internal/IDoFLinearSystemImpl.h"
+#include "CsrFormatMatrixView.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -30,11 +30,12 @@ namespace Arcane::FemUtils
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
+ * \internal
  * \brief Implementation of IDoFLinearSystemImpl using a matrix with CSR format.
  */
 class CsrDoFLinearSystemImpl
 : public TraceAccessor
-, public DoFLinearSystemImpl
+, public IDoFLinearSystemImpl
 {
  public:
 
@@ -104,8 +105,8 @@ class CsrDoFLinearSystemImpl
 
   bool hasSetCSRValues() const override { return true; }
 
-  void setRunner(Runner* r) override { m_runner = r; }
-  Runner* runner() const override { return m_runner; }
+  void setRunner(const Runner& r) override { m_runner = r; }
+  Runner runner() const override { return m_runner; }
 
  public:
 
@@ -118,7 +119,7 @@ class CsrDoFLinearSystemImpl
   IItemFamily* m_dof_family = nullptr;
   VariableDoFReal m_rhs_variable;
   VariableDoFReal m_dof_variable;
-  Runner* m_runner = nullptr;
+  Runner m_runner;
 
   CSRFormatView m_csr_view;
 

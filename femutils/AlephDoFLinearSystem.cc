@@ -16,8 +16,10 @@
 #include <arcane/utils/FatalErrorException.h>
 #include <arcane/utils/NumArray.h>
 
-#include <arcane/VariableTypes.h>
-#include <arcane/IItemFamily.h>
+#include <arcane/core/VariableTypes.h>
+#include <arcane/core/IItemFamily.h>
+
+#include <arcane/accelerator/core/Runner.h>
 
 #include <arcane/aleph/AlephTypesSolver.h>
 #include <arcane/aleph/Aleph.h>
@@ -38,6 +40,8 @@ enum class eSolverBackend
 
 #include "AlephDoFLinearSystemFactory_axl.h"
 
+#include "internal/IDoFLinearSystemImpl.h"
+
 #include <map>
 
 /*---------------------------------------------------------------------------*/
@@ -52,7 +56,7 @@ using namespace Arcane;
 
 class AlephDoFLinearSystemImpl
 : public TraceAccessor
-, public DoFLinearSystemImpl
+, public IDoFLinearSystemImpl
 {
   static constexpr Byte ELIMINATE_NONE = 0;
   static constexpr Byte ELIMINATE_ROW = 1;
@@ -336,8 +340,8 @@ class AlephDoFLinearSystemImpl
   }
 
   bool hasSetCSRValues() const { return false; }
-  void setRunner(Runner* r) override { m_runner = r; }
-  Runner* runner() const { return m_runner; }
+  void setRunner(const Runner& r) override { m_runner = r; }
+  Runner runner() const { return m_runner; }
 
  private:
 
@@ -438,7 +442,7 @@ class AlephDoFLinearSystemImpl
 
   UniqueArray<Real> m_vector_zero;
 
-  Runner* m_runner = nullptr;
+  Runner m_runner;
 
  private:
 
@@ -467,7 +471,7 @@ class AlephDoFLinearSystemFactoryService
   {
   }
 
-  DoFLinearSystemImpl*
+  IDoFLinearSystemImpl*
   createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
   {
     auto* x = new AlephDoFLinearSystemImpl(sd, dof_family, solver_name);
@@ -487,7 +491,7 @@ class AlephDoFLinearSystemFactoryService
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-extern "C++" DoFLinearSystemImpl*
+extern "C++" IDoFLinearSystemImpl*
 createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
 {
   auto* x = new AlephDoFLinearSystemImpl(sd, dof_family, solver_name);

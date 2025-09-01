@@ -18,13 +18,16 @@
 #include <arcane/utils/NumArray.h>
 #include <arcane/utils/ITraceMng.h>
 
-#include <arcane/VariableTypes.h>
-#include <arcane/IItemFamily.h>
-#include <arcane/ISubDomain.h>
-#include <arcane/IParallelMng.h>
+#include <arcane/core/VariableTypes.h>
+#include <arcane/core/IItemFamily.h>
+#include <arcane/core/ISubDomain.h>
+#include <arcane/core/IParallelMng.h>
+
+#include <arcane/accelerator/core/Runner.h>
 
 #include "FemUtils.h"
 #include "IDoFLinearSystemFactory.h"
+#include "internal/IDoFLinearSystemImpl.h"
 
 namespace Arcane::FemUtils
 {
@@ -46,7 +49,7 @@ enum class eInternalSolverMethod
 
 namespace Arcane::FemUtils
 {
-extern "C++" DoFLinearSystemImpl*
+extern "C++" IDoFLinearSystemImpl*
 createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name);
 
 /*---------------------------------------------------------------------------*/
@@ -54,7 +57,7 @@ createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const St
 
 class SequentialDoFLinearSystemImpl
 : public TraceAccessor
-, public DoFLinearSystemImpl
+, public IDoFLinearSystemImpl
 {
  public:
 
@@ -211,8 +214,8 @@ class SequentialDoFLinearSystemImpl
   }
 
   bool hasSetCSRValues() const override { return false; }
-  void setRunner(Runner* r) override { m_runner = r; }
-  Runner* runner() const { return m_runner; }
+  void setRunner(const Runner& r) override { m_runner = r; }
+  Runner runner() const { return m_runner; }
 
  public:
 
@@ -233,7 +236,7 @@ class SequentialDoFLinearSystemImpl
   Real m_epsilon = 1.0e-15;
   eInternalSolverMethod m_solver_method = eInternalSolverMethod::Auto;
 
-  Runner* m_runner = nullptr;
+  Runner m_runner;
 
  private:
 
@@ -279,7 +282,7 @@ class DefaultDoFLinearSystemFactory
 {
  public:
 
-  DoFLinearSystemImpl* createInstance(ISubDomain* sd, IItemFamily* dof_family,
+  IDoFLinearSystemImpl* createInstance(ISubDomain* sd, IItemFamily* dof_family,
                                       const String& solver_name) override
   {
     IParallelMng* pm = sd->parallelMng();
@@ -289,7 +292,7 @@ class DefaultDoFLinearSystemFactory
 #ifdef ENABLE_DEBUG_MATRIX
     use_debug_dense_matrix = true;
 #endif
-    DoFLinearSystemImpl* p = nullptr;
+    IDoFLinearSystemImpl* p = nullptr;
     if (is_parallel || !use_debug_dense_matrix) {
       p = createAlephDoFLinearSystemImpl(sd, dof_family, solver_name);
     }
@@ -352,7 +355,8 @@ initialize(ISubDomain* sd, Runner* runner, IItemFamily* dof_family, const String
   }
   m_item_family = dof_family;
   m_p = m_linear_system_factory->createInstance(sd, dof_family, solver_name);
-  m_p->setRunner(runner);
+  if (runner)
+    m_p->setRunner(*runner);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -667,7 +671,7 @@ class SequentialBasicDoFLinearSystemFactoryService
   {
   }
 
-  DoFLinearSystemImpl*
+  IDoFLinearSystemImpl*
   createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
   {
     IParallelMng* pm = sd->parallelMng();
