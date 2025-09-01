@@ -7,26 +7,10 @@
 /*---------------------------------------------------------------------------*/
 /* ArcaneFemFunctionsGpu.h                                     (C) 2022-2025 */
 /*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-#ifndef ARCANE_FEM_FUNCTIONS_GPU_H
-#define ARCANE_FEM_FUNCTIONS_GPU_H
-
+#ifndef ARCANEFEM_FEMTUILS_ARCANEFEMFUNCTIONSGPU_H
+#define ARCANEFEM_FEMTUILS_ARCANEFEMFUNCTIONSGPU_H
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
-#include <arcane/VariableTypes.h>
-#include <arcane/IMesh.h>
-
-#include <arcane/accelerator/RunCommandEnumerate.h>
-#include <arcane/accelerator/AcceleratorGlobal.h>
-#include <arcane/accelerator/NumArrayViews.h>
-#include <arcane/accelerator/VariableViews.h>
-#include <arcane/accelerator/RunCommand.h>
-#include <arcane/accelerator/RunQueue.h>
-#include <arcane/accelerator/Atomic.h>
-
-#include <arccore/base/ArccoreGlobal.h>
 
 #include <arcane/core/UnstructuredMeshConnectivity.h>
 #include <arcane/core/IndexedItemConnectivityView.h>
@@ -36,28 +20,45 @@
 #include <arcane/core/ItemTypes.h>
 #include <arcane/core/DataView.h>
 #include <arcane/core/Item.h>
+#include <arcane/core/VariableTypes.h>
+#include <arcane/core/IMesh.h>
 
-#include <arcane/utils/ArcaneGlobal.h>
-#include <arcane/utils/ArrayLayout.h>
-#include "arcane/core/VariableTypedef.h"
-#include "arcane/utils/UtilsTypes.h"
-#include <arcane/utils/NumArray.h>
+#include <arcane/accelerator/RunCommandEnumerate.h>
+#include <arcane/accelerator/VariableViews.h>
+#include <arcane/accelerator/RunCommand.h>
+#include <arcane/accelerator/RunQueue.h>
+#include <arcane/accelerator/Atomic.h>
 
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
 #include "IArcaneFemBC.h"
 #include "FemUtils.h"
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 namespace Arcane::FemUtils::Gpu::Csr
 {
-ARCCORE_HOST_DEVICE inline Int32 findIndex(Int32 begin, Int32 end, Int32 column_lid, Span<const Int32> in_csr_columns)
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE inline Int32
+findIndex(Int32 begin, Int32 end, Int32 column_lid, Span<const Int32> in_csr_columns)
 {
   for (auto i = begin; i < end; ++i)
     if (in_csr_columns[i] == column_lid)
       return i;
   return -1;
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 } // namespace Arcane::FemUtils::Gpu::Csr
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 namespace Arcane::FemUtils::Gpu::MeshOperation
 {
@@ -71,7 +72,9 @@ namespace Arcane::FemUtils::Gpu::MeshOperation
  */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE inline Real computeAreaTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE inline Real
+computeAreaTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv,
+                 const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real3 n0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
   Real3 n1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
@@ -84,7 +87,10 @@ ARCCORE_HOST_DEVICE inline Real computeAreaTria3(CellLocalId cell_lid, const Ind
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE inline Real computeAreaTria(FaceLocalId face_lid, const IndexedFaceNodeConnectivityView& fn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE inline Real
+computeAreaTria(FaceLocalId face_lid,
+                const IndexedFaceNodeConnectivityView& fn_cv,
+                const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real3 n0 = in_node_coord[fn_cv.nodeId(face_lid, 0)];
   Real3 n1 = in_node_coord[fn_cv.nodeId(face_lid, 1)];
@@ -103,7 +109,10 @@ ARCCORE_HOST_DEVICE inline Real computeAreaTria(FaceLocalId face_lid, const Inde
  */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE inline Real computeVolumeTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE inline Real
+computeVolumeTetra4(CellLocalId cell_lid,
+                    const IndexedCellNodeConnectivityView& cn_cv,
+                    const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real3 n0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
   Real3 n1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
@@ -125,7 +134,10 @@ ARCCORE_HOST_DEVICE inline Real computeVolumeTetra4(CellLocalId cell_lid, const 
  */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE inline Real computeLengthFace(FaceLocalId face_lid, IndexedFaceNodeConnectivityView fn_cv, Accelerator::VariableNodeReal3InView in_node_coord)
+ARCCORE_HOST_DEVICE inline Real
+computeLengthFace(FaceLocalId face_lid,
+                  IndexedFaceNodeConnectivityView fn_cv,
+                  Accelerator::VariableNodeReal3InView in_node_coord)
 {
   Real3 n0 = in_node_coord[fn_cv.nodeId(face_lid, 0)];
   Real3 n1 = in_node_coord[fn_cv.nodeId(face_lid, 1)];
@@ -142,7 +154,11 @@ ARCCORE_HOST_DEVICE inline Real computeLengthFace(FaceLocalId face_lid, IndexedF
  */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE inline Real2 computeNormalFace(FaceLocalId face_lid, IndexedFaceNodeConnectivityView fn_cv, Accelerator::VariableNodeReal3InView in_node_coord, FaceInfoListView faces_infos)
+ARCCORE_HOST_DEVICE inline Real2
+computeNormalFace(FaceLocalId face_lid,
+                  IndexedFaceNodeConnectivityView fn_cv,
+                  Accelerator::VariableNodeReal3InView in_node_coord,
+                  FaceInfoListView faces_infos)
 {
   Real3 n0 = in_node_coord[fn_cv.nodeId(face_lid, 0)];
   Real3 n1 = in_node_coord[fn_cv.nodeId(face_lid, 1)];
@@ -169,7 +185,11 @@ ARCCORE_HOST_DEVICE inline Real2 computeNormalFace(FaceLocalId face_lid, Indexed
  */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE inline Real3 computeNormalTriangle(FaceLocalId face_lid, IndexedFaceNodeConnectivityView fn_cv, Accelerator::VariableNodeReal3InView in_node_coord, FaceInfoListView faces_infos)
+ARCCORE_HOST_DEVICE inline Real3
+computeNormalTriangle(FaceLocalId face_lid,
+                      IndexedFaceNodeConnectivityView fn_cv,
+                      Accelerator::VariableNodeReal3InView in_node_coord,
+                      FaceInfoListView faces_infos)
 {
 
   Real3 n0 = in_node_coord[fn_cv.nodeId(face_lid, 0)];
@@ -192,7 +212,13 @@ ARCCORE_HOST_DEVICE inline Real3 computeNormalTriangle(FaceLocalId face_lid, Ind
   return { normal.x / norm, normal.y / norm, normal.z / norm };
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 } // namespace Arcane::FemUtils::Gpu::MeshOperation
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 namespace Arcane::FemUtils::Gpu::FeOperation2D
 {
@@ -211,7 +237,10 @@ namespace Arcane::FemUtils::Gpu::FeOperation2D
  */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE inline Real3 computeGradientXTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE inline Real3
+computeGradientXTria3(CellLocalId cell_lid,
+                      const IndexedCellNodeConnectivityView& cn_cv,
+                      const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real3 n0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
   Real3 n1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
@@ -236,7 +265,10 @@ ARCCORE_HOST_DEVICE inline Real3 computeGradientXTria3(CellLocalId cell_lid, con
  */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE inline Real3 computeGradientYTria3(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE inline Real3
+computeGradientYTria3(CellLocalId cell_lid,
+                      const IndexedCellNodeConnectivityView& cn_cv,
+                      const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real3 n0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
   Real3 n1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
@@ -247,10 +279,19 @@ ARCCORE_HOST_DEVICE inline Real3 computeGradientYTria3(CellLocalId cell_lid, con
   return { (n2.x - n1.x) / A2, (n0.x - n2.x) / A2, (n1.x - n0.x) / A2 };
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 } // namespace Arcane::FemUtils::Gpu::FeOperation2D
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 namespace Arcane::FemUtils::Gpu::FeOperation3D
 {
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------------*/
 /**
@@ -273,7 +314,10 @@ namespace Arcane::FemUtils::Gpu::FeOperation3D
  */
 /*-------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE inline Real4 computeGradientXTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE inline Real4
+computeGradientXTetra4(CellLocalId cell_lid,
+                       const IndexedCellNodeConnectivityView& cn_cv,
+                       const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real3 n0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
   Real3 n1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
@@ -318,7 +362,10 @@ ARCCORE_HOST_DEVICE inline Real4 computeGradientXTetra4(CellLocalId cell_lid, co
  */
 /*-------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE inline Real4 computeGradientYTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE inline Real4
+computeGradientYTetra4(CellLocalId cell_lid,
+                       const IndexedCellNodeConnectivityView& cn_cv,
+                       const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real3 n0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
   Real3 n1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
@@ -363,7 +410,10 @@ ARCCORE_HOST_DEVICE inline Real4 computeGradientYTetra4(CellLocalId cell_lid, co
  */
 /*-------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE inline Real4 computeGradientZTetra4(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE inline Real4
+computeGradientZTetra4(CellLocalId cell_lid,
+                       const IndexedCellNodeConnectivityView& cn_cv,
+                       const Accelerator::VariableNodeReal3InView& in_node_coord)
 {
   Real3 n0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
   Real3 n1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
@@ -387,15 +437,28 @@ ARCCORE_HOST_DEVICE inline Real4 computeGradientZTetra4(CellLocalId cell_lid, co
   return dz;
 };
 
+/*-------------------------------------------------------------------------*/
+/*-------------------------------------------------------------------------*/
+
 } // namespace Arcane::FemUtils::Gpu::FeOperation3D
+
+/*-------------------------------------------------------------------------*/
+/*-------------------------------------------------------------------------*/
 
 namespace Arcane::FemUtils::Gpu
 {
 
-namespace BoundaryConditionsHelpers
+/*-------------------------------------------------------------------------*/
+/*-------------------------------------------------------------------------*/
+
+class BoundaryConditionsHelpers
 {
+ public:
+
   template <class Function>
-  inline void applyConstantSourceToRhsBase(Function computeSpatialIntegral, Real qdot, Accelerator::RunQueue* queue, VariableDoFReal& rhs_variable_na, IMesh* mesh, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord)
+  static void applyConstantSourceToRhsBase(Function computeSpatialIntegral, Real qdot,
+                                           RunQueue* queue, VariableDoFReal& rhs_variable_na, IMesh* mesh,
+                                           const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord)
   {
     ARCANE_CHECK_PTR(queue);
     ARCANE_CHECK_PTR(mesh);
@@ -427,90 +490,28 @@ namespace BoundaryConditionsHelpers
     };
   }
 
-  /*---------------------------------------------------------------------------*/
-  /*---------------------------------------------------------------------------*/
+  static void
+  applyDirichletToNodeGroupRhsOnly(Int32 dof_index, Real value, RunQueue* queue,
+                                   IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes,
+                                   const NodeGroup& node_group);
 
-  inline void applyDirichletToNodeGroupRhsOnly(const Int32 dof_index, Real value, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NodeGroup& node_group)
-  {
-    ARCANE_CHECK_PTR(queue);
-    ARCANE_CHECK_PTR(mesh);
+  static void
+  applyDirichletToNodeGroupViaPenalty(Int32 dof_index, Real value, Real penalty, RunQueue* queue,
+                                      IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes,
+                                      const NodeGroup& node_group);
 
-    NodeInfoListView nodes_infos(mesh->nodeFamily());
-    auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
+  static void
+  applyDirichletToNodeGroupViaRowElimination(Int32 dof_index, Real value, RunQueue* queue,
+                                             DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes,
+                                             const NodeGroup& node_group);
+};
 
-    auto command = Accelerator::makeCommand(queue);
-    auto in_out_forced_info = Accelerator::viewInOut(command, linear_system.getForcedInfo());
-    auto in_out_rhs_variable = Accelerator::viewInOut(command, linear_system.rhsVariable());
+/*-------------------------------------------------------------------------*/
+/*-------------------------------------------------------------------------*/
 
-    command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
-    {
-      if (nodes_infos.isOwn(node_lid)) {
-        DoFLocalId dof_id = node_dof.dofId(node_lid, dof_index);
-        in_out_forced_info[dof_id] = true;
-        in_out_rhs_variable[dof_id] = value;
-      }
-    };
-  }
-
-  /*---------------------------------------------------------------------------*/
-  /*---------------------------------------------------------------------------*/
-
-  inline void applyDirichletToNodeGroupViaPenalty(const Int32 dof_index, Real value, Real penalty, Accelerator::RunQueue* queue, IMesh* mesh, DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes, NodeGroup& node_group)
-  {
-    ARCANE_CHECK_PTR(queue);
-    ARCANE_CHECK_PTR(mesh);
-
-    NodeInfoListView nodes_infos(mesh->nodeFamily());
-    auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
-
-    auto command = Accelerator::makeCommand(queue);
-    auto in_out_forced_info = Accelerator::viewInOut(command, linear_system.getForcedInfo());
-    auto in_out_forced_value = Accelerator::viewInOut(command, linear_system.getForcedValue());
-    auto in_out_rhs_variable = Accelerator::viewInOut(command, linear_system.rhsVariable());
-
-    command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
-    {
-      if (nodes_infos.isOwn(node_lid)) {
-        DoFLocalId dof_id = node_dof.dofId(node_lid, dof_index);
-        in_out_forced_info[dof_id] = true;
-        in_out_forced_value[dof_id] = penalty;
-        in_out_rhs_variable[dof_id] = penalty * value;
-      }
-    };
-  }
-
-  /*---------------------------------------------------------------------------*/
-  /*---------------------------------------------------------------------------*/
-
-  static inline void applyDirichletToNodeGroupViaRowElimination(const Int32 dof_index, Real value, Accelerator::RunQueue* queue,
-                                                                DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes,
-                                                                const NodeGroup& node_group)
-  {
-    ARCANE_CHECK_PTR(queue);
-
-    constexpr Byte ELIMINATE_ROW = 1;
-    DoFLinearSystemRowEliminationHelper elimination_helper(linear_system.rowEliminationHelper());
-    NodeInfoListView nodes_infos(node_group.itemFamily());
-    auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
-
-    auto command = Accelerator::makeCommand(queue);
-    auto in_out_elimination_info = Accelerator::viewInOut(command, elimination_helper.getEliminationInfo());
-    auto in_out_elimination_value = Accelerator::viewInOut(command, elimination_helper.getEliminationValue());
-
-    command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
-    {
-      if (nodes_infos.isOwn(node_lid)) {
-        DoFLocalId dof_id = node_dof.dofId(node_lid, dof_index);
-        in_out_elimination_info[dof_id] = ELIMINATE_ROW;
-        in_out_elimination_value[dof_id] = value;
-      }
-    };
-  }
-
-} // namespace BoundaryConditionsHelpers
-
-namespace BoundaryConditions
+class BoundaryConditions
 {
+ public:
 
   /*---------------------------------------------------------------------------*/
   /**
@@ -521,36 +522,10 @@ namespace BoundaryConditions
    */
   /*---------------------------------------------------------------------------*/
 
-  inline void applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
-  {
-    ARCANE_CHECK_PTR(bs);
-
-    FaceGroup face_group = bs->getSurface();
-    NodeGroup node_group = face_group.nodeGroup();
-
-    const StringConstArrayView u_dirichlet_string = bs->getValue();
-
-    for (Int32 dof_index = 0; dof_index < u_dirichlet_string.size(); ++dof_index) {
-      if (u_dirichlet_string[dof_index] != "NULL") {
-
-        Real value = std::stod(u_dirichlet_string[dof_index].localstr());
-
-        if (bs->getEnforceDirichletMethod() == "Penalty") {
-          Real penalty = bs->getPenalty();
-          BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(dof_index, value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
-        }
-        else if (bs->getEnforceDirichletMethod() == "RowElimination") {
-          BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(dof_index, value, queue, linear_system, dofs_on_nodes, node_group);
-        }
-        else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
-          ARCANE_THROW(Arccore::NotImplementedException, "RowColumnElimination is not supported.");
-        }
-        else {
-          ARCANE_FATAL("Unknown method to enforce Dirichlet BC: '{0}'", bs->getEnforceDirichletMethod());
-        }
-      }
-    }
-  }
+  static void
+  applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                            DoFLinearSystem& linear_system,
+                            IMesh* mesh, Accelerator::RunQueue* queue);
 
   /*---------------------------------------------------------------------------*/
   /**
@@ -561,33 +536,10 @@ namespace BoundaryConditions
    */
   /*---------------------------------------------------------------------------*/
 
-  inline void applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
-  {
-    ARCANE_CHECK_PTR(bs);
-    NodeGroup node_group = bs->getNode();
-
-    const StringConstArrayView u_dirichlet_str = bs->getValue();
-
-    for (Int32 dof_index = 0; dof_index < u_dirichlet_str.size(); ++dof_index) {
-      if (u_dirichlet_str[dof_index] != "NULL") {
-        Real value = std::stod(u_dirichlet_str[dof_index].localstr());
-
-        if (bs->getEnforceDirichletMethod() == "Penalty"){
-          Real penalty = bs->getPenalty();
-          BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(dof_index, value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
-        }
-        else if (bs->getEnforceDirichletMethod() == "RowElimination") {
-          BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(dof_index, value, queue, linear_system, dofs_on_nodes, node_group);
-        }
-        else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
-          ARCANE_THROW(Arccore::NotImplementedException, "RowColumnElimination is not supported.");
-        }
-        else {
-          ARCANE_FATAL("Unknown method to enforce Dirichlet BC: '{0}'", bs->getEnforceDirichletMethod());
-        }
-      }
-    }
-  }
+  static void
+  applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                                 DoFLinearSystem& linear_system,
+                                 IMesh* mesh, RunQueue* queue);
 
   /*---------------------------------------------------------------------------*/
   /**
@@ -597,37 +549,10 @@ namespace BoundaryConditions
    */
   /*---------------------------------------------------------------------------*/
 
-  inline void applyDirichletToRhs(BC::IDirichletBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
-  {
-    ARCANE_CHECK_PTR(bs);
-
-    FaceGroup face_group = bs->getSurface();
-    NodeGroup node_group = face_group.nodeGroup();
-
-    const StringConstArrayView u_dirichlet_string = bs->getValue();
-
-    for (Int32 dof_index = 0; dof_index < u_dirichlet_string.size(); ++dof_index) {
-      if (u_dirichlet_string[dof_index] != "NULL") {
-
-        Real value = std::stod(u_dirichlet_string[dof_index].localstr());
-
-        if (bs->getEnforceDirichletMethod() == "Penalty") {
-          Real penalty = bs->getPenalty();
-          value = value * penalty;
-          BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(dof_index, value, queue, mesh, linear_system, dofs_on_nodes, node_group);
-        }
-        else if (bs->getEnforceDirichletMethod() == "RowElimination") {
-          BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(dof_index, value, queue, mesh, linear_system, dofs_on_nodes, node_group);
-        }
-        else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
-          ARCANE_THROW(Arccore::NotImplementedException, "RowColumnElimination is not supported.");
-        }
-        else {
-          ARCANE_FATAL("Unknown method to enforce Dirichlet BC: '{0}'", bs->getEnforceDirichletMethod());
-        }
-      }
-    }
-  }
+  static void
+  applyDirichletToRhs(BC::IDirichletBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                      DoFLinearSystem& linear_system,
+                      IMesh* mesh, Accelerator::RunQueue* queue);
 
   /*---------------------------------------------------------------------------*/
   /**
@@ -637,36 +562,11 @@ namespace BoundaryConditions
    */
   /*---------------------------------------------------------------------------*/
 
-  inline void applyPointDirichletToRhs(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system, IMesh* mesh, Accelerator::RunQueue* queue)
-  {
-    ARCANE_CHECK_PTR(bs);
-    NodeGroup node_group = bs->getNode();
-
-    const StringConstArrayView u_dirichlet_str = bs->getValue();
-
-    for (Int32 dof_index = 0; dof_index < u_dirichlet_str.size(); ++dof_index) {
-      if (u_dirichlet_str[dof_index] != "NULL") {
-        Real value = std::stod(u_dirichlet_str[dof_index].localstr());
-
-        if (bs->getEnforceDirichletMethod() == "Penalty"){
-          Real penalty = bs->getPenalty();
-          value = value * penalty;
-          BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(dof_index, value, queue, mesh, linear_system, dofs_on_nodes, node_group);
-        }
-        else if (bs->getEnforceDirichletMethod() == "RowElimination") {
-          BoundaryConditionsHelpers::applyDirichletToNodeGroupRhsOnly(dof_index, value, queue, mesh, linear_system, dofs_on_nodes, node_group);
-        }
-        else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
-          ARCANE_THROW(Arccore::NotImplementedException, "RowColumnElimination is not supported.");
-        }
-        else {
-          ARCANE_FATAL("Unknown method to enforce Dirichlet BC: '{0}'", bs->getEnforceDirichletMethod());
-        }
-      }
-    }
-  }
-
-}; // namespace BoundaryConditions
+  static void
+  applyPointDirichletToRhs(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                           DoFLinearSystem& linear_system,
+                           IMesh* mesh, Accelerator::RunQueue* queue);
+};
 
 class BoundaryConditions2D
 {
@@ -683,10 +583,9 @@ class BoundaryConditions2D
    */
   /*---------------------------------------------------------------------------*/
 
-  static inline void applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord, VariableDoFReal& rhs_variable_na, IMesh* mesh, Accelerator::RunQueue* queue)
-  {
-    BoundaryConditionsHelpers::applyConstantSourceToRhsBase([] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord) { return MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord); }, qdot, queue, rhs_variable_na, mesh, dofs_on_nodes, node_coord);
-  }
+  static void applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+                                       const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                       IMesh* mesh, Accelerator::RunQueue* queue);
 
   /*---------------------------------------------------------------------------*/
   /**
@@ -699,68 +598,9 @@ class BoundaryConditions2D
    */
   /*---------------------------------------------------------------------------*/
 
-  static inline void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord, VariableDoFReal& rhs_variable_na, IMesh* mesh, Accelerator::RunQueue* queue)
-  {
-    ARCANE_CHECK_PTR(bs);
-    ARCANE_CHECK_PTR(queue);
-    ARCANE_CHECK_PTR(mesh);
-
-    FaceGroup group = bs->getSurface();
-    bool scalarNeumann = false;
-    const StringConstArrayView neumann_str = bs->getValue();
-
-    if (neumann_str.size() == 1 && neumann_str[0] != "NULL") {
-      scalarNeumann = true;
-    }
-
-    UnstructuredMeshConnectivityView connectivity_view;
-    connectivity_view.setMesh(mesh);
-    NodeInfoListView nodes_infos(mesh->nodeFamily());
-    auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
-    auto fn_cv = connectivity_view.faceNode();
-
-    if (scalarNeumann) {
-      {
-        Real value = std::stod(neumann_str[0].localstr());
-
-        auto command = Accelerator::makeCommand(queue);
-        auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
-        auto in_node_coord = Accelerator::viewIn(command, node_coord);
-        command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
-        {
-          Real length = MeshOperation::computeLengthFace(face_lid, fn_cv, in_node_coord);
-          for (NodeLocalId node_lid : fn_cv.nodes(face_lid)) {
-            if (nodes_infos.isOwn(node_lid)) {
-              Real rhs_value = value * length / 2.0;
-              Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
-            }
-          }
-        };
-      }
-    }
-    else {
-      {
-        Real value_x = neumann_str[0] != "NULL" ? std::stod(neumann_str[0].localstr()) : 0.0;
-        Real value_y = neumann_str[1] != "NULL" ? std::stod(neumann_str[1].localstr()) : 0.0;
-
-        auto command = Accelerator::makeCommand(queue);
-        auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
-        auto in_node_coord = Accelerator::viewIn(command, node_coord);
-        FaceInfoListView faces_infos(mesh->faceFamily());
-        command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
-        {
-          Real length = MeshOperation::computeLengthFace(face_lid, fn_cv, in_node_coord);
-          Real2 normal = MeshOperation::computeNormalFace(face_lid, fn_cv, in_node_coord, faces_infos);
-          for (NodeLocalId node_lid : fn_cv.nodes(face_lid)) {
-            if (nodes_infos.isOwn(node_lid)) {
-              Real rhs_value = (normal.x * value_x + normal.y * value_y) * length / 2.0;
-              Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
-            }
-          }
-        };
-      }
-    }
-  }
+  static void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                                const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                IMesh* mesh, Accelerator::RunQueue* queue);
 };
 
 class BoundaryConditions3D
@@ -778,10 +618,9 @@ class BoundaryConditions3D
    */
   /*---------------------------------------------------------------------------*/
 
-  static inline void applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord, VariableDoFReal& rhs_variable_na, IMesh* mesh, Accelerator::RunQueue* queue)
-  {
-    BoundaryConditionsHelpers::applyConstantSourceToRhsBase([] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord) { return MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord); }, qdot, queue, rhs_variable_na, mesh, dofs_on_nodes, node_coord);
-  }
+  static void applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+                                       const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                       IMesh* mesh, Accelerator::RunQueue* queue);
 
   /*---------------------------------------------------------------------------*/
   /**
@@ -794,72 +633,17 @@ class BoundaryConditions3D
    */
   /*---------------------------------------------------------------------------*/
 
-  static inline void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes, VariableNodeReal3 node_coord, VariableDoFReal& rhs_variable_na, IMesh* mesh, Accelerator::RunQueue* queue)
-  {
-    ARCANE_CHECK_PTR(bs);
-    ARCANE_CHECK_PTR(queue);
-    ARCANE_CHECK_PTR(mesh);
-
-    FaceGroup group = bs->getSurface();
-
-    bool scalarNeumann = false;
-    const StringConstArrayView neumann_str = bs->getValue();
-
-    if (neumann_str.size() == 1 && neumann_str[0] != "NULL") {
-      scalarNeumann = true;
-    }
-
-    UnstructuredMeshConnectivityView connectivity_view;
-    connectivity_view.setMesh(mesh);
-    NodeInfoListView nodes_infos(mesh->nodeFamily());
-    auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
-    auto fn_cv = connectivity_view.faceNode();
-
-    if (scalarNeumann) {
-      {
-        Real value = std::stod(neumann_str[0].localstr());
-
-        auto command = Accelerator::makeCommand(queue);
-        auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
-        auto in_node_coord = Accelerator::viewIn(command, node_coord);
-        command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
-        {
-          Real area = MeshOperation::computeAreaTria(face_lid, fn_cv, in_node_coord);
-          for (NodeLocalId node_lid : fn_cv.nodes(face_lid)) {
-            if (nodes_infos.isOwn(node_lid)) {
-              Real rhs_value = value * area / 3.0;
-              Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
-            }
-          }
-        };
-      }
-    }
-    else {
-      {
-        Real value_x = neumann_str[0] != "NULL" ? std::stod(neumann_str[0].localstr()) : 0.0;
-        Real value_y = neumann_str[1] != "NULL" ? std::stod(neumann_str[1].localstr()) : 0.0;
-        Real value_z = neumann_str[2] != "NULL" ? std::stod(neumann_str[2].localstr()) : 0.0;
-
-        auto command = Accelerator::makeCommand(queue);
-        auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
-        auto in_node_coord = Accelerator::viewIn(command, node_coord);
-        FaceInfoListView faces_infos(mesh->faceFamily());
-        command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
-        {
-          Real area = MeshOperation::computeAreaTria(face_lid, fn_cv, in_node_coord);
-          Real3 normal = MeshOperation::computeNormalTriangle(face_lid, fn_cv, in_node_coord, faces_infos);
-          for (NodeLocalId node_lid : fn_cv.nodes(face_lid)) {
-            if (nodes_infos.isOwn(node_lid)) {
-              Real rhs_value = (normal.x * value_x + normal.y * value_y + normal.z * value_z) * area / 3.0;
-              Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
-            }
-          }
-        };
-      }
-    }
-  }
+  static void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                                const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                IMesh* mesh, Accelerator::RunQueue* queue);
 };
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 } // namespace Arcane::FemUtils::Gpu
 
-#endif // ! ARCANE_FEM_FUNCTIONS_GPU_H
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+#endif
