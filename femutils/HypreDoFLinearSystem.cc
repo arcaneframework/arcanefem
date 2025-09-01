@@ -283,10 +283,10 @@ solve()
   _computeMatrixNumeration();
 
   bool is_use_device = false;
-  Runner* runner = this->runner();
-  if (runner) {
-    is_use_device = isAcceleratorPolicy(runner->executionPolicy());
-    info() << "[Hypre-Info] Runner for Hypre=" << runner->executionPolicy() << " wanted_is_device=" << is_use_device;
+  Runner runner = this->runner();
+  if (runner.isInitialized()) {
+    is_use_device = isAcceleratorPolicy(runner.executionPolicy());
+    info() << "[Hypre-Info] Runner for Hypre=" << runner.executionPolicy() << " wanted_is_device=" << is_use_device;
   }
 
   // Si HYPRE n'est pas compilé avec le support GPU, alors on utilise l'hôte.
@@ -303,7 +303,7 @@ solve()
 
 #if HYPRE_RELEASE_NUMBER >= 22700
   if (is_use_device) {
-    runner->setAsCurrentDevice();
+    runner.setAsCurrentDevice();
     hypre_memory = HYPRE_MEMORY_DEVICE;
     hypre_exec_policy = HYPRE_EXEC_DEVICE;
   }

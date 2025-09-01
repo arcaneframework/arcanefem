@@ -16,8 +16,10 @@
 #include <arcane/utils/FatalErrorException.h>
 #include <arcane/utils/NumArray.h>
 
-#include <arcane/VariableTypes.h>
-#include <arcane/IItemFamily.h>
+#include <arcane/core/VariableTypes.h>
+#include <arcane/core/IItemFamily.h>
+
+#include <arcane/accelerator/core/Runner.h>
 
 #include <arcane/aleph/AlephTypesSolver.h>
 #include <arcane/aleph/Aleph.h>
@@ -336,8 +338,8 @@ class AlephDoFLinearSystemImpl
   }
 
   bool hasSetCSRValues() const { return false; }
-  void setRunner(Runner* r) override { m_runner = r; }
-  Runner* runner() const { return m_runner; }
+  void setRunner(const Runner& r) override { m_runner = r; }
+  Runner runner() const { return m_runner; }
 
  private:
 
@@ -438,7 +440,7 @@ class AlephDoFLinearSystemImpl
 
   UniqueArray<Real> m_vector_zero;
 
-  Runner* m_runner = nullptr;
+  Runner m_runner;
 
  private:
 

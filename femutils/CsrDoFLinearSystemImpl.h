@@ -15,9 +15,8 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/utils/TraceAccessor.h>
-
 #include <arcane/core/VariableTypes.h>
+#include <arcane/accelerator/core/Runner.h>
 
 #include "DoFLinearSystem.h"
 
@@ -104,8 +103,8 @@ class CsrDoFLinearSystemImpl
 
   bool hasSetCSRValues() const override { return true; }
 
-  void setRunner(Runner* r) override { m_runner = r; }
-  Runner* runner() const override { return m_runner; }
+  void setRunner(const Runner& r) override { m_runner = r; }
+  Runner runner() const override { return m_runner; }
 
  public:
 
@@ -118,7 +117,7 @@ class CsrDoFLinearSystemImpl
   IItemFamily* m_dof_family = nullptr;
   VariableDoFReal m_rhs_variable;
   VariableDoFReal m_dof_variable;
-  Runner* m_runner = nullptr;
+  Runner m_runner;
 
   CSRFormatView m_csr_view;
 

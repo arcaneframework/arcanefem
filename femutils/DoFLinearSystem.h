@@ -59,8 +59,8 @@ class DoFLinearSystemImpl
   virtual VariableDoFByte& getEliminationInfo() = 0;
   virtual VariableDoFReal& getEliminationValue() = 0;
   virtual bool hasSetCSRValues() const = 0;
-  virtual void setRunner(Runner* r) = 0;
-  virtual Runner* runner() const = 0;
+  virtual void setRunner(const Runner& r) = 0;
+  virtual Runner runner() const = 0;
 };
 
 /*---------------------------------------------------------------------------*/
@@ -208,8 +208,8 @@ class DoFLinearSystem
    */
   void initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name);
 
-  /*
-   * \brief Initialize the instance.
+  /*!
+   * \brief Initialize the instance with a specific runner.
    *
    * \a runner may be null.
    */

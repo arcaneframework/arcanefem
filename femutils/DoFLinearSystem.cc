@@ -18,10 +18,12 @@
 #include <arcane/utils/NumArray.h>
 #include <arcane/utils/ITraceMng.h>
 
-#include <arcane/VariableTypes.h>
-#include <arcane/IItemFamily.h>
-#include <arcane/ISubDomain.h>
-#include <arcane/IParallelMng.h>
+#include <arcane/core/VariableTypes.h>
+#include <arcane/core/IItemFamily.h>
+#include <arcane/core/ISubDomain.h>
+#include <arcane/core/IParallelMng.h>
+
+#include <arcane/accelerator/core/Runner.h>
 
 #include "FemUtils.h"
 #include "IDoFLinearSystemFactory.h"
@@ -211,8 +213,8 @@ class SequentialDoFLinearSystemImpl
   }
 
   bool hasSetCSRValues() const override { return false; }
-  void setRunner(Runner* r) override { m_runner = r; }
-  Runner* runner() const { return m_runner; }
+  void setRunner(const Runner& r) override { m_runner = r; }
+  Runner runner() const { return m_runner; }
 
  public:
 
@@ -233,7 +235,7 @@ class SequentialDoFLinearSystemImpl
   Real m_epsilon = 1.0e-15;
   eInternalSolverMethod m_solver_method = eInternalSolverMethod::Auto;
 
-  Runner* m_runner = nullptr;
+  Runner m_runner;
 
  private:
 
@@ -352,7 +354,8 @@ initialize(ISubDomain* sd, Runner* runner, IItemFamily* dof_family, const String
   }
   m_item_family = dof_family;
   m_p = m_linear_system_factory->createInstance(sd, dof_family, solver_name);
-  m_p->setRunner(runner);
+  if (runner)
+    m_p->setRunner(*runner);
 }
 
 /*---------------------------------------------------------------------------*/
