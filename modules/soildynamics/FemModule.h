@@ -25,7 +25,6 @@
 #include <arcane/accelerator/core/IAcceleratorMng.h>
 #include <arcane/accelerator/core/RunQueue.h>
 
-#include "IArcaneFemBC.h"
 #include "IDoFLinearSystemFactory.h"
 #include "Fem_axl.h"
 #include "FemUtils.h"
@@ -77,7 +76,6 @@ class FemModule
 
  void _assembleBilinearOperatorTria3Gpu();
  void _assembleBilinearOperatorTetra4Gpu();
- void _assembleDirichletsGpu();
 
  private:
 
@@ -156,7 +154,6 @@ class FemModule
   inline void _applySourceTerm3d(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applySourceTermTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applySourceTermTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
-  inline void _applyDirichlet(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
 
   template <int N>
   void _assembleBilinearOperator2d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);

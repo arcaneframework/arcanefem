@@ -27,20 +27,14 @@
     <cp>40.</cp>
     <rho>9.0</rho>
     <f>0.03 0.04 18.0</f>
-    <boundary-conditions>
-      <dirichlet>
-        <surface>rightsur</surface>
-        <value>0.0 0.0 0.0</value>
-      </dirichlet>
-      <dirichlet-point>
-        <node>dcNorth</node>
-        <value>0.0 NULL NULL</value>
-      </dirichlet-point>
-    </boundary-conditions>
     <traction-boundary-condition>
       <surface>leftsur</surface>
       <t>0.01 0.01 0.02</t>
     </traction-boundary-condition>
+    <dirichlet-boundary-condition>
+      <surface>rightsur</surface>
+      <u>0.0 0.0 0.0</u>
+    </dirichlet-boundary-condition>
     <traction-boundary-condition>
       <surface>topsur</surface>
       <traction-input-file>data/3d-traction.txt</traction-input-file>
@@ -48,6 +42,10 @@
     <paraxial-boundary-condition>
       <surface>botsur</surface>
     </paraxial-boundary-condition>
+    <dirichlet-point-condition>
+      <node>dcNorth</node>
+      <u>0.0 NULL NULL</u>
+    </dirichlet-point-condition>
     <double-couple>
       <north-node-name>dcNorth</north-node-name>
       <south-node-name>dcSouth</south-node-name>

@@ -27,6 +27,8 @@
     <nu>0.45</nu>
     <rho>2500.0</rho>
     <f>3359.6 3452.3</f>
+    <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+    <penalty>1.e30</penalty>
     <paraxial-boundary-condition>
       <surface>lower</surface>
     </paraxial-boundary-condition>
@@ -34,12 +36,10 @@
       <surface>input</surface>
       <t>0.01 0.01</t>
     </traction-boundary-condition>
-    <boundary-conditions>
-      <dirichlet-point>
-        <node>source</node>
-        <value>0.0 0.0003</value>
-      </dirichlet-point>
-    </boundary-conditions>
+    <dirichlet-point-condition>
+      <node>source</node>
+      <u>0.0 0.0003</u>
+    </dirichlet-point-condition>
     <result-file>check/test_2D_constant_traction_pointbc.txt</result-file>
     <linear-system>
       <solver-backend>petsc</solver-backend>

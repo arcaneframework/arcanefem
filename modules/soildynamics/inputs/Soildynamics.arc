@@ -27,13 +27,13 @@
     <rho>1.0</rho>
     <lambda>576.9230769</lambda>
     <mu>384.6153846</mu>
+    <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+    <penalty>1.e64</penalty>
     <result-file>check/test_soildynamics_results.txt</result-file>
-    <boundary-conditions>
-      <dirichlet>
-        <surface>surfaceleft</surface>
-        <value>0.0 0.0</value>
-      </dirichlet>
-    </boundary-conditions>
+    <dirichlet-boundary-condition>
+      <surface>surfaceleft</surface>
+      <u>0.0 0.0</u>
+    </dirichlet-boundary-condition>
     <traction-boundary-condition>
       <surface>surfaceright</surface>
       <t>NULL 0.01</t>
