@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Soildynamics" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>Sample</title>
+    <title>Constant traction test with point bounday consitions</title>
     <timeloop>SoildynamicsLoop</timeloop>
   </arcane>
 
