@@ -530,8 +530,10 @@ solve()
                         &residual_norm,
                         m_aleph_params,
                         false);
+
   info() << "[AlephFem] END SOLVING WITH ALEPH r=" << residual_norm
          << " nb_iter=" << nb_iteration;
+
   auto* rhs_vector = m_aleph_kernel->createSolverVector();
   auto* solution_vector = m_aleph_kernel->createSolverVector();
 
@@ -541,8 +543,9 @@ solve()
 
   const bool do_verbose = (nb_dof < 200) && false;
   Int32 index = 0;
+
   VariableDoFReal& solution_variable(this->solutionVariable());
-  ENUMERATE_ (DoF, idof, dof_family->allItems().own()) {
+  ENUMERATE_ (DoF, idof, dofFamily()->allItems().own()) {
     DoF dof = *idof;
 
     solution_variable[dof] = aleph_result[m_aleph_kernel->indexing()->get(solution_variable, dof)];
