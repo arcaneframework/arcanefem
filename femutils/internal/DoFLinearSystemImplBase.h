@@ -19,6 +19,7 @@
 #include <arcane/accelerator/core/Runner.h>
 
 #include "internal/IDoFLinearSystemImpl.h"
+#include "internal/OrderedRowColumnMap.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -60,8 +61,12 @@ class DoFLinearSystemImplBase
 
   IItemFamily* dofFamily() const { return m_dof_family; }
 
- private:
+ protected:
 
+  OrderedRowColumnMap& _rowColumnEliminationMap() { return m_row_column_elimination_map; }
+  void _applyRowColumnEliminationToRHS(bool is_verbose);
+
+ private:
 
   IItemFamily* m_dof_family = nullptr;
   Runner m_runner;
@@ -72,6 +77,9 @@ class DoFLinearSystemImplBase
   VariableDoFReal m_dof_forced_value;
   VariableDoFByte m_dof_elimination_info;
   VariableDoFReal m_dof_elimination_value;
+
+  //! List of (row,column) which contribute to RowColumn elimination
+  OrderedRowColumnMap m_row_column_elimination_map;
 };
 
 /*---------------------------------------------------------------------------*/

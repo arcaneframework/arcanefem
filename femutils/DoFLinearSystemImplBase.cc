@@ -52,6 +52,44 @@ clearValues()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+void DoFLinearSystemImplBase::
+_applyRowColumnEliminationToRHS(bool is_verbose)
+{
+  DoFInfoListView item_list_view(m_dof_family);
+
+  auto& dof_elimination_info = getEliminationInfo();
+  auto& dof_elimination_value = getEliminationValue();
+  auto& rhs_variable = rhsVariable();
+
+  const bool do_print_filling = true;
+  for (const auto& rc_value : m_row_column_elimination_map) {
+    auto rc = rc_value.first;
+    Real matrix_value = rc_value.second;
+    DoF dof_row = item_list_view[rc.row_id];
+    DoF dof_column = item_list_view[rc.column_id];
+    if (dof_row == dof_column)
+      continue;
+    if (!dof_column.isOwn())
+      continue;
+    Byte row_elimination_info = dof_elimination_info[dof_row];
+    Real elimination_value = dof_elimination_value[dof_row];
+    // Subtract the value of RHS vector for current column.
+    if (row_elimination_info == ELIMINATE_ROW_COLUMN) {
+      Real v = rhs_variable[dof_column];
+      rhs_variable[dof_column] = v - matrix_value * elimination_value;
+      if (is_verbose)
+        info() << "EliminateRowColumn (" << std::setw(4) << rc.row_id
+               << "," << std::setw(4) << rc.column_id << ")"
+               << " elimination_value=" << std::setw(25) << elimination_value
+               << "  old_rhs=" << std::setw(25) << v
+               << "  new_rhs=" << std::setw(25) << rhs_variable[dof_column];
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 } // namespace Arcane::FemUtils
 
 /*---------------------------------------------------------------------------*/
