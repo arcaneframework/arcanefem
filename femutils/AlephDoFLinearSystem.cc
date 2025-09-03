@@ -197,6 +197,9 @@ class AlephDoFLinearSystemImpl
 
   UniqueArray<Real> m_vector_zero;
 
+  //! List of (row,column) which contribute to RowColumn elimination
+  RowColumnMap m_row_column_elimination_map;
+
  private:
 
   AlephParams* _createAlephParam() const;
@@ -211,6 +214,7 @@ class AlephDoFLinearSystemImpl
     VariableDoFReal& solution_variable = solutionVariable();
     m_aleph_matrix->setValue(solution_variable, row, solution_variable, column, value);
   }
+  void _fillRowColumnEliminationInfos();
 };
 
 /*---------------------------------------------------------------------------*/
@@ -253,18 +257,14 @@ createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const St
   x->build();
   return x;
 }
-
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 void AlephDoFLinearSystemImpl::
-_fillMatrix()
+_fillRowColumnEliminationInfos()
 {
-  // Fill the matrix
-  RowColumnMap row_column_elimination_map;
-
-  IItemFamily* dof_family = dofFamily();
-  DoFInfoListView item_list_view(dof_family);
+  m_row_column_elimination_map.clear();
+  DoFInfoListView item_list_view(dofFamily());
 
   auto& dof_elimination_info = getEliminationInfo();
   auto& dof_elimination_value = getEliminationValue();
@@ -275,17 +275,42 @@ _fillMatrix()
     Real value = rc_value.second;
     DoF dof_row = item_list_view[rc.row_id];
     DoF dof_column = item_list_view[rc.column_id];
-
     Byte row_elimination_info = dof_elimination_info[dof_row];
     Byte column_elimination_info = dof_elimination_info[dof_column];
+    if (row_elimination_info == ELIMINATE_ROW_COLUMN || column_elimination_info == ELIMINATE_ROW_COLUMN)
+      m_row_column_elimination_map[{ rc.row_id, rc.column_id }] = value;
+  }
+}
 
-    if (row_elimination_info == ELIMINATE_ROW_COLUMN || column_elimination_info == ELIMINATE_ROW_COLUMN) {
-      row_column_elimination_map[{ rc.row_id, rc.column_id }] = value;
-      continue;
-    }
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void AlephDoFLinearSystemImpl::
+_fillMatrix()
+{
+  _fillRowColumnEliminationInfos();
+
+  IItemFamily* dof_family = dofFamily();
+  DoFInfoListView item_list_view(dof_family);
+
+  auto& dof_elimination_info = getEliminationInfo();
+  auto& dof_elimination_value = getEliminationValue();
+  auto& rhs_variable = rhsVariable();
+
+  // Fill the matrix from the values of \a m_values_map
+  // Skip (row,column) values which are part of an elimination.
+  for (const auto& rc_value : m_values_map) {
+    RowColumn rc = rc_value.first;
+    Real value = rc_value.second;
+    DoF dof_row = item_list_view[rc.row_id];
+    DoF dof_column = item_list_view[rc.column_id];
+
+    Byte row_elimination_info = dof_elimination_info[dof_row];
 
     if (row_elimination_info == ELIMINATE_ROW)
       // Will be computed after this loop
+      continue;
+    if (m_row_column_elimination_map.contains(rc))
       continue;
 
     // Check if value is forced for current RowColumn
@@ -302,7 +327,7 @@ _fillMatrix()
   // Apply Row+Column elimination
   // Phase 1:
   // - subtract values of the RHS vector if Row+Column elimination
-  for (const auto& rc_value : row_column_elimination_map) {
+  for (const auto& rc_value : m_row_column_elimination_map) {
     RowColumn rc = rc_value.first;
     Real matrix_value = rc_value.second;
     DoF dof_row = item_list_view[rc.row_id];

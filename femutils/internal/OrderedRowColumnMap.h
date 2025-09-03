@@ -86,6 +86,7 @@ class OrderedRowColumnMap
   const_iterator end() const { return m_values_map.end(); }
   iterator find(RowColumn rc) { return m_values_map.find(rc); }
   const_iterator find(RowColumn rc) const { return m_values_map.find(rc); }
+  bool contains(RowColumn rc) const { return find(rc) != end(); }
 
  private:
 
