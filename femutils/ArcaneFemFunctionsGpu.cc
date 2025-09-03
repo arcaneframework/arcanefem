@@ -93,7 +93,7 @@ applyDirichletToNodeGroupViaRowElimination(const Int32 dof_index, Real value, Ru
   auto command = Accelerator::makeCommand(queue);
   auto in_out_elimination_info = Accelerator::viewInOut(command, elimination_helper.getEliminationInfo());
   auto in_out_elimination_value = Accelerator::viewInOut(command, elimination_helper.getEliminationValue());
-
+  const Int32 ELIMINATE_ROW = Arcane::FemUtils::ELIMINATE_ROW;
   command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
   {
     if (nodes_infos.isOwn(node_lid)) {
