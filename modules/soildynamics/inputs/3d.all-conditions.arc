@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Soildynamics" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>3D sdummy test to pass via all bc</title>
+    <title>3D dummy test to pass via all bc</title>
     <timeloop>SoildynamicsLoop</timeloop>
   </arcane>
 
