@@ -46,7 +46,7 @@ clearValues()
 {
   m_dof_forced_info.fill(false);
   m_dof_elimination_info.fill(ELIMINATE_NONE);
-  m_dof_elimination_value.fill(0);
+  m_dof_elimination_value.fill(0.0);
 }
 
 /*---------------------------------------------------------------------------*/

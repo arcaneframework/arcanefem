@@ -86,7 +86,6 @@ applyDirichletToNodeGroupViaRowElimination(const Int32 dof_index, Real value, Ru
 {
   ARCANE_CHECK_PTR(queue);
 
-  constexpr Byte ELIMINATE_ROW = 1;
   DoFLinearSystemRowEliminationHelper elimination_helper(linear_system.rowEliminationHelper());
   NodeInfoListView nodes_infos(node_group.itemFamily());
   auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
