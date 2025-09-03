@@ -40,12 +40,6 @@ class DoFLinearSystemImplBase
 {
  public:
 
-  static constexpr Byte ELIMINATE_NONE = 0;
-  static constexpr Byte ELIMINATE_ROW = 1;
-  static constexpr Byte ELIMINATE_ROW_COLUMN = 2;
-
- public:
-
   DoFLinearSystemImplBase(IItemFamily* dof_family, const String& solver_name);
 
  public:

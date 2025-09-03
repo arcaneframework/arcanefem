@@ -43,6 +43,24 @@ using CSRFormatView = CsrFormatMatrixView;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+/*!
+ * \brief List of matrix elimination type
+ */
+enum class MatrixEliminationType : Byte
+{
+  //! No elimination
+  None = 0,
+  //! Row elimination
+  Row = 1,
+  //! RowColumn elimination
+  RowColumn = 2,
+};
+static constexpr Byte ELIMINATE_NONE = static_cast<Byte>(MatrixEliminationType::None);
+static constexpr Byte ELIMINATE_ROW = static_cast<Byte>(MatrixEliminationType::Row);
+static constexpr Byte ELIMINATE_ROW_COLUMN = static_cast<Byte>(MatrixEliminationType::RowColumn);
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 } // namespace Arcane::FemUtils
 
