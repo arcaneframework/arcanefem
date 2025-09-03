@@ -39,6 +39,7 @@ add_library(FemUtils
   MeshTensorVariable.h
   MeshTensorVariable.H
   internal/IDoFLinearSystemImpl.h
+  internal/OrderedRowColumnMap.h
   internal/CsrDoFLinearSystemImpl.h
   internal/DoFLinearSystemImplBase.h
   ${ACCELERATOR_SOURCES}
