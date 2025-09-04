@@ -51,8 +51,8 @@ void FemModule::_buildMatrixCooSortGPU()
 
     info()
     << "_buildMatrixCooSortGPU for 2D mesh with face-node connectivity";
-    NumArray<uint, MDDim1> neighbors(nbNode());
-    SmallSpan<uint> in_data = neighbors.to1DSmallSpan();
+    NumArray<UInt32, MDDim1> neighbors(nbNode());
+    SmallSpan<UInt32> in_data = neighbors.to1DSmallSpan();
 
     UnstructuredMeshConnectivityView connectivity_view(mesh());
     auto node_face_connectivity_view = connectivity_view.nodeFace();
@@ -66,9 +66,9 @@ void FemModule::_buildMatrixCooSortGPU()
     }
     queue->barrier();
 
-    NumArray<uint, MDDim1> copy_output_data(nbNode());
-    SmallSpan<uint> out_data = copy_output_data.to1DSmallSpan();
-    Accelerator::Scanner<uint> scanner;
+    NumArray<UInt32, MDDim1> copy_output_data(nbNode());
+    SmallSpan<UInt32> out_data = copy_output_data.to1DSmallSpan();
+    Accelerator::Scanner<UInt32> scanner;
     scanner.exclusiveSum(queue, in_data, out_data);
 
     auto face_node_connectivity_view = connectivity_view.faceNode();
@@ -107,8 +107,8 @@ void FemModule::_buildMatrixCooSortGPU()
                 "with node-node connectivity";
 
       // This array will contain the number of neighbors of each node
-      // (type uint is enough for counting neighbors).
-      NumArray<uint, MDDim1> nb_neighbor_arr;
+      // (type UInt32 is enough for counting neighbors).
+      NumArray<UInt32, MDDim1> nb_neighbor_arr;
       nb_neighbor_arr.resize(nbNode());
       auto inout_nb_neighbor_arr = viewInOut(command, nb_neighbor_arr);
 
@@ -119,11 +119,11 @@ void FemModule::_buildMatrixCooSortGPU()
       };
 
       // Do the exclusive cumulative sum of the neighbors array
-      SmallSpan<uint> input = nb_neighbor_arr.to1DSmallSpan();
-      NumArray<uint, MDDim1> tmp_output;
+      SmallSpan<UInt32> input = nb_neighbor_arr.to1DSmallSpan();
+      NumArray<UInt32, MDDim1> tmp_output;
       tmp_output.resize(nbNode());
-      SmallSpan<uint> output = tmp_output.to1DSmallSpan();
-      Accelerator::Scanner<uint> scanner;
+      SmallSpan<UInt32> output = tmp_output.to1DSmallSpan();
+      Accelerator::Scanner<UInt32> scanner;
       scanner.exclusiveSum(queue, input, output);
 
       // Fill the neighbors relation (including node with itself) into the matrix
