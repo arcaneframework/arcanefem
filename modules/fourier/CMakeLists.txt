@@ -16,13 +16,17 @@ configure_file(Fourier.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 target_link_libraries(Fourier PUBLIC FemUtils)
 
 
-# Command to compile C# file for functions
-add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctions.dll"
-  COMMAND ${ARCANE_PREFIX_DIR}/bin/arcane_dotnet_compile "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctions.cs"
-  DEPENDS "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctions.cs"
-  WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
-add_custom_target(external_functions DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctions.dll")
-add_dependencies(Fourier external_functions)
+if (NOT APPLE)
+  # Command to compile C# file for functions
+  add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctions.dll"
+    COMMAND ${ARCANE_PREFIX_DIR}/bin/arcane_dotnet_compile "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctions.cs"
+    DEPENDS "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctions.cs"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+  add_custom_target(external_functions DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctions.dll")
+  add_dependencies(Fourier external_functions)
+else()
+  message(STATUS "Skipping ExternalFunctions.dll build on macOS")
+endif()
 
 # Copy the check files in the binary directory
 file(COPY "check" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
@@ -77,19 +81,22 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/conduction.quad.arc)
   add_test(NAME [fourier]conduction_heterogeneous_quad COMMAND Fourier
     inputs/conduction.heterogeneous.quad.arc)
-  add_test(NAME [fourier]manufacture_solution COMMAND Fourier
-    -A,UsingDotNet=1
-    inputs/manufacture.solution.arc)
   add_test(NAME [fourier]conduction_3D COMMAND Fourier
     inputs/conduction.3D.arc)
   add_test(NAME [fourier]conduction_boolean_3D COMMAND Fourier
     inputs/conduction.boolean.3D.arc)
   add_test(NAME [fourier]conduction_sphere-cut_hexa COMMAND Fourier
     inputs/conduction.sphere-cut.hexa.arc)
-  add_test(NAME [fourier]manufacture_solution_3D COMMAND Fourier
-    -A,UsingDotNet=1
-    -A,//meshes/mesh/filename=meshes/bar_dynamic_3D.msh 
-    inputs/manufacture.solution.arc)
+
+  if (NOT APPLE)
+    add_test(NAME [fourier]manufacture_solution COMMAND Fourier
+      -A,UsingDotNet=1
+      inputs/manufacture.solution.arc)
+    add_test(NAME [fourier]manufacture_solution_3D COMMAND Fourier
+      -A,UsingDotNet=1
+      -A,//meshes/mesh/filename=meshes/bar_dynamic_3D.msh
+      inputs/manufacture.solution.arc)
+  endif()
 
   arcanefem_add_gpu_test(NAME [fourier]conduction_petsc_bsr COMMAND ./Fourier ARGS
     -A,//fem/matrix-format=BSR
@@ -116,17 +123,21 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       inputs/conduction.quad.arc)
     add_test(NAME [fourier]conduction_heterogeneous_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
       inputs/conduction.heterogeneous.quad.arc)
-    add_test(NAME [fourier]manufacture_solution_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
-      -A,UsingDotNet=1
-      inputs/manufacture.solution.arc)
     add_test(NAME [fourier]conduction_heterogeneous_3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
       inputs/conduction.pipe.3D.arc)
     add_test(NAME [fourier]conduction_sphere-cut_3D_hexa_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
       inputs/conduction.sphere-cut.hexa.arc)
-    add_test(NAME [fourier]manufacture_solution_3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
-      -A,UsingDotNet=1
-      -A,//meshes/mesh/filename=meshes/bar_dynamic_3D.msh 
-      inputs/manufacture.solution.arc)
+
+    if (NOT APPLE)
+      add_test(NAME [fourier]manufacture_solution_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+        -A,UsingDotNet=1
+        inputs/manufacture.solution.arc)
+      add_test(NAME [fourier]manufacture_solution_3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+        -A,UsingDotNet=1
+        -A,//meshes/mesh/filename=meshes/bar_dynamic_3D.msh
+        inputs/manufacture.solution.arc)
+    endif()
+
     if(FEMTEST_HAS_GMSH_TEST)
       add_test(NAME [fourier]conduction_10k_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
         -A,//meshes/mesh/filename=meshes/plancher.10k.msh
