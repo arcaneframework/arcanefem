@@ -87,14 +87,14 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_buildOffsetsNodeWiseCsr(const SmallSpan<uint>& offsets_smallspan)
+void FemModule::_buildOffsetsNodeWiseCsr(const SmallSpan<UInt32>& offsets_smallspan)
 {
   Accelerator::RunQueue* queue = acceleratorMng()->defaultQueue();
 
   // Initialize the neighbors array and shift right by one for CSR format
-  NumArray<uint, MDDim1> neighbors(nbNode() + 1);
+  NumArray<UInt32, MDDim1> neighbors(nbNode() + 1);
   neighbors[0] = 0;
-  SmallSpan<uint> in_data = neighbors.to1DSmallSpan();
+  SmallSpan<UInt32> in_data = neighbors.to1DSmallSpan();
 
   auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
   ARCANE_CHECK_POINTER(connectivity_ptr);
@@ -108,7 +108,7 @@ void FemModule::_buildOffsetsNodeWiseCsr(const SmallSpan<uint>& offsets_smallspa
   queue->barrier();
 
   // Do the inclusive sum for CSR row array (in_data)
-  Accelerator::Scanner<uint> scanner;
+  Accelerator::Scanner<UInt32> scanner;
   scanner.inclusiveSum(queue, in_data, offsets_smallspan);
 }
 
@@ -121,8 +121,8 @@ _buildMatrixNodeWiseCsr()
   Int32 nb_non_zero = nb_node + 2 * (mesh_dim == 2 ? nbFace() : m_nb_edge);
   m_csr_matrix.initialize(m_dof_family, nb_non_zero, nb_node, m_queue);
 
-  NumArray<uint, MDDim1> offsets_numarray(nb_node + 1);
-  SmallSpan<uint> offsets_smallspan = offsets_numarray.to1DSmallSpan();
+  NumArray<UInt32, MDDim1> offsets_numarray(nb_node + 1);
+  SmallSpan<UInt32> offsets_smallspan = offsets_numarray.to1DSmallSpan();
 
   // Compute the array of offsets on Gpu
   _buildOffsetsNodeWiseCsr(offsets_smallspan);
