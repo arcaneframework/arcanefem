@@ -258,7 +258,9 @@ namespace
 void HypreDoFLinearSystemImpl::
 solve()
 {
-  _applyRowElimination();
+  _fillRowColumnEliminationInfos();
+  _applyRowColumnEliminationToRHS(true);
+  _applyRowOrRowColumnElimination();
   _applyForcedValuesToLhs();
 
 #if HYPRE_RELEASE_NUMBER >= 22700
@@ -355,12 +357,20 @@ solve()
     info() << "COLUMNS=" << csr_view.columns();
     info() << "VALUE=" << csr_view.values();
   }
-
   const int first_row = m_first_own_row;
   const int last_row = m_first_own_row + m_nb_own_row - 1;
 
   info() << "[Hypre-Info] CreateMatrix first_row=" << first_row << " last_row " << last_row;
   HYPRE_IJMatrixCreate(mpi_comm, first_row, last_row, first_row, last_row, &ij_A);
+
+  if (do_debug_print) {
+    VariableDoFReal& rhs_values(rhsVariable());
+    IItemFamily* dof_family = dofFamily();
+    ENUMERATE_ (DoF, idof, dof_family->allItems().own()) {
+      Real v = rhs_values[idof];
+      info() << "SET VECTOR VALUE (" << std::setw(4) << idof.itemLocalId() << ") = " << v;
+    }
+  }
 
   int* rows_nb_column_data = const_cast<int*>(csr_view.rowsNbColumn().data());
 
@@ -408,15 +418,25 @@ solve()
              << " global_row=" << rows_index_span[idof.index()];
       for (Int32 i = 0; i < nb_col; ++i) {
         Int32 col_index = csr_view.columns()[row_csr_index + i];
-        if (col_index >= 0)
-          info() << "COL=" << col_index
-                 << " T_COL=" << m_dof_matrix_numbering[DoFLocalId(col_index)]
-                 << " V=" << matrix_values[row_csr_index + i];
-        else
-          info() << "COL=" << col_index
-                 << " X_COL=" << columns_index_span[row_csr_index + i]
-                 << " V=" << matrix_values[row_csr_index + i];
+        Real v = matrix_values[row_csr_index + i];
+        if (v != 0.0) {
+          if (col_index >= 0){
+            info() << "SET MATRIX VALUE (" << std::setw(4) << dof.localId()
+                   << "," << std::setw(4) << col_index << ")"
+                   << " v=" << std::setw(25) << v;
+
+            //info() << "SET MATRIX VALUE(COL=" << col_index
+            //       << " T_COL=" << m_dof_matrix_numbering[DoFLocalId(col_index)]
+            //       << " V=" << v;
+          }
+          else
+            info() << "COL=" << col_index
+                   << " X_COL=" << columns_index_span[row_csr_index + i]
+                   << " V=" << v;
+        }
       }
+      //if (dof.localId() > 10)
+      //break;
     }
   }
 
