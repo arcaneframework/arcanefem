@@ -30,6 +30,10 @@
       <description>File name of a file containing the values of the solution vector to check the results</description>
     </simple>
 
+    <simple name="result-epsilon" type="real" default="1.0e-3">
+      <description>Relative epsilon used when comparing the values of the solution vector to check the results</description>
+    </simple>
+
     <simple name="matrix-format" type="string" default="DOK" optional="true">
       <description>Which matrix format to use DOK|BSR|AF-BSR.</description>
     </simple>
