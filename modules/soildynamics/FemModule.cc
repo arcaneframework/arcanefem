@@ -14,6 +14,7 @@
 #include "FemModule.h"
 #include "ElementMatrix.h"
 #include "SourceTerm.h"
+#include "Dirichlet.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -443,73 +444,6 @@ _assembleLinearOperator2d(BSRMatrix* bsr_matrix)
   }
 
   //----------------------------------------------
-  // Dirichlet conditions to LHS and RHS
-  //----------------------------------------------
-
-  for (const auto& bs : options()->dirichletBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    const UniqueArray<String> u_dirichlet_string = bs->u();
-
-    info() << "[ArcaneFem-Info] Applying Dirichlet " << u_dirichlet_string;
-    info() << "[ArcaneFem-Info] Dirichlet surface '" << bs->surface().name() << "'";
-    info() << "[ArcaneFem-Info] Dirichlet method '" << options()->enforceDirichletMethod() << "'";
-
-    if (options()->enforceDirichletMethod() == "Penalty") {
-
-      Real Penalty = options()->penalty();
-
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
-          ENUMERATE_ (Face, iface, group) {
-            for (Node node : iface->nodes()) {
-              DoFLocalId dof_id = node_dof.dofId(node, i);
-              if (node.isOwn()) {
-                m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
-                rhs_values[dof_id] = Penalty * u_dirichlet;
-              }
-            }
-          }
-        }
-      }
-    }
-    else {
-      ARCANE_FATAL("Dirichlet enforcing method not implemented use Penalty");
-    }
-  }
-
-  for (const auto& bs : options()->dirichletPointCondition()) {
-    NodeGroup group = bs->node();
-    const UniqueArray<String> u_dirichlet_string = bs->u();
-
-    info() << "[ArcaneFem-Info] Applying point Dirichlet " << u_dirichlet_string;
-    info() << "[ArcaneFem-Info] Dirichlet points '" << group.name() << "'";
-    info() << "[ArcaneFem-Info] Dirichlet method '" << options()->enforceDirichletMethod() << "'";
-
-    if (options()->enforceDirichletMethod() == "Penalty") {
-
-      Real Penalty = options()->penalty();
-
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
-          ENUMERATE_ (Node, inode, group) {
-            Node node = *inode;
-            DoFLocalId dof_id = node_dof.dofId(node, i);
-            if (node.isOwn()) {
-              m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
-              rhs_values[dof_id] = Penalty * u_dirichlet;
-            }
-          }
-        }
-      }
-    }
-    else {
-      ARCANE_FATAL("Dirichlet enforcing Method Not implemented use Penalty");
-    }
-  }
-
-  //----------------------------------------------
   // Double-couple term assembly
   //----------------------------------------------
 
@@ -557,6 +491,8 @@ _assembleLinearOperator2d(BSRMatrix* bsr_matrix)
       rhs_values[dof_id2] = dc_force;
     }
   }
+
+  _applyDirichlet(rhs_values, node_dof);
 }
 
 void FemModule::
@@ -734,72 +670,6 @@ _assembleLinearOperator3d(BSRMatrix* bsr_matrix)
   }
 
   //----------------------------------------------
-  // Dirichlet conditions to LHS and RHS
-  //----------------------------------------------
-
-  for (const auto& bs : options()->dirichletBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    const UniqueArray<String> u_dirichlet_string = bs->u();
-
-    info() << "[ArcaneFem-Info] Applying Dirichlet " << u_dirichlet_string;
-    info() << "[ArcaneFem-Info] Dirichlet surface '" << bs->surface().name() << "'";
-    info() << "[ArcaneFem-Info] Dirichlet method '" << options()->enforceDirichletMethod() << "'";
-
-    if (options()->enforceDirichletMethod() == "Penalty") {
-
-      Real Penalty = options()->penalty();
-
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
-          ENUMERATE_ (Face, iface, group) {
-            for (Node node : iface->nodes()) {
-              DoFLocalId dof_id = node_dof.dofId(node, i);
-              if (node.isOwn()) {
-                m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
-                rhs_values[dof_id] = Penalty * u_dirichlet;
-              }
-            }
-          }
-        }
-      }
-    }
-    else {
-      ARCANE_FATAL("Dirichlet enforcing Method Not implemented use Penalty");
-    }
-  }
-
-  for (const auto& bs : options()->dirichletPointCondition()) {
-    NodeGroup group = bs->node();
-    const UniqueArray<String> u_dirichlet_string = bs->u();
-
-    info() << "[ArcaneFem-Info] Applying point Dirichlet " << u_dirichlet_string;
-    info() << "[ArcaneFem-Info] Dirichlet points '" << group.name() << "'";
-    info() << "[ArcaneFem-Info] Dirichlet method '" << options()->enforceDirichletMethod() << "'";
-
-    if (options()->enforceDirichletMethod() == "Penalty") {
-      Real Penalty = options()->penalty();
-
-      for (Int32 i = 0; i < u_dirichlet_string.size(); ++i) {
-        if (u_dirichlet_string[i] != "NULL") {
-          Real u_dirichlet = std::stod(u_dirichlet_string[i].localstr());
-          ENUMERATE_ (Node, inode, group) {
-            Node node = *inode;
-            DoFLocalId dof_id = node_dof.dofId(node, i);
-            if (node.isOwn()) {
-              m_linear_system.matrixSetValue(dof_id, dof_id, Penalty);
-              rhs_values[dof_id] = Penalty * u_dirichlet;
-            }
-          }
-        }
-      }
-    }
-    else {
-      ARCANE_FATAL("Dirichlet enforcing Method Not implemented use Penalty");
-    }
-  }
-
-  //----------------------------------------------
   // Double-couple term assembly
   //----------------------------------------------
 
@@ -847,6 +717,8 @@ _assembleLinearOperator3d(BSRMatrix* bsr_matrix)
       rhs_values[dof_id2] = dc_force;
     }
   }
+
+  _applyDirichlet(rhs_values, node_dof);
 }
 
 /*---------------------------------------------------------------------------*/

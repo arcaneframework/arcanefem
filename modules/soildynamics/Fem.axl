@@ -82,27 +82,6 @@
       <description>Boolean to enable cross validation.</description>
     </simple>
 
-    <!-- - - - - - dirichlet-boundary-condition - - - - -->
-    <complex name  = "dirichlet-boundary-condition"
-             type  = "DirichletBoundaryCondition"
-             minOccurs = "0"
-             maxOccurs = "unbounded"
-      >
-      <description>
-        Dirichlet boundary condition
-      </description>
-      <extended name = "surface" type = "Arcane::FaceGroup">
-        <description>
-          FaceGroup on which to apply these boundary condition
-        </description>
-      </extended>
-      <simple name = "u" type = "string[]" default="NULL NULL NULL" optional="true">
-        <description>
-          Dirichlet conditions on the surface (space separated list).
-        </description>
-      </simple>
-    </complex>
-
     <!-- - - - - - double-couple-condition - - - - -->
     <complex name  = "double-couple"
              type  = "DoubleCouple"
@@ -140,27 +119,6 @@
     <simple name="double-couple-input-file" type="string">
       <description>File name of a file containing the double-couple loading</description>
     </simple>
-    </complex>
-
-    <!-- - - - - - dirichlet-point-condition - - - - -->
-    <complex name  = "dirichlet-point-condition"
-             type  = "DirichletPointCondition"
-             minOccurs = "0"
-             maxOccurs = "unbounded"
-      >
-      <description>
-        Dirichlet point condition
-      </description>
-      <extended name = "node" type = "Arcane::NodeGroup">
-        <description>
-          NodeGroup on which to apply these point Dirichlet condition
-        </description>
-      </extended>
-      <simple name = "u" type = "string[]" default="NULL NULL NULL" optional="true">
-        <description>
-          Dirichlet conditions on the surface (space separated list).
-        </description>
-      </simple>
     </complex>
 
     <!-- - - - - - neumann-boundary-condition - - - - -->
@@ -205,10 +163,10 @@
       </extended>
     </complex>
 
-    <!-- - - - - - linear-system - - - - -->
-    <service-instance name = "linear-system"
-                      type = "Arcane::FemUtils::IDoFLinearSystemFactory"
-                      default = "AlephLinearSystem"
-                      />
+    <!-- Linear system service instance -->
+    <service-instance name="linear-system" type="Arcane::FemUtils::IDoFLinearSystemFactory" default="AlephLinearSystem" />
+
+    <!-- Boundary conditions service instance -->
+    <service-instance name = "boundary-conditions" type = "BC::IArcaneFemBC" optional = "true" default="FemBoundaryConditions" />
   </options>
 </module>
