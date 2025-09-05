@@ -41,9 +41,5 @@
       </dirichlet-point>
     </boundary-conditions>
     <result-file>check/test_2D_constant_traction_pointbc.txt</result-file>
-    <linear-system>
-      <solver-backend>petsc</solver-backend>
-      <preconditioner>ilu</preconditioner>
-    </linear-system>
   </fem>
 </case>
