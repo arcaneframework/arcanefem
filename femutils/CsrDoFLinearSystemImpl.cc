@@ -101,7 +101,6 @@ _applyRowColumnElimination()
 
   auto in_out_rhs_variable = Accelerator::viewInOut(command, rhsVariable());
   auto csr_view = m_csr_view;
-  ITraceMng* tm = traceMng();
   command << RUNCOMMAND_LOOP1(iter, nb_dof)
   {
     auto [row_index] = iter();
@@ -122,7 +121,6 @@ _applyRowColumnElimination()
     if (is_row_elimination) {
       auto elimination_value = in_elimination_value[dof_row];
       in_out_rhs_variable[dof_row] = elimination_value;
-      tm->info() << "EliminateRHS row=" << dof_row << " v=" << elimination_value;
     }
   };
 }
