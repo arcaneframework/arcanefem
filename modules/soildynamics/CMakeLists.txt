@@ -93,6 +93,11 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   add_test(NAME [soildynamics]3d_all-conditions COMMAND Soildynamics
     inputs/3d.all-conditions.arc)
 
+  add_test(NAME [soildynamics]2d_bar_elastodynamics_bsr COMMAND Soildynamics
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/Soildynamics.arc)
+
   arcanefem_add_gpu_test(NAME [soildynamics]2d_double-couple_paraxial_body-force_bsr COMMAND  ./Soildynamics ARGS
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG}
