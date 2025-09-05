@@ -45,9 +45,17 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [soildynamics]2d_semi-circle_const_traction_pointbc COMMAND Soildynamics
     -A,//fem/petsc-flags=-ksp_view
     inputs/constant-traction.pointbc.arc)
+  add_test(NAME [soildynamics]2d_semi-circle_const-traction_pointbc_rowelim COMMAND Soildynamics
+    -A,//fem/petsc-flags=-ksp_view
+    -A,//fem/boundary-conditions/dirichlet-point[1]/enforce-Dirichlet-method=RowElimination
+    inputs/constant-traction.pointbc.arc)
   add_test(NAME [soildynamics]2d_semi-circle_transient_traction COMMAND Soildynamics
     inputs/transient-traction.arc)
   add_test(NAME [soildynamics]2d_bar_elastodynamics COMMAND Soildynamics
+    -A,//fem/petsc-flags=-ksp_monitor
+    inputs/Soildynamics.arc)
+  add_test(NAME [soildynamics]2d_bar_dirichlet_rowelm COMMAND Soildynamics
+    -A,//fem/boundary-conditions/dirichlet[1]/enforce-Dirichlet-method=RowElimination
     -A,//fem/petsc-flags=-ksp_monitor
     inputs/Soildynamics.arc)
   add_test(NAME [soildynamics]parse_and_exit COMMAND Soildynamics
