@@ -1,9 +1,9 @@
 option(ENABLE_DEBUG_MATRIX "Enable Debug matrix instead of a sparse one" OFF)
 
 set(ACCELERATOR_SOURCES
-  BSRFormat.h
   ArcaneFemFunctionsGpu.cc
   CsrDoFLinearSystemImpl.cc
+  BSRFormat.cc
 )
 
 if (TARGET Arcane::arcane_aleph_hypre)
@@ -21,6 +21,7 @@ add_library(FemUtils
   CsrFormatMatrix.cc
   CsrFormatMatrixView.h
   CsrFormatMatrixView.cc
+  BSRFormat.h
   DoFLinearSystemImplBase.cc
   FemDoFsOnNodes.h
   FemDoFsOnNodes.cc
