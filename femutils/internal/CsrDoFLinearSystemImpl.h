@@ -100,12 +100,13 @@ class CsrDoFLinearSystemImpl
   // These methods should be private but has to be public because of NVidia compiler
   void _applyForcedValuesToLhs();
   void _fillRowColumnEliminationInfos();
-  void _applyRowElimination();
-  void _applyRowColumnElimination();
+  void _applyRowEliminationOnMatrix();
+  void _applyRowColumnEliminationOnMatrix();
+  void _applyRowOrRowColumnEliminationOnRHS();
 
  protected:
 
-  void _applyRowOrRowColumnElimination();
+  void _applyRowOrRowColumnEliminationOnMatrix();
 };
 
 /*---------------------------------------------------------------------------*/
