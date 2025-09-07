@@ -258,11 +258,16 @@ namespace
 void HypreDoFLinearSystemImpl::
 solve()
 {
+  const bool do_debug_print = false;
+
+  // Matrix transformation
   _fillRowColumnEliminationInfos();
-  _applyRowColumnEliminationToRHS(true);
   _applyRowOrRowColumnEliminationOnMatrix();
-  _applyRowOrRowColumnEliminationOnRHS();
   _applyForcedValuesToLhs();
+
+  // RHS transformation
+  _applyRowColumnEliminationToRHS(do_debug_print);
+  _applyRowOrRowColumnEliminationOnRHS();
 
 #if HYPRE_RELEASE_NUMBER >= 22700
   HYPRE_MemoryLocation hypre_memory = HYPRE_MEMORY_HOST;
@@ -344,7 +349,6 @@ solve()
   HYPRE_IJMatrix ij_A = nullptr;
   HYPRE_ParCSRMatrix parcsr_A = nullptr;
 
-  const bool do_debug_print = false;
   const bool do_dump_matrix = false;
 
   Span<const Int32> rows_index_span = m_dof_matrix_numbering.asArray();
