@@ -260,7 +260,8 @@ solve()
 {
   _fillRowColumnEliminationInfos();
   _applyRowColumnEliminationToRHS(true);
-  _applyRowOrRowColumnElimination();
+  _applyRowOrRowColumnEliminationOnMatrix();
+  _applyRowOrRowColumnEliminationOnRHS();
   _applyForcedValuesToLhs();
 
 #if HYPRE_RELEASE_NUMBER >= 22700

@@ -76,18 +76,18 @@ _applyForcedValuesToLhs()
 /*---------------------------------------------------------------------------*/
 
 void CsrDoFLinearSystemImpl::
-_applyRowOrRowColumnElimination()
+_applyRowOrRowColumnEliminationOnMatrix()
 {
-  _applyRowElimination();
+  _applyRowEliminationOnMatrix();
   if (m_has_row_column_elimination)
-    _applyRowColumnElimination();
+    _applyRowColumnEliminationOnMatrix();
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 void CsrDoFLinearSystemImpl::
-_applyRowColumnElimination()
+_applyRowColumnEliminationOnMatrix()
 {
   IItemFamily* dof_family = dofFamily();
 
@@ -118,10 +118,6 @@ _applyRowColumnElimination()
         }
       }
     }
-    if (is_row_elimination) {
-      auto elimination_value = in_elimination_value[dof_row];
-      in_out_rhs_variable[dof_row] = elimination_value;
-    }
   };
 }
 
@@ -129,7 +125,7 @@ _applyRowColumnElimination()
 /*---------------------------------------------------------------------------*/
 
 void CsrDoFLinearSystemImpl::
-_applyRowElimination()
+_applyRowEliminationOnMatrix()
 {
   IItemFamily* dof_family = dofFamily();
 
@@ -152,7 +148,37 @@ _applyRowElimination()
       auto elimination_value = in_elimination_value[dof_id];
       for (CsrRowColumnIndex csr_index : csr_view.rowRange(dof_id))
         csr_view.value(csr_index) = (csr_view.column(csr_index) == dof_id) ? 1.0 : 0.0;
-      in_out_rhs_variable[dof_id] = elimination_value;
+    }
+  };
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void CsrDoFLinearSystemImpl::
+_applyRowOrRowColumnEliminationOnRHS()
+{
+  IItemFamily* dof_family = dofFamily();
+
+  auto nb_dof = dof_family->nbItem();
+
+  RunQueue queue = makeQueue(runner());
+  auto command = makeCommand(queue);
+
+  auto in_elimination_info = Accelerator::viewIn(command, getEliminationInfo());
+  auto in_elimination_value = Accelerator::viewIn(command, getEliminationValue());
+
+  auto in_out_rhs_variable = Accelerator::viewInOut(command, rhsVariable());
+  auto csr_view = m_csr_view;
+  command << RUNCOMMAND_LOOP1(iter, nb_dof)
+  {
+    auto [row_index] = iter();
+    DoFLocalId dof_row(row_index);
+    auto row_elimination_info = in_elimination_info[dof_row];
+    bool is_row_elimination = (row_elimination_info == ELIMINATE_ROW) || (row_elimination_info == ELIMINATE_ROW_COLUMN);
+    if (is_row_elimination) {
+      auto elimination_value = in_elimination_value[dof_row];
+      in_out_rhs_variable[dof_row] = elimination_value;
     }
   };
 }
