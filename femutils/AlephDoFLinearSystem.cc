@@ -45,7 +45,6 @@ enum class eSolverBackend
 
 namespace Arcane::FemUtils
 {
-
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 class AlephDoFLinearSystemImpl
@@ -143,7 +142,9 @@ class AlephDoFLinearSystemImpl
     info() << "EliminateRowColumn row=" << row.localId() << " v=" << value;
   }
 
-  void applyLinearSystemTransformationAndSolve() override;
+  void applyMatrixTransformation() override;
+  void applyRHSTransformation() override;
+  void solve() override;
 
   void setSolverCommandLineArguments(const CommandLineArguments& args) override
   {
@@ -495,19 +496,34 @@ _computeMatrixInfo()
 /*---------------------------------------------------------------------------*/
 
 void AlephDoFLinearSystemImpl::
-applyLinearSystemTransformationAndSolve()
+applyMatrixTransformation()
 {
-  UniqueArray<Real> aleph_result;
-
   info() << "[AlephFem] Assemble matrix ptr=" << m_aleph_matrix;
 
   // Matrix transformation
   _applyMatrixTransformationAndFillAlephMatrix();
   m_aleph_matrix->assemble();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void AlephDoFLinearSystemImpl::
+applyRHSTransformation()
+{
 
   // RHS Transformation
   _applyRHSTransformationAndFillAlephRHS();
   m_aleph_rhs_vector->assemble();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void AlephDoFLinearSystemImpl::
+solve()
+{
+  UniqueArray<Real> aleph_result;
 
   auto* aleph_solution_vector = m_aleph_solution_vector;
   IItemFamily* dof_family = dofFamily();

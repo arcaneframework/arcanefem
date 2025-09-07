@@ -59,7 +59,7 @@ class SequentialDoFLinearSystemImpl
 : public TraceAccessor
 , public IDoFLinearSystemImpl
 {
- public:
+public:
 
   SequentialDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
   : TraceAccessor(sd->traceMng())
@@ -105,9 +105,14 @@ class SequentialDoFLinearSystemImpl
     ARCANE_THROW(NotImplementedException, "");
   }
 
-  void applyLinearSystemTransformationAndSolve() override
+  void applyMatrixTransformation() override {}
+  void applyRHSTransformation() override
   {
     _fillRHSVector();
+  }
+
+  void solve() override
+  {
 
     Int32 matrix_size = m_k_matrix.extent0();
     Arcane::MatVec::Matrix matrix(matrix_size, matrix_size);
@@ -430,10 +435,41 @@ rowColumnEliminationHelper()
 /*---------------------------------------------------------------------------*/
 
 void DoFLinearSystem::
-applyLinearSystemTransformationAndSolve()
+solve()
 {
   _checkInit();
-  m_p->applyLinearSystemTransformationAndSolve();
+  m_p->solve();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystem::
+applyMatrixTransformation()
+{
+  _checkInit();
+  m_p->applyMatrixTransformation();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystem::
+applyRHSTransformation()
+{
+  _checkInit();
+  m_p->applyRHSTransformation();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystem::
+applyLinearSystemTransformationAndSolve()
+{
+  applyMatrixTransformation();
+  applyRHSTransformation();
+  solve();
 }
 
 /*---------------------------------------------------------------------------*/

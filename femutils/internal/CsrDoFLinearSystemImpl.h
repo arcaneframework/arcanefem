@@ -74,6 +74,9 @@ class CsrDoFLinearSystemImpl
     ARCANE_THROW(NotImplementedException, "");
   }
 
+  void applyMatrixTransformation() override;
+  void applyRHSTransformation() override;
+
   void clearValues() override
   {
     info() << "[CsrImpl]: Clear values";
