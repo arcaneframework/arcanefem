@@ -75,6 +75,8 @@ namespace Arcane::FemUtils
 class BSRMatrix
 : public TraceAccessor
 {
+  friend class BSRFormat;
+
  public:
 
   BSRMatrix(ITraceMng* tm, const eMemoryRessource& mem_ressource, const RunQueue& queue);
@@ -103,15 +105,17 @@ class BSRMatrix
   void dump(const String& filename);
 
   bool orderValuePerBlock() { return m_order_values_per_block; }
-  Int32 nbNz() { return m_nb_non_zero_value; };
-  Int32 nbCol() { return m_nb_col; };
+  Int32 nbNonZero() { return m_nb_non_zero_value; };
+  Int32 nbColumn() { return m_nb_col; };
   Int32 nbRow() { return m_nb_row; };
   Int8 nbBlock() { return m_nb_block; };
 
-  NumArray<Real, MDDim1>& values() { return m_values; }
-  NumArray<Int32, MDDim1>& columns() { return m_columns; }
-  NumArray<Int32, MDDim1>& rowIndex() { return m_row_index; }
-  NumArray<Int32, MDDim1>& nbNzPerRow() { return m_nb_nz_per_row; }
+ private:
+
+  NumArray<Real, MDDim1>& _values() { return m_values; }
+  NumArray<Int32, MDDim1>& _columns() { return m_columns; }
+  NumArray<Int32, MDDim1>& _rowsIndex() { return m_rows_index; }
+  NumArray<Int32, MDDim1>& _nbNonZeroPerRows() { return m_nb_non_zero_per_rows; }
 
  private:
 
@@ -124,8 +128,8 @@ class BSRMatrix
 
   NumArray<Real, MDDim1> m_values;
   NumArray<Int32, MDDim1> m_columns;
-  NumArray<Int32, MDDim1> m_row_index;
-  NumArray<Int32, MDDim1> m_nb_nz_per_row;
+  NumArray<Int32, MDDim1> m_rows_index;
+  NumArray<Int32, MDDim1> m_nb_non_zero_per_rows;
 
   RunQueue m_queue;
 };
@@ -143,8 +147,11 @@ class BSRMatrix
  *
  * @note This class uses Arcane's accelerator api and will use GPU is possible.
  * It uses a `BSRMatrix` under the hood for representation and operations.
+ *
+ * @note This class keep a reference on the instance of FemDoFOnNodes used
+ * in the constructor. So this instance of FemDoFOnNodes must live until the
+ * instance of this class is destroyed.
  */
-/*---------------------------------------------------------------------------*/
 class BSRFormat
 : public TraceAccessor
 {
@@ -254,18 +261,18 @@ assembleBilinearOrderedPerBlock(Function compute_element_matrix)
   ItemGenericInfoListView nodes_infos(m_mesh->nodeFamily());
 
   auto matrix_nb_row = m_bsr_matrix.nbRow();
-  auto matrix_nb_column = m_bsr_matrix.nbCol();
-  auto matrix_nb_nz = m_bsr_matrix.nbNz();
+  auto matrix_nb_column = m_bsr_matrix.nbColumn();
+  auto matrix_nb_nz = m_bsr_matrix.nbNonZero();
   auto matrix_nb_block = m_bsr_matrix.nbBlock();
   auto matrix_nb_block_sq = matrix_nb_block * matrix_nb_block;
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   auto command = makeCommand(m_queue);
-  auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
-  auto in_columns = viewIn(command, m_bsr_matrix.columns());
-  auto inout_values = viewInOut(command, m_bsr_matrix.values());
-  auto in_nz_per_row = viewIn(command, m_bsr_matrix.nbNzPerRow());
+  auto in_row_index = viewIn(command, m_bsr_matrix._rowsIndex());
+  auto in_columns = viewIn(command, m_bsr_matrix._columns());
+  auto inout_values = viewInOut(command, m_bsr_matrix._values());
+  auto in_nz_per_row = viewIn(command, m_bsr_matrix._nbNonZeroPerRows());
 
   command << RUNCOMMAND_ENUMERATE(Cell, cell, m_mesh->allCells())
   {
@@ -311,18 +318,18 @@ assembleBilinearOrderedPerRow(Function compute_element_matrix)
   ItemGenericInfoListView nodes_infos(m_mesh->nodeFamily());
 
   auto matrix_nb_row = m_bsr_matrix.nbRow();
-  auto matrix_nb_column = m_bsr_matrix.nbCol();
-  auto matrix_nb_nz = m_bsr_matrix.nbNz();
+  auto matrix_nb_column = m_bsr_matrix.nbColumn();
+  auto matrix_nb_nz = m_bsr_matrix.nbNonZero();
   auto matrix_nb_block = m_bsr_matrix.nbBlock();
   auto matrix_nb_block_sq = matrix_nb_block * matrix_nb_block;
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   auto command = makeCommand(m_queue);
-  auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
-  auto in_columns = viewIn(command, m_bsr_matrix.columns());
-  auto inout_values = viewInOut(command, m_bsr_matrix.values());
-  auto in_nz_per_row = viewIn(command, m_bsr_matrix.nbNzPerRow());
+  auto in_row_index = viewIn(command, m_bsr_matrix._rowsIndex());
+  auto in_columns = viewIn(command, m_bsr_matrix._columns());
+  auto inout_values = viewInOut(command, m_bsr_matrix._values());
+  auto in_nz_per_row = viewIn(command, m_bsr_matrix._nbNonZeroPerRows());
 
   command << RUNCOMMAND_ENUMERATE(Cell, cell, m_mesh->allCells())
   {
@@ -404,15 +411,15 @@ assembleBilinearOrderedPerBlockAtomicFree(Function compute_element_vectors)
   ItemGenericInfoListView nodes_infos(m_mesh->nodeFamily());
 
   auto matrix_nb_row = m_bsr_matrix.nbRow();
-  auto matrix_nb_column = m_bsr_matrix.nbCol();
-  auto matrix_nb_nz = m_bsr_matrix.nbNz();
+  auto matrix_nb_column = m_bsr_matrix.nbColumn();
+  auto matrix_nb_nz = m_bsr_matrix.nbNonZero();
   auto matrix_nb_block = m_bsr_matrix.nbBlock();
   auto matrix_nb_block_sq = matrix_nb_block * matrix_nb_block;
 
   auto command = makeCommand(m_queue);
-  auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
-  auto in_columns = viewIn(command, m_bsr_matrix.columns());
-  auto inout_values = viewInOut(command, m_bsr_matrix.values());
+  auto in_row_index = viewIn(command, m_bsr_matrix._rowsIndex());
+  auto in_columns = viewIn(command, m_bsr_matrix._columns());
+  auto inout_values = viewInOut(command, m_bsr_matrix._values());
 
   command << RUNCOMMAND_ENUMERATE(Node, row_node, m_mesh->allNodes())
   {
@@ -471,16 +478,16 @@ assembleBilinearOrderedPerRowAtomicFree(Function compute_element_vectors)
   ItemGenericInfoListView nodes_infos(m_mesh->nodeFamily());
 
   auto matrix_nb_row = m_bsr_matrix.nbRow();
-  auto matrix_nb_column = m_bsr_matrix.nbCol();
-  auto matrix_nb_nz = m_bsr_matrix.nbNz();
+  auto matrix_nb_column = m_bsr_matrix.nbColumn();
+  auto matrix_nb_nz = m_bsr_matrix.nbNonZero();
   auto matrix_nb_block = m_bsr_matrix.nbBlock();
   auto matrix_nb_block_sq = matrix_nb_block * matrix_nb_block;
 
   auto command = makeCommand(m_queue);
-  auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
-  auto in_columns = viewIn(command, m_bsr_matrix.columns());
-  auto inout_values = viewInOut(command, m_bsr_matrix.values());
-  auto in_nz_per_row = viewIn(command, m_bsr_matrix.nbNzPerRow());
+  auto in_row_index = viewIn(command, m_bsr_matrix._rowsIndex());
+  auto in_columns = viewIn(command, m_bsr_matrix._columns());
+  auto inout_values = viewInOut(command, m_bsr_matrix._values());
+  auto in_nz_per_row = viewIn(command, m_bsr_matrix._nbNonZeroPerRows());
 
   command << RUNCOMMAND_ENUMERATE(Node, row_node, m_mesh->allNodes())
   {
@@ -529,23 +536,21 @@ assembleBilinearOrderedPerRowAtomicFree(Function compute_element_vectors)
 
 /*---------------------------------------------------------------------------*/
 /**
-   * @brief Assembles the global BSR matrix for a bilinear operator, node-wise.
-   *
-   * This function constructs the Block Sparse Row (BSR) matrix by iterating over mesh nodes
-   * and accumulating contributions from element-level matrices. It uses a user-defined
-   * callback to compute the local vectors for each cell and updates the global matrix.
-   *
-   * ### Parameters:
-   * - `compute_element_vectors`: A callback function that computes the local vectors
-   *   for a given cell. It must return a vectors compatible with the expected block size.
-   *
-   * ### Key Details:
-   * - Uses cell-to-node, node-to-cell connectivity from the mesh and DoF mappings for assembly.
-   * - Handles block structure updates for `blockSize x blockSize` dimensions.
-   *
-   */
-/*---------------------------------------------------------------------------*/
-
+ * @brief Assembles the global BSR matrix for a bilinear operator, node-wise.
+ *
+ * This function constructs the Block Sparse Row (BSR) matrix by iterating over mesh nodes
+ * and accumulating contributions from element-level matrices. It uses a user-defined
+ * callback to compute the local vectors for each cell and updates the global matrix.
+ *
+ * ### Parameters:
+ * - `compute_element_vectors`: A callback function that computes the local vectors
+ *   for a given cell. It must return a vectors compatible with the expected block size.
+ *
+ * ### Key Details:
+ * - Uses cell-to-node, node-to-cell connectivity from the mesh and DoF mappings for assembly.
+ * - Handles block structure updates for `blockSize x blockSize` dimensions.
+ *
+ */
 template <class Function> inline void BSRFormat::
 assembleBilinearAtomicFree(Function compute_element_vectors)
 {
