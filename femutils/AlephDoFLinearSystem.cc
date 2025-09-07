@@ -199,8 +199,9 @@ class AlephDoFLinearSystemImpl
  private:
 
   AlephParams* _createAlephParam() const;
-  void _fillMatrix();
+  void _applyMatrixTransformationAndFillAlephMatrix();
   void _fillRHSVector();
+  void _applyRHSTransformationAndFillAlephRHS();
   void _setMatrixValue(DoF row, DoF column, Real value)
   {
     if (m_do_print_filling)
@@ -265,7 +266,6 @@ _fillRowColumnEliminationInfos()
 
   auto& dof_elimination_info = getEliminationInfo();
   auto& dof_elimination_value = getEliminationValue();
-  auto& rhs_variable = rhsVariable();
 
   for (const auto& rc_value : m_values_map) {
     RowColumn rc = rc_value.first;
@@ -283,7 +283,7 @@ _fillRowColumnEliminationInfos()
 /*---------------------------------------------------------------------------*/
 
 void AlephDoFLinearSystemImpl::
-_fillMatrix()
+_applyMatrixTransformationAndFillAlephMatrix()
 {
   _fillRowColumnEliminationInfos();
   OrderedRowColumnMap& rc_elimination_map = _rowColumnEliminationMap();
@@ -293,7 +293,6 @@ _fillMatrix()
 
   auto& dof_elimination_info = getEliminationInfo();
   auto& dof_elimination_value = getEliminationValue();
-  auto& rhs_variable = rhsVariable();
 
   // Fill the matrix from the values of \a m_values_map
   // Skip (row,column) values which are part of an elimination.
@@ -322,14 +321,44 @@ _fillMatrix()
     _setMatrixValue(dof_row, dof_column, value);
   }
 
+  const bool do_print_filling = m_do_print_filling;
+
+  // Apply Row or Row+Column elimination on Matrix
+  // Phase 2: set the diagonal value for elimination row to 1.0
+  ENUMERATE_ (DoF, idof, dof_family->allItems()) {
+    DoF dof = *idof;
+    if (!dof.isOwn())
+      continue;
+    Byte elimination_info = dof_elimination_info[dof];
+    if (elimination_info == ELIMINATE_ROW || elimination_info == ELIMINATE_ROW_COLUMN) {
+      Real elimination_value = dof_elimination_value[dof];
+      if (do_print_filling)
+        info() << "EliminateMatrix info=" << static_cast<int>(elimination_info) << " row="
+               << std::setw(4) << dof.localId() << " value=" << elimination_value;
+      _setMatrixValue(dof, dof, 1.0);
+    }
+  }
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void AlephDoFLinearSystemImpl::
+_applyRHSTransformationAndFillAlephRHS()
+{
+  const bool do_print_filling = m_do_print_filling;
+
   // Apply Row+Column elimination
   // Phase 1:
   // - subtract values of the RHS vector if Row+Column elimination
-  _applyRowColumnEliminationToRHS(m_do_print_filling);
+  _applyRowColumnEliminationToRHS(do_print_filling);
 
-  // Apply Row or Row+Column elimination
-  // Phase 2: set the value of the RHS
-  // Phase 2: fill the diagonal with 1.0
+  IItemFamily* dof_family = dofFamily();
+
+  auto& dof_elimination_info = getEliminationInfo();
+  auto& dof_elimination_value = getEliminationValue();
+  auto& rhs_variable = rhsVariable();
+
+  // Apply Row or Row+Column elimination on RHS
   ENUMERATE_ (DoF, idof, dof_family->allItems()) {
     DoF dof = *idof;
     if (!dof.isOwn())
@@ -338,11 +367,13 @@ _fillMatrix()
     if (elimination_info == ELIMINATE_ROW || elimination_info == ELIMINATE_ROW_COLUMN) {
       Real elimination_value = dof_elimination_value[dof];
       rhs_variable[dof] = elimination_value;
-      info() << "Eliminate info=" << static_cast<int>(elimination_info) << " row="
-             << std::setw(4) << dof.localId() << " value=" << elimination_value;
-      _setMatrixValue(dof, dof, 1.0);
+      if (do_print_filling)
+        info() << "EliminateRHS info=" << static_cast<int>(elimination_info) << " row="
+               << std::setw(4) << dof.localId() << " value=" << elimination_value;
     }
   }
+
+  _fillRHSVector();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -468,15 +499,16 @@ solve()
 {
   UniqueArray<Real> aleph_result;
 
-  // _fillMatrix() may change the values of RHS vector
-  // with row or row-column elimination so we have to fill the RHS vector
-  // before the matrix.
-  _fillMatrix();
-  _fillRHSVector();
-
   info() << "[AlephFem] Assemble matrix ptr=" << m_aleph_matrix;
+
+  // Matrix transformation
+  _applyMatrixTransformationAndFillAlephMatrix();
   m_aleph_matrix->assemble();
+
+  // RHS Transformation
+  _applyRHSTransformationAndFillAlephRHS();
   m_aleph_rhs_vector->assemble();
+
   auto* aleph_solution_vector = m_aleph_solution_vector;
   IItemFamily* dof_family = dofFamily();
   DoFGroup own_dofs = dof_family->allItems().own();
