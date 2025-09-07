@@ -227,9 +227,15 @@ class DoFLinearSystem
   DoFLinearSystemRowColumnEliminationHelper rowColumnEliminationHelper();
 
   /*!
-   * \brief Solve the current linear system.
+   * \brief Apply the underlying transformation and Solve the current linear system.
+   *
+   * This is equivalent to calling the following methods in order:
+   *
+   * - applyMatrixTransformation()
+   * - applyRHSTransformation()
+   * - solve()
    */
-  void solve();
+  void applyLinearSystemTransformationAndSolve();
 
   /*!
    * \brief Reset the current instance.

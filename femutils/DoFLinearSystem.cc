@@ -105,7 +105,7 @@ class SequentialDoFLinearSystemImpl
     ARCANE_THROW(NotImplementedException, "");
   }
 
-  void solve() override
+  void applyLinearSystemTransformationAndSolve() override
   {
     _fillRHSVector();
 
@@ -430,10 +430,10 @@ rowColumnEliminationHelper()
 /*---------------------------------------------------------------------------*/
 
 void DoFLinearSystem::
-solve()
+applyLinearSystemTransformationAndSolve()
 {
   _checkInit();
-  m_p->solve();
+  m_p->applyLinearSystemTransformationAndSolve();
 }
 
 /*---------------------------------------------------------------------------*/

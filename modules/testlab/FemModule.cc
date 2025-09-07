@@ -1983,7 +1983,7 @@ _solve()
   {
     TimeStart = platform::getRealTime();
     Timer::Action ta1(tstat, "LinearSystemSolve");
-    m_linear_system.solve();
+    m_linear_system.applyLinearSystemTransformationAndSolve();
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;

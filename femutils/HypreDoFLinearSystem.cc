@@ -142,7 +142,7 @@ class HypreDoFLinearSystemImpl
 
  public:
 
-  void solve() override;
+  void applyLinearSystemTransformationAndSolve() override;
 
   void setSolverCommandLineArguments(const CommandLineArguments& args) override
   {
@@ -256,7 +256,7 @@ namespace
 /*---------------------------------------------------------------------------*/
 
 void HypreDoFLinearSystemImpl::
-solve()
+applyLinearSystemTransformationAndSolve()
 {
   const bool do_debug_print = false;
 

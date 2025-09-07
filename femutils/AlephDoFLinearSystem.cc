@@ -143,7 +143,7 @@ class AlephDoFLinearSystemImpl
     info() << "EliminateRowColumn row=" << row.localId() << " v=" << value;
   }
 
-  void solve() override;
+  void applyLinearSystemTransformationAndSolve() override;
 
   void setSolverCommandLineArguments(const CommandLineArguments& args) override
   {
@@ -495,7 +495,7 @@ _computeMatrixInfo()
 /*---------------------------------------------------------------------------*/
 
 void AlephDoFLinearSystemImpl::
-solve()
+applyLinearSystemTransformationAndSolve()
 {
   UniqueArray<Real> aleph_result;
 

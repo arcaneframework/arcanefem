@@ -109,7 +109,8 @@ namespace
   {
     ARCANE_CHECK_POINTER(tm);
     using DataType = typename VariableType::DataType;
-    tm->info() << "CheckNodeResultFile filename=" << filename;
+    tm->info() << "CheckNodeResultFile filename=" << filename << " epsilon=" << epsilon
+               << " min_value=" << min_value;
     if (filename.empty())
       ARCANE_FATAL("Invalid empty filename");
     IItemFamily* node_family = node_values.variable()->itemFamily();
