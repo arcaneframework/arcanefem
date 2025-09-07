@@ -41,7 +41,7 @@ BSRMatrix(ITraceMng* tm, const eMemoryRessource& mem_ressource, const RunQueue& 
 : TraceAccessor(tm)
 , m_values(mem_ressource)
 , m_columns(mem_ressource)
-, m_row_index(mem_ressource)
+, m_rows_index(mem_ressource)
 , m_queue(queue) {};
 
 /*---------------------------------------------------------------------------*/
@@ -71,8 +71,8 @@ initialize(Int32 nb_non_zero_value, Int32 nb_col, Int32 nb_row, Int8 nb_block, b
   m_values.resize(nb_non_zero_value);
   m_values.fill(0, &m_queue);
   m_columns.resize(nb_col);
-  m_row_index.resize(nb_row);
-  m_nb_nz_per_row.resize(nb_row);
+  m_rows_index.resize(nb_row);
+  m_nb_non_zero_per_rows.resize(nb_row);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -84,8 +84,8 @@ findValueIndex(DoFLocalId row, DoFLocalId col) const
   auto block_row = row / m_nb_block;
   auto block_col = col / m_nb_block;
 
-  auto block_start = m_row_index[block_row];
-  auto block_end = (block_row == m_nb_row - 1) ? m_nb_col : m_row_index[block_row + 1];
+  auto block_start = m_rows_index[block_row];
+  auto block_end = (block_row == m_nb_row - 1) ? m_nb_col : m_rows_index[block_row + 1];
 
   auto row_offset = row % m_nb_block;
   auto col_offset = col % m_nb_block;
@@ -96,7 +96,7 @@ findValueIndex(DoFLocalId row, DoFLocalId col) const
   while (block_start < block_end) {
     if (m_columns[block_start] == block_col) {
       if (!m_order_values_per_block)
-        return block_start_in_value + (m_nb_block * col_index) + (row_offset * m_nb_block * m_nb_nz_per_row[block_row]) + col_offset;
+        return block_start_in_value + (m_nb_block * col_index) + (row_offset * m_nb_block * m_nb_non_zero_per_rows[block_row]) + col_offset;
       else
         return (block_start * nb_block_sq) + ((row_offset * m_nb_block) + col_offset);
     }
@@ -116,25 +116,25 @@ toCsr(CsrFormat* csr_matrix)
   info() << "BSRMatrix(toCsr): Convert matrix to CSR";
   auto startTime = platform::getRealTime();
 
-  auto nb_block_rows = m_row_index.extent0();
+  auto nb_block_rows = m_rows_index.extent0();
   auto nb_rows = nb_block_rows * m_nb_block;
   auto total_non_zero_elements = m_nb_non_zero_value;
 
   csr_matrix->initialize(nullptr, total_non_zero_elements, nb_rows, m_queue);
 
   if (m_nb_block == 1) {
-    csr_matrix->m_matrix_row = m_row_index;
+    csr_matrix->m_matrix_row = m_rows_index;
     csr_matrix->m_matrix_column = m_columns;
-    csr_matrix->m_matrix_rows_nb_column = m_nb_nz_per_row;
+    csr_matrix->m_matrix_rows_nb_column = m_nb_non_zero_per_rows;
   }
   else {
     // Translate `row_index`
     csr_matrix->m_matrix_row[0] = 0;
     auto offset = 1;
-    for (auto i = 0; i < m_row_index.extent0() - 1; ++i) {
+    for (auto i = 0; i < m_rows_index.extent0() - 1; ++i) {
       for (auto j = 0; j < m_nb_block; ++j) {
-        auto start = m_row_index[i];
-        auto end = i == m_row_index.extent0() - 1 ? m_nb_col : m_row_index[i + 1];
+        auto start = m_rows_index[i];
+        auto end = i == m_rows_index.extent0() - 1 ? m_nb_col : m_rows_index[i + 1];
         auto nombre_de_dof_dans_la_rangee = (end - start) * m_nb_block;
         csr_matrix->m_matrix_row[offset] = csr_matrix->m_matrix_row[offset - 1] + nombre_de_dof_dans_la_rangee;
         offset++;
@@ -143,10 +143,10 @@ toCsr(CsrFormat* csr_matrix)
 
     // Translate `columns`
     offset = 0;
-    for (auto i = 0; i < m_row_index.extent0(); ++i) {
+    for (auto i = 0; i < m_rows_index.extent0(); ++i) {
       for (auto j = 0; j < m_nb_block; ++j) {
-        auto start = m_row_index[i];
-        auto end = i == m_row_index.extent0() - 1 ? m_nb_col : m_row_index[i + 1];
+        auto start = m_rows_index[i];
+        auto end = i == m_rows_index.extent0() - 1 ? m_nb_col : m_rows_index[i + 1];
         for (auto block_index = start; block_index < end; ++block_index) {
           for (auto k = 0; k < m_nb_block; ++k) {
             csr_matrix->m_matrix_column[offset] = m_columns[block_index] * m_nb_block + k;
@@ -158,9 +158,9 @@ toCsr(CsrFormat* csr_matrix)
 
     // Translate `nb_nz_per_row`
     offset = 0;
-    for (auto i = 0; i < m_nb_nz_per_row.extent0(); ++i) {
+    for (auto i = 0; i < m_nb_non_zero_per_rows.extent0(); ++i) {
       for (auto j = 0; j < m_nb_block; ++j) {
-        csr_matrix->m_matrix_rows_nb_column[offset++] = m_nb_nz_per_row[i] * m_nb_block;
+        csr_matrix->m_matrix_rows_nb_column[offset++] = m_nb_non_zero_per_rows[i] * m_nb_block;
       }
     }
 
@@ -183,8 +183,8 @@ toLinearSystem(DoFLinearSystem& linear_system)
   info() << "BSRMatrix(toLinearSystem): Translate matrix to linear system using `matrixAddValue`";
 
   for (auto row = 0; row < m_nb_row; ++row) {
-    auto row_start = m_row_index[row];
-    auto row_end = (row + 1 < m_nb_row) ? m_row_index[row + 1] : m_nb_col;
+    auto row_start = m_rows_index[row];
+    auto row_end = (row + 1 < m_nb_row) ? m_rows_index[row + 1] : m_nb_col;
     for (auto block_idx = row_start; block_idx < row_end; ++block_idx) {
       auto col = m_columns[block_idx];
       for (auto i = 0; i < m_nb_block; ++i) {
@@ -208,10 +208,10 @@ dump(const String& filename)
   info() << "BSRMatrix(dump): Dump matrix in '" << filename << "'";
   ofstream file(filename.localstr());
 
-  file << "size :" << nbNz() << "\n";
+  file << "size :" << nbNonZero() << "\n";
   for (auto i = 0; i < nbRow(); ++i) {
-    file << m_row_index(i) << " ";
-    for (Int32 j = m_row_index(i) + 1; (i + 1 < m_row_index.dim1Size() && j < m_row_index(i + 1)) || (i + 1 == m_row_index.dim1Size() && j < m_columns.dim1Size()); j++)
+    file << m_rows_index(i) << " ";
+    for (Int32 j = m_rows_index(i) + 1; (i + 1 < m_rows_index.dim1Size() && j < m_rows_index(i + 1)) || (i + 1 == m_rows_index.dim1Size() && j < m_columns.dim1Size()); j++)
       file << "  ";
   }
   file << "\n";
@@ -220,7 +220,7 @@ dump(const String& filename)
     file << m_columns(i) << " ";
   file << "\n";
 
-  for (auto i = 0; i < nbNz(); ++i)
+  for (auto i = 0; i < nbNonZero(); ++i)
     file << m_values(i) << " ";
   file << "\n";
 
@@ -321,9 +321,9 @@ computeNzPerRowArray()
   auto startTime = platform::getRealTime();
 
   auto command = makeCommand(m_queue);
-  NumArray<Int32, MDDim1>& nb_nz_per_row = m_bsr_matrix.nbNzPerRow();
+  NumArray<Int32, MDDim1>& nb_nz_per_row = m_bsr_matrix._nbNonZeroPerRows();
   auto inout_nb_nz_per_row = viewInOut(command, nb_nz_per_row);
-  auto inout_row_index = viewInOut(command, m_bsr_matrix.rowIndex());
+  auto inout_row_index = viewInOut(command, m_bsr_matrix._rowsIndex());
 
   auto nb_row = m_bsr_matrix.nbRow();
   // Copy `row_index` in `nz_per_row`
@@ -339,7 +339,7 @@ computeNzPerRowArray()
   m_queue.barrier();
 
   {
-    auto nb_col = m_bsr_matrix.nbCol();
+    auto nb_col = m_bsr_matrix.nbColumn();
     auto command = makeCommand(m_queue);
     command << RUNCOMMAND_LOOP1(iter, nb_row)
     {
@@ -396,7 +396,7 @@ computeRowIndexAtomicFree()
   computeNeighborsAtomicFree(neighbors_ss);
 
   Accelerator::Scanner<Int32> scanner;
-  scanner.exclusiveSum(&m_queue, neighbors_ss, m_bsr_matrix.rowIndex().to1DSmallSpan());
+  scanner.exclusiveSum(&m_queue, neighbors_ss, m_bsr_matrix._rowsIndex().to1DSmallSpan());
 }
 
 /*---------------------------------------------------------------------------*/
@@ -406,8 +406,8 @@ void BSRFormat::
 computeColumnsAtomicFree()
 {
   auto command = makeCommand(m_queue);
-  auto inout_columns = viewInOut(command, m_bsr_matrix.columns());
-  auto row_index = m_bsr_matrix.rowIndex().to1DSmallSpan();
+  auto inout_columns = viewInOut(command, m_bsr_matrix._columns());
+  auto row_index = m_bsr_matrix._rowsIndex().to1DSmallSpan();
 
   if (m_mesh->dimension() == 2) {
     UnstructuredMeshConnectivityView connectivity_view(m_mesh);
@@ -555,7 +555,7 @@ computeRowIndex(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& 
 
   Accelerator::Scanner<Int32> scanner;
   SmallSpan<Int32> neighbors_ss = neighbors.to1DSmallSpan();
-  scanner.exclusiveSum(&m_queue, neighbors_ss, m_bsr_matrix.rowIndex().to1DSmallSpan());
+  scanner.exclusiveSum(&m_queue, neighbors_ss, m_bsr_matrix._rowsIndex().to1DSmallSpan());
 }
 
 /*---------------------------------------------------------------------------*/
@@ -568,8 +568,8 @@ computeColumns(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>&
 
   {
     auto command = makeCommand(m_queue);
-    auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
-    auto inout_columns = viewInOut(command, m_bsr_matrix.columns());
+    auto in_row_index = viewIn(command, m_bsr_matrix._rowsIndex());
+    auto inout_columns = viewInOut(command, m_bsr_matrix._columns());
 
     command << RUNCOMMAND_LOOP1(iter, nb_node)
     {
@@ -587,8 +587,8 @@ computeColumns(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>&
 
   {
     auto command = makeCommand(m_queue);
-    auto inout_columns = viewInOut(command, m_bsr_matrix.columns());
-    auto in_row_index = viewIn(command, m_bsr_matrix.rowIndex());
+    auto inout_columns = viewInOut(command, m_bsr_matrix._columns());
+    auto in_row_index = viewIn(command, m_bsr_matrix._rowsIndex());
     auto inout_offsets = viewInOut(command, offsets);
 
     command << RUNCOMMAND_LOOP1(iter, nb_edge_total)
@@ -659,7 +659,7 @@ matrix()
 void BSRFormat::
 resetMatrixValues()
 {
-  m_bsr_matrix.values().fill(0, m_queue);
+  m_bsr_matrix._values().fill(0, m_queue);
 };
 
 /*---------------------------------------------------------------------------*/
