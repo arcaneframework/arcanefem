@@ -1989,6 +1989,16 @@ _solve()
   elapsedTime = platform::getRealTime() - elapsedTime;
   _printArcaneFemTime("[ArcaneFem-Timer] solving-linear-system", elapsedTime);
 
+  // Call again the solver to check it is valid to call it
+  // several times. The second time we only call solve() without
+  // applying transformation.
+  info() << "Calling only solve";
+  {
+    TimeStart = platform::getRealTime();
+    Timer::Action ta1(tstat, "LinearSystemSolve2");
+    m_linear_system.solve();
+  }
+
   // Re-Apply boundary conditions because the solver has modified the value
   {
     TimeStart = platform::getRealTime();
