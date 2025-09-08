@@ -260,15 +260,6 @@ solve()
 {
   const bool do_debug_print = false;
 
-  // Matrix transformation
-  _fillRowColumnEliminationInfos();
-  _applyRowOrRowColumnEliminationOnMatrix();
-  _applyForcedValuesToLhs();
-
-  // RHS transformation
-  _applyRowColumnEliminationToRHS(do_debug_print);
-  _applyRowOrRowColumnEliminationOnRHS();
-
 #if HYPRE_RELEASE_NUMBER >= 22700
   HYPRE_MemoryLocation hypre_memory = HYPRE_MEMORY_HOST;
   HYPRE_ExecutionPolicy hypre_exec_policy = HYPRE_EXEC_HOST;

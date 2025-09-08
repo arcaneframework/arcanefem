@@ -2350,7 +2350,7 @@ _getTractionContribution(Arcane::VariableDoFReal& rhs_values){
 void ElastodynamicModule::
 _doSolve(){
   info() << "Solving Linear system";
-  m_linear_system.solve();
+  m_linear_system.applyLinearSystemTransformationAndSolve();
 
   {
     VariableDoFReal& dof_d(m_linear_system.solutionVariable());

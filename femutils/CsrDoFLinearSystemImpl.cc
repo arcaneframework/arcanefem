@@ -33,7 +33,6 @@
 
 namespace Arcane::FemUtils
 {
-
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -229,6 +228,29 @@ _fillRowColumnEliminationInfos()
       }
     }
   }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void CsrDoFLinearSystemImpl::
+applyMatrixTransformation()
+{
+  // Matrix transformation
+  _fillRowColumnEliminationInfos();
+  _applyRowOrRowColumnEliminationOnMatrix();
+  _applyForcedValuesToLhs();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void CsrDoFLinearSystemImpl::
+applyRHSTransformation()
+{
+  // RHS transformation
+  _applyRowColumnEliminationToRHS(false);
+  _applyRowOrRowColumnEliminationOnRHS();
 }
 
 /*---------------------------------------------------------------------------*/
