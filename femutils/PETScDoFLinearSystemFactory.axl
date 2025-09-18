@@ -1,0 +1,39 @@
+<?xml version="1.0" ?><!-- -*- SGML -*- -->
+<service name="PETScDoFLinearSystemFactory" version="1.0" type="caseoption" namespace-name="Arcane::FemUtils">
+  <interface name="Arcane::FemUtils::IDoFLinearSystemFactory" />
+  <options>
+    <simple name="rtol" type="real" default="1.0e-7" />
+    <simple name="atol" type="real" default="0.0" />
+
+    <simple name="krylov-dim" type="int32" default="3" />
+    <simple name="max-iter" type="int32" default="1000" />
+    <simple name="verbosity" type="int32" default="2" />
+    <simple name="amg-threshold" type="real" default="0.25" />
+    <simple name="amg-coarsener" type="int32" default="8" />
+    <simple name="amg-interp-type" type="int32" default="6" />
+    <simple name="amg-smoother" type="int32" default="6" />
+
+  <!--
+    <enumeration name = "solver"
+                 type = "Arcane::FemUtils::solver"
+                 default = "cg"
+                 >
+      <description>Krylov solver to be used by PETSc</description>
+      <enumvalue genvalue="Arcane::FemUtils::solver::CG" name="cg"/>
+      <enumvalue genvalue="Arcane::FemUtils::solver::GMRES" name="gmres"/>
+      <enumvalue genvalue="Arcane::FemUtils::solver::FGMRES" name="fgmres"/>
+      <enumvalue genvalue="Arcane::FemUtils::solver::BICGSTAB" name="bicgstab"/>
+    </enumeration>
+
+    <enumeration name = "preconditioner"
+                 type = "Arcane::FemUtils::preconditioner"
+                 default = "amg"
+                 >
+      <description>Preconditioner to be used by PETSc</description>
+      <enumvalue genvalue="Arcane::FemUtils::preconditioner::AMG" name="amg"/>
+      <enumvalue genvalue="Arcane::FemUtils::preconditioner::BJACOBI" name="bjacobi"/>
+    </enumeration>
+    -->
+
+  </options>
+</service>

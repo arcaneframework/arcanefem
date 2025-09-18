@@ -10,6 +10,10 @@ if (TARGET Arcane::arcane_aleph_hypre)
   list(APPEND ACCELERATOR_SOURCES HypreDoFLinearSystem.cc)
 endif()
 
+if (TARGET Arcane::arcane_aleph_petsc)
+  list(APPEND ACCELERATOR_SOURCES PETScDoFLinearSystem.cc PETScDoFLinearSystem.h)
+endif()
+
 add_library(FemUtils
   FemUtils.h
   FemUtils.cc
@@ -38,6 +42,7 @@ add_library(FemUtils
   AlephDoFLinearSystemFactory_axl.h
   SequentialBasicDoFLinearSystemFactory_axl.h
   HypreDoFLinearSystemFactory_axl.h
+  PETScDoFLinearSystemFactory_axl.h
   FemBoundaryConditions_axl.h
   MeshTensorVariable.h
   MeshTensorVariable.H
@@ -54,6 +59,7 @@ arcane_accelerator_add_to_target(FemUtils)
 arcane_generate_axl(AlephDoFLinearSystemFactory)
 arcane_generate_axl(SequentialBasicDoFLinearSystemFactory)
 arcane_generate_axl(HypreDoFLinearSystemFactory)
+arcane_generate_axl(PETScDoFLinearSystemFactory)
 arcane_generate_axl(FemBoundaryConditions)
 
 target_compile_definitions(FemUtils PRIVATE $<$<BOOL:${ENABLE_DEBUG_MATRIX}>:ENABLE_DEBUG_MATRIX>)
@@ -82,6 +88,11 @@ if (TARGET Arcane::arcane_aleph_petsc)
   target_link_libraries(FemUtils PRIVATE Arcane::arcane_aleph_petsc)
   message(STATUS "PETSc backend is available")
   set(FEMUTILS_HAS_SOLVER_BACKEND_PETSC TRUE)
+  find_package(PETSc)
+
+  if (TARGET arcconpkg_PETSc)
+    target_link_libraries(FemUtils PRIVATE arcconpkg_PETSc)
+  endif()
 endif()
 
 
