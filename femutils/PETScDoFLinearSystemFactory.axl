@@ -13,6 +13,32 @@
     <simple name="amg-interp-type" type="int32" default="6" />
     <simple name="amg-smoother" type="int32" default="6" />
 
+    <enumeration name = "preconditioner"
+                 type = "Arcane::TypesSolver::ePreconditionerMethod"
+                 default = "diagonal"
+    >
+      <description>Preconditioner to use to solve the linear system</description>
+      <enumvalue genvalue="Arcane::TypesSolver::DIAGONAL" name="diagonal" />
+      <enumvalue genvalue="Arcane::TypesSolver::AMG" name="amg" />
+      <enumvalue genvalue="Arcane::TypesSolver::AINV" name="ainv" />
+      <enumvalue genvalue="Arcane::TypesSolver::IC" name="ic" />
+      <enumvalue genvalue="Arcane::TypesSolver::POLY" name="poly" />
+      <enumvalue genvalue="Arcane::TypesSolver::ILU" name="ilu" />
+      <enumvalue genvalue="Arcane::TypesSolver::ILUp" name="ilup"/>
+      <enumvalue genvalue="Arcane::TypesSolver::NONE" name="none"/>
+    </enumeration>
+
+    <enumeration name = "solver-method"
+                 type = "Arcane::TypesSolver::eSolverMethod"
+                 default = "pcg"
+    >
+      <description>Method to use to solve the linear system</description>
+      <enumvalue genvalue="Arcane::TypesSolver::PCG" name="pcg"/>
+      <enumvalue genvalue="Arcane::TypesSolver::BiCGStab" name="bicgstab"/>
+      <enumvalue genvalue="Arcane::TypesSolver::BiCGStab2" name="bicgstab2"/>
+      <enumvalue genvalue="Arcane::TypesSolver::GMRES" name="gmres"/>
+    </enumeration>
+
   <!--
     <enumeration name = "solver"
                  type = "Arcane::FemUtils::solver"
