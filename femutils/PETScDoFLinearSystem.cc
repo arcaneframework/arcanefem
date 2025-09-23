@@ -88,7 +88,6 @@ class PETScDoFLinearSystemImpl
   }
 
   void setMaxIter(Int32 v) { m_max_iter = v; }
-  void setVerbosityLevel(Int32 v) { m_verbosity = v; }
   void setAmgCoarsener(Int32 v) { m_amg_coarsener = v; }
   void setAmgInterpType(Int32 v) { m_amg_interp_type = v; }
   void setAmgSmoother(Int32 v) { m_amg_smoother = v; }
@@ -98,12 +97,14 @@ class PETScDoFLinearSystemImpl
   void setAbsTolerance(Real v) { m_atol = v; }
   void setAmgThreshold(Real v) { m_amg_threshold = v; }
 
+  void setSolver(String v) { m_solver_method = std::string{v.localstr()}; }
+  void setPreconditioner(String v) { m_preconditionner_method = std::string{v.localstr()}; }
+
   CaseOptionsPETScDoFLinearSystemFactory *options;
 
  private:
 
   KSP m_petsc_solver_context;
-  PC m_petsc_preconditioner_context;
   Vec m_petsc_solution_vector;
   Vec m_petsc_rhs_vector;
   Mat m_petsc_matrix;
@@ -120,7 +121,6 @@ class PETScDoFLinearSystemImpl
   Int32 m_first_own_row;
   Int32 m_nb_own_row;
   Int32 m_max_iter;
-  Int32 m_verbosity;
   Int32 m_amg_coarsener;
   Int32 m_amg_interp_type;
   Int32 m_amg_smoother;
@@ -130,9 +130,13 @@ class PETScDoFLinearSystemImpl
   Real m_rtol;
   Real m_atol;
 
+  std::string m_solver_method; // cannot use String type because we need this to be mutable
+  std::string m_preconditionner_method;
+
  private:
 
   void _computeMatrixNumeration();
+  void _handleParameters();
 };
 
 /*---------------------------------------------------------------------------*/
@@ -184,18 +188,48 @@ _computeMatrixNumeration()
   m_result_work_values.resize(nb_own_row);
 }
 
+void PETScDoFLinearSystemImpl::_handleParameters()
+{
+  PetscBool is_initialized;
+  PetscInitialized(&is_initialized);
+
+  if (!is_initialized) // no command line arguments were given
+    PetscInitialize(nullptr, nullptr, nullptr, nullptr);
+
+#define MAX_STRING_LENGTH 20
+
+#define X_OPTION(type, petsc_string, variable) \
+  PetscOptionsGet##type(nullptr, nullptr, petsc_string, &variable, &set); \
+  if (!set) \
+    PetscOptionsSetValue(nullptr, petsc_string, std::to_string(variable).c_str());
+
+#define X_OPTION_STRING(petsc_string, variable) \
+    PetscOptionsGetString(nullptr, nullptr, petsc_string, variable.data(), MAX_STRING_LENGTH, &set); \
+    if (!set) \
+      PetscOptionsSetValue(nullptr, petsc_string, variable.c_str());
+
+  PetscBool set;
+  X_OPTION(Real, "-ksp_rtol", m_rtol);
+  X_OPTION(Real, "-ksp_atol", m_atol);
+  X_OPTION(Int, "-ksp_max_it", m_max_iter);
+  X_OPTION_STRING("-ksp_type", m_solver_method);
+  X_OPTION_STRING("-pc_type", m_preconditionner_method);
+  // X_OPTION(Int, "-pc_gamg_coarse_eq_limit", m_amg_coarsener);
+  // X_OPTION(Int, "-pc_gamg_agg_nsmooths", m_amg_smoother);
+  // X_OPTION(Int, "-pc_gamg_agg_nsmooths", m_amg_smoother);
+  // X_OPTION(Real, "-pc_gamg_threshold", m_amg_threshold);
+
+#undef X_OPTION
+#undef X_OPTION_STRING
+}
+
 void PETScDoFLinearSystemImpl::
 solve()
 {
   info() << "[PETSc-Info] Calling PETSc solver";
   _applyRowElimination();
   _applyForcedValuesToLhs();
-
-  PetscBool isInitialized;
-  PetscInitialized(&isInitialized);
-
-  if (!isInitialized) // no command line arguments were given
-    PetscInitialize(nullptr, nullptr, nullptr, nullptr);
+  _handleParameters();
 
   IItemFamily* dof_family = dofFamily();
   IParallelMng* pm = dof_family->parallelMng();
@@ -222,7 +256,9 @@ solve()
 
   MatCreate(mpi_comm, &m_petsc_matrix);
   MatSetSizes(m_petsc_matrix, local_rows, local_rows, global_rows, global_rows);
-  MatSetType(m_petsc_matrix, MATAIJ);
+
+  MatSetFromOptions(m_petsc_matrix);
+
   MatSetUp(m_petsc_matrix);
 
   Span<const Int32> columns_index_span = csr_view.columns();
@@ -251,12 +287,14 @@ solve()
 
   VecCreateMPI(mpi_comm, local_rows, global_rows, &m_petsc_rhs_vector);
   VecSetSizes(m_petsc_rhs_vector, local_rows, global_rows);
+  VecSetFromOptions(m_petsc_rhs_vector);
   VecSetValues(m_petsc_rhs_vector, local_rows, rows_index_data, rhs_data, INSERT_VALUES);
   VecAssemblyBegin(m_petsc_rhs_vector);
   VecAssemblyEnd(m_petsc_rhs_vector);
 
   VecCreateMPI(mpi_comm, local_rows, global_rows, &m_petsc_solution_vector);
   VecSetSizes(m_petsc_solution_vector, local_rows, global_rows);
+  VecSetFromOptions(m_petsc_solution_vector);
   VecSetValues(m_petsc_solution_vector, local_rows, rows_index_data, result_data, INSERT_VALUES);
   VecAssemblyBegin(m_petsc_solution_vector);
   VecAssemblyEnd(m_petsc_solution_vector);
@@ -265,13 +303,8 @@ solve()
 
   KSPCreate(mpi_comm, &m_petsc_solver_context);
   KSPSetOperators(m_petsc_solver_context, m_petsc_matrix, m_petsc_matrix);
+  KSPSetFromOptions(m_petsc_solver_context);
   KSPSolve(m_petsc_solver_context, m_petsc_rhs_vector, m_petsc_solution_vector);
-
-  if (isInitialized)
-    KSPSetFromOptions(m_petsc_solver_context);
-  else
-    KSPSetTolerances(m_petsc_solver_context, m_rtol, m_atol, PETSC_DEFAULT, m_max_iter);
-
 
   info() << "[PETSc-Info] Solved linear system";
 
@@ -330,9 +363,8 @@ class PETScDoFLinearSystemFactoryService
     x->setAmgInterpType(options()->amgInterpType());
     x->setAmgSmoother(options()->amgSmoother());
     x->setKrylovDim(options()->krylovDim());
-    x->setVerbosityLevel(options()->verbosity());
-    // x->setSolver(options()->solver());
-    // x->setPreconditioner(options()->preconditioner());
+    x->setSolver(options()->solver());
+    x->setPreconditioner(options()->preconditioner());
     return x;
   }
 };

@@ -7,59 +7,12 @@
 
     <simple name="krylov-dim" type="int32" default="3" />
     <simple name="max-iter" type="int32" default="1000" />
-    <simple name="verbosity" type="int32" default="2" />
     <simple name="amg-threshold" type="real" default="0.25" />
     <simple name="amg-coarsener" type="int32" default="8" />
     <simple name="amg-interp-type" type="int32" default="6" />
     <simple name="amg-smoother" type="int32" default="6" />
 
-    <enumeration name = "preconditioner"
-                 type = "Arcane::TypesSolver::ePreconditionerMethod"
-                 default = "diagonal"
-    >
-      <description>Preconditioner to use to solve the linear system</description>
-      <enumvalue genvalue="Arcane::TypesSolver::DIAGONAL" name="diagonal" />
-      <enumvalue genvalue="Arcane::TypesSolver::AMG" name="amg" />
-      <enumvalue genvalue="Arcane::TypesSolver::AINV" name="ainv" />
-      <enumvalue genvalue="Arcane::TypesSolver::IC" name="ic" />
-      <enumvalue genvalue="Arcane::TypesSolver::POLY" name="poly" />
-      <enumvalue genvalue="Arcane::TypesSolver::ILU" name="ilu" />
-      <enumvalue genvalue="Arcane::TypesSolver::ILUp" name="ilup"/>
-      <enumvalue genvalue="Arcane::TypesSolver::NONE" name="none"/>
-    </enumeration>
-
-    <enumeration name = "solver-method"
-                 type = "Arcane::TypesSolver::eSolverMethod"
-                 default = "pcg"
-    >
-      <description>Method to use to solve the linear system</description>
-      <enumvalue genvalue="Arcane::TypesSolver::PCG" name="pcg"/>
-      <enumvalue genvalue="Arcane::TypesSolver::BiCGStab" name="bicgstab"/>
-      <enumvalue genvalue="Arcane::TypesSolver::BiCGStab2" name="bicgstab2"/>
-      <enumvalue genvalue="Arcane::TypesSolver::GMRES" name="gmres"/>
-    </enumeration>
-
-  <!--
-    <enumeration name = "solver"
-                 type = "Arcane::FemUtils::solver"
-                 default = "cg"
-                 >
-      <description>Krylov solver to be used by PETSc</description>
-      <enumvalue genvalue="Arcane::FemUtils::solver::CG" name="cg"/>
-      <enumvalue genvalue="Arcane::FemUtils::solver::GMRES" name="gmres"/>
-      <enumvalue genvalue="Arcane::FemUtils::solver::FGMRES" name="fgmres"/>
-      <enumvalue genvalue="Arcane::FemUtils::solver::BICGSTAB" name="bicgstab"/>
-    </enumeration>
-
-    <enumeration name = "preconditioner"
-                 type = "Arcane::FemUtils::preconditioner"
-                 default = "amg"
-                 >
-      <description>Preconditioner to be used by PETSc</description>
-      <enumvalue genvalue="Arcane::FemUtils::preconditioner::AMG" name="amg"/>
-      <enumvalue genvalue="Arcane::FemUtils::preconditioner::BJACOBI" name="bjacobi"/>
-    </enumeration>
-    -->
-
+    <simple name="solver" type="string" default="cg" />
+    <simple name="preconditioner" type="string" default="jacobi" />
   </options>
 </service>
