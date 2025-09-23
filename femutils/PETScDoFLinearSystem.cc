@@ -71,7 +71,6 @@ class PETScDoFLinearSystemImpl
  public:
 
   void build() {
-    // _computeMatrixNumeration();
     PetscFunctionBeginUser;
   }
 
@@ -196,14 +195,110 @@ solve()
   PetscInitialized(&isInitialized);
 
   if (!isInitialized) // no command line arguments were given
-  {
     PetscInitialize(nullptr, nullptr, nullptr, nullptr);
-    KSPSetTolerances(m_petsc_solver_context, m_rtol, m_atol, PETSC_DEFAULT, m_max_iter);
-  }
-  else
-    KSPSetFromOptions(m_petsc_solver_context);
 
- // TODO
+  IItemFamily* dof_family = dofFamily();
+  IParallelMng* pm = dof_family->parallelMng();
+  Parallel::Communicator arcane_comm = pm->communicator();
+  bool is_parallel = pm->isParallel();
+  MPI_Comm mpi_comm = MPI_COMM_WORLD;
+
+  if (arcane_comm.isValid())
+    mpi_comm = static_cast<MPI_Comm>(arcane_comm);
+
+  _computeMatrixNumeration();
+
+  Span<const Int32> rows_index_span = m_dof_matrix_numbering.asArray();
+
+  CSRFormatView csr_view = this->getCSRValues();
+  info() << "ROWS_INDEX=" << rows_index_span;
+  info() << "ROWS=" << csr_view.rows();
+  info() << "ROWS_NB_COLUMNS=" << csr_view.rowsNbColumn();
+  info() << "COLUMNS=" << csr_view.columns();
+  info() << "VALUE=" << csr_view.values();
+
+  PetscInt local_rows = m_nb_own_row;          // rows this rank owns
+  PetscInt global_rows = dof_family->nbItem(); // total rows across all ranks
+
+  MatCreate(mpi_comm, &m_petsc_matrix);
+  MatSetSizes(m_petsc_matrix, local_rows, local_rows, global_rows, global_rows);
+  MatSetType(m_petsc_matrix, MATAIJ);
+  MatSetUp(m_petsc_matrix);
+
+  Span<const Int32> columns_index_span = csr_view.columns();
+  Span<const Real> matrix_values = csr_view.values();
+
+  const PetscInt* rows_index_data = rows_index_span.data();
+  const PetscInt* columns_index_data = columns_index_span.data();
+  const PetscReal* matrix_values_data = matrix_values.data();
+
+  for (PetscInt i = 0; i < local_rows; ++i) {
+    PetscInt row    = rows_index_data[i];
+    PetscInt ncols  = csr_view.rowsNbColumn()[i];
+    const PetscInt* cols = &columns_index_data[csr_view.rows()[i]];
+    const PetscScalar* vals = &matrix_values_data[csr_view.rows()[i]];
+    MatSetValues(m_petsc_matrix, 1, &row, ncols, cols, vals, INSERT_VALUES);
+  }
+
+  MatAssemblyBegin(m_petsc_matrix, MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(m_petsc_matrix, MAT_FINAL_ASSEMBLY);
+
+  info() << "[PETSc-Info] Created Matrix";
+
+  const Real* rhs_data = rhsVariable().asArray().data();
+  const Real* result_data = solutionVariable().asArray().data();
+  VariableDoFReal& dof_variable = this->solutionVariable();
+
+  VecCreateMPI(mpi_comm, local_rows, global_rows, &m_petsc_rhs_vector);
+  VecSetSizes(m_petsc_rhs_vector, local_rows, global_rows);
+  VecSetValues(m_petsc_rhs_vector, local_rows, rows_index_data, rhs_data, INSERT_VALUES);
+  VecAssemblyBegin(m_petsc_rhs_vector);
+  VecAssemblyEnd(m_petsc_rhs_vector);
+
+  VecCreateMPI(mpi_comm, local_rows, global_rows, &m_petsc_solution_vector);
+  VecSetSizes(m_petsc_solution_vector, local_rows, global_rows);
+  VecSetValues(m_petsc_solution_vector, local_rows, rows_index_data, result_data, INSERT_VALUES);
+  VecAssemblyBegin(m_petsc_solution_vector);
+  VecAssemblyEnd(m_petsc_solution_vector);
+
+  info() << "[PETSc-Info] Created vectors";
+
+  KSPCreate(mpi_comm, &m_petsc_solver_context);
+  KSPSetOperators(m_petsc_solver_context, m_petsc_matrix, m_petsc_matrix);
+  KSPSolve(m_petsc_solver_context, m_petsc_rhs_vector, m_petsc_solution_vector);
+
+  if (isInitialized)
+    KSPSetFromOptions(m_petsc_solver_context);
+  else
+    KSPSetTolerances(m_petsc_solver_context, m_rtol, m_atol, PETSC_DEFAULT, m_max_iter);
+
+
+  info() << "[PETSc-Info] Solved linear system";
+
+  if (is_parallel) {
+    Int32 nb_wanted_row = m_parallel_rows_index.extent0();
+    UniqueArray<PetscScalar> petsc_values(nb_wanted_row);
+
+    PetscInt* idx = m_parallel_rows_index.to1DSpan().data();
+    PetscScalar* vals = petsc_values.data();
+
+    VecGetValues(m_petsc_solution_vector, nb_wanted_row, idx, vals);
+
+    ENUMERATE_ (DoF, idof, dof_family->allItems().own()) {
+      dof_variable[idof] = vals[idof.index()];
+    }
+  }
+  else {
+    PetscScalar* vals = nullptr;
+    VecGetArray(m_petsc_solution_vector, &vals);
+
+    // Copy directly into Arcane DoF variable
+    dof_variable.asArray().copy(Span<const Real>(vals, m_nb_own_row));
+
+    VecRestoreArray(m_petsc_solution_vector, &vals);
+  }
+
+  info() << "[PETSc-Info] Wrote solution in solution_variable";
 }
 
 #include "PETScDoFLinearSystemFactory_axl.h"

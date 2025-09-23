@@ -534,11 +534,11 @@ solve()
   Real v1 = platform::getRealTime();
   hypreCheck("HYPRE_IJVectorSetValues",
              HYPRE_IJVectorSetValues(ij_vector_b, nb_local_row, rows_index_data,
-                                     rhs_variable.asArray().data()));
+                                     rhs_data));
 
   hypreCheck("HYPRE_IJVectorSetValues",
              HYPRE_IJVectorSetValues(ij_vector_x, nb_local_row, rows_index_data,
-                                     dof_variable.asArray().data()));
+                                     result_data));
 
   hypreCheck("HYPRE_IJVectorAssemble",
              HYPRE_IJVectorAssemble(ij_vector_b));
