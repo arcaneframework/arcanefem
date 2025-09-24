@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* HypreDoFLinearSystem.cc                                     (C) 2022-2025 */
+/* PETScDoFLinearSystem.cc                                     (C) 2022-2025 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
 /*---------------------------------------------------------------------------*/
@@ -196,7 +196,7 @@ void PETScDoFLinearSystemImpl::_handleParameters()
   if (!is_initialized) // no command line arguments were given
     PetscInitialize(nullptr, nullptr, nullptr, nullptr);
 
-#define MAX_STRING_LENGTH 20
+#define MAX_STRING_LENGTH 256
 
 #define X_OPTION(type, petsc_string, variable) \
   PetscOptionsGet##type(nullptr, nullptr, petsc_string, &variable, &set); \
@@ -204,9 +204,10 @@ void PETScDoFLinearSystemImpl::_handleParameters()
     PetscOptionsSetValue(nullptr, petsc_string, std::to_string(variable).c_str());
 
 #define X_OPTION_STRING(petsc_string, variable) \
-    PetscOptionsGetString(nullptr, nullptr, petsc_string, variable.data(), MAX_STRING_LENGTH, &set); \
-    if (!set) \
-      PetscOptionsSetValue(nullptr, petsc_string, variable.c_str());
+  variable.resize(MAX_STRING_LENGTH); \
+  PetscOptionsGetString(nullptr, nullptr, petsc_string, variable.data(), MAX_STRING_LENGTH, &set); \
+  if (!set) \
+    PetscOptionsSetValue(nullptr, petsc_string, variable.c_str());
 
   PetscBool set;
   X_OPTION(Real, "-ksp_rtol", m_rtol);
@@ -218,9 +219,6 @@ void PETScDoFLinearSystemImpl::_handleParameters()
   // X_OPTION(Int, "-pc_gamg_agg_nsmooths", m_amg_smoother);
   // X_OPTION(Int, "-pc_gamg_agg_nsmooths", m_amg_smoother);
   // X_OPTION(Real, "-pc_gamg_threshold", m_amg_threshold);
-
-#undef X_OPTION
-#undef X_OPTION_STRING
 }
 
 void PETScDoFLinearSystemImpl::
@@ -243,13 +241,7 @@ solve()
   _computeMatrixNumeration();
 
   Span<const Int32> rows_index_span = m_dof_matrix_numbering.asArray();
-
   CSRFormatView csr_view = this->getCSRValues();
-  info() << "ROWS_INDEX=" << rows_index_span;
-  info() << "ROWS=" << csr_view.rows();
-  info() << "ROWS_NB_COLUMNS=" << csr_view.rowsNbColumn();
-  info() << "COLUMNS=" << csr_view.columns();
-  info() << "VALUE=" << csr_view.values();
 
   PetscInt local_rows = m_nb_own_row;          // rows this rank owns
   PetscInt global_rows = dof_family->nbItem(); // total rows across all ranks

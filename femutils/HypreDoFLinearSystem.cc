@@ -565,7 +565,7 @@ solve()
     Timer::Action ta1(tstat, "HypreSetSolver");
 
     switch (m_solver) {
-    case solver::CG:
+    case solver::CG: // iter, rtol, atol
       HYPRE_ParCSRPCGCreate(mpi_comm, &solver);
       HYPRE_PCGSetMaxIter(solver, m_max_iter); // max iterations //
       HYPRE_PCGSetTol(solver, m_rtol); // relative conv. tolerance //
@@ -574,7 +574,7 @@ solve()
       HYPRE_PCGSetPrintLevel(solver, m_verbosity); // print solve info //
       HYPRE_PCGSetLogging(solver, 1); // needed to get run info later //
       break;
-    case solver::GMRES:
+    case solver::GMRES: // dimension, iter, rtol, atol
       HYPRE_ParCSRGMRESCreate(mpi_comm, &solver);
       HYPRE_GMRESSetKDim(solver, m_krylov_dim); // Krylov dimension //
       HYPRE_GMRESSetMaxIter(solver, m_max_iter); // max iterations //
@@ -583,16 +583,16 @@ solve()
       HYPRE_GMRESSetPrintLevel(solver, m_verbosity); // print solve info //
       HYPRE_GMRESSetLogging(solver, 1); // needed to get run info later //
       break;
-    case solver::FGMRES:
+    case solver::FGMRES: // dimension, iter, rtol, atol
       HYPRE_ParCSRFlexGMRESCreate(mpi_comm, &solver);
-      HYPRE_FlexGMRESSetMaxIter(solver, m_max_iter); // max iterations //
       HYPRE_FlexGMRESSetKDim(solver, m_krylov_dim); // Krylov dimension //
+      HYPRE_FlexGMRESSetMaxIter(solver, m_max_iter); // max iterations //
       HYPRE_FlexGMRESSetTol(solver, m_rtol); // relative conv. tolerance //
       HYPRE_FlexGMRESSetAbsoluteTol(solver, m_atol); // absolute conv. tolerance //
       HYPRE_FlexGMRESSetPrintLevel(solver, m_verbosity); // print solve info //
       HYPRE_FlexGMRESSetLogging(solver, 1); // needed to get run info later //
       break;
-    case solver::BICGSTAB:
+    case solver::BICGSTAB: // iter, rtol, atol
       HYPRE_ParCSRBiCGSTABCreate(mpi_comm, &solver);
       HYPRE_BiCGSTABSetMaxIter(solver, m_max_iter); // max iterations //
       HYPRE_BiCGSTABSetTol(solver, m_rtol); // relative conv. tolerance //

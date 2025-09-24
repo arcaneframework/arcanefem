@@ -11,7 +11,7 @@ if (TARGET Arcane::arcane_aleph_hypre)
 endif()
 
 if (TARGET Arcane::arcane_aleph_petsc)
-  list(APPEND ACCELERATOR_SOURCES PETScDoFLinearSystem.cc PETScDoFLinearSystem.h)
+  list(APPEND ACCELERATOR_SOURCES PETScDoFLinearSystem.cc)
 endif()
 
 add_library(FemUtils
