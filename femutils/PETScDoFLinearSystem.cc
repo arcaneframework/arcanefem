@@ -225,8 +225,8 @@ void PETScDoFLinearSystemImpl::
 solve()
 {
   info() << "[PETSc-Info] Calling PETSc solver";
-  _applyRowElimination();
-  _applyForcedValuesToLhs();
+  // _applyRowElimination();
+  // _applyForcedValuesToLhs();
   _handleParameters();
 
   IItemFamily* dof_family = dofFamily();
