@@ -449,7 +449,7 @@ _solve()
   info() << "[ArcaneFem-Info] Started module _solve()";
   Real elapsedTime = platform::getRealTime();
 
-  m_linear_system.solve();
+  m_linear_system.applyLinearSystemTransformationAndSolve();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "solve-linear-system", elapsedTime);

@@ -74,6 +74,9 @@ class CsrDoFLinearSystemImpl
     ARCANE_THROW(NotImplementedException, "");
   }
 
+  void applyMatrixTransformation() override;
+  void applyRHSTransformation() override;
+
   void clearValues() override
   {
     info() << "[CsrImpl]: Clear values";
@@ -93,12 +96,20 @@ class CsrDoFLinearSystemImpl
  private:
 
   CSRFormatView m_csr_view;
+  bool m_has_row_column_elimination = false;
 
  public:
 
   // These methods should be private but has to be public because of NVidia compiler
-  void _applyRowElimination();
   void _applyForcedValuesToLhs();
+  void _fillRowColumnEliminationInfos();
+  void _applyRowEliminationOnMatrix();
+  void _applyRowColumnEliminationOnMatrix();
+  void _applyRowOrRowColumnEliminationOnRHS();
+
+ protected:
+
+  void _applyRowOrRowColumnEliminationOnMatrix();
 };
 
 /*---------------------------------------------------------------------------*/

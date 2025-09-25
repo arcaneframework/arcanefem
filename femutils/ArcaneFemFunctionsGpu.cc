@@ -12,6 +12,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include "ArcaneFemFunctionsGpu.h"
+#include "FemUtilsGlobal.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -80,9 +81,9 @@ applyDirichletToNodeGroupViaPenalty(const Int32 dof_index, Real value, Real pena
 /*---------------------------------------------------------------------------*/
 
 void BoundaryConditionsHelpers::
-applyDirichletToNodeGroupViaRowElimination(const Int32 dof_index, Real value, RunQueue* queue,
-                                           DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes,
-                                           const NodeGroup& node_group)
+applyDirichletToNodeGroupViaRowOrRowColumnElimination(Byte elimination_type, const Int32 dof_index, Real value, RunQueue* queue,
+                                                      DoFLinearSystem& linear_system, const FemDoFsOnNodes& dofs_on_nodes,
+                                                      const NodeGroup& node_group)
 {
   ARCANE_CHECK_PTR(queue);
 
@@ -93,12 +94,11 @@ applyDirichletToNodeGroupViaRowElimination(const Int32 dof_index, Real value, Ru
   auto command = Accelerator::makeCommand(queue);
   auto in_out_elimination_info = Accelerator::viewInOut(command, elimination_helper.getEliminationInfo());
   auto in_out_elimination_value = Accelerator::viewInOut(command, elimination_helper.getEliminationValue());
-  const Int32 ELIMINATE_ROW = Arcane::FemUtils::ELIMINATE_ROW;
   command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
   {
     if (nodes_infos.isOwn(node_lid)) {
       DoFLocalId dof_id = node_dof.dofId(node_lid, dof_index);
-      in_out_elimination_info[dof_id] = ELIMINATE_ROW;
+      in_out_elimination_info[dof_id] = elimination_type;
       in_out_elimination_value[dof_id] = value;
     }
   };
@@ -134,10 +134,10 @@ applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs,
         BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(dof_index, value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
       }
       else if (bs->getEnforceDirichletMethod() == "RowElimination") {
-        BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(dof_index, value, queue, linear_system, dofs_on_nodes, node_group);
+        BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowOrRowColumnElimination(ELIMINATE_ROW, dof_index, value, queue, linear_system, dofs_on_nodes, node_group);
       }
       else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
-        ARCANE_THROW(Arccore::NotImplementedException, "RowColumnElimination is not supported.");
+        BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowOrRowColumnElimination(ELIMINATE_ROW_COLUMN, dof_index, value, queue, linear_system, dofs_on_nodes, node_group);
       }
       else {
         ARCANE_FATAL("Unknown method to enforce Dirichlet BC: '{0}'", bs->getEnforceDirichletMethod());
@@ -172,10 +172,10 @@ applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const FemDoFsOn
         BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(dof_index, value, penalty, queue, mesh, linear_system, dofs_on_nodes, node_group);
       }
       else if (bs->getEnforceDirichletMethod() == "RowElimination") {
-        BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(dof_index, value, queue, linear_system, dofs_on_nodes, node_group);
+        BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowOrRowColumnElimination(ELIMINATE_ROW, dof_index, value, queue, linear_system, dofs_on_nodes, node_group);
       }
       else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
-        ARCANE_THROW(Arccore::NotImplementedException, "RowColumnElimination is not supported.");
+        BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowOrRowColumnElimination(ELIMINATE_ROW_COLUMN, dof_index, value, queue, linear_system, dofs_on_nodes, node_group);
       }
       else {
         ARCANE_FATAL("Unknown method to enforce Dirichlet BC: '{0}'", bs->getEnforceDirichletMethod());

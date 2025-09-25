@@ -45,7 +45,6 @@ enum class eSolverBackend
 
 namespace Arcane::FemUtils
 {
-
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 class AlephDoFLinearSystemImpl
@@ -143,6 +142,8 @@ class AlephDoFLinearSystemImpl
     info() << "EliminateRowColumn row=" << row.localId() << " v=" << value;
   }
 
+  void applyMatrixTransformation() override;
+  void applyRHSTransformation() override;
   void solve() override;
 
   void setSolverCommandLineArguments(const CommandLineArguments& args) override
@@ -199,8 +200,9 @@ class AlephDoFLinearSystemImpl
  private:
 
   AlephParams* _createAlephParam() const;
-  void _fillMatrix();
+  void _applyMatrixTransformationAndFillAlephMatrix();
   void _fillRHSVector();
+  void _applyRHSTransformation();
   void _setMatrixValue(DoF row, DoF column, Real value)
   {
     if (m_do_print_filling)
@@ -211,6 +213,7 @@ class AlephDoFLinearSystemImpl
     m_aleph_matrix->setValue(solution_variable, row, solution_variable, column, value);
   }
   void _fillRowColumnEliminationInfos();
+  void _createRHSAndSolutionVector();
 };
 
 /*---------------------------------------------------------------------------*/
@@ -265,7 +268,6 @@ _fillRowColumnEliminationInfos()
 
   auto& dof_elimination_info = getEliminationInfo();
   auto& dof_elimination_value = getEliminationValue();
-  auto& rhs_variable = rhsVariable();
 
   for (const auto& rc_value : m_values_map) {
     RowColumn rc = rc_value.first;
@@ -283,7 +285,7 @@ _fillRowColumnEliminationInfos()
 /*---------------------------------------------------------------------------*/
 
 void AlephDoFLinearSystemImpl::
-_fillMatrix()
+_applyMatrixTransformationAndFillAlephMatrix()
 {
   _fillRowColumnEliminationInfos();
   OrderedRowColumnMap& rc_elimination_map = _rowColumnEliminationMap();
@@ -293,7 +295,6 @@ _fillMatrix()
 
   auto& dof_elimination_info = getEliminationInfo();
   auto& dof_elimination_value = getEliminationValue();
-  auto& rhs_variable = rhsVariable();
 
   // Fill the matrix from the values of \a m_values_map
   // Skip (row,column) values which are part of an elimination.
@@ -322,14 +323,44 @@ _fillMatrix()
     _setMatrixValue(dof_row, dof_column, value);
   }
 
+  const bool do_print_filling = m_do_print_filling;
+
+  // Apply Row or Row+Column elimination on Matrix
+  // Phase 2: set the diagonal value for elimination row to 1.0
+  ENUMERATE_ (DoF, idof, dof_family->allItems()) {
+    DoF dof = *idof;
+    if (!dof.isOwn())
+      continue;
+    Byte elimination_info = dof_elimination_info[dof];
+    if (elimination_info == ELIMINATE_ROW || elimination_info == ELIMINATE_ROW_COLUMN) {
+      Real elimination_value = dof_elimination_value[dof];
+      if (do_print_filling)
+        info() << "EliminateMatrix info=" << static_cast<int>(elimination_info) << " row="
+               << std::setw(4) << dof.localId() << " value=" << elimination_value;
+      _setMatrixValue(dof, dof, 1.0);
+    }
+  }
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void AlephDoFLinearSystemImpl::
+_applyRHSTransformation()
+{
+  const bool do_print_filling = m_do_print_filling;
+
   // Apply Row+Column elimination
   // Phase 1:
   // - subtract values of the RHS vector if Row+Column elimination
-  _applyRowColumnEliminationToRHS(m_do_print_filling);
+  _applyRowColumnEliminationToRHS(do_print_filling);
 
-  // Apply Row or Row+Column elimination
-  // Phase 2: set the value of the RHS
-  // Phase 2: fill the diagonal with 1.0
+  IItemFamily* dof_family = dofFamily();
+
+  auto& dof_elimination_info = getEliminationInfo();
+  auto& dof_elimination_value = getEliminationValue();
+  auto& rhs_variable = rhsVariable();
+
+  // Apply Row or Row+Column elimination on RHS
   ENUMERATE_ (DoF, idof, dof_family->allItems()) {
     DoF dof = *idof;
     if (!dof.isOwn())
@@ -338,9 +369,9 @@ _fillMatrix()
     if (elimination_info == ELIMINATE_ROW || elimination_info == ELIMINATE_ROW_COLUMN) {
       Real elimination_value = dof_elimination_value[dof];
       rhs_variable[dof] = elimination_value;
-      info() << "Eliminate info=" << static_cast<int>(elimination_info) << " row="
-             << std::setw(4) << dof.localId() << " value=" << elimination_value;
-      _setMatrixValue(dof, dof, 1.0);
+      if (do_print_filling)
+        info() << "EliminateRHS info=" << static_cast<int>(elimination_info) << " row="
+               << std::setw(4) << dof.localId() << " value=" << elimination_value;
     }
   }
 }
@@ -349,8 +380,25 @@ _fillMatrix()
 /*---------------------------------------------------------------------------*/
 
 void AlephDoFLinearSystemImpl::
+_createRHSAndSolutionVector()
+{
+  // We need to call createSolverVector() two times.
+  // The first time returns the RHS and the second the solution vector
+  m_aleph_rhs_vector = m_aleph_kernel->createSolverVector();
+  m_aleph_solution_vector = m_aleph_kernel->createSolverVector();
+
+  m_aleph_rhs_vector->create();
+  m_aleph_solution_vector->create();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void AlephDoFLinearSystemImpl::
 _fillRHSVector()
 {
+  ARCANE_CHECK_POINTER(m_aleph_rhs_vector);
+
   // For the LinearSystem class we need an array
   // with only the values for the ownNodes().
   // The values of 'rhs_values' should not be updated after
@@ -364,7 +412,9 @@ _fillRHSVector()
       info() << "SET VECTOR VALUE (" << std::setw(4) << idof.itemLocalId() << ") = " << v;
     rhs_values_for_linear_system.add(rhs_values[idof]);
   }
+
   m_aleph_rhs_vector->setLocalComponents(rhs_values_for_linear_system.view());
+  m_aleph_rhs_vector->assemble();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -416,6 +466,7 @@ _computeMatrixInfo()
 {
   int solver_backend = static_cast<int>(m_solver_backend);
   info() << "[AlephFem] COMPUTE_MATRIX_INFO solver_backend=" << solver_backend;
+  IParallelMng* pm = m_sub_domain->parallelMng();
   // Aleph solver:
   // Hypre = 2
   // Trilinos = 3
@@ -428,7 +479,7 @@ _computeMatrixInfo()
     info() << "Creating Aleph Kernel";
     // We can use less than the number of MPI ranks
     // but for the moment we use all the available cores.
-    Int32 nb_core = m_sub_domain->parallelMng()->commSize();
+    Int32 nb_core = pm->commSize();
     m_aleph_kernel = new AlephKernel(m_sub_domain, solver_backend, nb_core);
   }
   else {
@@ -438,26 +489,45 @@ _computeMatrixInfo()
   IItemFamily* dof_family = dofFamily();
   VariableDoFReal& solution_variable(solutionVariable());
   DoFGroup own_dofs = dof_family->allItems().own();
-  //Int32 nb_node = own_nodes.size();
-  //Int32 total_nb_node = m_sub_domain->parallelMng()->reduce(Parallel::ReduceSum, nb_node);
   m_dof_matrix_indexes.fill(-1);
   AlephIndexing* indexing = m_aleph_kernel->indexing();
   ENUMERATE_ (DoF, idof, own_dofs) {
     DoF dof = *idof;
     Integer row = indexing->get(solution_variable, dof);
-    //info() << "ROW=" << row;
     m_dof_matrix_indexes[dof] = row;
   }
+
   // Do not print information about setting matrix if matrix is too big
   if (own_dofs.size() > 200)
     m_do_print_filling = false;
+}
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void AlephDoFLinearSystemImpl::
+applyMatrixTransformation()
+{
+  info() << "[AlephFem] Assemble matrix ptr=" << m_aleph_matrix;
+  // Check this is called only one time
+  if (m_aleph_matrix)
+    ARCANE_FATAL("applyMatrixTransformation() has already been called");
   m_aleph_matrix = m_aleph_kernel->createSolverMatrix();
-  m_aleph_rhs_vector = m_aleph_kernel->createSolverVector();
-  m_aleph_solution_vector = m_aleph_kernel->createSolverVector();
   m_aleph_matrix->create();
-  m_aleph_rhs_vector->create();
-  m_aleph_solution_vector->create();
+
+  // Matrix transformation
+  _applyMatrixTransformationAndFillAlephMatrix();
+  m_aleph_matrix->assemble();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void AlephDoFLinearSystemImpl::
+applyRHSTransformation()
+{
+  // RHS Transformation
+  _applyRHSTransformation();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -466,49 +536,53 @@ _computeMatrixInfo()
 void AlephDoFLinearSystemImpl::
 solve()
 {
-  UniqueArray<Real> aleph_result;
+  // The matrix always need to be created if this is not explicitly done
+  if (!m_aleph_matrix)
+    applyMatrixTransformation();
 
-  // _fillMatrix() may change the values of RHS vector
-  // with row or row-column elimination so we have to fill the RHS vector
-  // before the matrix.
-  _fillMatrix();
+  _createRHSAndSolutionVector();
   _fillRHSVector();
 
-  info() << "[AlephFem] Assemble matrix ptr=" << m_aleph_matrix;
-  m_aleph_matrix->assemble();
-  m_aleph_rhs_vector->assemble();
-  auto* aleph_solution_vector = m_aleph_solution_vector;
+  info() << "Calling AlephDoFLinearSystemImpl::solve()";
+  UniqueArray<Real> aleph_result;
+
   IItemFamily* dof_family = dofFamily();
   DoFGroup own_dofs = dof_family->allItems().own();
   const Int32 nb_dof = own_dofs.size();
   m_vector_zero.resize(nb_dof);
   m_vector_zero.fill(0.0);
 
-  aleph_solution_vector->setLocalComponents(m_vector_zero);
-  aleph_solution_vector->assemble();
+  m_aleph_solution_vector->setLocalComponents(m_vector_zero);
+  m_aleph_solution_vector->assemble();
 
   Int32 nb_iteration = 0;
   Real residual_norm = 0.0;
   info() << "[AlephFem] BEGIN SOLVING WITH ALEPH solver_backend=" << static_cast<int>(m_solver_backend);
 
-  m_aleph_matrix->solve(aleph_solution_vector,
-                        m_aleph_rhs_vector,
-                        nb_iteration,
-                        &residual_norm,
-                        m_aleph_params,
-                        false);
+  // Post the solver. The call is asynchronous, and we wait for the result
+  // when calling syncSolver().
+  // The values nb_iteration and residual_norm are not used in this case.
+  // We get them during the call to syncSolver()
+  m_aleph_matrix->solve(m_aleph_solution_vector, m_aleph_rhs_vector,
+                        nb_iteration, &residual_norm,
+                        m_aleph_params, true);
+
+  // Reset matrix and vectors because there can no longer be used
+  // They will be re-created when needed if we call solve() again.
+  // NOTE: it is the aleph library we do not need to call delete() because
+  m_aleph_rhs_vector = nullptr;
+  m_aleph_solution_vector = nullptr;
+  m_aleph_matrix = nullptr;
 
   info() << "[AlephFem] END SOLVING WITH ALEPH r=" << residual_norm
          << " nb_iter=" << nb_iteration;
 
-  auto* rhs_vector = m_aleph_kernel->createSolverVector();
-  auto* solution_vector = m_aleph_kernel->createSolverVector();
+  // Wait for the solver to finish and get solution vector
+  auto* solution_vector = m_aleph_kernel->syncSolver(0, nb_iteration, &residual_norm);
 
-  UniqueArray<Real> rhs_results;
-  rhs_vector->getLocalComponents(rhs_results);
   solution_vector->getLocalComponents(aleph_result);
 
-  const bool do_verbose = (nb_dof < 200) && false;
+  const bool do_verbose = (nb_dof < 200);
   Int32 index = 0;
 
   VariableDoFReal& solution_variable(this->solutionVariable());
@@ -517,9 +591,7 @@ solve()
 
     solution_variable[dof] = aleph_result[m_aleph_kernel->indexing()->get(solution_variable, dof)];
     if (do_verbose)
-      info() << "Node uid=" << dof.uniqueId() << " V=" << aleph_result[index] << " T=" << solution_variable[dof]
-             << " RHS=" << rhs_results[index];
-
+      info() << "Node uid=" << dof.uniqueId() << " V=" << aleph_result[index] << " T=" << solution_variable[dof];
     ++index;
   }
 }

@@ -162,9 +162,15 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/linear-system/atol=1e-9
     -A,//fem/linear-system/rtol=0)
 
-    set(SOLVER_HYPRE_BICGSTAB
+  set(SOLVER_HYPRE_BICGSTAB
     -A,//fem/linear-system/@name=HypreLinearSystem
     -A,//fem/linear-system/solver=bicgstab)
+
+  set(SOLVER_HYPRE_GMRES
+    -A,//fem/linear-system/@name=HypreLinearSystem
+    -A,//fem/linear-system/solver=gmres
+    -A,//fem/linear-system/atol=1e-9
+    -A,//fem/linear-system/rtol=0)
 
   arcanefem_add_gpu_test(NAME [elasticity]3D_Dirichlet_bodyforce_traction_hypre_bsr COMMAND  ./Elasticity ARGS
     -A,//fem/matrix-format=BSR
@@ -207,6 +213,15 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/boundary-conditions/dirichlet[2]/enforce-Dirichlet-method=RowElimination
     -A,//fem/boundary-conditions/dirichlet-point[1]/enforce-Dirichlet-method=RowElimination
     -A,//fem/boundary-conditions/dirichlet-point[2]/enforce-Dirichlet-method=RowElimination
+    inputs/bar.2D.PointDirichlet.arc)
+
+  arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_pointBC_RowColElimination_af-bsr COMMAND  ./Elasticity ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_GMRES}
+    -A,//fem/boundary-conditions/dirichlet[1]/enforce-Dirichlet-method=RowColumnElimination
+    -A,//fem/boundary-conditions/dirichlet[2]/enforce-Dirichlet-method=RowColumnElimination
+    -A,//fem/boundary-conditions/dirichlet-point[1]/enforce-Dirichlet-method=RowColumnElimination
+    -A,//fem/boundary-conditions/dirichlet-point[2]/enforce-Dirichlet-method=RowColumnElimination
     inputs/bar.2D.PointDirichlet.arc)
 
   arcanefem_add_gpu_test(NAME [elasticity]Dirichlet_pointBC_hypre_bsr COMMAND  ./Elasticity ARGS

@@ -46,7 +46,10 @@ class IDoFLinearSystemImpl
   virtual void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value) = 0;
   virtual void eliminateRow(DoFLocalId row, Real value) = 0;
   virtual void eliminateRowColumn(DoFLocalId row, Real value) = 0;
+  virtual void applyMatrixTransformation() = 0;
+  virtual void applyRHSTransformation() = 0;
   virtual void solve() = 0;
+
   virtual VariableDoFReal& solutionVariable() = 0;
   virtual VariableDoFReal& rhsVariable() = 0;
   virtual void setSolverCommandLineArguments(const CommandLineArguments& args) = 0;

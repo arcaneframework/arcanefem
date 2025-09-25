@@ -227,7 +227,40 @@ class DoFLinearSystem
   DoFLinearSystemRowColumnEliminationHelper rowColumnEliminationHelper();
 
   /*!
+   * \brief Apply the underlying transformation and Solve the current linear system.
+   *
+   * This is equivalent to calling the following methods in order:
+   *
+   * - applyMatrixTransformation()
+   * - applyRHSTransformation()
+   * - solve()
+   */
+  void applyLinearSystemTransformationAndSolve();
+
+  /*!
+   * \brief Apply Matrix Transformation
+   *
+   * Apply operation like Row or RowColumn elimination on the matrix.
+   * This has to be done one and only time before calling solve().
+   * If the values of the matrix are cleared, this method has to be called again.
+   */
+  void applyMatrixTransformation();
+
+  /*!
+   * \brief Apply RHS Transformation
+   *
+   * Apply operation like Row or RowColumn elimination on the RHS.
+   * This method has to be called at least one time calling solve().
+   * You may call this method several time if you have manually changed the values
+   * of the RHS.
+   */
+  void applyRHSTransformation();
+
+  /*!
    * \brief Solve the current linear system.
+   *
+   * You have to call applyMatrixTransformation() and applyRHSTransformation() before
+   * calling this method().
    */
   void solve();
 

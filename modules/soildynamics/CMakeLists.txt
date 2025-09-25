@@ -45,9 +45,17 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [soildynamics]2d_semi-circle_const_traction_pointbc COMMAND Soildynamics
     -A,//fem/petsc-flags=-ksp_view
     inputs/constant-traction.pointbc.arc)
+  add_test(NAME [soildynamics]2d_semi-circle_const-traction_pointbc_rowelim COMMAND Soildynamics
+    -A,//fem/petsc-flags=-ksp_view\ -ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-10
+    -A,//fem/boundary-conditions/dirichlet-point[1]/enforce-Dirichlet-method=RowElimination
+    inputs/constant-traction.pointbc.arc)
   add_test(NAME [soildynamics]2d_semi-circle_transient_traction COMMAND Soildynamics
     inputs/transient-traction.arc)
   add_test(NAME [soildynamics]2d_bar_elastodynamics COMMAND Soildynamics
+    -A,//fem/petsc-flags=-ksp_monitor
+    inputs/Soildynamics.arc)
+  add_test(NAME [soildynamics]2d_bar_dirichlet_rowelm COMMAND Soildynamics
+    -A,//fem/boundary-conditions/dirichlet[1]/enforce-Dirichlet-method=RowElimination
     -A,//fem/petsc-flags=-ksp_monitor
     inputs/Soildynamics.arc)
   add_test(NAME [soildynamics]parse_and_exit COMMAND Soildynamics
@@ -84,6 +92,16 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
 
   add_test(NAME [soildynamics]3d_all-conditions COMMAND Soildynamics
     inputs/3d.all-conditions.arc)
+
+  arcanefem_add_gpu_test(NAME [soildynamics]2d_semi-circle_const_traction_pointbc_bsr COMMAND Soildynamics ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/constant-traction.pointbc.arc)
+
+  arcanefem_add_gpu_test(NAME [soildynamics]2d_bar_elastodynamics_bsr COMMAND Soildynamics ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/Soildynamics.arc)
 
   arcanefem_add_gpu_test(NAME [soildynamics]2d_double-couple_paraxial_body-force_bsr COMMAND  ./Soildynamics ARGS
     -A,//fem/matrix-format=BSR

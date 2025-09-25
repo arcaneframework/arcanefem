@@ -87,12 +87,12 @@ class OrderedRowColumnMap
   iterator find(RowColumn rc) { return m_values_map.find(rc); }
   const_iterator find(RowColumn rc) const { return m_values_map.find(rc); }
   bool contains(RowColumn rc) const { return find(rc) != end(); }
+  Int32 size() const { return static_cast<Int32>(m_values_map.size()); }
 
  private:
 
   MapType m_values_map;
 };
-
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

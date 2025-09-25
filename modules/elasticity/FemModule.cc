@@ -411,7 +411,7 @@ _solve()
   info() << "[ArcaneFem-Info] Started module  _solve()";
   Real elapsedTime = platform::getRealTime();
 
-  m_linear_system.solve();
+  m_linear_system.applyLinearSystemTransformationAndSolve();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"solve-linear-system", elapsedTime);
@@ -439,7 +439,7 @@ _validateResults()
   }
 
   String filename = options()->resultFile();
-  const double epsilon = 1.0e-3;
+  const double epsilon = options()->resultEpsilon();
   const double min_value_to_test = 1.0e-16;
 
   info() << "[ArcaneFem-Info] Validating results filename=" << filename << " epsilon =" << epsilon;
