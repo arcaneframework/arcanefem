@@ -168,7 +168,6 @@ _applyRowOrRowColumnEliminationOnRHS()
   auto in_elimination_value = Accelerator::viewIn(command, getEliminationValue());
 
   auto in_out_rhs_variable = Accelerator::viewInOut(command, rhsVariable());
-  auto csr_view = m_csr_view;
   command << RUNCOMMAND_LOOP1(iter, nb_dof)
   {
     auto [row_index] = iter();
