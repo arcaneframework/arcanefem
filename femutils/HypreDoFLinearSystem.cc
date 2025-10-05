@@ -60,7 +60,12 @@ enum class preconditioner
 
 #include <HYPRE.h>
 #include <HYPRE_parcsr_ls.h>
+
+#if HYPRE_RELEASE_NUMBER >= 30000
+#include <_hypre_krylov.h>
+#else
 #include <krylov.h>
+#endif
 
 
 /*---------------------------------------------------------------------------*/
