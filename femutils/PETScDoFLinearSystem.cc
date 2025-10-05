@@ -41,7 +41,6 @@
 
 #include <petsc.h>
 #include <petscpctypes.h>
-#include <krylov.h>
 #include "PETScDoFLinearSystemFactory_axl.h"
 
 namespace Arcane::FemUtils
