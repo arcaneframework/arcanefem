@@ -150,5 +150,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     arcanefem_add_gpu_test(NAME [testlab]hypre_direct_2p NB_MPI 2 COMMAND ./Testlab ARGS inputs/Test.hypre_direct.arc)
     arcanefem_add_gpu_test(NAME [testlab]hypre_direct_3D_2p NB_MPI 2 COMMAND ./Testlab ARGS inputs/Test.sphere.3D.arc)
     arcanefem_add_gpu_test(NAME [testlab]hypre_direct_3D_csr-gpu_2p NB_MPI 2 COMMAND ./Testlab ARGS inputs/Test.sphere.3D.csr-gpu.arc)
+
+    arcanefem_add_gpu_test(NAME [testlab]petsc_direct_2p NB_MPI 2 COMMAND ./Testlab ARGS inputs/Test.petsc_direct.arc)
   endif()
 endif()
