@@ -64,7 +64,7 @@ class PETScDoFLinearSystemImpl
   ~PETScDoFLinearSystemImpl() override
   {
     info() << "[PETSc-Info] Calling PETScDoFLinearSystemImpl destructor";
-    PetscFinalize();
+    // PetscFinalize();
   }
 
  public:
@@ -183,7 +183,7 @@ _computeMatrixNumeration()
     // TODO: utiliser un Scan lorsque ce sera disponible dans Arcane
     UniqueArray<Int32> parallel_rows_index(nb_rank, 0);
     pm->allGather(ConstArrayView<Int32>(1, &m_nb_own_row), parallel_rows_index);
-    info() << "ALL_NB_ROW = " << parallel_rows_index;
+    // info() << "ALL_NB_ROW = " << parallel_rows_index;
     m_nb_total_row = 0;
     // TODO optimize partial and total sum
     for (Int32 v : parallel_rows_index) m_nb_total_row += v;
@@ -195,12 +195,12 @@ _computeMatrixNumeration()
   ENUMERATE_DOF (idof, own_dofs) {
     DoF dof = *idof;
     m_dof_matrix_numbering[idof] = m_first_row + idof.index();
-    info() << "Numbering dof_uid=" << dof.uniqueId() << " M=" << m_dof_matrix_numbering[idof];
+    // info() << "Numbering dof_uid=" << dof.uniqueId() << " M=" << m_dof_matrix_numbering[idof];
   }
   m_dof_matrix_numbering.synchronize();
 
-  info() << "my rank: " << my_rank;
-  info() << "Total " << m_nb_total_row << " local: " << m_nb_own_row;
+  // info() << "my rank: " << my_rank;
+  // info() << "Total " << m_nb_total_row << " local: " << m_nb_own_row;
   pm->barrier();
 
   m_parallel_rows_index.resize(m_nb_own_row);
@@ -238,7 +238,7 @@ solve()
   // We need to translate them to global matrix coordinates
   Span<const Int32> columns_index_span = csr_view.columns();
 
-  info() << "COLUMNS=" << csr_view.columns();
+  // info() << "COLUMNS=" << csr_view.columns();
 
   if (is_parallel)
   {
@@ -313,7 +313,7 @@ solve()
 
     VecSetValue(m_petsc_rhs_vector, index, rhs_data[i], INSERT_VALUES);
     VecSetValue(m_petsc_solution_vector, index, result_data[i], INSERT_VALUES);
-    info() << "rows: " << rows_index_data[i] << " rhs: " << rhs_data[i] << " result: " << result_data[i];
+    // info() << "rows: " << rows_index_data[i] << " rhs: " << rhs_data[i] << " result: " << result_data[i];
   }
 
   VecAssemblyBegin(m_petsc_rhs_vector);
@@ -348,16 +348,14 @@ solve()
     Int32 nb_wanted_row = m_parallel_rows_index.extent0();
 
     VecGetValues(m_petsc_solution_vector, nb_wanted_row, m_parallel_rows_index.to1DSpan().data(), m_result_work_values.to1DSpan().data());
-    for (int i = 0; i < nb_wanted_row; i++)
-      info() << "rows: " << m_parallel_rows_index[i];
+    // for (int i = 0; i < nb_wanted_row; i++)
+    //   info() << "rows: " << m_parallel_rows_index[i];
 
     ENUMERATE_ (DoF, idof, dof_family->allItems().own()) {
       Int32 global_idx = rows_index_span[idof.index()];
-      info() << "u[" << global_idx << "] = " << m_result_work_values[idof.index()];
+      // info() << "u[" << global_idx << "] = " << m_result_work_values[idof.index()];
       dof_variable[idof] = m_result_work_values[idof.index()];
     }
-    pm->barrier();
-    info() << "ayaaaaa";
   }
   else {
     PetscScalar* vals = nullptr;
@@ -365,8 +363,6 @@ solve()
 
     // Copy directly into Arcane DoF variable
     dof_variable.asArray().copy(Span<const Real>(vals, m_nb_own_row));
-
-    VecRestoreArray(m_petsc_solution_vector, &vals);
   }
 
   info() << "[PETSc-Info] Wrote solution in solution_variable";
