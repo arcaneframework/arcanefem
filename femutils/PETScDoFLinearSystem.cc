@@ -63,7 +63,7 @@ class PETScDoFLinearSystemImpl
   ~PETScDoFLinearSystemImpl() override
   {
     info() << "[PETSc-Info] Calling PETScDoFLinearSystemImpl destructor";
-    // PetscFinalize();
+    PetscFinalize();
   }
 
  public:
@@ -298,6 +298,7 @@ solve()
   const Real* result_data = dof_variable.asArray().data();
   const Int32* rows_index_data = rows_index_span.data();
 
+  // TODO check if architecture is CUDA
   PetscCallAbort(mpi_comm, VecCreateMPI(mpi_comm, local_rows, global_rows, &m_petsc_rhs_vector));
   PetscCallAbort(mpi_comm, VecSetFromOptions(m_petsc_rhs_vector));
   PetscCallAbort(mpi_comm, VecCreateMPI(mpi_comm, local_rows, global_rows, &m_petsc_solution_vector));
@@ -357,14 +358,21 @@ solve()
     }
   }
   else {
-    PetscScalar* vals = nullptr;
-    PetscCallAbort(mpi_comm, VecGetArray(m_petsc_solution_vector, &vals));
+    // TODO check architecture
+    const PetscScalar* vals = nullptr;
+    PetscCallAbort(mpi_comm, VecGetArrayRead(m_petsc_solution_vector, &vals));
 
     // Copy directly into Arcane DoF variable
     dof_variable.asArray().copy(Span<const Real>(vals, m_nb_own_row));
+    PetscCallAbort(mpi_comm, VecRestoreArrayRead(m_petsc_solution_vector, &vals));
   }
 
   info() << "[PETSc-Info] Wrote solution in solution_variable";
+
+  PetscCallAbort(mpi_comm, VecDestroy(&m_petsc_solution_vector));
+  PetscCallAbort(mpi_comm, VecDestroy(&m_petsc_rhs_vector));
+  PetscCallAbort(mpi_comm, MatDestroy(&m_petsc_matrix));
+  PetscCallAbort(mpi_comm, KSPDestroy(&m_petsc_solver_context));
 }
 
 #include "PETScDoFLinearSystemFactory_axl.h"
@@ -391,7 +399,7 @@ class PETScDoFLinearSystemFactoryService
     x->setAbsTolerance(options()->atol());
     x->setMaxIter(options()->maxIter());
     x->setSolver(options()->solver());
-    x->setPreconditioner(options()->preconditioner());
+    x->setPreconditioner(options()->pcType());
     x->setMatrixType(options()->matType());
     return x;
   }
