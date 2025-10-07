@@ -160,7 +160,7 @@ void PETScDoFLinearSystemImpl::_handleParameters()
   X_OPTION(Int, "-ksp_max_it", m_ksp_max_it);
   X_OPTION_STRING("-ksp_type", m_ksp_type);
   X_OPTION_STRING("-pc_type", m_pc_type);
-  // X_OPTION_STRING("-mat_type", m_mat_type);
+  X_OPTION_STRING("-mat_type", m_mat_type);
 }
 
 void PETScDoFLinearSystemImpl::
@@ -337,7 +337,6 @@ solve()
       DoF dof = *idof;
       if (!dof.isOwn())
         continue;
-      Int32 nb_col = csr_view.rowsNbColumn()[idof.index()];
       m_parallel_rows_index[index] = rows_index_span[idof.index()];
       ++index;
     }

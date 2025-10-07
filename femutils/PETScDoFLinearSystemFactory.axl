@@ -8,6 +8,6 @@
 
     <simple name="solver" type="string" default="cg" />
     <simple name="preconditioner" type="string" default="jacobi" />
-    <simple name="mat-type" type="string" default="seqbaij" />
+    <simple name="mat-type" type="string" default="mpiaijcusparse" />
   </options>
 </service>
