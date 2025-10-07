@@ -207,6 +207,7 @@ _computeMatrixNumeration()
   m_rhs_work_values.resize(m_nb_own_row);
 
 }
+
 void PETScDoFLinearSystemImpl::
 solve()
 {
@@ -228,10 +229,10 @@ solve()
   PetscInt local_rows = m_nb_own_row;          // rows this rank owns
   PetscInt global_rows = m_nb_total_row; // total rows across all ranks
 
-  MatCreate(mpi_comm, &m_petsc_matrix);
-  MatSetSizes(m_petsc_matrix, local_rows, local_rows, global_rows, global_rows);
-  MatSetFromOptions(m_petsc_matrix);
-  MatSetUp(m_petsc_matrix);
+  PetscCallAbort(mpi_comm, MatCreate(mpi_comm, &m_petsc_matrix));
+  PetscCallAbort(mpi_comm, MatSetSizes(m_petsc_matrix, local_rows, local_rows, global_rows, global_rows));
+  PetscCallAbort(mpi_comm, MatSetFromOptions(m_petsc_matrix));
+  PetscCallAbort(mpi_comm, MatSetUp(m_petsc_matrix));
 
   // m_csr_view.columns() use matrix coordinates local to sub-domain
   // We need to translate them to global matrix coordinates
@@ -281,13 +282,13 @@ solve()
     // info() << "global_row: " << global_row << " nb_col: " << nb_col << " row_csr_index: " << row_csr_index;
     const PetscInt* cols = &columns_index_data[row_csr_index];
     const PetscScalar* vals = &matrix_values_data[row_csr_index];
-    MatSetValues(m_petsc_matrix, 1, &global_row, nb_col, cols, vals, INSERT_VALUES);
+    PetscCallAbort(mpi_comm, MatSetValues(m_petsc_matrix, 1, &global_row, nb_col, cols, vals, INSERT_VALUES));
   }
 
   pm->barrier();
 
-  MatAssemblyBegin(m_petsc_matrix, MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd(m_petsc_matrix, MAT_FINAL_ASSEMBLY);
+  PetscCallAbort(mpi_comm, MatAssemblyBegin(m_petsc_matrix, MAT_FINAL_ASSEMBLY));
+  PetscCallAbort(mpi_comm, MatAssemblyEnd(m_petsc_matrix, MAT_FINAL_ASSEMBLY));
 
   info() << "[PETSc-Info] Created Matrix";
 
@@ -297,10 +298,10 @@ solve()
   const Real* result_data = dof_variable.asArray().data();
   const Int32* rows_index_data = rows_index_span.data();
 
-  VecCreateMPI(mpi_comm, local_rows, global_rows, &m_petsc_rhs_vector);
-  VecSetFromOptions(m_petsc_rhs_vector);
-  VecCreateMPI(mpi_comm, local_rows, global_rows, &m_petsc_solution_vector);
-  VecSetFromOptions(m_petsc_solution_vector);
+  PetscCallAbort(mpi_comm, VecCreateMPI(mpi_comm, local_rows, global_rows, &m_petsc_rhs_vector));
+  PetscCallAbort(mpi_comm, VecSetFromOptions(m_petsc_rhs_vector));
+  PetscCallAbort(mpi_comm, VecCreateMPI(mpi_comm, local_rows, global_rows, &m_petsc_solution_vector));
+  PetscCallAbort(mpi_comm, VecSetFromOptions(m_petsc_solution_vector));
 
   for (int i = 0; i < dof_variable.asArray().size(); i++)
   {
@@ -310,23 +311,23 @@ solve()
     if (index < m_first_row || index >= m_first_row + m_nb_own_row)
       continue;
 
-    VecSetValue(m_petsc_rhs_vector, index, rhs_data[i], INSERT_VALUES);
-    VecSetValue(m_petsc_solution_vector, index, result_data[i], INSERT_VALUES);
+    PetscCallAbort(mpi_comm, VecSetValue(m_petsc_rhs_vector, index, rhs_data[i], INSERT_VALUES));
+    PetscCallAbort(mpi_comm, VecSetValue(m_petsc_solution_vector, index, result_data[i], INSERT_VALUES));
     // info() << "rows: " << rows_index_data[i] << " rhs: " << rhs_data[i] << " result: " << result_data[i];
   }
 
-  VecAssemblyBegin(m_petsc_rhs_vector);
-  VecAssemblyEnd(m_petsc_rhs_vector);
-  VecAssemblyBegin(m_petsc_solution_vector);
-  VecAssemblyEnd(m_petsc_solution_vector);
+  PetscCallAbort(mpi_comm, VecAssemblyBegin(m_petsc_rhs_vector));
+  PetscCallAbort(mpi_comm, VecAssemblyEnd(m_petsc_rhs_vector));
+  PetscCallAbort(mpi_comm, VecAssemblyBegin(m_petsc_solution_vector));
+  PetscCallAbort(mpi_comm, VecAssemblyEnd(m_petsc_solution_vector));
 
 
   info() << "[PETSc-Info] Created vectors";
 
-  KSPCreate(mpi_comm, &m_petsc_solver_context);
-  KSPSetOperators(m_petsc_solver_context, m_petsc_matrix, m_petsc_matrix);
-  KSPSetFromOptions(m_petsc_solver_context);
-  KSPSolve(m_petsc_solver_context, m_petsc_rhs_vector, m_petsc_solution_vector);
+  PetscCallAbort(mpi_comm, KSPCreate(mpi_comm, &m_petsc_solver_context));
+  PetscCallAbort(mpi_comm, KSPSetOperators(m_petsc_solver_context, m_petsc_matrix, m_petsc_matrix));
+  PetscCallAbort(mpi_comm, KSPSetFromOptions(m_petsc_solver_context));
+  PetscCallAbort(mpi_comm, KSPSolve(m_petsc_solver_context, m_petsc_rhs_vector, m_petsc_solution_vector));
 
   info() << "[PETSc-Info] Solved linear system";
   if (is_parallel) {
@@ -345,7 +346,7 @@ solve()
   if (is_parallel) {
     Int32 nb_wanted_row = m_parallel_rows_index.extent0();
 
-    VecGetValues(m_petsc_solution_vector, nb_wanted_row, m_parallel_rows_index.to1DSpan().data(), m_result_work_values.to1DSpan().data());
+    PetscCallAbort(mpi_comm, VecGetValues(m_petsc_solution_vector, nb_wanted_row, m_parallel_rows_index.to1DSpan().data(), m_result_work_values.to1DSpan().data()));
     // for (int i = 0; i < nb_wanted_row; i++)
     //   info() << "rows: " << m_parallel_rows_index[i];
 
@@ -357,7 +358,7 @@ solve()
   }
   else {
     PetscScalar* vals = nullptr;
-    VecGetArray(m_petsc_solution_vector, &vals);
+    PetscCallAbort(mpi_comm, VecGetArray(m_petsc_solution_vector, &vals));
 
     // Copy directly into Arcane DoF variable
     dof_variable.asArray().copy(Span<const Real>(vals, m_nb_own_row));
