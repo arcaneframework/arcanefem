@@ -1986,8 +1986,8 @@ _solve()
     m_linear_system.applyLinearSystemTransformationAndSolve();
   }
 
-  elapsedTime = platform::getRealTime() - elapsedTime;
-  _printArcaneFemTime("[ArcaneFem-Timer] solving-linear-system", elapsedTime);
+  elapsedTime = platform::getRealTime() - TimeStart;
+  _printArcaneFemTime("[ArcaneFem-Timer] solving-linear-system1", elapsedTime);
 
   // Call again the solver to check it is valid to call it
   // several times. The second time we only call solve() without
@@ -1998,6 +1998,9 @@ _solve()
     Timer::Action ta1(tstat, "LinearSystemSolve2");
     m_linear_system.solve();
   }
+
+  elapsedTime = platform::getRealTime() - TimeStart;
+  _printArcaneFemTime("[ArcaneFem-Timer] solving-linear-system2", elapsedTime);
 
   // Re-Apply boundary conditions because the solver has modified the value
   {
