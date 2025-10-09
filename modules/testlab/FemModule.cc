@@ -1982,12 +1982,12 @@ _solve()
 
   {
     TimeStart = platform::getRealTime();
-    Timer::Action ta1(tstat, "LinearSystemSolve");
+    Timer::Action ta1(tstat, "LinearSystemSolve1");
     m_linear_system.applyLinearSystemTransformationAndSolve();
   }
 
   elapsedTime = platform::getRealTime() - TimeStart;
-  _printArcaneFemTime("[ArcaneFem-Timer] solving-linear-system1", elapsedTime);
+  _printArcaneFemTime("[ArcaneFem-Timer] solving-linear-system-1", elapsedTime);
 
   // Call again the solver to check it is valid to call it
   // several times. The second time we only call solve() without
@@ -1998,6 +1998,22 @@ _solve()
     Timer::Action ta1(tstat, "LinearSystemSolve2");
     m_linear_system.solve();
   }
+  elapsedTime = platform::getRealTime() - TimeStart;
+  _printArcaneFemTime("[ArcaneFem-Timer] solving-linear-system-2", elapsedTime);
+
+  // Call again the solver to check it is valid to call it
+  // several times. The thrid time reapply trasformations
+  // first on matrix, then on rhs, then call solve()
+  info() << "Calling again apply transformation and solve";
+  {
+    TimeStart = platform::getRealTime();
+    Timer::Action ta1(tstat, "LinearSystemSolve3");
+    m_linear_system.applyMatrixTransformation();
+    m_linear_system.applyRHSTransformation();
+    m_linear_system.solve();
+  }
+  elapsedTime = platform::getRealTime() - TimeStart;
+  _printArcaneFemTime("[ArcaneFem-Timer] solving-linear-system-3", elapsedTime);
 
   elapsedTime = platform::getRealTime() - TimeStart;
   _printArcaneFemTime("[ArcaneFem-Timer] solving-linear-system2", elapsedTime);
