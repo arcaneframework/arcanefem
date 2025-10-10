@@ -4,15 +4,10 @@
   <options>
     <simple name="rtol" type="real" default="1.0e-7" />
     <simple name="atol" type="real" default="0.0" />
-
-    <simple name="krylov-dim" type="int32" default="3" />
     <simple name="max-iter" type="int32" default="1000" />
-    <simple name="amg-threshold" type="real" default="0.25" />
-    <simple name="amg-coarsener" type="int32" default="8" />
-    <simple name="amg-interp-type" type="int32" default="6" />
-    <simple name="amg-smoother" type="int32" default="6" />
 
     <simple name="solver" type="string" default="cg" />
-    <simple name="preconditioner" type="string" default="jacobi" />
+    <simple name="pc-type" type="string" default="jacobi" />
+    <simple name="mat-type" type="string" default="mpibaij" />
   </options>
 </service>
