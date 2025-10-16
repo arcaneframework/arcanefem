@@ -675,7 +675,7 @@ class Tensor2
     return m_vec(i);
   }
 
-  ARCCORE_HOST_DEVICE [[nodiscard]] RealVector<6> getVec() const {  return m_vec; }
+  [[nodiscard]] ARCCORE_HOST_DEVICE RealVector<6> getVec() const {  return m_vec; }
 
   ARCCORE_HOST_DEVICE Real operator()(Int32 i) const {
     return m_vec(i);
@@ -874,7 +874,7 @@ class Tensor2
     return ij;
   }
 
-  ARCCORE_HOST_DEVICE [[nodiscard]] Real3 get_diagonal() const { // xx yy zz
+  [[nodiscard]] ARCCORE_HOST_DEVICE Real3 get_diagonal() const { // xx yy zz
     return {m_vec(0), m_vec(1), m_vec(2)};
   }
 
@@ -882,18 +882,18 @@ class Tensor2
     for (Int32 i = 0; i < 3; i++) m_vec(i) = d[i];
   }
 
-  ARCCORE_HOST_DEVICE [[nodiscard]] Real3 get_outdiagonal() const { // xy xz yz
+  [[nodiscard]] ARCCORE_HOST_DEVICE Real3 get_outdiagonal() const { // xy xz yz
     return {m_vec(3), m_vec(4), m_vec(5)};
   }
   ARCCORE_HOST_DEVICE void set_outdiagonal(const Real3& s) {
     for (Int32 i = 3; i < 6; i++) m_vec(i) = s[i-3];
   }
 
-  ARCCORE_HOST_DEVICE [[nodiscard]] Real trace() const {
+  [[nodiscard]] ARCCORE_HOST_DEVICE Real trace() const {
     return m_vec(0) + m_vec(1) + m_vec(2);
   }
 
-  ARCCORE_HOST_DEVICE [[nodiscard]] Real norm() const {
+  [[nodiscard]] ARCCORE_HOST_DEVICE Real norm() const {
     return sqrt(dot(m_vec,m_vec));
   }
 
