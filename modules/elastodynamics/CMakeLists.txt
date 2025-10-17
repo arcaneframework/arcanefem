@@ -62,6 +62,10 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor
     inputs/bar.dirichlet-traction.quad.arc)
 
+  add_test(NAME [elastodynamics]2D_bar_dirichlet-3-step-traction_quad COMMAND Elastodynamics
+    -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 2\ -ksp_view\ -ksp_monitor
+    inputs/bar.dirichlet.three-step-traction.bodyforce.quad.arc)
+
   add_test(NAME [elastodynamics]3D_bar COMMAND Elastodynamics
     -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_view\ -ksp_monitor
     inputs/bar.3D.arc)
