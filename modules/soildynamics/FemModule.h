@@ -120,13 +120,14 @@ class FemModule
   FemDoFsOnNodes m_dofs_on_nodes;
   BSRFormat m_bsr_format;
 
-  // Struct to make sure we are using a CaseTable associated
+/*  // Struct to make sure we are using a CaseTable associated
   // to the right file
   struct CaseTableInfo
   {
     String file_name;
     CaseTable* case_table = nullptr;
   };
+*/
 
   // List of CaseTable for traction boundary conditions
   UniqueArray<CaseTableInfo> m_traction_case_table_list;
@@ -152,6 +153,7 @@ class FemModule
   RealMatrix<9, 9> _computeParaxialElementMatrixTria3(Face face);
   RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
 
+  inline void _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applySourceTerm2d(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applySourceTerm3d(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applySourceTermTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);

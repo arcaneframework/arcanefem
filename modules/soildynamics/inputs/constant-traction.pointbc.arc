@@ -30,15 +30,15 @@
     <paraxial-boundary-condition>
       <surface>lower</surface>
     </paraxial-boundary-condition>
-    <traction-boundary-condition>
-      <surface>input</surface>
-      <t>0.01 0.01</t>
-    </traction-boundary-condition>
     <boundary-conditions>
       <dirichlet-point>
         <node>source</node>
         <value>0.0 0.0003</value>
       </dirichlet-point>
+      <traction>
+        <surface>input</surface>
+        <value>0.01 0.01</value>
+      </traction>
     </boundary-conditions>
     <result-file>check/test_2D_constant_traction_pointbc.txt</result-file>
   </fem>

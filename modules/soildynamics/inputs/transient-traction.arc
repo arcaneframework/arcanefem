@@ -33,10 +33,12 @@
     <paraxial-boundary-condition>
       <surface>lower</surface>
     </paraxial-boundary-condition>
-    <traction-boundary-condition>
-      <surface>input</surface>
-      <traction-input-file>data/semi-circle-soil-traction.txt</traction-input-file>
-    </traction-boundary-condition>
+    <boundary-conditions>
+      <traction>
+        <surface>input</surface>
+        <traction-input-file>data/semi-circle-soil-traction.txt</traction-input-file>
+      </traction>
+    </boundary-conditions>
     <result-file>check/test_2D_transient_traction.txt</result-file>
     <linear-system>
       <solver-backend>petsc</solver-backend>

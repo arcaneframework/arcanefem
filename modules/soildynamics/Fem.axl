@@ -121,32 +121,6 @@
     </simple>
     </complex>
 
-    <!-- - - - - - neumann-boundary-condition - - - - -->
-    <complex name  = "traction-boundary-condition"
-             type  = "TractionBoundaryCondition"
-             minOccurs = "0"
-             maxOccurs = "unbounded"
-      >
-      <description>
-        Traction boundary condition
-      </description>
-      <extended name = "surface" type = "Arcane::FaceGroup">
-        <description>
-          FaceGroup on which to apply these boundary condition
-        </description>
-      </extended>
-      <simple name = "t" type = "string[]" default="NULL NULL NULL" optional="true">
-        <description>
-          Traction vector (space separated list).
-        </description>
-      </simple>
-      <simple name = "traction-input-file" type = "string"  optional="true">
-        <description>
-          File containing traction inputs (three columns: (T,t_x,t_y))
-        </description>
-      </simple>
-    </complex>
-
     <!-- - - - - - paraxial-boundary-condition - - - - -->
     <complex name  = "paraxial-boundary-condition"
              type  = "ParaxialBoundaryCondition"
