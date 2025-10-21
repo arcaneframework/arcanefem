@@ -36,15 +36,11 @@
         <node>dcNorth</node>
         <value>0.0 NULL NULL</value>
       </dirichlet-point>
+      <traction>
+        <surface>leftsur</surface>
+        <value>0.01 0.01 0.02</value>
+      </traction>
     </boundary-conditions>
-    <traction-boundary-condition>
-      <surface>leftsur</surface>
-      <t>0.01 0.01 0.02</t>
-    </traction-boundary-condition>
-    <traction-boundary-condition>
-      <surface>topsur</surface>
-      <traction-input-file>data/3d-traction.txt</traction-input-file>
-    </traction-boundary-condition>
     <paraxial-boundary-condition>
       <surface>botsur</surface>
     </paraxial-boundary-condition>

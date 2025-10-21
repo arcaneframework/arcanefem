@@ -15,6 +15,8 @@
 #include "ElementMatrix.h"
 #include "SourceTerm.h"
 #include "Dirichlet.h"
+#include "Traction.h"
+
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -79,8 +81,6 @@ startInit()
   t = dt;
   tmax = tmax;
   m_global_deltat.assign(dt);
-
-  _readCaseTables();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "initialize", elapsedTime);
@@ -189,6 +189,8 @@ _getParameters()
   m_cross_validation = options()->crossValidation();
   m_petsc_flags = options()->petscFlags();
 
+  _readCaseTables();
+
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "get-material-params", elapsedTime);
 }
@@ -200,23 +202,26 @@ void FemModule::
 _readCaseTables()
 {
   IParallelMng* pm = subDomain()->parallelMng();
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
-  for (const auto& bs : options()->tractionBoundaryCondition()) {
-    CaseTable* case_table = nullptr;
-
-    if (bs->tractionInputFile.isPresent())
-      case_table = readFileAsCaseTable(pm, bs->tractionInputFile(), 3);
-
-    m_traction_case_table_list.add(CaseTableInfo{ bs->tractionInputFile(), case_table });
+  // loop over all traction boundries
+  if (bc) {
+    for (BC::ITractionBoundaryCondition* bs : bc->tractionBoundaryConditions()) {
+      CaseTable* case_table = nullptr;
+      auto traction_table_file_name = bs->getTractionInputFile();
+      bool getTractionFromTable = !traction_table_file_name.empty();
+      if (getTractionFromTable)
+        case_table = readFileAsCaseTable(pm, traction_table_file_name, 3);
+      m_traction_case_table_list.add(CaseTableInfo{ traction_table_file_name, case_table });
+    }
   }
 
+  // loop over all double couple boundries
   for (const auto& bs : options()->doubleCouple()) {
     CaseTable* case_table = nullptr;
-
     if (bs->doubleCoupleInputFile.isPresent())
       case_table = readFileAsCaseTable(pm, bs->doubleCoupleInputFile(), 1);
-
-    m_double_couple_case_table_list.add(CaseTableInfo{ bs->doubleCoupleInputFile(), case_table });
+    m_double_couple_case_table_list.add(Arcane::FemUtils::CaseTableInfo{ bs->doubleCoupleInputFile(), case_table });
   }
 }
 
@@ -317,70 +322,7 @@ _assembleLinearOperator2d(BSRMatrix* bsr_matrix)
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   _applySourceTerm2d(rhs_values, node_dof);
-
-  //----------------------------------------------------------------------
-  // traction term ∫∫ (𝐭.𝐯)  with 𝐭 = (𝑡𝑥, 𝑡𝑦, 𝑡𝑧) = (t[0], t[1], t[2])
-  //----------------------------------------------------------------------
-  // Index of the boundary condition. Needed to associate a CaseTable
-  Int32 boundary_condition_index = 0;
-  for (const auto& bs : options()->tractionBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    const CaseTableInfo& case_table_info = m_traction_case_table_list[boundary_condition_index];
-    ++boundary_condition_index;
-
-    Real3 trac; // traction in x, y and z
-
-    if (bs->tractionInputFile.isPresent()) {
-
-      String file_name = bs->tractionInputFile();
-      info() << "Applying traction boundary conditions for surface " << group.name()
-             << " via CaseTable" << file_name;
-      CaseTable* inn = case_table_info.case_table;
-      if (!inn)
-        ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _readCaseTables()");
-      if (file_name != case_table_info.file_name)
-        ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'", case_table_info.file_name);
-      inn->value(t, trac);
-
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-        for (Node node : iface->nodes()) {
-          if (node.isOwn()) {
-            rhs_values[node_dof.dofId(node, 0)] += trac.x * length / 2.;
-            rhs_values[node_dof.dofId(node, 1)] += trac.y * length / 2.;
-          }
-        }
-      }
-      continue;
-    }
-    else {
-      const UniqueArray<String> t_string = bs->t();
-      Real3 trac;
-
-      info() << "[ArcaneFem-Info] Applying Traction " << t_string;
-      info() << "[ArcaneFem-Info] Traction surface '" << bs->surface().name() << "'";
-
-      for (Int32 i = 0; i < t_string.size(); ++i) {
-        trac[i] = 0.0;
-        if (t_string[i] != "NULL") {
-          trac[i] = std::stod(t_string[i].localstr());
-        }
-      }
-
-      if (t_string[0] != "NULL" || t_string[1] != "NULL")
-        ENUMERATE_ (Face, iface, group) {
-          Face face = *iface;
-          Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-          for (Node node : iface->nodes()) {
-            if (node.isOwn()) {
-              rhs_values[node_dof.dofId(node, 0)] += trac[0] * length / 2.;
-              rhs_values[node_dof.dofId(node, 1)] += trac[1] * length / 2.;
-            }
-          }
-        }
-    }
-  }
+  _applyTraction(rhs_values, node_dof);
 
   //----------------------------------------------
   // Paraxial term assembly for LHS and RHS
@@ -505,71 +447,7 @@ _assembleLinearOperator3d(BSRMatrix* bsr_matrix)
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   _applySourceTerm3d(rhs_values, node_dof);
-  //----------------------------------------------------------------------
-  // traction term ∫∫ (𝐭.𝐯)  with 𝐭 = (𝑡𝑥, 𝑡𝑦, 𝑡𝑧) = (t[0], t[1], t[2])
-  //----------------------------------------------------------------------
-  // Index of the boundary condition. Needed to associate a CaseTable
-  Int32 boundary_condition_index = 0;
-  for (const auto& bs : options()->tractionBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-    const CaseTableInfo& case_table_info = m_traction_case_table_list[boundary_condition_index];
-    ++boundary_condition_index;
-
-    Real3 trac; // traction in x, y and z
-
-    if (bs->tractionInputFile.isPresent()) {
-
-      String file_name = bs->tractionInputFile();
-      info() << "Applying traction boundary conditions for surface " << group.name()
-             << " via CaseTable" << file_name;
-      CaseTable* inn = case_table_info.case_table;
-      if (!inn)
-        ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _readCaseTables()");
-      if (file_name != case_table_info.file_name)
-        ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'", case_table_info.file_name);
-      inn->value(t, trac);
-
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
-        for (Node node : iface->nodes()) {
-          if (node.isOwn()) {
-            rhs_values[node_dof.dofId(node, 0)] += trac.x * area / 3.;
-            rhs_values[node_dof.dofId(node, 1)] += trac.y * area / 3.;
-            rhs_values[node_dof.dofId(node, 2)] += trac.z * area / 3.;
-          }
-        }
-      }
-      continue;
-    }
-    else {
-      const UniqueArray<String> t_string = bs->t();
-      Real3 trac;
-
-      info() << "[ArcaneFem-Info] Applying Traction " << t_string;
-      info() << "[ArcaneFem-Info] Traction surface '" << bs->surface().name() << "'";
-
-      for (Int32 i = 0; i < t_string.size(); ++i) {
-        trac[i] = 0.0;
-        if (t_string[i] != "NULL") {
-          trac[i] = std::stod(t_string[i].localstr());
-        }
-      }
-
-      if (t_string[0] != "NULL" || t_string[1] != "NULL" || t_string[2] != "NULL")
-        ENUMERATE_ (Face, iface, group) {
-          Face face = *iface;
-          Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
-          for (Node node : iface->nodes()) {
-            if (node.isOwn()) {
-              rhs_values[node_dof.dofId(node, 0)] += trac[0] * area / 3.;
-              rhs_values[node_dof.dofId(node, 1)] += trac[1] * area / 3.;
-              rhs_values[node_dof.dofId(node, 2)] += trac[2] * area / 3.;
-            }
-          }
-        }
-    }
-  }
+  _applyTraction(rhs_values, node_dof);
 
   //----------------------------------------------
   // Paraxial term assembly
