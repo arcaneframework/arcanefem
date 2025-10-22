@@ -154,6 +154,7 @@ class FemModule
   RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
 
   inline void _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyParaxial(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof, BSRMatrix* bsr_matrix = nullptr);
   inline void _applySourceTerm2d(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applySourceTerm3d(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applySourceTermTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
