@@ -120,15 +120,6 @@ class FemModule
   FemDoFsOnNodes m_dofs_on_nodes;
   BSRFormat m_bsr_format;
 
-/*  // Struct to make sure we are using a CaseTable associated
-  // to the right file
-  struct CaseTableInfo
-  {
-    String file_name;
-    CaseTable* case_table = nullptr;
-  };
-*/
-
   // List of CaseTable for traction boundary conditions
   UniqueArray<CaseTableInfo> m_traction_case_table_list;
   UniqueArray<CaseTableInfo> m_double_couple_case_table_list;
@@ -160,10 +151,7 @@ class FemModule
   void _applyDirichlet(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
 
   template <int N>
-  void _assembleBilinearOperator2d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
-
-  template <int N>
-  void _assembleBilinearOperator3d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
+  void _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
 };
 
 #endif

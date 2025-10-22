@@ -327,12 +327,12 @@ _assembleBilinearOperator()
   if (t <= dt) {
     if (mesh()->dimension() == 2)
       if(m_matrix_format == "DOK")
-        _assembleBilinearOperator2d<6>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
+        _assembleBilinearOperatorCpu<6>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
       else if(m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
         _assembleBilinearOperatorTria3Gpu();
     if (mesh()->dimension() == 3)
       if(m_matrix_format == "DOK")
-        _assembleBilinearOperator3d<12>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
+        _assembleBilinearOperatorCpu<12>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
       else if(m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
         _assembleBilinearOperatorTetra4Gpu();
   }
@@ -385,113 +385,43 @@ _assembleBilinearOperatorTetra4Gpu()
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Assembles the FEM bilinear operator for 2D problems.
+ * @brief Assembles the FEM bilinear operator on CPU.
  *
  * This method assembles the FEM stiffness matrix by iterating over each cell,
  * computing the element stiffness matrix using the provided function, and
  * populating the global stiffness matrix accordingly.
  *
- * @tparam N The number of nodes per element (e.g., 3 for triangles, 4 for quadrilaterals).
- * @param compute_element_matrix A function that computes the element stiffness matrix for a given cell.
+ * @tparam N Total DOF size (nodes_per_element × dimensions).
+ * @param compute_element_matrix function computing cell's element stiffness matrix.
  */
 /*---------------------------------------------------------------------------*/
 
 template <int N>
 void FemModule::
-_assembleBilinearOperator2d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
+_assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
+  const Int32 dim = mesh()->dimension();
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-
     auto K_e = compute_element_matrix(cell);
+
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
-      Int32 n2_index = 0;
-      for (Node node2 : cell.nodes()) {
-        Real v1 = K_e(2 * n1_index, 2 * n2_index);
-        Real v2 = K_e(2 * n1_index, 2 * n2_index + 1);
-        Real v3 = K_e(2 * n1_index + 1, 2 * n2_index);
-        Real v4 = K_e(2 * n1_index + 1, 2 * n2_index + 1);
-
-        if (node1.isOwn()) {
-          DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
-          DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
-          DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
-          DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
-
-          m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
-          m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
-          m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v3);
-          m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v4);
+      if (node1.isOwn()) {
+        Int32 n2_index = 0;
+        for (Node node2 : cell.nodes()) {
+          for (Int32 i = 0; i < dim; ++i) {
+            DoFLocalId dof1 = node_dof.dofId(node1, i);
+            for (Int32 j = 0; j < dim; ++j) {
+              DoFLocalId dof2 = node_dof.dofId(node2, j);
+              Real value = K_e(dim * n1_index + i, dim * n2_index + j);
+              m_linear_system.matrixAddValue(dof1, dof2, value);
+            }
+          }
+          ++n2_index;
         }
-        ++n2_index;
-      }
-      ++n1_index;
-    }
-  }
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Assembles the FEM bilinear operator for 3D problems.
- *
- * This method assembles the FEM stiffness matrix by iterating over each cell,
- * computing the element stiffness matrix using the provided function, and
- * populating the global stiffness matrix accordingly.
- *
- * @tparam N The number of nodes per element (e.g., 4 for tetrahedra, 8 for hexahedra).
- * @param compute_element_matrix A function that computes the element stiffness matrix for a given cell.
- */
-/*---------------------------------------------------------------------------*/
-
-template <int N>
-void FemModule::
-_assembleBilinearOperator3d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
-{
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-
-    auto K_e = compute_element_matrix(cell);
-    Int32 n1_index = 0;
-    for (Node node1 : cell.nodes()) {
-      Int32 n2_index = 0;
-      for (Node node2 : cell.nodes()) {
-        Real v1 = K_e(3 * n1_index, 3 * n2_index);
-        Real v2 = K_e(3 * n1_index, 3 * n2_index + 1);
-        Real v3 = K_e(3 * n1_index, 3 * n2_index + 2);
-
-        Real v4 = K_e(3 * n1_index + 1, 3 * n2_index);
-        Real v5 = K_e(3 * n1_index + 1, 3 * n2_index + 1);
-        Real v6 = K_e(3 * n1_index + 1, 3 * n2_index + 2);
-
-        Real v7 = K_e(3 * n1_index + 2, 3 * n2_index);
-        Real v8 = K_e(3 * n1_index + 2, 3 * n2_index + 1);
-        Real v9 = K_e(3 * n1_index + 2, 3 * n2_index + 2);
-        if (node1.isOwn()) {
-          DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
-          DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
-          DoFLocalId node1_dof3 = node_dof.dofId(node1, 2);
-          DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
-          DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
-          DoFLocalId node2_dof3 = node_dof.dofId(node2, 2);
-
-          m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
-          m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
-          m_linear_system.matrixAddValue(node1_dof1, node2_dof3, v3);
-
-          m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v4);
-          m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v5);
-          m_linear_system.matrixAddValue(node1_dof2, node2_dof3, v6);
-
-          m_linear_system.matrixAddValue(node1_dof3, node2_dof1, v7);
-          m_linear_system.matrixAddValue(node1_dof3, node2_dof2, v8);
-          m_linear_system.matrixAddValue(node1_dof3, node2_dof3, v9);
-        }
-        ++n2_index;
       }
       ++n1_index;
     }

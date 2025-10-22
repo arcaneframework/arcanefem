@@ -150,10 +150,7 @@ class FemModule
   RealMatrix<24, 24> _computeElementMatrixHexa8(Cell cell);
 
   template <int N>
-  void _assembleBilinearOperator2d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
-
-  template <int N>
-  void _assembleBilinearOperator3d(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
+  void _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
 };
 
 #endif
