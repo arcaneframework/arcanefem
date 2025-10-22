@@ -142,8 +142,6 @@ class FemModule
   void _assembleBilinearOperator();
   void _solve();
   void _assembleLinearOperator();
-  void _assembleLinearOperator2d(BSRMatrix* bsr_matrix = nullptr);
-  void _assembleLinearOperator3d(BSRMatrix* bsr_matrix = nullptr);
   void _applyDirichletBoundaryConditions();
   void _validateResults();
   void _readCaseTables();
@@ -154,8 +152,9 @@ class FemModule
   RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
 
   inline void _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
-  inline void _applySourceTerm2d(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
-  inline void _applySourceTerm3d(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyDoubleCouple(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyParaxial(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof, BSRMatrix* bsr_matrix = nullptr);
+  inline void _applySourceTerm(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applySourceTermTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applySourceTermTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyDirichlet(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);

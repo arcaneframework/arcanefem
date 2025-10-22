@@ -16,7 +16,8 @@
 #include "SourceTerm.h"
 #include "Dirichlet.h"
 #include "Traction.h"
-
+#include "Paraxial.h"
+#include "DoubleCouple.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -280,323 +281,38 @@ _updateVariables()
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "update-variables", elapsedTime);
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 void FemModule::
 _assembleLinearOperator()
 {
-  info() << "[ArcaneFem-Info] Started module  _assembleLinearOperator()";
+  info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (mesh()->dimension() == 2)
-    if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
-      _assembleLinearOperator2d(&(m_bsr_format.matrix()));
-    else
-      _assembleLinearOperator2d();
-  if (mesh()->dimension() == 3)
-    if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
-      _assembleLinearOperator3d(&(m_bsr_format.matrix()));
-    else
-      _assembleLinearOperator3d();
+  // Determine if using BSR format
+  bool use_bsr = (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR");
+  BSRMatrix* bsr_matrix = use_bsr ? &(m_bsr_format.matrix()) : nullptr;
 
-  if(m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
+  // Temporary variable to keep values for the RHS part of the linear system
+  VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
+  rhs_values.fill(0.0);
+
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  // Apply all boundary conditions and source terms
+  _applySourceTerm(rhs_values, node_dof);
+  _applyTraction(rhs_values, node_dof);
+  _applyParaxial(rhs_values, node_dof, bsr_matrix);
+  _applyDoubleCouple(rhs_values, node_dof);
+  _applyDirichlet(rhs_values, node_dof);
+
+  // Convert BSR format to linear system if needed
+  if (use_bsr)
     m_bsr_format.toLinearSystem(m_linear_system);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
-}
-
-/*---------------------------------------------------------------------------*/
-// Assemble the FEM linear operator
-//  - This function enforces a Dirichlet boundary condition in a weak sense
-//    via the penalty method
-//  - The method also adds source term
-//  - The method also adds external fluxes
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_assembleLinearOperator2d(BSRMatrix* bsr_matrix)
-{
-  // Temporary variable to keep values for the RHS part of the linear system
-  VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
-  rhs_values.fill(0.0);
-
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  _applySourceTerm2d(rhs_values, node_dof);
-  _applyTraction(rhs_values, node_dof);
-
-  //----------------------------------------------
-  // Paraxial term assembly for LHS and RHS
-  //----------------------------------------------
-  for (const auto& bs : options()->paraxialBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-
-    info() << "[ArcaneFem-Info] Applying constant Paraxial boundary conditions for surface " << group.name();
-
-    ENUMERATE_ (Face, iface, group) {
-      Face face = *iface;
-      Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-
-      RealVector<4> Un = { m_U[face.nodeId(0)].x, m_U[face.nodeId(0)].y, m_U[face.nodeId(1)].x, m_U[face.nodeId(1)].y };
-      RealVector<4> Vn = { m_V[face.nodeId(0)].x, m_V[face.nodeId(0)].y, m_V[face.nodeId(1)].x, m_V[face.nodeId(1)].y };
-      RealVector<4> An = { m_A[face.nodeId(0)].x, m_A[face.nodeId(0)].y, m_A[face.nodeId(1)].x, m_A[face.nodeId(1)].y };
-
-      RealMatrix<4, 4>  ParaxialElementMatrixEdge2 = _computeParaxialElementMatrixEdge2(face);
-      RealVector<4> rhs = length * (c7 * Un * ParaxialElementMatrixEdge2 - c8 * Vn * ParaxialElementMatrixEdge2  + c9 * An * ParaxialElementMatrixEdge2) ;
-
-      rhs_values[node_dof.dofId(face.nodeId(0), 0)] += rhs(0);
-      rhs_values[node_dof.dofId(face.nodeId(0), 1)] += rhs(1);
-      rhs_values[node_dof.dofId(face.nodeId(1), 0)] += rhs(2);
-      rhs_values[node_dof.dofId(face.nodeId(1), 1)] += rhs(3);
-
-      if (t <= dt) {
-        ParaxialElementMatrixEdge2 = c7 * length * ParaxialElementMatrixEdge2;
-        Int32 n1_index = 0;
-        for (Node node1 : face.nodes()) {
-          Int32 n2_index = 0;
-          for (Node node2 : face.nodes()) {
-            Real v1 = ParaxialElementMatrixEdge2(2 * n1_index, 2 * n2_index);
-            Real v2 = ParaxialElementMatrixEdge2(2 * n1_index, 2 * n2_index + 1);
-            Real v3 = ParaxialElementMatrixEdge2(2 * n1_index + 1, 2 * n2_index);
-            Real v4 = ParaxialElementMatrixEdge2(2 * n1_index + 1, 2 * n2_index + 1);
-            if (node1.isOwn()) {
-              DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
-              DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
-              DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
-              DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
-
-              if (bsr_matrix) {
-                bsr_matrix->addValue(node1_dof1, node2_dof1, v1);
-                bsr_matrix->addValue(node1_dof1, node2_dof2, v2);
-                bsr_matrix->addValue(node1_dof2, node2_dof1, v3);
-                bsr_matrix->addValue(node1_dof2, node2_dof2, v4);
-              }
-              else {
-                m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
-                m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
-                m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v3);
-                m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v4);
-              }
-            }
-            ++n2_index;
-          }
-          ++n1_index;
-        }
-      }
-    }
-  }
-
-  //----------------------------------------------
-  // Double-couple term assembly
-  //----------------------------------------------
-
-  // Index of the boundary condition. Needed to associate a CaseTable
-  Int32 boundary_condition_index_dc = 0;
-
-  for (const auto& bs : options()->doubleCouple()) {
-
-    const CaseTableInfo& case_table_dc_info = m_double_couple_case_table_list[boundary_condition_index_dc];
-
-    ++boundary_condition_index_dc;
-
-    Real dc_force; // double-couple force
-
-    String file_name = bs->doubleCoupleInputFile();
-    info() << "Applying boundary conditions for surface via CaseTable" << file_name;
-
-    CaseTable* dc_case_table_inn = case_table_dc_info.case_table;
-
-    dc_case_table_inn->value(t, dc_force);
-
-    NodeGroup north = bs->northNodeName();
-    NodeGroup south = bs->southNodeName();
-    NodeGroup east = bs->eastNodeName();
-    NodeGroup west = bs->westNodeName();
-
-    ENUMERATE_ (Node, inode, north) {
-      Node node = *inode;
-      DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-      rhs_values[dof_id1] = dc_force;
-    }
-    ENUMERATE_ (Node, inode, south) {
-      Node node = *inode;
-      DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-      rhs_values[dof_id1] = -dc_force;
-    }
-    ENUMERATE_ (Node, inode, east) {
-      Node node = *inode;
-      DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-      rhs_values[dof_id2] = -dc_force;
-    }
-    ENUMERATE_ (Node, inode, west) {
-      Node node = *inode;
-      DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-      rhs_values[dof_id2] = dc_force;
-    }
-  }
-
-  _applyDirichlet(rhs_values, node_dof);
-}
-
-void FemModule::
-_assembleLinearOperator3d(BSRMatrix* bsr_matrix)
-{
-  // Temporary variable to keep values for the RHS part of the linear system
-  VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
-  rhs_values.fill(0.0);
-
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  _applySourceTerm3d(rhs_values, node_dof);
-  _applyTraction(rhs_values, node_dof);
-
-  //----------------------------------------------
-  // Paraxial term assembly
-  //----------------------------------------------
-  for (const auto& bs : options()->paraxialBoundaryCondition()) {
-    FaceGroup group = bs->surface();
-
-    info() << "Applying constant Paraxial boundary conditions for surface " << group.name();
-
-    ENUMERATE_ (Face, iface, group) {
-      Face face = *iface;
-      Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
-
-      RealVector<9> Un = { m_U[face.nodeId(0)].x, m_U[face.nodeId(0)].y, m_U[face.nodeId(0)].z,
-                               m_U[face.nodeId(1)].x, m_U[face.nodeId(1)].y, m_U[face.nodeId(1)].z,
-                               m_U[face.nodeId(2)].x, m_U[face.nodeId(2)].y, m_U[face.nodeId(2)].z, };
-
-      RealVector<9> Vn = { m_V[face.nodeId(0)].x, m_V[face.nodeId(0)].y, m_V[face.nodeId(0)].z,
-                               m_V[face.nodeId(1)].x, m_V[face.nodeId(1)].y, m_V[face.nodeId(1)].z,
-                               m_V[face.nodeId(2)].x, m_V[face.nodeId(2)].y, m_V[face.nodeId(2)].z, };
-
-      RealVector<9> An = { m_A[face.nodeId(0)].x, m_A[face.nodeId(0)].y, m_A[face.nodeId(0)].z,
-                               m_A[face.nodeId(1)].x, m_A[face.nodeId(1)].y, m_A[face.nodeId(1)].z,
-                               m_A[face.nodeId(2)].x, m_A[face.nodeId(2)].y, m_A[face.nodeId(2)].z, };
-
-      RealMatrix<9, 9>  ParaxialElementMatrixTria3 = _computeParaxialElementMatrixTria3(face);
-      RealVector<9> rhs = area * (c7 * Un * ParaxialElementMatrixTria3 - c8 * Vn * ParaxialElementMatrixTria3  + c9 * An * ParaxialElementMatrixTria3) ;
-
-      rhs_values[node_dof.dofId(face.nodeId(0), 0)] += rhs(0);
-      rhs_values[node_dof.dofId(face.nodeId(0), 1)] += rhs(1);
-      rhs_values[node_dof.dofId(face.nodeId(0), 2)] += rhs(2);
-      rhs_values[node_dof.dofId(face.nodeId(1), 0)] += rhs(3);
-      rhs_values[node_dof.dofId(face.nodeId(1), 1)] += rhs(4);
-      rhs_values[node_dof.dofId(face.nodeId(1), 2)] += rhs(5);
-      rhs_values[node_dof.dofId(face.nodeId(2), 0)] += rhs(6);
-      rhs_values[node_dof.dofId(face.nodeId(2), 1)] += rhs(7);
-      rhs_values[node_dof.dofId(face.nodeId(2), 2)] += rhs(8);
-
-      if (t <= dt) {
-        ParaxialElementMatrixTria3 = area * c7 * ParaxialElementMatrixTria3;
-        Int32 n1_index = 0;
-        for (Node node1 : face.nodes()) {
-          Int32 n2_index = 0;
-          for (Node node2 : face.nodes()) {
-            Real v1 = ParaxialElementMatrixTria3(3 * n1_index, 3 * n2_index);
-            Real v2 = ParaxialElementMatrixTria3(3 * n1_index, 3 * n2_index + 1);
-            Real v3 = ParaxialElementMatrixTria3(3 * n1_index, 3 * n2_index + 2);
-
-            Real v4 = ParaxialElementMatrixTria3(3 * n1_index + 1, 3 * n2_index);
-            Real v5 = ParaxialElementMatrixTria3(3 * n1_index + 1, 3 * n2_index + 1);
-            Real v6 = ParaxialElementMatrixTria3(3 * n1_index + 1, 3 * n2_index + 2);
-
-            Real v7 = ParaxialElementMatrixTria3(3 * n1_index + 2, 3 * n2_index);
-            Real v8 = ParaxialElementMatrixTria3(3 * n1_index + 2, 3 * n2_index + 1);
-            Real v9 = ParaxialElementMatrixTria3(3 * n1_index + 2, 3 * n2_index + 2);
-            if (node1.isOwn()) {
-              DoFLocalId node1_dof1 = node_dof.dofId(node1, 0);
-              DoFLocalId node1_dof2 = node_dof.dofId(node1, 1);
-              DoFLocalId node1_dof3 = node_dof.dofId(node1, 2);
-
-              DoFLocalId node2_dof1 = node_dof.dofId(node2, 0);
-              DoFLocalId node2_dof2 = node_dof.dofId(node2, 1);
-              DoFLocalId node2_dof3 = node_dof.dofId(node2, 2);
-
-              if (bsr_matrix) {
-                bsr_matrix->addValue(node1_dof1, node2_dof1, v1);
-                bsr_matrix->addValue(node1_dof1, node2_dof2, v2);
-                bsr_matrix->addValue(node1_dof1, node2_dof3, v3);
-
-                bsr_matrix->addValue(node1_dof2, node2_dof1, v4);
-                bsr_matrix->addValue(node1_dof2, node2_dof2, v5);
-                bsr_matrix->addValue(node1_dof2, node2_dof3, v6);
-
-                bsr_matrix->addValue(node1_dof3, node2_dof1, v7);
-                bsr_matrix->addValue(node1_dof3, node2_dof2, v8);
-                bsr_matrix->addValue(node1_dof3, node2_dof3, v9);
-              }
-              else {
-                m_linear_system.matrixAddValue(node1_dof1, node2_dof1, v1);
-                m_linear_system.matrixAddValue(node1_dof1, node2_dof2, v2);
-                m_linear_system.matrixAddValue(node1_dof1, node2_dof3, v3);
-
-                m_linear_system.matrixAddValue(node1_dof2, node2_dof1, v4);
-                m_linear_system.matrixAddValue(node1_dof2, node2_dof2, v5);
-                m_linear_system.matrixAddValue(node1_dof2, node2_dof3, v6);
-
-                m_linear_system.matrixAddValue(node1_dof3, node2_dof1, v7);
-                m_linear_system.matrixAddValue(node1_dof3, node2_dof2, v8);
-                m_linear_system.matrixAddValue(node1_dof3, node2_dof3, v9);
-              }
-            }
-            ++n2_index;
-          }
-          ++n1_index;
-        }
-      }
-    }
-  }
-
-  //----------------------------------------------
-  // Double-couple term assembly
-  //----------------------------------------------
-
-  // Index of the boundary condition. Needed to associate a CaseTable
-  Int32 boundary_condition_index_dc = 0;
-
-  for (const auto& bs : options()->doubleCouple()) {
-
-    const CaseTableInfo& case_table_dc_info = m_double_couple_case_table_list[boundary_condition_index_dc];
-
-    ++boundary_condition_index_dc;
-
-    Real dc_force; // double-couple force
-
-    String file_name = bs->doubleCoupleInputFile();
-    info() << "Applying boundary conditions for surface via CaseTable" << file_name;
-
-    CaseTable* dc_case_table_inn = case_table_dc_info.case_table;
-
-    dc_case_table_inn->value(t, dc_force);
-
-    NodeGroup north = bs->northNodeName();
-    NodeGroup south = bs->southNodeName();
-    NodeGroup east = bs->eastNodeName();
-    NodeGroup west = bs->westNodeName();
-
-    ENUMERATE_ (Node, inode, north) {
-      Node node = *inode;
-      DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-      rhs_values[dof_id1] = dc_force;
-    }
-    ENUMERATE_ (Node, inode, south) {
-      Node node = *inode;
-      DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-      rhs_values[dof_id1] = -dc_force;
-    }
-    ENUMERATE_ (Node, inode, east) {
-      Node node = *inode;
-      DoFLocalId dof_id2 = node_dof.dofId(node, 2);
-      rhs_values[dof_id2] = -dc_force;
-    }
-    ENUMERATE_ (Node, inode, west) {
-      Node node = *inode;
-      DoFLocalId dof_id2 = node_dof.dofId(node, 2);
-      rhs_values[dof_id2] = dc_force;
-    }
-  }
-
-  _applyDirichlet(rhs_values, node_dof);
 }
 
 /*---------------------------------------------------------------------------*/
