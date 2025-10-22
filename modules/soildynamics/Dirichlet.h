@@ -23,7 +23,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-inline void FemModule::
+void FemModule::
 _applyDirichlet(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
 

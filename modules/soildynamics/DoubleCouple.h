@@ -13,39 +13,36 @@
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Applies paraxial boundary conditions to the RHS and LHS
- * of the linear system.
+ * @brief Applies double-couple boundary conditions to the RHS values.
+ * 
+ * This function iterates over the defined double-couple boundary conditions,
+ * retrieves the corresponding force values from the associated CaseTable,
+ * and updates the RHS values for the specified nodes accordingly.
  * 
  * @param rhs_values The RHS values to be updated.
  * @param node_dof The node DoF connectivity view.
- * @param bsr_matrix The BSR matrix to be updated (optional).
  * 
 /*---------------------------------------------------------------------------*/
 
-inline void FemModule::
+void FemModule::
 _applyDoubleCouple(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
   // Index of the boundary condition. Needed to associate a CaseTable
-  Int32 boundary_condition_index_dc = 0;
+  Int32 boundary_condition_index = 0;
 
-  Int8 NorthSouthId = 0;
-  Int8 EastWestId = 1;
-
-  if (mesh()->dimension() == 3) {
-    EastWestId = 2;
-  }
+  const Int8 NorthSouthId = 0; // X-Direction DoF imposed by double-couple
+  const Int8 EastWestId = (mesh()->dimension() == 3) ? 2 : 1; // Y or Z-Direction DoF imposed by double-couple
 
   for (const auto& bs : options()->doubleCouple()) {
 
-    const CaseTableInfo& case_table_dc_info = m_double_couple_case_table_list[boundary_condition_index_dc];
+    const CaseTableInfo& case_table_dc_info = m_double_couple_case_table_list[boundary_condition_index];
 
-    ++boundary_condition_index_dc;
+    ++boundary_condition_index;
 
     Real dc_force; // double-couple force
 
-    String file_name = bs->doubleCoupleInputFile();
-    CaseTable* dc_case_table_inn = case_table_dc_info.case_table;
-    dc_case_table_inn->value(t, dc_force);
+    CaseTable* dc_case_table = case_table_dc_info.case_table;
+    dc_case_table->value(t, dc_force);
 
     NodeGroup north = bs->northNodeName();
     NodeGroup south = bs->southNodeName();

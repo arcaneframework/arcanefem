@@ -22,7 +22,7 @@
  * 
 /*---------------------------------------------------------------------------*/
 
-inline void FemModule::
+void FemModule::
 _applyParaxial(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof, BSRMatrix* bsr_matrix)
 {
   for (const auto& bs : options()->paraxialBoundaryCondition()) {
