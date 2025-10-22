@@ -21,16 +21,16 @@
 /*---------------------------------------------------------------------------*/
 
 inline void FemModule::
-_applySourceTerm2d(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
+_applySourceTerm(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
-  _applySourceTermTria3(rhs_values,node_dof);
+  if (mesh()->dimension() == 2){
+    _applySourceTermTria3(rhs_values,node_dof);
+  }
+  if (mesh()->dimension() == 3){
+    _applySourceTermTetra4(rhs_values,node_dof);
+  }
 }
 
-inline void FemModule::
-_applySourceTerm3d(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
-{
-  _applySourceTermTetra4(rhs_values,node_dof);
-}
 
 inline void FemModule::
 _applySourceTermTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)

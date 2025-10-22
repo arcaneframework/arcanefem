@@ -17,6 +17,7 @@
 #include "Dirichlet.h"
 #include "Traction.h"
 #include "Paraxial.h"
+#include "DoubleCouple.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -280,167 +281,38 @@ _updateVariables()
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "update-variables", elapsedTime);
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 void FemModule::
 _assembleLinearOperator()
 {
-  info() << "[ArcaneFem-Info] Started module  _assembleLinearOperator()";
+  info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (mesh()->dimension() == 2)
-    if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
-      _assembleLinearOperator2d(&(m_bsr_format.matrix()));
-    else
-      _assembleLinearOperator2d();
-  if (mesh()->dimension() == 3)
-    if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
-      _assembleLinearOperator3d(&(m_bsr_format.matrix()));
-    else
-      _assembleLinearOperator3d();
+  // Determine if using BSR format
+  bool use_bsr = (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR");
+  BSRMatrix* bsr_matrix = use_bsr ? &(m_bsr_format.matrix()) : nullptr;
 
-  if(m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
+  // Temporary variable to keep values for the RHS part of the linear system
+  VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
+  rhs_values.fill(0.0);
+
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  // Apply all boundary conditions and source terms
+  _applySourceTerm(rhs_values, node_dof);
+  _applyTraction(rhs_values, node_dof);
+  _applyParaxial(rhs_values, node_dof, bsr_matrix);
+  _applyDoubleCouple(rhs_values, node_dof);
+  _applyDirichlet(rhs_values, node_dof);
+
+  // Convert BSR format to linear system if needed
+  if (use_bsr)
     m_bsr_format.toLinearSystem(m_linear_system);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
-}
-
-/*---------------------------------------------------------------------------*/
-// Assemble the FEM linear operator
-//  - This function enforces a Dirichlet boundary condition in a weak sense
-//    via the penalty method
-//  - The method also adds source term
-//  - The method also adds external fluxes
-/*---------------------------------------------------------------------------*/
-
-void FemModule::
-_assembleLinearOperator2d(BSRMatrix* bsr_matrix)
-{
-  // Temporary variable to keep values for the RHS part of the linear system
-  VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
-  rhs_values.fill(0.0);
-
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  _applySourceTerm2d(rhs_values, node_dof);
-  _applyTraction(rhs_values, node_dof);
-  _applyParaxial(rhs_values, node_dof, bsr_matrix);
-
-
-  //----------------------------------------------
-  // Double-couple term assembly
-  //----------------------------------------------
-
-  // Index of the boundary condition. Needed to associate a CaseTable
-  Int32 boundary_condition_index_dc = 0;
-
-  for (const auto& bs : options()->doubleCouple()) {
-
-    const CaseTableInfo& case_table_dc_info = m_double_couple_case_table_list[boundary_condition_index_dc];
-
-    ++boundary_condition_index_dc;
-
-    Real dc_force; // double-couple force
-
-    String file_name = bs->doubleCoupleInputFile();
-    info() << "Applying boundary conditions for surface via CaseTable" << file_name;
-
-    CaseTable* dc_case_table_inn = case_table_dc_info.case_table;
-
-    dc_case_table_inn->value(t, dc_force);
-
-    NodeGroup north = bs->northNodeName();
-    NodeGroup south = bs->southNodeName();
-    NodeGroup east = bs->eastNodeName();
-    NodeGroup west = bs->westNodeName();
-
-    ENUMERATE_ (Node, inode, north) {
-      Node node = *inode;
-      DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-      rhs_values[dof_id1] = dc_force;
-    }
-    ENUMERATE_ (Node, inode, south) {
-      Node node = *inode;
-      DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-      rhs_values[dof_id1] = -dc_force;
-    }
-    ENUMERATE_ (Node, inode, east) {
-      Node node = *inode;
-      DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-      rhs_values[dof_id2] = -dc_force;
-    }
-    ENUMERATE_ (Node, inode, west) {
-      Node node = *inode;
-      DoFLocalId dof_id2 = node_dof.dofId(node, 1);
-      rhs_values[dof_id2] = dc_force;
-    }
-  }
-
-  _applyDirichlet(rhs_values, node_dof);
-}
-
-void FemModule::
-_assembleLinearOperator3d(BSRMatrix* bsr_matrix)
-{
-  // Temporary variable to keep values for the RHS part of the linear system
-  VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
-  rhs_values.fill(0.0);
-
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  _applySourceTerm3d(rhs_values, node_dof);
-  _applyTraction(rhs_values, node_dof);
-  _applyParaxial(rhs_values, node_dof, bsr_matrix);
-
-  //----------------------------------------------
-  // Double-couple term assembly
-  //----------------------------------------------
-
-  // Index of the boundary condition. Needed to associate a CaseTable
-  Int32 boundary_condition_index_dc = 0;
-
-  for (const auto& bs : options()->doubleCouple()) {
-
-    const CaseTableInfo& case_table_dc_info = m_double_couple_case_table_list[boundary_condition_index_dc];
-
-    ++boundary_condition_index_dc;
-
-    Real dc_force; // double-couple force
-
-    String file_name = bs->doubleCoupleInputFile();
-    info() << "Applying boundary conditions for surface via CaseTable" << file_name;
-
-    CaseTable* dc_case_table_inn = case_table_dc_info.case_table;
-
-    dc_case_table_inn->value(t, dc_force);
-
-    NodeGroup north = bs->northNodeName();
-    NodeGroup south = bs->southNodeName();
-    NodeGroup east = bs->eastNodeName();
-    NodeGroup west = bs->westNodeName();
-
-    ENUMERATE_ (Node, inode, north) {
-      Node node = *inode;
-      DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-      rhs_values[dof_id1] = dc_force;
-    }
-    ENUMERATE_ (Node, inode, south) {
-      Node node = *inode;
-      DoFLocalId dof_id1 = node_dof.dofId(node, 0);
-      rhs_values[dof_id1] = -dc_force;
-    }
-    ENUMERATE_ (Node, inode, east) {
-      Node node = *inode;
-      DoFLocalId dof_id2 = node_dof.dofId(node, 2);
-      rhs_values[dof_id2] = -dc_force;
-    }
-    ENUMERATE_ (Node, inode, west) {
-      Node node = *inode;
-      DoFLocalId dof_id2 = node_dof.dofId(node, 2);
-      rhs_values[dof_id2] = dc_force;
-    }
-  }
-
-  _applyDirichlet(rhs_values, node_dof);
 }
 
 /*---------------------------------------------------------------------------*/
