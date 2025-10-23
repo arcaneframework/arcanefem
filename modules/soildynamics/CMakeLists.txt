@@ -27,6 +27,7 @@ file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
   semi-circle-soil.msh
+  semi-circle-soil-quad.msh
   square_double-couple.msh
   soil_2d.msh
   cube_double_couple_3d.msh
@@ -44,6 +45,12 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [soildynamics]2d_semi-circle_const_traction_pointbc COMMAND Soildynamics
     -A,//fem/petsc-flags=-ksp_view
     inputs/constant-traction.pointbc.arc)
+  add_test(NAME [soildynamics]2d_semi-circle_paraxial_pointbc COMMAND Soildynamics
+    -A,//fem/petsc-flags=-ksp_view
+    inputs/semi-circle.paraxial.point-dirichlet.tria.arc)
+  add_test(NAME [soildynamics]2d_semi-circle_paraxial_pointbc_quad COMMAND Soildynamics
+    -A,//fem/petsc-flags=-ksp_view
+    inputs/semi-circle.paraxial.point-dirichlet.quad.arc)
   add_test(NAME [soildynamics]2d_semi-circle_const-traction_pointbc_rowelim COMMAND Soildynamics
     -A,//fem/petsc-flags=-ksp_view\ -ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-10
     -A,//fem/boundary-conditions/dirichlet-point[1]/enforce-Dirichlet-method=RowElimination

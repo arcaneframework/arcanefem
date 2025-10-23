@@ -141,6 +141,7 @@ class FemModule
   RealMatrix<4, 4> _computeParaxialElementMatrixEdge2(Face face);
   RealMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
   RealMatrix<9, 9> _computeParaxialElementMatrixTria3(Face face);
+  RealMatrix<12, 12> _computeParaxialElementMatrixQuad4(Face face);
   RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
   RealMatrix<8, 8> _computeElementMatrixQuad4(Cell cell);
   RealMatrix<24, 24> _computeElementMatrixHexa8(Cell cell);
