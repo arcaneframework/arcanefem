@@ -115,6 +115,7 @@ class FemModule
   bool m_assemble_linear_system = true;
   bool m_solve_linear_system = true;
   bool m_cross_validation = true;
+  bool m_hex_quad_mesh = false;
 
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
@@ -141,13 +142,17 @@ class FemModule
   RealMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
   RealMatrix<9, 9> _computeParaxialElementMatrixTria3(Face face);
   RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
+  RealMatrix<8, 8> _computeElementMatrixQuad4(Cell cell);
+  RealMatrix<24, 24> _computeElementMatrixHexa8(Cell cell);
 
   void _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   void _applyDoubleCouple(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   void _applyParaxial(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof, BSRMatrix* bsr_matrix = nullptr);
   void _applySourceTerm(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   void _applySourceTermTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  void _applySourceTermQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   void _applySourceTermTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  void _applySourceTermHexa8(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   void _applyDirichlet(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
 
   template <int N>

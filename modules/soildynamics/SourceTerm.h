@@ -29,13 +29,19 @@
 void FemModule::
 _applySourceTerm(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
-  if (mesh()->dimension() == 2) {
-    _applySourceTermTria3(rhs_values, node_dof);
-  }
-  else if (mesh()->dimension() == 3) {
-    _applySourceTermTetra4(rhs_values, node_dof);
-  }
+  if (mesh()->dimension() == 2)
+    if (m_hex_quad_mesh)
+      _applySourceTermQuad4(rhs_values, node_dof);
+    else
+      _applySourceTermTria3(rhs_values, node_dof);
+
+  if (mesh()->dimension() == 3)
+    if (m_hex_quad_mesh)
+      _applySourceTermHexa8(rhs_values, node_dof);
+    else
+      _applySourceTermTetra4(rhs_values, node_dof);
 }
+
 
 void FemModule::
 _applySourceTermTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
@@ -77,6 +83,76 @@ _applySourceTermTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectiv
     rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(3);
     rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(4);
     rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(5);
+  }
+}
+
+
+void FemModule::
+_applySourceTermQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
+{
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+
+    // Initialize RHS contributions (2 dof/node for 4 quad nodes)
+    Real rhs_x_contributions[4] = { 0., 0., 0., 0. };
+    Real rhs_y_contributions[4] = { 0., 0., 0., 0. };
+
+    // 2x2 Gauss integration for quadrilateral element
+    constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
+    constexpr Real w = 1.0;
+
+    for (Int8 ixi = 0; ixi < 2; ++ixi) {
+      for (Int8 ieta = 0; ieta < 2; ++ieta) {
+
+        // Get the coordinates of the Gauss point
+        Real xi = gp[ixi]; // Get the ξ
+        Real eta = gp[ieta]; // Get the η
+        Real weight = w * w; // Weight
+
+        // Shape functions  𝐍 for Quad4
+        RealVector<4> N = ArcaneFemFunctions::FeOperation2D::computeShapeFunctionsQuad4(xi, eta);
+
+        // compute the det(Jacobian)
+        auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad4(cell, m_node_coord, xi, eta);
+        const Real detJ = gp_info.det_j;
+
+        // compute integration weight
+        Real integration_weight = weight * detJ;
+
+        // Interpolate fields (𝐮ₙ,𝐮ᵗₙ,𝐮ᵗᵗ) at the quadrature point: (.)_gp = ∑ 𝑁ᵢ * (.)
+        Real2 u_gp = { 0, 0 };
+        Real2 v_gp = { 0, 0 };
+        Real2 a_gp = { 0, 0 };
+        for (Int8 a = 0; a < 4; ++a) {
+          u_gp.x += N[a] * m_U[cell.nodeId(a)].x;
+          u_gp.y += N[a] * m_U[cell.nodeId(a)].y;
+
+          v_gp.x += N[a] * m_V[cell.nodeId(a)].x;
+          v_gp.y += N[a] * m_V[cell.nodeId(a)].y;
+
+          a_gp.x += N[a] * m_A[cell.nodeId(a)].x;
+          a_gp.y += N[a] * m_A[cell.nodeId(a)].y;
+        }
+
+        // Source force term 𝐟
+        Real2 f_gp(f[0], f[1]);
+
+        // ∫∫ (𝐟.𝐯) + ∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯)
+        for (Int8 a = 0; a < 4; ++a) {
+          rhs_x_contributions[a] += (f_gp.x + c0 * u_gp.x + c3 * v_gp.x + c4 * a_gp.x) * N[a] * integration_weight;
+          rhs_y_contributions[a] += (f_gp.y + c0 * u_gp.y + c3 * v_gp.y + c4 * a_gp.y) * N[a] * integration_weight;
+        }
+      }
+    }
+
+    // Add contributions to global RHS
+    for (Int8 a = 0; a < 4; ++a) {
+      Node node = cell.node(a);
+      if (node.isOwn()) {
+        rhs_values[node_dof.dofId(node, 0)] += rhs_x_contributions[a];
+        rhs_values[node_dof.dofId(node, 1)] += rhs_y_contributions[a];
+      }
+    }
   }
 }
 
@@ -130,5 +206,82 @@ _applySourceTermTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
     rhs_values[node_dof.dofId(cell.nodeId(3), 0)] += rhs(9);
     rhs_values[node_dof.dofId(cell.nodeId(3), 1)] += rhs(10);
     rhs_values[node_dof.dofId(cell.nodeId(3), 2)] += rhs(11);
+  }
+}
+
+void FemModule::
+_applySourceTermHexa8(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
+{
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+
+    // Initialize RHS contributions (2 dof/node for 8 hexa nodes)
+    Real rhs_x_contributions[8] = { 0., 0., 0., 0., 0., 0., 0., 0. };
+    Real rhs_y_contributions[8] = { 0., 0., 0., 0., 0., 0., 0., 0. };
+    Real rhs_z_contributions[8] = { 0., 0., 0., 0., 0., 0., 0., 0. };
+
+    // 2x2 Gauss integration for quadrilateral element
+    constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
+    constexpr Real w = 1.0;
+
+    for (Int8 ixi = 0; ixi < 2; ++ixi) {
+      for (Int8 ieta = 0; ieta < 2; ++ieta) {
+        for (Int8 izeta = 0; izeta < 2; ++izeta) {
+
+          // Get the coordinates of the Gauss point
+          Real xi = gp[ixi]; // Get the ξ
+          Real eta = gp[ieta]; // Get the η
+          Real zeta = gp[izeta]; // Get the ζ
+          Real weight = w * w * w; // Weight
+
+          // Shape functions  𝐍 for Hexa8
+          RealVector<8> N = ArcaneFemFunctions::FeOperation3D::computeShapeFunctionsHexa8(xi, eta, zeta);
+
+          // compute the det(Jacobian)
+          auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa8(cell, m_node_coord, xi, eta, zeta);
+          const Real detJ = gp_info.det_j;
+
+          // compute integration weight
+          Real integration_weight = weight * detJ;
+
+          // Interpolate fields (𝐮ₙ,𝐮ᵗₙ,𝐮ᵗᵗ) at the quadrature point: (.)_gp = ∑ 𝑁ᵢ * (.)
+          Real3 u_gp = { 0, 0, 0 };
+          Real3 v_gp = { 0, 0, 0 };
+          Real3 a_gp = { 0, 0, 0 };
+          for (Int8 a = 0; a < 8; ++a) {
+            u_gp.x += N[a] * m_U[cell.nodeId(a)].x;
+            u_gp.y += N[a] * m_U[cell.nodeId(a)].y;
+            u_gp.z += N[a] * m_U[cell.nodeId(a)].z;
+
+            v_gp.x += N[a] * m_V[cell.nodeId(a)].x;
+            v_gp.y += N[a] * m_V[cell.nodeId(a)].y;
+            v_gp.z += N[a] * m_V[cell.nodeId(a)].z;
+
+            a_gp.x += N[a] * m_A[cell.nodeId(a)].x;
+            a_gp.y += N[a] * m_A[cell.nodeId(a)].y;
+            a_gp.z += N[a] * m_A[cell.nodeId(a)].z;
+          }
+
+          // Source force term 𝐟
+          Real3 f_gp(f[0], f[1], f[2]);
+
+          // ∫∫∫ (𝐟.𝐯) + ∫∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯)
+          for (Int8 a = 0; a < 8; ++a) {
+            rhs_x_contributions[a] += (f_gp.x + c0 * u_gp.x + c3 * v_gp.x + c4 * a_gp.x) * N[a] * integration_weight;
+            rhs_y_contributions[a] += (f_gp.y + c0 * u_gp.y + c3 * v_gp.y + c4 * a_gp.y) * N[a] * integration_weight;
+            rhs_z_contributions[a] += (f_gp.z + c0 * u_gp.z + c3 * v_gp.z + c4 * a_gp.z) * N[a] * integration_weight;
+          }
+        }
+      }
+    }
+    // Add contributions to global RHS
+    for (Int8 a = 0; a < 8; ++a) {
+      Node node = cell.node(a);
+      if (node.isOwn()) {
+        rhs_values[node_dof.dofId(node, 0)] += rhs_x_contributions[a];
+        rhs_values[node_dof.dofId(node, 1)] += rhs_y_contributions[a];
+        rhs_values[node_dof.dofId(node, 2)] += rhs_z_contributions[a];
+      }
+    }
   }
 }
