@@ -34,22 +34,32 @@ _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView
   Int32 boundary_condition_index = 0;
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
-  if (bc) {
-    for (BC::ITractionBoundaryCondition* bs : bc->tractionBoundaryConditions()) {
-      const auto traction_table_file_name = bs->getTractionInputFile();
-      const bool is_transient_traction = !traction_table_file_name.empty();
+  // If no boundary conditions are defined, exit the function
+  if(!bc)
+    return;
 
-      auto transientTraction = [&](auto fn) { fn(bs, t, boundary_condition_index, m_traction_case_table_list, node_dof, m_node_coord, rhs_values); };
-      auto constantTraction = [&](auto fn) { fn(bs, node_dof, m_node_coord, rhs_values); };
+  for (BC::ITractionBoundaryCondition* bs : bc->tractionBoundaryConditions()) {
+    const auto traction_table_file_name = bs->getTractionInputFile();
+    const bool is_transient_traction = !traction_table_file_name.empty();
 
-      if (mesh()->dimension() == 2) {
+    auto transientTraction = [&](auto fn) { fn(bs, t, boundary_condition_index, m_traction_case_table_list, node_dof, m_node_coord, rhs_values); };
+    auto constantTraction = [&](auto fn) { fn(bs, node_dof, m_node_coord, rhs_values); };
+
+    if (mesh()->dimension() == 2) {
+      if (m_hex_quad_mesh)
+        is_transient_traction ? transientTraction(ArcaneFemFunctions::BoundaryConditions2D::applyTractionTableToRhsQuad4)
+                              : constantTraction(ArcaneFemFunctions::BoundaryConditions2D::applyTractionToRhsQuad4);
+      else
         is_transient_traction ? transientTraction(ArcaneFemFunctions::BoundaryConditions2D::applyTractionTableToRhsTria3)
                               : constantTraction(ArcaneFemFunctions::BoundaryConditions2D::applyTractionToRhsTria3);
-      }
-      else if (mesh()->dimension() == 3) {
+    }
+    else if (mesh()->dimension() == 3) {
+      if (m_hex_quad_mesh)
+        is_transient_traction ? transientTraction(ArcaneFemFunctions::BoundaryConditions3D::applyTractionTableToRhsHexa8)
+                              : constantTraction(ArcaneFemFunctions::BoundaryConditions3D::applyTractionToRhsHexa8);
+      else
         is_transient_traction ? transientTraction(ArcaneFemFunctions::BoundaryConditions3D::applyTractionTableToRhsTetra4)
                               : constantTraction(ArcaneFemFunctions::BoundaryConditions3D::applyTractionToRhsTetra4);
-      }
     }
   }
 }

@@ -423,6 +423,36 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
+     * @brief Computes the normalized quad normal for a given face.
+     *
+     * This method calculates normal vector to the quad defined by nodes,
+     * of the face and normalizes it, and ensures the correct orientation.
+     * Newell's Method is used to compute the normal vector for the quadrilateral.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline Real3 computeNormalQuad(Face face, const VariableNodeReal3& node_coord)
+    {
+      Real3 normal = { 0.0, 0.0, 0.0 };
+
+      Int32 n = face.nbNode(); // Should be 4 for quad
+
+      for (Int32 i = 0; i < n; ++i) {
+        Real3 v_curr = node_coord[face.nodeId(i)];
+        Real3 v_next = node_coord[face.nodeId((i + 1) % n)];
+
+        normal.x += (v_curr.y - v_next.y) * (v_curr.z + v_next.z);
+        normal.y += (v_curr.z - v_next.z) * (v_curr.x + v_next.x);
+        normal.z += (v_curr.x - v_next.x) * (v_curr.y + v_next.y);
+      }
+
+      // Normalize
+      Real norm = math::sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+      return { normal.x / norm, normal.y / norm, normal.z / norm };
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
      * @brief Computes finite-element entity (Edge, Face or Cell) geometric dimension
      * This method is used for the FEM 2D & 3D needs (coming from PASSMO)
      * for Jacobian & elementary matrices computations

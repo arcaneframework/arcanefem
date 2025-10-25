@@ -81,6 +81,9 @@
     <simple name="cross-validation" type="bool" default="true" optional="true">
       <description>Boolean to enable cross validation.</description>
     </simple>
+    <simple name="hex-quad-mesh" type="bool" default="false" optional="true">
+      <description>Boolean to use hexagonal quadrature for element matrix assembly.</description>
+    </simple>
 
     <!-- - - - - - double-couple-condition - - - - -->
     <complex name  = "double-couple"
