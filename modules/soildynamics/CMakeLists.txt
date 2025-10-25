@@ -29,6 +29,7 @@ set(MESH_FILES
   semi-circle-soil.msh
   semi-circle-soil-quad.msh
   square_double-couple.msh
+  square_double-couple.quad.msh
   soil_2d.msh
   cube_double_couple_3d.msh
 )
@@ -73,9 +74,16 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   add_test(NAME [soildynamics]2d_double-couple_paraxial COMMAND Soildynamics
     inputs/double-couple.paraxial.arc)
 
+  add_test(NAME [soildynamics]2d_double-couple_paraxial_quad COMMAND Soildynamics
+    inputs/double-couple.paraxial.quad.arc)
+
   add_test(NAME [soildynamics]2d_double-couple_paraxial_body-force COMMAND Soildynamics
     -A,//fem/linear-system/solver-backend=hypre
     inputs/double-couple.paraxial.body-force.arc)
+
+  add_test(NAME [soildynamics]2d_double-couple_paraxial_body-force_quad COMMAND Soildynamics
+    -A,//fem/linear-system/solver-backend=hypre
+    inputs/double-couple.paraxial.body-force.quad.arc)
 
   add_test(NAME [soildynamics]2d_double-couple_paraxial_soil COMMAND Soildynamics
     inputs/double-couple.paraxial.soil.arc)
