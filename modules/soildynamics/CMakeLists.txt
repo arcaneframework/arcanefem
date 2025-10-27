@@ -31,6 +31,7 @@ set(MESH_FILES
   square_double-couple.msh
   square_double-couple.quad.msh
   soil_2d.msh
+  soil_2d.quad.msh
   cube_double_couple_3d.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
@@ -91,6 +92,9 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   add_test(NAME [soildynamics]3d_double-couple_paraxial_soil COMMAND Soildynamics
     -A,//fem/linear-system/solver-backend=hypre
     inputs/3d.double-couple.paraxial.soil.arc)
+
+  add_test(NAME [soildynamics]2d_double-couple_paraxial_soil_quad COMMAND Soildynamics
+    inputs/double-couple.paraxial.soil.quad.arc)
 
   add_test(NAME [soildynamics]3d_all-conditions COMMAND Soildynamics
     inputs/3d.all-conditions.arc)
