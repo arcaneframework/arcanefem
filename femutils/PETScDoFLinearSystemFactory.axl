@@ -8,6 +8,14 @@
 
     <simple name="solver" type="string" default="cg" />
     <simple name="pc-type" type="string" default="jacobi" />
-    <simple name="mat-type" type="string" default="mpibaij" />
+    <simple name="mat-type" type="string" default="seqaij" />
+    <simple name="vec-type" type="string" default="seq" />
+
+    <simple name="amg-threshold" type="real" default="0.25" />
+    <simple name="amg-type" type="string" default="agg" />
+    <simple name="amg-aggressive-coarsening" type="int32" default="1" />
+    <simple name="amg-levels-pc-type" type="string" default="jacobi" />
+
+    <simple name="gamg-threshold" type="real" default="0.25" />
   </options>
 </service>
