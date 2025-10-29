@@ -173,10 +173,20 @@ void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm)
     m_vec_type = "seq";
   }
 
-  if (runner.isInitialized() && runner.executionPolicy() == Accelerator::eExecutionPolicy::CUDA)
+  if (runner.isInitialized())
   {
-    m_vec_type += "cuda";
-    m_mat_type += "cusparse";
+    switch (runner.executionPolicy()) {
+    case Accelerator::eExecutionPolicy::CUDA:
+      m_vec_type += "cuda";
+      m_mat_type += "cusparse";
+      break;
+    case Accelerator::eExecutionPolicy::HIP:
+      m_vec_type += "hip";
+      m_mat_type += "hipsparse";
+      break;
+    default:
+      break;
+    }
   }
 
   PetscBool set;
