@@ -91,7 +91,6 @@ class PETScDoFLinearSystemImpl
 
   void setSolver(String v) { m_ksp_type = std::string{v.localstr()}; }
   void setPreconditioner(String v) { m_pc_type = std::string{v.localstr()}; }
-  void setMatrixType(String v) { m_mat_type = std::string{v.localstr()}; }
 
   CaseOptionsPETScDoFLinearSystemFactory *options;
 
@@ -123,19 +122,20 @@ class PETScDoFLinearSystemImpl
   std::string m_ksp_type; // cannot use String type because we need this to be mutable
   std::string m_pc_type;
   std::string m_mat_type;
+  std::string m_vec_type;
 
  private:
 
   void _computeMatrixNumeration();
-  void _handleParameters();
+  void _handleParameters(IParallelMng* pm, Runner& runner);
 };
 
-void PETScDoFLinearSystemImpl::_handleParameters()
+void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm, Runner& runner)
 {
   PetscBool is_initialized;
   PetscInitialized(&is_initialized);
 
-  if (!is_initialized) // no command line arguments were given
+  if (!is_initialized) // no petsc_flags were given
     PetscInitialize(nullptr, nullptr, nullptr, nullptr);
 
 #define MAX_STRING_LENGTH 256
@@ -149,10 +149,36 @@ void PETScDoFLinearSystemImpl::_handleParameters()
   variable.resize(MAX_STRING_LENGTH); \
   PetscOptionsGetString(nullptr, nullptr, petsc_string, variable.data(), MAX_STRING_LENGTH, &set); \
   if (!set) \
-    PetscOptionsSetValue(nullptr, petsc_string, variable.c_str());
-
+    PetscOptionsSetValue(nullptr, petsc_string, variable.c_str());                                 \
   // we do variable.resize(MAX_STRING_LENGTH) to make sure there is enough memory to store the option name.
   // may otherwise result in a segfault
+
+  if (pm->isParallel())
+  {
+    m_mat_type = "mpiaij";
+    m_vec_type = "mpi";
+  }
+  else
+  {
+    m_mat_type = "seqaij";
+    m_vec_type = "seq";
+  }
+
+  if (runner.isInitialized())
+  {
+    switch (runner.executionPolicy()) {
+    case Accelerator::eExecutionPolicy::CUDA:
+      m_vec_type += "cuda";
+      m_mat_type += "cusparse";
+      break;
+    case Accelerator::eExecutionPolicy::HIP:
+      m_vec_type += "hip";
+      m_mat_type += "hipsparse";
+      break;
+    default:
+      break;
+    }
+  }
 
   PetscBool set;
   X_OPTION(Real, "-ksp_rtol", m_ksp_rtol);
@@ -161,6 +187,10 @@ void PETScDoFLinearSystemImpl::_handleParameters()
   X_OPTION_STRING("-ksp_type", m_ksp_type);
   X_OPTION_STRING("-pc_type", m_pc_type);
   X_OPTION_STRING("-mat_type", m_mat_type);
+  X_OPTION_STRING("-vec_type", m_vec_type);
+
+  info() << "[PETSc-Info] Using " << m_mat_type << " matrix type";
+  info() << "[PETSc-Info] Using " << m_vec_type << " vector type";
 }
 
 void PETScDoFLinearSystemImpl::
@@ -212,12 +242,16 @@ void PETScDoFLinearSystemImpl::
 solve()
 {
   info() << "[PETSc-Info] Calling PETSc solver";
-  _handleParameters();
-  _computeMatrixNumeration();
 
   IItemFamily* dof_family = dofFamily();
   IParallelMng* pm = dof_family->parallelMng();
+  Runner runner = this->runner();
+
+  _handleParameters(pm, runner);
+  _computeMatrixNumeration();
+
   Parallel::Communicator arcane_comm = pm->communicator();
+  ITimeStats* tstat = pm->timeStats();
   bool is_parallel = pm->isParallel();
   MPI_Comm mpi_comm = MPI_COMM_WORLD;
 
@@ -228,6 +262,8 @@ solve()
 
   PetscInt local_rows = m_nb_own_row;          // rows this rank owns
   PetscInt global_rows = m_nb_total_row; // total rows across all ranks
+
+  Real c1 = platform::getRealTime();
 
   PetscCallAbort(mpi_comm, MatCreate(mpi_comm, &m_petsc_matrix));
   PetscCallAbort(mpi_comm, MatSetSizes(m_petsc_matrix, local_rows, local_rows, global_rows, global_rows));
@@ -290,7 +326,9 @@ solve()
   PetscCallAbort(mpi_comm, MatAssemblyBegin(m_petsc_matrix, MAT_FINAL_ASSEMBLY));
   PetscCallAbort(mpi_comm, MatAssemblyEnd(m_petsc_matrix, MAT_FINAL_ASSEMBLY));
 
-  info() << "[PETSc-Info] Created Matrix";
+  Real b2 = platform::getRealTime();
+
+  info() << "[PETSc-Timer] Time to create matrix = " << (b2 - c1);
 
   VariableDoFReal& rhs_variable = this->rhsVariable();
   VariableDoFReal& dof_variable = this->solutionVariable();
@@ -298,7 +336,8 @@ solve()
   const Real* result_data = dof_variable.asArray().data();
   const Int32* rows_index_data = rows_index_span.data();
 
-  // TODO check if architecture is CUDA
+  Real b1 = platform::getRealTime();
+
   PetscCallAbort(mpi_comm, VecCreateMPI(mpi_comm, local_rows, global_rows, &m_petsc_rhs_vector));
   PetscCallAbort(mpi_comm, VecSetFromOptions(m_petsc_rhs_vector));
   PetscCallAbort(mpi_comm, VecCreateMPI(mpi_comm, local_rows, global_rows, &m_petsc_solution_vector));
@@ -322,15 +361,16 @@ solve()
   PetscCallAbort(mpi_comm, VecAssemblyBegin(m_petsc_solution_vector));
   PetscCallAbort(mpi_comm, VecAssemblyEnd(m_petsc_solution_vector));
 
-
-  info() << "[PETSc-Info] Created vectors";
+  Real a1 = platform::getRealTime();
+  info() << "[PETSc-Timer] Time to create vectors = " << (a1 - b1);
 
   PetscCallAbort(mpi_comm, KSPCreate(mpi_comm, &m_petsc_solver_context));
   PetscCallAbort(mpi_comm, KSPSetOperators(m_petsc_solver_context, m_petsc_matrix, m_petsc_matrix));
   PetscCallAbort(mpi_comm, KSPSetFromOptions(m_petsc_solver_context));
   PetscCallAbort(mpi_comm, KSPSolve(m_petsc_solver_context, m_petsc_rhs_vector, m_petsc_solution_vector));
+  Real a2 = platform::getRealTime();
+  info() << "[PETSc-Timer] Time to solve = " << (a2 - a1);
 
-  info() << "[PETSc-Info] Solved linear system";
   if (is_parallel) {
     // Fill 'm_parallel_rows_index' with only rows we owns
     // NOTE: This is only needed if matrix structure has changed.
@@ -400,7 +440,6 @@ class PETScDoFLinearSystemFactoryService
     x->setMaxIter(options()->maxIter());
     x->setSolver(options()->solver());
     x->setPreconditioner(options()->pcType());
-    x->setMatrixType(options()->matType());
     return x;
   }
 };
