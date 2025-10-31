@@ -303,22 +303,54 @@ solve()
   Span<const Int32> rows_index_span = m_dof_matrix_numbering.asArray();
 
   pm->barrier();
+  bool is_use_device = false;
 
-  // assemble matrix row by row
-  ENUMERATE_ (DoF, idof, dof_family->allItems())
+  if (runner.isInitialized())
   {
-    DoF dof = *idof;
+    is_use_device = isAcceleratorPolicy(runner.executionPolicy());
+    info() << "[PETSc-Info] Runner for PETSc=" << runner.executionPolicy() << " wanted_is_device=" << is_use_device;
+  }
 
-    if (!dof.isOwn()) // for obscure reasons, allItems().own() doesnt work :'(
-      continue;
+  if (is_use_device)
+  {
+    // TODO optimize for mutli processes gpu
+    std::vector<PetscInt> coo_rows;
+    auto csr_rows = csr_view.rows();
 
-    PetscInt nb_col = csr_view.rowsNbColumn()[idof.index()];
-    PetscInt row_csr_index = csr_view.rows()[idof.index()];
-    PetscInt global_row = rows_index_span[idof.index()];
-    // info() << "global_row: " << global_row << " nb_col: " << nb_col << " row_csr_index: " << row_csr_index;
-    const PetscInt* cols = &columns_index_data[row_csr_index];
-    const PetscScalar* vals = &matrix_values_data[row_csr_index];
-    PetscCallAbort(mpi_comm, MatSetValues(m_petsc_matrix, 1, &global_row, nb_col, cols, vals, INSERT_VALUES));
+    for (int i = 0; i < csr_rows.size() - 1; i++)
+    {
+      int diff = csr_rows[i + 1] - csr_rows[i];
+
+      for (int j = 0; j < diff; j++)
+        coo_rows.push_back(i);
+    }
+
+    for (int j = 0; j < csr_view.nbValue() - csr_rows[csr_rows.size() - 1]; j++)
+      coo_rows.push_back(csr_rows.size() - 1);
+
+    std::vector<PetscInt> coo_cols;
+    coo_cols.assign(csr_view.columns().begin(), csr_view.columns().end());
+
+    PetscCallAbort(mpi_comm, MatSetPreallocationCOO(m_petsc_matrix, csr_view.nbValue(),coo_rows.data(), coo_cols.data()));
+    PetscCallAbort(mpi_comm, MatSetValuesCOO(m_petsc_matrix, csr_view.values().data(), INSERT_VALUES));
+  }
+  else {
+    // assemble matrix row by row
+    ENUMERATE_ (DoF, idof, dof_family->allItems())
+    {
+      DoF dof = *idof;
+
+      if (!dof.isOwn()) // for obscure reasons, allItems().own() doesnt work :'(
+        continue;
+
+      PetscInt nb_col = csr_view.rowsNbColumn()[idof.index()];
+      PetscInt row_csr_index = csr_view.rows()[idof.index()];
+      PetscInt global_row = rows_index_span[idof.index()];
+      // info() << "global_row: " << global_row << " nb_col: " << nb_col << " row_csr_index: " << row_csr_index;
+      const PetscInt* cols = &columns_index_data[row_csr_index];
+      const PetscScalar* vals = &matrix_values_data[row_csr_index];
+      PetscCallAbort(mpi_comm, MatSetValues(m_petsc_matrix, 1, &global_row, nb_col, cols, vals, INSERT_VALUES));
+    }
   }
 
   pm->barrier();
