@@ -125,35 +125,6 @@ ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeElementVectorTria3Gpu(CellLocalId ce
   return result;
 }
 
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Computes 2D paraxial element matrix for a edge element (ℙ1 FE).
- *
- * Theory:
- *
- *   a(𝐮,𝐯) =  ∫ (cₚ 𝑁𝑥² + cₛ 𝑁𝑦²)(𝑢𝑥 𝑣𝑥) +
- *             ∫ (cₚ 𝑁𝑦² + cₛ 𝑁𝑥²)(𝑢𝑦 𝑣𝑦) +
- *             ∫ (𝑁𝑦 𝑁𝑥 (cₚ - cₛ))(𝑢𝑥 𝑣𝑦) +
- *             ∫ (𝑁𝑥 𝑁𝑦 (cₚ - cₛ))(𝑢𝑦 𝑣𝑥) ;
- *
- *   with  trial func 𝐮 = (𝑢𝑥,𝑢𝑦) and test func 𝐯 = (𝑣𝑥,𝑣𝑦)
- */
-/*---------------------------------------------------------------------------*/
-
-RealMatrix<4, 4> FemModule::
-_computeParaxialElementMatrixEdge2(Face face)
-{
-  Real2 N   = ArcaneFemFunctions::MeshOperation::computeNormalEdge2(face, m_node_coord);
-
-  RealVector<4> Uy = {0., 1., 0., 1.};
-  RealVector<4> Ux = {1., 0., 1., 0.};
-
-  RealMatrix<4, 4> int_Omega_i = (((N.x*N.x*cp + N.y*N.y*cs)) * (massMatrix(Ux,Ux)) +
-                                  ((N.y*N.y*cp + N.x*N.x*cs)) * (massMatrix(Uy,Uy)) +
-                                  ((N.x*N.y*(cp - cs))) * (massMatrix(Ux,Uy)) +
-                                  ((N.x*N.y*(cp - cs))) * (massMatrix(Uy,Ux)) )/6. ;
-  return int_Omega_i;
-}
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -343,44 +314,4 @@ ARCCORE_HOST_DEVICE RealMatrix<3, 12> computeElementVectorTetra4Gpu(CellLocalId 
   };
 
   return result;
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Computes 3D paraxial element matrix for a triangular element (ℙ1 FE).
- *
- * Theory:
- *
- *   a(𝐮,𝐯) =  ∫∫ (cₚ 𝑁𝑥² + cₛ (1 - 𝑁𝑥²))(𝑢𝑥 𝑣𝑥) +
- *             ∫∫ (cₚ 𝑁𝑦² + cₛ (1 - 𝑁𝑦²))(𝑢𝑦 𝑣𝑦) +
- *             ∫∫ (cₚ 𝑁𝑧² + cₛ (1 - 𝑁𝑧²))(𝑢𝑧 𝑣𝑧) +
- *             ∫∫ (𝑁𝑥 𝑁𝑦 (cₚ - cₛ))(𝑢𝑥 𝑣𝑦) + ∫∫ (c₇)(𝑁𝑥 𝑁𝑧 (cₚ - cₛ))(𝑢𝑥 𝑣𝑧) +
- *             ∫∫ (𝑁𝑦 𝑁𝑥 (cₚ - cₛ))(𝑢𝑦 𝑣𝑥) + ∫∫ (c₇)(𝑁𝑦 𝑁𝑧 (cₚ - cₛ))(𝑢𝑦 𝑣𝑧) +
- *             ∫∫ (𝑁𝑧 𝑁𝑥 (cₚ - cₛ))(𝑢𝑧 𝑣𝑥) + ∫∫ (c₇)(𝑁𝑧 𝑁𝑦 (cₚ - cₛ))(𝑢𝑧 𝑣𝑦) ;
- *
- *   with trial function 𝐮 = (𝑢𝑥, 𝑢𝑦, 𝑢𝑧) and test function 𝐯 = (𝑣𝑥, 𝑣𝑦, 𝑣𝑧)
- */
-/*---------------------------------------------------------------------------*/
-
-RealMatrix<9, 9> FemModule::
-_computeParaxialElementMatrixTria3(Face face)
-{
-  Real3 N = ArcaneFemFunctions::MeshOperation::computeNormalTriangle(face, m_node_coord);
-
-  RealVector<9> Ux = {1., 0., 0., 1., 0., 0., 1., 0., 0.};
-  RealVector<9> Uy = {0., 1., 0., 0., 1., 0., 0., 1., 0.};
-  RealVector<9> Uz = {0., 0., 1., 0., 0., 1., 0., 0., 1.};
-
-  RealMatrix<9, 9> int_Omega_i =  (((N.x*N.x*cp + (1.-N.x*N.x)*cs)) * (massMatrix(Ux,Ux)) +
-                                   ((N.y*N.y*cp + (1.-N.y*N.y)*cs)) * (massMatrix(Uy,Uy)) +
-                                   ((N.z*N.z*cp + (1.-N.z*N.z)*cs)) * (massMatrix(Uz,Uz)) +
-                                   ((N.x*N.y*(cp - cs))) * (massMatrix(Ux,Uy))  +
-                                   ((N.x*N.z*(cp - cs))) * (massMatrix(Ux,Uz))  +
-                                   ((N.y*N.x*(cp - cs))) * (massMatrix(Uy,Ux))  +
-                                   ((N.y*N.z*(cp - cs))) * (massMatrix(Uy,Uz))  +
-                                   ((N.z*N.x*(cp - cs))) * (massMatrix(Uz,Ux))  +
-                                   ((N.z*N.y*(cp - cs))) * (massMatrix(Uz,Uy)) ) / 12.
-                                  ;
-
-  return int_Omega_i;
 }
