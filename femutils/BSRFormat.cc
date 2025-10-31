@@ -13,8 +13,6 @@
 
 #include "BSRFormat.h"
 
-// #include <arccore/trace/TraceAccessor.h>
-
 #include <arcane/utils/ArgumentException.h>
 
 #include <arcane/core/IIndexedIncrementalItemConnectivityMng.h>

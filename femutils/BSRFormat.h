@@ -16,6 +16,7 @@
 
 #include <arcane/utils/NumArray.h>
 #include <arcane/utils/TraceAccessor.h>
+#include <arcane/utils/FatalErrorException.h>
 
 #include <arcane/core/UnstructuredMeshConnectivity.h>
 #include <arcane/core/ItemEnumerator.h>
