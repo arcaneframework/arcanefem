@@ -93,8 +93,6 @@ class PETScDoFLinearSystemImpl
 
   void setSolver(String v) { m_ksp_type = std::string{v.localstr()}; }
   void setPreconditioner(String v) { m_pc_type = std::string{v.localstr()}; }
-  void setMatrixType(String v) { m_mat_type = std::string{v.localstr()}; }
-  void setVectorType(String v) { m_vec_type = std::string{v.localstr()}; }
 
   CaseOptionsPETScDoFLinearSystemFactory *options;
 
@@ -133,15 +131,15 @@ class PETScDoFLinearSystemImpl
  private:
 
   void _computeMatrixNumeration();
-  void _handleParameters(IParallelMng* pm);
+  void _handleParameters(IParallelMng* pm, Runner& runner);
 };
 
-void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm)
+void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm, Runner& runner)
 {
   PetscBool is_initialized;
   PetscInitialized(&is_initialized);
 
-  if (!is_initialized) // no command line arguments were given
+  if (!is_initialized) // no petsc_flags were given
     PetscInitialize(nullptr, nullptr, nullptr, nullptr);
 
 #define MAX_STRING_LENGTH 256
@@ -158,9 +156,6 @@ void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm)
     PetscOptionsSetValue(nullptr, petsc_string, variable.c_str());                                 \
   // we do variable.resize(MAX_STRING_LENGTH) to make sure there is enough memory to store the option name.
   // may otherwise result in a segfault
-
-  Runner runner = this->runner();
-  info() << runner.executionPolicy();
 
   if (pm->isParallel())
   {
@@ -197,6 +192,9 @@ void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm)
   X_OPTION_STRING("-pc_type", m_pc_type);
   X_OPTION_STRING("-mat_type", m_mat_type);
   X_OPTION_STRING("-vec_type", m_vec_type);
+
+  info() << "[PETSc-Info] Using " << m_mat_type << " matrix type";
+  info() << "[PETSc-Info] Using " << m_vec_type << " vector type";
 }
 
 void PETScDoFLinearSystemImpl::
@@ -251,8 +249,9 @@ solve()
 
   IItemFamily* dof_family = dofFamily();
   IParallelMng* pm = dof_family->parallelMng();
+  Runner runner = this->runner();
 
-  _handleParameters(pm);
+  _handleParameters(pm, runner);
   _computeMatrixNumeration();
 
   Parallel::Communicator arcane_comm = pm->communicator();
@@ -445,9 +444,7 @@ class PETScDoFLinearSystemFactoryService
     x->setMaxIter(options()->maxIter());
     x->setSolver(options()->solver());
     x->setPreconditioner(options()->pcType());
-    x->setMatrixType(options()->matType());
-    x->setAmgThreshold(options()->getAmgThreshold());
-    x->setVectorType(options()->getVecType());
+    x->setAmgThreshold(options()->amgThreshold());
     return x;
   }
 };
