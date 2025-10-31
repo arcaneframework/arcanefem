@@ -89,8 +89,6 @@ class PETScDoFLinearSystemImpl
   void setRelTolerance(Real v) { m_ksp_rtol = v; }
   void setAbsTolerance(Real v) { m_ksp_atol = v; }
 
-  void setAmgThreshold(Real v) { m_amg_threshold = v; }
-
   void setSolver(String v) { m_ksp_type = std::string{v.localstr()}; }
   void setPreconditioner(String v) { m_pc_type = std::string{v.localstr()}; }
 
@@ -120,8 +118,6 @@ class PETScDoFLinearSystemImpl
 
   Real m_ksp_rtol;
   Real m_ksp_atol;
-
-  Real m_amg_threshold;
 
   std::string m_ksp_type; // cannot use String type because we need this to be mutable
   std::string m_pc_type;
@@ -444,7 +440,6 @@ class PETScDoFLinearSystemFactoryService
     x->setMaxIter(options()->maxIter());
     x->setSolver(options()->solver());
     x->setPreconditioner(options()->pcType());
-    x->setAmgThreshold(options()->amgThreshold());
     return x;
   }
 };

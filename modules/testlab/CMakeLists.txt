@@ -81,6 +81,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [testlab]3D_all-bsr-matrix-formats_cache-warm COMMAND  Testlab -A,BSR_GPU=TRUE,AF-BSR_GPU=TRUE -A,cache_warming=2 inputs/Test.sphere.3D.bsr.arc)
 
   arcanefem_add_gpu_test(NAME [testlab]petsc_direct COMMAND  Testlab ARGS inputs/Test.petsc_direct.arc)
+  arcanefem_add_gpu_test(NAME [testlab]petsc_direct_3D COMMAND  Testlab ARGS inputs/Test.petsc_direct-3D.arc)
 
   arcanefem_add_gpu_test(NAME [testlab]L-shape_2D_petsc COMMAND ./Testlab ARGS inputs/Test.petsc.arc)
   arcanefem_add_gpu_test(NAME [testlab]L-shape_2D_petsc_coo-gpu COMMAND ./Testlab ARGS inputs/Test.L-shape.2D.coo-gpu.arc)
@@ -152,5 +153,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
 
     arcanefem_add_gpu_test(NAME [testlab]petsc_direct_2p NB_MPI 2 COMMAND ./Testlab ARGS inputs/Test.petsc_direct.arc)
     arcanefem_add_gpu_test(NAME [testlab]petsc_direct_4p NB_MPI 4 COMMAND ./Testlab ARGS inputs/Test.petsc_direct.arc)
+    arcanefem_add_gpu_test(NAME [testlab]petsc_direct_3D_2p NB_MPI 2 COMMAND ./Testlab ARGS inputs/Test.petsc_direct-3D.arc)
+    arcanefem_add_gpu_test(NAME [testlab]petsc_direct_3D_4p NB_MPI 4 COMMAND ./Testlab ARGS inputs/Test.petsc_direct-3D.arc)
   endif()
 endif()
