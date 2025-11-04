@@ -32,17 +32,34 @@ sizes = []
 
 for size in range(4):
 	cur_size = []
+
 	for file in files[size]:
 		# for each method, record matrix, vector and solve
-		cur_method = []
+		matrix = []
+		vector = []
+		solve = []
+
 		for i in range(1, 4):
 			filepath = f'./benchmark_output{i}/{file}.csv'
+
 			with open(filepath, newline='') as csvfile:
-				reader = csv.reader(csvfile, delimiter=';')
+				reader = csv.DictReader(csvfile, delimiter=';')
 				print(f'in {filepath}: ')
-				attempt = 0
+				# only first attempt for now
+
 				for row in reader:
-					row['matrix_creation_time']
-					attempt += 1
+					matrix.append(float(row['matrix_creation_time']))
+					vector.append(float(row['vector_creation_time']))
+					solve.append(float(row['solve_time']))
+					break
+
+		matrix = np.array(matrix)
+		vector = np.array(vector)
+		solve = np.array(solve)
+
+		cur_method = [matrix, vector, solve]
+		print(cur_method)
+					
 		cur_size.append(cur_method)
+
 	sizes.append(cur_size)
