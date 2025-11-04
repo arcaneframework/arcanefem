@@ -33,6 +33,7 @@ set(MESH_FILES
   soil_2d.msh
   soil_2d.quad.msh
   cube_double_couple_3d.msh
+  cube_double_couple_3d.hexa.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
     file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
@@ -93,6 +94,10 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/linear-system/solver-backend=hypre
     inputs/3d.double-couple.paraxial.soil.arc)
 
+  add_test(NAME [soildynamics]3d_double-couple_paraxial_soil_hexa COMMAND Soildynamics
+    -A,//fem/linear-system/solver-backend=hypre
+    inputs/3d.double-couple.paraxial.soil.hexa.arc)
+
   add_test(NAME [soildynamics]2d_double-couple_paraxial_soil_quad COMMAND Soildynamics
     inputs/double-couple.paraxial.soil.quad.arc)
 
@@ -130,6 +135,9 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     add_test(NAME [soildynamics]3d_double-couple_paraxial_soil_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics
       -A,//fem/linear-system/solver-backend=hypre
       inputs/3d.double-couple.paraxial.soil.arc)
+    add_test(NAME [soildynamics]3d_double-couple_paraxial_soil_hexa_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics
+      -A,//fem/linear-system/solver-backend=hypre -A,//fem/cross-validation=false
+      inputs/3d.double-couple.paraxial.soil.hexa.arc)
     add_test(NAME [soildynamics]3d_all-conditions_2p  COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics inputs/3d.all-conditions.arc)
   endif()
 endif()
