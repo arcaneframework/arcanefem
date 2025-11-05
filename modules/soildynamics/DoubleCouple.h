@@ -49,22 +49,22 @@ _applyDoubleCouple(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivity
     NodeGroup east = bs->eastNodeName();
     NodeGroup west = bs->westNodeName();
 
-    ENUMERATE_ (Node, inode, north) {
+    ENUMERATE_ (Node, inode, north.own()) {
       Node node = *inode;
       DoFLocalId dof_id1 = node_dof.dofId(node, NorthSouthId);
       rhs_values[dof_id1] = dc_force;
     }
-    ENUMERATE_ (Node, inode, south) {
+    ENUMERATE_ (Node, inode, south.own()) {
       Node node = *inode;
       DoFLocalId dof_id1 = node_dof.dofId(node, NorthSouthId);
       rhs_values[dof_id1] = -dc_force;
     }
-    ENUMERATE_ (Node, inode, east) {
+    ENUMERATE_ (Node, inode, east.own()) {
       Node node = *inode;
       DoFLocalId dof_id2 = node_dof.dofId(node, EastWestId);
       rhs_values[dof_id2] = -dc_force;
     }
-    ENUMERATE_ (Node, inode, west) {
+    ENUMERATE_ (Node, inode, west.own()) {
       Node node = *inode;
       DoFLocalId dof_id2 = node_dof.dofId(node, EastWestId);
       rhs_values[dof_id2] = dc_force;
