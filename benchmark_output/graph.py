@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import csv
 import sys
+from matplotlib.colors import hsv_to_rgb
 
 # size > method > samples
 
@@ -73,44 +74,47 @@ for size in range(nb_sizes):
 
 	sizes.append(cur_size)
 
-print(sys.argv)
 cur_size_i = int(sys.argv[1])
-element_idx = int(sys.argv[2])
-elements = ('Matrix', 'Vector', 'Solve')
-
-method_names = tuple(files[cur_size_i])
-
-for i in range(len(sizes[cur_size_i])):
-	size = sizes[cur_size_i][i]
-	sizes[cur_size_i][i] = size[element_idx]
-
 sizes[cur_size_i] = np.nan_to_num(sizes[cur_size_i])
-
 a = np.array(sizes[cur_size_i]).T
+# a[attempt_i][element_i] = [method_1_element_i, method_2_element_i, ..., method_n_element_i]
 
-time_means = dict()
+part_names = ['Matrix', 'Vector', 'Solve']
+attempt_names = [f'Attempt {i+1}' for i in range(a.shape[0])]
+method_names = files[cur_size_i]
 
-for i in range(nb_attempts):
-	time_means[f'Attempt {i + 1}'] = tuple(a[i])
+nb_parts = len(part_names)
+nb_method = len(method_names)
 
-x = np.arange(len(method_names))
-width = 0.25
-multiplier = 0
+bar_width = 0.25
+x = np.arange(nb_method)
 
-fig, ax = plt.subplots(layout='constrained')
+fig, ax = plt.subplots(figsize=(10, 6))
+width = 0.2
 
-for attribute, measurement in time_means.items():
-    offset = width * multiplier
-    rects = ax.bar(x + offset, measurement, width, label=attribute)
-    ax.bar_label(rects, padding=3)
-    multiplier += 1
+# --- Create the 2D color gradient: green → red (H), darker → brighter (V)
+H = np.linspace(0, 0.4, nb_parts)   # green (0.33) → red (0)
+V = np.linspace(1.0, 0.5, nb_attempts) # darker → brighter per attempt
 
-# Add some text for labels, title and custom x-axis tick labels, etc.
-ax.set_ylabel('Time (s)')
-ax.set_title(f'{elements[element_idx]} time per method')
-ax.set_xticks(x + width, method_names)
-ax.legend(loc='upper left')
-ax.set_ylim(0, np.max(a) * 1.05)
+# Function to get color for part j, attempt i
+def get_color(i, j):
+    return hsv_to_rgb([H[j], 0.8, V[i]])
 
+for attempt_i in range(nb_attempts):
+    x_shifted = x + (attempt_i - nb_attempts / 2) * bar_width + bar_width / 2
+    bottom = np.zeros(nb_method)
+    for part_i in range(nb_parts):
+        ax.bar(x_shifted, a[attempt_i, part_i, :],
+               bar_width, bottom=bottom,
+               color=get_color(attempt_i, part_i),
+               label=f'{part_names[part_i]}' if attempt_i == 0 else "")
+        bottom += a[attempt_i, part_i, :]
+
+ax.set_xticks(x)
+ax.set_xticklabels(method_names)
+ax.set_ylabel("Execution time (s)")
+ax.set_title("Time per method")
+ax.legend(loc='upper left', fontsize='small')
+
+plt.tight_layout()
 plt.show()
-
