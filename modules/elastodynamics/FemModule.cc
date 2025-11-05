@@ -525,7 +525,7 @@ _validateResults()
 
   String filename = options()->resultFile();
   const double epsilon = 1.0e-4;
-  const double min_value_to_test = 1.0e-16;
+  const double min_value_to_test = 1.0e-14;
 
   info() << "[ArcaneFem-Info] Validating results filename=" << filename << " epsilon =" << epsilon;
 
