@@ -127,10 +127,10 @@ class PETScDoFLinearSystemImpl
  private:
 
   void _computeMatrixNumeration();
-  void _handleParameters(IParallelMng* pm, Runner& runner);
+  void _handleParameters(IParallelMng* pm);
 };
 
-void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm, Runner& runner)
+void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm)
 {
   PetscBool is_initialized;
   PetscInitialized(&is_initialized);
@@ -140,18 +140,22 @@ void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm, Runner& runne
 
 #define MAX_STRING_LENGTH 256
 
-#define X_OPTION(type, petsc_string, variable) \
+#define PETSC_OPTION(type, petsc_string, variable) \
   PetscOptionsGet##type(nullptr, nullptr, petsc_string, &variable, &set); \
   if (!set) \
     PetscOptionsSetValue(nullptr, petsc_string, std::to_string(variable).c_str());
 
-#define X_OPTION_STRING(petsc_string, variable) \
+#define PETSC_OPTION_STRING(petsc_string, variable) \
   variable.resize(MAX_STRING_LENGTH); \
   PetscOptionsGetString(nullptr, nullptr, petsc_string, variable.data(), MAX_STRING_LENGTH, &set); \
   if (!set) \
     PetscOptionsSetValue(nullptr, petsc_string, variable.c_str());                                 \
+  variable.resize(std::strlen(variable.data()));
   // we do variable.resize(MAX_STRING_LENGTH) to make sure there is enough memory to store the option name.
   // may otherwise result in a segfault
+  // after this, we resize to the right size to avoid bugs with info()
+
+  Runner runner = this->runner();
 
   if (pm->isParallel())
   {
@@ -181,13 +185,13 @@ void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm, Runner& runne
   }
 
   PetscBool set;
-  X_OPTION(Real, "-ksp_rtol", m_ksp_rtol);
-  X_OPTION(Real, "-ksp_atol", m_ksp_atol);
-  X_OPTION(Int, "-ksp_max_it", m_ksp_max_it);
-  X_OPTION_STRING("-ksp_type", m_ksp_type);
-  X_OPTION_STRING("-pc_type", m_pc_type);
-  X_OPTION_STRING("-mat_type", m_mat_type);
-  X_OPTION_STRING("-vec_type", m_vec_type);
+  PETSC_OPTION(Real, "-ksp_rtol", m_ksp_rtol);
+  PETSC_OPTION(Real, "-ksp_atol", m_ksp_atol);
+  PETSC_OPTION(Int, "-ksp_max_it", m_ksp_max_it);
+  PETSC_OPTION_STRING("-ksp_type", m_ksp_type);
+  PETSC_OPTION_STRING("-pc_type", m_pc_type);
+  PETSC_OPTION_STRING("-mat_type", m_mat_type);
+  PETSC_OPTION_STRING("-vec_type", m_vec_type);
 
   info() << "[PETSc-Info] Using " << m_mat_type << " matrix type";
   info() << "[PETSc-Info] Using " << m_vec_type << " vector type";
@@ -247,7 +251,8 @@ solve()
   IParallelMng* pm = dof_family->parallelMng();
   Runner runner = this->runner();
 
-  _handleParameters(pm, runner);
+  _handleParameters(pm);
+  info() << "[PETSc-Info] Calling PETSc solver";
   _computeMatrixNumeration();
 
   Parallel::Communicator arcane_comm = pm->communicator();
@@ -329,7 +334,7 @@ solve()
       coo_rows.push_back(csr_rows.size() - 1);
 
     std::vector<PetscInt> coo_cols;
-    coo_cols.assign(csr_view.columns().begin(), csr_view.columns().end());
+    coo_cols.assign(csr_view.columns().begin(), csr_view.columns().end()); // copy columns array
 
     PetscCallAbort(mpi_comm, MatSetPreallocationCOO(m_petsc_matrix, csr_view.nbValue(),coo_rows.data(), coo_cols.data()));
     PetscCallAbort(mpi_comm, MatSetValuesCOO(m_petsc_matrix, csr_view.values().data(), INSERT_VALUES));
