@@ -22,7 +22,7 @@
   <fem>
     <coo-gpu>true</coo-gpu>
     <f>5.5</f>
-    <result-file>poisson_test_ref_L-shape_3D.txt</result-file>
+    <solution-comparison-file>poisson_test_ref_L-shape_3D.txt</solution-comparison-file>
     <dirichlet-boundary-condition>
       <surface>bot</surface>
       <value>50.0</value>

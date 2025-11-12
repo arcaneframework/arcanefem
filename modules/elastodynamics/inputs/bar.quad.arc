@@ -23,7 +23,6 @@
   <fem>
     <hex-quad-mesh>true</hex-quad-mesh>
     <time-discretization>Newmark-beta</time-discretization>
-    <result-file>check/bar.quad.txt</result-file>
     <tmax>2.</tmax>
     <dt>0.08</dt>
     <rho>12.0</rho>

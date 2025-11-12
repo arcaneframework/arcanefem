@@ -25,7 +25,6 @@
     <tmax>20.</tmax>
     <dt>0.4</dt>
     <Tinit>30.0</Tinit>
-    <result-file>check/2d_conduction_neumann_pointBC.quad.txt</result-file>
     <boundary-conditions>
       <dirichlet-point>
         <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>

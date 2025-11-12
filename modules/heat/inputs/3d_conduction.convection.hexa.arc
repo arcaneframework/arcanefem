@@ -19,7 +19,6 @@
   </meshes>
 
   <fem>
-    <result-file>check/3d_conduction_convection.hexa.txt</result-file>
     <hex-quad-mesh>true</hex-quad-mesh>
     <lambda>1.75</lambda>
     <tmax>20.</tmax>

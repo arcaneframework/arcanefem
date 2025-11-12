@@ -20,7 +20,7 @@
   </meshes>
 
   <fem>
-    <result-file>poisson_test_ref_sphere_3D.txt</result-file>
+    <solution-comparison-file>poisson_test_ref_sphere_3D.txt</solution-comparison-file>
     <f>5.5</f>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
     <penalty>1.e31</penalty>

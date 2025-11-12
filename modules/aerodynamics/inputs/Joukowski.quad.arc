@@ -35,6 +35,5 @@
         <value>0.0</value>
       </dirichlet>
     </boundary-conditions>
-    <result-file>check/test_2d.quad.txt</result-file>
   </fem>
 </case>

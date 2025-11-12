@@ -23,7 +23,6 @@
     <tmax>1.</tmax>
     <dt>0.1</dt>
     <Tinit>30.0</Tinit>
-    <result-file>check/3d_conduction_convection_pointBC.txt</result-file>
     <convection-boundary-condition>
       <surface>top</surface>
       <h>1.9</h>

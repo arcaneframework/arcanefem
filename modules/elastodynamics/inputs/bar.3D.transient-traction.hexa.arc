@@ -22,7 +22,6 @@
 
   <fem>
     <hex-quad-mesh>true</hex-quad-mesh>
-    <result-file>check/bar_3d_transient-traction.hexa.txt</result-file>
     <tmax>0.5</tmax>
     <dt>0.1</dt>
     <rho>1.0</rho>

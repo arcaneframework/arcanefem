@@ -33,11 +33,12 @@ endforeach()
 
 enable_testing()
 
-add_test(NAME [bilaplacian]direct_solver COMMAND Bilaplacian inputs/direct.arc)
+add_test(NAME [bilaplacian]direct_solver COMMAND Bilaplacian
+  -A,//fem/solution-comparison-file=check/2d_test.txt
+  inputs/direct.arc)
 add_test(NAME [bilaplacian]parse_and_exit COMMAND Bilaplacian
   -A,//fem/assemble-linear-system=false
   -A,//fem/solve-linear-system=false
-  -A,//fem/cross-validation=false
   inputs/direct.arc)
 
 #if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
@@ -49,8 +50,10 @@ add_test(NAME [bilaplacian]parse_and_exit COMMAND Bilaplacian
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   add_test(NAME [bilaplacian]hypre_rowColElim COMMAND Bilaplacian
+    -A,//fem/solution-comparison-file=check/2d_test.txt
     inputs/internal_hypre_rowColElim.arc)
   add_test(NAME [bilaplacian]hypre_rowElim COMMAND Bilaplacian
+    -A,//fem/solution-comparison-file=check/2d_test.txt
     -A,//fem/enforce-Dirichlet-method=RowElimination
     inputs/internal_hypre_rowColElim.arc)
 endif()

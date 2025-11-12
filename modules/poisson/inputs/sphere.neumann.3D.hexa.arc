@@ -19,7 +19,6 @@
   </meshes>
 
   <fem>
-    <result-file>check/poisson_test_ref_sphere_neumann_3D_hexa.txt</result-file>
     <hex-quad-mesh>true</hex-quad-mesh>
     <f>5.5</f>
     <boundary-conditions>

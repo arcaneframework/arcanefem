@@ -35,7 +35,7 @@ startInit()
   m_matrix_format = options()->matrixFormat();
   m_assemble_linear_system = options()->assembleLinearSystem();
   m_solve_linear_system = options()->solveLinearSystem();
-  m_cross_validation = options()->crossValidation();
+  m_cross_validation = options()->hasSolutionComparisonFile();
   m_petsc_flags = options()->petscFlags();
   m_hex_quad_mesh = options()->hexQuadMesh();
 
@@ -497,10 +497,9 @@ _validateResults()
       info() << "phi[" << node.uniqueId() << "] = " << m_phi[node];
     }
 
-  String filename = options()->resultFile();
+  String filename = options()->solutionComparisonFile();
 
-  if (!filename.empty())
-    checkNodeResultFile(traceMng(), filename, m_phi, 1.0e-4, 1.0e-16);
+  checkNodeResultFile(traceMng(), filename, m_phi, 1.0e-4, 1.0e-16);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "cross-validation", elapsedTime);

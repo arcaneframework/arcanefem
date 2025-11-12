@@ -30,6 +30,5 @@
         <value>17.8</value>
       </neumann>
     </boundary-conditions>
-    <result-file>check/test_ring_quad.txt</result-file>
   </fem>
 </case>

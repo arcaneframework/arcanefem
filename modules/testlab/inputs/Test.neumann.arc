@@ -20,7 +20,7 @@
   </meshes>
 
   <fem>
-    <result-file>test4_results.txt</result-file>
+    <solution-comparison-file>test4_results.txt</solution-comparison-file>
     <neumann-boundary-condition>
       <surface>boundary</surface>
       <valueX>2.0</valueX>

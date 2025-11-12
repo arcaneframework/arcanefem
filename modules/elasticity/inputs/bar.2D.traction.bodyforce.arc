@@ -23,7 +23,6 @@
   </meshes>
 
   <fem>
-    <result-file>check/elasticity_traction_bodyforce_bar_test_ref.txt</result-file>
     <E>21.0e5</E>
     <nu>0.28</nu>
     <f>3.33 -6.66</f>

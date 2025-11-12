@@ -228,7 +228,7 @@ _getParameters()
   m_matrix_format = options()->matrixFormat();
   m_assemble_linear_system = options()->assembleLinearSystem();
   m_solve_linear_system = options()->solveLinearSystem();
-  m_cross_validation = options()->crossValidation();
+  m_cross_validation = options()->hasSolutionComparisonFile();
   m_petsc_flags = options()->petscFlags();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -523,14 +523,11 @@ _validateResults()
     std::cout.precision(p);
   }
 
-  String filename = options()->resultFile();
+  String filename = options()->solutionComparisonFile();
   const double epsilon = 1.0e-4;
   const double min_value_to_test = 1.0e-14;
 
-  info() << "[ArcaneFem-Info] Validating results filename=" << filename << " epsilon =" << epsilon;
-
-  if (!filename.empty())
-    Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_dU, epsilon, min_value_to_test);
+  Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_dU, epsilon, min_value_to_test);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "cross-validation", elapsedTime);

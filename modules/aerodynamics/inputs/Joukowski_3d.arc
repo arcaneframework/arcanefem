@@ -30,6 +30,5 @@
         <value>0.0</value>
       </dirichlet>
     </boundary-conditions>
-    <result-file>check/test_3d.txt</result-file>
   </fem>
 </case>

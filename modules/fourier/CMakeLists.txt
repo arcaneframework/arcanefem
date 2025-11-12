@@ -74,18 +74,24 @@ enable_testing()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [fourier]conduction COMMAND Fourier
+    -A,//fem/solution-comparison-file=check/test1_results.txt
     inputs/conduction.arc)
   add_test(NAME [fourier]conduction_heterogeneous COMMAND Fourier
+    -A,//fem/solution-comparison-file=check/test2_results.txt
     inputs/conduction.heterogeneous.arc)
   add_test(NAME [fourier]conduction_quad COMMAND Fourier
+    -A,//fem/solution-comparison-file=check/conduction_quad.txt
     inputs/conduction.quad.arc)
   add_test(NAME [fourier]conduction_heterogeneous_quad COMMAND Fourier
+    -A,//fem/solution-comparison-file=check/conduction_multi-mat_quad.txt
     inputs/conduction.heterogeneous.quad.arc)
   add_test(NAME [fourier]conduction_3D COMMAND Fourier
+    -A,//fem/solution-comparison-file=check/test_conduction_3D.txt
     inputs/conduction.3D.arc)
   add_test(NAME [fourier]conduction_boolean_3D COMMAND Fourier
     inputs/conduction.boolean.3D.arc)
   add_test(NAME [fourier]conduction_sphere-cut_hexa COMMAND Fourier
+    -A,//fem/solution-comparison-file=check/conduction_hexa.txt
     inputs/conduction.sphere-cut.hexa.arc)
 
   if (NOT APPLE)
@@ -99,10 +105,12 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   endif()
 
   arcanefem_add_gpu_test(NAME [fourier]conduction_petsc_bsr COMMAND ./Fourier ARGS
+    -A,//fem/solution-comparison-file=check/test1_results.txt
     -A,//fem/matrix-format=BSR
     inputs/conduction.arc)
 
   arcanefem_add_gpu_test(NAME [fourier]conduction_petsc_af-bsr COMMAND ./Fourier ARGS
+    -A,//fem/solution-comparison-file=check/test1_results.txt
     -A,//fem/matrix-format=AF-BSR
     inputs/conduction.arc)
 
@@ -116,16 +124,21 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [fourier]conduction_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+      -A,//fem/solution-comparison-file=check/test1_results.txt
       inputs/conduction.arc)
     add_test(NAME [fourier]conduction_heterogeneous_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+      -A,//fem/solution-comparison-file=check/test2_results.txt
       inputs/conduction.heterogeneous.arc)
     add_test(NAME [fourier]conduction_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+      -A,//fem/solution-comparison-file=check/conduction_quad.txt
       inputs/conduction.quad.arc)
     add_test(NAME [fourier]conduction_heterogeneous_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+      -A,//fem/solution-comparison-file=check/conduction_multi-mat_quad.txt
       inputs/conduction.heterogeneous.quad.arc)
     add_test(NAME [fourier]conduction_heterogeneous_3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
       inputs/conduction.pipe.3D.arc)
     add_test(NAME [fourier]conduction_sphere-cut_3D_hexa_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+      -A,//fem/solution-comparison-file=check/conduction_hexa.txt
       inputs/conduction.sphere-cut.hexa.arc)
 
     if (NOT APPLE)

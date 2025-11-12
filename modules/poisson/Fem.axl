@@ -21,7 +21,7 @@
       <description>Volume source within the material.</description>
     </simple>
 
-    <simple name="result-file" type="string" optional="true">
+    <simple name="solution-comparison-file" type="string" optional="true">
       <description>File name of a file containing the values of the solution vector to check the results</description>
     </simple>
 
@@ -39,10 +39,6 @@
 
     <simple name="assemble-linear-system" type="bool" default="true" optional="true">
       <description>Boolean to enable linear system assembly.</description>
-    </simple>
-
-    <simple name="cross-validation" type="bool" default="true" optional="true">
-      <description>Boolean to enable cross validation.</description>
     </simple>
 
     <simple name="hex-quad-mesh" type="bool" default="false" optional="true">

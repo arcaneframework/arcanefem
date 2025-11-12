@@ -20,7 +20,6 @@
   </meshes>
 
   <fem>
-    <result-file>check/test_3D_L-shape.txt</result-file>
     <boundary-conditions>
       <dirichlet>
         <surface>bot</surface>

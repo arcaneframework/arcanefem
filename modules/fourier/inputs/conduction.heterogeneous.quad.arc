@@ -35,7 +35,6 @@
       - hex-quad-mesh: Boolean to indicate the use of hexagonal quadrature for element matrix assembly.
       - lambda: Default thermal conductivity or diffusivity coefficient.
       - qdot: Heat source term or volumetric heat generation.
-      - result-file: File to which simulation results will be written.
       - boundary-conditions: Defines the boundary conditions for the simulation.
         - dirichlet: Fixed value boundary condition for specific surfaces.
         - neumann: Flux or gradient boundary condition for specific surfaces.
@@ -73,7 +72,6 @@
       <volume>Mat2</volume>
       <lambda>1.0</lambda>
     </material-property>
-    <result-file>check/conduction_multi-mat_quad.txt</result-file>
   </fem>
 
   <!--

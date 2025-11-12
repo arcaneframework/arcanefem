@@ -22,7 +22,6 @@
 
   <fem>
     <hex-quad-mesh>true</hex-quad-mesh>
-    <result-file>check/2D_elastodynamics_bar_transient_traction_three_steps.txt</result-file>
     <tmax>.25</tmax>
     <dt>0.08</dt>
     <alpm>0.00</alpm>

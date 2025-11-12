@@ -20,7 +20,6 @@
   </meshes>
 
   <fem>
-    <result-file>check/test_3D_truncated-cube.txt</result-file>
     <boundary-conditions>
       <dirichlet-point>
         <node>center</node>

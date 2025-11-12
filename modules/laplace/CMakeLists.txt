@@ -53,6 +53,7 @@ endif()
 enable_testing()
 
 add_test(NAME [laplace]pointDirichlet COMMAND Laplace
+  -A,//fem/solution-comparison-file=check/test3_results.txt
   inputs/PointDirichlet.arc)
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
@@ -61,12 +62,15 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [laplace]2D_Dirichlet-Neumann COMMAND Laplace
     inputs/ring.dirichlet-neumann.arc)
   add_test(NAME [laplace]2D_Dirichlet-Neumann_quad COMMAND Laplace
+    -A,//fem/solution-comparison-file=check/test_ring_quad.txt
     inputs/ring.dirichlet-neumann.quad.arc)
   add_test(NAME [laplace]3D_Dirichlet COMMAND Laplace
+    -A,//fem/solution-comparison-file=check/test_3D_L-shape.txt
     inputs/L-shape.3D.arc)
   add_test(NAME [laplace]3D_Dirichlet-Neumann COMMAND Laplace
     inputs/L-shape.3D.dirichlet-neumann.arc)
   add_test(NAME [laplace]3D_Dirichlet-Neumann_hexa COMMAND Laplace
+    -A,//fem/solution-comparison-file=check/test_trucated-cube_hexa.txt
     inputs/truncated-cube.neumann.3D.hexa.arc)
   add_test(NAME [laplace]2D_Dirichlet_petsc_monitor COMMAND Laplace
     -A,//fem/petsc-flags=-ksp_monitor
@@ -74,7 +78,6 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [laplace]2D_parse_and_exit COMMAND Laplace
     -A,//fem/assemble-linear-system=false
     -A,//fem/solve-linear-system=false
-    -A,//fem/cross-validation=false
     inputs/ring.arc)
 
   arcanefem_add_gpu_test(NAME [laplace]2D_Dirichlet_bsr COMMAND ./Laplace ARGS
@@ -84,12 +87,15 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/matrix-format=AF-BSR
     inputs/ring.arc)
   arcanefem_add_gpu_test(NAME [laplace]3D_Dirichlet_bsr COMMAND ./Laplace ARGS
+    -A,//fem/solution-comparison-file=check/test_3D_L-shape.txt
     -A,//fem/matrix-format=BSR
     inputs/L-shape.3D.arc)
   arcanefem_add_gpu_test(NAME [laplace]3D_Dirichlet_af-bsr COMMAND ./Laplace ARGS
+    -A,//fem/solution-comparison-file=check/test_3D_L-shape.txt
     -A,//fem/matrix-format=AF-BSR
     inputs/L-shape.3D.arc)
   arcanefem_add_gpu_test(NAME [laplace]3D_pointBc_af-bsr COMMAND ./Laplace ARGS
+    -A,//fem/solution-comparison-file=check/test_3D_truncated-cube.txt
     -A,//fem/matrix-format=AF-BSR
     inputs/truncated-cube.3D.arc)
   arcanefem_add_gpu_test(NAME [laplace]3D_pointBc_neumann_af-bsr COMMAND ./Laplace ARGS
@@ -100,10 +106,12 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     add_test(NAME [laplace]2D_Dirichlet_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Laplace
       inputs/ring.arc)
     add_test(NAME [laplace]3D_Dirichlet_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Laplace
+      -A,//fem/solution-comparison-file=check/test_3D_L-shape.txt
       inputs/L-shape.3D.arc)
     add_test(NAME [laplace]2D_Dirichlet-Neumann_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Laplace
       inputs/ring.dirichlet-neumann.arc)
     add_test(NAME [laplace]3D_Dirichlet-Neumann_hexa_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Laplace
+      -A,//fem/solution-comparison-file=check/test_trucated-cube_hexa.txt
       inputs/truncated-cube.neumann.3D.hexa.arc)
 
     if(FEMTEST_HAS_GMSH_TEST)
@@ -125,18 +133,22 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/linear-system/atol=1e-9
     -A,//fem/linear-system/rtol=0)
   arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_bsr_hypreDirect COMMAND ./Laplace ARGS
+    -A,//fem/solution-comparison-file=check/test3_results.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG}
     inputs/PointDirichlet.arc)
   arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_af-bsr_hypreDirect COMMAND ./Laplace ARGS
+    -A,//fem/solution-comparison-file=check/test3_results.txt
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG}
     inputs/PointDirichlet.arc)
   arcanefem_add_gpu_test(NAME [laplace]3D_Dirichlet_bsr_hypreDirect COMMAND ./Laplace ARGS
+    -A,//fem/solution-comparison-file=check/test_3D_L-shape.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG}
     inputs/L-shape.3D.arc)
   arcanefem_add_gpu_test(NAME [laplace]3D_Dirichlet_af-bsr_hypreDirect COMMAND ./Laplace ARGS
+    -A,//fem/solution-comparison-file=check/test_3D_L-shape.txt
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG}
     inputs/L-shape.3D.arc)

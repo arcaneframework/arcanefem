@@ -35,7 +35,7 @@ startInit()
   m_matrix_format = options()->matrixFormat();
   m_assemble_linear_system = options()->assembleLinearSystem();
   m_solve_linear_system = options()->solveLinearSystem();
-  m_cross_validation = options()->crossValidation();
+  m_cross_validation = options()->hasSolutionComparisonFile();
   m_petsc_flags = options()->petscFlags();
   m_hex_quad_mesh = options()->hexQuadMesh();
 
@@ -547,10 +547,9 @@ _validateResults()
       info() << "T[" << node.uniqueId() << "] = " << m_node_temperature[node];
     }
 
-  String filename = options()->resultFile();
+  String filename = options()->solutionComparisonFile();
 
-  if (!filename.empty())
-    checkNodeResultFile(traceMng(), filename, m_node_temperature, 1.0e-4);
+  checkNodeResultFile(traceMng(), filename, m_node_temperature, 1.0e-4);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "result-validation", elapsedTime);

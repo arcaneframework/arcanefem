@@ -22,7 +22,7 @@
 
   <fem>
     <f>-5.5</f>
-    <result-file>poisson_test_ref_L-shape_2D.txt</result-file>
+    <solution-comparison-file>poisson_test_ref_L-shape_2D.txt</solution-comparison-file>
     <blcsr>true</blcsr>
     <legacy>false</legacy>
     <dirichlet-boundary-condition>

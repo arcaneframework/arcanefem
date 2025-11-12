@@ -34,7 +34,6 @@
     FEM (Finite Element Method) settings:
       - lambda: Default thermal conductivity or diffusivity coefficient.
       - qdot: Heat source term or volumetric heat generation.
-      - result-file: File to which simulation results will be written.
       - boundary-conditions: Defines the boundary conditions for the simulation.
         - dirichlet: Fixed value boundary condition for specific surfaces.
         - neumann: Flux or gradient boundary condition for specific surfaces.
@@ -45,7 +44,6 @@
   <fem>
     <lambda>0.0</lambda>
     <qdot>15.</qdot>
-    <result-file>check/test2_results.txt</result-file>
     <boundary-conditions>
       <dirichlet>
         <surface>Left</surface>

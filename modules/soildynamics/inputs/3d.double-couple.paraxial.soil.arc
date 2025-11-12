@@ -37,6 +37,5 @@
       <method>force-based</method>
       <double-couple-input-file>data/force_loading_dc.txt</double-couple-input-file>
     </double-couple>
-    <result-file>check/3d_test_paraxial_double_couple.txt</result-file>
   </fem>
 </case>

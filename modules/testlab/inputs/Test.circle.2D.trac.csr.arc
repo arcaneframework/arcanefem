@@ -21,7 +21,7 @@
 
   <fem>
     <csr>true</csr>
-    <result-file>poisson_test_ref_circle_trac_2D.txt</result-file>
+    <solution-comparison-file>poisson_test_ref_circle_trac_2D.txt</solution-comparison-file>
     <f>5.5</f>
     <dirichlet-boundary-condition>
       <surface>horizontal</surface>
