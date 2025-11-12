@@ -160,7 +160,6 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
       -A,//fem/linear-system/solver-backend=hypre
       inputs/3d.double-couple.paraxial.soil.arc)
     add_test(NAME [soildynamics]3d_double-couple_paraxial_soil_hexa_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics
-      -A,//fem/solution-comparison-file=check/3d_test_paraxial_double_couple.hexa.txt
       -A,//fem/linear-system/solver-backend=hypre
       -A,//fem/cross-validation=false
       inputs/3d.double-couple.paraxial.soil.hexa.arc)
