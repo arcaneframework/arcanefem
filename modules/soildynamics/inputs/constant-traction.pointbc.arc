@@ -40,6 +40,5 @@
         <value>0.01 0.01</value>
       </traction>
     </boundary-conditions>
-    <result-file>check/test_2D_constant_traction_pointbc.txt</result-file>
   </fem>
 </case>

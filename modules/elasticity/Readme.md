@@ -67,7 +67,6 @@ The Finite Element Method (FEM) configuration is provided in the `Test.bar.arc`.
 
 ```xml
 <fem>
-  <result-file>test_elasticity_results.txt</result-file>
   <E>21.0e5</E>
   <nu>0.28</nu>
   <f>NULL -1.0</f>
@@ -81,11 +80,7 @@ The Finite Element Method (FEM) configuration is provided in the `Test.bar.arc`.
 
 Let us explain this point wise
 
-- **Result File:** Specifies the file for validation test (OPTIONAL). Use only if you want to compare solutions against known solutions
 
-  ```xml
-  <result-file>test_elasticity_results.txt</result-file>
-  ```
 - **Material Properties:** The Young's Modulus (E) for the material, defined as `21.0e5`.  The Poisson's Ratio (nu) for the material, defined as `0.28`.
 
   ```xml

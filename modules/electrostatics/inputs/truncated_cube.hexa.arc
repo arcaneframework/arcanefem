@@ -23,8 +23,6 @@
   <fem>
     <hex-quad-mesh>true</hex-quad-mesh>
 
-    <result-file>check/truncated-cube.hexa.txt</result-file>
-
     <rho>0.0</rho>
     <epsilon>1.0</epsilon>
 

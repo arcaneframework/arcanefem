@@ -21,7 +21,6 @@
   </meshes>
 
   <fem>
-    <result-file>check/bar_3d.txt</result-file>
     <time-discretization>Newmark-beta</time-discretization>
     <tmax>.5</tmax>
     <dt>0.08</dt>

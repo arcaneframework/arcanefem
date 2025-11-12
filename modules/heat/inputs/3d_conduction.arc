@@ -23,7 +23,6 @@
     <tmax>1.</tmax>
     <dt>0.1</dt>
     <Tinit>30.0</Tinit>
-    <result-file>check/3d_conduction.txt</result-file>
     <boundary-conditions>
       <dirichlet>
         <surface>top</surface>

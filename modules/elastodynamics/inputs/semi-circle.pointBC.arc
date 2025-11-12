@@ -22,7 +22,6 @@
   </meshes>
 
   <fem>
-    <result-file>check/semi-ciricle_point-bc.txt</result-file>
     <tmax>1.</tmax>
     <dt>0.08</dt>
     <rho>1.0</rho>

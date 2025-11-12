@@ -22,7 +22,6 @@
   </meshes>
 
   <fem>
-    <result-file>check/dirichlet.quad.txt</result-file>
     <hex-quad-mesh>true</hex-quad-mesh>
     <E>21.0e5</E>
     <nu>0.28</nu>

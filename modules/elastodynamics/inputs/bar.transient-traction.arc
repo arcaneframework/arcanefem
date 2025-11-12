@@ -30,7 +30,6 @@
     <lambda>576.9230769</lambda>
     <mu>384.6153846</mu>
     <time-discretization>Newmark-beta</time-discretization>
-    <result-file>check/2D_elastodynamics_bar_transient_traction.txt</result-file>
     <boundary-conditions>
       <dirichlet>
         <surface>surfaceleft</surface>

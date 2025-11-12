@@ -37,7 +37,6 @@
     <paraxial-boundary-condition>
       <surface>lower</surface>
     </paraxial-boundary-condition>
-    <result-file>check/test_2D_constant_traction.txt</result-file>
     <linear-system>
       <solver-backend>petsc</solver-backend>
       <preconditioner>ilu</preconditioner>

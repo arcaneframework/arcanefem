@@ -34,7 +34,7 @@ startInit()
   m_matrix_format = options()->matrixFormat();
   m_assemble_linear_system = options()->assembleLinearSystem();
   m_solve_linear_system = options()->solveLinearSystem();
-  m_cross_validation = options()->crossValidation();
+  m_cross_validation = options()->hasSolutionComparisonFile();
   m_petsc_flags = options()->petscFlags();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -393,11 +393,9 @@ _checkResultFile()
     std::cout.precision(p);
   }
 
-  String filename = options()->resultFile();
-  info() << "ValidateResultFile filename=" << filename;
+  String filename = options()->solutionComparisonFile();
 
-  if (!filename.empty())
-    checkNodeResultFile(traceMng(), filename, m_U, 1.0e-4);
+  checkNodeResultFile(traceMng(), filename, m_U, 1.0e-4);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "result-validation", elapsedTime);

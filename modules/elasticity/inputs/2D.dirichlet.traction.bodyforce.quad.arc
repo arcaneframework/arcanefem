@@ -22,7 +22,6 @@
   </meshes>
 
   <fem>
-    <result-file>check/dirichlet_traction_bodyforce.quad.txt</result-file>
     <hex-quad-mesh>true</hex-quad-mesh>
     <E>200e9</E>
     <nu>0.3</nu>

@@ -180,7 +180,7 @@ class FemModule
   bool m_use_bsr_atomic_free = false;
   bool m_running_on_gpu = false;
   bool m_solve_linear_system = true;
-  bool m_cross_validation = true;
+  bool m_cross_validation = false;
 
   ITimeStats* m_time_stats;
 

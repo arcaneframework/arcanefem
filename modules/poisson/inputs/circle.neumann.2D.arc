@@ -20,7 +20,6 @@
   </meshes>
 
   <fem>
-    <result-file>check/poisson_test_ref_circle_neumann_2D.txt</result-file>
     <f>5.5</f>
     <boundary-conditions>
       <dirichlet>

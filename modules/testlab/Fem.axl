@@ -21,7 +21,7 @@
     <simple name="f" type="real" default="0.0">
       <description>Volume source within the material.</description>
     </simple>
-    <simple name="result-file" type="string" optional="true">
+    <simple name="solution-comparison-file" type="string" optional="true">
       <description>File name of a file containing the values of the solution vector to check the results</description>
     </simple>
     <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">

@@ -23,7 +23,6 @@
   <fem>
     <rho>0.0</rho>
     <epsilon>1.0</epsilon>
-    <result-file>check/test_2.txt</result-file>
 
     <boundary-conditions>
       <dirichlet>

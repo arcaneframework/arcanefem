@@ -21,7 +21,7 @@
 
   <fem>
     <blcsr>true</blcsr>
-    <result-file>poisson_test_ref_L-shape_3D.txt</result-file>
+    <solution-comparison-file>poisson_test_ref_L-shape_3D.txt</solution-comparison-file>
     <f>5.5</f>
     <dirichlet-boundary-condition>
       <surface>bot</surface>

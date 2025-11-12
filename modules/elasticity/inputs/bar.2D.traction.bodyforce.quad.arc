@@ -22,7 +22,6 @@
   </meshes>
 
   <fem>
-    <result-file>check/elasticity_traction_bodyforce_bar.quad.txt</result-file>
     <hex-quad-mesh>true</hex-quad-mesh>
     <E>21.0e5</E>
     <nu>0.28</nu>

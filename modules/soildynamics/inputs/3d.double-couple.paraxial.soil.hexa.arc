@@ -27,7 +27,6 @@
     <cp>40.</cp>
     <rho>9.0</rho>
     <hex-quad-mesh>true</hex-quad-mesh>
-    <result-file>check/3d_test_paraxial_double_couple.hexa.txt</result-file>
     <paraxial-boundary-condition>
       <surface>boundaries</surface>
     </paraxial-boundary-condition>

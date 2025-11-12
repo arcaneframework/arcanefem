@@ -20,7 +20,7 @@
   </meshes>
 
   <fem>
-    <result-file>poisson_test_ref_L-shape_2D.txt</result-file>
+    <solution-comparison-file>poisson_test_ref_L-shape_2D.txt</solution-comparison-file>
     <f>-5.5</f>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
