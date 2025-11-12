@@ -35,7 +35,7 @@ startInit()
   m_matrix_format = options()->matrixFormat();
   m_assemble_linear_system = options()->assembleLinearSystem();
   m_solve_linear_system = options()->solveLinearSystem();
-  m_cross_validation = options()->crossValidation();
+  m_cross_validation = options()->hasSolutionComparisonFile();
   m_petsc_flags = options()->petscFlags();
   m_hex_quad_mesh = options()->hexQuadMesh();
 
@@ -86,7 +86,7 @@ compute()
  *   1. _getMaterialParameters()          Retrieves material parameters via
  *   2. _assembleBilinearOperator()       Assembles the FEM  matrix 𝑨
  *   3. _assembleLinearOperator()         Assembles the FEM RHS vector 𝒃
- *   4.  _solve()                         Solves for solution vector 𝒖 = 𝑨⁻¹𝒃
+ *   4. _solve()                          Solves for solution vector 𝒖 = 𝑨⁻¹𝒃
  *   5. _updateVariables()                Updates FEM variables 𝒖 = 𝒙
  *   6. _validateResults()                Regression test
  */
@@ -291,8 +291,8 @@ _updateVariables()
  *
  * This method performs the following actions:
  *   1. If number of nodes < 200, prints the computed values for each node.
- *   2. Retrieves the filename for the result file from options.
- *   3. If a filename is provided, checks the computed results against result file.
+ *   2. Retrieves the filename for the solution-comparison-file from options.
+ *   3. Checks the computed results against solution-comparison-file.
  *
  * @note The result comparison uses a tolerance of 1.0e-4.
  */
@@ -310,14 +310,11 @@ _validateResults()
       info() << "u[" << node.uniqueId() << "] = " << m_u[node];
     }
 
-  String filename = options()->resultFile();
+  String filename = options()->solutionComparisonFile();
   const double epsilon = 1.0e-4;
   const double min_value_to_test = 1.0e-16;
 
-  info() << "[ArcaneFem-Info] Validating results filename=" << filename << " epsilon =" << epsilon;
-
-  if (!filename.empty())
-    checkNodeResultFile(traceMng(), filename, m_u, epsilon, min_value_to_test);
+  checkNodeResultFile(traceMng(), filename, m_u, epsilon, min_value_to_test);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "result-validation", elapsedTime);
