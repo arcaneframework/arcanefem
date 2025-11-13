@@ -63,6 +63,10 @@ arcane_generate_axl(HypreDoFLinearSystemFactory)
 arcane_generate_axl(PETScDoFLinearSystemFactory)
 arcane_generate_axl(FemBoundaryConditions)
 
+if (DEFINED CMAKE_CUDA_ARCHITECTURES)
+   set_target_properties(FemUtils PROPERTIES CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES})
+endif()
+
 target_compile_definitions(FemUtils PRIVATE $<$<BOOL:${ENABLE_DEBUG_MATRIX}>:ENABLE_DEBUG_MATRIX>)
 
 target_include_directories(FemUtils PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

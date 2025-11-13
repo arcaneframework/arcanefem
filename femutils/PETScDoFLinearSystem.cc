@@ -100,6 +100,7 @@ class PETScDoFLinearSystemImpl
   Vec m_petsc_solution_vector;
   Vec m_petsc_rhs_vector;
   Mat m_petsc_matrix;
+  ISLocalToGlobalMapping m_petsc_map;
 
  private:
 
@@ -126,11 +127,11 @@ class PETScDoFLinearSystemImpl
 
  private:
 
-  void _computeMatrixNumeration();
-  void _handleParameters(IParallelMng* pm, Runner& runner);
+  void _computeMatrixNumeration(MPI_Comm mpi_comm);
+  void _handleParameters(IParallelMng* pm);
 };
 
-void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm, Runner& runner)
+void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm)
 {
   PetscBool is_initialized;
   PetscInitialized(&is_initialized);
@@ -140,18 +141,22 @@ void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm, Runner& runne
 
 #define MAX_STRING_LENGTH 256
 
-#define X_OPTION(type, petsc_string, variable) \
+#define PETSC_OPTION(type, petsc_string, variable) \
   PetscOptionsGet##type(nullptr, nullptr, petsc_string, &variable, &set); \
   if (!set) \
     PetscOptionsSetValue(nullptr, petsc_string, std::to_string(variable).c_str());
 
-#define X_OPTION_STRING(petsc_string, variable) \
+#define PETSC_OPTION_STRING(petsc_string, variable) \
   variable.resize(MAX_STRING_LENGTH); \
   PetscOptionsGetString(nullptr, nullptr, petsc_string, variable.data(), MAX_STRING_LENGTH, &set); \
   if (!set) \
     PetscOptionsSetValue(nullptr, petsc_string, variable.c_str());                                 \
+  variable.resize(std::strlen(variable.data()));
   // we do variable.resize(MAX_STRING_LENGTH) to make sure there is enough memory to store the option name.
   // may otherwise result in a segfault
+  // after this, we resize to the right size to avoid bugs with info()
+
+  Runner runner = this->runner();
 
   if (pm->isParallel())
   {
@@ -181,21 +186,22 @@ void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm, Runner& runne
   }
 
   PetscBool set;
-  X_OPTION(Real, "-ksp_rtol", m_ksp_rtol);
-  X_OPTION(Real, "-ksp_atol", m_ksp_atol);
-  X_OPTION(Int, "-ksp_max_it", m_ksp_max_it);
-  X_OPTION_STRING("-ksp_type", m_ksp_type);
-  X_OPTION_STRING("-pc_type", m_pc_type);
-  X_OPTION_STRING("-mat_type", m_mat_type);
-  X_OPTION_STRING("-vec_type", m_vec_type);
+  PETSC_OPTION(Real, "-ksp_rtol", m_ksp_rtol);
+  PETSC_OPTION(Real, "-ksp_atol", m_ksp_atol);
+  PETSC_OPTION(Int, "-ksp_max_it", m_ksp_max_it);
+  PETSC_OPTION_STRING("-ksp_type", m_ksp_type);
+  PETSC_OPTION_STRING("-pc_type", m_pc_type);
+  PETSC_OPTION_STRING("-mat_type", m_mat_type);
+  PETSC_OPTION_STRING("-vec_type", m_vec_type);
 
   info() << "[PETSc-Info] Using " << std::string(m_mat_type.c_str()) << " matrix type";
   info() << "[PETSc-Info] Using " << std::string(m_vec_type.c_str()) << " vector type";
 }
 
 void PETScDoFLinearSystemImpl::
-_computeMatrixNumeration()
+_computeMatrixNumeration(MPI_Comm mpi_comm)
 {
+  // TODO use ISLocalToGlobalMappingCreate PETSc struct
   IItemFamily* dof_family = dofFamily();
   IParallelMng* pm = dof_family->parallelMng();
   const bool is_parallel = pm->isParallel();
@@ -226,7 +232,20 @@ _computeMatrixNumeration()
     m_dof_matrix_numbering[idof] = m_first_row + idof.index();
     // info() << "Numbering dof_uid=" << dof.uniqueId() << " M=" << m_dof_matrix_numbering[idof];
   }
+
   m_dof_matrix_numbering.synchronize();
+  pm->barrier();
+
+  NumArray<PetscInt, MDDim1> indices{all_dofs.size()};
+  // info() << "nb total row " << m_nb_total_row;
+
+  ENUMERATE_DOF (idof, all_dofs)
+  {
+    indices[idof.index()] = m_dof_matrix_numbering[idof];
+    // info() << "local index: " << idof.index() << " global index: " << indices[idof.index()];
+  }
+
+  PetscCallAbort(mpi_comm, ISLocalToGlobalMappingCreate(mpi_comm, 1, all_dofs.size(), indices._internalData(), PETSC_COPY_VALUES, &m_petsc_map));
 
   // info() << "my rank: " << my_rank;
   // info() << "Total " << m_nb_total_row << " local: " << m_nb_own_row;
@@ -235,7 +254,6 @@ _computeMatrixNumeration()
   m_parallel_rows_index.resize(m_nb_own_row);
   m_result_work_values.resize(m_nb_own_row);
   m_rhs_work_values.resize(m_nb_own_row);
-
 }
 
 void PETScDoFLinearSystemImpl::
@@ -246,14 +264,14 @@ solve()
   IItemFamily* dof_family = dofFamily();
   IParallelMng* pm = dof_family->parallelMng();
   Runner runner = this->runner();
+  MPI_Comm mpi_comm = MPI_COMM_WORLD;
 
-  _handleParameters(pm, runner);
-  _computeMatrixNumeration();
+  _handleParameters(pm);
+  _computeMatrixNumeration(mpi_comm);
 
   Parallel::Communicator arcane_comm = pm->communicator();
   ITimeStats* tstat = pm->timeStats();
   bool is_parallel = pm->isParallel();
-  MPI_Comm mpi_comm = MPI_COMM_WORLD;
 
   if (arcane_comm.isValid())
     mpi_comm = static_cast<MPI_Comm>(arcane_comm);
@@ -262,16 +280,6 @@ solve()
 
   PetscInt local_rows = m_nb_own_row;          // rows this rank owns
   PetscInt global_rows = m_nb_total_row; // total rows across all ranks
-
-  Real c1 = platform::getRealTime();
-
-  PetscCallAbort(mpi_comm, MatCreate(mpi_comm, &m_petsc_matrix));
-  PetscCallAbort(mpi_comm, MatSetSizes(m_petsc_matrix, local_rows, local_rows, global_rows, global_rows));
-  PetscCallAbort(mpi_comm, MatSetFromOptions(m_petsc_matrix));
-  PetscCallAbort(mpi_comm, MatSetUp(m_petsc_matrix));
-
-  // m_csr_view.columns() use matrix coordinates local to sub-domain
-  // We need to translate them to global matrix coordinates
   Span<const Int32> columns_index_span = csr_view.columns();
 
   // info() << "COLUMNS=" << csr_view.columns();
@@ -303,22 +311,69 @@ solve()
   Span<const Int32> rows_index_span = m_dof_matrix_numbering.asArray();
 
   pm->barrier();
+  bool is_use_device = false;
 
-  // assemble matrix row by row
-  ENUMERATE_ (DoF, idof, dof_family->allItems())
+  if (runner.isInitialized())
   {
-    DoF dof = *idof;
+    is_use_device = isAcceleratorPolicy(runner.executionPolicy());
+    info() << "[PETSc-Info] Runner for PETSc=" << runner.executionPolicy() << " wanted_is_device=" << is_use_device;
+  }
 
-    if (!dof.isOwn()) // for obscure reasons, allItems().own() doesnt work :'(
-      continue;
+  Real c1 = platform::getRealTime();
 
-    PetscInt nb_col = csr_view.rowsNbColumn()[idof.index()];
-    PetscInt row_csr_index = csr_view.rows()[idof.index()];
-    PetscInt global_row = rows_index_span[idof.index()];
-    // info() << "global_row: " << global_row << " nb_col: " << nb_col << " row_csr_index: " << row_csr_index;
-    const PetscInt* cols = &columns_index_data[row_csr_index];
-    const PetscScalar* vals = &matrix_values_data[row_csr_index];
-    PetscCallAbort(mpi_comm, MatSetValues(m_petsc_matrix, 1, &global_row, nb_col, cols, vals, INSERT_VALUES));
+  PetscCallAbort(mpi_comm, MatCreate(mpi_comm, &m_petsc_matrix));
+  PetscCallAbort(mpi_comm, MatSetSizes(m_petsc_matrix, local_rows, local_rows, global_rows, global_rows));
+  PetscCallAbort(mpi_comm, MatSetFromOptions(m_petsc_matrix));
+
+  // m_csr_view.columns() use matrix coordinates local to sub-domain
+  // We need to translate them to global matrix coordinates
+
+  PetscCallAbort(mpi_comm, MatSetLocalToGlobalMapping(m_petsc_matrix, m_petsc_map, m_petsc_map));
+
+  if (true)
+  {
+    // TODO optimize for mutli processes gpu
+    // info() << "nb cols: " << csr_view.nbColumn() << "nb rows: " << csr_view.nbRow() << "nb vals: " << csr_view.nbValue();
+    std::vector<PetscInt> coo_rows;
+    auto csr_rows = csr_view.rows();
+
+    for (int i = 0; i < csr_rows.size() - 1; i++)
+    {
+      // info() << "csr_rows[ " << i << " ]: " << csr_rows[i];
+      int diff = csr_rows[i + 1] - csr_rows[i];
+
+      for (int j = 0; j < diff; j++)
+        coo_rows.push_back(i);
+    }
+
+    for (int j = 0; j < csr_view.nbValue() - csr_rows[csr_rows.size() - 1]; j++)
+      coo_rows.push_back(csr_rows.size() - 1);
+
+    std::vector<PetscInt> coo_cols;
+    coo_cols.assign(csr_view.columns().begin(), csr_view.columns().end()); // copy columns array
+
+    PetscCallAbort(mpi_comm, MatSetPreallocationCOOLocal(m_petsc_matrix, csr_view.nbValue(),coo_rows.data(), coo_cols.data()));
+    PetscCallAbort(mpi_comm, MatSetValuesCOO(m_petsc_matrix, csr_view.values().data(), INSERT_VALUES));
+  }
+  else {
+    // assemble matrix row by row
+    ENUMERATE_ (DoF, idof, dof_family->allItems())
+    {
+      DoF dof = *idof;
+
+      if (!dof.isOwn()) // for obscure reasons, allItems().own() doesnt work :'(
+        continue;
+
+      // info() << idof.index();
+
+      PetscInt nb_col = csr_view.rowsNbColumn()[idof.index()];
+      PetscInt row_csr_index = csr_view.rows()[idof.index()];
+      PetscInt global_row = rows_index_span[idof.index()];
+      // info() << "global_row: " << global_row << " nb_col: " << nb_col << " row_csr_index: " << row_csr_index;
+      const PetscInt* cols = &columns_index_data[row_csr_index];
+      const PetscScalar* vals = &matrix_values_data[row_csr_index];
+      PetscCallAbort(mpi_comm, MatSetValues(m_petsc_matrix, 1, &global_row, nb_col, cols, vals, INSERT_VALUES));
+    }
   }
 
   pm->barrier();
@@ -343,18 +398,10 @@ solve()
   PetscCallAbort(mpi_comm, VecCreateMPI(mpi_comm, local_rows, global_rows, &m_petsc_solution_vector));
   PetscCallAbort(mpi_comm, VecSetFromOptions(m_petsc_solution_vector));
 
-  for (int i = 0; i < dof_variable.asArray().size(); i++)
-  {
-    // TODO opti
-    int index = rows_index_data[i];
+  PetscCallAbort(mpi_comm, VecSetValues(m_petsc_rhs_vector, dof_variable.asArray().size(), rows_index_data, rhs_data, ADD_VALUES));
+  PetscCallAbort(mpi_comm, VecSetValues(m_petsc_solution_vector, dof_variable.asArray().size(), rows_index_data, result_data, ADD_VALUES));
 
-    if (index < m_first_row || index >= m_first_row + m_nb_own_row)
-      continue;
-
-    PetscCallAbort(mpi_comm, VecSetValue(m_petsc_rhs_vector, index, rhs_data[i], INSERT_VALUES));
-    PetscCallAbort(mpi_comm, VecSetValue(m_petsc_solution_vector, index, result_data[i], INSERT_VALUES));
-    // info() << "rows: " << rows_index_data[i] << " rhs: " << rhs_data[i] << " result: " << result_data[i];
-  }
+  pm->barrier();
 
   PetscCallAbort(mpi_comm, VecAssemblyBegin(m_petsc_rhs_vector));
   PetscCallAbort(mpi_comm, VecAssemblyEnd(m_petsc_rhs_vector));
@@ -370,6 +417,12 @@ solve()
   PetscCallAbort(mpi_comm, KSPSolve(m_petsc_solver_context, m_petsc_rhs_vector, m_petsc_solution_vector));
   Real a2 = platform::getRealTime();
   info() << "[PETSc-Timer] Time to solve = " << (a2 - a1);
+
+  PetscInt iteration_idx;
+  PetscCallAbort(mpi_comm, KSPGetIterationNumber(m_petsc_solver_context, &iteration_idx));
+
+  info() << "[PETSc-Info] Used " << m_pc_type << " preconditionner. Converged in " << iteration_idx + 1 << " iterations";
+
 
   if (is_parallel) {
     // Fill 'm_parallel_rows_index' with only rows we owns

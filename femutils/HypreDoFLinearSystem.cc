@@ -509,7 +509,7 @@ solve()
     HYPRE_IJMatrixAssemble(ij_A);
     HYPRE_IJMatrixGetObject(ij_A, (void**)&parcsr_A);
     Real m2 = platform::getRealTime();
-    info() << "[Hypre-Timer] Time to create matrix=" << (m2 - m1);
+    info() << "[Hypre-Timer] Time to create matrix = " << (m2 - m1);
   }
 
   pm->traceMng()->flush();
@@ -569,7 +569,7 @@ solve()
              HYPRE_IJVectorAssemble(ij_vector_x));
   HYPRE_IJVectorGetObject(ij_vector_x, (void**)&parvector_x);
   Real v2 = platform::getRealTime();
-  info() << "[Hypre-Timer] Time to create vectors=" << (v2 - v1);
+  info() << "[Hypre-Timer] Time to create vectors = " << (v2 - v1);
   pm->traceMng()->flush();
 
   if (do_dump_matrix) {
@@ -732,7 +732,7 @@ solve()
   }
 
   Real a2 = platform::getRealTime();
-  info() << "[Hypre-Timer] Time to setup =" << (a2 - a1);
+  info() << "[Hypre-Timer] Time to setup = " << (a2 - a1);
   pm->traceMng()->flush();
 
   {
@@ -761,7 +761,33 @@ solve()
     }
   }
   Real b1 = platform::getRealTime();
-  info() << "[Hypre-Timer] Time to solve=" << (b1 - a2);
+  info() << "[Hypre-Timer] Time to solve = " << (b1 - a2);
+
+  HYPRE_Int iterations;
+
+  switch (m_solver) {
+  case solver::CG:
+    hypreCheck("HYPRE_ParCSRPCGGetNumIterations",
+               HYPRE_ParCSRPCGGetNumIterations(solver, &iterations));
+    break;
+  case solver::GMRES:
+    hypreCheck("HYPRE_ParCSRGMRESGetNumIterations",
+               HYPRE_ParCSRGMRESGetNumIterations(solver, &iterations));
+    break;
+  case solver::FGMRES:
+    hypreCheck("HYPRE_ParCSRFlexGMRESGetNumIterations",
+               HYPRE_ParCSRFlexGMRESGetNumIterations(solver, &iterations));
+    break;
+  case solver::BICGSTAB:
+    hypreCheck("HYPRE_ParCSRBiCGSTABGetNumIterations",
+               HYPRE_ParCSRBiCGSTABGetNumIterations(solver, &iterations));
+    break;
+  default:
+    ARCANE_FATAL("Hypre solver type not correct use: cg|gmres|fgmres|bicgstab");
+    break;
+  }
+
+  info() << "[Hypre-Info] Converged in " << iterations << " iterations";
   pm->traceMng()->flush();
 
   if (is_parallel) {
