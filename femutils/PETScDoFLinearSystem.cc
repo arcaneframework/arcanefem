@@ -353,7 +353,6 @@ solve()
     coo_cols.assign(csr_view.columns().begin(), csr_view.columns().end()); // copy columns array
 
     PetscCallAbort(mpi_comm, MatSetPreallocationCOOLocal(m_petsc_matrix, csr_view.nbValue(),coo_rows.data(), coo_cols.data()));
-    PetscCallAbort(mpi_comm, MatSetUp(m_petsc_matrix));
     PetscCallAbort(mpi_comm, MatSetValuesCOO(m_petsc_matrix, csr_view.values().data(), INSERT_VALUES));
   }
   else {
