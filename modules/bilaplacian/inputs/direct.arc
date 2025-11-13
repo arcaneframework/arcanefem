@@ -20,7 +20,6 @@
   </meshes>
 
   <fem>
-    <result-file>check/2d_test.txt</result-file>
     <f>-786.25</f>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>

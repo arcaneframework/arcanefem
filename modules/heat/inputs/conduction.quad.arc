@@ -21,7 +21,6 @@
 
   <fem>
     <hex-quad-mesh>true</hex-quad-mesh>
-    <result-file>check/2d_conduction.quad.txt</result-file>
     <lambda>1.75</lambda>
     <tmax>20.</tmax>
     <dt>0.4</dt>

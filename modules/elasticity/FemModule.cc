@@ -172,7 +172,7 @@ _getMaterialParameters()
   m_matrix_format = options()->matrixFormat();
   m_assemble_linear_system = options()->assembleLinearSystem();
   m_solve_linear_system = options()->solveLinearSystem();
-  m_cross_validation = options()->crossValidation();
+  m_cross_validation = options()->hasSolutionComparisonFile();
   m_petsc_flags = options()->petscFlags();
   m_hex_quad_mesh = options()->hexQuadMesh();
 
@@ -368,14 +368,11 @@ _validateResults()
     std::cout.precision(p);
   }
 
-  String filename = options()->resultFile();
+  String filename = options()->solutionComparisonFile();
   const double epsilon = options()->resultEpsilon();
   const double min_value_to_test = 1.0e-16;
 
-  info() << "[ArcaneFem-Info] Validating results filename=" << filename << " epsilon =" << epsilon;
-
-  if (!filename.empty())
-    Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_U, epsilon, min_value_to_test);
+  Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_U, epsilon, min_value_to_test);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"result-validation", elapsedTime);

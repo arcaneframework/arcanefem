@@ -23,7 +23,6 @@
   </meshes>
 
   <fem>
-    <result-file>check/test_elasticity_results.txt</result-file>
     <E>21.0e5</E>
     <nu>0.28</nu>
     <f>NULL -1.0</f>

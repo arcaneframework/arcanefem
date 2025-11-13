@@ -22,7 +22,6 @@
   </meshes>
 
   <fem>
-    <result-file>check/3D_dirichlet_bodyforce.hexa.txt</result-file>
     <hex-quad-mesh>true</hex-quad-mesh>
     <E>200e9</E>
     <nu>0.3</nu>

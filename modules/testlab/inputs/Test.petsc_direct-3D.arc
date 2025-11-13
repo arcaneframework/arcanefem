@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Testlab" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>Testlab: 2D L-shape with Dirichlet Boundaries (BL-CSR Format built for GPU, PETSc Linear System Solver)</title>
+    <title>Testlab: 3D L-shape with Dirichlet Boundaries (BL-CSR Format built for GPU, PETSc Linear System Solver)</title>
     <timeloop>TestlabLoop</timeloop>
   </arcane>
 
@@ -20,7 +20,8 @@
   </meshes>
 
   <fem>
-    <f>-5.5</f>
+    <solution-comparison-file>poisson_test_ref_L-shape_3D.txt</solution-comparison-file>
+    <f>5.5</f>
     <blcsr>true</blcsr>
     <legacy>false</legacy>
     <dirichlet-boundary-condition>

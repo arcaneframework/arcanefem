@@ -35,6 +35,5 @@
         <value>NULL 1.0 NULL</value>
       </dirichlet>
     </boundary-conditions>
-    <result-file>check/3D_dirichlet_bodyforce_test_ref.txt</result-file>
   </fem>
 </case>

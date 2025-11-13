@@ -194,8 +194,8 @@ void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm)
   PETSC_OPTION_STRING("-mat_type", m_mat_type);
   PETSC_OPTION_STRING("-vec_type", m_vec_type);
 
-  info() << "[PETSc-Info] Using " << m_mat_type << " matrix type";
-  info() << "[PETSc-Info] Using " << m_vec_type << " vector type";
+  info() << "[PETSc-Info] Using " << std::string(m_mat_type.c_str()) << " matrix type";
+  info() << "[PETSc-Info] Using " << std::string(m_vec_type.c_str()) << " vector type";
 }
 
 void PETScDoFLinearSystemImpl::

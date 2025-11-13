@@ -20,7 +20,6 @@
   </meshes>
 
   <fem>
-    <result-file>check/poisson_test_point_dirichlet_2D.txt</result-file>
     <boundary-conditions>
       <dirichlet-point>
         <node>topLeftCorner</node>

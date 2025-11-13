@@ -89,7 +89,7 @@ class FemModule
 
   bool m_assemble_linear_system = true;
   bool m_solve_linear_system = true;
-  bool m_cross_validation = true;
+  bool m_cross_validation = false;
   bool m_hex_quad_mesh = false;
 
   DoFLinearSystem m_linear_system;

@@ -15,7 +15,7 @@
       - timeloop: Defines the time-stepping loop for the simulation.
   -->
   <arcane>
-    <title>Sphere in sphere Toy Case</title>
+    <title>Sphere in sphere toy Case</title>
     <timeloop>AcousticsLoop</timeloop>
   </arcane>
 
@@ -37,7 +37,6 @@
       - kc2: Coefficient used in the FEM calculations.
       - boundary-conditions: Defines neumann boundary conditions for the simulation.
       - linear-system: Specifies the linear system solver to use.
-      - result-file: File for validation (optional)
   -->
   <fem>
     <hex-quad-mesh>true</hex-quad-mesh>
@@ -49,7 +48,6 @@
       </neumann>
     </boundary-conditions>
     <linear-system name="SequentialBasicLinearSystem" />
-    <result-file>check/sphere_3d.hexa.txt</result-file>
   </fem>
 
   <!--

@@ -2015,9 +2015,6 @@ _solve()
   elapsedTime = platform::getRealTime() - TimeStart;
   _printArcaneFemTime("[ArcaneFem-Timer] solving-linear-system-3", elapsedTime);
 
-  elapsedTime = platform::getRealTime() - TimeStart;
-  _printArcaneFemTime("[ArcaneFem-Timer] solving-linear-system2", elapsedTime);
-
   // Re-Apply boundary conditions because the solver has modified the value
   {
     TimeStart = platform::getRealTime();
@@ -2070,11 +2067,12 @@ _checkResultFile()
   info() << "[ArcaneFem-Info] Started module _checkResultFile()";
   Real elapsedTime = platform::getRealTime();
 
-  String filename = options()->resultFile();
+  String filename = options()->solutionComparisonFile();
   if (filename.empty())
     return;
   const double epsilon = 1.0e-4;
   const double skipValuesMinLim = 1.0e-16;
+
   checkNodeResultFile(traceMng(), filename, m_u, epsilon, skipValuesMinLim);
 
   elapsedTime = platform::getRealTime() - elapsedTime;

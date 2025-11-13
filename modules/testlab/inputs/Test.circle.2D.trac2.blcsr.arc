@@ -21,7 +21,7 @@
 
   <fem>
     <blcsr>true</blcsr>
-    <result-file>poisson_test_ref_circle_vect-trac_2D.txt</result-file>
+    <solution-comparison-file>poisson_test_ref_circle_vect-trac_2D.txt</solution-comparison-file>
     <f>5.5</f>
     <dirichlet-boundary-condition>
       <surface>horizontal</surface>

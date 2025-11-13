@@ -13,6 +13,7 @@
 
 #include "FemModule.h"
 #include "ElementMatrix.h"
+#include "ElementMatrixHexQuad.h"
 #include "SourceTerm.h"
 #include "Dirichlet.h"
 #include "Traction.h"
@@ -130,6 +131,9 @@ _getParameters()
   info() << "[ArcaneFem-Info] Started module  _getParameters()";
   Real elapsedTime = platform::getRealTime();
 
+  //--------- mesh parameter ------------//
+  m_hex_quad_mesh = options()->hexQuadMesh();
+
   //--------- time parameters -----------//
   tmax = options()->tmax(); // max time
   dt = options()->dt(); // time step
@@ -187,7 +191,7 @@ _getParameters()
   m_matrix_format = options()->matrixFormat();
   m_assemble_linear_system = options()->assembleLinearSystem();
   m_solve_linear_system = options()->solveLinearSystem();
-  m_cross_validation = options()->crossValidation();
+  m_cross_validation = options()->hasSolutionComparisonFile();
   m_petsc_flags = options()->petscFlags();
 
   _readCaseTables();
@@ -325,16 +329,35 @@ _assembleBilinearOperator()
   Real elapsedTime = platform::getRealTime();
 
   if (t <= dt) {
-    if (mesh()->dimension() == 2)
-      if(m_matrix_format == "DOK")
-        _assembleBilinearOperatorCpu<6>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
-      else if(m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
+    if (m_matrix_format == "DOK") {
+      if (mesh()->dimension() == 2) {
+        if (m_hex_quad_mesh) {
+          _assembleBilinearOperatorCpu<8>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+        }
+        else {
+          _assembleBilinearOperatorCpu<6>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
+        }
+      }
+      if (mesh()->dimension() == 3) {
+        if (m_hex_quad_mesh) {
+          _assembleBilinearOperatorCpu<24>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
+        }
+        else{
+          _assembleBilinearOperatorCpu<12>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
+        }
+      }
+    }
+    else if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") {
+      if (mesh()->dimension() == 2) {
         _assembleBilinearOperatorTria3Gpu();
-    if (mesh()->dimension() == 3)
-      if(m_matrix_format == "DOK")
-        _assembleBilinearOperatorCpu<12>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
-      else if(m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
+      }
+      if (mesh()->dimension() == 3) {
         _assembleBilinearOperatorTetra4Gpu();
+      }
+    }
+    else {
+      ARCANE_FATAL("Unsupported matrix type, only DOK| BSR | AF-BSR is supported.");
+    }
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -464,14 +487,11 @@ _validateResults()
     std::cout.precision(p);
   }
 
-  String filename = options()->resultFile();
+  String filename = options()->solutionComparisonFile();
   const double epsilon = 1.0e-4;
-  const double min_value_to_test = 1.0e-16;
+  const double min_value_to_test = 1.0e-10;
 
-  info() << "[ArcaneFem-Info] Validating results filename=" << filename << " epsilon =" << epsilon;
-
-  if (!filename.empty())
-    Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_dU, epsilon, min_value_to_test);
+  Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_dU, epsilon, min_value_to_test);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "cross-validation", elapsedTime);

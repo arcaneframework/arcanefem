@@ -24,7 +24,6 @@
 
     <rho>0.0</rho>
     <epsilon>1.0</epsilon>
-    <result-file>check/test_1.txt</result-file>
     <boundary-conditions>
       <dirichlet>
         <surface>rod1</surface>

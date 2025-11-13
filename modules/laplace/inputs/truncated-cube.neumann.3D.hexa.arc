@@ -30,6 +30,5 @@
         <value>3.1</value>
       </neumann>
     </boundary-conditions>
-    <result-file>check/test_trucated-cube_hexa.txt</result-file>
   </fem>
 </case>

@@ -38,77 +38,90 @@ endforeach()
 enable_testing()
 
 add_test(NAME [poisson]2D_pntDirichlet COMMAND Poisson
-    inputs/perforatedSquare.pointDirichlet.2D.arc)
+  -A,//fem/solution-comparison-file=check/poisson_test_point_dirichlet_2D.txt
+  inputs/perforatedSquare.pointDirichlet.2D.arc)
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [poisson]2D COMMAND Poisson
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
     inputs/circle.2D.arc)
   add_test(NAME [poisson]2D_neumann COMMAND Poisson
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D.txt
     inputs/circle.neumann.2D.arc)
   add_test(NAME [poisson]2D_quad COMMAND Poisson
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D_quad.txt
     inputs/circle.2D.quad.arc)
   add_test(NAME [poisson]2D_neumann_quad COMMAND Poisson
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D_quad.txt
     inputs/circle.neumann.2D.quad.arc)
   add_test(NAME [poisson]2D_scalar_neumann_quad COMMAND Poisson
-    -A,//fem/result-file=check/poisson_test_ref_circle_scalar_neumann_2D_quad.txt
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_scalar_neumann_2D_quad.txt
     -A,//fem/boundary-conditions/neumann/value=2
     inputs/circle.neumann.2D.quad.arc)
   add_test(NAME [poisson]3D COMMAND Poisson
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
     inputs/sphere.3D.arc)
   add_test(NAME [poisson]3D_neumann COMMAND Poisson
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_neumann_3D.txt
     inputs/sphere.neumann.3D.arc)
   add_test(NAME [poisson]3D_hexa COMMAND Poisson
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D_hexa.txt
     inputs/sphere.3D.hexa.arc)
   add_test(NAME [poisson]3D_neumann_hexa COMMAND Poisson
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_neumann_3D_hexa.txt
     inputs/sphere.neumann.3D.hexa.arc)
   add_test(NAME [poisson]3D_scalar_neumann_hexa COMMAND Poisson
-    -A,//fem/result-file=check/poisson_test_ref_sphere_scalar_neumann_3D_hexa.txt
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_scalar_neumann_3D_hexa.txt
     -A,//fem/boundary-conditions/neumann/value=3.1
     inputs/sphere.neumann.3D.hexa.arc)
   add_test(NAME [poisson]2D_petsc COMMAND Poisson
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
     -A,//fem/petsc-flags=-ksp_monitor
     inputs/circle.2D.arc)
   add_test(NAME [poisson]2D_assembly_only COMMAND Poisson
     -A,//fem/solve-linear-system=false
-    -A,//fem/cross-validation=false
-    inputs/circle.2D.arc)
-  add_test(NAME [poisson]2D_no_cross_validation COMMAND Poisson
-    -A,//fem/cross-validation=false
     inputs/circle.2D.arc)
   add_test(NAME [poisson]2D_parse_and_exit COMMAND Poisson
     -A,//fem/assemble-linear-system=false
     -A,//fem/solve-linear-system=false
-    -A,//fem/cross-validation=false
     inputs/circle.2D.arc)
 
   arcanefem_add_gpu_test(NAME [poisson]2D_bsr COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
     -A,//fem/matrix-format=BSR
     inputs/circle.2D.arc)
   arcanefem_add_gpu_test(NAME [poisson]2D_af-bsr COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
     -A,//fem/matrix-format=AF-BSR
     inputs/circle.2D.arc)
   arcanefem_add_gpu_test(NAME [poisson]3D_bsr COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
     -A,//fem/matrix-format=BSR
     inputs/sphere.3D.arc)
   arcanefem_add_gpu_test(NAME [poisson]3D_af-bsr COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
     -A,//fem/matrix-format=AF-BSR
     inputs/sphere.3D.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER)
     add_test(NAME [poisson]2D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
       inputs/circle.2D.arc)
     add_test(NAME [poisson]2D_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D_quad.txt
       inputs/circle.2D.quad.arc)
     add_test(NAME [poisson]2D_scalar_neumann_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
-      -A,//fem/result-file=check/poisson_test_ref_circle_scalar_neumann_2D_quad.txt
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_scalar_neumann_2D_quad.txt
       -A,//fem/boundary-conditions/neumann/value=2
       inputs/circle.neumann.2D.quad.arc)
     add_test(NAME [poisson]3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
       inputs/sphere.3D.arc)
     add_test(NAME [poisson]3D_hexa_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D_hexa.txt
       inputs/sphere.3D.hexa.arc)
     add_test(NAME [poisson]3D_scalar_neumann_hexa_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
-      -A,//fem/result-file=check/poisson_test_ref_sphere_scalar_neumann_3D_hexa.txt
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_scalar_neumann_3D_hexa.txt
       -A,//fem/boundary-conditions/neumann/value=3.1
       inputs/sphere.neumann.3D.hexa.arc)
   endif()
@@ -131,22 +144,27 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/linear-system/rtol=0)
 
   arcanefem_add_gpu_test(NAME [poisson]2D_pntDirichlet_bsr_hypre COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_point_dirichlet_2D.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG_2D}
     inputs/perforatedSquare.pointDirichlet.2D.arc)
   arcanefem_add_gpu_test(NAME [poisson]2D_bsr_hypre COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG_2D}
     inputs/circle.2D.arc)
   arcanefem_add_gpu_test(NAME [poisson]2D_neumann_bsr_hypre COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG_2D}
     inputs/circle.neumann.2D.arc)
   arcanefem_add_gpu_test(NAME [poisson]2D_bsr_atomicFree_hypre COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG_2D}
     inputs/circle.2D.arc)
   arcanefem_add_gpu_test(NAME [poisson]3D_bsr_hypre_gpu COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG_3D}
     inputs/sphere.3D.arc)
@@ -155,6 +173,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     ${SOLVER_HYPRE_CG_3D}
     inputs/sphere.neumann.3D.arc)
   arcanefem_add_gpu_test(NAME [poisson]3D_bsr_atomicFree_hypre_gpu COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG_3D}
     inputs/sphere.3D.arc)

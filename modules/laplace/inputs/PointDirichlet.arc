@@ -20,7 +20,6 @@
   </meshes>
 
   <fem>
-    <result-file>check/test3_results.txt</result-file>
     <boundary-conditions>
       <dirichlet-point>
         <node>topLeftCorner</node>

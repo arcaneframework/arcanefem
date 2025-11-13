@@ -22,7 +22,6 @@
 
   <fem>
     <hex-quad-mesh>true</hex-quad-mesh>
-    <result-file>check/bar_dirichlet_traction_bodyforce.quad.txt</result-file>
     <tmax>1.</tmax>
     <dt>0.08</dt>
     <alpm>0.00</alpm>

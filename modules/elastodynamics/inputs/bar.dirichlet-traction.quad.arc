@@ -22,8 +22,6 @@
 
   <fem>
     <hex-quad-mesh>true</hex-quad-mesh>
-
-    <result-file>check/bar_2d_dirichlet-traction.quad.txt</result-file>
     <time-discretization>Newmark-beta</time-discretization>
     <tmax>2.</tmax>
     <dt>0.08</dt>

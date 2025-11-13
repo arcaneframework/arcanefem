@@ -33,28 +33,39 @@ target_link_libraries(Acoustics PUBLIC FemUtils)
 
 enable_testing()
 
-add_test(NAME [acoustics]2D_submarine COMMAND Acoustics inputs/sub.arc)
-add_test(NAME [acoustics]2D_submarine_quad COMMAND Acoustics inputs/sub.quad.arc)
-add_test(NAME [acoustics]3D_sphere COMMAND Acoustics inputs/3d_sub.arc)
-add_test(NAME [acoustics]3D_sphere_hexa COMMAND Acoustics inputs/3d_sphere_in_sphere.hexa.arc)
-
+add_test(NAME [acoustics]2D_submarine COMMAND Acoustics
+  -A,//fem/solution-comparison-file=check/sub_2D.txt
+  inputs/sub.arc)
+add_test(NAME [acoustics]2D_submarine_quad COMMAND Acoustics
+  -A,//fem/solution-comparison-file=check/sub_2D.quad.txt
+  inputs/sub.quad.arc)
+add_test(NAME [acoustics]3D_sphere COMMAND Acoustics
+    -A,//fem/solution-comparison-file=check/sphere_3d.txt
+    inputs/3d_sub.arc)
+add_test(NAME [acoustics]3D_sphere_hexa COMMAND Acoustics
+  -A,//fem/solution-comparison-file=check/sphere_3d.hexa.txt
+  inputs/3d_sphere_in_sphere.hexa.arc)
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [acoustics]parse_and_exit COMMAND Acoustics
     -A,//fem/assemble-linear-system=false
     -A,//fem/solve-linear-system=false
-    -A,//fem/cross-validation=false
     inputs/sub.arc)
 endif()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-  add_test(NAME [acoustics]2D_submarine_hypre COMMAND Acoustics inputs/sub.hypre.arc)
+  add_test(NAME [acoustics]2D_submarine_hypre COMMAND Acoustics
+    -A,//fem/solution-comparison-file=check/sub_2D.txt
+    inputs/sub.hypre.arc)
   add_test(NAME [acoustics]3D_sphere_hypre COMMAND Acoustics
+    -A,//fem/solution-comparison-file=check/sphere_3d.txt
     -A,//fem/linear-system/@name=AlephLinearSystem
     -A,//fem/linear-system/solver-backend=hypre
     -A,//fem/linear-system/solver-method=gmres
     inputs/3d_sub.arc)
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-    add_test(NAME [acoustics]2D_submarine_hypre_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Acoustics inputs/sub.hypre.arc)
+    add_test(NAME [acoustics]2D_submarine_hypre_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Acoustics
+      -A,//fem/solution-comparison-file=check/sub_2D.txt
+      inputs/sub.hypre.arc)
   endif()
 endif()

@@ -23,7 +23,6 @@
   </meshes>
 
   <fem>
-    <result-file>check/elasticity_point-dirichlet_bar_test_ref.txt</result-file>
     <E>21.0e5</E>
     <nu>0.28</nu>
     <f>NULL -1.0</f>
