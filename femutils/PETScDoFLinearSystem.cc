@@ -284,10 +284,14 @@ solve()
   IItemFamily* dof_family = dofFamily();
   IParallelMng* pm = dof_family->parallelMng();
   Runner runner = this->runner();
-  MPI_Comm mpi_comm = static_cast<MPI_Comm>(pm->communicator());
+  MPI_Comm mpi_comm = MPI_COMM_WORLD;
 
   _handleParameters(pm);
   _computeMatrixNumeration(mpi_comm);
+
+  Parallel::Communicator arcane_comm = pm->communicator();
+  if (arcane_comm.isValid())
+    mpi_comm = static_cast<MPI_Comm>(arcane_comm);
 
   bool is_parallel = pm->isParallel();
   CSRFormatView csr_view = this->getCSRValues();
