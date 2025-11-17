@@ -298,31 +298,6 @@ solve()
 
   PetscInt local_rows = m_nb_own_row;          // rows this rank owns
   PetscInt global_rows = m_nb_total_row; // total rows across all ranks
-  Span<const Int32> columns_index_span = csr_view.columns();
-
-  // info() << "COLUMNS=" << csr_view.columns();
-
-  if (is_parallel)
-  {
-    // TODO: Faire sur accélérateur et ne faire qu'une fois si la structure
-    // ne change pas.
-    Int64 nb_column = columns_index_span.size();
-    m_parallel_columns_index.resize(nb_column);
-    for (Int64 i = 0; i < nb_column; ++i)
-    {
-      DoFLocalId lid(columns_index_span[i]);
-      // info() << "I=" << i << " index=" << columns_index_span[i] << " lid: " << lid;
-      // Si lid correspond à une entité nulle, alors la valeur de la matrice
-      // ne sera pas utilisée.
-      if (!lid.isNull())
-        m_parallel_columns_index[i] = m_dof_matrix_numbering[lid];
-      else
-        m_parallel_columns_index[i] = 0;
-    }
-    columns_index_span = m_parallel_columns_index.to1DSpan();
-  }
-
-  pm->barrier();
   bool is_use_device = false;
 
   if (runner.isInitialized())
@@ -336,10 +311,6 @@ solve()
   PetscCallAbort(mpi_comm, MatCreate(mpi_comm, &m_petsc_matrix));
   PetscCallAbort(mpi_comm, MatSetSizes(m_petsc_matrix, local_rows, local_rows, global_rows, global_rows));
   PetscCallAbort(mpi_comm, MatSetFromOptions(m_petsc_matrix));
-
-  // m_csr_view.columns() use matrix coordinates local to sub-domain
-  // We need to translate them to global matrix coordinates
-
   PetscCallAbort(mpi_comm, MatSetLocalToGlobalMapping(m_petsc_matrix, m_petsc_map, m_petsc_map));
 
   // info() << "nb cols: " << csr_view.nbColumn() << "nb rows: " << csr_view.nbRow() << "nb vals: " << csr_view.nbValue();
