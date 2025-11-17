@@ -129,6 +129,7 @@ class PETScDoFLinearSystemImpl
 
   void _computeMatrixNumeration(MPI_Comm mpi_comm);
   void _handleParameters(IParallelMng* pm);
+  std::vector<PetscInt> _CSRToCOO (const Span<const int32_t>&& csr_rows, int32_t nb_value);
 };
 
 void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm)
@@ -221,7 +222,8 @@ _computeMatrixNumeration(MPI_Comm mpi_comm)
     // info() << "ALL_NB_ROW = " << parallel_rows_index;
     m_nb_total_row = 0;
     // TODO optimize partial and total sum
-    for (Int32 v : parallel_rows_index) m_nb_total_row += v;
+    for (Int32 v : parallel_rows_index)
+      m_nb_total_row += v;
     for (Int32 i = 0; i < my_rank; ++i)
       m_first_row += parallel_rows_index[i];
   }
@@ -236,11 +238,10 @@ _computeMatrixNumeration(MPI_Comm mpi_comm)
   m_dof_matrix_numbering.synchronize();
   pm->barrier();
 
-  NumArray<PetscInt, MDDim1> indices{all_dofs.size()};
+  NumArray<PetscInt, MDDim1> indices{ all_dofs.size() };
   // info() << "nb total row " << m_nb_total_row;
 
-  ENUMERATE_DOF (idof, all_dofs)
-  {
+  ENUMERATE_DOF (idof, all_dofs) {
     indices[idof.index()] = m_dof_matrix_numbering[idof];
     // info() << "local index: " << idof.index() << " global index: " << indices[idof.index()];
   }
@@ -256,6 +257,25 @@ _computeMatrixNumeration(MPI_Comm mpi_comm)
   m_rhs_work_values.resize(m_nb_own_row);
 }
 
+std::vector<PetscInt> PETScDoFLinearSystemImpl::_CSRToCOO (const Span<const int32_t>&& csr_rows, int32_t nb_value)
+{
+  std::vector<PetscInt> coo_rows;
+
+  for (int i = 0; i < csr_rows.size() - 1; i++)
+  {
+    // info() << "csr_rows[ " << i << " ]: " << csr_rows[i];
+    int diff = csr_rows[i + 1] - csr_rows[i];
+
+    for (int j = 0; j < diff; j++)
+      coo_rows.push_back(i);
+  }
+
+  for (int j = 0; j < nb_value - csr_rows[csr_rows.size() - 1]; j++)
+    coo_rows.push_back(csr_rows.size() - 1);
+
+  return coo_rows;
+}
+
 void PETScDoFLinearSystemImpl::
 solve()
 {
@@ -264,18 +284,12 @@ solve()
   IItemFamily* dof_family = dofFamily();
   IParallelMng* pm = dof_family->parallelMng();
   Runner runner = this->runner();
-  MPI_Comm mpi_comm = MPI_COMM_WORLD;
+  MPI_Comm mpi_comm = static_cast<MPI_Comm>(pm->communicator());
 
   _handleParameters(pm);
   _computeMatrixNumeration(mpi_comm);
 
-  Parallel::Communicator arcane_comm = pm->communicator();
-  ITimeStats* tstat = pm->timeStats();
   bool is_parallel = pm->isParallel();
-
-  if (arcane_comm.isValid())
-    mpi_comm = static_cast<MPI_Comm>(arcane_comm);
-
   CSRFormatView csr_view = this->getCSRValues();
 
   PetscInt local_rows = m_nb_own_row;          // rows this rank owns
@@ -304,12 +318,6 @@ solve()
     columns_index_span = m_parallel_columns_index.to1DSpan();
   }
 
-  Span<const Real> matrix_values = csr_view.values();
-
-  const PetscInt* columns_index_data = columns_index_span.data();
-  const PetscReal* matrix_values_data = matrix_values.data();
-  Span<const Int32> rows_index_span = m_dof_matrix_numbering.asArray();
-
   pm->barrier();
   bool is_use_device = false;
 
@@ -330,51 +338,14 @@ solve()
 
   PetscCallAbort(mpi_comm, MatSetLocalToGlobalMapping(m_petsc_matrix, m_petsc_map, m_petsc_map));
 
-  if (true)
-  {
-    // TODO optimize for mutli processes gpu
-    // info() << "nb cols: " << csr_view.nbColumn() << "nb rows: " << csr_view.nbRow() << "nb vals: " << csr_view.nbValue();
-    std::vector<PetscInt> coo_rows;
-    auto csr_rows = csr_view.rows();
+  // info() << "nb cols: " << csr_view.nbColumn() << "nb rows: " << csr_view.nbRow() << "nb vals: " << csr_view.nbValue();
 
-    for (int i = 0; i < csr_rows.size() - 1; i++)
-    {
-      // info() << "csr_rows[ " << i << " ]: " << csr_rows[i];
-      int diff = csr_rows[i + 1] - csr_rows[i];
+  std::vector<PetscInt> coo_rows = _CSRToCOO(csr_view.rows(), csr_view.nbValue());
+  std::vector<PetscInt> coo_cols;
+  coo_cols.assign(csr_view.columns().begin(), csr_view.columns().end()); // copy columns array
 
-      for (int j = 0; j < diff; j++)
-        coo_rows.push_back(i);
-    }
-
-    for (int j = 0; j < csr_view.nbValue() - csr_rows[csr_rows.size() - 1]; j++)
-      coo_rows.push_back(csr_rows.size() - 1);
-
-    std::vector<PetscInt> coo_cols;
-    coo_cols.assign(csr_view.columns().begin(), csr_view.columns().end()); // copy columns array
-
-    PetscCallAbort(mpi_comm, MatSetPreallocationCOOLocal(m_petsc_matrix, csr_view.nbValue(),coo_rows.data(), coo_cols.data()));
-    PetscCallAbort(mpi_comm, MatSetValuesCOO(m_petsc_matrix, csr_view.values().data(), INSERT_VALUES));
-  }
-  else {
-    // assemble matrix row by row
-    ENUMERATE_ (DoF, idof, dof_family->allItems())
-    {
-      DoF dof = *idof;
-
-      if (!dof.isOwn()) // for obscure reasons, allItems().own() doesnt work :'(
-        continue;
-
-      // info() << idof.index();
-
-      PetscInt nb_col = csr_view.rowsNbColumn()[idof.index()];
-      PetscInt row_csr_index = csr_view.rows()[idof.index()];
-      PetscInt global_row = rows_index_span[idof.index()];
-      // info() << "global_row: " << global_row << " nb_col: " << nb_col << " row_csr_index: " << row_csr_index;
-      const PetscInt* cols = &columns_index_data[row_csr_index];
-      const PetscScalar* vals = &matrix_values_data[row_csr_index];
-      PetscCallAbort(mpi_comm, MatSetValues(m_petsc_matrix, 1, &global_row, nb_col, cols, vals, INSERT_VALUES));
-    }
-  }
+  PetscCallAbort(mpi_comm, MatSetPreallocationCOOLocal(m_petsc_matrix, csr_view.nbValue(),coo_rows.data(), coo_cols.data()));
+  PetscCallAbort(mpi_comm, MatSetValuesCOO(m_petsc_matrix, csr_view.values().data(), INSERT_VALUES));
 
   pm->barrier();
 
@@ -387,6 +358,7 @@ solve()
 
   VariableDoFReal& rhs_variable = this->rhsVariable();
   VariableDoFReal& dof_variable = this->solutionVariable();
+  Span<const Int32> rows_index_span = m_dof_matrix_numbering.asArray();
   const Real* rhs_data = rhs_variable.asArray().data();
   const Real* result_data = dof_variable.asArray().data();
   const Int32* rows_index_data = rows_index_span.data();
@@ -451,7 +423,6 @@ solve()
     }
   }
   else {
-    // TODO check architecture
     const PetscScalar* vals = nullptr;
     PetscCallAbort(mpi_comm, VecGetArrayRead(m_petsc_solution_vector, &vals));
 
