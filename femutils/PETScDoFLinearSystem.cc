@@ -358,8 +358,11 @@ solve()
 
   Real b1 = platform::getRealTime();
 
-  PetscCallAbort(mpi_comm, VecCreateFromOptions(mpi_comm, nullptr, 1, local_rows, global_rows, &m_petsc_rhs_vector));
-  PetscCallAbort(mpi_comm, VecCreateFromOptions(mpi_comm, nullptr, 1, local_rows, global_rows, &m_petsc_solution_vector));
+  PetscCallAbort(mpi_comm, VecCreateMPI(mpi_comm, local_rows, global_rows, &m_petsc_rhs_vector));
+  PetscCallAbort(mpi_comm, VecSetFromOptions(m_petsc_rhs_vector));
+  PetscCallAbort(mpi_comm, VecCreateMPI(mpi_comm, local_rows, global_rows, &m_petsc_solution_vector));
+  PetscCallAbort(mpi_comm, VecSetFromOptions(m_petsc_solution_vector));
+
 
   PetscCallAbort(mpi_comm, VecSetValues(m_petsc_rhs_vector, dof_variable.asArray().size(), rows_index_data, rhs_data, ADD_VALUES));
   PetscCallAbort(mpi_comm, VecSetValues(m_petsc_solution_vector, dof_variable.asArray().size(), rows_index_data, result_data, ADD_VALUES));
