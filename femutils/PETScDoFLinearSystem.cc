@@ -307,20 +307,37 @@ solve()
   }
 
   Real c1 = platform::getRealTime();
+  std::vector<PetscInt> csr_rows;
+  std::vector<PetscInt> csr_cols;
+  std::vector<PetscScalar> csr_vals;
 
-  PetscCallAbort(mpi_comm, MatCreate(mpi_comm, &m_petsc_matrix));
-  PetscCallAbort(mpi_comm, MatSetSizes(m_petsc_matrix, local_rows, local_rows, global_rows, global_rows));
-  PetscCallAbort(mpi_comm, MatSetFromOptions(m_petsc_matrix));
-  PetscCallAbort(mpi_comm, MatSetLocalToGlobalMapping(m_petsc_matrix, m_petsc_map, m_petsc_map));
+  if (is_parallel)
+  {
+    PetscCallAbort(mpi_comm, MatCreate(mpi_comm, &m_petsc_matrix));
+    PetscCallAbort(mpi_comm, MatSetSizes(m_petsc_matrix, local_rows, local_rows, global_rows, global_rows));
+    PetscCallAbort(mpi_comm, MatSetFromOptions(m_petsc_matrix));
+    PetscCallAbort(mpi_comm, MatSetLocalToGlobalMapping(m_petsc_matrix, m_petsc_map, m_petsc_map));
 
-  // info() << "nb cols: " << csr_view.nbColumn() << "nb rows: " << csr_view.nbRow() << "nb vals: " << csr_view.nbValue();
+    // info() << "nb cols: " << csr_view.nbColumn() << "nb rows: " << csr_view.nbRow() << "nb vals: " << csr_view.nbValue();
 
-  std::vector<PetscInt> coo_rows = _CSRToCOO(csr_view.rows(), csr_view.nbValue());
-  std::vector<PetscInt> coo_cols;
-  coo_cols.assign(csr_view.columns().begin(), csr_view.columns().end()); // copy columns array
+    std::vector<PetscInt> coo_rows = _CSRToCOO(csr_view.rows(), csr_view.nbValue());
+    std::vector<PetscInt> coo_cols;
+    coo_cols.assign(csr_view.columns().begin(), csr_view.columns().end()); // copy columns array
 
-  PetscCallAbort(mpi_comm, MatSetPreallocationCOOLocal(m_petsc_matrix, csr_view.nbValue(),coo_rows.data(), coo_cols.data()));
-  PetscCallAbort(mpi_comm, MatSetValuesCOO(m_petsc_matrix, csr_view.values().data(), INSERT_VALUES));
+    PetscCallAbort(mpi_comm, MatSetPreallocationCOOLocal(m_petsc_matrix, csr_view.nbValue(),coo_rows.data(), coo_cols.data()));
+    PetscCallAbort(mpi_comm, MatSetValuesCOO(m_petsc_matrix, csr_view.values().data(), INSERT_VALUES));
+  }
+  else
+  {
+    csr_rows.assign(csr_view.rows().begin(), csr_view.rows().end()); // copy columns array
+    csr_cols.assign(csr_view.columns().begin(), csr_view.columns().end()); // copy columns array
+    csr_vals.assign(csr_view.values().begin(), csr_view.values().end()); // copy columns array
+
+    csr_rows.push_back(csr_view.nbValue());
+
+    PetscCallAbort(mpi_comm, MatCreateSeqAIJWithArrays(PETSC_COMM_SELF, global_rows, global_rows, csr_rows.data(), csr_cols.data(), csr_vals.data(), &m_petsc_matrix));
+    PetscCallAbort(mpi_comm, MatSetFromOptions(m_petsc_matrix));
+  }
 
   pm->barrier();
 
@@ -333,17 +350,16 @@ solve()
 
   VariableDoFReal& rhs_variable = this->rhsVariable();
   VariableDoFReal& dof_variable = this->solutionVariable();
-  Span<const Int32> rows_index_span = m_dof_matrix_numbering.asArray();
   const Real* rhs_data = rhs_variable.asArray().data();
   const Real* result_data = dof_variable.asArray().data();
+
+  Span<const Int32> rows_index_span = m_dof_matrix_numbering.asArray();
   const Int32* rows_index_data = rows_index_span.data();
 
   Real b1 = platform::getRealTime();
 
-  PetscCallAbort(mpi_comm, VecCreateMPI(mpi_comm, local_rows, global_rows, &m_petsc_rhs_vector));
-  PetscCallAbort(mpi_comm, VecSetFromOptions(m_petsc_rhs_vector));
-  PetscCallAbort(mpi_comm, VecCreateMPI(mpi_comm, local_rows, global_rows, &m_petsc_solution_vector));
-  PetscCallAbort(mpi_comm, VecSetFromOptions(m_petsc_solution_vector));
+  PetscCallAbort(mpi_comm, VecCreateFromOptions(mpi_comm, nullptr, 1, local_rows, global_rows, &m_petsc_rhs_vector));
+  PetscCallAbort(mpi_comm, VecCreateFromOptions(mpi_comm, nullptr, 1, local_rows, global_rows, &m_petsc_solution_vector));
 
   PetscCallAbort(mpi_comm, VecSetValues(m_petsc_rhs_vector, dof_variable.asArray().size(), rows_index_data, rhs_data, ADD_VALUES));
   PetscCallAbort(mpi_comm, VecSetValues(m_petsc_solution_vector, dof_variable.asArray().size(), rows_index_data, result_data, ADD_VALUES));
