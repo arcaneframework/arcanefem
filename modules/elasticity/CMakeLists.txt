@@ -104,10 +104,18 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/solution-comparison-file=check/elasticity_traction_bodyforce_bar.quad.txt
     inputs/bar.2D.traction.bodyforce.quad.arc)
 
+  add_test(NAME [elasticity]2D_Dirichlet_cartesian COMMAND Elasticity
+    -A,//fem/solution-comparison-file=check/bar.2D.cartesian.Dirichlet.bodyForce.txt
+    inputs/bar.2D.cartesian.Dirichlet.bodyForce.arc)
+
   add_test(NAME [elasticity]bar_parse_and_exit COMMAND Elasticity
     -A,//fem/assemble-linear-system=false
     -A,//fem/solve-linear-system=false
     inputs/bar.2D.arc)
+
+  add_test(NAME [elasticity]3D_Dirichlet_cartesian COMMAND Elasticity
+    -A,//fem/solution-comparison-file=check/bar.3D.cartesian.Dirichlet.bodyForce.txt
+    inputs/bar.3D.cartesian.Dirichlet.bodyForce.arc)
 
   add_test(NAME [elasticity]3D_Dirichlet_bodyforce_hexa COMMAND Elasticity
     -A,//fem/solution-comparison-file=check/3D_dirichlet_bodyforce.hexa.txt
@@ -175,6 +183,14 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       -A,//fem/solution-comparison-file=check/test_elasticity_results.txt
       -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
       inputs/bar.2D.arc)
+
+    add_test(NAME [elasticity]Dirichlet_cartesian_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity
+      -A,//fem/solution-comparison-file=check/bar.2D.cartesian.Dirichlet.bodyForce.txt
+      inputs/bar.2D.cartesian.Dirichlet.bodyForce.arc)
+
+    add_test(NAME [elasticity]3D_Dirichlet_cartesian_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elasticity
+      -A,//fem/solution-comparison-file=check/bar.3D.cartesian.Dirichlet.bodyForce.txt
+      inputs/bar.3D.cartesian.Dirichlet.bodyForce.arc)
   endif()
 endif()
 
