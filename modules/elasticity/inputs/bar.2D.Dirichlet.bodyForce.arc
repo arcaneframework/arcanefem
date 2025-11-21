@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <case codename="Elasticity" xml:lang="en" codeversion="1.0">
   <arcane>
-    <title>Sample</title>
+    <title>2D bar bending under own load</title>
     <timeloop>ElasticityLoop</timeloop>
   </arcane>
 
@@ -29,20 +29,8 @@
     <boundary-conditions>
       <dirichlet>
         <surface>left</surface>
-        <value>0.0 NULL</value>
-      </dirichlet>
-      <dirichlet>
-        <surface>right</surface>
-        <value>1.0 NULL</value>
-      </dirichlet>
-      <dirichlet-point>
-        <node>botLeft</node>
         <value>0.0 0.0</value>
-      </dirichlet-point>
-      <dirichlet-point>
-        <node>botRight</node>
-        <value>NULL 0.0</value>
-      </dirichlet-point>
+      </dirichlet>
     </boundary-conditions>
   </fem>
 </case>
