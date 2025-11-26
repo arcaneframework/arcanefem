@@ -309,7 +309,7 @@ solve()
   std::vector<PetscInt> csr_cols;
   std::vector<PetscScalar> csr_vals;
 
-  if (is_parallel)
+  if (is_parallel || m_mat_type == "seqaijkokkos") // Exception for Kokkos: does not build correctly with the method used for seq
   {
     PetscCallAbort(mpi_comm, MatCreate(mpi_comm, &m_petsc_matrix));
     PetscCallAbort(mpi_comm, MatSetSizes(m_petsc_matrix, local_rows, local_rows, global_rows, global_rows));
