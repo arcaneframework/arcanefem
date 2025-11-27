@@ -303,6 +303,7 @@ solve()
       // info() << "local index: " << idof.index() << " global index: " << indices[idof.index()];
     }
 
+    // TODO replace MPI_COMM_WORLD with
     PetscCallAbort(mpi_comm, ISLocalToGlobalMappingCreate(MPI_COMM_WORLD, 1, all_dofs.size(), indices._internalData(), PETSC_COPY_VALUES, &m_petsc_map));
 
     // info() << "Total " << m_nb_total_row << " local: " << m_nb_own_row;
