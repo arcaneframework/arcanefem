@@ -265,7 +265,7 @@ solve()
   IItemFamily* dof_family = dofFamily();
   IParallelMng* pm = dof_family->parallelMng();
   Runner runner = this->runner();
-  MPI_Comm mpi_comm = MPI_COMM_WORLD;
+  MPI_Comm mpi_comm = static_cast<MPI_Comm>(pm->communicator());
 
   _handleParameters(pm);
   _computeMatrixNumeration(mpi_comm);
@@ -287,11 +287,9 @@ solve()
   }
 
   Real c1 = platform::getRealTime();
-  std::vector<PetscInt> csr_rows;
-  std::vector<PetscInt> csr_cols;
-  std::vector<PetscScalar> csr_vals;
 
-  if (true || is_parallel) // TODO sequential case will work with a sorted CSR implementation
+  // TODO: use COO with MatSetPreallocationCOO for better performance
+  // TODO: see if we pass pointers to device memory directly when is_use_device==true
   {
     DoFGroup all_dofs = dof_family->allItems();
 
@@ -323,29 +321,6 @@ solve()
 
     PetscCallAbort(mpi_comm, MatSetPreallocationCOOLocal(m_petsc_matrix, csr_view.nbValue(), coo_rows.data(), coo_cols.data()));
     PetscCallAbort(mpi_comm, MatSetValuesCOO(m_petsc_matrix, csr_view.values().data(), INSERT_VALUES));
-  }
-  else {
-    csr_rows.assign(csr_view.rows().begin(), csr_view.rows().end()); // copy columns array
-    csr_cols.assign(csr_view.columns().begin(), csr_view.columns().end()); // copy columns array
-    csr_vals.assign(csr_view.values().begin(), csr_view.values().end()); // copy columns array
-
-    csr_rows.push_back(csr_view.nbValue());
-
-    // for (size_t i = 0; i < csr_rows.size() - 1; i++)
-    // {
-    //   // range of index is [a; b[
-    //   int a = csr_rows[i];
-    //   int b = csr_rows[i + 1];
-
-    //   info() << "sort on " << a << ": " << b;
-    //   for (size_t k = a; k < b; k++)
-    //     info() << "val[" << k << "] = " << csr_cols[k];
-
-    //   std::sort(p.begin() + a, p.begin() + b);
-    // }
-
-    PetscCallAbort(mpi_comm, MatCreateSeqAIJWithArrays(PETSC_COMM_SELF, global_rows, global_rows, csr_rows.data(), csr_cols.data(), csr_vals.data(), &m_petsc_matrix));
-    PetscCallAbort(mpi_comm, MatSetFromOptions(m_petsc_matrix));
   }
 
   pm->barrier();
@@ -430,7 +405,7 @@ solve()
     //   info() << "rows: " << m_parallel_rows_index[i];
 
     ENUMERATE_ (DoF, idof, dof_family->allItems().own()) {
-      Int32 global_idx = rows_index_span[idof.index()];
+      // Int32 global_idx = rows_index_span[idof.index()];
       // info() << "u[" << global_idx << "] = " << m_result_work_values[idof.index()];
       dof_variable[idof] = m_result_work_values[idof.index()];
     }

@@ -30,7 +30,7 @@
       <value>0.5</value>
     </dirichlet-boundary-condition>
     <linear-system name="PETScLinearSystem">
-	  <pc-type>gamg</pc-type>
+	    <pc-type>gamg</pc-type>
       <rtol>0.</rtol>
       <atol>1e-5</atol>
     </linear-system>
