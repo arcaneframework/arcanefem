@@ -355,7 +355,7 @@ solve()
 
   Real b2 = platform::getRealTime();
 
-  info() << "[PETSc-Timer] Time to create matrix = " << (c1 - b2);
+  info() << "[PETSc-Timer] Time to create matrix = " << (b2 - c1);
 
   VariableDoFReal& rhs_variable = this->rhsVariable();
   VariableDoFReal& dof_variable = this->solutionVariable();
