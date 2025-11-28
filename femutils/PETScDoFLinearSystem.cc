@@ -265,7 +265,7 @@ solve()
   IItemFamily* dof_family = dofFamily();
   IParallelMng* pm = dof_family->parallelMng();
   Runner runner = this->runner();
-  MPI_Comm mpi_comm = MPI_COMM_WORLD;
+  MPI_Comm mpi_comm = static_cast<MPI_Comm>(pm->communicator());
 
   _handleParameters(pm);
   _computeMatrixNumeration(mpi_comm);
@@ -288,7 +288,8 @@ solve()
 
   Real c1 = platform::getRealTime();
 
-  if (true || is_parallel) // TODO sequential case will work with a sorted CSR implementation
+  // TODO: use COO with MatSetPreallocationCOO for better performance
+  // TODO: see if we pass pointers to device memory directly when is_use_device==true
   {
     DoFGroup all_dofs = dof_family->allItems();
 
@@ -320,20 +321,6 @@ solve()
 
     PetscCallAbort(mpi_comm, MatSetPreallocationCOOLocal(m_petsc_matrix, csr_view.nbValue(), coo_rows.data(), coo_cols.data()));
     PetscCallAbort(mpi_comm, MatSetValuesCOO(m_petsc_matrix, csr_view.values().data(), INSERT_VALUES));
-  }
-  else {
-    UniqueArray<PetscInt> csr_rows;
-    UniqueArray<PetscInt> csr_cols;
-    UniqueArray<PetscScalar> csr_vals;
-
-    csr_rows.copy(csr_view.rows());
-    csr_cols.copy(csr_view.columns());
-    csr_vals.copy(csr_view.values());
-
-    csr_rows.push_back(csr_view.nbValue());
-
-    PetscCallAbort(mpi_comm, MatCreateSeqAIJWithArrays(PETSC_COMM_SELF, global_rows, global_rows, csr_rows.data(), csr_cols.data(), csr_vals.data(), &m_petsc_matrix));
-    PetscCallAbort(mpi_comm, MatSetFromOptions(m_petsc_matrix));
   }
 
   pm->barrier();
