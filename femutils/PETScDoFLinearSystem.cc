@@ -418,7 +418,7 @@ solve()
     //   info() << "rows: " << m_parallel_rows_index[i];
 
     ENUMERATE_ (DoF, idof, dof_family->allItems().own()) {
-      Int32 global_idx = rows_index_span[idof.index()];
+      // Int32 global_idx = rows_index_span[idof.index()];
       // info() << "u[" << global_idx << "] = " << m_result_work_values[idof.index()];
       dof_variable[idof] = m_result_work_values[idof.index()];
     }
