@@ -287,9 +287,6 @@ solve()
   }
 
   Real c1 = platform::getRealTime();
-  std::vector<PetscInt> csr_rows;
-  std::vector<PetscInt> csr_cols;
-  std::vector<PetscScalar> csr_vals;
 
   if (true || is_parallel) // TODO sequential case will work with a sorted CSR implementation
   {
@@ -325,24 +322,15 @@ solve()
     PetscCallAbort(mpi_comm, MatSetValuesCOO(m_petsc_matrix, csr_view.values().data(), INSERT_VALUES));
   }
   else {
-    csr_rows.assign(csr_view.rows().begin(), csr_view.rows().end()); // copy columns array
-    csr_cols.assign(csr_view.columns().begin(), csr_view.columns().end()); // copy columns array
-    csr_vals.assign(csr_view.values().begin(), csr_view.values().end()); // copy columns array
+    UniqueArray<PetscInt> csr_rows;
+    UniqueArray<PetscInt> csr_cols;
+    UniqueArray<PetscScalar> csr_vals;
+
+    csr_rows.copy(csr_view.rows());
+    csr_cols.copy(csr_view.columns());
+    csr_vals.copy(csr_view.values());
 
     csr_rows.push_back(csr_view.nbValue());
-
-    // for (size_t i = 0; i < csr_rows.size() - 1; i++)
-    // {
-    //   // range of index is [a; b[
-    //   int a = csr_rows[i];
-    //   int b = csr_rows[i + 1];
-
-    //   info() << "sort on " << a << ": " << b;
-    //   for (size_t k = a; k < b; k++)
-    //     info() << "val[" << k << "] = " << csr_cols[k];
-
-    //   std::sort(p.begin() + a, p.begin() + b);
-    // }
 
     PetscCallAbort(mpi_comm, MatCreateSeqAIJWithArrays(PETSC_COMM_SELF, global_rows, global_rows, csr_rows.data(), csr_cols.data(), csr_vals.data(), &m_petsc_matrix));
     PetscCallAbort(mpi_comm, MatSetFromOptions(m_petsc_matrix));
