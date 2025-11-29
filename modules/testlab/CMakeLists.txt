@@ -85,6 +85,8 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   arcanefem_add_gpu_test(NAME [testlab]petsc_direct.bjacobi.gmres COMMAND  Testlab ARGS inputs/Test.petsc_direct.bjacobi.gmres.arc)
   arcanefem_add_gpu_test(NAME [testlab]petsc_direct.gamg COMMAND  Testlab ARGS inputs/Test.petsc_direct.gamg.arc)
   arcanefem_add_gpu_test(NAME [testlab]petsc_direct_3D COMMAND  Testlab ARGS inputs/Test.petsc_direct-3D.arc)
+  arcanefem_add_gpu_test(NAME [testlab]sphere_3D_petsc_direct_bsr COMMAND Testlab ARGS inputs/Test.sphere.3D.bsr.petsc_direct.arc)
+  arcanefem_add_gpu_test(NAME [testlab]sphere_3D_petsc_direct_af-bsr COMMAND Testlab ARGS inputs/Test.sphere.3D.bsr.atomic-free.petsc_direct.arc)
 
   arcanefem_add_gpu_test(NAME [testlab]L-shape_2D_petsc COMMAND ./Testlab ARGS inputs/Test.petsc.arc)
   arcanefem_add_gpu_test(NAME [testlab]L-shape_2D_petsc_coo-gpu COMMAND ./Testlab ARGS inputs/Test.L-shape.2D.coo-gpu.arc)
