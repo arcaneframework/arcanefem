@@ -138,9 +138,9 @@ startInit()
     }
 
     if (options()->bsr || options()->bsrAtomicFree()) {
-      bool use_csr_in_linear_system = false;
-      if (options()->linearSystem.serviceName() == "HypreLinearSystem" || options()->linearSystem.serviceName() == "PETScLinearSystem")
-        use_csr_in_linear_system = true;
+      bool use_csr_in_linear_system =
+      options()->linearSystem.serviceName() == "HypreLinearSystem" ||
+      options()->linearSystem.serviceName() == "PETScLinearSystem";
       m_bsr_format.initialize(mesh, 1, use_csr_in_linear_system, options()->bsrAtomicFree);
     }
   }
