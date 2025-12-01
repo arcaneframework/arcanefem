@@ -122,6 +122,33 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/matrix-format=AF-BSR
     inputs/conduction.3D.arc)
 
+  set(SOLVER_PETSC_CG
+    -A,//fem/linear-system/@name=PETScLinearSystem
+    -A,//fem/linear-system/solver=cg
+    -A,//fem/linear-system/atol=1e-9
+    -A,//fem/linear-system/rtol=0)
+
+  arcanefem_add_gpu_test(NAME [fourier]conduction_petsc-direct_bsr COMMAND ./Fourier ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_PETSC_CG}
+    inputs/conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [fourier]conduction_petsc-direct_af-bsr COMMAND ./Fourier ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_PETSC_CG}
+    inputs/conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [fourier]3d_conduction_petsc-direct_bsr COMMAND ./Fourier ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_PETSC_CG}
+    inputs/conduction.3D.arc)
+
+  arcanefem_add_gpu_test(NAME [fourier]3d_conduction_petsc-direct_af-bsr COMMAND ./Fourier ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_PETSC_CG}
+    inputs/conduction.3D.arc)
+
+
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [fourier]conduction_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
       -A,//fem/solution-comparison-file=check/test1_results.txt
