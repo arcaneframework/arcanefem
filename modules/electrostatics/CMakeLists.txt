@@ -85,6 +85,31 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/matrix-format=AF-BSR
     inputs/spheres.arc)
 
+  set(SOLVER_PETSC_CG
+    -A,//fem/linear-system/@name=PETScLinearSystem
+    -A,//fem/linear-system/solver=cg
+    -A,//fem/linear-system/atol=1e-9
+    -A,//fem/linear-system/rtol=0)
+
+  arcanefem_add_gpu_test(NAME [electrostatics]rod-circle_bsr_petsc COMMAND ./Electrostatics ARGS
+    -A,//fem/solution-comparison-file=check/test_2.txt
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_PETSC_CG}
+    inputs/rod-circle.arc)
+  arcanefem_add_gpu_test(NAME [electrostatics]rod-circle_af-bsr_petsc COMMAND ./Electrostatics ARGS
+    -A,//fem/solution-comparison-file=check/test_2.txt
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_PETSC_CG}
+    inputs/rod-circle.arc)
+  arcanefem_add_gpu_test(NAME [electrostatics]spheres_af-bsr_petsc COMMAND ./Electrostatics ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_PETSC_CG}
+    inputs/spheres.arc)
+  arcanefem_add_gpu_test(NAME [electrostatics]truncated_cube_bsr_petsc COMMAND ./Electrostatics ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_PETSC_CG}
+    inputs/truncated_cube.arc)
+
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [electrostatics]box-rods_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Electrostatics
       -A,//fem/solution-comparison-file=check/test_1.txt
