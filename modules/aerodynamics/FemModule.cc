@@ -178,7 +178,8 @@ _doStationarySolve()
 
 void FemModule::_assembleLinearOperator()
 {
-  if (options()->linearSystem.serviceName() == "HypreLinearSystem")
+  if (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
+      options()->linearSystem.serviceName() == "PETScLinearSystem")
     _assembleLinearOperatorGpu();
   else
     _assembleLinearOperatorCpu();
