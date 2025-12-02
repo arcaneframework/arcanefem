@@ -36,11 +36,14 @@ startInit()
 
   _getParameters();
 
-  bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem";
+  bool use_csr_in_linear_system =
+    options()->linearSystem.serviceName() == "HypreLinearSystem" ||
+    options()->linearSystem.serviceName() == "PETScLinearSystem";
+
   if (m_matrix_format == "BSR")
-    m_bsr_format.initialize(defaultMesh(), mesh()->dimension(), use_csr_in_linearsystem, 0);
+    m_bsr_format.initialize(defaultMesh(), mesh()->dimension(), use_csr_in_linear_system, 0);
   else if (m_matrix_format == "AF-BSR")
-    m_bsr_format.initialize(defaultMesh(), mesh()->dimension(), use_csr_in_linearsystem, 1);
+    m_bsr_format.initialize(defaultMesh(), mesh()->dimension(), use_csr_in_linear_system, 1);
 
   t = dt;
   tmax = tmax - dt;

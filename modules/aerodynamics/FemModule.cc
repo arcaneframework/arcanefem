@@ -40,7 +40,9 @@ startInit()
   m_hex_quad_mesh = options()->hexQuadMesh();
 
   if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") {
-    auto use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
+    bool use_csr_in_linear_system =
+    options()->linearSystem.serviceName() == "HypreLinearSystem" ||
+    options()->linearSystem.serviceName() == "PETScLinearSystem";
     if (m_matrix_format == "BSR")
       m_bsr_format.initialize(mesh(), 1, use_csr_in_linear_system, 0);
     else
@@ -176,7 +178,8 @@ _doStationarySolve()
 
 void FemModule::_assembleLinearOperator()
 {
-  if (options()->linearSystem.serviceName() == "HypreLinearSystem")
+  if (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
+      options()->linearSystem.serviceName() == "PETScLinearSystem")
     _assembleLinearOperatorGpu();
   else
     _assembleLinearOperatorCpu();
