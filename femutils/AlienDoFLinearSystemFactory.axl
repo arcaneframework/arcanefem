@@ -1,0 +1,9 @@
+<?xml version="1.0" ?><!-- -*- SGML -*- -->
+<service name="AlienDoFLinearSystemFactory" version="1.0" type="caseoption" namespace-name="Arcane::FemUtils">
+  <interface name="Arcane::FemUtils::IDoFLinearSystemFactory" />
+  <options>
+    <service-instance name="linear-solver" type="Alien::ILinearSolver"  minOccurs="0" maxOccurs="1">
+      <description>Service solveur</description>
+    </service-instance>
+  </options>
+</service>
