@@ -107,7 +107,6 @@ findValueIndex(DoFLocalId row, DoFLocalId col) const
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
 void BSRMatrix::
 toCsr(CsrFormat* csr_matrix)
 {
@@ -129,7 +128,7 @@ toCsr(CsrFormat* csr_matrix)
     // Translate `row_index`
     csr_matrix->m_matrix_row[0] = 0;
     auto offset = 1;
-    for (auto i = 0; i < m_rows_index.extent0() - 1; ++i) {
+    for (auto i = 0; i < m_rows_index.extent0(); ++i) {
       for (auto j = 0; j < m_nb_block; ++j) {
         auto start = m_rows_index[i];
         auto end = i == m_rows_index.extent0() - 1 ? m_nb_col : m_rows_index[i + 1];
@@ -162,9 +161,9 @@ toCsr(CsrFormat* csr_matrix)
       }
     }
 
-    // Fill last entry of CSR matrix row_index array
-    auto row_index_size = csr_matrix->m_matrix_row.extent0();
-    csr_matrix->m_matrix_row[row_index_size - 1] = csr_matrix->m_matrix_row[row_index_size - 2] + csr_matrix->m_matrix_rows_nb_column[csr_matrix->m_matrix_rows_nb_column.extent0() - 1];
+    // NOTE: The last entry calculation might not be needed now, but keep for safety
+    // auto row_index_size = csr_matrix->m_matrix_row.extent0();
+    // csr_matrix->m_matrix_row[row_index_size - 1] = total_non_zero_elements;
   }
 
   // NOTE: If we don't want to keep bsr matrix coefficients we could move the data instead of copying it.
