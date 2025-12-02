@@ -114,7 +114,7 @@ toCsr(CsrFormat* csr_matrix)
   auto startTime = platform::getRealTime();
 
   auto nb_block_rows = m_rows_index.extent0();
-  auto nb_rows = nb_block_rows * m_nb_block;
+  auto nb_rows = (nb_block_rows * m_nb_block) + 1;
   auto total_non_zero_elements = m_nb_non_zero_value;
 
   csr_matrix->initialize(nullptr, total_non_zero_elements, nb_rows, m_queue);
