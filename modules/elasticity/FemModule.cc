@@ -112,9 +112,9 @@ void FemModule::_initBsr()
     options()->linearSystem.serviceName() == "PETScLinearSystem";
 
   if (m_matrix_format == "BSR")
-    m_bsr_format.initialize(defaultMesh(), m_dof_per_node, use_csr_in_linear_system, 0);
+    m_bsr_format.initialize(defaultMesh(), m_dof_per_node, use_csr_in_linearsystem, 0);
   else
-    m_bsr_format.initialize(defaultMesh(), m_dof_per_node, use_csr_in_linear_system, 1);
+    m_bsr_format.initialize(defaultMesh(), m_dof_per_node, use_csr_in_linearsystem, 1);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize-bsr-matrix", elapsedTime);
