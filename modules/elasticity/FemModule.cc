@@ -108,7 +108,8 @@ void FemModule::_initBsr()
   info() << "[ArcaneFem-Info] Started module  _initBsr()";
   Real elapsedTime = platform::getRealTime();
 
-  bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem";
+  bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem" ||
+    options()->linearSystem.serviceName() == "PETScLinearSystem";
 
   if (m_matrix_format == "BSR")
     m_bsr_format.initialize(defaultMesh(), m_dof_per_node, use_csr_in_linearsystem, 0);

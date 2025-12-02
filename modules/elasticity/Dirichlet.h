@@ -28,7 +28,8 @@ _applyDirichlet(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityVie
 {
 
   // check if Hypre solver is used and delegate to GPU for dirichlet assembly
-  auto use_hypre = options()->linearSystem.serviceName() == "HypreLinearSystem";
+  auto use_hypre = options()->linearSystem.serviceName() == "HypreLinearSystem" ||
+    options()->linearSystem.serviceName() == "PETScLinearSystem";
   if (use_hypre) {
     _assembleDirichletsGpu();
     return;
