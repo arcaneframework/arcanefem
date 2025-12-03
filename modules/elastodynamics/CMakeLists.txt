@@ -184,6 +184,42 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/petsc-flags=-mat_type\ baij\ -mat_block_size\ 3\ -ksp_view\ -ksp_monitor
     inputs/bar.3D.arc)
 
+  set(SOLVER_PETSC_DIRECT_CG
+  -A,//fem/linear-system/@name=PETScLinearSystem
+  -A,//fem/linear-system/solver=cg
+  -A,//fem/linear-system/atol=1e-9
+  -A,//fem/linear-system/rtol=0)
+
+  arcanefem_add_gpu_test(NAME [elastodynamics]2D_bar_petsc-direct_bsr COMMAND  ./Elastodynamics ARGS
+    -A,//fem/solution-comparison-file=check/2D_elastodynamics_bar.txt
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_PETSC_DIRECT_CG}
+    inputs/bar.arc)
+
+  arcanefem_add_gpu_test(NAME [elastodynamics]3D_bar_petsc-direct_bsr COMMAND  ./Elastodynamics ARGS
+    -A,//fem/solution-comparison-file=check/bar_3d.txt
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_PETSC_DIRECT_CG}
+    inputs/bar.3D.arc)
+
+  arcanefem_add_gpu_test(NAME [elastodynamics]2D_bar_bsr_petsc-direct_af-bsr COMMAND  ./Elastodynamics ARGS
+    -A,//fem/solution-comparison-file=check/2D_elastodynamics_bar.txt
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_PETSC_DIRECT_CG}
+    inputs/bar.arc)
+
+  arcanefem_add_gpu_test(NAME [elastodynamics]3D_bar_petsc-direct_af-bsr COMMAND  ./Elastodynamics ARGS
+    -A,//fem/solution-comparison-file=check/bar_3d.txt
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_PETSC_DIRECT_CG}
+    inputs/bar.3D.arc)
+
+  add_test(NAME [elastodynamics]3D_truncated-cube_petsc-direct_pointBc_Penalty COMMAND Elastodynamics
+    -A,//fem/solution-comparison-file=check/truncated-cube_point-bc.txt
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_PETSC_DIRECT_CG}
+    inputs/truncated-cube.pointBC.arc)
+
 endif()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
