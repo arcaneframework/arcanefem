@@ -27,9 +27,10 @@ inline void FemModule::
 _applyDirichlet(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
 
-  // check if Hypre solver is used and delegate to GPU for dirichlet assembly
-  auto use_hypre = options()->linearSystem.serviceName() == "HypreLinearSystem";
-  if (use_hypre) {
+  // check if Hypre|PETSc solver is used and delegate to GPU for dirichlet assembly
+  auto use_gpu = options()->linearSystem.serviceName() == "HypreLinearSystem"  ||
+    options()->linearSystem.serviceName() == "PETScLinearSystem";
+  if (use_gpu) {
     _assembleDirichletsGpu();
     return;
   }
