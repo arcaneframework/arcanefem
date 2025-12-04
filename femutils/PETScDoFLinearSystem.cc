@@ -99,7 +99,6 @@ class PETScDoFLinearSystemImpl
   Vec m_petsc_solution_vector;
   Vec m_petsc_rhs_vector;
   Mat m_petsc_matrix;
-  ISLocalToGlobalMapping m_petsc_map;
 
  private:
 
@@ -301,6 +300,7 @@ solve()
       // info() << "local index: " << idof.index() << " global index: " << indices[idof.index()];
     }
 
+    ISLocalToGlobalMapping m_petsc_map;
     // TODO replace MPI_COMM_WORLD with
     PetscCallAbort(mpi_comm, ISLocalToGlobalMappingCreate(MPI_COMM_WORLD, 1, all_dofs.size(), indices._internalData(), PETSC_COPY_VALUES, &m_petsc_map));
 
@@ -311,6 +311,7 @@ solve()
     PetscCallAbort(mpi_comm, MatSetSizes(m_petsc_matrix, local_rows, local_rows, global_rows, global_rows));
     PetscCallAbort(mpi_comm, MatSetFromOptions(m_petsc_matrix));
     PetscCallAbort(mpi_comm, MatSetLocalToGlobalMapping(m_petsc_matrix, m_petsc_map, m_petsc_map));
+    PetscCallAbort(mpi_comm, ISLocalToGlobalMappingDestroy(&m_petsc_map));
 
     // info() << "nb cols: " << csr_view.nbColumn() << ", nb rows: " << csr_view.nbRow() << ", nb vals: " << csr_view.nbValue();
 
