@@ -55,6 +55,7 @@
 #include <alien/kernels/simple_csr/algebra/SimpleCSRInternalLinearAlgebra.h>
 
 #include <alien/ref/AlienRefSemantic.h>
+#include <alien/ref/AlienImportExport.h>
 
 #include <alien/kernels/redistributor/Redistributor.h>
 #include <alien/ref/data/scalar/RedistributedVector.h>
@@ -115,12 +116,7 @@ class AlienDoFLinearSystemImpl
       o << ' ' << argv[i];
   }
 
-  void setMaxIter(Int32 v) { m_ksp_max_it = v; }
-  void setRelTolerance(Real v) { m_ksp_rtol = v; }
-  void setAbsTolerance(Real v) { m_ksp_atol = v; }
-
   void setSolver(Alien::ILinearSolver* s) { m_solver_backend = s; }
-  void setPreconditioner(String v) { m_pc_type = std::string{ v.localstr() }; }
 
   CaseOptionsAlienDoFLinearSystemFactory* options;
 
@@ -129,34 +125,17 @@ class AlienDoFLinearSystemImpl
   Alien::ILinearSolver* m_solver_backend;
   VariableDoFInt32 m_dof_matrix_numbering;
 
-  NumArray<Int32, MDDim1> m_parallel_columns_index;
-  NumArray<Int32, MDDim1> m_parallel_rows_index;
   NumArray<Real, MDDim1> m_rhs_work_values;
   //! Work array to store values of solution vector in parallel
   NumArray<Real, MDDim1> m_result_work_values;
 
-  Int32 m_nb_total_row;
-  Int32 m_nb_own_row;
-  Int32 m_first_row;
-  Int32 m_ksp_max_it;
+private:
 
-  Real m_ksp_rtol;
-  Real m_ksp_atol;
-
-  std::string m_ksp_type; // cannot use String type because we need this to be mutable
-  std::string m_pc_type;
-  std::string m_mat_type;
-  std::string m_vec_type;
-
- private:
-
-  void _computeMatrixNumeration();
+    void _computeMatrixNumeration();
 };
-
 void AlienDoFLinearSystemImpl::
 _computeMatrixNumeration()
 {
-  // TODO use Index manager structure
   IItemFamily* dof_family = dofFamily();
   IParallelMng* pm = dof_family->parallelMng();
   const bool is_parallel = pm->isParallel();
@@ -165,47 +144,39 @@ _computeMatrixNumeration()
 
   DoFGroup all_dofs = dof_family->allItems();
   DoFGroup own_dofs = all_dofs.own();
-  m_nb_own_row = own_dofs.size();
-  m_nb_total_row = all_dofs.size();
-  m_first_row = 0;
+  const Int32 nb_own_row = own_dofs.size();
+
+  Int32 own_first_index = 0;
 
   if (is_parallel) {
     // TODO: utiliser un Scan lorsque ce sera disponible dans Arcane
     UniqueArray<Int32> parallel_rows_index(nb_rank, 0);
-    pm->allGather(ConstArrayView<Int32>(1, &m_nb_own_row), parallel_rows_index);
-    // info() << "ALL_NB_ROW = " << parallel_rows_index;
-    m_nb_total_row = 0;
-    // TODO optimize partial and total sum
-    for (Int32 v : parallel_rows_index)
-      m_nb_total_row += v;
+    pm->allGather(ConstArrayView<Int32>(1, &nb_own_row), parallel_rows_index);
+    info() << "ALL_NB_ROW = " << parallel_rows_index;
     for (Int32 i = 0; i < my_rank; ++i)
-      m_first_row += parallel_rows_index[i];
+      own_first_index += parallel_rows_index[i];
   }
 
-  // TODO api accelerator
+  info() << "OwnFirstIndex=" << own_first_index << " NbOwnRow=" << nb_own_row;
+
+  // TODO: Faire avec API accelerateur
   ENUMERATE_DOF (idof, own_dofs) {
     DoF dof = *idof;
-    m_dof_matrix_numbering[idof] = m_first_row + idof.index();
-    // info() << "Numbering dof_uid=" << dof.uniqueId() << " M=" << m_dof_matrix_numbering[idof];
+    m_dof_matrix_numbering[idof] = own_first_index + idof.index();
+    info() << "Numbering dof_uid=" << dof.uniqueId() << " M=" << m_dof_matrix_numbering[idof];
   }
 
   m_dof_matrix_numbering.synchronize();
-  pm->barrier();
+  info() << " nb_own_row=" << nb_own_row << " nb_item=" << dof_family->nbItem();
 
-  // info() << "my rank: " << my_rank;
-  // info() << "Total " << m_nb_total_row << " local: " << m_nb_own_row;
-
-  m_parallel_rows_index.resize(m_nb_own_row);
-  m_result_work_values.resize(m_nb_own_row);
-  m_rhs_work_values.resize(m_nb_own_row);
+  m_result_work_values.resize(nb_own_row);
 }
 
 void AlienDoFLinearSystemImpl::
 solve()
 {
   info() << "[Alien-Info] Calling Alien solver";
-
-  // _computeMatrixNumeration();
+  _computeMatrixNumeration();
 
   IItemFamily* dof_family = dofFamily();
   IParallelMng* pm = dof_family->parallelMng();
@@ -226,12 +197,23 @@ solve()
   auto mdist = Alien::ArcaneTools::createMatrixDistribution(space);
   auto vdist = Alien::ArcaneTools::createVectorDistribution(space);
 
+  std::map<int, int> index_to_alienUID;
+
   Alien::Vector vectorB(vdist);
   Alien::Vector vectorX(vdist);
 
   Alien::Matrix matrixA(mdist); // local matrix for exact measure without side effect
   // (however, you can reuse a matrix with several
   // builder)
+
+  ENUMERATE_DOF (idof, areaU) {
+    const Integer iIndex = allUIndex[idof->localId()];
+    DoF dof = *idof;
+    // info() << "local: " << idof->localId() << " global: " << m_dof_matrix_numbering[idof] << " alien uid " << iIndex;
+    index_to_alienUID[m_dof_matrix_numbering[idof]] = allUIndex[idof->localId()];
+  }
+
+  pm->barrier();
 
   {
     Alien::MatrixProfiler profiler(matrixA);
@@ -242,7 +224,11 @@ solve()
     for (int i = 0; i < csr_view.rows().size() ; i++) {
       for (CsrRowColumnIndex csr_index : csr_view.rowRange(i)) {
         Int32 column_index = csr_view.column(csr_index);
-        profiler.addMatrixEntry(i, column_index);
+
+        if (index_to_alienUID.find(column_index) == index_to_alienUID.end())
+          info() << "not found: " << column_index << " csr index: " << csr_index;
+        else
+          profiler.addMatrixEntry(index_to_alienUID[i], index_to_alienUID[column_index]);
       }
     }
   }
@@ -254,7 +240,7 @@ solve()
       for (CsrRowColumnIndex csr_index : csr_view.rowRange(i)) {
         Int32 column_index = csr_view.column(csr_index);
         // info() << "row: " << i << " col: " << column_index << " val: " << csr_view.value(csr_index);
-        builder(i, column_index) += csr_view.value(csr_index);
+        builder(index_to_alienUID[i], index_to_alienUID[column_index]) += csr_view.value(csr_index);
       }
     }
     builder.finalize();
@@ -270,16 +256,9 @@ solve()
 
     ENUMERATE_DOF (idof, areaU.own()) {
       const Integer iIndex = allUIndex[idof->localId()];
-      // info() << "local " << idof->localId( )<< " iIndex " << iIndex << " res val: " << result_data[idof->localId()];
+      // info() << "local: " << idof->localId() << " global: " << idof.index();
+      // info() << "local " << idof->localId()<< " iIndex " << iIndex << " res val: " << result_data[idof->localId()];
       writer[iIndex] = result_data[idof->localId()];
-    }
-  }
-
-  {
-    Alien::LocalVectorReader reader(vectorX);
-    ENUMERATE_DOF(idof, areaU.own()) {
-      const Integer iIndex = allUIndex[idof->localId()];
-      // info() << "res val:" <<  reader[iIndex];
     }
   }
 
