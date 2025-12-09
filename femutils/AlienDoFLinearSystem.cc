@@ -112,6 +112,7 @@ class AlienDoFLinearSystemImpl
     auto argv = *args.commandLineArgv();
     auto o = info() << "[Alien-Info] ./" << argv[0];
 
+
     for (int i = 1; i < *args.commandLineArgc(); i++)
       o << ' ' << argv[i];
   }
@@ -128,60 +129,16 @@ class AlienDoFLinearSystemImpl
   NumArray<Real, MDDim1> m_rhs_work_values;
   //! Work array to store values of solution vector in parallel
   NumArray<Real, MDDim1> m_result_work_values;
-
-private:
-
-    void _computeMatrixNumeration();
 };
-void AlienDoFLinearSystemImpl::
-_computeMatrixNumeration()
-{
-  IItemFamily* dof_family = dofFamily();
-  IParallelMng* pm = dof_family->parallelMng();
-  const bool is_parallel = pm->isParallel();
-  const Int32 nb_rank = pm->commSize();
-  const Int32 my_rank = pm->commRank();
-
-  DoFGroup all_dofs = dof_family->allItems();
-  DoFGroup own_dofs = all_dofs.own();
-  const Int32 nb_own_row = own_dofs.size();
-
-  Int32 own_first_index = 0;
-
-  if (is_parallel) {
-    // TODO: utiliser un Scan lorsque ce sera disponible dans Arcane
-    UniqueArray<Int32> parallel_rows_index(nb_rank, 0);
-    pm->allGather(ConstArrayView<Int32>(1, &nb_own_row), parallel_rows_index);
-    info() << "ALL_NB_ROW = " << parallel_rows_index;
-    for (Int32 i = 0; i < my_rank; ++i)
-      own_first_index += parallel_rows_index[i];
-  }
-
-  info() << "OwnFirstIndex=" << own_first_index << " NbOwnRow=" << nb_own_row;
-
-  // TODO: Faire avec API accelerateur
-  ENUMERATE_DOF (idof, own_dofs) {
-    DoF dof = *idof;
-    m_dof_matrix_numbering[idof] = own_first_index + idof.index();
-    info() << "Numbering dof_uid=" << dof.uniqueId() << " M=" << m_dof_matrix_numbering[idof];
-  }
-
-  m_dof_matrix_numbering.synchronize();
-  info() << " nb_own_row=" << nb_own_row << " nb_item=" << dof_family->nbItem();
-
-  m_result_work_values.resize(nb_own_row);
-}
 
 void AlienDoFLinearSystemImpl::
 solve()
 {
   info() << "[Alien-Info] Calling Alien solver";
-  _computeMatrixNumeration();
 
   IItemFamily* dof_family = dofFamily();
   IParallelMng* pm = dof_family->parallelMng();
   Runner runner = this->runner();
-  // MPI_Comm mpi_comm = MPI_COMM_WORLD;
   CSRFormatView csr_view = this->getCSRValues();
 
   auto areaU = dof_family->allItems();
@@ -197,21 +154,14 @@ solve()
   auto mdist = Alien::ArcaneTools::createMatrixDistribution(space);
   auto vdist = Alien::ArcaneTools::createVectorDistribution(space);
 
-  std::map<int, int> index_to_alienUID;
-
   Alien::Vector vectorB(vdist);
   Alien::Vector vectorX(vdist);
-
-  Alien::Matrix matrixA(mdist); // local matrix for exact measure without side effect
+  Alien::Matrix matrixA(mdist);
+  // local matrix for exact measure without side effect
   // (however, you can reuse a matrix with several
   // builder)
 
-  ENUMERATE_DOF (idof, areaU) {
-    const Integer iIndex = allUIndex[idof->localId()];
-    DoF dof = *idof;
-    // info() << "local: " << idof->localId() << " global: " << m_dof_matrix_numbering[idof] << " alien uid " << iIndex;
-    index_to_alienUID[m_dof_matrix_numbering[idof]] = allUIndex[idof->localId()];
-  }
+  Real a1 = platform::getRealTime();
 
   pm->barrier();
 
@@ -221,14 +171,17 @@ solve()
     //
     // DEFINE PROFILE
     //
-    for (int i = 0; i < csr_view.rows().size() ; i++) {
+    ENUMERATE_DOF(idof, dof_family->allItems()) {
+      if (!idof->isOwn()) {
+        continue;
+      }
+
+      int i = idof.index();
+      // info() << "owned index: " << i << " local id: " << idof.localId();
       for (CsrRowColumnIndex csr_index : csr_view.rowRange(i)) {
         Int32 column_index = csr_view.column(csr_index);
-
-        if (index_to_alienUID.find(column_index) == index_to_alienUID.end())
-          info() << "not found: " << column_index << " csr index: " << csr_index;
-        else
-          profiler.addMatrixEntry(index_to_alienUID[i], index_to_alienUID[column_index]);
+        // info() << "column index: " << column_index << " allUIndex: " << allUIndex[idof.localId()] << " csr index: " << csr_index;
+        profiler.addMatrixEntry(allUIndex[idof.localId()], allUIndex[column_index]);
       }
     }
   }
@@ -236,15 +189,23 @@ solve()
     Alien::ProfiledMatrixBuilder builder(
     matrixA, Alien::ProfiledMatrixOptions::eResetValues);
 
-    for (int i = 0; i < csr_view.rows().size() ; i++) {
+    ENUMERATE_DOF(idof, dof_family->allItems()) {
+      if (!idof->isOwn()) {
+        continue;
+      }
+
+      int i = idof.index();
       for (CsrRowColumnIndex csr_index : csr_view.rowRange(i)) {
         Int32 column_index = csr_view.column(csr_index);
         // info() << "row: " << i << " col: " << column_index << " val: " << csr_view.value(csr_index);
-        builder(index_to_alienUID[i], index_to_alienUID[column_index]) += csr_view.value(csr_index);
+        builder(allUIndex[idof.localId()], allUIndex[column_index]) += csr_view.value(csr_index);
       }
     }
     builder.finalize();
   }
+
+  Real a2 = platform::getRealTime();
+  info() << "[Alien-Timer] Time to create matrix = " << (a2 - a1);
 
   VariableDoFReal& rhs_variable = this->rhsVariable();
   VariableDoFReal& dof_variable = this->solutionVariable();
@@ -272,7 +233,13 @@ solve()
     }
   }
 
+  Real a3 = platform::getRealTime();
+  info() << "[Alien-Timer] Time to create vectors = " << (a3 - a2);
+
   m_solver_backend->solve(matrixA, vectorB, vectorX);
+
+  Real a4 = platform::getRealTime();
+  info() << "[Alien-Timer] Time to solve = " << (a4 - a3);
 
   Alien::SolverStatus status = m_solver_backend->getStatus();
 
