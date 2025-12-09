@@ -17,14 +17,14 @@
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Initializes the FemModule at the start of the simulation.
+ * @brief Initializes the FemModuleFourier at the start of the simulation.
  *
  *  - initializes degrees of freedom (DoFs) on nodes.
  *  - builds support for manufactured test case (optional).
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleFourier::
 startInit()
 {
   info() << "[ArcaneFem-Info] Started module startInit()";
@@ -71,7 +71,7 @@ startInit()
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Performs the main computation for the FemModule.
+ * @brief Performs the main computation for the FemModuleFourier.
  *
  * - Stops the time loop after 1 iteration since the equation is steady state.
  * - Resets, configures, and initializes the linear system.
@@ -79,7 +79,7 @@ startInit()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleFourier::
 compute()
 {
   info() << "[ArcaneFem-Info] Started module compute()";
@@ -129,7 +129,7 @@ compute()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleFourier::
 _doStationarySolve()
 {
   _getMaterialParameters();
@@ -159,7 +159,7 @@ _doStationarySolve()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleFourier::
 _getMaterialParameters()
 {
   info() << "[ArcaneFem-Info] Started module _getMaterialParameters()";
@@ -185,7 +185,7 @@ _getMaterialParameters()
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "get-material-params", elapsedTime);
 }
 
-void FemModule::
+void FemModuleFourier::
 _assembleLinearOperator()
 {
   if (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
@@ -212,7 +212,7 @@ _assembleLinearOperator()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleFourier::
 _assembleLinearOperatorCpu()
 {
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
@@ -307,7 +307,7 @@ _assembleLinearOperatorCpu()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleLinearOperatorGpu()
+void FemModuleFourier::_assembleLinearOperatorGpu()
 {
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperatorGpu()";
   Real elapsedTime = platform::getRealTime();
@@ -353,7 +353,7 @@ void FemModule::_assembleLinearOperatorGpu()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleFourier::
 _assembleBilinearOperator()
 {
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
@@ -410,7 +410,7 @@ _assembleBilinearOperator()
 /*---------------------------------------------------------------------------*/
 
 template <int N>
-void FemModule::
+void FemModuleFourier::
 _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -446,7 +446,7 @@ _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_el
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleFourier::
 _solve()
 {
   info() << "[ArcaneFem-Info] Started module _solve()";
@@ -469,7 +469,7 @@ _solve()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleFourier::
 _updateVariables()
 {
   info() << "[ArcaneFem-Info] Started module _updateVariables()";
@@ -514,7 +514,7 @@ _updateVariables()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleFourier::
 _validateResults()
 {
   info() << "[ArcaneFem-Info] Started module _validateResults()";
@@ -537,7 +537,7 @@ _validateResults()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCANE_REGISTER_MODULE_FEM(FemModule);
+ARCANE_REGISTER_MODULE_FEM(FemModuleFourier);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

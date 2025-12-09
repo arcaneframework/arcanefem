@@ -26,7 +26,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleSoildynamics::
 _applySourceTerm(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
   if (mesh()->dimension() == 2)
@@ -43,7 +43,7 @@ _applySourceTerm(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityVi
 }
 
 
-void FemModule::
+void FemModuleSoildynamics::
 _applySourceTermTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
 
@@ -87,7 +87,7 @@ _applySourceTermTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectiv
 }
 
 
-void FemModule::
+void FemModuleSoildynamics::
 _applySourceTermQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
   ENUMERATE_ (Cell, icell, allCells()) {
@@ -156,7 +156,7 @@ _applySourceTermQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectiv
   }
 }
 
-void FemModule::
+void FemModuleSoildynamics::
 _applySourceTermTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
 
@@ -209,7 +209,7 @@ _applySourceTermTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
   }
 }
 
-void FemModule::
+void FemModuleSoildynamics::
 _applySourceTermHexa8(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
   ENUMERATE_ (Cell, icell, allCells()) {

@@ -25,7 +25,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<3, 3> FemModule::_computeElementMatrixTria3(Cell cell)
+RealMatrix<3, 3> FemModuleLaplace::_computeElementMatrixTria3(Cell cell)
 {
   Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
 
@@ -82,7 +82,7 @@ ARCCORE_HOST_DEVICE RealMatrix<1, 3> computeElementVectorTria3Gpu(CellLocalId ce
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<4, 4> FemModule::
+RealMatrix<4, 4> FemModuleLaplace::
 _computeElementMatrixTetra4(Cell cell)
 {
   Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);

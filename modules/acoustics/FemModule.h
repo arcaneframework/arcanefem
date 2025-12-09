@@ -7,7 +7,7 @@
 /*---------------------------------------------------------------------------*/
 /* FemModule.h                                                 (C) 2022-2025 */
 /*                                                                           */
-/* FemModule class definition.                                               */
+/* FemModuleAcoustics class definition.                                      */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 #ifndef FEMMODULES_H
@@ -50,12 +50,12 @@ using namespace Arcane::FemUtils;
  */
 /*---------------------------------------------------------------------------*/
 
-class FemModule
+class FemModuleAcoustics
 : public ArcaneFemObject
 {
  public:
 
-  explicit FemModule(const ModuleBuildInfo& mbi)
+  explicit FemModuleAcoustics(const ModuleBuildInfo& mbi)
   : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
   {

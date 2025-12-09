@@ -5,9 +5,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemModule.h                                                (C) 2022-2025 */
+/* FemModule.h                                                (C) 2022-2025  */
 /*                                                                           */
-/* FemModule class definition.                                               */
+/* FemModuleElasticity class definition.                                     */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 #ifndef FEMMODULES_H
@@ -57,12 +57,12 @@ using namespace Arcane::FemUtils;
  */
 /*---------------------------------------------------------------------------*/
 
-class FemModule
+class FemModuleElasticity
 : public ArcaneFemObject
 {
  public:
 
-  explicit FemModule(const ModuleBuildInfo& mbi)
+  explicit FemModuleElasticity(const ModuleBuildInfo& mbi)
   : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
   , m_bsr_format(mbi.subDomain()->traceMng(), *(mbi.subDomain()->acceleratorMng()->defaultQueue()), m_dofs_on_nodes)

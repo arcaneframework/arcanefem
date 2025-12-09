@@ -23,7 +23,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleSoildynamics::
 compute()
 {
   info() << "[ArcaneFem-Info] Started module  compute()";
@@ -64,7 +64,7 @@ compute()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleSoildynamics::
 startInit()
 {
   info() << "[ArcaneFem-Info] Started module  startInit()";
@@ -94,7 +94,7 @@ startInit()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleSoildynamics::
 _updateTime()
 {
   t += dt;
@@ -112,7 +112,7 @@ _updateTime()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleSoildynamics::
 _doStationarySolve()
 {
   if(m_assemble_linear_system){
@@ -128,7 +128,7 @@ _doStationarySolve()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleSoildynamics::
 _getParameters()
 {
   info() << "[ArcaneFem-Info] Started module  _getParameters()";
@@ -206,7 +206,7 @@ _getParameters()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleSoildynamics::
 _readCaseTables()
 {
   IParallelMng* pm = subDomain()->parallelMng();
@@ -236,7 +236,7 @@ _readCaseTables()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleSoildynamics::
 _updateVariables()
 {
   info() << "[ArcaneFem-Info] Started module  _updateVariables()";
@@ -291,7 +291,7 @@ _updateVariables()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleSoildynamics::
 _assembleLinearOperator()
 {
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
@@ -325,7 +325,7 @@ _assembleLinearOperator()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleSoildynamics::
 _assembleBilinearOperator()
 {
   info() << "[ArcaneFem-Info] Started module  _assembleBilinearOperator()";
@@ -370,7 +370,7 @@ _assembleBilinearOperator()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleSoildynamics::
 _assembleBilinearOperatorTria3Gpu()
 {
   UnstructuredMeshConnectivityView m_connectivity_view(mesh());
@@ -391,7 +391,7 @@ _assembleBilinearOperatorTria3Gpu()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleSoildynamics::
 _assembleBilinearOperatorTetra4Gpu()
 {
   UnstructuredMeshConnectivityView m_connectivity_view(mesh());
@@ -423,7 +423,7 @@ _assembleBilinearOperatorTetra4Gpu()
 /*---------------------------------------------------------------------------*/
 
 template <int N>
-void FemModule::
+void FemModuleSoildynamics::
 _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
   const Int32 dim = mesh()->dimension();
@@ -457,7 +457,7 @@ _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>&
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleSoildynamics::
 _solve()
 {
   info() << "[ArcaneFem-Info] Started module  _solve()";
@@ -472,7 +472,7 @@ _solve()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleSoildynamics::
 _validateResults()
 {
   info() << "[ArcaneFem-Info] Started module  _validateResults()";
@@ -503,7 +503,7 @@ _validateResults()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCANE_REGISTER_MODULE_FEM(FemModule);
+ARCANE_REGISTER_MODULE_FEM(FemModuleSoildynamics);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

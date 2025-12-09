@@ -28,7 +28,7 @@
  * 
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleSoildynamics::
 _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
   Int32 boundary_condition_index = 0;
