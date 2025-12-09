@@ -20,7 +20,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-inline void FemModule::
+inline void FemModuleElastodynamics::
 _applySourceTerm(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
   if (mesh()->dimension() == 2)
@@ -36,7 +36,7 @@ _applySourceTerm(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityVi
       _applySourceTermTetra4(rhs_values, node_dof);
 }
 
-inline void FemModule::
+inline void FemModuleElastodynamics::
 _applySourceTermTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
   RealVector<6> Uy = { 0., 1., 0., 1., 0., 1. };
@@ -93,7 +93,7 @@ _applySourceTermTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectiv
   }
 }
 
-void FemModule::
+void FemModuleElastodynamics::
 _applySourceTermQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
   ENUMERATE_ (Cell, icell, allCells()) {
@@ -162,7 +162,7 @@ _applySourceTermQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectiv
   }
 }
 
-inline void FemModule::
+inline void FemModuleElastodynamics::
 _applySourceTermTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
   RealVector<12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
@@ -246,7 +246,7 @@ _applySourceTermTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
   }
 }
 
-void FemModule::
+void FemModuleElastodynamics::
 _applySourceTermHexa8(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
   ENUMERATE_ (Cell, icell, allCells()) {

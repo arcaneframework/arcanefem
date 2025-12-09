@@ -113,12 +113,12 @@ namespace fs = std::filesystem;
 /*!
  * \brief Module Fem.
  */
-class FemModule
+class FemModuleTestlab
 : public ArcaneFemObject
 {
  public:
 
-  explicit FemModule(const ModuleBuildInfo& mbi)
+  explicit FemModuleTestlab(const ModuleBuildInfo& mbi)
   : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
   , m_coo_matrix(mbi.subDomain()->traceMng())
@@ -131,7 +131,7 @@ class FemModule
     cm->setAllowUnkownRootElelement(false);
 
     addEntryPoint(this, "Build",
-                  &FemModule::_build,
+                  &FemModuleTestlab::_build,
                   IEntryPoint::WBuild,
                   IEntryPoint::PAutoLoadBegin);
   }
@@ -339,7 +339,7 @@ class FemModule
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE inline void FemModule::
+ARCCORE_HOST_DEVICE inline void FemModuleTestlab::
 _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
                               ax::VariableNodeReal3InView in_node_coord, Real K_e[9])
 {
@@ -395,7 +395,7 @@ _computeElementMatrixTRIA3GPU(CellLocalId icell, IndexedCellNodeConnectivityView
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE inline void FemModule::
+ARCCORE_HOST_DEVICE inline void FemModuleTestlab::
 _computeElementMatrixTETRA4GPU(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
                                ax::VariableNodeReal3InView in_node_coord, Real K_e[16])
 {
@@ -466,7 +466,7 @@ _computeElementMatrixTETRA4GPU(CellLocalId icell, IndexedCellNodeConnectivityVie
 /*---------------------------------------------------------------------------*/
 
 ARCCORE_HOST_DEVICE
-inline Real FemModule::_computeCellMatrixGpuTRIA3(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord, Real b_matrix[6])
+inline Real FemModuleTestlab::_computeCellMatrixGpuTRIA3(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord, Real b_matrix[6])
 {
   Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
   Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];
@@ -495,7 +495,7 @@ inline Real FemModule::_computeCellMatrixGpuTRIA3(CellLocalId icell, IndexedCell
 /*---------------------------------------------------------------------------*/
 
 ARCCORE_HOST_DEVICE
-inline Real FemModule::_computeCellMatrixGpuTETRA4(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord, Real b_matrix[12])
+inline Real FemModuleTestlab::_computeCellMatrixGpuTETRA4(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord, Real b_matrix[12])
 {
   Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
   Real3 m1 = in_node_coord[cnc.nodeId(icell, 1)];

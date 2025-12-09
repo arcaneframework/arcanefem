@@ -16,7 +16,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_dumpTimeStats()
+void FemModuleTestlab::_dumpTimeStats()
 {
   Int64 nb_node = mesh()->ownNodes().size();
   Int64 total_nb_node = mesh()->parallelMng()->reduce(Parallel::ReduceSum, nb_node);
@@ -58,13 +58,13 @@ void FemModule::_dumpTimeStats()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 endModule()
 {
   _dumpTimeStats();
 }
 
-void FemModule::
+void FemModuleTestlab::
 compute()
 {
   info() << "[ArcaneFem-Info] Started module compute()";
@@ -104,7 +104,7 @@ compute()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 startInit()
 {
   info() << "[ArcaneFem-Info] Started module startInit()";
@@ -165,7 +165,7 @@ startInit()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule ::
+void FemModuleTestlab ::
 _handleFlags()
 {
   ParameterList parameter_list = this->subDomain()->application()->applicationInfo().commandLineArguments().parameters();
@@ -317,7 +317,7 @@ ARCCORE_HOST_DEVICE RealMatrix<1, 4> computeElementVectorTetra4Gpu(CellLocalId c
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _doStationarySolve()
 {
   Real assemblyTimeStart; // Timer variable
@@ -331,7 +331,7 @@ _doStationarySolve()
 
   // Assemble the FEM bilinear operator (LHS - matrix A)
   if (m_use_legacy) {
-    void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleBilinearOperatorTRIA3 : &FemModule::_assembleBilinearOperatorTETRA4;
+    void (FemModuleTestlab::*assembly_fun)() = dim == 2 ? &FemModuleTestlab::_assembleBilinearOperatorTRIA3 : &FemModuleTestlab::_assembleBilinearOperatorTETRA4;
     m_linear_system.clearValues();
     assemblyTimeStart = platform::getRealTime();
     (this->*assembly_fun)();
@@ -399,7 +399,7 @@ _doStationarySolve()
   }
 
   if (m_use_csr) {
-    void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCsrBilinearOperatorTRIA3 : &FemModule::_assembleCsrBilinearOperatorTETRA4;
+    void (FemModuleTestlab::*assembly_fun)() = dim == 2 ? &FemModuleTestlab::_assembleCsrBilinearOperatorTRIA3 : &FemModuleTestlab::_assembleCsrBilinearOperatorTETRA4;
     m_linear_system.clearValues();
     assemblyTimeStart = platform::getRealTime();
     (this->*assembly_fun)();
@@ -415,7 +415,7 @@ _doStationarySolve()
   }
 
   if (m_use_coo) {
-    void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCooBilinearOperatorTRIA3 : &FemModule::_assembleCooBilinearOperatorTETRA4;
+    void (FemModuleTestlab::*assembly_fun)() = dim == 2 ? &FemModuleTestlab::_assembleCooBilinearOperatorTRIA3 : &FemModuleTestlab::_assembleCooBilinearOperatorTETRA4;
     m_linear_system.clearValues();
     assemblyTimeStart = platform::getRealTime();
     (this->*assembly_fun)();
@@ -431,7 +431,7 @@ _doStationarySolve()
   }
 
   if (m_use_coo_sort) {
-    void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCooSortBilinearOperatorTRIA3 : &FemModule::_assembleCooSortBilinearOperatorTETRA4;
+    void (FemModuleTestlab::*assembly_fun)() = dim == 2 ? &FemModuleTestlab::_assembleCooSortBilinearOperatorTRIA3 : &FemModuleTestlab::_assembleCooSortBilinearOperatorTETRA4;
     m_linear_system.clearValues();
     assemblyTimeStart = platform::getRealTime();
     (this->*assembly_fun)();
@@ -447,7 +447,7 @@ _doStationarySolve()
   }
 
   if (m_use_coo_gpu) {
-    void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCooGPUBilinearOperatorTRIA3 : &FemModule::_assembleCooGPUBilinearOperatorTETRA4;
+    void (FemModuleTestlab::*assembly_fun)() = dim == 2 ? &FemModuleTestlab::_assembleCooGPUBilinearOperatorTRIA3 : &FemModuleTestlab::_assembleCooGPUBilinearOperatorTETRA4;
     m_linear_system.clearValues();
     assemblyTimeStart = platform::getRealTime();
     (this->*assembly_fun)();
@@ -463,7 +463,7 @@ _doStationarySolve()
   }
 
   if (m_use_coo_sort_gpu) {
-    void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCooSortGPUBilinearOperatorTRIA3 : &FemModule::_assembleCooSortGPUBilinearOperatorTETRA4;
+    void (FemModuleTestlab::*assembly_fun)() = dim == 2 ? &FemModuleTestlab::_assembleCooSortGPUBilinearOperatorTRIA3 : &FemModuleTestlab::_assembleCooSortGPUBilinearOperatorTETRA4;
     m_linear_system.clearValues();
     assemblyTimeStart = platform::getRealTime();
     (this->*assembly_fun)();
@@ -479,7 +479,7 @@ _doStationarySolve()
   }
 
   if (m_use_csr_gpu) {
-    void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleCsrGPUBilinearOperatorTRIA3 : &FemModule::_assembleCsrGPUBilinearOperatorTETRA4;
+    void (FemModuleTestlab::*assembly_fun)() = dim == 2 ? &FemModuleTestlab::_assembleCsrGPUBilinearOperatorTRIA3 : &FemModuleTestlab::_assembleCsrGPUBilinearOperatorTETRA4;
     m_linear_system.clearValues();
     assemblyTimeStart = platform::getRealTime();
     (this->*assembly_fun)();
@@ -495,7 +495,7 @@ _doStationarySolve()
   }
 
   if (m_use_nodewise_csr) {
-    void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleNodeWiseCsrBilinearOperatorTria3 : &FemModule::_assembleNodeWiseCsrBilinearOperatorTetra4;
+    void (FemModuleTestlab::*assembly_fun)() = dim == 2 ? &FemModuleTestlab::_assembleNodeWiseCsrBilinearOperatorTria3 : &FemModuleTestlab::_assembleNodeWiseCsrBilinearOperatorTetra4;
     m_linear_system.clearValues();
     assemblyTimeStart = platform::getRealTime();
     (this->*assembly_fun)();
@@ -511,7 +511,7 @@ _doStationarySolve()
   }
 
   if (m_use_buildless_csr) {
-    void (FemModule::*assembly_fun)() = dim == 2 ? &FemModule::_assembleBuildLessCsrBilinearOperatorTria3 : &FemModule::_assembleBuildLessCsrBilinearOperatorTetra4;
+    void (FemModuleTestlab::*assembly_fun)() = dim == 2 ? &FemModuleTestlab::_assembleBuildLessCsrBilinearOperatorTria3 : &FemModuleTestlab::_assembleBuildLessCsrBilinearOperatorTetra4;
     m_linear_system.clearValues();
     assemblyTimeStart = platform::getRealTime();
     (this->*assembly_fun)();
@@ -561,7 +561,7 @@ _doStationarySolve()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _getMaterialParameters()
 {
   info() << "[ArcaneFem-Info] Started module _getMaterialParameters()";
@@ -580,7 +580,7 @@ _getMaterialParameters()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _initBoundaryconditions()
 {
   info() << "[ArcaneFem-Info] Started module _initBoundaryconditions()";
@@ -591,7 +591,7 @@ _initBoundaryconditions()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _applyDirichletBoundaryConditionsGpu()
 {
   info() << "[ArcaneFem-Info] Started module _applyDirichletBoundaryConditionsGpu()";
@@ -644,7 +644,7 @@ _applyDirichletBoundaryConditionsGpu()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _applyDirichletBoundaryConditions()
 {
   info() << "[ArcaneFem-Info] Started module _applyDirichletBoundaryConditions()";
@@ -679,7 +679,7 @@ _applyDirichletBoundaryConditions()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _checkCellType()
 {
   info() << "[ArcaneFem-Info] Started module _checkCellType()";
@@ -710,7 +710,7 @@ _checkCellType()
 //  - TODO: external fluxes
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _assembleLinearOperator(BSRMatrix* bsr_matrix)
 {
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
@@ -950,7 +950,7 @@ _assembleLinearOperator(BSRMatrix* bsr_matrix)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _assembleCsrLinearOperator()
 {
   info() << "[ArcaneFem-Info] Started module _assembleCsrLinearOperator()";
@@ -1170,7 +1170,7 @@ _assembleCsrLinearOperator()
 /*---------------------------------------------------------------------------*/
 
 ARCCORE_HOST_DEVICE
-Int32 FemModule::
+Int32 FemModuleTestlab::
 _getValIndexCsrGpu(Int32 begin, Int32 end, DoFLocalId col, ax::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> csr_col)
 {
   Int32 i = begin;
@@ -1187,7 +1187,7 @@ _getValIndexCsrGpu(Int32 begin, Int32 end, DoFLocalId col, ax::NumArrayView<Data
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _assembleCsrGpuLinearOperator()
 {
   info() << "[ArcaneFem-Info] Started module _assembleCsrGpuLinearOperator()";
@@ -1711,7 +1711,7 @@ _assembleCsrGpuLinearOperator()
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-void FemModule::
+void FemModuleTestlab::
 _translateRhs()
 {
   info() << "[ArcaneFem-Info] Started module _translateRhs()";
@@ -1731,7 +1731,7 @@ _translateRhs()
 /*---------------------------------------------------------------------------*/
 
 ARCCORE_HOST_DEVICE
-Real FemModule::
+Real FemModuleTestlab::
 _computeAreaTetra4Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord)
 {
   Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
@@ -1752,7 +1752,7 @@ _computeAreaTetra4Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax
 /*---------------------------------------------------------------------------*/
 
 ARCCORE_HOST_DEVICE
-Real FemModule::
+Real FemModuleTestlab::
 _computeAreaTriangle3Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc, ax::VariableNodeReal3InView in_node_coord)
 {
   Real3 m0 = in_node_coord[cnc.nodeId(icell, 0)];
@@ -1765,7 +1765,7 @@ _computeAreaTriangle3Gpu(CellLocalId icell, IndexedCellNodeConnectivityView cnc,
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-Real FemModule::
+Real FemModuleTestlab::
 _computeAreaTriangle3(Cell cell)
 {
   Real3 m0 = m_node_coord[cell.nodeId(0)];
@@ -1778,7 +1778,7 @@ _computeAreaTriangle3(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 ARCCORE_HOST_DEVICE
-Real FemModule::
+Real FemModuleTestlab::
 _computeEdgeLength2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc, ax::VariableNodeReal3InView in_node_coord)
 {
   Real3 m0 = in_node_coord[fnc.nodeId(iface, 0)];
@@ -1789,7 +1789,7 @@ _computeEdgeLength2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc, a
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-Real FemModule::
+Real FemModuleTestlab::
 _computeEdgeLength2(Face face)
 {
   Real3 m0 = m_node_coord[face.nodeId(0)];
@@ -1800,7 +1800,7 @@ _computeEdgeLength2(Face face)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-Real FemModule::
+Real FemModuleTestlab::
 _computeAreaTetra4(Cell cell)
 {
   Real3 m0 = m_node_coord[cell.nodeId(0)];
@@ -1821,7 +1821,7 @@ _computeAreaTetra4(Cell cell)
 /*---------------------------------------------------------------------------*/
 
 ARCCORE_HOST_DEVICE
-Real2 FemModule::
+Real2 FemModuleTestlab::
 _computeEdgeNormal2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc,
                        ax::VariableNodeReal3InView in_node_coord, Arcane::FaceInfoListView faces_infos)
 {
@@ -1843,7 +1843,7 @@ _computeEdgeNormal2Gpu(FaceLocalId iface, IndexedFaceNodeConnectivityView fnc,
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-Real2 FemModule::
+Real2 FemModuleTestlab::
 _computeEdgeNormal2(Face face)
 {
   Real3 m0 = m_node_coord[face.nodeId(0)];
@@ -1860,7 +1860,7 @@ _computeEdgeNormal2(Face face)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<3, 3> FemModule::
+RealMatrix<3, 3> FemModuleTestlab::
 _computeElementMatrixTRIA3(Cell cell)
 {
   // Get coordiantes of the triangle element  TRI3
@@ -1906,7 +1906,7 @@ _computeElementMatrixTRIA3(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<4, 4> FemModule::
+RealMatrix<4, 4> FemModuleTestlab::
 _computeElementMatrixTETRA4(Cell cell)
 {
   // Get coordinates of the triangle element  TETRA4
@@ -1972,7 +1972,7 @@ _computeElementMatrixTETRA4(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _solve()
 {
   info() << "[ArcaneFem-Info] Started module _solve()";
@@ -2055,7 +2055,7 @@ _solve()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _build()
 {
 }
@@ -2063,7 +2063,7 @@ _build()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _checkResultFile()
 {
   info() << "[ArcaneFem-Info] Started module _checkResultFile()";
@@ -2084,7 +2084,7 @@ _checkResultFile()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-bool FemModule::
+bool FemModuleTestlab::
 _isMasterRank() const
 {
   return parallelMng()->isMasterIO();
@@ -2096,7 +2096,7 @@ _isMasterRank() const
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _printArcaneFemTime(const String label, const Real value)
 {
   info() << std::left << std::setw(45) << label << " = " << value;
@@ -2108,7 +2108,7 @@ _printArcaneFemTime(const String label, const Real value)
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _setPetscFlagsFromCommandline()
 {
   StringList string_list;
@@ -2127,7 +2127,7 @@ _setPetscFlagsFromCommandline()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCANE_REGISTER_MODULE_FEM(FemModule);
+ARCANE_REGISTER_MODULE_FEM(FemModuleTestlab);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

@@ -72,7 +72,7 @@ ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeElementMatrixTria3Gpu(CellLocalId ce
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<6, 6> FemModule::_computeElementMatrixTria3(Cell cell)
+RealMatrix<6, 6> FemModuleElasticity::_computeElementMatrixTria3(Cell cell)
 {
   Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
   Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
@@ -185,7 +185,7 @@ ARCCORE_HOST_DEVICE RealMatrix<12, 12> computeElementMatrixTetra4Base(Real4 dxu,
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<12, 12> FemModule::_computeElementMatrixTetra4(Cell cell)
+RealMatrix<12, 12> FemModuleElasticity::_computeElementMatrixTetra4(Cell cell)
 {
   Real4 dxu = ArcaneFemFunctions::FeOperation3D::computeGradientXTetra4(cell, m_node_coord);
   Real4 dyu = ArcaneFemFunctions::FeOperation3D::computeGradientYTetra4(cell, m_node_coord);

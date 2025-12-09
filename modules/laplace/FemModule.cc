@@ -17,13 +17,13 @@
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Initializes the FemModule at the start of the simulation.
+ * @brief Initializes the FemModuleLaplace at the start of the simulation.
  *
  * This method initializes degrees of freedom (DoFs) on nodes.
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleLaplace::
 startInit()
 {
   info() << "[ArcaneFem-Info] Started module startInit()";
@@ -44,7 +44,7 @@ startInit()
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Performs the main computation for the FemModule.
+ * @brief Performs the main computation for the FemModuleLaplace.
  *
  * This method:
  *   1. Stops the time loop after 1 iteration since the equation is steady state.
@@ -53,7 +53,7 @@ startInit()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleLaplace::
 compute()
 {
   info() << "[ArcaneFem-Info] Started module compute()";
@@ -102,7 +102,7 @@ compute()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleLaplace::
 _doStationarySolve()
 {
   if(m_assemble_linear_system){
@@ -130,7 +130,7 @@ _doStationarySolve()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleLinearOperator()
+void FemModuleLaplace::_assembleLinearOperator()
 {
   if (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
       options()->linearSystem.serviceName() == "PETScLinearSystem")
@@ -153,7 +153,7 @@ void FemModule::_assembleLinearOperator()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleLaplace::
 _assembleLinearOperatorCpu()
 {
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
@@ -210,7 +210,7 @@ _assembleLinearOperatorCpu()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleLinearOperatorGpu()
+void FemModuleLaplace::_assembleLinearOperatorGpu()
 {
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperatorGpu()";
   Real elapsedTime = platform::getRealTime();
@@ -256,7 +256,7 @@ void FemModule::_assembleLinearOperatorGpu()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleLaplace::
 _assembleBilinearOperator()
 {
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
@@ -311,7 +311,7 @@ _assembleBilinearOperator()
 /*---------------------------------------------------------------------------*/
 
 template <int N>
-void FemModule::
+void FemModuleLaplace::
 _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -341,7 +341,7 @@ _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_el
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleLaplace::
 _solve()
 {
   info() << "[ArcaneFem-Info] Started module _solve()";
@@ -364,7 +364,7 @@ _solve()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleLaplace::
 _updateVariables()
 {
   info() << "[ArcaneFem-Module] _updateVariables()";
@@ -398,7 +398,7 @@ _updateVariables()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleLaplace::
 _validateResults()
 {
   info() << "[ArcaneFem-Info] Started module _validateResults()";
@@ -423,7 +423,7 @@ _validateResults()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCANE_REGISTER_MODULE_FEM(FemModule);
+ARCANE_REGISTER_MODULE_FEM(FemModuleLaplace);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

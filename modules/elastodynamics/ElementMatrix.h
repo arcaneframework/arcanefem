@@ -37,7 +37,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<6, 6> FemModule::
+RealMatrix<6, 6> FemModuleElastodynamics::
 _computeElementMatrixTria3(Cell cell)
 {
   Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
@@ -158,7 +158,7 @@ ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeElementVectorTria3Gpu(CellLocalId ce
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<12, 12> FemModule::_computeElementMatrixTetra4(Cell cell)
+RealMatrix<12, 12> FemModuleElastodynamics::_computeElementMatrixTetra4(Cell cell)
 {
   Real4 dxu = ArcaneFemFunctions::FeOperation3D::computeGradientXTetra4(cell, m_node_coord);
   Real4 dyu = ArcaneFemFunctions::FeOperation3D::computeGradientYTetra4(cell, m_node_coord);

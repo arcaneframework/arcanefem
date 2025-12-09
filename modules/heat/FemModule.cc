@@ -17,13 +17,13 @@
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Initializes the FemModule at the start of the simulation.
+ * @brief Initializes the FemModuleHeat at the start of the simulation.
  *
  * This method initializes degrees of freedom (DoFs) on nodes.
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleHeat::
 startInit()
 {
   info() << "[ArcaneFem-Info] Started module startInit()";
@@ -62,7 +62,7 @@ startInit()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleHeat::
 compute()
 {
   info() << "[ArcaneFem-Info] Started module compute()";
@@ -99,7 +99,7 @@ compute()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleHeat::
 _initTime()
 {
   info() << "[ArcaneFem-Info] Started module _initTime()";
@@ -113,7 +113,7 @@ _initTime()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleHeat::
 _updateTime()
 {
   info() << "[ArcaneFem-Info] Started module _updateTime()";
@@ -125,7 +125,7 @@ _updateTime()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleHeat::
 _updateVariables()
 {
   info() << "[ArcaneFem-Info] Started module _updateVariables()";
@@ -193,7 +193,7 @@ _updateVariables()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleHeat::
 _initTemperature()
 {
   info() << "[ArcaneFem-Info] Started module _initTemperature()";
@@ -216,7 +216,7 @@ _initTemperature()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleHeat::
 _doStationarySolve()
 {
   if (m_assemble_linear_system) {
@@ -235,7 +235,7 @@ _doStationarySolve()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleHeat::
 _getParameters()
 {
   info() << "[ArcaneFem-Info] Started module _getMaterialParameters()";
@@ -275,7 +275,7 @@ _getParameters()
   */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleHeat::
 _assembleLinearOperator()
 {
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
@@ -436,7 +436,7 @@ _assembleLinearOperator()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleHeat::
 _assembleBilinearOperator()
 {
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
@@ -496,7 +496,7 @@ _assembleBilinearOperator()
 /*---------------------------------------------------------------------------*/
 
 template <int N>
-void FemModule::
+void FemModuleHeat::
 _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -522,7 +522,7 @@ _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_el
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleHeat::
 _solve()
 {
   info() << "[ArcaneFem-Info] Started module _solve()";
@@ -537,7 +537,7 @@ _solve()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleHeat::
 _validateResults()
 {
   info() << "[ArcaneFem-Info] Started module _validateResults()";
@@ -560,7 +560,7 @@ _validateResults()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCANE_REGISTER_MODULE_FEM(FemModule);
+ARCANE_REGISTER_MODULE_FEM(FemModuleHeat);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
