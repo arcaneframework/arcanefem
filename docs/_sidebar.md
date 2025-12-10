@@ -5,17 +5,17 @@
     * [Cluster](/install_cluster.md)
 
 - Modules
-    * [Laplace](modules/laplace.md)
-    * [Poisson](modules/poisson.md)
-    * [Fourier](modules/fourier.md)
-    * [Aerodynamics](modules/aerodynamics.md)
-    * [Electrostatics](modules/electrostatics.md)
-    * [Heat](modules/heat.md)
-    * [Elastodynamics](modules/aerodynamics.md)
-    * [Elasticity](modules/acoustics.md)
-    * [Soildynamics](modules/aerodynamics.md)
-    * [Acoustics](modules/acoustics.md)
-    * [Bilaplacian](modules/bilaplacian.md)
+    * [Laplace](/modules/laplace.md)
+    * [Poisson](/modules/poisson.md)
+    * [Fourier](/modules/fourier.md)
+    * [Aerodynamics](/modules/aerodynamics.md)
+    * [Electrostatics](/modules/electrostatics.md)
+    * [Heat](/modules/heat.md)
+    * [Elastodynamics](/modules/elastodynamics.md)
+    * [Elasticity](/modules/elasticity.md)
+    * [Soildynamics](/modules/soildynamics.md)
+    * [Acoustics](/modules/acoustics.md)
+    * [Bilaplacian](/modules/bilaplacian.md)
 
 - Technical Notes
     * [BSR matrix format](/matrix/matrix-format-bsr.md)
