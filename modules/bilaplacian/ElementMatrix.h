@@ -27,7 +27,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<6, 6> FemModule::
+RealMatrix<6, 6> FemModuleBilaplacian::
 _computeElementMatrixTria3(Cell cell)
 {
   Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);

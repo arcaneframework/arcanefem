@@ -23,7 +23,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleSoildynamics::
 _applyDirichlet(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
 
@@ -79,7 +79,7 @@ _applyDirichlet(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityVie
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleDirichletsGpu()
+void FemModuleSoildynamics::_assembleDirichletsGpu()
 {
   info() << "[ArcaneFem-Info] Started module  _assembleDirichletsGpu()";
 

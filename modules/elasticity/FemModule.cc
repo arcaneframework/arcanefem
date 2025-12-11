@@ -22,13 +22,13 @@
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Initializes the FemModule at the start of the simulation.
+ * @brief Initializes the FemModuleElasticity at the start of the simulation.
  *
  * This method initializes degrees of freedom (DoFs) on nodes.
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElasticity::
 startInit()
 {
   info() << "[ArcaneFem-Info] Started module  startInit()";
@@ -44,7 +44,7 @@ startInit()
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Performs the main computation for the FemModule.
+ * @brief Performs the main computation for the FemModuleElasticity.
  *
  * This method:
  *   1. Stops the time loop after 1 iteration since the equation is steady state.
@@ -54,7 +54,7 @@ startInit()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElasticity::
 compute()
 {
   info() << "[ArcaneFem-Info] Started module  compute()";
@@ -103,7 +103,7 @@ compute()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_initBsr()
+void FemModuleElasticity::_initBsr()
 {
   info() << "[ArcaneFem-Info] Started module  _initBsr()";
   Real elapsedTime = platform::getRealTime();
@@ -135,7 +135,7 @@ void FemModule::_initBsr()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElasticity::
 _doStationarySolve()
 {
   if(m_assemble_linear_system){
@@ -157,7 +157,7 @@ _doStationarySolve()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElasticity::
 _getMaterialParameters()
 {
   info() << "[ArcaneFem-Info] Started module  _getMaterialParameters()";
@@ -198,7 +198,7 @@ _getMaterialParameters()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElasticity::
 _assembleLinearOperator()
 {
   info() << "[ArcaneFem-Info] Started module  _assembleLinearOperator()";
@@ -223,7 +223,7 @@ _assembleLinearOperator()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElasticity::
 _assembleBilinearOperator()
 {
   info() << "[ArcaneFem-Info] Started module  _assembleBilinearOperator()";
@@ -299,7 +299,7 @@ _assembleBilinearOperator()
 /*---------------------------------------------------------------------------*/
 
 template <int N>
-void FemModule::
+void FemModuleElasticity::
 _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
   const Int32 dim = mesh()->dimension();
@@ -336,7 +336,7 @@ _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>&
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElasticity::
 _solve()
 {
   info() << "[ArcaneFem-Info] Started module  _solve()";
@@ -351,7 +351,7 @@ _solve()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElasticity::
 _validateResults()
 {
   info() << "[ArcaneFem-Info] Started module  _validateResults()";
@@ -390,7 +390,7 @@ _validateResults()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElasticity::
 _updateVariables()
 {
   info() << "[ArcaneFem-Info] Started module  _updateVariables()";
@@ -425,7 +425,7 @@ _updateVariables()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCANE_REGISTER_MODULE_FEM(FemModule);
+ARCANE_REGISTER_MODULE_FEM(FemModuleElasticity);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

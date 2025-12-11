@@ -8,7 +8,7 @@
 - Runs efficiently on CPUs and GPUs
 
 <div style="text-align: center;">
-  <a href="https://arcaneframework/arcanefem/#/?id=introduction"
+  <a href="#introduction"
      style="display:inline-block; padding:10px 20px; border:1px solid #42b983; border-radius:15px; color:#42b983; text-decoration:none; margin: 0 10px;">
      Getting Started
   </a>

@@ -30,7 +30,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<4, 4> FemModule::_computeElementMatrixQuad4(Cell cell)
+RealMatrix<4, 4> FemModuleFourier::_computeElementMatrixQuad4(Cell cell)
 {
   // Gauss points and weights for 2x2 quadrature
   constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // [-1/sqrt(3) , 1/sqrt(3)]
@@ -83,7 +83,7 @@ RealMatrix<4, 4> FemModule::_computeElementMatrixQuad4(Cell cell)
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<8, 8> FemModule::_computeElementMatrixHexa8(Cell cell)
+RealMatrix<8, 8> FemModuleFourier::_computeElementMatrixHexa8(Cell cell)
 {
   // 2x2x2 Gauss points and weights for [-1,1]^3
   constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // -1/sqrt(3), 1/sqrt(3)

@@ -24,7 +24,7 @@
  * 
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleSoildynamics::
 _applyDoubleCouple(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
   // Index of the boundary condition. Needed to associate a CaseTable

@@ -16,16 +16,30 @@ configure_file(Fourier.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 target_link_libraries(Fourier PUBLIC FemUtils)
 
 
-if (NOT APPLE)
-  # Command to compile C# file for functions
+find_program(ARCANE_DOTNET_COMPILE
+  NAMES arcane_dotnet_compile
+  PATHS ${ARCANE_PREFIX_DIR}/bin
+)
+
+if (NOT APPLE AND ARCANE_DOTNET_COMPILE
+    AND EXISTS "${ARCANE_PREFIX_DIR}/lib/Arcane.Core.dll"
+    AND EXISTS "${ARCANE_PREFIX_DIR}/lib/Arcane.Utils.dll")
+  message(STATUS "Arcane .NET support detected — building ExternalFunctions.dll")
+
   add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctions.dll"
-    COMMAND ${ARCANE_PREFIX_DIR}/bin/arcane_dotnet_compile "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctions.cs"
+    COMMAND ${ARCANE_DOTNET_COMPILE} "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctions.cs"
     DEPENDS "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctions.cs"
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+  )
+
   add_custom_target(external_functions DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctions.dll")
   add_dependencies(Fourier external_functions)
-else()
+
+elseif(APPLE)
   message(STATUS "Skipping ExternalFunctions.dll build on macOS")
+
+else()
+  message(STATUS "Skipping ExternalFunctions.dll — Arcane built without .NET support")
 endif()
 
 # Copy the check files in the binary directory

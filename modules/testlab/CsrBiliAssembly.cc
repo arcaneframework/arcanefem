@@ -20,7 +20,7 @@
  *
  *
  */
-void FemModule::
+void FemModuleTestlab::
 _buildMatrixCsr()
 {
   //ARCANE_FATAL("BUILD_CSR");
@@ -94,7 +94,7 @@ _buildMatrixCsr()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _assembleCsrBilinearOperatorTRIA3()
 {
 
@@ -145,7 +145,7 @@ _assembleCsrBilinearOperatorTRIA3()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _assembleCsrBilinearOperatorTETRA4()
 {
   Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_Csr");

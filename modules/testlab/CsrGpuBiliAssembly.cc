@@ -39,7 +39,7 @@ ARCCORE_HOST_DEVICE static void unpack(UInt64 packed_edge, Int32& n0, Int32& n1)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss)
+void FemModuleTestlab::_computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss)
 {
   auto mem_ressource = m_queue.memoryRessource();
   NumArray<UInt64, MDDim1> edges(mem_ressource);
@@ -93,7 +93,7 @@ void FemModule::_computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total,
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_computeNeighbors(Int8 edges_per_element, Int64 nb_edge_total, NumArray<Int32, MDDim1>& neighbors, SmallSpan<UInt64>& sorted_edges_ss)
+void FemModuleTestlab::_computeNeighbors(Int8 edges_per_element, Int64 nb_edge_total, NumArray<Int32, MDDim1>& neighbors, SmallSpan<UInt64>& sorted_edges_ss)
 {
   auto command = makeCommand(m_queue);
   auto inout_neighbors = viewInOut(command, neighbors);
@@ -114,7 +114,7 @@ void FemModule::_computeNeighbors(Int8 edges_per_element, Int64 nb_edge_total, N
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_computeRowIndex(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss) {
+void FemModuleTestlab::_computeRowIndex(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss) {
     auto mem_ressource = m_queue.memoryRessource();
     NumArray<Int32, MDDim1> neighbors(mem_ressource);
     neighbors.resize(mesh()->nbNode());
@@ -139,7 +139,7 @@ ARCCORE_HOST_DEVICE static void registerEdgeInColumns(Int32 src, Int32 dst, Acce
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_computeColumns(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>& sorted_edges_ss) {
+void FemModuleTestlab::_computeColumns(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>& sorted_edges_ss) {
     auto nb_node = mesh()->nbNode();
 
     {
@@ -184,7 +184,7 @@ void FemModule::_computeColumns(Int8 edges_per_element, Int64 nb_edge_total, Sma
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_computeSparsity()
+void FemModuleTestlab::_computeSparsity()
 {
 
   Int8 mesh_dim = mesh()->dimension();
@@ -219,7 +219,7 @@ void FemModule::_computeSparsity()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _assembleCsrGPUBilinearOperatorTRIA3()
 {
 
@@ -307,7 +307,7 @@ _assembleCsrGPUBilinearOperatorTRIA3()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _assembleCsrGPUBilinearOperatorTETRA4()
 {
   Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_Csr_Gpu");
