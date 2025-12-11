@@ -1,7 +1,5 @@
 - [Introduction](README.md)
-- Installation
-    * [PC](install_pc.md)
-    * [Cluster](install_cluster.md)
+- [Install](install.md)
 - Modules
     * [Laplace](modules/laplace.md)
     * [Poisson](modules/poisson.md)
