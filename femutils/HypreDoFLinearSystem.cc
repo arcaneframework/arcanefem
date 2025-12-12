@@ -34,6 +34,7 @@
 #include <arcane/accelerator/VariableViews.h>
 #include <arcane/accelerator/core/Runner.h>
 #include <arcane/accelerator/core/Memory.h>
+#include <arcane/accelerator/core/DeviceMemoryInfo.h>
 
 #include "IDoFLinearSystemFactory.h"
 #include "internal/CsrDoFLinearSystemImpl.h"
@@ -762,6 +763,9 @@ solve()
   }
   Real b1 = platform::getRealTime();
   info() << "[Hypre-Timer] Time to solve = " << (b1 - a2);
+
+  auto a = runner.deviceMemoryInfo();
+  info() << "[Hypre-Info] Device memory allocation (Mo): " << (a.totalMemory() - a.freeMemory()) / 1e6;
 
   HYPRE_Int iterations;
 
