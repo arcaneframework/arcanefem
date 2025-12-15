@@ -70,6 +70,13 @@ class PETScDoFLinearSystemImpl
   void build()
   {
     PetscFunctionBeginUser;
+    IItemFamily* dof_family = dofFamily();
+    IParallelMng* pm = dof_family->parallelMng();
+    Runner runner = this->runner();
+    MPI_Comm mpi_comm = static_cast<MPI_Comm>(pm->communicator());
+
+    _handleParameters(pm);
+    _computeMatrixNumeration(mpi_comm);
   }
 
   void solve() override;
@@ -100,6 +107,7 @@ class PETScDoFLinearSystemImpl
   Vec m_petsc_solution_vector;
   Vec m_petsc_rhs_vector;
   Mat m_petsc_matrix;
+  ISLocalToGlobalMapping m_petsc_map;
 
  private:
 
@@ -128,6 +136,7 @@ class PETScDoFLinearSystemImpl
 
   void _computeMatrixNumeration(MPI_Comm mpi_comm);
   void _handleParameters(IParallelMng* pm);
+  void _preallocateMatrix();
   UniqueArray<PetscInt> _CSRToCOO(const Span<const int32_t> csr_rows, int32_t nb_value);
 };
 
@@ -257,6 +266,46 @@ UniqueArray<PetscInt> PETScDoFLinearSystemImpl::_CSRToCOO(const Span<const int32
   return coo_rows;
 }
 
+void PETScDoFLinearSystemImpl::_preallocateMatrix()
+{
+  IItemFamily* dof_family = dofFamily();
+  IParallelMng* pm = dof_family->parallelMng();
+  Runner runner = this->runner();
+  MPI_Comm mpi_comm = static_cast<MPI_Comm>(pm->communicator());
+  DoFGroup all_dofs = dof_family->allItems();
+  PetscInt local_rows = m_nb_own_row; // rows this rank owns
+  PetscInt global_rows = m_nb_total_row; // total rows across all ranks
+  CSRFormatView csr_view = this->getCSRValues();
+
+  NumArray<PetscInt, MDDim1> indices{ all_dofs.size() };
+  // info() << "nb total row " << m_nb_total_row;
+
+  ENUMERATE_DOF (idof, all_dofs) {
+    indices[idof.index()] = m_dof_matrix_numbering[idof];
+    // info() << "local index: " << idof.index() << " global index: " << indices[idof.index()];
+  }
+
+  PetscCallAbort(mpi_comm, ISLocalToGlobalMappingCreate(mpi_comm, 1, all_dofs.size(), indices._internalData(), PETSC_COPY_VALUES, &m_petsc_map));
+
+  // info() << "Total " << m_nb_total_row << " local: " << m_nb_own_row;
+  pm->barrier();
+
+  PetscCallAbort(mpi_comm, MatCreate(mpi_comm, &m_petsc_matrix));
+  PetscCallAbort(mpi_comm, MatSetSizes(m_petsc_matrix, local_rows, local_rows, global_rows, global_rows));
+  PetscCallAbort(mpi_comm, MatSetFromOptions(m_petsc_matrix));
+  PetscCallAbort(mpi_comm, MatSetLocalToGlobalMapping(m_petsc_matrix, m_petsc_map, m_petsc_map));
+
+  // info() << "nb cols: " << csr_view.nbColumn() << ", nb rows: " << csr_view.nbRow() << ", nb vals: " << csr_view.nbValue();
+
+  UniqueArray<PetscInt> coo_rows = _CSRToCOO(csr_view.rows(), csr_view.nbValue());
+  UniqueArray<PetscInt> coo_cols;
+  // coo_cols.assign(csr_view.columns().begin(), csr_view.columns().end());
+  coo_cols.copy(csr_view.columns()); // copy column array
+
+  PetscCallAbort(mpi_comm, MatSetPreallocationCOOLocal(m_petsc_matrix, csr_view.nbValue(), coo_rows.data(), coo_cols.data()));
+
+}
+
 void PETScDoFLinearSystemImpl::
 solve()
 {
@@ -267,8 +316,8 @@ solve()
   Runner runner = this->runner();
   MPI_Comm mpi_comm = static_cast<MPI_Comm>(pm->communicator());
 
-  _handleParameters(pm);
-  _computeMatrixNumeration(mpi_comm);
+  // _handleParameters(pm);
+  // _computeMatrixNumeration(mpi_comm);
 
   Parallel::Communicator arcane_comm = pm->communicator();
   if (arcane_comm.isValid())
@@ -291,36 +340,35 @@ solve()
   // TODO: use COO with MatSetPreallocationCOO for better performance
   // TODO: see if we pass pointers to device memory directly when is_use_device==true
   {
-    DoFGroup all_dofs = dof_family->allItems();
+    // DoFGroup all_dofs = dof_family->allItems();
 
-    NumArray<PetscInt, MDDim1> indices{ all_dofs.size() };
-    // info() << "nb total row " << m_nb_total_row;
+    // NumArray<PetscInt, MDDim1> indices{ all_dofs.size() };
+    // // info() << "nb total row " << m_nb_total_row;
 
-    ENUMERATE_DOF (idof, all_dofs) {
-      indices[idof.index()] = m_dof_matrix_numbering[idof];
-      // info() << "local index: " << idof.index() << " global index: " << indices[idof.index()];
-    }
+    // ENUMERATE_DOF (idof, all_dofs) {
+    //   indices[idof.index()] = m_dof_matrix_numbering[idof];
+    //   // info() << "local index: " << idof.index() << " global index: " << indices[idof.index()];
+    // }
 
-    ISLocalToGlobalMapping m_petsc_map;
-    PetscCallAbort(mpi_comm, ISLocalToGlobalMappingCreate(mpi_comm, 1, all_dofs.size(), indices._internalData(), PETSC_COPY_VALUES, &m_petsc_map));
+    // PetscCallAbort(mpi_comm, ISLocalToGlobalMappingCreate(mpi_comm, 1, all_dofs.size(), indices._internalData(), PETSC_COPY_VALUES, &m_petsc_map));
 
-    // info() << "Total " << m_nb_total_row << " local: " << m_nb_own_row;
-    pm->barrier();
+    // // info() << "Total " << m_nb_total_row << " local: " << m_nb_own_row;
+    // pm->barrier();
 
-    PetscCallAbort(mpi_comm, MatCreate(mpi_comm, &m_petsc_matrix));
-    PetscCallAbort(mpi_comm, MatSetSizes(m_petsc_matrix, local_rows, local_rows, global_rows, global_rows));
-    PetscCallAbort(mpi_comm, MatSetFromOptions(m_petsc_matrix));
-    PetscCallAbort(mpi_comm, MatSetLocalToGlobalMapping(m_petsc_matrix, m_petsc_map, m_petsc_map));
-    PetscCallAbort(mpi_comm, ISLocalToGlobalMappingDestroy(&m_petsc_map));
+    // PetscCallAbort(mpi_comm, MatCreate(mpi_comm, &m_petsc_matrix));
+    // PetscCallAbort(mpi_comm, MatSetSizes(m_petsc_matrix, local_rows, local_rows, global_rows, global_rows));
+    // PetscCallAbort(mpi_comm, MatSetFromOptions(m_petsc_matrix));
+    // PetscCallAbort(mpi_comm, MatSetLocalToGlobalMapping(m_petsc_matrix, m_petsc_map, m_petsc_map));
 
-    // info() << "nb cols: " << csr_view.nbColumn() << ", nb rows: " << csr_view.nbRow() << ", nb vals: " << csr_view.nbValue();
+    // // info() << "nb cols: " << csr_view.nbColumn() << ", nb rows: " << csr_view.nbRow() << ", nb vals: " << csr_view.nbValue();
 
-    UniqueArray<PetscInt> coo_rows = _CSRToCOO(csr_view.rows(), csr_view.nbValue());
-    UniqueArray<PetscInt> coo_cols;
-    // coo_cols.assign(csr_view.columns().begin(), csr_view.columns().end());
-    coo_cols.copy(csr_view.columns()); // copy column array
+    // UniqueArray<PetscInt> coo_rows = _CSRToCOO(csr_view.rows(), csr_view.nbValue());
+    // UniqueArray<PetscInt> coo_cols;
+    // // coo_cols.assign(csr_view.columns().begin(), csr_view.columns().end());
+    // coo_cols.copy(csr_view.columns()); // copy column array
 
-    PetscCallAbort(mpi_comm, MatSetPreallocationCOOLocal(m_petsc_matrix, csr_view.nbValue(), coo_rows.data(), coo_cols.data()));
+    // PetscCallAbort(mpi_comm, MatSetPreallocationCOOLocal(m_petsc_matrix, csr_view.nbValue(), coo_rows.data(), coo_cols.data()));
+    _preallocateMatrix();
     PetscCallAbort(mpi_comm, MatSetValuesCOO(m_petsc_matrix, csr_view.values().data(), INSERT_VALUES));
   }
 
@@ -427,6 +475,7 @@ solve()
 
   PetscCallAbort(mpi_comm, VecDestroy(&m_petsc_solution_vector));
   PetscCallAbort(mpi_comm, VecDestroy(&m_petsc_rhs_vector));
+  PetscCallAbort(mpi_comm, ISLocalToGlobalMappingDestroy(&m_petsc_map));
   PetscCallAbort(mpi_comm, MatDestroy(&m_petsc_matrix));
   PetscCallAbort(mpi_comm, KSPDestroy(&m_petsc_solver_context));
 }
@@ -447,12 +496,12 @@ class PETScDoFLinearSystemFactoryService
     auto* x = new PETScDoFLinearSystemImpl(dof_family, solver_name);
     x->options = options();
 
-    x->build();
     x->setRelTolerance(options()->rtol());
     x->setAbsTolerance(options()->atol());
     x->setMaxIter(options()->maxIter());
     x->setSolver(options()->solver());
     x->setPreconditioner(options()->pcType());
+    x->build();
     return x;
   }
 };
