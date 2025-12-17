@@ -328,6 +328,9 @@ void PETScDoFLinearSystemImpl::_initSolve()
   MPI_Comm mpi_comm = static_cast<MPI_Comm>(pm->communicator());
   CSRFormatView csr_view = this->getCSRValues();
 
+  if (m_constant_matrix_values && !m_constant_matrix_sparsity)
+    PetscCallAbort(mpi_comm, PetscError(mpi_comm, __LINE__, "_initSolve", __FILE__, PETSC_ERR_SUP, PETSC_ERROR_INITIAL, "Cannot have constant matrix values and variable matrix sparsity."));
+
   _handleParameters(pm);
   _computeMatrixNumeration(mpi_comm);
 
