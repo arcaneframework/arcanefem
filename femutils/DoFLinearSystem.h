@@ -333,8 +333,8 @@ class DoFLinearSystem
   VariableDoFReal& getForcedValue();
   VariableDoFBool& getForcedInfo();
 
-  void setMatrixSparsity(bool val);
-  void setMatrixValues(bool val);
+  void setConstantMatrixSparsity(bool val);
+  void setConstantMatrixValues(bool val);
   bool isMatrixSparsityConstant();
   bool isMatrixValuesConstant();
 

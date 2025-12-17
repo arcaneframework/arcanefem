@@ -61,8 +61,8 @@ class DoFLinearSystemImplBase
 
   IItemFamily* dofFamily() const { return m_dof_family; }
 
-  void setMatrixSparsity(const bool val) final { m_constant_matrix_sparsity = val; }
-  void setMatrixValues(const bool val) final { m_constant_matrix_values = val; }
+  void setConstantMatrixSparsity(const bool val) final { m_constant_matrix_sparsity = val; }
+  void setConstantMatrixValues(const bool val) final { m_constant_matrix_values = val; }
   bool isMatrixSparsityConstant() const final { return m_constant_matrix_sparsity; }
   bool isMatrixValuesConstant() const final { return m_constant_matrix_values; }
 

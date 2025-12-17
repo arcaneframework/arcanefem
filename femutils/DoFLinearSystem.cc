@@ -218,12 +218,12 @@ public:
     ARCANE_THROW(NotImplementedException, "");
   }
 
-  void setMatrixValues(bool val) override
+  void setConstantMatrixValues(bool val) override
   {
     ARCANE_THROW(NotImplementedException, "");
   }
 
-  void setMatrixSparsity(bool val) override
+  void setConstantMatrixSparsity(bool val) override
   {
     ARCANE_THROW(NotImplementedException, "");
   }
@@ -623,20 +623,20 @@ isInitialized() const
 /*---------------------------------------------------------------------------*/
 
 void DoFLinearSystem::
-setMatrixSparsity(const bool val)
+setConstantMatrixSparsity(const bool val)
 {
   _checkInit();
-  m_p->setMatrixSparsity(val);
+  m_p->setConstantMatrixSparsity(val);
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 void DoFLinearSystem::
-setMatrixValues(const bool val)
+setConstantMatrixValues(const bool val)
 {
   _checkInit();
-  m_p->setMatrixValues(val);
+  m_p->setConstantMatrixValues(val);
 }
 
 /*---------------------------------------------------------------------------*/

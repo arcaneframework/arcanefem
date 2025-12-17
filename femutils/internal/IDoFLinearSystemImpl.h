@@ -61,8 +61,8 @@ class IDoFLinearSystemImpl
   virtual VariableDoFByte& getEliminationInfo() = 0;
   virtual VariableDoFReal& getEliminationValue() = 0;
   [[nodiscard]] virtual bool hasSetCSRValues() const = 0;
-  virtual void setMatrixSparsity(bool val) = 0;
-  virtual void setMatrixValues(bool val) = 0;
+  virtual void setConstantMatrixSparsity(bool val) = 0;
+  virtual void setConstantMatrixValues(bool val) = 0;
   [[nodiscard]] virtual bool isMatrixSparsityConstant() const = 0;
   [[nodiscard]] virtual bool isMatrixValuesConstant() const = 0;
   virtual void setRunner(const Runner& r) = 0;
