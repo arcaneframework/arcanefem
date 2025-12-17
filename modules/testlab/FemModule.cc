@@ -1975,6 +1975,9 @@ _computeElementMatrixTETRA4(Cell cell)
 void FemModuleTestlab::
 _solve()
 {
+  m_linear_system.setConstantMatrixSparsity(true);
+  m_linear_system.setConstantMatrixValues(true);
+
   info() << "[ArcaneFem-Info] Started module _solve()";
   Real elapsedTime = platform::getRealTime();
 
@@ -1982,6 +1985,7 @@ _solve()
   ITimeStats* tstat = m_time_stats;
   Timer::Action timer_action(tstat, "Solving");
 
+  Real start = platform::getRealTime();
   {
     TimeStart = platform::getRealTime();
     Timer::Action ta1(tstat, "LinearSystemSolve1");
@@ -2050,6 +2054,10 @@ _solve()
       info() << "u[" << node.uniqueId() << "] = " << m_u[node];
     }
   }
+
+  Real end = platform::getRealTime();
+
+  info() << "TIME TAKEN:  " << end - start;
 }
 
 /*---------------------------------------------------------------------------*/
