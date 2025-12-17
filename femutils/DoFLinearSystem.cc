@@ -218,6 +218,26 @@ public:
     ARCANE_THROW(NotImplementedException, "");
   }
 
+  void setMatrixValues(bool val) override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
+  void setMatrixSparsity(bool val) override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
+  bool isMatrixSparsityConstant() const override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
+  bool isMatrixValuesConstant() const override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
   bool hasSetCSRValues() const override { return false; }
   void setRunner(const Runner& r) override { m_runner = r; }
   Runner runner() const { return m_runner; }
@@ -597,6 +617,46 @@ bool DoFLinearSystem::
 isInitialized() const
 {
   return m_p;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystem::
+setMatrixSparsity(const bool val)
+{
+  _checkInit();
+  m_p->setMatrixSparsity(val);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystem::
+setMatrixValues(const bool val)
+{
+  _checkInit();
+  m_p->setMatrixValues(val);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+bool DoFLinearSystem::
+isMatrixSparsityConstant()
+{
+  _checkInit();
+  return m_p->isMatrixSparsityConstant();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+bool DoFLinearSystem::
+isMatrixValuesConstant()
+{
+  _checkInit();
+  return m_p->isMatrixValuesConstant();
 }
 
 /*---------------------------------------------------------------------------*/
