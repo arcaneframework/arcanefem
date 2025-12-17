@@ -66,7 +66,7 @@ class PETScDoFLinearSystemImpl
     IParallelMng* pm = dof_family->parallelMng();
     MPI_Comm mpi_comm = static_cast<MPI_Comm>(pm->communicator());
 
-    if (m_constant_matrix_sparsity)
+    if (isMatrixSparsityConstant())
     {
       PetscCallAbort(mpi_comm, ISLocalToGlobalMappingDestroy(&m_petsc_map));
       PetscCallAbort(mpi_comm, MatDestroy(&m_petsc_matrix));
@@ -114,8 +114,6 @@ class PETScDoFLinearSystemImpl
   ISLocalToGlobalMapping m_petsc_map;
 
   bool m_is_initialized = false;
-  bool m_constant_matrix_sparsity = true;
-  bool m_constant_matrix_values = true;
 
  private:
 
@@ -328,16 +326,16 @@ void PETScDoFLinearSystemImpl::_initSolve()
   MPI_Comm mpi_comm = static_cast<MPI_Comm>(pm->communicator());
   CSRFormatView csr_view = this->getCSRValues();
 
-  if (m_constant_matrix_values && !m_constant_matrix_sparsity)
+  if (isMatrixValuesConstant() && !isMatrixSparsityConstant())
     PetscCallAbort(mpi_comm, PetscError(mpi_comm, __LINE__, "_initSolve", __FILE__, PETSC_ERR_SUP, PETSC_ERROR_INITIAL, "Cannot have constant matrix values and variable matrix sparsity."));
 
   _handleParameters(pm);
   _computeMatrixNumeration(mpi_comm);
 
-  if (m_constant_matrix_sparsity)
+  if (isMatrixSparsityConstant())
     _preallocateMatrix();
 
-  if (m_constant_matrix_values)
+  if (isMatrixValuesConstant())
   {
     PetscCallAbort(mpi_comm, MatSetValuesCOO(m_petsc_matrix, csr_view.values().data(), INSERT_VALUES));
     PetscCallAbort(mpi_comm, MatAssemblyBegin(m_petsc_matrix, MAT_FINAL_ASSEMBLY));
@@ -380,10 +378,10 @@ solve()
 
   // TODO: use COO with MatSetPreallocationCOO for better performance
   // TODO: see if we pass pointers to device memory directly when is_use_device==true
-  if (!m_constant_matrix_sparsity)
+  if (!isMatrixSparsityConstant())
     _preallocateMatrix();
 
-  if (!m_constant_matrix_values)
+  if (!isMatrixValuesConstant())
   {
     PetscCallAbort(mpi_comm, MatSetValuesCOO(m_petsc_matrix, csr_view.values().data(), INSERT_VALUES));
     PetscCallAbort(mpi_comm, MatAssemblyBegin(m_petsc_matrix, MAT_FINAL_ASSEMBLY));
@@ -485,7 +483,7 @@ solve()
   info() << "[PETSc-Info] Wrote solution in solution_variable";
   info() << "[PETSc-Info] Device memory allocation (Mo): " << (a.totalMemory() - a.freeMemory()) / 1e6;
 
-  if (!m_constant_matrix_sparsity)
+  if (!isMatrixSparsityConstant())
   {
     PetscCallAbort(mpi_comm, ISLocalToGlobalMappingDestroy(&m_petsc_map));
     PetscCallAbort(mpi_comm, MatDestroy(&m_petsc_matrix));
