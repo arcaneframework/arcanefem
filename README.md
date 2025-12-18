@@ -25,13 +25,13 @@ ArcaneFEM provides production-ready Finite Element Method (FEM) solvers built on
 
 #### Required Dependencies
 
-- **[Arcane Framework](https://arcaneframework.github.io/arcane/userdoc/html/d7/d94/arcanedoc_build_install.html)** - Core computational framework
+- **Arcane Framework** - Core parallel computational framework
 - **Linear Solver Library** (at least one):
   - **HYPRE** (recommended for CPU and GPU parallelism)
   - **PETSc** (recommended for CPU and GPU parallelism)
   - **Trilinos**
 
-Refer to the [Arcane Installation Guide](https://arcaneframework.github.io/arcane/userdoc/html/d7/d94/arcanedoc_build_install.html) for detailed compilation instructions. **Important**: Configure Arcane with HYPRE, PETSc, or Trilinos support to unlock ArcaneFEM's full capabilities.
+> **Tip**: Refer to the [Arcane Installation Guide](https://arcaneframework.github.io/arcane/userdoc/html/d7/d94/arcanedoc_build_install.html) for detailed compilation instructions. Configure Arcane with HYPRE, PETSc, or Trilinos support to unlock ArcaneFEM's full capabilities.
 
 #### Building ArcaneFEM
 
@@ -70,20 +70,20 @@ Each module includes example input files in its `inputs/` directory.
 
 #### Execution Modes
 
-**Sequential (Single Core)**
+- **Sequential (Single Core)**
 
 ```bash
 ./Elasticity ./inputs/Test.Elasticity.arc
 ```
 
-**Parallel CPU (Domain Decomposition)**
+- **Parallel CPU (Domain Decomposition)**
 
 ```bash
 # Run on 4 CPU cores
 mpirun -n 4 ./Elasticity ./inputs/Test.Elasticity.arc
 ```
 
-**GPU Accelerated**
+- **GPU Accelerated**
 
 ```bash
 # Single NVIDIA GPU
@@ -95,7 +95,7 @@ mpirun -n 1 -A,AcceleratorRuntime=hip ./Elasticity ./inputs/Test.Elasticity.arc
 
 > **Note**: Replace `1` with the number of available GPUs
 
-**Hybrid CPU-GPU**
+- **Hybrid CPU-GPU**
 
 ```bash
 # 8 CPU cores + 1 GPU
