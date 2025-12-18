@@ -83,8 +83,8 @@ class DoFLinearSystemImplBase
   VariableDoFByte m_dof_elimination_info;
   VariableDoFReal m_dof_elimination_value;
 
-  bool m_constant_matrix_sparsity;
-  bool m_constant_matrix_values;
+  bool m_constant_matrix_sparsity = false;
+  bool m_constant_matrix_values = false;
 
   //! List of (row,column) which contribute to RowColumn elimination
   OrderedRowColumnMap m_row_column_elimination_map;
