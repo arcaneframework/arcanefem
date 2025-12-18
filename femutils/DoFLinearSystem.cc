@@ -220,22 +220,22 @@ public:
 
   void setConstantMatrixValues(bool val) override
   {
-    ARCANE_THROW(NotImplementedException, "");
+    // noop
   }
 
   void setConstantMatrixSparsity(bool val) override
   {
-    ARCANE_THROW(NotImplementedException, "");
+    // noop
   }
 
   bool isMatrixSparsityConstant() const override
   {
-    ARCANE_THROW(NotImplementedException, "");
+    return false;
   }
 
   bool isMatrixValuesConstant() const override
   {
-    ARCANE_THROW(NotImplementedException, "");
+    return false;
   }
 
   bool hasSetCSRValues() const override { return false; }
