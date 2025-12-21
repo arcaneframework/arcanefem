@@ -2,7 +2,7 @@
 
 **High-Performance Finite Element Method Solvers with CPU/GPU Parallelism**
 
-ArcaneFEM provides production-ready Finite Element Method (FEM) solvers built on the [Arcane Framework](https://github.com/arcaneframework/framework). Designed for modern HPC environments, these solvers deliver optimized performance across diverse parallel computing architectures: multi-CPU, multi-GPU, and hybrid CPU-GPU configurations.
+ArcaneFEM provides Finite Element Method (FEM) solvers built on the [Arcane Framework](https://github.com/arcaneframework/framework). Designed for modern HPC environments, these solvers deliver optimized performance across diverse parallel computing architectures: multi-CPU, multi-GPU, and hybrid CPU-GPU configurations.
 
 ##### Documentation & Resources
 
@@ -14,7 +14,6 @@ ArcaneFEM provides production-ready Finite Element Method (FEM) solvers built on
 
 - **Flexible Parallelism**: Seamlessly run on CPUs, GPUs, or heterogeneous CPU-GPU systems
 - **Multiple Physics Modules**: Includes solvers for elasticity, heat transfer, and more
-- **Production-Ready**: Optimized algorithms for real-world engineering simulations
 - **Modern Visualization**: Native support for ParaView via VTKHDF5 and Ensight formats
 
 ------
