@@ -19,3 +19,4 @@
     * [FEM gradient calculation](fem/fem-gradient-calculation.md)
     * [Geometric calculation](fem/fem-geometric-quantities.md)
     * [Derivative of finite element field](fem/fem-field-derivatives.md)
+- [API documentation](https://mohd-afeef-badri.github.io/arcaneFEM_API_Doc/)
