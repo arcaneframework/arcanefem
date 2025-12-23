@@ -515,10 +515,21 @@ class BoundaryConditions
 
   /*---------------------------------------------------------------------------*/
   /**
-   * @brief Applies Dirichlet boundary conditions to RHS and LHS.
+   * @brief Applies Dirichlet boundary conditions to the FEM linear system.
    *
-   * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
-   * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
+   * This method modifies both the left-hand side (LHS) matrix and the
+   * right-hand side (RHS) vector:
+   * 
+   * - For the LHS matrix \f$ \mathbf{A} \f$, the diagonal entry associated
+   *   with a Dirichlet DoF  is set to \f$ P \f$: (\f$ a_{ii} = P\f$).
+   * - For the RHS vector \f$ \mathbf{b} \f$, the corresponding entry is
+   *   scaled by \f$ P \f$: (\f$ b_{i} = b_i \times P\f$).
+   *
+   * @param bs Dirichlet boundary condition definition
+   * @param dofs_on_nodes Degree-of-freedom mapping on mesh nodes
+   * @param linear_system Linear system to be modified
+   * @param mesh Underlying mesh
+   * @param queue Accelerator execution queue
    */
   /*---------------------------------------------------------------------------*/
 
@@ -529,10 +540,21 @@ class BoundaryConditions
 
   /*---------------------------------------------------------------------------*/
   /**
-   * @brief Applies Point Dirichlet boundary conditions to RHS and LHS.
+   * @brief Applies Point Dirichlet boundary conditions to the FEM linear system.
    *
-   * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
-   * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
+   * This method modifies both the left-hand side (LHS) matrix and the
+   * right-hand side (RHS) vector:
+   * 
+   * - For the LHS matrix \f$ \mathbf{A} \f$, the diagonal entry associated
+   *   with a Dirichlet DoF  is set to \f$ P \f$: (\f$ a_{ii} = P\f$).
+   * - For the RHS vector \f$ \mathbf{b} \f$, the corresponding entry is
+   *   scaled by \f$ P \f$: (\f$ b_{i} = b_i \times P\f$).
+   *
+   * @param bs Dirichlet boundary condition definition
+   * @param dofs_on_nodes Degree-of-freedom mapping on mesh nodes
+   * @param linear_system Linear system to be modified
+   * @param mesh Underlying mesh
+   * @param queue Accelerator execution queue
    */
   /*---------------------------------------------------------------------------*/
 
@@ -543,9 +565,18 @@ class BoundaryConditions
 
   /*---------------------------------------------------------------------------*/
   /**
-   * @brief Applies Dirichlet boundary conditions to RHS.
+   * @brief Applies Dirichlet boundary conditions to the RHS vector.
    *
-   * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
+   * This method modifies the right-hand side (RHS) vector of the FEM linear system:
+   * 
+   * - For the RHS vector \f$ \mathbf{b} \f$, the corresponding entry is
+   *   scaled by \f$ P \f$: (\f$ b_{i} = b_i \times P\f$).
+   *
+   * @param bs Dirichlet boundary condition definition
+   * @param dofs_on_nodes Degree-of-freedom mapping on mesh nodes
+   * @param linear_system Linear system to be modified
+   * @param mesh Underlying mesh
+   * @param queue Accelerator execution queue
    */
   /*---------------------------------------------------------------------------*/
 
@@ -556,9 +587,18 @@ class BoundaryConditions
 
   /*---------------------------------------------------------------------------*/
   /**
-   * @brief Applies Point Dirichlet boundary conditions to RHS.
+   * @brief Applies Point Dirichlet boundary conditions to the RHS vector.
    *
-   * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
+   * This method modifies the right-hand side (RHS) vector of the FEM linear system:
+   * 
+   * - For the RHS vector \f$ \mathbf{b} \f$, the corresponding entry is
+   *   scaled by \f$ P \f$: (\f$ b_{i} = b_i \times P\f$).
+   *
+   * @param bs Dirichlet boundary condition definition
+   * @param dofs_on_nodes Degree-of-freedom mapping on mesh nodes
+   * @param linear_system Linear system to be modified
+   * @param mesh Underlying mesh
+   * @param queue Accelerator execution queue
    */
   /*---------------------------------------------------------------------------*/
 
@@ -576,9 +616,16 @@ class BoundaryConditions2D
   /**
    * @brief Applies a constant source term to the RHS vector.
    *
-   * This method adds a constant source term `qdot` to the RHS vector for each
+   * This method adds a constant source term \c qdot to the RHS vector for each
    * node in the mesh. The contribution to each node is weighted by the area of
    * the cell and evenly distributed among the number of nodes of the cell.
+   * 
+   * @param qdot Constant source term to be applied
+   * @param dofs_on_nodes Degree-of-freedom mapping on mesh nodes
+   * @param node_coord Node coordinates
+   * @param rhs_variable_na Right-hand side variable
+   * @param mesh Underlying mesh
+   * @param queue Accelerator execution queue
    *
    */
   /*---------------------------------------------------------------------------*/
@@ -594,7 +641,18 @@ class BoundaryConditions2D
    * This method updates the RHS values of the finite element method equations
    * based on the provided Neumann boundary condition. The boundary condition
    * can specify a value or its components along the x and y directions.
+   * 
+   * @param bs Neumann boundary condition definition
+   * @param dofs_on_nodes Degree-of-freedom mapping on mesh nodes
+   * @param node_coord Node coordinates
+   * @param rhs_variable_na Right-hand side variable
+   * @param mesh Underlying mesh
+   * @param queue Accelerator execution queue
    *
+   * @note The Neumann condition can be defined either by a total value or
+   * by its components along the x and y directions. These components are
+   * used to compute the contribution to the RHS based on the edge normals.
+   * \c bs should provide methods to access these values.
    */
   /*---------------------------------------------------------------------------*/
 
@@ -611,9 +669,16 @@ class BoundaryConditions3D
   /**
    * @brief Applies a constant source term to the RHS vector.
    *
-   * This method adds a constant source term `qdot` to the RHS vector for each
+   * This method adds a constant source term \c qdot to the RHS vector for each
    * node in the mesh. The contribution to each node is weighted by the area of
    * the cell and evenly distributed among the number of nodes of the cell.
+   * 
+   * @param qdot Constant source term to be applied
+   * @param dofs_on_nodes Degree-of-freedom mapping on mesh nodes
+   * @param node_coord Node coordinates
+   * @param rhs_variable_na Right-hand side variable
+   * @param mesh Underlying mesh
+   * @param queue Accelerator execution queue
    *
    */
   /*---------------------------------------------------------------------------*/
@@ -629,7 +694,18 @@ class BoundaryConditions3D
    * This method updates the RHS values of the finite element method equations
    * based on the provided Neumann boundary condition. The boundary condition
    * can specify a value or its components along the x and y directions.
+   * 
+   * @param bs Neumann boundary condition definition
+   * @param dofs_on_nodes Degree-of-freedom mapping on mesh nodes
+   * @param node_coord Node coordinates
+   * @param rhs_variable_na Right-hand side variable
+   * @param mesh Underlying mesh
+   * @param queue Accelerator execution queue
    *
+   * @note The Neumann condition can be defined either by a total value or
+   * by its components along the x and y directions. These components are
+   * used to compute the contribution to the RHS based on the edge normals.
+   * \c bs should provide methods to access these values.
    */
   /*---------------------------------------------------------------------------*/
 

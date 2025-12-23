@@ -106,12 +106,7 @@ applyDirichletToNodeGroupViaRowOrRowColumnElimination(Byte elimination_type, con
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-/**
- * @brief Applies Dirichlet boundary conditions to RHS and LHS.
- *
- * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
- * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
- */
+
 void BoundaryConditions::
 applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs,
                           const FemDoFsOnNodes& dofs_on_nodes, DoFLinearSystem& linear_system,
@@ -148,12 +143,7 @@ applyDirichletToLhsAndRhs(BC::IDirichletBoundaryCondition* bs,
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-/**
- * @brief Applies Point Dirichlet boundary conditions to RHS and LHS.
- *
- * - For LHS matrix `𝐀`, the diagonal term for the Dirichlet DOF is set to `𝑃`.
- * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
- */
+
 void BoundaryConditions::
 applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
                                DoFLinearSystem& linear_system, IMesh* mesh, RunQueue* queue)
@@ -186,11 +176,7 @@ applyPointDirichletToLhsAndRhs(BC::IDirichletPointCondition* bs, const FemDoFsOn
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-/**
- * @brief Applies Dirichlet boundary conditions to RHS.
- *
- * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
- */
+
 void BoundaryConditions::
 applyDirichletToRhs(BC::IDirichletBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
                     DoFLinearSystem& linear_system, IMesh* mesh, RunQueue* queue)
@@ -227,11 +213,7 @@ applyDirichletToRhs(BC::IDirichletBoundaryCondition* bs, const FemDoFsOnNodes& d
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-/**
- * @brief Applies Point Dirichlet boundary conditions to RHS.
- *
- * - For RHS vector `𝐛`, the Dirichlet DOF term is scaled by `𝑃`.
- */
+
 void BoundaryConditions::
 applyPointDirichletToRhs(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
                          DoFLinearSystem& linear_system, IMesh* mesh, RunQueue* queue)
@@ -265,14 +247,7 @@ applyPointDirichletToRhs(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes&
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-/**
- * @brief Applies a constant source term to the RHS vector.
- *
- * This method adds a constant source term `qdot` to the RHS vector for each
- * node in the mesh. The contribution to each node is weighted by the area of
- * the cell and evenly distributed among the number of nodes of the cell.
- *
- */
+
 void BoundaryConditions2D::
 applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
                          const VariableNodeReal3& node_coord,
@@ -289,13 +264,7 @@ applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-/**
- * @brief Applies Neumann conditions to the right-hand side (RHS) values.
- *
- * This method updates the RHS values of the finite element method equations
- * based on the provided Neumann boundary condition. The boundary condition
- * can specify a value or its components along the x and y directions.
- */
+
 void BoundaryConditions2D::
 applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
                   const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
@@ -360,15 +329,6 @@ applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-/**
- * @brief Applies a constant source term to the RHS vector.
- *
- * This method adds a constant source term `qdot` to the RHS vector for each
- * node in the mesh. The contribution to each node is weighted by the area of
- * the cell and evenly distributed among the number of nodes of the cell.
- *
- */
-/*---------------------------------------------------------------------------*/
 
 void BoundaryConditions3D::
 applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord,
@@ -384,14 +344,7 @@ applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, const V
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-/**
- * @brief Applies Neumann conditions to the right-hand side (RHS) values.
- *
- * This method updates the RHS values of the finite element method equations
- * based on the provided Neumann boundary condition. The boundary condition
- * can specify a value or its components along the x and y directions.
- *
- */
+
 void BoundaryConditions3D::
 applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
                   const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
