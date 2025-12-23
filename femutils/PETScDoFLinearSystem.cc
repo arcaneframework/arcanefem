@@ -34,6 +34,7 @@
 #include <arcane/accelerator/VariableViews.h>
 #include <arcane/accelerator/core/Runner.h>
 #include <arcane/accelerator/core/Memory.h>
+#include <arcane/accelerator/core/DeviceMemoryInfo.h>
 
 #include "IDoFLinearSystemFactory.h"
 #include "internal/CsrDoFLinearSystemImpl.h"
@@ -419,15 +420,16 @@ solve()
     PetscCallAbort(mpi_comm, VecRestoreArrayRead(m_petsc_solution_vector, &vals));
   }
 
+  auto a = runner.deviceMemoryInfo();
+
   info() << "[PETSc-Info] Wrote solution in solution_variable";
+  info() << "[PETSc-Info] Device memory allocation (Mo): " << (a.totalMemory() - a.freeMemory()) / 1e6;
 
   PetscCallAbort(mpi_comm, VecDestroy(&m_petsc_solution_vector));
   PetscCallAbort(mpi_comm, VecDestroy(&m_petsc_rhs_vector));
   PetscCallAbort(mpi_comm, MatDestroy(&m_petsc_matrix));
   PetscCallAbort(mpi_comm, KSPDestroy(&m_petsc_solver_context));
 }
-
-#include "PETScDoFLinearSystemFactory_axl.h"
 
 class PETScDoFLinearSystemFactoryService
 : public ArcanePETScDoFLinearSystemFactoryObject

@@ -1,59 +1,138 @@
-Welcome to the repository showcasing Finite Element Method (FEM) based solvers developed using the Arcane Framework. The FEM solvers/algorithms here are optimized for both CPU and GPU-based parallel computing environments.
+# ArcaneFEM
 
-Before diving into the samples provided, please ensure you have installed a recent version (3.14.14) of the Arcane Framework.
+**High-Performance Finite Element Method Solvers with CPU/GPU Parallelism**
 
-## How to test  ##
+ArcaneFEM provides Finite Element Method (FEM) solvers built on the [Arcane Framework](https://github.com/arcaneframework/framework). Designed for modern HPC environments, these solvers deliver optimized performance across diverse parallel computing architectures: multi-CPU, multi-GPU, and hybrid CPU-GPU configurations.
 
-It is simple **compile**$\rightarrow$**execute**$\rightarrow$**visualize**
+##### Documentation & Resources
 
+- **[ArcaneFEM Documentation](https://arcaneframework.github.io/arcanefem/)** - Still in progress but usable user guide
+- **[GitHub Repository](https://github.com/arcaneframework/arcanefem)** - Source code and issue tracking
+- **[Arcane Framework Docs](https://arcaneframework.github.io/arcane/userdoc/html/index.html)** - Core framework reference
 
-### compile ###
-To compile the sources, follow these steps:
+##### Key Features
 
-~~~{sh}
-# Set up paths
-ARCANE_INSTALL_DIR=/path/to/arcane/installation
-BUILD_DIR=/tmp/build
-SOURCE_PATH=/path/to/sources
+- **Flexible Parallelism**: Seamlessly run on CPUs, GPUs, or heterogeneous CPU-GPU systems
+- **Multiple Physics Modules**: Includes solvers for elasticity, heat transfer, and more
+- **Modern Visualization**: Native support for ParaView via VTKHDF5 and Ensight formats
 
-# Invoke CMake to configure the build
-cmake -S ${SOURCE_PATH} -B ${BUILD_DIR} -DCMAKE_PREFIX_PATH=${ARCANE_INSTALL_DIR}
+------
 
-# Build the project
-cmake --build ${BUILD_DIR}
-~~~
+## Installation Notes
 
-### Execute ###
+[Detailed Installation procedure](https://arcaneframework.github.io/arcanefem/#/install)
 
-Once compiled, execute any module of your choice. For example for the elasticity solver. Navigate to the appropriate directory: 
+#### Required Dependencies
 
-~~~{sh}
-cd ${BUILD_DIR}/elasticity
-~~~
-Then run the executable with the desired input file:
-~~~{sh}
-./Elasticity Test.Elasticity.arc
-~~~
+- **Arcane Framework** - Core parallel computational framework
+- **Linear Solver Library** (at least one):
+  - **HYPRE** (recommended for CPU and GPU parallelism)
+  - **PETSc** (recommended for CPU and GPU parallelism)
+  - **Trilinos**
 
-for parallel run (domain-decompostion) e.g:
+> **Tip**: Refer to the [Arcane Installation Guide](https://arcaneframework.github.io/arcane/userdoc/html/d7/d94/arcanedoc_build_install.html) for detailed compilation instructions. Configure Arcane with HYPRE, PETSc, or Trilinos support to unlock ArcaneFEM's full capabilities.
 
-```sh
-mpirun -n 4 ./Elasticity Test.Elasticity.arc
+#### Building ArcaneFEM
+
+Assuming Arcane Framework is already installed:
+
+```bash
+# Configure paths
+export ARCANE_INSTALL_DIR=/path/to/arcane/installation
+export ARCANEFEM_INSTALL_DIR=${HOME}/ArcaneFEM/install
+export SOURCE_PATH=/path/to/ArcaneFEM/sources
+
+# Configure build with CMake
+cmake -S ${SOURCE_PATH} \
+      -B ${ARCANEFEM_INSTALL_DIR} \
+      -DCMAKE_PREFIX_PATH=${ARCANE_INSTALL_DIR}
+
+# Compile and install
+cmake --build ${ARCANEFEM_INSTALL_DIR}
 ```
 
-Alternatively, you can provide command-line arguments to run the solver:
+------
 
-~~~{sh}
-./Elasticity -A,CaseDatasetFileName=Test.Elasticity.arc
-~~~
-For additional commands to control Arcane, refer to  [Arcane Documentation](https://arcaneframework.github.io/arcane/userdoc/html/d8/dd6/arcanedoc_execution_launcher.html).* 
+## Quick Start Guide
 
-### Visualize ###
+#### Running Your First Simulation
 
-After running the test cases visualize the results using ParaView:
+After compilation, navigate to a solver module. For example, the elasticity solver:
 
-~~~{sh}
-paraview ${BUILD_DIR}/elastcity/output/depouillement/vtkhdfv2/Mesh0.hdf
-~~~
+```bash
+cd ${ARCANEFEM_INSTALL_DIR}/modules/elasticity
+```
 
-please note you will need the latest ParaView ( > 5.12) and Arcane framework compiled with mpi support for hdf5. 
+> **Tip**: Explore other physics modules in `${ARCANEFEM_INSTALL_DIR}/modules/`
+
+Each module includes example input files in its `inputs/` directory.
+
+#### Execution Modes
+
+- **Sequential (Single Core)**
+
+```bash
+./Elasticity ./inputs/Test.Elasticity.arc
+```
+
+- **Parallel CPU (Domain Decomposition)**
+
+```bash
+# Run on 4 CPU cores
+mpirun -n 4 ./Elasticity ./inputs/Test.Elasticity.arc
+```
+
+- **GPU Accelerated**
+
+```bash
+# Single NVIDIA GPU
+mpirun -n 1 -A,AcceleratorRuntime=cuda ./Elasticity ./inputs/Test.Elasticity.arc
+
+# Single AMD GPU
+mpirun -n 1 -A,AcceleratorRuntime=hip ./Elasticity ./inputs/Test.Elasticity.arc
+```
+
+> **Note**: Replace `1` with the number of available GPUs
+
+- **Hybrid CPU-GPU**
+
+```bash
+# 8 CPU cores + 1 GPU
+mpirun -n 8 -A,AcceleratorRuntime=cuda ./Elasticity ./inputs/Test.Elasticity.arc
+```
+
+For advanced runtime options, consult the [Arcane Launcher Documentation](https://arcaneframework.github.io/arcane/userdoc/html/d8/dd6/arcanedoc_execution_launcher.html).
+
+#### Visualization
+
+ArcaneFEM outputs results in modern visualization formats:
+
+- **VTKHDF5** (`*.hdf`) - Recommended for large datasets
+- **Ensight** (`*.case`) - Legacy format support
+
+Results are written to the `output/` directory within each module.
+
+##### Viewing Results with ParaView
+
+```bash
+# Open VTKHDF5 output
+paraview ${ARCANEFEM_INSTALL_DIR}/modules/elasticity/output/depouillement/vtkhdfv2/Mesh0.hdf
+```
+
+**Requirements**:
+
+- ParaView ≥ 5.12
+- Arcane compiled with MPI support for HDF5
+
+------
+
+## Gallery
+
+*Coming soon: Simulation examples, benchmark results, and application showcases*
+
+------
+
+## Getting Help
+
+- **Issues**: Report bugs or request features on [GitHub Issues](https://github.com/arcaneframework/arcanefem/issues)
+- **Documentation**: Detailed solver guides at [arcaneframework.github.io/arcanefem](https://arcaneframework.github.io/arcanefem/)

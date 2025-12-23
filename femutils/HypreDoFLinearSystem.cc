@@ -34,6 +34,7 @@
 #include <arcane/accelerator/VariableViews.h>
 #include <arcane/accelerator/core/Runner.h>
 #include <arcane/accelerator/core/Memory.h>
+#include <arcane/accelerator/core/DeviceMemoryInfo.h>
 
 #include "IDoFLinearSystemFactory.h"
 #include "internal/CsrDoFLinearSystemImpl.h"
@@ -362,7 +363,7 @@ solve()
   const int last_row = m_first_own_row + m_nb_own_row - 1;
 
   info() << "[Hypre-Info] CreateMatrix first_row=" << first_row << " last_row " << last_row;
-  HYPRE_IJMatrixCreate(mpi_comm, first_row, last_row, first_row, last_row, &ij_A);
+  hypreCheck("IJMatrixCreate",HYPRE_IJMatrixCreate(mpi_comm, first_row, last_row, first_row, last_row, &ij_A));
 
   if (do_debug_print) {
     VariableDoFReal& rhs_values(rhsVariable());
@@ -376,11 +377,11 @@ solve()
   int* rows_nb_column_data = const_cast<int*>(csr_view.rowsNbColumn().data());
 
   Real m1 = platform::getRealTime();
-  HYPRE_IJMatrixSetObjectType(ij_A, HYPRE_PARCSR);
+  hypreCheck("IJMatrixSetObjectType",HYPRE_IJMatrixSetObjectType(ij_A, HYPRE_PARCSR));
 #if HYPRE_RELEASE_NUMBER >= 22700
-  HYPRE_IJMatrixInitialize_v2(ij_A, hypre_memory);
+  hypreCheck("IJMatrixInitialize_v2",HYPRE_IJMatrixInitialize_v2(ij_A, hypre_memory));
 #else
-  HYPRE_IJMatrixInitialize(ij_A);
+  hypreCheck("IJMatrixInitialize",HYPRE_IJMatrixInitialize(ij_A));
 #endif
   // m_csr_view.columns() use matrix coordinates local to sub-domain
   // We need to translate them to global matrix coordinates
@@ -763,6 +764,10 @@ solve()
   Real b1 = platform::getRealTime();
   info() << "[Hypre-Timer] Time to solve = " << (b1 - a2);
 
+  auto a = runner.deviceMemoryInfo();
+  info() << "[Hypre-Info] Device memory allocation (Mo): " << (a.totalMemory() - a.freeMemory()) / 1e6;
+  info() << "[Hypre-Info] Host memory allocation (Mo): " << Platform::getMemoryUsed() / 1.0e6;
+
   HYPRE_Int iterations;
 
   switch (m_solver) {
@@ -804,6 +809,45 @@ solve()
     hypreCheck("HYPRE_IJVectorGetValues",
                HYPRE_IJVectorGetValues(ij_vector_x, nb_local_row, rows_index_span.data(),
                                        dof_variable.asArray().data()));
+  }
+
+  // Free matrix and vectors
+  hypreCheck("IJMatrixDestroy",HYPRE_IJMatrixDestroy(ij_A));
+  hypreCheck("IJVectorDestroy", HYPRE_IJVectorDestroy(ij_vector_b));
+  hypreCheck("IJVectorDestroy", HYPRE_IJVectorDestroy(ij_vector_x));
+  {
+    // Free solver
+    switch (m_solver) {
+    case solver::CG:
+      HYPRE_ParCSRPCGDestroy(solver);
+      break;
+    case solver::GMRES:
+      HYPRE_ParCSRGMRESDestroy(solver);
+      break;
+    case solver::FGMRES:
+      HYPRE_ParCSRFlexGMRESDestroy(solver);
+      break;
+    case solver::BICGSTAB:
+      HYPRE_ParCSRBiCGSTABDestroy(solver);
+      break;
+    default:
+      ARCANE_FATAL("Hypre solver type not correct use: cg|gmres|fgmres|bicgstab");
+      break;
+    }
+  }
+  {
+    // Free preconditioner
+    switch (m_preconditioner) {
+    case preconditioner::AMG:
+      HYPRE_BoomerAMGDestroy(precond);
+      break;
+    case preconditioner::BJACOBI:
+      HYPRE_ILUDestroy(precond);
+      break;
+    default:
+      ARCANE_FATAL("Hypre preconditioner type not correct use: amg|bjacobi");
+      break;
+    }
   }
 }
 
