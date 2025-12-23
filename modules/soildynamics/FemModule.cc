@@ -52,6 +52,9 @@ compute()
     m_linear_system.setSolverCommandLineArguments(args);
   }
 
+  m_linear_system.setConstantMatrixSparsity(true);
+  m_linear_system.setConstantMatrixValues(true);
+
   _doStationarySolve();
   if (t >= tmax  && m_cross_validation)
     _validateResults();

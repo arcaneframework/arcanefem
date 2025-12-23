@@ -333,6 +333,11 @@ class DoFLinearSystem
   VariableDoFReal& getForcedValue();
   VariableDoFBool& getForcedInfo();
 
+  void setConstantMatrixSparsity(bool val);
+  void setConstantMatrixValues(bool val);
+  bool isMatrixSparsityConstant();
+  bool isMatrixValuesConstant();
+
   IDoFLinearSystemFactory* linearSystemFactory() const
   {
     return m_linear_system_factory;
