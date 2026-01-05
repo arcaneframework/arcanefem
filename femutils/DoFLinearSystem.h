@@ -333,9 +333,52 @@ class DoFLinearSystem
   VariableDoFReal& getForcedValue();
   VariableDoFBool& getForcedInfo();
 
+  /*!
+   * \brief Setter de l'attribut m_constant_matrix_sparsity
+   *
+   * Indique si la matrice du système linéaire change de
+   * sparsité (disposition des nnz) entre les appels à la
+   * fonction solve(). Cela permet des optimisations en
+   * termes d'allocations de mémoire, par exemple en
+   * allouant la matrice une seule fois avant les solving
+   * plutôt qu'à chaque appel de solve(). L'attribut est
+   * par défaut initialisé à false.
+   */
   void setConstantMatrixSparsity(bool val);
+
+  /*!
+   * \brief Setter de l'attribut m_constant_matrix_values
+   *
+   * Indique si la matrice du système linéaire change de
+   * valeurs entre les appels à la fonction solve(). Cela
+   * permet certaines optimisations en termes  de copie
+   * de valeurs. L'attribut est par défaut
+   * initialisé à false.
+   */
   void setConstantMatrixValues(bool val);
+
+  /*!
+   * \brief Getter de l'attribut m_constant_matrix_sparsity
+   *
+   * Indique si la matrice du système linéaire change de
+   * sparsité (disposition des nnz) entre les appels à la
+   * fonction solve(). Cela permet des optimisations en
+   * termes d'allocations de mémoire, par exemple en
+   * allouant la matrice une seule fois avant les solving
+   * plutôt qu'à chaque appel de solve(). L'attribut est
+   * par défaut initialisé à false.
+   */
   bool isMatrixSparsityConstant();
+
+  /*!
+   * \brief Getter de l'attribut m_constant_matrix_values
+   *
+   * Indique si la matrice du système linéaire change de
+   * valeurs entre les appels à la fonction solve(). Cela
+   * permet certaines optimisations en termes  de copie
+   * de valeurs. L'attribut est par défaut
+   * initialisé à false.
+   */
   bool isMatrixValuesConstant();
 
   IDoFLinearSystemFactory* linearSystemFactory() const
