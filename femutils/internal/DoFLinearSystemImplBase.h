@@ -83,7 +83,10 @@ class DoFLinearSystemImplBase
   VariableDoFByte m_dof_elimination_info;
   VariableDoFReal m_dof_elimination_value;
 
+  //! Indicates if the matrix changes sparsity between solve() calls
   bool m_constant_matrix_sparsity = false;
+
+  //! Indicates if the matrix changes values between solve() calls
   bool m_constant_matrix_values = false;
 
   //! List of (row,column) which contribute to RowColumn elimination

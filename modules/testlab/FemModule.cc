@@ -1985,7 +1985,6 @@ _solve()
   ITimeStats* tstat = m_time_stats;
   Timer::Action timer_action(tstat, "Solving");
 
-  Real start = platform::getRealTime();
   {
     TimeStart = platform::getRealTime();
     Timer::Action ta1(tstat, "LinearSystemSolve1");
@@ -2054,10 +2053,6 @@ _solve()
       info() << "u[" << node.uniqueId() << "] = " << m_u[node];
     }
   }
-
-  Real end = platform::getRealTime();
-
-  info() << "TIME TAKEN:  " << end - start;
 }
 
 /*---------------------------------------------------------------------------*/
