@@ -61,6 +61,11 @@ class DoFLinearSystemImplBase
 
   IItemFamily* dofFamily() const { return m_dof_family; }
 
+  void setConstantMatrixSparsity(const bool val) final { m_constant_matrix_sparsity = val; }
+  void setConstantMatrixValues(const bool val) final { m_constant_matrix_values = val; }
+  bool isMatrixSparsityConstant() const final { return m_constant_matrix_sparsity; }
+  bool isMatrixValuesConstant() const final { return m_constant_matrix_values; }
+
  protected:
 
   OrderedRowColumnMap& _rowColumnEliminationMap() { return m_row_column_elimination_map; }
@@ -77,6 +82,12 @@ class DoFLinearSystemImplBase
   VariableDoFReal m_dof_forced_value;
   VariableDoFByte m_dof_elimination_info;
   VariableDoFReal m_dof_elimination_value;
+
+  //! Indicates if the matrix changes sparsity between solve() calls
+  bool m_constant_matrix_sparsity = false;
+
+  //! Indicates if the matrix changes values between solve() calls
+  bool m_constant_matrix_values = false;
 
   //! List of (row,column) which contribute to RowColumn elimination
   OrderedRowColumnMap m_row_column_elimination_map;

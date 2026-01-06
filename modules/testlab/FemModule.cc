@@ -1975,6 +1975,9 @@ _computeElementMatrixTETRA4(Cell cell)
 void FemModuleTestlab::
 _solve()
 {
+  m_linear_system.setConstantMatrixSparsity(true);
+  m_linear_system.setConstantMatrixValues(true);
+
   info() << "[ArcaneFem-Info] Started module _solve()";
   Real elapsedTime = platform::getRealTime();
 
