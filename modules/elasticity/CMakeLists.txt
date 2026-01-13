@@ -42,7 +42,7 @@ enable_testing()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   set(SOLVER_PETSC_GMRES
-    -A,//fem/petsc-flags=-ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15)
+    -A,//fem/petsc-flags=-ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15 -ksp_atol 1e-15)
 
   add_test(NAME [elasticity]Dirichlet COMMAND Elasticity
     -A,//fem/solution-comparison-file=check/bar.2D.Dirichlet.bodyForce.txt

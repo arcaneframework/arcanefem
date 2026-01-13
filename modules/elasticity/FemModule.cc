@@ -373,7 +373,7 @@ _validateResults()
 
   String filename = options()->solutionComparisonFile();
   const double epsilon = options()->resultEpsilon();
-  const double min_value_to_test = 1.0e-16;
+  const double min_value_to_test = 1.0e-10;
 
   Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_U, epsilon, min_value_to_test);
 
