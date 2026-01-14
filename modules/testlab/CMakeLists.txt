@@ -59,6 +59,16 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_TRILINOS)
   add_test(NAME [testlab]trilinos COMMAND Testlab inputs/Test.trilinos.arc)
 endif()
 
+if(FEMUTILS_HAS_SOLVER_BACKEND_ALIEN)
+  add_test(NAME [testlab]alien_petsc COMMAND Testlab inputs/Test.alien_petsc.arc)
+  # add_test(NAME [testlab]alien_petsc_gpu COMMAND Testlab inputs/Test.alien_petsc_gpu.arc)
+
+  if (FEMUTILS_HAS_PARALLEL_SOLVER)
+    add_test(NAME [testlab]alien_petsc_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 Testlab ARGS inputs/Test.alien_petsc.arc)
+    # add_test(NAME [testlab]alien_petsc_gpu_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 Testlab ARGS inputs/Test.alien_petsc_gpu.arc)
+  endif ()
+endif ()
+
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [testlab]circle_2D_petsc_traction_dok COMMAND Testlab inputs/Test.circle.2D.trac.dok.arc)
   add_test(NAME [testlab]circle_2D_petsc_x-traction_dok COMMAND Testlab inputs/Test.circle.2D.trac-x.dok.arc)
