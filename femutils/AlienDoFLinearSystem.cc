@@ -275,11 +275,9 @@ class AlienDoFLinearSystemFactoryService
     auto* x = new AlienDoFLinearSystemImpl(dof_family, solver_name);
     x->options = options();
 
-    if (options()->linearSolver.size() > 0) {
-      Alien::ILinearSolver* solver_backend = options()->linearSolver[0];
-      x->setSolver(solver_backend);
-      solver_backend->init();
-    }
+    Alien::ILinearSolver* solver_backend = options()->linearSolver.instance();
+    x->setSolver(solver_backend);
+    solver_backend->init();
 
     return x;
   }

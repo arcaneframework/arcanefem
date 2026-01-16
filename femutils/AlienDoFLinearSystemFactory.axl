@@ -2,7 +2,7 @@
 <service name="AlienDoFLinearSystemFactory" version="1.0" type="caseoption" namespace-name="Arcane::FemUtils">
   <interface name="Arcane::FemUtils::IDoFLinearSystemFactory" />
   <options>
-    <service-instance name="linear-solver" type="Alien::ILinearSolver"  minOccurs="0" maxOccurs="1">
+    <service-instance name="linear-solver" type="Alien::ILinearSolver">
       <description>Service solveur</description>
     </service-instance>
   </options>
