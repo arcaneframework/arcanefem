@@ -244,7 +244,7 @@ solve()
   Alien::SolverStatus status = m_solver_backend->getStatus();
 
   if (status.succeeded) {
-    info()<<"RESOLUTION SUCCEED";
+    info() << "[Alien-Info] " << "Converged in " << status.iteration_count + 1 << " iterations";
 
     Alien::VectorReader reader(vectorX);
     // TODO understand this
