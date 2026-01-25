@@ -5,10 +5,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* NLDModule.h                                                 (C) 2022-2025 */
+/* NLDynamicModule.h                                               2022-2025 */
 /*                                                                           */
-/* PASSMO : Performant Assessment for Seismic Site Modelling with finite-    */
-/* element (FEM) numerical modelling approach                                */
+/* PASSMONL : Performant Assessment for Seismic Site Modelling with finite-  */
+/* element (FEM) numerical modelling approach (Non-Linear solver)            */
 /* Created by : E. Foerster                                                  */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -22,6 +22,8 @@
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnNodes.h"
 #include "GaussDoFsOnCells.h"
+#include "IArcaneFemBC.h"
+
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -86,25 +88,25 @@ class NLDynamicModule
     String file_name;
     CaseTable* case_table = nullptr;
   };
-  // List of CaseTable for traction boundary conditions
-  UniqueArray<CaseTableInfo> m_traction_case_table_list;
+  // List of CaseTable for neumann boundary conditions
+  UniqueArray<CaseTableInfo> m_neumann_case_table_list;
 
-  // List of CaseTable for dirichlet boundary (surface) conditions
-  UniqueArray<CaseTableInfo> m_sacc_case_table_list;
+  // List of CaseTable for for imposed displacements (dirichlet surface boundary conditions)
   UniqueArray<CaseTableInfo> m_sdispl_case_table_list;
-  UniqueArray<CaseTableInfo> m_svel_case_table_list;
-  UniqueArray<CaseTableInfo> m_sforce_case_table_list;
 
-  // List of CaseTable for dirichlet point conditions
-  UniqueArray<CaseTableInfo> m_acc_case_table_list;
+  // List of CaseTable for imposed displacements (dirichlet point conditions)
   UniqueArray<CaseTableInfo> m_displ_case_table_list;
-  UniqueArray<CaseTableInfo> m_vel_case_table_list;
-  UniqueArray<CaseTableInfo> m_force_case_table_list;
 
-  // List of CaseTable for input motions set on paraxial boundaries
-  UniqueArray<CaseTableInfo> m_ain_case_table_list;
-  UniqueArray<CaseTableInfo> m_vin_case_table_list;
-  UniqueArray<CaseTableInfo> m_uin_case_table_list;
+  // List of CaseTable for imposed point conditions (at boundary or inside the mesh)
+  UniqueArray<CaseTableInfo> m_A_case_table_list;
+  UniqueArray<CaseTableInfo> m_U_case_table_list;
+  UniqueArray<CaseTableInfo> m_V_case_table_list;
+  UniqueArray<CaseTableInfo> m_F_case_table_list;
+
+  // List of CaseTable for paraxial boundary conditions
+  UniqueArray<CaseTableInfo> m_APar_case_table_list;
+  UniqueArray<CaseTableInfo> m_UPar_case_table_list;
+  UniqueArray<CaseTableInfo> m_VPar_case_table_list;
 
   // List of CaseTable for double couple conditions (seismic moments or loadings)
   UniqueArray<CaseTableInfo> m_dc_case_table_list;
@@ -112,16 +114,21 @@ class NLDynamicModule
   Integer ninteg{2};
   Int32 NDIM{2};
   ArcaneFemFunctions::CellFEMDispatcher cell_fem{};
-  Real3 gravity{0.,0.,0.};
+  Real3 bodyf{0.,0.,0.};
   Real penalty{1.e64};
   Real gamma{0.5};
   Real beta{0.25};
-  Real alfam{0.};
-  Real alfaf{0.};
+  // Real alfam{0.};
+  // Real alfaf{0.};
   Real utol{0.001}, ftol{0.01}, etol{0.};
   Real m_norm_R0{0.};
+  String dirichletMethod;
+  Integer m_num_parax{0};
+  BoolUniqueArray is_a;
+  BoolUniqueArray is_v;
+  BoolUniqueArray is_u;
 
-  bool is_alfa_method{false};
+  // bool is_alfa_method{false};
   bool keep_constop{false};
   bool is_linear{true};
   bool m_converge{false};
@@ -139,7 +146,6 @@ class NLDynamicModule
   TypesNLDynamic::eIntegType integ_type{TypesNLDynamic::FemCell};
   TypesNLDynamic::eAlgoType algo_type{TypesNLDynamic::ModNewtonRaphson};
   AnalyticFunc m_inputfunc{};
- private:
 
   void _initDofs();
   void _startInitGauss();
@@ -151,14 +157,15 @@ class NLDynamicModule
   void _assembleLinearRHS();
   void _assembleNonLinRHS(bool init);
   void _doSolve();
+  void _getOptions();
   void _initBoundaryConditions();
   void _initDCConditions();
   void _applyDirichletBoundaryConditions();
   void _applyParaxialBoundaryConditions();
-  void _applyNeumannBoundaryConditions();
   void _getParaxialContribution(VariableDoFReal& rhs_values);
   void _assembleLHSParaxialContribution();
   void _getTractionContribution(Arcane::VariableDoFReal& rhs_values);
+
   Real3x3 _computeJacobian(const ItemWithNodes& cell, const Int32& ig, const RealUniqueArray& vec, Real& jac);
 
   /*  Predict nodal dofs vector for the Newmark or Generalized-alfa time integration schemes */

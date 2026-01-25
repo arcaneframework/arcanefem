@@ -16,7 +16,7 @@ ARCANE_INSTALL_DIR=/path/to/arcane/installation
 BUILD_DIR=/tmp/build
 SOURCE_PATH=/path/to/sources
 
-# Invoke CMake to configure the build
+# Invoke CMake to configure tlshe build
 cmake -S ${SOURCE_PATH} -B ${BUILD_DIR} -DCMAKE_PREFIX_PATH=${ARCANE_INSTALL_DIR}
 
 # Build the project

@@ -12,12 +12,14 @@ add_executable(Passmonl
   analytical_func.h
   hooke.cc
   druckerp.cc
+#        BoundaryConditions.cc
+#        GaussItem.h
 )
 
 arcane_generate_axl(NLDynamic)
 arcane_add_arcane_libraries_to_target(Passmonl)
 
-target_include_directories(Passmonl PUBLIC . ../fem1 ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(Passmonl PUBLIC . ../fem ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(Passmonl PUBLIC FemUtils)
 configure_file(Passmonl.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
