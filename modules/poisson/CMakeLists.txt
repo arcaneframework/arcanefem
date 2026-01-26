@@ -228,3 +228,51 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     ${SOLVER_PETSC_CG_3D}
     inputs/sphere.3D.arc)
 endif()
+
+if (FEMUTILS_HAS_SOLVER_BACKEND_ALIEN)
+  set(SOLVER_ALIEN_PETSC_CG
+          -A,//fem/linear-system/@name=AlienLinearSystem
+          -A,//fem/linear-system/atol=1e-15
+          -A,//fem/linear-system/rtol=0
+          -A,//fem/linear-system/linear-solver/@name=PETScSolver
+          -A,//fem/linear-system/linear-solver/solver/@name=CG
+          -A,//fem/linear-system/linear-solver/solver/num-iterations-max=1000
+          -A,//fem/linear-system/linear-solver/solver/stop-criteria-value=1e-15
+          -A,//fem/linear-system/linear-solver/solver/preconditioner/@name=Jacobi
+  )
+
+  add_test(NAME [poisson]2D_pntDirichlet_bsr_alien_petsc COMMAND Poisson
+          -A,//fem/solution-comparison-file=check/poisson_test_point_dirichlet_2D.txt
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC_CG}
+          inputs/perforatedSquare.pointDirichlet.2D.arc)
+  add_test(NAME [poisson]2D_bsr_alien_petsc COMMAND Poisson
+          -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC_CG}
+          inputs/circle.2D.arc)
+  add_test(NAME [poisson]2D_neumann_bsr_alien_petsc COMMAND Poisson
+          -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D.txt
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC_CG}
+          inputs/circle.neumann.2D.arc)
+  add_test(NAME [poisson]2D_bsr_atomicFree_petsc_alien COMMAND Poisson
+          -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
+          -A,//fem/matrix-format=AF-BSR
+          ${SOLVER_ALIEN_PETSC_CG}
+          inputs/circle.2D.arc)
+  add_test(NAME [poisson]3D_bsr_petsc_gpu_alien COMMAND Poisson
+          -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC_CG}
+          inputs/sphere.3D.arc)
+  add_test(NAME [poisson]3D_neumann_bsr_petsc_alien COMMAND Poisson
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC_CG}
+          inputs/sphere.neumann.3D.arc)
+  add_test(NAME [poisson]3D_bsr_atomicFree_petsc_gpu_alien COMMAND Poisson
+          -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
+          -A,//fem/matrix-format=AF-BSR
+          ${SOLVER_ALIEN_PETSC_CG}
+          inputs/sphere.3D.arc)
+endif()
