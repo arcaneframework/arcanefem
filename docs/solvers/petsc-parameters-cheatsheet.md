@@ -32,3 +32,6 @@ The matrix and vector types use  internally by PETSc are deducted by default by 
 ## Custom options
 
 Finally, you can specify any PETSc option you want with the `-A,petsc_flags` Arcane option. The flags specified by this option will **overwrite** the default ones (`atol`, `rtol`, `pc\_type`, `mat\_type`...). This can be useful to test some options quickly or to specify ones that are not in the `.axl` ([GAMG options](https://petsc.org/release/manualpages/PC/PCGAMG) for example).
+
+To enable the optimizations that were done for the allocation of the matrix, the user has to put ```m_linear_system.setConstantMatrixSparsity(true);``` and / or ```m_linear_system.setConstantMatrixValues(true);```.
+The user cannot have constant values without constant sparsity. Arcane will prevent this behaviour by throwing an error.
