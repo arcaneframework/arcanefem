@@ -241,69 +241,80 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_ALIEN)
           -A,//fem/linear-system/linear-solver/solver/preconditioner/@name=Jacobi
   )
 
-  add_test(NAME [poisson]2D_pntDirichlet_bsr_alien_petsc COMMAND Poisson
+  add_test(NAME [poisson]alien_petsc_2D_pntDirichlet_bsr COMMAND Poisson
           -A,//fem/solution-comparison-file=check/poisson_test_point_dirichlet_2D.txt
           -A,//fem/matrix-format=BSR
           ${SOLVER_ALIEN_PETSC_CG}
           inputs/perforatedSquare.pointDirichlet.2D.arc)
-  add_test(NAME [poisson]2D_bsr_alien_petsc COMMAND Poisson
+
+  add_test(NAME [poisson]alien_petsc_2D_bsr COMMAND Poisson
           -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
           -A,//fem/matrix-format=BSR
           ${SOLVER_ALIEN_PETSC_CG}
           inputs/circle.2D.arc)
-  add_test(NAME [poisson]2D_neumann_bsr_alien_petsc COMMAND Poisson
+
+  add_test(NAME [poisson]alien_petsc_2D_neumann_bsr COMMAND Poisson
           -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D.txt
           -A,//fem/matrix-format=BSR
           ${SOLVER_ALIEN_PETSC_CG}
           inputs/circle.neumann.2D.arc)
-  add_test(NAME [poisson]2D_bsr_atomicFree_petsc_alien COMMAND Poisson
+
+  add_test(NAME [poisson]alien_petsc_2D_bsr_atomicFree COMMAND Poisson
           -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
           -A,//fem/matrix-format=AF-BSR
           ${SOLVER_ALIEN_PETSC_CG}
           inputs/circle.2D.arc)
-  add_test(NAME [poisson]3D_bsr_petsc_gpu_alien COMMAND Poisson
+
+  add_test(NAME [poisson]alien_petsc_3D_bsr_petsc_gpu COMMAND Poisson
           -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
           -A,//fem/matrix-format=BSR
           ${SOLVER_ALIEN_PETSC_CG}
           inputs/sphere.3D.arc)
-  add_test(NAME [poisson]3D_neumann_bsr_petsc_alien COMMAND Poisson
+
+  add_test(NAME [poisson]alien_petsc_3D_neumann_bsr COMMAND Poisson
           -A,//fem/matrix-format=BSR
           ${SOLVER_ALIEN_PETSC_CG}
           inputs/sphere.neumann.3D.arc)
-  add_test(NAME [poisson]3D_bsr_atomicFree_petsc_gpu_alien COMMAND Poisson
+
+  add_test(NAME [poisson]petsc_alien_3D_bsr_atomicFree_gpu COMMAND Poisson
           -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
           -A,//fem/matrix-format=AF-BSR
           ${SOLVER_ALIEN_PETSC_CG}
           inputs/sphere.3D.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER)
-    add_test(NAME [poisson]2D_2p_alien_petsc COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+    add_test(NAME [poisson]alien_petsc_2D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
             -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
             -A,//fem/matrix-format=BSR
             ${SOLVER_ALIEN_PETSC_CG}
             inputs/circle.2D.arc)
-    add_test(NAME [poisson]2D_quad_2p_alien_petsc COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+
+    add_test(NAME [poisson]alien_petsc_2D_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
             -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D_quad.txt
             -A,//fem/matrix-format=BSR
             ${SOLVER_ALIEN_PETSC_CG}
             inputs/circle.2D.quad.arc)
-    add_test(NAME [poisson]2D_scalar_neumann_quad_2p_alien_petsc COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+
+    add_test(NAME [poisson]alien_petsc_2D_scalar_neumann_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
             -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_scalar_neumann_2D_quad.txt
             -A,//fem/boundary-conditions/neumann/value=2
             -A,//fem/matrix-format=BSR
             ${SOLVER_ALIEN_PETSC_CG}
             inputs/circle.neumann.2D.quad.arc)
-    add_test(NAME [poisson]3D_2p_alien_petsc COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+
+    add_test(NAME [poisson]alien_petsc_3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
             -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
             -A,//fem/matrix-format=BSR
             ${SOLVER_ALIEN_PETSC_CG}
             inputs/sphere.3D.arc)
-    add_test(NAME [poisson]3D_hexa_2p_alien_petsc COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+
+    add_test(NAME [poisson]alien_petsc_3D_hexa_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
             -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D_hexa.txt
             -A,//fem/matrix-format=BSR
             ${SOLVER_ALIEN_PETSC_CG}
             inputs/sphere.3D.hexa.arc)
-    add_test(NAME [poisson]3D_scalar_neumann_hexa_2p_alien_petsc COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+
+    add_test(NAME [poisson]alien_petsc_3D_scalar_neumann_hexa_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
             -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_scalar_neumann_3D_hexa.txt
             -A,//fem/boundary-conditions/neumann/value=3.1
             -A,//fem/matrix-format=BSR

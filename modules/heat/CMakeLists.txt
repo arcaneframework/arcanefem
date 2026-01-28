@@ -51,8 +51,6 @@ endif()
 enable_testing()
 
 
-
-
 if(FEMUTILS_HAS_SOLVER_BACKEND_ALIEN)
 
   # <linear-system name="AlienLinearSystem">
