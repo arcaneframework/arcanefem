@@ -122,6 +122,7 @@ class PETScDoFLinearSystemImpl
   Mat m_petsc_matrix;
   ISLocalToGlobalMapping m_petsc_map;
 
+  //! Indicates if the solve function has already been called
   bool m_is_initialized = false;
 
  private:
@@ -409,6 +410,26 @@ void PETScDoFLinearSystemImpl::_initSolve()
 
   m_is_initialized = true;
 }
+
+/*!
+ * \brief Solve the linear system
+ *
+ * The function call _initSolve function on its first
+ * time been called.
+ *
+ * The function calls _preallocateMatrix if necessary,
+ * and allocates the vectors.
+ *
+ * It then calls KSPSolve from the PETSc library to
+ * solve the linear system, and put the result in
+ * the m_petsc_solution_vector attribute of the class.
+ *
+ *
+ * Before every allocation / deallocation, the function
+ * makes sure to check the constant sparsity and
+ * constant values to avoid a double free error or a
+ * use after free error.
+ */
 
 void PETScDoFLinearSystemImpl::
 solve()
