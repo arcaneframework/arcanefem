@@ -63,8 +63,6 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_ALIEN)
   set(SOLVER_ALIEN_PETSC_CG
           -A,//fem/linear-system/@name=AlienLinearSystem
           -A,//fem/linear-system/linear-solver/@name=PETScSolver
-          # -A,//fem/linear-system/linear-solver/null-space-const-opt=false
-          -A,//fem/linear-system/linear-solver/nearnull-space-opt=false
           -A,//fem/linear-system/linear-solver/solver/@name=CG
           -A,//fem/linear-system/linear-solver/solver/num-iterations-max=1000
           -A,//fem/linear-system/linear-solver/solver/stop-criteria-value=1e-15
