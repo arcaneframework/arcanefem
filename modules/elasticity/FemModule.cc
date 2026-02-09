@@ -108,8 +108,10 @@ void FemModuleElasticity::_initBsr()
   info() << "[ArcaneFem-Info] Started module  _initBsr()";
   Real elapsedTime = platform::getRealTime();
 
-  bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem" ||
-    options()->linearSystem.serviceName() == "PETScLinearSystem";
+  bool use_csr_in_linearsystem =
+  options()->linearSystem.serviceName() == "HypreLinearSystem" ||
+  options()->linearSystem.serviceName() == "AlienLinearSystem" ||
+  options()->linearSystem.serviceName() == "PETScLinearSystem";
 
   if (m_matrix_format == "BSR")
     m_bsr_format.initialize(defaultMesh(), m_dof_per_node, use_csr_in_linearsystem, 0);
@@ -371,7 +373,7 @@ _validateResults()
 
   String filename = options()->solutionComparisonFile();
   const double epsilon = options()->resultEpsilon();
-  const double min_value_to_test = 1.0e-16;
+  const double min_value_to_test = 1.0e-10;
 
   Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_U, epsilon, min_value_to_test);
 

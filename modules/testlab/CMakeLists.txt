@@ -59,6 +59,29 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_TRILINOS)
   add_test(NAME [testlab]trilinos COMMAND Testlab inputs/Test.trilinos.arc)
 endif()
 
+if(FEMUTILS_HAS_SOLVER_BACKEND_ALIEN)
+  set(SOLVER_ALIEN_PETSC_CG
+          -A,//fem/linear-system/@name=AlienLinearSystem
+          -A,//fem/linear-system/linear-solver/@name=PETScSolver
+          -A,//fem/linear-system/linear-solver/solver/@name=CG
+          -A,//fem/linear-system/linear-solver/solver/num-iterations-max=1000
+          -A,//fem/linear-system/linear-solver/solver/stop-criteria-value=1e-15
+          -A,//fem/linear-system/linear-solver/solver/preconditioner/@name=Jacobi
+  )
+
+  add_test(NAME [testlab]alien_petsc_options COMMAND Testlab
+          ${SOLVER_ALIEN_PETSC_CG}
+          inputs/Test.L-shape.arc)
+
+  add_test(NAME [testlab]alien_petsc COMMAND Testlab inputs/Test.alien_petsc.arc)
+  # add_test(NAME [testlab]alien_petsc_gpu COMMAND Testlab inputs/Test.alien_petsc_gpu.arc)
+
+  if (FEMUTILS_HAS_PARALLEL_SOLVER)
+    add_test(NAME [testlab]alien_petsc_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 Testlab ARGS inputs/Test.alien_petsc.arc)
+    # add_test(NAME [testlab]alien_petsc_gpu_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 Testlab ARGS inputs/Test.alien_petsc_gpu.arc)
+  endif ()
+endif ()
+
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [testlab]circle_2D_petsc_traction_dok COMMAND Testlab inputs/Test.circle.2D.trac.dok.arc)
   add_test(NAME [testlab]circle_2D_petsc_x-traction_dok COMMAND Testlab inputs/Test.circle.2D.trac-x.dok.arc)
@@ -117,6 +140,14 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     arcanefem_add_gpu_test(NAME [testlab]L-shape_2D_nwcsr_2p NB_MPI 2 COMMAND ./Testlab ARGS inputs/Test.L-shape.2D.nwcsr.arc)
     arcanefem_add_gpu_test(NAME [testlab]L-shape_3D_nwcsr_2p NB_MPI 2 COMMAND ./Testlab ARGS inputs/Test.L-shape.3D.nwcsr.arc)
     arcanefem_add_gpu_test(NAME [testlab]L-shape_2D_petsc_csr-gpu_2p NB_MPI 2 COMMAND ./Testlab ARGS inputs/Test.L-shape.2D.csr-gpu.arc)
+
+    arcanefem_add_gpu_test(NAME [testlab]petsc_direct_2p NB_MPI 2 COMMAND ./Testlab ARGS inputs/Test.petsc_direct.arc)
+    arcanefem_add_gpu_test(NAME [testlab]petsc_direct_4p NB_MPI 4 COMMAND ./Testlab ARGS inputs/Test.petsc_direct.arc)
+    arcanefem_add_gpu_test(NAME [testlab]petsc_direct_3D_2p NB_MPI 2 COMMAND ./Testlab ARGS inputs/Test.petsc_direct-3D.arc)
+    arcanefem_add_gpu_test(NAME [testlab]petsc_direct_3D_4p NB_MPI 4 COMMAND ./Testlab ARGS inputs/Test.petsc_direct-3D.arc)
+    arcanefem_add_gpu_test(NAME [testlab]petsc_direct_bjacobi_2p NB_MPI 4 COMMAND ./Testlab ARGS inputs/Test.petsc_direct.bjacobi.arc)
+    arcanefem_add_gpu_test(NAME [testlab]petsc_direct_bjacobi_gmres_2p NB_MPI 4 COMMAND ./Testlab ARGS inputs/Test.petsc_direct.bjacobi.gmres.arc)
+    arcanefem_add_gpu_test(NAME [testlab]petsc_direct_gamg_2p NB_MPI 4 COMMAND ./Testlab ARGS inputs/Test.petsc_direct.gamg.arc)
   endif()
 endif()
 
@@ -155,13 +186,5 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     arcanefem_add_gpu_test(NAME [testlab]hypre_direct_2p NB_MPI 2 COMMAND ./Testlab ARGS inputs/Test.hypre_direct.arc)
     arcanefem_add_gpu_test(NAME [testlab]hypre_direct_3D_2p NB_MPI 2 COMMAND ./Testlab ARGS inputs/Test.sphere.3D.arc)
     arcanefem_add_gpu_test(NAME [testlab]hypre_direct_3D_csr-gpu_2p NB_MPI 2 COMMAND ./Testlab ARGS inputs/Test.sphere.3D.csr-gpu.arc)
-
-    arcanefem_add_gpu_test(NAME [testlab]petsc_direct_2p NB_MPI 2 COMMAND ./Testlab ARGS inputs/Test.petsc_direct.arc)
-    arcanefem_add_gpu_test(NAME [testlab]petsc_direct_4p NB_MPI 4 COMMAND ./Testlab ARGS inputs/Test.petsc_direct.arc)
-    arcanefem_add_gpu_test(NAME [testlab]petsc_direct_3D_2p NB_MPI 2 COMMAND ./Testlab ARGS inputs/Test.petsc_direct-3D.arc)
-    arcanefem_add_gpu_test(NAME [testlab]petsc_direct_3D_4p NB_MPI 4 COMMAND ./Testlab ARGS inputs/Test.petsc_direct-3D.arc)
-    arcanefem_add_gpu_test(NAME [testlab]petsc_direct_bjacobi_2p NB_MPI 4 COMMAND ./Testlab ARGS inputs/Test.petsc_direct.bjacobi.arc)
-    arcanefem_add_gpu_test(NAME [testlab]petsc_direct_bjacobi_gmres_2p NB_MPI 4 COMMAND ./Testlab ARGS inputs/Test.petsc_direct.bjacobi.gmres.arc)
-    arcanefem_add_gpu_test(NAME [testlab]petsc_direct_gamg_2p NB_MPI 4 COMMAND ./Testlab ARGS inputs/Test.petsc_direct.gamg.arc)
   endif()
 endif()
