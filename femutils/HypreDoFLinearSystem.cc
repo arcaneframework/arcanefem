@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* HypreDoFLinearSystem.cc                                     (C) 2022-2025 */
+/* HypreDoFLinearSystem.cc                                     (C) 2022-2026 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
 /*---------------------------------------------------------------------------*/
@@ -32,7 +32,8 @@
 #include <arcane/core/Timer.h>
 
 #include <arcane/accelerator/VariableViews.h>
-#include <arcane/accelerator/core/Runner.h>
+#include <arcane/accelerator/NumArrayViews.h>
+//#include <arcane/accelerator/core/Runner.h>
 #include <arcane/accelerator/core/Memory.h>
 #include <arcane/accelerator/core/DeviceMemoryInfo.h>
 
@@ -352,10 +353,10 @@ solve()
   const Int32 nb_local_row = rows_index_span.size();
 
   CSRFormatView csr_view = this->getCSRValues();
+  const Int32 nb_row = csr_view.nbRow();
   if (do_debug_print) {
     info() << "ROWS_INDEX=" << rows_index_span;
     info() << "ROWS=" << csr_view.rows();
-    info() << "ROWS_NB_COLUMNS=" << csr_view.rowsNbColumn();
     info() << "COLUMNS=" << csr_view.columns();
     info() << "VALUE=" << csr_view.values();
   }
@@ -374,7 +375,7 @@ solve()
     }
   }
 
-  int* rows_nb_column_data = const_cast<int*>(csr_view.rowsNbColumn().data());
+  //int* rows_nb_column_data = const_cast<int*>(csr_view.rowsNbColumn().data());
 
   Real m1 = platform::getRealTime();
   hypreCheck("IJMatrixSetObjectType",HYPRE_IJMatrixSetObjectType(ij_A, HYPRE_PARCSR));
@@ -414,7 +415,7 @@ solve()
   if (do_debug_print) {
     ENUMERATE_ (DoF, idof, dof_family->allItems()) {
       DoF dof = *idof;
-      Int32 nb_col = csr_view.rowsNbColumn()[idof.index()];
+      Int32 nb_col = csr_view.nbColumnForRow(idof.index());
       Int32 row_csr_index = csr_view.rows()[idof.index()];
       info() << "DoF dof=" << ItemPrinter(dof) << " nb_col=" << nb_col << " row_csr_index=" << row_csr_index
              << " global_row=" << rows_index_span[idof.index()];
@@ -450,7 +451,6 @@ solve()
       DoF dof = *idof;
       if (!dof.isOwn())
         continue;
-      Int32 nb_col = csr_view.rowsNbColumn()[idof.index()];
       m_parallel_rows_index[index] = rows_index_span[idof.index()];
       ++index;
     }
@@ -459,6 +459,7 @@ solve()
   // Prefetch the memory to the Device to make sure we are using
   // Device memory and not host memory when using UVM
   NumArray<Int32, MDDim1> na_rows_nb_column_data(mem_ressource);
+  na_rows_nb_column_data.resize(nb_row);
   NumArray<Int32, MDDim1> na_rows_index(mem_ressource);
   NumArray<Int32, MDDim1> na_columns_index(mem_ressource);
   NumArray<Real, MDDim1> na_matrix_values(mem_ressource);
@@ -474,7 +475,6 @@ solve()
 
   if (is_use_device) {
     info() << "[Hypre-Info] Prefetching memory";
-    q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(csr_view.rowsNbColumn())).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(rows_index_span)).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(columns_index_span)).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(matrix_values)).addAsync());
@@ -482,27 +482,33 @@ solve()
     VariableUtils::prefetchVariableAsync(rhs_variable, &q);
     VariableUtils::prefetchVariableAsync(dof_variable, &q);
   }
-  Span<const Int32> rows_nb_column_span = csr_view.rowsNbColumn();
+  //Span<const Int32> rows_nb_column_span = csr_view.rowsNbColumn();
   if (is_use_device && is_use_device_memory) {
-    _doCopy(na_rows_nb_column_data, rows_nb_column_span, &q);
     _doCopy(na_rows_index, rows_index_span, &q);
     _doCopy(na_columns_index, columns_index_span, &q);
     _doCopy(na_matrix_values, matrix_values, &q);
 
-    rows_nb_column_data = na_rows_nb_column_data.to1DSpan().data();
     rows_index_data = na_rows_index.to1DSpan().data();
     columns_index_data = na_columns_index.to1DSpan().data();
     matrix_values_data = na_matrix_values.to1DSpan().data();
 
     q.barrier();
   }
-
+  // Fill the array containing the number of columns per row
+  {
+    auto command = makeCommand(q);
+    auto rows_nb_column_data = viewOut(command, na_rows_nb_column_data);
+    command << RUNCOMMAND_LOOP1(i, nb_row)
+    {
+      rows_nb_column_data[i] = csr_view.nbColumnForRow(i);
+    };
+  }
   {
     Timer::Action ta1(tstat, "HypreLinearSystemBuildMatrix");
     // GPU pointers; efficient in large chunks //
     HYPRE_IJMatrixSetValues(ij_A,
                             nb_local_row,
-                            rows_nb_column_data,
+                            na_rows_nb_column_data.to1DSpan().data(),
                             rows_index_data,
                             columns_index_data,
                             matrix_values_data);
