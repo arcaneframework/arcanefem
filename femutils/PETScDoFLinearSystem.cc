@@ -85,6 +85,15 @@ class PETScDoFLinearSystemImpl
 
   void solve() override;
 
+  /*!
+ * \brief Set user parameters to PETSc.
+ *
+ * This function will call PetscInitialized() with
+ * the argc and argv of the -A,petsc_flags option.
+ * This will set the parameters passed by the user
+ * to PETSc.
+ */
+
   void setSolverCommandLineArguments(const CommandLineArguments& args) override
   {
     PetscInitialize(args.commandLineArgc(), args.commandLineArgv(), nullptr, nullptr);
@@ -113,6 +122,7 @@ class PETScDoFLinearSystemImpl
   Mat m_petsc_matrix;
   ISLocalToGlobalMapping m_petsc_map;
 
+  //! Indicates if the solve function has already been called
   bool m_is_initialized = false;
 
  private:
@@ -140,12 +150,25 @@ class PETScDoFLinearSystemImpl
 
  private:
 
-  void _computeMatrixNumeration(MPI_Comm mpi_comm);
+  void _computeMatrixNumeration();
   void _handleParameters(IParallelMng* pm);
   void _preallocateMatrix();
   void _initSolve();
   UniqueArray<PetscInt> _CSRToCOO(const Span<const int32_t> csr_rows, int32_t nb_value);
 };
+
+/*!
+ * \brief Set default parameters to PETSc.
+ *
+ * This function will call PetscInitialized() if it still does
+ * not had been called.
+ *
+ * It will then deduct the default mat_type and vec_type.
+ *
+ * Finally, the function will set default parameters to PETSc
+ * only if the user did not already set this parameter via
+ * the -A,petsc_flags option.
+ */
 
 void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm)
 {
@@ -199,20 +222,26 @@ void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm)
   }
 
   PetscBool set;
-  PETSC_OPTION(Real, "-ksp_rtol", m_ksp_rtol);
-  PETSC_OPTION(Real, "-ksp_atol", m_ksp_atol);
-  PETSC_OPTION(Int, "-ksp_max_it", m_ksp_max_it);
-  PETSC_OPTION_STRING("-ksp_type", m_ksp_type);
-  PETSC_OPTION_STRING("-pc_type", m_pc_type);
-  PETSC_OPTION_STRING("-mat_type", m_mat_type);
-  PETSC_OPTION_STRING("-vec_type", m_vec_type);
+  PETSC_OPTION(Real, "-ksp_rtol", m_ksp_rtol)
+  PETSC_OPTION(Real, "-ksp_atol", m_ksp_atol)
+  PETSC_OPTION(Int, "-ksp_max_it", m_ksp_max_it)
+  PETSC_OPTION_STRING("-ksp_type", m_ksp_type)
+  PETSC_OPTION_STRING("-pc_type", m_pc_type)
+  PETSC_OPTION_STRING("-mat_type", m_mat_type)
+  PETSC_OPTION_STRING("-vec_type", m_vec_type)
 
   info() << "[PETSc-Info] Using " << std::string(m_mat_type.c_str()) << " matrix type";
   info() << "[PETSc-Info] Using " << std::string(m_vec_type.c_str()) << " vector type";
 }
 
+/*!
+ * \brief Compute global numeration of the matrix.
+ *
+ * Each rank owns consecutive rows of the matrix in increasing order.
+ */
+
 void PETScDoFLinearSystemImpl::
-_computeMatrixNumeration(MPI_Comm mpi_comm)
+_computeMatrixNumeration()
 {
   // TODO use ISLocalToGlobalMappingCreate PETSc struct
   IItemFamily* dof_family = dofFamily();
@@ -255,6 +284,10 @@ _computeMatrixNumeration(MPI_Comm mpi_comm)
   m_rhs_work_values.resize(m_nb_own_row);
 }
 
+/*!
+ * \brief Convert CSR format rows into COO format rows
+ */
+
 UniqueArray<PetscInt> PETScDoFLinearSystemImpl::_CSRToCOO(const Span<const int32_t> csr_rows, int32_t nb_value)
 {
   UniqueArray<PetscInt> coo_rows;
@@ -272,6 +305,13 @@ UniqueArray<PetscInt> PETScDoFLinearSystemImpl::_CSRToCOO(const Span<const int32
 
   return coo_rows;
 }
+
+/*!
+ * \brief Allocate matrix related PETSc objects
+ *
+ * The function allocates the matrix in COO format,
+ * the KSP solver and the IS map.
+ */
 
 void PETScDoFLinearSystemImpl::_preallocateMatrix()
 {
@@ -318,6 +358,31 @@ void PETScDoFLinearSystemImpl::_preallocateMatrix()
   PetscCallAbort(mpi_comm, KSPSetFromOptions(m_petsc_solver_context));
 }
 
+/*!
+ * \brief Initialize the solving
+ *
+ * The initialization does several things:
+ * - calls handleParameters()
+ * - calls computeMatrixNumeration()
+ * - handle PETSc objects preallocation
+ *
+ * For allocation of PETSc objects:
+ *
+ * If the matrix has a constant sparsity, it will preallocate
+ * the matrix in this function and free it at the destruction
+ * of this object. Otherwise, the matrix will be allocated and
+ * freed at each call to the solve() function. The same applies
+ * for the KSP object and the IS map.
+ *
+ * If the matrix has constant values, it will set the values
+ * in the matrix in this function. Otherwise, the matrix values
+ * will be set at each call to the solve() function.
+ *
+ * At the end of the function, we set the m_is_initialized
+ * attribute to true to indicate that we do not need to
+ * call this function again.
+ */
+
 void PETScDoFLinearSystemImpl::_initSolve()
 {
   IItemFamily* dof_family = dofFamily();
@@ -331,7 +396,7 @@ void PETScDoFLinearSystemImpl::_initSolve()
     ARCANE_THROW(NotSupportedException, "Cannot have constant matrix values and variable matrix sparsity.");
 
   _handleParameters(pm);
-  _computeMatrixNumeration(mpi_comm);
+  _computeMatrixNumeration();
 
   if (isMatrixSparsityConstant())
     _preallocateMatrix();
@@ -345,6 +410,26 @@ void PETScDoFLinearSystemImpl::_initSolve()
 
   m_is_initialized = true;
 }
+
+/*!
+ * \brief Solve the linear system
+ *
+ * The function call _initSolve function on its first
+ * time been called.
+ *
+ * The function calls _preallocateMatrix if necessary,
+ * and allocates the vectors.
+ *
+ * It then calls KSPSolve from the PETSc library to
+ * solve the linear system, and put the result in
+ * the m_petsc_solution_vector attribute of the class.
+ *
+ *
+ * Before every allocation / deallocation, the function
+ * makes sure to check the constant sparsity and
+ * constant values to avoid a double free error or a
+ * use after free error.
+ */
 
 void PETScDoFLinearSystemImpl::
 solve()
