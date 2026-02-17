@@ -38,6 +38,7 @@ startInit()
 
   bool use_csr_in_linear_system =
     options()->linearSystem.serviceName() == "HypreLinearSystem" ||
+    options()->linearSystem.serviceName() == "AlienLinearSystem" ||
     options()->linearSystem.serviceName() == "PETScLinearSystem";
 
   if (m_matrix_format == "BSR")
