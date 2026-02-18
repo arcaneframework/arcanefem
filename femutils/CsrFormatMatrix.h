@@ -1,16 +1,17 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* CsrFormatMatrix.h                                           (C) 2022-2025 */
+/* CsrFormatMatrix.h                                           (C) 2022-2026 */
 /*                                                                           */
+/* Container for Matrix using CSR format.                                    */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-#ifndef CSRFORMAT_H
-#define CSRFORMAT_H
+#ifndef ARCANEFEM_FEMUTILS_CSRFORMATMATRIX_H
+#define ARCANEFEM_FEMUTILS_CSRFORMATMATRIX_H
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -23,18 +24,22 @@
 #include "FemUtils.h"
 #include "CsrFormatMatrixView.h"
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 namespace Arcane::FemUtils
 {
 class DoFLinearSystem;
 
-using namespace Arcane;
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 class CsrFormat
 : public TraceAccessor
 {
  public:
 
-  explicit CsrFormat(ITraceMng* tm)
+  explicit CsrFormat(Arcane::ITraceMng* tm)
   : TraceAccessor(tm)
   {
   }
@@ -136,6 +141,12 @@ class CsrFormat
   }
 };
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 } // namespace Arcane::FemUtils
 
-#endif // ! CSRFORMAT_H
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+#endif

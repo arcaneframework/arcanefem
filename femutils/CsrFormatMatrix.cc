@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* CsrFormatMatrix.cc                                          (C) 2022-2025 */
+/* CsrFormatMatrix.cc                                          (C) 2022-2026 */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -22,6 +22,9 @@
 
 #include "CsrFormatMatrix.h"
 #include "DoFLinearSystem.h"
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 namespace Arcane::FemUtils
 {
@@ -105,9 +108,6 @@ translateToLinearSystem(DoFLinearSystem& linear_system, const RunQueue& queue)
       linear_system.matrixAddValue(DoFLocalId(i), DoFLocalId(m_matrix_column(j)), m_matrix_value(j));
     }
   }
-
-  if (do_set_csr) {
-  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -119,6 +119,9 @@ view()
   return CSRFormatView(m_matrix_row.to1DSmallSpan(), m_matrix_rows_nb_column.to1DSmallSpan(),
                        m_matrix_column.to1DSmallSpan(), m_matrix_value.to1DSmallSpan());
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 void CsrFormat::
 printMatrix(std::string fileName)
@@ -144,3 +147,37 @@ printMatrix(std::string fileName)
 }
 
 } // namespace Arcane::FemUtils
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+namespace Arcane
+{
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*!
+ * \brief Convert CSR format rows into COO format rows
+ */
+void FemUtils::
+_translateCSRToCOO(Span<const Int32> csr_rows, SmallSpan<Int32> coo_rows)
+{
+  const Int32 nb_value = coo_rows.size();
+  const Int32 nb_row = csr_rows.size();
+
+  for (int i = 0; i < nb_row - 1; i++) {
+    // info() << "csr_rows[ " << i << " ]: " << csr_rows[i];
+
+    for (int j = csr_rows[i]; j < csr_rows[i + 1]; j++)
+      coo_rows[j] = i;
+  }
+
+  for (int j = csr_rows[csr_rows.size() - 1]; j < nb_value; j++)
+    coo_rows[j] = csr_rows.size() - 1;
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+} // namespace Arcane
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/

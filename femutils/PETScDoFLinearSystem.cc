@@ -1,11 +1,11 @@
-// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* PETScDoFLinearSystem.cc                                     (C) 2022-2025 */
+/* PETScDoFLinearSystem.cc                                     (C) 2022-2026 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
 /*---------------------------------------------------------------------------*/
@@ -66,8 +66,7 @@ class PETScDoFLinearSystemImpl
     IParallelMng* pm = dof_family->parallelMng();
     MPI_Comm mpi_comm = static_cast<MPI_Comm>(pm->communicator());
 
-    if (isMatrixSparsityConstant())
-    {
+    if (isMatrixSparsityConstant()) {
       PetscCallAbort(mpi_comm, ISLocalToGlobalMappingDestroy(&m_petsc_map));
       PetscCallAbort(mpi_comm, MatDestroy(&m_petsc_matrix));
       PetscCallAbort(mpi_comm, KSPDestroy(&m_petsc_solver_context));
@@ -154,9 +153,10 @@ class PETScDoFLinearSystemImpl
   void _handleParameters(IParallelMng* pm);
   void _preallocateMatrix();
   void _initSolve();
-  UniqueArray<PetscInt> _CSRToCOO(const Span<const int32_t> csr_rows, int32_t nb_value);
 };
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 /*!
  * \brief Set default parameters to PETSc.
  *
@@ -169,8 +169,8 @@ class PETScDoFLinearSystemImpl
  * only if the user did not already set this parameter via
  * the -A,petsc_flags option.
  */
-
-void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm)
+void PETScDoFLinearSystemImpl::
+_handleParameters(IParallelMng* pm)
 {
   PetscBool is_initialized;
   PetscInitialized(&is_initialized);
@@ -234,12 +234,13 @@ void PETScDoFLinearSystemImpl::_handleParameters(IParallelMng* pm)
   info() << "[PETSc-Info] Using " << std::string(m_vec_type.c_str()) << " vector type";
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 /*!
  * \brief Compute global numeration of the matrix.
  *
  * Each rank owns consecutive rows of the matrix in increasing order.
  */
-
 void PETScDoFLinearSystemImpl::
 _computeMatrixNumeration()
 {
@@ -284,28 +285,8 @@ _computeMatrixNumeration()
   m_rhs_work_values.resize(m_nb_own_row);
 }
 
-/*!
- * \brief Convert CSR format rows into COO format rows
- */
-
-UniqueArray<PetscInt> PETScDoFLinearSystemImpl::_CSRToCOO(const Span<const int32_t> csr_rows, int32_t nb_value)
-{
-  UniqueArray<PetscInt> coo_rows;
-  coo_rows.resize(nb_value);
-
-  for (int i = 0; i < csr_rows.size() - 1; i++) {
-    // info() << "csr_rows[ " << i << " ]: " << csr_rows[i];
-
-    for (int j = csr_rows[i]; j < csr_rows[i + 1]; j++)
-      coo_rows[j] = i;
-  }
-
-  for (int j = csr_rows[csr_rows.size() - 1]; j < nb_value; j++)
-    coo_rows[j] = csr_rows.size() - 1;
-
-  return coo_rows;
-}
-
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 /*!
  * \brief Allocate matrix related PETSc objects
  *
@@ -313,7 +294,8 @@ UniqueArray<PetscInt> PETScDoFLinearSystemImpl::_CSRToCOO(const Span<const int32
  * the KSP solver and the IS map.
  */
 
-void PETScDoFLinearSystemImpl::_preallocateMatrix()
+void PETScDoFLinearSystemImpl::
+_preallocateMatrix()
 {
   IItemFamily* dof_family = dofFamily();
   IParallelMng* pm = dof_family->parallelMng();
@@ -344,12 +326,16 @@ void PETScDoFLinearSystemImpl::_preallocateMatrix()
 
   // info() << "nb cols: " << csr_view.nbColumn() << ", nb rows: " << csr_view.nbRow() << ", nb vals: " << csr_view.nbValue();
 
-  UniqueArray<PetscInt> coo_rows = _CSRToCOO(csr_view.rows(), csr_view.nbValue());
+  // We use COO for PETSc, so we need to convert from CSR to COO
+  NumArray<PetscInt, MDDim1> coo_rows;
+  coo_rows.resize(csr_view.nbValue());
+  _translateCSRToCOO(csr_view.rows(), coo_rows.to1DSmallSpan());
+
   UniqueArray<PetscInt> coo_cols;
   // coo_cols.assign(csr_view.columns().begin(), csr_view.columns().end());
   coo_cols.copy(csr_view.columns()); // copy column array
 
-  PetscCallAbort(mpi_comm, MatSetPreallocationCOOLocal(m_petsc_matrix, csr_view.nbValue(), coo_rows.data(), coo_cols.data()));
+  PetscCallAbort(mpi_comm, MatSetPreallocationCOOLocal(m_petsc_matrix, csr_view.nbValue(), coo_rows.to1DSpan().data(), coo_cols.data()));
   PetscCallAbort(mpi_comm, MatAssemblyBegin(m_petsc_matrix, MAT_FINAL_ASSEMBLY));
   PetscCallAbort(mpi_comm, MatAssemblyEnd(m_petsc_matrix, MAT_FINAL_ASSEMBLY));
 
@@ -358,6 +344,8 @@ void PETScDoFLinearSystemImpl::_preallocateMatrix()
   PetscCallAbort(mpi_comm, KSPSetFromOptions(m_petsc_solver_context));
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 /*!
  * \brief Initialize the solving
  *
@@ -382,8 +370,8 @@ void PETScDoFLinearSystemImpl::_preallocateMatrix()
  * attribute to true to indicate that we do not need to
  * call this function again.
  */
-
-void PETScDoFLinearSystemImpl::_initSolve()
+void PETScDoFLinearSystemImpl::
+_initSolve()
 {
   IItemFamily* dof_family = dofFamily();
   IParallelMng* pm = dof_family->parallelMng();
@@ -401,8 +389,7 @@ void PETScDoFLinearSystemImpl::_initSolve()
   if (isMatrixSparsityConstant())
     _preallocateMatrix();
 
-  if (isMatrixValuesConstant())
-  {
+  if (isMatrixValuesConstant()) {
     PetscCallAbort(mpi_comm, MatSetValuesCOO(m_petsc_matrix, csr_view.values().data(), INSERT_VALUES));
     PetscCallAbort(mpi_comm, MatAssemblyBegin(m_petsc_matrix, MAT_FINAL_ASSEMBLY));
     PetscCallAbort(mpi_comm, MatAssemblyEnd(m_petsc_matrix, MAT_FINAL_ASSEMBLY));
@@ -411,6 +398,8 @@ void PETScDoFLinearSystemImpl::_initSolve()
   m_is_initialized = true;
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 /*!
  * \brief Solve the linear system
  *
@@ -430,7 +419,6 @@ void PETScDoFLinearSystemImpl::_initSolve()
  * constant values to avoid a double free error or a
  * use after free error.
  */
-
 void PETScDoFLinearSystemImpl::
 solve()
 {
@@ -467,8 +455,7 @@ solve()
   if (!isMatrixSparsityConstant())
     _preallocateMatrix();
 
-  if (!isMatrixValuesConstant())
-  {
+  if (!isMatrixValuesConstant()) {
     PetscCallAbort(mpi_comm, MatSetValuesCOO(m_petsc_matrix, csr_view.values().data(), INSERT_VALUES));
     PetscCallAbort(mpi_comm, MatAssemblyBegin(m_petsc_matrix, MAT_FINAL_ASSEMBLY));
     PetscCallAbort(mpi_comm, MatAssemblyEnd(m_petsc_matrix, MAT_FINAL_ASSEMBLY));
@@ -569,8 +556,7 @@ solve()
   info() << "[PETSc-Info] Wrote solution in solution_variable";
   info() << "[PETSc-Info] Device memory allocation (Mo): " << (a.totalMemory() - a.freeMemory()) / 1e6;
 
-  if (!isMatrixSparsityConstant())
-  {
+  if (!isMatrixSparsityConstant()) {
     PetscCallAbort(mpi_comm, ISLocalToGlobalMappingDestroy(&m_petsc_map));
     PetscCallAbort(mpi_comm, MatDestroy(&m_petsc_matrix));
     PetscCallAbort(mpi_comm, KSPDestroy(&m_petsc_solver_context));
@@ -606,7 +592,16 @@ class PETScDoFLinearSystemFactoryService
   }
 };
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 ARCANE_REGISTER_SERVICE_PETSCDOFLINEARSYSTEMFACTORY(PETScLinearSystem,
                                                     PETScDoFLinearSystemFactoryService);
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 } // namespace Arcane::FemUtils
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
