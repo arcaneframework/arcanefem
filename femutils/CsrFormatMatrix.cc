@@ -159,21 +159,30 @@ namespace Arcane
  * \brief Convert CSR format rows into COO format rows
  */
 void FemUtils::
-_translateCSRToCOO(Span<const Int32> csr_rows, SmallSpan<Int32> coo_rows)
+_translateCSRToCOO(Span<const Int32> csr_rows, SmallSpan<Int32> coo_rows,
+                   const RunQueue& queue)
 {
   const Int32 nb_value = coo_rows.size();
   const Int32 nb_row = csr_rows.size();
 
-  for (int i = 0; i < nb_row - 1; i++) {
-    // info() << "csr_rows[ " << i << " ]: " << csr_rows[i];
-
-    for (int j = csr_rows[i]; j < csr_rows[i + 1]; j++)
-      coo_rows[j] = i;
+  {
+    auto command = makeCommand(queue);
+    command << RUNCOMMAND_LOOP1(iter, nb_row)
+    {
+      auto [i] = iter();
+      if (i != (nb_row - 1)) {
+        for (int j = csr_rows[i]; j < csr_rows[i + 1]; j++)
+          coo_rows[j] = i;
+      }
+      else {
+        // The last iteration fill the remaining values
+        for (int j = csr_rows[nb_row - 1]; j < nb_value; j++)
+          coo_rows[j] = nb_row - 1;
+      }
+    };
   }
-
-  for (int j = csr_rows[csr_rows.size() - 1]; j < nb_value; j++)
-    coo_rows[j] = csr_rows.size() - 1;
 }
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 

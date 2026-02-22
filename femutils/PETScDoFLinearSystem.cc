@@ -327,15 +327,20 @@ _preallocateMatrix()
   // info() << "nb cols: " << csr_view.nbColumn() << ", nb rows: " << csr_view.nbRow() << ", nb vals: " << csr_view.nbValue();
 
   // We use COO for PETSc, so we need to convert from CSR to COO
+  RunQueue queue = makeQueue(runner);
   NumArray<PetscInt, MDDim1> coo_rows;
   coo_rows.resize(csr_view.nbValue());
-  _translateCSRToCOO(csr_view.rows(), coo_rows.to1DSmallSpan());
+  _translateCSRToCOO(csr_view.rows(), coo_rows.to1DSmallSpan(), queue);
 
-  UniqueArray<PetscInt> coo_cols;
-  // coo_cols.assign(csr_view.columns().begin(), csr_view.columns().end());
-  coo_cols.copy(csr_view.columns()); // copy column array
+  NumArray<PetscInt, MDDim1> coo_cols;
+  //NumArray<PetscInt, MDDim1> coo_cols;
+  coo_cols.resize(csr_view.columns().size());
+  MemoryUtils::copy(coo_cols.to1DSpan(), csr_view.columns(), &queue);
 
-  PetscCallAbort(mpi_comm, MatSetPreallocationCOOLocal(m_petsc_matrix, csr_view.nbValue(), coo_rows.to1DSpan().data(), coo_cols.data()));
+  //NumArray<PetscInt, MDDim1> coo_cols(csr_view.columns());
+  //coo_cols.copy(csr_view.columns(), queue); // copy column array
+
+  PetscCallAbort(mpi_comm, MatSetPreallocationCOOLocal(m_petsc_matrix, csr_view.nbValue(), coo_rows.to1DSpan().data(), coo_cols.to1DSpan().data()));
   PetscCallAbort(mpi_comm, MatAssemblyBegin(m_petsc_matrix, MAT_FINAL_ASSEMBLY));
   PetscCallAbort(mpi_comm, MatAssemblyEnd(m_petsc_matrix, MAT_FINAL_ASSEMBLY));
 

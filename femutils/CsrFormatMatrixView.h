@@ -212,10 +212,12 @@ class CsrFormatMatrixView
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
- * \brief Convert CSR format rows into COO format rows
+ * \brief Convert CSR format rows into COO format rows.
+ *
+ * The computation will be done using RunQueue \a queue.
  */
 extern "C++" void
-_translateCSRToCOO(Span<const Int32> csr_rows, SmallSpan<Int32> coo_rows);
+_translateCSRToCOO(Span<const Int32> csr_rows, SmallSpan<Int32> coo_rows, const RunQueue& queue);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
