@@ -33,6 +33,7 @@ add_subdirectory(modules/soildynamics)
 add_subdirectory(modules/heat)
 add_subdirectory(modules/passmo)
 add_subdirectory(modules/passmonl)
+add_subdirectory(modules/laplacenl)
 
 find_package(Doxygen)
 if (Doxygen_FOUND AND TARGET Doxygen::doxygen)
