@@ -110,6 +110,8 @@ compute()
 void FemModuleLaplace::
 _doStationarySolve()
 {
+  info() << "[ArcaneFem-Info] Started module _doStationarySolve()";
+
   if(!m_perform_fixed_point_iters){
     if(m_assemble_linear_system){
       _assembleBilinearOperator();
@@ -400,7 +402,7 @@ _solve()
 void FemModuleLaplace::
 _initGuess()
 {
-  info() << "[ArcaneFem-Module] _initGuess()";
+  info() << "[ArcaneFem-Module] Started module _initGuess()";
   Real elapsedTime = platform::getRealTime();
 
   {
@@ -433,7 +435,7 @@ _initGuess()
 void FemModuleLaplace::
 _update_solution_and_check_convergence()
 {
-  info() << "[ArcaneFem-Module] _update_solution_and_check_convergence()";
+  info() << "[ArcaneFem-Module] Started module _update_solution_and_check_convergence()";
   Real elapsedTime = platform::getRealTime();
 
   _updateVariables(); // copy u_dof into u
@@ -472,7 +474,7 @@ _update_solution_and_check_convergence()
 void FemModuleLaplace::
 _updateVariables()
 {
-  info() << "[ArcaneFem-Module] _updateVariables()";
+  info() << "[ArcaneFem-Module] Started module _updateVariables()";
   Real elapsedTime = platform::getRealTime();
 
   {
