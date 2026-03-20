@@ -415,20 +415,34 @@ _checkConvergence()
 
    // copy u_dof into u (deep copy?)
 
-  Real max_error;
+  Real max_error = 0, max_ref = 0;
+  Real l1_error = 0, l1_ref = 0;
   {
     ENUMERATE_ (Node, inode, ownNodes()){
-      m_error[inode] = abs(m_u[inode] - m_uk[inode]) / (abs(m_uk[inode]) + 1e-12);
+      m_error[inode] = abs(m_u[inode] - m_uk[inode]);
+
       max_error = math::max(m_error[inode], max_error);
+      max_ref   = math::max( abs(m_uk[inode]), max_ref );
+      l1_error  += m_error[inode];
+      l1_ref    += abs(m_uk[inode]);
     }
   }
   IParallelMng* pm = defaultMesh()->parallelMng();
   max_error = pm->reduce(Parallel::ReduceMax, max_error);
+  max_ref   = pm->reduce(Parallel::ReduceMax, max_ref);
+  l1_error  = pm->reduce(Parallel::ReduceSum, l1_error);
+  l1_ref    = pm->reduce(Parallel::ReduceSum, l1_ref);
 
-  if ( max_error > m_fp_tol){
+  if (max_ref == 0){ max_ref += 1e-12;}
+  max_error = max_error / max_ref;
+
+  if (l1_ref == 0){ l1_ref += 1e-12;}
+  l1_error = l1_error / l1_ref;
+
+  if ( max_error > m_fp_tol || l1_error > m_fp_tol){
     m_converged = false;
   } else {
-    info() << "[ArcaneFem-FP-iters] fixed point iterations converged with error " << max_error;
+    info() << "[ArcaneFem-FP-iters] fixed point iterations converged with max error " << max_error << " and l1-error " << l1_error;
     m_converged = true;
   }
 
