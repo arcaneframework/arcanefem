@@ -125,7 +125,7 @@ _doStationarySolve()
     if(m_assemble_linear_system){
       _assembleBilinearOperator();
     }
-    _initGuess();
+    _updatePreviousIterationVariables();
     while(m_fp_iter < m_max_fp_iters){
       if(m_assemble_linear_system){
         // _assembleLinearOperatorFP(); // TODO : Sets RHS = b- nlin(Uk)
@@ -133,16 +133,22 @@ _doStationarySolve()
       }
       if (m_solve_linear_system){
         _solve();
-        _update_solution_and_check_convergence();
+        _updateVariables();
       }
+
       ++m_fp_iter;
-      if (m_converged){
-        info() << "[ArcaneFem-Module] Fixed-point iterations converged after " << m_fp_iter - 1 << " iterations";
+      _checkConvergence();
+
+      if(m_converged){
+        info() << "[ArcaneFem-FP-iters] Fixed-point iterations converged after " << m_fp_iter << " iterations";
         break;
+      } else{
+        _updatePreviousIterationVariables(); // copy u_dof into uk for next iteration convergence check
+        _updateSolutionFromVariables(); // copy u into u_dof to update initial guess for linear solve TODO See how to use swap instead of deep copy
       }
     }
     if (m_fp_iter == m_max_fp_iters && !m_converged){
-      info() << "[ArcaneFem-Module] Fixed-point iterations did not converge after maximum (" << m_max_fp_iters << ") iterations";
+      info() << "[ArcaneFem-FP-iters] Fixed-point iterations did not converge after maximum (" << m_max_fp_iters << ") iterations";
       ARCANE_FATAL("Fixed-point iterations diverged after max iters");
     }
   }
@@ -387,38 +393,7 @@ _solve()
 }
 
 
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Set the initial guess for fixed point iterations.
- *
- * This method performs the following actions:
- *   1. Fetches values of solution from previous solution step
- *      (not the fixed point iteration) to FEM guess variable
- *      for fixed point iterations, i.e., it copies RHS DOF to uk.
- *   2. Performs synchronize of FEM guess variables across subdomains.
- */
-/*---------------------------------------------------------------------------*/
 
-void FemModuleLaplace::
-_initGuess()
-{
-  info() << "[ArcaneFem-Module] Started module _initGuess()";
-  Real elapsedTime = platform::getRealTime();
-
-  {
-    VariableDoFReal& dof_u(m_linear_system.solutionVariable());
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      Node node = *inode;
-      m_uk[node] = dof_u[node_dof.dofId(node, 0)];
-    }
-  }
-
-  m_uk.synchronize();
-
-  elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"init-guess-variables", elapsedTime);
-}
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -433,31 +408,32 @@ _initGuess()
 /*---------------------------------------------------------------------------*/
 
 void FemModuleLaplace::
-_update_solution_and_check_convergence()
+_checkConvergence()
 {
-  info() << "[ArcaneFem-Module] Started module _update_solution_and_check_convergence()";
+  info() << "[ArcaneFem-Module] Started module _checkConvergence()";
   Real elapsedTime = platform::getRealTime();
 
-  _updateVariables(); // copy u_dof into u
+   // copy u_dof into u (deep copy?)
+
   Real max_error;
   {
-    ENUMERATE_ (Node, inode, ownNodes()) {
+    ENUMERATE_ (Node, inode, ownNodes()){
       m_error[inode] = abs(m_u[inode] - m_uk[inode]) / (abs(m_uk[inode]) + 1e-12);
       max_error = math::max(m_error[inode], max_error);
     }
   }
   IParallelMng* pm = defaultMesh()->parallelMng();
-  max_error = pm->reduce(Parallel::ReduceMax,max_error);
+  max_error = pm->reduce(Parallel::ReduceMax, max_error);
 
-  if ( max_error > m_fp_tol) {
+  if ( max_error > m_fp_tol){
     m_converged = false;
-    _initGuess(); // copy u_dof into uk {initial guess vector for the iteration}
   } else {
+    info() << "[ArcaneFem-FP-iters] fixed point iterations converged with error " << max_error;
     m_converged = true;
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "update-variables-and-check-convergence", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "check-convergence", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -491,6 +467,72 @@ _updateVariables()
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
 }
+
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Update the previous fixed-point iteration FEM variables.
+ *
+ * This method performs the following actions:
+ *   1. Fetches values of linear solution vector to the previous
+ *      fixed-point iteration FEM variable, i.e., it copies RHS DOF to uk.
+ *   2. Performs synchronize of the previous fixed-point iteration FEM
+ *      variable across subdomains.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleLaplace::
+_updatePreviousIterationVariables()
+{
+  info() << "[ArcaneFem-Module] Started module _updatePreviousIterationVariables()";
+  Real elapsedTime = platform::getRealTime();
+
+  {
+    VariableDoFReal& dof_u(m_linear_system.solutionVariable());
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      m_uk[node] = dof_u[node_dof.dofId(node, 0)];
+    }
+  }
+
+  m_uk.synchronize();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-previous-iteration-variables", elapsedTime);
+}
+
+/**
+ * @brief Reinitialize the solution vector of the linear solve with the FEM variables.
+ *
+ * This method performs the following actions:
+ *   1. Performs synchronize of FEM variables across subdomains.
+ *   2. Fetches the FEM variables to the solution vector of the
+ *      linear solver for next fixed point iteration.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleLaplace::
+_updateSolutionFromVariables()
+{
+  info() << "[ArcaneFem-Module] Started module _updateSolutionFromVariables()";
+  Real elapsedTime = platform::getRealTime();
+
+  m_u.synchronize();
+
+  {
+    VariableDoFReal& dof_u(m_linear_system.solutionVariable());
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      dof_u[node_dof.dofId(node, 0)] = m_u[node];
+    }
+  }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "_update-solution-from-variables", elapsedTime);
+}
+/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 /**
