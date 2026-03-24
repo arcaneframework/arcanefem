@@ -512,6 +512,11 @@ solve()
   Real a1 = platform::getRealTime();
   info() << "[PETSc-Timer] Time to create vectors = " << (a1 - b1);
 
+  // info() << "[PETSc-VecView] Solution Vec";
+  // PetscCallAbort(mpi_comm, VecView(m_petsc_solution_vector, PETSC_VIEWER_STDOUT_(mpi_comm)) );
+  // info() << "[PETSc-VecView] RHS Vec";
+  // PetscCallAbort(mpi_comm, VecView(m_petsc_rhs_vector, PETSC_VIEWER_STDOUT_(mpi_comm)) );
+
   PetscCallAbort(mpi_comm, KSPSolve(m_petsc_solver_context, m_petsc_rhs_vector, m_petsc_solution_vector));
   Real a2 = platform::getRealTime();
   info() << "[PETSc-Timer] Time to solve = " << (a2 - a1);

@@ -10,10 +10,10 @@
       <description>FEM variable u on nodes</description>
     </variable>
     <variable field-name="uk" name="Uk" data-type="real" item-kind="node" dim="0">
-          <description>FEM guess variable uk on nodes</description>
+          <description>FEM variable uk (previous fixed-point iteration) on nodes</description>
     </variable>
-    <variable field-name="error" name="error" data-type="real" item-kind="node" dim="0">
-          <description>Convergence error for fixed point iterations</description>
+    <variable field-name="nl_flux" name="non-linear-flux" data-type="real" item-kind="node" dim="0">
+          <description>FEM variable to store the nonlinear flux</description>
     </variable>
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
       <description>Node coordinates from Arcane variable</description>
@@ -48,7 +48,7 @@
           <description>Boolean to enable Picard-type outer fixed point iterations.</description>
     </simple>
 
-    <simple name="max-fixed-point-iters" type="integer" default="10" optional="true">
+    <simple name="max-fixed-point-iters" type="integer" default="100" optional="true">
         <description>Maximum number of the allowed fixed point iterations.</description>
     </simple>
 
