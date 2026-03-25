@@ -100,6 +100,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/truncated-cube.3D.arc)
   arcanefem_add_gpu_test(NAME [laplacenl]3D_pointBc_neumann_af-bsr COMMAND ./LaplaceNL ARGS
     -A,//fem/matrix-format=AF-BSR
+    -A,//fem/fp-tol=1e-3
     inputs/truncated-cube.neumann.3D.arc)
 
   set(SOLVER_PETSC_CG

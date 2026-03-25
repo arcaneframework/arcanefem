@@ -171,18 +171,12 @@ _doStationarySolve()
 
 void FemModuleLaplace::_assembleLinearOperator()
 {
-  if (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
-      options()->linearSystem.serviceName() == "PETScLinearSystem")
-    _assembleLinearOperatorGpu();
-  else
-    _assembleLinearOperatorCpu();
-
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   if (m_perform_fixed_point_iters) {
     ENUMERATE_ (Node, inode, ownNodes()) {
       // m_nl_flux[inode] = - m_uk[inode] * m_uk[inode];
-      m_nl_flux[inode] = - 1e-3 * m_uk[inode];
+      m_nl_flux[inode] = - 1e-6 * m_uk[inode];
     }
     // m_nl_flux.fill(0);
     if (mesh()->dimension() == 2) {
@@ -198,6 +192,12 @@ void FemModuleLaplace::_assembleLinearOperator()
         ArcaneFemFunctions::BoundaryConditions3D::integrateNodalFieldToRhsTetra4(m_nl_flux, mesh(), node_dof, m_node_coord, rhs_values);
     }
   }
+
+  if (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
+      options()->linearSystem.serviceName() == "PETScLinearSystem")
+    _assembleLinearOperatorGpu();
+  else
+    _assembleLinearOperatorCpu();
 
 }
 
