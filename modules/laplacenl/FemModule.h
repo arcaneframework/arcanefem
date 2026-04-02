@@ -107,6 +107,7 @@ class FemModuleLaplace
   void _updatePreviousIterationVariables();
   void _updateSolutionFromVariables();
   void _checkConvergence();
+  void _updateNonLinearFluxField();
 
   RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
   RealMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);

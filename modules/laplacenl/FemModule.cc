@@ -128,8 +128,8 @@ _doStationarySolve()
     _updatePreviousIterationVariables();
     while(m_fp_iter < m_max_fp_iters){
       if(m_assemble_linear_system){
-        // _assembleLinearOperatorFP(); // TODO : Sets RHS = b- nlin(Uk)
-        _assembleLinearOperator(); // (Test) Remove later
+        _updateNonLinearFluxField(); // evaluates nlin(uk)
+        _assembleLinearOperator(); // Now adds nlin(uk) to b
       }
       if (m_solve_linear_system){
         _solve();
@@ -171,34 +171,11 @@ _doStationarySolve()
 
 void FemModuleLaplace::_assembleLinearOperator()
 {
-  VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-  if (m_perform_fixed_point_iters) {
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      // m_nl_flux[inode] = - m_uk[inode] * m_uk[inode];
-      m_nl_flux[inode] = - 1e-6 * m_uk[inode];
-    }
-    // m_nl_flux.fill(0);
-    if (mesh()->dimension() == 2) {
-      if (m_hex_quad_mesh)
-        ArcaneFemFunctions::BoundaryConditions2D::integrateNodalFieldToRhsQuad4(m_nl_flux, mesh(), node_dof, m_node_coord, rhs_values);
-      else
-        ArcaneFemFunctions::BoundaryConditions2D::integrateNodalFieldToRhsTria3(m_nl_flux, mesh(), node_dof, m_node_coord, rhs_values);
-    }
-    if (mesh()->dimension() == 3) {
-      if (m_hex_quad_mesh)
-        ArcaneFemFunctions::BoundaryConditions3D::integrateNodalFieldToRhsHexa8(m_nl_flux, mesh(), node_dof, m_node_coord, rhs_values);
-      else
-        ArcaneFemFunctions::BoundaryConditions3D::integrateNodalFieldToRhsTetra4(m_nl_flux, mesh(), node_dof, m_node_coord, rhs_values);
-    }
-  }
-
   if (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
       options()->linearSystem.serviceName() == "PETScLinearSystem")
     _assembleLinearOperatorGpu();
   else
     _assembleLinearOperatorCpu();
-
 }
 
 /*---------------------------------------------------------------------------*/
@@ -228,6 +205,22 @@ _assembleLinearOperatorCpu()
   rhs_values.fill(0.0);
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  // Add the nonlinear flux to Load vector
+  if (m_perform_fixed_point_iters) {
+    if (mesh()->dimension() == 2) {
+      if (m_hex_quad_mesh)
+        ArcaneFemFunctions::BoundaryConditions2D::integrateNodalFieldToRhsQuad4(m_nl_flux, mesh(), node_dof, m_node_coord, rhs_values);
+      else
+        ArcaneFemFunctions::BoundaryConditions2D::integrateNodalFieldToRhsTria3(m_nl_flux, mesh(), node_dof, m_node_coord, rhs_values);
+    }
+    if (mesh()->dimension() == 3) {
+      if (m_hex_quad_mesh)
+        ArcaneFemFunctions::BoundaryConditions3D::integrateNodalFieldToRhsHexa8(m_nl_flux, mesh(), node_dof, m_node_coord, rhs_values);
+      else
+        ArcaneFemFunctions::BoundaryConditions3D::integrateNodalFieldToRhsTetra4(m_nl_flux, mesh(), node_dof, m_node_coord, rhs_values);
+    }
+  }
 
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
   if (bc) {
@@ -281,6 +274,24 @@ void FemModuleLaplace::_assembleLinearOperatorGpu()
 
   auto& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
+
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  // Add the nonlinear flux to Load vector
+  if (m_perform_fixed_point_iters) {
+    if (mesh()->dimension() == 2) {
+      if (m_hex_quad_mesh)
+        ArcaneFemFunctions::BoundaryConditions2D::integrateNodalFieldToRhsQuad4(m_nl_flux, mesh(), node_dof, m_node_coord, rhs_values);
+      else
+        ArcaneFemFunctions::BoundaryConditions2D::integrateNodalFieldToRhsTria3(m_nl_flux, mesh(), node_dof, m_node_coord, rhs_values);
+    }
+    if (mesh()->dimension() == 3) {
+      if (m_hex_quad_mesh)
+        ArcaneFemFunctions::BoundaryConditions3D::integrateNodalFieldToRhsHexa8(m_nl_flux, mesh(), node_dof, m_node_coord, rhs_values);
+      else
+        ArcaneFemFunctions::BoundaryConditions3D::integrateNodalFieldToRhsTetra4(m_nl_flux, mesh(), node_dof, m_node_coord, rhs_values);
+    }
+  }
 
   // Because of Dirichlet (Penalty) implementation in Hypre.
   m_linear_system.getForcedInfo().fill(false);
@@ -504,6 +515,37 @@ _updateVariables()
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
 }
 
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Update the FEM nonlinear flux field.
+ *
+ * This method performs the following actions:
+ *   1. Evaluates the values of the nonlinear FEM field from the
+ *      previous fixed-point iteration FEM variables.
+ *   2. Performs synchronize of FEM nonlinear FEM field across subdomains.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleLaplace::
+_updateNonLinearFluxField()
+{
+  info() << "[ArcaneFem-Module] Started module _updateVariables()";
+  Real elapsedTime = platform::getRealTime();
+  m_uk.synchronize();
+  {
+    VariableDoFReal& dof_u(m_linear_system.solutionVariable());
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    ENUMERATE_ (Node, inode, ownNodes())
+    {
+      m_nl_flux[inode] = options()->facNlin * sin(m_uk[inode]);
+    }
+  }
+  m_nl_flux.synchronize();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
+}
 
 /*---------------------------------------------------------------------------*/
 /**
