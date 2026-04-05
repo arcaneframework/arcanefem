@@ -66,6 +66,114 @@
       <description>Incident wave motion (acceleration) on paraxial element (face or edge)</description>
     </variable>
 
+    <!-- - - - - -variables on cell Gauss points - - - - -->
+    <!-- - Stresses - -->
+   <variable field-name="gauss_stress0" name="GaussStress0" data-type="real3x3"
+               item-kind="cell" shape-dim="1">
+       <description>Initial stress tensors on cell Gauss points</description>
+     </variable>
+    <variable field-name="gauss_stress" name="GaussStress" data-type="real3x3"
+               item-kind="cell" shape-dim="1">
+       <description>Current stress tensors on cell Gauss points</description>
+     </variable>
+    <variable field-name="gauss_prev_stress" name="GaussPrevStress" data-type="real3x3"
+              item-kind="cell" shape-dim="1">
+      <description>Previous stress tensors on cell Gauss points</description>
+    </variable>
+
+    <!-- - Global Strains - -->
+    <variable field-name="gauss_strain0" name="GaussStrain0" data-type="real3x3"
+              item-kind="cell" shape-dim="1">
+      <description>Initial strain tensors on cell Gauss points</description>
+    </variable>
+    <variable field-name="gauss_strain" name="GaussStrain" data-type="real3x3"
+              item-kind="cell" shape-dim="1">
+      <description>Current strain tensors on cell Gauss points</description>
+    </variable>
+    <variable field-name="gauss_prev_strain" name="GaussPrevStrain" data-type="real3x3"
+              item-kind="cell" shape-dim="1">
+      <description>Previous strain tensors on cell Gauss points</description>
+    </variable>
+
+    <!-- - Plastic Strains - -->
+    <variable field-name="gauss_strainp0" name="GaussStrainp0" data-type="real3x3"
+              item-kind="cell" shape-dim="1">
+      <description>Initial plastic strain tensors on cell Gauss points</description>
+    </variable>
+    <variable field-name="gauss_strainp" name="GaussStrainp" data-type="real3x3"
+              item-kind="cell" shape-dim="1">
+      <description>Current plastic strain tensors on cell Gauss points</description>
+    </variable>
+    <variable field-name="gauss_prev_strainp" name="GaussPrevStrainp" data-type="real3x3"
+              item-kind="cell" shape-dim="1">
+      <description>Previous plastic strain tensors on cell Gauss points</description>
+    </variable>
+
+    <!-- - Tangent operators - -->
+    <variable field-name="tangent_op_d" name="TangentOpD" data-type="real3x3"
+              item-kind="cell" shape-dim="1">
+      <description>1st Diagonal block (D) of tangent operators on cell Gauss points</description>
+    </variable>
+    <variable field-name="tangent_op_s" name="TangentOpS" data-type="real3x3"
+              item-kind="cell" shape-dim="1">
+      <description>2nd Diagonal block (S) of tangent operators on cell Gauss points</description>
+    </variable>
+    <variable field-name="tangent_op_sup" name="TangentOpSup" data-type="real3x3"
+              item-kind="cell" shape-dim="1">
+      <description>Upper out-of-diagonal block (Sup) of tangent operators on cell Gauss points</description>
+    </variable>
+    <variable field-name="tangent_op_slow" name="TangentOpSlow" data-type="real3x3"
+              item-kind="cell" shape-dim="1">
+      <description>Lower out-of-diagonal block (Slow) of tangent operators on cell Gauss points</description>
+    </variable>
+
+    <!-- - Law parameters (nonlin) - -->
+    <variable field-name="law_param" name="LawParam" data-type="real"
+              item-kind="cell" shape-dim="1">
+      <description>Law parameters at each cell</description>
+    </variable>
+
+    <!-- - Law history parameters (nonlin) - -->
+    <variable field-name="law_hist_param" name="LawHistParam" data-type="real"
+              item-kind="cell" shape-dim="1">
+      <description>Law history parameters at each cell</description>
+    </variable>
+
+    <!-- - Gauss weights - -->
+    <variable field-name="gauss_weight" name="GaussWeight" data-type="real"
+              item-kind="cell" shape-dim="1">
+      <description>Integration weights on cell Gauss points</description>
+    </variable>
+
+    <!-- - Gauss jacobians - -->
+    <variable field-name="gauss_jacobian" name="GaussJacobian" data-type="real"
+              item-kind="cell" shape-dim="1">
+      <description>Jacobians on cell Gauss points</description>
+    </variable>
+
+    <!-- - Gauss position in the cell coordinates - -->
+    <variable field-name="gauss_ref_position" name="GaussRefPosition" data-type="real3"
+              item-kind="cell" shape-dim="1">
+      <description>Jacobians on cell Gauss points</description>
+    </variable>
+
+    <!-- - Gauss Jacobian Matrices - -->
+    <variable field-name="gauss_jacob_mat" name="GaussJacobMat" data-type="real3x3"
+              item-kind="cell" shape-dim="1">
+      <description>Jacobian matrices on cell Gauss points</description>
+    </variable>
+
+    <!-- - Gauss Shape Functions and Derivatives - -->
+    <variable field-name="gauss_shape" name="GaussShape" data-type="real"
+              item-kind="cell" shape-dim="2">
+      <description>Shape Functions on cell Gauss points</description>
+    </variable>
+
+    <variable field-name="gauss_shape_deriv" name="GaussShapeDeriv" data-type="real3"
+              item-kind="cell" shape-dim="2">
+      <description>Shape Function Derivatives on cell Gauss points</description>
+    </variable>
+
     <!-- - - - - - elastic properties - - - - -->
     <variable field-name="rho" name="Rho" data-type="real" item-kind="cell" dim="0">
       <description>Bulk density value per cell</description>

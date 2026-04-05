@@ -49,7 +49,7 @@ public:
     RealUniqueArray initHistoryVars(RealConstArrayView& history_vars);
     void computeStress(bool init, bool isRef);
     RealUniqueArray initConsts(RealConstArrayView& law_params);
-    RealUniqueArray readLawParams(Real lambda, Real mu, bool default_param, const String& name, Integer ilaw);
+    void readLawParams(RealUniqueArray& lawparams, Real lambda, Real mu, bool default_param, const String& name, Integer ilaw);
     RealUniqueArray updateHistoryVars();
 
     [[nodiscard]] Tensor2	getStress() const;

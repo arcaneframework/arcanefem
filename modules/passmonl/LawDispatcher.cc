@@ -208,7 +208,7 @@ RealUniqueArray LawDispatcher::updateHistoryVars()
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-RealUniqueArray LawDispatcher::readLawParams(Real lambda, Real mu, bool default_param, const String& name, Integer ilaw)
+void LawDispatcher::readLawParams(RealUniqueArray& lawparams, Real lambda, Real mu, bool default_param, const String& name, Integer ilaw)
 {
     auto f = m_read_law_params[m_law_type];
     m_default = default_param;
@@ -226,7 +226,7 @@ RealUniqueArray LawDispatcher::readLawParams(Real lambda, Real mu, bool default_
       m_law_params[0] = lambda;
       m_law_params[1] = mu;
     }
-    return m_law_params;
+    lawparams.copy(m_law_params);
 }
 
 /*---------------------------------------------------------------------------*/
