@@ -129,14 +129,14 @@
 
     <!-- - Law parameters (nonlin) - -->
     <variable field-name="law_param" name="LawParam" data-type="real"
-              item-kind="cell" shape-dim="1">
-      <description>Law parameters at each cell</description>
+              item-kind="cell" dim="1">
+      <description>Vector of Law parameters for each cell</description>
     </variable>
 
     <!-- - Law history parameters (nonlin) - -->
     <variable field-name="law_hist_param" name="LawHistParam" data-type="real"
-              item-kind="cell" shape-dim="1">
-      <description>Law history parameters at each cell</description>
+              item-kind="cell" shape-dim="2">
+      <description>Law history parameters on cell Gauss points</description>
     </variable>
 
     <!-- - Gauss weights - -->

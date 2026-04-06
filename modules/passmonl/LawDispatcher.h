@@ -46,11 +46,12 @@ public:
     Tensor4 computeElastTensor(const Tensor2& sig);
     Tensor4 computeTangentTensor(const Tensor2& sig);
     bool initState(const Tensor2& sig);
-    RealUniqueArray initHistoryVars(RealConstArrayView& history_vars);
+//    RealUniqueArray initHistoryVars(RealUniqueArray* history_vars);
+    void initHistoryVars(RealUniqueArray* history_vars);
     void computeStress(bool init, bool isRef);
-    RealUniqueArray initConsts(RealConstArrayView& law_params);
-    void readLawParams(RealUniqueArray& lawparams, Real lambda, Real mu, bool default_param, const String& name, Integer ilaw);
-    RealUniqueArray updateHistoryVars();
+    RealUniqueArray initConsts(RealUniqueArray* law_params);
+    void readLawParams(RealUniqueArray* lawparams, Real lambda, Real mu, bool default_param, const String& name, Integer ilaw);
+//    RealUniqueArray updateHistoryVars();
 
     [[nodiscard]] Tensor2	getStress() const;
     void	setStress(const Tensor2&);
@@ -75,24 +76,27 @@ public:
     void  setMu(Real mu) { m_Mu = mu; }
     void  setName(const String& name) { m_name = name; }
     void  setDefault(bool is_default) { m_default = is_default; }
-    void setLawParams(const RealUniqueArray& lawparams) {
-      m_law_params = lawparams.clone();
+    void setLawParams(RealUniqueArray* lawparams) {
+      m_law_params = lawparams;
     }
-    void setLawHistoryParams(const RealUniqueArray& lawhistparams) {
-      m_history_vars = lawhistparams.clone();
+    void setLawHistoryParams(RealUniqueArray* lawhistparams) {
+        m_history_vars = lawhistparams;
     }
 
 private:
-    std::function<Tensor4(RealConstArrayView& law_params, RealArrayView& history_vars, Tensor2& sig, Tensor2& eps, Tensor2& epsp, Tensor2& dsig,
+    std::function<Tensor4(RealUniqueArray* law_params, RealUniqueArray* history_vars, Tensor2& sig, Tensor2& eps, Tensor2& epsp, Tensor2& dsig,
                        const Tensor2& deps, bool isRef)> m_compute_stress[NB_LAW_TYPE];
-    std::function<Tensor4(RealConstArrayView& law_params, const Tensor2& sig)> m_compute_elast_tensor[NB_LAW_TYPE];
-    std::function<Tensor4(RealConstArrayView& law_params, RealArrayView& history_vars,
+    std::function<Tensor4(RealUniqueArray* law_params, const Tensor2& sig)> m_compute_elast_tensor[NB_LAW_TYPE];
+    std::function<Tensor4(RealUniqueArray* law_params, RealUniqueArray* history_vars,
                           const Tensor2& sig, const Tensor2& deps)> m_compute_tangent_tensor[NB_LAW_TYPE];
-    std::function<bool(const Tensor2& sig, RealArrayView& history_vars)> m_init_state[NB_LAW_TYPE];
-    std::function<RealUniqueArray(RealConstArrayView& history_vars)> m_init_history_vars[NB_LAW_TYPE];
-    std::function<RealUniqueArray(Real lambda, Real mu, bool default_param,
+    std::function<bool(const Tensor2& sig, RealUniqueArray* history_vars)> m_init_state[NB_LAW_TYPE];
+//    std::function<RealUniqueArray(RealUniqueArray* history_vars)> m_init_history_vars[NB_LAW_TYPE];
+    std::function<void(RealUniqueArray* history_vars)> m_init_history_vars[NB_LAW_TYPE];
+//    std::function<RealUniqueArray(Real lambda, Real mu, bool default_param,
+    std::function<void(RealUniqueArray* law_params, Real lambda, Real mu, bool default_param,
                                   const String& name, Integer ilaw)> m_read_law_params[NB_LAW_TYPE];
-    std::function<RealUniqueArray(RealConstArrayView& law_params)> m_init_consts[NB_LAW_TYPE];
+//  std::function<RealUniqueArray(RealUniqueArray* law_params)> m_init_consts[NB_LAW_TYPE];
+    std::function<RealUniqueArray(RealUniqueArray* law_params)> m_init_consts[NB_LAW_TYPE];
 
     Tensor2 m_sig{};
     Tensor2 m_sign{};
@@ -103,8 +107,8 @@ private:
     Tensor4 m_elast_tensor{};
     Tensor4 m_tangent_tensor{};
     Real m_Lambda{0.}, m_Mu{0.};
-    RealUniqueArray m_law_params{};
-    RealUniqueArray m_history_vars{};
+    RealUniqueArray* m_law_params{nullptr};
+    RealUniqueArray* m_history_vars{nullptr};
     RealUniqueArray m_law_consts{};
     TypesNLDynamic::eLawType m_law_type{TypesNLDynamic::HOOKE};
     String m_name{};

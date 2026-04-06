@@ -254,8 +254,11 @@ _startInitGauss()
   m_gauss_stress0.reshape({max_gauss_per_cell});
   m_gauss_strain0.reshape({max_gauss_per_cell});
   m_gauss_strainp0.reshape({max_gauss_per_cell});
-  m_law_param.reshape({m_nb_law_param});
-  m_law_hist_param.reshape({m_nb_law_hist_param});
+  m_gauss_jacobian.reshape({max_gauss_per_cell});
+  m_gauss_weight.reshape({max_gauss_per_cell});
+  m_gauss_jacob_mat.reshape({max_gauss_per_cell});
+  m_law_param.resize(m_nb_law_param);
+  m_law_hist_param.reshape({max_gauss_per_cell, m_nb_law_hist_param});
   m_gauss_shape.reshape({max_gauss_per_cell,max_nbnodes_per_cell});
   m_gauss_shape_deriv.reshape({max_gauss_per_cell,max_nbnodes_per_cell});
 
@@ -288,25 +291,25 @@ _startInitGauss()
     auto lawtyp = static_cast<TypesNLDynamic::eLawType>(m_law[cell]);
     auto ilaw = m_iparam_law[cell];
     LawDispatcher cell_law(lawtyp, is_default);
-    RealUniqueArray lawparams;
-    cell_law.readLawParams(lawparams, lambda, mu, is_default, m_law_param_file, ilaw);
+    auto nblaw = cell_law.getNbLawParam();
+    RealUniqueArray lawparams(nblaw);
+    cell_law.readLawParams(&lawparams, lambda, mu, is_default, m_law_param_file, ilaw);
 
-    auto nblaw = lawparams.size();
-
-    for (Int32 ip = 0; ip < nblaw; ++ip)
-      m_law_param(icell,ip) = lawparams[ip];
+    m_law_param[cell] = lawparams;
 
     auto nbhist = cell_law.getNbLawHistoryParam();
-    for (Int32 ip = 0; ip < nbhist; ++ip)
-      m_law_hist_param(icell,ip) = 0.;
 
     for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
       /*
       DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
       Int32 gaussnum = gauss_pti.localId();
       */
+      if (nbhist > 0) {
+        for (Int32 ip = 0; ip < nbhist; ++ip)
+          m_law_hist_param(cell,ig,ip) = 0.;
+      }
 
-      m_gauss_weight(icell,ig) = ArcaneFemFunctions::FemGaussQuadrature::getGaussWeight(cell, ninteg, ig);
+      m_gauss_weight(cell,ig) = ArcaneFemFunctions::FemGaussQuadrature::getGaussWeight(cell, ninteg, ig);
 //      gauss_weight[gauss_pti] = ArcaneFemFunctions::FemGaussQuadrature::getGaussWeight(cell, ninteg, ig);
       Real3 refpos = ArcaneFemFunctions::FemGaussQuadrature::getGaussRefPosition(cell, ninteg, ig);
       if (ndim <= 2) {
@@ -314,14 +317,14 @@ _startInitGauss()
         if (ndim == 1)
           refpos.y = 0.;
       }
-      m_gauss_ref_position(icell,ig) = NumVector<Real,3>(refpos);
+      m_gauss_ref_position(cell,ig) = NumVector<Real,3>(refpos);
 //      gauss_refpos[gauss_pti] = refpos;
 
       for (Int32 inod = 0; inod < cell_nbnod; ++inod) {
         auto coord_nod = m_node_coord[cell.node(inod)];
         auto Phi_i = cell_fem.getShapeFuncVal(cell_type, inod, refpos);
 //        gauss_shape[gauss_pti][inod] = Phi_i;
-        m_gauss_shape(icell,ig,inod) = Phi_i;
+        m_gauss_shape(cell,ig,inod) = Phi_i;
 
         auto dPhi = cell_fem.getShapeFuncDeriv(cell_type, inod, refpos);
         if (ndim <= 2) {
@@ -330,7 +333,7 @@ _startInitGauss()
             dPhi.y = 0.;
         }
 //        gauss_shapederiv[gauss_pti][inod] = dPhi;
-        m_gauss_shape_deriv(icell,ig,inod) = NumVector<Real,3>(dPhi);
+        m_gauss_shape_deriv(cell,ig,inod) = NumVector<Real,3>(dPhi);
         }
 
       // Setting the law parameters on Gauss points for use during iterations
@@ -341,19 +344,19 @@ _startInitGauss()
    //   gauss_histparam[gauss_pti] = RealUniqueArray(nbhist, 0.);
 
       // Initializing all strains/stresses to zero
-      m_gauss_stress0(icell, ig) = zero;
-      m_gauss_stress(icell, ig) = zero;
-      m_gauss_prev_stress(icell, ig) = zero;
-      m_gauss_strain0(icell, ig) = zero;
-      m_gauss_prev_strain(icell, ig) = zero;
-      m_gauss_strain(icell, ig) = zero;
-      m_gauss_strainp0(icell, ig) = zero;
-      m_gauss_prev_strainp(icell, ig) = zero;
-      m_gauss_strainp(icell, ig) = zero;
-      m_tangent_op_d(icell, ig) = zero;
-      m_tangent_op_s(icell, ig) = zero;
-      m_tangent_op_sup(icell, ig) = zero;
-      m_tangent_op_slow(icell, ig) = zero;
+      m_gauss_stress0(cell, ig) = zero;
+      m_gauss_stress(cell, ig) = zero;
+      m_gauss_prev_stress(cell, ig) = zero;
+      m_gauss_strain0(cell, ig) = zero;
+      m_gauss_prev_strain(cell, ig) = zero;
+      m_gauss_strain(cell, ig) = zero;
+      m_gauss_strainp0(cell, ig) = zero;
+      m_gauss_prev_strainp(cell, ig) = zero;
+      m_gauss_strainp(cell, ig) = zero;
+      m_tangent_op_d(cell, ig) = zero;
+      m_tangent_op_s(cell, ig) = zero;
+      m_tangent_op_sup(cell, ig) = zero;
+      m_tangent_op_slow(cell, ig) = zero;
 
       /*
       gauss_strain[gauss_pti] = Real3x3UniqueArray(3);
@@ -401,9 +404,9 @@ _startInitGauss()
           Int32 gaussnum = gauss_pti.localId();
           */
 
-          m_gauss_stress0(icell, ig) = NumMatrix<Real,3,3>(sig0);
-          m_gauss_prev_stress(icell, ig) = NumMatrix<Real,3,3>(sig0);
-          m_gauss_stress(icell, ig) = zero;
+          m_gauss_stress0(cell, ig) = NumMatrix<Real,3,3>(sig0);
+          m_gauss_prev_stress(cell, ig) = NumMatrix<Real,3,3>(sig0);
+          m_gauss_stress(cell, ig) = zero;
           /*
           for (Int32 is = 0; is < 2; is++) { //sig0, then sign
             gauss_stress[gauss_pti][is] = sig0;
@@ -632,14 +635,12 @@ _initGaussStep()
       Real3 refpos = gauss_refpos[gauss_pti];
       */
 
-//      NumVector<Real,3> refpos = m_gauss_ref_position(icell,ig);
-
       Real3x3	jac;
       Real jacobian;
       for (Int32 inod = 0; inod < cell_nbnod; ++inod) {
 
 //        auto dPhi = gauss_shapederiv[gauss_pti][inod];
-        NumVector<Real,3> dPhi = m_gauss_shape_deriv(icell,ig,inod);
+        NumVector<Real,3> dPhi = m_gauss_shape_deriv(cell,ig,inod);
         auto coord_nod = m_node_coord[cell.node(inod)];
         for (int i = 0; i < NDIM; ++i){
           for (int j = 0; j < NDIM; ++j){
@@ -661,16 +662,16 @@ _initGaussStep()
       }
 //      gauss_jacobian[gauss_pti] = jacobian;
 //      gauss_jacobmat[gauss_pti] = jac;
-      m_gauss_jacobian(icell,ig) = jacobian;
-      m_gauss_jacob_mat(icell,ig) = NumMatrix<Real,3,3>(jac);
+      m_gauss_jacobian(cell,ig) = jacobian;
+      m_gauss_jacob_mat(cell,ig) = NumMatrix<Real,3,3>(jac);
 
       // Tensors are initialized to the value of previous step
-      m_gauss_prev_stress(icell,ig) = m_gauss_stress(icell,ig);
-      m_gauss_prev_strain(icell,ig) = m_gauss_strain(icell,ig);
-      m_gauss_prev_strainp(icell,ig) = m_gauss_strainp(icell,ig);
-      m_gauss_stress(icell,ig) = NumMatrix<Real,3,3>(Real3x3::zero());
-      m_gauss_strain(icell,ig) = NumMatrix<Real,3,3>(Real3x3::zero());
-      m_gauss_strainp(icell,ig) = NumMatrix<Real,3,3>(Real3x3::zero());
+      m_gauss_prev_stress(cell,ig) = m_gauss_stress(cell,ig);
+      m_gauss_prev_strain(cell,ig) = m_gauss_strain(cell,ig);
+      m_gauss_prev_strainp(cell,ig) = m_gauss_strainp(cell,ig);
+      m_gauss_stress(cell,ig) = NumMatrix<Real,3,3>(Real3x3::zero());
+      m_gauss_strain(cell,ig) = NumMatrix<Real,3,3>(Real3x3::zero());
+      m_gauss_strainp(cell,ig) = NumMatrix<Real,3,3>(Real3x3::zero());
 
       /*
       gauss_stress[gauss_pti][1] = gauss_stress[gauss_pti][2];
@@ -1074,7 +1075,7 @@ _computeJacobian(const ItemWithNodes& cell,const Int32& ig, const RealUniqueArra
 // ! Compute elementary mass matrix in 2D at a given Gauss point
 void NLDynamicModule::
 //_computeElemMass(const Real& rho, const DoFLocalId& igauss, const Int32& nb_nodes, RealUniqueArray2& Me){
-_computeElemMass(const Cell& icell, const Real& rho, const Int32& igauss, const Int32& nb_nodes, RealUniqueArray2& Me){
+_computeElemMass(const Cell& cell, const Real& rho, const Int32& igauss, const Int32& nb_nodes, RealUniqueArray2& Me){
 
   /*
   auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
@@ -1086,13 +1087,13 @@ _computeElemMass(const Cell& icell, const Real& rho, const Int32& igauss, const 
 
   auto wt = gauss_weight[igauss] * jacobian;
   */
-  auto jacobian = m_gauss_jacobian(icell,igauss);
-  auto wt = m_gauss_weight(icell,igauss);
+  auto jacobian = m_gauss_jacobian(cell,igauss);
+  auto wt = m_gauss_weight(cell,igauss);
 
   for (Int32 inod = 0; inod < nb_nodes; ++inod) {
 
 //    auto Phi_i = gauss_shape[igauss][inod];
-    auto Phi_i = m_gauss_shape(icell,igauss,inod);
+    auto Phi_i = m_gauss_shape(cell,igauss,inod);
     auto rhoPhi_i = wt*rho*Phi_i;
 
     //----------------------------------------------
@@ -1101,7 +1102,7 @@ _computeElemMass(const Cell& icell, const Real& rho, const Int32& igauss, const 
     for (Int32 jnod = inod ; jnod < nb_nodes; ++jnod) {
 
 //      auto Phi_j = gauss_shape[igauss][jnod];
-      auto Phi_j = m_gauss_shape(icell,igauss,inod);
+      auto Phi_j = m_gauss_shape(cell,igauss,inod);
       auto mij = rhoPhi_i*Phi_j;
 
       for (Int32 l = 0; l < NDIM; ++l){
@@ -1119,7 +1120,7 @@ _computeElemMass(const Cell& icell, const Real& rho, const Int32& igauss, const 
 // ! Compute elementary stiffness matrix in 3D at a given Gauss point
 void NLDynamicModule::
 //_computeK(const Real& lambda, const Real& mu, const DoFLocalId& igauss, const Int32& nb_nodes, RealUniqueArray2& Ke){
-_computeK(const Cell& icell, const Real& lambda, const Real& mu, const Int32& igauss, const Int32& nb_nodes, RealUniqueArray2& Ke){
+_computeK(const Cell& cell, const Real& lambda, const Real& mu, const Int32& igauss, const Int32& nb_nodes, RealUniqueArray2& Ke){
 
   /*
   auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
@@ -1131,14 +1132,14 @@ _computeK(const Cell& icell, const Real& lambda, const Real& mu, const Int32& ig
 
   auto jacobian = gauss_jacobian[igauss];
   */
-  auto jacobian = m_gauss_jacobian(icell,igauss);
+  auto jacobian = m_gauss_jacobian(cell,igauss);
 
   auto a{ lambda + 2.*mu };
   auto size{NDIM * nb_nodes};
 
   // Setting the "B" matrix size for the max number of nodes in 3D:
   // 8 nodes for a lin element/20 nodes for a quadratic one
-  RealUniqueArray2 Bmat = _getB(icell,igauss,nb_nodes);
+  RealUniqueArray2 Bmat = _getB(cell,igauss,nb_nodes);
 
 /*
   RealUniqueArray2 Bmat(NDIM, size);
@@ -1177,7 +1178,7 @@ for (Int32 inod = 0; inod < nb_nodes; ++inod) {
 }
   */
 //  auto wt = gauss_weight[igauss] * jacobian;
-  auto wt = m_gauss_weight(icell,igauss) * jacobian;
+  auto wt = m_gauss_weight(cell,igauss) * jacobian;
 
   //----------------------------------------------
   // Elementary Stiffness (Ke) Matrix assembly
@@ -1468,8 +1469,6 @@ _assembleLinearLHS()
       Int32 n1_index{ 0 };
       for (Node node1 : cell.nodes()) {
 
-        auto num1 = node1.uniqueId().asInt32();
-
         if (node1.isOwn()) {
           for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
             DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
@@ -1479,7 +1478,6 @@ _assembleLinearLHS()
             Int32 n2_index{ 0 };
             for (Node node2 : cell.nodes()) {
 
-              auto num2 = node2.uniqueId().asInt32();
               for (Int32 jddl = 0; jddl < NDIM; ++jddl) {
                 auto node2_dofj = node_dof.dofId(node2, jddl);
                 auto jj = NDIM * n2_index + jddl;
@@ -1542,8 +1540,6 @@ _assembleLinearRHS(){
       }
     }
 
-    auto nc = cell.uniqueId().asInt32();
-
     // Loop on the cell Gauss points to compute integrals terms
     // auto cm = (1 - alfam)/beta/dt2;
     auto cm {1 / beta / dt2};
@@ -1554,7 +1550,7 @@ _assembleLinearRHS(){
       DoFLocalId gauss_pti = gauss_point.dofId(cell, igauss);
       auto jacobian = gauss_jacobian[gauss_pti];
       */
-      auto jacobian = m_gauss_jacobian(icell,igauss);
+      auto jacobian = m_gauss_jacobian(cell,igauss);
 
       // Computing elementary mass matrix at Gauss point ig
 //      _computeElemMass(rho, gauss_pti, nb_nodes, Me);
@@ -1564,14 +1560,13 @@ _assembleLinearRHS(){
       // Computing Me/beta/dt^2 + Ke
       Int32 n1_index{ 0 };
 //      auto wt = gauss_weight[gauss_pti] * jacobian;
-      auto wt = m_gauss_weight(icell,igauss) * jacobian;
+      auto wt = m_gauss_weight(cell,igauss) * jacobian;
 
       for (Node node1 : cell.nodes()) {
 
         if (node1.isOwn()) {
           //---- For debug only !!!
           auto coord1 = m_node_coord[node1];
-          auto num1 = node1.uniqueId().asInt32();
 
           for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
            DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
@@ -1592,7 +1587,6 @@ _assembleLinearRHS(){
               for (Node node2 : cell.nodes()) {
                 //---- For debug only !!!
                 auto coord2 = m_node_coord[node2];
-                auto num2 = node2.uniqueId().asInt32();
 
                 auto an = m_prev_acc[node2][iddl];
                 auto vn = m_prev_vel[node2][iddl];
@@ -1614,7 +1608,7 @@ _assembleLinearRHS(){
                 // Body force terms
                 //----------------------------------------------
 //                auto Phi_i = gauss_shape[gauss_pti][n1_index];
-                auto Phi_i = m_gauss_shape(icell,igauss,n1_index);
+                auto Phi_i = m_gauss_shape(cell,igauss,n1_index);
                 auto rhoPhi_i = wt * rho * Phi_i;
                 rhs_i += rhoPhi_i * bodyf[iddl];
               }
@@ -1739,7 +1733,6 @@ _assembleLinearRHS(){
 
           //---- For debug only !!!
           auto coords = m_node_coord[dc_node_west];
-          auto num = dc_node_west.uniqueId().asInt32();
 
           rhs_values[node_dof_id] = Ft; // default = hasLoading
           if (hasMoment) {
@@ -1761,7 +1754,6 @@ _assembleLinearRHS(){
 
           //---- For debug only !!!
           auto coords = m_node_coord[dc_node_east];
-          auto num = dc_node_east.uniqueId().asInt32();
 
           rhs_values[node_dof_id] = -Ft;// default = hasLoading
           if (hasMoment) {
@@ -1783,7 +1775,6 @@ _assembleLinearRHS(){
 
           //---- For debug only !!!
           auto coords = m_node_coord[dc_node_north];
-          auto num = dc_node_north.uniqueId().asInt32();
 
           rhs_values[node_dof_id] = Ft;// default = hasLoading
           if (hasMoment) {
@@ -1804,7 +1795,6 @@ _assembleLinearRHS(){
 
           //---- For debug only !!!
           auto coords = m_node_coord[dc_node_south];
-          auto num = dc_node_south.uniqueId().asInt32();
 
           rhs_values[node_dof_id] = -Ft;// default = hasLoading
           if (hasMoment) {
@@ -1832,7 +1822,7 @@ _assembleLinearRHS(){
  */
 RealUniqueArray2 NLDynamicModule::
 //_getB(const DoFLocalId& igauss, const Int32& nb_nodes)
-_getB(const Cell& icell, const Int32& igauss, const Int32& nb_nodes)
+_getB(const Cell& cell, const Int32& igauss, const Int32& nb_nodes)
 {
 
   /*
@@ -1843,7 +1833,7 @@ _getB(const Cell& icell, const Int32& igauss, const Int32& nb_nodes)
 
   auto jacobian = gauss_jacobian[igauss];
   */
-  auto jacobian = m_gauss_jacobian(icell,igauss);
+  auto jacobian = m_gauss_jacobian(cell,igauss);
 
   auto size{ NDIM * nb_nodes };
 
@@ -1858,7 +1848,7 @@ _getB(const Cell& icell, const Int32& igauss, const Int32& nb_nodes)
 
   // ! Computes the Inverse Jacobian Matrix of a 2D or 3D finite-element
 //  auto jac = gauss_jacobmat[igauss];
-  NumMatrix<Real,3,3> mjac = m_gauss_jacob_mat(icell, igauss);
+  NumMatrix<Real,3,3> mjac = m_gauss_jacob_mat(cell, igauss);
   Real3x3 jac(mjac[0], mjac[1], mjac[2]);
   Real3x3 ijac;
 
@@ -1877,7 +1867,7 @@ _getB(const Cell& icell, const Int32& igauss, const Int32& nb_nodes)
   */
   for (Int32 inod = 0; inod < nb_nodes; ++inod) {
 //    auto dPhi = gauss_shapederiv[igauss][inod];
-    NumVector<Real,3> dPhi = m_gauss_shape_deriv(icell,igauss,inod);
+    NumVector<Real,3> dPhi = m_gauss_shape_deriv(cell,igauss,inod);
     for (int i = 0; i < NDIM; ++i) {
       auto bi{ 0. };
       for (int j = 0; j < NDIM; ++j) {
@@ -1896,6 +1886,7 @@ _getB(const Cell& icell, const Int32& igauss, const Int32& nb_nodes)
 void NLDynamicModule::
 _compute_stress(bool init, bool store)
 {
+  /*
   auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
 
   VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
@@ -1904,6 +1895,7 @@ _compute_stress(bool init, bool store)
   VariableDoFArrayReal& gauss_lawparam(m_gauss_on_cells.gaussLawParam());
   VariableDoFArrayReal& gauss_histparam(m_gauss_on_cells.gaussLawHistoryParam());
   VariableDoFArrayReal3x3& gauss_tangent_operator(m_gauss_on_cells.gaussTangentOperator());
+  */
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_CELL (icell, allCells()) {
@@ -1918,14 +1910,29 @@ _compute_stress(bool init, bool store)
     auto lawtyp = static_cast<TypesNLDynamic::eLawType>(m_law[cell]);
     auto ilaw = m_iparam_law[cell];
     LawDispatcher cell_law(lawtyp, is_default);
+    RealUniqueArray law_params = m_law_param[cell];
+    cell_law.setLawParams(&law_params);
+
+    auto nbhist = cell_law.getNbLawHistoryParam();
 
     for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
+      /*
       DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
       Int32 gaussnum = gauss_pti.localId();
+      */
 
-      NumMatrix<Real,3,3> msign = m_gauss_prev_stress(icell, ig);
-      NumMatrix<Real,3,3> mepsn = m_gauss_prev_strain(icell, ig);
-      NumMatrix<Real,3,3> mepspn = m_gauss_prev_strainp(icell, ig);
+      NumMatrix<Real,3,3> msign = m_gauss_prev_stress(cell, ig);
+      NumMatrix<Real,3,3> mepsn = m_gauss_prev_strain(cell, ig);
+      NumMatrix<Real,3,3> mepspn = m_gauss_prev_strainp(cell, ig);
+
+      RealUniqueArray* lawhistparam{nullptr};
+      if (nbhist > 0) {
+        lawhistparam->resize(nbhist);
+        for (Int32 ip = 0; ip < nbhist; ++ip) {
+          (*lawhistparam)[ip] = m_law_hist_param(cell, ig,ip);
+        }
+      }
+      cell_law.setLawHistoryParams(lawhistparam);
 
       Tensor2 epsn, sign, epspn;
       /*
@@ -1951,7 +1958,6 @@ _compute_stress(bool init, bool store)
         if (node.isOwn()) {
           //---- For debug only !!!
           auto coord = m_node_coord[node];
-          auto num = node.uniqueId().asInt32();
           Real3 du;
 
           for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
@@ -1990,10 +1996,10 @@ _compute_stress(bool init, bool store)
       cell_law.setLawParams(gauss_lawparam[gauss_pti]);
       cell_law.setLawHistoryParams(gauss_histparam[gauss_pti]);
       */
-      RealUniqueArray law_params;
+//      RealUniqueArray law_params;
 
-      cell_law.setLawParams(gauss_lawparam[gauss_pti]);
-      cell_law.setLawHistoryParams(gauss_histparam[gauss_pti]);
+//      cell_law.setLawParams(gauss_lawparam[gauss_pti]);
+//      cell_law.setLawHistoryParams(gauss_histparam[gauss_pti]);
       cell_law.setStrain(epsn);
       cell_law.setStress(sign);
       cell_law.setPlasticStrain(epspn);
@@ -2003,26 +2009,47 @@ _compute_stress(bool init, bool store)
       // Compute the current stress from the law at this Gauss point
       // Tangent stiffness operator is not computed at prediction stage
       cell_law.computeStress(init, store);
-      gauss_histparam[gauss_pti] = cell_law.updateHistoryVars();
+//      gauss_histparam[gauss_pti] = cell_law.updateHistoryVars();
+      if (nbhist > 0) {
+        for (Int32 ip = 0; ip < nbhist; ++ip)
+          m_law_hist_param(cell,ig,ip) = (*lawhistparam)[ip];
+      }
 
       // Current plastic strains and stresses have been updated by the law
+      /*
       gauss_strain_plastic[gauss_pti][2] = fromTensor2Real3x3(cell_law.getPlasticStrain());
       gauss_stress[gauss_pti][2] = fromTensor2Real3x3(cell_law.getStress());
       gauss_strain[gauss_pti][2] = fromTensor2Real3x3(cell_law.getStrain());
+      */
+      m_gauss_strainp(cell, ig) = NumMatrix<Real,3,3>(fromTensor2Real3x3(cell_law.getPlasticStrain()));
+      m_gauss_strain(cell, ig) = NumMatrix<Real,3,3>(fromTensor2Real3x3(cell_law.getStrain()));
+      m_gauss_stress(cell, ig) = NumMatrix<Real,3,3>(fromTensor2Real3x3(cell_law.getStress()));
 
       if (store){ // when convergence is reached, updating the "prev" quantities for the next step
+        /*
         gauss_strain_plastic[gauss_pti][1] = gauss_strain_plastic[gauss_pti][2];
         gauss_stress[gauss_pti][1] = gauss_stress[gauss_pti][2];
         gauss_strain[gauss_pti][1] = gauss_strain[gauss_pti][2];
+        */
+        m_gauss_prev_strainp(cell, ig) = m_gauss_strainp(cell, ig);
+        m_gauss_prev_strain(cell, ig) = m_gauss_strain(cell, ig);
+        m_gauss_prev_stress(cell, ig) = m_gauss_stress(cell, ig);
 
         // To do: tangent operator stored at Gauss points if we need to re-assemble A
         Tensor4 tangent_op = cell_law.getTangentTensor();
 
+        /*
         for (Int32 it = 0; it < 3; it++) {
           gauss_tangent_operator[gauss_pti][it] = tangent_op[it];
         }
         if (!tangent_op.isSymmetric())
           gauss_tangent_operator[gauss_pti][3] = tangent_op[3];
+      */
+        m_tangent_op_d(cell,ig) = NumMatrix<Real,3,3>(tangent_op[0]);
+        m_tangent_op_s(cell,ig) = NumMatrix<Real,3,3>(tangent_op[1]);
+        m_tangent_op_sup(cell,ig) = NumMatrix<Real,3,3>(tangent_op[2]);
+        if (!tangent_op.isSymmetric())
+          m_tangent_op_slow(cell,ig) = NumMatrix<Real,3,3>(tangent_op[3]);
       }
     }
   }
@@ -2066,6 +2093,7 @@ _assembleNonLinRHS(bool init){
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   auto dt = m_global_deltat();
 
+  /*
   auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
   VariableDoFReal& gauss_weight(m_gauss_on_cells.gaussWeight());
   VariableDoFReal& gauss_jacobian(m_gauss_on_cells.gaussJacobian());
@@ -2073,6 +2101,7 @@ _assembleNonLinRHS(bool init){
   VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
   VariableDoFArrayReal3x3& gauss_strain(m_gauss_on_cells.gaussStrain());
   VariableDoFArrayReal3x3& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
+  */
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
@@ -2091,19 +2120,25 @@ _assembleNonLinRHS(bool init){
       }
     }
 
-    auto nc = cell.uniqueId().asInt32();
-
     // Loop on the cell Gauss points to compute integrals terms
     auto betadt2 = 1/beta/dt2; // Newmark coefficient
 
     for (Int32 igauss = 0; igauss < nbgauss; ++igauss) {
 
+      /*
       DoFLocalId gauss_pti = gauss_point.dofId(cell, igauss);
       auto jacobian = gauss_jacobian[gauss_pti];
-//      auto Bmat = _getB(gauss_pti,nb_nodes);
-      auto Bmat = _getB(cell,igauss,nb_nodes);
+      auto Bmat = _getB(gauss_pti,nb_nodes);
       auto sig = gauss_stress[gauss_pti][2];
       auto sig0 = gauss_stress[gauss_pti][0];
+      */
+
+      auto Bmat = _getB(cell,igauss,nb_nodes);
+      NumMatrix<Real,3,3>msig = m_gauss_stress(cell,igauss);
+      NumMatrix<Real,3,3>msig0 = m_gauss_stress0(cell,igauss);
+      Real3x3 sig(msig[0], msig[1], msig[2]);
+      Real3x3 sig0(msig0[0], msig0[1], msig0[2]);
+      auto jacobian = m_gauss_jacobian(cell,igauss);
 
       // Computing elementary mass matrix at Gauss point ig
 //      _computeElemMass(rho, gauss_pti, nb_nodes, Me);
@@ -2120,7 +2155,7 @@ _assembleNonLinRHS(bool init){
         if (node1.isOwn()) {
           //---- For debug only !!!
           auto coord1 = m_node_coord[node1];
-          auto num1 = node1.uniqueId().asInt32();
+
           Real3 Bnod;
           for (Int32 i = 0; i < NDIM; i++)
             Bnod[i] = Bmat(i, n1_index);
@@ -2173,7 +2208,6 @@ _assembleNonLinRHS(bool init){
               for (Node node2 : cell.nodes()) {
                 //---- For debug only !!!
                 auto coord2 = m_node_coord[node2];
-                auto num2 = node2.uniqueId().asInt32();
 
                 /*------------------------------------------------------------
                  * Mij/(beta*dt2)*(u_pred - ui) with ui, the displacement at
@@ -2214,7 +2248,8 @@ _assembleNonLinRHS(bool init){
                   //----------------------------------------------
                   // Body force terms
                   //----------------------------------------------
-                  auto Phi_i = gauss_shape[gauss_pti][n1_index];
+//                  auto Phi_i = gauss_shape[gauss_pti][n1_index];
+                  auto Phi_i = m_gauss_shape(cell,igauss,n1_index);
                   auto rhoPhi_i = wt * rho * Phi_i;
                   rhs_i += rhoPhi_i * bodyf[iddl];
                 }
@@ -2342,7 +2377,6 @@ _assembleNonLinRHS(bool init){
 
             //---- For debug only !!!
             auto coords = m_node_coord[dc_node_west];
-            auto num = dc_node_west.uniqueId().asInt32();
 
             rhs_values[node_dof_id] = Ft; // default = hasLoading
             if (hasMoment) {
@@ -2364,7 +2398,6 @@ _assembleNonLinRHS(bool init){
 
             //---- For debug only !!!
             auto coords = m_node_coord[dc_node_east];
-            auto num = dc_node_east.uniqueId().asInt32();
 
             rhs_values[node_dof_id] = -Ft;// default = hasLoading
             if (hasMoment) {
@@ -2386,7 +2419,6 @@ _assembleNonLinRHS(bool init){
 
             //---- For debug only !!!
             auto coords = m_node_coord[dc_node_north];
-            auto num = dc_node_north.uniqueId().asInt32();
 
             rhs_values[node_dof_id] = Ft;// default = hasLoading
             if (hasMoment) {
@@ -2407,7 +2439,6 @@ _assembleNonLinRHS(bool init){
 
             //---- For debug only !!!
             auto coords = m_node_coord[dc_node_south];
-            auto num = dc_node_south.uniqueId().asInt32();
 
             rhs_values[node_dof_id] = -Ft;// default = hasLoading
             if (hasMoment) {
@@ -2589,7 +2620,6 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values)
 
               if (node.isOwn()) {
                 //---- For debug only !!!
-                auto num = node.uniqueId().asInt32();
                 auto coords = m_node_coord[node];
 
                 auto Phi_i = vec[ig + iig];
@@ -2792,7 +2822,6 @@ _doSolve(){
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
 
-      auto num = node.uniqueId().asInt32();
       auto coord = m_node_coord[node];
 
       auto ux = dof_d[node_dof.dofId(node, 0)];

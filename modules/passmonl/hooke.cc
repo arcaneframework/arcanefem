@@ -35,16 +35,13 @@ extern Arcane::FemUtils::Tensor2 operator*(const Tensor4& tens, const Arcane::Fe
 /*---------------------------------------------------------------------------*/
 
 //! Initialize intern useful constants
-RealUniqueArray HookeInitConsts(RealConstArrayView& law_params)
+//RealUniqueArray HookeInitConsts(RealConstArrayView& law_params)
+RealUniqueArray HookeInitConsts(RealUniqueArray* law_params)
 {
-  // auto E = law_params[0];
-  // auto Nu = law_params[1];
-  auto Lambda = law_params[0];
-  auto Mu = law_params[1];
+  auto Lambda = (*law_params)[0];
+  auto Mu = (*law_params)[1];
 
   RealUniqueArray consts(2);
-  //  consts[0] = E * Nu / (1. - 2. * Nu) / (1. + Nu); // Lame coefficient Lambda
-  //  consts[1] = E / 2. / (1. + Nu); // Lame coefficient Mu
   consts[0] = Lambda;
   consts[1] = Mu;
 
@@ -52,47 +49,59 @@ RealUniqueArray HookeInitConsts(RealConstArrayView& law_params)
 }
 
 //! Computes elastic constitutive tensor
-Tensor4 HookeComputeElastTensor(RealConstArrayView& law_params, const Tensor2& /*sig*/)
+//Tensor4 HookeComputeElastTensor(RealConstArrayView& law_params, const Tensor2& /*sig*/)
+Tensor4 HookeComputeElastTensor(RealUniqueArray* law_params, const Tensor2& /*sig*/)
 {
-    RealUniqueArray consts = HookeInitConsts(law_params);
-    return {consts[0]/*Lambda*/,consts[1]/*Mu*/};
+//    RealUniqueArray consts = HookeInitConsts(law_params);
+//    return {consts[0]/*Lambda*/,consts[1]/*Mu*/};
+    return {(*law_params)[0]/*Lambda*/,(*law_params)[1]/*Mu*/};
 }
 
-//! Computes tangent constitutive tensor
-Tensor4 HookeComputeTangentTensor(RealConstArrayView& law_params, RealArrayView& /*history_params*/,
+//! Computes tangent constitutive (stiffness) tensor
+//Tensor4 HookeComputeTangentTensor(RealConstArrayView& law_params, RealArrayView& /*history_params*/,
+Tensor4 HookeComputeTangentTensor(RealUniqueArray* law_params, RealUniqueArray* /*history_params*/,
                                   const Tensor2& /*sig*/, const Tensor2& /*deps*/)
 {
-    RealUniqueArray consts = HookeInitConsts(law_params);
+//    RealUniqueArray consts = HookeInitConsts(law_params);
     // Tangent stiffness tensor is equal to the elastic one
-    return {consts[0]/*Lambda*/,consts[1]/*Mu*/};
+//    return {consts[0]/*Lambda*/,consts[1]/*Mu*/};
+    return {(*law_params)[0]/*Lambda*/,(*law_params)[1]/*Mu*/};
 }
 
 //! Initializes the vector of intern (history) variables (nothing to do for this law)
-RealUniqueArray HookeInitHistoryVars(RealConstArrayView& /*history_vars*/)
+//RealUniqueArray HookeInitHistoryVars(RealConstArrayView& /*history_vars*/)
+void HookeInitHistoryVars(RealUniqueArray* /*history_vars*/)
 {
-    return {};
+//    return {};
 }
 
 //! Initializes the state (nothing to do for this law)
-bool HookeInitState(const Tensor2& /*sig*/, RealArrayView& /*history_vars*/)
+//bool HookeInitState(const Tensor2& /*sig*/, RealArrayView& /*history_vars*/)
+bool HookeInitState(const Tensor2& /*sig*/, RealUniqueArray* /*history_vars*/)
 {
     return true;
 }
 
 //! Read constitutive parameters from a file and initialize intern constants allowing to the material constitutive model type
-RealUniqueArray HookeReadLawParams(Real lambda, Real mu, bool /*default_param*/, const String& /*name*/, Integer /*ilaw*/)
+//RealUniqueArray HookeReadLawParams(Real lambda, Real mu, bool /*default_param*/, const String& /*name*/, Integer /*ilaw*/)
+void HookeReadLawParams(RealUniqueArray* lawparams, Real lambda, Real mu, bool /*default_param*/, const String& /*name*/, Integer /*ilaw*/)
 {
   // =================================================================================
   // Hooke's model parameters stored in the lawparams vector:
   // 0-Lambda=1st Lame coef.  1-Mu=2nd Lame coef.
   // =================================================================================
+  /*
   RealUniqueArray lawparams(2);
   lawparams[0] = lambda;
   lawparams[1] = mu;
   return lawparams;
+  */
+  (*lawparams)[0] = lambda;
+  (*lawparams)[1] = mu;
 }
 
-Tensor4 HookeComputeStress(RealConstArrayView& law_params, RealArrayView& /*history_vars*/, Tensor2& sig, Tensor2& eps, Tensor2& /*epsp*/, Tensor2& dsig,
+//Tensor4 HookeComputeStress(RealConstArrayView& law_params, RealArrayView& /*history_vars*/, Tensor2& sig, Tensor2& eps, Tensor2& /*epsp*/, Tensor2& dsig,
+Tensor4 HookeComputeStress(RealUniqueArray* law_params, RealUniqueArray* /*history_vars*/, Tensor2& sig, Tensor2& eps, Tensor2& /*epsp*/, Tensor2& dsig,
                         const Tensor2& deps, bool /*isRef*/)
 {
   Tensor4 elast_tensor = HookeComputeElastTensor(law_params,sig);
