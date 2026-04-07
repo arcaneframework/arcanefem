@@ -132,12 +132,9 @@ void	LawDispatcher::setStrainIncrement(const Tensor2& tensor) { m_deps = tensor;
 void LawDispatcher::computeStress(bool init, bool isRef) {
 
     auto f = m_compute_stress[m_law_type];
-//    RealConstArrayView law_params = m_law_params.constView();
-//    RealArrayView history_vars = m_history_vars.view();
 
     if (f != nullptr)
     {
-//    	Tensor4 tangent_tensor = f(law_params,history_vars,m_sig,m_eps,m_epsp,m_dsig,m_deps,isRef);
     	Tensor4 tangent_tensor = f(m_law_params,m_history_vars,m_sig,m_eps,m_epsp,m_dsig,m_deps,isRef);
     	if (init || isRef) m_tangent_tensor = tangent_tensor;
     }
@@ -148,7 +145,6 @@ void LawDispatcher::computeStress(bool init, bool isRef) {
 Tensor4 LawDispatcher::computeElastTensor(const Tensor2& sig) {
 
     auto f = m_compute_elast_tensor[m_law_type];
-//    RealConstArrayView law_params = m_law_params.constView();
 
     if (f != nullptr)
         return f(m_law_params,sig);
@@ -161,11 +157,8 @@ Tensor4 LawDispatcher::computeElastTensor(const Tensor2& sig) {
 Tensor4 LawDispatcher::computeTangentTensor(const Tensor2& sig) {
 
     auto f = m_compute_tangent_tensor[m_law_type];
-//    RealConstArrayView law_params = m_law_params.constView();
-//    RealArrayView history_vars = m_history_vars.view();
 
     if (f != nullptr)
-//      return f(law_params,history_vars,sig,m_deps);
       return f(m_law_params,m_history_vars,sig,m_deps);
 
     return Tensor4();
@@ -177,19 +170,14 @@ bool LawDispatcher::initState(const Tensor2& sig)
 {
     if (sig == Tensor2::zero()) return true;
 
-//    ConstArrayView<Real> history_vars = m_history_vars.constView();
-//    m_history_vars = initHistoryVars(history_vars);
-
     if (m_history_vars == nullptr)
       return true;
 
     initHistoryVars(m_history_vars);
 
     auto f = m_init_state[m_law_type];
-//    RealArrayView histab = m_history_vars.view();
 
     if (f != nullptr)
-//      return f(sig,histab);
         return f(sig,m_history_vars);
 
     return false;
@@ -197,26 +185,14 @@ bool LawDispatcher::initState(const Tensor2& sig)
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-//RealUniqueArray LawDispatcher::initHistoryVars(RealUniqueArray* history_vars)
 void LawDispatcher::initHistoryVars(RealUniqueArray* history_vars)
 {
     auto f = m_init_history_vars[m_law_type];
 
     if (f != nullptr)
-//      return f(history_vars);
         f(history_vars);
 
-//    return {};
 }
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-/*
-RealUniqueArray LawDispatcher::updateHistoryVars()
-{
-    return m_history_vars;
-}
-*/
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -237,16 +213,11 @@ void LawDispatcher::readLawParams(RealUniqueArray* lawparams, Real lambda, Real 
     if (f != nullptr) {
       f(lawparams,lambda, mu, default_param, name, ilaw);
 
-      /*
-      if (lawparams != nullptr)
-        initConsts(lawparams);
-    */
     }
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-//RealUniqueArray LawDispatcher::initConsts(RealConstArrayView& law_params)
 RealUniqueArray LawDispatcher::initConsts(RealUniqueArray* law_params)
 {
     auto f = m_init_consts[m_law_type];

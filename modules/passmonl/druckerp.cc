@@ -36,7 +36,6 @@ extern Arcane::FemUtils::Tensor2 operator*(const Tensor4& tens, const Arcane::Fe
 /*---------------------------------------------------------------------------*/
 
 //! Initialize intern useful constants
-//RealUniqueArray DruckPInitConsts(RealConstArrayView& law_params) {
 RealUniqueArray DruckPInitConsts(RealUniqueArray* law_params) {
 
   auto Lambda = (*law_params)[0];
@@ -62,14 +61,12 @@ RealUniqueArray DruckPInitConsts(RealUniqueArray* law_params) {
 }
 
 //! Computes elastic constitutive tensor
-//Tensor4 DruckPComputeElastTensor(RealConstArrayView& law_params, const Tensor2& /*sig*/) {
 Tensor4 DruckPComputeElastTensor(RealUniqueArray* law_params, const Tensor2& /*sig*/) {
   RealUniqueArray consts = DruckPInitConsts(law_params);
   return {consts[0]/*Lambda*/,consts[1]/*Mu*/};
 }
 
 //! Computes tangent constitutive tensor
-//Tensor4 DruckPComputeTangentTensor(RealConstArrayView& law_params, RealArrayView& history_vars,
 Tensor4 DruckPComputeTangentTensor(RealUniqueArray* law_params, RealUniqueArray*history_vars,
                                    const Tensor2& sig, const Tensor2& deps)
 {
@@ -168,7 +165,6 @@ Tensor4 DruckPComputeTangentTensor(RealUniqueArray* law_params, RealUniqueArray*
 //! Initializes the vector of intern (history) variables
 //! For Drücker-Prager law, the only variable is the plasticity indicator (Real value):
 //! = 0 if material point is in elastic state, = 1 if in plastic state
-//RealUniqueArray DruckPInitHistoryVars(RealConstArrayView& history_vars)
 void DruckPInitHistoryVars(RealUniqueArray* history_vars)
 {
   // Initializing plasticity indicator to 0
@@ -178,17 +174,14 @@ void DruckPInitHistoryVars(RealUniqueArray* history_vars)
 
 //! Initializes the state (nothing to do for this law)
 //! For Drücker-Prager law, it means initializing the plasticity indicator to 0 (elastic state)
-//bool DruckPInitState(const Tensor2& /*sig*/, RealArrayView& history_vars)
 bool DruckPInitState(const Tensor2& /*sig*/, RealUniqueArray* /*history_vars*/)
 {
   return true;
 }
 
 //! Read constitutive parameters from a file and initialize intern constants allowing to the material constitutive model type
-//RealUniqueArray DruckPReadLawParams(Real lambda, Real mu, bool default_param, const String& name, Integer ilaw)
 void DruckPReadLawParams(RealUniqueArray* law_params, Real lambda, Real mu, bool default_param, const String& name, Integer ilaw)
 {
-//  RealUniqueArray law_params(7);
   std::filebuf MatFile;
 
   // Elastic parameters are taken from the general user data
@@ -232,11 +225,8 @@ void DruckPReadLawParams(RealUniqueArray* law_params, Real lambda, Real mu, bool
   const Real RAD = acos(-1.)/180.; //PI/180°
   (*law_params)[2] *= RAD;
   (*law_params)[3] *= RAD;
-
-//  return law_params;
 }
 
-//Tensor4 DruckPComputeStress(RealConstArrayView& law_params, RealArrayView& history_vars, Tensor2& sig, Tensor2& eps, Tensor2& epsp, Tensor2& dsig,
 Tensor4 DruckPComputeStress(RealUniqueArray* law_params, RealUniqueArray* history_vars, Tensor2& sig, Tensor2& eps, Tensor2& epsp, Tensor2& dsig,
                                      const Tensor2& deps, bool /*isRef*/)
 {

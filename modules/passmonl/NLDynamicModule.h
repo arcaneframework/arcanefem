@@ -176,9 +176,7 @@ class NLDynamicModule
 
   void _checkResultFile();
 
-//  void _computeK(const Real& lambda, const Real& mu, const DoFLocalId& igauss, const Int32& nb_nodes, RealUniqueArray2& Ke);
   void _computeK(const Cell& cell, const Real& lambda, const Real& mu, const Int32& ig, const Int32& nb_nodes, RealUniqueArray2& Ke);
-//  void _computeElemMass(const Real& rho, const DoFLocalId& igauss, const Int32& nb_nodes, RealUniqueArray2& Me);
   void _computeElemMass(const Cell& cell, const Real& rho, const Int32& ig, const Int32& nb_nodes, RealUniqueArray2& Me);
   void _computeKParax(const Face& face, const Int32& ig, const RealUniqueArray& vec, const Real& jacobian,
                       RealUniqueArray2& Ke, const Real3& RhoC);
@@ -186,7 +184,6 @@ class NLDynamicModule
   void _iterate();
   void _check_convergence(Int32 iter);
 
-//  RealUniqueArray2 _getB(const DoFLocalId& igauss, const Int32& nb_nodes);
   RealUniqueArray2 _getB(const Cell& cell, const Int32& ig, const Int32& nb_nodes);
 
   void _compute_stress(bool init, bool store);

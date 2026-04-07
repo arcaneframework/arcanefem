@@ -46,12 +46,10 @@ public:
     Tensor4 computeElastTensor(const Tensor2& sig);
     Tensor4 computeTangentTensor(const Tensor2& sig);
     bool initState(const Tensor2& sig);
-//    RealUniqueArray initHistoryVars(RealUniqueArray* history_vars);
     void initHistoryVars(RealUniqueArray* history_vars);
     void computeStress(bool init, bool isRef);
     RealUniqueArray initConsts(RealUniqueArray* law_params);
     void readLawParams(RealUniqueArray* lawparams, Real lambda, Real mu, bool default_param, const String& name, Integer ilaw);
-//    RealUniqueArray updateHistoryVars();
 
     [[nodiscard]] Tensor2	getStress() const;
     void	setStress(const Tensor2&);
@@ -90,12 +88,9 @@ private:
     std::function<Tensor4(RealUniqueArray* law_params, RealUniqueArray* history_vars,
                           const Tensor2& sig, const Tensor2& deps)> m_compute_tangent_tensor[NB_LAW_TYPE];
     std::function<bool(const Tensor2& sig, RealUniqueArray* history_vars)> m_init_state[NB_LAW_TYPE];
-//    std::function<RealUniqueArray(RealUniqueArray* history_vars)> m_init_history_vars[NB_LAW_TYPE];
     std::function<void(RealUniqueArray* history_vars)> m_init_history_vars[NB_LAW_TYPE];
-//    std::function<RealUniqueArray(Real lambda, Real mu, bool default_param,
     std::function<void(RealUniqueArray* law_params, Real lambda, Real mu, bool default_param,
                                   const String& name, Integer ilaw)> m_read_law_params[NB_LAW_TYPE];
-//  std::function<RealUniqueArray(RealUniqueArray* law_params)> m_init_consts[NB_LAW_TYPE];
     std::function<RealUniqueArray(RealUniqueArray* law_params)> m_init_consts[NB_LAW_TYPE];
 
     Tensor2 m_sig{};
