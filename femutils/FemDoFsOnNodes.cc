@@ -79,14 +79,14 @@ initialize(IMesh* mesh, Int32 nb_dof_per_node)
   Int64UniqueArray uids(mesh->allNodes().size() * nb_dof_per_node);
   {
     Integer dof_index = 0;
-    UniqueArray<Int64> hash_maker({0,0});
+    // Use a mask to make sure the uniqueId() of the dof
+    // can not be negative if we multiply the uniqueId().
+    const UInt64 uid_mask = (1<<28) - 1;
     ENUMERATE_NODE (inode, mesh->allNodes()) {
       Node node = *inode;
       Int64 node_unique_id = node.uniqueId().asInt64();
-      hash_maker[0] = node_unique_id;
       for (Integer i = 0; i < nb_dof_per_node; ++i) {
-        hash_maker[1] = i;
-        uids[dof_index] = MeshUtils::generateHashUniqueId(hash_maker.constView());
+        uids[dof_index] = (node_unique_id & uid_mask) * nb_dof_per_node + i;
         ++dof_index;
       }
     }

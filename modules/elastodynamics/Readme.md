@@ -2,7 +2,7 @@
 
 <img width="500" align="left" src="https://github.com/arcaneframework/arcanefem/assets/52162083/692ba9e7-5dbd-450a-ab19-e6c4a0df58a6" />
 
-Here we deal with linear solid-mechanics governed by a system of PDE modeling the deformation of elastic bodies. The solver, here is a 2D/3D unstructured mesh linear elasticity solver, which uses FEM to search for vector solution of displacement unknown $\mathbf{u}=(u_1,u_2,u_3)$, since transient $\mathbf{u}$ changes with time.
+Here we deal with linear solid-mechanics governed by a system of PDE modeling the deformation of elastic bodies. The solver, here is a 2D/3D unstructured mesh transient linear elasticity solver dubbed as elastodynamics, which uses FEM to search for vector solution of displacement unknown $\mathbf{u}=(u_1,u_2,u_3)$, since transient $\mathbf{u}$ changes with time.
 
 ## Mathematics
 
@@ -36,9 +36,9 @@ $$
 \varepsilon_{ij}(\mathbf{u}) = \frac{1}{2}(\frac{\partial{u}_i}{\partial{x}_j} + \frac{\partial{u}_j}{\partial{x}_i} )
 $$
 
-## The code
+## An example elastodynamics solver
 
-This XML configuration file is used for setting up an Elastodynamics problem simulation in ArcaneFEM. Below is a detailed explanation of each section in the configuration for one such file `Test.bar.arc`.
+This XML configuration file is used for setting up an Elastodynamics problem simulation in ArcaneFEM. Below is a detailed explanation of each section in the configuration for one such file `bar.arc`.
 
 ###### Mesh Configuration
 
@@ -47,7 +47,7 @@ The mesh configuration section specifies the mesh file to be used in the simulat
 ```xml
 <meshes>
   <mesh>
-    <filename>bar_dynamic.msh</filename>
+    <filename>meshes/bar_dynamic.msh</filename>
   </mesh>
 </meshes>
 ```
@@ -56,32 +56,27 @@ The mesh configuration section specifies the mesh file to be used in the simulat
 
 ###### FEM Configuration
 
-The Finite Element Method (FEM) configuration is provided in the `Test.bar.arc`.
+The Finite Element Method (FEM) configuration is provided in the `bar.arc`.
 
 ```xml
-<fem>
-  <time-discretization>Newmark-beta</time-discretization>
-  <tmax>2.</tmax>
-  <dt>0.08</dt>
-  <rho>1.0</rho>
-  <lambda>576.9230769</lambda>
-  <mu>384.6153846</mu>
-  <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-  <penalty>1.e64</penalty>
-  <dirichlet-boundary-condition>
-    <surface>surfaceleft</surface>
-    <u1>0.0</u1>
-    <u2>0.0</u2>
-  </dirichlet-boundary-condition>
-  <traction-boundary-condition>
-    <surface>surfaceright</surface>
-    <t2>0.01</t2>
-  </traction-boundary-condition>
-  <linear-system>
-    <solver-backend>petsc</solver-backend>
-    <preconditioner>ilu</preconditioner>
-  </linear-system>
-</fem>
+  <fem>
+    <time-discretization>Newmark-beta</time-discretization>
+    <tmax>2.</tmax>
+    <dt>0.08</dt>
+    <rho>1.0</rho>
+    <lambda>576.9230769</lambda>
+    <mu>384.6153846</mu>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>surfaceleft</surface>
+        <value>0.0 0.0</value>
+      </dirichlet>
+      <traction>
+        <surface>surfaceright</surface>
+        <value>NULL 0.01</value>
+      </traction>
+    </boundary-conditions>
+  </fem>
 ```
 
 Let us explain this point wise
@@ -100,32 +95,19 @@ Let us explain this point wise
   <lambda>576.9230769</lambda>
   <mu>384.6153846</mu>
   ```
-- **Dirichlet Boundary Condition:** Penalty  method (`Penalty`) for enforcing Dirichlet boundary conditions, with  penalty parameter for enforcing Dirichlet conditions to `1.e64`. And  the boundary condition on the specified surface (`left`) with given values for `u1` and `u2`, which we set to 0 since the end is clamped.
+- **Dirichlet  and Traction Boundary Condition:** The boundary condition on the specified surface (`surfaceleft`) with given values for `u1 `and `u2`, which we set to 0 since the end is clamped. Defines the traction boundary condition on the specified surface (`surfaceright`) with a given value for `t2`.
 
   ```xml
-  <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-  <penalty>1.e64</penalty>
-  <dirichlet-boundary-condition>
-    <surface>left</surface>
-    <u1>0.0</u1>
-    <u2>0.0</u2>
-  </dirichlet-boundary-condition>
-  ```
-- **Traction Boundary Condition:** Defines the traction boundary condition on the specified surface (`surfaceright`) with a given value for `t2`.
-
-  ```xml
-  <traction-boundary-condition>
-    <surface>surfaceright</surface>
-    <t2>0.01</t2>
-  </traction-boundary-condition>
-  ```
-- **Linear System Configuration:** Specifies the linear system settings, including the solver backend (`petsc`) and the preconditioner (`ilu`).
-
-  ```xml
-  <linear-system>
-    <solver-backend>petsc</solver-backend>
-    <preconditioner>ilu</preconditioner>
-  </linear-system>
+      <boundary-conditions>
+        <dirichlet>
+          <surface>surfaceleft</surface>
+          <value>0.0 0.0</value>
+        </dirichlet>
+        <traction>
+          <surface>surfaceright</surface>
+          <value>NULL 0.01</value>
+        </traction>
+      </boundary-conditions>
   ```
 
 ###### Post-Processing Configuration
@@ -133,29 +115,21 @@ Let us explain this point wise
 The post-processing configuration is specified to control how and when results are saved:
 
 ```xml
-<arcane-post-processing>
-  <output-period>1</output-period>
-  <format name="VtkHdfV2PostProcessor" />
-  <output>
-    <variable>U</variable>
-  </output>
-</arcane-post-processing>
+  <arcane-post-processing>
+   <output-period>1</output-period>
+   <format name="VtkHdfV2PostProcessor" />
+   <output>
+     <variable>U</variable>
+     <variable>V</variable>
+     <variable>A</variable>
+   </output>
+  </arcane-post-processing>
 ```
 
 - **Output Period:** Sets the interval at which results are saved.
 - **Format:** Specifies the format for the output files (`VtkHdfV2PostProcessor`).
-- **Output Variables:** Lists the variables (`U`) which is the displacement vector to be included in the output.
+- **Output Variables:** Lists the variables (`U, V, A`) which is the displacement, velocity, and acceleration vector to be included in the output.
 
 #### Post Process
 
 For post processing the `Mesh0.hdf` file is outputted (in `output/depouillement/vtkhdfv2` folder), which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
-
-## Tests present in the module
-
-| Test           | Arc file                            | Comment                                                                                                                                                                                                                                                               |
-| -------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| elastodynamics | `Test.Elastodynamics.arc`         | Clamped bar being pulled at other end via transient load.<br />**Mesh** `dar_dynamic.msh` . Time-dicretization - **Newmark**-$\beta$<br />**No damping** is present. **Penalty** method for applying Dirichlet                            |
-| elastodynamics | `Test.Elastodynamics.Galpha.arc`  | Clamped bar being pulled at other end via transient load.<br />**Mesh** `dar_dynamic.msh` . Time-dicretization - **Generalized**-$\alpha$<br />**No damping** is present. **RowColumnElimination** method for applying Dirichlet          |
-| elastodynamics | `Test.Elastodynamics.damping.arc` | Clamped bar being pulled at other end via transient load.<br />**Mesh** `dar_dynamic.msh` . Time-dicretization - **Newmark**-$\beta$<br />**Damping** is present. **Penalty** method for applying Dirichlet                               |
-| elastodynamics | `Test.Elastodynamics.pointBC.arc` | Semi-circular section of soil, loaded via**point source** on top.<br />**Mesh** `semi-circle.msh` . Time-dicretization - **Newmark**-$\beta$<br />**No damping** is present. **RowColumnElimination** method for applying Dirichlet |
-|                |                                     |                                                                                                                                                                                                                                                                       |

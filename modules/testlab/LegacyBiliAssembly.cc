@@ -13,7 +13,7 @@
 
 #include "FemModule.h"
 
-void FemModule::
+void FemModuleTestlab::
 _assembleBilinearOperatorTRIA3()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -49,7 +49,7 @@ _assembleBilinearOperatorTRIA3()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _assembleBilinearOperatorTETRA4()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());

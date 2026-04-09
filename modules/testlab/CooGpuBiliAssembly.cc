@@ -54,7 +54,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-/* void FemModule::_fillDiagonal(Int64 nb_edge, NodeGroup nodes)
+/* void FemModuleTestlab::_fillDiagonal(Int64 nb_edge, NodeGroup nodes)
 {
   RunQueue* queue = acceleratorMng()->defaultQueue();
   auto command = makeCommand(queue);
@@ -73,7 +73,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_buildMatrixCooGPU()
+void FemModuleTestlab::_buildMatrixCooGPU()
 {
   Int8 mesh_dim = mesh()->dimension();
 
@@ -234,7 +234,7 @@ void FemModule::_buildMatrixCooGPU()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _assembleCooGPUBilinearOperatorTRIA3()
 {
   info() << "Assembling COO GPU Bilinear Operator for TRIA3 elements";
@@ -294,7 +294,7 @@ _assembleCooGPUBilinearOperatorTRIA3()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _assembleCooGPUBilinearOperatorTETRA4()
 {
   info() << "Assembling COO GPU Bilinear Operator for TETRA4 elements";

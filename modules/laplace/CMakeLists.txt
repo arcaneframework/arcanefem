@@ -102,6 +102,36 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/matrix-format=AF-BSR
     inputs/truncated-cube.neumann.3D.arc)
 
+  set(SOLVER_PETSC_CG
+    -A,//fem/linear-system/@name=PETScLinearSystem
+    -A,//fem/linear-system/solver=cg
+    -A,//fem/linear-system/atol=1e-9
+    -A,//fem/linear-system/rtol=0)
+  arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_bsr_petsc-direct COMMAND ./Laplace ARGS
+    -A,//fem/solution-comparison-file=check/test3_results.txt
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_PETSC_CG}
+    inputs/PointDirichlet.arc)
+  arcanefem_add_gpu_test(NAME [laplace]pointDirichlet_af-bsr_petsc-direct COMMAND ./Laplace ARGS
+    -A,//fem/solution-comparison-file=check/test3_results.txt
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_PETSC_CG}
+    inputs/PointDirichlet.arc)
+  arcanefem_add_gpu_test(NAME [laplace]3D_Dirichlet_bsr_petsc-direct COMMAND ./Laplace ARGS
+    -A,//fem/solution-comparison-file=check/test_3D_L-shape.txt
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_PETSC_CG}
+    inputs/L-shape.3D.arc)
+  arcanefem_add_gpu_test(NAME [laplace]3D_Dirichlet_af-bsr_petsc-direct COMMAND ./Laplace ARGS
+    -A,//fem/solution-comparison-file=check/test_3D_L-shape.txt
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_PETSC_CG}
+    inputs/L-shape.3D.arc)
+  arcanefem_add_gpu_test(NAME [laplace]3D_pointBc_neumann_af-bsr_petsc-direct COMMAND ./Laplace ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_PETSC_CG}
+    inputs/truncated-cube.neumann.3D.arc)
+
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [laplace]2D_Dirichlet_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Laplace
       inputs/ring.arc)

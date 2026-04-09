@@ -51,6 +51,148 @@ endif()
 enable_testing()
 
 
+if(FEMUTILS_HAS_SOLVER_BACKEND_ALIEN)
+
+  # <linear-system name="AlienLinearSystem">
+  #   <linear-solver name="PETScSolver">
+  #     <solver name="CG">
+  #       <num-iterations-max>1000</num-iterations-max>
+  #       <stop-criteria-value>1e-15</stop-criteria-value>
+  #       <preconditioner name="Jacobi"></preconditionner>
+  #     </solver>
+  #   </linear-solver>
+  # </linear-system>
+
+  set(SOLVER_ALIEN_PETSC
+          -A,//fem/linear-system/@name=AlienLinearSystem
+          -A,//fem/linear-system/linear-solver/@name=PETScSolver
+          -A,//fem/linear-system/linear-solver/solver/@name=CG
+          -A,//fem/linear-system/linear-solver/solver/num-iterations-max=1000
+          -A,//fem/linear-system/linear-solver/solver/stop-criteria-value=1e-15
+          -A,//fem/linear-system/linear-solver/solver/preconditioner/@name=Jacobi
+  )
+
+  add_test(NAME [heat]alien_petsc_conduction COMMAND heat
+          -A,//fem/solution-comparison-file=check/2d_conduction.txt
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC}
+          inputs/conduction.arc)
+
+  add_test(NAME [heat]alien_petsc_conduction_quad COMMAND heat
+          -A,//fem/solution-comparison-file=check/2d_conduction.quad.txt
+          -A,//fem/matrix-format=AF-BSR
+          ${SOLVER_ALIEN_PETSC}
+          inputs/conduction.quad.arc)
+
+  add_test(NAME [heat]alien_petsc_conduction_RowElimination_Dirichlet COMMAND heat
+          -A,//fem/solution-comparison-file=check/2d_conduction.txt
+          -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowElimination
+          -A,//fem/linear-system/solver-backend=petsc
+          -A,//fem/linear-system/solver-method=gmres
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC}
+          inputs/conduction.arc)
+
+  add_test(NAME [heat]alien_petsc_conduction_quad_RowElimination_Dirichlet COMMAND heat
+          -A,//fem/solution-comparison-file=check/2d_conduction.quad.txt
+          -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowElimination
+          -A,//fem/linear-system/solver-backend=petsc
+          -A,//fem/linear-system/solver-method=gmres
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC}
+          inputs/conduction.quad.arc)
+
+  add_test(NAME [heat]alien_petsc_conduction_multi-material COMMAND heat
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC}
+          inputs/conduction.multi-material.arc)
+
+  add_test(NAME [heat]alien_petsc_conduction_multi-material_quad COMMAND heat
+          inputs/conduction.multi-material.quad.arc)
+
+  add_test(NAME [heat]alien_petsc_conduction_convection COMMAND heat
+          -A,//fem/solution-comparison-file=check/2d_conduction_convection.txt
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC}
+          inputs/conduction.convection.arc)
+
+  add_test(NAME [heat]alien_petsc_conduction_convection_quad COMMAND heat
+          -A,//fem/solution-comparison-file=check/2d_conduction_convection.quad.txt
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC}
+          inputs/conduction.convection.quad.arc)
+
+  add_test(NAME [heat]alien_petsc_conduction_neumann_pointBC COMMAND heat
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC}
+          inputs/conduction.neumann.point-dirichlet.arc)
+
+  add_test(NAME [heat]alien_petsc_conduction_neumann_pointBC_quad COMMAND heat
+          -A,//fem/solution-comparison-file=check/2d_conduction_neumann_pointBC.quad.txt
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC}
+          inputs/conduction.neumann.point-dirichlet.quad.arc)
+
+  add_test(NAME [heat]alien_petsc_conduction_petsc_monitor COMMAND heat
+          -A,//fem/solution-comparison-file=check/2d_conduction.txt
+          -A,//fem/petsc-flags=-ksp_monitor
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC}
+          inputs/conduction.arc)
+
+  add_test(NAME [heat]alien_petsc_2d_parse_and_exit COMMAND heat
+          -A,//fem/assemble-linear-system=false
+          -A,//fem/solve-linear-system=false
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC}
+          inputs/conduction.arc)
+
+  add_test(NAME [heat]alien_petsc_3d_conduction COMMAND heat
+          -A,//fem/solution-comparison-file=check/3d_conduction.txt
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC}
+          inputs/3d_conduction.arc)
+
+  add_test(NAME [heat]alien_petsc_3d_conduction_hexa COMMAND heat
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC}
+          inputs/3d_conduction.hexa.arc)
+
+  add_test(NAME [heat]alien_petsc_3d_conduction_neumann COMMAND heat
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC}
+          inputs/3d_conduction.neumann.arc)
+
+  add_test(NAME [heat]alien_petsc_3d_conduction_neumann_hexa COMMAND heat
+          -A,//fem/solution-comparison-file=check/3d_conduction_neumann.hexa.txt
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC}
+          inputs/3d_conduction.neumann.hexa.arc)
+
+  add_test(NAME [heat]alien_petsc_3d_conduction_convection_hexa COMMAND heat
+          -A,//fem/solution-comparison-file=check/3d_conduction_convection.hexa.txt
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC}
+          inputs/3d_conduction.convection.hexa.arc)
+
+  add_test(NAME [heat]alien_petsc_3d_conduction_convection_pointBC COMMAND heat
+          -A,//fem/solution-comparison-file=check/3d_conduction_convection_pointBC.txt
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC}
+          inputs/3d_conduction.pointBc.convection.arc)
+
+  add_test(NAME [heat]alien_petsc_3d_conduction_convection_pointBC_rowElim COMMAND heat
+          -A,//fem/solution-comparison-file=check/3d_conduction_convection_pointBC.txt
+          -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowElimination
+          -A,//fem/boundary-conditions/dirichlet-point/enforce-Dirichlet-method=RowElimination
+          -A,//fem/linear-system/solver-backend=petsc
+          -A,//fem/linear-system/solver-method=gmres
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_ALIEN_PETSC}
+          inputs/3d_conduction.pointBc.convection.arc)
+
+endif()
+
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [heat]conduction COMMAND heat
     -A,//fem/solution-comparison-file=check/2d_conduction.txt

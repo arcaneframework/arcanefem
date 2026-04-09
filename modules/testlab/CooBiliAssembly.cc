@@ -26,7 +26,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_buildMatrixCoo()
+void FemModuleTestlab::_buildMatrixCoo()
 {
   Int8 mesh_dim = mesh()->dimension();
   Int64 nbEdge = mesh_dim == 3 ? m_nb_edge : nbFace();
@@ -75,7 +75,7 @@ void FemModule::_buildMatrixCoo()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleCooBilinearOperatorTRIA3()
+void FemModuleTestlab::_assembleCooBilinearOperatorTRIA3()
 {
   info() << "Assembling COO Bilinear Operator TRIA3";
 
@@ -126,7 +126,7 @@ void FemModule::_assembleCooBilinearOperatorTRIA3()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleCooBilinearOperatorTETRA4()
+void FemModuleTestlab::_assembleCooBilinearOperatorTETRA4()
 {
   info() << "Assembling COO Bilinear Operator TETRA4";
 

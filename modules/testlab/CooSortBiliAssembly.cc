@@ -27,7 +27,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _buildMatrixCooSort()
 {
   Int8 mesh_dim = mesh()->dimension();
@@ -84,7 +84,7 @@ _buildMatrixCooSort()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _assembleCooSortBilinearOperatorTRIA3()
 {
   info() << "Assembling COO Sort Bilinear Operator TRIA3";
@@ -140,7 +140,7 @@ _assembleCooSortBilinearOperatorTRIA3()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleCooSortBilinearOperatorTETRA4()
+void FemModuleTestlab::_assembleCooSortBilinearOperatorTETRA4()
 {
   info() << "Assembling COO Sort Bilinear Operator TETRA4";
 

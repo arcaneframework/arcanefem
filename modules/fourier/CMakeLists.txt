@@ -16,16 +16,30 @@ configure_file(Fourier.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 target_link_libraries(Fourier PUBLIC FemUtils)
 
 
-if (NOT APPLE)
-  # Command to compile C# file for functions
+find_program(ARCANE_DOTNET_COMPILE
+  NAMES arcane_dotnet_compile
+  PATHS ${ARCANE_PREFIX_DIR}/bin
+)
+
+if (NOT APPLE AND ARCANE_DOTNET_COMPILE
+    AND EXISTS "${ARCANE_PREFIX_DIR}/lib/Arcane.Core.dll"
+    AND EXISTS "${ARCANE_PREFIX_DIR}/lib/Arcane.Utils.dll")
+  message(STATUS "Arcane .NET support detected — building ExternalFunctions.dll")
+
   add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctions.dll"
-    COMMAND ${ARCANE_PREFIX_DIR}/bin/arcane_dotnet_compile "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctions.cs"
+    COMMAND ${ARCANE_DOTNET_COMPILE} "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctions.cs"
     DEPENDS "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctions.cs"
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+  )
+
   add_custom_target(external_functions DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctions.dll")
   add_dependencies(Fourier external_functions)
-else()
+
+elseif(APPLE)
   message(STATUS "Skipping ExternalFunctions.dll build on macOS")
+
+else()
+  message(STATUS "Skipping ExternalFunctions.dll — Arcane built without .NET support")
 endif()
 
 # Copy the check files in the binary directory
@@ -121,6 +135,33 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   arcanefem_add_gpu_test(NAME [fourier]3d_conduction_petsc_af-bsr COMMAND ./Fourier ARGS
     -A,//fem/matrix-format=AF-BSR
     inputs/conduction.3D.arc)
+
+  set(SOLVER_PETSC_CG
+    -A,//fem/linear-system/@name=PETScLinearSystem
+    -A,//fem/linear-system/solver=cg
+    -A,//fem/linear-system/atol=1e-9
+    -A,//fem/linear-system/rtol=0)
+
+  arcanefem_add_gpu_test(NAME [fourier]conduction_petsc-direct_bsr COMMAND ./Fourier ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_PETSC_CG}
+    inputs/conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [fourier]conduction_petsc-direct_af-bsr COMMAND ./Fourier ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_PETSC_CG}
+    inputs/conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [fourier]3d_conduction_petsc-direct_bsr COMMAND ./Fourier ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_PETSC_CG}
+    inputs/conduction.3D.arc)
+
+  arcanefem_add_gpu_test(NAME [fourier]3d_conduction_petsc-direct_af-bsr COMMAND ./Fourier ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_PETSC_CG}
+    inputs/conduction.3D.arc)
+
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [fourier]conduction_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier

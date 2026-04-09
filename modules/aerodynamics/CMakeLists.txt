@@ -63,6 +63,39 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/matrix-format=AF-BSR
     inputs/Joukowski_3d.arc)
 
+  set(SOLVER_PETSC_CG_2D
+    -A,//fem/linear-system/@name=PETScLinearSystem
+    -A,//fem/linear-system/solver=cg
+    -A,//fem/linear-system/atol=1e-15
+    -A,//fem/linear-system/rtol=0)
+
+  set(SOLVER_PETSC_CG_3D
+    -A,//fem/linear-system/@name=PETScLinearSystem
+    -A,//fem/linear-system/solver=cg
+    -A,//fem/linear-system/atol=1e-15
+    -A,//fem/linear-system/rtol=0)
+
+  arcanefem_add_gpu_test(NAME [aerodynamics]2d_Joukowski_bsr_petsc COMMAND aerodynamics ARGS
+    -A,//fem/solution-comparison-file=check/test_2d.txt
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_PETSC_CG_2D}
+    inputs/Joukowski.arc)
+  arcanefem_add_gpu_test(NAME [aerodynamics]2d_Joukowski_af_petsc COMMAND aerodynamics ARGS
+    -A,//fem/solution-comparison-file=check/test_2d.txt
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_PETSC_CG_2D}
+    inputs/Joukowski.arc)
+  arcanefem_add_gpu_test(NAME [aerodynamics]3d_Joukowski_bsr_petsc COMMAND aerodynamics ARGS
+    -A,//fem/solution-comparison-file=check/test_3d.txt
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_PETSC_CG_3D}
+    inputs/Joukowski_3d.arc)
+  arcanefem_add_gpu_test(NAME [aerodynamics]3d_Joukowski_bsr_petsc_gpu COMMAND aerodynamics ARGS
+    -A,//fem/solution-comparison-file=check/test_3d.txt
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_PETSC_CG_3D}
+    inputs/Joukowski_3d.arc)
+
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [aerodynamics]2d_Joukowski_4p COMMAND ${MPIEXEC_EXECUTABLE} -n 4 ./aerodynamics
       -A,//fem/solution-comparison-file=check/test_2d.txt

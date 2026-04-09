@@ -38,9 +38,9 @@ $$
 \varepsilon_{ij}(\mathbf{u}) = \frac{1}{2}(\frac{\partial{u}_i}{\partial{x}_j} + \frac{\partial{u}_j}{\partial{x}_i} )
 $$
 
-## Running the solver
+## An example elasticity solver
 
-Here we will provide a simple 2D bar problem example. This XML configuration file is used for setting up an Elastodynamics problem simulation in ArcaneFEM. Below is a detailed explanation of each section in the configuration for one of the tests `Test.bar.arc`.
+We will provide a simple 2D bar problem example. The physics solved is a bar that bends under its own load. This XML configuration file is used for setting up an Elasticity problem simulation in ArcaneFEM. Below is a detailed explanation of each section in the configuration for one of the tests `bar.2D.Dirichlet.bodyForce.arc`.
 
 ###### Mesh Configuration
 
@@ -58,28 +58,28 @@ The mesh configuration section specifies the mesh file to be used in the simulat
 
 ```
 
-- **Mesh File:** Defines the mesh file (`bar.msh`) to be used in the simulation. Note that this file should be compatible with version 4.1 `.msh` format from `Gmsh`.
+- **Mesh File:** Defines the mesh file `bar.msh` to be used in the simulation. Note that this file should be compatible with version 4.1 `.msh` format from `Gmsh`. The mesh here is a traingular mesh.
 - **Subdivision**: `nb-subdivision` here allows to split the mesh to produce a finer mesh from a coarse mesh. It is practical to use for producing meshes for large-scale simulations.
 
 ###### FEM Configuration
 
-The Finite Element Method (FEM) configuration is provided in the `Test.bar.arc`.
+The Finite Element Method (FEM) configuration is provided in the `bar.2D.Dirichlet.bodyForce.arc`.
 
 ```xml
 <fem>
-  <E>21.0e5</E>
-  <nu>0.28</nu>
-  <f>NULL -1.0</f>
-  <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-  <dirichlet-boundary-condition>
-    <surface>left</surface>
-    <u>0.0 0.0</u>
-  </dirichlet-boundary-condition>
+    <E>21.0e5</E>
+    <nu>0.28</nu>
+    <f>NULL -1.0</f>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>left</surface>
+        <value>0.0 0.0</value>
+      </dirichlet>
+    </boundary-conditions>
 </fem>
 ```
 
 Let us explain this point wise
-
 
 - **Material Properties:** The Young's Modulus (E) for the material, defined as `21.0e5`.  The Poisson's Ratio (nu) for the material, defined as `0.28`.
 
@@ -87,19 +87,20 @@ Let us explain this point wise
   <E>21.0e5</E>
   <nu>0.28</nu>
   ```
-- **Source Term:** The source term or dody force is present in in Y direction hence (f2) in the PDE, set to `-1.0`.
+- **Source Term / Body Force:** The source term or body force is present in in Y direction hence (f2) in the PDE, set to `-1.0`.
 
   ```xml
   <f>NULL -1.0</f>
   ```
-- **Dirichlet Method:** Specifies the method (`Penalty`) for enforcing Dirichlet boundary conditions. And  the boundary condition on the specified surface (`left`) with given values for `u1` and `u2`, which we set to 0 since the end is clamped.
+- **Dirichlet Method:** The boundary condition on the specified surface (`left`) with given values for `u1` and `u2`, which we set to 0 since the end is clamped. Please note that it is expected the mesh `bar.msh` contains the physical group `left`.
 
   ```xml
-  <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-  <dirichlet-boundary-condition>
-    <surface>left</surface>
-    <u>0.0 0.0</u>
-  </dirichlet-boundary-condition>
+      <boundary-conditions>
+        <dirichlet>
+          <surface>left</surface>
+          <value>0.0 0.0</value>
+        </dirichlet>
+      </boundary-conditions>
   ```
 
 ###### Post-Processing Configuration
@@ -123,15 +124,3 @@ The post-processing configuration is specified to control how and when results a
 #### Post Process
 
 For post processing the `Mesh0.hdf` file is outputted (in `output/depouillement/vtkhdfv2` folder), which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
-
-#### Tests available in this module
-
-The tests are present in the form of `.arc` files with a prefix `Test.`:
-
-| Name                                 | Dimension | Boundary Condition                                          | Solver          | Comment                                                       |
-| ------------------------------------ | --------- | ----------------------------------------------------------- | --------------- | ------------------------------------------------------------- |
-| bar                                  | 2D        | Clamped Dirichlet + Null flux<br />Body force (Source Term) | Default (PETSc) | - Serves as validation test                                   |
-| bar.DirichletViaRowElimination       | 2D        | Clamped Dirichlet + Null flux<br />Body force (Source Term) | PETSc           | - Row Elimination for BC<br />- GMRES with ILU(0) Solver      |
-| bar.DirichletViaRowColumnElimination | 2D        | Clamped Dirichlet + Null flux<br />Body force (Source Term) | PETSc           | - Row and Column Elimination for BC<br />- CG with AMG Solver |
-| bar.traction                         | 2D        | Clamped Dirichlet<br />Traction (Neumann)                   | Default (PETSc) |                                                               |
-|                                      |           |                                                             |                 |                                                               |

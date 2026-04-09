@@ -6,7 +6,7 @@
 /*---------------------------------------------------------------------------*/
 /* FemModule.h                                                 (C) 2022-2025 */
 /*                                                                           */
-/* FemModule class definition.                                               */
+/* FemModuleHeat class definition.                                           */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 #ifndef FEMMODULES_H
@@ -47,12 +47,12 @@ namespace ax = Arcane::Accelerator;
 /*!
  * \brief Module Fem.
  */
-class FemModule
+class FemModuleHeat
 : public ArcaneFemObject
 {
  public:
 
-  explicit FemModule(const ModuleBuildInfo& mbi)
+  explicit FemModuleHeat(const ModuleBuildInfo& mbi)
   : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
   , m_bsr_format(mbi.subDomain()->traceMng(), *(mbi.subDomain()->acceleratorMng()->defaultQueue()), m_dofs_on_nodes)

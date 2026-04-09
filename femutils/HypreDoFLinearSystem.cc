@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* HypreDoFLinearSystem.cc                                     (C) 2022-2025 */
+/* HypreDoFLinearSystem.cc                                     (C) 2022-2026 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
 /*---------------------------------------------------------------------------*/
@@ -32,8 +32,10 @@
 #include <arcane/core/Timer.h>
 
 #include <arcane/accelerator/VariableViews.h>
-#include <arcane/accelerator/core/Runner.h>
+#include <arcane/accelerator/NumArrayViews.h>
+//#include <arcane/accelerator/core/Runner.h>
 #include <arcane/accelerator/core/Memory.h>
+#include <arcane/accelerator/core/DeviceMemoryInfo.h>
 
 #include "IDoFLinearSystemFactory.h"
 #include "internal/CsrDoFLinearSystemImpl.h"
@@ -351,10 +353,10 @@ solve()
   const Int32 nb_local_row = rows_index_span.size();
 
   CSRFormatView csr_view = this->getCSRValues();
+  const Int32 nb_row = csr_view.nbRow();
   if (do_debug_print) {
     info() << "ROWS_INDEX=" << rows_index_span;
     info() << "ROWS=" << csr_view.rows();
-    info() << "ROWS_NB_COLUMNS=" << csr_view.rowsNbColumn();
     info() << "COLUMNS=" << csr_view.columns();
     info() << "VALUE=" << csr_view.values();
   }
@@ -362,7 +364,7 @@ solve()
   const int last_row = m_first_own_row + m_nb_own_row - 1;
 
   info() << "[Hypre-Info] CreateMatrix first_row=" << first_row << " last_row " << last_row;
-  HYPRE_IJMatrixCreate(mpi_comm, first_row, last_row, first_row, last_row, &ij_A);
+  hypreCheck("IJMatrixCreate",HYPRE_IJMatrixCreate(mpi_comm, first_row, last_row, first_row, last_row, &ij_A));
 
   if (do_debug_print) {
     VariableDoFReal& rhs_values(rhsVariable());
@@ -373,14 +375,14 @@ solve()
     }
   }
 
-  int* rows_nb_column_data = const_cast<int*>(csr_view.rowsNbColumn().data());
+  //int* rows_nb_column_data = const_cast<int*>(csr_view.rowsNbColumn().data());
 
   Real m1 = platform::getRealTime();
-  HYPRE_IJMatrixSetObjectType(ij_A, HYPRE_PARCSR);
+  hypreCheck("IJMatrixSetObjectType",HYPRE_IJMatrixSetObjectType(ij_A, HYPRE_PARCSR));
 #if HYPRE_RELEASE_NUMBER >= 22700
-  HYPRE_IJMatrixInitialize_v2(ij_A, hypre_memory);
+  hypreCheck("IJMatrixInitialize_v2",HYPRE_IJMatrixInitialize_v2(ij_A, hypre_memory));
 #else
-  HYPRE_IJMatrixInitialize(ij_A);
+  hypreCheck("IJMatrixInitialize",HYPRE_IJMatrixInitialize(ij_A));
 #endif
   // m_csr_view.columns() use matrix coordinates local to sub-domain
   // We need to translate them to global matrix coordinates
@@ -413,7 +415,7 @@ solve()
   if (do_debug_print) {
     ENUMERATE_ (DoF, idof, dof_family->allItems()) {
       DoF dof = *idof;
-      Int32 nb_col = csr_view.rowsNbColumn()[idof.index()];
+      Int32 nb_col = csr_view.nbColumnForRow(idof.index());
       Int32 row_csr_index = csr_view.rows()[idof.index()];
       info() << "DoF dof=" << ItemPrinter(dof) << " nb_col=" << nb_col << " row_csr_index=" << row_csr_index
              << " global_row=" << rows_index_span[idof.index()];
@@ -449,7 +451,6 @@ solve()
       DoF dof = *idof;
       if (!dof.isOwn())
         continue;
-      Int32 nb_col = csr_view.rowsNbColumn()[idof.index()];
       m_parallel_rows_index[index] = rows_index_span[idof.index()];
       ++index;
     }
@@ -458,6 +459,7 @@ solve()
   // Prefetch the memory to the Device to make sure we are using
   // Device memory and not host memory when using UVM
   NumArray<Int32, MDDim1> na_rows_nb_column_data(mem_ressource);
+  na_rows_nb_column_data.resize(nb_row);
   NumArray<Int32, MDDim1> na_rows_index(mem_ressource);
   NumArray<Int32, MDDim1> na_columns_index(mem_ressource);
   NumArray<Real, MDDim1> na_matrix_values(mem_ressource);
@@ -473,7 +475,6 @@ solve()
 
   if (is_use_device) {
     info() << "[Hypre-Info] Prefetching memory";
-    q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(csr_view.rowsNbColumn())).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(rows_index_span)).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(columns_index_span)).addAsync());
     q.prefetchMemory(Accelerator::MemoryPrefetchArgs(ConstMemoryView(matrix_values)).addAsync());
@@ -481,27 +482,33 @@ solve()
     VariableUtils::prefetchVariableAsync(rhs_variable, &q);
     VariableUtils::prefetchVariableAsync(dof_variable, &q);
   }
-  Span<const Int32> rows_nb_column_span = csr_view.rowsNbColumn();
+  //Span<const Int32> rows_nb_column_span = csr_view.rowsNbColumn();
   if (is_use_device && is_use_device_memory) {
-    _doCopy(na_rows_nb_column_data, rows_nb_column_span, &q);
     _doCopy(na_rows_index, rows_index_span, &q);
     _doCopy(na_columns_index, columns_index_span, &q);
     _doCopy(na_matrix_values, matrix_values, &q);
 
-    rows_nb_column_data = na_rows_nb_column_data.to1DSpan().data();
     rows_index_data = na_rows_index.to1DSpan().data();
     columns_index_data = na_columns_index.to1DSpan().data();
     matrix_values_data = na_matrix_values.to1DSpan().data();
 
     q.barrier();
   }
-
+  // Fill the array containing the number of columns per row
+  {
+    auto command = makeCommand(q);
+    auto rows_nb_column_data = viewOut(command, na_rows_nb_column_data);
+    command << RUNCOMMAND_LOOP1(i, nb_row)
+    {
+      rows_nb_column_data[i] = csr_view.nbColumnForRow(i);
+    };
+  }
   {
     Timer::Action ta1(tstat, "HypreLinearSystemBuildMatrix");
     // GPU pointers; efficient in large chunks //
     HYPRE_IJMatrixSetValues(ij_A,
                             nb_local_row,
-                            rows_nb_column_data,
+                            na_rows_nb_column_data.to1DSpan().data(),
                             rows_index_data,
                             columns_index_data,
                             matrix_values_data);
@@ -763,6 +770,10 @@ solve()
   Real b1 = platform::getRealTime();
   info() << "[Hypre-Timer] Time to solve = " << (b1 - a2);
 
+  auto a = runner.deviceMemoryInfo();
+  info() << "[Hypre-Info] Device memory allocation (Mo): " << (a.totalMemory() - a.freeMemory()) / 1e6;
+  info() << "[Hypre-Info] Host memory allocation (Mo): " << Platform::getMemoryUsed() / 1.0e6;
+
   HYPRE_Int iterations;
 
   switch (m_solver) {
@@ -804,6 +815,45 @@ solve()
     hypreCheck("HYPRE_IJVectorGetValues",
                HYPRE_IJVectorGetValues(ij_vector_x, nb_local_row, rows_index_span.data(),
                                        dof_variable.asArray().data()));
+  }
+
+  // Free matrix and vectors
+  hypreCheck("IJMatrixDestroy",HYPRE_IJMatrixDestroy(ij_A));
+  hypreCheck("IJVectorDestroy", HYPRE_IJVectorDestroy(ij_vector_b));
+  hypreCheck("IJVectorDestroy", HYPRE_IJVectorDestroy(ij_vector_x));
+  {
+    // Free solver
+    switch (m_solver) {
+    case solver::CG:
+      HYPRE_ParCSRPCGDestroy(solver);
+      break;
+    case solver::GMRES:
+      HYPRE_ParCSRGMRESDestroy(solver);
+      break;
+    case solver::FGMRES:
+      HYPRE_ParCSRFlexGMRESDestroy(solver);
+      break;
+    case solver::BICGSTAB:
+      HYPRE_ParCSRBiCGSTABDestroy(solver);
+      break;
+    default:
+      ARCANE_FATAL("Hypre solver type not correct use: cg|gmres|fgmres|bicgstab");
+      break;
+    }
+  }
+  {
+    // Free preconditioner
+    switch (m_preconditioner) {
+    case preconditioner::AMG:
+      HYPRE_BoomerAMGDestroy(precond);
+      break;
+    case preconditioner::BJACOBI:
+      HYPRE_ILUDestroy(precond);
+      break;
+    default:
+      ARCANE_FATAL("Hypre preconditioner type not correct use: amg|bjacobi");
+      break;
+    }
   }
 }
 

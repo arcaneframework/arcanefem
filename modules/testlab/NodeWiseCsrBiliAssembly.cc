@@ -34,7 +34,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-/* void FemModule::_buildMatrixNodeWiseCsrCPU()
+/* void FemModuleTestlab::_buildMatrixNodeWiseCsrCPU()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
@@ -87,7 +87,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_buildOffsetsNodeWiseCsr(const SmallSpan<UInt32>& offsets_smallspan)
+void FemModuleTestlab::_buildOffsetsNodeWiseCsr(const SmallSpan<UInt32>& offsets_smallspan)
 {
   Accelerator::RunQueue* queue = acceleratorMng()->defaultQueue();
 
@@ -112,7 +112,7 @@ void FemModule::_buildOffsetsNodeWiseCsr(const SmallSpan<UInt32>& offsets_smalls
   scanner.inclusiveSum(queue, in_data, offsets_smallspan);
 }
 
-void FemModule::
+void FemModuleTestlab::
 _buildMatrixNodeWiseCsr()
 {
   Int8 mesh_dim = mesh()->dimension();
@@ -154,7 +154,7 @@ _buildMatrixNodeWiseCsr()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleNodeWiseCsrBilinearOperatorTria3()
+void FemModuleTestlab::_assembleNodeWiseCsrBilinearOperatorTria3()
 {
   Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_CsrNodeWise");
   {
@@ -229,7 +229,7 @@ void FemModule::_assembleNodeWiseCsrBilinearOperatorTria3()
  * for a TETRA4 mesh type. It initializes the CSR matrix, sets up the
  * necessary views, and performs the computation on the accelerator.
  */
-void FemModule::_assembleNodeWiseCsrBilinearOperatorTetra4()
+void FemModuleTestlab::_assembleNodeWiseCsrBilinearOperatorTetra4()
 {
   Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_CsrNodeWise");
   {

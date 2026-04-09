@@ -46,7 +46,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<8, 8> FemModule::_computeElementMatrixQuad4(Cell cell)
+RealMatrix<8, 8> FemModuleElastodynamics::_computeElementMatrixQuad4(Cell cell)
 {
   constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
   constexpr Real w = 1.0;
@@ -122,7 +122,7 @@ RealMatrix<8, 8> FemModule::_computeElementMatrixQuad4(Cell cell)
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<24, 24> FemModule::_computeElementMatrixHexa8(Cell cell)
+RealMatrix<24, 24> FemModuleElastodynamics::_computeElementMatrixHexa8(Cell cell)
 {
   constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
   constexpr Real w = 1.0;

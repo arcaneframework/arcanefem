@@ -46,7 +46,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<8, 8> FemModule::
+RealMatrix<8, 8> FemModuleSoildynamics::
 _computeElementMatrixQuad4(Cell cell)
 {
   constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
@@ -126,7 +126,7 @@ _computeElementMatrixQuad4(Cell cell)
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<24, 24> FemModule::
+RealMatrix<24, 24> FemModuleSoildynamics::
 _computeElementMatrixHexa8(Cell cell)
 {
   constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };

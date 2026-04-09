@@ -27,7 +27,7 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_buildMatrixCooSortGPU()
+void FemModuleTestlab::_buildMatrixCooSortGPU()
 {
   Int8 mesh_dim = mesh()->dimension();
 
@@ -166,7 +166,7 @@ void FemModule::_buildMatrixCooSortGPU()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _assembleCooSortGPUBilinearOperatorTRIA3()
 {
   info() << "Assembling S-COO GPU Bilinear Operator for TRIA3 elements";
@@ -226,7 +226,7 @@ _assembleCooSortGPUBilinearOperatorTRIA3()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleTestlab::
 _assembleCooSortGPUBilinearOperatorTETRA4()
 {
   info() << "Assembling S-COO GPU Bilinear Operator for TETRA4 elements";

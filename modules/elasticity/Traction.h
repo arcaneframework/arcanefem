@@ -28,7 +28,7 @@
  * 
 /*---------------------------------------------------------------------------*/
 
-inline void FemModule::
+inline void FemModuleElasticity::
 _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
   BC::IArcaneFemBC* bc = options()->boundaryConditions();

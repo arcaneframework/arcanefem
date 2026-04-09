@@ -70,7 +70,7 @@ const RealVector<4>& dxu, const RealVector<4>& dyu, Real integration_weight, Rea
   return (normal_strain_energy + compressibility_effect + shear_energy);
 }
 
-RealMatrix<8, 8> FemModule::_computeElementMatrixQuad4(Cell cell)
+RealMatrix<8, 8> FemModuleElasticity::_computeElementMatrixQuad4(Cell cell)
 {
   // Gauss points and weights for 2x2 quadrature
   constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // [-1/sqrt(3) , 1/sqrt(3)]
@@ -186,7 +186,7 @@ Real integration_weight, Real lambda, Real mu)
   return (normal_strain_energy + compressibility_effect + shear_energy);
 }
 
-RealMatrix<24, 24> FemModule::_computeElementMatrixHexa8(Cell cell)
+RealMatrix<24, 24> FemModuleElasticity::_computeElementMatrixHexa8(Cell cell)
 {
   // Gauss points and weights for 2x2x2 quadrature
   constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // [-1/sqrt(3), 1/sqrt(3)]

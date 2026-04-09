@@ -20,13 +20,13 @@
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Initializes the FemModule at the start of the simulation.
+ * @brief Initializes the FemModuleElastodynamics at the start of the simulation.
  *
  * This method initializes degrees of freedom (DoFs) on nodes.
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElastodynamics::
 startInit()
 {
   info() << "[ArcaneFem-Info] Started module  startInit()";
@@ -36,11 +36,15 @@ startInit()
 
   _getParameters();
 
-  bool use_csr_in_linearsystem = options()->linearSystem.serviceName() == "HypreLinearSystem";
+  bool use_csr_in_linear_system =
+    options()->linearSystem.serviceName() == "HypreLinearSystem" ||
+    options()->linearSystem.serviceName() == "AlienLinearSystem" ||
+    options()->linearSystem.serviceName() == "PETScLinearSystem";
+
   if (m_matrix_format == "BSR")
-    m_bsr_format.initialize(defaultMesh(), mesh()->dimension(), use_csr_in_linearsystem, 0);
+    m_bsr_format.initialize(defaultMesh(), mesh()->dimension(), use_csr_in_linear_system, 0);
   else if (m_matrix_format == "AF-BSR")
-    m_bsr_format.initialize(defaultMesh(), mesh()->dimension(), use_csr_in_linearsystem, 1);
+    m_bsr_format.initialize(defaultMesh(), mesh()->dimension(), use_csr_in_linear_system, 1);
 
   t = dt;
   tmax = tmax - dt;
@@ -62,7 +66,7 @@ startInit()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElastodynamics::
 compute()
 {
   info() << "[ArcaneFem-Info] Started module  compute()";
@@ -104,7 +108,7 @@ compute()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElastodynamics::
 _updateTime()
 {
   t += dt;
@@ -113,7 +117,7 @@ _updateTime()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElastodynamics::
 _doStationarySolve()
 {
   if(m_assemble_linear_system){
@@ -136,7 +140,7 @@ _doStationarySolve()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElastodynamics::
 _getParameters()
 {
   info() << "[ArcaneFem-Info] Started module  _getParameters()";
@@ -244,7 +248,7 @@ _getParameters()
   */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElastodynamics::
 _readCaseTables()
 {
   IParallelMng* pm = subDomain()->parallelMng();
@@ -264,7 +268,7 @@ _readCaseTables()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElastodynamics::
 _updateVariables()
 {
   info() << "[ArcaneFem-Info] Started module  _updateVariables()";
@@ -331,7 +335,7 @@ _updateVariables()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElastodynamics::
 _assembleLinearOperator()
 {
   info() << "[ArcaneFem-Info] Started module  _assembleLinearOperator()";
@@ -358,7 +362,7 @@ _assembleLinearOperator()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElastodynamics::
 _assembleBilinearOperatorTria3Gpu()
 {
   UnstructuredMeshConnectivityView m_connectivity_view(mesh());
@@ -379,7 +383,7 @@ _assembleBilinearOperatorTria3Gpu()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElastodynamics::
 _assembleBilinearOperatorTetra4Gpu()
 {
   UnstructuredMeshConnectivityView m_connectivity_view(mesh());
@@ -411,7 +415,7 @@ _assembleBilinearOperatorTetra4Gpu()
 /*---------------------------------------------------------------------------*/
 
 template <int N>
-void FemModule::
+void FemModuleElastodynamics::
 _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
   const Int32 dim = mesh()->dimension();
@@ -445,7 +449,7 @@ _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>&
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElastodynamics::
 _assembleBilinearOperator()
 {
   info() << "[ArcaneFem-Info] Started module  _assembleBilinearOperator()";
@@ -490,7 +494,7 @@ _assembleBilinearOperator()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElastodynamics::
 _solve()
 {
   info() << "[ArcaneFem-Info] Started module  _solve()";
@@ -505,7 +509,7 @@ _solve()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleElastodynamics::
 _validateResults()
 {
   info() << "[ArcaneFem-Info] Started module  _validateResults()";
@@ -536,7 +540,7 @@ _validateResults()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCANE_REGISTER_MODULE_FEM(FemModule);
+ARCANE_REGISTER_MODULE_FEM(FemModuleElastodynamics);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

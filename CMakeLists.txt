@@ -33,3 +33,14 @@ add_subdirectory(modules/soildynamics)
 add_subdirectory(modules/heat)
 add_subdirectory(modules/passmo)
 add_subdirectory(modules/passmonl)
+
+find_package(Doxygen)
+if (Doxygen_FOUND AND TARGET Doxygen::doxygen)
+  # Add a target to generate user documentation
+  # The target is 'userdoc' and the doc is generated in directory 'share/userdoc/html'
+  message(STATUS "Doxygen: ${Doxygen_FOUND}")
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/docs/userdoc.doxyfile.in ${CMAKE_BINARY_DIR}/share/userdoc.doxyfile @ONLY)
+  add_custom_target(userdoc COMMAND
+    Doxygen::doxygen ${CMAKE_BINARY_DIR}/share/userdoc.doxyfile
+  )
+endif()

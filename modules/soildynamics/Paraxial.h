@@ -26,7 +26,7 @@
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<4, 4> FemModule::
+RealMatrix<4, 4> FemModuleSoildynamics::
 _computeParaxialElementMatrixEdge2(Face face)
 {
   Real2 N = ArcaneFemFunctions::MeshOperation::computeNormalEdge2(face, m_node_coord);
@@ -58,7 +58,7 @@ _computeParaxialElementMatrixEdge2(Face face)
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<9, 9> FemModule::
+RealMatrix<9, 9> FemModuleSoildynamics::
 _computeParaxialElementMatrixTria3(Face face)
 {
   Real3 N = ArcaneFemFunctions::MeshOperation::computeNormalTriangle(face, m_node_coord);
@@ -96,7 +96,7 @@ _computeParaxialElementMatrixTria3(Face face)
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<12, 12> FemModule::
+RealMatrix<12, 12> FemModuleSoildynamics::
 _computeParaxialElementMatrixQuad4(Face face)
 {
   Real3 N = ArcaneFemFunctions::MeshOperation::computeNormalQuad(face, m_node_coord);
@@ -128,7 +128,7 @@ _computeParaxialElementMatrixQuad4(Face face)
  * 
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleSoildynamics::
 _applyParaxial(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof, BSRMatrix* bsr_matrix)
 {
   for (const auto& bs : options()->paraxialBoundaryCondition()) {

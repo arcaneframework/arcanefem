@@ -16,14 +16,14 @@
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Initializes the FemModule at the start of the simulation.
+ * @brief Initializes the FemModuleBilaplacian at the start of the simulation.
  *
  * - This method initializes degrees of freedom (DoFs) on nodes.
  * - It also gets values of some solver parameters.
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleBilaplacian::
 startInit()
 {
   info() << "[ArcaneFem-Info] Started module startInit()";
@@ -43,7 +43,7 @@ startInit()
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Performs the main computation for the FemModule.
+ * @brief Performs the main computation for the FemModuleBilaplacian.
  *
  * This method:
  *   1. Stops the time loop after 1 iteration since the equation is steady state.
@@ -53,7 +53,7 @@ startInit()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleBilaplacian::
 compute()
 {
   info() << "[ArcaneFem-Info] Started module compute()";
@@ -91,7 +91,7 @@ compute()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleBilaplacian::
 _doStationarySolve()
 {
   _getMaterialParameters();
@@ -117,7 +117,7 @@ _doStationarySolve()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleBilaplacian::
 _getMaterialParameters()
 {
   info() << "[ArcaneFem-Info] Started module _getMaterialParameters()";
@@ -143,7 +143,7 @@ _getMaterialParameters()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleBilaplacian::
 _assembleLinearOperator()
 {
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
@@ -268,7 +268,7 @@ _assembleLinearOperator()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleBilaplacian::
 _assembleBilinearOperator()
 {
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
@@ -323,7 +323,7 @@ _assembleBilinearOperator()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleBilaplacian::
 _solve()
 {
   info() << "[ArcaneFem-Info] Started module _solve()";
@@ -347,7 +347,7 @@ _solve()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleBilaplacian::
 _updateVariables(){
   {
     VariableDoFReal& dof_temperature(m_linear_system.solutionVariable());
@@ -377,7 +377,7 @@ _updateVariables(){
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModuleBilaplacian::
 _checkResultFile()
 {
   info() << "[ArcaneFem-Info] Started module _validateResults()";
@@ -404,7 +404,7 @@ _checkResultFile()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCANE_REGISTER_MODULE_FEM(FemModule);
+ARCANE_REGISTER_MODULE_FEM(FemModuleBilaplacian);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

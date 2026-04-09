@@ -15,7 +15,7 @@
 
 #include "FemModule.h"
 
-void FemModule::
+void FemModuleTestlab::
 _buildMatrixBuildLessCsr()
 {
 
@@ -59,7 +59,7 @@ _buildMatrixBuildLessCsr()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_buildMatrixGpuBuildLessCsr()
+void FemModuleTestlab::_buildMatrixGpuBuildLessCsr()
 {
 
   // Compute the number of nnz and initialize the memory space
@@ -103,7 +103,7 @@ void FemModule::_buildMatrixGpuBuildLessCsr()
 /*---------------------------------------------------------------------------*/
 
 ARCCORE_HOST_DEVICE
-void FemModule::_addValueToGlobalMatrixGpu(Int32 begin, Int32 end, Int32 col, ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> in_out_col_csr, ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> in_out_val_csr, Real x)
+void FemModuleTestlab::_addValueToGlobalMatrixGpu(Int32 begin, Int32 end, Int32 col, ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> in_out_col_csr, ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> in_out_val_csr, Real x)
 {
 
   // Find the right index in the csr matrix
@@ -121,7 +121,7 @@ void FemModule::_addValueToGlobalMatrixGpu(Int32 begin, Int32 end, Int32 col, ax
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleBuildLessCsrBilinearOperatorTria3()
+void FemModuleTestlab::_assembleBuildLessCsrBilinearOperatorTria3()
 {
   Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_CsrBuildLess");
 
@@ -186,7 +186,7 @@ void FemModule::_assembleBuildLessCsrBilinearOperatorTria3()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleBuildLessCsrBilinearOperatorTetra4()
+void FemModuleTestlab::_assembleBuildLessCsrBilinearOperatorTetra4()
 {
   Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_CsrBuildLess");
 

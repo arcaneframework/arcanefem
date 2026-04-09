@@ -17,13 +17,13 @@
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Initializes the FemModule at the start of the simulation.
+ * @brief Initializes the FemModulePoisson at the start of the simulation.
  *
  * This method initializes degrees of freedom (DoFs) on nodes.
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModulePoisson::
 startInit()
 {
   info() << "[ArcaneFem-Info] Started module startInit()";
@@ -45,7 +45,7 @@ startInit()
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Performs the main computation for the FemModule.
+ * @brief Performs the main computation for the FemModulePoisson.
  *
  * This method:
  *   1. Stops the time loop after 1 iteration since the equation is steady state.
@@ -54,7 +54,7 @@ startInit()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModulePoisson::
 compute()
 {
   info() << "[ArcaneFem-Info] Started module compute()";
@@ -75,7 +75,10 @@ compute()
   }
 
   if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") {
-    auto use_csr_in_linear_system = options()->linearSystem.serviceName() == "HypreLinearSystem";
+    bool use_csr_in_linear_system =
+    options()->linearSystem.serviceName() == "HypreLinearSystem" ||
+    options()->linearSystem.serviceName() == "AlienLinearSystem" ||
+    options()->linearSystem.serviceName() == "PETScLinearSystem";
     if (m_matrix_format == "BSR")
       m_bsr_format.initialize(mesh(), 1, use_csr_in_linear_system, 0);
     else
@@ -104,7 +107,7 @@ compute()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModulePoisson::
 _doStationarySolve()
 {
   _getMaterialParameters();
@@ -130,7 +133,7 @@ _doStationarySolve()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModulePoisson::
 _getMaterialParameters()
 {
   info() << "[ArcaneFem-Info] Started module _getMaterialParameters()";
@@ -154,9 +157,10 @@ _getMaterialParameters()
  */
  /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleLinearOperator()
+void FemModulePoisson::_assembleLinearOperator()
 {
-  if (options()->linearSystem.serviceName() == "HypreLinearSystem")
+  if (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
+      options()->linearSystem.serviceName() == "PETScLinearSystem")
     _assembleLinearOperatorGpu();
   else
     _assembleLinearOperatorCpu();
@@ -177,7 +181,7 @@ void FemModule::_assembleLinearOperator()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleLinearOperatorGpu()
+void FemModulePoisson::_assembleLinearOperatorGpu()
 {
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperatorGpu()";
   Real elapsedTime = platform::getRealTime();
@@ -232,7 +236,7 @@ void FemModule::_assembleLinearOperatorGpu()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::_assembleLinearOperatorCpu()
+void FemModulePoisson::_assembleLinearOperatorCpu()
 {
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperatorCpu()";
   Real elapsedTime = platform::getRealTime();
@@ -291,7 +295,7 @@ void FemModule::_assembleLinearOperatorCpu()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModulePoisson::
 _assembleBilinearOperator()
 {
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
@@ -357,7 +361,7 @@ _assembleBilinearOperator()
 /*---------------------------------------------------------------------------*/
 
 template <int N>
-void FemModule::
+void FemModulePoisson::
 _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -387,7 +391,7 @@ _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_el
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModulePoisson::
 _solve()
 {
   info() << "[ArcaneFem-Info] Started module _solve()";
@@ -410,7 +414,7 @@ _solve()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModulePoisson::
 _updateVariables()
 {
   info() << "[ArcaneFem-Info] Started module _updateVariables()";
@@ -444,7 +448,7 @@ _updateVariables()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModule::
+void FemModulePoisson::
 _validateResults()
 {
   info() << "[ArcaneFem-Info] Started module _validateResults()";
@@ -467,7 +471,7 @@ _validateResults()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCANE_REGISTER_MODULE_FEM(FemModule);
+ARCANE_REGISTER_MODULE_FEM(FemModulePoisson);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

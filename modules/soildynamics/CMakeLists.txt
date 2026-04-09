@@ -46,28 +46,71 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/solution-comparison-file=check/test_2D_constant_traction.txt
     -A,//fem/petsc-flags=-ksp_monitor
     inputs/constant-traction.arc)
+
   add_test(NAME [soildynamics]2d_semi-circle_const_traction_pointbc COMMAND Soildynamics
     -A,//fem/solution-comparison-file=check/test_2D_constant_traction_pointbc.txt
     -A,//fem/petsc-flags=-ksp_view
     inputs/constant-traction.pointbc.arc)
+
   add_test(NAME [soildynamics]2d_semi-circle_paraxial_pointbc COMMAND Soildynamics
     -A,//fem/petsc-flags=-ksp_view
     inputs/semi-circle.paraxial.point-dirichlet.tria.arc)
+
   add_test(NAME [soildynamics]2d_semi-circle_paraxial_pointbc_quad COMMAND Soildynamics
     -A,//fem/petsc-flags=-ksp_view
     inputs/semi-circle.paraxial.point-dirichlet.quad.arc)
+
   add_test(NAME [soildynamics]2d_semi-circle_const-traction_pointbc_rowelim COMMAND Soildynamics
     -A,//fem/solution-comparison-file=check/test_2D_constant_traction_pointbc.txt
     -A,//fem/petsc-flags=-ksp_view\ -ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-10
     -A,//fem/boundary-conditions/dirichlet-point[1]/enforce-Dirichlet-method=RowElimination
     inputs/constant-traction.pointbc.arc)
+
   add_test(NAME [soildynamics]2d_semi-circle_transient_traction COMMAND Soildynamics
     -A,//fem/solution-comparison-file=check/test_2D_transient_traction.txt
     inputs/transient-traction.arc)
+
+  set(SOLVER_PETSC_DIRECT_CG
+  -A,//fem/linear-system/@name=PETScLinearSystem
+  -A,//fem/linear-system/solver=cg
+  -A,//fem/linear-system/atol=1e-9
+  -A,//fem/linear-system/rtol=0)
+
+  arcanefem_add_gpu_test(NAME [soildynamics]2d_semi-circle_const_traction_pointbc_petsc-direct_bsr COMMAND Soildynamics ARGS
+    -A,//fem/solution-comparison-file=check/test_2D_constant_traction_pointbc.txt
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_PETSC_DIRECT_CG}
+    inputs/constant-traction.pointbc.arc)
+
+  arcanefem_add_gpu_test(NAME [soildynamics]2d_double-couple_paraxial_body-force_petsc-direct_bsr COMMAND  ./Soildynamics ARGS
+    -A,//fem/solution-comparison-file=check/test_paraxial_body-force_results.txt
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_PETSC_DIRECT_CG}
+    inputs/double-couple.paraxial.body-force.arc)
+
+  arcanefem_add_gpu_test(NAME [soildynamics]2d_double-couple_paraxial_body-force_petsc-direct_af-bsr COMMAND  ./Soildynamics ARGS
+    -A,//fem/solution-comparison-file=check/test_paraxial_body-force_results.txt
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_PETSC_DIRECT_CG}
+    inputs/double-couple.paraxial.body-force.arc)
+
+  arcanefem_add_gpu_test(NAME [soildynamics]3d_double-couple_paraxial_soil_petsc-direct_bsr COMMAND  ./Soildynamics ARGS
+    -A,//fem/solution-comparison-file=check/3d_test_paraxial_double_couple.txt
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_PETSC_DIRECT_CG}
+    inputs/3d.double-couple.paraxial.soil.arc)
+
+  arcanefem_add_gpu_test(NAME [soildynamics]3d_double-couple_paraxial_soil_petsc-direct_af-bsr COMMAND  ./Soildynamics ARGS
+    -A,//fem/solution-comparison-file=check/3d_test_paraxial_double_couple.txt
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_PETSC_DIRECT_CG}
+    inputs/3d.double-couple.paraxial.soil.arc)
+
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [soildynamics]2d_semi-circle_const_traction_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics
       -A,//fem/solution-comparison-file=check/test_2D_constant_traction.txt
       inputs/constant-traction.arc)
+
     add_test(NAME [soildynamics]2d_semi-circle_transient_traction_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Soildynamics
       -A,//fem/solution-comparison-file=check/test_2D_transient_traction.txt
       inputs/transient-traction.arc)

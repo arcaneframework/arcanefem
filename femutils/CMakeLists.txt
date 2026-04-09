@@ -3,6 +3,7 @@ option(ENABLE_DEBUG_MATRIX "Enable Debug matrix instead of a sparse one" OFF)
 set(ACCELERATOR_SOURCES
   ArcaneFemFunctionsGpu.cc
   CsrDoFLinearSystemImpl.cc
+  CsrFormatMatrix.cc
   BSRFormat.cc
 )
 
@@ -14,6 +15,11 @@ if (TARGET Arcane::arcane_aleph_petsc)
   list(APPEND ACCELERATOR_SOURCES PETScDoFLinearSystem.cc)
 endif()
 
+find_package(Alien)
+if (Alien_FOUND)
+  list(APPEND ACCELERATOR_SOURCES AlienDoFLinearSystem.cc)
+endif()
+
 add_library(FemUtils
   FemUtils.h
   FemUtils.cc
@@ -22,7 +28,6 @@ add_library(FemUtils
   DoFLinearSystem.cc
   CooFormatMatrix.h
   CsrFormatMatrix.h
-  CsrFormatMatrix.cc
   CsrFormatMatrixView.h
   CsrFormatMatrixView.cc
   BSRFormat.h
@@ -44,6 +49,7 @@ add_library(FemUtils
   SequentialBasicDoFLinearSystemFactory_axl.h
   HypreDoFLinearSystemFactory_axl.h
   PETScDoFLinearSystemFactory_axl.h
+  AlienDoFLinearSystemFactory_axl.h
   FemBoundaryConditions_axl.h
   MeshTensorVariable.h
   MeshTensorVariable.H
@@ -61,6 +67,7 @@ arcane_generate_axl(AlephDoFLinearSystemFactory)
 arcane_generate_axl(SequentialBasicDoFLinearSystemFactory)
 arcane_generate_axl(HypreDoFLinearSystemFactory)
 arcane_generate_axl(PETScDoFLinearSystemFactory)
+arcane_generate_axl(AlienDoFLinearSystemFactory)
 arcane_generate_axl(FemBoundaryConditions)
 
 target_compile_definitions(FemUtils PRIVATE $<$<BOOL:${ENABLE_DEBUG_MATRIX}>:ENABLE_DEBUG_MATRIX>)
@@ -76,6 +83,20 @@ set(FEMUTILS_HAS_PARALLEL_SOLVER FALSE)
 set(FEMUTILS_HAS_PARALLEL_SOLVER_TRILINOS FALSE)
 set(FEMUTILS_HAS_PARALLEL_SOLVER_HYPRE FALSE)
 set(FEMUTILS_HAS_PARALLEL_SOLVER_PETSC FALSE)
+set(FEMUTILS_HAS_PARALLEL_SOLVER_ALIEN FALSE)
+
+if (Alien_FOUND)
+  find_package(Boost REQUIRED)
+  find_package(AlienPlugins REQUIRED)
+  target_link_libraries(FemUtils PRIVATE
+    Alien::alien_core
+    Alien::alien_semantic_ref
+    alien_arcane_tools
+    arcane_full
+  )
+  message(STATUS "Alien backend is available")
+  set(FEMUTILS_HAS_SOLVER_BACKEND_ALIEN TRUE)
+endif()
 
 if (TARGET Arcane::arcane_aleph_trilinos)
   set(FEMUTILS_HAS_PARALLEL_SOLVER TRUE)
@@ -130,3 +151,4 @@ set(FEMUTILS_HAS_PARALLEL_SOLVER ${FEMUTILS_HAS_PARALLEL_SOLVER} CACHE BOOL "Is 
 set(FEMUTILS_HAS_SOLVER_BACKEND_TRILINOS ${FEMUTILS_HAS_SOLVER_BACKEND_TRILINOS} CACHE BOOL "Is Trilinos solver available" FORCE)
 set(FEMUTILS_HAS_SOLVER_BACKEND_PETSC ${FEMUTILS_HAS_SOLVER_BACKEND_PETSC} CACHE BOOL "Is PETSc solver available" FORCE)
 set(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE ${FEMUTILS_HAS_SOLVER_BACKEND_HYPRE} CACHE BOOL "Is Hypre solver available" FORCE)
+set(FEMUTILS_HAS_SOLVER_BACKEND_ALIEN ${FEMUTILS_HAS_SOLVER_BACKEND_ALIEN} CACHE BOOL "Is Alien solver available" FORCE)
