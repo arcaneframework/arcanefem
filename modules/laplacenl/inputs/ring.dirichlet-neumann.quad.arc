@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<case codename="Laplace" xml:lang="en" codeversion="1.0">
+<case codename="LaplaceNL" xml:lang="en" codeversion="1.0">
   <arcane>
     <title>Ring geomerty with quad mesh and Dirichlet and Neumann conditions</title>
     <timeloop>LaplaceLoop</timeloop>

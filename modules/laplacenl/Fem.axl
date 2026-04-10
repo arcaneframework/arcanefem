@@ -52,7 +52,7 @@
         <description>Maximum number of the allowed fixed point iterations.</description>
     </simple>
 
-    <simple name="fp-tol" type ="real" default="1.e-6" optional="true">
+    <simple name="fp-tol" type ="real" default="1e-5" optional="true">
           <description>Tolerance for convergence of fixed point iterations</description>
     </simple>
 
