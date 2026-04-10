@@ -1,4 +1,4 @@
-// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
 // Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
@@ -212,6 +212,7 @@ _startInitGauss()
   max_gauss_per_cell = pm->reduce(Parallel::ReduceMax, max_gauss_per_cell);
   max_nbnodes_per_cell = pm->reduce(Parallel::ReduceMax, max_nbnodes_per_cell);
 
+  m_gauss_ref_position.reshape({max_gauss_per_cell});
   m_gauss_stress.reshape({max_gauss_per_cell});
   m_gauss_strain.reshape({max_gauss_per_cell});
   m_gauss_strainp.reshape({max_gauss_per_cell});
@@ -292,7 +293,7 @@ _startInitGauss()
             dPhi.y = 0.;
         }
         m_gauss_shape_deriv(cell,ig,inod) = NumVector<Real,3>(dPhi);
-        }
+      }
 
       // Setting the law parameters on Gauss points for use during iterations
 
