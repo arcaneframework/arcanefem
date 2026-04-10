@@ -41,8 +41,6 @@
               <value>1.0 0.0 0.0</value>
           </dirichlet>
       </boundary-conditions>
-    
-    <result-file>bar2d-tria.txt</result-file>
 
     <nonlin-algo-type>modnewtonraphson</nonlin-algo-type>
     <integration-type>femcell</integration-type>

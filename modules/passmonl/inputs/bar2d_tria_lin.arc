@@ -42,8 +42,6 @@
       </dirichlet>
     </boundary-conditions>
 
-    <result-file>bar2d-tria.txt</result-file>
-
     <nonlin-algo-type>linear</nonlin-algo-type>
     <integration-type>femcell</integration-type>
     <law-model>
