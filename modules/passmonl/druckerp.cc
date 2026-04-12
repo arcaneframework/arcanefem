@@ -191,7 +191,8 @@ void DruckPReadLawParams(RealUniqueArray* law_params, Real lambda, Real mu, bool
 
   // =========================================================================================================
   // Drucker-Prager model parameters stored in the lawparams vector:
-  // 0-Lambda=1st Lame coef.  1-Mu=2nd Lame coef.  2-phi(°)=friction angle 3-psi(°)=dilatancy angle
+  // 0-Lambda=1st Lame coef.  1-Mu=2nd Lame coef. =>not provided here as initialized with mesh data
+  // 2-phi(°)=friction angle 3-psi(°)=dilatancy angle
   // 4-cohesion (Pa) 5-incmax=max number of sub-increments for law integration
   // 6-indaux= indicator for tangent tensor type: 0 = elastic (default, symmetric),1 = plastic (unsymmetric)
   // =========================================================================================================
@@ -270,7 +271,8 @@ Tensor4 DruckPComputeStress(RealUniqueArray* law_params, RealUniqueArray* histor
   // Computing yield surface
   auto    fseuil = RJ2 + alfa*I1 - xk;
 
-  if (fabs(fseuil) < tol)
+//  if (fabs(fseuil) < tol)
+  if (fseuil < tol)
     is_plastic = false;
 
   else  {

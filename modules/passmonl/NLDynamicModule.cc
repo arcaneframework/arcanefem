@@ -262,7 +262,7 @@ _startInitGauss()
     RealUniqueArray lawparams(nblaw);
     cell_law.readLawParams(&lawparams, lambda, mu, is_default, m_law_param_file, ilaw);
 
-    m_law_param[cell] = lawparams;
+    m_law_param[cell].copy(lawparams);
 
     auto nbhist = cell_law.getNbLawHistoryParam();
 
@@ -1724,14 +1724,14 @@ _compute_stress(bool init, bool store)
       NumMatrix<Real,3,3> mepsn = m_gauss_prev_strain(cell, ig);
       NumMatrix<Real,3,3> mepspn = m_gauss_prev_strainp(cell, ig);
 
-      RealUniqueArray* lawhistparam{nullptr};
+      RealUniqueArray lawhistparam;
       if (nbhist > 0) {
-        lawhistparam->resize(nbhist);
+        lawhistparam.resize(nbhist);
         for (Int32 ip = 0; ip < nbhist; ++ip) {
-          (*lawhistparam)[ip] = m_law_hist_param(cell, ig,ip);
+          lawhistparam[ip] = m_law_hist_param(cell, ig,ip);
         }
       }
-      cell_law.setLawHistoryParams(lawhistparam);
+      cell_law.setLawHistoryParams(&lawhistparam);
 
       Tensor2 epsn, sign, epspn;
 
@@ -1799,7 +1799,7 @@ _compute_stress(bool init, bool store)
 
       if (nbhist > 0) {
         for (Int32 ip = 0; ip < nbhist; ++ip)
-          m_law_hist_param(cell,ig,ip) = (*lawhistparam)[ip];
+          m_law_hist_param(cell,ig,ip) = lawhistparam[ip];
       }
 
       // Current plastic strains and stresses have been updated by the law
