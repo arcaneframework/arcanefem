@@ -75,6 +75,12 @@
           Value of the point Dirichlet condition
         </description>
       </simple>
+      <simple name = "direction" type = "string[]" default="1 1 1" optional = "true">
+        <description>
+          Indicators for imposed point loading along x, y and z directions (useful for input file only):
+          NULL or 0 means no imposed loading ; 1 means loading
+        </description>
+      </simple>
       <simple name = "dirichlet-input-file" type = "string"  optional="true">
         <description>
           File containing time-history for point Dirichlet condition (four columns: (time,val_x,val_y,val_z))
@@ -109,6 +115,12 @@
       <simple name = "value" type = "string[]" default="NULL NULL NULL" optional = "true">
         <description>
           Value of the point Dirichlet condition
+        </description>
+      </simple>
+       <simple name = "direction" type = "string[]" default="1 1 1" optional = "true">
+         <description>
+           Indicators for imposed point loading along x, y and z directions (useful for input file only):
+           NULL or 0 means no imposed loading ; 1 means loading
         </description>
       </simple>
       <simple name = "dirichlet-input-file" type = "string"  optional="true">
@@ -176,6 +188,12 @@
       <simple name = "value" type = "string[]" default="NULL NULL NULL" optional = "true">
         <description>
           Value of the point condition
+        </description>
+      </simple>
+      <simple name = "direction" type = "string[]" default="1 1 1" optional = "true">
+        <description>
+          Indicators for imposed point loading along x, y and z directions (useful for input file only):
+          NULL or 0 means no imposed loading ; 1 means loading
         </description>
       </simple>
       <simple name = "point-input-file" type = "string"  optional="true">

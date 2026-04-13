@@ -2616,12 +2616,55 @@ _initBoundaryConditions()
   // Loop over all conditions: Dirichlet, Neumann, Point
   if (bc) {
     for (const auto& bs : bc->dirichletPointConditions()) {
+
+      NodeGroup nodes = bs->getNode();
       CaseTable* case_table = nullptr;
       auto table_file_name = bs->getDirichletInputFile();
       bool getFromTable = !table_file_name.empty();
-      if (getFromTable)
+      bool hasUx{false};
+      bool hasUy{false};
+      bool hasUz{false};
+
+      if (getFromTable) {
         case_table = readFileAsCaseTable(pm, table_file_name, 3);
+        const StringConstArrayView t_string = bs->getDirection();
+        if (t_string[0] == "1")  // x-direction is imposed
+          hasUx = true;
+
+        else if (t_string.size() > 1) {
+          if (t_string[1] == "1") // y-direction is imposed
+            hasUy = true;
+
+          if (t_string[2] == "1") // z-direction is imposed
+            hasUz = true;
+        }
+      }
+      else {
+        const StringConstArrayView t_string = bs->getValue();
+        if (t_string[0] != "NULL")  // x-value is provided
+          hasUx = true;
+
+        else if (t_string.size() > 1) {
+          if (t_string[1] != "NULL") // y-value is provided
+            hasUy = true;
+
+          if (t_string.size() > 2) // z-value is provided
+            if (t_string[2] != "NULL") hasUz = true;
+        }
+      }
+
       m_displ_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
+
+      // Loop on nodes
+      ENUMERATE_NODE (inode, nodes)
+      {
+        const Node& node = *inode;
+
+        m_imposed_displ[node].x = (hasUx == true);
+        m_imposed_displ[node].y = (hasUy == true);
+        m_imposed_displ[node].z = (hasUz == true);
+      }
+
       dirichletMethod = bs->getEnforceDirichletMethod().lower();
       if (!dirichletMethod.contains("penalty") && !dirichletMethod.contains("weak")
         && !dirichletMethod.contains("rowelim")
@@ -2641,12 +2684,61 @@ _initBoundaryConditions()
     }
 
     for (const auto& bs : bc->dirichletBoundaryConditions()) {
+      FaceGroup face_group = bs->getSurface();
+
       CaseTable* case_table = nullptr;
       auto table_file_name = bs->getDirichletInputFile();
       bool getFromTable = !table_file_name.empty();
-      if (getFromTable)
+      bool hasUx{false};
+      bool hasUy{false};
+      bool hasUz{false};
+
+      if (getFromTable) {
         case_table = readFileAsCaseTable(pm, table_file_name, 3);
+
+        const StringConstArrayView t_string = bs->getDirection();
+        if (t_string[0] == "1")  // x-direction is imposed
+          hasUx = true;
+
+        else if (t_string.size() > 1) {
+          if (t_string[1] == "1") // y-direction is imposed
+            hasUy = true;
+
+          if (t_string[2] == "1") // z-direction is imposed
+            hasUz = true;
+        }
+      }
+      else {
+        const StringConstArrayView t_string = bs->getValue();
+        if (t_string[0] != "NULL")  // x-value is provided
+          hasUx = true;
+
+        else if (t_string.size() > 1) {
+          if (t_string[1] != "NULL") // y-value is provided
+            hasUy = true;
+
+          if (t_string.size() > 2) // z-value is provided
+            if (t_string[2] != "NULL") hasUz = true;
+        }
+      }
+
       m_sdispl_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
+
+      // Loop on faces of the surface
+      ENUMERATE_FACE (j, face_group) {
+        const Face& face = *j;
+        Int32 nb_node = face.nbNode();
+
+        // Loop on nodes of the face
+        for (Int32 k = 0; k < nb_node; ++k) {
+          const Node& node = face.node(k);
+
+          m_imposed_displ[node].x = (hasUx == true);
+          m_imposed_displ[node].y = (hasUy == true);
+          m_imposed_displ[node].z = (hasUz == true);
+        }
+      }
+
       dirichletMethod = bs->getEnforceDirichletMethod().lower();
       if (!dirichletMethod.contains("penalty") && !dirichletMethod.contains("weak")
         && !dirichletMethod.contains("rowelim")
@@ -2686,66 +2778,80 @@ _initBoundaryConditions()
 
       if (getFromTable) {
         case_table = readFileAsCaseTable(pm, table_file_name, 3);
-        const StringConstArrayView t_string = bs->getValue();
-        if (t_string[0] != "NULL")  // x-direction is imposed
+
+        const StringConstArrayView t_string = bs->getDirection();
+        if (t_string[0] == "1")  // x-direction is imposed
           xdir = true;
 
         else if (t_string.size() > 1) {
-          if (t_string[1] != "NULL")
+          if (t_string[1] == "1") // y-direction is imposed
             ydir = true;
-          if (t_string[2] != "NULL")
+
+          if (t_string[2] == "1") // z-direction is imposed
             zdir = true;
         }
+      }
+      else {
+        const StringConstArrayView t_string = bs->getValue();
+        if (t_string[0] != "NULL")  // x-value is provided
+          xdir = true;
 
-        bool hasA{false};
-        bool hasV{false};
-        bool hasU{false};
-        bool hasF{false};
+        else if (t_string.size() > 1) {
+          if (t_string[1] != "NULL") // y-value is provided
+            ydir = true;
 
-        if (String str_typ = bs->getPointConditionType(); str_typ == "A") {
-          m_A_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
-          hasA = true;
+          if (t_string.size() > 2) // z-value is provided
+            if (t_string[2] != "NULL") zdir = true;
         }
-        else if (str_typ == "V") {
-          m_V_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
-          hasV = true;
-        }
-        else if (str_typ == "U") {
-          m_U_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
-          hasU = true;
-        }
-        else if (str_typ == "F") {
-          m_F_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
-          hasF = true;
-        }
+      }
 
-        // Loop on nodes
-        ENUMERATE_NODE (inode, nodes) {
-          const Node& node = *inode;
-          auto coord = m_node_coord[node];
-          auto num = node.uniqueId();
+      bool hasA{false};
+      bool hasV{false};
+      bool hasU{false};
+      bool hasF{false};
 
-          m_imposed_acc[node].x = (hasA && xdir ? 1 : 0);
-          m_imposed_acc[node].y = (hasA && ydir ? 1 : 0);
-          m_imposed_acc[node].z = (hasA && zdir ? 1 : 0);
+      if (String str_typ = bs->getPointConditionType(); str_typ == "A") {
+        m_A_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
+        hasA = true;
+      }
+      else if (str_typ == "V") {
+        m_V_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
+        hasV = true;
+      }
+      else if (str_typ == "U") {
+        m_U_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
+        hasU = true;
+      }
+      else if (str_typ == "F") {
+        m_F_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
+        hasF = true;
+      }
 
-          m_imposed_vel[node].x = (hasV && xdir ? 1 : 0);
-          m_imposed_vel[node].y = (hasV && ydir ? 1 : 0);
-          m_imposed_vel[node].z = (hasV && zdir ? 1 : 0);
+      // Loop on nodes
+      ENUMERATE_NODE (inode, nodes) {
+        const Node& node = *inode;
 
-          m_imposed_displ[node].x = (hasU && xdir ? 1 : 0);
-          m_imposed_displ[node].y = (hasU && ydir ? 1 : 0);
-          m_imposed_displ[node].z = (hasU && zdir ? 1 : 0);
+        m_imposed_acc[node].x = (hasA && xdir ? 1 : 0);
+        m_imposed_acc[node].y = (hasA && ydir ? 1 : 0);
+        m_imposed_acc[node].z = (hasA && zdir ? 1 : 0);
 
-          m_imposed_force[node].x = (hasF && xdir ? 1 : 0);
-          m_imposed_force[node].y = (hasF && ydir ? 1 : 0);
-          m_imposed_force[node].z = (hasF && zdir ? 1 : 0);
-        }
+        m_imposed_vel[node].x = (hasV && xdir ? 1 : 0);
+        m_imposed_vel[node].y = (hasV && ydir ? 1 : 0);
+        m_imposed_vel[node].z = (hasV && zdir ? 1 : 0);
+
+        m_imposed_displ[node].x = (hasU && xdir ? 1 : 0);
+        m_imposed_displ[node].y = (hasU && ydir ? 1 : 0);
+        m_imposed_displ[node].z = (hasU && zdir ? 1 : 0);
+
+        m_imposed_force[node].x = (hasF && xdir ? 1 : 0);
+        m_imposed_force[node].y = (hasF && ydir ? 1 : 0);
+        m_imposed_force[node].z = (hasF && zdir ? 1 : 0);
       }
     }
 
     for (const auto& bs : bc->paraxialBoundaryConditions())
       ++m_num_parax;
+
     is_a.resize(m_num_parax,false);
     is_v.resize(m_num_parax,false);
     is_u.resize(m_num_parax,false);

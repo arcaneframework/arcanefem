@@ -21,6 +21,7 @@ class IDirichletPointCondition
  public:
   virtual Arcane::NodeGroup getNode() =0;
   virtual StringConstArrayView getValue() =0;
+  virtual StringConstArrayView getDirection() =0;
   virtual Real getPenalty() =0;
   virtual String getDirichletInputFile() =0;
   virtual String getEnforceDirichletMethod() =0;
@@ -31,6 +32,7 @@ class IDirichletBoundaryCondition
  public:
   virtual Arcane::FaceGroup getSurface() =0;
   virtual StringConstArrayView getValue() =0;
+  virtual StringConstArrayView getDirection() =0;
   virtual Real getPenalty() =0;
   virtual String getDirichletInputFile() =0;
   virtual String getEnforceDirichletMethod() =0;
@@ -70,6 +72,7 @@ class IPointCondition
 public:
   virtual Arcane::NodeGroup getNode() =0;
   virtual StringConstArrayView getValue() =0;
+  virtual StringConstArrayView getDirection() =0;
   virtual String getPointInputFile() =0;
   virtual String getPointConditionType() =0;
 };
