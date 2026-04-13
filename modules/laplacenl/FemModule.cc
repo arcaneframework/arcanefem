@@ -128,7 +128,7 @@ _doStationarySolve()
     _updatePreviousIterationVariables();
     while(m_fp_iter < m_max_fp_iters){
       if(m_assemble_linear_system){
-        _updateNonLinearFluxField(); // evaluates nlin(uk)
+        _updateNonLinearField(); // evaluates nlin(uk)
         _assembleLinearOperator(); // Now adds nlin(uk) to b
       }
       if (m_solve_linear_system){
@@ -427,8 +427,6 @@ _solve()
 }
 
 
-
-
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Check for convergence and Update the FEM variables.
@@ -518,7 +516,7 @@ _updateVariables()
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Update the FEM nonlinear flux field.
+ * @brief Update the FEM nonlinear field.
  *
  * This method performs the following actions:
  *   1. Evaluates the values of the nonlinear FEM field from the
@@ -528,9 +526,9 @@ _updateVariables()
 /*---------------------------------------------------------------------------*/
 
 void FemModuleLaplaceNL::
-_updateNonLinearFluxField()
+_updateNonLinearField()
 {
-  info() << "[ArcaneFem-Module] Started module _updateVariables()";
+  info() << "[ArcaneFem-Module] Started module _updateNonLinearField()";
   Real elapsedTime = platform::getRealTime();
   m_uk.synchronize();
   {
@@ -580,6 +578,7 @@ _updatePreviousIterationVariables()
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-previous-iteration-variables", elapsedTime);
 }
 
+/*---------------------------------------------------------------------------*/
 /**
  * @brief Reinitialize the solution vector of the linear solve with the FEM variables.
  *
@@ -610,7 +609,6 @@ _updateSolutionFromVariables()
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "_update-solution-from-variables", elapsedTime);
 }
-/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 /**

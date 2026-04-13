@@ -80,14 +80,17 @@
     </complex>
 
     <!-- - - - - - nonlinear-analysis-parameters - - - - -->
-    <simple name="perform-nlin-iters" type="bool" default="true" optional="true">
+    <simple name="perform-fp-iters" type="bool" default="true" optional="true">
       <description>Boolean to enable fixed-point (outer Picard) iterations.</description>
     </simple>
     <simple name="fp-tol" type ="real" default="1e-3" optional="true">
       <description>Tolerance for convergence of fixed point iterations</description>
     </simple>
-    <simple name="fp-max-iters" type="integer" default="15" optional="true">
+    <simple name="max-fp-iters" type="integer" default="15" optional="true">
       <description>Maximum number of iterations to convergence</description>
+    </simple>
+    <simple name="exp-nlin" type ="real" default="2" optional="true">
+      <description>Exponent of the test non linear function</description>
     </simple>
 
     <!-- Linear system service instance -->

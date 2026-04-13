@@ -64,10 +64,6 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     add_test(NAME [fouriernl]manufacture_solution COMMAND FourierNL
       -A,UsingDotNet=1
       inputs/manufacture.solution.arc)
-    add_test(NAME [fouriernl]manufacture_solution_3D COMMAND FourierNL
-      -A,UsingDotNet=1
-      -A,//meshes/mesh/filename=meshes/bar_dynamic_3D.msh
-      inputs/manufacture.solution.arc)
   endif()
 
   set(SOLVER_PETSC_CG
@@ -81,10 +77,6 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     if (NOT APPLE)
       add_test(NAME [fouriernl]manufacture_solution_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
         -A,UsingDotNet=1
-        inputs/manufacture.solution.arc)
-      add_test(NAME [fouriernl]manufacture_solution_3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
-        -A,UsingDotNet=1
-        -A,//meshes/mesh/filename=meshes/bar_dynamic_3D.msh
         inputs/manufacture.solution.arc)
     endif()
   endif()

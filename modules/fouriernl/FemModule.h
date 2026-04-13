@@ -83,6 +83,9 @@ class FemModuleFourierNL
   Real lambda;
   Real qdot;
   Real ElementNodes;
+  Real m_fp_tol{1e-3};
+
+  Int32 m_max_fp_iters{15}, m_fp_iter{0};
 
   String m_petsc_flags;
   String m_matrix_format = "DOK";
@@ -91,6 +94,8 @@ class FemModuleFourierNL
   bool m_solve_linear_system = true;
   bool m_cross_validation = false;
   bool m_hex_quad_mesh = false;
+  bool m_perform_fixed_point_iters = false;
+  bool m_converged = false;
 
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
@@ -104,6 +109,11 @@ class FemModuleFourierNL
   void _assembleLinearOperatorCpu();
   void _validateResults();
   void _updateVariables();
+  void _updatePreviousIterationVariables();
+  void _updateSolutionFromVariables();
+  void _checkConvergence();
+  void _updateNonLinearField();
+
 
   RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
   RealMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);
@@ -111,6 +121,8 @@ class FemModuleFourierNL
   RealMatrix<8, 8> _computeElementMatrixHexa8(Cell cell);
   IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_dirichlet = nullptr;
   IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_source = nullptr;
+  IBinaryMathFunctor<Real, Real3, Real>* m_exact_solution = nullptr;
+  IBinaryMathFunctor<Real, Real3, Real>* m_lambda_func = nullptr;
 
   template<int N>
   void _assembleBilinear( const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);

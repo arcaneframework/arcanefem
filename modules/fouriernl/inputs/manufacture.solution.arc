@@ -26,7 +26,7 @@
   -->
   <meshes>
     <mesh>
-      <filename>meshes/square_-2pi_to_2pi.msh</filename>
+      <filename>meshes/unit_square.msh</filename>
     </mesh>
   </meshes>
 
@@ -54,13 +54,26 @@
   -->
   <fem>
     <boundary-conditions>
-      <manufactured-solution>
+    <!--  <manufactured-solution>
        <manufactured-dirichlet function="manufacturedDirichlet">true</manufactured-dirichlet>
        <manufactured-source function="manufacturedSource">true</manufactured-source>
        <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
       </manufactured-solution>
+    -->
+        <dirichlet>
+            <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+            <penalty>1.e12</penalty>
+            <surface>left</surface>
+            <value>0.0</value>
+        </dirichlet>
+        <dirichlet>
+            <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+            <penalty>1.e12</penalty>
+            <surface>right</surface>
+            <value>1.0</value>
+        </dirichlet>
     </boundary-conditions>
-    <lambda>1.0</lambda>
+    <lambda>2.0</lambda>
   </fem>
 
   <!--

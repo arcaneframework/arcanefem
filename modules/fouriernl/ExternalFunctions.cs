@@ -29,7 +29,8 @@ namespace FemModuleFourierNL
     public
     Real manufacturedDirichlet(Real lambda, Real3 position)
     {
-      return lambda * (System.Math.Sin(position.x)  +  System.Math.Cos(position.y));
+//       return lambda * (System.Math.Sin(position.x)  +  System.Math.Cos(position.y));
+      return System.Math.Pow( (System.Math.Pow(2, lambda + 1) - 1) * position.x + 1, 1 / (lambda + 1) ) - 1;
     }
     public
 

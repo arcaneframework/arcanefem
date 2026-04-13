@@ -13,6 +13,7 @@
 
 #include "FemModule.h"
 #include "ElementMatrix.h"
+#include <arcane/IParallelMng.h>
 #include "ElementMatrixHexQuad.h"
 
 /*---------------------------------------------------------------------------*/
@@ -38,6 +39,14 @@ startInit()
   m_cross_validation = options()->hasSolutionComparisonFile();
   m_petsc_flags = options()->petscFlags();
   m_hex_quad_mesh = options()->hexQuadMesh();
+
+  m_perform_fixed_point_iters = options()->performFpIters();
+  if(!m_perform_fixed_point_iters) {
+    m_max_fp_iters = 1;
+  } else {
+    m_max_fp_iters = options()->maxFpIters();
+  }
+  m_fp_tol = options()->fpTol();
 
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
@@ -133,17 +142,35 @@ compute()
 void FemModuleFourierNL::
 _doStationarySolve()
 {
-  _getMaterialParameters();
-  if(m_assemble_linear_system){
-    _assembleBilinearOperator();
-    _assembleLinearOperator();
-  }
+  info() << "[ArcaneFem-Info] Started module _doStationarySolve()";
 
-  if(m_solve_linear_system){
-    _solve();
-    _updateVariables();
-  }
+  _updatePreviousIterationVariables();
+  while(m_fp_iter < m_max_fp_iters){
+    if(m_assemble_linear_system){
+      _updateNonLinearField(); // evaluates lamda(uk)
+      _assembleBilinearOperator();
+      _assembleLinearOperator(); // TODO move outside while loop
+    }
+    if (m_solve_linear_system){
+      _solve();
+      _updateVariables();
+    }
 
+    ++m_fp_iter;
+    _checkConvergence();
+
+    if(m_converged){
+      info() << "[ArcaneFem-FP-iters] Fixed-point iterations converged after " << m_fp_iter << " iterations";
+      break;
+    } else{
+      _updatePreviousIterationVariables(); // copy u_dof into uk for next iteration convergence check
+      _updateSolutionFromVariables(); // copy u into u_dof to update initial guess for linear solve TODO See how to use swap instead of deep copy
+    }
+  }
+  if (m_fp_iter == m_max_fp_iters && !m_converged){
+    info() << "[ArcaneFem-FP-iters] Fixed-point iterations did not converge after maximum (" << m_max_fp_iters << ") iterations";
+    ARCANE_FATAL("Fixed-point iterations diverged after max iters");
+  }
   if(m_cross_validation){
     _validateResults();
   }
@@ -462,6 +489,61 @@ _solve()
 
 /*---------------------------------------------------------------------------*/
 /**
+ * @brief Check for convergence and Update the FEM variables.
+ *
+ * This method performs the following actions:
+ *   1. Updates the FEM solutions from the solutions of linear solver on DOF
+ *   2. Evaluates the error w.r.t the guess FEM variables using max norm
+ *   3. Checks for convergence
+ *   4. Updates guess or ends fixed point iterations
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleFourierNL::
+_checkConvergence()
+{
+  info() << "[ArcaneFem-Module] Started module _checkConvergence()";
+  Real elapsedTime = platform::getRealTime();
+
+  Real max_error = 0, max_ref = 0;
+  Real l1_error = 0, l1_ref = 0;
+  {
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      const Real error = abs(m_u[inode] - m_uk[inode]);
+
+      max_error = math::max(error, max_error);
+      l1_error  += error;
+
+      max_ref   = math::max( abs(m_uk[inode]), max_ref );
+      l1_ref    += abs(m_uk[inode]);
+    }
+  }
+  IParallelMng* pm = defaultMesh()->parallelMng();
+  max_error = pm->reduce(Parallel::ReduceMax, max_error);
+  max_ref   = pm->reduce(Parallel::ReduceMax, max_ref);
+  l1_error  = pm->reduce(Parallel::ReduceSum, l1_error);
+  l1_ref    = pm->reduce(Parallel::ReduceSum, l1_ref);
+
+  if (max_ref == 0){ max_ref += 1e-12;}
+  max_error = max_error / max_ref;
+
+  if (l1_ref == 0){ l1_ref += 1e-12;}
+  l1_error = l1_error / l1_ref;
+
+  if ( max_error > m_fp_tol || l1_error > m_fp_tol){
+    m_converged = false;
+  } else {
+    m_converged = true;
+  }
+  info() << "[ArcaneFem-FP-iters] At fixed-point iteration "<< m_fp_iter <<": linf(max)-error = " << max_error << " and l1-error = " << l1_error;
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "check-convergence", elapsedTime);
+}
+
+
+/*---------------------------------------------------------------------------*/
+/**
  * @brief Update the FEM variables.
  *
  * This method performs the following actions:
@@ -502,6 +584,106 @@ _updateVariables()
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "update-variables", elapsedTime);
 }
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Update the FEM nonlinear field.
+ *
+ * This method performs the following actions:
+ *   1. Evaluates the values of the nonlinear FEM field from the
+ *      previous fixed-point iteration FEM variables.
+ *   2. Performs synchronize of FEM nonlinear FEM field across subdomains.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleFourierNL::
+_updateNonLinearField()
+{
+  info() << "[ArcaneFem-Module] Started module _updateNonLinearField()";
+  Real elapsedTime = platform::getRealTime();
+  m_uk.synchronize();
+  {
+    VariableDoFReal& dof_u(m_linear_system.solutionVariable());
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    ENUMERATE_ (Node, inode, ownNodes())
+    {
+      m_node_lambda[inode] = math::pow( 1 + m_uk[inode], options()->expNlin);
+    }
+  }
+  m_node_lambda.synchronize();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
+}
+
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Update the previous fixed-point iteration FEM variables.
+ *
+ * This method performs the following actions:
+ *   1. Fetches values of linear solution vector to the previous
+ *      fixed-point iteration FEM variable, i.e., it copies RHS DOF to uk.
+ *   2. Performs synchronize of the previous fixed-point iteration FEM
+ *      variable across subdomains.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleFourierNL::
+_updatePreviousIterationVariables()
+{
+  info() << "[ArcaneFem-Module] Started module _updatePreviousIterationVariables()";
+  Real elapsedTime = platform::getRealTime();
+
+  {
+    VariableDoFReal& dof_u(m_linear_system.solutionVariable());
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      m_uk[node] = dof_u[node_dof.dofId(node, 0)];
+    }
+  }
+
+  m_uk.synchronize();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-previous-iteration-variables", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Reinitialize the solution vector of the linear solve with the FEM variables.
+ *
+ * This method performs the following actions:
+ *   1. Performs synchronize of FEM variables across subdomains.
+ *   2. Fetches the FEM variables to the solution vector of the
+ *      linear solver for next fixed point iteration.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleFourierNL::
+_updateSolutionFromVariables()
+{
+  info() << "[ArcaneFem-Module] Started module _updateSolutionFromVariables()";
+  Real elapsedTime = platform::getRealTime();
+
+  m_u.synchronize();
+
+  {
+    VariableDoFReal& dof_u(m_linear_system.solutionVariable());
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      dof_u[node_dof.dofId(node, 0)] = m_u[node];
+    }
+  }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "_update-solution-from-variables", elapsedTime);
+}
+/*---------------------------------------------------------------------------*/
+
+
 
 /*---------------------------------------------------------------------------*/
 /**
