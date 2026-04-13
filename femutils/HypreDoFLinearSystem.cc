@@ -482,7 +482,7 @@ solve()
     VariableUtils::prefetchVariableAsync(rhs_variable, &q);
     VariableUtils::prefetchVariableAsync(dof_variable, &q);
   }
-//  Span<const Int32> rows_nb_column_span = csr_view.rowsNbColumn();
+  //  Span<const Int32> rows_nb_column_span = csr_view.rowsNbColumn();
   if (is_use_device && is_use_device_memory) {
     _doCopy(na_rows_index, rows_index_span, &q);
     _doCopy(na_columns_index, columns_index_span, &q);
@@ -498,14 +498,13 @@ solve()
   {
     auto command = makeCommand(q);
     auto rows_nb_column_data = viewOut(command, na_rows_nb_column_data);
-//    command << RUNCOMMAND_LOOP1(i, nb_row)
+    //    command << RUNCOMMAND_LOOP1(i, nb_row)
     command << RUNCOMMAND_LOOP1(iter, nb_row)
     {
-      auto [i] = iter();
+      auto [i] = iter();  // TODO: not needed in new Arcane versions
       rows_nb_column_data[i] = csr_view.nbColumnForRow(i);
     };
   }
-
   {
     Timer::Action ta1(tstat, "HypreLinearSystemBuildMatrix");
     // GPU pointers; efficient in large chunks //
