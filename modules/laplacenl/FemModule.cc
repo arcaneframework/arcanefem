@@ -18,13 +18,13 @@
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Initializes the FemModuleLaplace at the start of the simulation.
+ * @brief Initializes the FemModuleLaplaceNL at the start of the simulation.
  *
  * This method initializes degrees of freedom (DoFs) on nodes.
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModuleLaplace::
+void FemModuleLaplaceNL::
 startInit()
 {
   info() << "[ArcaneFem-Info] Started module startInit()";
@@ -48,7 +48,7 @@ startInit()
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Performs the main computation for the FemModuleLaplace.
+ * @brief Performs the main computation for the FemModuleLaplaceNL.
  *
  * This method:
  *   1. Stops the time loop after 1 iteration since the equation is steady state.
@@ -57,7 +57,7 @@ startInit()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModuleLaplace::
+void FemModuleLaplaceNL::
 compute()
 {
   info() << "[ArcaneFem-Info] Started module compute()";
@@ -107,7 +107,7 @@ compute()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModuleLaplace::
+void FemModuleLaplaceNL::
 _doStationarySolve()
 {
   info() << "[ArcaneFem-Info] Started module _doStationarySolve()";
@@ -169,7 +169,7 @@ _doStationarySolve()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModuleLaplace::_assembleLinearOperator()
+void FemModuleLaplaceNL::_assembleLinearOperator()
 {
   if (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
       options()->linearSystem.serviceName() == "PETScLinearSystem")
@@ -192,7 +192,7 @@ void FemModuleLaplace::_assembleLinearOperator()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModuleLaplace::
+void FemModuleLaplaceNL::
 _assembleLinearOperatorCpu()
 {
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperator()";
@@ -265,7 +265,7 @@ _assembleLinearOperatorCpu()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModuleLaplace::_assembleLinearOperatorGpu()
+void FemModuleLaplaceNL::_assembleLinearOperatorGpu()
 {
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperatorGpu()";
   Real elapsedTime = platform::getRealTime();
@@ -329,7 +329,7 @@ void FemModuleLaplace::_assembleLinearOperatorGpu()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModuleLaplace::
+void FemModuleLaplaceNL::
 _assembleBilinearOperator()
 {
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
@@ -384,7 +384,7 @@ _assembleBilinearOperator()
 /*---------------------------------------------------------------------------*/
 
 template <int N>
-void FemModuleLaplace::
+void FemModuleLaplaceNL::
 _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -414,7 +414,7 @@ _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_el
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModuleLaplace::
+void FemModuleLaplaceNL::
 _solve()
 {
   info() << "[ArcaneFem-Info] Started module _solve()";
@@ -441,7 +441,7 @@ _solve()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModuleLaplace::
+void FemModuleLaplaceNL::
 _checkConvergence()
 {
   info() << "[ArcaneFem-Module] Started module _checkConvergence()";
@@ -494,7 +494,7 @@ _checkConvergence()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModuleLaplace::
+void FemModuleLaplaceNL::
 _updateVariables()
 {
   info() << "[ArcaneFem-Module] Started module _updateVariables()";
@@ -527,7 +527,7 @@ _updateVariables()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModuleLaplace::
+void FemModuleLaplaceNL::
 _updateNonLinearFluxField()
 {
   info() << "[ArcaneFem-Module] Started module _updateVariables()";
@@ -559,7 +559,7 @@ _updateNonLinearFluxField()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModuleLaplace::
+void FemModuleLaplaceNL::
 _updatePreviousIterationVariables()
 {
   info() << "[ArcaneFem-Module] Started module _updatePreviousIterationVariables()";
@@ -590,7 +590,7 @@ _updatePreviousIterationVariables()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModuleLaplace::
+void FemModuleLaplaceNL::
 _updateSolutionFromVariables()
 {
   info() << "[ArcaneFem-Module] Started module _updateSolutionFromVariables()";
@@ -625,7 +625,7 @@ _updateSolutionFromVariables()
  */
 /*---------------------------------------------------------------------------*/
 
-void FemModuleLaplace::
+void FemModuleLaplaceNL::
 _validateResults()
 {
   info() << "[ArcaneFem-Info] Started module _validateResults()";
@@ -650,7 +650,7 @@ _validateResults()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCANE_REGISTER_MODULE_FEM(FemModuleLaplace);
+ARCANE_REGISTER_MODULE_FEM(FemModuleLaplaceNL);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

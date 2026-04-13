@@ -7,7 +7,7 @@
 /*---------------------------------------------------------------------------*/
 /* FemModule.h                                                 (C) 2022-2025 */
 /*                                                                           */
-/* FemModuleLaplace class definition.                                               */
+/* FemModuleLaplaceNL class definition.                                               */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 #ifndef FEMMODULES_H
@@ -57,12 +57,12 @@ namespace ax = Arcane::Accelerator;
  */
 /*---------------------------------------------------------------------------*/
 
-class FemModuleLaplace
+class FemModuleLaplaceNL
 : public ArcaneFemObject
 {
  public:
 
-  explicit FemModuleLaplace(const ModuleBuildInfo& mbi)
+  explicit FemModuleLaplaceNL(const ModuleBuildInfo& mbi)
   : ArcaneFemObject(mbi)
   , m_dofs_on_nodes(mbi.subDomain()->traceMng())
   , m_bsr_format(mbi.subDomain()->traceMng(), *(mbi.subDomain()->acceleratorMng()->defaultQueue()), m_dofs_on_nodes)

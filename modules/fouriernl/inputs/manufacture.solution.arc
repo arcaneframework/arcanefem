@@ -39,7 +39,7 @@
   <functions>
     <external-assembly>
       <assembly-name>ExternalFunctions.dll</assembly-name>
-      <class-name>FemModuleFourier.CaseFunctions</class-name>
+      <class-name>FemModuleFourierNL.CaseFunctions</class-name>
     </external-assembly>
   </functions>
 

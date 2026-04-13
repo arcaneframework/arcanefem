@@ -15,7 +15,6 @@ configure_file(FourierNL.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(FourierNL PUBLIC FemUtils)
 
-
 find_program(ARCANE_DOTNET_COMPILE
   NAMES arcane_dotnet_compile
   PATHS ${ARCANE_PREFIX_DIR}/bin
@@ -24,7 +23,7 @@ find_program(ARCANE_DOTNET_COMPILE
 if (NOT APPLE AND ARCANE_DOTNET_COMPILE
     AND EXISTS "${ARCANE_PREFIX_DIR}/lib/Arcane.Core.dll"
     AND EXISTS "${ARCANE_PREFIX_DIR}/lib/Arcane.Utils.dll")
-  message(STATUS "Arcane .NET support detected — building ExternalFunctions.dll")
+    message(STATUS "Arcane .NET support detected — building ExternalFunctions.dll")
 
   add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctions.dll"
     COMMAND ${ARCANE_DOTNET_COMPILE} "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctions.cs"
@@ -51,8 +50,9 @@ file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 # Copy the mesh files into meshes directory
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
-  square_-2pi_to_2pi.msh
-  )
+    unit_square.msh
+    unit_cube.msh)
+
 foreach(MESH_FILE IN LISTS MESH_FILES)
     file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 endforeach()

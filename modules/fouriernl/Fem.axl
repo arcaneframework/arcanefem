@@ -15,6 +15,9 @@
     <variable field-name="u" name="U" data-type="real" item-kind="node" dim="0">
       <description>FEM variable u on nodes</description>
     </variable>
+    <variable field-name="uk" name="Uk" data-type="real" item-kind="node" dim="0">
+      <description>FEM variable uk (from previous nlin iter) on nodes </description>
+    </variable>
     <variable field-name="u_exact" name="UExact" data-type="real" item-kind="node" dim="0" optional="true">
       <description>manufactured FEM solution on nodes</description>
     </variable>
@@ -75,6 +78,17 @@
         </description>
       </simple>
     </complex>
+
+    <!-- - - - - - nonlinear-analysis-parameters - - - - -->
+    <simple name="perform-nlin-iters" type="bool" default="true" optional="true">
+      <description>Boolean to enable fixed-point (outer Picard) iterations.</description>
+    </simple>
+    <simple name="fp-tol" type ="real" default="1e-3" optional="true">
+      <description>Tolerance for convergence of fixed point iterations</description>
+    </simple>
+    <simple name="fp-max-iters" type="integer" default="15" optional="true">
+      <description>Maximum number of iterations to convergence</description>
+    </simple>
 
     <!-- Linear system service instance -->
     <service-instance name="linear-system" type="Arcane::FemUtils::IDoFLinearSystemFactory" default="AlephLinearSystem" />

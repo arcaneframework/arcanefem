@@ -22,7 +22,7 @@ using System;
 using Arcane;
 using Real = System.Double;
 
-namespace FemModuleFourier
+namespace FemModuleFourierNL
 {
   public class CaseFunctions
   {
