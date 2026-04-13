@@ -170,6 +170,7 @@ _getMaterialParameters()
   qdot = options()->qdot();
 
   m_cell_lambda.fill(lambda);
+  m_node_lambda.fill(0.);
 
   for (const auto& bs : options()->materialProperty()) {
     CellGroup group = bs->volume();

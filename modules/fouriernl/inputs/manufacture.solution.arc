@@ -8,7 +8,7 @@
     - Post-processing options
     - External function definitions
 -->
-<case codename="Fourier" xml:lang="en" codeversion="1.0">
+<case codename="FourierNL" xml:lang="en" codeversion="1.0">
 
   <!--
     Arcane-specific settings:
@@ -17,7 +17,7 @@
   -->
   <arcane>
     <title>Fouriers equation FEM code with maufactured solution</title>
-    <timeloop>FourierLoop</timeloop>
+    <timeloop>FourierNLLoop</timeloop>
   </arcane>
 
   <!--

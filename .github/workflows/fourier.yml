@@ -4,11 +4,11 @@ on:
   push:
     branches: [ main ]
     paths:
-      - modules/fourier/**
+      - ../../modules/testnl/**
   pull_request:
     branches: [ main ]
     paths:
-      - modules/fourier/**
+      - ../../modules/testnl/**
   workflow_dispatch:
 
 env:
