@@ -51,11 +51,11 @@ Once you compile the Poisson module. Look out for three things in the folder:
 - `meshes` folder contains meshes that are needed by the solver
 - `inputs` folder contains input parameters for setting up a test case for the Poisson solver
 
-Let us see how to set up a test cases in 2D. The file `inputs/circle.arc` is used here for demonstatation
+Let us see how to set up a test cases in 2D. The file `inputs/circle.2D.arc` is used here for demonstration
 
 #### Mesh ####
 
-The mesh `circle_cut.msh` is provided in the `circle.arc` file
+The mesh `circle_cut.msh` is provided in the `inputs/circle.2D.arc` file
 
 ```xml
   <meshes>
@@ -68,7 +68,7 @@ Please not that use version 4.1 `.msh` file from `Gmsh`.
 
 #### properties ###
 
-The value of constant source term $\mathcal{f}$  can be provided in  `circle.arc` file
+The value of constant source term $\mathcal{f}$  can be provided in  `circle.2D.arc` file
 
 ```xml
   <fem>
@@ -79,7 +79,7 @@ The value of constant source term $\mathcal{f}$  can be provided in  `circle.arc
 
 #### Boundary conditions ####
 
-The Dirichlet boundary conditions  are provided in `circle.arc` file
+The Dirichlet boundary conditions  are provided in `circle.2D.arc` file
 
 ```xml
     <boundary-conditions>
@@ -92,15 +92,15 @@ The Dirichlet boundary conditions  are provided in `circle.arc` file
 
 So in the snippet above, three Dirichlet condition $u=0.5$ is  applied to border ('horizontal') which is a group of edges in the mesh file `circle_cut.msh`.
 
-If needed, the Neumann  boundary conditions  can also be provided in `circle.arc` file
+If needed, the Neumann  boundary conditions  can also be provided in `circle.2D.arc` file
 
 ```xml
-    <neumann-conditions>
-      <dirichlet>
+    <boundary-conditions>
+      <neumann>
         <surface>other</surface>
         <value>0.0</value>
-      </dirichlet>
-    </neumann-conditions>
+      </neumann>
+    </boundary-conditions>
 ```
 
 
@@ -110,7 +110,7 @@ If needed, the Neumann  boundary conditions  can also be provided in `circle.arc
 
 <img align="left" width="200" src="https://github.com/user-attachments/assets/66b9449e-e2f7-4607-b910-231def7d2f67" alt="poisson_1_large" />
 <img align="left" width="200" src="https://github.com/user-attachments/assets/a68dd3d8-3f9f-424e-8d6a-33e34e41c04b" alt="poisson_1_large" />
-Post processing is controled via 
+Post processing is controlled via 
 
 ```xml
   <arcane-post-processing>

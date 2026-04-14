@@ -45,12 +45,12 @@ $\int_{\Omega^h_{{N}}}(\mathbf{q} \cdot \mathbf{n}) v^h=0$
 
 #### Mesh ####
 
-The mesh `plancher.msh` is provided in the `Test.ring.arc` file
+The triangulated mesh `ring.msh` is provided as `<filename>` in  the ArcaneFEM input `inputs/ring.arc` file
 
 ```xml
   <meshes>
     <mesh>
-      <filename>ring.msh</filename>
+      <filename>meshes/ring.msh</filename>
     </mesh>
   </meshes>
 ```
@@ -59,31 +59,31 @@ Please not that use version 4.1 `.msh` file from `Gmsh`.
 
 #### Boundary conditions ####
 
-The Dirichlet (constant $u$) boundary conditions  are provided in `Test.ring.arc` file
+The Dirichlet (constant $u$) boundary conditions  are provided in `inputs/ring.arc` file
 
 ```xml
-    <dirichlet-boundary-condition>
-      <surface>inner</surface>
-      <value>50.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>outer</surface>
-      <value>20.0</value>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>inner</surface>
+        <value>50.0</value>
+      </dirichlet>
+      <dirichlet>
+        <surface>outer</surface>
+        <value>20.0</value>
+      </dirichlet>
+    </boundary-conditions>
 ```
 
 So in the snippet above, three Dirichlet conditions are applied ($50, 20.0$)  on three borders ('inner', 'outer') for the loaded mes `ring.msh`.
 
-The Neumann  boundary conditions  are absent but could be provided in such a way
+The Neumann  boundary conditions  are absent but could be provided in such a way within the `<boundary-conditions>` block
 
 ```xml
-    <neumann-boundary-condition>
+    <neumann>
       <surface>outer</surface>
       <value>16.0</value>
-    </neumann-boundary-condition>
+    </neumann>
 ```
-
-
 
 #### Post Process ####
 
@@ -91,9 +91,9 @@ For post processing the `Mesh0.hdf` file is outputted (in `output/depouillement/
 
 
 
-#### Tests available in this module ####
+#### Other tests available in this module ####
 
-The tests are present in the form of `.arc` files with a prefix `Test.`:
+The tests are present in the form of `.arc`:
 
 | Name                   | Dimension | Boundary Condition          | Solver               | Comment                     |
 | ---------------------- | --------- | --------------------------- | -------------------- | --------------------------- |
@@ -101,7 +101,6 @@ The tests are present in the form of `.arc` files with a prefix `Test.`:
 | ring                   | 2D        | Dirichlet only              | Default (PETSc)      |                             |
 | PointDirichlet         | 2D        | Point Dirichlet + Null flux | Sequential Direct LU | - Serves as validation test |
 | PointDirichlet-refined | 2D        | Point Dirichlet + Null flux | Default (PETSc)      | - Refined version of test   |
-|                        |           |                             |                      |                             |
 
 ####  Point loading example ####
 
