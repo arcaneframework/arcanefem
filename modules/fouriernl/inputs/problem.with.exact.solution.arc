@@ -54,26 +54,17 @@
   -->
   <fem>
     <boundary-conditions>
-    <!--  <manufactured-solution>
-       <manufactured-dirichlet function="manufacturedDirichlet">true</manufactured-dirichlet>
-       <manufactured-source function="manufacturedSource">true</manufactured-source>
-       <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-      </manufactured-solution>
-    -->
         <dirichlet>
             <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-            <penalty>1.e12</penalty>
             <surface>left</surface>
             <value>0.0</value>
         </dirichlet>
         <dirichlet>
             <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-            <penalty>1.e12</penalty>
             <surface>right</surface>
             <value>1.0</value>
         </dirichlet>
     </boundary-conditions>
-    <lambda>2.0</lambda>
   </fem>
 
   <!--
@@ -84,7 +75,6 @@
   -->
   <arcane-post-processing>
    <output-period>1</output-period>
-   <format name="VtkHdfV2PostProcessor" />
    <output>
      <variable>U</variable>
      <variable>UExact</variable>

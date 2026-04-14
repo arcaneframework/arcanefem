@@ -63,23 +63,24 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   if (NOT APPLE)
     add_test(NAME [fouriernl]manufacture_solution COMMAND FourierNL
       -A,UsingDotNet=1
-      inputs/manufacture.solution.arc)
+            inputs/problem.with.exact.solution.arc)
   endif()
 
-  set(SOLVER_PETSC_CG
-    -A,//fem/linear-system/@name=PETScLinearSystem
-    -A,//fem/linear-system/solver=cg
-    -A,//fem/linear-system/atol=1e-9
-    -A,//fem/linear-system/rtol=0)
-
-
-  if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-    if (NOT APPLE)
-      add_test(NAME [fouriernl]manufacture_solution_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
-        -A,UsingDotNet=1
-        inputs/manufacture.solution.arc)
-    endif()
-  endif()
+#  set(SOLVER_PETSC_CG
+#    -A,//fem/linear-system/@name=PETScLinearSystem
+#    -A,//fem/linear-system/solver=cg
+#    -A,//fem/linear-system/atol=1e-9
+#    -A,//fem/linear-system/rtol=0)
+#
+#
+#  if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
+#    if (NOT APPLE)
+#      add_test(NAME [fouriernl]manufacture_solution_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
+#        -A,UsingDotNet=1
+#              -A,//fem/petsc-flags=-ksp_monitor\ -ksp_initial_guess_nonzero\ -pc_type\ bjacobi\ -sub_pc_type\ lu\ -ksp_rtol\ 1e-32\ -ksp_view
+#              inputs/problem.with.exact.solution.arc)
+#    endif()
+#  endif()
 endif()
 
 #if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)

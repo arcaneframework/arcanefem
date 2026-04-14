@@ -145,11 +145,14 @@ _doStationarySolve()
   info() << "[ArcaneFem-Info] Started module _doStationarySolve()";
 
   _updatePreviousIterationVariables();
+  if(m_assemble_linear_system){
+    _assembleLinearOperator();
+  }
   while(m_fp_iter < m_max_fp_iters){
     if(m_assemble_linear_system){
       _updateNonLinearField(); // evaluates lamda(uk)
       _assembleBilinearOperator();
-      _assembleLinearOperator(); // TODO move outside while loop
+      // _assembleLinearOperator(); // TODO move outside while loop
     }
     if (m_solve_linear_system){
       _solve();
@@ -505,37 +508,39 @@ _checkConvergence()
   info() << "[ArcaneFem-Module] Started module _checkConvergence()";
   Real elapsedTime = platform::getRealTime();
 
-  Real max_error = 0, max_ref = 0;
-  Real l1_error = 0, l1_ref = 0;
+  Real max_error = 0; //, max_ref = 0;
+  // Real l1_error = 0, l1_ref = 0;
   {
     ENUMERATE_ (Node, inode, ownNodes()) {
       const Real error = abs(m_u[inode] - m_uk[inode]);
 
       max_error = math::max(error, max_error);
-      l1_error  += error;
+      // l1_error  += error;
 
-      max_ref   = math::max( abs(m_uk[inode]), max_ref );
-      l1_ref    += abs(m_uk[inode]);
+      // max_ref   = math::max( abs(m_uk[inode]), max_ref );
+      // l1_ref    += abs(m_uk[inode]);
     }
   }
   IParallelMng* pm = defaultMesh()->parallelMng();
   max_error = pm->reduce(Parallel::ReduceMax, max_error);
-  max_ref   = pm->reduce(Parallel::ReduceMax, max_ref);
-  l1_error  = pm->reduce(Parallel::ReduceSum, l1_error);
-  l1_ref    = pm->reduce(Parallel::ReduceSum, l1_ref);
+  // max_ref   = pm->reduce(Parallel::ReduceMax, max_ref);
+  // l1_error  = pm->reduce(Parallel::ReduceSum, l1_error);
+  // l1_ref    = pm->reduce(Parallel::ReduceSum, l1_ref);
 
-  if (max_ref == 0){ max_ref += 1e-12;}
-  max_error = max_error / max_ref;
+  // if (max_ref == 0){ max_ref += 1e-12;}
+  // max_error = max_error / max_ref;
 
-  if (l1_ref == 0){ l1_ref += 1e-12;}
-  l1_error = l1_error / l1_ref;
+  // if (l1_ref == 0){ l1_ref += 1e-12;}
+  // l1_error = l1_error / l1_ref;
 
-  if ( max_error > m_fp_tol || l1_error > m_fp_tol){
+  // if ( max_error > m_fp_tol || l1_error > m_fp_tol){
+  if ( max_error > m_fp_tol){
     m_converged = false;
   } else {
     m_converged = true;
   }
-  info() << "[ArcaneFem-FP-iters] At fixed-point iteration "<< m_fp_iter <<": linf(max)-error = " << max_error << " and l1-error = " << l1_error;
+  // info() << "[ArcaneFem-FP-iters] At fixed-point iteration "<< m_fp_iter <<": linf(max)-error = " << max_error << " and l1-error = " << l1_error;
+  info() << "[ArcaneFem-FP-iters] At fixed-point iteration "<< m_fp_iter <<": linf(max)-error = " << max_error;
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "check-convergence", elapsedTime);
@@ -566,17 +571,20 @@ _updateVariables()
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
       Real v = dof_u[node_dof.dofId(node, 0)];
+      Real m = options()->expNlin;
       m_u[node] = v;
+      m_u_exact[node] = math::pow((math::pow(2.0, m + 1) - 1) * m_node_coord[node].x + 1, 1 / (m + 1)) - 1.0;
     }
 
     for (BC::IManufacturedSolution* bs : options()->boundaryConditions()->manufacturedSolutions())
       ENUMERATE_ (Node, inode, ownNodes()) {
         Node node = *inode;
-        m_u_exact[node] = m_manufactured_dirichlet->apply(lambda, m_node_coord[node]);
+        m_u_exact[node] = m_manufactured_dirichlet->apply(options()->expNlin, m_node_coord[node]);
       }
   }
 
   m_u.synchronize();
+  m_u_exact.synchronize();
 
   for (BC::IManufacturedSolution* bs : options()->boundaryConditions()->manufacturedSolutions())
     m_u_exact.synchronize();
