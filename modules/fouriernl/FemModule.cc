@@ -144,15 +144,15 @@ _doStationarySolve()
 {
   info() << "[ArcaneFem-Info] Started module _doStationarySolve()";
 
-  _updatePreviousIterationVariables();
+  _updatePreviousIterationVariables(true);
+
   if(m_assemble_linear_system){
     _assembleLinearOperator();
   }
   while(m_fp_iter < m_max_fp_iters){
     if(m_assemble_linear_system){
-      _updateNonLinearField(); // evaluates lamda(uk)
+      _updateNonLinearField(); // evaluates lambda(uk) on nodes
       _assembleBilinearOperator();
-      // _assembleLinearOperator(); // TODO move outside while loop
     }
     if (m_solve_linear_system){
       _solve();
@@ -166,7 +166,7 @@ _doStationarySolve()
       info() << "[ArcaneFem-FP-iters] Fixed-point iterations converged after " << m_fp_iter << " iterations";
       break;
     } else{
-      _updatePreviousIterationVariables(); // copy u_dof into uk for next iteration convergence check
+      _updatePreviousIterationVariables(false); // copy u_dof into uk for next iteration convergence check
       _updateSolutionFromVariables(); // copy u into u_dof to update initial guess for linear solve TODO See how to use swap instead of deep copy
     }
   }
@@ -508,7 +508,7 @@ _checkConvergence()
   info() << "[ArcaneFem-Module] Started module _checkConvergence()";
   Real elapsedTime = platform::getRealTime();
 
-  Real max_error = 0; //, max_ref = 0;
+  Real max_error = 0.0; //, max_ref = 0;
   // Real l1_error = 0, l1_ref = 0;
   {
     ENUMERATE_ (Node, inode, ownNodes()) {
@@ -638,7 +638,7 @@ _updateNonLinearField()
 /*---------------------------------------------------------------------------*/
 
 void FemModuleFourierNL::
-_updatePreviousIterationVariables()
+_updatePreviousIterationVariables(bool verbose)
 {
   info() << "[ArcaneFem-Module] Started module _updatePreviousIterationVariables()";
   Real elapsedTime = platform::getRealTime();
@@ -649,6 +649,9 @@ _updatePreviousIterationVariables()
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
       m_uk[node] = dof_u[node_dof.dofId(node, 0)];
+      if (verbose) {
+        info() << "uk[" << node.uniqueId() << "] = " << m_uk[node];
+      }
     }
   }
 

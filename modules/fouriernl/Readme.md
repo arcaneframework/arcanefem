@@ -1,99 +1,98 @@
-# Solving Fourier equation with FEM and Arcane #
+# Solving a nonlinear Fourier equation with FEM and Arcane #
 
-Here Fourier equation, that governs steady state heat conduction is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver.
+Here a nonlinear Fourier equation, that governs steady state heat conduction is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver.
 
 <img src="https://github.com/arcaneframework/arcanefem/assets/52162083/cf86f60f-360f-491b-a234-9631fc27af45" alt="Screenshot from 2022-12-19 16-25-59" style="zoom: 50%;" />
 
 
-## Theory of heat conduction ##
+## Theory of nonlinear heat conduction ##
 
 #### Problem description ####
 
-The steady state 2D heat conduction equation is solved for a closed meshed domain $\Omega^h$ in order to know the temperature $T(x,y)$ within the domain. The equation reads
+The steady state 2D nonlinear heat conduction equation is solved for a closed meshed domain $\Omega^h$ in order to know the temperature $T(x,y)$ within the domain. The equation reads
 
-$$\frac{\partial}{\partial x}\left(\lambda \frac{\partial T}{\partial x} \right) + \frac{\partial}{\partial y}\left(\lambda \frac{\partial T}{\partial y} \right)+ \dot{\mathcal{Q}} = 0  \quad \forall (x,y)\in\Omega^h $$
+$$\frac{\partial}{\partial x}\left(\lambda(T) \frac{\partial T}{\partial x} \right) + \frac{\partial}{\partial y}\left(\lambda(T) \frac{\partial T}{\partial y} \right)+ \dot{\mathcal{Q}} = 0  \quad \forall (x,y)\in\Omega^h $$
 
 or in a more compact form
 
-$$\nabla(\lambda\nabla T) + \dot{\mathcal{Q}} = 0 \quad \forall (x,y)\in\Omega^h.$$
+$$\nabla(\lambda(T) \nabla T) + \dot{\mathcal{Q}} = 0 \quad \forall (x,y)\in\Omega^h.$$
 
-Here, $\lambda$ is the thermal conductivity of the material and $\dot{\mathcal{Q}}$ is the heat generation source.
+Here, $\lambda(T)$ is the temperature dependent thermal conductivity of the material and $\dot{\mathcal{Q}}$ is the heat generation source.
+The nonlinearity in the above equation is due to the coefficient $\lambda(T)$. 
 
+To complete the problem description, two first type (Dirichlet) boundary conditions are applied to this problem:
 
+- $T = 0.0 &deg C \quad \forall(x,y)\in\partial\Omega^h_{\text{Gauche}}\subset\partial \Omega^h,$ and
 
-To complete the problem description,  three first type (Dirichlet) boundary conditions are applied to this problem:
+- $T = 1.0 &deg C \quad \forall(x,y)\in\partial\Omega^h_{\text{Droite}}\subset\partial \Omega^h,$ 
 
-$T = 50.0 \degree C \quad \forall(x,y)\in\partial\Omega^h_{\text{Cercle}}\subset\partial \Omega^h,$
+in addition, all other boundaries $\partial \Omega^h_{N} = \partial \Omega^h \setminus (\partial\Omega^h_{\text{Gauche}} \cup \partial\Omega^h_{\text{Droite}})$ are exposed to second type (Neumann) boundary condition:
+- $\lambda(T) \nabla T \cdot \mathbf{n}|_{\partial \Omega^h_{N} } = \overline{q} \cdot \mathbf{n}|_{\partial \Omega^h_{N} } = 0$
 
-$T = 5.0\degree C \quad \forall(x,y)\in\partial\Omega^h_{\text{Bas}}\subset\partial \Omega^h,$ and
+Finally, the heat-source term is set to zero
 
-$T  = 21.0\degree C  \quad \forall(x,y)\in\partial\Omega^h_{\text{Haut}}\subset\partial \Omega^h,$
-
-in addition, other boundaries $\partial\Omega^h_N$ are exposed to  second type (Neumann) boundary condition:
-
-- first Neumann condition $\partial\Omega^h_{\text{Droite}}$ the derivative of temperature (heat flux) is non-null - influx boundary
-
-$$\mathbf{q}\cdot\mathbf{n}|_{\partial \Omega^h_{\text{Droite}}} = 15.0$$
-
-- second Neumann condition $\partial\Omega^h_{\text{Gauche}}$ the derivative of temperature (heat flux) is null - insulation boundary
-
-$$\mathbf{q}\cdot\mathbf{n}|_{\partial \Omega^h_{\text{Gauche}}} = 0$$
-
-Finally a uniform heat-source is present within the domain
-
-$\dot{\mathcal{Q}}=1\times10^5$
+$\dot{\mathcal{Q}}=0$
 
 
 
 ### Finite element description of Fourier equation ###
 
 
-
-We work with approximation, $\lambda$ is homogeneous $\lambda : \Omega^h \in \mathbb{R}^{+}$, in this case  the variational formulation in $H^1_{0}(\Omega) \subset H^1{\Omega}$  reads
+In this case, the variational formulation in $H^1_{0}(\Omega) \subset H^1{\Omega}$ reads
 
 search FEM trial function $u^h(x,y)$ satisfying
 
-$$- \int_{\Omega^h}\lambda\nabla u^h \nabla  v^h + \int_{\partial\Omega_N} (\overline{q} \cdot \mathbf{n}) v^h + \int_{\Omega^h}\dot{\mathcal{Q}} v^h = 0 \quad \forall v^h\in H^1_0(\Omega^h)$$
+$$- \int_{\Omega^h}\lambda(u^h) \nabla u^h \nabla  v^h + \int_{\partial\Omega_N} (\overline{q} \cdot \mathbf{n}) v^h + \int_{\Omega^h}\dot{\mathcal{Q}} v^h = 0 \quad \forall v^h\in H^1_0(\Omega^h)$$
 
 given
 
-$u^h=50.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Cercle}}$,
+$u^h=0.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Gauche}}$,
 
-$u^h=5.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Bas}}$ ,
-
-$u^h=20.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Haut}}$,
+$u^h=1.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Droite}}$ ,
 
 $\int_{\Omega^h_{\text{Droite}}}(\mathbf{q} \cdot \mathbf{n}) v^h=15$,
-
+    
 $\int_{\Omega^h_{\text{Gauche}}}(\mathbf{q} \cdot \mathbf{n}) v^h=0$,
 
 $\int_{\Omega^h}\dot{\mathcal{Q}} v^h=1\times10^5$, and
 
-$\lambda=1.75$
 
 Please note that the above equation is often called as the weak formulation of the Fourier equation and in fact the finite element variable $u^h$ is an appoximation of temperature $T$.
 
+## Problem Validation ##
+
+### Thermal Conductivity ###
+The inhomogenous thermal conductivity $\lambda(T)$ is a function of temperature, is given by
+
+$$\lambda(T) = (1 + T)^m ,$$
+
+such that setting $m=0$ brings us back to the homogenous $\lambda$ and linear Fourier problem.
+
+###  Exact Solution ###
+This definition along with the above BCs permit to obtain an analytical solution the nonlinear Fourier problem in Cartesian coordinates given by
+
+$$T(x, y) = ((2^{m+1} - 1)x + 1)^{1/(1+m)} - 1 .$$
+
 ## The code ##
 
-#### Thermal Conductivity ###
+#### Heat Source ###
 
-The value of thermal conductivity $\lambda$  and heat source $\dot{\mathcal{Q}}$ can be provided in  `Test.conduction.arc` file
+The value of heat source $\dot{\mathcal{Q}}$ can be provided in  `Test.nonlinear.conduction.arc` file
 
 ```xml
   <Fem1>
-    <lambda>1.75</lambda>
-    <qdot>1e5</qdot>
+    <qdot>0.0</qdot>
   </Fem1>
 ```
 
 #### Mesh ####
 
-The mesh `plancher.msh` is provided in the `Test.conduction.arc` file
+The mesh `unit_square.msh` is provided in the `Test.nonlinear.conduction.arc` file
 
 ```xml
   <meshes>
     <mesh>
-      <filename>plancher.msh</filename>
+      <filename>unit_square.msh</filename>
     </mesh>
   </meshes>
 ```
