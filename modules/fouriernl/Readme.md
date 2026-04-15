@@ -22,11 +22,11 @@ The nonlinearity in the above equation is due to the coefficient $\lambda(T)$.
 
 To complete the problem description, two first type (Dirichlet) boundary conditions are applied to this problem:
 
-- $T = 0.0 &deg C \quad \forall(x,y)\in\partial\Omega^h_{\text{Gauche}}\subset\partial \Omega^h,$ and
+- $T = 0.0 &deg C \quad \forall(x,y)\in\partial\Omega^h_{\text{left}}\subset\partial \Omega^h,$ and
 
-- $T = 1.0 &deg C \quad \forall(x,y)\in\partial\Omega^h_{\text{Droite}}\subset\partial \Omega^h,$ 
+- $T = 1.0 &deg C \quad \forall(x,y)\in\partial\Omega^h_{\text{right}}\subset\partial \Omega^h,$ 
 
-in addition, all other boundaries $\partial \Omega^h_{N} = \partial \Omega^h \setminus (\partial\Omega^h_{\text{Gauche}} \cup \partial\Omega^h_{\text{Droite}})$ are exposed to second type (Neumann) boundary condition:
+in addition, all other boundaries $\partial \Omega^h_{N} = \partial \Omega^h \setminus (\partial\Omega^h_{\text{left}} \cup \partial\Omega^h_{\text{right}})$ are exposed to second type (Neumann) boundary condition:
 - $\lambda(T) \nabla T \cdot \mathbf{n}|_{\partial \Omega^h_{N} } = \overline{q} \cdot \mathbf{n}|_{\partial \Omega^h_{N} } = 0$
 
 Finally, the heat-source term is set to zero
@@ -46,13 +46,13 @@ $$- \int_{\Omega^h}\lambda(u^h) \nabla u^h \nabla  v^h + \int_{\partial\Omega_N}
 
 given
 
-$u^h=0.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Gauche}}$,
+$u^h=0.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{left}}$,
 
-$u^h=1.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{Droite}}$ ,
+$u^h=1.0 \quad \forall (x,y)\in\partial\Omega^h_{\text{right}}$ ,
 
-$\int_{\Omega^h_{\text{Droite}}}(\mathbf{q} \cdot \mathbf{n}) v^h=15$,
+$\int_{\Omega^h_{\text{right}}}(\mathbf{q} \cdot \mathbf{n}) v^h=15$,
     
-$\int_{\Omega^h_{\text{Gauche}}}(\mathbf{q} \cdot \mathbf{n}) v^h=0$,
+$\int_{\Omega^h_{\text{left}}}(\mathbf{q} \cdot \mathbf{n}) v^h=0$,
 
 $\int_{\Omega^h}\dot{\mathcal{Q}} v^h=1\times10^5$, and
 
@@ -104,49 +104,25 @@ Please not that use version 4.1 `.msh` file from `Gmsh`.
 The Dirichlet (constant temperature) boundary conditions  are provided in `Test.conduction.arc` file
 
 ```xml
-    <dirichlet-boundary-condition>
-      <surface>Cercle</surface>
-      <value>50.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Bas</surface>
-      <value>5.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Haut</surface>
-      <value>21.0</value>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+        <surface>left</surface>
+        <value>0.0</value>
+      </dirichlet>
+      <dirichlet>
+        <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+        <surface>right</surface>
+        <value>1.0</value>
+      </dirichlet>
+    </boundary-conditions>
 ```
 
-So in the snippet above, three Dirichlet conditions are applied ($50 \degree C, 5.0 \degree C, 21.0 \degree C$)  on three borders ('cercle', 'Bas', 'Haut').
+So in the snippet above, three Dirichlet conditions are applied ($0 &deg C, 1.0 &deg C)  on two borders ('left' and 'right').
 
-The Neumann  boundary conditions  are also provided in `Test.conduction.arc` file
-
-```xml
-    <neumann-boundary-condition>
-      <surface>Droite</surface>
-      <value>15.0</value>
-    </neumann-boundary-condition>
-    <neumann-boundary-condition>
-      <surface>Gauche</surface>
-      <value>0.0</value>
-    </neumann-boundary-condition>
-```
-
+The natural Neumann boundary conditions are not explicitly provided.
 
 
 #### Post Process ####
 
 For post processing the `Mesh0.hdf` file is outputted (in `output/depouillement/vtkhdfv2` folder), which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
-
-#### multi-material example ####
-
-<img src="https://github.com/arcaneframework/arcanefem/assets/52162083/eeac62de-3b5f-4264-a643-c6652a5693e8" alt="test_2_small_new"  />
-
-#### manufactured solution example ####
-
-![manu](https://github.com/arcaneframework/arcanefem/assets/52162083/5226528f-a5e1-4826-9b0b-36dc52ff57b3)
-
-
-![manu](https://github.com/arcaneframework/arcanefem/assets/52162083/9237d686-2791-4852-b929-4d0c7e5f8df7)
-
