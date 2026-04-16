@@ -109,7 +109,7 @@ class FemModuleFourierNL
   void _assembleLinearOperatorCpu();
   void _validateResults();
   void _updateVariables();
-  void _updatePreviousIterationVariables(bool verbose);
+  void _updatePreviousIterationVariables(bool verbose=false);
   void _updateSolutionFromVariables();
   void _checkConvergence();
   void _updateNonLinearField();

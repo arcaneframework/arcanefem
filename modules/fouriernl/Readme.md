@@ -2,8 +2,7 @@
 
 Here a nonlinear Fourier equation, that governs steady state heat conduction is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver.
 
-<img src="https://github.com/arcaneframework/arcanefem/assets/52162083/cf86f60f-360f-491b-a234-9631fc27af45" alt="Screenshot from 2022-12-19 16-25-59" style="zoom: 50%;" />
-
+![image](fourier_nonlin_cond.png)
 
 ## Theory of nonlinear heat conduction ##
 
@@ -35,7 +34,7 @@ $\dot{\mathcal{Q}}=0$
 
 
 
-### Finite element description of Fourier equation ###
+#### Finite element description of Fourier equation ####
 
 
 In this case, the variational formulation in $H^1_{0}(\Omega) \subset H^1{\Omega}$ reads
@@ -59,23 +58,25 @@ $\int_{\Omega^h}\dot{\mathcal{Q}} v^h=1\times10^5$, and
 
 Please note that the above equation is often called as the weak formulation of the Fourier equation and in fact the finite element variable $u^h$ is an appoximation of temperature $T$.
 
-## Problem Validation ##
+## Exact Solution ##
 
-### Thermal Conductivity ###
+#### Thermal Conductivity ####
 The inhomogenous thermal conductivity $\lambda(T)$ is a function of temperature, is given by
 
 $$\lambda(T) = (1 + T)^m ,$$
 
 such that setting $m=0$ brings us back to the homogenous $\lambda$ and linear Fourier problem.
 
-###  Exact Solution ###
+#### Analytical Temperature ####
 This definition along with the above BCs permit to obtain an analytical solution the nonlinear Fourier problem in Cartesian coordinates given by
 
 $$T(x, y) = ((2^{m+1} - 1)x + 1)^{1/(1+m)} - 1 .$$
 
+
+
 ## The code ##
 
-#### Heat Source ###
+#### Heat Source ####
 
 The value of heat source $\dot{\mathcal{Q}}$ can be provided in  `Test.nonlinear.conduction.arc` file
 
@@ -126,3 +127,7 @@ The natural Neumann boundary conditions are not explicitly provided.
 #### Post Process ####
 
 For post processing the `Mesh0.hdf` file is outputted (in `output/depouillement/vtkhdfv2` folder), which can be read by PARAVIS. The output is of the $\mathbb{P}_1$ FE order (on nodes).
+
+## Validation ##    
+For $m=2$, we compare the analytical solution ```T_exact``` with the solution obtained with FEM method ```T``` along the diagonal of the square domain.
+![fourier_nonlin_cond_validation.png](fourier_nonlin_cond_validation.png)

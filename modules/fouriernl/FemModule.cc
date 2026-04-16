@@ -166,7 +166,7 @@ _doStationarySolve()
       info() << "[ArcaneFem-FP-iters] Fixed-point iterations converged after " << m_fp_iter << " iterations";
       break;
     } else{
-      _updatePreviousIterationVariables(false); // copy u_dof into uk for next iteration convergence check
+      _updatePreviousIterationVariables(); // copy u_dof into uk for next iteration convergence check
       _updateSolutionFromVariables(); // copy u into u_dof to update initial guess for linear solve TODO See how to use swap instead of deep copy
     }
   }
