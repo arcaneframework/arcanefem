@@ -33,10 +33,13 @@ RealMatrix<3, 3> FemModuleFourierNL::_computeElementMatrixTria3(Cell cell)
   Real3 dyU = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
 
   Real lambda_cell = (m_node_lambda[cell.nodeId(0)] + m_node_lambda[cell.nodeId(1)] + m_node_lambda[cell.nodeId(2)]) / 3.;
+  info() << "lambda_cell[" << cell.uniqueId() << "] = "<< lambda_cell ;
+  return (area * lambda_cell *  (dxU ^ dxU) + area  * lambda_cell * (dyU ^ dyU));
+
   // Real uk_cell = (m_uk[cell.nodeId(0)] + m_uk[cell.nodeId(1)] + m_uk[cell.nodeId(2)]) / 3.;
   // Real lambda_cell = math::pow(1 + uk_cell, options()->expNlin);
 
-  Real3 lambda_this_node{ lambda_cell, lambda_cell, lambda_cell};
+  // Real3 lambda_this_node{ lambda_cell, lambda_cell, lambda_cell};
 
 
   // Real3 lambda_this_node{ m_node_lambda[cell.nodeId(0)], m_node_lambda[cell.nodeId(1)], m_node_lambda[cell.nodeId(2)]};
@@ -47,8 +50,8 @@ RealMatrix<3, 3> FemModuleFourierNL::_computeElementMatrixTria3(Cell cell)
   // info() << "dxu0: "<< dxU[0] << " dxu1: " << dxU[1] << " dxu2: " << dxU[2];
   // info() << "dyu0: "<< dyU[0] << " dxy1: " << dyU[1] << " dyu2: " << dyU[2];
 
-  Real3 lmbda_dxU{lambda_this_node[0] * dxU[0], lambda_this_node[1] * dxU[1], lambda_this_node[2] * dxU[2] };
-  Real3 lmbda_dyU{lambda_this_node[0] * dyU[0], lambda_this_node[1] * dyU[1], lambda_this_node[2] * dyU[2] };
+  // Real3 lmbda_dxU{lambda_this_node[0] * dxU[0], lambda_this_node[1] * dxU[1], lambda_this_node[2] * dxU[2] };
+  // Real3 lmbda_dyU{lambda_this_node[0] * dyU[0], lambda_this_node[1] * dyU[1], lambda_this_node[2] * dyU[2] };
 
   // info() << "lmbda_dxu0: "<< lmbda_dxU[0] << " lmbda_dxu1: " << lmbda_dxU[1] << " lmbda_dxu2: " << lmbda_dxU[2];
   // info() << "lmbda_dyu0: "<< lmbda_dyU[0] << " lmbda_dyu1: " << lmbda_dyU[1] << " lmbda_dyu2: " << lmbda_dyU[2];
@@ -57,8 +60,34 @@ RealMatrix<3, 3> FemModuleFourierNL::_computeElementMatrixTria3(Cell cell)
   // Real uk_cell = (m_uk[cell.nodeId(0)] + m_uk[cell.nodeId(1)] + m_uk[cell.nodeId(2)]) / 3.;
   // Real lambda_cell = math::pow(1 + uk_cell, options()->expNlin);
 
-  // return (area * lambda_cell *  (dxU ^ dxU) + area  * lambda_cell * (dyU ^ dyU));
-  return (area *  (lmbda_dxU ^ dxU) + area  * (lmbda_dyU ^ dyU));
+
+  // return (area *  (lmbda_dxU ^ dxU) + area  * (lmbda_dyU ^ dyU));
+
+  // RealMatrix<3, 3> eMat;
+  // eMat.fill(0.0);
+  //
+  // eMat(0, 0) = m_node_lambda[cell.nodeId(0)] * dxU[0] * dxU[0]
+  //                 + m_node_lambda[cell.nodeId(0)] * dyU[0] * dyU[0];
+  // eMat(0, 1) = m_node_lambda[cell.nodeId(0)] * dxU[0] * dxU[1]
+  //                 + m_node_lambda[cell.nodeId(0)] * dyU[0] * dyU[1];
+  // eMat(0, 2) = m_node_lambda[cell.nodeId(0)] * dxU[0] * dxU[2]
+  //                 + m_node_lambda[cell.nodeId(0)] * dyU[0] * dyU[2];
+  //
+  // eMat(1, 0) = m_node_lambda[cell.nodeId(1)] * dxU[1] * dxU[0]
+  //                 + m_node_lambda[cell.nodeId(1)] * dyU[1] * dyU[0];
+  // eMat(1, 1) = m_node_lambda[cell.nodeId(1)] * dxU[1] * dxU[1]
+  //                 + m_node_lambda[cell.nodeId(1)] * dyU[1] * dyU[1];
+  // eMat(1, 2) = m_node_lambda[cell.nodeId(1)] * dxU[1] * dxU[2]
+  //                 + m_node_lambda[cell.nodeId(1)] * dyU[1] * dyU[2];
+  //
+  // eMat(2, 0) = m_node_lambda[cell.nodeId(2)] * dxU[2] * dxU[0]
+  //                 + m_node_lambda[cell.nodeId(2)] * dyU[2] * dyU[0];
+  // eMat(2, 1) = m_node_lambda[cell.nodeId(2)] * dxU[2] * dxU[1]
+  //                 + m_node_lambda[cell.nodeId(2)] * dyU[2] * dyU[1];
+  // eMat(2, 2 ) = m_node_lambda[cell.nodeId(2)] * dxU[2] * dxU[2]
+  //                 + m_node_lambda[cell.nodeId(2)] * dyU[2] * dyU[2];
+  //
+  // return eMat;
 
 }
 

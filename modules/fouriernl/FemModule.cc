@@ -151,12 +151,12 @@ _doStationarySolve()
   }
   while(m_fp_iter < m_max_fp_iters){
     if(m_assemble_linear_system){
-      _updateNonLinearField(); // evaluates lambda(uk) on nodes
+      _updateNonLinearField(true); // evaluates lambda(uk) on nodes
       _assembleBilinearOperator();
     }
     if (m_solve_linear_system){
       _solve();
-      _updateVariables();
+      _updateVariables(true);
     }
 
     ++m_fp_iter;
@@ -166,7 +166,8 @@ _doStationarySolve()
       info() << "[ArcaneFem-FP-iters] Fixed-point iterations converged after " << m_fp_iter << " iterations";
       break;
     } else{
-      _updatePreviousIterationVariables(); // copy u_dof into uk for next iteration convergence check
+      _updatePreviousIterationVariables(true); // copy u into uk for next iteration convergence check
+      // m_uk.copy(m_u);
       _updateSolutionFromVariables(); // copy u into u_dof to update initial guess for linear solve TODO See how to use swap instead of deep copy
     }
   }
@@ -508,14 +509,17 @@ _checkConvergence()
   info() << "[ArcaneFem-Module] Started module _checkConvergence()";
   Real elapsedTime = platform::getRealTime();
 
+  m_u.synchronize();
+  m_uk.synchronize();
+
   Real max_error = 0.0; //, max_ref = 0;
-  // Real l1_error = 0, l1_ref = 0;
+  Real l1_error = 0.0; //, l1_ref = 0;
   {
     ENUMERATE_ (Node, inode, ownNodes()) {
       const Real error = abs(m_u[inode] - m_uk[inode]);
 
       max_error = math::max(error, max_error);
-      // l1_error  += error;
+      l1_error  += error;
 
       // max_ref   = math::max( abs(m_uk[inode]), max_ref );
       // l1_ref    += abs(m_uk[inode]);
@@ -524,7 +528,7 @@ _checkConvergence()
   IParallelMng* pm = defaultMesh()->parallelMng();
   max_error = pm->reduce(Parallel::ReduceMax, max_error);
   // max_ref   = pm->reduce(Parallel::ReduceMax, max_ref);
-  // l1_error  = pm->reduce(Parallel::ReduceSum, l1_error);
+  l1_error  = pm->reduce(Parallel::ReduceSum, l1_error);
   // l1_ref    = pm->reduce(Parallel::ReduceSum, l1_ref);
 
   // if (max_ref == 0){ max_ref += 1e-12;}
@@ -533,14 +537,17 @@ _checkConvergence()
   // if (l1_ref == 0){ l1_ref += 1e-12;}
   // l1_error = l1_error / l1_ref;
 
-  // if ( max_error > m_fp_tol || l1_error > m_fp_tol){
-  if ( max_error > m_fp_tol){
-    m_converged = false;
-  } else {
+  // if ( max_error < m_fp_tol || l1_error < m_fp_tol){
+  // if ( max_error < m_fp_tol){
+  if ( l1_error < m_fp_tol ){
     m_converged = true;
+  } else {
+    m_converged = false;
   }
+
   // info() << "[ArcaneFem-FP-iters] At fixed-point iteration "<< m_fp_iter <<": linf(max)-error = " << max_error << " and l1-error = " << l1_error;
-  info() << "[ArcaneFem-FP-iters] At fixed-point iteration "<< m_fp_iter <<": linf(max)-error = " << max_error;
+  // info() << "[ArcaneFem-FP-iters] At fixed-point iteration "<< m_fp_iter <<": linf(max)-error = " << max_error;
+  info() << "[ArcaneFem-FP-iters] At fixed-point iteration "<< m_fp_iter <<": l1-error = " << l1_error;
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "check-convergence", elapsedTime);
@@ -559,7 +566,7 @@ _checkConvergence()
 /*---------------------------------------------------------------------------*/
 
 void FemModuleFourierNL::
-_updateVariables()
+_updateVariables(bool verbose)
 {
   info() << "[ArcaneFem-Info] Started module _updateVariables()";
   Real elapsedTime = platform::getRealTime();
@@ -573,6 +580,9 @@ _updateVariables()
       Real v = dof_u[node_dof.dofId(node, 0)];
       Real m = options()->expNlin;
       m_u[node] = v;
+      if (verbose) {
+        info() << "u[" << node.uniqueId() << "] = " << m_u[node];
+      }
       m_u_exact[node] = math::pow((math::pow(2.0, m + 1) - 1) * m_node_coord[node].x + 1, 1 / (m + 1)) - 1.0;
     }
 
@@ -605,7 +615,7 @@ _updateVariables()
 /*---------------------------------------------------------------------------*/
 
 void FemModuleFourierNL::
-_updateNonLinearField()
+_updateNonLinearField(bool verbose)
 {
   info() << "[ArcaneFem-Module] Started module _updateNonLinearField()";
   Real elapsedTime = platform::getRealTime();
@@ -615,7 +625,11 @@ _updateNonLinearField()
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
     ENUMERATE_ (Node, inode, ownNodes())
     {
+      Node node = *inode;
       m_node_lambda[inode] = math::pow( 1 + m_uk[inode], options()->expNlin);
+      if (verbose) {
+        info() << "lambda[" << node.uniqueId() << "] = " << m_node_lambda[node];
+      }
     }
   }
   m_node_lambda.synchronize();

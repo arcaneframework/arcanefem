@@ -108,11 +108,11 @@ class FemModuleFourierNL
   void _assembleLinearOperator();
   void _assembleLinearOperatorCpu();
   void _validateResults();
-  void _updateVariables();
+  void _updateVariables(bool verbose=false);
   void _updatePreviousIterationVariables(bool verbose=false);
   void _updateSolutionFromVariables();
   void _checkConvergence();
-  void _updateNonLinearField();
+  void _updateNonLinearField(bool verbose=false);
 
 
   RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
