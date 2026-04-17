@@ -86,10 +86,10 @@ mpirun -n 4 ./Elasticity ./inputs/Test.Elasticity.arc
 
 ```bash
 # Single NVIDIA GPU
-mpirun -n 1 -A,AcceleratorRuntime=cuda ./Elasticity ./inputs/Test.Elasticity.arc
+mpirun -n 1  ./Elasticity -A,AcceleratorRuntime=cuda ./inputs/Test.Elasticity.arc
 
 # Single AMD GPU
-mpirun -n 1 -A,AcceleratorRuntime=hip ./Elasticity ./inputs/Test.Elasticity.arc
+mpirun -n 1 ./Elasticity -A,AcceleratorRuntime=hip ./inputs/Test.Elasticity.arc
 ```
 
 > **Note**: Replace `1` with the number of available GPUs
@@ -98,7 +98,7 @@ mpirun -n 1 -A,AcceleratorRuntime=hip ./Elasticity ./inputs/Test.Elasticity.arc
 
 ```bash
 # 8 CPU cores + 1 GPU
-mpirun -n 8 -A,AcceleratorRuntime=cuda ./Elasticity ./inputs/Test.Elasticity.arc
+mpirun -n 8 ./Elasticity -A,AcceleratorRuntime=cuda ./inputs/Test.Elasticity.arc
 ```
 
 For advanced runtime options, consult the [Arcane Launcher Documentation](https://arcaneframework.github.io/arcane/userdoc/html/d8/dd6/arcanedoc_execution_launcher.html).
