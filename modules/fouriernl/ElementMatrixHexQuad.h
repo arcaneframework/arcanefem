@@ -72,11 +72,13 @@ RealMatrix<4, 4> FemModuleFourierNL::_computeElementMatrixQuad4(Cell cell)
       const RealVector<4>& lambda_dyU {lambda_dyU_0, lambda_dyU_1, lambda_dyU_2, lambda_dyU_3};
 
       // Integration weight
+      const Real lambda_cell = (lambda_0 + lambda_1 + lambda_2 + lambda_3) / 4.0;
       const Real integration_weight = detJ * w * w;
 
       // stiffness matrix assembly
       // ae += (dxU ^ dxU) * integration_weight * lambda + (dyU ^ dyU) * integration_weight * lambda;
-      ae += (lambda_dxU ^ dxU) * integration_weight + (lambda_dyU ^ dyU) * integration_weight;
+      ae += (dxU ^ dxU) * integration_weight * lambda_cell + (dyU ^ dyU) * integration_weight * lambda_cell;
+      // ae += (lambda_dxU ^ dxU) * integration_weight + (lambda_dyU ^ dyU) * integration_weight;
     }
   }
   return ae;
