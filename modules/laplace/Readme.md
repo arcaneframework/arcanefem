@@ -15,11 +15,20 @@ $$\frac{\partial}{\partial x}\left(\frac{\partial u}{\partial x} \right) + \frac
 
 or in a more compact forms
 
-$$\nabla(\nabla u)= 0 \quad \forall (x,y)\in\Omega^h.$$ or
+$$
+\nabla(\nabla u)= 0 \quad \forall (x,y)\in\Omega^h.
+$$ 
+or
 
-$$\nabla^2 u= 0 \quad \forall (x,y)\in\Omega^h.$$ or
+$$
+\nabla^2 u= 0 \quad \forall (x,y)\in\Omega^h.
+$$ 
+or
 
-$$\Delta^2 u= 0 \quad \forall (x,y)\in\Omega^h.$$ or
+$$
+\Delta^2 u= 0 \quad \forall (x,y)\in\Omega^h.
+$$ 
+or
 
 To complete the problem description,  three first type (Dirichlet) boundary conditions are applied to this problem:
 
