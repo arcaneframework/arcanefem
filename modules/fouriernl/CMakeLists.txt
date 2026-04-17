@@ -51,6 +51,7 @@ file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
     unit_square.msh
+    unit_square.quad.msh
     unit_cube.msh)
 
 foreach(MESH_FILE IN LISTS MESH_FILES)

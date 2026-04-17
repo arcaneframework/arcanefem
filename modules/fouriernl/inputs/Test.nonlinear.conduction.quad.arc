@@ -26,15 +26,29 @@
   -->
   <meshes>
     <mesh>
-      <filename>meshes/unit_square.msh</filename>
+      <filename>meshes/unit_square.quad.msh</filename>
     </mesh>
   </meshes>
+
+  <!--
+    Function definitions for external assemblies:
+      - external-assembly: Specifies the external dynamic link library (DLL) and the class containing the functions.
+      - assembly-name: The name of the DLL file containing external functions.
+      - class-name: The specific class within the DLL that contains the necessary case functions.
+  -->
+  <functions>
+    <external-assembly>
+      <assembly-name>ExternalFunctions.dll</assembly-name>
+      <class-name>FemModuleFourierNL.CaseFunctions</class-name>
+    </external-assembly>
+  </functions>
 
   <!--
     FEM (Finite Element Method) settings:
       - boundary-conditions: Specifies boundary conditions
   -->
   <fem>
+    <hex-quad-mesh>true</hex-quad-mesh>
     <boundary-conditions>
         <dirichlet>
             <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
