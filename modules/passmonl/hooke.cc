@@ -83,8 +83,8 @@ void HookeReadLawParams(RealUniqueArray* lawparams, Real lambda, Real mu, bool /
   (*lawparams)[1] = mu;
 }
 
-Tensor4 HookeComputeStress(RealUniqueArray* law_params, RealUniqueArray* /*history_vars*/, Tensor2& sig, Tensor2& eps, Tensor2& /*epsp*/, Tensor2& dsig,
-                        const Tensor2& deps, bool /*isRef*/)
+bool HookeComputeStress(RealUniqueArray* law_params, RealUniqueArray* /*history_vars*/, Tensor2& sig, Tensor2& eps, Tensor2& /*epsp*/, Tensor2& dsig,
+                        const Tensor2& deps, Tensor4& /*tangent_tensor*/, bool /*isRef*/)
 {
   Tensor4 elast_tensor = HookeComputeElastTensor(law_params,sig);
   elast_tensor.isSymmetric(true);
@@ -92,6 +92,6 @@ Tensor4 HookeComputeStress(RealUniqueArray* law_params, RealUniqueArray* /*histo
 
 	sig += elast_tensor*deps;
 	eps += deps;
-  return elast_tensor;
+  return true;
 }
 

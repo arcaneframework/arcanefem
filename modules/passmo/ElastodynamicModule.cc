@@ -1757,6 +1757,7 @@ _assembleLinearLHS()
       _computeK(lambda, mu, gauss_pti, nb_nodes, Ke);
 
       // Computing elementary mass matrix at Gauss point ig
+
       _computeElemMass(rho, gauss_pti, nb_nodes, Me);
 
       // Considering a simple Newmark scheme here (Generalized-alfa will be done later)

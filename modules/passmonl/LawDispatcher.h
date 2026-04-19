@@ -47,7 +47,7 @@ public:
     Tensor4 computeTangentTensor(const Tensor2& sig);
     bool initState(const Tensor2& sig);
     void initHistoryVars(RealUniqueArray* history_vars);
-    void computeStress(bool init, bool isRef);
+    bool computeStress(bool init, bool isRef);
     RealUniqueArray initConsts(RealUniqueArray* law_params);
     void readLawParams(RealUniqueArray* lawparams, Real lambda, Real mu, bool default_param, const String& name, Integer ilaw);
 
@@ -82,8 +82,8 @@ public:
     }
 
 private:
-    std::function<Tensor4(RealUniqueArray* law_params, RealUniqueArray* history_vars, Tensor2& sig, Tensor2& eps, Tensor2& epsp, Tensor2& dsig,
-                       const Tensor2& deps, bool isRef)> m_compute_stress[NB_LAW_TYPE];
+    std::function<bool(RealUniqueArray* law_params, RealUniqueArray* history_vars, Tensor2& sig, Tensor2& eps, Tensor2& epsp, Tensor2& dsig,
+                       const Tensor2& deps, Tensor4& tangent_tensor, bool isRef)> m_compute_stress[NB_LAW_TYPE];
     std::function<Tensor4(RealUniqueArray* law_params, const Tensor2& sig)> m_compute_elast_tensor[NB_LAW_TYPE];
     std::function<Tensor4(RealUniqueArray* law_params, RealUniqueArray* history_vars,
                           const Tensor2& sig, const Tensor2& deps)> m_compute_tangent_tensor[NB_LAW_TYPE];

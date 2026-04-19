@@ -215,31 +215,34 @@ _startInitGauss()
   m_gauss_ref_position.reshape({max_gauss_per_cell});
   m_gauss_stress.reshape({max_gauss_per_cell});
   m_gauss_strain.reshape({max_gauss_per_cell});
-  m_gauss_strainp.reshape({max_gauss_per_cell});
-  m_gauss_prev_stress.reshape({max_gauss_per_cell});
-  m_gauss_prev_strain.reshape({max_gauss_per_cell});
-  m_gauss_prev_strainp.reshape({max_gauss_per_cell});
   m_gauss_stress0.reshape({max_gauss_per_cell});
   m_gauss_strain0.reshape({max_gauss_per_cell});
-  m_gauss_strainp0.reshape({max_gauss_per_cell});
+  m_gauss_shape.reshape({max_gauss_per_cell,max_nbnodes_per_cell});
+  m_gauss_shape_deriv.reshape({max_gauss_per_cell,max_nbnodes_per_cell});
   m_gauss_jacobian.reshape({max_gauss_per_cell});
   m_gauss_weight.reshape({max_gauss_per_cell});
   m_gauss_jacob_mat.reshape({max_gauss_per_cell});
-  m_law_param.resize(m_nb_law_param);
-  m_law_hist_param.reshape({max_gauss_per_cell, m_nb_law_hist_param});
-  m_gauss_shape.reshape({max_gauss_per_cell,max_nbnodes_per_cell});
-  m_gauss_shape_deriv.reshape({max_gauss_per_cell,max_nbnodes_per_cell});
 
-  /* Tangent operator at Gauss points is useful for nonlinear simulations
-   * D: 1st diagonal Real3x3 block
-   * S: 2nd diagonal Real3x3 block (S)
-   * Sup: Upper out-of-diagonal Real3x3 block
-   * Slow: Lower out-of-diagonal Real3x3 block => in case of symmetry, Slow = 0
-   * */
-  m_tangent_op_d.reshape({max_gauss_per_cell});
-  m_tangent_op_s.reshape({max_gauss_per_cell});
-  m_tangent_op_sup.reshape({max_gauss_per_cell});
-  m_tangent_op_slow.reshape({max_gauss_per_cell});
+  if (!is_linear) {
+    m_gauss_strainp0.reshape({max_gauss_per_cell});
+    m_gauss_strainp.reshape({max_gauss_per_cell});
+    m_gauss_prev_stress.reshape({max_gauss_per_cell});
+    m_gauss_prev_strain.reshape({max_gauss_per_cell});
+    m_gauss_prev_strainp.reshape({max_gauss_per_cell});
+    m_law_param.resize(m_nb_law_param);
+    m_law_hist_param.reshape({max_gauss_per_cell, m_nb_law_hist_param});
+
+    /* Tangent operator at Gauss points is useful for nonlinear simulations
+     * D: 1st diagonal Real3x3 block
+     * S: 2nd diagonal Real3x3 block (S)
+     * Sup: Upper out-of-diagonal Real3x3 block
+     * Slow: Lower out-of-diagonal Real3x3 block => in case of symmetry, Slow = 0
+     * */
+    m_tangent_op_d.reshape({max_gauss_per_cell});
+    m_tangent_op_s.reshape({max_gauss_per_cell});
+    m_tangent_op_sup.reshape({max_gauss_per_cell});
+    m_tangent_op_slow.reshape({max_gauss_per_cell});
+  }
 
   NumMatrix<Real,3,3> zero(Real3x3::zero());
 
@@ -254,19 +257,23 @@ _startInitGauss()
     lambda = m_lambda[cell];
     mu = m_mu[cell];
 
-    auto is_default = m_default_law[cell];
-    auto lawtyp = static_cast<TypesNLDynamic::eLawType>(m_law[cell]);
-    auto ilaw = m_iparam_law[cell];
-    LawDispatcher cell_law(lawtyp, is_default);
-    auto nblaw = cell_law.getNbLawParam();
-    RealUniqueArray lawparams(nblaw);
-    cell_law.readLawParams(&lawparams, lambda, mu, is_default, m_law_param_file, ilaw);
+    Integer nbhist{0};
 
-    m_law_param[cell].copy(lawparams);
+    if (!is_linear) {
+      auto is_default = m_default_law[cell];
+      auto lawtyp = static_cast<TypesNLDynamic::eLawType>(m_law[cell]);
+      auto ilaw = m_iparam_law[cell];
+      LawDispatcher cell_law(lawtyp, is_default);
+      auto nblaw = cell_law.getNbLawParam();
+      RealUniqueArray lawparams(nblaw);
+      cell_law.readLawParams(&lawparams, lambda, mu, is_default, m_law_param_file, ilaw);
 
-    auto nbhist = cell_law.getNbLawHistoryParam();
+      m_law_param[cell].copy(lawparams);
+      nbhist = cell_law.getNbLawHistoryParam();
+    }
 
     for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
+
         if (nbhist > 0) {
         for (Int32 ip = 0; ip < nbhist; ++ip)
           m_law_hist_param(cell,ig,ip) = 0.;
@@ -303,17 +310,20 @@ _startInitGauss()
       // Initializing all strains/stresses to zero
       m_gauss_stress0(cell, ig) = zero;
       m_gauss_stress(cell, ig) = zero;
-      m_gauss_prev_stress(cell, ig) = zero;
-      m_gauss_strain0(cell, ig) = zero;
-      m_gauss_prev_strain(cell, ig) = zero;
       m_gauss_strain(cell, ig) = zero;
-      m_gauss_strainp0(cell, ig) = zero;
-      m_gauss_prev_strainp(cell, ig) = zero;
-      m_gauss_strainp(cell, ig) = zero;
-      m_tangent_op_d(cell, ig) = zero;
-      m_tangent_op_s(cell, ig) = zero;
-      m_tangent_op_sup(cell, ig) = zero;
-      m_tangent_op_slow(cell, ig) = zero;
+      m_gauss_strain0(cell, ig) = zero;
+
+      if (!is_linear) {
+        m_gauss_prev_stress(cell, ig) = zero;
+        m_gauss_prev_strain(cell, ig) = zero;
+        m_gauss_strainp0(cell, ig) = zero;
+        m_gauss_prev_strainp(cell, ig) = zero;
+        m_gauss_strainp(cell, ig) = zero;
+        m_tangent_op_d(cell, ig) = zero;
+        m_tangent_op_s(cell, ig) = zero;
+        m_tangent_op_sup(cell, ig) = zero;
+        m_tangent_op_slow(cell, ig) = zero;
+      }
     }
   }
 
@@ -347,8 +357,10 @@ _startInitGauss()
         for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
 
           m_gauss_stress0(cell, ig) = NumMatrix<Real,3,3>(sig0);
-          m_gauss_prev_stress(cell, ig) = NumMatrix<Real,3,3>(sig0);
           m_gauss_stress(cell, ig) = zero;
+
+          if (!is_linear)
+            m_gauss_prev_stress(cell, ig) = NumMatrix<Real,3,3>(sig0);
         }
       }
     }
@@ -581,14 +593,15 @@ _initGaussStep()
       m_gauss_jacobian(cell,ig) = jacobian;
       m_gauss_jacob_mat(cell,ig) = NumMatrix<Real,3,3>(jac);
 
-      // Tensors are initialized to the value of previous step
-      m_gauss_prev_stress(cell,ig) = m_gauss_stress(cell,ig);
-      m_gauss_prev_strain(cell,ig) = m_gauss_strain(cell,ig);
-      m_gauss_prev_strainp(cell,ig) = m_gauss_strainp(cell,ig);
-      m_gauss_stress(cell,ig) = NumMatrix<Real,3,3>(Real3x3::zero());
-      m_gauss_strain(cell,ig) = NumMatrix<Real,3,3>(Real3x3::zero());
-      m_gauss_strainp(cell,ig) = NumMatrix<Real,3,3>(Real3x3::zero());
-
+      if (!is_linear) {
+        // Tensors are initialized to the value of previous step
+        m_gauss_prev_stress(cell,ig) = m_gauss_stress(cell,ig);
+        m_gauss_prev_strain(cell,ig) = m_gauss_strain(cell,ig);
+        m_gauss_prev_strainp(cell,ig) = m_gauss_strainp(cell,ig);
+        m_gauss_stress(cell,ig) = NumMatrix<Real,3,3>(Real3x3::zero());
+        m_gauss_strain(cell,ig) = NumMatrix<Real,3,3>(Real3x3::zero());
+        m_gauss_strainp(cell,ig) = NumMatrix<Real,3,3>(Real3x3::zero());
+      }
     }
   }
 }
@@ -620,7 +633,8 @@ _iterate(){
     // Solve the linear system AX = B
     _doSolve();
 
-    _check_convergence(iter);
+    if (!m_converge)
+      _check_convergence(iter);
 
     iter++;
 
@@ -1701,11 +1715,15 @@ _compute_stress(bool init, bool store)
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
+  auto nbcell{0};
+  auto nbelast{0};
+
   ENUMERATE_CELL (icell, allCells()) {
     const Cell& cell = *icell;
     auto cell_type = cell.type();
     auto cell_nbnod = cell.nbNode();
     Int32 numcell = cell.localId();
+    ++nbcell;
 
     auto cell_nbgauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, ninteg);
 
@@ -1717,6 +1735,7 @@ _compute_stress(bool init, bool store)
     cell_law.setLawParams(&law_params);
 
     auto nbhist = cell_law.getNbLawHistoryParam();
+    auto nbelastg{0};
 
     for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
 
@@ -1795,7 +1814,10 @@ _compute_stress(bool init, bool store)
 
       // Compute the current stress from the law at this Gauss point
       // Tangent stiffness operator is not computed at prediction stage
-      cell_law.computeStress(init, store);
+      bool is_plastic = cell_law.computeStress(init, store);
+
+      if (!is_plastic)
+        ++nbelastg;
 
       if (nbhist > 0) {
         for (Int32 ip = 0; ip < nbhist; ++ip)
@@ -1822,7 +1844,10 @@ _compute_stress(bool init, bool store)
           m_tangent_op_slow(cell,ig) = NumMatrix<Real,3,3>(tangent_op[3]);
       }
     }
+    if (nbelastg == cell_nbgauss)
+      ++nbelast;
   }
+  m_converge = (nbcell == nbelast);
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -2228,7 +2253,8 @@ _check_convergence(Int32 iter){
   ENUMERATE_ (Node, inode, ownNodes()) {
     Node node = *inode;
     auto xi = m_prev_displ_iter[node];
-    auto dx = m_displ[node] - xi;
+    auto x = m_displ[node];
+    auto dx = x - xi;
     xinorm += math::dot(xi,xi);
     dxnorm += math::dot(dx,dx);
   }
@@ -2621,35 +2647,22 @@ _initBoundaryConditions()
       CaseTable* case_table = nullptr;
       auto table_file_name = bs->getDirichletInputFile();
       bool getFromTable = !table_file_name.empty();
-      bool hasUx{false};
-      bool hasUy{false};
-      bool hasUz{false};
+      bool hasU[3]{false,false,false};
 
       if (getFromTable) {
         case_table = readFileAsCaseTable(pm, table_file_name, 3);
         const StringConstArrayView t_string = bs->getDirection();
-        if (t_string[0] == "1")  // x-direction is imposed
-          hasUx = true;
 
-        else if (t_string.size() > 1) {
-          if (t_string[1] == "1") // y-direction is imposed
-            hasUy = true;
-
-          if (t_string[2] == "1") // z-direction is imposed
-            hasUz = true;
+        for (Int32 i = 0; i < t_string.size(); ++i) {
+          if (t_string[i] == "1")  // direction is imposed
+            hasU[i] = true;
         }
       }
       else {
         const StringConstArrayView t_string = bs->getValue();
-        if (t_string[0] != "NULL")  // x-value is provided
-          hasUx = true;
-
-        else if (t_string.size() > 1) {
-          if (t_string[1] != "NULL") // y-value is provided
-            hasUy = true;
-
-          if (t_string.size() > 2) // z-value is provided
-            if (t_string[2] != "NULL") hasUz = true;
+        for (Int32 i = 0; i < t_string.size(); ++i) {
+          if (t_string[i] != "NULL")  // value is imposed
+            hasU[i] = true;
         }
       }
 
@@ -2659,10 +2672,9 @@ _initBoundaryConditions()
       ENUMERATE_NODE (inode, nodes)
       {
         const Node& node = *inode;
-
-        m_imposed_displ[node].x = (hasUx == true);
-        m_imposed_displ[node].y = (hasUy == true);
-        m_imposed_displ[node].z = (hasUz == true);
+        auto coord = m_node_coord[node];
+        for (Int32 i = 0; i < NDIM; ++i)
+          m_imposed_displ[node][i] = (hasU[i] == true);
       }
 
       dirichletMethod = bs->getEnforceDirichletMethod().lower();
@@ -2689,36 +2701,22 @@ _initBoundaryConditions()
       CaseTable* case_table = nullptr;
       auto table_file_name = bs->getDirichletInputFile();
       bool getFromTable = !table_file_name.empty();
-      bool hasUx{false};
-      bool hasUy{false};
-      bool hasUz{false};
+      bool hasU[3]{false,false,false};
 
       if (getFromTable) {
         case_table = readFileAsCaseTable(pm, table_file_name, 3);
 
         const StringConstArrayView t_string = bs->getDirection();
-        if (t_string[0] == "1")  // x-direction is imposed
-          hasUx = true;
-
-        else if (t_string.size() > 1) {
-          if (t_string[1] == "1") // y-direction is imposed
-            hasUy = true;
-
-          if (t_string[2] == "1") // z-direction is imposed
-            hasUz = true;
+        for (Int32 i = 0; i < t_string.size(); ++i) {
+          if (t_string[i] == "1")  // direction is imposed
+            hasU[i] = true;
         }
       }
       else {
         const StringConstArrayView t_string = bs->getValue();
-        if (t_string[0] != "NULL")  // x-value is provided
-          hasUx = true;
-
-        else if (t_string.size() > 1) {
-          if (t_string[1] != "NULL") // y-value is provided
-            hasUy = true;
-
-          if (t_string.size() > 2) // z-value is provided
-            if (t_string[2] != "NULL") hasUz = true;
+        for (Int32 i = 0; i < t_string.size(); ++i) {
+          if (t_string[i] != "NULL")  // value is imposed
+            hasU[i] = true;
         }
       }
 
@@ -2732,10 +2730,9 @@ _initBoundaryConditions()
         // Loop on nodes of the face
         for (Int32 k = 0; k < nb_node; ++k) {
           const Node& node = face.node(k);
-
-          m_imposed_displ[node].x = (hasUx == true);
-          m_imposed_displ[node].y = (hasUy == true);
-          m_imposed_displ[node].z = (hasUz == true);
+          auto coord = m_node_coord[node];
+          for (Int32 i = 0; i < NDIM; ++i)
+            m_imposed_displ[node][i] = (hasU[i] == true);
         }
       }
 
@@ -2772,36 +2769,22 @@ _initBoundaryConditions()
       CaseTable* case_table = nullptr;
       auto table_file_name = bs->getPointInputFile();
       bool getFromTable = !table_file_name.empty();
-      bool xdir{false};
-      bool ydir{false};
-      bool zdir{false};
+      bool dir[3]{false,false,false};
 
       if (getFromTable) {
         case_table = readFileAsCaseTable(pm, table_file_name, 3);
 
         const StringConstArrayView t_string = bs->getDirection();
-        if (t_string[0] == "1")  // x-direction is imposed
-          xdir = true;
-
-        else if (t_string.size() > 1) {
-          if (t_string[1] == "1") // y-direction is imposed
-            ydir = true;
-
-          if (t_string[2] == "1") // z-direction is imposed
-            zdir = true;
+        for (Int32 i = 0; i < t_string.size(); ++i) {
+          if (t_string[i] == "1")  // direction is imposed
+            dir[i] = true;
         }
       }
       else {
         const StringConstArrayView t_string = bs->getValue();
-        if (t_string[0] != "NULL")  // x-value is provided
-          xdir = true;
-
-        else if (t_string.size() > 1) {
-          if (t_string[1] != "NULL") // y-value is provided
-            ydir = true;
-
-          if (t_string.size() > 2) // z-value is provided
-            if (t_string[2] != "NULL") zdir = true;
+        for (Int32 i = 0; i < t_string.size(); ++i) {
+          if (t_string[i] != "NULL")  // value is imposed
+            dir[i] = true;
         }
       }
 
@@ -2831,21 +2814,12 @@ _initBoundaryConditions()
       ENUMERATE_NODE (inode, nodes) {
         const Node& node = *inode;
 
-        m_imposed_acc[node].x = (hasA && xdir ? 1 : 0);
-        m_imposed_acc[node].y = (hasA && ydir ? 1 : 0);
-        m_imposed_acc[node].z = (hasA && zdir ? 1 : 0);
-
-        m_imposed_vel[node].x = (hasV && xdir ? 1 : 0);
-        m_imposed_vel[node].y = (hasV && ydir ? 1 : 0);
-        m_imposed_vel[node].z = (hasV && zdir ? 1 : 0);
-
-        m_imposed_displ[node].x = (hasU && xdir ? 1 : 0);
-        m_imposed_displ[node].y = (hasU && ydir ? 1 : 0);
-        m_imposed_displ[node].z = (hasU && zdir ? 1 : 0);
-
-        m_imposed_force[node].x = (hasF && xdir ? 1 : 0);
-        m_imposed_force[node].y = (hasF && ydir ? 1 : 0);
-        m_imposed_force[node].z = (hasF && zdir ? 1 : 0);
+        for (Int32 i = 0; i < NDIM; ++i) {
+          m_imposed_acc[node][i] = (hasA && dir[i] ? 1 : 0);
+          m_imposed_vel[node][i] = (hasV && dir[i] ? 1 : 0);
+          m_imposed_displ[node][i] = (hasU && dir[i] ? 1 : 0);
+          m_imposed_force[node][i] = (hasF && dir[i] ? 1 : 0);
+        }
       }
     }
 

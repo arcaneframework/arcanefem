@@ -13,7 +13,7 @@
 
   <meshes>
     <mesh>
-      <filename>bar_dynamic.msh</filename>
+      <filename>bar4Q.msh</filename>
       <initialization>
         <variable><name>Rho</name><value>2000.000000</value><group>volume</group></variable>
         <variable><name>Lambda</name><value>640.000e6</value><group>volume</group></variable>
@@ -25,7 +25,7 @@
   <n-l-dynamic>
     <analysis-type>planestrain</analysis-type>
     <start>0.</start>
-    <final-time>2.0</final-time>
+    <final-time>0.16</final-time>
     <deltat>0.08</deltat>
 
     <init-elast-type>lame</init-elast-type>

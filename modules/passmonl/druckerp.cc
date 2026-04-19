@@ -190,13 +190,15 @@ void DruckPReadLawParams(RealUniqueArray* law_params, Real lambda, Real mu, bool
   (*law_params)[1] = mu;
 
   // =========================================================================================================
-  // Drucker-Prager model parameters stored in the lawparams vector:
-  // 0-Lambda=1st Lame coef.  1-Mu=2nd Lame coef. =>not provided here as initialized with mesh data
-  // 2-phi(°)=friction angle 3-psi(°)=dilatancy angle
-  // 4-cohesion (Pa) 5-incmax=max number of sub-increments for law integration
-  // 6-indaux= indicator for tangent tensor type: 0 = elastic (default, symmetric),1 = plastic (unsymmetric)
+  // Lawparams vector for Drucker-Prager model: size ( = nb-law-param) is 7
+  // [0] = Lambda (1st Lame coef.) (not provided in this file)
+  // [1] = Mu (2nd Lame coef.) (not provided in this file)
+  // [2] = phi(°)=friction angle
+  // [3] = psi(°)=dilatancy angle
+  // [4] = cohesion (Pa)
+  // [5] = incmax => max number of sub-increments for explicit law integration
+  // [6] = indaux => indicator for tangent tensor type: 0 = elastic (default, symmetric),1 = plastic (unsymmetric)
   // =========================================================================================================
-
   bool is_file = (!name.empty() && MatFile.open(name.localstr(), ios::in) != nullptr);
   bool is_default = (default_param || !is_file);
 
@@ -216,8 +218,9 @@ void DruckPReadLawParams(RealUniqueArray* law_params, Real lambda, Real mu, bool
     // Find this law "block" in the file containing all models
     ReadLawBlock(isRead, ilaw);
 
-    for (int i = 2; i < 7; i++)
+    for (int i = 2; i < 7; i++) {
       isRead >> (*law_params)[i];
+    }
     isRead.getline(c, 500); // "\n"
 
     MatFile.close();
@@ -228,8 +231,8 @@ void DruckPReadLawParams(RealUniqueArray* law_params, Real lambda, Real mu, bool
   (*law_params)[3] *= RAD;
 }
 
-Tensor4 DruckPComputeStress(RealUniqueArray* law_params, RealUniqueArray* history_vars, Tensor2& sig, Tensor2& eps, Tensor2& epsp, Tensor2& dsig,
-                                     const Tensor2& deps, bool /*isRef*/)
+bool DruckPComputeStress(RealUniqueArray* law_params, RealUniqueArray* history_vars, Tensor2& sig, Tensor2& eps, Tensor2& epsp, Tensor2& dsig,
+                                     const Tensor2& deps, Tensor4& tangent_tensor, bool /*isRef*/)
 {
   RealUniqueArray consts = DruckPInitConsts(law_params);
 
@@ -244,7 +247,7 @@ Tensor4 DruckPComputeStress(RealUniqueArray* law_params, RealUniqueArray* histor
   auto elast_tensor = DruckPComputeElastTensor(law_params,Tensor2::zero());
   elast_tensor.isSymmetric(true);
   elast_tensor.isConstitutive(true);
-  Tensor4 tangent_tensor(elast_tensor);
+  tangent_tensor = elast_tensor;
 
   Real3	un(1,1,1);
   Real tol{1.0e-15};
@@ -386,6 +389,6 @@ Tensor4 DruckPComputeStress(RealUniqueArray* law_params, RealUniqueArray* histor
     }
   }
   (*history_vars)[0] = (Real)is_plastic;
-  return tangent_tensor;
+  return is_plastic;
 }
 
