@@ -70,7 +70,7 @@ such that setting $m=0$ brings us back to the homogenous $\lambda$ and linear Fo
 #### Analytical Temperature ####
 This definition along with the above BCs permit to obtain an analytical solution the nonlinear Fourier problem in Cartesian coordinates given by
 
-$$T(x, y) = ((2^{m+1} - 1)x + 1)^{1/(1+m)} - 1 .$$
+$$T(x, y) = ((2^{m+1} - 1)x + 1)^{1/(m+1)} - 1 .$$
 
 
 
