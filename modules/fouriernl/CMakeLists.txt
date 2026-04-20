@@ -51,6 +51,7 @@ file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
     unit_square.msh
+    unit_square.coarse.msh
     unit_square.quad.msh
     unit_cube.msh)
 
@@ -62,9 +63,15 @@ enable_testing()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   if (NOT APPLE)
-    add_test(NAME [fouriernl]manufacture_solution COMMAND FourierNL
+    add_test(NAME [fouriernl]2D_nonlinear_conduction COMMAND FourierNL
       -A,UsingDotNet=1
             inputs/Test.nonlinear.conduction.arc)
+    add_test(NAME [fouriernl]2D_nonlinear_conduction_quad COMMAND FourierNL
+            -A,UsingDotNet=1
+            inputs/Test.nonlinear.conduction.quad.arc)
+    add_test(NAME [fouriernl]2D_nonlinear_conduction_coarse COMMAND FourierNL
+            -A,UsingDotNet=1
+            inputs/Test.nonlinear.conduction.coarse.arc)
   endif()
 
 #  set(SOLVER_PETSC_CG

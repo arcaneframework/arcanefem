@@ -144,35 +144,53 @@ _doStationarySolve()
 {
   info() << "[ArcaneFem-Info] Started module _doStationarySolve()";
 
-  _updatePreviousIterationVariables(true);
-
-  if(m_assemble_linear_system){
-    _assembleLinearOperator();
-  }
+  _updatePreviousIterationVariables();
   while(m_fp_iter < m_max_fp_iters){
     if(m_assemble_linear_system){
-      _updateNonLinearField(true); // evaluates lambda(uk) on nodes
+      _updateNonLinearField(); // evaluates lambda(uk) on nodes
+
+      if ( m_linear_system.isInitialized() && m_fp_iter != 0) {
+        m_linear_system.clearValues();
+        // Set Dirichlet BC to the LHS // TODO make an exclusive function the lhs
+        {
+          VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
+          auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+          auto applyBoundaryConditions = [&](auto BCFunctions) {
+            BC::IArcaneFemBC* bc = options()->boundaryConditions();
+            if (bc) {
+              for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
+                ArcaneFemFunctions::BoundaryConditions::applyDirichletToLhsAndRhs(bs, node_dof, m_linear_system, rhs_values);
+            }
+          };
+          if (mesh()->dimension() == 3)
+            applyBoundaryConditions(ArcaneFemFunctions::BoundaryConditions3D());
+          else
+            applyBoundaryConditions(ArcaneFemFunctions::BoundaryConditions2D());
+        }
+      } else {
+        _assembleLinearOperator();
+      }
       _assembleBilinearOperator();
     }
     if (m_solve_linear_system){
       _solve();
-      _updateVariables(true);
+      _updateVariables();
     }
 
     ++m_fp_iter;
     _checkConvergence();
 
     if(m_converged){
-      info() << "[ArcaneFem-FP-iters] Fixed-point iterations converged after " << m_fp_iter << " iterations";
+      info() << "[ArcaneFem-Info] Fixed-point iterations converged after " << m_fp_iter << " iterations";
       break;
     } else{
-      _updatePreviousIterationVariables(true); // copy u into uk for next iteration convergence check
+      _updatePreviousIterationVariables(); // copy u into uk for next iteration convergence check
       // m_uk.copy(m_u);
       _updateSolutionFromVariables(); // copy u into u_dof to update initial guess for linear solve TODO See how to use swap instead of deep copy
     }
   }
   if (m_fp_iter == m_max_fp_iters && !m_converged){
-    info() << "[ArcaneFem-FP-iters] Fixed-point iterations did not converge after maximum (" << m_max_fp_iters << ") iterations";
+    info() << "[ArcaneFem-Info] Fixed-point iterations did not converge after maximum (" << m_max_fp_iters << ") iterations";
     ARCANE_FATAL("Fixed-point iterations diverged after max iters");
   }
   if(m_cross_validation){
@@ -506,48 +524,37 @@ _solve()
 void FemModuleFourierNL::
 _checkConvergence()
 {
-  info() << "[ArcaneFem-Module] Started module _checkConvergence()";
+  info() << "[ArcaneFem-Info] Started module _checkConvergence()";
   Real elapsedTime = platform::getRealTime();
 
   m_u.synchronize();
   m_uk.synchronize();
 
-  Real max_error = 0.0; //, max_ref = 0;
-  Real l1_error = 0.0; //, l1_ref = 0;
+  Real max_error = 0.0;
+  // Real l1_error = 0.0;
   {
     ENUMERATE_ (Node, inode, ownNodes()) {
       const Real error = abs(m_u[inode] - m_uk[inode]);
 
       max_error = math::max(error, max_error);
-      l1_error  += error;
-
-      // max_ref   = math::max( abs(m_uk[inode]), max_ref );
-      // l1_ref    += abs(m_uk[inode]);
+      // l1_error  += error;
     }
   }
   IParallelMng* pm = defaultMesh()->parallelMng();
   max_error = pm->reduce(Parallel::ReduceMax, max_error);
-  // max_ref   = pm->reduce(Parallel::ReduceMax, max_ref);
-  l1_error  = pm->reduce(Parallel::ReduceSum, l1_error);
-  // l1_ref    = pm->reduce(Parallel::ReduceSum, l1_ref);
-
-  // if (max_ref == 0){ max_ref += 1e-12;}
-  // max_error = max_error / max_ref;
-
-  // if (l1_ref == 0){ l1_ref += 1e-12;}
-  // l1_error = l1_error / l1_ref;
+  // l1_error  = pm->reduce(Parallel::ReduceSum, l1_error);
 
   // if ( max_error < m_fp_tol || l1_error < m_fp_tol){
-  // if ( max_error < m_fp_tol){
-  if ( l1_error < m_fp_tol ){
+  if ( max_error < m_fp_tol){
+  // if ( l1_error < m_fp_tol ){
     m_converged = true;
   } else {
     m_converged = false;
   }
 
   // info() << "[ArcaneFem-FP-iters] At fixed-point iteration "<< m_fp_iter <<": linf(max)-error = " << max_error << " and l1-error = " << l1_error;
-  // info() << "[ArcaneFem-FP-iters] At fixed-point iteration "<< m_fp_iter <<": linf(max)-error = " << max_error;
-  info() << "[ArcaneFem-FP-iters] At fixed-point iteration "<< m_fp_iter <<": l1-error = " << l1_error;
+  info() << "[ArcaneFem-Info] At fixed-point iteration "<< m_fp_iter <<": linf(max)-error = " << max_error;
+  // info() << "[ArcaneFem-FP-iters] At fixed-point iteration "<< m_fp_iter <<": l1-error = " << l1_error;
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "check-convergence", elapsedTime);
@@ -617,7 +624,7 @@ _updateVariables(bool verbose)
 void FemModuleFourierNL::
 _updateNonLinearField(bool verbose)
 {
-  info() << "[ArcaneFem-Module] Started module _updateNonLinearField()";
+  info() << "[ArcaneFem-Info] Started module _updateNonLinearField()";
   Real elapsedTime = platform::getRealTime();
   m_uk.synchronize();
   {
@@ -654,7 +661,7 @@ _updateNonLinearField(bool verbose)
 void FemModuleFourierNL::
 _updatePreviousIterationVariables(bool verbose)
 {
-  info() << "[ArcaneFem-Module] Started module _updatePreviousIterationVariables()";
+  info() << "[ArcaneFem-Info] Started module _updatePreviousIterationVariables()";
   Real elapsedTime = platform::getRealTime();
 
   {
@@ -689,7 +696,7 @@ _updatePreviousIterationVariables(bool verbose)
 void FemModuleFourierNL::
 _updateSolutionFromVariables()
 {
-  info() << "[ArcaneFem-Module] Started module _updateSolutionFromVariables()";
+  info() << "[ArcaneFem-Info] Started module _updateSolutionFromVariables()";
   Real elapsedTime = platform::getRealTime();
 
   m_u.synchronize();

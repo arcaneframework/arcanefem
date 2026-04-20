@@ -442,7 +442,7 @@ _solve()
 void FemModuleLaplaceNL::
 _checkConvergence()
 {
-  info() << "[ArcaneFem-Module] Started module _checkConvergence()";
+  info() << "[ArcaneFem-Info] Started module _checkConvergence()";
   Real elapsedTime = platform::getRealTime();
 
   Real max_error = 0, max_ref = 0;
@@ -495,7 +495,7 @@ _checkConvergence()
 void FemModuleLaplaceNL::
 _updateVariables()
 {
-  info() << "[ArcaneFem-Module] Started module _updateVariables()";
+  info() << "[ArcaneFem-Info] Started module _updateVariables()";
   Real elapsedTime = platform::getRealTime();
 
   {
@@ -528,7 +528,7 @@ _updateVariables()
 void FemModuleLaplaceNL::
 _updateNonLinearField()
 {
-  info() << "[ArcaneFem-Module] Started module _updateNonLinearField()";
+  info() << "[ArcaneFem-Info] Started module _updateNonLinearField()";
   Real elapsedTime = platform::getRealTime();
   m_uk.synchronize();
   {
@@ -560,7 +560,7 @@ _updateNonLinearField()
 void FemModuleLaplaceNL::
 _updatePreviousIterationVariables()
 {
-  info() << "[ArcaneFem-Module] Started module _updatePreviousIterationVariables()";
+  info() << "[ArcaneFem-Info] Started module _updatePreviousIterationVariables()";
   Real elapsedTime = platform::getRealTime();
 
   {
@@ -592,7 +592,7 @@ _updatePreviousIterationVariables()
 void FemModuleLaplaceNL::
 _updateSolutionFromVariables()
 {
-  info() << "[ArcaneFem-Module] Started module _updateSolutionFromVariables()";
+  info() << "[ArcaneFem-Info] Started module _updateSolutionFromVariables()";
   Real elapsedTime = platform::getRealTime();
 
   m_u.synchronize();
