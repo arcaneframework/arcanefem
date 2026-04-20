@@ -151,22 +151,25 @@ _doStationarySolve()
 
       if ( m_linear_system.isInitialized() && m_fp_iter != 0) {
         m_linear_system.clearValues();
+
+        _assembleLinearOperator(); // We use _assembleLinearOperator now for simplicity
+
         // Set Dirichlet BC to the LHS // TODO make an exclusive function the lhs
-        {
-          VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
-          auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-          auto applyBoundaryConditions = [&](auto BCFunctions) {
-            BC::IArcaneFemBC* bc = options()->boundaryConditions();
-            if (bc) {
-              for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
-                ArcaneFemFunctions::BoundaryConditions::applyDirichletToLhsAndRhs(bs, node_dof, m_linear_system, rhs_values);
-            }
-          };
-          if (mesh()->dimension() == 3)
-            applyBoundaryConditions(ArcaneFemFunctions::BoundaryConditions3D());
-          else
-            applyBoundaryConditions(ArcaneFemFunctions::BoundaryConditions2D());
-        }
+        // {
+        //   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
+        //   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+        //   auto applyBoundaryConditions = [&](auto BCFunctions) {
+        //     BC::IArcaneFemBC* bc = options()->boundaryConditions();
+        //     if (bc) {
+        //       for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
+        //         ArcaneFemFunctions::BoundaryConditions::applyDirichletToLhsAndRhs(bs, node_dof, m_linear_system, rhs_values);
+        //     }
+        //   };
+        //   if (mesh()->dimension() == 3)
+        //     applyBoundaryConditions(ArcaneFemFunctions::BoundaryConditions3D());
+        //   else
+        //     applyBoundaryConditions(ArcaneFemFunctions::BoundaryConditions2D());
+        // }
       } else {
         _assembleLinearOperator();
       }
