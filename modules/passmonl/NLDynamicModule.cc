@@ -815,7 +815,7 @@ _updateNewmark()
   const auto dt = m_global_deltat();
   auto dt2 {dt * dt};
   auto betadt2 {1./beta/dt2};
-  auto gammadt {1./gamma/dt};
+  auto gammadt {gamma * dt};
 
   ENUMERATE_NODE(inode, allNodes()){
     Node node = *inode;
