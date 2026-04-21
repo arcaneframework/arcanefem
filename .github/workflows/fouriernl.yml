@@ -1,4 +1,4 @@
-name: 'Module fourier'
+name: 'Module fouriernl'
 
 on:
   push:
@@ -12,9 +12,9 @@ on:
   workflow_dispatch:
 
 env:
-  MODULE_DIR: 'modules/fourier'
+  MODULE_DIR: 'modules/fouriernl'
 
-  MODULE: 'fourier'
+  MODULE: 'fouriernl'
 
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"
