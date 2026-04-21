@@ -23,22 +23,22 @@ find_program(ARCANE_DOTNET_COMPILE
 if (NOT APPLE AND ARCANE_DOTNET_COMPILE
     AND EXISTS "${ARCANE_PREFIX_DIR}/lib/Arcane.Core.dll"
     AND EXISTS "${ARCANE_PREFIX_DIR}/lib/Arcane.Utils.dll")
-    message(STATUS "Arcane .NET support detected — building ExternalFunctions.dll")
+    message(STATUS "Arcane .NET support detected — building ExternalFunctionsNL.dll")
 
-  add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctions.dll"
-    COMMAND ${ARCANE_DOTNET_COMPILE} "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctions.cs"
-    DEPENDS "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctions.cs"
+  add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctionsNL.dll"
+    COMMAND ${ARCANE_DOTNET_COMPILE} "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctionsNL.cs"
+    DEPENDS "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctionsNL.cs"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
   )
 
-  add_custom_target(external_functions DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctions.dll")
-  add_dependencies(FourierNL external_functions)
+  add_custom_target(external_functionsnl DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctionsNL.dll")
+  add_dependencies(FourierNL external_functionsnl)
 
 elseif(APPLE)
-  message(STATUS "Skipping ExternalFunctions.dll build on macOS")
+  message(STATUS "Skipping ExternalFunctionsNL.dll build on macOS")
 
 else()
-  message(STATUS "Skipping ExternalFunctions.dll — Arcane built without .NET support")
+  message(STATUS "Skipping ExternalFunctionsNL.dll — Arcane built without .NET support")
 endif()
 
 # Copy the check files in the binary directory
@@ -63,13 +63,13 @@ enable_testing()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   if (NOT APPLE)
-    add_test(NAME [fouriernl]2D_nonlinear_conduction COMMAND FourierNL
+    add_test(NAME [fouriernl]2d_nonlinear_conduction COMMAND FourierNL
       -A,UsingDotNet=1
             inputs/Test.nonlinear.conduction.arc)
-    add_test(NAME [fouriernl]2D_nonlinear_conduction_quad COMMAND FourierNL
+    add_test(NAME [fouriernl]2d_nonlinear_conduction_quad COMMAND FourierNL
             -A,UsingDotNet=1
             inputs/Test.nonlinear.conduction.quad.arc)
-    add_test(NAME [fouriernl]2D_nonlinear_conduction_coarse COMMAND FourierNL
+    add_test(NAME [fouriernl]2d_nonlinear_conduction_coarse COMMAND FourierNL
             -A,UsingDotNet=1
             inputs/Test.nonlinear.conduction.coarse.arc)
   endif()
