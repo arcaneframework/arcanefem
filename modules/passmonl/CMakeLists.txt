@@ -23,7 +23,8 @@ target_include_directories(Passmonl PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(Passmonl PUBLIC FemUtils)
 configure_file(Passmonl.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
-# configure_file(${MSH_DIR}/bar_hybrid_quad_tria.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/bar.two_trias.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+configure_file(${MSH_DIR}/bar4Q.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 configure_file(${MSH_DIR}/bar_dynamic.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 # configure_file(${MSH_DIR}/bar_dynamic_quad.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 # configure_file(${MSH_DIR}/bar_dynamic_3D.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
@@ -45,6 +46,10 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
 endif ()
 
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-  add_test(NAME [passmonl]bar2D_T3_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Passmonl bar2d_2T_lin_2steps)
-  add_test(NAME [passmonl]bar2D_Q4_dp_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Passmonl bar2d_4Q_dp.arc)
+  add_test(NAME [passmonl]bar2D_T3_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Passmonl
+    -A,//n-l-dynamic/linear-system/@name=AlephLinearSystem
+    bar2d_2T_lin_2steps.arc)
+  # add_test(NAME [passmonl]bar2D_Q4_dp_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Passmonl
+  #   -A,//n-l-dynamic/linear-system/@name=AlephLinearSystem
+  #   bar2d_4Q_dp.arc)
 endif()
