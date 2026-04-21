@@ -998,7 +998,7 @@ void NLDynamicModule::
 _computeElemMass(const Cell& cell, const Real& rho, const Int32& igauss, const Int32& nb_nodes, RealUniqueArray2& Me){
 
   auto jacobian = m_gauss_jacobian(cell,igauss);
-  auto wt = m_gauss_weight(cell,igauss);
+  auto wt = jacobian * m_gauss_weight(cell,igauss);
 
   for (Int32 inod = 0; inod < nb_nodes; ++inod) {
 
