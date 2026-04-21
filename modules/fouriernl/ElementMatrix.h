@@ -7,7 +7,8 @@
 /*---------------------------------------------------------------------------*/
 /* ElementMatrix.h                                             (C) 2022-2025 */
 /*                                                                           */
-/* Contains functions to compute the FEM element matrices for Fourier        */
+/* Contains functions to compute the FEM element matrices for Nonlinear      */
+/* Fourier                                                                   */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -16,7 +17,7 @@
  * @brief Computes the element matrix for a triangular element (ℙ1 FE).
  *
  * This function calculates the expression:
- *       a(𝑢,𝑣) = ∫∫ λ(∂𝑢/∂𝑥 ∂𝑣/∂𝑥  + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦)dΩ
+ *       𝑎(𝑢,𝑣) = ∫∫ λ(𝑢)(∂𝑢/∂𝑥 ∂𝑣/∂𝑥  + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦)dΩ
  *
  * Steps involved:
  * 1. Calculate the area of the triangle.
