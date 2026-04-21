@@ -1,0 +1,61 @@
+<?xml version='1.0'?>
+<case codename="Passmonl" xml:lang="en" codeversion="1.0">
+  <arcane>
+    <title>Sample</title>
+    <timeloop>PassmonlLoop</timeloop>
+  </arcane>
+  <arcane-post-processing>
+   <output-period>1</output-period>
+   <output>
+     <variable>Displ</variable>
+   </output>
+ </arcane-post-processing>
+
+  <meshes>
+    <mesh>
+      <filename>bar.two_trias.msh</filename>
+      <initialization>
+        <variable><name>Rho</name><value>2000.000000</value><group>volume</group></variable>
+        <variable><name>Lambda</name><value>640.000e6</value><group>volume</group></variable>
+        <variable><name>Mu</name><value>320.000e6</value><group>volume</group></variable>
+      </initialization>
+    </mesh>
+  </meshes>
+
+  <n-l-dynamic>
+    <analysis-type>planestrain</analysis-type>
+    <start>0.</start>
+    <final-time>0.16</final-time>
+    <deltat>0.08</deltat>
+
+    <init-elast-type>lame</init-elast-type>
+    <Itemax>30</Itemax>
+
+      <boundary-conditions>
+          <dirichlet>
+              <surface>surfaceleft</surface>
+              <value>0.0 0.0</value>
+              <penalty>1.e+64</penalty>
+          </dirichlet>
+
+          <dirichlet>
+              <surface>surfaceright</surface>
+              <value>0.1</value>
+              <penalty>1.e+64</penalty>
+          </dirichlet>
+      </boundary-conditions>
+
+    <nonlin-algo-type>modnewtonraphson</nonlin-algo-type>
+    <integration-type>femcell</integration-type>
+    <law-input-param>dp_params_lin.txt</law-input-param>
+    <law-model>
+       <cell-group>volume</cell-group>
+       <law-type>Druckerprager</law-type>
+       <nb-law-param>7</nb-law-param>
+       <nb-law-hist-param>1</nb-law-hist-param>
+       <i-law-param>0</i-law-param>
+    </law-model>
+    <linear-system name="SequentialBasicLinearSystem" />
+
+  </n-l-dynamic>
+</case>

@@ -2614,7 +2614,7 @@ _doSolve(){
 
   // Re-Apply Dirichlet boundary conditions because the solver has modified the values
   // on all nodes
-  _applyDirichletBoundaryConditions();// --- Check if it is required (re-apply paraxial conditions too?)
+//  _applyDirichletBoundaryConditions();// --- Check if it is required (re-apply paraxial conditions too?)
 
   m_displ.synchronize();
   m_vel.synchronize();
