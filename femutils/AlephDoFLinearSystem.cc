@@ -195,8 +195,6 @@ class AlephDoFLinearSystemImpl
   //! True is we need to manually destroy the matrix/vector
   bool m_need_destroy_matrix_and_vector = true;
 
-  // UniqueArray<Real> m_vector_zero;
-
  private:
 
   AlephParams* _createAlephParam() const;
@@ -573,17 +571,6 @@ solve()
   IItemFamily* dof_family = dofFamily();
   DoFGroup own_dofs = dof_family->allItems().own();
   const Int32 nb_dof = own_dofs.size();
-  // m_vector_zero.resize(nb_dof);
-  // m_vector_zero.fill(0.0);
-
-  // UniqueArray<Real> solution_values_for_linear_system;
-  // VariableDoFReal& dof_u(solutionVariable());
-  // ENUMERATE_ (DoF, idof, dof_family->allItems().own()) {
-  //   solution_values_for_linear_system.add(dof_u[idof]);
-  // }
-
-  // m_aleph_solution_vector->setLocalComponents(solution_values_for_linear_system.view());
-  // m_aleph_solution_vector->assemble();
 
   Int32 nb_iteration = 0;
   Real residual_norm = 0.0;
