@@ -1,4 +1,4 @@
-// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
 // Copyright 2000-2024 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
@@ -7,8 +7,8 @@
 /*---------------------------------------------------------------------------*/
 /* NLDynamicModule.cc                                      (C) 2022-2025     */
 /*                                                                           */
-/* PASSMO : Performant Assessment for Seismic Site Modelling with finite-    */
-/* element (FEM) numerical modelling approach                                */
+/* PASSMONL : Performant Assessment for Seismic Site Modelling with finite-  */
+/* element (FEM) numerical modelling approach (Non-Linear solver)            */
 /* Created by : E. Foerster                                                  */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -19,6 +19,7 @@
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/ItemGroup.h>
 #include <arcane/ICaseMng.h>
+#include <arcane/utils/NumMatrix.h>
 #include <arcane/IIOMng.h>
 #include <arcane/CaseTable.h>
 #include "IDoFLinearSystemFactory.h"
@@ -48,31 +49,25 @@ VersionInfo NLDynamicModule::versionInfo() const {
 
 NLDynamicModule::~NLDynamicModule()
 {
-  for( const CaseTableInfo&  t : m_traction_case_table_list )
+  for( const CaseTableInfo&  t : m_neumann_case_table_list )
     delete t.case_table;
   for( const CaseTableInfo&  t : m_dc_case_table_list )
     delete t.case_table;
-  for( const CaseTableInfo&  t : m_sacc_case_table_list )
-    delete t.case_table;
   for( const CaseTableInfo&  t : m_sdispl_case_table_list )
     delete t.case_table;
-  for( const CaseTableInfo&  t : m_sforce_case_table_list )
-    delete t.case_table;
-  for( const CaseTableInfo&  t : m_svel_case_table_list )
-    delete t.case_table;
-  for( const CaseTableInfo&  t : m_acc_case_table_list )
+  for( const CaseTableInfo&  t : m_A_case_table_list )
     delete t.case_table;
   for( const CaseTableInfo&  t : m_displ_case_table_list )
     delete t.case_table;
-  for( const CaseTableInfo&  t : m_force_case_table_list )
+  for( const CaseTableInfo&  t : m_F_case_table_list )
     delete t.case_table;
-  for( const CaseTableInfo&  t : m_vel_case_table_list )
+  for( const CaseTableInfo&  t : m_V_case_table_list )
     delete t.case_table;
-  for( const CaseTableInfo&  t : m_ain_case_table_list )
+  for( const CaseTableInfo&  t : m_APar_case_table_list )
     delete t.case_table;
-  for( const CaseTableInfo&  t : m_vin_case_table_list )
+  for( const CaseTableInfo&  t : m_VPar_case_table_list )
     delete t.case_table;
-  for( const CaseTableInfo&  t : m_uin_case_table_list )
+  for( const CaseTableInfo&  t : m_UPar_case_table_list )
     delete t.case_table;
 }
 
@@ -81,97 +76,12 @@ NLDynamicModule::~NLDynamicModule()
 void NLDynamicModule::
 startInit(){
 
-  info() << "Module Elastodynamic INIT";
+  info() << "Module NLDynamic initializing time loop";
 
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
 
-  ninteg = options()->getGaussNint();
-  gravity.x = options()->getGx();
-  gravity.y = options()->getGy();
-  gravity.z = options()->getGz();
-
-  auto opt_penalty = options()->enforceDirichletMethod().lower();
-  if (opt_penalty.contains("penalty") || opt_penalty.contains("weak")) {
-    penalty = options()->getPenalty();
-  }
-  gamma = options()->getGamma();
-  beta = options()->getBeta();
-  alfam = options()->getAlfam();
-  alfaf = options()->getAlfaf();
-  auto dt = options()->getDeltat();
-  m_global_deltat = dt;
-  dt2 = dt * dt;
-  auto tf = options()->getFinalTime();
-  m_global_final_time = tf;
-  auto t = options()->getStart();
-  m_global_time = t;
-  linop_nstep = options()->getLinopNstep();
-  auto szType = options()->initElastType().lower();
-  if (szType.contains("young")) elast_type = TypesNLDynamic::YoungNu;
-  else if (szType.contains("lame")) elast_type = TypesNLDynamic::Lame;
-  else if (szType.contains("vel")) elast_type = TypesNLDynamic::Veloc;
-  else {
-
-    info() << "init-elast-type keywords must include (not case dependent):\n"
-           << "  - Young\n"
-           << "  - Lame\n"
-           << "  - Velocity or Vel\n";
-    ARCANE_FATAL("Type for elastic properties is undefined!");
-  }
-  algo_type = options()->getNonlinAlgoType();
-  is_linear = (algo_type == TypesNLDynamic::Linear);
-
-  if (options()->hasItemax())
-    ite_max = options()->getItemax();
-
-  if (options()->hasUtol())
-    utol = options()->getUtol();
-
-  if (options()->hasFtol())
-    ftol = options()->getFtol();
-
-  if (options()->hasEtol())
-    etol = options()->getEtol();
-  else
-    etol = utol * ftol;
-
-  auto nsteps = (int)((tf - t)/dt);
-  if (!is_linear && linop_nstep > nsteps) keep_constop = true;
-
-  is_alfa_method = options()->alfa_method();
-  if (is_alfa_method) {
-    gamma = 0.5 + alfaf - alfam;
-    beta = 0.5*pow(0.5 + gamma,2);
-  }
-  else{
-    alfam = 0.;
-    alfaf = 0.;
-  }
-
-  analysis_type = options()->getAnalysisType();
-  if (analysis_type == TypesNLDynamic::ThreeD)
-    NDIM = 3;
-  else
-    NDIM = 2;
-
-  auto dirichletMethod = options()->enforceDirichletMethod();
-  auto dirichletMethodl = dirichletMethod.lower();
-
-  if (!dirichletMethodl.contains("penalty") && !dirichletMethodl.contains("weak")
-      && !dirichletMethodl.contains("rowelim")
-      && !dirichletMethodl.contains("rowcolumnelim")) {
-    info() << "Dirichlet boundary condition via "
-           << dirichletMethod << " is not supported \n"
-           << "enforce-Dirichlet-method only supports (not case dependent):\n"
-           << "  - Penalty\n"
-           << "  - WeakPenalty or Weak\n"
-           << "  - RowElimination or RowElim\n"
-           << "  - RowColumnElimination or RowColumnElim\n";
-
-    ARCANE_FATAL("Dirichlet boundary conditions will not be applied ");
-  }
-
+  _getOptions();
   _initDofs();
   m_linear_system.initialize(subDomain(), m_dofs_on_nodes.dofFamily(), "Solver");
 
@@ -187,13 +97,90 @@ startInit(){
     m_displ[node] = Real3::zero();
   }
 
-//  _startInitGauss();
   _applyInitialNodeConditions();
   _initCells();
   _initBoundaryConditions();
   _initDCConditions();
   _startInitGauss();
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+void NLDynamicModule::
+_getOptions(){
+  info() << "Module NLDynamic: init from user options";
+
+  ninteg = options()->getGaussNint();
+
+  if (options()->bodyf.isPresent()) {
+    const UniqueArray<String> f_string = options()->bodyf();
+    info() << "[ArcaneFem-Info] Applying Bodyforce " << f_string;
+    for (Int32 i = 0; i < f_string.size(); ++i) {
+      if (f_string[i] != "NULL") {
+        bodyf[i] = std::stod(f_string[i].localstr());
+      }
+    }
+  }
+
+  // alfam = options()->getAlfam();
+  // alfaf = options()->getAlfaf();
+  gamma = options()->getGamma();
+  beta = options()->getBeta();
+  auto dt = options()->getDeltat();
+  m_global_deltat = dt;
+  dt2 = dt * dt;
+  auto tf = options()->getFinalTime();
+  m_global_final_time = tf;
+  auto t = options()->getStart();
+  m_global_time = t;
+  linop_nstep = options()->getLinopNstep();
+
+  // is_alfa_method = options()->alfa_method();
+  // if (is_alfa_method) {
+  //   gamma = 0.5 + alfaf - alfam;
+  //   beta = 0.5*pow(0.5 + gamma,2);
+  // }
+  // else{
+  //   alfam = 0.;
+  //   alfaf = 0.;
+  // }
+
+  auto szType = options()->initElastType().lower();
+  if (szType.contains("young")) elast_type = TypesNLDynamic::YoungNu;
+  else if (szType.contains("lame")) elast_type = TypesNLDynamic::Lame;
+  else if (szType.contains("vel")) elast_type = TypesNLDynamic::Veloc;
+  else {
+
+    info() << "init-elast-type keywords must include (not case dependent):\n"
+           << "  - Young\n"
+           << "  - Lame\n"
+           << "  - Velocity or Vel\n";
+    ARCANE_FATAL("Type for elastic properties is undefined!");
+  }
+  algo_type = options()->getNonlinAlgoType();
+  is_linear = (algo_type == TypesNLDynamic::Linear);
+
+  ite_max = options()->getItemax();
+  utol = options()->getUtol();
+  ftol = options()->getFtol();
+
+  if (options()->Etol.isPresent())
+    etol = options()->getEtol();
+  else
+    etol = utol * ftol;
+
+  auto nsteps = (int)((tf - t)/dt);
+  if (!is_linear && linop_nstep > nsteps) keep_constop = true;
+
+  analysis_type = options()->getAnalysisType();
+  if (analysis_type == TypesNLDynamic::ThreeD)
+    NDIM = 3;
+  else
+    NDIM = 2;
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void NLDynamicModule::
@@ -225,41 +212,39 @@ _startInitGauss()
   max_gauss_per_cell = pm->reduce(Parallel::ReduceMax, max_gauss_per_cell);
   max_nbnodes_per_cell = pm->reduce(Parallel::ReduceMax, max_nbnodes_per_cell);
 
-  m_gauss_on_cells.initialize(mesh(), max_gauss_per_cell);
+  m_gauss_ref_position.reshape({max_gauss_per_cell});
+  m_gauss_stress.reshape({max_gauss_per_cell});
+  m_gauss_strain.reshape({max_gauss_per_cell});
+  m_gauss_stress0.reshape({max_gauss_per_cell});
+  m_gauss_strain0.reshape({max_gauss_per_cell});
+  m_gauss_shape.reshape({max_gauss_per_cell,max_nbnodes_per_cell});
+  m_gauss_shape_deriv.reshape({max_gauss_per_cell,max_nbnodes_per_cell});
+  m_gauss_jacobian.reshape({max_gauss_per_cell});
+  m_gauss_weight.reshape({max_gauss_per_cell});
+  m_gauss_jacob_mat.reshape({max_gauss_per_cell});
 
-  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
-  VariableDoFReal& gauss_weight(m_gauss_on_cells.gaussWeight());
-  VariableDoFReal3& gauss_refpos(m_gauss_on_cells.gaussRefPosition());
-  VariableDoFArrayReal& gauss_shape(m_gauss_on_cells.gaussShape());
-  VariableDoFArrayReal3& gauss_shapederiv(m_gauss_on_cells.gaussShapeDeriv());
-  VariableDoFArrayReal& gauss_lawparam(m_gauss_on_cells.gaussLawParam());
-  VariableDoFArrayReal& gauss_histparam(m_gauss_on_cells.gaussLawHistoryParam());
-  VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
-  VariableDoFArrayReal3x3& gauss_strain(m_gauss_on_cells.gaussStrain());
-  VariableDoFArrayReal3x3& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
-  VariableDoFArrayReal3x3& gauss_tangent_operator(m_gauss_on_cells.gaussTangentOperator());
+  if (!is_linear) {
+    m_gauss_strainp0.reshape({max_gauss_per_cell});
+    m_gauss_strainp.reshape({max_gauss_per_cell});
+    m_gauss_prev_stress.reshape({max_gauss_per_cell});
+    m_gauss_prev_strain.reshape({max_gauss_per_cell});
+    m_gauss_prev_strainp.reshape({max_gauss_per_cell});
+    m_law_param.resize(m_nb_law_param);
+    m_law_hist_param.reshape({max_gauss_per_cell, m_nb_law_hist_param});
 
-  gauss_shape.resize(max_nbnodes_per_cell);
-  gauss_shapederiv.resize(max_nbnodes_per_cell);
-  gauss_lawparam.resize(m_nb_law_param);
-  gauss_histparam.resize(m_nb_law_hist_param);
+    /* Tangent operator at Gauss points is useful for nonlinear simulations
+     * D: 1st diagonal Real3x3 block
+     * S: 2nd diagonal Real3x3 block (S)
+     * Sup: Upper out-of-diagonal Real3x3 block
+     * Slow: Lower out-of-diagonal Real3x3 block => in case of symmetry, Slow = 0
+     * */
+    m_tangent_op_d.reshape({max_gauss_per_cell});
+    m_tangent_op_s.reshape({max_gauss_per_cell});
+    m_tangent_op_sup.reshape({max_gauss_per_cell});
+    m_tangent_op_slow.reshape({max_gauss_per_cell});
+  }
 
-  /* gauss tensors (stress, strains) during the global computing time loop:
-   * 0: values at start time (sig0, eps0, epsp0)
-   * 1: values at previous step (sign, epsn, epspn)
-   * 2: values at current step (sig, eps, epsp)
-   * */
-  gauss_stress.resize(3);
-  gauss_strain.resize(3);
-  gauss_strain_plastic.resize(3);
-
-  /* Tangent operator at Gauss points is useful for nonlinear simulations
-   * 0: 1st diagonal Real3x3 block (D)
-   * 1: 2nd diagonal Real3x3 block (S)
-   * 2: Upper out-of-diagonal Real3x3 block (Sup)
-   * 3: Lower out-of-diagonal Real3x3 block (Slow) => in case of symmetry, Slow = 0
-   * */
-  gauss_tangent_operator.resize(4);
+  NumMatrix<Real,3,3> zero(Real3x3::zero());
 
   ENUMERATE_CELL (icell, allCells()) {
     const Cell& cell = *icell;
@@ -272,31 +257,41 @@ _startInitGauss()
     lambda = m_lambda[cell];
     mu = m_mu[cell];
 
-    auto is_default = m_default_law[cell];
-    auto lawtyp = static_cast<TypesNLDynamic::eLawType>(m_law[cell]);
-    auto ilaw = m_iparam_law[cell];
-    LawDispatcher cell_law(lawtyp,is_default);
-    RealUniqueArray lawparams = cell_law.readLawParams(lambda, mu, is_default, m_law_param_file,ilaw);
+    Integer nbhist{0};
 
-    auto nblaw = lawparams.size();// For debug only
-    auto nbhist = cell_law.getNbLawHistoryParam();
+    if (!is_linear) {
+      auto is_default = m_default_law[cell];
+      auto lawtyp = static_cast<TypesNLDynamic::eLawType>(m_law[cell]);
+      auto ilaw = m_iparam_law[cell];
+      LawDispatcher cell_law(lawtyp, is_default);
+      auto nblaw = cell_law.getNbLawParam();
+      RealUniqueArray lawparams(nblaw);
+      cell_law.readLawParams(&lawparams, lambda, mu, is_default, m_law_param_file, ilaw);
+
+      m_law_param[cell].copy(lawparams);
+      nbhist = cell_law.getNbLawHistoryParam();
+    }
 
     for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
-      DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
-      Int32 gaussnum = gauss_pti.localId();
-      gauss_weight[gauss_pti] = ArcaneFemFunctions::FemGaussQuadrature::getGaussWeight(cell, ninteg, ig);
+
+        if (nbhist > 0) {
+        for (Int32 ip = 0; ip < nbhist; ++ip)
+          m_law_hist_param(cell,ig,ip) = 0.;
+      }
+
+      m_gauss_weight(cell,ig) = ArcaneFemFunctions::FemGaussQuadrature::getGaussWeight(cell, ninteg, ig);
       Real3 refpos = ArcaneFemFunctions::FemGaussQuadrature::getGaussRefPosition(cell, ninteg, ig);
       if (ndim <= 2) {
         refpos.z = 0.;
         if (ndim == 1)
           refpos.y = 0.;
       }
-      gauss_refpos[gauss_pti] = refpos;
+      m_gauss_ref_position(cell,ig) = NumVector<Real,3>(refpos);
 
       for (Int32 inod = 0; inod < cell_nbnod; ++inod) {
         auto coord_nod = m_node_coord[cell.node(inod)];
         auto Phi_i = cell_fem.getShapeFuncVal(cell_type, inod, refpos);
-        gauss_shape[gauss_pti][inod] = Phi_i;
+        m_gauss_shape(cell,ig,inod) = Phi_i;
 
         auto dPhi = cell_fem.getShapeFuncDeriv(cell_type, inod, refpos);
         if (ndim <= 2) {
@@ -304,29 +299,35 @@ _startInitGauss()
           if (ndim == 1)
             dPhi.y = 0.;
         }
-        gauss_shapederiv[gauss_pti][inod] = dPhi;
+        m_gauss_shape_deriv(cell,ig,inod) = NumVector<Real,3>(dPhi);
       }
 
       // Setting the law parameters on Gauss points for use during iterations
-      gauss_lawparam[gauss_pti] = lawparams;
 
       // History parameters are set to 0. at this stage
       // (we will see later for more complex laws)
-      gauss_histparam[gauss_pti] = RealUniqueArray(nbhist,0.);
 
       // Initializing all strains/stresses to zero
-      gauss_strain[gauss_pti] = Real3x3UniqueArray(3);
-      gauss_strain_plastic[gauss_pti] = Real3x3UniqueArray(3);
-      gauss_stress[gauss_pti] = Real3x3UniqueArray(3);
+      m_gauss_stress0(cell, ig) = zero;
+      m_gauss_stress(cell, ig) = zero;
+      m_gauss_strain(cell, ig) = zero;
+      m_gauss_strain0(cell, ig) = zero;
+
+      if (!is_linear) {
+        m_gauss_prev_stress(cell, ig) = zero;
+        m_gauss_prev_strain(cell, ig) = zero;
+        m_gauss_strainp0(cell, ig) = zero;
+        m_gauss_prev_strainp(cell, ig) = zero;
+        m_gauss_strainp(cell, ig) = zero;
+        m_tangent_op_d(cell, ig) = zero;
+        m_tangent_op_s(cell, ig) = zero;
+        m_tangent_op_sup(cell, ig) = zero;
+        m_tangent_op_slow(cell, ig) = zero;
+      }
     }
   }
 
   auto hasStressFile{ options()->hasStress0PerCellFile() };
-
-/*  VariableDoFArrayTensor2& gauss_stress(m_gauss_on_cells.gaussStress());
-  VariableDoFArrayTensor2& gauss_strain(m_gauss_on_cells.gaussStrain());
-  VariableDoFArrayTensor2& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
-*/
 
   Real3x3 sig0{};
   CaseTable* stress_table{ nullptr};
@@ -354,13 +355,12 @@ _startInitGauss()
         sig0 = fromTensor2Real3x3(t0);
 
         for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
-          DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
-          Int32 gaussnum = gauss_pti.localId();
 
-          for (Int32 is = 0; is < 2; is++) { //sig0, then sign
-            gauss_stress[gauss_pti][is] = sig0;
-          }
-          gauss_stress[gauss_pti][2] = Real3x3::zero(); //sig
+          m_gauss_stress0(cell, ig) = NumMatrix<Real,3,3>(sig0);
+          m_gauss_stress(cell, ig) = zero;
+
+          if (!is_linear)
+            m_gauss_prev_stress(cell, ig) = NumMatrix<Real,3,3>(sig0);
         }
       }
     }
@@ -555,16 +555,6 @@ void NLDynamicModule::
 _initGaussStep()
 {
   Real eps{1.0e-15};
-  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
-
-  VariableDoFReal& gauss_jacobian(m_gauss_on_cells.gaussJacobian());
-  VariableDoFReal3& gauss_refpos(m_gauss_on_cells.gaussRefPosition());
-  VariableDoFReal3x3& gauss_jacobmat(m_gauss_on_cells.gaussJacobMat());
-  VariableDoFArrayReal& gauss_shape(m_gauss_on_cells.gaussShape());
-  VariableDoFArrayReal3& gauss_shapederiv(m_gauss_on_cells.gaussShapeDeriv());
-  VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
-  VariableDoFArrayReal3x3& gauss_strain(m_gauss_on_cells.gaussStrain());
-  VariableDoFArrayReal3x3& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
 
   ENUMERATE_CELL (icell, allCells()) {
     const Cell& cell = *icell;
@@ -575,15 +565,12 @@ _initGaussStep()
     auto cell_nbgauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, ninteg);
 
     for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
-      DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
-      Int32 gaussnum = gauss_pti.localId();
-      Real3 refpos = gauss_refpos[gauss_pti];
 
       Real3x3	jac;
       Real jacobian;
       for (Int32 inod = 0; inod < cell_nbnod; ++inod) {
 
-        auto dPhi = gauss_shapederiv[gauss_pti][inod];
+        NumVector<Real,3> dPhi = m_gauss_shape_deriv(cell,ig,inod);
         auto coord_nod = m_node_coord[cell.node(inod)];
         for (int i = 0; i < NDIM; ++i){
           for (int j = 0; j < NDIM; ++j){
@@ -603,16 +590,18 @@ _initGaussStep()
       if (fabs(jacobian) < eps) {
         ARCANE_FATAL("Cell jacobian is null");
       }
-      gauss_jacobian[gauss_pti] = jacobian;
-      gauss_jacobmat[gauss_pti] = jac;
+      m_gauss_jacobian(cell,ig) = jacobian;
+      m_gauss_jacob_mat(cell,ig) = NumMatrix<Real,3,3>(jac);
 
-      // Tensors are initialized to the value of previous step
-      gauss_stress[gauss_pti][1] = gauss_stress[gauss_pti][2];
-      gauss_strain[gauss_pti][1] = gauss_strain[gauss_pti][2];
-      gauss_strain_plastic[gauss_pti][1] = gauss_strain_plastic[gauss_pti][2];
-      gauss_stress[gauss_pti][2] = Real3x3::zero();
-      gauss_strain[gauss_pti][2] = Real3x3::zero();
-      gauss_strain_plastic[gauss_pti][2] = Real3x3::zero();
+      if (!is_linear) {
+        // Tensors are initialized to the value of previous step
+        m_gauss_prev_stress(cell,ig) = m_gauss_stress(cell,ig);
+        m_gauss_prev_strain(cell,ig) = m_gauss_strain(cell,ig);
+        m_gauss_prev_strainp(cell,ig) = m_gauss_strainp(cell,ig);
+        m_gauss_stress(cell,ig) = NumMatrix<Real,3,3>(Real3x3::zero());
+        m_gauss_strain(cell,ig) = NumMatrix<Real,3,3>(Real3x3::zero());
+        m_gauss_strainp(cell,ig) = NumMatrix<Real,3,3>(Real3x3::zero());
+      }
     }
   }
 }
@@ -644,7 +633,8 @@ _iterate(){
     // Solve the linear system AX = B
     _doSolve();
 
-    _check_convergence(iter);
+    if (!m_converge)
+      _check_convergence(iter);
 
     iter++;
 
@@ -672,7 +662,6 @@ compute(){
   // the rate is a user input (linop_nstep)
   // The matrix has to have the same structure (same structure for non-zero)
 
-  //  if (m_linear_system.isInitialized() && (linop_nstep_counter < linop_nstep || keep_constop || is_linear)){
   if ( m_linear_system.isInitialized() &&
       (is_linear || keep_constop || (algo_type == TypesNLDynamic::ModNewtonRaphson && linop_nstep_counter < linop_nstep)) ){
     m_linear_system.clearValues();
@@ -694,9 +683,8 @@ compute(){
   { // Update Gauss shape functions and their derivatives for this step
     _initGaussStep();
 
-    // Apply Dirichlet/Neumann conditions if any
+    // Apply Dirichlet/Point conditions if any
     _applyDirichletBoundaryConditions();
-    _applyNeumannBoundaryConditions();
 
     // Apply Paraxial conditions if any
     _applyParaxialBoundaryConditions();
@@ -770,9 +758,10 @@ void NLDynamicModule::
 _predictNewmark(){
 
   // Predicting the nodal displacements and velocities (before solve)
-  auto dt = m_global_deltat();
-  auto betadt2 = 1/beta/dt2;
-  auto gammadt = 1./gamma/dt;
+  const auto dt = m_global_deltat();
+  auto dt2 {dt * dt};
+  auto betadt2 {1./beta/dt2};
+  auto gammadt {1./gamma/dt};
 
   ENUMERATE_NODE(inode, allNodes()){
     Node node = *inode;
@@ -780,44 +769,39 @@ _predictNewmark(){
     auto vn = m_prev_vel[node];
     auto dn = m_prev_displ[node];
 
-    if (!is_alfa_method) {
-      for (Int32 i = 0; i < NDIM; ++i) {
+     for (Int32 i = 0; i < NDIM; ++i) {
 
-        auto bu = (bool)m_imposed_displ[node][i];
-        auto bv = (bool)m_imposed_vel[node][i];
-        auto ba = (bool)m_imposed_acc[node][i];
-        auto vi = vn[i] + dt * (1. - gamma) * an[i];
-        auto di = dn[i] + dt * vn[i] + (0.5 - beta) * dt2 * an[i];
+      auto bu = (bool)m_imposed_displ[node][i];
+      auto bv = (bool)m_imposed_vel[node][i];
+      auto ba = (bool)m_imposed_acc[node][i];
+      auto vi = vn[i] + dt * (1. - gamma) * an[i];
+      auto di = dn[i] + dt * vn[i] + (0.5 - beta) * dt2 * an[i];
 
-        if (ba){
-          auto ai = m_acc[node][i];
-          m_displ[node][i] = di + beta * dt2 * ai;
-          m_vel[node][i] = vi + gamma * dt * ai;
-        }
+      if (ba){
+        auto ai = m_acc[node][i];
+        m_displ[node][i] = di + betadt2 * ai;
+        m_vel[node][i] = vi + gammadt * ai;
+      }
+      else {
+        if (!bu)
+          m_displ[node][i] = di;
+
         else {
-          if (!bu)
-            m_displ[node][i] = di;
+          auto ai = betadt2 * (m_displ[node][i] - di);
+          m_acc[node][i] = ai;
+          m_vel[node][i] = vi + gammadt * ai;
+        }
 
-          else {
-            auto ai = betadt2 * (m_displ[node][i] - di);
-            m_acc[node][i] = ai;
-            m_vel[node][i] = vi + gamma * dt * ai;
-          }
+        if (!bv)
+          m_vel[node][i] = vi;
 
-          if (!bv)
-            m_vel[node][i] = vi;
-
-          else {
-            auto ai = gammadt * (m_vel[node][i] - vi);
-            m_acc[node][i] = ai;
-            m_displ[node][i] = di + beta * dt2 * ai;
-          }
+        else {
+          auto ai = gammadt * (m_vel[node][i] - vi);
+          m_acc[node][i] = ai;
+          m_displ[node][i] = di + betadt2 * ai;
         }
       }
-    } else {
-      // TO DO
     }
-
     m_prev_displ_iter[node] = m_prev_displ[node];
   }
 }
@@ -825,12 +809,13 @@ _predictNewmark(){
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void NLDynamicModule::
-_updateNewmark(){
-
+_updateNewmark()
+{
   // Updating the nodal accelerations and velocities (after final solve)
-  auto dt = m_global_deltat();
-  auto betadt2 = 1/beta/dt2;
-  auto gammadt = 1./gamma/dt;
+  const auto dt = m_global_deltat();
+  auto dt2 {dt * dt};
+  auto betadt2 {1./beta/dt2};
+  auto gammadt {gamma * dt};
 
   ENUMERATE_NODE(inode, allNodes()){
     Node node = *inode;
@@ -839,727 +824,76 @@ _updateNewmark(){
     auto dn = m_prev_displ[node];
     auto dn1 = m_displ[node]; // computed solution for the current iteration or time step
 
-    if (!is_alfa_method) {
-      for (Int32 i = 0; i < NDIM; ++i) {
+    for (Int32 i = 0; i < NDIM; ++i) {
 
-        auto ba = (bool)m_imposed_acc[node][i];
-        auto bv = (bool)m_imposed_vel[node][i];
-        auto ui = dn[i] + dt * vn[i] + dt2 * (0.5 - beta) * an[i];
-        auto vi = vn[i] + dt * (1. - gamma) * an[i];
+      auto ba = (bool)m_imposed_acc[node][i];
+      auto bv = (bool)m_imposed_vel[node][i];
+      auto ui = dn[i] + dt * vn[i] + dt2 * (0.5 - beta) * an[i];
+      auto vi = vn[i] + dt * (1. - gamma) * an[i];
 
-        if (!ba)
-          m_acc[node][i] = betadt2 * (dn1[i] - ui);
+      if (!ba)
+        m_acc[node][i] = betadt2 * (dn1[i] - ui);
 
-        if (!bv)
-          m_vel[node][i] = vi + dt*gamma*m_acc[node][i];
-      }
-    } else {
-      // TO DO
+      if (!bv)
+        m_vel[node][i] = vi + gammadt*m_acc[node][i];
+
+      m_prev_acc[node] = m_acc[node];
+      m_prev_vel[node] = m_vel[node];
+      m_prev_displ[node] = m_displ[node];
     }
-
-    m_prev_acc[node] = m_acc[node];
-    m_prev_vel[node] = m_vel[node];
-    m_prev_displ[node] = m_displ[node];
   }
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void NLDynamicModule::
-_initBoundaryConditions()
+_applyParaxialBoundaryConditions()
 {
-  IParallelMng* pm = subDomain()->parallelMng();
-
-  for (const auto& bd : options()->dirichletSurfaceCondition()) {
-    FaceGroup face_group = bd->surface();
-    info() << "Initializing Dirichlet Surface Boundary Conditions for face group " << face_group.name();
-
-    if (bd->hasACurve()) {
-      String file_name = bd->ACurve();
-      if (!file_name.empty()) {
-        auto case_table = readFileAsCaseTable(pm, file_name, 3);
-        m_sacc_case_table_list.add(CaseTableInfo{ file_name, case_table });
-      }
-    }
-
-    if (bd->hasUCurve()) {
-      String file_name = bd->UCurve();
-      if (!file_name.empty()) {
-        auto case_table = readFileAsCaseTable(pm, file_name, 3);
-        m_sdispl_case_table_list.add(CaseTableInfo{ file_name, case_table });
-      }
-    }
-
-    if (bd->hasVCurve()) {
-      String file_name = bd->VCurve();
-      if (!file_name.empty()) {
-        auto case_table = readFileAsCaseTable(pm, file_name, 3);
-        m_svel_case_table_list.add(CaseTableInfo{ file_name, case_table });
-      }
-    }
-
-    if (bd->hasFCurve()) {
-      String file_name = bd->FCurve();
-      if (!file_name.empty()) {
-        auto case_table = readFileAsCaseTable(pm, file_name, 3);
-        m_sforce_case_table_list.add(CaseTableInfo{ file_name, case_table });
-      }
-    }
-
-    auto hasUcurve{bd->hasUCurve()};
-    auto hasVcurve{bd->hasVCurve()};
-    auto hasAcurve{bd->hasACurve()};
-    auto hasFcurve{bd->hasFCurve()};
-    auto xdir{bd->getXAxis()};
-    auto ydir{bd->getYAxis()};
-    auto zdir{bd->getZAxis()};
-
-    // Loop on faces of the surface
-    ENUMERATE_FACE (j, face_group) {
-      const Face& face = *j;
-      Int32 nb_node = face.nbNode();
-
-      // Loop on nodes of the face
-      for (Int32 k = 0; k < nb_node; ++k) {
-        const Node& node = face.node(k);
-        auto coord = m_node_coord[node];
-        auto num = node.uniqueId();
-
-        m_imposed_displ[node].x = (bd->hasUx() || (hasUcurve && xdir) ? 1 : 0);
-        m_imposed_displ[node].y = (bd->hasUy() || (hasUcurve && ydir) ? 1 : 0);
-        m_imposed_displ[node].z = (bd->hasUz() || (hasUcurve && zdir) ? 1 : 0);
-
-        m_imposed_acc[node].x = (bd->hasAx() || (hasAcurve && xdir) ? 1 : 0);
-        m_imposed_acc[node].y = (bd->hasAy() || (hasAcurve && ydir) ? 1 : 0);
-        m_imposed_acc[node].z = (bd->hasAz() || (hasAcurve && zdir) ? 1 : 0);
-
-        m_imposed_vel[node].x = (bd->hasVx() || (hasVcurve && xdir) ? 1 : 0);
-        m_imposed_vel[node].y = (bd->hasVy() || (hasVcurve && ydir) ? 1 : 0);
-        m_imposed_vel[node].z = (bd->hasVz() || (hasVcurve && zdir) ? 1 : 0);
-
-        m_imposed_force[node].x = (bd->hasFx() || (hasFcurve && xdir) ? 1 : 0);
-        m_imposed_force[node].y = (bd->hasFy() || (hasFcurve && ydir) ? 1 : 0);
-        m_imposed_force[node].z = (bd->hasFz() || (hasFcurve && zdir) ? 1 : 0);
-      }
-    }
-  }
-
-  for (const auto& bd : options()->dirichletPointCondition()) {
-    NodeGroup nodes = bd->node();
-    info() << "Initializing Dirichlet Point Conditions for node group " << nodes.name();
-
-    if (bd->hasACurve()) {
-      String file_name = bd->ACurve();
-      if (!file_name.empty()) {
-        auto case_table = readFileAsCaseTable(pm, file_name, 3);
-        m_acc_case_table_list.add(CaseTableInfo{ file_name, case_table });
-      }
-    }
-
-    if (bd->hasUCurve()) {
-      String file_name = bd->UCurve();
-      if (!file_name.empty()) {
-        auto case_table = readFileAsCaseTable(pm, file_name, 3);
-        m_displ_case_table_list.add(CaseTableInfo{ file_name, case_table });
-      }
-    }
-
-    if (bd->hasVCurve()) {
-      String file_name = bd->VCurve();
-      if (!file_name.empty()) {
-        auto case_table = readFileAsCaseTable(pm, file_name, 3);
-        m_vel_case_table_list.add(CaseTableInfo{ file_name, case_table });
-      }
-    }
-
-    if (bd->hasFCurve()) {
-      String file_name = bd->FCurve();
-      if (!file_name.empty()) {
-        auto case_table = readFileAsCaseTable(pm, file_name, 3);
-        m_force_case_table_list.add(CaseTableInfo{ file_name, case_table });
-      }
-    }
-
-    auto hasUcurve{bd->hasUCurve()};
-    auto hasVcurve{bd->hasVCurve()};
-    auto hasAcurve{bd->hasACurve()};
-    auto hasFcurve{bd->hasFCurve()};
-    auto xdir{bd->getXAxis()};
-    auto ydir{bd->getYAxis()};
-    auto zdir{bd->getZAxis()};
-
-    // Loop on nodes
-    ENUMERATE_NODE (inode, nodes) {
-      const Node& node = *inode;
-      auto coord = m_node_coord[node];
-      auto num = node.uniqueId();
-
-      m_imposed_acc[node].x = (bd->hasAx() || (hasAcurve && xdir) ? 1 : 0);
-      m_imposed_acc[node].y = (bd->hasAy() || (hasAcurve && ydir) ? 1 : 0);
-      m_imposed_acc[node].z = (bd->hasAz() || (hasAcurve && zdir) ? 1 : 0);
-
-      m_imposed_vel[node].x = (bd->hasVx() || (hasVcurve && xdir) ? 1 : 0);
-      m_imposed_vel[node].y = (bd->hasVy() || (hasVcurve && ydir) ? 1 : 0);
-      m_imposed_vel[node].z = (bd->hasVz() || (hasVcurve && zdir) ? 1 : 0);
-
-      m_imposed_force[node].x = (bd->hasFx() || (hasFcurve && xdir) ? 1 : 0);
-      m_imposed_force[node].y = (bd->hasFy() || (hasFcurve && ydir) ? 1 : 0);
-      m_imposed_force[node].z = (bd->hasFz() || (hasFcurve && zdir) ? 1 : 0);
-
-      if ((bool)m_imposed_acc[node].x || (bool)m_imposed_vel[node].x
-          || bd->hasUx() || (hasUcurve && xdir))
-        m_imposed_displ[node].x = 1;
-
-      if ((bool)m_imposed_acc[node].y || (bool)m_imposed_vel[node].y
-          || bd->hasUy() || (hasUcurve && ydir))
-        m_imposed_displ[node].y = 1;
-
-      if ((bool)m_imposed_acc[node].z || (bool)m_imposed_vel[node].z
-          || bd->hasUz() || (hasUcurve && zdir))
-        m_imposed_displ[node].z = 1;
-    }
-  }
-
-  for (const auto& bs : options()->neumannCondition()) {
-    FaceGroup face_group = bs->surface();
-    info() << "Initializing Neumann (traction) Conditions for face group " << face_group.name();
-    String file_name = bs->getCurve();
-    if (!file_name.empty()) {
-      auto case_table = readFileAsCaseTable(pm, file_name, 3);
-      m_traction_case_table_list.add(CaseTableInfo{ file_name, case_table });
-    }
-  }
-
-  for (const auto& bs : options()->paraxialBoundaryCondition()) {
-
-    FaceGroup face_group = bs->surface();
-    info() << "Initializing Paraxial Boundary Conditions for face group " << face_group.name();
-
-    if (bs->getInputMotionType() == 6) {
-      if (bs->hasUInput()) {
-        String file_name = bs->getUInput();
-        if (!file_name.empty()) {
-          auto case_table = readFileAsCaseTable(pm, file_name, 3);
-          m_uin_case_table_list.add(CaseTableInfo{ file_name, case_table });
-        }
-      }
-      if (bs->hasVInput()) {
-        String file_name = bs->getVInput();
-        if (!file_name.empty()) {
-          auto case_table = readFileAsCaseTable(pm, file_name, 3);
-          m_vin_case_table_list.add(CaseTableInfo{ file_name, case_table });
-        }
-      }
-      if (bs->hasAInput()) {
-        String file_name = bs->getAInput();
-        if (!file_name.empty()) {
-          auto case_table = readFileAsCaseTable(pm, file_name, 3);
-          m_ain_case_table_list.add(CaseTableInfo{ file_name, case_table });
-        }
-      }
-    }
-
-    auto rho = bs->getRhopar();
-    Real cs, cp;
-    bool is_inner{ false };
-
-    if (bs->hasEPar() && bs->hasNuPar()) {
-
-      auto E = bs->getEPar();
-      auto nu = bs->getNuPar();
-      auto lambda = nu * E / (1. + nu) / (1. - 2. * nu);
-      auto mu = E / 2. / (1. + nu);
-      cp = math::sqrt((lambda + 2. * mu) / rho);
-      cs = math::sqrt(mu / rho);
-    }
-    else if (bs->hasCp() && bs->hasCs()) {
-
-      cp = bs->getCp();
-      cs = bs->getCp();
-    }
-    else if (bs->hasLambdaPar() && bs->hasMuPar()) {
-
-      auto mu = bs->getMuPar();
-      cp = math::sqrt((bs->getLambdaPar() + 2. * mu) / rho);
-      cs = math::sqrt(mu / rho);
-    }
-    else {
-      info() << "Elastic properties expected for "
-             << "Paraxial boundary condition on FaceGroup "
-             << face_group.name() << ": \n"
-             << "  - (E-par, nu-par) or\n"
-             << "  - (lambda-par, mu-par) or\n"
-             << "  - (cp, cs)\n";
-      info() << "When not specified, taking elastic properties from inner domain. ";
-      is_inner = true;
-    }
-
-    // Loop on the faces (=edges in 2D) concerned with the paraxial condition
-    // Initializing the local referential per face (just done once) for further use
-    ENUMERATE_FACE (iface, face_group) {
-
-      const Face& face = *iface;
-
-      if (face.isSubDomainBoundary() && face.isOwn()) {
-
-        Real3 e1{ 0. }, e2{ 0. }, e3{ 0. };
-        ArcaneFemFunctions::MeshOperation::dirVectors(face, m_node_coord, NDIM, e1, e2, e3);
-        m_e1_boundary[face] = e1;
-        m_e2_boundary[face] = e2;
-        m_e3_boundary[face] = e3;
-
-        if (is_inner) {
-          const Cell& cell = face.boundaryCell();
-          rho = m_rho[cell];
-          cs = m_vs[cell];
-          cp = m_vp[cell];
-        }
-
-        m_rho_parax[face] = rho;
-        m_vel_parax[face].x = cs;
-
-        if (NDIM == 3){
-          m_vel_parax[face].y = cs;
-          m_vel_parax[face].z = cp;
-        }
-        else{
-          m_vel_parax[face].y = cp;
-          m_vel_parax[face].z = 0.;
-        }
-      }
-    }
-  }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-void NLDynamicModule::
-_initDCConditions()
-{
-  IParallelMng* pm = subDomain()->parallelMng();
-
-  for (const auto& bd : options()->doubleCouple()) {
-    NodeGroup east = bd->getEastNode();
-    NodeGroup west = bd->getWestNode();
-    NodeGroup north = bd->getNorthNode();
-    NodeGroup south = bd->getSouthNode();
-
-    info() << "Initializing Double-Couple Conditions for nodes:\n"
-           << "  - North = " << north.name() << "\n"
-           << "  - South = " << south.name() << "\n"
-           << "  - East = " << east.name() << "\n"
-           << "  - West = " << west.name() << "\n";
-
-    auto hasMoment = bd->hasSeismicMomentFile();
-    auto hasLoading = bd->hasLoadingFile();
-    String file_name;
-
-    if (hasMoment || hasLoading) {
-       if (hasMoment) file_name = bd->getSeismicMomentFile();
-       else file_name = bd->getLoadingFile();
-
-      auto case_table = readFileAsCaseTable(pm, file_name, 1);
-      m_dc_case_table_list.add(CaseTableInfo{ file_name, case_table });
-    }
-    else {
-      info() << "Double-Couple Error: seismic moment or user loading not provided! ";
-      ARCANE_FATAL("Double-Couple conditions cannot be applied");
-    }
-  }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-void NLDynamicModule::
-_applyDirichletBoundaryConditions(){
-
   Real time = globalTime();
-  Int32 sac_index{ 0 }, svc_index{ 0 }, suc_index{ 0 }, sfc_index{ 0 };
-  for (const auto& bd : options()->dirichletSurfaceCondition()) {
-    FaceGroup face_group = bd->surface();
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
-    Real3 acc{};
-    bool is_acc_imp{bd->hasACurve() || bd->hasAx() || bd->hasAy() || bd->hasAz()};
-    if (bd->hasACurve()) {
-      const CaseTableInfo& table_info = m_sacc_case_table_list[sac_index++];
-      String file_name = bd->ACurve();
-      info() << "Applying acceleration boundary conditions for surface " << face_group.name()
-             << " via CaseTable " << file_name;
-      CaseTable* inn = table_info.case_table;
+  // Loop over all paraxial conditions
+  if (bc) {
+    Int32 parax_index{0};
 
-      if (inn != nullptr)
-        inn->value(time, acc);
-    }
-    else if (is_acc_imp) {
-      if (bd->hasAx())
-        acc.x = bd->getAx();
-      if (bd->hasVy())
-        acc.y = bd->getAy();
-      if (bd->hasAz())
-        acc.z = bd->getAz();
-    }
+    Int32 ui_index{ 0 }, vi_index{ 0 }, ai_index{ 0 };
+    for (const auto& bs : bc->paraxialBoundaryConditions()) {
 
-    Real3 vel{};
-    bool is_vel_imp{bd->hasVCurve() || bd->hasVx() || bd->hasVy() || bd->hasVz()};
-    if (bd->hasVCurve()) {
-      const CaseTableInfo& table_info = m_svel_case_table_list[svc_index++];
-      String file_name = bd->VCurve();
-      info() << "Applying velocity boundary conditions for surface " << face_group.name()
-             << " via CaseTable " << file_name;
-      CaseTable* inn = table_info.case_table;
+      FaceGroup face_group = bs->getSurface();
 
-      if (inn != nullptr)
-        inn->value(time, vel);
-    }
-    else if (is_vel_imp){
-      if (bd->hasVx())
-        vel.x = bd->getVx();
-      if (bd->hasVy())
-        vel.y = bd->getVy();
-      if (bd->hasVz())
-        vel.z = bd->getVz();
-    }
+      // Looking for an input motion defined on the paraxial boundary
+      // default = none (typ = 0)
+      Int32 typ{bs->getInputMotionType()};
 
-    Real3 displ{};
-    bool is_displ_imp{bd->hasUCurve() || bd->hasUx() || bd->hasUy() || bd->hasUz()};
-    if (bd->hasUCurve()) {
-      const CaseTableInfo& table_info = m_sdispl_case_table_list[suc_index++];
-      String file_name = bd->UCurve();
-      info() << "Applying displacement boundary conditions for surface " << face_group.name()
-             << " via CaseTable " << file_name;
-      CaseTable* inn = table_info.case_table;
-
-      if (inn != nullptr)
-        inn->value(time, displ);
-    }
-    else if (is_displ_imp){
-      if (bd->hasUx())
-        displ.x = bd->getUx();
-      if (bd->hasUy())
-        displ.y = bd->getUy();
-      if (bd->hasUz())
-        displ.z = bd->getUz();
-    }
-
-    Real3 force{};
-    bool is_force_imp{bd->hasFCurve() || bd->hasFx() || bd->hasFy() || bd->hasFz()};
-    if (bd->hasFCurve()) {
-      const CaseTableInfo& table_info = m_sforce_case_table_list[sfc_index++];
-      String file_name = bd->FCurve();
-      info() << "Applying force boundary conditions for surface " << face_group.name()
-             << " via CaseTable " << file_name;
-      CaseTable* inn = table_info.case_table;
-
-      if (inn != nullptr)
-        inn->value(time, force);
-    }
-    else if (is_force_imp){
-      if (bd->hasFx())
-        force.x = bd->getFx();
-      if (bd->hasFy())
-        force.y = bd->getFy();
-      if (bd->hasFz())
-        force.z = bd->getFz();
-    }
-
-    // Loop on faces of the surface
-    ENUMERATE_FACE (iface, face_group) {
-
-      // Loop on nodes of the face
-      for (Node node : iface->nodes()) {
-
-        //--- For debug only!!!
-        auto coord = m_node_coord[node];
-        auto num = node.uniqueId();
-
-        if (is_acc_imp) {
-          if ((bool)m_imposed_acc[node].x)
-            m_acc[node].x = acc.x;
-
-          if ((bool)m_imposed_acc[node].y)
-            m_acc[node].y = acc.y;
-
-          if ((bool)m_imposed_acc[node].z)
-            m_acc[node].z = acc.z;
-        }
-
-        if (is_vel_imp) {
-          if ((bool)m_imposed_vel[node].x)
-            m_vel[node].x = vel.x;
-
-          if ((bool)m_imposed_vel[node].y)
-            m_vel[node].y = vel.y;
-
-          if ((bool)m_imposed_vel[node].z)
-            m_vel[node].z = vel.z;
-        }
-
-        if (is_displ_imp) {
-          if ((bool)m_imposed_displ[node].x)
-            m_displ[node].x = displ.x;
-
-          if ((bool)m_imposed_displ[node].y)
-            m_displ[node].y = displ.y;
-
-          if ((bool)m_imposed_displ[node].z)
-            m_displ[node].z = displ.z;
-        }
-
-        if (is_force_imp) {
-          if ((bool)m_imposed_force[node].x)
-            m_force[node].x = force.x;
-
-          if ((bool)m_imposed_force[node].y)
-            m_force[node].y = force.y;
-
-          if ((bool)m_imposed_force[node].z)
-            m_force[node].z = force.z;
-        }
-      }
-    }
-  }
-
-  Int32 ac_index{ 0 }, vc_index{ 0 }, uc_index{ 0 }, fc_index{ 0 };
-  for (const auto& bd : options()->dirichletPointCondition()) {
-    NodeGroup nodes = bd->node();
-
-    Real3 acc{};
-    bool is_acc_imp{bd->hasACurve() || bd->hasAx() || bd->hasAy() || bd->hasAz()};
-    if (bd->hasACurve()) {
-      const CaseTableInfo& table_info = m_acc_case_table_list[ac_index++];
-      String file_name = bd->ACurve();
-      info() << "Applying acceleration boundary conditions for nodes " << nodes.name()
-             << " via CaseTable " << file_name;
-      CaseTable* inn = table_info.case_table;
-
-      if (inn != nullptr)
-        inn->value(time, acc);
-    }
-    else if (is_acc_imp) {
-      if (bd->hasAx())
-        acc.x = bd->getAx();
-      if (bd->hasVy())
-        acc.y = bd->getAy();
-      if (bd->hasAz())
-        acc.z = bd->getAz();
-    }
-
-    Real3 vel{};
-    bool is_vel_imp{bd->hasVCurve() || bd->hasVx() || bd->hasVy() || bd->hasVz()};
-    if (bd->hasVCurve()) {
-      const CaseTableInfo& table_info = m_vel_case_table_list[vc_index++];
-      String file_name = bd->VCurve();
-      info() << "Applying velocity boundary conditions for nodes " << nodes.name()
-             << " via CaseTable " << file_name;
-      CaseTable* inn = table_info.case_table;
-
-      if (inn != nullptr)
-        inn->value(time, vel);
-    }
-    else if (is_vel_imp){
-      if (bd->hasVx())
-        vel.x = bd->getVx();
-      if (bd->hasVy())
-        vel.y = bd->getVy();
-      if (bd->hasVz())
-        vel.z = bd->getVz();
-    }
-
-    Real3 displ{};
-    bool is_displ_imp{bd->hasUCurve() || bd->hasUx() || bd->hasUy() || bd->hasUz()};
-    if (bd->hasUCurve()) {
-      const CaseTableInfo& table_info = m_displ_case_table_list[uc_index++];
-      String file_name = bd->UCurve();
-      info() << "Applying displacement boundary conditions for nodes " << nodes.name()
-             << " via CaseTable " << file_name;
-      CaseTable* inn = table_info.case_table;
-
-      if (inn != nullptr)
-        inn->value(time, displ);
-    }
-    else if (is_displ_imp){
-      if (bd->hasUx())
-        displ.x = bd->getUx();
-      if (bd->hasUy())
-        displ.y = bd->getUy();
-      if (bd->hasUz())
-        displ.z = bd->getUz();
-    }
-
-    Real3 force{};
-    bool is_force_imp{bd->hasFCurve() || bd->hasFx() || bd->hasFy() || bd->hasFz()};
-    if (bd->hasFCurve()) {
-      const CaseTableInfo& table_info = m_force_case_table_list[fc_index++];
-      String file_name = bd->FCurve();
-      info() << "Applying force boundary conditions for nodes " << nodes.name()
-             << " via CaseTable " << file_name;
-      CaseTable* inn = table_info.case_table;
-
-      if (inn != nullptr)
-        inn->value(time, force);
-    }
-    else if (is_force_imp){
-      if (bd->hasFx())
-        force.x = bd->getFx();
-      if (bd->hasFy())
-        force.y = bd->getFy();
-      if (bd->hasFz())
-        force.z = bd->getFz();
-    }
-
-    // Loop on nodes
-    ENUMERATE_NODE (inode, nodes) {
-      const Node& node = *inode;
-
-      //--- For debug only!!!
-      auto coord = m_node_coord[node];
-      auto num = node.uniqueId();
-
-      if (is_acc_imp) {
-        if ((bool)m_imposed_acc[node].x)
-          m_acc[node].x = acc.x;
-
-        if ((bool)m_imposed_acc[node].y)
-          m_acc[node].y = acc.y;
-
-        if ((bool)m_imposed_acc[node].z)
-          m_acc[node].z = acc.z;
-      }
-
-      if (is_vel_imp) {
-        if ((bool)m_imposed_vel[node].x)
-          m_vel[node].x = vel.x;
-
-        if ((bool)m_imposed_vel[node].y)
-          m_vel[node].y = vel.y;
-
-        if ((bool)m_imposed_vel[node].z)
-          m_vel[node].z = vel.z;
-      }
-
-      if (is_displ_imp) {
-        if ((bool)m_imposed_displ[node].x)
-          m_displ[node].x = displ.x;
-
-        if ((bool)m_imposed_displ[node].y)
-          m_displ[node].y = displ.y;
-
-        if ((bool)m_imposed_displ[node].z)
-          m_displ[node].z = displ.z;
-      }
-
-      if (is_force_imp) {
-        if ((bool)m_imposed_force[node].x)
-          m_force[node].x = force.x;
-
-        if ((bool)m_imposed_force[node].y)
-          m_force[node].y = force.y;
-
-        if ((bool)m_imposed_force[node].z)
-          m_force[node].z = force.z;
-      }
-    }
-  }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-void NLDynamicModule::
-_applyNeumannBoundaryConditions(){
-
-  Real time = globalTime();
-  Int32 bc_index{ 0 };
-  for (const auto& bs : options()->neumannCondition()) {
-    FaceGroup face_group = bs->surface();
-
-    Real3 trac{};
-
-    if (bs->hasCurve()) {
-
-      const CaseTableInfo& case_table_info = m_traction_case_table_list[bc_index++];
-      String file_name = bs->getCurve();
-      info() << "Applying traction boundary conditions for surface " << face_group.name()
-             << " via CaseTable" << file_name;
-      CaseTable* inn = case_table_info.case_table;
-
-      if (inn != nullptr)
-        inn->value(time, trac);
-    }
-    else {
-      if (bs->hasXVal())
-        trac.x = bs->getXVal();
-      if (bs->hasYVal())
-        trac.y = bs->getYVal();
-      if (bs->hasZVal())
-        trac.z = bs->getZVal();
-    }
-
-    // Loop on faces of the surface
-    ENUMERATE_FACE (j, face_group) {
-      const Face& face = *j;
-      m_imposed_traction[face] = trac;
-    }
-  }
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-void NLDynamicModule::
-_applyParaxialBoundaryConditions(){
-
-  Real time = globalTime();
-
-  Int32 ui_index{ 0 }, vi_index{ 0 }, ai_index{ 0 };
-  for (const auto& bs : options()->paraxialBoundaryCondition()) {
-
-    FaceGroup face_group = bs->surface();
-
-    // Looking for an input motion defined on the paraxial boundary
-    // default = none (typ = 0)
-    Int32 typ{bs->getInputMotionType()};
-
-    Real3 uin{}, vin{}, ain{};
-    if (typ > 0){
-
-      bool is_u = bs->hasUInput();
-      bool is_v = bs->hasVInput();
-      bool is_a = bs->hasAInput();
+      Real3 uin{}, vin{}, ain{};
 
       if (typ == 6) {
-        if (is_u) {
-            const CaseTableInfo& table_info = m_uin_case_table_list[ui_index++];
-            String file_name = bs->getUInput();
-            info() << "Applying input displacement for paraxial element " << face_group.name()
-                   << " via CaseTable " << file_name;
-            CaseTable* inn = table_info.case_table;
-
-            if (inn != nullptr)
-            inn->value(time, uin);
-        }
-        if (is_v) {
-            const CaseTableInfo& table_info = m_uin_case_table_list[vi_index++];
-            String file_name = bs->getVInput();
-            info() << "Applying input velocity for paraxial element " << face_group.name()
-                   << " via CaseTable " << file_name;
-            CaseTable* inn = table_info.case_table;
-
-            if (inn != nullptr)
-            inn->value(time, vin);
-        }
-        if (is_a) {
-            const CaseTableInfo& table_info = m_uin_case_table_list[ai_index++];
-            String file_name = bs->getAInput();
-            info() << "Applying input acceleration for paraxial element " << face_group.name()
-                   << " via CaseTable " << file_name;
-            CaseTable* inn = table_info.case_table;
-
-            if (inn != nullptr)
-            inn->value(time, ain);
+        if (is_u[parax_index]) {
+          const CaseTableInfo& case_table_Uinfo = m_UPar_case_table_list[ui_index++];
+          CaseTable* ct = case_table_Uinfo.case_table;
+          if (!ct)
+            ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _initBoundaryConditions()");
+          ct->value(time, uin);
         }
 
+        if (is_v[parax_index]) {
+          const CaseTableInfo& case_table_Vinfo = m_VPar_case_table_list[vi_index++];
+          CaseTable* ct = case_table_Vinfo.case_table;
+          if (!ct)
+            ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _initBoundaryConditions()");
+          ct->value(time, vin);
+        }
+
+        if (is_a[parax_index]) {
+          const CaseTableInfo& case_table_Ainfo = m_APar_case_table_list[ai_index++];
+          CaseTable* ct = case_table_Ainfo.case_table;
+          if (!ct)
+            ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _initBoundaryConditions()");
+          ct->value(time, ain);
+        }
       }
-      else{ // For analytical input motions, assuming input displacements
-        is_u = true;
+      else if (typ > 0){ // For analytical input motions, assuming input displacements
+        is_u[parax_index] = true;
         m_inputfunc.m_amplit = bs->getAmplit();
         m_inputfunc.m_coef = bs->getCoef();
         m_inputfunc.m_order = bs->getOrder();
@@ -1588,14 +922,14 @@ _applyParaxialBoundaryConditions(){
         auto sinat {sin(plane_angle*RAD)};
 
         if (NDIM == 3) {
-            uin.x = sinan*cosat*val;
-            uin.y = sinan*sinat*val;
-            uin.z = cosan*val;
+          uin.x = sinan*cosat*val;
+          uin.y = sinan*sinat*val;
+          uin.z = cosan*val;
         }
         else {
-            uin.x = sinan*val;
-            uin.y = cosan*val;
-            uin.z = 0.;
+          uin.x = sinan*val;
+          uin.y = cosan*val;
+          uin.z = 0.;
         }
       }
 
@@ -1605,11 +939,12 @@ _applyParaxialBoundaryConditions(){
         const Face& face = *iface;
 
         if (face.isSubDomainBoundary() && face.isOwn()) {
-            if (is_u) m_uin_parax[face] = uin;
-            if (is_v) m_vin_parax[face] = vin;
-            if (is_a) m_ain_parax[face] = ain;
+          if (is_u[parax_index]) m_uin_parax[face] = uin;
+          if (is_v[parax_index]) m_vin_parax[face] = vin;
+          if (is_a[parax_index]) m_ain_parax[face] = ain;
         }
       }
+      ++parax_index;
     }
   }
 }
@@ -1660,19 +995,14 @@ _computeJacobian(const ItemWithNodes& cell,const Int32& ig, const RealUniqueArra
 /*---------------------------------------------------------------------------*/
 // ! Compute elementary mass matrix in 2D at a given Gauss point
 void NLDynamicModule::
-_computeElemMass(const Real& rho, const DoFLocalId& igauss, const Int32& nb_nodes, RealUniqueArray2& Me){
+_computeElemMass(const Cell& cell, const Real& rho, const Int32& igauss, const Int32& nb_nodes, RealUniqueArray2& Me){
 
-  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
-  VariableDoFReal& gauss_weight(m_gauss_on_cells.gaussWeight());
-  VariableDoFArrayReal& gauss_shape(m_gauss_on_cells.gaussShape());
-  VariableDoFReal& gauss_jacobian(m_gauss_on_cells.gaussJacobian());
+  auto jacobian = m_gauss_jacobian(cell,igauss);
+  auto wt = jacobian * m_gauss_weight(cell,igauss);
 
-  auto jacobian = gauss_jacobian[igauss];
-
-  auto wt = gauss_weight[igauss] * jacobian;
   for (Int32 inod = 0; inod < nb_nodes; ++inod) {
 
-    auto Phi_i = gauss_shape[igauss][inod];
+    auto Phi_i = m_gauss_shape(cell,igauss,inod);
     auto rhoPhi_i = wt*rho*Phi_i;
 
     //----------------------------------------------
@@ -1680,7 +1010,7 @@ _computeElemMass(const Real& rho, const DoFLocalId& igauss, const Int32& nb_node
     //----------------------------------------------
     for (Int32 jnod = inod ; jnod < nb_nodes; ++jnod) {
 
-      auto Phi_j = gauss_shape[igauss][jnod];
+      auto Phi_j = m_gauss_shape(cell,igauss,jnod);
       auto mij = rhoPhi_i*Phi_j;
 
       for (Int32 l = 0; l < NDIM; ++l){
@@ -1697,59 +1027,18 @@ _computeElemMass(const Real& rho, const DoFLocalId& igauss, const Int32& nb_node
 /*---------------------------------------------------------------------------*/
 // ! Compute elementary stiffness matrix in 3D at a given Gauss point
 void NLDynamicModule::
-_computeK(const Real& lambda, const Real& mu, const DoFLocalId& igauss, const Int32& nb_nodes, RealUniqueArray2& Ke){
+_computeK(const Cell& cell, const Real& lambda, const Real& mu, const Int32& igauss, const Int32& nb_nodes, RealUniqueArray2& Ke){
 
-  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
-  VariableDoFReal& gauss_weight(m_gauss_on_cells.gaussWeight());
-  VariableDoFArrayReal3& gauss_shapederiv(m_gauss_on_cells.gaussShapeDeriv());
-  VariableDoFReal3x3& gauss_jacobmat(m_gauss_on_cells.gaussJacobMat());
-  VariableDoFReal& gauss_jacobian(m_gauss_on_cells.gaussJacobian());
+  auto jacobian = m_gauss_jacobian(cell,igauss);
 
-  auto jacobian = gauss_jacobian[igauss];
   auto a{ lambda + 2.*mu };
   auto size{NDIM * nb_nodes};
 
   // Setting the "B" matrix size for the max number of nodes in 3D:
   // 8 nodes for a lin element/20 nodes for a quadratic one
-  RealUniqueArray2 Bmat = _getB(igauss,nb_nodes);
+  RealUniqueArray2 Bmat = _getB(cell,igauss,nb_nodes);
 
-/*
-  RealUniqueArray2 Bmat(NDIM, size);
-
-  for (int i = 0; i <  NDIM; ++i)
-    for (int j = 0; j < size; ++j) {
-      Bmat(i, j) = 0.;
-    }
-
-
-  // ! Computes the Inverse Jacobian Matrix of a 2D or 3D finite-element
-  auto jac = gauss_jacobmat[igauss];
-  Real3x3 ijac;
-
-  if (NDIM == 3) {
-    ijac = math::inverseMatrix(jac);
-  }
-  else {
-    ijac.x.x = jac.y.y / jacobian;
-    ijac.x.y = -jac.x.y / jacobian;
-    ijac.y.x = -jac.y.x / jacobian;
-    ijac.y.y = jac.x.x / jacobian;
-  }
-//------------------------------------------------------
-// Elementary Derivation Matrix B at current Gauss point
-//------------------------------------------------------
-for (Int32 inod = 0; inod < nb_nodes; ++inod) {
-  auto dPhi = gauss_shapederiv[igauss][inod];
-  for (int i = 0; i < NDIM; ++i){
-    auto bi{0.};
-    for (int j = 0; j < NDIM; ++j) {
-      bi += ijac[i][j] * dPhi[j];
-    }
-    Bmat(i, inod) = bi;
-  }
-}
-  */
-  auto wt = gauss_weight[igauss] * jacobian;
+  auto wt = m_gauss_weight(cell,igauss) * jacobian;
 
   //----------------------------------------------
   // Elementary Stiffness (Ke) Matrix assembly
@@ -1920,8 +1209,7 @@ _computeKParax(const Face& face, const Int32& ig, const RealUniqueArray& vec, co
                RealUniqueArray2& Ke, const Real3& RhoC){
 
   auto dt = m_global_deltat();
-  auto alfa{ gamma / beta / dt };
-  auto c1{(1. - alfaf) * gamma / beta / dt};
+  auto c1{ gamma / beta / dt };
 
   Real3 ex{ 1., 0., 0. }, ey{ 0., 1., 0. }, ez{ 0., 0., 1. };
 
@@ -1988,7 +1276,6 @@ void NLDynamicModule::
 _assembleLinearLHS()
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
 
   if (NDIM == 3)
     info() << "Assembly of the FEM 3D bilinear operator (LHS - matrix A) ";
@@ -2016,28 +1303,26 @@ _assembleLinearLHS()
     }
 
     // Loop on the cell Gauss points to compute integrals terms
-    auto cm{(1 - alfam)/beta/dt2};
-    auto ck{(1 - alfaf)};
+    // auto cm{(1 - alfam)/beta/dt2};
+    // auto ck{(1 - alfaf)};
+    auto cm{1/beta/dt2};
+    auto ck{1};
     auto lambda = m_lambda(cell);
     auto mu = m_mu(cell);
     auto rho = m_rho(cell);
 
     for (Int32 igauss = 0; igauss < nbgauss; ++igauss) {
 
-      DoFLocalId gauss_pti = gauss_point.dofId(cell, igauss);
-
       // Computing elementary stiffness matrix at Gauss point ig
-      _computeK(lambda, mu, gauss_pti, nb_nodes, Ke);
+      _computeK(cell,lambda, mu, igauss, nb_nodes, Ke);
 
       // Computing elementary mass matrix at Gauss point ig
-      _computeElemMass(rho, gauss_pti, nb_nodes, Me);
+      _computeElemMass(cell,rho, igauss, nb_nodes, Me);
 
-      // Considering a simple Newmark scheme here (Generalized-alfa will be done later)
+      // Considering a simple Newmark scheme here
       // Computing Me/beta/dt^2 + Ke
       Int32 n1_index{ 0 };
       for (Node node1 : cell.nodes()) {
-
-        auto num1 = node1.uniqueId().asInt32();
 
         if (node1.isOwn()) {
           for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
@@ -2048,7 +1333,6 @@ _assembleLinearLHS()
             Int32 n2_index{ 0 };
             for (Node node2 : cell.nodes()) {
 
-              auto num2 = node2.uniqueId().asInt32();
               for (Int32 jddl = 0; jddl < NDIM; ++jddl) {
                 auto node2_dofj = node_dof.dofId(node2, jddl);
                 auto jj = NDIM * n2_index + jddl;
@@ -2087,11 +1371,6 @@ _assembleLinearRHS(){
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   auto dt = m_global_deltat();
 
-  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
-  VariableDoFReal& gauss_weight(m_gauss_on_cells.gaussWeight());
-  VariableDoFReal& gauss_jacobian(m_gauss_on_cells.gaussJacobian());
-  VariableDoFArrayReal& gauss_shape(m_gauss_on_cells.gaussShape());
-
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
     auto cell_type = cell.type();
@@ -2109,30 +1388,27 @@ _assembleLinearRHS(){
       }
     }
 
-    auto nc = cell.uniqueId().asInt32();
-
     // Loop on the cell Gauss points to compute integrals terms
-    auto cm = (1 - alfam)/beta/dt2;
+    // auto cm = (1 - alfam)/beta/dt2;
+    auto cm {1 / beta / dt2};
 
     for (Int32 igauss = 0; igauss < nbgauss; ++igauss) {
 
-      DoFLocalId gauss_pti = gauss_point.dofId(cell, igauss);
-      auto jacobian = gauss_jacobian[gauss_pti];
+      auto jacobian = m_gauss_jacobian(cell,igauss);
 
       // Computing elementary mass matrix at Gauss point ig
-      _computeElemMass(rho, gauss_pti, nb_nodes, Me);
+      _computeElemMass(cell,rho,igauss, nb_nodes, Me);
 
-      // Considering a simple Newmark scheme here (Generalized-alfa will be done later)
+      // Considering a simple Newmark scheme here
       // Computing Me/beta/dt^2 + Ke
       Int32 n1_index{ 0 };
-      auto wt = gauss_weight[gauss_pti] * jacobian;
+      auto wt = m_gauss_weight(cell,igauss) * jacobian;
 
       for (Node node1 : cell.nodes()) {
 
         if (node1.isOwn()) {
           //---- For debug only !!!
           auto coord1 = m_node_coord[node1];
-          auto num1 = node1.uniqueId().asInt32();
 
           for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
            DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
@@ -2141,7 +1417,6 @@ _assembleLinearRHS(){
            bool is_node1_dofi_set = (bool)m_imposed_displ[node1][iddl];
            auto rhs_i{ 0. };
 
-           //          if (node1.isOwn() && !is_node1_dofi_set) {
            if (!is_node1_dofi_set) {
 
               /*----------------------------------------------------------
@@ -2153,7 +1428,6 @@ _assembleLinearRHS(){
               for (Node node2 : cell.nodes()) {
                 //---- For debug only !!!
                 auto coord2 = m_node_coord[node2];
-                auto num2 = node2.uniqueId().asInt32();
 
                 auto an = m_prev_acc[node2][iddl];
                 auto vn = m_prev_vel[node2][iddl];
@@ -2161,21 +1435,22 @@ _assembleLinearRHS(){
                 auto u_iddl_pred = dn + dt * vn + dt2 * (0.5 - beta) * an;
                 auto jj = NDIM * n2_index + iddl;
                 auto mij = Me(ii, jj);
-                rhs_i += mij * (cm * u_iddl_pred - alfam * an);
+//                rhs_i += mij * (cm * u_iddl_pred - alfam * an);
+                rhs_i += mij * cm * u_iddl_pred;
                 ++n2_index;
               }
 
               /*-------------------------------------------------
-            // Other forces (imposed nodal forces, body forces)
-            //-------------------------------------------------*/
+              // Other forces (imposed nodal forces, body forces)
+              //-------------------------------------------------*/
 
               {
                 //----------------------------------------------
                 // Body force terms
                 //----------------------------------------------
-                auto Phi_i = gauss_shape[gauss_pti][n1_index];
+                auto Phi_i = m_gauss_shape(cell,igauss,n1_index);
                 auto rhoPhi_i = wt * rho * Phi_i;
-                rhs_i += rhoPhi_i * gravity[iddl];
+                rhs_i += rhoPhi_i * bodyf[iddl];
               }
 
               {
@@ -2194,13 +1469,11 @@ _assembleLinearRHS(){
     }
   }
 
-  String dirichletMethod = options()->enforceDirichletMethod();
   info() << "Applying Dirichlet boundary condition via "
          << dirichletMethod << " method ";
   DoFLinearSystemRowEliminationHelper row_elimination_helper(m_linear_system.rowEliminationHelper());
   DoFLinearSystemRowColumnEliminationHelper row_column_elimination_helper(m_linear_system.rowColumnEliminationHelper());
 
-  dirichletMethod = dirichletMethod.lower();
   // Looking for Dirichlet boundary nodes & modify linear operators accordingly
   ENUMERATE_ (Node, inode, ownNodes()) {
     auto node = *inode;
@@ -2300,7 +1573,6 @@ _assembleLinearRHS(){
 
           //---- For debug only !!!
           auto coords = m_node_coord[dc_node_west];
-          auto num = dc_node_west.uniqueId().asInt32();
 
           rhs_values[node_dof_id] = Ft; // default = hasLoading
           if (hasMoment) {
@@ -2322,7 +1594,6 @@ _assembleLinearRHS(){
 
           //---- For debug only !!!
           auto coords = m_node_coord[dc_node_east];
-          auto num = dc_node_east.uniqueId().asInt32();
 
           rhs_values[node_dof_id] = -Ft;// default = hasLoading
           if (hasMoment) {
@@ -2344,7 +1615,6 @@ _assembleLinearRHS(){
 
           //---- For debug only !!!
           auto coords = m_node_coord[dc_node_north];
-          auto num = dc_node_north.uniqueId().asInt32();
 
           rhs_values[node_dof_id] = Ft;// default = hasLoading
           if (hasMoment) {
@@ -2365,7 +1635,6 @@ _assembleLinearRHS(){
 
           //---- For debug only !!!
           auto coords = m_node_coord[dc_node_south];
-          auto num = dc_node_south.uniqueId().asInt32();
 
           rhs_values[node_dof_id] = -Ft;// default = hasLoading
           if (hasMoment) {
@@ -2392,15 +1661,9 @@ _assembleLinearRHS(){
  * a given cell with nb_nodes
  */
 RealUniqueArray2 NLDynamicModule::
-_getB(const DoFLocalId& igauss, const Int32& nb_nodes)
+_getB(const Cell& cell, const Int32& igauss, const Int32& nb_nodes)
 {
-
-  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
-  VariableDoFArrayReal3& gauss_shapederiv(m_gauss_on_cells.gaussShapeDeriv());
-  VariableDoFReal3x3& gauss_jacobmat(m_gauss_on_cells.gaussJacobMat());
-  VariableDoFReal& gauss_jacobian(m_gauss_on_cells.gaussJacobian());
-
-  auto jacobian = gauss_jacobian[igauss];
+  auto jacobian = m_gauss_jacobian(cell,igauss);
   auto size{ NDIM * nb_nodes };
 
   // The "B" matrix size for the max number of nodes in 3D:
@@ -2413,11 +1676,12 @@ _getB(const DoFLocalId& igauss, const Int32& nb_nodes)
     }
 
   // ! Computes the Inverse Jacobian Matrix of a 2D or 3D finite-element
-  auto jac = gauss_jacobmat[igauss];
+  NumMatrix<Real,3,3> mjac = m_gauss_jacob_mat(cell, igauss);
+  Real3x3 jac(mjac[0], mjac[1], mjac[2]);
   Real3x3 ijac;
 
   if (NDIM == 3) {
-    ijac = math::inverseMatrix(jac);
+    ijac = math::inverseMatrix(Real3x3(jac[0], jac[1], jac[2]));
   }
   else {
     ijac.x.x = jac.y.y / jacobian;
@@ -2430,7 +1694,7 @@ _getB(const DoFLocalId& igauss, const Int32& nb_nodes)
   /* Elementary Derivation Matrix B at current Gauss point
   */
   for (Int32 inod = 0; inod < nb_nodes; ++inod) {
-    auto dPhi = gauss_shapederiv[igauss][inod];
+    NumVector<Real,3> dPhi = m_gauss_shape_deriv(cell,igauss,inod);
     for (int i = 0; i < NDIM; ++i) {
       auto bi{ 0. };
       for (int j = 0; j < NDIM; ++j) {
@@ -2449,21 +1713,17 @@ _getB(const DoFLocalId& igauss, const Int32& nb_nodes)
 void NLDynamicModule::
 _compute_stress(bool init, bool store)
 {
-  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
-
-  VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
-  VariableDoFArrayReal3x3& gauss_strain(m_gauss_on_cells.gaussStrain());
-  VariableDoFArrayReal3x3& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
-  VariableDoFArrayReal& gauss_lawparam(m_gauss_on_cells.gaussLawParam());
-  VariableDoFArrayReal& gauss_histparam(m_gauss_on_cells.gaussLawHistoryParam());
-  VariableDoFArrayReal3x3& gauss_tangent_operator(m_gauss_on_cells.gaussTangentOperator());
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  auto nbcell{0};
+  auto nbelast{0};
 
   ENUMERATE_CELL (icell, allCells()) {
     const Cell& cell = *icell;
     auto cell_type = cell.type();
     auto cell_nbnod = cell.nbNode();
     Int32 numcell = cell.localId();
+    ++nbcell;
 
     auto cell_nbgauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, ninteg);
 
@@ -2471,22 +1731,39 @@ _compute_stress(bool init, bool store)
     auto lawtyp = static_cast<TypesNLDynamic::eLawType>(m_law[cell]);
     auto ilaw = m_iparam_law[cell];
     LawDispatcher cell_law(lawtyp, is_default);
+    RealUniqueArray law_params = m_law_param[cell];
+    cell_law.setLawParams(&law_params);
+
+    auto nbhist = cell_law.getNbLawHistoryParam();
+    auto nbelastg{0};
 
     for (Int32 ig = 0; ig < cell_nbgauss; ++ig) {
-      DoFLocalId gauss_pti = gauss_point.dofId(cell, ig);
-      Int32 gaussnum = gauss_pti.localId();
+
+      NumMatrix<Real,3,3> msign = m_gauss_prev_stress(cell, ig);
+      NumMatrix<Real,3,3> mepsn = m_gauss_prev_strain(cell, ig);
+      NumMatrix<Real,3,3> mepspn = m_gauss_prev_strainp(cell, ig);
+
+      RealUniqueArray lawhistparam;
+      if (nbhist > 0) {
+        lawhistparam.resize(nbhist);
+        for (Int32 ip = 0; ip < nbhist; ++ip) {
+          lawhistparam[ip] = m_law_hist_param(cell, ig,ip);
+        }
+      }
+      cell_law.setLawHistoryParams(&lawhistparam);
 
       Tensor2 epsn, sign, epspn;
-      epsn.fromReal3x3ToTensor2(gauss_strain[gauss_pti][1]);
-      sign.fromReal3x3ToTensor2(gauss_stress[gauss_pti][1]);
-      epspn.fromReal3x3ToTensor2(gauss_strain_plastic[gauss_pti][1]);
+
+      epsn.fromReal3x3ToTensor2(Real3x3(mepsn[0], mepsn[1], mepsn[2]));
+      sign.fromReal3x3ToTensor2(Real3x3(msign[0], msign[1], msign[2]));
+      epspn.fromReal3x3ToTensor2(Real3x3(mepspn[0], mepspn[1], mepspn[2]));
 
       Int32 n_index{ 0 };
       Tensor2 deps;
 
       // Get Elementary Derivation Matrix B at this Gauss point
       // for a given node: Bmat(k, inod) = dkPhi with k=x,y or z direction
-      RealUniqueArray2 Bmat = _getB(gauss_pti, cell_nbnod);
+      RealUniqueArray2 Bmat = _getB(cell,ig, cell_nbnod);
 
       // Compute the strain increment at this Gauss point
       for (Node node : cell.nodes()) {
@@ -2494,7 +1771,7 @@ _compute_stress(bool init, bool store)
         if (node.isOwn()) {
           //---- For debug only !!!
           auto coord = m_node_coord[node];
-          auto num = node.uniqueId().asInt32();
+
           Real3 du;
 
           for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
@@ -2529,8 +1806,6 @@ _compute_stress(bool init, bool store)
         ++n_index;
       }
 
-      cell_law.setLawParams(gauss_lawparam[gauss_pti]);
-      cell_law.setLawHistoryParams(gauss_histparam[gauss_pti]);
       cell_law.setStrain(epsn);
       cell_law.setStress(sign);
       cell_law.setPlasticStrain(epspn);
@@ -2539,30 +1814,40 @@ _compute_stress(bool init, bool store)
 
       // Compute the current stress from the law at this Gauss point
       // Tangent stiffness operator is not computed at prediction stage
-      cell_law.computeStress(init, store);
-      gauss_histparam[gauss_pti] = cell_law.updateHistoryVars();
+      bool is_plastic = cell_law.computeStress(init, store);
+
+      if (!is_plastic)
+        ++nbelastg;
+
+      if (nbhist > 0) {
+        for (Int32 ip = 0; ip < nbhist; ++ip)
+          m_law_hist_param(cell,ig,ip) = lawhistparam[ip];
+      }
 
       // Current plastic strains and stresses have been updated by the law
-      gauss_strain_plastic[gauss_pti][2] = fromTensor2Real3x3(cell_law.getPlasticStrain());
-      gauss_stress[gauss_pti][2] = fromTensor2Real3x3(cell_law.getStress());
-      gauss_strain[gauss_pti][2] = fromTensor2Real3x3(cell_law.getStrain());
+      m_gauss_strainp(cell, ig) = NumMatrix<Real,3,3>(fromTensor2Real3x3(cell_law.getPlasticStrain()));
+      m_gauss_strain(cell, ig) = NumMatrix<Real,3,3>(fromTensor2Real3x3(cell_law.getStrain()));
+      m_gauss_stress(cell, ig) = NumMatrix<Real,3,3>(fromTensor2Real3x3(cell_law.getStress()));
 
       if (store){ // when convergence is reached, updating the "prev" quantities for the next step
-        gauss_strain_plastic[gauss_pti][1] = gauss_strain_plastic[gauss_pti][2];
-        gauss_stress[gauss_pti][1] = gauss_stress[gauss_pti][2];
-        gauss_strain[gauss_pti][1] = gauss_strain[gauss_pti][2];
+        m_gauss_prev_strainp(cell, ig) = m_gauss_strainp(cell, ig);
+        m_gauss_prev_strain(cell, ig) = m_gauss_strain(cell, ig);
+        m_gauss_prev_stress(cell, ig) = m_gauss_stress(cell, ig);
 
         // To do: tangent operator stored at Gauss points if we need to re-assemble A
         Tensor4 tangent_op = cell_law.getTangentTensor();
 
-        for (Int32 it = 0; it < 3; it++) {
-          gauss_tangent_operator[gauss_pti][it] = tangent_op[it];
-        }
+        m_tangent_op_d(cell,ig) = NumMatrix<Real,3,3>(tangent_op[0]);
+        m_tangent_op_s(cell,ig) = NumMatrix<Real,3,3>(tangent_op[1]);
+        m_tangent_op_sup(cell,ig) = NumMatrix<Real,3,3>(tangent_op[2]);
         if (!tangent_op.isSymmetric())
-          gauss_tangent_operator[gauss_pti][3] = tangent_op[3];
+          m_tangent_op_slow(cell,ig) = NumMatrix<Real,3,3>(tangent_op[3]);
       }
     }
+    if (nbelastg == cell_nbgauss)
+      ++nbelast;
   }
+  m_converge = (nbcell == nbelast);
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -2603,14 +1888,6 @@ _assembleNonLinRHS(bool init){
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   auto dt = m_global_deltat();
 
-  auto gauss_point(m_gauss_on_cells.gaussCellConnectivityView());
-  VariableDoFReal& gauss_weight(m_gauss_on_cells.gaussWeight());
-  VariableDoFReal& gauss_jacobian(m_gauss_on_cells.gaussJacobian());
-  VariableDoFArrayReal& gauss_shape(m_gauss_on_cells.gaussShape());
-  VariableDoFArrayReal3x3& gauss_stress(m_gauss_on_cells.gaussStress());
-  VariableDoFArrayReal3x3& gauss_strain(m_gauss_on_cells.gaussStrain());
-  VariableDoFArrayReal3x3& gauss_strain_plastic(m_gauss_on_cells.gaussStrainPlastic());
-
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
     auto cell_type = cell.type();
@@ -2628,34 +1905,32 @@ _assembleNonLinRHS(bool init){
       }
     }
 
-    auto nc = cell.uniqueId().asInt32();
-
     // Loop on the cell Gauss points to compute integrals terms
-    //    auto cm = (1 - alfam)/beta/dt2;
     auto betadt2 = 1/beta/dt2; // Newmark coefficient
 
     for (Int32 igauss = 0; igauss < nbgauss; ++igauss) {
 
-      DoFLocalId gauss_pti = gauss_point.dofId(cell, igauss);
-      auto jacobian = gauss_jacobian[gauss_pti];
-      auto Bmat = _getB(gauss_pti,nb_nodes);
-      auto sig = gauss_stress[gauss_pti][2];
-      auto sig0 = gauss_stress[gauss_pti][0];
+      auto Bmat = _getB(cell,igauss,nb_nodes);
+      NumMatrix<Real,3,3>msig = m_gauss_stress(cell,igauss);
+      NumMatrix<Real,3,3>msig0 = m_gauss_stress0(cell,igauss);
+      Real3x3 sig(msig[0], msig[1], msig[2]);
+      Real3x3 sig0(msig0[0], msig0[1], msig0[2]);
+      auto jacobian = m_gauss_jacobian(cell,igauss);
 
       // Computing elementary mass matrix at Gauss point ig
-      _computeElemMass(rho, gauss_pti, nb_nodes, Me);
+      _computeElemMass(cell,rho, igauss, nb_nodes, Me);
 
-      // Considering a simple Newmark scheme here (Generalized-alfa will be done later)
+      // Considering a simple Newmark scheme here
       // Computing Me/beta/dt^2 + Ke
       Int32 n1_index{ 0 };
-      auto wt = gauss_weight[gauss_pti] * jacobian;
+      auto wt = m_gauss_weight(icell,igauss)* jacobian;
 
       for (Node node1 : cell.nodes()) {
 
         if (node1.isOwn()) {
           //---- For debug only !!!
           auto coord1 = m_node_coord[node1];
-          auto num1 = node1.uniqueId().asInt32();
+
           Real3 Bnod;
           for (Int32 i = 0; i < NDIM; i++)
             Bnod[i] = Bmat(i, n1_index);
@@ -2708,7 +1983,6 @@ _assembleNonLinRHS(bool init){
               for (Node node2 : cell.nodes()) {
                 //---- For debug only !!!
                 auto coord2 = m_node_coord[node2];
-                auto num2 = node2.uniqueId().asInt32();
 
                 /*------------------------------------------------------------
                  * Mij/(beta*dt2)*(u_pred - ui) with ui, the displacement at
@@ -2749,9 +2023,9 @@ _assembleNonLinRHS(bool init){
                   //----------------------------------------------
                   // Body force terms
                   //----------------------------------------------
-                  auto Phi_i = gauss_shape[gauss_pti][n1_index];
+                  auto Phi_i = m_gauss_shape(cell,igauss,n1_index);
                   auto rhoPhi_i = wt * rho * Phi_i;
-                  rhs_i += rhoPhi_i * gravity[iddl];
+                  rhs_i += rhoPhi_i * bodyf[iddl];
                 }
 
                 {
@@ -2773,13 +2047,11 @@ _assembleNonLinRHS(bool init){
   }
 
   if (init){
-    String dirichletMethod = options()->enforceDirichletMethod();
     info() << "Applying Dirichlet boundary condition via "
            << dirichletMethod << " method ";
     DoFLinearSystemRowEliminationHelper row_elimination_helper(m_linear_system.rowEliminationHelper());
     DoFLinearSystemRowColumnEliminationHelper row_column_elimination_helper(m_linear_system.rowColumnEliminationHelper());
 
-    dirichletMethod = dirichletMethod.lower();
     // Looking for Dirichlet boundary nodes & modify linear operators accordingly
     ENUMERATE_ (Node, inode, ownNodes()) {
       auto node = *inode;
@@ -2879,7 +2151,6 @@ _assembleNonLinRHS(bool init){
 
             //---- For debug only !!!
             auto coords = m_node_coord[dc_node_west];
-            auto num = dc_node_west.uniqueId().asInt32();
 
             rhs_values[node_dof_id] = Ft; // default = hasLoading
             if (hasMoment) {
@@ -2901,7 +2172,6 @@ _assembleNonLinRHS(bool init){
 
             //---- For debug only !!!
             auto coords = m_node_coord[dc_node_east];
-            auto num = dc_node_east.uniqueId().asInt32();
 
             rhs_values[node_dof_id] = -Ft;// default = hasLoading
             if (hasMoment) {
@@ -2923,7 +2193,6 @@ _assembleNonLinRHS(bool init){
 
             //---- For debug only !!!
             auto coords = m_node_coord[dc_node_north];
-            auto num = dc_node_north.uniqueId().asInt32();
 
             rhs_values[node_dof_id] = Ft;// default = hasLoading
             if (hasMoment) {
@@ -2944,7 +2213,6 @@ _assembleNonLinRHS(bool init){
 
             //---- For debug only !!!
             auto coords = m_node_coord[dc_node_south];
-            auto num = dc_node_south.uniqueId().asInt32();
 
             rhs_values[node_dof_id] = -Ft;// default = hasLoading
             if (hasMoment) {
@@ -2982,17 +2250,20 @@ _check_convergence(Int32 iter){
   */
   Real dxnorm{0.}, xinorm{0.};
 
-  ENUMERATE_ (Node, inode, allNodes()) {
+  ENUMERATE_ (Node, inode, ownNodes()) {
     Node node = *inode;
     auto xi = m_prev_displ_iter[node];
-    auto dx = m_displ[node] - xi;
+    auto x = m_displ[node];
+    auto dx = x - xi;
     xinorm += math::dot(xi,xi);
     dxnorm += math::dot(dx,dx);
   }
   xinorm = math::sqrt(xinorm);
   if (fabs(xinorm) < tol) xinorm = 1.; // at 1st step&iteration, xi(=u0) maybe 0
+  xinorm = parallelMng()->reduce(MessagePassing::eReduceType::ReduceSum,xinorm);
 
   dxnorm = math::sqrt(dxnorm);
+  dxnorm = parallelMng()->reduce(MessagePassing::eReduceType::ReduceSum,dxnorm);
 
   m_converge = (dxnorm/xinorm < utol);
 
@@ -3004,12 +2275,9 @@ _check_convergence(Int32 iter){
     /*------------------------------------------------------------
      * Check the forces (rhs) convergence
     */
-    ENUMERATE_ (Node, inode, allNodes()) {
+    ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
-      auto xi = m_prev_displ_iter[node];
-      auto dx = m_displ[node] - xi;
-      xinorm += math::dot(xi,xi);
-      dxnorm += math::dot(dx,dx);
+
       for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
 
         DoFLocalId node_dofi = node_dof.dofId(node, iddl);
@@ -3017,8 +2285,10 @@ _check_convergence(Int32 iter){
         dfnorm += rhs_i*rhs_i;
       }
     }
+    dfnorm = parallelMng()->reduce(MessagePassing::eReduceType::ReduceSum,dfnorm);
     dfnorm = math::sqrt(dfnorm);
-    // Setting reference m_norm_R0 to 1. if zero at 1st step/1st iteration
+
+   // Setting reference m_norm_R0 to 1. if zero at 1st step/1st iteration
     if (m_norm_R0 < tol) m_norm_R0 = 1.;
     m_converge = (dfnorm/m_norm_R0 < ftol);
   }
@@ -3035,72 +2305,74 @@ _check_convergence(Int32 iter){
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void NLDynamicModule::
-_getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
-
+_getParaxialContribution(Arcane::VariableDoFReal& rhs_values)
+{
   auto dt = m_global_deltat();
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
-  auto c0{1. - alfaf};
+  //  auto c0{1. - alfaf};
+  auto c0{1.};
   auto cgb{gamma / beta};
   auto c1{c0 * cgb / dt};
   auto c2{(1. - gamma) * dt};
   auto cc3{(0.5 - beta) * dt2};
 
-  for (const auto& bs : options()->paraxialBoundaryCondition()) {
+  // Loop over all paraxial conditions
+  if (bc) {
+    Int32 parax_index{0};
+    for (const auto& bs : bc->paraxialBoundaryConditions()) {
 
-    FaceGroup face_group = bs->surface();
+      FaceGroup face_group = bs->getSurface();
 
-    bool is_u = bs->hasUInput();
-    bool is_v = bs->hasVInput();
-    bool is_a = bs->hasAInput();
-    Int32 typ{bs->getInputMotionType()};
+      Int32 typ{bs->getInputMotionType()};
 
-    // Loop on the faces (=edges in 2D) concerned with the paraxial condition
-    ENUMERATE_FACE (iface, face_group) {
+      // Loop on the faces (=edges in 2D) concerned with the paraxial condition
+      ENUMERATE_FACE (iface, face_group) {
 
-      const Face& face = *iface;
+        const Face& face = *iface;
 
-      Real3 uin{},vin{}, ain{};
-      if (face.isSubDomainBoundary() && face.isOwn()) {
+        Real3 uin{},vin{}, ain{};
+        if (face.isSubDomainBoundary() && face.isOwn()) {
 
-        if (typ > 0){
-          // An input motion has been defined
-          if (is_u) uin = m_uin_parax[face];
-          if (is_v) vin = m_vin_parax[face];
-          if (is_a) ain = m_ain_parax[face];
-        }
-        auto rho = m_rho_parax[face];
-        auto RhoC{ rho * m_vel_parax[face] };
+          if (typ > 0){
+            // An input motion has been defined
+            if (is_u[parax_index]) uin = m_uin_parax[face];
+            if (is_v[parax_index]) vin = m_vin_parax[face];
+            if (is_a[parax_index]) ain = m_ain_parax[face];
+          }
+          auto rho = m_rho_parax[face];
+          auto RhoC{ rho * m_vel_parax[face] };
 
-        // In 2D, paraxial = edge => e1 = tangential vector, e2 = outbound normal vector
-        // In 3D, paraxial = face => e1, e2 = on tangential plane, e3 = outbound normal vector
-        Real3 e1{ m_e1_boundary[face] }, e2{ m_e2_boundary[face] }, e3{ m_e3_boundary[face] };
+          // In 2D, paraxial = edge => e1 = tangential vector, e2 = outbound normal vector
+          // In 3D, paraxial = face => e1, e2 = on tangential plane, e3 = outbound normal vector
+          Real3 e1{ m_e1_boundary[face] }, e2{ m_e2_boundary[face] }, e3{ m_e3_boundary[face] };
 
-        // Rotation matrix between global and local (paraxial) axes
-        Real3x3 ROT({ e1.x, e1.y, e1.z },
-                    { e2.x, e2.y, e2.z },
-                    { e3.x, e3.y, e3.z });
+          // Rotation matrix between global and local (paraxial) axes
+          Real3x3 ROT({ e1.x, e1.y, e1.z },
+                      { e2.x, e2.y, e2.z },
+                      { e3.x, e3.y, e3.z });
 
-        auto nb_nodes{ face.nbNode() };
-        auto size{ NDIM * nb_nodes };
+          auto nb_nodes{ face.nbNode() };
+          auto size{ NDIM * nb_nodes };
 
-        // Loop on the cell Gauss points to compute integrals terms
-        Int32 ngauss{ 0 };
-        auto vec = cell_fem.getGaussData(face, ninteg, ngauss);
+          // Loop on the cell Gauss points to compute integrals terms
+          Int32 ngauss{ 0 };
+          auto vec = cell_fem.getGaussData(face, ninteg, ngauss);
 
-        Int32 ng{4 * (1 + nb_nodes)};
-        for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += ng) {
+          Int32 ng{4 * (1 + nb_nodes)};
+          for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += ng) {
 
-          auto jacobian{ 0. };
-          _computeJacobian(face, ig, vec, jacobian);
+            auto jacobian{ 0. };
+            _computeJacobian(face, ig, vec, jacobian);
 
-          // Loop on nodes of the paraxial face (with no Dirichlet condition)
-          Int32 n1_index{ 0 };
-          auto iig{ 4 };
-          auto wt = vec[ig] * jacobian;
-          Real3 a0{};
+            // Loop on nodes of the paraxial face (with no Dirichlet condition)
+            Int32 n1_index{ 0 };
+            auto iig{ 4 };
+            auto wt = vec[ig] * jacobian;
+            Real3 a0{};
 
-          for (Node node : face.nodes()) {
+            for (Node node : face.nodes()) {
 
               auto Phi_i = vec[ig + iig];
               auto vi_pred = m_prev_vel[node] + c2 * m_prev_acc[node];
@@ -3111,121 +2383,130 @@ _getParaxialContribution(Arcane::VariableDoFReal& rhs_values){
                 auto vi{ 0. };
 
                 for (Int32 j = 0; j < NDIM; ++j) {
-                  vi += ROT[i][j] * (-c0 * vi_pred[j] + c1 * ui_pred[j] - alfaf * vni[j]);
+                  //                  vi += ROT[i][j] * (-c0 * vi_pred[j] + c1 * ui_pred[j] - alfaf * vni[j]);
+                  vi += ROT[i][j] * (-c0 * vi_pred[j] + c1 * ui_pred[j]);
                 }
                 a0[i] += Phi_i * RhoC[i] * vi;
               }
-            iig += 4;
-          }
-
-          iig = 4;
-          for (Node node : face.nodes()) {
-
-            if (node.isOwn()) {
-              //---- For debug only !!!
-              auto num = node.uniqueId().asInt32();
-              auto coords = m_node_coord[node];
-
-              auto Phi_i = vec[ig + iig];
-              auto wtPhi_i = wt * Phi_i;
-              for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
-                DoFLocalId node_dofi = node_dof.dofId(node, iddl);
-
-                bool is_node_dofi_set = (bool)m_imposed_displ[node][iddl];
-                auto rhs_i{ 0. };
-
-                if (!is_node_dofi_set) {
-
-                  for (Int32 j = 0; j < NDIM; ++j) {
-                    rhs_i += ROT[iddl][j] * a0[j];
-                  }
-                }
-                rhs_values[node_dofi] += wtPhi_i * rhs_i;
-              }
               iig += 4;
             }
-          }
-        }
-      }
-    }
-  }
-}
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-void NLDynamicModule::
-_assembleLHSParaxialContribution(){
+            iig = 4;
+            for (Node node : face.nodes()) {
 
-  auto dt = m_global_deltat();
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-  auto c1{(1. - alfaf) * gamma / beta / dt};
+              if (node.isOwn()) {
+                //---- For debug only !!!
+                auto coords = m_node_coord[node];
 
-  for (const auto& bs : options()->paraxialBoundaryCondition()) {
+                auto Phi_i = vec[ig + iig];
+                auto wtPhi_i = wt * Phi_i;
+                for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
+                  DoFLocalId node_dofi = node_dof.dofId(node, iddl);
 
-    FaceGroup face_group = bs->surface();
-    //      info() << "Applying constant paraxial boundary conditions for surface " << face_group.name();
+                  bool is_node_dofi_set = (bool)m_imposed_displ[node][iddl];
+                  auto rhs_i{ 0. };
 
-    // Loop on the faces (=edges in 2D) concerned with the paraxial condition
-    ENUMERATE_FACE (iface, face_group) {
+                  if (!is_node_dofi_set) {
 
-      const Face& face = *iface;
-
-      if (face.isSubDomainBoundary() && face.isOwn()) {
-
-        auto rho = m_rho_parax[face];
-        auto RhoC{ rho * m_vel_parax[face] };
-
-        // In 3D, a quadratic face element has max 9 nodes (27 dofs)
-        auto nb_nodes{face.nbNode()};
-        auto size{ NDIM * nb_nodes};
-        RealUniqueArray2 Ke(size,size);
-
-        for (Int32 i = 0; i < size; ++i) {
-          for (Int32 j = i; j < size; ++j) {
-            Ke(i, j) = 0.;
-            Ke(j, i) = 0.;
-          }
-        }
-
-        // Loop on the cell Gauss points to compute integrals terms
-        Int32 ngauss{ 0 };
-        auto vec = cell_fem.getGaussData(face, ninteg, ngauss);
-
-        Int32 ng{ 4 * (1 + nb_nodes) };
-        for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += ng) {
-
-
-          auto jacobian{ 0. };
-          _computeJacobian(face, ig, vec, jacobian);
-          _computeKParax(face, ig, vec, jacobian, Ke, RhoC);
-
-          // Loop on nodes of the face (with no Dirichlet condition)
-          Int32 n1_index{ 0 };
-          auto iig{ 4 };
-          for (Node node1 : face.nodes()) {
-
-            for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
-
-              DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
-              auto ii = NDIM * n1_index + iddl;
-
-              if (node1.isOwn()){
-                //----------------------------------------------
-                // Elementary contribution to LHS
-                //----------------------------------------------
-                Int32 n2_index{ 0 };
-                for (Node node2 : face.nodes()) {
-                  for (Int32 jddl = 0; jddl < NDIM; ++jddl) {
-                    auto node2_dofj = node_dof.dofId(node2, jddl);
-                    auto jj = NDIM * n2_index + jddl;
-                    auto mij = Ke(ii, jj);
-                    m_linear_system.matrixAddValue(node1_dofi, node2_dofj, mij);
+                    for (Int32 j = 0; j < NDIM; ++j) {
+                      rhs_i += ROT[iddl][j] * a0[j];
+                    }
                   }
-                  ++n2_index;
+                  rhs_values[node_dofi] += wtPhi_i * rhs_i;
                 }
+                iig += 4;
               }
             }
-            ++n1_index;
+          }
+        }
+      }
+      parax_index++;
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+void NLDynamicModule::
+_assembleLHSParaxialContribution()
+{
+  auto dt = m_global_deltat();
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  //  auto c1{(1. - alfaf) * gamma / beta / dt};
+  auto c1{gamma / beta / dt};
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
+
+  // Loop over all paraxial conditions
+  if (bc) {
+    for (const auto& bs : bc->paraxialBoundaryConditions()) {
+
+      FaceGroup face_group = bs->getSurface();
+
+      Int32 typ{bs->getInputMotionType()};
+      if (!typ)
+        continue;
+
+      // Loop on the faces (=edges in 2D) concerned with the paraxial condition
+      ENUMERATE_FACE (iface, face_group) {
+
+        const Face& face = *iface;
+
+        if (face.isSubDomainBoundary() && face.isOwn()) {
+
+          auto rho = m_rho_parax[face];
+          auto RhoC{ rho * m_vel_parax[face] };
+
+          // In 3D, a quadratic face element has max 9 nodes (27 dofs)
+          auto nb_nodes{face.nbNode()};
+          auto size{ NDIM * nb_nodes};
+          RealUniqueArray2 Ke(size,size);
+
+          for (Int32 i = 0; i < size; ++i) {
+            for (Int32 j = i; j < size; ++j) {
+              Ke(i, j) = 0.;
+              Ke(j, i) = 0.;
+            }
+          }
+
+          // Loop on the cell Gauss points to compute integrals terms
+          Int32 ngauss{ 0 };
+          auto vec = cell_fem.getGaussData(face, ninteg, ngauss);
+
+          Int32 ng{ 4 * (1 + nb_nodes) };
+          for (Int32 igauss = 0, ig = 0; igauss < ngauss; ++igauss, ig += ng) {
+
+            auto jacobian{ 0. };
+            _computeJacobian(face, ig, vec, jacobian);
+            _computeKParax(face, ig, vec, jacobian, Ke, RhoC);
+
+            // Loop on nodes of the face (with no Dirichlet condition)
+            Int32 n1_index{ 0 };
+            auto iig{ 4 };
+            for (Node node1 : face.nodes()) {
+
+              for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
+
+                DoFLocalId node1_dofi = node_dof.dofId(node1, iddl);
+                auto ii = NDIM * n1_index + iddl;
+
+                if (node1.isOwn()){
+                  //----------------------------------------------
+                  // Elementary contribution to LHS
+                  //----------------------------------------------
+                  Int32 n2_index{ 0 };
+                  for (Node node2 : face.nodes()) {
+                    for (Int32 jddl = 0; jddl < NDIM; ++jddl) {
+                      auto node2_dofj = node_dof.dofId(node2, jddl);
+                      auto jj = NDIM * n2_index + jddl;
+                      auto mij = Ke(ii, jj);
+                      m_linear_system.matrixAddValue(node1_dofi, node2_dofj, mij);
+                    }
+                    ++n2_index;
+                  }
+                }
+              }
+              ++n1_index;
+            }
           }
         }
       }
@@ -3236,32 +2517,68 @@ _assembleLHSParaxialContribution(){
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void NLDynamicModule::
-_getTractionContribution(Arcane::VariableDoFReal& rhs_values){
-
+_getTractionContribution(Arcane::VariableDoFReal& rhs_values)
+{
+  Real time = globalTime();
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
+  Int32 bc_index{ 0 };
 
-  for (const auto& bs : options()->neumannCondition()) {
-    FaceGroup face_group = bs->surface();
+  // Loop over all Neumann conditions
+  if (bc) {
+    for (const auto& bs : bc->neumannBoundaryConditions()) {
+      auto table_file_name = bs->getNeumannInputFile();
+      const bool getFromTable = !table_file_name.empty();
 
-    // Loop on the faces (=edges in 2D) concerned with the traction condition
-    ENUMERATE_FACE (j, face_group) {
-      const Face& face = *j;
+      // mesh boundary group on which Neumann condition is applied
+      FaceGroup face_group = bs->getSurface();
+      Real3 trac{};
+      bool applyNeumann {false};
 
-      Real3 trac = m_imposed_traction[face];
-      auto facint = ArcaneFemFunctions::MeshOperation::computeFacLengthOrArea(face,m_node_coord);
-
-      // Loop on nodes of the face or edge (with no Dirichlet condition)
-      ENUMERATE_NODE (k, face.nodes()){
-        const Node& node = *k;
-        auto coord = m_node_coord[node];
-        auto num = node.uniqueId();
-
-        for (Int32 iddl = 0; iddl < NDIM; ++iddl)
-          //          if (!(bool)m_imposed_displ[node][iddl] && node.isOwn()) {
-          if (node.isOwn()) {
-            DoFLocalId dof_id = node_dof.dofId(node, iddl);
-            rhs_values[dof_id] += trac[iddl] * facint;
+      if (!getFromTable) {
+        Int32 j{-1};
+        const StringConstArrayView t_string = bs->getValue();
+        for (Int32 i = 0; i < t_string.size(); ++i) {
+          if (t_string[i] != "NULL") {
+            trac[i] = std::stod(t_string[i].localstr());
+            ++j;
           }
+          if (j != -1)
+            applyNeumann = true;
+        }
+      }
+
+      else {
+        const CaseTableInfo& case_table_info = m_neumann_case_table_list[bc_index++];
+        CaseTable* ct = case_table_info.case_table;
+        if (!ct)
+          ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _initBoundaryConditions()");
+        if (table_file_name != case_table_info.file_name)
+          ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'", case_table_info.file_name);
+
+        ct->value(time, trac);
+        applyNeumann = true;
+      }
+
+      if (applyNeumann) {
+        // Loop on the faces (=edges in 2D) concerned with the traction condition
+        ENUMERATE_FACE (j, face_group) {
+          const Face& face = *j;
+          auto facint = ArcaneFemFunctions::MeshOperation::computeFacLengthOrArea(face,m_node_coord);
+          // Loop on nodes of the face or edge (with no Dirichlet condition)
+          ENUMERATE_NODE (k, face.nodes()){
+            const Node& node = *k;
+            auto coord = m_node_coord[node];
+            auto num = node.uniqueId();
+
+            for (Int32 iddl = 0; iddl < NDIM; ++iddl)
+              //          if (!(bool)m_imposed_displ[node][iddl] && node.isOwn()) {
+                if (node.isOwn()) {
+                  DoFLocalId dof_id = node_dof.dofId(node, iddl);
+                  rhs_values[dof_id] += trac[iddl] * facint;
+                }
+          }
+        }
       }
     }
   }
@@ -3280,7 +2597,6 @@ _doSolve(){
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
 
-      auto num = node.uniqueId().asInt32();
       auto coord = m_node_coord[node];
 
       auto ux = dof_d[node_dof.dofId(node, 0)];
@@ -3298,7 +2614,7 @@ _doSolve(){
 
   // Re-Apply Dirichlet boundary conditions because the solver has modified the values
   // on all nodes
-  _applyDirichletBoundaryConditions();// --- Check if it is required (re-apply paraxial conditions too?)
+//  _applyDirichletBoundaryConditions();// --- Check if it is required (re-apply paraxial conditions too?)
 
   m_displ.synchronize();
   m_vel.synchronize();
@@ -3315,6 +2631,452 @@ _doSolve(){
   }
 }
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+void NLDynamicModule::
+_initBoundaryConditions()
+{
+  IParallelMng* pm = subDomain()->parallelMng();
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
+
+  // Loop over all conditions: Dirichlet, Neumann, Point
+  if (bc) {
+    for (const auto& bs : bc->dirichletPointConditions()) {
+
+      NodeGroup nodes = bs->getNode();
+      CaseTable* case_table = nullptr;
+      auto table_file_name = bs->getDirichletInputFile();
+      bool getFromTable = !table_file_name.empty();
+      bool hasU[3]{false,false,false};
+
+      if (getFromTable) {
+        case_table = readFileAsCaseTable(pm, table_file_name, 3);
+        const StringConstArrayView t_string = bs->getDirection();
+
+        for (Int32 i = 0; i < t_string.size(); ++i) {
+          if (t_string[i] == "1")  // direction is imposed
+            hasU[i] = true;
+        }
+      }
+      else {
+        const StringConstArrayView t_string = bs->getValue();
+        for (Int32 i = 0; i < t_string.size(); ++i) {
+          if (t_string[i] != "NULL")  // value is imposed
+            hasU[i] = true;
+        }
+      }
+
+      m_displ_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
+
+      // Loop on nodes
+      ENUMERATE_NODE (inode, nodes)
+      {
+        const Node& node = *inode;
+        auto coord = m_node_coord[node];
+        for (Int32 i = 0; i < NDIM; ++i)
+          m_imposed_displ[node][i] = (hasU[i] == true);
+      }
+
+      dirichletMethod = bs->getEnforceDirichletMethod().lower();
+      if (!dirichletMethod.contains("penalty") && !dirichletMethod.contains("weak")
+        && !dirichletMethod.contains("rowelim")
+        && !dirichletMethod.contains("rowcolumnelim")) {
+        info() << "Dirichlet boundary condition via "
+               << dirichletMethod << " is not supported \n"
+               << "enforce-Dirichlet-method only supports (not case dependent):\n"
+               << "  - Penalty\n"
+               << "  - WeakPenalty or Weak\n"
+               << "  - RowElimination or RowElim\n"
+               << "  - RowColumnElimination or RowColumnElim\n";
+
+        ARCANE_FATAL("Dirichlet boundary conditions will not be applied ");
+        }
+      else if (dirichletMethod.contains("penalty") || dirichletMethod.contains("weak"))
+        penalty = bs->getPenalty();
+    }
+
+    for (const auto& bs : bc->dirichletBoundaryConditions()) {
+      FaceGroup face_group = bs->getSurface();
+
+      CaseTable* case_table = nullptr;
+      auto table_file_name = bs->getDirichletInputFile();
+      bool getFromTable = !table_file_name.empty();
+      bool hasU[3]{false,false,false};
+
+      if (getFromTable) {
+        case_table = readFileAsCaseTable(pm, table_file_name, 3);
+
+        const StringConstArrayView t_string = bs->getDirection();
+        for (Int32 i = 0; i < t_string.size(); ++i) {
+          if (t_string[i] == "1")  // direction is imposed
+            hasU[i] = true;
+        }
+      }
+      else {
+        const StringConstArrayView t_string = bs->getValue();
+        for (Int32 i = 0; i < t_string.size(); ++i) {
+          if (t_string[i] != "NULL")  // value is imposed
+            hasU[i] = true;
+        }
+      }
+
+      m_sdispl_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
+
+      // Loop on faces of the surface
+      ENUMERATE_FACE (j, face_group) {
+        const Face& face = *j;
+        Int32 nb_node = face.nbNode();
+
+        // Loop on nodes of the face
+        for (Int32 k = 0; k < nb_node; ++k) {
+          const Node& node = face.node(k);
+          auto coord = m_node_coord[node];
+          for (Int32 i = 0; i < NDIM; ++i)
+            m_imposed_displ[node][i] = (hasU[i] == true);
+        }
+      }
+
+      dirichletMethod = bs->getEnforceDirichletMethod().lower();
+      if (!dirichletMethod.contains("penalty") && !dirichletMethod.contains("weak")
+        && !dirichletMethod.contains("rowelim")
+        && !dirichletMethod.contains("rowcolumnelim")) {
+        info() << "Dirichlet boundary condition via "
+               << dirichletMethod << " is not supported \n"
+               << "enforce-Dirichlet-method only supports (not case dependent):\n"
+               << "  - Penalty\n"
+               << "  - WeakPenalty or Weak\n"
+               << "  - RowElimination or RowElim\n"
+               << "  - RowColumnElimination or RowColumnElim\n";
+
+        ARCANE_FATAL("Dirichlet boundary conditions will not be applied ");
+        }
+      else if (dirichletMethod.contains("penalty") || dirichletMethod.contains("weak"))
+        penalty = bs->getPenalty();
+    }
+
+    for (const auto& bs : bc->neumannBoundaryConditions()) {
+      CaseTable* case_table = nullptr;
+      auto table_file_name = bs->getNeumannInputFile();
+      bool getFromTable = !table_file_name.empty();
+      if (getFromTable)
+        case_table = readFileAsCaseTable(pm, table_file_name, 3);
+      m_neumann_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
+    }
+
+    for (const auto& bs : bc->pointConditions()) {
+
+      NodeGroup nodes = bs->getNode();
+      CaseTable* case_table = nullptr;
+      auto table_file_name = bs->getPointInputFile();
+      bool getFromTable = !table_file_name.empty();
+      bool dir[3]{false,false,false};
+
+      if (getFromTable) {
+        case_table = readFileAsCaseTable(pm, table_file_name, 3);
+
+        const StringConstArrayView t_string = bs->getDirection();
+        for (Int32 i = 0; i < t_string.size(); ++i) {
+          if (t_string[i] == "1")  // direction is imposed
+            dir[i] = true;
+        }
+      }
+      else {
+        const StringConstArrayView t_string = bs->getValue();
+        for (Int32 i = 0; i < t_string.size(); ++i) {
+          if (t_string[i] != "NULL")  // value is imposed
+            dir[i] = true;
+        }
+      }
+
+      bool hasA{false};
+      bool hasV{false};
+      bool hasU{false};
+      bool hasF{false};
+
+      if (String str_typ = bs->getPointConditionType(); str_typ == "A") {
+        m_A_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
+        hasA = true;
+      }
+      else if (str_typ == "V") {
+        m_V_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
+        hasV = true;
+      }
+      else if (str_typ == "U") {
+        m_U_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
+        hasU = true;
+      }
+      else if (str_typ == "F") {
+        m_F_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
+        hasF = true;
+      }
+
+      // Loop on nodes
+      ENUMERATE_NODE (inode, nodes) {
+        const Node& node = *inode;
+
+        for (Int32 i = 0; i < NDIM; ++i) {
+          m_imposed_acc[node][i] = (hasA && dir[i] ? 1 : 0);
+          m_imposed_vel[node][i] = (hasV && dir[i] ? 1 : 0);
+          m_imposed_displ[node][i] = (hasU && dir[i] ? 1 : 0);
+          m_imposed_force[node][i] = (hasF && dir[i] ? 1 : 0);
+        }
+      }
+    }
+
+    for (const auto& bs : bc->paraxialBoundaryConditions())
+      ++m_num_parax;
+
+    is_a.resize(m_num_parax,false);
+    is_v.resize(m_num_parax,false);
+    is_u.resize(m_num_parax,false);
+
+    Int32 parax_index{0};
+    for (const auto& bs : bc->paraxialBoundaryConditions()) {
+      CaseTable* case_table = nullptr;
+      FaceGroup face_group = bs->getSurface();
+      Int32 typ{bs->getInputMotionType()};
+
+      if (typ == 6) {
+        auto table_file_name = bs->getAInputFile();
+        bool getFromTable = !table_file_name.empty();
+        if (getFromTable) {
+          case_table = readFileAsCaseTable(pm, table_file_name, 3);
+          is_a[parax_index] = true;
+        }
+        m_APar_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
+
+        table_file_name = bs->getVInputFile();
+        getFromTable = !table_file_name.empty();
+        if (getFromTable) {
+          case_table = readFileAsCaseTable(pm, table_file_name, 3);
+          is_v[parax_index] = true;
+        }
+        m_VPar_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
+
+        table_file_name = bs->getUInputFile();
+        getFromTable = !table_file_name.empty();
+        if (getFromTable) {
+          case_table = readFileAsCaseTable(pm, table_file_name, 3);
+          is_u[parax_index] = true;
+        }
+        m_UPar_case_table_list.add(CaseTableInfo{ table_file_name, case_table });
+      }
+      else if (typ > 0){
+        is_a[parax_index] = true;
+        is_v[parax_index] = true;
+        is_u[parax_index] = true;
+      }
+
+      auto rho = bs->getRho();
+      auto cs = bs->getCs();
+      auto cp = bs->getCp();
+      Real eps{1.e-15};
+      bool is_rho_inner{ fabs(rho) < eps };
+      bool is_cs_inner{ fabs(cs) < eps };
+      bool is_cp_inner{ fabs(cp) < eps };
+
+      // Loop on the faces (=edges in 2D) concerned with the paraxial condition
+      // Initializing the local referential per face (just done once) for further use
+      ENUMERATE_FACE (iface, face_group) {
+
+        const Face& face = *iface;
+
+        if (face.isSubDomainBoundary() && face.isOwn()) {
+
+          Real3 e1{ 0. }, e2{ 0. }, e3{ 0. };
+          ArcaneFemFunctions::MeshOperation::dirVectors(face, m_node_coord, NDIM, e1, e2, e3);
+          m_e1_boundary[face] = e1;
+          m_e2_boundary[face] = e2;
+          m_e3_boundary[face] = e3;
+          const Cell& cell = face.boundaryCell();
+
+          if (is_rho_inner) rho = m_rho[cell];
+          if (is_cs_inner)  cs = m_vs[cell];
+          if (is_cp_inner) cp = m_vp[cell];
+
+        }
+
+        m_rho_parax[face] = rho;
+        m_vel_parax[face].x = cs;
+
+        if (NDIM == 3){
+          m_vel_parax[face].y = cs;
+          m_vel_parax[face].z = cp;
+        }
+        else{
+          m_vel_parax[face].y = cp;
+          m_vel_parax[face].z = 0.;
+        }
+      }
+      parax_index++;
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+void NLDynamicModule::
+_initDCConditions()
+{
+  IParallelMng* pm = subDomain()->parallelMng();
+
+  for (const auto& bd : options()->doubleCouple()) {
+    NodeGroup east = bd->getEastNode();
+    NodeGroup west = bd->getWestNode();
+    NodeGroup north = bd->getNorthNode();
+    NodeGroup south = bd->getSouthNode();
+
+    info() << "Initializing Double-Couple Conditions for nodes:\n"
+           << "  - North = " << north.name() << "\n"
+           << "  - South = " << south.name() << "\n"
+           << "  - East = " << east.name() << "\n"
+           << "  - West = " << west.name() << "\n";
+
+    auto hasMoment = bd->hasSeismicMomentFile();
+    auto hasLoading = bd->hasLoadingFile();
+    String file_name;
+
+    if (hasMoment || hasLoading) {
+       if (hasMoment) file_name = bd->getSeismicMomentFile();
+       else file_name = bd->getLoadingFile();
+
+      auto case_table = readFileAsCaseTable(pm, file_name, 1);
+      m_dc_case_table_list.add(CaseTableInfo{ file_name, case_table });
+    }
+    else {
+      info() << "Double-Couple Error: seismic moment or user loading not provided! ";
+      ARCANE_FATAL("Double-Couple conditions cannot be applied");
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+void NLDynamicModule::
+_applyDirichletBoundaryConditions()
+{
+  Real time = globalTime();
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
+  Int32 suc_index{ 0 }, uc_index{ 0 }, sfc_index{ 0 };
+  // Loop over all Dirichlet conditions
+  if (bc) {
+    for (const auto& bs : bc->dirichletBoundaryConditions()) {
+      FaceGroup face_group = bs->getSurface();
+      CaseTable* case_table = nullptr;
+      auto table_file_name = bs->getDirichletInputFile();
+      bool getFromTable = !table_file_name.empty();
+
+      bool applyDirichlet {false};
+      Real3 displ{};
+
+      if (!getFromTable) {
+        Int32 j{-1};
+        const StringConstArrayView t_string = bs->getValue();
+        for (Int32 i = 0; i < t_string.size(); ++i) {
+          if (t_string[i] != "NULL") {
+            displ[i] = std::stod(t_string[i].localstr());
+            ++j;
+          }
+          if (j != -1)
+            applyDirichlet = true;
+        }
+      }
+
+      else {
+        const CaseTableInfo& case_table_info = m_sdispl_case_table_list[suc_index++];
+        CaseTable* ct = case_table_info.case_table;
+        if (!ct)
+          ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _initBoundaryConditions()");
+        if (table_file_name != case_table_info.file_name)
+          ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'", case_table_info.file_name);
+
+        ct->value(time, displ);
+        applyDirichlet = true;
+      }
+
+      if (applyDirichlet){
+
+        // Loop on faces of the surface
+        ENUMERATE_FACE (iface, face_group) {
+
+          // Loop on nodes of the face
+          for (Node node : iface->nodes()) {
+
+            //--- For debug only!!!
+            auto coord = m_node_coord[node];
+            auto num = node.uniqueId();
+
+            if ((bool)m_imposed_displ[node].x)
+              m_displ[node].x = displ.x;
+
+            if ((bool)m_imposed_displ[node].y)
+              m_displ[node].y = displ.y;
+
+            if ((bool)m_imposed_displ[node].z)
+              m_displ[node].z = displ.z;
+
+          }
+        }
+      }
+    }
+
+    for (const auto& bs : bc->dirichletPointConditions()) {
+      NodeGroup node_group = bs->getNode();
+      CaseTable* case_table = nullptr;
+      auto table_file_name = bs->getDirichletInputFile();
+      bool getFromTable = !table_file_name.empty();
+
+      bool applyDirichlet {false};
+      Real3 displ{};
+
+      if (!getFromTable) {
+        Int32 j{-1};
+        const StringConstArrayView t_string = bs->getValue();
+        for (Int32 i = 0; i < t_string.size(); ++i) {
+          if (t_string[i] != "NULL") {
+            displ[i] = std::stod(t_string[i].localstr());
+            ++j;
+          }
+          if (j != -1)
+            applyDirichlet = true;
+        }
+      }
+
+      else {
+        const CaseTableInfo& case_table_info = m_displ_case_table_list[uc_index++];
+        CaseTable* ct = case_table_info.case_table;
+        if (!ct)
+          ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _initBoundaryConditions()");
+        if (table_file_name != case_table_info.file_name)
+          ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'", case_table_info.file_name);
+
+        ct->value(time, displ);
+        applyDirichlet = true;
+      }
+
+      if (applyDirichlet){
+
+        // Loop on nodes
+        ENUMERATE_NODE (inode, node_group) {
+          const Node& node = *inode;
+
+          //--- For debug only!!!
+          auto coord = m_node_coord[node];
+          auto num = node.uniqueId();
+
+          if ((bool)m_imposed_displ[node].x)
+            m_displ[node].x = displ.x;
+
+          if ((bool)m_imposed_displ[node].y)
+            m_displ[node].y = displ.y;
+
+          if ((bool)m_imposed_displ[node].z)
+            m_displ[node].z = displ.z;
+        }
+      }
+    }
+  }
+}
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 ARCANE_REGISTER_MODULE_NLDYNAMIC(NLDynamicModule);

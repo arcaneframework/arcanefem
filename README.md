@@ -16,8 +16,6 @@ ArcaneFEM provides Finite Element Method (FEM) solvers built on the [Arcane Fram
 - **Multiple Physics Modules**: Includes solvers for elasticity, heat transfer, and more
 - **Modern Visualization**: Native support for ParaView via VTKHDF5 and Ensight formats
 
-------
-
 ## Installation Notes
 
 [Detailed Installation procedure](https://arcaneframework.github.io/arcanefem/#/install)
