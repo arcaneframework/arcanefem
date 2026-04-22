@@ -145,37 +145,23 @@ _doStationarySolve()
   info() << "[ArcaneFem-Info] Started module _doStationarySolve()";
 
   _updatePreviousIterationVariables();
-  while(m_fp_iter < m_max_fp_iters){
-    if(m_assemble_linear_system){
+  while (m_fp_iter < m_max_fp_iters) {
+    if (m_assemble_linear_system) {
       _updateNonLinearField(); // evaluates lambda(uk) on nodes
 
-      if ( m_linear_system.isInitialized() && m_fp_iter != 0) {
+      if (m_linear_system.isInitialized() && m_fp_iter != 0) {
         m_linear_system.clearValues();
 
+        // TODO : We should idally not update the matrix row/columns concerning Dirichlet if Dirichlet BC are fixed for all iterations
+        // need to create a seperate function _assembleLinearOperatorLHSOnly.
         _assembleLinearOperator(); // We use _assembleLinearOperator now for simplicity
-
-        // Set Dirichlet BC to the LHS // TODO make an exclusive function the lhs
-        // {
-        //   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
-        //   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-        //   auto applyBoundaryConditions = [&](auto BCFunctions) {
-        //     BC::IArcaneFemBC* bc = options()->boundaryConditions();
-        //     if (bc) {
-        //       for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
-        //         ArcaneFemFunctions::BoundaryConditions::applyDirichletToLhsAndRhs(bs, node_dof, m_linear_system, rhs_values);
-        //     }
-        //   };
-        //   if (mesh()->dimension() == 3)
-        //     applyBoundaryConditions(ArcaneFemFunctions::BoundaryConditions3D());
-        //   else
-        //     applyBoundaryConditions(ArcaneFemFunctions::BoundaryConditions2D());
-        // }
-      } else {
+      }
+      else {
         _assembleLinearOperator();
       }
       _assembleBilinearOperator();
     }
-    if (m_solve_linear_system){
+    if (m_solve_linear_system) {
       _solve();
       _updateVariables();
     }
@@ -183,20 +169,21 @@ _doStationarySolve()
     ++m_fp_iter;
     _checkConvergence();
 
-    if(m_converged){
+    if (m_converged) {
       info() << "[ArcaneFem-Info] Fixed-point iterations converged after " << m_fp_iter << " iterations";
       break;
-    } else{
+    }
+    else {
       _updatePreviousIterationVariables(); // copy u into uk for next iteration convergence check
       // m_uk.copy(m_u);
       _updateSolutionFromVariables(); // copy u into u_dof to update initial guess for linear solve TODO See how to use swap instead of deep copy
     }
   }
-  if (m_fp_iter == m_max_fp_iters && !m_converged){
+  if (m_fp_iter == m_max_fp_iters && !m_converged) {
     info() << "[ArcaneFem-Info] Fixed-point iterations did not converge after maximum (" << m_max_fp_iters << ") iterations";
     ARCANE_FATAL("Fixed-point iterations diverged after max iters");
   }
-  if(m_cross_validation){
+  if (m_cross_validation) {
     _validateResults();
   }
 }

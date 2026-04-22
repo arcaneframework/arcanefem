@@ -33,6 +33,9 @@ RealMatrix<3, 3> FemModuleFourierNL::_computeElementMatrixTria3(Cell cell)
   Real3 dxU = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
   Real3 dyU = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
 
+  // TODO: Evaluate for nonlinear case, we should compute uk at the Gauss point (centroid), 
+  // then compute lambda at the Gauss point, and use it for the integration.
+  //Real lambda_cell = math::pow( 1 + (m_uk[cell.nodeId(0)]+m_uk[cell.nodeId(1)]+m_uk[cell.nodeId(2)])/3., options()->expNlin); 
   Real lambda_cell = (m_node_lambda[cell.nodeId(0)] + m_node_lambda[cell.nodeId(1)] + m_node_lambda[cell.nodeId(2)]) / 3.;
   return (area * lambda_cell *  (dxU ^ dxU) + area  * lambda_cell * (dyU ^ dyU));
 }
