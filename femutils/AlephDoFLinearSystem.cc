@@ -195,13 +195,12 @@ class AlephDoFLinearSystemImpl
   //! True is we need to manually destroy the matrix/vector
   bool m_need_destroy_matrix_and_vector = true;
 
-  UniqueArray<Real> m_vector_zero;
-
  private:
 
   AlephParams* _createAlephParam() const;
   void _applyMatrixTransformationAndFillAlephMatrix();
   void _fillRHSVector();
+  void _fillSolutionVector();
   void _applyRHSTransformation();
   void _setMatrixValue(DoF row, DoF column, Real value)
   {
@@ -420,6 +419,28 @@ _fillRHSVector()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+void AlephDoFLinearSystemImpl::
+_fillSolutionVector()
+{
+  ARCANE_CHECK_POINTER(m_aleph_solution_vector);
+
+  UniqueArray<Real> solution_values_for_linear_system;
+  VariableDoFReal& solution_values(solutionVariable());
+  IItemFamily* dof_family = dofFamily();
+  ENUMERATE_ (DoF, idof, dof_family->allItems().own()) {
+    Real v = solution_values[idof];
+    if (m_do_print_filling)
+      info() << "SET SOLUTION VECTOR VALUE (" << std::setw(4) << idof.itemLocalId() << ") = " << v;
+    solution_values_for_linear_system.add(solution_values[idof]);
+  }
+
+  m_aleph_solution_vector->setLocalComponents(solution_values_for_linear_system.view());
+  m_aleph_solution_vector->assemble();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 AlephParams* AlephDoFLinearSystemImpl::
 _createAlephParam() const
 {
@@ -542,6 +563,7 @@ solve()
 
   _createRHSAndSolutionVector();
   _fillRHSVector();
+  _fillSolutionVector();
 
   info() << "Calling AlephDoFLinearSystemImpl::solve()";
   UniqueArray<Real> aleph_result;
@@ -549,11 +571,6 @@ solve()
   IItemFamily* dof_family = dofFamily();
   DoFGroup own_dofs = dof_family->allItems().own();
   const Int32 nb_dof = own_dofs.size();
-  m_vector_zero.resize(nb_dof);
-  m_vector_zero.fill(0.0);
-
-  m_aleph_solution_vector->setLocalComponents(m_vector_zero);
-  m_aleph_solution_vector->assemble();
 
   Int32 nb_iteration = 0;
   Real residual_norm = 0.0;
