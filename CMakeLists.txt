@@ -19,6 +19,9 @@ set(MSH_DIR ${CMAKE_SOURCE_DIR}/meshes/msh)
 set(BUILD_SHARED_LIBS TRUE)
 
 add_subdirectory(femutils)
+
+# Add subdirectories for modules
+# FEM modules (Continous Galerkin)
 add_subdirectory(modules/acoustics)
 add_subdirectory(modules/aerodynamics)
 add_subdirectory(modules/testlab)
@@ -34,6 +37,9 @@ add_subdirectory(modules/soildynamics)
 add_subdirectory(modules/heat)
 add_subdirectory(modules/passmo)
 add_subdirectory(modules/passmonl)
+
+# FEM modules (Discontinous Galerkin)
+add_subdirectory(modules/poisson_dg)
 
 find_package(Doxygen)
 if (Doxygen_FOUND AND TARGET Doxygen::doxygen)
