@@ -17,7 +17,7 @@ configure_file(Poisson_dg.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 target_link_libraries(Poisson_dg PUBLIC FemUtils)
 
 # Copy the check files in the binary directory
-file(COPY "check" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+# file(COPY "check" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 # Copy the inputs folder containing the arc files
 file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
