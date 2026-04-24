@@ -84,11 +84,10 @@ compute()
  * This method follows a sequence of steps to solve FEM system:
  *
  *   1. _getMaterialParameters()     Retrieves material parameters via
- *   2. _assembleBilinearOperator()  Assembles the FEM  matrix A
- *   3. _assembleLinearOperator()    Assembles the FEM RHS vector b
- *   4. _solve()                     Solves for solution vector u = A^-1*b
- *   5. _updateVariables()           Updates FEM variables u = x
- *   6. _validateResults()           Regression test
+ *   2. _assembleLinearSystem()      Assembles the FEM  matrix A RHS vector b
+ *   3. _solve()                     Solves for solution vector u = A^-1*b
+ *   4. _updateVariables()           Updates FEM variables u = x
+ *   5. _validateResults()           Regression test
  */
 /*---------------------------------------------------------------------------*/
 
@@ -327,27 +326,27 @@ _assembleLinearSystem()
       // TODO: Add Dirchelt and Neumann support later
       Real g = 0.0; // default homogeneous
 
-        // No Dirichlet BC - use homogeneous Neumann (natural BC)
-        for (Int32 i = 0; i < 3; ++i) {
-          for (Int32 j = 0; j < 3; ++j) {
-            DoFLocalId dof_i_i = cell_dof.dofId(cell_i, i);
-            DoFLocalId dof_j_i = cell_dof.dofId(cell_i, j);
+      // No Dirichlet BC - use homogeneous Neumann (natural BC)
+      for (Int32 i = 0; i < 3; ++i) {
+        for (Int32 j = 0; j < 3; ++j) {
+          DoFLocalId dof_i_i = cell_dof.dofId(cell_i, i);
+          DoFLocalId dof_j_i = cell_dof.dofId(cell_i, j);
 
-            // - <v, ∇u·n>
-            m_linear_system.matrixAddValue(dof_i_i, dof_j_i, -phi_i[i] * grad_n_i[j] * length);
+          // - <v, ∇u·n>
+          m_linear_system.matrixAddValue(dof_i_i, dof_j_i, -phi_i[i] * grad_n_i[j] * length);
 
-            // - <∇v·n, u>
-            m_linear_system.matrixAddValue(dof_i_i, dof_j_i, -grad_n_i[i] * phi_i[j] * length);
+          // - <∇v·n, u>
+          m_linear_system.matrixAddValue(dof_i_i, dof_j_i, -grad_n_i[i] * phi_i[j] * length);
 
-            // + <σv, u>
-            m_linear_system.matrixAddValue(dof_i_i, dof_j_i, sigma * phi_i[i] * phi_i[j] * length);
-          }
-
-          // RHS: - <∇v·n, g> + <σv, g> (g=0 for homogeneous Neumann)
-          DoFLocalId dof_i = cell_dof.dofId(cell_i, i);
-          rhs_values[dof_i] -= grad_n_i[i] * g * length;
-          rhs_values[dof_i] += sigma * phi_i[i] * g * length;
+          // + <σv, u>
+          m_linear_system.matrixAddValue(dof_i_i, dof_j_i, sigma * phi_i[i] * phi_i[j] * length);
         }
+
+        // RHS: - <∇v·n, g> + <σv, g> (g=0 for homogeneous Neumann)
+        DoFLocalId dof_i = cell_dof.dofId(cell_i, i);
+        rhs_values[dof_i] -= grad_n_i[i] * g * length;
+        rhs_values[dof_i] += sigma * phi_i[i] * g * length;
+      }
     }
   }
 
