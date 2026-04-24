@@ -1,8 +1,8 @@
 # Solving a nonlinear Fourier equation with FEM and Arcane #
 
-Here a nonlinear Fourier equation, that governs steady state heat conduction is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver.
+<img width="300" align="center" src="https://github.com/user-attachments/assets/1e46ddac-103e-4c6f-8e8c-120125aa345a" />
 
-![image](fourier_nonlin_cond.png)
+Here a nonlinear Fourier equation, that governs steady state heat conduction is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver.
 
 ## Theory of nonlinear heat conduction ##
 
