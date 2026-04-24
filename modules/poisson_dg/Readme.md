@@ -30,7 +30,78 @@ Finally the right hand side source is present within the domain
 
 ${\mathcal{f}}=5.5$
 
-#### Post Process
+In this case the DG-FEM variational formulation in $H^1(\Omega)$ reads
+
+search DG-FEM trial function $u^h(x,y)$ satisfying
+
+$$ \sum_K \int_{K} \nabla u^h \nabla v^h - \sum_F \int_{F} (\{\nabla u^h \cdot \mathbf{n}\} [v^h] + \{\nabla v^h \cdot \mathbf{n}\} [u^h] - \alpha h_F^{-1} [u^h][v^h]) + \sum_{F\subset\partial\Omega} \int_F g v^h = \int_{\Omega} {\mathcal{f}} v^h \quad \forall v^h \in H^1(\Omega)$$
+
+given
+
+$u^h = g \quad \forall (x,y)\in\partial\Omega^h_{\text{Dirichlet}}\subset\partial \Omega^h,$
+
+where $K$ are elements, $F$ faces, $\{\cdot\}$ average, $[\cdot]$ jump, $\alpha$ penalty parameter, $h_F$ face size.
+
+## The code ##
+
+Once you compile the Poisson_dg module. Look out for three things in the folder: 
+- `Poisson_dg` this is the executable for launching the solver
+- `meshes` folder contains meshes that are needed by the solver
+- `inputs` folder contains input parameters for setting up a test case for the Poisson_dg solver
+
+Let us see how to set up a test cases in 2D. The file `inputs/circle.2D.arc` is used here for demonstration
+
+#### Mesh ####
+
+The mesh `circle_cut.msh` is provided in the `inputs/circle.2D.arc` file
+
+```xml
+  <meshes>
+    <mesh>
+      <filename>meshes/circle_cut.msh</filename>
+    </mesh>
+  </meshes>
+```
+Please not that use version 4.1 `.msh` file from `Gmsh`.
+
+#### properties ###
+
+The value of constant source term $\mathcal{f}$  can be provided in  `circle.2D.arc` file
+
+```xml
+  <fem>
+    <f>5.5</f>
+  </fem>
+```
+
+
+#### Boundary conditions ####
+
+The Dirichlet boundary conditions  are provided in `circle.2D.arc` file
+
+```xml
+    <boundary-conditions>
+      <dirichlet>
+        <surface>horizontal</surface>
+        <value>0.5</value>
+      </dirichlet>
+    </boundary-conditions>
+```
+
+So in the snippet above, three Dirichlet condition $u=0.5$ is  applied to border ('horizontal') which is a group of edges in the mesh file `circle_cut.msh`.
+
+If needed, the Neumann  boundary conditions  can also be provided in `circle.2D.arc` file
+
+```xml
+    <boundary-conditions>
+      <neumann>
+        <surface>other</surface>
+        <value>0.0</value>
+      </neumann>
+    </boundary-conditions>
+```
+
+#### Post Process ####
 
 <img align="left" width="200" src="https://github.com/user-attachments/assets/66b9449e-e2f7-4607-b910-231def7d2f67" alt="poisson_1_large" />
 <img align="left" width="200" src="https://github.com/user-attachments/assets/a68dd3d8-3f9f-424e-8d6a-33e34e41c04b" alt="poisson_1_large" />
