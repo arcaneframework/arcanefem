@@ -54,32 +54,18 @@ RealMatrix<4, 4> FemModuleFourierNL::_computeElementMatrixQuad4(Cell cell)
       const RealVector<4>& dyU = gp_info.dN_dy;
       const Real detJ = gp_info.det_j;
 
-      const Real lambda_0 = m_node_lambda[cell.nodeId(0)];
-      const Real lambda_1 = m_node_lambda[cell.nodeId(1)];
-      const Real lambda_2 = m_node_lambda[cell.nodeId(2)];
-      const Real lambda_3 = m_node_lambda[cell.nodeId(3)];
-
-      const Real lambda_dxU_0 = lambda_0 * dxU[0];
-      const Real lambda_dxU_1 = lambda_1 * dxU[1];
-      const Real lambda_dxU_2 = lambda_2 * dxU[2];
-      const Real lambda_dxU_3 = lambda_3 * dxU[3];
-
-      const Real lambda_dyU_0 = lambda_0 * dyU[0];
-      const Real lambda_dyU_1 = lambda_1 * dyU[1];
-      const Real lambda_dyU_2 = lambda_2 * dyU[2];
-      const Real lambda_dyU_3 = lambda_3 * dyU[3];
-
-      const RealVector<4>& lambda_dxU {lambda_dxU_0, lambda_dxU_1, lambda_dxU_2, lambda_dxU_3};
-      const RealVector<4>& lambda_dyU {lambda_dyU_0, lambda_dyU_1, lambda_dyU_2, lambda_dyU_3};
+      // Evaluate lambda at the gauss point
+      const RealVector<4> N = ArcaneFemFunctions::FeOperation2D::computeShapeFunctionsQuad4(xi, eta);
+      Real lambda_cell = 0.0;
+      for (Int8 ik = 0; ik < 4; ++ik) {
+        lambda_cell += m_node_lambda[cell.nodeId(ik)] * N[ik];
+      }
 
       // Integration weight
-      const Real lambda_cell = (lambda_0 + lambda_1 + lambda_2 + lambda_3) / 4.0;
       const Real integration_weight = detJ * w * w;
 
       // stiffness matrix assembly
-      // ae += (dxU ^ dxU) * integration_weight * lambda + (dyU ^ dyU) * integration_weight * lambda;
       ae += (dxU ^ dxU) * integration_weight * lambda_cell + (dyU ^ dyU) * integration_weight * lambda_cell;
-      // ae += (lambda_dxU ^ dxU) * integration_weight + (lambda_dyU ^ dyU) * integration_weight;
     }
   }
   return ae;
