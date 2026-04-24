@@ -53,7 +53,8 @@ set(MESH_FILES
     unit_square.msh
     unit_square.coarse.msh
     unit_square.quad.msh
-    unit_cube.msh)
+    unit_cube.msh
+    unit_cube.hexa.msh)
 
 foreach(MESH_FILE IN LISTS MESH_FILES)
     file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
@@ -72,6 +73,9 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     add_test(NAME [fouriernl]2d_nonlinear_conduction_coarse COMMAND FourierNL
             -A,UsingDotNet=1
             inputs/Test.nonlinear.conduction.coarse.arc)
+    add_test(NAME [fouriernl]3d_nonlinear_conduction_hexa_cartesian COMMAND FourierNL
+            -A,UsingDotNet=1
+            inputs/Test.3d.nonlinear.conduction.hexa.cartesian.arc)
   endif()
 
 #  set(SOLVER_PETSC_CG
@@ -81,14 +85,23 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 #    -A,//fem/linear-system/rtol=0)
 #
 #
-#  if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-#    if (NOT APPLE)
-#      add_test(NAME [fouriernl]manufacture_solution_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
-#        -A,UsingDotNet=1
-#              -A,//fem/petsc-flags=-ksp_monitor\ -ksp_initial_guess_nonzero\ -pc_type\ bjacobi\ -sub_pc_type\ lu\ -ksp_rtol\ 1e-32\ -ksp_view
-#              inputs/Test.nonlinear.conduction.arc)
-#    endif()
-#  endif()
+if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
+    if (NOT APPLE)
+      add_test(NAME [fouriernl]2d_nonlinear_conduction_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
+              -A,UsingDotNet=1
+              inputs/Test.nonlinear.conduction.arc)
+      add_test(NAME [fouriernl]2d_nonlinear_conduction_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
+              -A,UsingDotNet=1
+              inputs/Test.nonlinear.conduction.quad.arc)
+      add_test(NAME [fouriernl]2d_nonlinear_conduction_coarse_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
+              -A,UsingDotNet=1
+              inputs/Test.nonlinear.conduction.coarse.arc)
+      add_test(NAME [fouriernl]3d_nonlinear_conduction_hexa_cartesian_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
+              -A,UsingDotNet=1
+              inputs/Test.3d.nonlinear.conduction.hexa.cartesian.arc
+              -A,//meshes/mesh/generator/nb-part-x=2)
+    endif()
+  endif()
 endif()
 
 #if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)

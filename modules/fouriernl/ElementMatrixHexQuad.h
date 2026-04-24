@@ -56,16 +56,16 @@ RealMatrix<4, 4> FemModuleFourierNL::_computeElementMatrixQuad4(Cell cell)
 
       // Evaluate lambda at the gauss point
       const RealVector<4> N = ArcaneFemFunctions::FeOperation2D::computeShapeFunctionsQuad4(xi, eta);
-      Real lambda_cell = 0.0;
+      Real lambda_gp = 0.0;
       for (Int8 ik = 0; ik < 4; ++ik) {
-        lambda_cell += m_node_lambda[cell.nodeId(ik)] * N[ik];
+        lambda_gp += m_node_lambda[cell.nodeId(ik)] * N[ik];
       }
 
       // Integration weight
       const Real integration_weight = detJ * w * w;
 
       // stiffness matrix assembly
-      ae += (dxU ^ dxU) * integration_weight * lambda_cell + (dyU ^ dyU) * integration_weight * lambda_cell;
+      ae += (dxU ^ dxU) * integration_weight * lambda_gp + (dyU ^ dyU) * integration_weight * lambda_gp;
     }
   }
   return ae;
@@ -117,11 +117,18 @@ RealMatrix<8, 8> FemModuleFourierNL::_computeElementMatrixHexa8(Cell cell)
         const RealVector<8>& dzU = gp_info.dN_dz;
         const Real detJ = gp_info.det_j;
 
+        // Evaluate lambda at the gauss point
+        const RealVector<8> N = ArcaneFemFunctions::FeOperation3D::computeShapeFunctionsHexa8(xi, eta, zeta);
+        Real lambda_gp = 0.0;
+        for (Int8 ik = 0; ik < 8; ++ik) {
+          lambda_gp += m_node_lambda[cell.nodeId(ik)] * N[ik];
+        }
+
         // Integration weight
         const Real integration_weight = detJ * w * w;
 
         // Assemble element matrix (variational form)
-        ae += (dxU ^ dxU) * integration_weight * lambda + (dyU ^ dyU) * integration_weight * lambda + (dzU ^ dzU) * integration_weight * lambda;
+        ae += (dxU ^ dxU) * integration_weight * lambda_gp + (dyU ^ dyU) * integration_weight * lambda_gp + (dzU ^ dzU) * integration_weight * lambda_gp;
       }
     }
   }

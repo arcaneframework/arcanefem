@@ -84,7 +84,9 @@ RealMatrix<4, 4> FemModuleFourierNL::_computeElementMatrixTetra4(Cell cell)
   Real4 dyU = ArcaneFemFunctions::FeOperation3D::computeGradientYTetra4(cell, m_node_coord);
   Real4 dzU = ArcaneFemFunctions::FeOperation3D::computeGradientZTetra4(cell, m_node_coord);
 
-  return volume * lambda* (dxU ^ dxU) + volume * lambda * (dyU ^ dyU) + volume * lambda * (dzU ^ dzU);
+  Real lambda_cell = (m_node_lambda[cell.nodeId(0)] + m_node_lambda[cell.nodeId(1)] + m_node_lambda[cell.nodeId(2)] + m_node_lambda[cell.nodeId(3)]) / 4.;
+
+  return volume * lambda_cell * (dxU ^ dxU) + volume * lambda_cell * (dyU ^ dyU) + volume * lambda_cell * (dzU ^ dzU);
 }
 
 ARCCORE_HOST_DEVICE RealMatrix<4, 4> computeElementMatrixTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, const ax::VariableCellRealInView& in_cell_lambda)

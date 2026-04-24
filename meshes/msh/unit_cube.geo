@@ -17,7 +17,7 @@
 
      --------------------------------------------------------------------
 
-     This is a Gmsh .geo file which produces a 2D square mesh.
+     This is a Gmsh .geo file which produces a 3D cube mesh.
 
      compile-run: gmsh -2 -format msh41  unit_cube.geo
 
@@ -95,8 +95,8 @@ Volume(26) = {25};
 // ---- mesh physical groups ----
 //==============================================================================
 
-Physical Surface("surfaceleft") = {18};
-Physical Surface("surfaceright") = {20};
+Physical Surface("left") = {18};
+Physical Surface("right") = {20};
 Physical Surface("othersurfaces") = {14, 16, 22, 24};
 Physical Volume("volume") = {26};
 
