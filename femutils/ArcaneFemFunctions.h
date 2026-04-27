@@ -115,6 +115,31 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
+     * @brief Computes the area of a polygon (strictly 2D)
+     *
+     * This method calculates the area of a polygon using the shoelace formula.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline Real computeAreaPolygon2D(ItemWithNodes item, const VariableNodeReal3& node_coord)
+    {
+      Int8 n = item.nbNode();
+      Real area = 0.0;
+
+      for (Int8 i = 0; i < n; ++i) {
+        Int8 j = (i + 1) % n;
+
+        const Real3& pi = node_coord[item.nodeId(i)];
+        const Real3& pj = node_coord[item.nodeId(j)];
+
+        area += pi.x * pj.y - pj.x * pi.y;
+      }
+
+      return 0.5 * math::abs(area);
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
      * @brief Computes the volume of a tetrahedra defined by four nodes.
      *
      * This method calculates the volume using the scalar triple product formula.
