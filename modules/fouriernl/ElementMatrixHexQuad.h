@@ -58,7 +58,7 @@ RealMatrix<4, 4> FemModuleFourierNL::_computeElementMatrixQuad4(Cell cell)
       const RealVector<4> N = ArcaneFemFunctions::FeOperation2D::computeShapeFunctionsQuad4(xi, eta);
       Real lambda_gp = 0.0;
       for (Int8 ik = 0; ik < 4; ++ik) {
-        lambda_gp += m_node_lambda[cell.nodeId(ik)] * N[ik];
+        lambda_gp += FemModuleFourierNL::_lambdaCpu(m_uk[cell.nodeId(ik)]) * N[ik];
       }
 
       // Integration weight
@@ -76,7 +76,7 @@ RealMatrix<4, 4> FemModuleFourierNL::_computeElementMatrixQuad4(Cell cell)
  * @brief Computes the element matrix for a hexahedral element (HEXA8, ℙ1 FE).
  *
  * This function calculates the integral of:
- *       𝑎(𝑢,𝑣) = ∫∫∫ λ(∂𝑢/∂𝑥 ∂𝑣/∂𝑥 + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦 + ∂𝑢/∂𝑧 ∂𝑣/∂𝑧)dΩ
+ *       𝑎(𝑢,𝑣) = ∫∫∫ λ(𝑢)(∂𝑢/∂𝑥 ∂𝑣/∂𝑥 + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦 + ∂𝑢/∂𝑧 ∂𝑣/∂𝑧)dΩ
  *
  * Steps involved:
  * 1. Define Gauss points (2x2x2) and weights.
@@ -121,7 +121,7 @@ RealMatrix<8, 8> FemModuleFourierNL::_computeElementMatrixHexa8(Cell cell)
         const RealVector<8> N = ArcaneFemFunctions::FeOperation3D::computeShapeFunctionsHexa8(xi, eta, zeta);
         Real lambda_gp = 0.0;
         for (Int8 ik = 0; ik < 8; ++ik) {
-          lambda_gp += m_node_lambda[cell.nodeId(ik)] * N[ik];
+          lambda_gp += FemModuleFourierNL::_lambdaCpu(m_uk[cell.nodeId(ik)]) * N[ik];
         }
 
         // Integration weight

@@ -12,9 +12,10 @@
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
+#include "ConductivityCoefficient.h"
 #include "ElementMatrix.h"
-#include <arcane/IParallelMng.h>
 #include "ElementMatrixHexQuad.h"
+#include <arcane/IParallelMng.h>
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -116,11 +117,10 @@ void FemModuleFourierNL::
 _doStationarySolve()
 {
   info() << "[ArcaneFem-Info] Started module _doStationarySolve()";
-
+  _getMaterialParameters(); // fill lambda_cell and get qdot
   _updatePreviousIterationVariables();
   while (m_fp_iter < m_max_fp_iters) {
     if (m_assemble_linear_system) {
-      _updateNonLinearField(); // evaluates lambda(uk) on nodes
 
       if (m_linear_system.isInitialized() && m_fp_iter != 0) {
         m_linear_system.clearValues();
@@ -167,7 +167,6 @@ _doStationarySolve()
  *
  * This method initializes:
  *  - material properties:
- *       # thermal conductivity coefficient (`lambda`)
  *       # heat source term (`qdot`)
  */
 /*---------------------------------------------------------------------------*/
@@ -178,22 +177,8 @@ _getMaterialParameters()
   info() << "[ArcaneFem-Info] Started module _getMaterialParameters()";
   Real elapsedTime = platform::getRealTime();
 
-  lambda = options()->lambda();
   qdot = options()->qdot();
-
-  m_cell_lambda.fill(lambda);
-  m_node_lambda.fill(0.);
-
-  for (const auto& bs : options()->materialProperty()) {
-    CellGroup group = bs->volume();
-    Real value = bs->lambda();
-    info() << "Lambda for group= " << group.name() << " v=" << value;
-
-    ENUMERATE_ (Cell, icell, group) {
-      Cell cell = *icell;
-      m_cell_lambda[cell] = value;
-    }
-  }
+  m_cell_lambda.fill(2.0);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "get-material-params", elapsedTime);
@@ -415,7 +400,6 @@ _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_el
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    lambda = m_cell_lambda[cell]; // lambda is always considered cell constant
     auto K_e = compute_element_matrix(cell); // element matrix based on the provided function
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
@@ -547,42 +531,6 @@ _updateVariables(bool verbose)
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "update-variables", elapsedTime);
 }
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Update the FEM nonlinear field.
- *
- * This method performs the following actions:
- *   1. Evaluates the values of the nonlinear FEM field from the
- *      previous fixed-point iteration FEM variables.
- *   2. Performs synchronize of FEM nonlinear FEM field across subdomains.
- */
-/*---------------------------------------------------------------------------*/
-
-void FemModuleFourierNL::
-_updateNonLinearField(bool verbose)
-{
-  info() << "[ArcaneFem-Info] Started module _updateNonLinearField()";
-  Real elapsedTime = platform::getRealTime();
-  m_uk.synchronize();
-  {
-    VariableDoFReal& dof_u(m_linear_system.solutionVariable());
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    ENUMERATE_ (Node, inode, ownNodes())
-    {
-      Node node = *inode;
-      m_node_lambda[inode] = math::pow( 1 + m_uk[inode], options()->expNlin);
-      if (verbose) {
-        info() << "lambda[" << node.uniqueId() << "] = " << m_node_lambda[node];
-      }
-    }
-  }
-  m_node_lambda.synchronize();
-
-  elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
-}
-
 
 /*---------------------------------------------------------------------------*/
 /**

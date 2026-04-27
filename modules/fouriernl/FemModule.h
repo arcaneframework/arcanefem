@@ -80,10 +80,9 @@ class FemModuleFourierNL
 
  private:
 
-  Real lambda;
   Real qdot;
   Real ElementNodes;
-  Real m_fp_tol{1e-3};
+  Real m_fp_tol{1e-5};
 
   Int32 m_max_fp_iters{15}, m_fp_iter{0};
 
@@ -112,13 +111,12 @@ class FemModuleFourierNL
   void _updatePreviousIterationVariables(bool verbose=false);
   void _updateSolutionFromVariables();
   void _checkConvergence();
-  void _updateNonLinearField(bool verbose=false);
-
 
   RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
   RealMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);
   RealMatrix<4, 4> _computeElementMatrixQuad4(Cell cell);
   RealMatrix<8, 8> _computeElementMatrixHexa8(Cell cell);
+  Real _lambdaCpu(Real u);
   IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_dirichlet = nullptr;
   IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_source = nullptr;
   IBinaryMathFunctor<Real, Real3, Real>* m_exact_solution = nullptr;

@@ -33,10 +33,9 @@ RealMatrix<3, 3> FemModuleFourierNL::_computeElementMatrixTria3(Cell cell)
   Real3 dxU = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
   Real3 dyU = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
 
-  // TODO: Evaluate for nonlinear case, we should compute uk at the Gauss point (centroid), 
-  // then compute lambda at the Gauss point, and use it for the integration.
-  //Real lambda_cell = math::pow( 1 + (m_uk[cell.nodeId(0)]+m_uk[cell.nodeId(1)]+m_uk[cell.nodeId(2)])/3., options()->expNlin); 
-  Real lambda_cell = (m_node_lambda[cell.nodeId(0)] + m_node_lambda[cell.nodeId(1)] + m_node_lambda[cell.nodeId(2)]) / 3.;
+  Real uk_cell = (m_uk[cell.nodeId(0)]+m_uk[cell.nodeId(1)]+m_uk[cell.nodeId(2)])/3.;
+  Real lambda_cell = FemModuleFourierNL::_lambdaCpu(uk_cell);
+
   return (area * lambda_cell *  (dxU ^ dxU) + area  * lambda_cell * (dyU ^ dyU));
 }
 
@@ -67,7 +66,7 @@ ARCCORE_HOST_DEVICE RealMatrix<1, 3> computeElementVectorTria3Gpu(CellLocalId ce
  * @brief Computes the element matrix for a tetrahedral element (ℙ1 FE).
  *
  * This function calculates the integral of the expression:
- *       a(𝑢,𝑣) = ∫∫∫ λ(∂𝑢/∂𝑥 ∂𝑣/∂𝑥  + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦 + ∂𝑢/∂𝑧 ∂𝑣/∂𝑧)dΩ
+ *       a(𝑢,𝑣) = ∫∫∫ λ(𝑢)(∂𝑢/∂𝑥 ∂𝑣/∂𝑥  + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦 + ∂𝑢/∂𝑧 ∂𝑣/∂𝑧)dΩ
  *
  * Steps involved:
  * 1. Calculate the area of the triangle.
@@ -84,7 +83,8 @@ RealMatrix<4, 4> FemModuleFourierNL::_computeElementMatrixTetra4(Cell cell)
   Real4 dyU = ArcaneFemFunctions::FeOperation3D::computeGradientYTetra4(cell, m_node_coord);
   Real4 dzU = ArcaneFemFunctions::FeOperation3D::computeGradientZTetra4(cell, m_node_coord);
 
-  Real lambda_cell = (m_node_lambda[cell.nodeId(0)] + m_node_lambda[cell.nodeId(1)] + m_node_lambda[cell.nodeId(2)] + m_node_lambda[cell.nodeId(3)]) / 4.;
+  Real uk_cell = (m_uk[cell.nodeId(0)] + m_uk[cell.nodeId(1)] + m_uk[cell.nodeId(2)]+ m_uk[cell.nodeId(3)]) / 4.;
+  Real lambda_cell = FemModuleFourierNL::_lambdaCpu(uk_cell);
 
   return volume * lambda_cell * (dxU ^ dxU) + volume * lambda_cell * (dyU ^ dyU) + volume * lambda_cell * (dzU ^ dzU);
 }
