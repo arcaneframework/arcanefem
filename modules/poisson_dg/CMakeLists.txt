@@ -29,6 +29,8 @@ set(MSH_FILES
 )
 set(MED_FILES
     circle_cut-tria.med
+    circle_cut-quad-tria.med
+    circle_cut-quad.med
 )
 foreach(MSH_FILES IN LISTS MSH_FILES)
     file(COPY ${MSH_DIR}/${MSH_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
@@ -49,5 +51,11 @@ if(MEDFile_FOUND)
   add_test(NAME [Poisson_dg]circle_homogenous_tria_med COMMAND Poisson_dg
     -A,//meshes/mesh/filename=meshes/circle_cut-tria.med
 #    -A,//fem/solution-comparison-file=check/circle_2D.txt
+    inputs/circle.2D.arc)
+  add_test(NAME [Poisson_dg]circle_homogenous_quad_tria_med COMMAND Poisson_dg
+    -A,//meshes/mesh/filename=meshes/circle_cut-quad-tria.med
+    inputs/circle.2D.arc)
+  add_test(NAME [Poisson_dg]circle_homogenous_quad_med COMMAND Poisson_dg
+    -A,//meshes/mesh/filename=meshes/circle_cut-quad.med
     inputs/circle.2D.arc)
 endif()
