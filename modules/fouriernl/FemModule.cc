@@ -21,7 +21,6 @@
  * @brief Initializes the FemModuleFourierNL at the start of the simulation.
  *
  *  - initializes degrees of freedom (DoFs) on nodes.
- *  - builds support for manufactured test case (optional).
  */
 /*---------------------------------------------------------------------------*/
 
@@ -47,32 +46,6 @@ startInit()
     m_max_fp_iters = options()->maxFpIters();
   }
   m_fp_tol = options()->fpTol();
-
-  BC::IArcaneFemBC* bc = options()->boundaryConditions();
-
-  for (BC::IManufacturedSolution* bs : bc->manufacturedSolutions()) {
-    if (bs->getManufacturedSource()) {
-      ICaseFunction* opt_function_source = bs->getManufacturedSourceFunction();
-      IStandardFunction* scf_source = bs->getManufacturedSourceStandardFunction();
-      if (!scf_source)
-        ARCANE_FATAL("No standard case function for option 'manufactured-source-condition'");
-      auto* functorS = scf_source->getFunctorRealReal3ToReal();
-      if (!functorS)
-        ARCANE_FATAL("Standard function '{0}' is not convertible to f(Real,Real3) -> Real", opt_function_source->name());
-      m_manufactured_source = functorS;
-    }
-
-    if (bs->getManufacturedDirichlet()) {
-      ICaseFunction* opt_function = bs->getManufacturedDirichletFunction();
-      IStandardFunction* scf = bs->getManufacturedDirichletStandardFunction();
-      if (!scf)
-        ARCANE_FATAL("No standard case function for option 'manufactured-dirichlet-condition'");
-      auto* functor = scf->getFunctorRealReal3ToReal();
-      if (!functor)
-        ARCANE_FATAL("Standard function '{0}' is not convertible to f(Real,Real3) -> Real", opt_function->name());
-      m_manufactured_dirichlet = functor;
-    }
-  }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
@@ -248,8 +221,6 @@ _assembleLinearOperator()
  *  2. If a constant source term is specified (`qdot`), apply it to the RHS.
  *  3. If Neumann BC are specified applied to the RHS.
  *  4. If Dirichlet BC are specified apply to the LHS & RHS. 
- *  5. If manufactured source conditions is specified, apply to RHS.
- *  6. If  manufactured Dirichlet BC are specified apply to the LHS & RHS. 
  */
 /*---------------------------------------------------------------------------*/
 
@@ -306,21 +277,6 @@ _assembleLinearOperatorCpu()
       // Dirichlet
       for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
         ArcaneFemFunctions::BoundaryConditions::applyDirichletToLhsAndRhs(bs, node_dof, m_linear_system, rhs_values);
-
-      // Manufactured boundary conditions
-      for (BC::IManufacturedSolution* bs : bc->manufacturedSolutions()) {
-        if (bs->getManufacturedSource()) {
-          ARCANE_CHECK_POINTER(m_manufactured_source);
-          info() << "Apply manufactured Source condition to all cells";
-          BCFunctions.applyManufacturedSourceToRhs(m_manufactured_source, mesh(), node_dof, m_node_coord, rhs_values);
-        }
-        if (bs->getManufacturedDirichlet()) {
-          ARCANE_CHECK_POINTER(m_manufactured_dirichlet);
-          info() << "Apply manufactured dirichlet condition to all borders";
-          FaceGroup group = mesh()->outerFaces();
-          BCFunctions.applyManufacturedDirichletToLhsAndRhs(m_manufactured_dirichlet, lambda, group, bs, node_dof, m_node_coord, m_linear_system, rhs_values);
-        }
-      }
     }
   };
 
@@ -583,18 +539,10 @@ _updateVariables(bool verbose)
       m_u_exact[node] = math::pow((math::pow(2.0, m + 1) - 1) * m_node_coord[node].x + 1, 1 / (m + 1)) - 1.0;
     }
 
-    for (BC::IManufacturedSolution* bs : options()->boundaryConditions()->manufacturedSolutions())
-      ENUMERATE_ (Node, inode, ownNodes()) {
-        Node node = *inode;
-        m_u_exact[node] = m_manufactured_dirichlet->apply(options()->expNlin, m_node_coord[node]);
-      }
   }
 
   m_u.synchronize();
   m_u_exact.synchronize();
-
-  for (BC::IManufacturedSolution* bs : options()->boundaryConditions()->manufacturedSolutions())
-    m_u_exact.synchronize();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "update-variables", elapsedTime);

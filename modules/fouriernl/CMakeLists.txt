@@ -8,38 +8,13 @@ add_executable(FourierNL
 )
 
 arcane_accelerator_add_source_files(${ACCELERATOR_SOURCES})
+
 arcane_generate_axl(Fem)
 arcane_add_arcane_libraries_to_target(FourierNL)
 target_include_directories(FourierNL PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
 configure_file(FourierNL.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(FourierNL PUBLIC FemUtils)
-
-find_program(ARCANE_DOTNET_COMPILE
-  NAMES arcane_dotnet_compile
-  PATHS ${ARCANE_PREFIX_DIR}/bin
-)
-
-if (NOT APPLE AND ARCANE_DOTNET_COMPILE
-    AND EXISTS "${ARCANE_PREFIX_DIR}/lib/Arcane.Core.dll"
-    AND EXISTS "${ARCANE_PREFIX_DIR}/lib/Arcane.Utils.dll")
-    message(STATUS "Arcane .NET support detected — building ExternalFunctionsNL.dll")
-
-  add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctionsNL.dll"
-    COMMAND ${ARCANE_DOTNET_COMPILE} "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctionsNL.cs"
-    DEPENDS "${CMAKE_CURRENT_LIST_DIR}/ExternalFunctionsNL.cs"
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-  )
-
-  add_custom_target(external_functionsnl DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/ExternalFunctionsNL.dll")
-  add_dependencies(FourierNL external_functionsnl)
-
-elseif(APPLE)
-  message(STATUS "Skipping ExternalFunctionsNL.dll build on macOS")
-
-else()
-  message(STATUS "Skipping ExternalFunctionsNL.dll — Arcane built without .NET support")
-endif()
 
 # Copy the check files in the binary directory
 file(COPY "check" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
@@ -63,20 +38,15 @@ endforeach()
 enable_testing()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
-  if (NOT APPLE)
-    add_test(NAME [fouriernl]2d_nonlinear_conduction COMMAND FourierNL
-      -A,UsingDotNet=1
-            inputs/Test.nonlinear.conduction.arc)
-    add_test(NAME [fouriernl]2d_nonlinear_conduction_quad COMMAND FourierNL
-            -A,UsingDotNet=1
-            inputs/Test.nonlinear.conduction.quad.arc)
-    add_test(NAME [fouriernl]2d_nonlinear_conduction_coarse COMMAND FourierNL
-            -A,UsingDotNet=1
-            inputs/Test.nonlinear.conduction.coarse.arc)
-    add_test(NAME [fouriernl]3d_nonlinear_conduction_hexa_cartesian COMMAND FourierNL
-            -A,UsingDotNet=1
-            inputs/Test.3d.nonlinear.conduction.hexa.cartesian.arc)
-  endif()
+  add_test(NAME [fouriernl]2d_nonlinear_conduction COMMAND FourierNL
+          inputs/Test.nonlinear.conduction.arc)
+  add_test(NAME [fouriernl]2d_nonlinear_conduction_quad COMMAND FourierNL
+          inputs/Test.nonlinear.conduction.quad.arc)
+  add_test(NAME [fouriernl]2d_nonlinear_conduction_coarse COMMAND FourierNL
+          inputs/Test.nonlinear.conduction.coarse.arc)
+  add_test(NAME [fouriernl]3d_nonlinear_conduction_hexa_cartesian COMMAND FourierNL
+          inputs/Test.3d.nonlinear.conduction.hexa.cartesian.arc)
+
 
 #  set(SOLVER_PETSC_CG
 #    -A,//fem/linear-system/@name=PETScLinearSystem
@@ -84,23 +54,16 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 #    -A,//fem/linear-system/atol=1e-9
 #    -A,//fem/linear-system/rtol=0)
 #
-#
-if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-    if (NOT APPLE)
-      add_test(NAME [fouriernl]2d_nonlinear_conduction_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
-              -A,UsingDotNet=1
-              inputs/Test.nonlinear.conduction.arc)
-      add_test(NAME [fouriernl]2d_nonlinear_conduction_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
-              -A,UsingDotNet=1
-              inputs/Test.nonlinear.conduction.quad.arc)
-      add_test(NAME [fouriernl]2d_nonlinear_conduction_coarse_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
-              -A,UsingDotNet=1
-              inputs/Test.nonlinear.conduction.coarse.arc)
-      add_test(NAME [fouriernl]3d_nonlinear_conduction_hexa_cartesian_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
-              -A,UsingDotNet=1
-              inputs/Test.3d.nonlinear.conduction.hexa.cartesian.arc
-              -A,//meshes/mesh/generator/nb-part-x=2)
-    endif()
+  if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
+    add_test(NAME [fouriernl]2d_nonlinear_conduction_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
+            inputs/Test.nonlinear.conduction.arc)
+    add_test(NAME [fouriernl]2d_nonlinear_conduction_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
+            inputs/Test.nonlinear.conduction.quad.arc)
+    add_test(NAME [fouriernl]2d_nonlinear_conduction_coarse_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
+            inputs/Test.nonlinear.conduction.coarse.arc)
+    add_test(NAME [fouriernl]3d_nonlinear_conduction_hexa_cartesian_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
+            inputs/Test.3d.nonlinear.conduction.hexa.cartesian.arc
+            -A,//meshes/mesh/generator/nb-part-x=2)
   endif()
 endif()
 
