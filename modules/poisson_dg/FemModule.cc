@@ -151,7 +151,7 @@ _assembleLinearSystem()
   // Volume terms: (∇v, ∇u)_K
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
+    Real area = ArcaneFemFunctions::MeshOperation::computeAreaPolygon2D(cell, m_node_coord);
     // Compute centroid
     Real3 centroid = {0.0, 0.0, 0.0};
     for (Node node : cell.nodes()) {
