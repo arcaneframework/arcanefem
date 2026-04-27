@@ -37,7 +37,7 @@ startInit()
   m_petsc_flags = options()->petscFlags();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "initialize", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -96,16 +96,16 @@ _doStationarySolve()
 {
   _getMaterialParameters();
 
-  if(m_assemble_linear_system){
+  if (m_assemble_linear_system) {
     _assembleLinearSystem();
   }
 
-  if(m_solve_linear_system){
+  if (m_solve_linear_system) {
     _solve();
     _updateVariables();
   }
 
-  if(m_cross_validation){
+  if (m_cross_validation) {
     _validateResults();
   }
 }
@@ -125,7 +125,7 @@ _getMaterialParameters()
   f = options()->f();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"get-material-params", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "get-material-params", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -369,7 +369,7 @@ _solve()
   m_linear_system.applyLinearSystemTransformationAndSolve();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"solve-linear-system", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "solve-linear-system", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
