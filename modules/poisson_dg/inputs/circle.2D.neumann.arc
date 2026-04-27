@@ -23,16 +23,12 @@
     <boundary-conditions>
       <dirichlet>
         <surface>horizontal</surface>
-        <value>0.0</value>
+        <value>0.5</value>
       </dirichlet>
-      <dirichlet>
-        <surface>vertical</surface>
-        <value>0.0</value>
-      </dirichlet>
-      <dirichlet>
+      <neumann>
         <surface>curved</surface>
-        <value>0.0</value>
-      </dirichlet>
+        <value>0.5</value>
+      </neumann>
     </boundary-conditions>
   </fem>
 </case>

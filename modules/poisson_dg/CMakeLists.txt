@@ -42,20 +42,26 @@ endforeach()
 
 enable_testing()
 
-add_test(NAME [Poisson_dg]circle_homogenous_tria COMMAND Poisson_dg
-  -A,//fem/solution-comparison-file=check/circle_2D.txt
-  inputs/circle.2D.arc)
-
-if(MEDFile_FOUND)
-  message(STATUS "MEDFile found: ${MEDFile_FOUND}")
-  add_test(NAME [Poisson_dg]circle_homogenous_tria_med COMMAND Poisson_dg
-    -A,//meshes/mesh/filename=meshes/circle_cut-tria.med
-#    -A,//fem/solution-comparison-file=check/circle_2D.txt
+if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
+  add_test(NAME [Poisson_dg]circle_homogenous_tria COMMAND Poisson_dg
+    -A,//fem/solution-comparison-file=check/circle_2D.txt
     inputs/circle.2D.arc)
-  add_test(NAME [Poisson_dg]circle_homogenous_quad_tria_med COMMAND Poisson_dg
-    -A,//meshes/mesh/filename=meshes/circle_cut-quad-tria.med
-    inputs/circle.2D.arc)
-  add_test(NAME [Poisson_dg]circle_homogenous_quad_med COMMAND Poisson_dg
-    -A,//meshes/mesh/filename=meshes/circle_cut-quad.med
-    inputs/circle.2D.arc)
+  
+  add_test(NAME [Poisson_dg]circle_neumann_tria COMMAND Poisson_dg
+    inputs/circle.2D.neumann.arc)
+  
+  
+  if(MEDFile_FOUND)
+    message(STATUS "MEDFile found: ${MEDFile_FOUND}")
+    add_test(NAME [Poisson_dg]circle_homogenous_tria_med COMMAND Poisson_dg
+      -A,//meshes/mesh/filename=meshes/circle_cut-tria.med
+  #    -A,//fem/solution-comparison-file=check/circle_2D.txt
+      inputs/circle.2D.arc)
+    add_test(NAME [Poisson_dg]circle_homogenous_quad_tria_med COMMAND Poisson_dg
+      -A,//meshes/mesh/filename=meshes/circle_cut-quad-tria.med
+      inputs/circle.2D.arc)
+    add_test(NAME [Poisson_dg]circle_homogenous_quad_med COMMAND Poisson_dg
+      -A,//meshes/mesh/filename=meshes/circle_cut-quad.med
+      inputs/circle.2D.arc)
+  endif()
 endif()

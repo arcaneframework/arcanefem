@@ -153,7 +153,7 @@ _assembleLinearSystem()
     Cell cell = *icell;
     Real area = ArcaneFemFunctions::MeshOperation::computeAreaPolygon2D(cell, m_node_coord);
     // Compute centroid
-    Real3 centroid = {0.0, 0.0, 0.0};
+    Real3 centroid = { 0.0, 0.0, 0.0 };
     for (Node node : cell.nodes()) {
       centroid += m_node_coord[node];
     }
@@ -163,9 +163,9 @@ _assembleLinearSystem()
     // Basis: phi_0 = 1, phi_1 = x - x_c, phi_2 = y - y_c
     Real x_rel = centroid.x - centroid.x;
     Real y_rel = centroid.y - centroid.y;
-    Real phi[3] = {1.0, x_rel, y_rel};
-    Real grad_x[3] = {0.0, 1.0, 0.0};
-    Real grad_y[3] = {0.0, 0.0, 1.0};
+    Real phi[3] = { 1.0, x_rel, y_rel };
+    Real grad_x[3] = { 0.0, 1.0, 0.0 };
+    Real grad_y[3] = { 0.0, 0.0, 1.0 };
 
     // RHS: (f, phi)_K
     for (Int32 i = 0; i < 3; ++i) {
@@ -200,41 +200,46 @@ _assembleLinearSystem()
 
       // Compute normal (assuming 2D, outward from cell_i)
       Real3 edge_vec = p1 - p0;
-      Real3 normal = {edge_vec.y, -edge_vec.x, 0.0};
+      Real3 normal = { edge_vec.y, -edge_vec.x, 0.0 };
       normal = normal / normal.normL2();
       // Ensure pointing from i to j
-      Real3 cell_i_cent = {0.0, 0.0, 0.0};
-      for (Node node : cell_i.nodes()) cell_i_cent += m_node_coord[node];
+      Real3 cell_i_cent = { 0.0, 0.0, 0.0 };
+      for (Node node : cell_i.nodes())
+        cell_i_cent += m_node_coord[node];
       cell_i_cent /= cell_i.nbNode();
-      Real3 cell_j_cent = {0.0, 0.0, 0.0};
-      for (Node node : cell_j.nodes()) cell_j_cent += m_node_coord[node];
+      Real3 cell_j_cent = { 0.0, 0.0, 0.0 };
+      for (Node node : cell_j.nodes())
+        cell_j_cent += m_node_coord[node];
       cell_j_cent /= cell_j.nbNode();
-      if (math::dot(normal, cell_j_cent - cell_i_cent) < 0) normal = -normal;
+      if (math::dot(normal, cell_j_cent - cell_i_cent) < 0)
+        normal = -normal;
 
       // Evaluate basis at face center
-      Real3 cent_i = {0.0, 0.0, 0.0};
-      for (Node node : cell_i.nodes()) cent_i += m_node_coord[node];
+      Real3 cent_i = { 0.0, 0.0, 0.0 };
+      for (Node node : cell_i.nodes())
+        cent_i += m_node_coord[node];
       cent_i /= cell_i.nbNode();
-      Real3 cent_j = {0.0, 0.0, 0.0};
-      for (Node node : cell_j.nodes()) cent_j += m_node_coord[node];
+      Real3 cent_j = { 0.0, 0.0, 0.0 };
+      for (Node node : cell_j.nodes())
+        cent_j += m_node_coord[node];
       cent_j /= cell_j.nbNode();
       Real x_rel_i = face_center.x - cent_i.x;
       Real y_rel_i = face_center.y - cent_i.y;
-      Real phi_i[3] = {1.0, x_rel_i, y_rel_i};
-      Real grad_x_i[3] = {0.0, 1.0, 0.0};
-      Real grad_y_i[3] = {0.0, 0.0, 1.0};
-      Real grad_n_i[3] = {grad_x_i[0] * normal.x + grad_y_i[0] * normal.y,
-                          grad_x_i[1] * normal.x + grad_y_i[1] * normal.y,
-                          grad_x_i[2] * normal.x + grad_y_i[2] * normal.y};
+      Real phi_i[3] = { 1.0, x_rel_i, y_rel_i };
+      Real grad_x_i[3] = { 0.0, 1.0, 0.0 };
+      Real grad_y_i[3] = { 0.0, 0.0, 1.0 };
+      Real grad_n_i[3] = { grad_x_i[0] * normal.x + grad_y_i[0] * normal.y,
+                           grad_x_i[1] * normal.x + grad_y_i[1] * normal.y,
+                           grad_x_i[2] * normal.x + grad_y_i[2] * normal.y };
 
       Real x_rel_j = face_center.x - cent_j.x;
       Real y_rel_j = face_center.y - cent_j.y;
-      Real phi_j[3] = {1.0, x_rel_j, y_rel_j};
-      Real grad_x_j[3] = {0.0, 1.0, 0.0};
-      Real grad_y_j[3] = {0.0, 0.0, 1.0};
-      Real grad_n_j[3] = {grad_x_j[0] * normal.x + grad_y_j[0] * normal.y,
-                          grad_x_j[1] * normal.x + grad_y_j[1] * normal.y,
-                          grad_x_j[2] * normal.x + grad_y_j[2] * normal.y};
+      Real phi_j[3] = { 1.0, x_rel_j, y_rel_j };
+      Real grad_x_j[3] = { 0.0, 1.0, 0.0 };
+      Real grad_y_j[3] = { 0.0, 0.0, 1.0 };
+      Real grad_n_j[3] = { grad_x_j[0] * normal.x + grad_y_j[0] * normal.y,
+                           grad_x_j[1] * normal.x + grad_y_j[1] * normal.y,
+                           grad_x_j[2] * normal.x + grad_y_j[2] * normal.y };
 
       // Penalty parameter σ = γ/h
       // Compute diameter as max distance between nodes
@@ -287,65 +292,127 @@ _assembleLinearSystem()
           m_linear_system.matrixAddValue(dof_i_j, dof_j_j, term1_jj + term2_jj + term3_jj);
         }
       }
-    } else { // Boundary face
-      Cell cell_i = face.cell(0);
-      // Compute normal (outward)
-      Real3 edge_vec = p1 - p0;
-      Real3 normal = {edge_vec.y, -edge_vec.x, 0.0};
-      normal = normal / normal.normL2();
-      // Ensure outward
-      Real3 cell_cent = {0.0, 0.0, 0.0};
-      for (Node node : cell_i.nodes()) cell_cent += m_node_coord[node];
-      cell_cent /= cell_i.nbNode();
-      Real3 face_cent = (p0 + p1) * 0.5;
-      if (math::dot(normal, face_cent - cell_cent) < 0) normal = -normal;
+    }
+    else {
+      continue;
+    }
+  }
 
-      Real3 cent_i = {0.0, 0.0, 0.0};
-      for (Node node : cell_i.nodes()) cent_i += m_node_coord[node];
-      cent_i /= cell_i.nbNode();
-      Real x_rel_i = face_center.x - cent_i.x;
-      Real y_rel_i = face_center.y - cent_i.y;
-      Real phi_i[3] = {1.0, x_rel_i, y_rel_i};
-      Real grad_x_i[3] = {0.0, 1.0, 0.0};
-      Real grad_y_i[3] = {0.0, 0.0, 1.0};
-      Real grad_n_i[3] = {grad_x_i[0] * normal.x + grad_y_i[0] * normal.y,
-                          grad_x_i[1] * normal.x + grad_y_i[1] * normal.y,
-                          grad_x_i[2] * normal.x + grad_y_i[2] * normal.y};
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
+  if (bc) { // Only process if BCs are defined
 
-      Real diam_i = 0.0;
-      for (Int32 n1 = 0; n1 < cell_i.nbNode(); ++n1) {
-        for (Int32 n2 = n1 + 1; n2 < cell_i.nbNode(); ++n2) {
-          Real dist = (m_node_coord[cell_i.nodeId(n1)] - m_node_coord[cell_i.nodeId(n2)]).normL2();
-          diam_i = math::max(diam_i, dist);
+    // Loop over Dirichlet BCs and apply them as penalty terms in SIPG
+    for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions()) {
+      FaceGroup face_group = bs->getSurface();
+      ENUMERATE_ (Face, iface, face_group) {
+        Face face = *iface;
+        Cell cell_i = face.cell(0);
+
+        // Get face points
+        Real3 p0 = m_node_coord[face.nodeId(0)];
+        Real3 p1 = m_node_coord[face.nodeId(1)];
+
+        // Compute length
+        Real length = (p1 - p0).normL2();
+
+        // Compute normal (outward)
+        Real3 edge_vec = p1 - p0;
+        Real3 normal = { edge_vec.y, -edge_vec.x, 0.0 };
+        normal = normal / normal.normL2();
+
+        // Compute centroid
+        Real3 face_center = (p0 + p1) * 0.5;
+
+        // Ensure outward
+        Real3 cell_cent = { 0.0, 0.0, 0.0 };
+        for (Node node : cell_i.nodes())
+          cell_cent += m_node_coord[node];
+        cell_cent /= cell_i.nbNode();
+        Real3 face_cent = (p0 + p1) * 0.5;
+        if (math::dot(normal, face_cent - cell_cent) < 0)
+          normal = -normal;
+
+        Real3 cent_i = { 0.0, 0.0, 0.0 };
+        for (Node node : cell_i.nodes())
+          cent_i += m_node_coord[node];
+        cent_i /= cell_i.nbNode();
+        Real x_rel_i = face_center.x - cent_i.x;
+        Real y_rel_i = face_center.y - cent_i.y;
+        Real phi_i[3] = { 1.0, x_rel_i, y_rel_i };
+        Real grad_x_i[3] = { 0.0, 1.0, 0.0 };
+        Real grad_y_i[3] = { 0.0, 0.0, 1.0 };
+        Real grad_n_i[3] = { grad_x_i[0] * normal.x + grad_y_i[0] * normal.y,
+                             grad_x_i[1] * normal.x + grad_y_i[1] * normal.y,
+                             grad_x_i[2] * normal.x + grad_y_i[2] * normal.y };
+
+        Real diam_i = 0.0;
+        for (Int32 n1 = 0; n1 < cell_i.nbNode(); ++n1) {
+          for (Int32 n2 = n1 + 1; n2 < cell_i.nbNode(); ++n2) {
+            Real dist = (m_node_coord[cell_i.nodeId(n1)] - m_node_coord[cell_i.nodeId(n2)]).normL2();
+            diam_i = math::max(diam_i, dist);
+          }
+        }
+        Real h = diam_i;
+        Real sigma = penalty / h;
+
+        const StringConstArrayView u_dirichlet_string = bs->getValue();
+        Real g = std::stod(u_dirichlet_string[0].localstr());
+
+        // No Dirichlet BC - use homogeneous Neumann (natural BC)
+        for (Int32 i = 0; i < 3; ++i) {
+          for (Int32 j = 0; j < 3; ++j) {
+            DoFLocalId dof_i_i = cell_dof.dofId(cell_i, i);
+            DoFLocalId dof_j_i = cell_dof.dofId(cell_i, j);
+
+            // - <v, ∇u·n> - <∇v·n, u> + <σv, u>
+            m_linear_system.matrixAddValue(dof_i_i, dof_j_i, -phi_i[i] * grad_n_i[j] * length);
+            m_linear_system.matrixAddValue(dof_i_i, dof_j_i, -grad_n_i[i] * phi_i[j] * length);
+            m_linear_system.matrixAddValue(dof_i_i, dof_j_i, sigma * phi_i[i] * phi_i[j] * length);
+          }
+
+          // RHS: - <∇v·n, g> + <σv, g> (g=0 for homogeneous Neumann)
+          DoFLocalId dof_i = cell_dof.dofId(cell_i, i);
+          rhs_values[dof_i] -= grad_n_i[i] * g * length;
+          rhs_values[dof_i] += sigma * phi_i[i] * g * length;
         }
       }
-      Real h = diam_i;
-      Real sigma = penalty / h;
+    }
 
-      // Check if this face has Dirichlet BC
-      // TODO: Add Dirchelt and Neumann support later
-      Real g = 0.0; // default homogeneous
+    for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions()) {
+      FaceGroup face_group = bs->getSurface();
+      ENUMERATE_ (Face, iface, face_group) {
+        Face face = *iface;
+        Cell cell_i = face.cell(0);
 
-      // No Dirichlet BC - use homogeneous Neumann (natural BC)
-      for (Int32 i = 0; i < 3; ++i) {
-        for (Int32 j = 0; j < 3; ++j) {
-          DoFLocalId dof_i_i = cell_dof.dofId(cell_i, i);
-          DoFLocalId dof_j_i = cell_dof.dofId(cell_i, j);
+        // Get face points
+        Real3 p0 = m_node_coord[face.nodeId(0)];
+        Real3 p1 = m_node_coord[face.nodeId(1)];
 
-          // - <v, ∇u·n>
-          m_linear_system.matrixAddValue(dof_i_i, dof_j_i, -phi_i[i] * grad_n_i[j] * length);
+        // Compute length
+        Real length = (p1 - p0).normL2();
 
-          // - <∇v·n, u>
-          m_linear_system.matrixAddValue(dof_i_i, dof_j_i, -grad_n_i[i] * phi_i[j] * length);
+        // Compute centroid
+        Real3 face_center = (p0 + p1) * 0.5;
 
-          // + <σv, u>
-          m_linear_system.matrixAddValue(dof_i_i, dof_j_i, sigma * phi_i[i] * phi_i[j] * length);
+        Real3 cent_i = { 0.0, 0.0, 0.0 };
+        for (Node node : cell_i.nodes())
+          cent_i += m_node_coord[node];
+        cent_i /= cell_i.nbNode();
+        Real x_rel_i = face_center.x - cent_i.x;
+        Real y_rel_i = face_center.y - cent_i.y;
+        Real phi_i[3] = { 1.0, x_rel_i, y_rel_i };
+
+        const StringConstArrayView u_neumann_string = bs->getValue();
+        Real g = std::stod(u_neumann_string[0].localstr());
+
+        for (Int32 i = 0; i < 3; ++i) {
+
+          // Neumann BC: ∇u·n = g
+          // Weak form: -∫ v * g ds
+          // RHS contribution: - <v, g> = - <phi_i, g> = - phi_i[i] * g * length
+          DoFLocalId dof_i = cell_dof.dofId(cell_i, i);
+          rhs_values[dof_i] += phi_i[i] * g * length;
         }
-
-        // RHS: - <∇v·n, g> + <σv, g> (g=0 for homogeneous Neumann)
-        DoFLocalId dof_i = cell_dof.dofId(cell_i, i);
-        rhs_values[dof_i] -= grad_n_i[i] * g * length;
-        rhs_values[dof_i] += sigma * phi_i[i] * g * length;
       }
     }
   }
