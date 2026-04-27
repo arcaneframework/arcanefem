@@ -24,15 +24,30 @@ file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 # Copy the mesh files into meshes directory
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
-set(MESH_FILES
+set(MSH_FILES
     circle_cut.msh
 )
-foreach(MESH_FILE IN LISTS MESH_FILES)
-    file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
+set(MED_FILES
+    circle_cut-tria.med
+)
+foreach(MSH_FILES IN LISTS MSH_FILES)
+    file(COPY ${MSH_DIR}/${MSH_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 endforeach()
+foreach(MED_FILES IN LISTS MED_FILES)
+    file(COPY ${MED_DIR}/${MED_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
+endforeach()
+
 
 enable_testing()
 
 add_test(NAME [Poisson_dg]circle_homogenous_tria COMMAND Poisson_dg
   -A,//fem/solution-comparison-file=check/circle_2D.txt
   inputs/circle.2D.arc)
+
+if(MEDFile_FOUND)
+  message(STATUS "MEDFile found: ${MEDFile_FOUND}")
+  add_test(NAME [Poisson_dg]circle_homogenous_tria_med COMMAND Poisson_dg
+    -A,//meshes/mesh/filename=meshes/circle_cut-tria.med
+#    -A,//fem/solution-comparison-file=check/circle_2D.txt
+    inputs/circle.2D.arc)
+endif()
