@@ -46,16 +46,32 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [Poisson_dg]circle_homogenous_tria COMMAND Poisson_dg
     -A,//fem/solution-comparison-file=check/circle_2D.txt
     inputs/circle.2D.arc)
-  
+
+  add_test(NAME [Poisson_dg]circle_homogenous_tria_petsc COMMAND Poisson_dg
+    -A,//fem/solution-comparison-file=check/circle_2D.txt
+    -A,//fem/matrix-format=CSR
+    -A,//fem/linear-system/@name=PETScLinearSystem
+    inputs/circle.2D.arc)
+
   add_test(NAME [Poisson_dg]circle_neumann_tria COMMAND Poisson_dg
     inputs/circle.2D.neumann.arc)
-  
+
+  add_test(NAME [Poisson_dg]circle_neumann_tria_petsc COMMAND Poisson_dg
+    -A,//fem/matrix-format=CSR
+    -A,//fem/linear-system/@name=PETScLinearSystem
+    inputs/circle.2D.neumann.arc)
   
   if(MEDFile_FOUND)
     message(STATUS "MEDFile found: ${MEDFile_FOUND}")
     add_test(NAME [Poisson_dg]circle_homogenous_tria_med COMMAND Poisson_dg
       -A,//meshes/mesh/filename=meshes/circle_cut-tria.med
-  #    -A,//fem/solution-comparison-file=check/circle_2D.txt
+      -A,//fem/solution-comparison-file=check/circle_2D.txt
+      inputs/circle.2D.arc)
+    add_test(NAME [Poisson_dg]circle_homogenous_tria_med_petsc COMMAND Poisson_dg
+      -A,//meshes/mesh/filename=meshes/circle_cut-tria.med
+      -A,//fem/solution-comparison-file=check/circle_2D.txt
+      -A,//fem/matrix-format=CSR
+      -A,//fem/linear-system/@name=PETScLinearSystem
       inputs/circle.2D.arc)
     add_test(NAME [Poisson_dg]circle_homogenous_quad_tria_med COMMAND Poisson_dg
       -A,//meshes/mesh/filename=meshes/circle_cut-quad-tria.med
@@ -64,4 +80,17 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       -A,//meshes/mesh/filename=meshes/circle_cut-quad.med
       inputs/circle.2D.arc)
   endif()
+endif()
+
+if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
+  add_test(NAME [Poisson_dg]circle_homogenous_tria_hypre COMMAND Poisson_dg
+    -A,//fem/matrix-format=CSR
+    -A,//fem/linear-system/@name=HypreLinearSystem
+    -A,//fem/solution-comparison-file=check/circle_2D.txt
+    inputs/circle.2D.arc)
+
+  add_test(NAME [Poisson_dg]circle_neumann_tria_hypre COMMAND Poisson_dg
+    -A,//fem/matrix-format=CSR
+    -A,//fem/linear-system/@name=HypreLinearSystem
+    inputs/circle.2D.neumann.arc)
 endif()

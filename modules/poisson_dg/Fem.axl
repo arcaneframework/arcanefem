@@ -26,7 +26,7 @@
     </simple>
 
     <simple name="matrix-format" type="string" default="DOK" optional="true">
-      <description>Which matrix format to use DOK|BSR|AF-BSR.</description>
+      <description>Which matrix format to use DOK|CSR.</description>
     </simple>
 
     <simple name="petsc-flags" type="string" default="-mat_type baij" optional="true">
