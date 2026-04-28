@@ -535,6 +535,8 @@ _updateVariables()
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
     auto cell_dof = m_dofs_on_cells.cellDoFConnectivityView();
 
+    dof_u.synchronize(); // Ensure solution is up to date across subdomains before interpolation
+
     // Use vectors for temporary node values
     Int32 max_node_id = mesh()->nodeFamily()->maxLocalId();
     std::vector<Real> node_values(max_node_id, 0.0);
