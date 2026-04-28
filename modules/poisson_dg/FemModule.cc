@@ -36,6 +36,25 @@ startInit()
   m_cross_validation = options()->hasSolutionComparisonFile();
   m_petsc_flags = options()->petscFlags();
 
+  // Build cell-cell connectivity if using CSR format for efficient assembly
+  // TODO: Does Arcane provide a built in cell-cell conectivity?
+  if (m_matrix_format == "CSR") {
+    IItemFamily* cell_family = mesh()->cellFamily();
+    auto* cn = new mesh::IncrementalItemConnectivity(cell_family, cell_family, "NeighbourCellCell");
+    ENUMERATE_CELL (icell, allCells()) {
+      Cell cell = *icell;
+      cn->notifySourceItemAdded(cell);
+      for (Face face : cell.faces()) {
+        if (face.nbCell() != 2)
+          continue;
+        Cell opposite_cell = face.oppositeCell(cell);
+        if (!opposite_cell.null())
+          cn->addConnectedItem(cell, opposite_cell);
+      }
+    }
+    m_cell_cell_connectivity_view = cn->connectivityView();
+  }
+
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "initialize", elapsedTime);
 }
@@ -141,10 +160,19 @@ _assembleLinearSystem()
   info() << "[ArcaneFem-Info] Started module _assembleLinearSystem()";
   Real elapsedTime = platform::getRealTime();
 
-  // For DG, we use DOK format
   auto cell_dof = m_dofs_on_cells.cellDoFConnectivityView();
   VariableDoFReal& rhs_values = m_linear_system.rhsVariable();
   rhs_values.fill(0.0);
+
+  if (m_matrix_format == "CSR")
+    _buildCsrSparsity();
+
+  auto add_matrix_value = [&](DoFLocalId row, DoFLocalId column, Real value) {
+    if (m_matrix_format == "CSR")
+      m_csr_matrix.matrixAddValue(row, column, value);
+    else
+      m_linear_system.matrixAddValue(row, column, value);
+  };
 
   Real penalty = 10.0; // Can be made configurable later
 
@@ -179,7 +207,7 @@ _assembleLinearSystem()
         DoFLocalId dof_i = cell_dof.dofId(cell, i);
         DoFLocalId dof_j = cell_dof.dofId(cell, j);
         Real stiff = (grad_x[i] * grad_x[j] + grad_y[i] * grad_y[j]) * area;
-        m_linear_system.matrixAddValue(dof_i, dof_j, stiff);
+        add_matrix_value(dof_i, dof_j, stiff);
       }
     }
   }
@@ -286,10 +314,10 @@ _assembleLinearSystem()
           Real term3_ji = -sigma * phi_j[i] * phi_i[j] * length;
           Real term3_jj = sigma * phi_j[i] * phi_j[j] * length;
 
-          m_linear_system.matrixAddValue(dof_i_i, dof_j_i, term1_ii + term2_ii + term3_ii);
-          m_linear_system.matrixAddValue(dof_i_i, dof_j_j, term1_ij + term2_ij + term3_ij);
-          m_linear_system.matrixAddValue(dof_i_j, dof_j_i, term1_ji + term2_ji + term3_ji);
-          m_linear_system.matrixAddValue(dof_i_j, dof_j_j, term1_jj + term2_jj + term3_jj);
+          add_matrix_value(dof_i_i, dof_j_i, term1_ii + term2_ii + term3_ii);
+          add_matrix_value(dof_i_i, dof_j_j, term1_ij + term2_ij + term3_ij);
+          add_matrix_value(dof_i_j, dof_j_i, term1_ji + term2_ji + term3_ji);
+          add_matrix_value(dof_i_j, dof_j_j, term1_jj + term2_jj + term3_jj);
         }
       }
     }
@@ -365,9 +393,9 @@ _assembleLinearSystem()
             DoFLocalId dof_j_i = cell_dof.dofId(cell_i, j);
 
             // - <v, ∇u·n> - <∇v·n, u> + <σv, u>
-            m_linear_system.matrixAddValue(dof_i_i, dof_j_i, -phi_i[i] * grad_n_i[j] * length);
-            m_linear_system.matrixAddValue(dof_i_i, dof_j_i, -grad_n_i[i] * phi_i[j] * length);
-            m_linear_system.matrixAddValue(dof_i_i, dof_j_i, sigma * phi_i[i] * phi_i[j] * length);
+            add_matrix_value(dof_i_i, dof_j_i, -phi_i[i] * grad_n_i[j] * length);
+            add_matrix_value(dof_i_i, dof_j_i, -grad_n_i[i] * phi_i[j] * length);
+            add_matrix_value(dof_i_i, dof_j_i, sigma * phi_i[i] * phi_i[j] * length);
           }
 
           // RHS: - <∇v·n, g> + <σv, g> (g=0 for homogeneous Neumann)
@@ -417,8 +445,54 @@ _assembleLinearSystem()
     }
   }
 
+  if (m_matrix_format == "CSR") {
+    RunQueue* queue = subDomain()->acceleratorMng()->defaultQueue();
+    m_csr_matrix.translateToLinearSystem(m_linear_system, *queue);
+  }
+
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"lhs-matrix-assembly", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Builds the CSR sparsity pattern for the DG matrix.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModulePoisson::
+_buildCsrSparsity()
+{
+  auto cell_dof = m_dofs_on_cells.cellDoFConnectivityView();
+  CellInfoListView cells(mesh()->cellFamily());
+  const Int32 nb_dof = m_dof_family->nbItem();
+  Int32 nnz = 0;
+
+  ENUMERATE_CELL (icell, allCells()) {
+    Int32 nb_connected_cell = m_cell_cell_connectivity_view.nbCell(icell);
+    nnz += 3 * 3 * (1 + nb_connected_cell);
+  }
+
+  RunQueue* queue = subDomain()->acceleratorMng()->defaultQueue();
+  m_csr_matrix.initialize(m_dof_family, nnz, nb_dof, *queue);
+
+  ENUMERATE_CELL (icell, allCells()) {
+    Cell cell = *icell;
+    for (Int32 i = 0; i < 3; ++i) {
+      DoFLocalId row_dof = cell_dof.dofId(cell, i);
+      for (Int32 j = 0; j < 3; ++j) {
+        DoFLocalId column_dof = cell_dof.dofId(cell, j);
+        m_csr_matrix.setCoordinates(row_dof, column_dof);
+      }
+      for (CellLocalId neighbor_cell_id : m_cell_cell_connectivity_view.cells(icell)) {
+        Cell neighbor_cell = cells[neighbor_cell_id];
+        for (Int32 j = 0; j < 3; ++j) {
+          DoFLocalId column_dof = cell_dof.dofId(neighbor_cell, j);
+          m_csr_matrix.setCoordinates(row_dof, column_dof);
+        }
+      }
+    }
+  }
 }
 
 /*---------------------------------------------------------------------------*/

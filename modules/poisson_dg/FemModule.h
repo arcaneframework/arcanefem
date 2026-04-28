@@ -29,6 +29,7 @@
 #include <arcane/IMesh.h>
 
 #include <arccore/base/NotImplementedException.h>
+#include <arcane/mesh/IncrementalItemConnectivity.h>
 
 #include <arcane/accelerator/core/IAcceleratorMng.h>
 #include <arcane/accelerator/VariableViews.h>
@@ -36,6 +37,7 @@
 #include "IDoFLinearSystemFactory.h"
 #include "ArcaneFemFunctionsGpu.h"
 #include "ArcaneFemFunctions.h"
+#include "CsrFormatMatrix.h"
 #include "DoFLinearSystem.h"
 #include "FemDoFsOnCells.h"
 #include "IArcaneFemBC.h"
@@ -68,6 +70,7 @@ class FemModulePoisson
   explicit FemModulePoisson(const ModuleBuildInfo& mbi)
   : ArcaneFemObject(mbi)
   , m_dofs_on_cells(mbi.subDomain()->traceMng())
+  , m_csr_matrix(mbi.subDomain()->traceMng())
   {
     ICaseMng* cm = mbi.subDomain()->caseMng();
     cm->setTreatWarningAsError(true);
@@ -85,11 +88,14 @@ class FemModulePoisson
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnCells m_dofs_on_cells;
+  CsrFormat m_csr_matrix;
 
   Real f;
 
   String m_petsc_flags;
   String m_matrix_format = "DOK";
+
+  IndexedCellCellConnectivityView m_cell_cell_connectivity_view;
 
   bool m_assemble_linear_system = true;
   bool m_solve_linear_system = true;
@@ -99,6 +105,7 @@ class FemModulePoisson
   void _getMaterialParameters();
   void _solve();
   void _assembleLinearSystem();
+  void _buildCsrSparsity();
   void _updateVariables();
   void _validateResults();
 
