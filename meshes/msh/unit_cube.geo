@@ -19,7 +19,7 @@
 
      This is a Gmsh .geo file which produces a 3D cube mesh.
 
-     compile-run: gmsh -2 -format msh41  unit_cube.geo
+     compile-run: gmsh -3 -setnumber threads 4 unit_cube.geo
 
 *******************************************************************************/
 
@@ -38,7 +38,7 @@ z1 = 1;
 // ---- mesh size parameters ( denoted by lc )----
 //==============================================================================
 
-lc = 1.0/3;
+lc = 1.0/5;
 
 //==============================================================================
 // ---- corner mesh points of the cube ----
@@ -101,11 +101,12 @@ Physical Surface("othersurfaces") = {14, 16, 22, 24};
 Physical Volume("volume") = {26};
 
 //==============================================================================
-// ---- msh version imposed ----
+// ---- msh version/algo imposed ----
 //==============================================================================
 
+General.NumThreads = threads;
+
+Mesh.Algorithm = 5;
+Mesh.Algorithm3D = 10;
 Mesh.MshFileVersion = 4.1;
-Mesh 3;
-//+
-Show "*";
 

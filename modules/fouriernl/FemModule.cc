@@ -126,7 +126,10 @@ _doStationarySolve()
 
       if (m_linear_system.isInitialized() && m_fp_iter != 0) {
         m_linear_system.clearValues();
-        m_bsr_format.resetMatrixValues();
+
+        if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
+          m_bsr_format.resetMatrixValues();
+
         _assembleBilinearOperator();
 
         /* TODO : We should ideally not update the matrix row/columns concerning Dirichlet if Dirichlet BC are fixed for all iterations */

@@ -39,59 +39,119 @@ enable_testing()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [fouriernl]2d_nonlinear_conduction COMMAND FourierNL
+          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
           inputs/Test.nonlinear.conduction.arc)
   add_test(NAME [fouriernl]2d_nonlinear_conduction_quad COMMAND FourierNL
+          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
           inputs/Test.nonlinear.conduction.quad.arc)
   add_test(NAME [fouriernl]2d_nonlinear_conduction_coarse COMMAND FourierNL
+          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
           inputs/Test.nonlinear.conduction.coarse.arc)
+  add_test(NAME [fouriernl]3d_nonlinear_conduction_hexa COMMAND FourierNL
+          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+          inputs/Test.3d.nonlinear.conduction.hexa.arc)
   add_test(NAME [fouriernl]3d_nonlinear_conduction_hexa_cartesian COMMAND FourierNL
+          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
           inputs/Test.3d.nonlinear.conduction.hexa.cartesian.arc)
+  add_test(NAME [fouriernl]3d_nonlinear_conduction COMMAND FourierNL
+          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+          inputs/Test.3d.nonlinear.conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [fouriernl]2d_conduction_petsc_bsr COMMAND ./FourierNL ARGS
+          -A,//fem/matrix-format=BSR
+          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+          inputs/Test.nonlinear.conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [fouriernl]2d_conduction_petsc_af-bsr COMMAND ./FourierNL ARGS
+          -A,//fem/matrix-format=AF-BSR
+          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+          inputs/Test.nonlinear.conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [fouriernl]3d_conduction_petsc_bsr COMMAND ./FourierNL ARGS
+          -A,//fem/matrix-format=BSR
+          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+          inputs/Test.3d.nonlinear.conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [fouriernl]3d_conduction_petsc_af-bsr COMMAND ./FourierNL ARGS
+          -A,//fem/matrix-format=AF-BSR
+          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+          inputs/Test.3d.nonlinear.conduction.arc)
+
+  set(SOLVER_PETSC_CG
+    -A,//fem/linear-system/@name=PETScLinearSystem
+    -A,//fem/linear-system/solver=cg
+    -A,//fem/linear-system/atol=1e-9
+    -A,//fem/linear-system/rtol=0)
+
+  arcanefem_add_gpu_test(NAME [fouriernl]2d_conduction_petsc-direct_bsr COMMAND ./FourierNL ARGS
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_PETSC_CG}
+          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+          inputs/Test.nonlinear.conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [fouriernl]2d_conduction_petsc-direct_af-bsr COMMAND ./FourierNL ARGS
+          -A,//fem/matrix-format=AF-BSR
+          ${SOLVER_PETSC_CG}
+          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+          inputs/Test.nonlinear.conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [fouriernl]3d_conduction_petsc-direct_bsr COMMAND ./FourierNL ARGS
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_PETSC_CG}
+          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+          inputs/Test.3d.nonlinear.conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [fouriernl]3d_conduction_petsc-direct_af-bsr COMMAND ./FourierNL ARGS
+          -A,//fem/matrix-format=AF-BSR
+          ${SOLVER_PETSC_CG}
+          inputs/Test.3d.nonlinear.conduction.arc)
 
 
-#  set(SOLVER_PETSC_CG
-#    -A,//fem/linear-system/@name=PETScLinearSystem
-#    -A,//fem/linear-system/solver=cg
-#    -A,//fem/linear-system/atol=1e-9
-#    -A,//fem/linear-system/rtol=0)
-#
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [fouriernl]2d_nonlinear_conduction_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
+            -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
             inputs/Test.nonlinear.conduction.arc)
     add_test(NAME [fouriernl]2d_nonlinear_conduction_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
+            -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
             inputs/Test.nonlinear.conduction.quad.arc)
     add_test(NAME [fouriernl]2d_nonlinear_conduction_coarse_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
+            -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
             inputs/Test.nonlinear.conduction.coarse.arc)
     add_test(NAME [fouriernl]3d_nonlinear_conduction_hexa_cartesian_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
+            -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
             inputs/Test.3d.nonlinear.conduction.hexa.cartesian.arc
             -A,//meshes/mesh/generator/nb-part-x=2)
+    add_test(NAME [fouriernl]3d_nonlinear_conduction_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
+            -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+            inputs/Test.3d.nonlinear.conduction.arc)
   endif()
 endif()
 
-#if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-#  set(SOLVER_HYPRE_CG
-#    -A,//fem/linear-system/@name=HypreLinearSystem
-#    -A,//fem/linear-system/solver=cg
-#    -A,//fem/linear-system/atol=1e-9
-#    -A,//fem/linear-system/rtol=0)
-#
-#  arcanefem_add_gpu_test(NAME [fourier]conduction_hypre_bsr COMMAND ./Fourier ARGS
-#    -A,//fem/matrix-format=BSR
-#    ${SOLVER_HYPRE_CG}
-#    inputs/conduction.arc)
-#
-#  arcanefem_add_gpu_test(NAME [fourier]conduction_hypre_af-bsr COMMAND ./Fourier ARGS
-#    -A,//fem/matrix-format=AF-BSR
-#    ${SOLVER_HYPRE_CG}
-#    inputs/conduction.arc)
-#
-#  arcanefem_add_gpu_test(NAME [fourier]3d_conduction_hypre_bsr COMMAND ./Fourier ARGS
-#    -A,//fem/matrix-format=BSR
-#    ${SOLVER_HYPRE_CG}
-#    inputs/conduction.3D.arc)
-#
-#  arcanefem_add_gpu_test(NAME [fourier]3d_conduction_hypre_af-bsr COMMAND ./Fourier ARGS
-#    -A,//fem/matrix-format=AF-BSR
-#    ${SOLVER_HYPRE_CG}
-#    inputs/conduction.3D.arc)
-#
-#endif()
+if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
+  set(SOLVER_HYPRE_CG
+    -A,//fem/linear-system/@name=HypreLinearSystem
+    -A,//fem/linear-system/solver=cg
+    -A,//fem/linear-system/atol=1e-9
+    -A,//fem/linear-system/rtol=0)
+
+  arcanefem_add_gpu_test(NAME [fourier]2d_conduction_hypre_bsr COMMAND ./FourierNL ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+          inputs/Test.nonlinear.conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [fourier]2d_conduction_hypre_af-bsr COMMAND ./FourierNL ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+          inputs/Test.nonlinear.conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [fourier]3d_conduction_hypre_bsr COMMAND ./FourierNL ARGS
+    -A,//fem/matrix-format=BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/Test.3d.nonlinear.conduction.arc)
+
+  arcanefem_add_gpu_test(NAME [fourier]3d_conduction_hypre_af-bsr COMMAND ./FourierNL ARGS
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG}
+    inputs/Test.3d.nonlinear.conduction.arc)
+
+endif()
