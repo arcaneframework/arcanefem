@@ -37,7 +37,6 @@ startInit()
   m_petsc_flags = options()->petscFlags();
 
   // Build cell-cell connectivity if using CSR format for efficient assembly
-  // TODO: Does Arcane provide a built in cell-cell conectivity?
   if (m_matrix_format == "CSR") {
     IItemFamily* cell_family = mesh()->cellFamily();
     auto* cn = new mesh::IncrementalItemConnectivity(cell_family, cell_family, "NeighbourCellCell");
@@ -537,11 +536,6 @@ _updateVariables()
 
     dof_u.synchronize(); // Ensure solution is up to date across subdomains before interpolation
 
-    // Use vectors for temporary node values
-    Int32 max_node_id = mesh()->nodeFamily()->maxLocalId();
-    std::vector<Real> node_values(max_node_id, 0.0);
-    std::vector<Int32> node_count(max_node_id, 0);
-
     ENUMERATE_ (Cell, icell, allCells()) {
       Cell cell = *icell;
 
@@ -564,16 +558,7 @@ _updateVariables()
         Real y_rel = node_pos.y - centroid.y;
         Real u_value = a0 + a1 * x_rel + a2 * y_rel;
 
-        node_values[node.localId()] += u_value;
-        node_count[node.localId()] += 1;
-      }
-    }
-
-    // Average the values at nodes
-    ENUMERATE_ (Node, inode, allNodes()) {
-      Node node = *inode;
-      if (node_count[node.localId()] > 0) {
-        m_u[node] = node_values[node.localId()] / node_count[node.localId()];
+        m_u[node] += u_value / node.nbCell(); // Average contributions from all cells sharing this node
       }
     }
   }
