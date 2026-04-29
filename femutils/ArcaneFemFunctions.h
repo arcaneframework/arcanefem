@@ -288,6 +288,37 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
+     * @brief Computes the centroid of an item with nodes.
+     *
+     * This method calculates the centroid (geometric center) of an item by
+     * averaging the coordinates of its nodes. The centroid is computed as the
+     * mean of the vertex coordinates, providing a central point that represents
+     * the item's position in space.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline Real3 computeCentroid(ItemWithNodes item, const VariableNodeReal3& node_coord)
+    {
+      Int8 nb_node = item.nbNode();
+      Real3 centroid = { 0., 0., 0. };
+
+      for (Int8 i = 0; i < nb_node; ++i) {
+        Real3 vertex = node_coord[item.nodeId(i)];
+        centroid.x += vertex.x;
+        centroid.y += vertex.y;
+        centroid.z += vertex.z;
+      }
+
+      centroid.x /= nb_node;
+      centroid.y /= nb_node;
+      centroid.z /= nb_node;
+
+      return centroid;
+
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
      * @brief Computes the barycenter (centroid) of a triangle.
      *
      * This method calculates the barycenter of a triangle defined by three nodes.

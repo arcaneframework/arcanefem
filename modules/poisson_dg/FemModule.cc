@@ -17,7 +17,12 @@
 /**
  * @brief Initializes the FemModulePoisson at the start of the simulation.
  *
- * This method initializes degrees of freedom (DoFs) on nodes.
+ * This method is run at the beginning of simulation and performs the
+ * following tasks:
+ *  1. Initializes the DoF connectivity for P1 DG elements (3 per cell).
+ *  2. Reads configuration options for matrix format, assembly, solving, 
+ *     and validation.
+ *  3. Builds cell-cell connectivity if using CSR format.
  */
 /*---------------------------------------------------------------------------*/
 
@@ -27,7 +32,7 @@ startInit()
   info() << "[ArcaneFem-Info] Started module startInit()";
   Real elapsedTime = platform::getRealTime();
 
-  m_dofs_on_cells.initialize(mesh(), 3); // P1 DG elements have 3 DoFs per cell
+  m_dofs_on_cells.initialize(mesh(), 3);
   m_dof_family = m_dofs_on_cells.dofFamily();
 
   m_matrix_format = options()->matrixFormat();
@@ -179,12 +184,7 @@ _assembleLinearSystem()
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
     Real area = ArcaneFemFunctions::MeshOperation::computeAreaPolygon2D(cell, m_node_coord);
-    // Compute centroid
-    Real3 centroid = { 0.0, 0.0, 0.0 };
-    for (Node node : cell.nodes()) {
-      centroid += m_node_coord[node];
-    }
-    centroid /= cell.nbNode();
+    Real3 centroid =  ArcaneFemFunctions::MeshOperation::computeCentroid(cell, m_node_coord);
 
     // Evaluate basis at centroid for volume integral approximation
     // Basis: phi_0 = 1, phi_1 = x - x_c, phi_2 = y - y_c
@@ -225,31 +225,19 @@ _assembleLinearSystem()
       Cell cell_i = face.cell(0);
       Cell cell_j = face.cell(1);
 
+      // compute centroids for normal orientation
+      Real3 cent_i =  ArcaneFemFunctions::MeshOperation::computeCentroid(cell_i, m_node_coord);
+      Real3 cent_j =  ArcaneFemFunctions::MeshOperation::computeCentroid(cell_j, m_node_coord);
+
       // Compute normal (assuming 2D, outward from cell_i)
       Real3 edge_vec = p1 - p0;
       Real3 normal = { edge_vec.y, -edge_vec.x, 0.0 };
       normal = normal / normal.normL2();
       // Ensure pointing from i to j
-      Real3 cell_i_cent = { 0.0, 0.0, 0.0 };
-      for (Node node : cell_i.nodes())
-        cell_i_cent += m_node_coord[node];
-      cell_i_cent /= cell_i.nbNode();
-      Real3 cell_j_cent = { 0.0, 0.0, 0.0 };
-      for (Node node : cell_j.nodes())
-        cell_j_cent += m_node_coord[node];
-      cell_j_cent /= cell_j.nbNode();
-      if (math::dot(normal, cell_j_cent - cell_i_cent) < 0)
+      if (math::dot(normal, cent_j - cent_i) < 0)
         normal = -normal;
 
       // Evaluate basis at face center
-      Real3 cent_i = { 0.0, 0.0, 0.0 };
-      for (Node node : cell_i.nodes())
-        cent_i += m_node_coord[node];
-      cent_i /= cell_i.nbNode();
-      Real3 cent_j = { 0.0, 0.0, 0.0 };
-      for (Node node : cell_j.nodes())
-        cent_j += m_node_coord[node];
-      cent_j /= cell_j.nbNode();
       Real x_rel_i = face_center.x - cent_i.x;
       Real y_rel_i = face_center.y - cent_i.y;
       Real phi_i[3] = { 1.0, x_rel_i, y_rel_i };
@@ -359,10 +347,7 @@ _assembleLinearSystem()
         if (math::dot(normal, face_cent - cell_cent) < 0)
           normal = -normal;
 
-        Real3 cent_i = { 0.0, 0.0, 0.0 };
-        for (Node node : cell_i.nodes())
-          cent_i += m_node_coord[node];
-        cent_i /= cell_i.nbNode();
+        Real3 cent_i = ArcaneFemFunctions::MeshOperation::computeCentroid(cell_i, m_node_coord);
         Real x_rel_i = face_center.x - cent_i.x;
         Real y_rel_i = face_center.y - cent_i.y;
         Real phi_i[3] = { 1.0, x_rel_i, y_rel_i };
@@ -385,7 +370,6 @@ _assembleLinearSystem()
         const StringConstArrayView u_dirichlet_string = bs->getValue();
         Real g = std::stod(u_dirichlet_string[0].localstr());
 
-        // No Dirichlet BC - use homogeneous Neumann (natural BC)
         for (Int32 i = 0; i < 3; ++i) {
           for (Int32 j = 0; j < 3; ++j) {
             DoFLocalId dof_i_i = cell_dof.dofId(cell_i, i);
@@ -421,10 +405,7 @@ _assembleLinearSystem()
         // Compute centroid
         Real3 face_center = (p0 + p1) * 0.5;
 
-        Real3 cent_i = { 0.0, 0.0, 0.0 };
-        for (Node node : cell_i.nodes())
-          cent_i += m_node_coord[node];
-        cent_i /= cell_i.nbNode();
+        Real3 cent_i = ArcaneFemFunctions::MeshOperation::computeCentroid(cell_i, m_node_coord);
         Real x_rel_i = face_center.x - cent_i.x;
         Real y_rel_i = face_center.y - cent_i.y;
         Real phi_i[3] = { 1.0, x_rel_i, y_rel_i };
@@ -435,8 +416,8 @@ _assembleLinearSystem()
         for (Int32 i = 0; i < 3; ++i) {
 
           // Neumann BC: ∇u·n = g
-          // Weak form: -∫ v * g ds
-          // RHS contribution: - <v, g> = - <phi_i, g> = - phi_i[i] * g * length
+          // Weak form: ∫ v * g ds
+          // RHS contribution: <v, g> =  <phi_i, g> = phi_i[i] * g * length
           DoFLocalId dof_i = cell_dof.dofId(cell_i, i);
           rhs_values[dof_i] += phi_i[i] * g * length;
         }
@@ -517,8 +498,7 @@ _solve()
  * @brief Update the FEM variables.
  *
  * This method performs the following actions:
- *   1. Fetches values of solution from solved linear system to FEM variables,
- *      i.e., it copies RHS DOF to u.
+ *   1. Fetches values of solution from solved linear system to FEM variables.
  *   2. Performs synchronize of FEM variables across subdomains.
  */
 /*---------------------------------------------------------------------------*/
@@ -538,13 +518,7 @@ _updateVariables()
 
     ENUMERATE_ (Cell, icell, allCells()) {
       Cell cell = *icell;
-
-      // Get cell centroid
-      Real3 centroid = { 0.0, 0.0, 0.0 };
-      for (Node node : cell.nodes()) {
-        centroid += m_node_coord[node];
-      }
-      centroid /= cell.nbNode();
+      Real3 centroid =  ArcaneFemFunctions::MeshOperation::computeCentroid(cell, m_node_coord);
 
       // Get DG coefficients for this cell
       Real a0 = dof_u[cell_dof.dofId(cell, 0)]; // constant term
