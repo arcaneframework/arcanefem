@@ -124,15 +124,16 @@ _doStationarySolve()
 
       if (m_linear_system.isInitialized() && m_fp_iter != 0) {
         m_linear_system.clearValues();
+        _assembleBilinearOperator();
 
-        // TODO : We should idally not update the matrix row/columns concerning Dirichlet if Dirichlet BC are fixed for all iterations
-        // need to create a seperate function _assembleLinearOperatorLHSOnly.
+        /* TODO : We should ideally not update the matrix row/columns concerning Dirichlet if Dirichlet BC are fixed for all iterations */
+        /* need to create a separate function _assembleLinearOperatorLHSOnly. */
         _assembleLinearOperator(); // We use _assembleLinearOperator now for simplicity
       }
       else {
+        _assembleBilinearOperator();
         _assembleLinearOperator();
       }
-      _assembleBilinearOperator();
     }
     if (m_solve_linear_system) {
       _solve();
@@ -347,13 +348,14 @@ _assembleBilinearOperator()
     auto m_queue = subDomain()->acceleratorMng()->defaultQueue();
     auto command = makeCommand(m_queue);
     auto in_node_coord = ax::viewIn(command, m_node_coord);
+    auto in_node_uk    = ax::viewIn(command, m_uk);
     auto in_cell_lambda = ax::viewIn(command, m_cell_lambda);
 
     if (mesh()->dimension() == 2)
       if (m_matrix_format == "BSR")
-        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda); });
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk); });
       else
-        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, node_lid); });
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk, node_lid); });
     else
       if (m_matrix_format == "BSR")
         m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda); });

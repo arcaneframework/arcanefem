@@ -30,7 +30,7 @@
  * 2. Return λ(𝑢);
  */
 /*---------------------------------------------------------------------------*/
-inline Real FemModuleFourierNL::_lambdaCpu(Real u) {
+inline Real FemModuleFourierNL::_lambdaCpu(const Real& u) {
   return LAMBDA_CONDUCTION_COEFFICIENT(u, options()->expNlin);
 }
 
@@ -45,6 +45,6 @@ inline Real FemModuleFourierNL::_lambdaCpu(Real u) {
  * 2. Return λ(𝑢);
  */
 /*---------------------------------------------------------------------------*/
-ARCCORE_HOST_DEVICE __forceinline__ Real _lambdaGpu_m2(Real u) {
+ARCCORE_HOST_DEVICE inline Real _lambdaGpu_m2(const Real& u) {
   return LAMBDA_CONDUCTION_COEFFICIENT(u, 2.);
 }

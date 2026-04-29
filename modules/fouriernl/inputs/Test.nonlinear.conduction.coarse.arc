@@ -6,7 +6,6 @@
     - Mesh configuration details
     - Finite Element Method (FEM) configurations
     - Post-processing options
-    - External function definitions
 -->
 <case codename="FourierNL" xml:lang="en" codeversion="1.0">
 
@@ -16,7 +15,7 @@
       - timeloop: Defines the specific time-stepping loop used for this Fourier simulation.
   -->
   <arcane>
-    <title>Fouriers equation FEM code with maufactured solution</title>
+    <title>Fouriers equation FEM code with nonlinearity</title>
     <timeloop>FourierNLLoop</timeloop>
   </arcane>
 

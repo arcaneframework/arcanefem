@@ -116,7 +116,7 @@ class FemModuleFourierNL
   RealMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);
   RealMatrix<4, 4> _computeElementMatrixQuad4(Cell cell);
   RealMatrix<8, 8> _computeElementMatrixHexa8(Cell cell);
-  Real _lambdaCpu(Real u);
+  Real _lambdaCpu(const Real& u);
   IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_dirichlet = nullptr;
   IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_source = nullptr;
   IBinaryMathFunctor<Real, Real3, Real>* m_exact_solution = nullptr;

@@ -58,7 +58,7 @@
     <simple name="fp-tol" type ="real" default="1e-5" optional="true">
       <description>Tolerance for convergence of fixed point iterations</description>
     </simple>
-    <simple name="max-fp-iters" type="integer" default="100" optional="true">
+    <simple name="max-fp-iters" type="integer" default="20" optional="true">
       <description>Maximum number of iterations to convergence</description>
     </simple>
     <simple name="exp-nlin" type ="real" default="2" optional="true">
