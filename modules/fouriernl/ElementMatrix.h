@@ -93,26 +93,30 @@ RealMatrix<4, 4> FemModuleFourierNL::_computeElementMatrixTetra4(Cell cell)
   return volume * lambda_cell * (dxU ^ dxU) + volume * lambda_cell * (dyU ^ dyU) + volume * lambda_cell * (dzU ^ dzU);
 }
 
-ARCCORE_HOST_DEVICE RealMatrix<4, 4> computeElementMatrixTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, const ax::VariableCellRealInView& in_cell_lambda)
+ARCCORE_HOST_DEVICE RealMatrix<4, 4> computeElementMatrixTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, const ax::VariableNodeRealInView& in_node_uk)
 {
   Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
 
   Real4 dxU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientXTetra4(cell_lid, cn_cv, in_node_coord);
   Real4 dyU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientYTetra4(cell_lid, cn_cv, in_node_coord);
   Real4 dzU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientZTetra4(cell_lid, cn_cv, in_node_coord);
-  Real in_lambda = in_cell_lambda[cell_lid];
+
+  Real uk_cell = (in_node_uk[cn_cv.nodeId(cell_lid, 0)] + in_node_uk[cn_cv.nodeId(cell_lid, 1)] + in_node_uk[cn_cv.nodeId(cell_lid, 2)] + in_node_uk[cn_cv.nodeId(cell_lid, 3)]) / 4.;
+  Real in_lambda = _lambdaGpu_m2(uk_cell);
 
   return volume * in_lambda * (dxU ^ dxU) + volume * in_lambda * (dyU ^ dyU) + volume * in_lambda  * (dzU ^ dzU);
 }
 
-ARCCORE_HOST_DEVICE RealMatrix<1, 4> computeElementVectorTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, const ax::VariableCellRealInView& in_cell_lambda, Int32 node_lid)
+ARCCORE_HOST_DEVICE RealMatrix<1, 4> computeElementVectorTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, const ax::VariableNodeRealInView& in_node_uk, Int32 node_lid)
 {
   Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
 
   Real4 dxU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientXTetra4(cell_lid, cn_cv, in_node_coord);
   Real4 dyU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientYTetra4(cell_lid, cn_cv, in_node_coord);
   Real4 dzU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientZTetra4(cell_lid, cn_cv, in_node_coord);
-  Real in_lambda = in_cell_lambda[cell_lid];
+
+  Real uk_cell = (in_node_uk[cn_cv.nodeId(cell_lid, 0)] + in_node_uk[cn_cv.nodeId(cell_lid, 1)] + in_node_uk[cn_cv.nodeId(cell_lid, 2)] + in_node_uk[cn_cv.nodeId(cell_lid, 3)]) / 4.;
+  Real in_lambda = _lambdaGpu_m2(uk_cell);
 
   Real4 node_vector_integral = volume * in_lambda * dxU[node_lid] * dxU + volume * in_lambda * dyU[node_lid] * dyU + volume * in_lambda * dzU[node_lid] * dzU;
 

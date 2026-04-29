@@ -13,10 +13,8 @@
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
-#include <cmath>
-
-#ifndef LAMBDA_CONDUCTION_COEFFICIENT
-#define LAMBDA_CONDUCTION_COEFFICIENT(u, m) ( pow((1.0 + u), m) )
+#ifndef LAMBDA_CONDUCTIVITY_COEFFICIENT
+#define LAMBDA_CONDUCTIVITY_COEFFICIENT(u, m) ( math::pow((1.0 + u), m) )
 #endif
 
 /**
@@ -31,7 +29,7 @@
  */
 /*---------------------------------------------------------------------------*/
 inline Real FemModuleFourierNL::_lambdaCpu(const Real& u) {
-  return LAMBDA_CONDUCTION_COEFFICIENT(u, options()->expNlin);
+  return LAMBDA_CONDUCTIVITY_COEFFICIENT(u, options()->expNlin);
 }
 
 /**
@@ -46,5 +44,5 @@ inline Real FemModuleFourierNL::_lambdaCpu(const Real& u) {
  */
 /*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE inline Real _lambdaGpu_m2(const Real& u) {
-  return LAMBDA_CONDUCTION_COEFFICIENT(u, 2.);
+  return LAMBDA_CONDUCTIVITY_COEFFICIENT(u, 2.);
 }

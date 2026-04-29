@@ -80,7 +80,7 @@ class FemModuleFourierNL
 
  private:
 
-  Real qdot;
+  Real m_qdot;
   Real ElementNodes;
   Real m_fp_tol{1e-5};
 
@@ -102,7 +102,6 @@ class FemModuleFourierNL
   BSRFormat m_bsr_format;
 
   void _doStationarySolve();
-  void _getMaterialParameters();
   void _solve();
   void _assembleLinearOperator();
   void _assembleLinearOperatorCpu();
@@ -117,10 +116,6 @@ class FemModuleFourierNL
   RealMatrix<4, 4> _computeElementMatrixQuad4(Cell cell);
   RealMatrix<8, 8> _computeElementMatrixHexa8(Cell cell);
   Real _lambdaCpu(const Real& u);
-  IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_dirichlet = nullptr;
-  IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_source = nullptr;
-  IBinaryMathFunctor<Real, Real3, Real>* m_exact_solution = nullptr;
-  IBinaryMathFunctor<Real, Real3, Real>* m_lambda_func = nullptr;
 
   template<int N>
   void _assembleBilinear( const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);

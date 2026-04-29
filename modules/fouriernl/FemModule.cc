@@ -48,6 +48,9 @@ startInit()
   }
   m_fp_tol = options()->fpTol();
 
+  m_qdot = options()->qdot();
+
+
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
 }
@@ -117,13 +120,13 @@ void FemModuleFourierNL::
 _doStationarySolve()
 {
   info() << "[ArcaneFem-Info] Started module _doStationarySolve()";
-  _getMaterialParameters(); // fill lambda_cell and get qdot
   _updatePreviousIterationVariables();
   while (m_fp_iter < m_max_fp_iters) {
     if (m_assemble_linear_system) {
 
       if (m_linear_system.isInitialized() && m_fp_iter != 0) {
         m_linear_system.clearValues();
+        m_bsr_format.resetMatrixValues();
         _assembleBilinearOperator();
 
         /* TODO : We should ideally not update the matrix row/columns concerning Dirichlet if Dirichlet BC are fixed for all iterations */
@@ -160,29 +163,6 @@ _doStationarySolve()
   if (m_cross_validation) {
     _validateResults();
   }
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Retrieves and sets the material parameters for the simulation.
- *
- * This method initializes:
- *  - material properties:
- *       # heat source term (`qdot`)
- */
-/*---------------------------------------------------------------------------*/
-
-void FemModuleFourierNL::
-_getMaterialParameters()
-{
-  info() << "[ArcaneFem-Info] Started module _getMaterialParameters()";
-  Real elapsedTime = platform::getRealTime();
-
-  qdot = options()->qdot();
-  m_cell_lambda.fill(2.0);
-
-  elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "get-material-params", elapsedTime);
 }
 
 void FemModuleFourierNL::
@@ -227,15 +207,15 @@ _assembleLinearOperatorCpu()
   if (options()->qdot.isPresent()) {
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh)
-        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhsQuad4(qdot, mesh(), node_dof, m_node_coord, rhs_values);
+        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhsQuad4(m_qdot, mesh(), node_dof, m_node_coord, rhs_values);
       else
-        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhs(qdot, mesh(), node_dof, m_node_coord, rhs_values);
+        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhs(m_qdot, mesh(), node_dof, m_node_coord, rhs_values);
     }
     else {
       if (m_hex_quad_mesh)
-        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhsHexa8(qdot, mesh(), node_dof, m_node_coord, rhs_values);
+        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhsHexa8(m_qdot, mesh(), node_dof, m_node_coord, rhs_values);
       else
-        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhs(qdot, mesh(), node_dof, m_node_coord, rhs_values);
+        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhs(m_qdot, mesh(), node_dof, m_node_coord, rhs_values);
     }
   }
 
@@ -308,7 +288,7 @@ void FemModuleFourierNL::_assembleLinearOperatorGpu()
 
   auto applyBoundaryConditions = [&](auto BCFunctions) {
     if (options()->qdot.isPresent())
-      BCFunctions.applyConstantSourceToRhs(qdot, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
+      BCFunctions.applyConstantSourceToRhs(m_qdot, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
 
     BC::IArcaneFemBC* bc = options()->boundaryConditions();
     if (bc) {
@@ -349,7 +329,6 @@ _assembleBilinearOperator()
     auto command = makeCommand(m_queue);
     auto in_node_coord = ax::viewIn(command, m_node_coord);
     auto in_node_uk    = ax::viewIn(command, m_uk);
-    auto in_cell_lambda = ax::viewIn(command, m_cell_lambda);
 
     if (mesh()->dimension() == 2)
       if (m_matrix_format == "BSR")
@@ -358,9 +337,9 @@ _assembleBilinearOperator()
         m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk, node_lid); });
     else
       if (m_matrix_format == "BSR")
-        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda); });
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk); });
       else
-        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, node_lid); });
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk, node_lid); });
   }
 
   if (m_matrix_format == "DOK") {
@@ -386,9 +365,8 @@ _assembleBilinearOperator()
  * @brief Assembles the bilinear operator matrix for the FEM linear system.
  *
  * The method performs the following steps:
- *   1. For each cell, retrieves the cell-specific constant `lambda`.
- *   2. Computes element matrix using provided `compute_element_matrix` function.
- *   3. Assembles global matrix by adding contributions from each cell's element 
+ *   1. Computes element matrix using provided `compute_element_matrix` function.
+ *   2. Assembles global matrix by adding contributions from each cell's element
  *      matrix to the corresponding entries in the global matrix.
  */
 /*---------------------------------------------------------------------------*/

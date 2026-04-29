@@ -6,9 +6,6 @@
     <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
   </entry-points>
   <variables>
-    <variable field-name="cell_lambda" name="CellLambda" data-type="real" item-kind="cell" dim="0">
-      <description>Conductivity of the element</description>
-    </variable>
     <variable field-name="u" name="U" data-type="real" item-kind="node" dim="0">
       <description>FEM variable u on nodes</description>
     </variable>
