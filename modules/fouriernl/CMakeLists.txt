@@ -29,7 +29,6 @@ set(MESH_FILES
     unit_square.coarse.msh
     unit_square.quad.msh
     unit_cube.msh
-    unit_cube.hexa.msh
     unit_cube.hexa-non-cartesian.msh)
 
 foreach(MESH_FILE IN LISTS MESH_FILES)
@@ -40,6 +39,11 @@ enable_testing()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [fouriernl]2d_nonlinear_conduction COMMAND FourierNL
+          -A,//fem/solution-comparison-file=check/conduction_tria.txt
+          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+          inputs/Test.nonlinear.conduction.arc)
+  add_test(NAME [fouriernl]2d_nonlinear_conduction_qdot_zero COMMAND FourierNL
+          -A,//fem/qdot=0.0
           -A,//fem/solution-comparison-file=check/conduction_tria.txt
           -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
           inputs/Test.nonlinear.conduction.arc)
