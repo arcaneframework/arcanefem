@@ -51,6 +51,11 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           -A,//fem/solution-comparison-file=check/conduction_quad.txt
           -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
           inputs/Test.nonlinear.conduction.quad.arc)
+  add_test(NAME [fouriernl]2d_nonlinear_conduction_quad_qdot_zero COMMAND FourierNL
+          -A,//fem/qdot=0.0
+          -A,//fem/solution-comparison-file=check/conduction_quad.txt
+          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+          inputs/Test.nonlinear.conduction.quad.arc)
   add_test(NAME [fouriernl]2d_nonlinear_conduction_coarse COMMAND FourierNL
           -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
           inputs/Test.nonlinear.conduction.coarse.arc)
@@ -58,10 +63,20 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           -A,//fem/solution-comparison-file=check/conduction_hexa.txt
           -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
           inputs/Test.3d.nonlinear.conduction.hexa.arc)
+  add_test(NAME [fouriernl]3d_nonlinear_conduction_hexa_qdot_zero COMMAND FourierNL
+          -A,//fem/qdot=0.0
+          -A,//fem/solution-comparison-file=check/conduction_hexa.txt
+          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+          inputs/Test.3d.nonlinear.conduction.hexa.arc)
   add_test(NAME [fouriernl]3d_nonlinear_conduction_hexa_cartesian COMMAND FourierNL
           -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
           inputs/Test.3d.nonlinear.conduction.hexa.cartesian.arc)
   add_test(NAME [fouriernl]3d_nonlinear_conduction COMMAND FourierNL
+          -A,//fem/solution-comparison-file=check/conduction_tetra.txt
+          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+          inputs/Test.3d.nonlinear.conduction.arc)
+  add_test(NAME [fouriernl]3d_nonlinear_conduction_qdot_zero  COMMAND FourierNL
+          -A,//fem/qdot=0.0
           -A,//fem/solution-comparison-file=check/conduction_tetra.txt
           -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
           inputs/Test.3d.nonlinear.conduction.arc)
