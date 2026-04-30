@@ -25,7 +25,7 @@
   -->
   <meshes>
     <mesh>
-      <filename>meshes/unit_square.quad.msh</filename>
+      <filename>meshes/unit_cube.msh</filename>
     </mesh>
   </meshes>
 
@@ -34,7 +34,6 @@
       - boundary-conditions: Specifies boundary conditions
   -->
   <fem>
-    <hex-quad-mesh>true</hex-quad-mesh>
     <boundary-conditions>
         <dirichlet>
             <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>

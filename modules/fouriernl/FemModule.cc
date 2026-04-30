@@ -12,16 +12,16 @@
 /*---------------------------------------------------------------------------*/
 
 #include "FemModule.h"
+#include "ConductivityCoefficient.h"
 #include "ElementMatrix.h"
-#include <arcane/IParallelMng.h>
 #include "ElementMatrixHexQuad.h"
+#include <arcane/IParallelMng.h>
 
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Initializes the FemModuleFourierNL at the start of the simulation.
  *
  *  - initializes degrees of freedom (DoFs) on nodes.
- *  - builds support for manufactured test case (optional).
  */
 /*---------------------------------------------------------------------------*/
 
@@ -48,31 +48,8 @@ startInit()
   }
   m_fp_tol = options()->fpTol();
 
-  BC::IArcaneFemBC* bc = options()->boundaryConditions();
+  m_qdot = options()->qdot();
 
-  for (BC::IManufacturedSolution* bs : bc->manufacturedSolutions()) {
-    if (bs->getManufacturedSource()) {
-      ICaseFunction* opt_function_source = bs->getManufacturedSourceFunction();
-      IStandardFunction* scf_source = bs->getManufacturedSourceStandardFunction();
-      if (!scf_source)
-        ARCANE_FATAL("No standard case function for option 'manufactured-source-condition'");
-      auto* functorS = scf_source->getFunctorRealReal3ToReal();
-      if (!functorS)
-        ARCANE_FATAL("Standard function '{0}' is not convertible to f(Real,Real3) -> Real", opt_function_source->name());
-      m_manufactured_source = functorS;
-    }
-
-    if (bs->getManufacturedDirichlet()) {
-      ICaseFunction* opt_function = bs->getManufacturedDirichletFunction();
-      IStandardFunction* scf = bs->getManufacturedDirichletStandardFunction();
-      if (!scf)
-        ARCANE_FATAL("No standard case function for option 'manufactured-dirichlet-condition'");
-      auto* functor = scf->getFunctorRealReal3ToReal();
-      if (!functor)
-        ARCANE_FATAL("Standard function '{0}' is not convertible to f(Real,Real3) -> Real", opt_function->name());
-      m_manufactured_dirichlet = functor;
-    }
-  }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
@@ -143,23 +120,26 @@ void FemModuleFourierNL::
 _doStationarySolve()
 {
   info() << "[ArcaneFem-Info] Started module _doStationarySolve()";
-
   _updatePreviousIterationVariables();
   while (m_fp_iter < m_max_fp_iters) {
     if (m_assemble_linear_system) {
-      _updateNonLinearField(); // evaluates lambda(uk) on nodes
 
       if (m_linear_system.isInitialized() && m_fp_iter != 0) {
         m_linear_system.clearValues();
 
-        // TODO : We should idally not update the matrix row/columns concerning Dirichlet if Dirichlet BC are fixed for all iterations
-        // need to create a seperate function _assembleLinearOperatorLHSOnly.
+        if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
+          m_bsr_format.resetMatrixValues();
+
+        _assembleBilinearOperator();
+
+        /* TODO : We should ideally not update the matrix row/columns concerning Dirichlet if Dirichlet BC are fixed for all iterations */
+        /* need to create a separate function _assembleLinearOperatorLHSOnly. */
         _assembleLinearOperator(); // We use _assembleLinearOperator now for simplicity
       }
       else {
+        _assembleBilinearOperator();
         _assembleLinearOperator();
       }
-      _assembleBilinearOperator();
     }
     if (m_solve_linear_system) {
       _solve();
@@ -170,6 +150,7 @@ _doStationarySolve()
     _checkConvergence();
 
     if (m_converged) {
+      _updateExactSolution();
       info() << "[ArcaneFem-Info] Fixed-point iterations converged after " << m_fp_iter << " iterations";
       break;
     }
@@ -186,44 +167,9 @@ _doStationarySolve()
   if (m_cross_validation) {
     _validateResults();
   }
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Retrieves and sets the material parameters for the simulation.
- *
- * This method initializes:
- *  - material properties:
- *       # thermal conductivity coefficient (`lambda`)
- *       # heat source term (`qdot`)
- */
-/*---------------------------------------------------------------------------*/
-
-void FemModuleFourierNL::
-_getMaterialParameters()
-{
-  info() << "[ArcaneFem-Info] Started module _getMaterialParameters()";
-  Real elapsedTime = platform::getRealTime();
-
-  lambda = options()->lambda();
-  qdot = options()->qdot();
-
-  m_cell_lambda.fill(lambda);
-  m_node_lambda.fill(0.);
-
-  for (const auto& bs : options()->materialProperty()) {
-    CellGroup group = bs->volume();
-    Real value = bs->lambda();
-    info() << "Lambda for group= " << group.name() << " v=" << value;
-
-    ENUMERATE_ (Cell, icell, group) {
-      Cell cell = *icell;
-      m_cell_lambda[cell] = value;
-    }
+  if (m_check_solution) {
+    _checkSolution();
   }
-
-  elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "get-material-params", elapsedTime);
 }
 
 void FemModuleFourierNL::
@@ -248,8 +194,6 @@ _assembleLinearOperator()
  *  2. If a constant source term is specified (`qdot`), apply it to the RHS.
  *  3. If Neumann BC are specified applied to the RHS.
  *  4. If Dirichlet BC are specified apply to the LHS & RHS. 
- *  5. If manufactured source conditions is specified, apply to RHS.
- *  6. If  manufactured Dirichlet BC are specified apply to the LHS & RHS. 
  */
 /*---------------------------------------------------------------------------*/
 
@@ -270,15 +214,15 @@ _assembleLinearOperatorCpu()
   if (options()->qdot.isPresent()) {
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh)
-        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhsQuad4(qdot, mesh(), node_dof, m_node_coord, rhs_values);
+        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhsQuad4(m_qdot, mesh(), node_dof, m_node_coord, rhs_values);
       else
-        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhs(qdot, mesh(), node_dof, m_node_coord, rhs_values);
+        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhs(m_qdot, mesh(), node_dof, m_node_coord, rhs_values);
     }
     else {
       if (m_hex_quad_mesh)
-        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhsHexa8(qdot, mesh(), node_dof, m_node_coord, rhs_values);
+        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhsHexa8(m_qdot, mesh(), node_dof, m_node_coord, rhs_values);
       else
-        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhs(qdot, mesh(), node_dof, m_node_coord, rhs_values);
+        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhs(m_qdot, mesh(), node_dof, m_node_coord, rhs_values);
     }
   }
 
@@ -306,21 +250,6 @@ _assembleLinearOperatorCpu()
       // Dirichlet
       for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
         ArcaneFemFunctions::BoundaryConditions::applyDirichletToLhsAndRhs(bs, node_dof, m_linear_system, rhs_values);
-
-      // Manufactured boundary conditions
-      for (BC::IManufacturedSolution* bs : bc->manufacturedSolutions()) {
-        if (bs->getManufacturedSource()) {
-          ARCANE_CHECK_POINTER(m_manufactured_source);
-          info() << "Apply manufactured Source condition to all cells";
-          BCFunctions.applyManufacturedSourceToRhs(m_manufactured_source, mesh(), node_dof, m_node_coord, rhs_values);
-        }
-        if (bs->getManufacturedDirichlet()) {
-          ARCANE_CHECK_POINTER(m_manufactured_dirichlet);
-          info() << "Apply manufactured dirichlet condition to all borders";
-          FaceGroup group = mesh()->outerFaces();
-          BCFunctions.applyManufacturedDirichletToLhsAndRhs(m_manufactured_dirichlet, lambda, group, bs, node_dof, m_node_coord, m_linear_system, rhs_values);
-        }
-      }
     }
   };
 
@@ -366,7 +295,7 @@ void FemModuleFourierNL::_assembleLinearOperatorGpu()
 
   auto applyBoundaryConditions = [&](auto BCFunctions) {
     if (options()->qdot.isPresent())
-      BCFunctions.applyConstantSourceToRhs(qdot, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
+      BCFunctions.applyConstantSourceToRhs(m_qdot, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
 
     BC::IArcaneFemBC* bc = options()->boundaryConditions();
     if (bc) {
@@ -406,18 +335,18 @@ _assembleBilinearOperator()
     auto m_queue = subDomain()->acceleratorMng()->defaultQueue();
     auto command = makeCommand(m_queue);
     auto in_node_coord = ax::viewIn(command, m_node_coord);
-    auto in_cell_lambda = ax::viewIn(command, m_cell_lambda);
+    auto in_node_uk    = ax::viewIn(command, m_uk);
 
     if (mesh()->dimension() == 2)
       if (m_matrix_format == "BSR")
-        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda); });
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk); });
       else
-        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, node_lid); });
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk, node_lid); });
     else
       if (m_matrix_format == "BSR")
-        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda); });
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk); });
       else
-        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_cell_lambda, node_lid); });
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk, node_lid); });
   }
 
   if (m_matrix_format == "DOK") {
@@ -443,9 +372,8 @@ _assembleBilinearOperator()
  * @brief Assembles the bilinear operator matrix for the FEM linear system.
  *
  * The method performs the following steps:
- *   1. For each cell, retrieves the cell-specific constant `lambda`.
- *   2. Computes element matrix using provided `compute_element_matrix` function.
- *   3. Assembles global matrix by adding contributions from each cell's element 
+ *   1. Computes element matrix using provided `compute_element_matrix` function.
+ *   2. Assembles global matrix by adding contributions from each cell's element
  *      matrix to the corresponding entries in the global matrix.
  */
 /*---------------------------------------------------------------------------*/
@@ -459,7 +387,6 @@ _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_el
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    lambda = m_cell_lambda[cell]; // lambda is always considered cell constant
     auto K_e = compute_element_matrix(cell); // element matrix based on the provided function
     Int32 n1_index = 0;
     for (Node node1 : cell.nodes()) {
@@ -524,7 +451,7 @@ _checkConvergence()
   // Real l1_error = 0.0;
   {
     ENUMERATE_ (Node, inode, ownNodes()) {
-      const Real error = abs(m_u[inode] - m_uk[inode]);
+      const Real error = math::abs(m_u[inode] - m_uk[inode]);
 
       max_error = math::max(error, max_error);
       // l1_error  += error;
@@ -556,7 +483,7 @@ _checkConvergence()
  * @brief Update the FEM variables.
  *
  * This method performs the following actions:
- *   1. Fetches values of solution from solved linear system to FEM variables,
+ *   1. Fetches values of the solution from solved linear system to FEM variables,
  *      i.e., it copies RHS DOF to u.
  *   2. Performs synchronize of FEM variables across subdomains.
  */
@@ -568,73 +495,26 @@ _updateVariables(bool verbose)
   info() << "[ArcaneFem-Info] Started module _updateVariables()";
   Real elapsedTime = platform::getRealTime();
 
-  { // copies solution (and optionally exact solution) to FEM output
+  { // copies the solution to FEM output
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
       Real v = dof_u[node_dof.dofId(node, 0)];
-      Real m = options()->expNlin;
       m_u[node] = v;
       if (verbose) {
         info() << "u[" << node.uniqueId() << "] = " << m_u[node];
       }
-      m_u_exact[node] = math::pow((math::pow(2.0, m + 1) - 1) * m_node_coord[node].x + 1, 1 / (m + 1)) - 1.0;
     }
 
-    for (BC::IManufacturedSolution* bs : options()->boundaryConditions()->manufacturedSolutions())
-      ENUMERATE_ (Node, inode, ownNodes()) {
-        Node node = *inode;
-        m_u_exact[node] = m_manufactured_dirichlet->apply(options()->expNlin, m_node_coord[node]);
-      }
   }
 
   m_u.synchronize();
-  m_u_exact.synchronize();
-
-  for (BC::IManufacturedSolution* bs : options()->boundaryConditions()->manufacturedSolutions())
-    m_u_exact.synchronize();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "update-variables", elapsedTime);
 }
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Update the FEM nonlinear field.
- *
- * This method performs the following actions:
- *   1. Evaluates the values of the nonlinear FEM field from the
- *      previous fixed-point iteration FEM variables.
- *   2. Performs synchronize of FEM nonlinear FEM field across subdomains.
- */
-/*---------------------------------------------------------------------------*/
-
-void FemModuleFourierNL::
-_updateNonLinearField(bool verbose)
-{
-  info() << "[ArcaneFem-Info] Started module _updateNonLinearField()";
-  Real elapsedTime = platform::getRealTime();
-  m_uk.synchronize();
-  {
-    VariableDoFReal& dof_u(m_linear_system.solutionVariable());
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    ENUMERATE_ (Node, inode, ownNodes())
-    {
-      Node node = *inode;
-      m_node_lambda[inode] = math::pow( 1 + m_uk[inode], options()->expNlin);
-      if (verbose) {
-        info() << "lambda[" << node.uniqueId() << "] = " << m_node_lambda[node];
-      }
-    }
-  }
-  m_node_lambda.synchronize();
-
-  elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
-}
-
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -738,6 +618,73 @@ _validateResults()
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "result-validation", elapsedTime);
+}
+
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Updates the exact solution in the FEM variable m_exact.
+ *
+ * This method performs the following actions:
+ *   1. Updates the exact solution.
+ *   2. Performs synchronize of the FEM variable across subdomains.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleFourierNL::
+_updateExactSolution(bool verbose)
+{
+  info() << "[ArcaneFem-Info] Started module _updateExactSolution()";
+  Real elapsedTime = platform::getRealTime();
+
+  {
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      Real m = options()->expNlin;
+      m_u_exact[node] = math::pow((math::pow(2.0, m + 1) - 1) * m_node_coord[node].x + 1, 1 / (m + 1)) - 1.0;
+      if (verbose) {
+        info() << "u_exact[" << node.uniqueId() << "] = " << m_u_exact[node];
+      }
+    }
+  }
+  m_u_exact.synchronize();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "update-exact-solution", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Validates and prints the results of the FEM computation.
+ *
+ * This method performs the following actions:
+ *   1. Checks and prints the infinity norm of difference between the resulting
+ *      solution and the analytical solution
+ *
+ * @note The result comparison uses a tolerance of 1.0e-4.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleFourierNL::
+_checkSolution()
+{
+  info() << "[ArcaneFem-Info] Started module _checkSolution()";
+  Real elapsedTime = platform::getRealTime();
+
+  Real max_error = 0.0;
+  {
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      const Real error = math::abs(m_u[inode] - m_u_exact[inode]);
+
+      max_error = math::max(error, max_error);
+    }
+  }
+  IParallelMng* pm = defaultMesh()->parallelMng();
+  max_error = pm->reduce(Parallel::ReduceMax, max_error);
+  info() << "[ArcaneFem-Info] The error between the ref solution and current solution is linf(max)-error = " << max_error;
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "solution-check", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/

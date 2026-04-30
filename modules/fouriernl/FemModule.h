@@ -80,10 +80,9 @@ class FemModuleFourierNL
 
  private:
 
-  Real lambda;
-  Real qdot;
+  Real m_qdot;
   Real ElementNodes;
-  Real m_fp_tol{1e-3};
+  Real m_fp_tol{1e-5};
 
   Int32 m_max_fp_iters{15}, m_fp_iter{0};
 
@@ -93,6 +92,7 @@ class FemModuleFourierNL
   bool m_assemble_linear_system = true;
   bool m_solve_linear_system = true;
   bool m_cross_validation = false;
+  bool m_check_solution = true;
   bool m_hex_quad_mesh = false;
   bool m_perform_fixed_point_iters = false;
   bool m_converged = false;
@@ -103,7 +103,6 @@ class FemModuleFourierNL
   BSRFormat m_bsr_format;
 
   void _doStationarySolve();
-  void _getMaterialParameters();
   void _solve();
   void _assembleLinearOperator();
   void _assembleLinearOperatorCpu();
@@ -112,17 +111,14 @@ class FemModuleFourierNL
   void _updatePreviousIterationVariables(bool verbose=false);
   void _updateSolutionFromVariables();
   void _checkConvergence();
-  void _updateNonLinearField(bool verbose=false);
-
+  void _updateExactSolution(bool verbose=false);
+  void _checkSolution();
 
   RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
   RealMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);
   RealMatrix<4, 4> _computeElementMatrixQuad4(Cell cell);
   RealMatrix<8, 8> _computeElementMatrixHexa8(Cell cell);
-  IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_dirichlet = nullptr;
-  IBinaryMathFunctor<Real, Real3, Real>* m_manufactured_source = nullptr;
-  IBinaryMathFunctor<Real, Real3, Real>* m_exact_solution = nullptr;
-  IBinaryMathFunctor<Real, Real3, Real>* m_lambda_func = nullptr;
+  Real _lambdaCpu(const Real& u);
 
   template<int N>
   void _assembleBilinear( const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);

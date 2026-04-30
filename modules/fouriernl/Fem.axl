@@ -6,12 +6,6 @@
     <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
   </entry-points>
   <variables>
-    <variable field-name="cell_lambda" name="CellLambda" data-type="real" item-kind="cell" dim="0">
-      <description>Conductivity of the element</description>
-    </variable>
-    <variable field-name="node_lambda" name="NodeLambda" data-type="real" item-kind="node" dim="0">
-      <description>Conductivity of the element</description>
-    </variable>
     <variable field-name="u" name="U" data-type="real" item-kind="node" dim="0">
       <description>FEM variable u on nodes</description>
     </variable>
@@ -28,10 +22,6 @@
   <options>
     <simple name="qdot" type="real" default="0.0">
       <description>Heat source within the material.</description>
-    </simple>
-
-    <simple name="lambda" type="real" default="1.75">
-      <description>Thermal conductivity of the material.</description>
     </simple>
 
     <simple name="solution-comparison-file" type="string" optional="true">
@@ -58,27 +48,6 @@
       <description>Boolean to use hexagonal quadrature for element matrix assembly.</description>
     </simple>
 
-    <!-- - - - - - material-property - - - - -->
-    <complex name  = "material-property"
-             type  = "MaterialProperty"
-             minOccurs = "0"
-             maxOccurs = "unbounded"
-      >
-      <description>
-        Material properties
-      </description>
-      <extended name = "volume" type = "Arcane::CellGroup">
-        <description>
-          CellGroup on which material properties are applied
-        </description>
-      </extended>
-      <simple name = "lambda" type = "real">
-        <description>
-          Value of the conductivity for CellGroup
-        </description>
-      </simple>
-    </complex>
-
     <!-- - - - - - nonlinear-analysis-parameters - - - - -->
     <simple name="perform-fp-iters" type="bool" default="true" optional="true">
       <description>Boolean to enable fixed-point (outer Picard) iterations.</description>
@@ -86,7 +55,7 @@
     <simple name="fp-tol" type ="real" default="1e-5" optional="true">
       <description>Tolerance for convergence of fixed point iterations</description>
     </simple>
-    <simple name="max-fp-iters" type="integer" default="100" optional="true">
+    <simple name="max-fp-iters" type="integer" default="20" optional="true">
       <description>Maximum number of iterations to convergence</description>
     </simple>
     <simple name="exp-nlin" type ="real" default="2" optional="true">

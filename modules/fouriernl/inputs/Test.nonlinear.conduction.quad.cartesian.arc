@@ -24,10 +24,17 @@
       - filename: Path to the mesh file used in the simulation.
   -->
   <meshes>
-    <mesh>
-      <filename>meshes/unit_square.quad.msh</filename>
-    </mesh>
-  </meshes>
+      <mesh>
+        <generator name="Cartesian2D" >
+          <nb-part-x>1</nb-part-x>
+          <nb-part-y>1</nb-part-y>
+          <origin>0.0 0.0</origin>
+          <generate-sod-groups>true</generate-sod-groups>
+          <x><n>10</n><length>1.0</length></x>
+          <y><n>4</n><length>1.0</length></y>
+        </generator>
+      </mesh>
+    </meshes>
 
   <!--
     FEM (Finite Element Method) settings:
@@ -38,12 +45,12 @@
     <boundary-conditions>
         <dirichlet>
             <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-            <surface>left</surface>
+            <surface>XMIN</surface>
             <value>0.0</value>
         </dirichlet>
         <dirichlet>
             <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
-            <surface>right</surface>
+            <surface>XMAX</surface>
             <value>1.0</value>
         </dirichlet>
     </boundary-conditions>
