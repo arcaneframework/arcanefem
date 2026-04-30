@@ -256,23 +256,12 @@ _assembleLinearSystem()
                            grad_x_j[1] * normal.x + grad_y_j[1] * normal.y,
                            grad_x_j[2] * normal.x + grad_y_j[2] * normal.y };
 
-      // Penalty parameter σ = γ/h
-      // Compute diameter as max distance between nodes
-      Real diam_i = 0.0;
-      for (Int32 n1 = 0; n1 < cell_i.nbNode(); ++n1) {
-        for (Int32 n2 = n1 + 1; n2 < cell_i.nbNode(); ++n2) {
-          Real dist = (m_node_coord[cell_i.nodeId(n1)] - m_node_coord[cell_i.nodeId(n2)]).normL2();
-          diam_i = math::max(diam_i, dist);
-        }
-      }
-      Real diam_j = 0.0;
-      for (Int32 n1 = 0; n1 < cell_j.nbNode(); ++n1) {
-        for (Int32 n2 = n1 + 1; n2 < cell_j.nbNode(); ++n2) {
-          Real dist = (m_node_coord[cell_j.nodeId(n1)] - m_node_coord[cell_j.nodeId(n2)]).normL2();
-          diam_j = math::max(diam_j, dist);
-        }
-      }
-      Real h = math::min(diam_i, diam_j);
+      // Penalty parameter σ = γ/h using a face-based cell size
+      Real area_i = ArcaneFemFunctions::MeshOperation::computeAreaPolygon2D(cell_i, m_node_coord);
+      Real area_j = ArcaneFemFunctions::MeshOperation::computeAreaPolygon2D(cell_j, m_node_coord);
+      Real h_i = 2.0 * area_i / length;
+      Real h_j = 2.0 * area_j / length;
+      Real h = math::min(h_i, h_j);
       Real sigma = penalty / h;
 
       // SIPG terms
@@ -357,14 +346,8 @@ _assembleLinearSystem()
                              grad_x_i[1] * normal.x + grad_y_i[1] * normal.y,
                              grad_x_i[2] * normal.x + grad_y_i[2] * normal.y };
 
-        Real diam_i = 0.0;
-        for (Int32 n1 = 0; n1 < cell_i.nbNode(); ++n1) {
-          for (Int32 n2 = n1 + 1; n2 < cell_i.nbNode(); ++n2) {
-            Real dist = (m_node_coord[cell_i.nodeId(n1)] - m_node_coord[cell_i.nodeId(n2)]).normL2();
-            diam_i = math::max(diam_i, dist);
-          }
-        }
-        Real h = diam_i;
+        Real area_i = ArcaneFemFunctions::MeshOperation::computeAreaPolygon2D(cell_i, m_node_coord);
+        Real h = 2.0 * area_i / length;
         Real sigma = penalty / h;
 
         const StringConstArrayView u_dirichlet_string = bs->getValue();
