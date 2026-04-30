@@ -8,17 +8,22 @@ if(POLICY CMP0144)
 endif()
 
 find_package(Arcane 3.14.14 REQUIRED)
+find_package(MEDFile)
 arcane_accelerator_enable()
 
 enable_testing()
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Utils.cmake)
 
 set(MSH_DIR ${CMAKE_SOURCE_DIR}/meshes/msh)
+set(MED_DIR ${CMAKE_SOURCE_DIR}/meshes/med)
 
 # Needed for dynamic loading of services
 set(BUILD_SHARED_LIBS TRUE)
 
 add_subdirectory(femutils)
+
+# Add subdirectories for modules
+# FEM modules (Continous Galerkin)
 add_subdirectory(modules/acoustics)
 add_subdirectory(modules/aerodynamics)
 add_subdirectory(modules/testlab)
@@ -34,6 +39,9 @@ add_subdirectory(modules/soildynamics)
 add_subdirectory(modules/heat)
 add_subdirectory(modules/passmo)
 add_subdirectory(modules/passmonl)
+
+# FEM modules (Discontinous Galerkin)
+add_subdirectory(modules/poisson_dg)
 
 find_package(Doxygen)
 if (Doxygen_FOUND AND TARGET Doxygen::doxygen)
