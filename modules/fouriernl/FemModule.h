@@ -92,6 +92,7 @@ class FemModuleFourierNL
   bool m_assemble_linear_system = true;
   bool m_solve_linear_system = true;
   bool m_cross_validation = false;
+  bool m_check_solution = true;
   bool m_hex_quad_mesh = false;
   bool m_perform_fixed_point_iters = false;
   bool m_converged = false;
@@ -110,6 +111,8 @@ class FemModuleFourierNL
   void _updatePreviousIterationVariables(bool verbose=false);
   void _updateSolutionFromVariables();
   void _checkConvergence();
+  void _updateExactSolution(bool verbose=false);
+  void _checkSolution();
 
   RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
   RealMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);

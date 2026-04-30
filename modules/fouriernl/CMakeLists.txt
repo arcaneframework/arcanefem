@@ -16,9 +16,6 @@ configure_file(FourierNL.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(FourierNL PUBLIC FemUtils)
 
-# Copy the check files in the binary directory
-file(COPY "check" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-
 # Copy the inputs folder containing the arc files
 file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -134,22 +131,22 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/linear-system/atol=1e-9
     -A,//fem/linear-system/rtol=0)
 
-  arcanefem_add_gpu_test(NAME [fourier]2d_conduction_hypre_bsr COMMAND ./FourierNL ARGS
+  arcanefem_add_gpu_test(NAME [fouriernl]2d_conduction_hypre_bsr COMMAND ./FourierNL ARGS
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG}
-          inputs/Test.nonlinear.conduction.arc)
+    inputs/Test.nonlinear.conduction.arc)
 
-  arcanefem_add_gpu_test(NAME [fourier]2d_conduction_hypre_af-bsr COMMAND ./FourierNL ARGS
+  arcanefem_add_gpu_test(NAME [fouriernl]2d_conduction_hypre_af-bsr COMMAND ./FourierNL ARGS
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG}
-          inputs/Test.nonlinear.conduction.arc)
+    inputs/Test.nonlinear.conduction.arc)
 
-  arcanefem_add_gpu_test(NAME [fourier]3d_conduction_hypre_bsr COMMAND ./FourierNL ARGS
+  arcanefem_add_gpu_test(NAME [fouriernl]3d_conduction_hypre_bsr COMMAND ./FourierNL ARGS
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG}
     inputs/Test.3d.nonlinear.conduction.arc)
 
-  arcanefem_add_gpu_test(NAME [fourier]3d_conduction_hypre_af-bsr COMMAND ./FourierNL ARGS
+  arcanefem_add_gpu_test(NAME [fouriernl]3d_conduction_hypre_af-bsr COMMAND ./FourierNL ARGS
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG}
     inputs/Test.3d.nonlinear.conduction.arc)

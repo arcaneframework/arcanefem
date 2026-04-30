@@ -150,6 +150,7 @@ _doStationarySolve()
     _checkConvergence();
 
     if (m_converged) {
+      _updateExactSolution();
       info() << "[ArcaneFem-Info] Fixed-point iterations converged after " << m_fp_iter << " iterations";
       break;
     }
@@ -165,6 +166,9 @@ _doStationarySolve()
   }
   if (m_cross_validation) {
     _validateResults();
+  }
+  if (m_check_solution) {
+    _checkSolution();
   }
 }
 
@@ -447,7 +451,7 @@ _checkConvergence()
   // Real l1_error = 0.0;
   {
     ENUMERATE_ (Node, inode, ownNodes()) {
-      const Real error = abs(m_u[inode] - m_uk[inode]);
+      const Real error = math::abs(m_u[inode] - m_uk[inode]);
 
       max_error = math::max(error, max_error);
       // l1_error  += error;
@@ -479,7 +483,7 @@ _checkConvergence()
  * @brief Update the FEM variables.
  *
  * This method performs the following actions:
- *   1. Fetches values of solution from solved linear system to FEM variables,
+ *   1. Fetches values of the solution from solved linear system to FEM variables,
  *      i.e., it copies RHS DOF to u.
  *   2. Performs synchronize of FEM variables across subdomains.
  */
@@ -491,25 +495,22 @@ _updateVariables(bool verbose)
   info() << "[ArcaneFem-Info] Started module _updateVariables()";
   Real elapsedTime = platform::getRealTime();
 
-  { // copies solution (and optionally exact solution) to FEM output
+  { // copies the solution to FEM output
     VariableDoFReal& dof_u(m_linear_system.solutionVariable());
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
       Real v = dof_u[node_dof.dofId(node, 0)];
-      Real m = options()->expNlin;
       m_u[node] = v;
       if (verbose) {
         info() << "u[" << node.uniqueId() << "] = " << m_u[node];
       }
-      m_u_exact[node] = math::pow((math::pow(2.0, m + 1) - 1) * m_node_coord[node].x + 1, 1 / (m + 1)) - 1.0;
     }
 
   }
 
   m_u.synchronize();
-  m_u_exact.synchronize();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "update-variables", elapsedTime);
@@ -617,6 +618,73 @@ _validateResults()
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "result-validation", elapsedTime);
+}
+
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Updates the exact solution in the FEM variable m_exact.
+ *
+ * This method performs the following actions:
+ *   1. Updates the exact solution.
+ *   2. Performs synchronize of the FEM variable across subdomains.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleFourierNL::
+_updateExactSolution(bool verbose)
+{
+  info() << "[ArcaneFem-Info] Started module _updateExactSolution()";
+  Real elapsedTime = platform::getRealTime();
+
+  {
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      Real m = options()->expNlin;
+      m_u_exact[node] = math::pow((math::pow(2.0, m + 1) - 1) * m_node_coord[node].x + 1, 1 / (m + 1)) - 1.0;
+      if (verbose) {
+        info() << "u_exact[" << node.uniqueId() << "] = " << m_u_exact[node];
+      }
+    }
+  }
+  m_u_exact.synchronize();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "update-exact-solution", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Validates and prints the results of the FEM computation.
+ *
+ * This method performs the following actions:
+ *   1. Checks and prints the infinity norm of difference between the resulting
+ *      solution and the analytical solution
+ *
+ * @note The result comparison uses a tolerance of 1.0e-4.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleFourierNL::
+_checkSolution()
+{
+  info() << "[ArcaneFem-Info] Started module _checkSolution()";
+  Real elapsedTime = platform::getRealTime();
+
+  Real max_error = 0.0;
+  {
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      const Real error = math::abs(m_u[inode] - m_u_exact[inode]);
+
+      max_error = math::max(error, max_error);
+    }
+  }
+  IParallelMng* pm = defaultMesh()->parallelMng();
+  max_error = pm->reduce(Parallel::ReduceMax, max_error);
+  info() << "[ArcaneFem-Info] The error between the ref solution and current solution is linf(max)-error = " << max_error;
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "solution-check", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
