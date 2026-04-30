@@ -25,7 +25,7 @@
   -->
   <meshes>
     <mesh>
-      <filename>meshes/unit_cube.hexa.msh</filename>
+      <filename>meshes/unit_cube.hexa-non-cartesian.msh</filename>
     </mesh>
   </meshes>
 
