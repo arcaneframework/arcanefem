@@ -184,7 +184,7 @@ _assembleLinearSystem()
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
     Real area = ArcaneFemFunctions::MeshOperation::computeAreaPolygon2D(cell, m_node_coord);
-    Real3 centroid =  ArcaneFemFunctions::MeshOperation::computeCentroid(cell, m_node_coord);
+    Real3 centroid = ArcaneFemFunctions::MeshOperation::computeCentroid(cell, m_node_coord);
 
     // Evaluate basis at centroid for volume integral approximation
     // Basis: phi_0 = 1, phi_1 = x - x_c, phi_2 = y - y_c
@@ -217,29 +217,29 @@ _assembleLinearSystem()
     // Compute length
     Real3 p0 = m_node_coord[face.nodeId(0)];
     Real3 p1 = m_node_coord[face.nodeId(1)];
-    Real length = (p1 - p0).normL2();
+    Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
     // Compute centroid
-    Real3 face_center = (p0 + p1) * 0.5;
+    Real3 face_center = ArcaneFemFunctions::MeshOperation::computeCentroid(face, m_node_coord);
 
     if (face.nbCell() == 2) { // Interior face
       Cell cell_i = face.cell(0);
       Cell cell_j = face.cell(1);
 
       // compute centroids for normal orientation
-      Real3 cent_i =  ArcaneFemFunctions::MeshOperation::computeCentroid(cell_i, m_node_coord);
-      Real3 cent_j =  ArcaneFemFunctions::MeshOperation::computeCentroid(cell_j, m_node_coord);
+      Real3 cell_center_cell_i = ArcaneFemFunctions::MeshOperation::computeCentroid(cell_i, m_node_coord);
+      Real3 cell_center_cell_j = ArcaneFemFunctions::MeshOperation::computeCentroid(cell_j, m_node_coord);
 
       // Compute normal (assuming 2D, outward from cell_i)
       Real3 edge_vec = p1 - p0;
       Real3 normal = { edge_vec.y, -edge_vec.x, 0.0 };
       normal = normal / normal.normL2();
       // Ensure pointing from i to j
-      if (math::dot(normal, cent_j - cent_i) < 0)
+      if (math::dot(normal, cell_center_cell_j - cell_center_cell_i) < 0)
         normal = -normal;
 
       // Evaluate basis at face center
-      Real x_rel_i = face_center.x - cent_i.x;
-      Real y_rel_i = face_center.y - cent_i.y;
+      Real x_rel_i = face_center.x - cell_center_cell_i.x;
+      Real y_rel_i = face_center.y - cell_center_cell_i.y;
       Real phi_i[3] = { 1.0, x_rel_i, y_rel_i };
       Real grad_x_i[3] = { 0.0, 1.0, 0.0 };
       Real grad_y_i[3] = { 0.0, 0.0, 1.0 };
@@ -247,8 +247,8 @@ _assembleLinearSystem()
                            grad_x_i[1] * normal.x + grad_y_i[1] * normal.y,
                            grad_x_i[2] * normal.x + grad_y_i[2] * normal.y };
 
-      Real x_rel_j = face_center.x - cent_j.x;
-      Real y_rel_j = face_center.y - cent_j.y;
+      Real x_rel_j = face_center.x - cell_center_cell_j.x;
+      Real y_rel_j = face_center.y - cell_center_cell_j.y;
       Real phi_j[3] = { 1.0, x_rel_j, y_rel_j };
       Real grad_x_j[3] = { 0.0, 1.0, 0.0 };
       Real grad_y_j[3] = { 0.0, 0.0, 1.0 };
@@ -317,28 +317,24 @@ _assembleLinearSystem()
         Real3 p1 = m_node_coord[face.nodeId(1)];
 
         // Compute length
-        Real length = (p1 - p0).normL2();
+        Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
 
         // Compute normal (outward)
         Real3 edge_vec = p1 - p0;
         Real3 normal = { edge_vec.y, -edge_vec.x, 0.0 };
         normal = normal / normal.normL2();
 
-        // Compute centroid
-        Real3 face_center = (p0 + p1) * 0.5;
+        // Compute centroid for basis evaluation
+        Real3 face_center = ArcaneFemFunctions::MeshOperation::computeCentroid(face, m_node_coord);
+        Real3 cell_center_cell_i = ArcaneFemFunctions::MeshOperation::computeCentroid(cell_i, m_node_coord);
 
-        // Ensure outward
-        Real3 cell_cent = { 0.0, 0.0, 0.0 };
-        for (Node node : cell_i.nodes())
-          cell_cent += m_node_coord[node];
-        cell_cent /= cell_i.nbNode();
-        Real3 face_cent = (p0 + p1) * 0.5;
-        if (math::dot(normal, face_cent - cell_cent) < 0)
+        // Ensure outward normal points from cell to face
+        if (math::dot(normal, face_center - cell_center_cell_i) < 0)
           normal = -normal;
 
-        Real3 cent_i = ArcaneFemFunctions::MeshOperation::computeCentroid(cell_i, m_node_coord);
-        Real x_rel_i = face_center.x - cent_i.x;
-        Real y_rel_i = face_center.y - cent_i.y;
+        // Evaluate basis at face center
+        Real x_rel_i = face_center.x - cell_center_cell_i.x;
+        Real y_rel_i = face_center.y - cell_center_cell_i.y;
         Real phi_i[3] = { 1.0, x_rel_i, y_rel_i };
         Real grad_x_i[3] = { 0.0, 1.0, 0.0 };
         Real grad_y_i[3] = { 0.0, 0.0, 1.0 };
@@ -378,29 +374,23 @@ _assembleLinearSystem()
         Face face = *iface;
         Cell cell_i = face.cell(0);
 
-        // Get face points
-        Real3 p0 = m_node_coord[face.nodeId(0)];
-        Real3 p1 = m_node_coord[face.nodeId(1)];
-
         // Compute length
-        Real length = (p1 - p0).normL2();
+        Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
 
-        // Compute centroid
-        Real3 face_center = (p0 + p1) * 0.5;
+        // Compute centroid for basis evaluation
+        Real3 face_center = ArcaneFemFunctions::MeshOperation::computeCentroid(face, m_node_coord);
+        Real3 cell_center_cell_i = ArcaneFemFunctions::MeshOperation::computeCentroid(cell_i, m_node_coord);
 
-        Real3 cent_i = ArcaneFemFunctions::MeshOperation::computeCentroid(cell_i, m_node_coord);
-        Real x_rel_i = face_center.x - cent_i.x;
-        Real y_rel_i = face_center.y - cent_i.y;
+        // Evaluate basis at face center
+        Real x_rel_i = face_center.x - cell_center_cell_i.x;
+        Real y_rel_i = face_center.y - cell_center_cell_i.y;
         Real phi_i[3] = { 1.0, x_rel_i, y_rel_i };
 
         const StringConstArrayView u_neumann_string = bs->getValue();
         Real g = std::stod(u_neumann_string[0].localstr());
 
+        // RHS contribution: <v, g> =  <phi_i, g> = phi_i[i] * g * length
         for (Int32 i = 0; i < 3; ++i) {
-
-          // Neumann BC: ∇u·n = g
-          // Weak form: ∫ v * g ds
-          // RHS contribution: <v, g> =  <phi_i, g> = phi_i[i] * g * length
           DoFLocalId dof_i = cell_dof.dofId(cell_i, i);
           rhs_values[dof_i] += phi_i[i] * g * length;
         }
@@ -414,7 +404,7 @@ _assembleLinearSystem()
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"lhs-matrix-assembly", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "lhs-matrix-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
