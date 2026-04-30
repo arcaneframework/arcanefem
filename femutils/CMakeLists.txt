@@ -34,6 +34,8 @@ add_library(FemUtils
   DoFLinearSystemImplBase.cc
   FemDoFsOnNodes.h
   FemDoFsOnNodes.cc
+  FemDoFsOnCells.h
+  FemDoFsOnCells.cc
   FemBoundaryConditions.cc
   ArcaneFemFunctionsGpu.h
   ArcaneFemFunctions.h
