@@ -26,11 +26,13 @@ file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MSH_FILES
     circle_cut.msh
+    circle_cut.quad-tria.msh
 )
 set(MED_FILES
     circle_cut-tria.med
     circle_cut-quad-tria.med
     circle_cut-quad.med
+    circle_cut-poly.med
 )
 foreach(MSH_FILES IN LISTS MSH_FILES)
     file(COPY ${MSH_DIR}/${MSH_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
@@ -57,7 +59,11 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/solution-comparison-file=check/circle.2D.neumann.txt
     inputs/circle.2D.neumann.arc)
 
-  add_test(NAME [Poisson_dg]circle_neumann_tria_petsc COMMAND Poisson_dg
+  add_test(NAME [Poisson_dg]circle_homogenous_quad_tria COMMAND Poisson_dg
+    -A,//meshes/mesh/filename=meshes/circle_cut.quad-tria.msh
+    inputs/circle.2D.arc)
+
+    add_test(NAME [Poisson_dg]circle_neumann_tria_petsc COMMAND Poisson_dg
     -A,//fem/matrix-format=CSR
     -A,//fem/linear-system/@name=PETScLinearSystem
     -A,//fem/solution-comparison-file=check/circle.2D.neumann.txt
@@ -81,6 +87,9 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       inputs/circle.2D.arc)
     add_test(NAME [Poisson_dg]circle_homogenous_quad_med COMMAND Poisson_dg
       -A,//meshes/mesh/filename=meshes/circle_cut-quad.med
+      inputs/circle.2D.arc)
+    add_test(NAME [Poisson_dg]circle_homogenous_poly_med COMMAND Poisson_dg
+      -A,//meshes/mesh/filename=meshes/circle_cut-poly.med
       inputs/circle.2D.arc)
   endif()
 endif()
