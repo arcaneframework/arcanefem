@@ -34,6 +34,10 @@ y1 = 1;
 z0 = 0;
 z1 = 1;
 
+
+DefineConstant[ threads  = {4, Min 1, Max 128, Step 1,
+                         Name "Parameters/threads threads"} ];
+
 //==============================================================================
 // ---- mesh size parameters ( denoted by lc )----
 //==============================================================================
@@ -103,12 +107,11 @@ Physical Volume("volume") = {26};
 //==============================================================================
 // ---- msh version/algo imposed ----
 //==============================================================================
-Mesh.MshFileVersion = 4.1;
-Mesh 3;
-
-General.NumThreads = threads;
-
 Mesh.Algorithm = 5;
 Mesh.Algorithm3D = 10;
 Mesh.MshFileVersion = 4.1;
+
+General.NumThreads = threads;
+
+Mesh 3;
 
