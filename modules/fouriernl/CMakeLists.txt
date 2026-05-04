@@ -96,11 +96,13 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   arcanefem_add_gpu_test(NAME [fouriernl]3d_conduction_petsc_bsr COMMAND ./FourierNL ARGS
           -A,//fem/matrix-format=BSR
           -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+          -A,//fem/solution-comparison-file=check/conduction_tetra.txt
           inputs/Test.3d.nonlinear.conduction.arc)
 
   arcanefem_add_gpu_test(NAME [fouriernl]3d_conduction_petsc_af-bsr COMMAND ./FourierNL ARGS
           -A,//fem/matrix-format=AF-BSR
           -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+          -A,//fem/solution-comparison-file=check/conduction_tetra.txt
           inputs/Test.3d.nonlinear.conduction.arc)
 
   set(SOLVER_PETSC_CG
@@ -113,32 +115,38 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           -A,//fem/matrix-format=BSR
           ${SOLVER_PETSC_CG}
           -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+          -A,//fem/solution-comparison-file=check/conduction_tria.txt
           inputs/Test.nonlinear.conduction.arc)
 
   arcanefem_add_gpu_test(NAME [fouriernl]2d_conduction_petsc-direct_af-bsr COMMAND ./FourierNL ARGS
           -A,//fem/matrix-format=AF-BSR
           ${SOLVER_PETSC_CG}
           -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+          -A,//fem/solution-comparison-file=check/conduction_tria.txt
           inputs/Test.nonlinear.conduction.arc)
 
   arcanefem_add_gpu_test(NAME [fouriernl]3d_conduction_petsc-direct_bsr COMMAND ./FourierNL ARGS
           -A,//fem/matrix-format=BSR
           ${SOLVER_PETSC_CG}
           -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+          -A,//fem/solution-comparison-file=check/conduction_tetra.txt
           inputs/Test.3d.nonlinear.conduction.arc)
 
   arcanefem_add_gpu_test(NAME [fouriernl]3d_conduction_petsc-direct_af-bsr COMMAND ./FourierNL ARGS
           -A,//fem/matrix-format=AF-BSR
           ${SOLVER_PETSC_CG}
+          -A,//fem/solution-comparison-file=check/conduction_tetra.txt
           inputs/Test.3d.nonlinear.conduction.arc)
 
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
     add_test(NAME [fouriernl]2d_nonlinear_conduction_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
             -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+            -A,//fem/solution-comparison-file=check/conduction_tria.txt
             inputs/Test.nonlinear.conduction.arc)
     add_test(NAME [fouriernl]2d_nonlinear_conduction_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
             -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+            -A,//fem/solution-comparison-file=check/conduction_quad.txt
             inputs/Test.nonlinear.conduction.quad.arc)
     add_test(NAME [fouriernl]2d_nonlinear_conduction_coarse_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
             -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
@@ -149,6 +157,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
             -A,//meshes/mesh/generator/nb-part-x=2)
     add_test(NAME [fouriernl]3d_nonlinear_conduction_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./FourierNL
             -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+            -A,//fem/solution-comparison-file=check/conduction_tetra.txt
             inputs/Test.3d.nonlinear.conduction.arc)
   endif()
 endif()
@@ -163,21 +172,25 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   arcanefem_add_gpu_test(NAME [fouriernl]2d_conduction_hypre_bsr COMMAND ./FourierNL ARGS
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG}
+    -A,//fem/solution-comparison-file=check/conduction_tria.txt
     inputs/Test.nonlinear.conduction.arc)
 
   arcanefem_add_gpu_test(NAME [fouriernl]2d_conduction_hypre_af-bsr COMMAND ./FourierNL ARGS
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG}
+    -A,//fem/solution-comparison-file=check/conduction_tria.txt
     inputs/Test.nonlinear.conduction.arc)
 
   arcanefem_add_gpu_test(NAME [fouriernl]3d_conduction_hypre_bsr COMMAND ./FourierNL ARGS
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG}
+    -A,//fem/solution-comparison-file=check/conduction_tetra.txt
     inputs/Test.3d.nonlinear.conduction.arc)
 
   arcanefem_add_gpu_test(NAME [fouriernl]3d_conduction_hypre_af-bsr COMMAND ./FourierNL ARGS
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG}
+    -A,//fem/solution-comparison-file=check/conduction_tetra.txt
     inputs/Test.3d.nonlinear.conduction.arc)
 
 endif()
