@@ -16,6 +16,9 @@
   <meshes>
     <mesh>
       <filename>meshes/circle_cut.quad.msh</filename>
+      <subdivider>
+        <nb-subdivision>0</nb-subdivision>
+      </subdivider>
     </mesh>
   </meshes>
 
