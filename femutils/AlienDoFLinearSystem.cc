@@ -1,11 +1,11 @@
 // -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* PETScDoFLinearSystem.cc                                     (C) 2022-2025 */
+/* PetscDoFLinearSystem.cc                                     (C) 2000-2026 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
 /*---------------------------------------------------------------------------*/
@@ -69,7 +69,7 @@
 
 #ifdef ALIEN_USE_PETSC
 #include <alien/kernels/petsc/io/AsciiDumper.h>
-#include <alien/kernels/petsc/algebra/PETScLinearAlgebra.h>
+#include <alien/kernels/petsc/algebra/PetscLinearAlgebra.h>
 #endif
 
 #ifdef ALIEN_USE_HYPRE

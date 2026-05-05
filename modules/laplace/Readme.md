@@ -106,10 +106,10 @@ The tests are present in the form of `.arc`:
 
 | Name                   | Dimension | Boundary Condition          | Solver               | Comment                     |
 | ---------------------- | --------- | --------------------------- | -------------------- | --------------------------- |
-| L-shape                | 3D        | Dirichlet + Null flux       | Default (PETSc)      | - Serves as validation test |
-| ring                   | 2D        | Dirichlet only              | Default (PETSc)      |                             |
+| L-shape                | 3D        | Dirichlet + Null flux       | Default (Petsc)      | - Serves as validation test |
+| ring                   | 2D        | Dirichlet only              | Default (Petsc)      |                             |
 | PointDirichlet         | 2D        | Point Dirichlet + Null flux | Sequential Direct LU | - Serves as validation test |
-| PointDirichlet-refined | 2D        | Point Dirichlet + Null flux | Default (PETSc)      | - Refined version of test   |
+| PointDirichlet-refined | 2D        | Point Dirichlet + Null flux | Default (Petsc)      | - Refined version of test   |
 
 ####  Point loading example ####
 

@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemModule.cc                                                (C) 2022-2025 */
+/* FemModule.cc                                                (C) 2000-2026 */
 /*                                                                           */
 /* FEM code to solve Laplace problem.                                        */
 /*---------------------------------------------------------------------------*/
@@ -76,7 +76,7 @@ compute()
     bool use_csr_in_linear_system =
     options()->linearSystem.serviceName() == "HypreLinearSystem" ||
     options()->linearSystem.serviceName() == "AlienLinearSystem" ||
-    options()->linearSystem.serviceName() == "PETScLinearSystem";
+    options()->linearSystem.serviceName() == "PetscLinearSystem";
     if (m_matrix_format == "BSR")
       m_bsr_format.initialize(mesh(), 1, use_csr_in_linear_system, 0);
     else
@@ -134,7 +134,7 @@ _doStationarySolve()
 void FemModuleLaplace::_assembleLinearOperator()
 {
   if (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
-      options()->linearSystem.serviceName() == "PETScLinearSystem")
+      options()->linearSystem.serviceName() == "PetscLinearSystem")
     _assembleLinearOperatorGpu();
   else
     _assembleLinearOperatorCpu();

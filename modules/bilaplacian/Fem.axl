@@ -34,7 +34,7 @@
     </simple>
 
     <simple name="petsc-flags" type="string" default="" optional="true">
-      <description>Flags for PETSc from commandline.</description>
+      <description>Flags for Petsc from commandline.</description>
     </simple>
 
     <simple name="solve-linear-system" type="bool" default="true" optional="true">

@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* PETScDoFLinearSystem.cc                                     (C) 2022-2026 */
+/* PetscDoFLinearSystem.cc                                     (C) 2022-2026 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
 /*---------------------------------------------------------------------------*/
@@ -40,28 +40,28 @@
 #include "internal/CsrDoFLinearSystemImpl.h"
 
 #include <petsc.h>
-#include "PETScDoFLinearSystemFactory_axl.h"
+#include "PetscDoFLinearSystemFactory_axl.h"
 
 namespace Arcane::FemUtils
 {
 
 using namespace Arcane;
 
-class PETScDoFLinearSystemImpl
+class PetscDoFLinearSystemImpl
 : public CsrDoFLinearSystemImpl
 {
  public:
 
-  PETScDoFLinearSystemImpl(IItemFamily* dof_family, const String& solver_name)
+  PetscDoFLinearSystemImpl(IItemFamily* dof_family, const String& solver_name)
   : CsrDoFLinearSystemImpl(dof_family, solver_name)
   , m_dof_matrix_numbering(VariableBuildInfo(dof_family, solver_name + "MatrixNumbering"))
   {
-    info() << "[PETSc-Info] Creating PETScDoFLinearSystemImpl()";
+    info() << "[Petsc-Info] Creating PetscDoFLinearSystemImpl()";
   }
 
-  ~PETScDoFLinearSystemImpl() override
+  ~PetscDoFLinearSystemImpl() override
   {
-    info() << "[PETSc-Info] Calling PETScDoFLinearSystemImpl destructor";
+    info() << "[Petsc-Info] Calling PetscDoFLinearSystemImpl destructor";
     IItemFamily* dof_family = dofFamily();
     IParallelMng* pm = dof_family->parallelMng();
     MPI_Comm mpi_comm = static_cast<MPI_Comm>(pm->communicator());
@@ -85,20 +85,20 @@ class PETScDoFLinearSystemImpl
   void solve() override;
 
   /*!
- * \brief Set user parameters to PETSc.
+ * \brief Set user parameters to Petsc.
  *
  * This function will call PetscInitialized() with
  * the argc and argv of the -A,petsc_flags option.
  * This will set the parameters passed by the user
- * to PETSc.
+ * to Petsc.
  */
 
   void setSolverCommandLineArguments(const CommandLineArguments& args) override
   {
     PetscInitialize(args.commandLineArgc(), args.commandLineArgv(), nullptr, nullptr);
-    info() << "[PETSc-Info] initialize command lines arguments";
+    info() << "[Petsc-Info] initialize command lines arguments";
     auto argv = *args.commandLineArgv();
-    auto o = info() << "[PETSc-Info] ./" << argv[0];
+    auto o = info() << "[Petsc-Info] ./" << argv[0];
 
     for (int i = 1; i < *args.commandLineArgc(); i++)
       o << ' ' << argv[i];
@@ -111,7 +111,7 @@ class PETScDoFLinearSystemImpl
   void setSolver(String v) { m_ksp_type = std::string{ v.localstr() }; }
   void setPreconditioner(String v) { m_pc_type = std::string{ v.localstr() }; }
 
-  CaseOptionsPETScDoFLinearSystemFactory* options;
+  CaseOptionsPetscDoFLinearSystemFactory* options;
 
  private:
 
@@ -158,18 +158,18 @@ class PETScDoFLinearSystemImpl
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
- * \brief Set default parameters to PETSc.
+ * \brief Set default parameters to Petsc.
  *
  * This function will call PetscInitialized() if it still does
  * not had been called.
  *
  * It will then deduct the default mat_type and vec_type.
  *
- * Finally, the function will set default parameters to PETSc
+ * Finally, the function will set default parameters to Petsc
  * only if the user did not already set this parameter via
  * the -A,petsc_flags option.
  */
-void PETScDoFLinearSystemImpl::
+void PetscDoFLinearSystemImpl::
 _handleParameters(IParallelMng* pm)
 {
   PetscBool is_initialized;
@@ -230,8 +230,8 @@ _handleParameters(IParallelMng* pm)
   PETSC_OPTION_STRING("-mat_type", m_mat_type)
   PETSC_OPTION_STRING("-vec_type", m_vec_type)
 
-  info() << "[PETSc-Info] Using " << std::string(m_mat_type.c_str()) << " matrix type";
-  info() << "[PETSc-Info] Using " << std::string(m_vec_type.c_str()) << " vector type";
+  info() << "[Petsc-Info] Using " << std::string(m_mat_type.c_str()) << " matrix type";
+  info() << "[Petsc-Info] Using " << std::string(m_vec_type.c_str()) << " vector type";
 }
 
 /*---------------------------------------------------------------------------*/
@@ -241,10 +241,10 @@ _handleParameters(IParallelMng* pm)
  *
  * Each rank owns consecutive rows of the matrix in increasing order.
  */
-void PETScDoFLinearSystemImpl::
+void PetscDoFLinearSystemImpl::
 _computeMatrixNumeration()
 {
-  // TODO use ISLocalToGlobalMappingCreate PETSc struct
+  // TODO use ISLocalToGlobalMappingCreate Petsc struct
   IItemFamily* dof_family = dofFamily();
   IParallelMng* pm = dof_family->parallelMng();
   const bool is_parallel = pm->isParallel();
@@ -288,13 +288,13 @@ _computeMatrixNumeration()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
- * \brief Allocate matrix related PETSc objects
+ * \brief Allocate matrix related Petsc objects
  *
  * The function allocates the matrix in COO format,
  * the KSP solver and the IS map.
  */
 
-void PETScDoFLinearSystemImpl::
+void PetscDoFLinearSystemImpl::
 _preallocateMatrix()
 {
   IItemFamily* dof_family = dofFamily();
@@ -326,7 +326,7 @@ _preallocateMatrix()
 
   // info() << "nb cols: " << csr_view.nbColumn() << ", nb rows: " << csr_view.nbRow() << ", nb vals: " << csr_view.nbValue();
 
-  // We use COO for PETSc, so we need to convert from CSR to COO
+  // We use COO for Petsc, so we need to convert from CSR to COO
   RunQueue queue = makeQueue(runner);
   NumArray<PetscInt, MDDim1> coo_rows;
   coo_rows.resize(csr_view.nbValue());
@@ -357,9 +357,9 @@ _preallocateMatrix()
  * The initialization does several things:
  * - calls handleParameters()
  * - calls computeMatrixNumeration()
- * - handle PETSc objects preallocation
+ * - handle Petsc objects preallocation
  *
- * For allocation of PETSc objects:
+ * For allocation of Petsc objects:
  *
  * If the matrix has a constant sparsity, it will preallocate
  * the matrix in this function and free it at the destruction
@@ -375,7 +375,7 @@ _preallocateMatrix()
  * attribute to true to indicate that we do not need to
  * call this function again.
  */
-void PETScDoFLinearSystemImpl::
+void PetscDoFLinearSystemImpl::
 _initSolve()
 {
   IItemFamily* dof_family = dofFamily();
@@ -414,7 +414,7 @@ _initSolve()
  * The function calls _preallocateMatrix if necessary,
  * and allocates the vectors.
  *
- * It then calls KSPSolve from the PETSc library to
+ * It then calls KSPSolve from the Petsc library to
  * solve the linear system, and put the result in
  * the m_petsc_solution_vector attribute of the class.
  *
@@ -424,10 +424,10 @@ _initSolve()
  * constant values to avoid a double free error or a
  * use after free error.
  */
-void PETScDoFLinearSystemImpl::
+void PetscDoFLinearSystemImpl::
 solve()
 {
-  info() << "[PETSc-Info] Calling PETSc solver";
+  info() << "[Petsc-Info] Calling Petsc solver";
 
   if (!m_is_initialized)
     _initSolve();
@@ -450,7 +450,7 @@ solve()
 
   if (runner.isInitialized()) {
     is_use_device = isAcceleratorPolicy(runner.executionPolicy());
-    info() << "[PETSc-Info] Runner for PETSc=" << runner.executionPolicy() << " wanted_is_device=" << is_use_device;
+    info() << "[Petsc-Info] Runner for Petsc=" << runner.executionPolicy() << " wanted_is_device=" << is_use_device;
   }
 
   Real c1 = platform::getRealTime();
@@ -470,7 +470,7 @@ solve()
 
   Real b2 = platform::getRealTime();
 
-  info() << "[PETSc-Timer] Time to create matrix = " << (b2 - c1);
+  info() << "[Petsc-Timer] Time to create matrix = " << (b2 - c1);
 
   VariableDoFReal& rhs_variable = this->rhsVariable();
   VariableDoFReal& dof_variable = this->solutionVariable();
@@ -510,16 +510,16 @@ solve()
   PetscCallAbort(mpi_comm, VecAssemblyEnd(m_petsc_solution_vector));
 
   Real a1 = platform::getRealTime();
-  info() << "[PETSc-Timer] Time to create vectors = " << (a1 - b1);
+  info() << "[Petsc-Timer] Time to create vectors = " << (a1 - b1);
 
   PetscCallAbort(mpi_comm, KSPSolve(m_petsc_solver_context, m_petsc_rhs_vector, m_petsc_solution_vector));
   Real a2 = platform::getRealTime();
-  info() << "[PETSc-Timer] Time to solve = " << (a2 - a1);
+  info() << "[Petsc-Timer] Time to solve = " << (a2 - a1);
 
   PetscInt iteration_idx;
   PetscCallAbort(mpi_comm, KSPGetIterationNumber(m_petsc_solver_context, &iteration_idx));
 
-  info() << "[PETSc-Info] Used " << m_pc_type << " preconditionner. Converged in " << iteration_idx + 1 << " iterations";
+  info() << "[Petsc-Info] Used " << m_pc_type << " preconditionner. Converged in " << iteration_idx + 1 << " iterations";
 
   if (is_parallel) {
     // Fill 'm_parallel_rows_index' with only rows we owns
@@ -558,8 +558,8 @@ solve()
 
   auto a = runner.deviceMemoryInfo();
 
-  info() << "[PETSc-Info] Wrote solution in solution_variable";
-  info() << "[PETSc-Info] Device memory allocation (Mo): " << (a.totalMemory() - a.freeMemory()) / 1e6;
+  info() << "[Petsc-Info] Wrote solution in solution_variable";
+  info() << "[Petsc-Info] Device memory allocation (Mo): " << (a.totalMemory() - a.freeMemory()) / 1e6;
 
   if (!isMatrixSparsityConstant()) {
     PetscCallAbort(mpi_comm, ISLocalToGlobalMappingDestroy(&m_petsc_map));
@@ -571,20 +571,20 @@ solve()
   PetscCallAbort(mpi_comm, VecDestroy(&m_petsc_rhs_vector));
 }
 
-class PETScDoFLinearSystemFactoryService
-: public ArcanePETScDoFLinearSystemFactoryObject
+class PetscDoFLinearSystemFactoryService
+: public ArcanePetscDoFLinearSystemFactoryObject
 {
  public:
 
-  explicit PETScDoFLinearSystemFactoryService(const ServiceBuildInfo& sbi)
-  : ArcanePETScDoFLinearSystemFactoryObject(sbi)
+  explicit PetscDoFLinearSystemFactoryService(const ServiceBuildInfo& sbi)
+  : ArcanePetscDoFLinearSystemFactoryObject(sbi)
   {
-    info() << "[PETSc-Info] Create PETScDoF";
+    info() << "[Petsc-Info] Create PetscDoF";
   };
   IDoFLinearSystemImpl*
   createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
   {
-    auto* x = new PETScDoFLinearSystemImpl(dof_family, solver_name);
+    auto* x = new PetscDoFLinearSystemImpl(dof_family, solver_name);
     x->options = options();
 
     x->setRelTolerance(options()->rtol());
@@ -600,8 +600,8 @@ class PETScDoFLinearSystemFactoryService
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCANE_REGISTER_SERVICE_PETSCDOFLINEARSYSTEMFACTORY(PETScLinearSystem,
-                                                    PETScDoFLinearSystemFactoryService);
+ARCANE_REGISTER_SERVICE_PETSCDOFLINEARSYSTEMFACTORY(PetscLinearSystem,
+                                                    PetscDoFLinearSystemFactoryService);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

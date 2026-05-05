@@ -32,7 +32,7 @@
       <surface>bc</surface>
       <value>10.0</value>
     </dirichlet-boundary-condition>
-    <linear-system name="PETScLinearSystem">
+    <linear-system name="PetscLinearSystem">
       <rtol>0.</rtol>
       <atol>1e-5</atol>
     </linear-system>

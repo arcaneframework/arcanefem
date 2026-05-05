@@ -52,7 +52,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [Poisson_dg]circle_homogenous_tria_petsc COMMAND Poisson_dg
     -A,//fem/solution-comparison-file=check/circle_homogenous_tria.txt
     -A,//fem/matrix-format=CSR
-    -A,//fem/linear-system/@name=PETScLinearSystem
+    -A,//fem/linear-system/@name=PetscLinearSystem
     inputs/circle.2D.arc)
 
   add_test(NAME [Poisson_dg]circle_neumann_tria COMMAND Poisson_dg
@@ -65,7 +65,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 
     add_test(NAME [Poisson_dg]circle_neumann_tria_petsc COMMAND Poisson_dg
     -A,//fem/matrix-format=CSR
-    -A,//fem/linear-system/@name=PETScLinearSystem
+    -A,//fem/linear-system/@name=PetscLinearSystem
     -A,//fem/solution-comparison-file=check/circle.2D.neumann.txt
     inputs/circle.2D.neumann.arc)
   
@@ -79,7 +79,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       -A,//meshes/mesh/filename=meshes/circle_cut-tria.med
       -A,//fem/solution-comparison-file=check/circle_homogenous_tria.txt
       -A,//fem/matrix-format=CSR
-      -A,//fem/linear-system/@name=PETScLinearSystem
+      -A,//fem/linear-system/@name=PetscLinearSystem
       inputs/circle.2D.arc)
     add_test(NAME [Poisson_dg]circle_homogenous_quad_tria_med COMMAND Poisson_dg
       -A,//fem/solution-comparison-file=check/circle_homogenous_quad_tria.txt

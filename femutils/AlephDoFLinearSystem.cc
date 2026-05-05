@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* AlephDoFLinearSystem.cc                                     (C) 2022-2025 */
+/* AlephDoFLinearSystem.cc                                     (C) 2000-2026 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
 /*---------------------------------------------------------------------------*/
@@ -34,7 +34,7 @@ enum class eSolverBackend
 {
   Hypre = 2,
   Trilinos = 3,
-  PETSc = 5,
+  Petsc = 5,
 };
 }
 
@@ -492,7 +492,7 @@ _computeMatrixInfo()
   // Hypre = 2
   // Trilinos = 3
   // Cuda = 4 (not available)
-  // PETSc = 5
+  // Petsc = 5
   // We need to compile Arcane with the needed library and link
   // the code with the associated aleph library (see CMakeLists.txt)
   // TODO: Linear algebra backend should be accessed from arc file.
