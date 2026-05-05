@@ -160,13 +160,13 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/bar.2D.traction.bodyforce.arc)
 
   set(SOLVER_PETSC_DIRECT_CG
-    -A,//fem/linear-system/@name=PETScLinearSystem
+    -A,//fem/linear-system/@name=PetscLinearSystem
     -A,//fem/linear-system/solver=cg
     -A,//fem/linear-system/atol=1e-9
     -A,//fem/linear-system/rtol=0)
 
   set(SOLVER_PETSC_DIRECT_GMRES
-    -A,//fem/linear-system/@name=PETScLinearSystem
+    -A,//fem/linear-system/@name=PetscLinearSystem
     -A,//fem/linear-system/solver=gmres
     -A,//fem/linear-system/atol=1e-9
     -A,//fem/linear-system/rtol=0)

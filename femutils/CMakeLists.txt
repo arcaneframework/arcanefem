@@ -12,7 +12,7 @@ if (TARGET Arcane::arcane_aleph_hypre)
 endif()
 
 if (TARGET Arcane::arcane_aleph_petsc)
-  list(APPEND ACCELERATOR_SOURCES PETScDoFLinearSystem.cc)
+  list(APPEND ACCELERATOR_SOURCES PetscDoFLinearSystem.cc)
 endif()
 
 find_package(Alien)
@@ -50,7 +50,7 @@ add_library(FemUtils
   AlephDoFLinearSystemFactory_axl.h
   SequentialBasicDoFLinearSystemFactory_axl.h
   HypreDoFLinearSystemFactory_axl.h
-  PETScDoFLinearSystemFactory_axl.h
+  PetscDoFLinearSystemFactory_axl.h
   AlienDoFLinearSystemFactory_axl.h
   FemBoundaryConditions_axl.h
   MeshTensorVariable.h
@@ -68,7 +68,7 @@ arcane_accelerator_add_to_target(FemUtils)
 arcane_generate_axl(AlephDoFLinearSystemFactory)
 arcane_generate_axl(SequentialBasicDoFLinearSystemFactory)
 arcane_generate_axl(HypreDoFLinearSystemFactory)
-arcane_generate_axl(PETScDoFLinearSystemFactory)
+arcane_generate_axl(PetscDoFLinearSystemFactory)
 arcane_generate_axl(AlienDoFLinearSystemFactory)
 arcane_generate_axl(FemBoundaryConditions)
 
@@ -110,7 +110,7 @@ endif()
 if (TARGET Arcane::arcane_aleph_petsc)
   set(FEMUTILS_HAS_PARALLEL_SOLVER TRUE)
   target_link_libraries(FemUtils PRIVATE Arcane::arcane_aleph_petsc)
-  message(STATUS "PETSc backend is available")
+  message(STATUS "Petsc backend is available")
   set(FEMUTILS_HAS_SOLVER_BACKEND_PETSC TRUE)
   find_package(PETSc)
 
@@ -151,6 +151,6 @@ endif()
 # Add a variable in cache to check which parallel solvers are availables
 set(FEMUTILS_HAS_PARALLEL_SOLVER ${FEMUTILS_HAS_PARALLEL_SOLVER} CACHE BOOL "Is Parallel solver available" FORCE)
 set(FEMUTILS_HAS_SOLVER_BACKEND_TRILINOS ${FEMUTILS_HAS_SOLVER_BACKEND_TRILINOS} CACHE BOOL "Is Trilinos solver available" FORCE)
-set(FEMUTILS_HAS_SOLVER_BACKEND_PETSC ${FEMUTILS_HAS_SOLVER_BACKEND_PETSC} CACHE BOOL "Is PETSc solver available" FORCE)
+set(FEMUTILS_HAS_SOLVER_BACKEND_PETSC ${FEMUTILS_HAS_SOLVER_BACKEND_PETSC} CACHE BOOL "Is Petsc solver available" FORCE)
 set(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE ${FEMUTILS_HAS_SOLVER_BACKEND_HYPRE} CACHE BOOL "Is Hypre solver available" FORCE)
 set(FEMUTILS_HAS_SOLVER_BACKEND_ALIEN ${FEMUTILS_HAS_SOLVER_BACKEND_ALIEN} CACHE BOOL "Is Alien solver available" FORCE)

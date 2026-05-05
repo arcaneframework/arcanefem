@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemModule.cc                                                (C) 2022-2025 */
+/* FemModule.cc                                                (C) 2000-2026 */
 /*                                                                           */
 /* FEM code to test vectorial FE for bilaplacian problem.                    */
 /*---------------------------------------------------------------------------*/
@@ -48,7 +48,7 @@ startInit()
  * This method:
  *   1. Stops the time loop after 1 iteration since the equation is steady state.
  *   2. Resets, configures, and initializes the linear system.
- *   3. Applies PETSc commandline flags to the solver (if PETSc is used).
+ *   3. Applies Petsc commandline flags to the solver (if Petsc is used).
  *   4. Executes the stationary solve and extracts psi.
  */
 /*---------------------------------------------------------------------------*/

@@ -88,7 +88,7 @@ compute()
     bool use_csr_in_linear_system =
     options()->linearSystem.serviceName() == "HypreLinearSystem" ||
     options()->linearSystem.serviceName() == "AlienLinearSystem" ||
-    options()->linearSystem.serviceName() == "PETScLinearSystem";
+    options()->linearSystem.serviceName() == "PetscLinearSystem";
     if (m_matrix_format == "BSR")
       m_bsr_format.initialize(mesh(), 1, use_csr_in_linear_system, 0);
     else
@@ -176,7 +176,7 @@ void FemModuleFourierNL::
 _assembleLinearOperator()
 {
   if (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
-      options()->linearSystem.serviceName() == "PETScLinearSystem")
+      options()->linearSystem.serviceName() == "PetscLinearSystem")
     _assembleLinearOperatorGpu();
   else
     _assembleLinearOperatorCpu();

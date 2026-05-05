@@ -182,13 +182,13 @@ endif()
 
 if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   set(SOLVER_PETSC_CG_2D
-    -A,//fem/linear-system/@name=PETScLinearSystem
+    -A,//fem/linear-system/@name=PetscLinearSystem
     -A,//fem/linear-system/solver=cg
     -A,//fem/linear-system/atol=1e-15
     -A,//fem/linear-system/rtol=0)
 
   set(SOLVER_PETSC_CG_3D
-    -A,//fem/linear-system/@name=PETScLinearSystem
+    -A,//fem/linear-system/@name=PetscLinearSystem
     -A,//fem/linear-system/solver=cg
     -A,//fem/linear-system/atol=1e-15
     -A,//fem/linear-system/rtol=0)

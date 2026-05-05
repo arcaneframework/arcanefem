@@ -106,7 +106,7 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           inputs/Test.3d.nonlinear.conduction.arc)
 
   set(SOLVER_PETSC_CG
-    -A,//fem/linear-system/@name=PETScLinearSystem
+    -A,//fem/linear-system/@name=PetscLinearSystem
     -A,//fem/linear-system/solver=cg
     -A,//fem/linear-system/atol=1e-9
     -A,//fem/linear-system/rtol=0)

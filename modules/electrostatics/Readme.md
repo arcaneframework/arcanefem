@@ -122,9 +122,9 @@ The tests are present in the form of `.arc` files with a prefix `Test.`:
 
 | Name       | Dimension | Boundary Condition                     | Solver          | Comment                     |
 | ---------- | --------- | -------------------------------------- | --------------- | --------------------------- |
-| box-rods   | 2D        | Dirichlet only<br />Homogeneous Source | PETSc (Default) | - Serves as validation test |
-| rod-circle | 2D        | Dirichlet only<br />Homogeneous Source | PETSc (Default) | - Serves as validation test |
-| Capacitor  | 2D        | Dirichlet only<br />Homogeneous Source | PETSc (Default) |                             |
+| box-rods   | 2D        | Dirichlet only<br />Homogeneous Source | Petsc (Default) | - Serves as validation test |
+| rod-circle | 2D        | Dirichlet only<br />Homogeneous Source | Petsc (Default) | - Serves as validation test |
+| Capacitor  | 2D        | Dirichlet only<br />Homogeneous Source | Petsc (Default) |                             |
 |            |           |                                        |                 |                             |
 
 
