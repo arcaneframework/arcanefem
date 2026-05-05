@@ -872,7 +872,7 @@ class ArcaneFemFunctions
       Real3 v2 = n3 - n0;
 
       // 6 x Volume of tetrahedron
-      Real V6 = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
+      Real V6 = math::abs(math::dot(v0, math::cross(v1, v2)));
 
       Real4 dx{};
 
@@ -917,7 +917,7 @@ class ArcaneFemFunctions
       Real3 v2 = n3 - n0;
 
       // 6 x Volume of tetrahedron
-      Real V6 = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
+      Real V6 = math::abs(math::dot(v0, math::cross(v1, v2)));
 
       Real4 dy{};
 
@@ -962,7 +962,7 @@ class ArcaneFemFunctions
       auto v2 = n3 - n0;
 
       // 6 x Volume of tetrahedron
-      Real V6 = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
+      Real V6 = math::abs(math::dot(v0, math::cross(v1, v2)));
 
       Real4 dz{};
 
@@ -992,7 +992,7 @@ class ArcaneFemFunctions
       Real3 v2 = m3 - m0;
 
       // 6 x Volume of tetrahedron
-      Real V6 = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
+      Real V6 = math::abs(math::dot(v0, math::cross(v1, v2)));
 
       // Compute gradient components
       Real3 grad;

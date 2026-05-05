@@ -419,7 +419,7 @@ _computeElementMatrixTETRA4GPU(CellLocalId icell, IndexedCellNodeConnectivityVie
   Real3 v1 = m2 - m0;
   Real3 v2 = m3 - m0;
 
-  Real volume = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2))) / 6.0;
+  Real volume = Arcane::math::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2))) / 6.0;
 
   // Compute gradients of shape functions
   Real3 dPhi0 = Arcane::math::cross(m2 - m1, m1 - m3);
@@ -508,7 +508,7 @@ inline Real FemModuleTestlab::_computeCellMatrixGpuTETRA4(CellLocalId icell, Ind
   Real3 v2 = m3 - m0;
 
   // Compute volume using scalar triple product
-  Real volume = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2))) / 6.0;
+  Real volume = Arcane::math::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2))) / 6.0;
 
   // Compute gradients of shape functions
   Real3 dPhi0 = Arcane::math::cross(m2 - m1, m1 - m3);
