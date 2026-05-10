@@ -618,26 +618,28 @@ _iterate(){
 
   m_converge = false;
   Int32 iter{0}; // counter for imbalance iterations
+  m_norm_U0 = 0.;
+  m_norm_R0 = 0.;
 
   // Starting the iteration loop until convergence is reached
   do {
 
     // Predict stresses from the nonlinear constitutive models
-    _stress_prediction(!iter);
+    is_linear = _stress_prediction(!iter);
 
-    // Add the nonlinear contributions to the RHS (B)
-    _assembleNonLinRHS(!iter);
-
-    // to do: add contributions of the set dofs to the RHS (B)
-
-    // Solve the linear system AX = B
-    _doSolve();
-
-    if (!m_converge)
-      _check_convergence(iter);
-
-    iter++;
-
+    if (is_linear) {
+      // Add the linear contributions to the RHS (B)
+      _assembleLinearRHS();
+      m_converge = true;
+      _doSolve();
+    }
+    else {
+      // Add the nonlinear contributions to the RHS (B)
+      _assembleNonLinRHS(!iter);
+      // Solve the linear system AX = B
+      _doNLSolve(!iter);
+      iter++;
+    }
   } while (iter < ite_max && !m_converge);
 }
 
@@ -650,11 +652,13 @@ compute(){
   ++linop_nstep_counter;
 
   // Stop code at exact final time set by user
+  Real tol{1.0e-15};
   auto tf = m_global_final_time();
   auto t = m_global_time();
   auto dt = m_global_deltat();
   auto t0 = options()->getStart();
   dt2 = dt * dt;
+  m_init_step = (fabs(t-t0) <=dt + tol);
 
   info() << "Time (s) = " << t;
 
@@ -760,49 +764,56 @@ _predictNewmark(){
   // Predicting the nodal displacements and velocities (before solve)
   const auto dt = m_global_deltat();
   auto dt2 {dt * dt};
-  auto betadt2 {1./beta/dt2};
-  auto gammadt {1./gamma/dt};
+  const auto betadt2 {beta * dt2};
+  const auto ibetadt2 {1./beta/dt2};
+  const auto gammadt {gamma * dt};
+  const auto igammadt {1./gamma/dt};
 
   ENUMERATE_NODE(inode, allNodes()){
     Node node = *inode;
-    auto an = m_prev_acc[node];
-    auto vn = m_prev_vel[node];
-    auto dn = m_prev_displ[node];
+    const auto an = m_prev_acc[node];
+    const auto vn = m_prev_vel[node];
+    const auto dn = m_prev_displ[node];
+    const auto d = m_displ[node];
 
      for (Int32 i = 0; i < NDIM; ++i) {
 
-      auto bu = (bool)m_imposed_displ[node][i];
-      auto bv = (bool)m_imposed_vel[node][i];
-      auto ba = (bool)m_imposed_acc[node][i];
-      auto vi = vn[i] + dt * (1. - gamma) * an[i];
-      auto di = dn[i] + dt * vn[i] + (0.5 - beta) * dt2 * an[i];
+      const auto bu = (bool)m_imposed_displ[node][i];
+      const auto bv = (bool)m_imposed_vel[node][i];
+      const auto ba = (bool)m_imposed_acc[node][i];
+      const auto vpred = vn[i] + dt * (1. - gamma) * an[i];
+      const auto upred = dn[i] + dt * vn[i] + (0.5 - beta) * dt2 * an[i];
 
-      if (ba){
-        auto ai = m_acc[node][i];
-        m_displ[node][i] = di + betadt2 * ai;
-        m_vel[node][i] = vi + gammadt * ai;
+      if (ba){ // Imposed acceleration
+        const auto ai = m_acc[node][i];
+        m_displ[node][i] = upred + betadt2 * ai; // predicted un+1
+        m_vel[node][i] = vpred + gammadt * ai; // predicted vn+1
       }
       else {
-        if (!bu)
-          m_displ[node][i] = di;
-
-        else {
-          auto ai = betadt2 * (m_displ[node][i] - di);
-          m_acc[node][i] = ai;
-          m_vel[node][i] = vi + gammadt * ai;
+        if (!bu){ // No imposed displacement
+          m_displ[node][i] = upred; // predicted un+1
+          m_vel[node][i] = vpred; // predicted vn+1
         }
 
+        else { // Imposed displacement
+          const auto apred = ibetadt2 * (d[i] - upred); // an+1 = (un+1-upred)/beta/dt2
+          m_acc[node][i] = apred; // predicted an+1
+          m_vel[node][i] = vpred + gammadt * apred; // predicted vn+1
+        }
+
+        /*
         if (!bv)
-          m_vel[node][i] = vi;
+          m_vel[node][i] = vpred; // predicted vn+1
 
-        else {
-          auto ai = gammadt * (m_vel[node][i] - vi);
-          m_acc[node][i] = ai;
-          m_displ[node][i] = di + betadt2 * ai;
+        else { // Imposed velocity
+          const auto apred = igammadt * (m_vel[node][i] - vpred);// an+1 = (vn+1-vpred)/gamma/dt
+          m_acc[node][i] = apred; // predicted an+1
+          m_displ[node][i] = upred + betadt2 * apred; // predicted un+1
         }
+      */
       }
     }
-    m_prev_displ_iter[node] = m_prev_displ[node];
+    m_prev_displ_iter[node] = dn;
   }
 }
 
@@ -813,33 +824,33 @@ _updateNewmark()
 {
   // Updating the nodal accelerations and velocities (after final solve)
   const auto dt = m_global_deltat();
-  auto dt2 {dt * dt};
-  auto betadt2 {1./beta/dt2};
-  auto gammadt {gamma * dt};
+  const auto dt2 {dt * dt};
+  const auto ibetadt2 {1./beta/dt2};
+  const auto gammadt {gamma * dt};
 
   ENUMERATE_NODE(inode, allNodes()){
     Node node = *inode;
-    auto an = m_prev_acc[node];
-    auto vn = m_prev_vel[node];
-    auto dn = m_prev_displ[node];
-    auto dn1 = m_displ[node]; // computed solution for the current iteration or time step
+    const auto an = m_prev_acc[node];
+    const auto vn = m_prev_vel[node];
+    const auto dn = m_prev_displ[node];
+    const auto dn1 = m_displ[node]; // computed solution for the current iteration or time step
 
     for (Int32 i = 0; i < NDIM; ++i) {
 
-      auto ba = (bool)m_imposed_acc[node][i];
-      auto bv = (bool)m_imposed_vel[node][i];
-      auto ui = dn[i] + dt * vn[i] + dt2 * (0.5 - beta) * an[i];
-      auto vi = vn[i] + dt * (1. - gamma) * an[i];
+      const auto ba = (bool)m_imposed_acc[node][i];
+      const auto bv = (bool)m_imposed_vel[node][i];
+      const auto upred = dn[i] + dt * vn[i] + dt2 * (0.5 - beta) * an[i];
+      const auto vpred = vn[i] + dt * (1. - gamma) * an[i];
 
       if (!ba)
-        m_acc[node][i] = betadt2 * (dn1[i] - ui);
+        m_acc[node][i] = ibetadt2 * (dn1[i] - upred);// an+1 = (un+1-upred)/beta/dt2
 
       if (!bv)
-        m_vel[node][i] = vi + gammadt*m_acc[node][i];
+        m_vel[node][i] = vpred + gammadt*m_acc[node][i];// vn+1 = vpred + gamma*dt+an+1
 
       m_prev_acc[node] = m_acc[node];
       m_prev_vel[node] = m_vel[node];
-      m_prev_displ[node] = m_displ[node];
+      m_prev_displ[node] = dn1;
     }
   }
 }
@@ -1368,6 +1379,18 @@ _assembleLinearRHS(){
 
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
+
+  /*
+  // need to keep lin RHS for nonlin iterations
+  if (rhs_lin.empty()) {
+    auto ndofmax{ NDIM * allNodes().size()};
+    rhs_lin.resize(ndofmax,0.0);
+
+  } else {
+    rhs_lin.fill(0.0);
+  }
+  */
+
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   auto dt = m_global_deltat();
 
@@ -1477,16 +1500,17 @@ _assembleLinearRHS(){
   // Looking for Dirichlet boundary nodes & modify linear operators accordingly
   ENUMERATE_ (Node, inode, ownNodes()) {
     auto node = *inode;
+//    auto inod = node.uniqueId().asInteger();
 
     for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
       bool is_node_dof_set = (bool)m_imposed_displ[node][iddl];
+      auto node_dofi = node_dof.dofId(node, iddl);
 
       if (is_node_dof_set) {
         /*----------------------------------------------------------
             // if Dirichlet node, modify operators (LHS+RHS) allowing to
             // Dirichlet method selected by user
             //----------------------------------------------------------*/
-        auto node_dofi = node_dof.dofId(node, iddl);
         auto u_iddl = m_displ[node][iddl];
         if (dirichletMethod == "penalty") {
           m_linear_system.matrixSetValue(node_dofi, node_dofi, penalty);
@@ -1503,6 +1527,7 @@ _assembleLinearRHS(){
           row_column_elimination_helper.addElimination(node_dofi, u_iddl);
         }
       }
+  //    rhs_lin[inod+iddl] = rhs_values[node_dofi];
     }
   }
 
@@ -1710,7 +1735,7 @@ _getB(const Cell& cell, const Int32& igauss, const Int32& nb_nodes)
 /*---------------------------------------------------------------------------*/
 // ! Stress computation at each iteration
 //
-void NLDynamicModule::
+bool NLDynamicModule::
 _compute_stress(bool init, bool store)
 {
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -1792,14 +1817,14 @@ _compute_stress(bool init, bool store)
             Bnod[i] = Bmat(i, inod);
 
           RealVector<6> vdeps;
-          vdeps(0) = Bnod.x * du.x; // xx
-          vdeps(1) = Bnod.y * du.y; // yy
-          vdeps(NDIM) = Bnod.x * du.y + Bnod.y * du.x; // xy
+          vdeps(0) = Bnod.x * du.x; // deps_xx
+          vdeps(1) = Bnod.y * du.y; // deps_yy
+          vdeps(NDIM) = Bnod.x * du.y + Bnod.y * du.x; //dgamma_xy (2 x deps_xy)
 
           if (NDIM == 3) {
-            vdeps(2) = Bnod.z * du.z; // zz
-            vdeps(4) = Bnod.x * du.z + Bnod.z * du.x; // xz
-            vdeps(5) = Bnod.y * du.z + Bnod.z * du.y; // yz
+            vdeps(2) = Bnod.z * du.z; // deps_zz
+            vdeps(4) = Bnod.x * du.z + Bnod.z * du.x; //dgamma_xz (2 x deps_xz)
+            vdeps(5) = Bnod.y * du.z + Bnod.z * du.y; //dgamma_yz (2 x deps_yz)
           }
           deps.add(vdeps);
         }
@@ -1847,16 +1872,17 @@ _compute_stress(bool init, bool store)
     if (nbelastg == cell_nbgauss)
       ++nbelast;
   }
-  m_converge = (nbcell == nbelast);
+//  m_converge = (nbcell == nbelast);
+  return (nbcell == nbelast);
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 // ! Stress prediction
 //
-void NLDynamicModule::
+bool NLDynamicModule::
 _stress_prediction(bool init)
 {
-  _compute_stress(init, false);
+  return _compute_stress(init, false);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1882,7 +1908,6 @@ _assembleNonLinRHS(bool init){
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
   if (init) {
     rhs_values.fill(0.0);
-    m_norm_R0 = 0.;
   }
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -1945,8 +1970,9 @@ _assembleNonLinRHS(bool init){
             Btsig.z = Bnod.z * sig.z.z + Bnod.x * sig.x.z + Bnod.y * sig.y.z;
           }
 
-          if (!m_deseq){
+          if (!m_deseq && m_init_step && init){
 
+            Btsig = {};
             Btsig0.x = Bnod.x * sig0.x.x + Bnod.y * sig0.x.y;
             Btsig0.y = Bnod.y * sig0.y.y + Bnod.x * sig0.x.y;
 
@@ -2002,10 +2028,12 @@ _assembleNonLinRHS(bool init){
                  * -Mij * ai, with ai, the imposed non-zero accelerations at
                  * current step = imposed directly or computed from imposed
                  * displacements (Newmark integration)
+                 * Contribution added at 1st iteration only
                 */
-                bool is_u { (bool)m_imposed_displ[node2][iddl] && fabs(m_displ[node2][iddl]) > 0. };
+                bool is_u { init && (bool)m_imposed_displ[node2][iddl] && fabs(m_displ[node2][iddl]) > 0. };
+//                bool is_u { (bool)m_imposed_displ[node2][iddl] && fabs(m_displ[node2][iddl]) > 0. };
 
-                if (is_u) {
+                if (is_u && !m_init_step) {
                   auto ai = m_acc[node2][iddl];
                   rhs_i -= mij*ai;
                 }
@@ -2019,22 +2047,23 @@ _assembleNonLinRHS(bool init){
 
               if (init) {
 
+                //----------------------------------------------
+                // Body force terms
+                //----------------------------------------------
                 {
-                  //----------------------------------------------
-                  // Body force terms
-                  //----------------------------------------------
                   auto Phi_i = m_gauss_shape(cell,igauss,n1_index);
                   auto rhoPhi_i = wt * rho * Phi_i;
                   rhs_i += rhoPhi_i * bodyf[iddl];
                 }
 
+                //----------------------------------------------
+                // Imposed nodal forces
+                //----------------------------------------------
                 {
-                  //----------------------------------------------
-                  // Imposed nodal forces
-                  //----------------------------------------------
                   if ((bool)m_imposed_force[node1][iddl])
                     rhs_i += m_force[node1][iddl];
                 }
+
                 m_norm_R0 += rhs_i * rhs_i;
               }
             }
@@ -2055,16 +2084,17 @@ _assembleNonLinRHS(bool init){
     // Looking for Dirichlet boundary nodes & modify linear operators accordingly
     ENUMERATE_ (Node, inode, ownNodes()) {
       auto node = *inode;
+//      auto inod = node.uniqueId().asInteger();
 
       for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
         bool is_node_dof_set = (bool)m_imposed_displ[node][iddl];
+        auto node_dofi = node_dof.dofId(node, iddl);
 
         if (is_node_dof_set) {
           /*----------------------------------------------------------
             // if Dirichlet node, modify operators (LHS+RHS) allowing to
             // Dirichlet method selected by user
             //----------------------------------------------------------*/
-          auto node_dofi = node_dof.dofId(node, iddl);
           auto u_iddl = m_displ[node][iddl];
           if (dirichletMethod == "penalty") {
             m_linear_system.matrixSetValue(node_dofi, node_dofi, penalty);
@@ -2081,6 +2111,7 @@ _assembleNonLinRHS(bool init){
             row_column_elimination_helper.addElimination(node_dofi, u_iddl);
           }
         }
+  //      rhs_values[node_dofi] += rhs_lin[inod+iddl];
       }
     }
 
@@ -2233,75 +2264,6 @@ _assembleNonLinRHS(bool init){
   }
 }
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-// ! Check convergence for the nonlinear iteration loop:
-//    Displacements U (= dofs vector): checking if norm(Un+1 - Un) / norm(Un) < Utol
-//    Out-of-balance forces (= rhs vector): checking if norm(R) / norm(R0) < Ftol
-//    R = residual (iteration i+1 - i) and R0 = norm of rhs at iteration 0
-//    Optional: Energy (default = Utol*Ftol): checking if norm([UF]n+1 - [UF]n) / norm([UF]n) < Etol
-//
-void NLDynamicModule::
-_check_convergence(Int32 iter){
-
-  Real tol{1.0e-15};
-  /*------------------------------------------------------------
-   * Check the solution (X) convergence
-  */
-  Real dxnorm{0.}, xinorm{0.};
-
-  ENUMERATE_ (Node, inode, ownNodes()) {
-    Node node = *inode;
-    auto xi = m_prev_displ_iter[node];
-    auto x = m_displ[node];
-    auto dx = x - xi;
-    xinorm += math::dot(xi,xi);
-    dxnorm += math::dot(dx,dx);
-  }
-  xinorm = math::sqrt(xinorm);
-  if (fabs(xinorm) < tol) xinorm = 1.; // at 1st step&iteration, xi(=u0) maybe 0
-  xinorm = parallelMng()->reduce(MessagePassing::eReduceType::ReduceSum,xinorm);
-
-  dxnorm = math::sqrt(dxnorm);
-  dxnorm = parallelMng()->reduce(MessagePassing::eReduceType::ReduceSum,dxnorm);
-
-  m_converge = (dxnorm/xinorm < utol);
-
-  if (m_converge) {
-    VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    Real dfnorm{0.};
-
-    /*------------------------------------------------------------
-     * Check the forces (rhs) convergence
-    */
-    ENUMERATE_ (Node, inode, ownNodes()) {
-      Node node = *inode;
-
-      for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
-
-        DoFLocalId node_dofi = node_dof.dofId(node, iddl);
-        auto rhs_i= rhs_values[node_dofi];
-        dfnorm += rhs_i*rhs_i;
-      }
-    }
-    dfnorm = parallelMng()->reduce(MessagePassing::eReduceType::ReduceSum,dfnorm);
-    dfnorm = math::sqrt(dfnorm);
-
-   // Setting reference m_norm_R0 to 1. if zero at 1st step/1st iteration
-    if (m_norm_R0 < tol) m_norm_R0 = 1.;
-    m_converge = (dfnorm/m_norm_R0 < ftol);
-  }
-
-  // Store nodal quantities for this iteration (no convergence)
-  if (!m_converge) {
-
-    ENUMERATE_NODE(inode, allNodes()){
-      Node node = *inode;
-      m_prev_displ_iter[node] = m_displ[node];
-    }
-  }
-}
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 void NLDynamicModule::
@@ -2628,6 +2590,128 @@ _doSolve(){
       info() << node.uniqueId() << " " << m_displ[node].x << " " << m_displ[node].y << " " << m_displ[node].z;
     }
     std::cout.precision(p);
+  }
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+void NLDynamicModule::
+_doNLSolve(bool init){
+  info() << "Solving Linear system";
+  m_linear_system.applyLinearSystemTransformationAndSolve();
+
+  Real tol{1.0e-15};
+//  Real dxnorm{0.}, xinorm{0.};
+  Real dxnorm{0.};
+
+  VariableDoFReal& dof_d(m_linear_system.solutionVariable());
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  ENUMERATE_ (Node, inode, ownNodes()) {
+     Node node = *inode;
+
+     auto coord = m_node_coord[node];
+     auto un = m_prev_displ[node];
+     auto ui = m_prev_displ_iter[node];
+
+     auto dux = dof_d[node_dof.dofId(node, 0)];
+     auto duy = dof_d[node_dof.dofId(node, 1)];
+     auto duz{0.};
+
+     if (NDIM == 3)
+       duz = dof_d[node_dof.dofId(node, 2)];
+
+     Real3 dx(dux,duy,duz);
+
+     m_displ[node] = dx + ui;
+//   xinorm += math::dot(ui,ui);
+     if (init) m_norm_U0 += math::dot(un,un);
+     dxnorm += math::dot(dx,dx);
+  }
+
+  m_displ.synchronize();
+  m_vel.synchronize();
+  m_acc.synchronize();
+  const bool do_print = (allNodes().size() < 200);
+  if (do_print) {
+    long p = std::cout.precision();
+    ENUMERATE_ (Node, inode, allNodes()) {
+      Node node = *inode;
+      //      info() << "Node: " << node.uniqueId() << " Ux=" << m_displ[node].x << " Uy=" << m_displ[node].y << " Uz=" << m_displ[node].z;
+      info() << node.uniqueId() << " " << m_displ[node].x << " " << m_displ[node].y << " " << m_displ[node].z;
+    }
+    std::cout.precision(p);
+  }
+
+  if (!m_converge) {
+    info() << "Checking the convergence";
+
+    /*---------------------------------------------------------------------------*/
+    /*---------------------------------------------------------------------------*/
+    // ! Check convergence for the nonlinear iteration loop:
+    //    Displacements U (= dofs vector): checking if norm(Un+1 - Un) / norm(Un) < Utol
+    //    Out-of-balance forces (= rhs vector): checking if norm(R) / norm(R0) < Ftol
+    //    R = residual (iteration i+1 - i) and R0 = norm of rhs at iteration 0
+    //    Optional: Energy (default = Utol*Ftol): checking if norm([UF]n+1 - [UF]n) / norm([UF]n) < Etol
+    //
+    /*------------------------------------------------------------
+     * Check the solution (X) convergence
+    */
+    if (init) {
+      m_norm_U0 = math::sqrt(m_norm_U0);
+      m_norm_U0 = parallelMng()->reduce(MessagePassing::eReduceType::ReduceSum,m_norm_U0);
+      if (m_norm_U0 < tol) m_norm_U0 = 1.; // at 1st step&iteration, xi(=u0) maybe 0
+    }
+
+    dxnorm = math::sqrt(dxnorm);
+    dxnorm = parallelMng()->reduce(MessagePassing::eReduceType::ReduceSum,dxnorm);
+
+    //  m_converge = (dxnorm/xinorm < utol);
+    auto dU{dxnorm/m_norm_U0};
+    m_converge = (dU < utol);
+    long p = std::cout.precision();
+    info() << "dU = " << dU;
+
+    /*------------------------------------------------------------
+     * Check the forces (rhs) convergence
+    */
+    if (m_converge) {
+      VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
+      auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+      Real dfnorm{0.};
+
+      ENUMERATE_ (Node, inode, ownNodes()) {
+        Node node = *inode;
+
+        for (Int32 iddl = 0; iddl < NDIM; ++iddl) {
+
+          DoFLocalId node_dofi = node_dof.dofId(node, iddl);
+          auto rhs_i= rhs_values[node_dofi];
+          dfnorm += rhs_i*rhs_i;
+        }
+      }
+      dfnorm = parallelMng()->reduce(MessagePassing::eReduceType::ReduceSum,dfnorm);
+      dfnorm = math::sqrt(dfnorm);
+
+      if (init) {
+        m_norm_R0 = dfnorm;
+
+        // Setting reference m_norm_R0 to 1. if zero at 1st step/1st iteration
+        if (m_norm_R0 < tol) m_norm_R0 = 1.;
+      }
+
+      auto dF{dfnorm/m_norm_R0};
+      m_converge = (dF < ftol);
+      info() << "dF = " << dF;
+      std::cout.precision(p);
+    }
+
+    // Store nodal quantities for the next iteration (no convergence)
+    if (!m_converge) {
+
+      ENUMERATE_NODE(inode, allNodes()){
+        Node node = *inode;
+        m_prev_displ_iter[node] = m_displ[node];
+      }
+    }
   }
 }
 

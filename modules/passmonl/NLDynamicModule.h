@@ -121,15 +121,17 @@ class NLDynamicModule
   // Real alfam{0.};
   // Real alfaf{0.};
   Real utol{0.001}, ftol{0.01}, etol{0.};
-  Real m_norm_R0{0.};
+  Real m_norm_R0{0.}, m_norm_U0{0.};
   String dirichletMethod;
   Integer m_num_parax{0};
   BoolUniqueArray is_a;
   BoolUniqueArray is_v;
   BoolUniqueArray is_u;
+  UniqueArray<Real> rhs_lin{};
 
   // bool is_alfa_method{false};
   bool keep_constop{false};
+  bool m_init_step{false};
   bool is_linear{true};
   bool m_converge{false};
   bool m_law_stop{ false};
@@ -157,6 +159,7 @@ class NLDynamicModule
   void _assembleLinearRHS();
   void _assembleNonLinRHS(bool init);
   void _doSolve();
+  void _doNLSolve(bool init);
   void _getOptions();
   void _initBoundaryConditions();
   void _initDCConditions();
@@ -182,12 +185,11 @@ class NLDynamicModule
                       RealUniqueArray2& Ke, const Real3& RhoC);
 
   void _iterate();
-  void _check_convergence(Int32 iter);
 
   RealUniqueArray2 _getB(const Cell& cell, const Int32& ig, const Int32& nb_nodes);
 
-  void _compute_stress(bool init, bool store);
-  void _stress_prediction(bool init);
+  bool _compute_stress(bool init, bool store);
+  bool _stress_prediction(bool init);
   void _stress_correction();
 
 };
