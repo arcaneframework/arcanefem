@@ -2673,6 +2673,7 @@ _doNLSolve(bool init){
     /*------------------------------------------------------------
      * Check the forces (rhs) convergence
     */
+    /*
     if (m_converge) {
       VariableDoFReal& rhs_values(m_linear_system.rhsVariable());
       auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -2702,15 +2703,19 @@ _doNLSolve(bool init){
       m_converge = (dF < ftol);
       info() << "dF = " << dF;
       std::cout.precision(p);
+
     }
+    */
 
     // Store nodal quantities for the next iteration (no convergence)
-    if (!m_converge) {
+    ENUMERATE_NODE(inode, ownNodes()){
+      Node node = *inode;
+      m_prev_displ_iter[node] = m_displ[node];
+      dof_d[node_dof.dofId(node, 0)] = m_displ[node].x;
+      dof_d[node_dof.dofId(node, 1)] = m_displ[node].y;
 
-      ENUMERATE_NODE(inode, allNodes()){
-        Node node = *inode;
-        m_prev_displ_iter[node] = m_displ[node];
-      }
+      if (NDIM == 3)
+        dof_d[node_dof.dofId(node, 2)] = m_displ[node].z;
     }
   }
 }

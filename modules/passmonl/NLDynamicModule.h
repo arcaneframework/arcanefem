@@ -192,6 +192,7 @@ class NLDynamicModule
   bool _stress_prediction(bool init);
   void _stress_correction();
 
+
 };
 
 /*---------------------------------------------------------------------------*/
