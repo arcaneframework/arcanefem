@@ -1,0 +1,63 @@
+<?xml version="1.0" ?>
+<module name="Fem" version="1.0">
+  <description>FEM module descriptor</description>
+  <entry-points>
+    <entry-point method-name="compute" name="Compute" where="compute-loop" property="none" />
+    <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
+  </entry-points>
+  <variables>
+    <variable field-name="U" name="U" data-type="real3" item-kind="node" dim="0">
+      <description>U vector from Arcane variable</description>
+    </variable>
+    <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
+      <description>Node coordinates from Arcane variable</description>
+    </variable>
+  </variables>
+  <options>
+    <simple name = "f" type = "string[]" default="NULL NULL NULL" optional="true">
+      <description>Body force vector (space separated list).</description>
+    </simple>
+
+    <simple name="E" type="real" default="0.0">
+      <description>Youngs Modulus of the material.</description>
+    </simple>
+
+    <simple name="nu" type="real" default="0.0">
+      <description>Poissons ratio of the material.</description>
+    </simple>
+
+    <simple name="solution-comparison-file" type="string" optional="true">
+      <description>File name of a file containing the values of the solution vector to check the results</description>
+    </simple>
+
+    <simple name="result-epsilon" type="real" default="1.0e-3">
+      <description>Relative epsilon used when comparing the values of the solution vector to check the results</description>
+    </simple>
+
+    <simple name="matrix-format" type="string" default="DOK" optional="true">
+      <description>Which matrix format to use DOK|BSR|AF-BSR.</description>
+    </simple>
+
+    <simple name="petsc-flags" type="string" default="-mat_type baij" optional="true">
+      <description>Flags for Petsc from commandline.</description>
+    </simple>
+
+    <simple name="solve-linear-system" type="bool" default="true" optional="true">
+      <description>Boolean to enable linear system solving.</description>
+    </simple>
+
+    <simple name="assemble-linear-system" type="bool" default="true" optional="true">
+      <description>Boolean to enable linear system assembly.</description>
+    </simple>
+
+    <simple name="hex-quad-mesh" type="bool" default="false" optional="true">
+      <description>Boolean to use hexagonal quadrature for element matrix assembly.</description>
+    </simple>
+
+    <!-- Linear system service instance -->
+    <service-instance name="linear-system" type="Arcane::FemUtils::IDoFLinearSystemFactory" default="AlephLinearSystem" />
+
+    <!-- Boundary conditions service instance -->
+    <service-instance name = "boundary-conditions" type = "BC::IArcaneFemBC" optional = "true" default="FemBoundaryConditions" />
+  </options>
+</module>
