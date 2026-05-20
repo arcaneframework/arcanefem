@@ -21,12 +21,12 @@ The nonlinearity in the above equation is due to the coefficient $\lambda(T)$.
 
 To complete the problem description, two first type (Dirichlet) boundary conditions are applied to this problem:
 
-- $T = 0.0 &deg C \quad \forall(x,y)\in\partial\Omega^h_{\text{left}}\subset\partial \Omega^h,$ and
-
-- $T = 1.0 &deg C \quad \forall(x,y)\in\partial\Omega^h_{\text{right}}\subset\partial \Omega^h,$ 
+$$T = 0.0 &deg C \quad \forall(x,y)\in\partial\Omega^h_{\text{left}}\subset\partial \Omega^h,$$ and
+$$T = 1.0 &deg C \quad \forall(x,y)\in\partial\Omega^h_{\text{right}}\subset\partial \Omega^h,$$ 
 
 in addition, all other boundaries $\partial \Omega^h_{N} = \partial \Omega^h \setminus (\partial\Omega^h_{\text{left}} \cup \partial\Omega^h_{\text{right}})$ are exposed to second type (Neumann) boundary condition:
-- $\lambda(T) \nabla T \cdot \mathbf{n}|_{\partial \Omega^h_{N} } = \overline{q} \cdot \mathbf{n}|_{\partial \Omega^h_{N} } = 0$
+
+$$\lambda(T) \nabla T \cdot \mathbf{n}|_{\partial \Omega^h_{N} } = \overline{q} \cdot \mathbf{n}|_{\partial \Omega^h_{N} } = 0$$
 
 Finally, the heat-source term is set to zero
 
@@ -119,7 +119,7 @@ The Dirichlet (constant temperature) boundary conditions  are provided in `Test.
     </boundary-conditions>
 ```
 
-So in the snippet above, three Dirichlet conditions are applied ($0 &deg C, 1.0 &deg C)  on two borders ('left' and 'right').
+So in the snippet above, three Dirichlet conditions are applied ($0 \degree C, 1.0 \degree C$)  on two borders ('left' and 'right').
 
 The natural Neumann boundary conditions are not explicitly provided.
 
