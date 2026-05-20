@@ -1,6 +1,6 @@
 # Solving a nonlinear Fourier equation with FEM and Arcane #
 
-<img width="300" align="center" src="https://github.com/user-attachments/assets/1e46ddac-103e-4c6f-8e8c-120125aa345a" />
+<img width="1787" height="693" alt="3D-compare-m2-fouriernlin1" src="https://github.com/user-attachments/assets/8c09f593-d9b8-4026-a043-93650af48f4d" />
 
 Here a nonlinear Fourier equation, that governs steady state heat conduction is solved using FEM in Arcane. The code here is a simple 2D unstructured mesh Galerkin FEM solver.
 
@@ -130,4 +130,5 @@ For post processing the `Mesh0.hdf` file is outputted (in `output/depouillement/
 
 ## Validation ##    
 For $m=2$, we compare the analytical solution ```T_exact``` with the solution obtained with FEM method ```T``` along the diagonal of the square domain.
-![fourier_nonlin_cond_validation.png](fourier_nonlin_cond_validation.png)
+<img alt="temp-profile-compare-m2-fouriernlin" src="https://github.com/user-attachments/assets/e3c0f4a3-37d6-4a35-861a-362a93358349" />
+
