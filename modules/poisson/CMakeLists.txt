@@ -16,6 +16,12 @@ configure_file(Poisson.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Poisson PUBLIC FemUtils)
 
+if(LIKWID_LIBRARY AND LIKWID_INCLUDE_DIR)
+  target_compile_definitions(Poisson PRIVATE LIKWID_PERFMON)
+  target_include_directories(Poisson PUBLIC ${LIKWID_INCLUDE_DIR})
+  target_link_libraries(Poisson PUBLIC ${LIKWID_LIBRARY})
+endif()
+
 # Copy the check files in the binary directory
 file(COPY "check" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 

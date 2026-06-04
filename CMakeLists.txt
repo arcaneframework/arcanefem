@@ -17,6 +17,16 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Utils.cmake)
 set(MSH_DIR ${CMAKE_SOURCE_DIR}/meshes/msh)
 set(MED_DIR ${CMAKE_SOURCE_DIR}/meshes/med)
 
+# LIKWID (Profiling)
+find_library(LIKWID_LIBRARY NAMES likwid)
+find_path(LIKWID_INCLUDE_DIR NAMES likwid-marker.h)
+
+if(LIKWID_LIBRARY AND LIKWID_INCLUDE_DIR)
+  message(STATUS "LIKWID found: ${LIKWID_LIBRARY}")
+else()
+  message(WARNING "LIKWID not found. Profiling disabled.")
+endif()
+
 # Needed for dynamic loading of services
 set(BUILD_SHARED_LIBS TRUE)
 

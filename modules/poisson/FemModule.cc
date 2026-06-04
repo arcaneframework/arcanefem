@@ -60,6 +60,14 @@ compute()
   info() << "[ArcaneFem-Info] Started module compute()";
   Real elapsedTime = platform::getRealTime();
 
+  #ifdef LIKWID_PERFMON
+  info() << "[ArcaneFem-Info] USING LIKWID FOR PROFILING";
+  #endif
+  LIKWID_MARKER_INIT;
+  LIKWID_MARKER_REGISTER("MatrixAssembly");
+  LIKWID_MARKER_REGISTER("LinearOperator");
+  LIKWID_MARKER_REGISTER("Solve");
+
   // Stop code after computations
   if (m_global_iteration() > 0)
     subDomain()->timeLoopMng()->stopComputeLoop(true);
@@ -87,6 +95,8 @@ compute()
   }
 
   _doStationarySolve();
+
+  LIKWID_MARKER_CLOSE;
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"compute", elapsedTime);
@@ -186,6 +196,8 @@ void FemModulePoisson::_assembleLinearOperatorGpu()
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperatorGpu()";
   Real elapsedTime = platform::getRealTime();
 
+  LIKWID_MARKER_START("LinearOperator");
+
   auto& rhs_values(m_linear_system.rhsVariable());
   rhs_values.fill(0.0);
 
@@ -218,6 +230,8 @@ void FemModulePoisson::_assembleLinearOperatorGpu()
   else
     applyBoundaryConditions(FemUtils::Gpu::BoundaryConditions2D());
 
+  LIKWID_MARKER_STOP("LinearOperator");
+
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-vector-assembly-gpu", elapsedTime);
 }
@@ -240,6 +254,8 @@ void FemModulePoisson::_assembleLinearOperatorCpu()
 {
   info() << "[ArcaneFem-Info] Started module _assembleLinearOperatorCpu()";
   Real elapsedTime = platform::getRealTime();
+
+  LIKWID_MARKER_START("LinearOperator");
 
   VariableDoFReal& rhs_values(m_linear_system.rhsVariable()); // Temporary variable to keep values for the RHS
   rhs_values.fill(0.0);
@@ -286,6 +302,9 @@ void FemModulePoisson::_assembleLinearOperatorCpu()
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
+  
+  LIKWID_MARKER_STOP("LinearOperator");
+  
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
 }
 
@@ -300,6 +319,8 @@ _assembleBilinearOperator()
 {
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
+
+  LIKWID_MARKER_START("MatrixAssembly");
 
   if (m_matrix_format == "BSR") {
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
@@ -343,6 +364,8 @@ _assembleBilinearOperator()
       else
         _assembleBilinear<3>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
   }
+
+  LIKWID_MARKER_STOP("MatrixAssembly");
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"lhs-matrix-assembly", elapsedTime);
@@ -397,7 +420,9 @@ _solve()
   info() << "[ArcaneFem-Info] Started module _solve()";
   Real elapsedTime = platform::getRealTime();
 
+  LIKWID_MARKER_START("Solve");
   m_linear_system.applyLinearSystemTransformationAndSolve();
+  LIKWID_MARKER_STOP("Solve");
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"solve-linear-system", elapsedTime);
