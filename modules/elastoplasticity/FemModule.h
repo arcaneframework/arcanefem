@@ -94,6 +94,14 @@ class FemModuleElastoplasticity
   Real3 f;
   Real3 t;
 
+  RealMatrix<3, 3> m_C_tang_2d;
+  RealMatrix<6, 6> m_C_tang_3d;
+
+  // typedef MeshVariableScalarRefT<Cell, RealMatrix<3, 3>> VariableCellRealMat3x3;
+  // VariableCellRealMat3x3 m_C_tang_2d_cell;
+  // MeshVariableArrayRefT<Cell, RealMatrix<3, 3>> m_C_tang_2d_cell;
+  // MeshVariableArrayRefT<Cell, RealMatrix<6, 6>> m_C_tang_3d_cell;
+
   Int8 m_dof_per_node;
 
   String m_petsc_flags;

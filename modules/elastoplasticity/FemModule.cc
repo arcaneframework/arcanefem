@@ -179,6 +179,48 @@ _getMaterialParameters()
   m_petsc_flags = options()->petscFlags();
   m_hex_quad_mesh = options()->hexQuadMesh();
 
+  m_C_tang_2d.fill(0.);
+  m_C_tang_2d(0, 0) = lambda + 2. * mu;
+  m_C_tang_2d(1, 1) = lambda + 2. * mu;
+  m_C_tang_2d(2, 2) = mu;
+  m_C_tang_2d(0, 1) = lambda;
+  m_C_tang_2d(1, 0) = lambda;
+
+  /*
+   ({
+    {lambda + 2. * mu, lambda,           0.},
+          {lambda,           lambda + 2. * mu, 0.},
+          {0.,               0.,               mu}
+  });
+ */
+
+
+  m_C_tang_3d.fill(0.);
+  m_C_tang_3d(0, 0) = lambda + 2.*mu;
+  m_C_tang_3d(1, 1) = lambda + 2.*mu;
+  m_C_tang_3d(2, 2) = lambda + 2.*mu;
+  m_C_tang_3d(3, 3) = mu;
+  m_C_tang_3d(4, 4) = mu;
+  m_C_tang_3d(5, 5) = mu;
+  m_C_tang_3d(0, 1) = lambda;
+  m_C_tang_3d(0, 2) = lambda;
+  m_C_tang_3d(1, 0) = lambda;
+  m_C_tang_3d(1, 2) = lambda;
+  m_C_tang_3d(2, 0) = lambda;
+  m_C_tang_3d(2, 1) = lambda;
+
+  /*
+  m_C_tang_3d = {
+    {lambda + 2.*mu, lambda,         lambda,         0.,  0.,  0.},
+          {lambda,         lambda + 2.*mu, lambda,         0.,  0.,  0.},
+          {lambda,         lambda,         lambda + 2.*mu, 0.,  0.,  0.},
+          {0.,             0.,             0.,             mu,  0.,  0.},
+          {0.,             0.,             0.,             0.,  mu,  0.},
+          {0.,             0.,             0.,             0.,  0.,  mu}
+  };
+ */
+
+
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"get-material-params", elapsedTime);
 }
@@ -236,14 +278,14 @@ _assembleBilinearOperator()
     auto cn_cv = m_connectivity_view.cellNode();
     auto command = makeCommand(acceleratorMng()->defaultQueue());
     auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
-    auto lambda_copy = lambda;
-    auto mu_copy = mu;
+    auto C_tang_2d =m_C_tang_2d;
+    auto C_tang_3d =m_C_tang_3d;
 
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2)
-      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu_copy); });
+      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, C_tang_2d); });
     if (mesh()->dimension() == 3)
-      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu_copy); });
+      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, C_tang_3d); });
     m_bsr_format.toLinearSystem(m_linear_system);
   }
   else if (m_matrix_format == "AF-BSR") {
@@ -251,14 +293,14 @@ _assembleBilinearOperator()
     auto cn_cv = m_connectivity_view.cellNode();
     auto command = makeCommand(acceleratorMng()->defaultQueue());
     auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
-    auto lambda_copy = lambda;
-    auto mu_copy = mu;
+    auto C_tang_2d =m_C_tang_2d;
+    auto C_tang_3d =m_C_tang_3d;
 
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2)
-      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu_copy, node_lid); });
+      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, C_tang_2d, node_lid); });
     if (mesh()->dimension() == 3)
-      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, lambda_copy, mu_copy, node_lid); });
+      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, C_tang_3d, node_lid); });
     m_bsr_format.toLinearSystem(m_linear_system);
   }
   else if (m_matrix_format == "DOK") {
@@ -267,7 +309,7 @@ _assembleBilinearOperator()
         _assembleBilinearOperatorCpu<8>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
       }
       else {
-        _assembleBilinearOperatorCpu<6>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
+        _assembleBilinearOperatorCpu<6>([&](const Cell& cell) { return _computeElementMatrixTria3(cell); });
       }
     }
     if (mesh()->dimension() == 3) {
