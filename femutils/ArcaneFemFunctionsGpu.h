@@ -281,6 +281,73 @@ computeGradientYTria3(CellLocalId cell_lid,
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+struct Quad4GaussPointInfo
+{
+  RealVector<4> dN_dx; // Derivatives of shape functions in x {∂𝑁₁/∂𝑥  ∂𝑁₂/∂𝑥  ∂𝑁₃/∂𝑥  ∂𝑁₄/∂𝑥}
+  RealVector<4> dN_dy; // Derivatives of shape functions in y {∂𝑁₁/∂𝑦  ∂𝑁₂/∂𝑦  ∂𝑁₃/∂𝑦  ∂𝑁₄/∂𝑦}
+  Real det_j; // Determinant of the Jacobian matrix at the Gauss point.
+};
+
+ARCCORE_HOST_DEVICE inline Quad4GaussPointInfo
+computeGradientsAndJacobianQuad4Gpu(CellLocalId cell_lid,
+                                    const IndexedCellNodeConnectivityView& cn_cv,
+                                    const Accelerator::VariableNodeReal3InView& in_node_coord,
+                                    Real xi, Real eta)
+{
+  // Shape function derivatives ∂𝐍/∂ξ and ∂𝐍/∂η
+  //     ∂𝐍/∂ξ = [ ∂C₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ ]
+  //     ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ∂𝑁₃/∂η  ∂𝑁₄/∂η ]
+  const Real dN_dxi[4]  = { -0.25 * (1.0 - eta),  0.25 * (1.0 - eta), 0.25 * (1.0 + eta), -0.25 * (1.0 + eta) };
+  const Real dN_deta[4] = { -0.25 * (1.0 - xi),  -0.25 * (1.0 + xi),  0.25 * (1.0 + xi),   0.25 * (1.0 - xi) };
+
+  // Jacobian calculation 𝑱
+  //    𝑱 = [ 𝒋₀₀  𝒋₀₁ ] = [ ∂𝑥/∂ξ  ∂𝑦/∂ξ ]
+  //        [ 𝒋₁₀  𝒋₁₁ ]   [ ∂𝑥/∂η  ∂𝑦/∂η ]
+  //
+  // The Jacobian is computed as follows:
+  //   𝒋₀₀ = ∑ (∂𝑁ᵢ/∂ξ * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,𝟒
+  //   𝒋₀₁ = ∑ (∂𝑁ᵢ/∂ξ * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,𝟒
+  //   𝒋₁₀ = ∑ (∂𝑁ᵢ/∂η * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,𝟒
+  //   𝒋₁₁ = ∑ (∂𝑁ᵢ/∂η * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,𝟒
+  Real2x2 J;
+  J[0][0] = 0.0; J[0][1] = 0.0;
+  J[1][0] = 0.0; J[1][1] = 0.0;
+
+  for (Int8 a = 0; a < 4; ++a) {
+    const auto& coord = in_node_coord[cn_cv.nodeId(cell_lid, a)];
+    J[0][0] += dN_dxi[a] * coord.x;
+    J[0][1] += dN_dxi[a] * coord.y;
+    J[1][0] += dN_deta[a] * coord.x;
+    J[1][1] += dN_deta[a] * coord.y;
+  }
+
+  // Determinant of the Jacobian
+  const Real detJ = J[0][0] * J[1][1] - J[0][1] * J[1][0];
+
+  // TODO : Handle non-positive Jacobian determinant case appropriately for GPU execution.
+  //if (detJ <= 0.0) {
+  //  ARCANE_FATAL("Invalid (non-positive) Jacobian determinant: {0}", detJ);
+  //}
+
+  // Inverse of the Jacobian
+  //    𝑱⁻¹ = [ invJ00 invJ01 ]
+  //          [ invJ10 invJ11 ]
+  const Real invJ00 = J[1][1] / detJ;
+  const Real invJ01 = -J[0][1] / detJ;
+  const Real invJ10 = -J[1][0] / detJ;
+  const Real invJ11 = J[0][0] / detJ;
+
+  //   Gradients in physical space (∂𝐍/∂𝑥, ∂𝐍/∂𝑦)
+  //    {∂𝐍/∂𝑥} = [J]⁻¹ {∂𝐍/∂ξ}
+  //    {∂𝐍/∂𝑦}         {∂𝐍/∂η}
+  RealVector<4> dN_dx_result, dN_dy_result;
+  for (Int8 a = 0; a < 4; ++a) {
+    dN_dx_result(a) = invJ00 * dN_dxi[a] + invJ01 * dN_deta[a];
+    dN_dy_result(a) = invJ10 * dN_dxi[a] + invJ11 * dN_deta[a];
+  }
+
+  return { dN_dx_result, dN_dy_result, detJ };
+}
 
 } // namespace Arcane::FemUtils::Gpu::FeOperation2D
 
@@ -587,6 +654,9 @@ class BoundaryConditions2D
                                        const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                                        IMesh* mesh, Accelerator::RunQueue* queue);
 
+  static void applyConstantSourceToRhsQuad4(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+                                            const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                            IMesh* mesh, Accelerator::RunQueue* queue);
   /*---------------------------------------------------------------------------*/
   /**
    * @brief Applies Neumann conditions to the right-hand side (RHS) values.
@@ -601,6 +671,10 @@ class BoundaryConditions2D
   static void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
                                 const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                                 IMesh* mesh, Accelerator::RunQueue* queue);
+
+  static void applyNeumannToRhsQuad4(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                                     const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                     IMesh* mesh, Accelerator::RunQueue* queue);
 };
 
 class BoundaryConditions3D
