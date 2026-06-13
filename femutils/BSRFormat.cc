@@ -239,6 +239,7 @@ BSRFormat(ITraceMng* tm, RunQueue& queue, const FemDoFsOnNodes& dofs_on_nodes)
 , m_csr_matrix(tm)
 {}
 
+/*
 // TODO version on GPU for better performance
 Int64 BSRFormat::
 computeNbColumns(IMesh* mesh)
@@ -292,7 +293,6 @@ computeNbColumns(IMesh* mesh)
   }
 
   // TODO: Hexahedral element mesh JUST BLABLA FOR NOW, NEED TO CHECK WITH A REAL HEXA MESH
-  /*
   if (mesh->dimension() == 3 && nb_nodes == 8) {
     ENUMERATE_NODE (inode, mesh->allNodes()) {
       Node node = *inode;
@@ -302,9 +302,64 @@ computeNbColumns(IMesh* mesh)
     nb_col = nb_edge + nb_cell_nodes;
     return nb_col;
   }
-  */
 
   return nb_col;
+}
+*/
+
+Int64 BSRFormat::
+computeNbColumns(IMesh* mesh)
+{
+  ARCANE_CHECK_PTR(mesh);
+
+  auto nn_via_edge_cv = MeshUtils::computeNodeNodeViaEdgeConnectivity(mesh, "NodeNodeViaEdge");
+  UnstructuredMeshConnectivityView connectivity_view(mesh);
+
+  IndexedNodeNodeConnectivityView nn_cv = nn_via_edge_cv->view();
+  IndexedNodeCellConnectivityView nc_cv = connectivity_view.nodeCell();
+  IndexedCellNodeConnectivityView cn_cv = connectivity_view.cellNode();
+
+  // Determine element type using the first cell
+  CellLocalId first_cell_lid(0);
+  auto nb_nodes = cn_cv.nbNode(first_cell_lid);
+  Int32 dim = mesh->dimension();
+
+  Int32 nb_total_nodes = mesh->nbNode();
+
+  // Allocate GPU temporary arrays using class m_queue resource
+  NumArray<Int64, MDDim1> input_values(nb_total_nodes, m_queue.memoryRessource());
+  NumArray<Int64, MDDim1> output_values(nb_total_nodes, m_queue.memoryRessource());
+
+  auto command = makeCommand(m_queue);
+  auto in_values_view = viewOut(command, input_values);
+
+  // --- Step 1: Map the node property computation into the temporary GPU array ---
+  if ((dim == 2 && nb_nodes == 3) || (dim == 3 && nb_nodes == 4)) { // Triangular or Tetrahedral elements
+    command << RUNCOMMAND_ENUMERATE(Node, node_id, mesh->allNodes())
+    {
+      in_values_view[node_id.localId()] = nn_cv.nbNode(node_id) + 1;
+    };
+  }
+  else if ((dim == 2 && nb_nodes == 4) || (dim == 3 && nb_nodes == 8)) { // Quadrilateral or TODO Hexahedral elements
+    command << RUNCOMMAND_ENUMERATE(Node, node_id, mesh->allNodes())
+    {
+      in_values_view[node_id.localId()] = (nn_cv.nbNode(node_id) + 1) + nc_cv.nbCell(node_id);
+    };
+  }
+  else {
+    return 0; // Unsupported element type
+  }
+
+  // --- Step 2: Run Parallel Prefix Sum via Arcane Scanner using 1D SmallSpans ---
+  Accelerator::Scanner<Int64>::inclusiveSum(&m_queue, input_values.to1DSmallSpan(), output_values.to1DSmallSpan());
+
+  // --- Step 3: Fetch the final reduction answer back to CPU ---
+  Int64 total_nb_col = 0;
+
+  m_queue.barrier();
+  total_nb_col = output_values[nb_total_nodes - 1];
+
+  return total_nb_col;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -323,7 +378,7 @@ initialize(IMesh* mesh, Int8 nb_dof, bool does_linear_system_use_csr, bool use_a
   m_mesh = mesh;
   m_nb_dof = nb_dof;
   Int32 nb_node = m_mesh->nbNode();
-  Int32 nb_col = computeNbColumns(mesh);
+  Int32 nb_col = computeNbColumns(m_mesh);
   Int32 nb_non_zero_value = (m_nb_dof * m_nb_dof) * (nb_col);
 
   m_use_csr_in_linear_system = does_linear_system_use_csr;
