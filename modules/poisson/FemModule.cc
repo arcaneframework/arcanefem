@@ -196,14 +196,20 @@ void FemModulePoisson::_assembleLinearOperatorGpu()
   auto mesh_ptr = mesh();
 
   auto applyBoundaryConditions = [&](auto BCFunctions) {
-    if (options()->f.isPresent())
+    if (options()->f.isPresent() && !m_hex_quad_mesh)
       BCFunctions.applyConstantSourceToRhs(f, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
+
+    if (options()->f.isPresent() && m_hex_quad_mesh && mesh()->dimension() == 2)
+      FemUtils::Gpu::BoundaryConditions2D::applyConstantSourceToRhsQuad4(f, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
 
     BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
     if (bc) {
       for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
-        BCFunctions.applyNeumannToRhs(bs, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
+        if(!m_hex_quad_mesh)
+          BCFunctions.applyNeumannToRhs(bs, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
+        else if (mesh()->dimension() == 2)
+          FemUtils::Gpu::BoundaryConditions2D::applyNeumannToRhsQuad4(bs, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
 
       for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
         FemUtils::Gpu::BoundaryConditions::applyDirichletToLhsAndRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
@@ -213,9 +219,10 @@ void FemModulePoisson::_assembleLinearOperatorGpu()
     }
   };
 
-  if (mesh()->dimension() == 3)
+  if (mesh()->dimension() == 3 && !m_hex_quad_mesh)
     applyBoundaryConditions(FemUtils::Gpu::BoundaryConditions3D());
-  else
+
+  if (mesh()->dimension() == 2)
     applyBoundaryConditions(FemUtils::Gpu::BoundaryConditions2D());
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -308,12 +315,17 @@ _assembleBilinearOperator()
     auto command = makeCommand(queue);
     auto in_node_coord = ax::viewIn(command, m_node_coord);
 
-    if (mesh()->dimension() == 2)
-      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
-    else
+    if (mesh()->dimension() == 2){
+      if(m_hex_quad_mesh)
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixQuad4Gpu(cell_lid, cn_cv, in_node_coord); });
+      else
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
+    }
+    else{
       m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord); });
-
+    }
     m_bsr_format.toLinearSystem(m_linear_system);
+    // m_bsr_format.dumpMatrix("assembled_matrix.bsr");
   }
 
   if (m_matrix_format == "AF-BSR") {
