@@ -164,9 +164,9 @@ class BSRFormat
 
   Int8 m_nb_dof = 1;
 
-  Int64 computeNbColumns(IMesh* mesh);
-
  public:
+
+  Int64 computeNbColumns(IMesh* mesh);
 
   void initialize(IMesh* mesh, Int8 nb_dof, bool does_linear_system_use_csr, bool use_atomic_free = false);
   void toLinearSystem(DoFLinearSystem& linear_system);
