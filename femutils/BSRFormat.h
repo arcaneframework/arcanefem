@@ -164,7 +164,7 @@ class BSRFormat
 
   Int8 m_nb_dof = 1;
 
-  Int64 computeNbEdge(IMesh* mesh);
+  Int64 computeNbColumns(IMesh* mesh);
 
  public:
 
@@ -424,17 +424,17 @@ assembleBilinearOrderedPerBlockAtomicFree(Function compute_element_vectors)
 
   command << RUNCOMMAND_ENUMERATE(Node, row_node, m_mesh->allNodes())
   {
-    auto cur_row_node_idx = 0;
     for (auto cell : node_cell_cv.cells(row_node)) {
-
-      // Find the index of the node in the current cell
-      for (Int32 i = 1; i <= 3; ++i) {
+      Int32 cur_row_node_idx = -1;
+      Int32 node_count = cell_node_cv.nbNode(cell);
+      for (Int32 i = 0; i < node_count; ++i) {
         if (row_node == cell_node_cv.nodeId(cell, i)) {
           cur_row_node_idx = i;
           break;
         }
-        cur_row_node_idx = 0;
       }
+
+      if (cur_row_node_idx == -1) continue;
 
       auto element_vector = compute_element_vectors(cell, cur_row_node_idx);
 
@@ -492,17 +492,17 @@ assembleBilinearOrderedPerRowAtomicFree(Function compute_element_vectors)
 
   command << RUNCOMMAND_ENUMERATE(Node, row_node, m_mesh->allNodes())
   {
-    Int32 cur_row_node_idx = 0;
     for (auto cell : node_cell_cv.cells(row_node)) {
-
-      // Find the index of the node in the current cell
-      for (Int32 i = 1; i <= 3; ++i) {
+      Int32 cur_row_node_idx = -1;
+      Int32 node_count = cell_node_cv.nbNode(cell);
+      for (Int32 i = 0; i < node_count; ++i) {
         if (row_node == cell_node_cv.nodeId(cell, i)) {
           cur_row_node_idx = i;
           break;
         }
-        cur_row_node_idx = 0;
       }
+
+      if (cur_row_node_idx == -1) continue;
 
       auto element_vector = compute_element_vectors(cell, cur_row_node_idx);
 

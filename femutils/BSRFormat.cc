@@ -239,22 +239,70 @@ BSRFormat(ITraceMng* tm, RunQueue& queue, const FemDoFsOnNodes& dofs_on_nodes)
 , m_csr_matrix(tm)
 {}
 
+// TODO version on GPU for better performance
 Int64 BSRFormat::
-computeNbEdge(IMesh* mesh)
+computeNbColumns(IMesh* mesh)
 {
+  Int64 nb_col = 0;
   Int64 nb_edge = 0;
-  if (mesh->dimension() == 2)
-    nb_edge = mesh->nbFace();
-  else {
-    auto nn_via_edge_cv = MeshUtils::computeNodeNodeViaEdgeConnectivity(mesh, "NodeNodeViaEdge");
-    IndexedNodeNodeConnectivityView nn_cv = nn_via_edge_cv->view();
+  Int64 nb_cell_nodes = 0;
+
+  auto nn_via_edge_cv = MeshUtils::computeNodeNodeViaEdgeConnectivity(mesh, "NodeNodeViaEdge");
+  UnstructuredMeshConnectivityView connectivity_view(mesh);
+
+  IndexedNodeNodeConnectivityView nn_cv = nn_via_edge_cv->view();
+  IndexedNodeCellConnectivityView nc_cv = connectivity_view.nodeCell();
+  IndexedCellNodeConnectivityView cn_cv = connectivity_view.cellNode();
+
+  // We can use any cell to get the number of nodes per cell since we assume a uniform mesh
+  // we just take the first cell and get its number of nodes to determine the element type
+  // (triangular, quadrilateral, tetrahedral, hexahedral)
+  CellLocalId first_cell_lid(0);
+  auto nb_nodes = cn_cv.nbNode(first_cell_lid);
+
+  // Triangluar element mesh
+  if (mesh->dimension() == 2 && nb_nodes == 3) {
     ENUMERATE_NODE (inode, mesh->allNodes()) {
       Node node = *inode;
-      nb_edge += nn_cv.nbNode(node);
+      nb_edge += nn_cv.nbNode(node) + 1;
     }
-    nb_edge /= 2;
+    nb_col = nb_edge;
+    return nb_col;
   }
-  return nb_edge;
+
+  // Quadrangular eleement mesh
+  if (mesh->dimension() == 2 && nb_nodes == 4) {
+    ENUMERATE_NODE (inode, mesh->allNodes()) {
+      Node node = *inode;
+      nb_edge += nn_cv.nbNode(node) + 1;
+      nb_cell_nodes += nc_cv.nbCell(node);
+    }
+    nb_col = nb_edge + nb_cell_nodes;
+    return nb_col;
+  }
+
+  // Tetrahedral eleement mesh
+  if (mesh->dimension() == 3 && nb_nodes == 4) {
+    ENUMERATE_NODE (inode, mesh->allNodes()) {
+      Node node = *inode;
+      nb_edge += nn_cv.nbNode(node) + 1;
+    }
+    nb_col = nb_edge;
+    return nb_col;
+  }
+
+  // TODO: Hexahedral element mesh JUST BLABLA FOR NOW, NEED TO CHECK WITH A REAL HEXA MESH
+  if (mesh->dimension() == 3 && nb_nodes == 8) {
+    ENUMERATE_NODE (inode, mesh->allNodes()) {
+      Node node = *inode;
+      nb_edge += nn_cv.nbNode(node) + 1;
+      nb_cell_nodes += nc_cv.nbCell(node);
+    }
+    nb_col = nb_edge + nb_cell_nodes;
+    return nb_col;
+  }
+
+  return nb_col;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -272,10 +320,9 @@ initialize(IMesh* mesh, Int8 nb_dof, bool does_linear_system_use_csr, bool use_a
 
   m_mesh = mesh;
   m_nb_dof = nb_dof;
-  Int64 nb_edge = computeNbEdge(mesh);
   Int32 nb_node = m_mesh->nbNode();
-  Int32 nb_col = 2 * nb_edge + nb_node;
-  Int32 nb_non_zero_value = (m_nb_dof * m_nb_dof) * (2 * nb_edge + nb_node);
+  Int32 nb_col = computeNbColumns(mesh);
+  Int32 nb_non_zero_value = (m_nb_dof * m_nb_dof) * (nb_col);
 
   m_use_csr_in_linear_system = does_linear_system_use_csr;
   bool order_values_per_block = !does_linear_system_use_csr;
@@ -462,6 +509,10 @@ computeSparsityAtomicFree()
 }
 
 /*---------------------------------------------------------------------------*/
+// TODO
+// bad name should be computeSortedDofPairs or something like that since it's 
+// not really edges but dof-pairs, but keeping for now to avoid confusion with 
+// the previous version which was computeSortedEdges and was really about edges
 /*---------------------------------------------------------------------------*/
 
 void BSRFormat::
@@ -478,36 +529,62 @@ computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64
     auto command = makeCommand(m_queue);
     auto inout_edges = viewInOut(command, edges);
 
-    if (m_mesh->dimension() == 2) {
-      command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, m_mesh->allCells())
-      {
+    // TODO: Check performance, maybe remove the if loops and use a switch-case instead
+    command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, m_mesh->allCells())
+    {
+      auto start = cell_lid * edges_per_element;
+      auto nb_nodes = cell_node_cv.nbNode(cell_lid);
+
+      if (nb_nodes == 3) { // Triangle (3 node-pairs)
         auto n0 = cell_node_cv.nodeId(cell_lid, 0);
         auto n1 = cell_node_cv.nodeId(cell_lid, 1);
         auto n2 = cell_node_cv.nodeId(cell_lid, 2);
-
-        auto start = cell_lid * edges_per_element;
         inout_edges[start] = pack(n0, n1);
         inout_edges[start + 1] = pack(n0, n2);
         inout_edges[start + 2] = pack(n1, n2);
-      };
-    }
-    else {
-      command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, m_mesh->allCells())
-      {
+      }
+      else if (nb_nodes == 4 && edges_per_element == 6) { // Quad (6 node-pairs: 4 edges + 2 diagonals)
         auto n0 = cell_node_cv.nodeId(cell_lid, 0);
         auto n1 = cell_node_cv.nodeId(cell_lid, 1);
         auto n2 = cell_node_cv.nodeId(cell_lid, 2);
         auto n3 = cell_node_cv.nodeId(cell_lid, 3);
-
-        auto start = cell_lid * edges_per_element;
+        // Perimeter edges
+        inout_edges[start] = pack(n0, n1);
+        inout_edges[start + 1] = pack(n1, n2);
+        inout_edges[start + 2] = pack(n2, n3);
+        inout_edges[start + 3] = pack(n3, n0);
+        // Diagonals
+        inout_edges[start + 4] = pack(n0, n2);
+        inout_edges[start + 5] = pack(n1, n3);
+      }
+      else if (nb_nodes == 4 && edges_per_element == 6) { // Tetra (6 node-pairs)
+        auto n0 = cell_node_cv.nodeId(cell_lid, 0);
+        auto n1 = cell_node_cv.nodeId(cell_lid, 1);
+        auto n2 = cell_node_cv.nodeId(cell_lid, 2);
+        auto n3 = cell_node_cv.nodeId(cell_lid, 3);
         inout_edges[start] = pack(n0, n1);
         inout_edges[start + 1] = pack(n0, n2);
         inout_edges[start + 2] = pack(n0, n3);
         inout_edges[start + 3] = pack(n1, n2);
         inout_edges[start + 4] = pack(n1, n3);
         inout_edges[start + 5] = pack(n2, n3);
-      };
-    }
+      }
+      else if (nb_nodes == 8) { // Hexahedron (28 node-pairs)
+        Int32 n[8];
+        for (int i = 0; i < 8; ++i) {
+          n[i] = cell_node_cv.nodeId(cell_lid, i);
+        }
+
+        // Generate all 28 unique non-duplicated combinations combinatorially
+        int idx = 0;
+        for (int i = 0; i < 7; ++i) {
+          for (int j = i + 1; j < 8; ++j) {
+            inout_edges[start + idx] = pack(n[i], n[j]);
+            idx++;
+          }
+        }
+      }
+    };
   }
   m_queue.barrier();
 
@@ -611,17 +688,29 @@ computeSparsityAtomic()
   info() << "BSRFormat(computeSparsityAtomic): Computing sparsity of BSR matrix without Arcane connectivities (e.g with atomics)...";
   auto startTime = platform::getRealTime();
 
-  auto edges_per_element = m_mesh->dimension() == 2 ? 3 : 6;
-  auto nb_edge_total = m_mesh->nbCell() * edges_per_element;
+  Int8 dof_pairs_per_element = 3; // dof-pairs per element, default is for triangle 3
+ 
+  UnstructuredMeshConnectivityView m_connectivity_view(m_mesh);
+  auto cell_node_cv = m_connectivity_view.cellNode();
+  CellLocalId first_cell_lid(0);
+  auto nb_nodes = cell_node_cv.nbNode(first_cell_lid);
+  
+  if (m_mesh->dimension() == 2) {
+    dof_pairs_per_element = (nb_nodes == 4) ? 6 : 3;  // Quad needs 6 pairs, Triangle needs 3
+  } else {
+    dof_pairs_per_element = (nb_nodes == 8) ? 28 : 6; // Hex needs 28 pairs, Tetra needs 6
+  }
+
+  auto nb_edge_total = m_mesh->nbCell() * dof_pairs_per_element;
 
   auto mem_ressource = m_queue.memoryRessource();
   NumArray<UInt64, MDDim1> sorted_edges(mem_ressource);
   sorted_edges.resize(nb_edge_total);
   auto sorted_edges_ss = sorted_edges.to1DSmallSpan();
 
-  computeSortedEdges(edges_per_element, nb_edge_total, sorted_edges_ss);
-  computeRowIndex(edges_per_element, nb_edge_total, sorted_edges_ss);
-  computeColumns(edges_per_element, nb_edge_total, sorted_edges_ss);
+  computeSortedEdges(dof_pairs_per_element, nb_edge_total, sorted_edges_ss);
+  computeRowIndex(dof_pairs_per_element, nb_edge_total, sorted_edges_ss);
+  computeColumns(dof_pairs_per_element, nb_edge_total, sorted_edges_ss);
 
   info() << std::left << std::setw(40) << "[BsrMatrix-Timer] build-sparsity-bsr" << " = " << (platform::getRealTime() - startTime);
 
