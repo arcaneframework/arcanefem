@@ -292,6 +292,7 @@ computeNbColumns(IMesh* mesh)
   }
 
   // TODO: Hexahedral element mesh JUST BLABLA FOR NOW, NEED TO CHECK WITH A REAL HEXA MESH
+  /*
   if (mesh->dimension() == 3 && nb_nodes == 8) {
     ENUMERATE_NODE (inode, mesh->allNodes()) {
       Node node = *inode;
@@ -301,6 +302,7 @@ computeNbColumns(IMesh* mesh)
     nb_col = nb_edge + nb_cell_nodes;
     return nb_col;
   }
+  */
 
   return nb_col;
 }
@@ -510,8 +512,8 @@ computeSparsityAtomicFree()
 
 /*---------------------------------------------------------------------------*/
 // TODO
-// bad name should be computeSortedDofPairs or something like that since it's 
-// not really edges but dof-pairs, but keeping for now to avoid confusion with 
+// bad name should be computeSortedDofPairs or something like that since it's
+// not really edges but dof-pairs, but keeping for now to avoid confusion with
 // the previous version which was computeSortedEdges and was really about edges
 /*---------------------------------------------------------------------------*/
 
@@ -525,25 +527,34 @@ computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64
   UnstructuredMeshConnectivityView m_connectivity_view(m_mesh);
   auto cell_node_cv = m_connectivity_view.cellNode();
 
+  CellLocalId first_cell_lid(0);
+  Int32 nb_nodes = cell_node_cv.nbNode(first_cell_lid);
+
   {
     auto command = makeCommand(m_queue);
     auto inout_edges = viewInOut(command, edges);
 
-    // TODO: Check performance, maybe remove the if loops and use a switch-case instead
-    command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, m_mesh->allCells())
-    {
-      auto start = cell_lid * edges_per_element;
-      auto nb_nodes = cell_node_cv.nbNode(cell_lid);
-
-      if (nb_nodes == 3) { // Triangle (3 node-pairs)
+    // Triangular element mesh
+    if (m_mesh->dimension() == 2 && nb_nodes == 3) {
+      command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, m_mesh->allCells())
+      {
+        auto start = cell_lid * edges_per_element;
+        // Triangle (3 node-pairs)
         auto n0 = cell_node_cv.nodeId(cell_lid, 0);
         auto n1 = cell_node_cv.nodeId(cell_lid, 1);
         auto n2 = cell_node_cv.nodeId(cell_lid, 2);
         inout_edges[start] = pack(n0, n1);
         inout_edges[start + 1] = pack(n0, n2);
         inout_edges[start + 2] = pack(n1, n2);
-      }
-      else if (nb_nodes == 4 && edges_per_element == 6) { // Quad (6 node-pairs: 4 edges + 2 diagonals)
+      };
+    }
+
+    // Quadrangular element mesh
+    if (m_mesh->dimension() == 2 && nb_nodes == 4) {
+      command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, m_mesh->allCells())
+      {
+        auto start = cell_lid * edges_per_element;
+        // Quad (6 node-pairs: 4 edges + 2 diagonals)
         auto n0 = cell_node_cv.nodeId(cell_lid, 0);
         auto n1 = cell_node_cv.nodeId(cell_lid, 1);
         auto n2 = cell_node_cv.nodeId(cell_lid, 2);
@@ -556,8 +567,15 @@ computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64
         // Diagonals
         inout_edges[start + 4] = pack(n0, n2);
         inout_edges[start + 5] = pack(n1, n3);
-      }
-      else if (nb_nodes == 4 && edges_per_element == 6) { // Tetra (6 node-pairs)
+      };
+    }
+
+    // Tetrahedral element mesh
+    if (m_mesh->dimension() == 3 && nb_nodes == 4) {
+      command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, m_mesh->allCells())
+      {
+        auto start = cell_lid * edges_per_element;
+        // Tetra (6 node-pairs)
         auto n0 = cell_node_cv.nodeId(cell_lid, 0);
         auto n1 = cell_node_cv.nodeId(cell_lid, 1);
         auto n2 = cell_node_cv.nodeId(cell_lid, 2);
@@ -568,8 +586,16 @@ computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64
         inout_edges[start + 3] = pack(n1, n2);
         inout_edges[start + 4] = pack(n1, n3);
         inout_edges[start + 5] = pack(n2, n3);
-      }
-      else if (nb_nodes == 8) { // Hexahedron (28 node-pairs)
+      };
+    }
+
+    // hexahedral element mesh
+    /*
+    if (m_mesh->dimension() == 3 && nb_nodes == 8) {
+      command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, m_mesh->allCells())
+      {
+        auto start = cell_lid * edges_per_element;
+        // Hexahedron (28 node-pairs)
         Int32 n[8];
         for (int i = 0; i < 8; ++i) {
           n[i] = cell_node_cv.nodeId(cell_lid, i);
@@ -583,8 +609,9 @@ computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64
             idx++;
           }
         }
-      }
-    };
+      };
+    }
+    */
   }
   m_queue.barrier();
 
@@ -689,15 +716,16 @@ computeSparsityAtomic()
   auto startTime = platform::getRealTime();
 
   Int8 dof_pairs_per_element = 3; // dof-pairs per element, default is for triangle 3
- 
+
   UnstructuredMeshConnectivityView m_connectivity_view(m_mesh);
   auto cell_node_cv = m_connectivity_view.cellNode();
   CellLocalId first_cell_lid(0);
   auto nb_nodes = cell_node_cv.nbNode(first_cell_lid);
-  
+
   if (m_mesh->dimension() == 2) {
-    dof_pairs_per_element = (nb_nodes == 4) ? 6 : 3;  // Quad needs 6 pairs, Triangle needs 3
-  } else {
+    dof_pairs_per_element = (nb_nodes == 4) ? 6 : 3; // Quad needs 6 pairs, Triangle needs 3
+  }
+  else {
     dof_pairs_per_element = (nb_nodes == 8) ? 28 : 6; // Hex needs 28 pairs, Tetra needs 6
   }
 
