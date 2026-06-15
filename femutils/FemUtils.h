@@ -445,6 +445,16 @@ class RealVector
     return result;
   }
 
+
+  //! Define the addition-assignment operator
+  ARCCORE_HOST_DEVICE RealVector<N>& operator+=(const RealVector<N>& other)
+  {
+    for (Arcane::Int32 i = 0; i < N; ++i) {
+        (*this)(i) += other(i);
+    }
+    return *this;
+  }
+
   //! Define the subtraction operator
   RealVector<N> operator-(const RealVector<N>& other) const
   {
