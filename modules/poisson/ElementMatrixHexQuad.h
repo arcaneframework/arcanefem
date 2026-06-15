@@ -101,6 +101,45 @@ _computeElementMatrixQuad4Gpu(CellLocalId cell_lid,
   return ae;
 }
 
+ARCCORE_HOST_DEVICE RealMatrix<1, 4>
+_computeElementVectorQuad4Gpu(CellLocalId cell_lid,
+                              const IndexedCellNodeConnectivityView& cn_cv,
+                              const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
+{
+  // Gauss points and weights for 2x2 quadrature (1/sqrt(3) ≈ 0.57735026919)
+  constexpr Real gp[2] = { -0.5773502691896257, 0.5773502691896257 };
+  constexpr Real w = 1.0;
+
+  // Initialize the element vector
+  RealMatrix<1, 4> ae;
+  ae.fill(0.0);
+
+  RealVector<4> ae_local = {0.0, 0.0, 0.0, 0.0};
+
+  // Loop over Gauss points
+  for (Int8 ixi = 0; ixi < 2; ++ixi) {
+    for (Int8 ieta = 0; ieta < 2; ++ieta) {
+
+      const Real xi = gp[ixi];
+      const Real eta = gp[ieta];
+
+      // Get shape function gradients and determinant of Jacobian from GPU helper
+      const auto gp_info = FemUtils::Gpu::FeOperation2D::computeGradientsAndJacobianQuad4Gpu(cell_lid, cn_cv, in_node_coord, xi, eta);
+
+      const RealVector<4>& dxU = gp_info.dN_dx;
+      const RealVector<4>& dyU = gp_info.dN_dy;
+      const Real detJ = gp_info.det_j;
+
+      // Integration weight
+      const Real integration_weight = detJ * w * w;
+
+      // Stiffness matrix assembly using outer products (^)
+      ae_local += (dxU[node_lid] * dxU) * integration_weight + (dyU[node_lid] * dyU) * integration_weight;
+    }
+  }
+  return {ae_local(0), ae_local(1), ae_local(2), ae_local(3)};
+}
+
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Computes the element matrix for a hexahedral element (HEXA8, ℙ1 FE).
