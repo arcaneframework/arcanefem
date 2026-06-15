@@ -402,9 +402,9 @@ computeNeighborsAtomicFree(SmallSpan<Int32>& neighbors_ss)
     // Detect element type: quads need an extra diagonal neighbor per cell
     CellLocalId first_cell_lid(0);
     auto cn_cv = connectivity_view.cellNode();
-    auto nb_nodes_in_cell = cn_cv.nbNode(first_cell_lid);
+    auto nb_nodes = cn_cv.nbNode(first_cell_lid);
 
-    if (nb_nodes_in_cell == 4) { // Quad mesh: edge-neighbors + self + one diagonal per cell
+    if (nb_nodes == 4) { // Quad mesh: edge-neighbors + self + one diagonal per cell
       auto node_cell_cv = connectivity_view.nodeCell();
       command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
       {
@@ -418,7 +418,7 @@ computeNeighborsAtomicFree(SmallSpan<Int32>& neighbors_ss)
       };
     }
   }
-  else {
+  else { // 3D mesh: node-node connectivity via edge-neighbors + self
     auto connectivity_mng = m_mesh->indexedConnectivityMng();
     auto connectivity_ptr = connectivity_mng->findOrCreateConnectivity(m_mesh->nodeFamily(), m_mesh->nodeFamily(), "NodeNodeViaEdge");
     IndexedNodeNodeConnectivityView node_node_cv = connectivity_ptr->view();
@@ -464,9 +464,9 @@ computeColumnsAtomicFree()
     // Detect element type: quads require diagonal connections in addition to edge connections
     CellLocalId first_cell_lid(0);
     auto cn_cv = connectivity_view.cellNode();
-    auto nb_nodes_in_cell = cn_cv.nbNode(first_cell_lid);
+    auto nb_nodes = cn_cv.nbNode(first_cell_lid);
 
-    if (nb_nodes_in_cell == 4) { // Quad mesh
+    if (nb_nodes == 4) { // Quad mesh
       auto node_cell_cv = connectivity_view.nodeCell();
       command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
       {
@@ -495,7 +495,7 @@ computeColumnsAtomicFree()
         inout_columns[offset] = node_id;
       };
     }
-    else { // Triangle mesh: existing logic
+    else { // Triangle mesh only edge-adjacent neighbors via faces
       command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
       {
         auto offset = row_index[node_id];
@@ -506,6 +506,7 @@ computeColumnsAtomicFree()
           ++offset;
         }
 
+        // Add self
         inout_columns[offset] = node_id;
       };
     }
