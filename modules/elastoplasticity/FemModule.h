@@ -90,6 +90,8 @@ class FemModuleElastoplasticity
   Real nu;
   Real mu;
   Real lambda;
+  Real m_newton_atol;
+  Real m_newton_rtol;
 
   Real3 f;
   Real3 t;
@@ -103,25 +105,45 @@ class FemModuleElastoplasticity
   // MeshVariableArrayRefT<Cell, RealMatrix<6, 6>> m_C_tang_3d_cell;
 
   Int8 m_dof_per_node;
+  Int32 m_newton_iter;
+  Int32 m_max_newton_iters;
 
   String m_petsc_flags;
   String m_matrix_format = "DOK";
 
   bool m_assemble_linear_system = true;
+  bool m_assemble_nonlinear_system = true;
   bool m_solve_linear_system = true;
+  bool m_solve_nonlinear_system = true;
   bool m_cross_validation = false;
   bool m_hex_quad_mesh = false;
 
+  bool m_nonlinear_law = false;
+  bool m_newton_solver_converged = false;
+
   void _getMaterialParameters();
+  void _solve_linear();
+  void _solve_newton();
+  void _check_newton_convergence();
   void _solve();
   void _assembleLinearOperator();
   void _validateResults();
+  void _updateNewtonIncrements();
+  void _updateGuessFromIncrement();
   void _updateVariables();
   void _initBsr();
+
+
 
   inline void _applyBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyDirichlet(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+
+  inline void _applyResidualRHS(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyResidualRHSTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyResidualRHSQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyResidualRHSTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyResidualRHSHexa8(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
 
   RealMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
   RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);

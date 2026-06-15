@@ -9,6 +9,9 @@
     <variable field-name="U" name="U" data-type="real3" item-kind="node" dim="0">
       <description>U vector from Arcane variable</description>
     </variable>
+    <variable field-name="dU" name="dU" data-type="real3" item-kind="node" dim="0">
+          <description>dU vector from Arcane variable for Newton increment</description>
+    </variable>
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
       <description>Node coordinates from Arcane variable</description>
     </variable>
@@ -53,6 +56,21 @@
     <simple name="hex-quad-mesh" type="bool" default="false" optional="true">
       <description>Boolean to use hexagonal quadrature for element matrix assembly.</description>
     </simple>
+
+    <!-- - - - - - nonlinear-analysis-parameters - - - - -->
+    <simple name="nonlinear-law" type="bool" default="true" optional="true">
+      <description>Boolean to enable solving as nonlinear problem</description>
+    </simple>
+    <simple name="newton-rtol" type ="real" default="1e-8" optional="true">
+      <description>Relative tolerance for convergence of Newton iterations</description>
+    </simple>
+    <simple name="newton-atol" type ="real" default="1e-12" optional="true">
+      <description>Absolute tolerance for convergence of Newton iterations</description>
+    </simple>
+    <simple name="newton-max-iters" type="integer" default="30" optional="true">
+      <description>Maximum number of allowed Newton iterations</description>
+    </simple>
+
 
     <!-- Linear system service instance -->
     <service-instance name="linear-system" type="Arcane::FemUtils::IDoFLinearSystemFactory" default="AlephLinearSystem" />

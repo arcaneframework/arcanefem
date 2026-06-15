@@ -19,6 +19,7 @@
 #include "BodyForce.h"
 #include "Traction.h"
 #include "Dirichlet.h"
+#include "NLResidualRHS.h"
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -33,8 +34,6 @@ startInit()
 {
   info() << "[ArcaneFem-Info] Started module  startInit()";
   Real elapsedTime = platform::getRealTime();
-
-  _getMaterialParameters();
 
   m_dofs_on_nodes.initialize(defaultMesh(), m_dof_per_node);
 
@@ -126,9 +125,38 @@ void FemModuleElastoplasticity::_initBsr()
 /**
  * @brief Performs a stationary solve for the FEM system.
  *
+ * This method solves the FEM system either with:
+ *
+ *   _solve_newton()
+ *
+ *   or
+ *
+ *   _solve_linear()
+ *
+ *   based on the nature of the constitutive law
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleElastoplasticity::
+_doStationarySolve()
+{
+  if (m_nonlinear_law) {
+    _solve_newton();
+  }
+  else {
+    _solve_linear();
+  }
+
+
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Performs a linear solve for the FEM system using Newton method.
+ *
  * This method follows a sequence of steps to solve FEM system:
  *
- *   1. _getMaterialParameters()     Retrieves material parameters via
+ *   1. _getMaterialParameters()     Updates nonlinear material parameters
  *   2. _assembleBilinearOperator()  Assembles the FEM  matrix 𝐀
  *   3. _assembleLinearOperator()    Assembles the FEM RHS vector 𝐛
  *   4. _solve()                     Solves for solution vector 𝐮 = 𝐀⁻¹𝐛
@@ -138,8 +166,11 @@ void FemModuleElastoplasticity::_initBsr()
 /*---------------------------------------------------------------------------*/
 
 void FemModuleElastoplasticity::
-_doStationarySolve()
+_solve_linear()
 {
+
+  _getMaterialParameters();
+
   if(m_assemble_linear_system){
     _assembleBilinearOperator();
     _assembleLinearOperator();
@@ -148,6 +179,73 @@ _doStationarySolve()
     _solve();
     _updateVariables();
   }
+  if(m_cross_validation){
+    _validateResults();
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Performs a nonlinear solve for the FEM system using Newton method.
+ *
+ * This method follows a sequence of steps to solve FEM system:
+ *
+ *   1. _getMaterialParameters()     Updates nonlinear material parameters
+ *   2. _assembleBilinearOperator()  Assembles the FEM  matrix 𝐀ʹ
+ *   3. _assembleLinearOperator()    Assembles the FEM RHS vector 𝐛
+ *   4. _solve()                     Solves for solution vector 𝐝𝐮 = 𝐀ʹ⁻¹𝐛
+ *   5. _updateVariables()           Updates FEM variables 𝐝𝐮 = 𝐱
+ *   6. _validateResults()           Regression test
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleElastoplasticity::
+_solve_newton()
+{
+
+  while (m_newton_iter < m_max_newton_iters) {
+    _getMaterialParameters();
+
+    if(m_assemble_nonlinear_system) {
+      if (m_linear_system.isInitialized() && m_newton_iter != 0) {
+        m_linear_system.clearValues();
+
+        if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
+          m_bsr_format.resetMatrixValues();
+
+        _assembleBilinearOperator(); // assembles Jacobian
+        _assembleLinearOperator(); // assembles Residuals(m_U) + BCs
+      } else {
+        _assembleBilinearOperator(); // iter 0: initialisation contd.
+        _assembleLinearOperator();   // iter 0: initialisation contd.
+      }
+    }
+
+    if(m_solve_nonlinear_system){
+      _solve();
+      _updateNewtonIncrements();
+    }
+
+    ++m_newton_iter;
+    _check_newton_convergence();
+
+    m_U.add(m_dU);
+
+    if (m_newton_solver_converged) {
+      info() << "[ArcaneFem-Info] Newton solver converged after " << m_newton_iter << " iterations.";
+      m_newton_iter = 0;
+      m_newton_solver_converged = false;
+      break;
+    } else {
+      _updateGuessFromIncrement(); //TODO check if m_linear_solve keeps the previous solution
+    }
+  }
+
+  if (m_newton_iter == m_max_newton_iters && !m_newton_solver_converged) {
+    info() << "[ArcaneFem-Info] Newton iterations did not converge after maximum (" << m_max_newton_iters << ") iterations";
+    ARCANE_FATAL("Newton iterations diverged after max iters");
+  }
+
   if(m_cross_validation){
     _validateResults();
   }
@@ -464,6 +562,142 @@ _updateVariables()
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Update the FEM Newton increment.
+ *
+ * This method performs the following actions:
+ *   1. Fetches values of solution from solved linear system to FEM variables,
+ *      i.e., it copies RHS DOF to du.
+ *   2. Performs synchronize of FEM variables across subdomains.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleElastoplasticity::
+_updateNewtonIncrements()
+{
+  info() << "[ArcaneFem-Info] Started module  _updateNewtonIncrements()";
+  Real elapsedTime = platform::getRealTime();
+
+  {
+    VariableDoFReal& dof_du(m_linear_system.solutionVariable());
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    if (mesh()->dimension() == 3)
+      ENUMERATE_ (Node, inode, ownNodes()) {
+        Node node = *inode;
+        Real du1_val = dof_du[node_dof.dofId(node, 0)];
+        Real du2_val = dof_du[node_dof.dofId(node, 1)];
+        Real du3_val = dof_du[node_dof.dofId(node, 2)];
+        m_dU[node] = Real3(du1_val, du2_val, du3_val);
+      }
+    else
+      ENUMERATE_ (Node, inode, ownNodes()) {
+        Node node = *inode;
+        Real du1_val = dof_du[node_dof.dofId(node, 0)];
+        Real du2_val = dof_du[node_dof.dofId(node, 1)];
+        m_dU[node] = Real3(du1_val, du2_val, 0.);
+      }
+  }
+  m_dU.synchronize();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-Newton-increments", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Reinitialize the solution vector of the linear solve with the FEM variables.
+ *
+ * This method performs the following actions:
+ *   1. Performs synchronize of FEM variables across subdomains.
+ *   2. Fetches the FEM variables to the solution vector of the
+ *      linear solver for next fixed point iteration.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleElastoplasticity::
+_updateGuessFromIncrement()
+{
+  info() << "[ArcaneFem-Info] Started module _updateGuessFromIncrement()";
+  Real elapsedTime = platform::getRealTime();
+
+  m_dU.synchronize();
+
+  {
+    VariableDoFReal& dof_du(m_linear_system.solutionVariable());
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    if (mesh()->dimension() == 3)
+      ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      dof_du[node_dof.dofId(node, 0)] = m_dU[node][0];
+      dof_du[node_dof.dofId(node, 1)] = m_dU[node][1];
+      dof_du[node_dof.dofId(node, 2)] = m_dU[node][2];
+    }
+    else
+      ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      dof_du[node_dof.dofId(node, 0)] = m_dU[node][0];
+      dof_du[node_dof.dofId(node, 1)] = m_dU[node][1];
+    }
+  }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "_update-guess-from-increment", elapsedTime);
+}
+/*---------------------------------------------------------------------------*/
+
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Check for convergence and Update the FEM variables.
+ *
+ * This method performs the following actions:
+ *   1. Updates the FEM solutions from the solutions of linear solver on DOF
+ *   2. Evaluates the convergence norm with newton increment FEM variables
+ *   3. Checks for convergence
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleElastoplasticity::
+_check_newton_convergence()
+{
+  info() << "[ArcaneFem-Info] Started module _check_newton_convergence()";
+  Real elapsedTime = platform::getRealTime();
+
+  m_dU.synchronize();
+  m_U.synchronize();
+
+  Real l2_norm_du = 0.0;
+  Real l2_norm_u = 0.0;
+  {
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      const Real norm_du = math::pow(m_dU[inode][0], 2.0) + math::pow(m_dU[inode][1], 2.0) + math::pow(m_dU[inode][2], 2.0);
+      const Real norm_u = math::pow(m_U[inode][0], 2.0) + math::pow(m_U[inode][1], 2.0) + math::pow(m_U[inode][2], 2.0);
+      l2_norm_du += norm_du;
+      l2_norm_u += norm_u;
+    }
+  }
+  IParallelMng* pm = defaultMesh()->parallelMng();
+  l2_norm_du = pm->reduce(Parallel::ReduceSum, l2_norm_du);
+  l2_norm_u = pm->reduce(Parallel::ReduceSum, l2_norm_u);
+
+  l2_norm_du = math::sqrt(l2_norm_du);
+  l2_norm_u = math::sqrt(l2_norm_u);
+
+  Real convergence_norm = l2_norm_du / (m_newton_rtol * l2_norm_u  + m_newton_atol);
+
+  if ( convergence_norm <= 1.0){
+    m_newton_solver_converged = true;
+  } else {
+    m_newton_solver_converged = false;
+  }
+
+  info() << "[ArcaneFem-Info] At newton iteration "<< m_newton_iter <<": rel. conv. norm = " << convergence_norm;
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "check-newton-convergence", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
