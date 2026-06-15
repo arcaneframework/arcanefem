@@ -21,11 +21,21 @@ env:
   OMPI_MCA_rmaps_base_oversubscribe: 1
 
 jobs:
+  check-runner:
+    name: 'Check runner'
+    uses: 'arcaneframework/gh_actions/.github/workflows/check_runner.yml@v3'
+    secrets: inherit
+    with:
+      requested_runner_tag: 'gpu'
+      is_requested_runner_a_gpu_runner: true
+
   tests:
     name: 'Build and Test'
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner_tag }}
     container:
-      image: ghcr.io/arcaneframework/arcane_ubuntu-2404:gcc-14_full_debug_latest
+      image: ghcr.io/arcaneframework/arcane_ubuntu-2404:gcc-14_full_check_latest
+      options: ${{ case(needs.check-runner.outputs.is_a_gpu_runner == 'true', '--runtime nvidia --gpus all', '') }}
 
     steps:
       - name: Define environment paths
@@ -36,7 +46,7 @@ jobs:
           echo "CT_RESULT_DIR=${GITHUB_WORKSPACE}/test" >> $GITHUB_ENV
 
       - name: Checkout repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           path: ${{ env.SOURCE_DIR }}
 
@@ -61,7 +71,7 @@ jobs:
           ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }}
 
       - name: Upload test artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: all-modules-femutils-artifact

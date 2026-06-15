@@ -34,7 +34,7 @@ jobs:
           echo "CT_RESULT_DIR=${GITHUB_WORKSPACE}/test" >> $GITHUB_ENV
 
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: ${{ env.SOURCE_DIR }}
 
@@ -71,7 +71,7 @@ jobs:
           rm -v -f *_axl.h.gcov
 
       - name: Upload coverage files to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         env:
           CODECOV_TOKEN : ${{ secrets.CODECOV_TOKEN }}
         with:
@@ -79,7 +79,7 @@ jobs:
           fail_ci_if_error: true
 
       - name: Upload test artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: test-all-modules-artifact
