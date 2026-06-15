@@ -398,12 +398,27 @@ computeNeighborsAtomicFree(SmallSpan<Int32>& neighbors_ss)
   if (m_mesh->dimension() == 2) {
     UnstructuredMeshConnectivityView connectivity_view(m_mesh);
     auto node_face_cv = connectivity_view.nodeFace();
-    command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
-    {
-      neighbors_ss[node_id] = node_face_cv.nbFace(node_id) + 1;
-    };
+
+    // Detect element type: quads need an extra diagonal neighbor per cell
+    CellLocalId first_cell_lid(0);
+    auto cn_cv = connectivity_view.cellNode();
+    auto nb_nodes = cn_cv.nbNode(first_cell_lid);
+
+    if (nb_nodes == 4) { // Quad mesh: edge-neighbors + self + one diagonal per cell
+      auto node_cell_cv = connectivity_view.nodeCell();
+      command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
+      {
+        neighbors_ss[node_id] = node_face_cv.nbFace(node_id) + 1 + node_cell_cv.nbCell(node_id);
+      };
+    }
+    else { // Triangle mesh: edge-neighbors + self
+      command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
+      {
+        neighbors_ss[node_id] = node_face_cv.nbFace(node_id) + 1;
+      };
+    }
   }
-  else {
+  else { // 3D mesh: node-node connectivity via edge-neighbors + self
     auto connectivity_mng = m_mesh->indexedConnectivityMng();
     auto connectivity_ptr = connectivity_mng->findOrCreateConnectivity(m_mesh->nodeFamily(), m_mesh->nodeFamily(), "NodeNodeViaEdge");
     IndexedNodeNodeConnectivityView node_node_cv = connectivity_ptr->view();
@@ -446,18 +461,55 @@ computeColumnsAtomicFree()
     auto node_face_cv = connectivity_view.nodeFace();
     auto face_node_cv = connectivity_view.faceNode();
 
-    command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
-    {
-      auto offset = row_index[node_id];
+    // Detect element type: quads require diagonal connections in addition to edge connections
+    CellLocalId first_cell_lid(0);
+    auto cn_cv = connectivity_view.cellNode();
+    auto nb_nodes = cn_cv.nbNode(first_cell_lid);
 
-      for (auto face_lid : node_face_cv.faceIds(node_id)) {
-        auto nodes = face_node_cv.nodes(face_lid);
-        inout_columns[offset] = nodes[0] == node_id ? nodes[1] : nodes[0];
-        ++offset;
-      }
+    if (nb_nodes == 4) { // Quad mesh
+      auto node_cell_cv = connectivity_view.nodeCell();
+      command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
+      {
+        auto offset = row_index[node_id];
 
-      inout_columns[offset] = node_id;
-    };
+        // Add edge-adjacent neighbors via faces
+        for (auto face_lid : node_face_cv.faceIds(node_id)) {
+          auto nodes = face_node_cv.nodes(face_lid);
+          inout_columns[offset] = nodes[0] == node_id ? nodes[1] : nodes[0];
+          ++offset;
+        }
+
+        // Add diagonal neighbor from each cell (node at local position (k+2)%4)
+        // In a quad n0-n1-n2-n3, n0's diagonal is n2, n1's diagonal is n3, etc.
+        for (auto cell_lid : node_cell_cv.cellIds(node_id)) {
+          for (Int32 k = 0; k < 4; ++k) {
+            if (cn_cv.nodeId(cell_lid, k) == node_id) {
+              inout_columns[offset] = cn_cv.nodeId(cell_lid, (k + 2) % 4);
+              ++offset;
+              break;
+            }
+          }
+        }
+
+        // Add self
+        inout_columns[offset] = node_id;
+      };
+    }
+    else { // Triangle mesh only edge-adjacent neighbors via faces
+      command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
+      {
+        auto offset = row_index[node_id];
+
+        for (auto face_lid : node_face_cv.faceIds(node_id)) {
+          auto nodes = face_node_cv.nodes(face_lid);
+          inout_columns[offset] = nodes[0] == node_id ? nodes[1] : nodes[0];
+          ++offset;
+        }
+
+        // Add self
+        inout_columns[offset] = node_id;
+      };
+    }
   }
   else {
     auto connectivity_mng = m_mesh->indexedConnectivityMng();

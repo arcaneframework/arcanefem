@@ -169,6 +169,22 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/boundary-conditions/neumann/value=2
     ${SOLVER_HYPRE_CG_2D}
     inputs/circle.neumann.2D.quad.arc)
+  arcanefem_add_gpu_test(NAME [poisson]2D_quad_af-bsr_hypre COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D_quad.txt
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG_2D}
+    inputs/circle.2D.quad.arc)
+  arcanefem_add_gpu_test(NAME [poisson]2D_quad_neumann_af-bsr_hypre COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D_quad.txt
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_HYPRE_CG_2D}
+    inputs/circle.neumann.2D.quad.arc)
+  arcanefem_add_gpu_test(NAME [poisson]2D_quad_scalar_neumann_af-bsr_hypre COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_scalar_neumann_2D_quad.txt
+    -A,//fem/matrix-format=AF-BSR
+    -A,//fem/boundary-conditions/neumann/value=2
+    ${SOLVER_HYPRE_CG_2D}
+    inputs/circle.neumann.2D.quad.arc)
   arcanefem_add_gpu_test(NAME [poisson]2D_neumann_bsr_hypre COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D.txt
     -A,//fem/matrix-format=BSR
@@ -232,6 +248,22 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   arcanefem_add_gpu_test(NAME [poisson]2D_quad_scalar_neumann_bsr_petsc COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_scalar_neumann_2D_quad.txt
     -A,//fem/matrix-format=BSR
+    -A,//fem/boundary-conditions/neumann/value=2
+    ${SOLVER_PETSC_CG_2D}
+    inputs/circle.neumann.2D.quad.arc)
+  arcanefem_add_gpu_test(NAME [poisson]2D_quad_af-bsr_petsc COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D_quad.txt
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_PETSC_CG_2D}
+    inputs/circle.2D.quad.arc)
+  arcanefem_add_gpu_test(NAME [poisson]2D_quad_neumann_af-bsr_petsc COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D_quad.txt
+    -A,//fem/matrix-format=AF-BSR
+    ${SOLVER_PETSC_CG_2D}
+    inputs/circle.neumann.2D.quad.arc)
+  arcanefem_add_gpu_test(NAME [poisson]2D_quad_scalar_neumann_af-bsr_petsc COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_scalar_neumann_2D_quad.txt
+    -A,//fem/matrix-format=AF-BSR
     -A,//fem/boundary-conditions/neumann/value=2
     ${SOLVER_PETSC_CG_2D}
     inputs/circle.neumann.2D.quad.arc)
