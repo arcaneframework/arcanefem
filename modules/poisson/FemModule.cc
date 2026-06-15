@@ -336,11 +336,15 @@ _assembleBilinearOperator()
     auto in_node_coord = ax::viewIn(command, m_node_coord);
 
     if (mesh()->dimension() == 2)
-      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
+      if(m_hex_quad_mesh)
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorQuad4Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
+      else
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
     else
       m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
 
     m_bsr_format.toLinearSystem(m_linear_system);
+    //m_bsr_format.dumpMatrix("assembled_matrix.af-bsr");
   }
 
   if (m_matrix_format == "DOK") {
