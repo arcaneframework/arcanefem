@@ -84,7 +84,7 @@ _computeElementMatrixQuad4Gpu(CellLocalId cell_lid,
       const Real xi = gp[ixi];
       const Real eta = gp[ieta];
 
-      // Get shape function gradients and determinant of Jacobian from GPU helper
+      // Get shape function gradients and determinant of Jacobian
       const auto gp_info = FemUtils::Gpu::FeOperation2D::computeGradientsAndJacobianQuad4Gpu(cell_lid, cn_cv, in_node_coord, xi, eta);
 
       const RealVector<4>& dxU = gp_info.dN_dx;
@@ -111,9 +111,6 @@ _computeElementVectorQuad4Gpu(CellLocalId cell_lid,
   constexpr Real w = 1.0;
 
   // Initialize the element vector
-  RealMatrix<1, 4> ae;
-  ae.fill(0.0);
-
   RealVector<4> ae_local = {0.0, 0.0, 0.0, 0.0};
 
   // Loop over Gauss points
@@ -123,7 +120,7 @@ _computeElementVectorQuad4Gpu(CellLocalId cell_lid,
       const Real xi = gp[ixi];
       const Real eta = gp[ieta];
 
-      // Get shape function gradients and determinant of Jacobian from GPU helper
+      // Get shape function gradients and determinant of Jacobian
       const auto gp_info = FemUtils::Gpu::FeOperation2D::computeGradientsAndJacobianQuad4Gpu(cell_lid, cn_cv, in_node_coord, xi, eta);
 
       const RealVector<4>& dxU = gp_info.dN_dx;
