@@ -34,9 +34,9 @@ applyDirichletToNodeGroupRhsOnly(const Int32 dof_index, Real value, RunQueue* qu
   NodeInfoListView nodes_infos(mesh->nodeFamily());
   auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
 
-  auto command = Accelerator::makeCommand(queue);
-  auto in_out_forced_info = Accelerator::viewInOut(command, linear_system.getForcedInfo());
-  auto in_out_rhs_variable = Accelerator::viewInOut(command, linear_system.rhsVariable());
+  auto command = makeCommand(queue);
+  auto in_out_forced_info = viewInOut(command, linear_system.getForcedInfo());
+  auto in_out_rhs_variable = viewInOut(command, linear_system.rhsVariable());
 
   command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
   {
@@ -61,10 +61,10 @@ applyDirichletToNodeGroupViaPenalty(const Int32 dof_index, Real value, Real pena
   NodeInfoListView nodes_infos(mesh->nodeFamily());
   auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
 
-  auto command = Accelerator::makeCommand(queue);
-  auto in_out_forced_info = Accelerator::viewInOut(command, linear_system.getForcedInfo());
-  auto in_out_forced_value = Accelerator::viewInOut(command, linear_system.getForcedValue());
-  auto in_out_rhs_variable = Accelerator::viewInOut(command, linear_system.rhsVariable());
+  auto command = makeCommand(queue);
+  auto in_out_forced_info = viewInOut(command, linear_system.getForcedInfo());
+  auto in_out_forced_value = viewInOut(command, linear_system.getForcedValue());
+  auto in_out_rhs_variable = viewInOut(command, linear_system.rhsVariable());
 
   command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
   {
@@ -91,9 +91,9 @@ applyDirichletToNodeGroupViaRowOrRowColumnElimination(Byte elimination_type, con
   NodeInfoListView nodes_infos(node_group.itemFamily());
   auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
 
-  auto command = Accelerator::makeCommand(queue);
-  auto in_out_elimination_info = Accelerator::viewInOut(command, elimination_helper.getEliminationInfo());
-  auto in_out_elimination_value = Accelerator::viewInOut(command, elimination_helper.getEliminationValue());
+  auto command = makeCommand(queue);
+  auto in_out_elimination_info = viewInOut(command, elimination_helper.getEliminationInfo());
+  auto in_out_elimination_value = viewInOut(command, elimination_helper.getEliminationValue());
   command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
   {
     if (nodes_infos.isOwn(node_lid)) {
@@ -302,9 +302,9 @@ applyConstantSourceToRhsQuad4(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
   auto node_dof(dofs_on_nodes.nodeDoFConnectivityView());
   auto cn_cv = connectivity_view.cellNode();
 
-  auto command = Accelerator::makeCommand(queue);
-  auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
-  auto in_node_coord = Accelerator::viewIn(command, node_coord);
+  auto command = makeCommand(queue);
+  auto in_out_rhs_variable_na = viewInOut(command, rhs_variable_na);
+  auto in_node_coord = viewIn(command, node_coord);
 
   command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh->allCells())
   {
@@ -401,9 +401,9 @@ applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_
   if (scalarNeumann) {
     Real value = std::stod(neumann_str[0].localstr());
 
-    auto command = Accelerator::makeCommand(queue);
-    auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
-    auto in_node_coord = Accelerator::viewIn(command, node_coord);
+    auto command = makeCommand(queue);
+    auto in_out_rhs_variable_na = viewInOut(command, rhs_variable_na);
+    auto in_node_coord = viewIn(command, node_coord);
     command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
     {
       Real length = MeshOperation::computeLengthFace(face_lid, fn_cv, in_node_coord);
@@ -419,9 +419,9 @@ applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_
     Real value_x = neumann_str[0] != "NULL" ? std::stod(neumann_str[0].localstr()) : 0.0;
     Real value_y = neumann_str[1] != "NULL" ? std::stod(neumann_str[1].localstr()) : 0.0;
 
-    auto command = Accelerator::makeCommand(queue);
-    auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
-    auto in_node_coord = Accelerator::viewIn(command, node_coord);
+    auto command = makeCommand(queue);
+    auto in_out_rhs_variable_na = viewInOut(command, rhs_variable_na);
+    auto in_node_coord = viewIn(command, node_coord);
     FaceInfoListView faces_infos(mesh->faceFamily());
     command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
     {
@@ -464,9 +464,9 @@ applyNeumannToRhsQuad4(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& 
   if (scalarNeumann) {
     Real value = std::stod(neumann_str[0].localstr());
 
-    auto command = Accelerator::makeCommand(queue);
-    auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
-    auto in_node_coord = Accelerator::viewIn(command, node_coord);
+    auto command = makeCommand(queue);
+    auto in_out_rhs_variable_na = viewInOut(command, rhs_variable_na);
+    auto in_node_coord = viewIn(command, node_coord);
 
     command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
     {
@@ -508,9 +508,9 @@ applyNeumannToRhsQuad4(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& 
     Real valueX = neumann_str[0] != "NULL" ? std::stod(neumann_str[0].localstr()) : 0.0;
     Real valueY = neumann_str[1] != "NULL" ? std::stod(neumann_str[1].localstr()) : 0.0;
 
-    auto command = Accelerator::makeCommand(queue);
-    auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
-    auto in_node_coord = Accelerator::viewIn(command, node_coord);
+    auto command = makeCommand(queue);
+    auto in_out_rhs_variable_na = viewInOut(command, rhs_variable_na);
+    auto in_node_coord = viewIn(command, node_coord);
 
     command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
     {
@@ -612,9 +612,9 @@ applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_
   if (scalarNeumann) {
     Real value = std::stod(neumann_str[0].localstr());
 
-    auto command = Accelerator::makeCommand(queue);
-    auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
-    auto in_node_coord = Accelerator::viewIn(command, node_coord);
+    auto command = makeCommand(queue);
+    auto in_out_rhs_variable_na = viewInOut(command, rhs_variable_na);
+    auto in_node_coord = viewIn(command, node_coord);
     command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
     {
       Real area = MeshOperation::computeAreaTria(face_lid, fn_cv, in_node_coord);
@@ -631,9 +631,9 @@ applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_
     Real value_y = neumann_str[1] != "NULL" ? std::stod(neumann_str[1].localstr()) : 0.0;
     Real value_z = neumann_str[2] != "NULL" ? std::stod(neumann_str[2].localstr()) : 0.0;
 
-    auto command = Accelerator::makeCommand(queue);
-    auto in_out_rhs_variable_na = Accelerator::viewInOut(command, rhs_variable_na);
-    auto in_node_coord = Accelerator::viewIn(command, node_coord);
+    auto command = makeCommand(queue);
+    auto in_out_rhs_variable_na = viewInOut(command, rhs_variable_na);
+    auto in_node_coord = viewIn(command, node_coord);
     FaceInfoListView faces_infos(mesh->faceFamily());
     command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
     {
