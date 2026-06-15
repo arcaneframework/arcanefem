@@ -27,6 +27,7 @@
 #include <arcane/accelerator/RunCommandEnumerate.h>
 #include <arcane/accelerator/NumArrayViews.h>
 #include <arcane/accelerator/Atomic.h>
+#include <arcane/accelerator/Reduce.h>
 
 #include "FemUtilsGlobal.h"
 #include "CsrFormatMatrix.h"
