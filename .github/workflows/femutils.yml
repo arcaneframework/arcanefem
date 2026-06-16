@@ -34,7 +34,7 @@ jobs:
     needs: check-runner
     runs-on: ${{ needs.check-runner.outputs.runner_tag }}
     container:
-      image: ghcr.io/arcaneframework/arcane_ubuntu-2404:gcc-14_full_check_latest
+      image: ghcr.io/arcaneframework/arcane_ubuntu-2604:full_check_latest
       options: ${{ case(needs.check-runner.outputs.is_a_gpu_runner == 'true', '--runtime nvidia --gpus all', '') }}
 
     steps:
