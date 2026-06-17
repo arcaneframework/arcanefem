@@ -40,6 +40,8 @@
 
 #include "ArcaneFemFunctions.h"
 #include "ArcaneFemFunctionsGpu.h"
+#include "MeshMatrixVariablesHelpers.h"
+#include "MeshTensorVariable.H"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -99,10 +101,9 @@ class FemModuleElastoplasticity
   RealMatrix<3, 3> m_C_tang_2d;
   RealMatrix<6, 6> m_C_tang_3d;
 
-  // typedef MeshVariableScalarRefT<Cell, RealMatrix<3, 3>> VariableCellRealMat3x3;
-  // VariableCellRealMat3x3 m_C_tang_2d_cell;
-  // MeshVariableArrayRefT<Cell, RealMatrix<3, 3>> m_C_tang_2d_cell;
-  // MeshVariableArrayRefT<Cell, RealMatrix<6, 6>> m_C_tang_3d_cell;
+  // VariableCellScalarRealMatrix3x3 m_C_tang_2d_cell;
+  // VariableCellScalarRealMatrix3x3 m_C_2d_cell;
+  // VariableDoFScalarTensor2 m_sigma_k;
 
   Int8 m_dof_per_node;
   Int32 m_newton_iter;

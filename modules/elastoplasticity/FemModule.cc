@@ -12,6 +12,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include <arcane/core/IParallelMng.h>
+// #include <arcane/VariableTypes.h>
 
 #include "FemModule.h"
 #include "ElementMatrix.h"
@@ -36,7 +37,10 @@ startInit()
   Real elapsedTime = platform::getRealTime();
 
   m_dofs_on_nodes.initialize(defaultMesh(), m_dof_per_node);
-
+  // m_C_2d_cell = new VariableCellScalarRealMatrix3x3(VariableBuildInfo(mesh(), "MaterialTensor2D", "RealMatrix3x3onCell"));
+  // VariableCellArrayReal3x3 m_C_2d_cell(VariableBuildInfo(mesh(), "MaterialTensor2D", "RealMatrix3x3onCell"));
+  // m_C_2d_cell(VariableBuildInfo(mesh(), "MaterialTensor2D", "RealMatrix3x3onCell"));
+  // VariableCellArrayReal3x3 m_C_2d_cell(VariableBuildInfo(mesh(), "MaterialTensor2D", Arcane::IVariable::PNoDump| Arcane::IVariable::PNoNeedSync));
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
 }
@@ -317,6 +321,11 @@ _getMaterialParameters()
           {0.,             0.,             0.,             0.,  0.,  mu}
   };
  */
+
+  // ENUMERATE_ (Cell, icell, allCells()) {
+  //   Cell cell = *icell;
+  //   m_C_2d_cell[cell] = m_C_tang_2d;
+  // }
 
 
   elapsedTime = platform::getRealTime() - elapsedTime;
