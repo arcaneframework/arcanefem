@@ -36,6 +36,20 @@ startInit()
   info() << "[ArcaneFem-Info] Started module  startInit()";
   Real elapsedTime = platform::getRealTime();
 
+  E = options()->E(); // Youngs modulus
+  nu = options()->nu(); // Poission ratio ν
+
+  mu = (E / (2 * (1 + nu))); // lame parameter μ
+  lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
+
+  m_dof_per_node = defaultMesh()->dimension();
+  m_matrix_format = options()->matrixFormat();
+  m_assemble_linear_system = options()->assembleLinearSystem();
+  m_solve_linear_system = options()->solveLinearSystem();
+  m_cross_validation = options()->hasSolutionComparisonFile();
+  m_petsc_flags = options()->petscFlags();
+  m_hex_quad_mesh = options()->hexQuadMesh();
+
   m_dofs_on_nodes.initialize(defaultMesh(), m_dof_per_node);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -265,19 +279,8 @@ _getMaterialParameters()
   info() << "[ArcaneFem-Info] Started module  _getMaterialParameters()";
   Real elapsedTime = platform::getRealTime();
 
-  E = options()->E(); // Youngs modulus
-  nu = options()->nu(); // Poission ratio ν
-
   mu = (E / (2 * (1 + nu))); // lame parameter μ
   lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
-
-  m_dof_per_node = defaultMesh()->dimension();
-  m_matrix_format = options()->matrixFormat();
-  m_assemble_linear_system = options()->assembleLinearSystem();
-  m_solve_linear_system = options()->solveLinearSystem();
-  m_cross_validation = options()->hasSolutionComparisonFile();
-  m_petsc_flags = options()->petscFlags();
-  m_hex_quad_mesh = options()->hexQuadMesh();
 
   m_C_tang_2d.fill(0.);
   m_C_tang_2d(0, 0) = lambda + 2. * mu;
