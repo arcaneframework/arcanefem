@@ -82,10 +82,11 @@ class FemModuleFourierNL
 
   Real m_qdot;
   Real ElementNodes;
-  Real m_fp_tol{1e-5};
+  Real m_nlin_atol{1e-12};
+  Real m_nlin_rtol{1e-5};
   Real m_nlin_exp{0.};
 
-  Int32 m_max_fp_iters{15}, m_fp_iter{0};
+  Int32 m_max_nlin_iters{20}, m_nlin_iter{0};
 
   String m_petsc_flags;
   String m_matrix_format = "DOK";
@@ -95,8 +96,8 @@ class FemModuleFourierNL
   bool m_cross_validation = false;
   bool m_check_solution = true;
   bool m_hex_quad_mesh = false;
-  bool m_perform_fixed_point_iters = false;
   bool m_converged = false;
+  bool m_benchmark_test = false;
 
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
@@ -104,6 +105,7 @@ class FemModuleFourierNL
   BSRFormat m_bsr_format;
 
   void _doStationarySolve();
+  void _performPicardIters();
   void _solve();
   void _assembleLinearOperator();
   void _assembleLinearOperatorCpu();

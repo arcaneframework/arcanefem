@@ -49,17 +49,20 @@
     </simple>
 
     <!-- - - - - - nonlinear-analysis-parameters - - - - -->
-    <simple name="perform-fp-iters" type="bool" default="true" optional="true">
-      <description>Boolean to enable fixed-point (outer Picard) iterations.</description>
+    <simple name="nlin-atol" type ="real" default="1e-8" optional="true">
+      <description>Absolute tolerance for convergence of nonlinear solver iterations</description>
     </simple>
-    <simple name="fp-tol" type ="real" default="1e-5" optional="true">
-      <description>Tolerance for convergence of fixed point iterations</description>
+    <simple name="nlin-rtol" type ="real" default="1e-5" optional="true">
+       <description>Relative tolerance for convergence of nonlinear solver iterations</description>
     </simple>
-    <simple name="max-fp-iters" type="integer" default="30" optional="true">
-      <description>Maximum number of iterations to convergence</description>
+    <simple name="max-nlin-iters" type="integer" default="30" optional="true">
+      <description>Maximum allowed number of the nonlinear solver iterations</description>
     </simple>
     <simple name="exp-nlin" type ="real" default="2" optional="true">
       <description>Exponent of the test non linear function: Remember to change the lambdaGPU definition and recompile</description>
+    </simple>
+    <simple name="bench-test" type ="bool" default="false" optional="true">
+      <description>Boolean to use special features related to benchmarking tests</description>
     </simple>
 
     <!-- Linear system service instance -->

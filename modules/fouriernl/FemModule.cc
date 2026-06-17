@@ -41,17 +41,12 @@ startInit()
   m_hex_quad_mesh = options()->hexQuadMesh();
   m_nlin_exp = options()->expNlin;
 
-
-  m_perform_fixed_point_iters = options()->performFpIters();
-  if(!m_perform_fixed_point_iters) {
-    m_max_fp_iters = 1;
-  } else {
-    m_max_fp_iters = options()->maxFpIters();
-  }
-  m_fp_tol = options()->fpTol();
+  m_max_nlin_iters = options()->maxNlinIters();
+  m_nlin_atol = options()->nlinAtol();
+  m_nlin_rtol = options()->nlinRtol();
+  m_benchmark_test = options()->benchTest();
 
   m_qdot = options()->qdot();
-
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
@@ -122,11 +117,43 @@ void FemModuleFourierNL::
 _doStationarySolve()
 {
   info() << "[ArcaneFem-Info] Started module _doStationarySolve()";
+
+
+  _performPicardIters();
+
+  if (m_cross_validation) {
+    _validateResults();
+  }
+  if (m_check_solution) {
+    _checkSolution();
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Performs Picard iterations for the nonlinear FEM system.
+ *
+ * This method follows via the following steps:
+ *   1. _assembleBilinearOperator()  Assembles the FEM  matrix 𝐀
+ *   2. _assembleLinearOperator()    Assembles the FEM RHS vector 𝐛
+ *   3. _solve()                     Solves for solution vector 𝐮 = 𝐀⁻¹𝐛
+ *   4. _updateVariables()           Updates FEM variables 𝐮 = 𝐱
+ *   5. _checkConvergence()          Convergence check for nonlinear iterations
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleFourierNL::
+_performPicardIters()
+{
+  info() << "[ArcaneFem-Info] Started module _performPicardIters()";
+  Real elapsedTime = platform::getRealTime();
+
   _updatePreviousIterationVariables();
-  while (m_fp_iter < m_max_fp_iters) {
+
+  while (m_nlin_iter < m_max_nlin_iters) {
     if (m_assemble_linear_system) {
 
-      if (m_linear_system.isInitialized() && m_fp_iter != 0) {
+      if (m_linear_system.isInitialized() && (!m_benchmark_test && m_nlin_iter > 0) || (m_benchmark_test && m_nlin_iter > 1) ) {
         m_linear_system.clearValues();
 
         if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
@@ -145,15 +172,21 @@ _doStationarySolve()
     }
     if (m_solve_linear_system) {
       _solve();
+      if (m_benchmark_test && m_nlin_iter == 0) {
+        m_linear_system.solutionVariable().fill(0.);
+        ++m_nlin_iter;
+        ++m_max_nlin_iters;
+        continue;
+      }
       _updateVariables();
     }
 
-    ++m_fp_iter;
+    ++m_nlin_iter;
     _checkConvergence();
 
     if (m_converged) {
       _updateExactSolution();
-      info() << "[ArcaneFem-Info] Fixed-point iterations converged after " << m_fp_iter << " iterations";
+      info() << "[ArcaneFem-Info] Nonlinear solver converged after " << m_nlin_iter << " iterations";
       break;
     }
     else {
@@ -162,18 +195,18 @@ _doStationarySolve()
       _updateSolutionFromVariables(); // copy u into u_dof to update initial guess for linear solve TODO See how to use swap instead of deep copy
     }
   }
-  if (m_fp_iter == m_max_fp_iters && !m_converged) {
-    info() << "[ArcaneFem-Info] Fixed-point iterations did not converge after maximum (" << m_max_fp_iters << ") iterations";
-    ARCANE_FATAL("Fixed-point iterations diverged after max iters");
+  if (m_nlin_iter == m_max_nlin_iters && !m_converged) {
+    info() << "[ArcaneFem-Info] Nonlinear solver did not converge after maximum (" << m_max_nlin_iters << ") iterations";
+    ARCANE_FATAL("Nonlinear solver diverged after maximum iterations");
   }
-  if (m_cross_validation) {
-    _validateResults();
-  }
-  if (m_check_solution) {
-    _checkSolution();
-  }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "perform-picard-iters", elapsedTime);
 }
 
+/*---------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
 void FemModuleFourierNL::
 _assembleLinearOperator()
 {
@@ -332,7 +365,7 @@ _assembleBilinearOperator()
   Real elapsedTime = platform::getRealTime();
 
   if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") {
-    // if (m_perform_fixed_point_iters && m_fp_iter < 2) {
+    // if (m_nlin_iter < 2) {
     //   bool use_csr_in_linear_system =
     //   options()->linearSystem.serviceName() == "HypreLinearSystem" ||
     //   options()->linearSystem.serviceName() == "AlienLinearSystem" ||
@@ -448,7 +481,7 @@ _solve()
  *   1. Updates the FEM solutions from the solutions of linear solver on DOF
  *   2. Evaluates the error w.r.t the guess FEM variables using max norm
  *   3. Checks for convergence
- *   4. Updates guess or ends fixed point iterations
+ *   4. Updates guess or ends nonlinear solver iterations
  */
 /*---------------------------------------------------------------------------*/
 
@@ -462,30 +495,23 @@ _checkConvergence()
   m_uk.synchronize();
 
   Real max_error = 0.0;
-  // Real l1_error = 0.0;
   {
     ENUMERATE_ (Node, inode, ownNodes()) {
       const Real error = math::abs(m_u[inode] - m_uk[inode]);
 
       max_error = math::max(error, max_error);
-      // l1_error  += error;
     }
   }
   IParallelMng* pm = defaultMesh()->parallelMng();
   max_error = pm->reduce(Parallel::ReduceMax, max_error);
-  // l1_error  = pm->reduce(Parallel::ReduceSum, l1_error);
 
-  // if ( max_error < m_fp_tol || l1_error < m_fp_tol){
-  if ( max_error < m_fp_tol){
-  // if ( l1_error < m_fp_tol ){
+  if ( max_error < m_nlin_rtol){
     m_converged = true;
   } else {
     m_converged = false;
   }
 
-  // info() << "[ArcaneFem-FP-iters] At fixed-point iteration "<< m_fp_iter <<": linf(max)-error = " << max_error << " and l1-error = " << l1_error;
-  info() << "[ArcaneFem-Info] At fixed-point iteration "<< m_fp_iter <<": linf(max)-error = " << max_error;
-  // info() << "[ArcaneFem-FP-iters] At fixed-point iteration "<< m_fp_iter <<": l1-error = " << l1_error;
+  info() << "[ArcaneFem-Info] At nonlinear solver iteration "<< m_nlin_iter <<": convergence-error-norm = " << max_error;
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "check-convergence", elapsedTime);
@@ -532,12 +558,12 @@ _updateVariables(bool verbose)
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Update the previous fixed-point iteration FEM variables.
+ * @brief Update the previous nonlinear solver iteration FEM variables.
  *
  * This method performs the following actions:
  *   1. Fetches values of linear solution vector to the previous
- *      fixed-point iteration FEM variable, i.e., it copies RHS DOF to uk.
- *   2. Performs synchronize of the previous fixed-point iteration FEM
+ *      nonlinear solver iteration FEM variable, i.e., it copies RHS DOF to uk.
+ *   2. Performs synchronize of the previous nonlinear solver iteration FEM
  *      variable across subdomains.
  */
 /*---------------------------------------------------------------------------*/
@@ -573,7 +599,7 @@ _updatePreviousIterationVariables(bool verbose)
  * This method performs the following actions:
  *   1. Performs synchronize of FEM variables across subdomains.
  *   2. Fetches the FEM variables to the solution vector of the
- *      linear solver for next fixed point iteration.
+ *      linear solver for next nonlinear solver iteration.
  */
 /*---------------------------------------------------------------------------*/
 
