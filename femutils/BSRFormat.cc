@@ -263,6 +263,7 @@ computeNbColumns(IMesh* mesh)
   IndexedNodeNodeConnectivityView nn_cv = nn_via_edge_cv->view();
   IndexedNodeCellConnectivityView nc_cv = connectivity_view.nodeCell();
   IndexedCellNodeConnectivityView cn_cv = connectivity_view.cellNode();
+  IndexedNodeFaceConnectivityView nf_cv = connectivity_view.nodeFace();
 
   // Determine element type using the first cell
   CellLocalId first_cell_lid(0);
@@ -273,16 +274,23 @@ computeNbColumns(IMesh* mesh)
   // Total number of columns will be computed using a reduction operation
   Accelerator::ReducerSum2<Int64> total_nb_col_reducer(command);
 
-  if ((mesh->dimension() == 2 && nb_nodes == 3) || (mesh->dimension() == 3 && nb_nodes == 4)) { // Triangular or Tetrahedral elements
+  if ((mesh->dimension() == 2 && nb_nodes == 3) || (mesh->dimension() == 3 && nb_nodes == 4)) { // Tria3 or Tetra4
     command << RUNCOMMAND_ENUMERATE(Node, node_id, mesh->allNodes(), total_nb_col_reducer)
     {
       total_nb_col_reducer.combine(nn_cv.nbNode(node_id) + 1); // nb_edges + 1 (for the node itself)
     };
   }
-  else if ((mesh->dimension() == 2 && nb_nodes == 4) || (mesh->dimension() == 3 && nb_nodes == 8)) { // Quadrilateral or TODO Hexahedral elements
+  else if (mesh->dimension() == 2 && nb_nodes == 4) { // Quad4
     command << RUNCOMMAND_ENUMERATE(Node, node_id, mesh->allNodes(), total_nb_col_reducer)
     {
-      total_nb_col_reducer.combine((nn_cv.nbNode(node_id) + 1) + nc_cv.nbCell(node_id)); // nb_edges + 1 (for the node itself) + nb_cells
+      total_nb_col_reducer.combine((nn_cv.nbNode(node_id) + 1) + nc_cv.nbCell(node_id)); // nb_edges + 1 + nb_cells (1 diagonal/cell)
+    };
+  }
+  else if (mesh->dimension() == 3 && nb_nodes == 8) { // Hexa8
+    command << RUNCOMMAND_ENUMERATE(Node, node_id, mesh->allNodes(), total_nb_col_reducer)
+    {
+      // Hexahedron neighbors: nb_edges + 1 (self) + nb_faces (face diagonals) + nb_cells (body diagonals)
+      total_nb_col_reducer.combine(nn_cv.nbNode(node_id) + 1 + nf_cv.nbFace(node_id) + nc_cv.nbCell(node_id));
     };
   }
   else {
@@ -628,28 +636,56 @@ computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64
     }
 
     // hexahedral element mesh
-    /*
     if (m_mesh->dimension() == 3 && nb_nodes == 8) {
       command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, m_mesh->allCells())
       {
         auto start = cell_lid * edges_per_element;
-        // Hexahedron (28 node-pairs)
-        Int32 n[8];
-        for (int i = 0; i < 8; ++i) {
-          n[i] = cell_node_cv.nodeId(cell_lid, i);
-        }
+        // Hexahedron (28 node-pairs unrolled for GPU safety)
+        auto n0 = cell_node_cv.nodeId(cell_lid, 0);
+        auto n1 = cell_node_cv.nodeId(cell_lid, 1);
+        auto n2 = cell_node_cv.nodeId(cell_lid, 2);
+        auto n3 = cell_node_cv.nodeId(cell_lid, 3);
+        auto n4 = cell_node_cv.nodeId(cell_lid, 4);
+        auto n5 = cell_node_cv.nodeId(cell_lid, 5);
+        auto n6 = cell_node_cv.nodeId(cell_lid, 6);
+        auto n7 = cell_node_cv.nodeId(cell_lid, 7);
 
-        // Generate all 28 unique non-duplicated combinations combinatorially
-        int idx = 0;
-        for (int i = 0; i < 7; ++i) {
-          for (int j = i + 1; j < 8; ++j) {
-            inout_edges[start + idx] = pack(n[i], n[j]);
-            idx++;
-          }
-        }
+        inout_edges[start     ] = pack(n0, n1);
+        inout_edges[start +  1] = pack(n0, n2);
+        inout_edges[start +  2] = pack(n0, n3);
+        inout_edges[start +  3] = pack(n0, n4);
+        inout_edges[start +  4] = pack(n0, n5);
+        inout_edges[start +  5] = pack(n0, n6);
+        inout_edges[start +  6] = pack(n0, n7);
+
+        inout_edges[start +  7] = pack(n1, n2);
+        inout_edges[start +  8] = pack(n1, n3);
+        inout_edges[start +  9] = pack(n1, n4);
+        inout_edges[start + 10] = pack(n1, n5);
+        inout_edges[start + 11] = pack(n1, n6);
+        inout_edges[start + 12] = pack(n1, n7);
+
+        inout_edges[start + 13] = pack(n2, n3);
+        inout_edges[start + 14] = pack(n2, n4);
+        inout_edges[start + 15] = pack(n2, n5);
+        inout_edges[start + 16] = pack(n2, n6);
+        inout_edges[start + 17] = pack(n2, n7);
+
+        inout_edges[start + 18] = pack(n3, n4);
+        inout_edges[start + 19] = pack(n3, n5);
+        inout_edges[start + 20] = pack(n3, n6);
+        inout_edges[start + 21] = pack(n3, n7);
+
+        inout_edges[start + 22] = pack(n4, n5);
+        inout_edges[start + 23] = pack(n4, n6);
+        inout_edges[start + 24] = pack(n4, n7);
+
+        inout_edges[start + 25] = pack(n5, n6);
+        inout_edges[start + 26] = pack(n5, n7);
+
+        inout_edges[start + 27] = pack(n6, n7);
       };
     }
-    */
   }
   m_queue.barrier();
 
