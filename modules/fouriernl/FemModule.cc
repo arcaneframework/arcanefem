@@ -186,7 +186,7 @@ _performPicardIters()
 
     if (m_converged) {
       _updateExactSolution();
-      info() << "[ArcaneFem-Info] Nonlinear solver converged after " << m_nlin_iter << " iterations";
+      info() << "[ArcaneFem-Info] Nonlinear solver converged after " << (m_benchmark_test ? (m_nlin_iter-1) : m_nlin_iter) << " iterations";
       break;
     }
     else {
@@ -511,7 +511,7 @@ _checkConvergence()
     m_converged = false;
   }
 
-  info() << "[ArcaneFem-Info] At nonlinear solver iteration "<< m_nlin_iter <<": convergence-error-norm = " << max_error;
+  info() << "[ArcaneFem-Info] At nonlinear solver iteration "<< (m_benchmark_test ? (m_nlin_iter-1) : m_nlin_iter) <<": convergence-error-norm = " << max_error;
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "check-convergence", elapsedTime);
