@@ -628,6 +628,26 @@ class ArcaneFemFunctions
       return { (u0 * (n1.y - n2.y) + u1 * (n2.y - n0.y) + u2 * (n0.y - n1.y)) / A2, (u0 * (n2.x - n1.x) + u1 * (n0.x - n2.x) + u2 * (n1.x - n0.x)) / A2, 0 };
     }
 
+    static inline Real3x3 computeGradientTria3(Cell cell, const VariableNodeReal3& node_coord, VariableNodeReal3 u)
+    {
+      Real3 n0 = node_coord[cell.nodeId(0)];
+      Real3 n1 = node_coord[cell.nodeId(1)];
+      Real3 n2 = node_coord[cell.nodeId(2)];
+
+      Real3  u0 = u[cell.nodeId(0)];
+      Real3  u1 = u[cell.nodeId(1)];
+      Real3  u2 = u[cell.nodeId(2)];
+
+      Real A2 = ((n1.x - n0.x) * (n2.y - n0.y) - (n2.x - n0.x) * (n1.y - n0.y));
+
+      Real3 d_ux = { (u0.x * (n1.y - n2.y) + u1.x * (n2.y - n0.y) + u2.x * (n0.y - n1.y)) / A2, (u0.x * (n2.x - n1.x) + u1.x * (n0.x - n2.x) + u2.x * (n1.x - n0.x)) / A2, 0 };
+      Real3 d_uy = { (u0.y * (n1.y - n2.y) + u1.y * (n2.y - n0.y) + u2.y * (n0.y - n1.y)) / A2, (u0.y * (n2.x - n1.x) + u1.y * (n0.x - n2.x) + u2.y * (n1.x - n0.x)) / A2, 0 };
+      Real3 d_uz = {0. , 0. , 0. };
+      Real3x3 grad = { d_ux, d_uy, d_uz };
+
+      return grad;
+    }
+
     /*---------------------------------------------------------------------------*/
     /**
      * @brief Computes the 𝑥 gradients of basis functions 𝐍 for ℙ1 triangles.

@@ -43,19 +43,19 @@ _applyResidualRHS(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityV
  *
  * Theory:
  *
- *   a(𝐮,𝐯) = ∫∫ σ(𝐮):ε(𝐯)dΩ     with  𝐮 = (𝑢𝑥,𝑢𝑦) and 𝐯 = (𝑣𝑥,𝑣𝑦)
- *   σ(𝐮) is stress tensor       with  σᵢⱼ = Cᵢⱼₖₗεₖₗ
- *   ε(𝐯) is strain tensor       with  εᵢⱼ = 0.5 (∂𝑣ᵢ/∂xⱼ + ∂𝑣ⱼ/∂xᵢ)
+ *   a(𝑈,𝐯) = ∫∫ σ(𝑈):ε(𝐯)dΩ        with  𝑈 = (𝑈𝑥,𝑈𝑦) and 𝐯 = (𝑣𝑥,𝑣𝑦)
+ *   σ(𝑈) is known stress tensor    with  σᵢⱼ = Cᵢⱼₖₗεₖₗ
+ *   ε(𝐯) is strain tensor          with  εᵢⱼ = 0.5 (∂𝑣ᵢ/∂xⱼ + ∂𝑣ⱼ/∂xᵢ)
  *
- *   the bilinear integral expands to
+ *   the linear integral expands to
  *
- *      a(𝐮,𝐯) = ∫∫ [σ_𝑥𝑥ε_𝑥𝑥 + σ_𝑦𝑦ε_𝑦𝑦 + 2σ_𝑥𝑦ε_𝑥𝑦]dΩ
+ *      a(𝑈,𝐯) = ∫∫ [σ_𝑥𝑥 ε_𝑥𝑥 + σ_𝑦𝑦 ε_𝑦𝑦 + 2 σ_𝑥𝑦 ε_𝑥𝑦]dΩ
  *
  *   this further expands to
  *
- *      a(𝐮,𝐯) =   ∫∫ C11 ∂𝑢𝑥/∂𝑥 ∂𝑣𝑥/∂𝑥 + C12 ∂𝑢𝑦/∂𝑦 ∂𝑣𝑥/∂𝑥 + C13 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
- *               + ∫∫ C12 ∂𝑢𝑥/∂𝑥 ∂𝑣𝑦/∂𝑦 + C22 ∂𝑢𝑦/∂𝑦 ∂𝑣𝑦/∂𝑦 + C23 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
- *               + ∫∫ C13 ∂𝑢𝑥/∂𝑥 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + C23 ∂𝑢𝑦/∂𝑦 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + C33 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦)(∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥)
+ *      a(𝐮,𝐯) =   ∫∫ C11 ∂𝑈𝑥/∂𝑥 ∂𝑣𝑥/∂𝑥 + C12 ∂𝑈𝑦/∂𝑦 ∂𝑣𝑥/∂𝑥 + C13 (∂𝑈𝑦/∂𝑥 + ∂𝑈𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
+ *               + ∫∫ C12 ∂𝑈𝑥/∂𝑥 ∂𝑣𝑦/∂𝑦 + C22 ∂𝑈𝑦/∂𝑦 ∂𝑣𝑦/∂𝑦 + C23 (∂𝑈𝑦/∂𝑥 + ∂𝑈𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
+ *               + ∫∫ C13 ∂𝑈𝑥/∂𝑥 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + C23 ∂𝑈𝑦/∂𝑦 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + C33 (∂𝑈𝑦/∂𝑥 + ∂𝑈𝑥/∂𝑦)(∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥)
  *
  *
  */
@@ -74,9 +74,21 @@ _applyResidualRHSTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
     RealVector<6> epsyy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
     RealVector<6> epsxy = { dyu[0], dxu[0], dyu[1], dxu[1], dyu[2], dxu[2] };
 
-    RealVector<6> Uk = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y,
-                         m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y,
-                         m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y };
+    Real3x3 grad_U = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_U);
+
+    Real epsxx_U = grad_U(0, 0);
+    Real epsyy_U = grad_U(1, 1);
+    Real epsxy_U = grad_U(0, 1) + grad_U(1, 0);
+
+    // Real sigmaxx_U = m_C_2d_cell[cell](0, 0) * epsxx_U + m_C_2d_cell[cell](0, 1) * epsyy_U + m_C_2d_cell[cell](0, 2) * epsxy_U;
+    // Real sigmayy_U = m_C_2d_cell[cell](1, 0) * espxx_U + m_C_2d_cell[cell](1, 1) * epsyy_U + m_C_2d_cell[cell](1, 2) * epsxy_U;
+    // Real sigmaxy_U = m_C_2d_cell[cell](2, 0) * espxx_U + m_C_2d_cell[cell](2, 1) * epsyy_U + m_C_2d_cell[cell](2, 2) * epsxy_U;
+
+    // test
+    Real sigmaxx_U = m_C_tang_2d(0, 0) * epsxx_U + m_C_tang_2d(0, 1) * epsyy_U + m_C_tang_2d(0, 2) * epsxy_U;
+    Real sigmayy_U = m_C_tang_2d(1, 0) * epsxx_U + m_C_tang_2d(1, 1) * epsyy_U + m_C_tang_2d(1, 2) * epsxy_U;
+    Real sigmaxy_U = m_C_tang_2d(2, 0) * epsxx_U + m_C_tang_2d(2, 1) * epsyy_U + m_C_tang_2d(2, 2) * epsxy_U;
+
     //----------------------------------------------------------------------
     //  ∫∫∫ (c₅)(∇𝐮ₙ.∇𝐯) + ∫∫∫ (c₆)(ε(𝐮ₙ):ε(𝐯))
     //----------------------------------------------------------------------
@@ -90,9 +102,8 @@ _applyResidualRHSTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
     //                         + m_C_2d_cell[cell](2, 1) * epsyy
     //                         + m_C_2d_cell[cell](2, 2) * epsxy) ^ epsxy);  // To verify mathematically
 
+    RealVector<6> rhs = area * (sigmaxx_U * epsxx + sigmayy_U * epsyy + sigmaxy_U * epsxy);
 
-
-    RealVector<6> rhs = {0., 0., 0., 0., 0., 0.};
     rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0);
     rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(1);
     rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(2);

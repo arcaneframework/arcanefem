@@ -37,10 +37,7 @@ startInit()
   Real elapsedTime = platform::getRealTime();
 
   m_dofs_on_nodes.initialize(defaultMesh(), m_dof_per_node);
-  // m_C_2d_cell = new VariableCellScalarRealMatrix3x3(VariableBuildInfo(mesh(), "MaterialTensor2D", "RealMatrix3x3onCell"));
-  // VariableCellArrayReal3x3 m_C_2d_cell(VariableBuildInfo(mesh(), "MaterialTensor2D", "RealMatrix3x3onCell"));
-  // m_C_2d_cell(VariableBuildInfo(mesh(), "MaterialTensor2D", "RealMatrix3x3onCell"));
-  // VariableCellArrayReal3x3 m_C_2d_cell(VariableBuildInfo(mesh(), "MaterialTensor2D", Arcane::IVariable::PNoDump| Arcane::IVariable::PNoNeedSync));
+
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
 }
@@ -172,7 +169,7 @@ _doStationarySolve()
 void FemModuleElastoplasticity::
 _solve_linear()
 {
-
+  info() << "[ArcaneFem-Info] Started module  _solve_linear()";
   _getMaterialParameters();
 
   if(m_assemble_linear_system){
@@ -206,6 +203,7 @@ _solve_linear()
 void FemModuleElastoplasticity::
 _solve_newton()
 {
+  info() << "[ArcaneFem-Info] Started module  _solve_newton()";
 
   while (m_newton_iter < m_max_newton_iters) {
     _getMaterialParameters();
@@ -359,6 +357,10 @@ _assembleLinearOperator()
   rhs_values.fill(0.0);
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  if (m_nonlinear_law) {
+    _applyResidualRHS(rhs_values, node_dof);
+  }
 
   _applyBodyForce(rhs_values, node_dof);
   _applyTraction(rhs_values, node_dof);
