@@ -70,7 +70,7 @@ _computeElementMatrixQuad4Gpu(CellLocalId cell_lid,
                               const ax::VariableNodeReal3InView& in_node_coord)
 {
   // Gauss points and weights for 2x2 quadrature (1/sqrt(3) ≈ 0.57735026919)
-  constexpr Real gp[2] = { -0.5773502691896257, 0.5773502691896257 };
+  constexpr Real gp[2] = { -0.57735026918962576451, 0.57735026918962576451 };
   constexpr Real w = 1.0;
 
   // Initialize the element matrix
@@ -107,7 +107,7 @@ _computeElementVectorQuad4Gpu(CellLocalId cell_lid,
                               const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
 {
   // Gauss points and weights for 2x2 quadrature (1/sqrt(3) ≈ 0.57735026919)
-  constexpr Real gp[2] = { -0.5773502691896257, 0.5773502691896257 };
+  constexpr Real gp[2] = { -0.57735026918962576451, 0.57735026918962576451 };
   constexpr Real w = 1.0;
 
   // Initialize the element vector
@@ -178,6 +178,47 @@ RealMatrix<8, 8> FemModulePoisson::_computeElementMatrixHexa8(Cell cell)
 
         // Get shape function gradients w.r.t (𝑥,𝑦,𝑧) and determinant of Jacobian
         const auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa8(cell, m_node_coord, xi, eta, zeta);
+        const RealVector<8>& dxU = gp_info.dN_dx;
+        const RealVector<8>& dyU = gp_info.dN_dy;
+        const RealVector<8>& dzU = gp_info.dN_dz;
+        const Real detJ = gp_info.det_j;
+
+        // Integration weight
+        const Real integration_weight = detJ * w * w;
+
+        // Assemble element matrix (variational form)
+        ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight + (dzU ^ dzU) * integration_weight;
+      }
+    }
+  }
+  return ae;
+}
+
+ARCCORE_HOST_DEVICE RealMatrix<8, 8>
+_computeElementMatrixHexa8Gpu(CellLocalId cell_lid,
+                              const IndexedCellNodeConnectivityView& cn_cv,
+                              const ax::VariableNodeReal3InView& in_node_coord)
+{
+  // 2x2x2 Gauss points and weights for [-1,1]^3
+  constexpr Real gp[2] = { -0.57735026918962576451, 0.57735026918962576451 }; // -1/sqrt(3), 1/sqrt(3)
+  constexpr Real w = 1.0;
+
+  // Initialize the element matrix
+  RealMatrix<8, 8> ae;
+  ae.fill(0.0);
+
+  // Loop over Gauss points
+  for (Int8 ixi = 0; ixi < 2; ++ixi) {
+    for (Int8 ieta = 0; ieta < 2; ++ieta) {
+      for (Int8 izeta = 0; izeta < 2; ++izeta) {
+
+        // Get the coordinates of Gauss points in natural coordinates (ξ,η,ζ)
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const Real zeta = gp[izeta];
+
+        // Get shape function gradients w.r.t (𝑥,𝑦,𝑧) and determinant of Jacobian
+        const auto gp_info = FemUtils::Gpu::FeOperation3D::computeGradientsAndJacobianHexa8Gpu(cell_lid, cn_cv, in_node_coord, xi, eta, zeta);
         const RealVector<8>& dxU = gp_info.dN_dx;
         const RealVector<8>& dyU = gp_info.dN_dy;
         const RealVector<8>& dzU = gp_info.dN_dz;
