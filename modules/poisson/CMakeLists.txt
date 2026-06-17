@@ -102,6 +102,15 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
     -A,//fem/matrix-format=AF-BSR
     inputs/sphere.3D.arc)
+  arcanefem_add_gpu_test(NAME [poisson]3D_neumann_bsr-hexa COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_neumann_3D_hexa.txt
+    -A,//fem/matrix-format=BSR
+    inputs/sphere.neumann.3D.hexa.arc)
+  arcanefem_add_gpu_test(NAME [poisson]3D_scalar_neumann_bsr-hexa COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_scalar_neumann_3D_hexa.txt
+    -A,//fem/matrix-format=BSR
+    -A,//fem/boundary-conditions/neumann/value=3.1
+    inputs/sphere.neumann.3D.hexa.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER)
     add_test(NAME [poisson]2D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
@@ -209,6 +218,17 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG_3D}
     inputs/sphere.3D.arc)
+  arcanefem_add_gpu_test(NAME [poisson]3D_neumann_bsr-hexa_hypre COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_neumann_3D_hexa.txt
+    -A,//fem/matrix-format=BSR
+     ${SOLVER_HYPRE_CG_3D}
+    inputs/sphere.neumann.3D.hexa.arc)
+  arcanefem_add_gpu_test(NAME [poisson]3D_scalar_neumann_bsr-hexa_hypre COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_scalar_neumann_3D_hexa.txt
+    -A,//fem/matrix-format=BSR
+     ${SOLVER_HYPRE_CG_3D}
+    -A,//fem/boundary-conditions/neumann/value=3.1
+    inputs/sphere.neumann.3D.hexa.arc)
 endif()
 
 
@@ -291,6 +311,17 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_PETSC_CG_3D}
     inputs/sphere.3D.arc)
+  arcanefem_add_gpu_test(NAME [poisson]3D_neumann_bsr-hexa_petsc COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_neumann_3D_hexa.txt
+    -A,//fem/matrix-format=BSR
+     ${SOLVER_PETSC_CG_3D}
+    inputs/sphere.neumann.3D.hexa.arc)
+  arcanefem_add_gpu_test(NAME [poisson]3D_scalar_neumann_bsr-hexa_petsc COMMAND Poisson ARGS
+    -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_scalar_neumann_3D_hexa.txt
+    -A,//fem/matrix-format=BSR
+     ${SOLVER_PETSC_CG_3D}
+    -A,//fem/boundary-conditions/neumann/value=3.1
+    inputs/sphere.neumann.3D.hexa.arc)
 endif()
 
 if (FEMUTILS_HAS_SOLVER_BACKEND_ALIEN)
