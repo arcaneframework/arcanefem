@@ -758,6 +758,36 @@ class BoundaryConditions
   applyPointDirichletToRhs(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
                            DoFLinearSystem& linear_system,
                            IMesh* mesh, Accelerator::RunQueue* queue);
+
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Applies a constant source term to the RHS vector.
+   *
+   * This method adds a constant source term `qdot` to the RHS vector for each
+   * node in the mesh. The contribution to each node is weighted by the area of
+   * the cell and evenly distributed among the number of nodes of the cell.
+   *
+   */
+  /*---------------------------------------------------------------------------*/
+
+  static void applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+                                       const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                       IMesh* mesh, Accelerator::RunQueue* queue);
+  /*---------------------------------------------------------------------------*/
+  /**
+   * @brief Applies Neumann conditions to the right-hand side (RHS) values.
+   *
+   * This method updates the RHS values of the finite element method equations
+   * based on the provided Neumann boundary condition. The boundary condition
+   * can specify a value or its components along the x and y directions.
+   *
+   */
+  /*---------------------------------------------------------------------------*/
+
+  static void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                                const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                IMesh* mesh, Accelerator::RunQueue* queue);
+
 };
 
 class BoundaryConditions2D
@@ -775,7 +805,7 @@ class BoundaryConditions2D
    */
   /*---------------------------------------------------------------------------*/
 
-  static void applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+  static void applyConstantSourceToRhsTria3(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
                                        const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                                        IMesh* mesh, Accelerator::RunQueue* queue);
 
@@ -793,7 +823,7 @@ class BoundaryConditions2D
    */
   /*---------------------------------------------------------------------------*/
 
-  static void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+  static void applyNeumannToRhsTria3(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
                                 const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                                 IMesh* mesh, Accelerator::RunQueue* queue);
 
@@ -817,7 +847,7 @@ class BoundaryConditions3D
    */
   /*---------------------------------------------------------------------------*/
 
-  static void applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+  static void applyConstantSourceToRhsTetra4(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
                                        const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                                        IMesh* mesh, Accelerator::RunQueue* queue);
 
@@ -836,11 +866,11 @@ class BoundaryConditions3D
    */
   /*---------------------------------------------------------------------------*/
 
-  static void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+  static void applyNeumannToRhsTetra4(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
                                 const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                                 IMesh* mesh, Accelerator::RunQueue* queue);
 
-  static void applyNeumannToHexa8(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+  static void applyNeumannToRhsHexa8(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
                        const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                        IMesh* mesh, Accelerator::RunQueue* queue);
 };
