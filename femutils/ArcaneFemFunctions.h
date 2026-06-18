@@ -1031,6 +1031,68 @@ class ArcaneFemFunctions
       return grad;
     }
 
+    static inline Real3x3 computeGradientTetra4(Cell cell, const VariableNodeReal3& node_coord, VariableNodeReal3 u)
+    {
+      Real3 m0 = node_coord[cell.nodeId(0)];
+      Real3 m1 = node_coord[cell.nodeId(1)];
+      Real3 m2 = node_coord[cell.nodeId(2)];
+      Real3 m3 = node_coord[cell.nodeId(3)];
+
+      Real3 f0 = u[cell.nodeId(0)];
+      Real3 f1 = u[cell.nodeId(1)];
+      Real3 f2 = u[cell.nodeId(2)];
+      Real3 f3 = u[cell.nodeId(3)];
+
+      Real3 v0 = m1 - m0;
+      Real3 v1 = m2 - m0;
+      Real3 v2 = m3 - m0;
+
+      // 6 x Volume of tetrahedron
+      Real V6 = math::abs(math::dot(v0, math::cross(v1, v2)));
+
+      // Compute gradient components
+
+      Real3 d_ux =  { (f0.x * (m1.y * m2.z + m2.y * m3.z + m3.y * m1.z - m3.y * m2.z - m2.y * m1.z - m1.y * m3.z)
+                      - f1.x * (m0.y * m2.z + m2.y * m3.z + m3.y * m0.z - m3.y * m2.z - m2.y * m0.z - m0.y * m3.z)
+                      + f2.x * (m0.y * m1.z + m1.y * m3.z + m3.y * m0.z - m3.y * m1.z - m1.y * m0.z - m0.y * m3.z)
+                      - f3.x * (m0.y * m1.z + m1.y * m2.z + m2.y * m0.z - m2.y * m1.z - m1.y * m0.z - m0.y * m2.z)) / V6,
+                      (f0.x * (m1.z * m2.x + m2.z * m3.x + m3.z * m1.x - m3.z * m2.x - m2.z * m1.x - m1.z * m3.x)
+                      - f1.x * (m0.z * m2.x + m2.z * m3.x + m3.z * m0.x - m3.z * m2.x - m2.z * m0.x - m0.z * m3.x)
+                      + f2.x * (m0.z * m1.x + m1.z * m3.x + m3.z * m0.x - m3.z * m1.x - m1.z * m0.x - m0.z * m3.x)
+                      - f3.x * (m0.z * m1.x + m1.z * m2.x + m2.z * m0.x - m2.z * m1.x - m1.z * m0.x - m0.z * m2.x)) / V6,
+                      (f0.x * (m1.x * m2.y + m2.x * m3.y + m3.x * m1.y - m3.x * m2.y - m2.x * m1.y - m1.x * m3.y)
+                      - f1.x * (m0.x * m2.y + m2.x * m3.y + m3.x * m0.y - m3.x * m2.y - m2.x * m0.y - m0.x * m3.y)
+                      + f2.x * (m0.x * m1.y + m1.x * m3.y + m3.x * m0.y - m3.x * m1.y - m1.x * m0.y - m0.x * m3.y)
+                      - f3.x * (m0.x * m1.y + m1.x * m2.y + m2.x * m0.y - m2.x * m1.y - m1.x * m0.y - m0.x * m2.y)) / V6};
+      Real3 d_uy = {  (f0.y * (m1.y * m2.z + m2.y * m3.z + m3.y * m1.z - m3.y * m2.z - m2.y * m1.z - m1.y * m3.z)
+                        - f1.y * (m0.y * m2.z + m2.y * m3.z + m3.y * m0.z - m3.y * m2.z - m2.y * m0.z - m0.y * m3.z)
+                        + f2.y * (m0.y * m1.z + m1.y * m3.z + m3.y * m0.z - m3.y * m1.z - m1.y * m0.z - m0.y * m3.z)
+                        - f3.y * (m0.y * m1.z + m1.y * m2.z + m2.y * m0.z - m2.y * m1.z - m1.y * m0.z - m0.y * m2.z)) / V6,
+                      (f0.y * (m1.z * m2.x + m2.z * m3.x + m3.z * m1.x - m3.z * m2.x - m2.z * m1.x - m1.z * m3.x)
+                        - f1.y * (m0.z * m2.x + m2.z * m3.x + m3.z * m0.x - m3.z * m2.x - m2.z * m0.x - m0.z * m3.x)
+                        + f2.y * (m0.z * m1.x + m1.z * m3.x + m3.z * m0.x - m3.z * m1.x - m1.z * m0.x - m0.z * m3.x)
+                        - f3.y * (m0.z * m1.x + m1.z * m2.x + m2.z * m0.x - m2.z * m1.x - m1.z * m0.x - m0.z * m2.x)) / V6,
+                      (f0.y * (m1.x * m2.y + m2.x * m3.y + m3.x * m1.y - m3.x * m2.y - m2.x * m1.y - m1.x * m3.y)
+                        - f1.y * (m0.x * m2.y + m2.x * m3.y + m3.x * m0.y - m3.x * m2.y - m2.x * m0.y - m0.x * m3.y)
+                        + f2.y * (m0.x * m1.y + m1.x * m3.y + m3.x * m0.y - m3.x * m1.y - m1.x * m0.y - m0.x * m3.y)
+                        - f3.y * (m0.x * m1.y + m1.x * m2.y + m2.x * m0.y - m2.x * m1.y - m1.x * m0.y - m0.x * m2.y)) / V6};
+      Real3 d_uz = {  (f0.z * (m1.y * m2.z + m2.y * m3.z + m3.y * m1.z - m3.y * m2.z - m2.y * m1.z - m1.y * m3.z)
+                        - f1.z * (m0.y * m2.z + m2.y * m3.z + m3.y * m0.z - m3.y * m2.z - m2.y * m0.z - m0.y * m3.z)
+                        + f2.z * (m0.y * m1.z + m1.y * m3.z + m3.y * m0.z - m3.y * m1.z - m1.y * m0.z - m0.y * m3.z)
+                        - f3.z * (m0.y * m1.z + m1.y * m2.z + m2.y * m0.z - m2.y * m1.z - m1.y * m0.z - m0.y * m2.z)) / V6,
+                      (f0.z * (m1.z * m2.x + m2.z * m3.x + m3.z * m1.x - m3.z * m2.x - m2.z * m1.x - m1.z * m3.x)
+                        - f1.z * (m0.z * m2.x + m2.z * m3.x + m3.z * m0.x - m3.z * m2.x - m2.z * m0.x - m0.z * m3.x)
+                        + f2.z * (m0.z * m1.x + m1.z * m3.x + m3.z * m0.x - m3.z * m1.x - m1.z * m0.x - m0.z * m3.x)
+                        - f3.z * (m0.z * m1.x + m1.z * m2.x + m2.z * m0.x - m2.z * m1.x - m1.z * m0.x - m0.z * m2.x)) / V6,
+                      (f0.z * (m1.x * m2.y + m2.x * m3.y + m3.x * m1.y - m3.x * m2.y - m2.x * m1.y - m1.x * m3.y)
+                        - f1.z * (m0.x * m2.y + m2.x * m3.y + m3.x * m0.y - m3.x * m2.y - m2.x * m0.y - m0.x * m3.y)
+                        + f2.z * (m0.x * m1.y + m1.x * m3.y + m3.x * m0.y - m3.x * m1.y - m1.x * m0.y - m0.x * m3.y)
+                        - f3.z * (m0.x * m1.y + m1.x * m2.y + m2.x * m0.y - m2.x * m1.y - m1.x * m0.y - m0.x * m2.y)) / V6};
+
+      Real3x3 grad =  { d_ux, d_uy, d_uz };
+      return grad;
+    }
+
     /*---------------------------------------------------------------------------*/
     /**
      * @brief Holds information for a Hexa8 element at a single Gauss point.

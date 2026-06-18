@@ -70,6 +70,10 @@ _applyResidualRHSTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
     Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
     Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
 
+    //----------------------------------------------------------------------
+    //  ∫∫∫ (σ(𝑈)ε(𝐯) = ∫∫∫ (ε(𝑈):𝐶) ε(𝐯)
+    //----------------------------------------------------------------------
+
     RealVector<6> epsxx = { dxu[0], 0., dxu[1], 0., dxu[2], 0. };
     RealVector<6> epsyy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
     RealVector<6> epsxy = { dyu[0], dxu[0], dyu[1], dxu[1], dyu[2], dxu[2] };
@@ -80,29 +84,34 @@ _applyResidualRHSTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
     Real epsyy_U = grad_U(1, 1);
     Real epsxy_U = grad_U(0, 1) + grad_U(1, 0);
 
-    // Real sigmaxx_U = m_C_2d_cell[cell](0, 0) * epsxx_U + m_C_2d_cell[cell](0, 1) * epsyy_U + m_C_2d_cell[cell](0, 2) * epsxy_U;
-    // Real sigmayy_U = m_C_2d_cell[cell](1, 0) * espxx_U + m_C_2d_cell[cell](1, 1) * epsyy_U + m_C_2d_cell[cell](1, 2) * epsxy_U;
-    // Real sigmaxy_U = m_C_2d_cell[cell](2, 0) * espxx_U + m_C_2d_cell[cell](2, 1) * epsyy_U + m_C_2d_cell[cell](2, 2) * epsxy_U;
-
-    // test
-    Real sigmaxx_U = m_C_tang_2d(0, 0) * epsxx_U + m_C_tang_2d(0, 1) * epsyy_U + m_C_tang_2d(0, 2) * epsxy_U;
-    Real sigmayy_U = m_C_tang_2d(1, 0) * epsxx_U + m_C_tang_2d(1, 1) * epsyy_U + m_C_tang_2d(1, 2) * epsxy_U;
-    Real sigmaxy_U = m_C_tang_2d(2, 0) * epsxx_U + m_C_tang_2d(2, 1) * epsyy_U + m_C_tang_2d(2, 2) * epsxy_U;
-
-    //----------------------------------------------------------------------
-    //  ∫∫∫ (c₅)(∇𝐮ₙ.∇𝐯) + ∫∫∫ (c₆)(ε(𝐮ₙ):ε(𝐯))
-    //----------------------------------------------------------------------
-    // RealVector<6> rhs = Uk * ((m_C_2d_cell[cell](0, 0) * epsxx
-    //                         + m_C_2d_cell[cell](0, 1) * epsyy
-    //                         + m_C_2d_cell[cell](0, 2) * epsxy) ^ epsxx)
-    //                   + Uk * ((m_C_2d_cell[cell](1, 0) * epsxx
-    //                         + m_C_2d_cell[cell](1, 1) * epsyy
-    //                         + m_C_2d_cell[cell](1, 2) * epsxy) ^ epsyy)
-    //                   + Uk * ((m_C_2d_cell[cell](2, 0) * epsxx
-    //                         + m_C_2d_cell[cell](2, 1) * epsyy
-    //                         + m_C_2d_cell[cell](2, 2) * epsxy) ^ epsxy);  // To verify mathematically
+    Real sigmaxx_U = m_C_2d_cell(cell, 0, 0) * epsxx_U
+                    + m_C_2d_cell(cell, 0, 1) * epsyy_U
+                    + m_C_2d_cell(cell, 0, 2) * epsxy_U;
+    Real sigmayy_U = m_C_2d_cell(cell, 1, 0) * epsxx_U
+                    + m_C_2d_cell(cell, 1, 1) * epsyy_U
+                    + m_C_2d_cell(cell, 1, 2) * epsxy_U;
+    Real sigmaxy_U = m_C_2d_cell(cell, 2, 0) * epsxx_U
+                    + m_C_2d_cell(cell, 2, 1) * epsyy_U
+                    + m_C_2d_cell(cell, 2, 2) * epsxy_U;
 
     RealVector<6> rhs = - area * (sigmaxx_U * epsxx + sigmayy_U * epsyy + sigmaxy_U * epsxy);
+
+    //----------------------------------------------------------------------
+    //  ∫∫∫ (ε(𝑈):𝐶)ε(𝐯) = ∫∫∫ (𝑈 ε(𝘶):𝐶) ε(𝐯)
+    //----------------------------------------------------------------------
+    // RealVector<6> Uk =  { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y,
+    //                      m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y,
+    //                      m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y };
+    // RealVector<6> rhs = - area *
+    //                       ( Uk * ((m_C_2d_cell(cell, 0, 0) * epsxx
+    //                               + m_C_2d_cell(cell, 0, 1) * epsyy
+    //                               + m_C_2d_cell(cell, 0, 2) * epsxy) ^ epsxx)
+    //                       + Uk * ((m_C_2d_cell(cell, 1, 0) * epsxx
+    //                               + m_C_2d_cell(cell, 1, 1) * epsyy
+    //                               + m_C_2d_cell(cell, 1, 2) * epsxy) ^ epsyy)
+    //                       + Uk * ((m_C_2d_cell(cell, 2, 0) * epsxx
+    //                               + m_C_2d_cell(cell, 2, 1) * epsyy
+    //                               + m_C_2d_cell(cell, 2, 2) * epsxy) ^ epsxy));  // To verify mathematically
 
     rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0);
     rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(1);
@@ -167,30 +176,132 @@ _applyResidualRHSQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
 inline void FemModuleElastoplasticity::
 _applyResidualRHSTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
-  RealVector<12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
-  RealVector<12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. };
-  RealVector<12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. };
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
     Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
     Real4 dxu = ArcaneFemFunctions::FeOperation3D::computeGradientXTetra4(cell, m_node_coord);
     Real4 dyu = ArcaneFemFunctions::FeOperation3D::computeGradientYTetra4(cell, m_node_coord);
     Real4 dzu = ArcaneFemFunctions::FeOperation3D::computeGradientZTetra4(cell, m_node_coord);
-    RealVector<12> dxUx = { dxu[0], 0., 0., dxu[1], 0., 0., dxu[2], 0., 0., dxu[3], 0., 0. };
-    RealVector<12> dyUx = { dyu[0], 0., 0., dyu[1], 0., 0., dyu[2], 0., 0., dyu[3], 0., 0. };
-    RealVector<12> dzUx = { dzu[0], 0., 0., dzu[1], 0., 0., dzu[2], 0., 0., dzu[3], 0., 0. };
-    RealVector<12> dxUy = { 0., dxu[0], 0., 0., dxu[1], 0., 0., dxu[2], 0., 0., dxu[3], 0. };
-    RealVector<12> dyUy = { 0., dyu[0], 0., 0., dyu[1], 0., 0., dyu[2], 0., 0., dyu[3], 0. };
-    RealVector<12> dzUy = { 0., dzu[0], 0., 0., dzu[1], 0., 0., dzu[2], 0., 0., dzu[3], 0. };
-    RealVector<12> dxUz = { 0., 0., dxu[0], 0., 0., dxu[1], 0., 0., dxu[2], 0., 0., dxu[3] };
-    RealVector<12> dyUz = { 0., 0., dyu[0], 0., 0., dyu[1], 0., 0., dyu[2], 0., 0., dyu[3] };
-    RealVector<12> dzUz = { 0., 0., dzu[0], 0., 0., dzu[1], 0., 0., dzu[2], 0., 0., dzu[3] };
+
     //----------------------------------------------------------------------
-    //  ∫∫∫ (c₅)(∇𝐮ₙ.∇𝐯) + ∫∫∫ (c₆)(ε(𝐮ₙ):ε(𝐯)) +
+    //  ∫∫∫ (σ(𝑈)ε(𝐯) = ∫∫∫ (ε(𝑈):𝐶) ε(𝐯)
     //----------------------------------------------------------------------
-    RealVector<12> rhs = {0., 0., 0., 0.,
-                          0., 0., 0., 0.,
-                          0., 0., 0., 0.};
+
+    RealVector<12> epsxx = { dxu[0], 0., 0.,    dxu[1], 0., 0.,    dxu[2], 0., 0.,    dxu[3], 0., 0. };
+    RealVector<12> epsyy = { 0., dyu[0], 0.,    0., dyu[1], 0.,    0., dyu[2], 0.,    0., dyu[3], 0. };
+    RealVector<12> epszz = { 0., 0., dzu[0],    0., 0., dzu[1],    0., 0., dzu[2],    0., 0., dzu[3] };
+
+    RealVector<12> epsyz = { 0., dzu[0], dyu[0],    0., dzu[1], dyu[1],    0., dzu[2], dyu[2],    0., dzu[3], dyu[3] };
+    RealVector<12> epszx = { dzu[0], 0., dxu[0],    dzu[1], 0., dxu[1],    dzu[2], 0., dxu[2],    dzu[3], 0., dxu[3] };
+    RealVector<12> epsxy = { dyu[0], dxu[0], 0.,    dyu[1], dxu[1], 0.,    dyu[2], dxu[2], 0.,    dyu[3], dxu[3], 0. };
+
+
+    Real3x3 grad_U = ArcaneFemFunctions::FeOperation3D::computeGradientTetra4(cell, m_node_coord, m_U);
+
+    Real epsxx_U = grad_U(0, 0);
+    Real epsyy_U = grad_U(1, 1);
+    Real epszz_U = grad_U(2, 2);
+    Real epsyz_U = grad_U(1, 2) + grad_U(2, 1);
+    Real epszx_U = grad_U(0, 2) + grad_U(2, 0);
+    Real epsxy_U = grad_U(0, 1) + grad_U(1, 0);
+
+    Real sigmaxx_U =  m_C_3d_cell(cell, 0, 0) * epsxx_U
+                    + m_C_3d_cell(cell, 0, 1) * epsyy_U
+                    + m_C_3d_cell(cell, 0, 2) * epszz_U
+                    + m_C_3d_cell(cell, 0, 3) * epsyz_U
+                    + m_C_3d_cell(cell, 0, 4) * epszx_U
+                    + m_C_3d_cell(cell, 0, 5) * epsxy_U;
+    Real sigmayy_U =  m_C_3d_cell(cell, 1, 0) * epsxx_U
+                    + m_C_3d_cell(cell, 1, 1) * epsyy_U
+                    + m_C_3d_cell(cell, 1, 2) * epszz_U
+                    + m_C_3d_cell(cell, 1, 3) * epsyz_U
+                    + m_C_3d_cell(cell, 1, 4) * epszx_U
+                    + m_C_3d_cell(cell, 1, 5) * epsxy_U;
+    Real sigmazz_U =  m_C_3d_cell(cell, 2, 0) * epsxx_U
+                    + m_C_3d_cell(cell, 2, 1) * epsyy_U
+                    + m_C_3d_cell(cell, 2, 2) * epszz_U
+                    + m_C_3d_cell(cell, 2, 3) * epsyz_U
+                    + m_C_3d_cell(cell, 2, 4) * epszx_U
+                    + m_C_3d_cell(cell, 2, 5) * epsxy_U;
+    Real sigmayz_U =  m_C_3d_cell(cell, 3, 0) * epsxx_U
+                    + m_C_3d_cell(cell, 3, 1) * epsyy_U
+                    + m_C_3d_cell(cell, 3, 2) * epszz_U
+                    + m_C_3d_cell(cell, 3, 3) * epsyz_U
+                    + m_C_3d_cell(cell, 3, 4) * epszx_U
+                    + m_C_3d_cell(cell, 3, 5) * epsxy_U;
+    Real sigmazx_U =  m_C_3d_cell(cell, 4, 0) * epsxx_U
+                    + m_C_3d_cell(cell, 4, 1) * epsyy_U
+                    + m_C_3d_cell(cell, 4, 2) * epszz_U
+                    + m_C_3d_cell(cell, 4, 3) * epsyz_U
+                    + m_C_3d_cell(cell, 4, 4) * epszx_U
+                    + m_C_3d_cell(cell, 4, 5) * epsxy_U;
+    Real sigmaxy_U =  m_C_3d_cell(cell, 5, 0) * epsxx_U
+                    + m_C_3d_cell(cell, 5, 1) * epsyy_U
+                    + m_C_3d_cell(cell, 5, 2) * epszz_U
+                    + m_C_3d_cell(cell, 5, 3) * epsyz_U
+                    + m_C_3d_cell(cell, 5, 4) * epszx_U
+                    + m_C_3d_cell(cell, 5, 5) * epsxy_U;
+
+
+    RealVector<12> rhs_1 = - volume * ( sigmaxx_U * epsxx + sigmayy_U * epsyy + sigmazz_U * epszz
+                                      + sigmayz_U * epsyz + sigmazx_U * epszx + sigmaxy_U * epsxy);
+
+    //----------------------------------------------------------------------
+    //  ∫∫∫ (ε(𝑈):𝐶)ε(𝐯) = ∫∫∫ (𝑈 ε(𝘶):𝐶) ε(𝐯)
+    //----------------------------------------------------------------------
+    RealVector<12> Uk = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y, m_U[cell.nodeId(0)].z,
+                          m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y, m_U[cell.nodeId(1)].z,
+                          m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y, m_U[cell.nodeId(2)].z,
+                          m_U[cell.nodeId(3)].x, m_U[cell.nodeId(3)].y, m_U[cell.nodeId(3)].z };
+    RealVector<12> rhs = - volume *
+                           (Uk * ((m_C_3d_cell(cell, 0, 0) * epsxx
+                                  + m_C_3d_cell(cell, 0, 1) * epsyy
+                                  + m_C_3d_cell(cell, 0, 2) * epszz
+                                  + m_C_3d_cell(cell, 0, 3) * epsyz
+                                  + m_C_3d_cell(cell, 0, 4) * epszx
+                                  + m_C_3d_cell(cell, 0, 5) * epsxy) ^ epsxx)
+                          + Uk * ((m_C_3d_cell(cell, 0, 1) * epsxx
+                                  + m_C_3d_cell(cell, 1, 1) * epsyy
+                                  + m_C_3d_cell(cell, 1, 2) * epszz
+                                  + m_C_3d_cell(cell, 1, 3) * epsyz
+                                  + m_C_3d_cell(cell, 1, 4) * epszx
+                                  + m_C_3d_cell(cell, 1, 5) * epsxy) ^ epsyy)
+                          + Uk * ((m_C_3d_cell(cell, 0, 2) * epsxx
+                                  + m_C_3d_cell(cell, 1, 2) * epsyy
+                                  + m_C_3d_cell(cell, 2, 2) * epszz
+                                  + m_C_3d_cell(cell, 2, 3) * epsyz
+                                  + m_C_3d_cell(cell, 2, 4) * epszx
+                                  + m_C_3d_cell(cell, 2, 5) * epsxy) ^ epszz)
+                          + Uk * ((m_C_3d_cell(cell, 0, 3) * epsxx
+                                  + m_C_3d_cell(cell, 1, 3) * epsyy
+                                  + m_C_3d_cell(cell, 2, 3) * epszz
+                                  + m_C_3d_cell(cell, 3, 3) * epsyz
+                                  + m_C_3d_cell(cell, 3, 4) * epszx
+                                  + m_C_3d_cell(cell, 3, 5) * epsxy) ^ epsyz)
+                          + Uk * ((m_C_3d_cell(cell, 0, 4) * epsxx
+                                  + m_C_3d_cell(cell, 1, 4) * epsyy
+                                  + m_C_3d_cell(cell, 2, 4) * epszz
+                                  + m_C_3d_cell(cell, 3, 4) * epsyz
+                                  + m_C_3d_cell(cell, 4, 4) * epszx
+                                  + m_C_3d_cell(cell, 4, 5) * epsxy) ^ epszx)
+                          + Uk * ((m_C_3d_cell(cell, 0, 5) * epsxx
+                                  + m_C_3d_cell(cell, 1, 5) * epsyy
+                                  + m_C_3d_cell(cell, 2, 5) * epszz
+                                  + m_C_3d_cell(cell, 3, 5) * epsyz
+                                  + m_C_3d_cell(cell, 4, 5) * epszx
+                                  + m_C_3d_cell(cell, 5, 5) * epsxy) ^ epsxy));
+
+    Real diff = 0.0;
+    Real maxx = 0.0;
+
+    for (Int8 i = 0; i < 12; ++i) {
+      Real err = math::abs(rhs[i] - rhs_1[i]);
+      diff += err;
+      maxx = math::max(maxx, err);
+    }
+    diff /= 12.0;
+    info() << "Let us check: diff = " << diff << " maxx = " << maxx;
+
     rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0);
     rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(1);
     rhs_values[node_dof.dofId(cell.nodeId(0), 2)] += rhs(2);

@@ -10,10 +10,16 @@
       <description>U vector from Arcane variable</description>
     </variable>
     <variable field-name="dU" name="dU" data-type="real3" item-kind="node" dim="0">
-          <description>dU vector from Arcane variable for Newton increment</description>
+      <description>dU vector from Arcane variable for Newton increment</description>
     </variable>
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
       <description>Node coordinates from Arcane variable</description>
+    </variable>
+    <variable field-name="C_2d_cell" name="C_2d_cell" data-type="real" item-kind="cell" shape-dim="2">
+      <description>Material tensor for 2D constitutive law</description>
+    </variable>
+    <variable field-name="C_3d_cell" name="C_2d_cell" data-type="real" item-kind="cell" shape-dim="2">
+       <description>Material tensor for 3D constitutive law</description>
     </variable>
   </variables>
   <options>

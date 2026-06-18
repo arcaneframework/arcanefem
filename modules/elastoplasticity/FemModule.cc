@@ -54,6 +54,9 @@ startInit()
   m_newton_atol = options()->newtonAtol();
   m_newton_rtol = options()->newtonRtol();
 
+  m_C_2d_cell.reshape({3, 3});
+  m_C_3d_cell.reshape({6, 6});
+
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
 }
@@ -305,10 +308,10 @@ _getMaterialParameters()
   m_C_tang_3d(4, 4) = mu;
   m_C_tang_3d(5, 5) = mu;
   m_C_tang_3d(0, 1) = lambda;
-  m_C_tang_3d(0, 2) = lambda;
   m_C_tang_3d(1, 0) = lambda;
-  m_C_tang_3d(1, 2) = lambda;
+  m_C_tang_3d(0, 2) = lambda;
   m_C_tang_3d(2, 0) = lambda;
+  m_C_tang_3d(1, 2) = lambda;
   m_C_tang_3d(2, 1) = lambda;
 
   /*
@@ -321,11 +324,23 @@ _getMaterialParameters()
           {0.,             0.,             0.,             0.,  0.,  mu}
   };
  */
-
-  // ENUMERATE_ (Cell, icell, allCells()) {
-  //   Cell cell = *icell;
-  //   m_C_2d_cell[cell] = m_C_tang_2d;
-  // }
+  if (mesh()->dimension() == 2) {
+    ENUMERATE_ (Cell, icell, allCells()) {
+      for (Int32 ix = 0; ix < 3; ++ix) {
+        for (Int32 iy = 0; iy < 3; ++iy) {
+          m_C_2d_cell(icell, ix, iy) = m_C_tang_2d(ix, iy);
+        }
+      }
+    }
+  } else {
+    ENUMERATE_ (Cell, icell, allCells()) {
+      for (Int32 ix = 0; ix < 6; ++ix) {
+        for (Int32 iy = 0; iy < 6; ++iy) {
+          m_C_3d_cell(icell, ix, iy) = m_C_tang_3d(ix, iy);
+        }
+      }
+    }
+  }
 
 
   elapsedTime = platform::getRealTime() - elapsedTime;
