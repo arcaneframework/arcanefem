@@ -227,20 +227,8 @@ _assembleLinearOperatorCpu()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  if (options()->qdot.isPresent()) {
-    if (mesh()->dimension() == 2) {
-      if (m_hex_quad_mesh)
-        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhsQuad4(qdot, mesh(), node_dof, m_node_coord, rhs_values);
-      else
-        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhs(qdot, mesh(), node_dof, m_node_coord, rhs_values);
-    }
-    else {
-      if (m_hex_quad_mesh)
-        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhsHexa8(qdot, mesh(), node_dof, m_node_coord, rhs_values);
-      else
-        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhs(qdot, mesh(), node_dof, m_node_coord, rhs_values);
-    }
-  }
+  if (options()->qdot.isPresent())
+    ArcaneFemFunctions::BoundaryConditions::applyConstantSourceToRhs(qdot, mesh(), node_dof, m_node_coord, rhs_values);
 
   // Helper lambda to apply boundary conditions
   auto applyBoundaryConditions = [&](auto BCFunctions) {
@@ -248,20 +236,8 @@ _assembleLinearOperatorCpu()
     if (bc) {
 
       // Neumann
-      for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions()) {
-        if (mesh()->dimension() == 2) {
-          if (m_hex_quad_mesh)
-            ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhsQuad4(bs, node_dof, m_node_coord, rhs_values);
-          else
-            ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
-        }
-        if (mesh()->dimension() == 3) {
-          if (m_hex_quad_mesh)
-            ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsHexa8(bs, node_dof, m_node_coord, rhs_values);
-          else
-            ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
-        }
-      }
+      for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
+        ArcaneFemFunctions::BoundaryConditions::applyNeumannToRhs(bs, mesh(), node_dof, m_node_coord, rhs_values);
 
       // Dirichlet
       for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
@@ -324,25 +300,17 @@ void FemModuleFourier::_assembleLinearOperatorGpu()
   auto queue = subDomain()->acceleratorMng()->defaultQueue();
   auto mesh_ptr = mesh();
 
-  auto applyBoundaryConditions = [&](auto BCFunctions) {
-    if (options()->qdot.isPresent())
-      BCFunctions.applyConstantSourceToRhs(qdot, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
+  if (options()->qdot.isPresent())
+    FemUtils::Gpu::BoundaryConditions::applyConstantSourceToRhs(qdot, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
 
-    BC::IArcaneFemBC* bc = options()->boundaryConditions();
-    if (bc) {
-      for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
-        BCFunctions.applyNeumannToRhs(bs, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
+  if (bc) {
+    for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
+      FemUtils::Gpu::BoundaryConditions::applyNeumannToRhs(bs, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
 
-      for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
-        FemUtils::Gpu::BoundaryConditions::applyDirichletToLhsAndRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
-
-    }
-  };
-
-  if (mesh()->dimension() == 3)
-    applyBoundaryConditions(FemUtils::Gpu::BoundaryConditions3D());
-  else
-    applyBoundaryConditions(FemUtils::Gpu::BoundaryConditions2D());
+    for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
+      FemUtils::Gpu::BoundaryConditions::applyDirichletToLhsAndRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
+  }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-vector-assembly-gpu", elapsedTime);

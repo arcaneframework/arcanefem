@@ -20,7 +20,9 @@
 #include <arcane/utils/StringList.h>
 #include <arcane/utils/CommandLineArguments.h>
 
-#include <arcane/IndexedItemConnectivityView.h>
+#include <arcane/core/UnstructuredMeshConnectivity.h>
+#include <arcane/core/IndexedItemConnectivityView.h>
+
 #include <arcane/VariableTypes.h>
 #include <arcane/IMesh.h>
 
@@ -1448,6 +1450,96 @@ class ArcaneFemFunctions
         }
       }
     }
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Applies Neumann conditions to the right-hand side (RHS) values.
+     *
+     * This method updates the RHS values of the finite element method equations
+     * based on the provided Neumann boundary condition. The boundary condition
+     * can specify a value or its components along the x and y directions.
+     *
+     * @param bs The Neumann boundary condition values.
+     * @param node_dof Connectivity view for degrees of freedom at nodes.
+     * @param node_coord Coordinates of the nodes in the mesh.
+     * @param rhs_values The right-hand side values to be updated.
+     */
+    /*---------------------------------------------------------------------------*/
+    static inline void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      ARCANE_CHECK_PTR(bs);
+      ARCANE_CHECK_PTR(mesh);
+
+      // Get mesh type via the number of nodes of fist cell works only for unifrom mesh
+      Int32 nb_nodes = 0;
+      {
+        UnstructuredMeshConnectivityView m_connectivity_view(mesh);
+        auto cell_node_cv = m_connectivity_view.cellNode();
+        CellLocalId first_cell_lid(0);
+        nb_nodes = cell_node_cv.nbNode(first_cell_lid);
+      }
+
+      if (mesh->dimension() == 2 && nb_nodes == 3) { // Triangular mesh
+        ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhsTria3(bs, node_dof, node_coord, rhs_values);
+      }
+      else if (mesh->dimension() == 2 && nb_nodes == 4) { // Quadrilateral mesh
+        ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhsQuad4(bs, node_dof, node_coord, rhs_values);
+      }
+      else if (mesh->dimension() == 3 && nb_nodes == 4) { // Tetrahedral mesh
+        ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsTetra4(bs, node_dof, node_coord, rhs_values);
+      }
+      else if (mesh->dimension() == 3 && nb_nodes == 8) { // Hexahedral mesh
+        ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsHexa8(bs, node_dof, node_coord, rhs_values);
+      }
+      else {
+        ARCANE_FATAL("Unsupported cell type in applyConstantNeumannToRhs()");
+      }
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Applies a constant source term to the RHS vector.
+     *
+     * This method adds a constant source term `qdot` to the RHS vector for each
+     * node in the mesh. The contribution to each node is weighted by the area of
+     * the cell and evenly distributed among the number of nodes of the cell.
+     *
+     * @param qdot The constant source term.
+     * @param mesh The mesh containing all cells.
+     * @param node_dof DOF connectivity view.
+     * @param node_coord The coordinates of the nodes.
+     * @param rhs_values The RHS values to update.
+     */
+    /*---------------------------------------------------------------------------*/
+    static inline void applyConstantSourceToRhs(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      ARCANE_CHECK_PTR(mesh);
+
+      // Get mesh type via the number of nodes of fist cell works only for unifrom mesh
+      Int32 nb_nodes = 0;
+      {
+        UnstructuredMeshConnectivityView m_connectivity_view(mesh);
+        auto cell_node_cv = m_connectivity_view.cellNode();
+        CellLocalId first_cell_lid(0);
+        nb_nodes = cell_node_cv.nbNode(first_cell_lid);
+      }
+
+      if (mesh->dimension() == 2 && nb_nodes == 3) { // Triangular mesh
+        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhsTria3(qdot, mesh, node_dof, node_coord, rhs_values);
+      }
+      else if (mesh->dimension() == 2 && nb_nodes == 4) { // Quadrilateral mesh
+        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhsQuad4(qdot, mesh, node_dof, node_coord, rhs_values);
+      }
+      else if (mesh->dimension() == 3 && nb_nodes == 4) { // Tetrahedral mesh
+        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhsTetra4(qdot, mesh, node_dof, node_coord, rhs_values);
+      }
+      else if (mesh->dimension() == 3 && nb_nodes == 8) { // Hexahedral mesh
+        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhsHexa8(qdot, mesh, node_dof, node_coord, rhs_values);
+      }
+      else {
+        ARCANE_FATAL("Unsupported cell type in applyConstantSourceToRhs()");
+      }
+    }
   };
 
   /*---------------------------------------------------------------------------*/
@@ -1477,8 +1569,7 @@ class ArcaneFemFunctions
      * @param rhs_values The RHS values to update.
      */
     /*---------------------------------------------------------------------------*/
-
-    static inline void applyConstantSourceToRhs(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    static inline void applyConstantSourceToRhsTetra4(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
     {
       ENUMERATE_ (Cell, icell, mesh->allCells()) {
         Cell cell = *icell;
@@ -1790,7 +1881,7 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    static inline void applyNeumannToRhsTetra4(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
     {
       FaceGroup group = bs->getSurface();
 
@@ -2354,7 +2445,7 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline void applyConstantSourceToRhs(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    static inline void applyConstantSourceToRhsTria3(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
     {
       ENUMERATE_ (Cell, icell, mesh->allCells()) {
         Cell cell = *icell;
@@ -2614,7 +2705,7 @@ class ArcaneFemFunctions
      */
     /*---------------------------------------------------------------------------*/
 
-    static inline void applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    static inline void applyNeumannToRhsTria3(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
     {
       FaceGroup group = bs->getSurface();
 

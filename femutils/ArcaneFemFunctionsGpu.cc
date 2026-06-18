@@ -264,6 +264,90 @@ applyPointDirichletToRhs(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes&
 }
 
 /*---------------------------------------------------------------------------*/
+
+void BoundaryConditions::
+applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                  const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                  IMesh* mesh, RunQueue* queue)
+{
+  ARCANE_CHECK_PTR(bs);
+  ARCANE_CHECK_PTR(mesh);
+  ARCANE_CHECK_PTR(queue);
+
+  // Get mesh type via the number of nodes of fist cell works only for unifrom mesh
+  Int32 nb_nodes = 0;
+  {
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh);
+    auto cell_node_cv = m_connectivity_view.cellNode();
+    CellLocalId first_cell_lid(0);
+    nb_nodes = cell_node_cv.nbNode(first_cell_lid);
+  }
+
+  if (mesh->dimension() == 2 && nb_nodes == 3) { // Triangular mesh
+    BoundaryConditions2D::applyNeumannToRhsTria3(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
+  else if (mesh->dimension() == 2 && nb_nodes == 4) { // Quad mesh
+    BoundaryConditions2D::applyNeumannToRhsQuad4(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
+  else if (mesh->dimension() == 3 && nb_nodes == 4) { // Tetra mesh
+    BoundaryConditions3D::applyNeumannToRhsTetra4(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
+  else if (mesh->dimension() == 3 && nb_nodes == 8) { // Hexa mesh
+    BoundaryConditions3D::applyNeumannToRhsHexa8(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
+  else {
+    ARCANE_FATAL("Unknown mesh type only works for uniform TRIA3, QUAD4, TETRA4, HEXA8");
+  }
+}
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies a constant source term to the RHS vector.
+ *
+ * This method adds a constant source term `qdot` to the RHS vector for each
+ * node in the mesh. The contribution to each node is weighted by the area of
+ * the cell and evenly distributed among the number of nodes of the cell.
+ *
+ */
+void BoundaryConditions::
+applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+                         const VariableNodeReal3& node_coord,
+                         VariableDoFReal& rhs_variable_na,
+                         IMesh* mesh, RunQueue* queue)
+{
+  ARCANE_CHECK_PTR(mesh);
+  ARCANE_CHECK_PTR(queue);
+
+  // Get mesh type via the number of nodes of fist cell works only for unifrom mesh
+  Int32 nb_nodes = 0;
+  {
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh);
+    auto cell_node_cv = m_connectivity_view.cellNode();
+    CellLocalId first_cell_lid(0);
+    nb_nodes = cell_node_cv.nbNode(first_cell_lid);
+  }
+
+  if (mesh->dimension() == 2 && nb_nodes == 3) { // Triangular mesh
+    auto func = [] ARCCORE_HOST_DEVICE(CellLocalId cell_lid,
+                                       const IndexedCellNodeConnectivityView& cn_cv,
+                                       const Accelerator::VariableNodeReal3InView& in_node_coord) {
+      return MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+    };
+    BoundaryConditionsHelpers::applyConstantSourceToRhsBase(func, qdot, queue, rhs_variable_na, mesh, dofs_on_nodes, node_coord);
+  }
+  else if (mesh->dimension() == 2 && nb_nodes == 4) { // Quad mesh
+    BoundaryConditions2D::applyConstantSourceToRhsQuad4(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
+  else if (mesh->dimension() == 3 && nb_nodes == 4) { // Tetra mesh
+    BoundaryConditions3D::applyConstantSourceToRhsTetra4(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
+  else if (mesh->dimension() == 3 && nb_nodes == 8) { // Hexa mesh
+    BoundaryConditions3D::applyConstantSourceToRhsHexa8(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
+  else {
+    ARCANE_FATAL("Unknown mesh type only works for uniform TRIA3, QUAD4, TETRA4, HEXA8");
+  }
+}
+
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Applies a constant source term to the RHS vector.
@@ -274,7 +358,7 @@ applyPointDirichletToRhs(BC::IDirichletPointCondition* bs, const FemDoFsOnNodes&
  *
  */
 void BoundaryConditions2D::
-applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+applyConstantSourceToRhsTria3(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
                          const VariableNodeReal3& node_coord,
                          VariableDoFReal& rhs_variable_na,
                          IMesh* mesh, RunQueue* queue)
@@ -293,9 +377,6 @@ applyConstantSourceToRhsQuad4(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
                               const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                               IMesh* mesh, RunQueue* queue)
 {
-  ARCANE_CHECK_PTR(mesh);
-  ARCANE_CHECK_PTR(queue);
-
   UnstructuredMeshConnectivityView connectivity_view;
   connectivity_view.setMesh(mesh);
   NodeInfoListView nodes_infos(mesh->nodeFamily());
@@ -376,7 +457,7 @@ applyConstantSourceToRhsQuad4(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
  * can specify a value or its components along the x and y directions.
  */
 void BoundaryConditions2D::
-applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+applyNeumannToRhsTria3(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
                   const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                   IMesh* mesh, RunQueue* queue)
 {
@@ -564,7 +645,7 @@ applyNeumannToRhsQuad4(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& 
 /*---------------------------------------------------------------------------*/
 
 void BoundaryConditions3D::
-applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord,
+applyConstantSourceToRhsTetra4(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord,
                          VariableDoFReal& rhs_variable_na, IMesh* mesh, RunQueue* queue)
 {
   auto func = [] ARCCORE_HOST_DEVICE(CellLocalId cell_lid,
@@ -579,7 +660,6 @@ void BoundaryConditions3D::
 applyConstantSourceToRhsHexa8(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord,
                               VariableDoFReal& rhs_variable_na, IMesh* mesh, RunQueue* queue)
 {
-
   ARCANE_CHECK_PTR(mesh);
   ARCANE_CHECK_PTR(queue);
 
@@ -719,7 +799,7 @@ applyConstantSourceToRhsHexa8(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, co
  *
  */
 void BoundaryConditions3D::
-applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+applyNeumannToRhsTetra4(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
                   const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                   IMesh* mesh, RunQueue* queue)
 {
@@ -783,7 +863,7 @@ applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_
 }
 
 void BoundaryConditions3D::
-applyNeumannToHexa8(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+applyNeumannToRhsHexa8(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
                     const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                     IMesh* mesh, Accelerator::RunQueue* queue)
 {
