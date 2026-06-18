@@ -102,7 +102,7 @@ _applyResidualRHSTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
     //                         + m_C_2d_cell[cell](2, 1) * epsyy
     //                         + m_C_2d_cell[cell](2, 2) * epsxy) ^ epsxy);  // To verify mathematically
 
-    RealVector<6> rhs = area * (sigmaxx_U * epsxx + sigmayy_U * epsyy + sigmaxy_U * epsxy);
+    RealVector<6> rhs = - area * (sigmaxx_U * epsxx + sigmayy_U * epsyy + sigmaxy_U * epsxy);
 
     rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0);
     rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(1);

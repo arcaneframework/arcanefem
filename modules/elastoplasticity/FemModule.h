@@ -107,7 +107,7 @@ class FemModuleElastoplasticity
 
   Int8 m_dof_per_node;
   Int32 m_newton_iter;
-  Int32 m_max_newton_iters;
+  Int32 m_newton_max_iters;
 
   String m_petsc_flags;
   String m_matrix_format = "DOK";
@@ -123,9 +123,10 @@ class FemModuleElastoplasticity
   bool m_newton_solver_converged = false;
 
   void _getMaterialParameters();
-  void _solve_linear();
-  void _solve_newton();
-  void _check_newton_convergence();
+  void _solveLinear();
+  void _solveNewton();
+  void _checkNewtonConvergence();
+  void _incrementVariables();
   void _solve();
   void _assembleLinearOperator();
   void _validateResults();
@@ -133,8 +134,6 @@ class FemModuleElastoplasticity
   void _updateGuessFromIncrement();
   void _updateVariables();
   void _initBsr();
-
-
 
   inline void _applyBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);

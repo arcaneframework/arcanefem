@@ -58,7 +58,7 @@
     </simple>
 
     <!-- - - - - - nonlinear-analysis-parameters - - - - -->
-    <simple name="nonlinear-law" type="bool" default="true" optional="true">
+    <simple name="nonlinear-law" type="bool" default="false" optional="true">
       <description>Boolean to enable solving as nonlinear problem</description>
     </simple>
     <simple name="newton-rtol" type ="real" default="1e-8" optional="true">

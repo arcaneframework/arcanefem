@@ -39,9 +39,6 @@ startInit()
   E = options()->E(); // Youngs modulus
   nu = options()->nu(); // Poission ratio ν
 
-  mu = (E / (2 * (1 + nu))); // lame parameter μ
-  lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
-
   m_dof_per_node = defaultMesh()->dimension();
   m_matrix_format = options()->matrixFormat();
   m_assemble_linear_system = options()->assembleLinearSystem();
@@ -51,6 +48,11 @@ startInit()
   m_hex_quad_mesh = options()->hexQuadMesh();
 
   m_dofs_on_nodes.initialize(defaultMesh(), m_dof_per_node);
+
+  m_nonlinear_law = options()->nonlinearLaw();
+  m_newton_max_iters = options()->newtonMaxIters();
+  m_newton_atol = options()->newtonAtol();
+  m_newton_rtol = options()->newtonRtol();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
@@ -140,15 +142,14 @@ void FemModuleElastoplasticity::_initBsr()
 /**
  * @brief Performs a stationary solve for the FEM system.
  *
- * This method solves the FEM system either with:
+ * This method does the following
+ *   1. Solves the FEM system either with:
+ *      _solveNewton()
+ *      or
+ *      _solveLinear()
+ *      based on the nature of the constitutive law
  *
- *   _solve_newton()
- *
- *   or
- *
- *   _solve_linear()
- *
- *   based on the nature of the constitutive law
+ *   2. _validateResults()           Regression test
  */
 /*---------------------------------------------------------------------------*/
 
@@ -156,12 +157,15 @@ void FemModuleElastoplasticity::
 _doStationarySolve()
 {
   if (m_nonlinear_law) {
-    _solve_newton();
+    _solveNewton();
   }
   else {
-    _solve_linear();
+    _solveLinear();
   }
 
+  if(m_cross_validation){
+    _validateResults();
+  }
 
 }
 
@@ -176,14 +180,13 @@ _doStationarySolve()
  *   3. _assembleLinearOperator()    Assembles the FEM RHS vector 𝐛
  *   4. _solve()                     Solves for solution vector 𝐮 = 𝐀⁻¹𝐛
  *   5. _updateVariables()           Updates FEM variables 𝐮 = 𝐱
- *   6. _validateResults()           Regression test
  */
 /*---------------------------------------------------------------------------*/
 
 void FemModuleElastoplasticity::
-_solve_linear()
+_solveLinear()
 {
-  info() << "[ArcaneFem-Info] Started module  _solve_linear()";
+  info() << "[ArcaneFem-Info] Started module  _solveLinear()";
   _getMaterialParameters();
 
   if(m_assemble_linear_system){
@@ -193,9 +196,6 @@ _solve_linear()
   if(m_solve_linear_system){
     _solve();
     _updateVariables();
-  }
-  if(m_cross_validation){
-    _validateResults();
   }
 }
 
@@ -209,17 +209,18 @@ _solve_linear()
  *   2. _assembleBilinearOperator()  Assembles the FEM  matrix 𝐀ʹ
  *   3. _assembleLinearOperator()    Assembles the FEM RHS vector 𝐛
  *   4. _solve()                     Solves for solution vector 𝐝𝐮 = 𝐀ʹ⁻¹𝐛
- *   5. _updateVariables()           Updates FEM variables 𝐝𝐮 = 𝐱
+ *   5. _updateNewtonIncrements()    Updates FEM variables 𝐝𝐮 = 𝐱
+ *   5. _checkNewtonConvergence()    Check convergence on norm of 𝐝𝐮 /𝐮
  *   6. _validateResults()           Regression test
  */
 /*---------------------------------------------------------------------------*/
 
 void FemModuleElastoplasticity::
-_solve_newton()
+_solveNewton()
 {
-  info() << "[ArcaneFem-Info] Started module  _solve_newton()";
+  info() << "[ArcaneFem-Info] Started module  _solveNewton()";
 
-  while (m_newton_iter < m_max_newton_iters) {
+  while (m_newton_iter < m_newton_max_iters) {
     _getMaterialParameters();
 
     if(m_assemble_nonlinear_system) {
@@ -243,9 +244,10 @@ _solve_newton()
     }
 
     ++m_newton_iter;
-    _check_newton_convergence();
+    _checkNewtonConvergence();
 
-    m_U.add(m_dU);
+    // m_U.add(m_dU);
+    _incrementVariables();
 
     if (m_newton_solver_converged) {
       info() << "[ArcaneFem-Info] Newton solver converged after " << m_newton_iter << " iterations.";
@@ -257,14 +259,11 @@ _solve_newton()
     }
   }
 
-  if (m_newton_iter == m_max_newton_iters && !m_newton_solver_converged) {
-    info() << "[ArcaneFem-Info] Newton iterations did not converge after maximum (" << m_max_newton_iters << ") iterations";
+  if (m_newton_iter == m_newton_max_iters && !m_newton_solver_converged) {
+    info() << "[ArcaneFem-Info] Newton iterations did not converge after maximum (" << m_newton_max_iters << ") iterations";
     ARCANE_FATAL("Newton iterations diverged after max iters");
   }
 
-  if(m_cross_validation){
-    _validateResults();
-  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -625,9 +624,9 @@ _updateNewtonIncrements()
  * @brief Reinitialize the solution vector of the linear solve with the FEM variables.
  *
  * This method performs the following actions:
- *   1. Performs synchronize of FEM variables across subdomains.
- *   2. Fetches the FEM variables to the solution vector of the
- *      linear solver for next fixed point iteration.
+ *   1. Performs synchronization of FEM increment variables across subdomains.
+ *   2. Fetches the FEM increment variables to the solution vector of the
+ *      linear solver for the next nonlinear solver iteration.
  */
 /*---------------------------------------------------------------------------*/
 
@@ -665,19 +664,49 @@ _updateGuessFromIncrement()
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Check for convergence and Update the FEM variables.
+ * @brief Increments the FEM variables.
  *
- * This method performs the following actions:
- *   1. Updates the FEM solutions from the solutions of linear solver on DOF
- *   2. Evaluates the convergence norm with newton increment FEM variables
- *   3. Checks for convergence
+ * This method updates the FEM solutions with the increment of
+ * the current Newton iteration
+ *
  */
 /*---------------------------------------------------------------------------*/
 
 void FemModuleElastoplasticity::
-_check_newton_convergence()
+_incrementVariables()
 {
-  info() << "[ArcaneFem-Info] Started module _check_newton_convergence()";
+  info() << "[ArcaneFem-Info] Started module _incrementVariables()";
+  Real elapsedTime = platform::getRealTime();
+
+  m_dU.synchronize();
+  m_U.synchronize();
+  {
+      ENUMERATE_ (Node, inode, ownNodes()) {
+      m_U[inode] += m_dU[inode];
+    }
+  }
+  m_U.synchronize();
+
+  IParallelMng* pm = defaultMesh()->parallelMng();
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "increment-fem-variables", elapsedTime);
+}
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Check for the convergence of nonlinear solver.
+ *
+ * This method performs the following actions:
+ *   1. Evaluates the convergence norm with Newton increment FEM variables
+ *   2. Checks for convergence
+ *
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleElastoplasticity::
+_checkNewtonConvergence()
+{
+  info() << "[ArcaneFem-Info] Started module _checkNewtonConvergence()";
   Real elapsedTime = platform::getRealTime();
 
   m_dU.synchronize();
