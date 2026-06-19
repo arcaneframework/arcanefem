@@ -327,12 +327,7 @@ applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
   }
 
   if (mesh->dimension() == 2 && nb_nodes == 3) { // Triangular mesh
-    auto func = [] ARCCORE_HOST_DEVICE(CellLocalId cell_lid,
-                                       const IndexedCellNodeConnectivityView& cn_cv,
-                                       const Accelerator::VariableNodeReal3InView& in_node_coord) {
-      return MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
-    };
-    BoundaryConditionsHelpers::applyConstantSourceToRhsBase(func, qdot, queue, rhs_variable_na, mesh, dofs_on_nodes, node_coord);
+    BoundaryConditions2D::applyConstantSourceToRhsTria3(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
   }
   else if (mesh->dimension() == 2 && nb_nodes == 4) { // Quad mesh
     BoundaryConditions2D::applyConstantSourceToRhsQuad4(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
