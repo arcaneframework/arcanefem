@@ -111,13 +111,13 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/truncated_cube.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-    add_test(NAME [electrostatics]box-rods_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Electrostatics
+    add_test(NAME [electrostatics]box-rods_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Electrostatics
       -A,//fem/solution-comparison-file=check/test_1.txt
       inputs/box-rods.arc)
-    add_test(NAME [electrostatics]box-rods_quad_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Electrostatics
+    add_test(NAME [electrostatics]box-rods_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Electrostatics
       -A,//fem/solution-comparison-file=check/box-rods.quad.txt
       inputs/box-rods.quad.arc)
-    add_test(NAME [electrostatics]truncated-cube_hexa_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Electrostatics
+    add_test(NAME [electrostatics]truncated-cube_hexa_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Electrostatics
       -A,//fem/solution-comparison-file=check/truncated-cube.hexa.txt
       inputs/truncated_cube.hexa.arc)
   endif()

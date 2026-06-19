@@ -14,7 +14,7 @@ endif()
 # ----------------------------------------------------------------------------
 # Usage:
 #
-# arcanefem_add_gpu_test(NAME test_name [NB_MPI n] COMMAND exe_fileARGS exe_args)
+# arcanefem_add_gpu_test(NAME test_name COMMAND exe_fileARGS exe_args)
 #
 macro(arcanefem_add_gpu_test)
   set(options)
@@ -27,24 +27,35 @@ macro(arcanefem_add_gpu_test)
   if (NOT ARGS_COMMAND)
     message(FATAL_ERROR "No arg COMMAND for macro 'arcanefem_add_gpu_test'")
   endif()
-  # Add test without accelerator Runtime
-  if (ARGS_NB_MPI)
-    if (MPIEXEC_EXECUTABLE)
-      add_test(NAME ${ARGS_NAME} COMMAND ${MPIEXEC_EXECUTABLE} -n ${ARGS_NB_MPI} ${ARGS_COMMAND} ${ARGS_ARGS})
-    endif()
-  else()
-    add_test(NAME ${ARGS_NAME} COMMAND ${ARGS_COMMAND} ${ARGS_ARGS})
+
+  # Default number of MPI procs for the parallel variant if not specified
+  if (NOT ARGS_NB_MPI)
+    set(ARGS_NB_MPI 2)
   endif()
 
-  # Add test WITH accelerator Runtime
+  set(_RUNTIME_ARGS)
   if(ARCANE_HAS_ACCELERATOR)
     set(_RUNTIME_ARGS "-A,AcceleratorRuntime=${ARCANE_ACCELERATOR_RUNTIME}")
-    if (ARGS_NB_MPI)
-      if (MPIEXEC_EXECUTABLE)
-        add_test(NAME ${ARGS_NAME}_${ARCANE_ACCELERATOR_RUNTIME} COMMAND ${MPIEXEC_EXECUTABLE} -n ${ARGS_NB_MPI} ${ARGS_COMMAND} ${_RUNTIME_ARGS} ${ARGS_ARGS})
-      endif()
-    else()
-      add_test(NAME ${ARGS_NAME}_${ARCANE_ACCELERATOR_RUNTIME} COMMAND ${ARGS_COMMAND} ${_RUNTIME_ARGS} ${ARGS_ARGS})
+  endif()
+
+  # --- Serial CPU test (always) ---
+  add_test(NAME ${ARGS_NAME} COMMAND ${ARGS_COMMAND} ${ARGS_ARGS})
+
+  # --- Serial GPU test (always, if accelerator available) ---
+  if(ARCANE_HAS_ACCELERATOR)
+    add_test(NAME ${ARGS_NAME}_${ARCANE_ACCELERATOR_RUNTIME}
+             COMMAND ${ARGS_COMMAND} ${_RUNTIME_ARGS} ${ARGS_ARGS})
+  endif()
+
+  # --- Parallel CPU test (always, if mpiexec available) ---
+  if (MPIEXEC_EXECUTABLE)
+    add_test(NAME ${ARGS_NAME}_${ARGS_NB_MPI}p
+             COMMAND ${MPIEXEC_EXECUTABLE} -n ${ARGS_NB_MPI} ${ARGS_COMMAND} ${ARGS_ARGS})
+
+    # --- Parallel GPU test (always, if mpiexec AND accelerator available) ---
+    if(ARCANE_HAS_ACCELERATOR)
+      add_test(NAME ${ARGS_NAME}_${ARGS_NB_MPI}p_${ARCANE_ACCELERATOR_RUNTIME}
+               COMMAND ${MPIEXEC_EXECUTABLE} -n ${ARGS_NB_MPI} ${ARGS_COMMAND} ${_RUNTIME_ARGS} ${ARGS_ARGS})
     endif()
   endif()
 endmacro()
