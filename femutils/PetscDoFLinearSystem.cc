@@ -483,6 +483,19 @@ solve()
   Real b1 = platform::getRealTime();
 
   if (is_parallel) {
+    Int32 index = 0;
+    ENUMERATE_ (DoF, idof, dof_family->allItems()) {
+      DoF dof = *idof;
+      if (!dof.isOwn())
+        continue;
+      m_parallel_rows_index[index] = rows_index_span[idof.index()];
+      m_rhs_work_values[index] = rhs_variable[idof];
+      m_result_work_values[index] = dof_variable[idof];
+      ++index;
+    }
+  }
+
+  if (is_parallel) {
 #if PETSC_VERSION_GE(3, 20, 0)
     PetscCallAbort(mpi_comm, VecCreateFromOptions(mpi_comm, nullptr, 1, local_rows, global_rows, &m_petsc_rhs_vector));
     PetscCallAbort(mpi_comm, VecCreateFromOptions(mpi_comm, nullptr, 1, local_rows, global_rows, &m_petsc_solution_vector));
@@ -492,8 +505,8 @@ solve()
     PetscCallAbort(mpi_comm, VecCreateMPI(mpi_comm, local_rows, global_rows, &m_petsc_solution_vector));
     PetscCallAbort(mpi_comm, VecSetFromOptions(m_petsc_solution_vector));
 #endif
-    PetscCallAbort(mpi_comm, VecSetValues(m_petsc_rhs_vector, dof_variable.asArray().size(), rows_index_data, rhs_data, ADD_VALUES));
-    PetscCallAbort(mpi_comm, VecSetValues(m_petsc_solution_vector, dof_variable.asArray().size(), rows_index_data, result_data, ADD_VALUES));
+    PetscCallAbort(mpi_comm, VecSetValues(m_petsc_rhs_vector, local_rows, m_parallel_rows_index.to1DSpan().data(), m_rhs_work_values.to1DSpan().data(), INSERT_VALUES));
+    PetscCallAbort(mpi_comm, VecSetValues(m_petsc_solution_vector, local_rows, m_parallel_rows_index.to1DSpan().data(), m_result_work_values.to1DSpan().data(), INSERT_VALUES));
   }
   else {
     PetscCallAbort(mpi_comm, VecCreateSeqWithArray(mpi_comm, 1, global_rows, rhs_data, &m_petsc_rhs_vector));
@@ -520,19 +533,6 @@ solve()
   PetscCallAbort(mpi_comm, KSPGetIterationNumber(m_petsc_solver_context, &iteration_idx));
 
   info() << "[Petsc-Info] Used " << m_pc_type << " preconditionner. Converged in " << iteration_idx + 1 << " iterations";
-
-  if (is_parallel) {
-    // Fill 'm_parallel_rows_index' with only rows we owns
-    // NOTE: This is only needed if matrix structure has changed.
-    Int32 index = 0;
-    ENUMERATE_ (DoF, idof, dof_family->allItems()) {
-      DoF dof = *idof;
-      if (!dof.isOwn())
-        continue;
-      m_parallel_rows_index[index] = rows_index_span[idof.index()];
-      ++index;
-    }
-  }
 
   if (is_parallel) {
     Int32 nb_wanted_row = m_parallel_rows_index.extent0();
