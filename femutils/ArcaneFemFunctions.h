@@ -780,11 +780,11 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-     * @brief Computes the gradient of a scalar field 'u' for a Quad4 element.
+     * @brief Computes the gradient of a field 'u' for a Quad4 element.
      *
      * @param cell The Quad4 cell entity.
      * @param node_coord The coordinates of the mesh nodes.
-     * @param u The scalar variable 𝑢 defined at the nodes.
+     * @param u The variable 𝑢 defined at the nodes.
      * @return A Real3 vector of the gradient ∇𝑢 = {∂𝑢/∂𝑥, ∂𝑢/∂𝑦, 0} at the cell center.
      */
     /*---------------------------------------------------------------------------*/
@@ -818,11 +818,9 @@ class ArcaneFemFunctions
     }
 
     static inline Real3x3
-    // computeGradientQuad4(Cell cell, const VariableNodeReal3& node_coord, const VariableNodeReal3& u, /*Real xi, Real eta*/)
-    computeGradientQuad4(Cell cell, const VariableNodeReal3& node_coord, const VariableNodeReal3& u, Real xi, Real eta)
+    computeGradientQuad4(Cell cell, const VariableNodeReal3& node_coord, const VariableNodeReal3& u, const Real xi, const Real eta)
     {
-      // get shape function gradients w.r.t (𝑥,𝑦) and determinant of Jacobian at (ξ,η) = (0,0)
-      // const auto gp_util = computeGradientsAndJacobianQuad4(cell, node_coord, 0.0, 0.0);
+      // get shape function gradients w.r.t (𝑥,𝑦) and determinant of Jacobian at (ξ,η)
       const auto gp_util = computeGradientsAndJacobianQuad4(cell, node_coord, xi, eta);
       const RealVector<4>& dN_dx = gp_util.dN_dx;
       const RealVector<4>& dN_dy = gp_util.dN_dy;
@@ -835,9 +833,9 @@ class ArcaneFemFunctions
         u[cell.nodeId(3)]
       };
 
-      // Compute the gradient components using shape function
-      //    ∂𝑢/∂𝑥 = Σ (∂𝑁ᵢ/∂𝑥 * uᵢ) ∀ 𝑖= 1,……,4
-      //    ∂𝑢/∂𝑦 = Σ (∂𝑁ᵢ/∂𝑦 * uᵢ) ∀ 𝑖= 1,……,4
+      // Compute the gradient components using shape function for each component (ₖ) of the vector field
+      //    ∂𝑢ₖ/∂𝑥 = Σ (∂𝑁ᵢ/∂𝑥 * uᵢ) ∀ 𝑖= 1,……,4
+      //    ∂𝑢ₖ/∂𝑦 = Σ (∂𝑁ᵢ/∂𝑦 * uᵢ) ∀ 𝑖= 1,……,4
       Real3 d_ux = {0., 0., 0.};
       Real3 d_uy = {0., 0., 0.};
       Real3 d_uz = {0., 0., 0.};
@@ -1251,11 +1249,11 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-     * @brief Computes the gradient of a scalar field 'u' for a Hexa8 element.
+     * @brief Computes the gradient of a field 'u' for a Hexa8 element.
      *
      * @param cell The Hexa8 cell entity.
      * @param node_coord The coordinates of the mesh nodes.
-     * @param u The scalar variable 𝑢 defined at the nodes.
+     * @param u The variable 𝑢 defined at the nodes.
      * @return A Real3 vector of the gradient ∇𝑢 = {∂𝑢/∂𝑥, ∂𝑢/∂𝑦, ∂𝑢/∂𝑧} at the cell center.
      */
     /*---------------------------------------------------------------------------*/
@@ -1294,6 +1292,51 @@ class ArcaneFemFunctions
       }
 
       return { grad_x, grad_y, grad_z };
+    }
+
+  static inline Real3x3
+    computeGradientHexa8(Cell cell, const VariableNodeReal3& node_coord, const VariableNodeReal3& u, const Real xi, const Real eta, const Real zeta)
+    {
+      // get shape function gradients w.r.t (𝑥,𝑦) and determinant of Jacobian at (ξ,η,ζ)
+      const auto gp_util = computeGradientsAndJacobianHexa8(cell, node_coord, xi, eta, zeta);
+      const RealVector<8>& dN_dx = gp_util.dN_dx;
+      const RealVector<8>& dN_dy = gp_util.dN_dy;
+      const RealVector<8>& dN_dz = gp_util.dN_dz;
+
+      // get the nodal values of the variable 𝑢ᵢ ∀ 𝑖= 1,……,8 for the cell.
+      const Real3 u_nodes[8] = {
+        u[cell.nodeId(0)],
+        u[cell.nodeId(1)],
+        u[cell.nodeId(2)],
+        u[cell.nodeId(3)],
+        u[cell.nodeId(4)],
+        u[cell.nodeId(5)],
+        u[cell.nodeId(6)],
+        u[cell.nodeId(7)]
+      };
+
+      // Compute the gradient components using shape function for each component (ₖ) of the vector field
+      //    ∂𝑢ₖ/∂𝑥 = Σ (∂𝑁ᵢ/∂𝑥 * uᵢ) ∀ 𝑖= 1,……,8
+      //    ∂𝑢ₖ/∂𝑦 = Σ (∂𝑁ᵢ/∂𝑦 * uᵢ) ∀ 𝑖= 1,……,8
+      //    ∂𝑢ₖ/∂𝑧 = Σ (∂𝑁ᵢ/∂𝑧 * uᵢ) ∀ 𝑖= 1,……,8
+
+      Real3 d_ux = {0., 0., 0.};
+      Real3 d_uy = {0., 0., 0.};
+      Real3 d_uz = {0., 0., 0.};
+
+      for (Int8 a = 0; a < 8; ++a) {
+        d_ux[0] += dN_dx(a) * u_nodes[a].x;
+        d_ux[1] += dN_dy(a) * u_nodes[a].x;
+        d_ux[2] += dN_dz(a) * u_nodes[a].x;
+        d_uy[0] += dN_dx(a) * u_nodes[a].y;
+        d_uy[1] += dN_dy(a) * u_nodes[a].y;
+        d_uy[2] += dN_dz(a) * u_nodes[a].y;
+        d_uz[0] += dN_dx(a) * u_nodes[a].z;
+        d_uz[1] += dN_dy(a) * u_nodes[a].z;
+        d_uz[2] += dN_dz(a) * u_nodes[a].z;
+      }
+
+      return { d_ux, d_uy, d_uz };
     }
 
 

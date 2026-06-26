@@ -18,7 +18,7 @@
     <variable field-name="C_2d_cell" name="C_2d_cell" data-type="real" item-kind="cell" shape-dim="2">
       <description>Material tensor for 2D constitutive law</description>
     </variable>
-    <variable field-name="C_3d_cell" name="C_2d_cell" data-type="real" item-kind="cell" shape-dim="2">
+    <variable field-name="C_3d_cell" name="C_3d_cell" data-type="real" item-kind="cell" shape-dim="2">
        <description>Material tensor for 3D constitutive law</description>
     </variable>
   </variables>
