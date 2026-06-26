@@ -817,6 +817,41 @@ class ArcaneFemFunctions
       return { grad_x, grad_y, 0.0 };
     }
 
+    static inline Real3x3
+    // computeGradientQuad4(Cell cell, const VariableNodeReal3& node_coord, const VariableNodeReal3& u, /*Real xi, Real eta*/)
+    computeGradientQuad4(Cell cell, const VariableNodeReal3& node_coord, const VariableNodeReal3& u, Real xi, Real eta)
+    {
+      // get shape function gradients w.r.t (𝑥,𝑦) and determinant of Jacobian at (ξ,η) = (0,0)
+      // const auto gp_util = computeGradientsAndJacobianQuad4(cell, node_coord, 0.0, 0.0);
+      const auto gp_util = computeGradientsAndJacobianQuad4(cell, node_coord, xi, eta);
+      const RealVector<4>& dN_dx = gp_util.dN_dx;
+      const RealVector<4>& dN_dy = gp_util.dN_dy;
+
+      // get the nodal values of the variable 𝑢ᵢ ∀ 𝑖= 1,……,4 for the cell.
+      const Real3 u_nodes[4] = {
+        u[cell.nodeId(0)],
+        u[cell.nodeId(1)],
+        u[cell.nodeId(2)],
+        u[cell.nodeId(3)]
+      };
+
+      // Compute the gradient components using shape function
+      //    ∂𝑢/∂𝑥 = Σ (∂𝑁ᵢ/∂𝑥 * uᵢ) ∀ 𝑖= 1,……,4
+      //    ∂𝑢/∂𝑦 = Σ (∂𝑁ᵢ/∂𝑦 * uᵢ) ∀ 𝑖= 1,……,4
+      Real3 d_ux = {0., 0., 0.};
+      Real3 d_uy = {0., 0., 0.};
+      Real3 d_uz = {0., 0., 0.};
+
+      for (Int8 a = 0; a < 4; ++a) {
+        d_ux[0] += dN_dx(a) * u_nodes[a].x;
+        d_ux[1] += dN_dy(a) * u_nodes[a].x;
+        d_uy[0] += dN_dx(a) * u_nodes[a].y;
+        d_uy[1] += dN_dy(a) * u_nodes[a].y;
+      }
+
+      return { d_ux, d_uy, d_uz };
+    }
+
     /*---------------------------------------------------------------------------*/
     /**
      * @brief Computes the shape functions for a Quad4 element at a given point (ξ, η).

@@ -129,8 +129,8 @@ _applyResidualRHSQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
     Cell cell = *icell;
 
     // Initialize RHS contributions (2 dof/node for 4 quad nodes)
-    Real rhs_x_contributions[4] = { 0., 0., 0., 0. };
-    Real rhs_y_contributions[4] = { 0., 0., 0., 0. };
+    // Real rhs_x_contributions[4] = { 0., 0., 0., 0. };
+    // Real rhs_y_contributions[4] = { 0., 0., 0., 0. };
 
     // 2x2 Gauss integration for quadrilateral element
     constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
@@ -149,27 +149,82 @@ _applyResidualRHSQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
 
         // compute the det(Jacobian)
         auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad4(cell, m_node_coord, xi, eta);
+        const RealVector<4>& dxu = gp_info.dN_dx;
+        const RealVector<4>& dyu = gp_info.dN_dy;
         const Real detJ = gp_info.det_j;
 
         // compute integration weight
         Real integration_weight = weight * detJ;
 
-        // Interpolate fields (𝐮ₙ,𝐮ᵗₙ,𝐮ᵗᵗ) at the quadrature point: (.)_gp = ∑ 𝑁ᵢ * (.)
+        RealVector<8> epsxx = { dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0. };
+        RealVector<8> epsyy = { 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3) };
+        RealVector<8> epsxy = { dyu(0), dxu(0), dyu(1), dxu(1), dyu(2), dxu(2), dyu(3), dxu(3) };
 
-        // Source force term 𝐟
+        Real3x3 grad_U = ArcaneFemFunctions::FeOperation2D::computeGradientQuad4(cell, m_node_coord, m_U, xi, eta);
 
-        // ∫∫ (𝐟.𝐯) + ∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯)
+        Real epsxx_U = grad_U(0, 0);
+        Real epsyy_U = grad_U(1, 1);
+        Real epsxy_U = grad_U(0, 1) + grad_U(1, 0);
+
+        Real sigmaxx_U =  m_C_2d_cell(cell, 0, 0) * epsxx_U
+                        + m_C_2d_cell(cell, 0, 1) * epsyy_U
+                        + m_C_2d_cell(cell, 0, 2) * epsxy_U;
+        Real sigmayy_U =  m_C_2d_cell(cell, 1, 0) * epsxx_U
+                        + m_C_2d_cell(cell, 1 ,1) * epsyy_U
+                        + m_C_2d_cell(cell, 1, 2) * epsxy_U;
+        Real sigmaxy_U =  m_C_2d_cell(cell, 2, 0) * epsxx_U
+                        + m_C_2d_cell(cell, 2, 1) * epsyy_U
+                        + m_C_2d_cell(cell, 2, 2) * epsxy_U;
+
+        RealVector<8> rhs = - integration_weight * ( sigmaxx_U * epsxx + sigmayy_U * epsyy + sigmaxy_U * epsxy);
+
+        // RealVector<8> Uk = {m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y,
+        //                     m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y,
+        //                     m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y,
+        //                     m_U[cell.nodeId(3)].x, m_U[cell.nodeId(3)].y};
+        //
+        // RealVector<8> rhs_1 = - integration_weight *
+        //               ( Uk * ((m_C_2d_cell(cell, 0, 0) * epsxx
+        //                        + m_C_2d_cell(cell, 0, 1) * epsyy
+        //                        + m_C_2d_cell(cell, 0, 2) * epsxy) ^ epsxx)
+        //                + Uk * ((m_C_2d_cell(cell, 1, 0) * epsxx
+        //                        + m_C_2d_cell(cell, 1, 1) * epsyy
+        //                        + m_C_2d_cell(cell, 1, 2) * epsxy) ^ epsyy)
+        //                + Uk * ((m_C_2d_cell(cell, 2, 0) * epsxx
+        //                        + m_C_2d_cell(cell, 2, 1) * epsyy
+        //                        + m_C_2d_cell(cell, 2, 2) * epsxy) ^ epsxy)); // verified
+        //
+        // Real diff = 0.0;
+        // Real maxx = 0.0;
+        //
+        // for (Int8 i = 0; i < 8; ++i) {
+        //   Real err = math::abs(rhs[i] - rhs_1[i]);
+        //   diff += err;
+        //   maxx = math::max(maxx, err);
+        // }
+        // diff /= 8.0;
+        // info() << "Let us check: dif = " << diff << " max = " << maxx;
+
+        rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0);
+        rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(1);
+        rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(2);
+        rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(3);
+        rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(4);
+        rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(5);
+        rhs_values[node_dof.dofId(cell.nodeId(3), 0)] += rhs(6);
+        rhs_values[node_dof.dofId(cell.nodeId(3), 1)] += rhs(7);
+
       }
     }
 
     // Add contributions to global RHS
-    for (Int8 a = 0; a < 4; ++a) {
-      Node node = cell.node(a);
-      if (node.isOwn()) {
-        rhs_values[node_dof.dofId(node, 0)] += rhs_x_contributions[a];
-        rhs_values[node_dof.dofId(node, 1)] += rhs_y_contributions[a];
-      }
-    }
+    // for (Int8 a = 0; a < 4; ++a) {
+    //   Node node = cell.node(a);
+    //   if (node.isOwn()) {
+    //     rhs_values[node_dof.dofId(node, 0)] += rhs_x_contributions[a];
+    //     rhs_values[node_dof.dofId(node, 1)] += rhs_y_contributions[a];
+    //   }
+    // }
   }
 }
 
@@ -252,7 +307,8 @@ _applyResidualRHSTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnect
     RealVector<12> Uk = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y, m_U[cell.nodeId(0)].z,
                           m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y, m_U[cell.nodeId(1)].z,
                           m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y, m_U[cell.nodeId(2)].z,
-                          m_U[cell.nodeId(3)].x, m_U[cell.nodeId(3)].y, m_U[cell.nodeId(3)].z };
+                          m_U[cell.nodeId(3)].x, m_U[cell.nodeId(3)].y, m_U[cell.nodeId(3)].z};
+
     RealVector<12> rhs = - volume *
                            (Uk * ((m_C_3d_cell(cell, 0, 0) * epsxx
                                   + m_C_3d_cell(cell, 0, 1) * epsyy
@@ -324,9 +380,9 @@ _applyResidualRHSHexa8(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
     Cell cell = *icell;
 
     // Initialize RHS contributions (2 dof/node for 8 hexa nodes)
-    Real rhs_x_contributions[8] = { 0., 0., 0., 0., 0., 0., 0., 0. };
-    Real rhs_y_contributions[8] = { 0., 0., 0., 0., 0., 0., 0., 0. };
-    Real rhs_z_contributions[8] = { 0., 0., 0., 0., 0., 0., 0., 0. };
+    // Real rhs_x_contributions[8] = { 0., 0., 0., 0., 0., 0., 0., 0. };
+    // Real rhs_y_contributions[8] = { 0., 0., 0., 0., 0., 0., 0., 0. };
+    // Real rhs_z_contributions[8] = { 0., 0., 0., 0., 0., 0., 0., 0. };
 
     // 2x2 Gauss integration for quadrilateral element
     constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
@@ -347,29 +403,123 @@ _applyResidualRHSHexa8(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
 
           // compute the det(Jacobian)
           auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa8(cell, m_node_coord, xi, eta, zeta);
+          const RealVector<8>& dxu = gp_info.dN_dx;
+          const RealVector<8>& dyu = gp_info.dN_dy;
+          const RealVector<8>& dzu = gp_info.dN_dz;
           const Real detJ = gp_info.det_j;
 
           // compute integration weight
           Real integration_weight = weight * detJ;
 
-          // Interpolate fields (𝐮ₙ,𝐮ᵗₙ,𝐮ᵗᵗ) at the quadrature point: (.)_gp = ∑ 𝑁ᵢ * (.)
+          RealVector<24> epsxx = { dxu(0), 0., 0.,    dxu(1), 0., 0.,    dxu(2), 0., 0.,    dxu(3), 0., 0.,
+                                   dxu(4), 0., 0.,    dxu(5), 0., 0.,    dxu(6), 0., 0.,    dxu(7), 0., 0. };
 
-          // Source force term 𝐟
-          Real3 f_gp(f[0], f[1], f[2]);
+          RealVector<24> epsyy = { 0., dyu(0), 0.,    0., dyu(1), 0.,    0., dyu(2), 0.,    0., dyu(3), 0.,
+                                   0., dyu(4), 0.,    0., dyu(5), 0.,    0., dyu(6), 0.,    0., dyu(7), 0. };
 
-          // ∫∫∫ (𝐟.𝐯) + ∫∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯)
+          RealVector<24> epszz = { 0., 0., dzu(0),    0., 0., dzu(1),    0., 0., dzu(2),    0., 0., dzu(3),
+                                   0., 0., dzu(4),    0., 0., dzu(5),    0., 0., dzu(6),    0., 0., dzu(7) };
+
+          RealVector<24> epsyz = { 0., dzu(0), dyu(0),    0., dzu(1), dyu(1),
+                                   0., dzu(2), dyu(2),    0., dzu(3), dyu(3),
+                                   0., dzu(4), dyu(4),    0., dzu(5), dyu(5),
+                                   0., dzu(6), dyu(6),    0., dzu(7), dyu(7) };
+
+          RealVector<24> epszx = { dzu(0), 0., dxu(0),    dzu(1), 0., dxu(1),
+                                   dzu(2), 0., dxu(2),    dzu(3), 0., dxu(3),
+                                   dzu(4), 0., dxu(4),    dzu(5), 0., dxu(5),
+                                   dzu(6), 0., dxu(6),    dzu(7), 0., dxu(7) };
+
+          RealVector<24> epsxy = { dyu(0), dxu(0), 0.,    dyu(1), dxu(1), 0.,
+                                   dyu(2), dxu(2), 0.,    dyu(3), dxu(3), 0.,
+                                   dyu(4), dxu(4), 0.,    dyu(5), dxu(5), 0.,
+                                   dyu(6), dxu(6), 0.,    dyu(7), dxu(7), 0. };
+
+          RealVector<24> Uk = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y, m_U[cell.nodeId(0)].z,
+                                m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y, m_U[cell.nodeId(1)].z,
+                                m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y, m_U[cell.nodeId(2)].z,
+                                m_U[cell.nodeId(3)].x, m_U[cell.nodeId(3)].y, m_U[cell.nodeId(3)].z,
+                                m_U[cell.nodeId(4)].x, m_U[cell.nodeId(4)].y, m_U[cell.nodeId(4)].z,
+                                m_U[cell.nodeId(5)].x, m_U[cell.nodeId(5)].y, m_U[cell.nodeId(5)].z,
+                                m_U[cell.nodeId(6)].x, m_U[cell.nodeId(6)].y, m_U[cell.nodeId(6)].z,
+                                m_U[cell.nodeId(7)].x, m_U[cell.nodeId(7)].y, m_U[cell.nodeId(7)].z };
+
+          RealVector<24> rhs = - integration_weight *
+                        ( Uk * ((  m_C_3d_cell(cell, 0, 0) * epsxx
+                                 + m_C_3d_cell(cell, 0, 1) * epsyy
+                                 + m_C_3d_cell(cell, 0, 2) * epszz
+                                 + m_C_3d_cell(cell, 0, 3) * epsyz
+                                 + m_C_3d_cell(cell, 0, 4) * epszx
+                                 + m_C_3d_cell(cell, 0, 5) * epsxy) ^ epsxx)
+                         + Uk * (( m_C_3d_cell(cell, 1, 0) * epsxx
+                                 + m_C_3d_cell(cell, 1, 1) * epsyy
+                                 + m_C_3d_cell(cell, 1, 2) * epszz
+                                 + m_C_3d_cell(cell, 1, 3) * epsyz
+                                 + m_C_3d_cell(cell, 1, 4) * epszx
+                                 + m_C_3d_cell(cell, 1, 5) * epsxy) ^ epsyy)
+                         + Uk * (( m_C_3d_cell(cell, 2, 0) * epsxx
+                                 + m_C_3d_cell(cell, 2, 1) * epsyy
+                                 + m_C_3d_cell(cell, 2, 2) * epszz
+                                 + m_C_3d_cell(cell, 2, 3) * epsyz
+                                 + m_C_3d_cell(cell, 2, 4) * epszx
+                                 + m_C_3d_cell(cell, 2, 5) * epsxy) ^ epszz)
+                         + Uk * (( m_C_3d_cell(cell, 3, 0) * epsxx
+                                 + m_C_3d_cell(cell, 3, 1) * epsyy
+                                 + m_C_3d_cell(cell, 3, 2) * epszz
+                                 + m_C_3d_cell(cell, 3, 3) * epsyz
+                                 + m_C_3d_cell(cell, 3, 4) * epszx
+                                 + m_C_3d_cell(cell, 3, 5) * epsxy) ^ epsyz)
+                         + Uk * (( m_C_3d_cell(cell, 4, 0) * epsxx
+                                 + m_C_3d_cell(cell, 4, 1) * epsyy
+                                 + m_C_3d_cell(cell, 4, 2) * epszz
+                                 + m_C_3d_cell(cell, 4, 3) * epsyz
+                                 + m_C_3d_cell(cell, 4, 4) * epszx
+                                 + m_C_3d_cell(cell, 4, 5) * epsxy) ^ epszx)
+                         + Uk * (( m_C_3d_cell(cell, 5, 0) * epsxx
+                                 + m_C_3d_cell(cell, 5, 1) * epsyy
+                                 + m_C_3d_cell(cell, 5, 2) * epszz
+                                 + m_C_3d_cell(cell, 5, 3) * epsyz
+                                 + m_C_3d_cell(cell, 5, 4) * epszx
+                                 + m_C_3d_cell(cell, 5, 5) * epsxy) ^ epsxy)
+                         ); // verified
+
+          rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0);
+          rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(1);
+          rhs_values[node_dof.dofId(cell.nodeId(0), 2)] += rhs(2);
+          rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(3);
+          rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(4);
+          rhs_values[node_dof.dofId(cell.nodeId(1), 2)] += rhs(5);
+          rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(6);
+          rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(7);
+          rhs_values[node_dof.dofId(cell.nodeId(2), 2)] += rhs(8);
+          rhs_values[node_dof.dofId(cell.nodeId(3), 0)] += rhs(9);
+          rhs_values[node_dof.dofId(cell.nodeId(3), 1)] += rhs(10);
+          rhs_values[node_dof.dofId(cell.nodeId(3), 2)] += rhs(11);
+          rhs_values[node_dof.dofId(cell.nodeId(4), 0)] += rhs(12);
+          rhs_values[node_dof.dofId(cell.nodeId(4), 1)] += rhs(13);
+          rhs_values[node_dof.dofId(cell.nodeId(4), 2)] += rhs(14);
+          rhs_values[node_dof.dofId(cell.nodeId(5), 0)] += rhs(15);
+          rhs_values[node_dof.dofId(cell.nodeId(5), 1)] += rhs(16);
+          rhs_values[node_dof.dofId(cell.nodeId(5), 2)] += rhs(17);
+          rhs_values[node_dof.dofId(cell.nodeId(6), 0)] += rhs(18);
+          rhs_values[node_dof.dofId(cell.nodeId(6), 1)] += rhs(19);
+          rhs_values[node_dof.dofId(cell.nodeId(6), 2)] += rhs(20);
+          rhs_values[node_dof.dofId(cell.nodeId(7), 0)] += rhs(21);
+          rhs_values[node_dof.dofId(cell.nodeId(7), 1)] += rhs(22);
+          rhs_values[node_dof.dofId(cell.nodeId(7), 2)] += rhs(23);
 
         }
       }
     }
+
     // Add contributions to global RHS
-    for (Int8 a = 0; a < 8; ++a) {
-      Node node = cell.node(a);
-      if (node.isOwn()) {
-        rhs_values[node_dof.dofId(node, 0)] += rhs_x_contributions[a];
-        rhs_values[node_dof.dofId(node, 1)] += rhs_y_contributions[a];
-        rhs_values[node_dof.dofId(node, 2)] += rhs_z_contributions[a];
-      }
-    }
+    // for (Int8 a = 0; a < 8; ++a) {
+    //   Node node = cell.node(a);
+    //   if (node.isOwn()) {
+    //     rhs_values[node_dof.dofId(node, 0)] += rhs_x_contributions[a];
+    //     rhs_values[node_dof.dofId(node, 1)] += rhs_y_contributions[a];
+    //     rhs_values[node_dof.dofId(node, 2)] += rhs_z_contributions[a];
+    //   }
+    // }
   }
 }

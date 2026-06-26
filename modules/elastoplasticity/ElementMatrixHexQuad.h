@@ -52,7 +52,7 @@ const RealVector<4>& dxu, const RealVector<4>& dyu, Real integration_weight, Rea
   // ∫∫ C_tang13 ∂𝑢𝑥/∂𝑥 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + C_tang23 ∂𝑢𝑦/∂𝑦 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + C_tang33 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦)(∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥)
   RealMatrix<8, 8> sigmaXepsxy = (C_tang(0, 2) * epsxx + C_tang(1, 2) * epsyy + C_tang(2, 2) * epsxy) ^ epsxy;
 
-  return (sigmaXepsxx + sigmaXepsyy + sigmaXepsxy);
+  return integration_weight * (sigmaXepsxx + sigmaXepsyy + sigmaXepsxy);
 }
 
 RealMatrix<8, 8> FemModuleElastoplasticity::_computeElementMatrixQuad4(Cell cell)
@@ -159,7 +159,7 @@ Real integration_weight, RealMatrix<6, 6> C_tang)
   // ∫∫∫ C_tang16 ∂𝑢𝑥/∂𝑥 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) + C_tang26 ∂𝑢𝑧/∂𝑦 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) + C_tang36 ∂𝑢𝑧/∂𝑧 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) + C_tang46 (∂𝑢𝑧/∂𝑦 + ∂𝑢𝑦/∂𝑧) (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) + C_tang56 (∂𝑢𝑥/∂𝑧 + ∂𝑢𝑧/∂𝑥) (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) + C_tang66 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦)
   RealMatrix<24, 24> sigmaXepsxy = (C_tang(0, 5) * epsxx + C_tang(1, 5) * epsyy + C_tang(2, 5) * epszz + C_tang(3, 5) * epsyz + C_tang(4, 5) * epszx + C_tang(5, 5) * epsxy) ^ epsxy;
 
-  return ( sigmaXepsxx + sigmaXepsyy + sigmaXepszz + sigmaXepsyz + sigmaXepszx + sigmaXepsxy);
+  return integration_weight * ( sigmaXepsxx + sigmaXepsyy + sigmaXepszz + sigmaXepsyz + sigmaXepszx + sigmaXepsxy);
 }
 
 RealMatrix<24, 24> FemModuleElastoplasticity::_computeElementMatrixHexa8(Cell cell)

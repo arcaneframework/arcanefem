@@ -275,13 +275,13 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
       inputs/bar.2D.Dirichlet.bodyForce.arc)
 
-#    add_test(NAME [elastoplasticity]Dirichlet_cartesian_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elastoplasticity
-#      -A,//fem/solution-comparison-file=check/bar.2D.cartesian.Dirichlet.bodyForce.txt
-#      inputs/bar.2D.cartesian.Dirichlet.bodyForce.arc)
-#
-#    add_test(NAME [elastoplasticity]3D_Dirichlet_cartesian_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elastoplasticity
-#      -A,//fem/solution-comparison-file=check/bar.3D.cartesian.Dirichlet.bodyForce.txt
-#      inputs/bar.3D.cartesian.Dirichlet.bodyForce.arc)
+    add_test(NAME [elastoplasticity]Dirichlet_cartesian_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elastoplasticity
+      -A,//fem/solution-comparison-file=check/bar.2D.cartesian.Dirichlet.bodyForce.txt
+      inputs/bar.2D.cartesian.Dirichlet.bodyForce.arc)
+
+    add_test(NAME [elastoplasticity]3D_Dirichlet_cartesian_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Elastoplasticity
+      -A,//fem/solution-comparison-file=check/bar.3D.cartesian.Dirichlet.bodyForce.txt
+      inputs/bar.3D.cartesian.Dirichlet.bodyForce.arc)
   endif()
 endif()
 

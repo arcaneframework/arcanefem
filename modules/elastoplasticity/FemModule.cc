@@ -404,8 +404,8 @@ _assembleBilinearOperator()
     auto cn_cv = m_connectivity_view.cellNode();
     auto command = makeCommand(acceleratorMng()->defaultQueue());
     auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
-    auto C_tang_2d =m_C_tang_2d;
-    auto C_tang_3d =m_C_tang_3d;
+    auto C_tang_2d = m_C_tang_2d;
+    auto C_tang_3d = m_C_tang_3d;
 
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2)
@@ -419,8 +419,8 @@ _assembleBilinearOperator()
     auto cn_cv = m_connectivity_view.cellNode();
     auto command = makeCommand(acceleratorMng()->defaultQueue());
     auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
-    auto C_tang_2d =m_C_tang_2d;
-    auto C_tang_3d =m_C_tang_3d;
+    auto C_tang_2d = m_C_tang_2d;
+    auto C_tang_3d = m_C_tang_3d;
 
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2)
