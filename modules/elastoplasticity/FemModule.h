@@ -94,6 +94,8 @@ class FemModuleElastoplasticity
   Real lambda;
   Real m_newton_atol;
   Real m_newton_rtol;
+  Real rhs_norm=0.0;
+  Real convergence_norm=0.0;
 
   Real3 f;
   Real3 t;
@@ -138,7 +140,7 @@ class FemModuleElastoplasticity
   inline void _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyDirichlet(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
 
-  inline void _applyResidualRHS(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyResidualRHS(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof, bool eval_norm = false);
   inline void _applyResidualRHSTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyResidualRHSQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyResidualRHSTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);

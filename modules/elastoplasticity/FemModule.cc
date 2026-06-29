@@ -784,15 +784,21 @@ _checkNewtonConvergence()
   l2_norm_du = math::sqrt(l2_norm_du);
   l2_norm_u = math::sqrt(l2_norm_u);
 
-  Real convergence_norm = l2_norm_du / (m_newton_rtol * l2_norm_u  + m_newton_atol);
+  convergence_norm = l2_norm_du / (m_newton_rtol * l2_norm_u  + m_newton_atol);
 
   if ( convergence_norm <= 1.0){
+    VariableDoFReal& rhs_values(m_linear_system.rhsVariable()); // Temporary variable to keep values for the RHS
+    rhs_values.fill(0.0);
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    _applyResidualRHS(rhs_values, node_dof, true);
+    info() << "[ArcaneFem-Info] At newton iteration "<< m_newton_iter <<": rel. conv. norm = " << convergence_norm << " and residual norm = " << rhs_norm;
     m_newton_solver_converged = true;
   } else {
     m_newton_solver_converged = false;
+    info() << "[ArcaneFem-Info] At newton iteration "<< m_newton_iter <<": rel. conv. norm = " << convergence_norm;
+
   }
 
-  info() << "[ArcaneFem-Info] At newton iteration "<< m_newton_iter <<": rel. conv. norm = " << convergence_norm;
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "check-newton-convergence", elapsedTime);
