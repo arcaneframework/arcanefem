@@ -21,6 +21,12 @@
     <variable field-name="C_3d_cell" name="C_3d_cell" data-type="real" item-kind="cell" shape-dim="2">
        <description>Material tensor for 3D constitutive law</description>
     </variable>
+    <variable field-name="C_tang_2d_cell" name="C_tang_2d_cell" data-type="real" item-kind="cell" shape-dim="2">
+      <description>Tangent of the material tensor for 2D constitutive law</description>
+    </variable>
+    <variable field-name="C_tang_3d_cell" name="C_tang_3d_cell" data-type="real" item-kind="cell" shape-dim="2">
+       <description>Tangent of the material tensor for 3D constitutive law</description>
+    </variable>
   </variables>
   <options>
     <simple name = "f" type = "string[]" default="NULL NULL NULL" optional="true">
@@ -66,6 +72,9 @@
     <!-- - - - - - nonlinear-analysis-parameters - - - - -->
     <simple name="nonlinear-law" type="bool" default="false" optional="true">
       <description>Boolean to enable solving as nonlinear problem</description>
+    </simple>
+    <simple name="gp-material-tensor-strategy" type="string" default="local" optional="true">
+      <description>Which material tensor assembly format to use local|global.</description>
     </simple>
     <simple name="newton-rtol" type ="real" default="1e-8" optional="true">
       <description>Relative tolerance for convergence of Newton iterations</description>

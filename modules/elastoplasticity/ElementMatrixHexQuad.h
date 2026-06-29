@@ -82,7 +82,17 @@ RealMatrix<8, 8> FemModuleElastoplasticity::_computeElementMatrixQuad4(Cell cell
       const Real integration_weight = detJ * w * w;
 
       // Add contribution from this Gauss point
-      ae += computeElementMatrixQuad4Base(dxU, dyU, integration_weight, m_C_tang_2d);
+      if (m_gp_material_tensor_strategy == "local") {
+        ae += computeElementMatrixQuad4Base(dxU, dyU, integration_weight, m_C_tang_2d);
+      } else {
+        RealMatrix<3, 3> C_tang_2d;
+        for (Int32 ix = 0; ix < 3; ++ix) {
+          for (Int32 iy = 0; iy < 3; ++iy) {
+            C_tang_2d(ix, iy) = m_C_tang_2d_cell(cell, ix, iy);
+          }
+        }
+        ae += computeElementMatrixQuad4Base(dxU, dyU, integration_weight, C_tang_2d);
+      }
     }
   }
 
@@ -193,7 +203,17 @@ RealMatrix<24, 24> FemModuleElastoplasticity::_computeElementMatrixHexa8(Cell ce
         const Real integration_weight = detJ * w * w * w;
 
         // Add contribution from this Gauss point
-        ae += computeElementMatrixHexa8Base(dxU, dyU, dzU, integration_weight, m_C_tang_3d);
+        if (m_gp_material_tensor_strategy == "local") {
+          ae += computeElementMatrixHexa8Base(dxU, dyU, dzU, integration_weight, m_C_tang_3d);
+        } else {
+          RealMatrix<6, 6> C_tang_3d;
+          for (Int32 ix = 0; ix < 6; ++ix) {
+            for (Int32 iy = 0; iy < 6; ++iy) {
+              C_tang_3d(ix, iy) = m_C_tang_3d_cell(cell, ix, iy);
+            }
+          }
+          ae += computeElementMatrixHexa8Base(dxU, dyU, dzU, integration_weight,  C_tang_3d);
+        }
       }
     }
   }

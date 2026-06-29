@@ -54,8 +54,17 @@ startInit()
   m_newton_atol = options()->newtonAtol();
   m_newton_rtol = options()->newtonRtol();
 
-  m_C_2d_cell.reshape({3, 3});
-  m_C_3d_cell.reshape({6, 6});
+  m_gp_material_tensor_strategy = options()->gpMaterialTensorStrategy();
+
+  if (m_gp_material_tensor_strategy == "global") {
+    if (mesh()->dimension() == 2) {
+      m_C_2d_cell.reshape({ 3, 3 });
+      m_C_tang_2d_cell.reshape({ 3, 3 });
+    } else {
+      m_C_3d_cell.reshape({ 6, 6 });
+      m_C_tang_3d_cell.reshape({ 6, 6 });
+    }
+  }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
@@ -284,65 +293,96 @@ _getMaterialParameters()
   mu = (E / (2 * (1 + nu))); // lame parameter μ
   lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
 
-  m_C_tang_2d.fill(0.);
-  m_C_tang_2d(0, 0) = lambda + 2. * mu;
-  m_C_tang_2d(1, 1) = lambda + 2. * mu;
-  m_C_tang_2d(2, 2) = mu;
-  m_C_tang_2d(0, 1) = lambda;
-  m_C_tang_2d(1, 0) = lambda;
+  /*
+   {{lambda + 2. * mu, lambda,           0.},
+    {lambda,           lambda + 2. * mu, 0.},
+    {0.,               0.,               mu}}
+  */ // 2D elastic material tensor
 
   /*
-   ({
-    {lambda + 2. * mu, lambda,           0.},
-          {lambda,           lambda + 2. * mu, 0.},
-          {0.,               0.,               mu}
-  });
- */
+   {{lambda + 2.*mu, lambda,         lambda,         0.,  0.,  0.},
+    {lambda,         lambda + 2.*mu, lambda,         0.,  0.,  0.},
+    {lambda,         lambda,         lambda + 2.*mu, 0.,  0.,  0.},
+    {0.,             0.,             0.,             mu,  0.,  0.},
+    {0.,             0.,             0.,             0.,  mu,  0.},
+    {0.,             0.,             0.,             0.,  0.,  mu}}
+  */ // 3D elastic material tensor
 
+  if (m_gp_material_tensor_strategy == "local") {
+     if (mesh()->dimension() == 2) {
+       m_C_tang_2d.fill(0.);
+       m_C_tang_2d(0, 0) = lambda + 2. * mu;
+       m_C_tang_2d(1, 1) = lambda + 2. * mu;
+       m_C_tang_2d(2, 2) = mu;
+       m_C_tang_2d(0, 1) = lambda;
+       m_C_tang_2d(1, 0) = lambda;
 
-  m_C_tang_3d.fill(0.);
-  m_C_tang_3d(0, 0) = lambda + 2.*mu;
-  m_C_tang_3d(1, 1) = lambda + 2.*mu;
-  m_C_tang_3d(2, 2) = lambda + 2.*mu;
-  m_C_tang_3d(3, 3) = mu;
-  m_C_tang_3d(4, 4) = mu;
-  m_C_tang_3d(5, 5) = mu;
-  m_C_tang_3d(0, 1) = lambda;
-  m_C_tang_3d(1, 0) = lambda;
-  m_C_tang_3d(0, 2) = lambda;
-  m_C_tang_3d(2, 0) = lambda;
-  m_C_tang_3d(1, 2) = lambda;
-  m_C_tang_3d(2, 1) = lambda;
+       m_C_2d = m_C_tang_2d; // elasticity
+     } else {
+       m_C_tang_3d.fill(0.);
+       m_C_tang_3d(0, 0) = lambda + 2. * mu;
+       m_C_tang_3d(1, 1) = lambda + 2. * mu;
+       m_C_tang_3d(2, 2) = lambda + 2. * mu;
+       m_C_tang_3d(3, 3) = mu;
+       m_C_tang_3d(4, 4) = mu;
+       m_C_tang_3d(5, 5) = mu;
+       m_C_tang_3d(0, 1) = lambda;
+       m_C_tang_3d(1, 0) = lambda;
+       m_C_tang_3d(0, 2) = lambda;
+       m_C_tang_3d(2, 0) = lambda;
+       m_C_tang_3d(1, 2) = lambda;
+       m_C_tang_3d(2, 1) = lambda;
 
-  /*
-  m_C_tang_3d = {
-    {lambda + 2.*mu, lambda,         lambda,         0.,  0.,  0.},
-          {lambda,         lambda + 2.*mu, lambda,         0.,  0.,  0.},
-          {lambda,         lambda,         lambda + 2.*mu, 0.,  0.,  0.},
-          {0.,             0.,             0.,             mu,  0.,  0.},
-          {0.,             0.,             0.,             0.,  mu,  0.},
-          {0.,             0.,             0.,             0.,  0.,  mu}
-  };
- */
-  if (mesh()->dimension() == 2) {
-    ENUMERATE_ (Cell, icell, allCells()) {
-      for (Int32 ix = 0; ix < 3; ++ix) {
-        for (Int32 iy = 0; iy < 3; ++iy) {
-          m_C_2d_cell(icell, ix, iy) = m_C_tang_2d(ix, iy);
-        }
-      }
-    }
+       m_C_3d = m_C_tang_3d; // elasticity
+     }
   } else {
-    ENUMERATE_ (Cell, icell, allCells()) {
-      for (Int32 ix = 0; ix < 6; ++ix) {
-        for (Int32 iy = 0; iy < 6; ++iy) {
-          m_C_3d_cell(icell, ix, iy) = m_C_tang_3d(ix, iy);
+    if (mesh()->dimension() == 2) {
+      ENUMERATE_ (Cell, icell, allCells()) {
+        for (Int32 ix = 0; ix < 3; ++ix) {
+          for (Int32 iy = 0; iy < 3; ++iy) {
+            m_C_tang_2d_cell(icell, ix, iy) = 0.0;
+          }
+        }
+        m_C_tang_2d_cell(icell, 0, 0) = lambda + 2. * mu;
+        m_C_tang_2d_cell(icell, 1, 1) = lambda + 2. * mu;
+        m_C_tang_2d_cell(icell, 2, 2) = mu;
+        m_C_tang_2d_cell(icell, 0, 1) = lambda;
+        m_C_tang_2d_cell(icell, 1, 0) = lambda;
+
+        for (Int32 ix = 0; ix < 3; ++ix) {
+          for (Int32 iy = 0; iy < 3; ++iy) {
+            m_C_2d_cell(icell, ix, iy) = m_C_tang_2d_cell(icell, ix, iy);
+          }
+        } // elasticity
+      }
+    } else {
+      ENUMERATE_ (Cell, icell, allCells()) {
+        for (Int32 ix = 0; ix < 6; ++ix) {
+          for (Int32 iy = 0; iy < 6; ++iy) {
+            m_C_tang_3d_cell(icell, ix, iy) = 0.0;
+          }
+        }
+        m_C_tang_3d_cell(icell,0, 0) = lambda + 2. * mu;
+        m_C_tang_3d_cell(icell,1, 1) = lambda + 2. * mu;
+        m_C_tang_3d_cell(icell,2, 2) = lambda + 2. * mu;
+        m_C_tang_3d_cell(icell,3, 3) = mu;
+        m_C_tang_3d_cell(icell,4, 4) = mu;
+        m_C_tang_3d_cell(icell,5, 5) = mu;
+        m_C_tang_3d_cell(icell,0, 1) = lambda;
+        m_C_tang_3d_cell(icell,1, 0) = lambda;
+        m_C_tang_3d_cell(icell,0, 2) = lambda;
+        m_C_tang_3d_cell(icell,2, 0) = lambda;
+        m_C_tang_3d_cell(icell,1, 2) = lambda;
+        m_C_tang_3d_cell(icell,2, 1) = lambda;
+
+        for (Int32 ix = 0; ix < 6; ++ix) {
+          for (Int32 iy = 0; iy < 6; ++iy) {
+            m_C_3d_cell(icell, ix, iy) = m_C_tang_3d_cell(icell, ix, iy);
+          }
         }
       }
     }
   }
-
-
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"get-material-params", elapsedTime);
 }
@@ -404,8 +444,8 @@ _assembleBilinearOperator()
     auto cn_cv = m_connectivity_view.cellNode();
     auto command = makeCommand(acceleratorMng()->defaultQueue());
     auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
-    auto C_tang_2d = m_C_tang_2d;
-    auto C_tang_3d = m_C_tang_3d;
+    RealMatrix<3, 3> C_tang_2d = m_C_tang_2d;
+    RealMatrix<6, 6> C_tang_3d = m_C_tang_3d;
 
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2)
@@ -419,8 +459,8 @@ _assembleBilinearOperator()
     auto cn_cv = m_connectivity_view.cellNode();
     auto command = makeCommand(acceleratorMng()->defaultQueue());
     auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
-    auto C_tang_2d = m_C_tang_2d;
-    auto C_tang_3d = m_C_tang_3d;
+    RealMatrix<3, 3> C_tang_2d = m_C_tang_2d;
+    RealMatrix<6, 6> C_tang_3d = m_C_tang_3d;
 
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2)

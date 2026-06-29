@@ -98,7 +98,9 @@ class FemModuleElastoplasticity
   Real3 f;
   Real3 t;
 
+  RealMatrix<3, 3> m_C_2d;
   RealMatrix<3, 3> m_C_tang_2d;
+  RealMatrix<6, 6> m_C_3d;
   RealMatrix<6, 6> m_C_tang_3d;
 
   Int8 m_dof_per_node;
@@ -107,6 +109,7 @@ class FemModuleElastoplasticity
 
   String m_petsc_flags;
   String m_matrix_format = "DOK";
+  String m_gp_material_tensor_strategy = "local";
 
   bool m_assemble_linear_system = true;
   bool m_assemble_nonlinear_system = true;

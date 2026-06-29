@@ -73,8 +73,18 @@ RealMatrix<6, 6> FemModuleElastoplasticity::_computeElementMatrixTria3(Cell cell
   Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
   Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
   Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
+  if (m_gp_material_tensor_strategy == "local") {
+    return computeElementMatrixTria3Base(dxu, dyu, area, m_C_tang_2d);
+  } else {
+    RealMatrix<3, 3> C_tang_2d;
+    for (Int32 ix = 0; ix < 3; ++ix) {
+      for (Int32 iy = 0; iy < 3; ++iy) {
+        C_tang_2d(ix, iy) = m_C_tang_2d_cell(cell, ix, iy);
+      }
+    }
+    return computeElementMatrixTria3Base(dxu, dyu, area, C_tang_2d);
+  }
 
-  return computeElementMatrixTria3Base(dxu, dyu, area, m_C_tang_2d);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -179,7 +189,17 @@ RealMatrix<12, 12> FemModuleElastoplasticity::_computeElementMatrixTetra4(Cell c
 
   Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
 
-  return computeElementMatrixTetra4Base(dxu, dyu, dzu, volume, m_C_tang_3d);
+  if (m_gp_material_tensor_strategy == "local") {
+    return computeElementMatrixTetra4Base(dxu, dyu, dzu, volume, m_C_tang_3d);
+  } else {
+    RealMatrix<6, 6> C_tang_3d;
+    for (Int32 ix = 0; ix < 6; ++ix) {
+      for (Int32 iy = 0; iy < 6; ++iy) {
+        C_tang_3d(ix, iy) = m_C_tang_3d_cell(cell, ix, iy);
+      }
+    }
+    return computeElementMatrixTetra4Base(dxu, dyu, dzu, volume, C_tang_3d);
+  }
 }
 
 /*---------------------------------------------------------------------------*/
