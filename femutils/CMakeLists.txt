@@ -109,6 +109,7 @@ endif()
 
 if (TARGET Arcane::arcane_aleph_petsc)
   set(FEMUTILS_HAS_PARALLEL_SOLVER TRUE)
+  target_compile_definitions(FemUtils PRIVATE FEMUTILS_HAS_PETSC)
   target_link_libraries(FemUtils PRIVATE Arcane::arcane_aleph_petsc)
   message(STATUS "Petsc backend is available")
   set(FEMUTILS_HAS_SOLVER_BACKEND_PETSC TRUE)
