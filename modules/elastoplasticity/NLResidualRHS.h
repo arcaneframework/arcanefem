@@ -109,7 +109,7 @@ _applyResidualRHSTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
 
 
     //----------------------------------------------------------------------
-    //  ∫∫∫ (σ(𝑈)ε(𝐯) = ∫∫∫ (ε(𝑈):𝐶) ε(𝐯)
+    //  ∫∫∫ (σ(𝑈) ⊙ ε(𝐯) = ∫∫∫ (ε(𝑈):𝐶) ⊙ ε(𝐯)
     //----------------------------------------------------------------------
 
     RealVector<6> epsxx = { dxu[0], 0., dxu[1], 0., dxu[2], 0. };
@@ -135,8 +135,9 @@ _applyResidualRHSTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
     RealVector<6> rhs = - area * (sigmaxx_U * epsxx + sigmayy_U * epsyy + sigmaxy_U * epsxy);
 
     //----------------------------------------------------------------------
-    //  ∫∫∫ (ε(𝑈):𝐶)ε(𝐯) = ∫∫∫ (𝑈 ε(𝘶):𝐶) ε(𝐯)
+    //  ∫∫∫ (ε(𝑈):𝐶) ⊙ ε(𝐯) = ∫∫∫ (𝑈 ε(𝘶):𝐶) ⊗ ε(𝐯)
     //----------------------------------------------------------------------
+
     RealVector<6> Uk =  { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y,
                           m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y,
                           m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y };
@@ -189,10 +190,6 @@ _applyResidualRHSQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
       // }
     }
 
-    // Initialize RHS contributions (2 dof/node for 4 quad nodes)
-    // Real rhs_x_contributions[4] = { 0., 0., 0., 0. };
-    // Real rhs_y_contributions[4] = { 0., 0., 0., 0. };
-
     // 2x2 Gauss integration for quadrilateral element
     constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
     constexpr Real w = 1.0;
@@ -217,6 +214,10 @@ _applyResidualRHSQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
         // compute integration weight
         Real integration_weight = weight * detJ;
 
+        //----------------------------------------------------------------------
+        //  ∫∫∫ (σ(𝑈) ⊙ ε(𝐯) = ∫∫∫ (ε(𝑈):𝐶) ⊙ ε(𝐯)
+        //----------------------------------------------------------------------
+
         RealVector<8> epsxx = { dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0. };
         RealVector<8> epsyy = { 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3) };
         RealVector<8> epsxy = { dyu(0), dxu(0), dyu(1), dxu(1), dyu(2), dxu(2), dyu(3), dxu(3) };
@@ -238,6 +239,10 @@ _applyResidualRHSQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
                         + C_2d( 2, 2) * epsxy_U;
 
         RealVector<8> rhs = - integration_weight * ( sigmaxx_U * epsxx + sigmayy_U * epsyy + sigmaxy_U * epsxy);
+
+        //----------------------------------------------------------------------
+        //  ∫∫∫ (ε(𝑈):𝐶) ⊙ ε(𝐯) = ∫∫∫ (𝑈 ε(𝘶):𝐶) ⊗ ε(𝐯)
+        //----------------------------------------------------------------------
 
         RealVector<8> Uk = {m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y,
                             m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y,
@@ -276,15 +281,6 @@ _applyResidualRHSQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
         rhs_values[node_dof.dofId(cell.nodeId(3), 1)] += rhs(7);
       }
     }
-
-    // Add contributions to global RHS
-    // for (Int8 a = 0; a < 4; ++a) {
-    //   Node node = cell.node(a);
-    //   if (node.isOwn()) {
-    //     rhs_values[node_dof.dofId(node, 0)] += rhs_x_contributions[a];
-    //     rhs_values[node_dof.dofId(node, 1)] += rhs_y_contributions[a];
-    //   }
-    // }
   }
 }
 
@@ -311,7 +307,7 @@ _applyResidualRHSTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnect
     }
 
     //----------------------------------------------------------------------
-    //  ∫∫∫ (σ(𝑈)ε(𝐯) = ∫∫∫ (ε(𝑈):𝐶) ε(𝐯)
+    //  ∫∫∫ (σ(𝑈) ⊙ ε(𝐯) = ∫∫∫ (ε(𝑈):𝐶) ⊙ ε(𝐯)
     //----------------------------------------------------------------------
 
     RealVector<12> epsxx = { dxu[0], 0., 0.,    dxu[1], 0., 0.,    dxu[2], 0., 0.,    dxu[3], 0., 0. };
@@ -321,7 +317,6 @@ _applyResidualRHSTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnect
     RealVector<12> epsyz = { 0., dzu[0], dyu[0],    0., dzu[1], dyu[1],    0., dzu[2], dyu[2],    0., dzu[3], dyu[3] };
     RealVector<12> epszx = { dzu[0], 0., dxu[0],    dzu[1], 0., dxu[1],    dzu[2], 0., dxu[2],    dzu[3], 0., dxu[3] };
     RealVector<12> epsxy = { dyu[0], dxu[0], 0.,    dyu[1], dxu[1], 0.,    dyu[2], dxu[2], 0.,    dyu[3], dxu[3], 0. };
-
 
     Real3x3 grad_U = ArcaneFemFunctions::FeOperation3D::computeGradientTetra4(cell, m_node_coord, m_U);
 
@@ -369,19 +364,19 @@ _applyResidualRHSTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnect
                     + C_3d( 5, 4) * epszx_U
                     + C_3d( 5, 5) * epsxy_U;
 
-
-    RealVector<12> rhs_1 = - volume * ( sigmaxx_U * epsxx + sigmayy_U * epsyy + sigmazz_U * epszz
-                                      + sigmayz_U * epsyz + sigmazx_U * epszx + sigmaxy_U * epsxy);
+    RealVector<12> rhs = - volume * ( sigmaxx_U * epsxx + sigmayy_U * epsyy + sigmazz_U * epszz
+                                    + sigmayz_U * epsyz + sigmazx_U * epszx + sigmaxy_U * epsxy);
 
     //----------------------------------------------------------------------
-    //  ∫∫∫ (ε(𝑈):𝐶)ε(𝐯) = ∫∫∫ (𝑈 ε(𝘶):𝐶) ε(𝐯)
+    //  ∫∫∫ (ε(𝑈):𝐶) ⊙ ε(𝐯) = ∫∫∫ (𝑈 ε(𝘶):𝐶) ⊗ ε(𝐯)
     //----------------------------------------------------------------------
+
     RealVector<12> Uk = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y, m_U[cell.nodeId(0)].z,
                           m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y, m_U[cell.nodeId(1)].z,
                           m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y, m_U[cell.nodeId(2)].z,
                           m_U[cell.nodeId(3)].x, m_U[cell.nodeId(3)].y, m_U[cell.nodeId(3)].z};
 
-    RealVector<12> rhs = - volume *
+    RealVector<12> rhs_1 = - volume *
                            (Uk * (( C_3d( 0, 0) * epsxx
                                   + C_3d( 0, 1) * epsyy
                                   + C_3d( 0, 2) * epszz
@@ -430,18 +425,18 @@ _applyResidualRHSTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnect
     diff /= 12.0;
     info() << "Let us check in Tetra: diff = " << diff << " maxx = " << maxx;
 
-    rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0);
-    rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(1);
-    rhs_values[node_dof.dofId(cell.nodeId(0), 2)] += rhs(2);
-    rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(3);
-    rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(4);
-    rhs_values[node_dof.dofId(cell.nodeId(1), 2)] += rhs(5);
-    rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(6);
-    rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(7);
-    rhs_values[node_dof.dofId(cell.nodeId(2), 2)] += rhs(8);
-    rhs_values[node_dof.dofId(cell.nodeId(3), 0)] += rhs(9);
-    rhs_values[node_dof.dofId(cell.nodeId(3), 1)] += rhs(10);
-    rhs_values[node_dof.dofId(cell.nodeId(3), 2)] += rhs(11);
+    rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs_1(0);
+    rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs_1(1);
+    rhs_values[node_dof.dofId(cell.nodeId(0), 2)] += rhs_1(2);
+    rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs_1(3);
+    rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs_1(4);
+    rhs_values[node_dof.dofId(cell.nodeId(1), 2)] += rhs_1(5);
+    rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs_1(6);
+    rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs_1(7);
+    rhs_values[node_dof.dofId(cell.nodeId(2), 2)] += rhs_1(8);
+    rhs_values[node_dof.dofId(cell.nodeId(3), 0)] += rhs_1(9);
+    rhs_values[node_dof.dofId(cell.nodeId(3), 1)] += rhs_1(10);
+    rhs_values[node_dof.dofId(cell.nodeId(3), 2)] += rhs_1(11);
   }
 }
 
@@ -450,11 +445,6 @@ _applyResidualRHSHexa8(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
 {
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-
-    // Initialize RHS contributions (2 dof/node for 8 hexa nodes)
-    // Real rhs_x_contributions[8] = { 0., 0., 0., 0., 0., 0., 0., 0. };
-    // Real rhs_y_contributions[8] = { 0., 0., 0., 0., 0., 0., 0., 0. };
-    // Real rhs_z_contributions[8] = { 0., 0., 0., 0., 0., 0., 0., 0. };
 
     RealMatrix<6, 6> C_3d;
     if (m_gp_material_tensor_strategy == "local") {
@@ -494,6 +484,10 @@ _applyResidualRHSHexa8(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
 
           // compute integration weight
           Real integration_weight = weight * detJ;
+
+          //----------------------------------------------------------------------
+          //  ∫∫∫ (σ(𝑈) ⊙ ε(𝐯) = ∫∫∫ (ε(𝑈):𝐶) ⊙ ε(𝐯)
+          //----------------------------------------------------------------------
 
           RealVector<24> epsxx = { dxu(0), 0., 0.,    dxu(1), 0., 0.,    dxu(2), 0., 0.,    dxu(3), 0., 0.,
                                    dxu(4), 0., 0.,    dxu(5), 0., 0.,    dxu(6), 0., 0.,    dxu(7), 0., 0. };
@@ -566,6 +560,10 @@ _applyResidualRHSHexa8(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
 
           RealVector<24> rhs = - integration_weight * ( sigmaxx_U * epsxx + sigmayy_U * epsyy + sigmazz_U * epszz
                                                       + sigmayz_U * epsyz + sigmazx_U * epszx + sigmaxy_U * epsxy);
+
+          //----------------------------------------------------------------------
+          //  ∫∫∫ (ε(𝑈):𝐶) ⊙ ε(𝐯) = ∫∫∫ (𝑈 ε(𝘶):𝐶) ⊗ ε(𝐯)
+          //----------------------------------------------------------------------
 
           RealVector<24> Uk = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y, m_U[cell.nodeId(0)].z,
                                 m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y, m_U[cell.nodeId(1)].z,
@@ -655,15 +653,5 @@ _applyResidualRHSHexa8(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
         }
       }
     }
-
-    // Add contributions to global RHS
-    // for (Int8 a = 0; a < 8; ++a) {
-    //   Node node = cell.node(a);
-    //   if (node.isOwn()) {
-    //     rhs_values[node_dof.dofId(node, 0)] += rhs_x_contributions[a];
-    //     rhs_values[node_dof.dofId(node, 1)] += rhs_y_contributions[a];
-    //     rhs_values[node_dof.dofId(node, 2)] += rhs_z_contributions[a];
-    //   }
-    // }
   }
 }

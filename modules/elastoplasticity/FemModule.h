@@ -81,6 +81,7 @@ class FemModuleElastoplasticity
   void _doStationarySolve();
   void _assembleBilinearOperator();
   void _assembleDirichletsGpu();
+  void _assembleDirichletsNewtonGpu();
 
  private:
 
@@ -139,6 +140,7 @@ class FemModuleElastoplasticity
   inline void _applyBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyDirichlet(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyDirichletNewton(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
 
   inline void _applyResidualRHS(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof, bool eval_norm = false);
   inline void _applyResidualRHSTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);

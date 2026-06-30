@@ -415,13 +415,16 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  if (m_nonlinear_law) {
-    _applyResidualRHS(rhs_values, node_dof);
-  }
+
 
   _applyBodyForce(rhs_values, node_dof);
   _applyTraction(rhs_values, node_dof);
-  _applyDirichlet(rhs_values, node_dof);
+  if (m_nonlinear_law) {
+    _applyResidualRHS(rhs_values, node_dof);
+    _applyDirichletNewton(rhs_values, node_dof);
+  } else {
+    _applyDirichlet(rhs_values, node_dof);
+  }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-vector-assembly", elapsedTime);
