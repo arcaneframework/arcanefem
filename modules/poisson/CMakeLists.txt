@@ -44,6 +44,7 @@ add_test(NAME [poisson]2D_pntDirichlet COMMAND Poisson
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [poisson]2D COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
+    -A,//fem/petsc-flags=-log_view
     inputs/circle.2D.arc)
   add_test(NAME [poisson]2D_neumann COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D.txt
