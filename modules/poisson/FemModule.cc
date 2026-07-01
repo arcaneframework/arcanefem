@@ -39,6 +39,13 @@ startInit()
   m_petsc_flags = options()->petscFlags();
   m_hex_quad_mesh = options()->hexQuadMesh();
 
+  // Check if the mesh is a quad8 mesh by examining the number of nodes in the first cell
+  // TODO: maye a user flag
+  if (mesh()->dimension() == 2) {
+    UnstructuredMeshConnectivityView connectivity(mesh());
+    m_is_quad8_mesh = connectivity.cellNode().nbNode(CellLocalId(0)) == 8;
+  }
+
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
 }
