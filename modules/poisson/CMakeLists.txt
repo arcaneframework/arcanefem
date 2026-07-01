@@ -46,11 +46,17 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
     -A,//fem/petsc-flags=-log_view
     inputs/circle.2D.arc)
+  add_test(NAME [poisson]2D_refined COMMAND Poisson
+    -A,//meshes/mesh/subdivider/nb-subdivision=2
+    inputs/circle.2D.arc)
   add_test(NAME [poisson]2D_neumann COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D.txt
     inputs/circle.neumann.2D.arc)
   add_test(NAME [poisson]2D_quad COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D_quad.txt
+    inputs/circle.2D.quad.arc)
+  add_test(NAME [poisson]2D_quad_refined COMMAND Poisson
+    -A,//meshes/mesh/subdivider/nb-subdivision=2
     inputs/circle.2D.quad.arc)
   add_test(NAME [poisson]2D_neumann_quad COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D_quad.txt
@@ -62,11 +68,17 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   add_test(NAME [poisson]3D COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
     inputs/sphere.3D.arc)
+  add_test(NAME [poisson]3D_refined COMMAND Poisson
+    -A,//meshes/mesh/subdivider/nb-subdivision=1
+    inputs/sphere.3D.arc)
   add_test(NAME [poisson]3D_neumann COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_neumann_3D.txt
     inputs/sphere.neumann.3D.arc)
   add_test(NAME [poisson]3D_hexa COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D_hexa.txt
+    inputs/sphere.3D.hexa.arc)
+  add_test(NAME [poisson]3D_hexa_refined COMMAND Poisson
+    -A,//meshes/mesh/subdivider/nb-subdivision=1
     inputs/sphere.3D.hexa.arc)
   add_test(NAME [poisson]3D_neumann_hexa COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_neumann_3D_hexa.txt
