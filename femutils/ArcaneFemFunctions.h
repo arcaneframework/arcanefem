@@ -1642,8 +1642,11 @@ class ArcaneFemFunctions
       if (mesh->dimension() == 2 && nb_nodes == 3) { // Triangular mesh
         ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhsTria3(qdot, mesh, node_dof, node_coord, rhs_values);
       }
-      else if (mesh->dimension() == 2 && nb_nodes == 4) { // Quadrilateral mesh
+      else if (mesh->dimension() == 2 && nb_nodes == 4) { // Quadrilateral mesh Quad4
         ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhsQuad4(qdot, mesh, node_dof, node_coord, rhs_values);
+      }
+      else if (mesh->dimension() == 2 && nb_nodes == 8) { // Quadrilateral mesh Quad8
+        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhsQuad8(qdot, mesh, node_dof, node_coord, rhs_values);
       }
       else if (mesh->dimension() == 3 && nb_nodes == 4) { // Tetrahedral mesh
         ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhsTetra4(qdot, mesh, node_dof, node_coord, rhs_values);
@@ -2637,6 +2640,100 @@ class ArcaneFemFunctions
 
             // Assemble RHS
             for (Int32 i = 0; i < 4; ++i) {
+              Node node = cell.node(i);
+              if (node.isOwn()) {
+                rhs_values[node_dof.dofId(node, 0)] += N[i] * qdot * integration_weight;
+              }
+            }
+          }
+        }
+      }
+    }
+
+  static inline void applyConstantSourceToRhsQuad8(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      ENUMERATE_ (Cell, icell, mesh->allCells()) {
+        Cell cell = *icell;
+
+        // 3-point Gauss rule per direction (needed for exact integration of quadratic Quad8 shape functions)
+        constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 }; // [-sqrt(5/9) , 0 , sqrt(5/9)]
+        constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+        for (Int32 ixi = 0; ixi < 3; ++ixi) {
+          for (Int32 ieta = 0; ieta < 3; ++ieta) {
+
+            // Get the coordinates of the Gauss point
+            Real xi = gp[ixi]; // Get the ξ coordinate of the Gauss point
+            Real eta = gp[ieta]; // Get the η coordinate of the Gauss point
+            Real weight = weights[ixi] * weights[ieta];
+
+            // Shape functions 𝐍 for Quad8 (serendipity)
+            //   𝐍 = [𝑁₁  𝑁₂  𝑁₃  𝑁₄  𝑁₅  𝑁₆  𝑁₇  𝑁₈]
+            //   𝑁₁ = 1/4 * (1-ξ)(1-η)(-ξ-η-1)     𝑁₅ = 1/2 * (1-ξ²)(1-η)
+            //   𝑁₂ = 1/4 * (1+ξ)(1-η)( ξ-η-1)     𝑁₆ = 1/2 * (1+ξ)(1-η²)
+            //   𝑁₃ = 1/4 * (1+ξ)(1+η)( ξ+η-1)     𝑁₇ = 1/2 * (1-ξ²)(1+η)
+            //   𝑁₄ = 1/4 * (1-ξ)(1+η)(-ξ+η-1)     𝑁₈ = 1/2 * (1-ξ)(1-η²)
+            Real N[8];
+            N[0] = 0.25 * (1 - xi) * (1 - eta) * (-xi - eta - 1);
+            N[1] = 0.25 * (1 + xi) * (1 - eta) * (xi - eta - 1);
+            N[2] = 0.25 * (1 + xi) * (1 + eta) * (xi + eta - 1);
+            N[3] = 0.25 * (1 - xi) * (1 + eta) * (-xi + eta - 1);
+            N[4] = 0.5 * (1 - xi * xi) * (1 - eta);
+            N[5] = 0.5 * (1 + xi) * (1 - eta * eta);
+            N[6] = 0.5 * (1 - xi * xi) * (1 + eta);
+            N[7] = 0.5 * (1 - xi) * (1 - eta * eta);
+
+            // Shape function derivatives ∂𝐍/∂ξ and ∂𝐍/∂η
+            //     ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ  ∂𝑁₅/∂ξ  ∂𝑁₆/∂ξ  ∂𝑁₇/∂ξ  ∂𝑁₈/∂ξ ]
+            //     ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ∂𝑁₃/∂η  ∂𝑁₄/∂η  ∂𝑁₅/∂η  ∂𝑁₆/∂η  ∂𝑁₇/∂η  ∂𝑁₈/∂η ]
+            Real dN_dxi[8] = {
+              0.25 * (1 - eta) * (2 * xi + eta),
+              0.25 * (1 - eta) * (2 * xi - eta),
+              0.25 * (1 + eta) * (2 * xi + eta),
+              0.25 * (1 + eta) * (2 * xi - eta),
+              -xi * (1 - eta),
+              0.5 * (1 - eta * eta),
+              -xi * (1 + eta),
+              -0.5 * (1 - eta * eta)
+            };
+
+            Real dN_deta[8] = {
+              0.25 * (1 - xi) * (2 * eta + xi),
+              0.25 * (1 + xi) * (2 * eta - xi),
+              0.25 * (1 + xi) * (2 * eta + xi),
+              0.25 * (1 - xi) * (2 * eta - xi),
+              -0.5 * (1 - xi * xi),
+              -eta * (1 + xi),
+              0.5 * (1 - xi * xi),
+              -eta * (1 - xi)
+            };
+
+            // Jacobian calculation 𝑱
+            //    𝑱 = [ 𝒋₀₀  𝒋₀₁ ] = [ ∂𝑥/∂ξ  ∂𝑦/∂ξ ]
+            //        [ 𝒋₁₀  𝒋₁₁ ]   [ ∂𝑥/∂η  ∂𝑦/∂η ]
+            //
+            // The Jacobian is computed as follows:
+            //   𝒋₀₀ = ∑ (∂𝑁ᵢ/∂ξ * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,𝟖
+            //   𝒋₀₁ = ∑ (∂𝑁ᵢ/∂ξ * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,𝟖
+            //   𝒋₁₀ = ∑ (∂𝑁ᵢ/∂η * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,𝟖
+            //   𝒋₁₁ = ∑ (∂𝑁ᵢ/∂η * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,𝟖
+
+            Real J00 = 0, J01 = 0, J10 = 0, J11 = 0;
+            for (Int8 a = 0; a < 8; ++a) {
+              J00 += dN_dxi[a] * node_coord[cell.nodeId(a)].x;
+              J01 += dN_dxi[a] * node_coord[cell.nodeId(a)].y;
+              J10 += dN_deta[a] * node_coord[cell.nodeId(a)].x;
+              J11 += dN_deta[a] * node_coord[cell.nodeId(a)].y;
+            }
+
+            // Determinant of the Jacobian
+            Real detJ = J00 * J11 - J01 * J10;
+
+            // Compute integration weight
+            Real integration_weight = weight * detJ;
+
+            // Assemble RHS
+            for (Int32 i = 0; i < 8; ++i) {
               Node node = cell.node(i);
               if (node.isOwn()) {
                 rhs_values[node_dof.dofId(node, 0)] += N[i] * qdot * integration_weight;
