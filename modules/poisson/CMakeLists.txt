@@ -36,101 +36,102 @@ foreach(MESH_FILE IN LISTS MESH_FILES)
 endforeach()
 
 enable_testing()
+set(MODULE_NAME "poisson")
 
-add_test(NAME [poisson]2D_pntDirichlet COMMAND Poisson
+arcanefem_add_seq_test(NAME 2D_pntDirichlet COMMAND Poisson
   -A,//fem/solution-comparison-file=check/poisson_test_point_dirichlet_2D.txt
   inputs/perforatedSquare.pointDirichlet.2D.arc)
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
-  add_test(NAME [poisson]2D COMMAND Poisson
+  arcanefem_add_seq_test(NAME 2D COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
     -A,//fem/petsc-flags=-log_view
     inputs/circle.2D.arc)
-  add_test(NAME [poisson]2D_neumann COMMAND Poisson
+  arcanefem_add_seq_test(NAME 2D_neumann COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D.txt
     inputs/circle.neumann.2D.arc)
-  add_test(NAME [poisson]2D_quad COMMAND Poisson
+  arcanefem_add_seq_test(NAME 2D_quad COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D_quad.txt
     inputs/circle.2D.quad.arc)
-  add_test(NAME [poisson]2D_neumann_quad COMMAND Poisson
+  arcanefem_add_seq_test(NAME 2D_neumann_quad COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D_quad.txt
     inputs/circle.neumann.2D.quad.arc)
-  add_test(NAME [poisson]2D_scalar_neumann_quad COMMAND Poisson
+  arcanefem_add_seq_test(NAME 2D_scalar_neumann_quad COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_scalar_neumann_2D_quad.txt
     -A,//fem/boundary-conditions/neumann/value=2
     inputs/circle.neumann.2D.quad.arc)
-  add_test(NAME [poisson]3D COMMAND Poisson
+  arcanefem_add_seq_test(NAME 3D COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
     inputs/sphere.3D.arc)
-  add_test(NAME [poisson]3D_neumann COMMAND Poisson
+  arcanefem_add_seq_test(NAME 3D_neumann COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_neumann_3D.txt
     inputs/sphere.neumann.3D.arc)
-  add_test(NAME [poisson]3D_hexa COMMAND Poisson
+  arcanefem_add_seq_test(NAME 3D_hexa COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D_hexa.txt
     inputs/sphere.3D.hexa.arc)
-  add_test(NAME [poisson]3D_neumann_hexa COMMAND Poisson
+  arcanefem_add_seq_test(NAME 3D_neumann_hexa COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_neumann_3D_hexa.txt
     inputs/sphere.neumann.3D.hexa.arc)
-  add_test(NAME [poisson]3D_scalar_neumann_hexa COMMAND Poisson
+  arcanefem_add_seq_test(NAME 3D_scalar_neumann_hexa COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_scalar_neumann_3D_hexa.txt
     -A,//fem/boundary-conditions/neumann/value=3.1
     inputs/sphere.neumann.3D.hexa.arc)
-  add_test(NAME [poisson]2D_petsc COMMAND Poisson
+  arcanefem_add_seq_test(NAME 2D_petsc COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
     -A,//fem/petsc-flags=-ksp_monitor
     inputs/circle.2D.arc)
-  add_test(NAME [poisson]2D_assembly_only COMMAND Poisson
+  arcanefem_add_seq_test(NAME 2D_assembly_only COMMAND Poisson
     -A,//fem/solve-linear-system=false
     inputs/circle.2D.arc)
-  add_test(NAME [poisson]2D_parse_and_exit COMMAND Poisson
+  arcanefem_add_seq_test(NAME 2D_parse_and_exit COMMAND Poisson
     -A,//fem/assemble-linear-system=false
     -A,//fem/solve-linear-system=false
     inputs/circle.2D.arc)
 
-  arcanefem_add_gpu_test(NAME [poisson]2D_bsr COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_bsr COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
     -A,//fem/matrix-format=BSR
     inputs/circle.2D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_af-bsr COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_af-bsr COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
     -A,//fem/matrix-format=AF-BSR
     inputs/circle.2D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]3D_bsr COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 3D_bsr COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
     -A,//fem/matrix-format=BSR
     inputs/sphere.3D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]3D_af-bsr COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 3D_af-bsr COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
     -A,//fem/matrix-format=AF-BSR
     inputs/sphere.3D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]3D_neumann_bsr-hexa COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 3D_neumann_bsr-hexa COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_neumann_3D_hexa.txt
     -A,//fem/matrix-format=BSR
     inputs/sphere.neumann.3D.hexa.arc)
-  arcanefem_add_gpu_test(NAME [poisson]3D_scalar_neumann_bsr-hexa COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 3D_scalar_neumann_bsr-hexa COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_scalar_neumann_3D_hexa.txt
     -A,//fem/matrix-format=BSR
     -A,//fem/boundary-conditions/neumann/value=3.1
     inputs/sphere.neumann.3D.hexa.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER)
-    add_test(NAME [poisson]2D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+    arcanefem_add_mpi_test(NAME 2D COMMAND ./Poisson
       -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
       inputs/circle.2D.arc)
-    add_test(NAME [poisson]2D_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+    arcanefem_add_mpi_test(NAME 2D_quad COMMAND ./Poisson
       -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D_quad.txt
       inputs/circle.2D.quad.arc)
-    add_test(NAME [poisson]2D_scalar_neumann_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+    arcanefem_add_mpi_test(NAME 2D_scalar_neumann_quad COMMAND ./Poisson
       -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_scalar_neumann_2D_quad.txt
       -A,//fem/boundary-conditions/neumann/value=2
       inputs/circle.neumann.2D.quad.arc)
-    add_test(NAME [poisson]3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+    arcanefem_add_mpi_test(NAME 3D COMMAND ./Poisson
       -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
       inputs/sphere.3D.arc)
-    add_test(NAME [poisson]3D_hexa_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+    arcanefem_add_mpi_test(NAME 3D_hexa COMMAND ./Poisson
       -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D_hexa.txt
       inputs/sphere.3D.hexa.arc)
-    add_test(NAME [poisson]3D_scalar_neumann_hexa_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+    arcanefem_add_mpi_test(NAME 3D_scalar_neumann_hexa COMMAND ./Poisson
       -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_scalar_neumann_3D_hexa.txt
       -A,//fem/boundary-conditions/neumann/value=3.1
       inputs/sphere.neumann.3D.hexa.arc)
@@ -153,78 +154,78 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/linear-system/atol=1e-15
     -A,//fem/linear-system/rtol=0)
 
-  arcanefem_add_gpu_test(NAME [poisson]2D_pntDirichlet_bsr_hypre COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_pntDirichlet_bsr_hypre COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_point_dirichlet_2D.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG_2D}
     inputs/perforatedSquare.pointDirichlet.2D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_bsr_hypre COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_bsr_hypre COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG_2D}
     inputs/circle.2D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_quad_bsr_hypre COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_quad_bsr_hypre COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D_quad.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG_2D}
     inputs/circle.2D.quad.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_quad_neumann_bsr_hypre COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_quad_neumann_bsr_hypre COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D_quad.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG_2D}
     inputs/circle.neumann.2D.quad.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_quad_scalar_neumann_bsr_hypre COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_quad_scalar_neumann_bsr_hypre COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_scalar_neumann_2D_quad.txt
     -A,//fem/matrix-format=BSR
     -A,//fem/boundary-conditions/neumann/value=2
     ${SOLVER_HYPRE_CG_2D}
     inputs/circle.neumann.2D.quad.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_quad_af-bsr_hypre COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_quad_af-bsr_hypre COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D_quad.txt
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG_2D}
     inputs/circle.2D.quad.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_quad_neumann_af-bsr_hypre COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_quad_neumann_af-bsr_hypre COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D_quad.txt
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG_2D}
     inputs/circle.neumann.2D.quad.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_quad_scalar_neumann_af-bsr_hypre COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_quad_scalar_neumann_af-bsr_hypre COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_scalar_neumann_2D_quad.txt
     -A,//fem/matrix-format=AF-BSR
     -A,//fem/boundary-conditions/neumann/value=2
     ${SOLVER_HYPRE_CG_2D}
     inputs/circle.neumann.2D.quad.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_neumann_bsr_hypre COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_neumann_bsr_hypre COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG_2D}
     inputs/circle.neumann.2D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_bsr_atomicFree_hypre COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_bsr_atomicFree_hypre COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG_2D}
     inputs/circle.2D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]3D_bsr_hypre_gpu COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 3D_bsr_hypre_gpu COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG_3D}
     inputs/sphere.3D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]3D_neumann_bsr_hypre COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 3D_neumann_bsr_hypre COMMAND Poisson ARGS
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG_3D}
     inputs/sphere.neumann.3D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]3D_bsr_atomicFree_hypre_gpu COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 3D_bsr_atomicFree_hypre_gpu COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG_3D}
     inputs/sphere.3D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]3D_neumann_bsr-hexa_hypre COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 3D_neumann_bsr-hexa_hypre COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_neumann_3D_hexa.txt
     -A,//fem/matrix-format=BSR
      ${SOLVER_HYPRE_CG_3D}
     inputs/sphere.neumann.3D.hexa.arc)
-  arcanefem_add_gpu_test(NAME [poisson]3D_scalar_neumann_bsr-hexa_hypre COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 3D_scalar_neumann_bsr-hexa_hypre COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_scalar_neumann_3D_hexa.txt
     -A,//fem/matrix-format=BSR
      ${SOLVER_HYPRE_CG_3D}
@@ -246,78 +247,78 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/linear-system/atol=1e-15
     -A,//fem/linear-system/rtol=0)
 
-  arcanefem_add_gpu_test(NAME [poisson]2D_pntDirichlet_bsr_petsc COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_pntDirichlet_bsr_petsc COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_point_dirichlet_2D.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_PETSC_CG_2D}
     inputs/perforatedSquare.pointDirichlet.2D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_bsr_petsc COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_bsr_petsc COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_PETSC_CG_2D}
     inputs/circle.2D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_quad_bsr_petsc COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_quad_bsr_petsc COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D_quad.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_PETSC_CG_2D}
     inputs/circle.2D.quad.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_quad_neumann_bsr_petsc COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_quad_neumann_bsr_petsc COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D_quad.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_PETSC_CG_2D}
     inputs/circle.neumann.2D.quad.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_quad_scalar_neumann_bsr_petsc COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_quad_scalar_neumann_bsr_petsc COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_scalar_neumann_2D_quad.txt
     -A,//fem/matrix-format=BSR
     -A,//fem/boundary-conditions/neumann/value=2
     ${SOLVER_PETSC_CG_2D}
     inputs/circle.neumann.2D.quad.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_quad_af-bsr_petsc COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_quad_af-bsr_petsc COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D_quad.txt
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_PETSC_CG_2D}
     inputs/circle.2D.quad.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_quad_neumann_af-bsr_petsc COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_quad_neumann_af-bsr_petsc COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D_quad.txt
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_PETSC_CG_2D}
     inputs/circle.neumann.2D.quad.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_quad_scalar_neumann_af-bsr_petsc COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_quad_scalar_neumann_af-bsr_petsc COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_scalar_neumann_2D_quad.txt
     -A,//fem/matrix-format=AF-BSR
     -A,//fem/boundary-conditions/neumann/value=2
     ${SOLVER_PETSC_CG_2D}
     inputs/circle.neumann.2D.quad.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_neumann_bsr_petsc COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_neumann_bsr_petsc COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_PETSC_CG_2D}
     inputs/circle.neumann.2D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]2D_bsr_atomicFree_petsc COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 2D_bsr_atomicFree_petsc COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_PETSC_CG_2D}
     inputs/circle.2D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]3D_bsr_petsc_gpu COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 3D_bsr_petsc_gpu COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_PETSC_CG_3D}
     inputs/sphere.3D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]3D_neumann_bsr_petsc COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 3D_neumann_bsr_petsc COMMAND Poisson ARGS
     -A,//fem/matrix-format=BSR
     ${SOLVER_PETSC_CG_3D}
     inputs/sphere.neumann.3D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]3D_bsr_atomicFree_petsc_gpu COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 3D_bsr_atomicFree_petsc_gpu COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_PETSC_CG_3D}
     inputs/sphere.3D.arc)
-  arcanefem_add_gpu_test(NAME [poisson]3D_neumann_bsr-hexa_petsc COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 3D_neumann_bsr-hexa_petsc COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_neumann_3D_hexa.txt
     -A,//fem/matrix-format=BSR
      ${SOLVER_PETSC_CG_3D}
     inputs/sphere.neumann.3D.hexa.arc)
-  arcanefem_add_gpu_test(NAME [poisson]3D_scalar_neumann_bsr-hexa_petsc COMMAND Poisson ARGS
+  arcanefem_add_gpu_test(NAME 3D_scalar_neumann_bsr-hexa_petsc COMMAND Poisson ARGS
     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_scalar_neumann_3D_hexa.txt
     -A,//fem/matrix-format=BSR
      ${SOLVER_PETSC_CG_3D}
@@ -337,80 +338,80 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_ALIEN)
           -A,//fem/linear-system/linear-solver/solver/preconditioner/@name=Jacobi
   )
 
-  add_test(NAME [poisson]alien_petsc_2D_pntDirichlet_bsr COMMAND Poisson
+  arcanefem_add_seq_test(NAME alien_petsc_2D_pntDirichlet_bsr COMMAND Poisson
           -A,//fem/solution-comparison-file=check/poisson_test_point_dirichlet_2D.txt
           -A,//fem/matrix-format=BSR
           ${SOLVER_ALIEN_PETSC_CG}
           inputs/perforatedSquare.pointDirichlet.2D.arc)
 
-  add_test(NAME [poisson]alien_petsc_2D_bsr COMMAND Poisson
+  arcanefem_add_seq_test(NAME alien_petsc_2D_bsr COMMAND Poisson
           -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
           -A,//fem/matrix-format=BSR
           ${SOLVER_ALIEN_PETSC_CG}
           inputs/circle.2D.arc)
 
-  add_test(NAME [poisson]alien_petsc_2D_neumann_bsr COMMAND Poisson
+  arcanefem_add_seq_test(NAME alien_petsc_2D_neumann_bsr COMMAND Poisson
           -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D.txt
           -A,//fem/matrix-format=BSR
           ${SOLVER_ALIEN_PETSC_CG}
           inputs/circle.neumann.2D.arc)
 
-  add_test(NAME [poisson]alien_petsc_2D_bsr_atomicFree COMMAND Poisson
+  arcanefem_add_seq_test(NAME alien_petsc_2D_bsr_atomicFree COMMAND Poisson
           -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
           -A,//fem/matrix-format=AF-BSR
           ${SOLVER_ALIEN_PETSC_CG}
           inputs/circle.2D.arc)
 
-  add_test(NAME [poisson]alien_petsc_3D_bsr_petsc_gpu COMMAND Poisson
+  arcanefem_add_seq_test(NAME alien_petsc_3D_bsr_petsc_gpu COMMAND Poisson
           -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
           -A,//fem/matrix-format=BSR
           ${SOLVER_ALIEN_PETSC_CG}
           inputs/sphere.3D.arc)
 
-  add_test(NAME [poisson]alien_petsc_3D_neumann_bsr COMMAND Poisson
+  arcanefem_add_seq_test(NAME alien_petsc_3D_neumann_bsr COMMAND Poisson
           -A,//fem/matrix-format=BSR
           ${SOLVER_ALIEN_PETSC_CG}
           inputs/sphere.neumann.3D.arc)
 
-  add_test(NAME [poisson]petsc_alien_3D_bsr_atomicFree_gpu COMMAND Poisson
+  arcanefem_add_seq_test(NAME petsc_alien_3D_bsr_atomicFree_gpu COMMAND Poisson
           -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
           -A,//fem/matrix-format=AF-BSR
           ${SOLVER_ALIEN_PETSC_CG}
           inputs/sphere.3D.arc)
 
   if(FEMUTILS_HAS_PARALLEL_SOLVER)
-    add_test(NAME [poisson]alien_petsc_2D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+    arcanefem_add_mpi_test(NAME alien_petsc_2D COMMAND ./Poisson
             -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D.txt
             -A,//fem/matrix-format=BSR
             ${SOLVER_ALIEN_PETSC_CG}
             inputs/circle.2D.arc)
 
-    add_test(NAME [poisson]alien_petsc_2D_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+    arcanefem_add_mpi_test(NAME alien_petsc_2D_quad COMMAND ./Poisson
             -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D_quad.txt
             -A,//fem/matrix-format=BSR
             ${SOLVER_ALIEN_PETSC_CG}
             inputs/circle.2D.quad.arc)
 
-    add_test(NAME [poisson]alien_petsc_2D_scalar_neumann_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+    arcanefem_add_mpi_test(NAME alien_petsc_2D_scalar_neumann_quad COMMAND ./Poisson
             -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_scalar_neumann_2D_quad.txt
             -A,//fem/boundary-conditions/neumann/value=2
             -A,//fem/matrix-format=BSR
             ${SOLVER_ALIEN_PETSC_CG}
             inputs/circle.neumann.2D.quad.arc)
 
-    add_test(NAME [poisson]alien_petsc_3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+    arcanefem_add_mpi_test(NAME alien_petsc_3D COMMAND ./Poisson
             -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
             -A,//fem/matrix-format=BSR
             ${SOLVER_ALIEN_PETSC_CG}
             inputs/sphere.3D.arc)
 
-    add_test(NAME [poisson]alien_petsc_3D_hexa_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+    arcanefem_add_mpi_test(NAME alien_petsc_3D_hexa COMMAND ./Poisson
             -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D_hexa.txt
             -A,//fem/matrix-format=BSR
             ${SOLVER_ALIEN_PETSC_CG}
             inputs/sphere.3D.hexa.arc)
 
-    add_test(NAME [poisson]alien_petsc_3D_scalar_neumann_hexa_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Poisson
+    arcanefem_add_mpi_test(NAME alien_petsc_3D_scalar_neumann_hexa COMMAND ./Poisson
             -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_scalar_neumann_3D_hexa.txt
             -A,//fem/boundary-conditions/neumann/value=3.1
             -A,//fem/matrix-format=BSR

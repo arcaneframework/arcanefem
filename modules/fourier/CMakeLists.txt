@@ -85,54 +85,55 @@ if (GMSH)
 endif()
 
 enable_testing()
+set(MODULE_NAME "fourier")
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
-  add_test(NAME [fourier]conduction COMMAND Fourier
+  arcanefem_add_seq_test(NAME conduction COMMAND Fourier
     -A,//fem/solution-comparison-file=check/test1_results.txt
     inputs/conduction.arc)
-  add_test(NAME [fourier]conduction_heterogeneous COMMAND Fourier
+  arcanefem_add_seq_test(NAME conduction_heterogeneous COMMAND Fourier
     -A,//fem/solution-comparison-file=check/test2_results.txt
     inputs/conduction.heterogeneous.arc)
-  add_test(NAME [fourier]conduction_quad COMMAND Fourier
+  arcanefem_add_seq_test(NAME conduction_quad COMMAND Fourier
     -A,//fem/solution-comparison-file=check/conduction_quad.txt
     inputs/conduction.quad.arc)
-  add_test(NAME [fourier]conduction_heterogeneous_quad COMMAND Fourier
+  arcanefem_add_seq_test(NAME conduction_heterogeneous_quad COMMAND Fourier
     -A,//fem/solution-comparison-file=check/conduction_multi-mat_quad.txt
     inputs/conduction.heterogeneous.quad.arc)
-  add_test(NAME [fourier]conduction_3D COMMAND Fourier
+  arcanefem_add_seq_test(NAME conduction_3D COMMAND Fourier
     -A,//fem/solution-comparison-file=check/test_conduction_3D.txt
     inputs/conduction.3D.arc)
-  add_test(NAME [fourier]conduction_boolean_3D COMMAND Fourier
+  arcanefem_add_seq_test(NAME conduction_boolean_3D COMMAND Fourier
     inputs/conduction.boolean.3D.arc)
-  add_test(NAME [fourier]conduction_sphere-cut_hexa COMMAND Fourier
+  arcanefem_add_seq_test(NAME conduction_sphere-cut_hexa COMMAND Fourier
     -A,//fem/solution-comparison-file=check/conduction_hexa.txt
     inputs/conduction.sphere-cut.hexa.arc)
 
   if (NOT APPLE)
-    add_test(NAME [fourier]manufacture_solution COMMAND Fourier
+    arcanefem_add_seq_test(NAME manufacture_solution COMMAND Fourier
       -A,UsingDotNet=1
       inputs/manufacture.solution.arc)
-    add_test(NAME [fourier]manufacture_solution_3D COMMAND Fourier
+    arcanefem_add_seq_test(NAME manufacture_solution_3D COMMAND Fourier
       -A,UsingDotNet=1
       -A,//meshes/mesh/filename=meshes/bar_dynamic_3D.msh
       inputs/manufacture.solution.arc)
   endif()
 
-  arcanefem_add_gpu_test(NAME [fourier]conduction_petsc_bsr COMMAND ./Fourier ARGS
+  arcanefem_add_gpu_test(NAME conduction_petsc_bsr COMMAND ./Fourier ARGS
     -A,//fem/solution-comparison-file=check/test1_results.txt
     -A,//fem/matrix-format=BSR
     inputs/conduction.arc)
 
-  arcanefem_add_gpu_test(NAME [fourier]conduction_petsc_af-bsr COMMAND ./Fourier ARGS
+  arcanefem_add_gpu_test(NAME conduction_petsc_af-bsr COMMAND ./Fourier ARGS
     -A,//fem/solution-comparison-file=check/test1_results.txt
     -A,//fem/matrix-format=AF-BSR
     inputs/conduction.arc)
 
-  arcanefem_add_gpu_test(NAME [fourier]3d_conduction_petsc_bsr COMMAND ./Fourier ARGS
+  arcanefem_add_gpu_test(NAME 3d_conduction_petsc_bsr COMMAND ./Fourier ARGS
     -A,//fem/matrix-format=BSR
     inputs/conduction.3D.arc)
 
-  arcanefem_add_gpu_test(NAME [fourier]3d_conduction_petsc_af-bsr COMMAND ./Fourier ARGS
+  arcanefem_add_gpu_test(NAME 3d_conduction_petsc_af-bsr COMMAND ./Fourier ARGS
     -A,//fem/matrix-format=AF-BSR
     inputs/conduction.3D.arc)
 
@@ -142,62 +143,62 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/linear-system/atol=1e-9
     -A,//fem/linear-system/rtol=0)
 
-  arcanefem_add_gpu_test(NAME [fourier]conduction_petsc-direct_bsr COMMAND ./Fourier ARGS
+  arcanefem_add_gpu_test(NAME conduction_petsc-direct_bsr COMMAND ./Fourier ARGS
     -A,//fem/matrix-format=BSR
     ${SOLVER_PETSC_CG}
     inputs/conduction.arc)
 
-  arcanefem_add_gpu_test(NAME [fourier]conduction_petsc-direct_af-bsr COMMAND ./Fourier ARGS
+  arcanefem_add_gpu_test(NAME conduction_petsc-direct_af-bsr COMMAND ./Fourier ARGS
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_PETSC_CG}
     inputs/conduction.arc)
 
-  arcanefem_add_gpu_test(NAME [fourier]3d_conduction_petsc-direct_bsr COMMAND ./Fourier ARGS
+  arcanefem_add_gpu_test(NAME 3d_conduction_petsc-direct_bsr COMMAND ./Fourier ARGS
     -A,//fem/matrix-format=BSR
     ${SOLVER_PETSC_CG}
     inputs/conduction.3D.arc)
 
-  arcanefem_add_gpu_test(NAME [fourier]3d_conduction_petsc-direct_af-bsr COMMAND ./Fourier ARGS
+  arcanefem_add_gpu_test(NAME 3d_conduction_petsc-direct_af-bsr COMMAND ./Fourier ARGS
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_PETSC_CG}
     inputs/conduction.3D.arc)
 
 
-  if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-    add_test(NAME [fourier]conduction_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+  if(FEMUTILS_HAS_PARALLEL_SOLVER)
+    arcanefem_add_mpi_test(NAME conduction COMMAND ./Fourier
       -A,//fem/solution-comparison-file=check/test1_results.txt
       inputs/conduction.arc)
-    add_test(NAME [fourier]conduction_heterogeneous_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+    arcanefem_add_mpi_test(NAME conduction_heterogeneous COMMAND ./Fourier
       -A,//fem/solution-comparison-file=check/test2_results.txt
       inputs/conduction.heterogeneous.arc)
-    add_test(NAME [fourier]conduction_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+    arcanefem_add_mpi_test(NAME conduction_quad COMMAND ./Fourier
       -A,//fem/solution-comparison-file=check/conduction_quad.txt
       inputs/conduction.quad.arc)
-    add_test(NAME [fourier]conduction_heterogeneous_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+    arcanefem_add_mpi_test(NAME conduction_heterogeneous_quad COMMAND ./Fourier
       -A,//fem/solution-comparison-file=check/conduction_multi-mat_quad.txt
       inputs/conduction.heterogeneous.quad.arc)
-    add_test(NAME [fourier]conduction_heterogeneous_3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+    arcanefem_add_mpi_test(NAME conduction_heterogeneous_3D COMMAND ./Fourier
       inputs/conduction.pipe.3D.arc)
-    add_test(NAME [fourier]conduction_sphere-cut_3D_hexa_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+    arcanefem_add_mpi_test(NAME conduction_sphere-cut_3D_hexa COMMAND ./Fourier
       -A,//fem/solution-comparison-file=check/conduction_hexa.txt
       inputs/conduction.sphere-cut.hexa.arc)
 
     if (NOT APPLE)
-      add_test(NAME [fourier]manufacture_solution_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+      arcanefem_add_mpi_test(NAME manufacture_solution COMMAND ./Fourier
         -A,UsingDotNet=1
         inputs/manufacture.solution.arc)
-      add_test(NAME [fourier]manufacture_solution_3D_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+      arcanefem_add_mpi_test(NAME manufacture_solution_3D COMMAND ./Fourier
         -A,UsingDotNet=1
         -A,//meshes/mesh/filename=meshes/bar_dynamic_3D.msh
         inputs/manufacture.solution.arc)
     endif()
 
     if(FEMTEST_HAS_GMSH_TEST)
-      add_test(NAME [fourier]conduction_10k_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+      arcanefem_add_mpi_test(NAME conduction_10k COMMAND ./Fourier
         -A,//meshes/mesh/filename=meshes/plancher.10k.msh
         -A,//fem/cross-validation=false
         inputs/conduction.arc)
-      add_test(NAME [fourier]conduction_heterogeneous_10k_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Fourier
+      arcanefem_add_mpi_test(NAME conduction_heterogeneous_10k COMMAND ./Fourier
         -A,//meshes/mesh/filename=meshes//multi-material.10k.msh
         -A,//fem/cross-validation=false
         inputs/conduction.heterogeneous.arc)
@@ -212,22 +213,22 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/linear-system/atol=1e-9
     -A,//fem/linear-system/rtol=0)
 
-  arcanefem_add_gpu_test(NAME [fourier]conduction_hypre_bsr COMMAND ./Fourier ARGS
+  arcanefem_add_gpu_test(NAME conduction_hypre_bsr COMMAND ./Fourier ARGS
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG}
     inputs/conduction.arc)
 
-  arcanefem_add_gpu_test(NAME [fourier]conduction_hypre_af-bsr COMMAND ./Fourier ARGS
+  arcanefem_add_gpu_test(NAME conduction_hypre_af-bsr COMMAND ./Fourier ARGS
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG}
     inputs/conduction.arc)
 
-  arcanefem_add_gpu_test(NAME [fourier]3d_conduction_hypre_bsr COMMAND ./Fourier ARGS
+  arcanefem_add_gpu_test(NAME 3d_conduction_hypre_bsr COMMAND ./Fourier ARGS
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG}
     inputs/conduction.3D.arc)
 
-  arcanefem_add_gpu_test(NAME [fourier]3d_conduction_hypre_af-bsr COMMAND ./Fourier ARGS
+  arcanefem_add_gpu_test(NAME 3d_conduction_hypre_af-bsr COMMAND ./Fourier ARGS
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG}
     inputs/conduction.3D.arc)

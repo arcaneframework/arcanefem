@@ -36,52 +36,53 @@ foreach(MESH_FILE IN LISTS MESH_FILES)
 endforeach()
 
 enable_testing()
+set(MODULE_NAME "electrostatics")
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
-  add_test(NAME [electrostatics]box-rods COMMAND Electrostatics
+  arcanefem_add_seq_test(NAME box-rods COMMAND Electrostatics
     -A,//fem/solution-comparison-file=check/test_1.txt
     inputs/box-rods.arc)
-  add_test(NAME [electrostatics]box-rods_neumann COMMAND Electrostatics
+  arcanefem_add_seq_test(NAME box-rods_neumann COMMAND Electrostatics
     inputs/box-rods.neumann.arc)
-  add_test(NAME [electrostatics]box-rods_quad COMMAND Electrostatics
+  arcanefem_add_seq_test(NAME box-rods_quad COMMAND Electrostatics
     -A,//fem/solution-comparison-file=check/box-rods.quad.txt
     inputs/box-rods.quad.arc)
-  add_test(NAME [electrostatics]box-rods_neumann_quad COMMAND Electrostatics
+  arcanefem_add_seq_test(NAME box-rods_neumann_quad COMMAND Electrostatics
     inputs/box-rods.neumann.quad.arc)
-  add_test(NAME [electrostatics]capacitor COMMAND Electrostatics
+  arcanefem_add_seq_test(NAME capacitor COMMAND Electrostatics
     inputs/Capacitor.arc)
-  add_test(NAME [electrostatics]rod-circle COMMAND Electrostatics
+  arcanefem_add_seq_test(NAME rod-circle COMMAND Electrostatics
     -A,//fem/solution-comparison-file=check/test_2.txt
     inputs/rod-circle.arc)
-  add_test(NAME [electrostatics]spheres COMMAND Electrostatics
+  arcanefem_add_seq_test(NAME spheres COMMAND Electrostatics
     inputs/spheres.arc)
-  add_test(NAME [electrostatics]truncated-cube_hexa COMMAND Electrostatics
+  arcanefem_add_seq_test(NAME truncated-cube_hexa COMMAND Electrostatics
     -A,//fem/solution-comparison-file=check/truncated-cube.hexa.txt
     inputs/truncated_cube.hexa.arc)
-  add_test(NAME [electrostatics]box-rods_petsc_monitor COMMAND Electrostatics
+  arcanefem_add_seq_test(NAME box-rods_petsc_monitor COMMAND Electrostatics
     -A,//fem/solution-comparison-file=check/test_1.txt
     -A,//fem/petsc-flags=-ksp_monitor
     inputs/box-rods.arc)
-  add_test(NAME [electrostatics]2D_parse_and_exit COMMAND Electrostatics
+  arcanefem_add_seq_test(NAME 2D_parse_and_exit COMMAND Electrostatics
     -A,//fem/assemble-linear-system=false
     -A,//fem/solve-linear-system=false
     inputs/Capacitor.arc)
 
-  arcanefem_add_gpu_test(NAME [electrostatics]box-rods_bsr COMMAND ./Electrostatics ARGS
+  arcanefem_add_gpu_test(NAME box-rods_bsr COMMAND ./Electrostatics ARGS
     -A,//fem/solution-comparison-file=check/test_1.txt
     -A,//fem/matrix-format=BSR
     inputs/box-rods.arc)
-  arcanefem_add_gpu_test(NAME [electrostatics]box-rods_af-bsr COMMAND ./Electrostatics ARGS
+  arcanefem_add_gpu_test(NAME box-rods_af-bsr COMMAND ./Electrostatics ARGS
     -A,//fem/solution-comparison-file=check/test_1.txt
     -A,//fem/matrix-format=AF-BSR
     inputs/box-rods.arc)
-  arcanefem_add_gpu_test(NAME [electrostatics]truncated_cube_bsr COMMAND ./Electrostatics ARGS
+  arcanefem_add_gpu_test(NAME truncated_cube_bsr COMMAND ./Electrostatics ARGS
     -A,//fem/matrix-format=BSR
     inputs/truncated_cube.arc)
-  arcanefem_add_gpu_test(NAME [electrostatics]spheres_bsr COMMAND ./Electrostatics ARGS
+  arcanefem_add_gpu_test(NAME spheres_bsr COMMAND ./Electrostatics ARGS
     -A,//fem/matrix-format=BSR
     inputs/spheres.arc)
-  arcanefem_add_gpu_test(NAME [electrostatics]spheres_af-bsr COMMAND ./Electrostatics ARGS
+  arcanefem_add_gpu_test(NAME spheres_af-bsr COMMAND ./Electrostatics ARGS
     -A,//fem/matrix-format=AF-BSR
     inputs/spheres.arc)
 
@@ -91,33 +92,33 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/linear-system/atol=1e-9
     -A,//fem/linear-system/rtol=0)
 
-  arcanefem_add_gpu_test(NAME [electrostatics]rod-circle_bsr_petsc COMMAND ./Electrostatics ARGS
+  arcanefem_add_gpu_test(NAME rod-circle_bsr_petsc COMMAND ./Electrostatics ARGS
     -A,//fem/solution-comparison-file=check/test_2.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_PETSC_CG}
     inputs/rod-circle.arc)
-  arcanefem_add_gpu_test(NAME [electrostatics]rod-circle_af-bsr_petsc COMMAND ./Electrostatics ARGS
+  arcanefem_add_gpu_test(NAME rod-circle_af-bsr_petsc COMMAND ./Electrostatics ARGS
     -A,//fem/solution-comparison-file=check/test_2.txt
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_PETSC_CG}
     inputs/rod-circle.arc)
-  arcanefem_add_gpu_test(NAME [electrostatics]spheres_af-bsr_petsc COMMAND ./Electrostatics ARGS
+  arcanefem_add_gpu_test(NAME spheres_af-bsr_petsc COMMAND ./Electrostatics ARGS
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_PETSC_CG}
     inputs/spheres.arc)
-  arcanefem_add_gpu_test(NAME [electrostatics]truncated_cube_bsr_petsc COMMAND ./Electrostatics ARGS
+  arcanefem_add_gpu_test(NAME truncated_cube_bsr_petsc COMMAND ./Electrostatics ARGS
     -A,//fem/matrix-format=BSR
     ${SOLVER_PETSC_CG}
     inputs/truncated_cube.arc)
 
-  if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-    add_test(NAME [electrostatics]box-rods_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Electrostatics
+  if(FEMUTILS_HAS_PARALLEL_SOLVER)
+    arcanefem_add_mpi_test(NAME box-rods COMMAND ./Electrostatics
       -A,//fem/solution-comparison-file=check/test_1.txt
       inputs/box-rods.arc)
-    add_test(NAME [electrostatics]box-rods_quad_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Electrostatics
+    arcanefem_add_mpi_test(NAME box-rods_quad COMMAND ./Electrostatics
       -A,//fem/solution-comparison-file=check/box-rods.quad.txt
       inputs/box-rods.quad.arc)
-    add_test(NAME [electrostatics]truncated-cube_hexa_2p COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Electrostatics
+    arcanefem_add_mpi_test(NAME truncated-cube_hexa COMMAND ./Electrostatics
       -A,//fem/solution-comparison-file=check/truncated-cube.hexa.txt
       inputs/truncated_cube.hexa.arc)
   endif()
@@ -129,21 +130,21 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/linear-system/solver=cg
     -A,//fem/linear-system/atol=1e-9
     -A,//fem/linear-system/rtol=0)
-  arcanefem_add_gpu_test(NAME [electrostatics]rod-circle_bsr_hypreDirect COMMAND ./Electrostatics ARGS
+  arcanefem_add_gpu_test(NAME rod-circle_bsr_hypreDirect COMMAND ./Electrostatics ARGS
     -A,//fem/solution-comparison-file=check/test_2.txt
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG}
     inputs/rod-circle.arc)
-  arcanefem_add_gpu_test(NAME [electrostatics]rod-circle_af-bsr_hypreDirect COMMAND ./Electrostatics ARGS
+  arcanefem_add_gpu_test(NAME rod-circle_af-bsr_hypreDirect COMMAND ./Electrostatics ARGS
     -A,//fem/solution-comparison-file=check/test_2.txt
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG}
     inputs/rod-circle.arc)
-  arcanefem_add_gpu_test(NAME [electrostatics]spheres_af-bsr_hypreDirect COMMAND ./Electrostatics ARGS
+  arcanefem_add_gpu_test(NAME spheres_af-bsr_hypreDirect COMMAND ./Electrostatics ARGS
     -A,//fem/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG}
     inputs/spheres.arc)
-  arcanefem_add_gpu_test(NAME [electrostatics]truncated_cube_bsr_hypreDirect COMMAND ./Electrostatics ARGS
+  arcanefem_add_gpu_test(NAME truncated_cube_bsr_hypreDirect COMMAND ./Electrostatics ARGS
     -A,//fem/matrix-format=BSR
     ${SOLVER_HYPRE_CG}
     inputs/truncated_cube.arc)

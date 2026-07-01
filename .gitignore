@@ -38,3 +38,4 @@
 .idea
 *~
 .vscode
+CMakeUserPresets.json

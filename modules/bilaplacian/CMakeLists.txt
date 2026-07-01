@@ -32,27 +32,28 @@ foreach(MESH_FILE IN LISTS MESH_FILES)
 endforeach()
 
 enable_testing()
+set(MODULE_NAME "bilaplacian")
 
-add_test(NAME [bilaplacian]direct_solver COMMAND Bilaplacian
+arcanefem_add_seq_test(NAME direct_solver COMMAND Bilaplacian
   -A,//fem/solution-comparison-file=check/2d_test.txt
   inputs/direct.arc)
-add_test(NAME [bilaplacian]parse_and_exit COMMAND Bilaplacian
+arcanefem_add_seq_test(NAME parse_and_exit COMMAND Bilaplacian
   -A,//fem/assemble-linear-system=false
   -A,//fem/solve-linear-system=false
   inputs/direct.arc)
 
 #if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
-#  add_test(NAME [bilaplacian]petsc COMMAND Bilaplacian
+#  arcanefem_add_seq_test(NAME petsc COMMAND Bilaplacian
 #    -A,//fem/linear-system/solver-backend=petsc
 #    -A,//fem/linear-system/solver-backend=petsc -A,//fem/petsc-flags=-ksp_monitor\ -ksp_type\ gmres\ -pc_type\ lu\ -ksp_rtol\ 1e-15\ -mat_type\ mpibaij\ -bs\ 2
 #    inputs/internal_hypre_rowColElim.arc)
 #endif()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-  add_test(NAME [bilaplacian]hypre_rowColElim COMMAND Bilaplacian
+  arcanefem_add_seq_test(NAME hypre_rowColElim COMMAND Bilaplacian
     -A,//fem/solution-comparison-file=check/2d_test.txt
     inputs/internal_hypre_rowColElim.arc)
-  add_test(NAME [bilaplacian]hypre_rowElim COMMAND Bilaplacian
+  arcanefem_add_seq_test(NAME hypre_rowElim COMMAND Bilaplacian
     -A,//fem/solution-comparison-file=check/2d_test.txt
     -A,//fem/enforce-Dirichlet-method=RowElimination
     inputs/internal_hypre_rowColElim.arc)
