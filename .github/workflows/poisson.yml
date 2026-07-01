@@ -11,6 +11,10 @@ on:
       - modules/poisson/**
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+
 env:
   MODULE_DIR: 'modules/poisson'
 
@@ -23,13 +27,29 @@ env:
   OMPI_ALLOW_RUN_AS_ROOT: 1
   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
   OMPI_MCA_rmaps_base_oversubscribe: 1
+  PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
 
 jobs:
+  # Check if the self-hosted runner with tag "gpu" is available.
+  check-runner:
+    name: 'Check runner'
+    uses: 'arcaneframework/gh_actions/.github/workflows/check_runner.yml@v3'
+    secrets: inherit
+    with:
+      requested_runner_tag: 'gpu'
+      is_requested_runner_a_gpu_runner: true
+    # Output : needs.check-runner.outputs.runner_tag -> "gpu" or "ubuntu-latest" (runner github)
+    #          needs.check-runner.outputs.is_a_gpu_runner -> "true" if "gpu" is available, "false" with "ubuntu-latest"
+
   tests:
     name: 'Build and Test'
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner_tag }}
     container:
-      image: ghcr.io/arcaneframework/arcane_ubuntu-2404:gcc-14_full_check_latest
+      image: ${{ case(needs.check-runner.outputs.is_a_gpu_runner == 'true',
+        'ghcr.io/arcaneframework/arcane_ubuntu-2604:cuda_full_check_latest',
+        'ghcr.io/arcaneframework/arcane_ubuntu-2604:full_check_latest') }}
+      options: ${{ case(needs.check-runner.outputs.is_a_gpu_runner == 'true', '--runtime nvidia --gpus all', '') }}
 
     steps:
       - name: Define environment paths
@@ -39,8 +59,13 @@ jobs:
           echo "BUILD_DIR=${GITHUB_WORKSPACE}/build" >> $GITHUB_ENV
           echo "CT_RESULT_DIR=${GITHUB_WORKSPACE}/test" >> $GITHUB_ENV
 
+      - name: Configure environment
+        shell: bash
+        run: |
+          source /root/scripts/default_alternatives.sh
+
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: ${{ env.SOURCE_DIR }}
 
@@ -60,13 +85,14 @@ jobs:
       - name: Test
         shell: bash
         run: |
+          [ -f /root/scripts/config_env.sh ] && source /root/scripts/config_env.sh
           mkdir -p ${{ env.CT_RESULT_DIR }}
           ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }} -R '\[${{ env.MODULE }}\]'
 
       - name: Upload test artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: tests-${{ env.MODULE_DIR }}-artifact
+          name: tests-${{ env.MODULE }}-artifact
           path: ${{ env.CT_RESULT_DIR }}
           retention-days: 7
