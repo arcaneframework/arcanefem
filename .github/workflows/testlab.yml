@@ -11,6 +11,10 @@ on:
       - modules/testlab/**
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+
 env:
   MODULE_DIR: 'modules/testlab'
 
@@ -23,8 +27,10 @@ env:
   OMPI_ALLOW_RUN_AS_ROOT: 1
   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
   OMPI_MCA_rmaps_base_oversubscribe: 1
+  PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
 
 jobs:
+  # Check if the self-hosted runner with tag "gpu" is available.
   check-runner:
     name: 'Check runner'
     uses: 'arcaneframework/gh_actions/.github/workflows/check_runner.yml@v3'
@@ -32,6 +38,8 @@ jobs:
     with:
       requested_runner_tag: 'gpu'
       is_requested_runner_a_gpu_runner: true
+    # Output : needs.check-runner.outputs.runner_tag -> "gpu" or "ubuntu-latest" (runner github)
+    #          needs.check-runner.outputs.is_a_gpu_runner -> "true" if "gpu" is available, "false" with "ubuntu-latest"
 
   tests:
     name: 'Build and Test'
@@ -48,6 +56,11 @@ jobs:
           echo "SOURCE_DIR=${GITHUB_WORKSPACE}/src" >> $GITHUB_ENV
           echo "BUILD_DIR=${GITHUB_WORKSPACE}/build" >> $GITHUB_ENV
           echo "CT_RESULT_DIR=${GITHUB_WORKSPACE}/test" >> $GITHUB_ENV
+
+      - name: Configure environment
+        shell: bash
+        run: |
+          source /root/scripts/default_alternatives.sh
 
       - name: Checkout repo
         uses: actions/checkout@v6

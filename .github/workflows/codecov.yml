@@ -7,6 +7,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+
 env:
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"
@@ -15,13 +19,27 @@ env:
   OMPI_ALLOW_RUN_AS_ROOT: 1
   OMPI_ALLOW_RUN_AS_ROOT_CONFIRM: 1
   OMPI_MCA_rmaps_base_oversubscribe: 1
+  PRTE_MCA_rmaps_default_mapping_policy: :oversubscribe
 
 jobs:
+  # Check if the self-hosted runner with tag "gpu" is available.
+  check-runner:
+    name: 'Check runner'
+    uses: 'arcaneframework/gh_actions/.github/workflows/check_runner.yml@v3'
+    secrets: inherit
+    with:
+      requested_runner_tag: 'gpu'
+      is_requested_runner_a_gpu_runner: true
+    # Output : needs.check-runner.outputs.runner_tag -> "gpu" or "ubuntu-latest" (runner github)
+    #          needs.check-runner.outputs.is_a_gpu_runner -> "true" if "gpu" is available, "false" with "ubuntu-latest"
+
   tests:
     name: 'Build and Test'
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner_tag }}
     container:
       image: ghcr.io/arcaneframework/arcane_ubuntu-2604:full_release_latest
+      options: ${{ case(needs.check-runner.outputs.is_a_gpu_runner == 'true', '--runtime nvidia --gpus all', '') }}
 
     steps:
       # On place la source à la racine pour éviter
