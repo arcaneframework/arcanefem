@@ -39,6 +39,13 @@ startInit()
   m_petsc_flags = options()->petscFlags();
   m_hex_quad_mesh = options()->hexQuadMesh();
 
+  // Check if the mesh is a quad8 mesh by examining the number of nodes in the first cell
+  // TODO: maye a user flag
+  if (mesh()->dimension() == 2) {
+    UnstructuredMeshConnectivityView connectivity(mesh());
+    m_is_quad8_mesh = connectivity.cellNode().nbNode(CellLocalId(0)) == 8;
+  }
+
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
 }
@@ -159,6 +166,12 @@ _getMaterialParameters()
 
 void FemModulePoisson::_assembleLinearOperator()
 {
+  // Quad8 support is currently CPU-only 
+  if (m_is_quad8_mesh) {
+    _assembleLinearOperatorCpu();
+    return;
+  }
+
   if (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
       options()->linearSystem.serviceName() == "PetscLinearSystem")
     _assembleLinearOperatorGpu();
@@ -271,6 +284,9 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
+  if (m_is_quad8_mesh && m_matrix_format != "DOK")
+    ARCANE_FATAL("Quad8 Poisson assembly is currently supported on CPU with matrix-format=DOK only");
+
   if (m_matrix_format == "BSR") {
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();
@@ -321,7 +337,10 @@ _assembleBilinearOperator()
         _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
     else
       if(m_hex_quad_mesh)
-        _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+        if(m_is_quad8_mesh)
+          _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixQuad8(cell); });
+        else
+          _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
       else
         _assembleBilinear<3>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
   }

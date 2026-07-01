@@ -682,6 +682,121 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
+     * @brief Holds information for a Quad8 element at a single Gauss point.
+     *
+     * This includes the gradients of the shape functions in the physical space (x, y)
+     * and the determinant of the Jacobian matrix.
+     */
+    /*---------------------------------------------------------------------------*/
+    struct Quad8GaussPointInfo
+    {
+      RealVector<8> dN_dx; // Derivatives of shape functions in x {∂𝑁₁/∂𝑥  ∂𝑁₂/∂𝑥  ...  ∂𝑁₈/∂𝑥 }
+      RealVector<8> dN_dy; // Derivatives of shape functions in y {∂𝑁₁/∂𝑦  ∂𝑁₂/∂𝑦  ...  ∂𝑁₈/∂𝑦}
+      Real det_j; // Determinant of the Jacobian matrix at the Gauss point.
+    };
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Computes shape function gradients and the Jacobian determinant for a Quad8 element.
+     * https://www.meil.pw.edu.pl/content/download/50088/264514/file/FEM_1_9_8node_2D.pdf
+     *
+     *   3 ---- 6 ---- 2
+     *   |             |
+     *   7             5
+     *   |             |
+     *   0 ---- 4 ---- 1
+     *
+     *   Reference coordinates:
+     *  0: (-1,-1), 1: (1,-1), 2: (1,1), 3: (-1,1)
+     *  4: (0,-1),  5: (1,0),  6: (0,1), 7: (-1,0)
+     *
+     * @param cell The Quad8 (serendipity) cell entity.
+     * @param node_coord The coordinates of the mesh nodes.
+     * @param xi The ξ coordinate of the evaluation point (-1 to 1).
+     * @param eta The η coordinate of the evaluation point (-1 to 1).
+     * @return A Quad8GaussPointInfo struct containing {∂𝐍/∂𝑥, ∂𝐍/∂𝑦, det(𝑱)}.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline Quad8GaussPointInfo
+    computeGradientsAndJacobianQuad8(Cell cell, const VariableNodeReal3& node_coord, Real xi, Real eta)
+    {
+      // Shape function derivatives ∂𝐍/∂ξ and ∂𝐍/∂η
+      //     ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ...  ∂𝑁₈/∂ξ ]
+      const Real dN_dxi[8] = {
+        0.25 * (1.0 - eta) * (2.0 * xi + eta),
+        0.25 * (1.0 - eta) * (2.0 * xi - eta),
+        0.25 * (1.0 + eta) * (2.0 * xi + eta),
+        0.25 * (1.0 + eta) * (2.0 * xi - eta),
+        -xi * (1.0 - eta),
+        0.5 * (1.0 - eta * eta),
+        -xi * (1.0 + eta),
+        -0.5 * (1.0 - eta * eta)
+      };
+
+      //     ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ...  ∂𝑁₈/∂η ]
+      const Real dN_deta[8] = {
+        0.25 * (1.0 - xi) * (xi + 2.0 * eta),
+        0.25 * (1.0 + xi) * (-xi + 2.0 * eta),
+        0.25 * (1.0 + xi) * (xi + 2.0 * eta),
+        0.25 * (1.0 - xi) * (-xi + 2.0 * eta),
+        -0.5 * (1.0 - xi * xi),
+        -eta * (1.0 + xi),
+        0.5 * (1.0 - xi * xi),
+        -eta * (1.0 - xi)
+      };
+
+      // Jacobian calculation 𝑱
+      //    𝑱 = [ 𝒋₀₀  𝒋₀₁ ] = [ ∂𝑥/∂ξ  ∂𝑦/∂ξ ]
+      //        [ 𝒋₁₀  𝒋₁₁ ]   [ ∂𝑥/∂η  ∂𝑦/∂η ]
+      //
+      // The Jacobian is computed as follows:
+      //   𝒋₀₀ = ∑ (∂𝑁ᵢ/∂ξ * 𝑥ᵢ) ∀ 𝑖= 1,……,8
+      //   𝒋₀₁ = ∑ (∂𝑁ᵢ/∂ξ * 𝑦ᵢ) ∀ 𝑖= 1,……,8
+      //   𝒋₁₀ = ∑ (∂𝑁ᵢ/∂η * 𝑦ᵢ) ∀ 𝑖= 1,……,8
+      //   𝒋₁₁ = ∑ (∂𝑁ᵢ/∂η * 𝑥ᵢ) ∀ 𝑖= 1,……,8
+      Real2x2 J;
+      J[0][0] = 0.0;
+      J[0][1] = 0.0;
+      J[1][0] = 0.0;
+      J[1][1] = 0.0;
+
+      for (Int8 a = 0; a < 8; ++a) {
+        const auto& coord = node_coord[cell.nodeId(a)];
+        J[0][0] += dN_dxi[a] * coord.x;
+        J[0][1] += dN_dxi[a] * coord.y;
+        J[1][0] += dN_deta[a] * coord.x;
+        J[1][1] += dN_deta[a] * coord.y;
+      }
+
+      const Real detJ = J[0][0] * J[1][1] - J[0][1] * J[1][0];
+
+      if (detJ <= 0.0) {
+        ARCANE_FATAL("Invalid (non-positive) Jacobian determinant: {0}", detJ);
+      }
+
+      // Inverse of J
+      const Real invJ00 = J[1][1] / detJ;
+      const Real invJ01 = -J[0][1] / detJ;
+      const Real invJ10 = -J[1][0] / detJ;
+      const Real invJ11 = J[0][0] / detJ;
+
+      //   Gradients in physical space (∂𝐍/∂𝑥, ∂𝐍/∂𝑦)
+      //    {∂𝐍/∂𝑥} = [J]⁻¹ {∂𝐍/∂ξ}
+      //    {∂𝐍/∂𝑦}         {∂𝐍/∂η}
+      RealVector<8> dN_dx_result;
+      RealVector<8> dN_dy_result;
+
+      for (Int8 a = 0; a < 8; ++a) {
+        dN_dx_result(a) = invJ00 * dN_dxi[a] + invJ01 * dN_deta[a];
+        dN_dy_result(a) = invJ10 * dN_dxi[a] + invJ11 * dN_deta[a];
+      }
+
+      return { dN_dx_result, dN_dy_result, detJ };
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
      * @brief Holds information for a Quad4 element at a single Gauss point.
      *
      * This includes the gradients of the shape functions in the physical space (x, y)
@@ -710,7 +825,7 @@ class ArcaneFemFunctions
     computeGradientsAndJacobianQuad4(Cell cell, const VariableNodeReal3& node_coord, Real xi, Real eta)
     {
       // Shape function derivatives ∂𝐍/∂ξ and ∂𝐍/∂η
-      //     ∂𝐍/∂ξ = [ ∂C₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ ]
+      //     ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ ]
       //     ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ∂𝑁₃/∂η  ∂𝑁₄/∂η ]
       const Real dN_dxi[4] = { -0.25 * (1 - eta), 0.25 * (1 - eta), 0.25 * (1 + eta), -0.25 * (1 + eta) };
       const Real dN_deta[4] = { -0.25 * (1 - xi), -0.25 * (1 + xi), 0.25 * (1 + xi), 0.25 * (1 - xi) };
@@ -1527,8 +1642,11 @@ class ArcaneFemFunctions
       if (mesh->dimension() == 2 && nb_nodes == 3) { // Triangular mesh
         ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhsTria3(qdot, mesh, node_dof, node_coord, rhs_values);
       }
-      else if (mesh->dimension() == 2 && nb_nodes == 4) { // Quadrilateral mesh
+      else if (mesh->dimension() == 2 && nb_nodes == 4) { // Quadrilateral mesh Quad4
         ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhsQuad4(qdot, mesh, node_dof, node_coord, rhs_values);
+      }
+      else if (mesh->dimension() == 2 && nb_nodes == 8) { // Quadrilateral mesh Quad8
+        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhsQuad8(qdot, mesh, node_dof, node_coord, rhs_values);
       }
       else if (mesh->dimension() == 3 && nb_nodes == 4) { // Tetrahedral mesh
         ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhsTetra4(qdot, mesh, node_dof, node_coord, rhs_values);
@@ -2522,6 +2640,100 @@ class ArcaneFemFunctions
 
             // Assemble RHS
             for (Int32 i = 0; i < 4; ++i) {
+              Node node = cell.node(i);
+              if (node.isOwn()) {
+                rhs_values[node_dof.dofId(node, 0)] += N[i] * qdot * integration_weight;
+              }
+            }
+          }
+        }
+      }
+    }
+
+  static inline void applyConstantSourceToRhsQuad8(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      ENUMERATE_ (Cell, icell, mesh->allCells()) {
+        Cell cell = *icell;
+
+        // 3-point Gauss rule per direction (needed for exact integration of quadratic Quad8 shape functions)
+        constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 }; // [-sqrt(5/9) , 0 , sqrt(5/9)]
+        constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+        for (Int32 ixi = 0; ixi < 3; ++ixi) {
+          for (Int32 ieta = 0; ieta < 3; ++ieta) {
+
+            // Get the coordinates of the Gauss point
+            Real xi = gp[ixi]; // Get the ξ coordinate of the Gauss point
+            Real eta = gp[ieta]; // Get the η coordinate of the Gauss point
+            Real weight = weights[ixi] * weights[ieta];
+
+            // Shape functions 𝐍 for Quad8 (serendipity)
+            //   𝐍 = [𝑁₁  𝑁₂  𝑁₃  𝑁₄  𝑁₅  𝑁₆  𝑁₇  𝑁₈]
+            //   𝑁₁ = 1/4 * (1-ξ)(1-η)(-ξ-η-1)     𝑁₅ = 1/2 * (1-ξ²)(1-η)
+            //   𝑁₂ = 1/4 * (1+ξ)(1-η)( ξ-η-1)     𝑁₆ = 1/2 * (1+ξ)(1-η²)
+            //   𝑁₃ = 1/4 * (1+ξ)(1+η)( ξ+η-1)     𝑁₇ = 1/2 * (1-ξ²)(1+η)
+            //   𝑁₄ = 1/4 * (1-ξ)(1+η)(-ξ+η-1)     𝑁₈ = 1/2 * (1-ξ)(1-η²)
+            Real N[8];
+            N[0] = 0.25 * (1 - xi) * (1 - eta) * (-xi - eta - 1);
+            N[1] = 0.25 * (1 + xi) * (1 - eta) * (xi - eta - 1);
+            N[2] = 0.25 * (1 + xi) * (1 + eta) * (xi + eta - 1);
+            N[3] = 0.25 * (1 - xi) * (1 + eta) * (-xi + eta - 1);
+            N[4] = 0.5 * (1 - xi * xi) * (1 - eta);
+            N[5] = 0.5 * (1 + xi) * (1 - eta * eta);
+            N[6] = 0.5 * (1 - xi * xi) * (1 + eta);
+            N[7] = 0.5 * (1 - xi) * (1 - eta * eta);
+
+            // Shape function derivatives ∂𝐍/∂ξ and ∂𝐍/∂η
+            //     ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ  ∂𝑁₅/∂ξ  ∂𝑁₆/∂ξ  ∂𝑁₇/∂ξ  ∂𝑁₈/∂ξ ]
+            //     ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ∂𝑁₃/∂η  ∂𝑁₄/∂η  ∂𝑁₅/∂η  ∂𝑁₆/∂η  ∂𝑁₇/∂η  ∂𝑁₈/∂η ]
+            Real dN_dxi[8] = {
+              0.25 * (1 - eta) * (2 * xi + eta),
+              0.25 * (1 - eta) * (2 * xi - eta),
+              0.25 * (1 + eta) * (2 * xi + eta),
+              0.25 * (1 + eta) * (2 * xi - eta),
+              -xi * (1 - eta),
+              0.5 * (1 - eta * eta),
+              -xi * (1 + eta),
+              -0.5 * (1 - eta * eta)
+            };
+
+            Real dN_deta[8] = {
+              0.25 * (1 - xi) * (2 * eta + xi),
+              0.25 * (1 + xi) * (2 * eta - xi),
+              0.25 * (1 + xi) * (2 * eta + xi),
+              0.25 * (1 - xi) * (2 * eta - xi),
+              -0.5 * (1 - xi * xi),
+              -eta * (1 + xi),
+              0.5 * (1 - xi * xi),
+              -eta * (1 - xi)
+            };
+
+            // Jacobian calculation 𝑱
+            //    𝑱 = [ 𝒋₀₀  𝒋₀₁ ] = [ ∂𝑥/∂ξ  ∂𝑦/∂ξ ]
+            //        [ 𝒋₁₀  𝒋₁₁ ]   [ ∂𝑥/∂η  ∂𝑦/∂η ]
+            //
+            // The Jacobian is computed as follows:
+            //   𝒋₀₀ = ∑ (∂𝑁ᵢ/∂ξ * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,𝟖
+            //   𝒋₀₁ = ∑ (∂𝑁ᵢ/∂ξ * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,𝟖
+            //   𝒋₁₀ = ∑ (∂𝑁ᵢ/∂η * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,𝟖
+            //   𝒋₁₁ = ∑ (∂𝑁ᵢ/∂η * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,𝟖
+
+            Real J00 = 0, J01 = 0, J10 = 0, J11 = 0;
+            for (Int8 a = 0; a < 8; ++a) {
+              J00 += dN_dxi[a] * node_coord[cell.nodeId(a)].x;
+              J01 += dN_dxi[a] * node_coord[cell.nodeId(a)].y;
+              J10 += dN_deta[a] * node_coord[cell.nodeId(a)].x;
+              J11 += dN_deta[a] * node_coord[cell.nodeId(a)].y;
+            }
+
+            // Determinant of the Jacobian
+            Real detJ = J00 * J11 - J01 * J10;
+
+            // Compute integration weight
+            Real integration_weight = weight * detJ;
+
+            // Assemble RHS
+            for (Int32 i = 0; i < 8; ++i) {
               Node node = cell.node(i);
               if (node.isOwn()) {
                 rhs_values[node_dof.dofId(node, 0)] += N[i] * qdot * integration_weight;
