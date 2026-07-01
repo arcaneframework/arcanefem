@@ -83,6 +83,7 @@ jobs:
       - name: Test
         shell: bash
         run: |
+          [ -f /root/scripts/config_env.sh ] && source /root/scripts/config_env.sh
           mkdir -p ${{ env.CT_RESULT_DIR }}
           ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }} -R '\[${{ env.MODULE }}\]'
 
@@ -90,6 +91,6 @@ jobs:
         uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: tests-${{ env.MODULE_DIR }}-artifact
+          name: tests-${{ env.MODULE }}-artifact
           path: ${{ env.CT_RESULT_DIR }}
           retention-days: 7

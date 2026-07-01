@@ -80,6 +80,7 @@ jobs:
       - name: Test
         shell: bash
         run: |
+          [ -f /root/scripts/config_env.sh ] && source /root/scripts/config_env.sh
           mkdir -p ${{ env.CT_RESULT_DIR }}
           ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }}
 
