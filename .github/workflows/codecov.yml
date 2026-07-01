@@ -77,6 +77,29 @@ jobs:
           mkdir -p ${{ env.CT_RESULT_DIR }}
           ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }}
 
+      # https://www.ibm.com/docs/en/developer-for-zos/9.1.1?topic=formats-junit-xml-format
+      - name: Edit results.xml for Codecov (need valid JUnit XML)
+        shell: bash
+        run: |
+          RESULT_ORI=${{ env.CT_RESULT_DIR }}/results.xml
+          RESULT_TMP=${{ env.CT_RESULT_DIR }}/results_ori.xml
+          mv $RESULT_ORI $RESULT_TMP
+          sed -e '/<testcase.*>/,/<\/testcase>/d' -e 's:</testsuite>::' -e 's/(empty)/CTest ArcaneFem/' -e 's/hostname=""/hostname="GHA"/' $RESULT_TMP > $RESULT_ORI
+          sed -n '/<testcase.*status="fail">/,/<\/testcase>/p' $RESULT_TMP | sed -e 's:<failure message="".*/>::M' -e 's/<system-out>/<failure message="Logs Arcane:">\n/M' -e 's:</system-out>:</failure>:M' >> $RESULT_ORI
+          sed -n '/<testcase.*status="run">/,/<\/testcase>/p' $RESULT_TMP >> $RESULT_ORI
+          echo '</testsuite>' >> $RESULT_ORI
+          rm $RESULT_TMP
+
+      - name: Upload test results to Codecov
+        uses: codecov/codecov-action@v7
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          verbose: true
+          fail_ci_if_error: true
+          files: ${{ env.CT_RESULT_DIR }}/results.xml
+          report_type: test_results
+
       - name: Apply coverage
         shell: bash
         continue-on-error: true
