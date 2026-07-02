@@ -79,7 +79,11 @@ jobs:
         run: |
           [ -f /root/scripts/config_env.sh ] && source /root/scripts/config_env.sh
           mkdir -p ${{ env.CT_RESULT_DIR }}
-          ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }}
+          ctest \
+            --test-dir ${{ env.BUILD_DIR }} \
+            --output-junit ${{ env.CT_RESULT_DIR }}/results.xml \
+            ${{ case(needs.check-runner.outputs.runner_tag == 'ubuntu-latest', '-j4', '-j32 --test-load 192') }} \
+            ${{ env.CT_OPTS }}
 
       - name: Upload test artifact
         uses: actions/upload-artifact@v7

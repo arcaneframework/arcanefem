@@ -78,7 +78,11 @@ jobs:
         run: |
           [ -f /root/scripts/config_env.sh ] && source /root/scripts/config_env.sh
           mkdir -p ${{ env.CT_RESULT_DIR }}
-          ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }}
+          ctest \
+            --test-dir ${{ env.BUILD_DIR }} \
+            --output-junit ${{ env.CT_RESULT_DIR }}/results.xml \
+            ${{ case(needs.check-runner.outputs.runner_tag == 'ubuntu-latest', '-j4', '-j32 --test-load 192') }} \
+            ${{ env.CT_OPTS }}
 
       # https://www.ibm.com/docs/en/developer-for-zos/9.1.1?topic=formats-junit-xml-format
       - name: Edit results.xml for Codecov (need valid JUnit XML)
