@@ -14,6 +14,8 @@ concurrency:
 env:
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"
+  # For now, PETSC in the U26 images doesn't work with CUDA.
+  EXCLUDED_TESTS: '^.*petsc.*cuda$'
 
   # MPI
   OMPI_ALLOW_RUN_AS_ROOT: 1
@@ -53,6 +55,11 @@ jobs:
           echo "BUILD_DIR=${GITHUB_WORKSPACE}/build" >> $GITHUB_ENV
           echo "CT_RESULT_DIR=${GITHUB_WORKSPACE}/test" >> $GITHUB_ENV
 
+      - name: Configure environment
+        shell: bash
+        run: |
+          source /root/scripts/default_alternatives.sh
+
       - name: Checkout repo
         uses: actions/checkout@v6
         with:
@@ -66,6 +73,7 @@ jobs:
           -B ${{ env.BUILD_DIR }} \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_CXX_FLAGS_RELEASE="-O2 -g --coverage -fprofile-abs-path -ftest-coverage" \
+          ${{ case(needs.check-runner.outputs.is_a_gpu_runner == 'true', '-DCMAKE_CUDA_ARCHITECTURES=89', '') }} \
           -GNinja
 
       - name: Build
@@ -82,6 +90,7 @@ jobs:
             --test-dir ${{ env.BUILD_DIR }} \
             --output-junit ${{ env.CT_RESULT_DIR }}/results.xml \
             ${{ case(needs.check-runner.outputs.runner_tag == 'ubuntu-latest', '-j4', '-j32 --test-load 192') }} \
+            -E '${{ env.EXCLUDED_TESTS }}' \
             ${{ env.CT_OPTS }}
 
       # https://www.ibm.com/docs/en/developer-for-zos/9.1.1?topic=formats-junit-xml-format
@@ -133,3 +142,11 @@ jobs:
           name: test-all-modules-artifact
           path: ${{ env.CT_RESULT_DIR }}
           retention-days: 7
+
+      - name: Clear dirs
+        if: always()
+        shell: bash
+        run: |
+          rm -fr ${{ env.SOURCE_DIR }} \
+            ${{ env.BUILD_DIR }} \
+            ${{ env.CT_RESULT_DIR }}
