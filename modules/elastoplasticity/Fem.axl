@@ -73,13 +73,16 @@
     <simple name="nonlinear-law" type="bool" default="false" optional="true">
       <description>Boolean to enable solving as nonlinear problem</description>
     </simple>
+    <simple name="check-bilinear-operator-for-residual" type="bool" default="false" optional="true">
+      <description>Boolean to enable verfification of RHS residual with that evaluated using the bilinear operator</description>
+    </simple>
     <simple name="gp-material-tensor-strategy" type="string" default="local" optional="true">
       <description>Which material tensor assembly format to use local|global.</description>
     </simple>
     <simple name="newton-rtol" type ="real" default="1e-8" optional="true">
       <description>Relative tolerance for convergence of Newton iterations</description>
     </simple>
-    <simple name="newton-atol" type ="real" default="1e-12" optional="true">
+    <simple name="newton-atol" type ="real" default="1e-9" optional="true">
       <description>Absolute tolerance for convergence of Newton iterations</description>
     </simple>
     <simple name="newton-max-iters" type="integer" default="30" optional="true">

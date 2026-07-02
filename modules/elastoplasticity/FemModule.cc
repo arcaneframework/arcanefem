@@ -55,6 +55,7 @@ startInit()
   m_newton_rtol = options()->newtonRtol();
 
   m_gp_material_tensor_strategy = options()->gpMaterialTensorStrategy();
+  m_check_bilinear_operator_for_residual = options()->checkBilinearOperatorForResidual();
 
   if (m_gp_material_tensor_strategy == "global") {
     if (mesh()->dimension() == 2) {
@@ -255,11 +256,12 @@ _solveNewton()
       _updateNewtonIncrements();
     }
 
-    ++m_newton_iter;
     _checkNewtonConvergence();
 
-    // m_U.add(m_dU);
+    // m_U += m_dU
     _incrementVariables();
+
+    ++m_newton_iter;
 
     if (m_newton_solver_converged) {
       info() << "[ArcaneFem-Info] Newton solver converged after " << m_newton_iter << " iterations.";
@@ -415,16 +417,21 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-
-
   _applyBodyForce(rhs_values, node_dof);
   _applyTraction(rhs_values, node_dof);
+
   if (m_nonlinear_law) {
+    m_evaluate_residual_with_increment = false;
     _applyResidualRHS(rhs_values, node_dof);
-    _applyDirichletNewton(rhs_values, node_dof);
+    if (m_newton_iter == 0) {
+      _applyDirichlet(rhs_values, node_dof);
+    } else {
+      _applyDirichletNewton(rhs_values, node_dof);
+    }
   } else {
     _applyDirichlet(rhs_values, node_dof);
   }
+
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-vector-assembly", elapsedTime);
@@ -745,8 +752,6 @@ _incrementVariables()
   }
   m_U.synchronize();
 
-  IParallelMng* pm = defaultMesh()->parallelMng();
-
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "increment-fem-variables", elapsedTime);
 }
@@ -787,21 +792,38 @@ _checkNewtonConvergence()
   l2_norm_du = math::sqrt(l2_norm_du);
   l2_norm_u = math::sqrt(l2_norm_u);
 
-  convergence_norm = l2_norm_du / (m_newton_rtol * l2_norm_u  + m_newton_atol);
+  increment_norm = l2_norm_u != 0.0 ? l2_norm_du / l2_norm_u : 1.0;
+  Real convergence_error_increment = l2_norm_du / (m_newton_rtol * l2_norm_u  + m_newton_atol);
 
-  if ( convergence_norm <= 1.0){
-    VariableDoFReal& rhs_values(m_linear_system.rhsVariable()); // Temporary variable to keep values for the RHS
-    rhs_values.fill(0.0);
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    _applyResidualRHS(rhs_values, node_dof, true);
-    info() << "[ArcaneFem-Info] At newton iteration "<< m_newton_iter <<": rel. conv. norm = " << convergence_norm << " and residual norm = " << rhs_norm;
-    m_newton_solver_converged = true;
-  } else {
-    m_newton_solver_converged = false;
-    info() << "[ArcaneFem-Info] At newton iteration "<< m_newton_iter <<": rel. conv. norm = " << convergence_norm;
+  VariableDoFReal& residual_values(m_linear_system.rhsVariable());
+  residual_values.fill(0.0);
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
+  m_evaluate_residual_with_increment = true;
+  _applyResidualRHS(residual_values, node_dof);
+
+  Real l2_norm_rhs = 0.0;
+  {
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Real norm_residual = 0.0;
+      if (mesh()->dimension() == 2) {
+        norm_residual =  math::pow(residual_values[node_dof.dofId(inode, 0)], 2.0)
+                  + math::pow(residual_values[node_dof.dofId(inode, 1)], 2.0);
+      } else {
+        norm_residual =  math::pow(residual_values[node_dof.dofId(inode, 0)], 2.0)
+                  + math::pow(residual_values[node_dof.dofId(inode, 1)], 2.0)
+                  + math::pow(residual_values[node_dof.dofId(inode, 2)], 2.0);
+      }
+      l2_norm_rhs += norm_residual;
+    }
   }
+  l2_norm_rhs = pm->reduce(Parallel::ReduceSum, l2_norm_rhs);
+  residual_norm = math::sqrt(l2_norm_rhs);
 
+  // The OR criterion follows petsc SNES
+  m_newton_solver_converged = (convergence_error_increment <= 1.0 || (m_newton_iter + 1 > 0 && residual_norm <= m_newton_atol));
+
+  info() << "[ArcaneFem-Info] At newton iteration "<< m_newton_iter + 1 <<": ||X_k+1 - X_k||/||X_k|| = " << increment_norm << " and ||F(dX_k)|| = " << residual_norm << " => " << (m_newton_solver_converged ? "CONVERGED" : "NOT CONVERGED");
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "check-newton-convergence", elapsedTime);

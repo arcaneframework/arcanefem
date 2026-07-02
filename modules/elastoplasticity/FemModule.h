@@ -95,8 +95,8 @@ class FemModuleElastoplasticity
   Real lambda;
   Real m_newton_atol;
   Real m_newton_rtol;
-  Real rhs_norm=0.0;
-  Real convergence_norm=0.0;
+  Real residual_norm = 0.0;
+  Real increment_norm = 0.0;
 
   Real3 f;
   Real3 t;
@@ -123,6 +123,8 @@ class FemModuleElastoplasticity
 
   bool m_nonlinear_law = false;
   bool m_newton_solver_converged = false;
+  bool m_evaluate_residual_with_increment = false;
+  bool m_check_bilinear_operator_for_residual = false;
 
   void _getMaterialParameters();
   void _solveLinear();
@@ -142,8 +144,8 @@ class FemModuleElastoplasticity
   inline void _applyDirichlet(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyDirichletNewton(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
 
-  inline void _applyResidualRHS(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof, bool eval_norm = false);
-  inline void _applyResidualRHSTria3(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyResidualRHS(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyResidualRHSTria3Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyResidualRHSQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyResidualRHSTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyResidualRHSHexa8(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
@@ -155,6 +157,9 @@ class FemModuleElastoplasticity
 
   template <int N>
   void _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
+
+  inline Real _getL2NormFEM(const VariableNodeReal& u);
+  inline Real _getL2NormFEM(const VariableNodeReal3& u);
 };
 
 #endif
