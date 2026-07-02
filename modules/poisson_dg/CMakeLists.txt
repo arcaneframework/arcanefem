@@ -43,67 +43,92 @@ endforeach()
 
 
 enable_testing()
+set(MODULE_NAME "Poisson_dg")
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
-  add_test(NAME [Poisson_dg]circle_homogenous_tria COMMAND Poisson_dg
-    -A,//fem/solution-comparison-file=check/circle_homogenous_tria.txt
-    inputs/circle.2D.arc)
-
-  add_test(NAME [Poisson_dg]circle_homogenous_tria_petsc COMMAND Poisson_dg
-    -A,//fem/solution-comparison-file=check/circle_homogenous_tria.txt
-    -A,//fem/matrix-format=CSR
-    -A,//fem/linear-system/@name=PetscLinearSystem
-    inputs/circle.2D.arc)
-
-  add_test(NAME [Poisson_dg]circle_neumann_tria COMMAND Poisson_dg
-    -A,//fem/solution-comparison-file=check/circle.2D.neumann.txt
-    inputs/circle.2D.neumann.arc)
-
-  add_test(NAME [Poisson_dg]circle_homogenous_quad_tria COMMAND Poisson_dg
-    -A,//meshes/mesh/filename=meshes/circle_cut.quad-tria.msh
-    inputs/circle.2D.arc)
-
-    add_test(NAME [Poisson_dg]circle_neumann_tria_petsc COMMAND Poisson_dg
-    -A,//fem/matrix-format=CSR
-    -A,//fem/linear-system/@name=PetscLinearSystem
-    -A,//fem/solution-comparison-file=check/circle.2D.neumann.txt
-    inputs/circle.2D.neumann.arc)
-  
-  if(MEDFile_FOUND)
-    message(STATUS "MEDFile found: ${MEDFile_FOUND}")
-    add_test(NAME [Poisson_dg]circle_homogenous_tria_med COMMAND Poisson_dg
-      -A,//meshes/mesh/filename=meshes/circle_cut-tria.med
+  arcanefem_add_seq_test(NAME circle_homogenous_tria
+    COMMAND ./Poisson_dg
+    ARGS
       -A,//fem/solution-comparison-file=check/circle_homogenous_tria.txt
       inputs/circle.2D.arc)
-    add_test(NAME [Poisson_dg]circle_homogenous_tria_med_petsc COMMAND Poisson_dg
-      -A,//meshes/mesh/filename=meshes/circle_cut-tria.med
+
+  arcanefem_add_seq_test(NAME circle_homogenous_tria_petsc
+    COMMAND ./Poisson_dg
+    ARGS
       -A,//fem/solution-comparison-file=check/circle_homogenous_tria.txt
       -A,//fem/matrix-format=CSR
       -A,//fem/linear-system/@name=PetscLinearSystem
       inputs/circle.2D.arc)
-    add_test(NAME [Poisson_dg]circle_homogenous_quad_tria_med COMMAND Poisson_dg
-      -A,//fem/solution-comparison-file=check/circle_homogenous_quad_tria.txt
-      -A,//meshes/mesh/filename=meshes/circle_cut-quad-tria.med
+
+  arcanefem_add_seq_test(NAME circle_neumann_tria
+    COMMAND ./Poisson_dg
+    ARGS
+      -A,//fem/solution-comparison-file=check/circle.2D.neumann.txt
+      inputs/circle.2D.neumann.arc)
+
+  arcanefem_add_seq_test(NAME circle_homogenous_quad_tria
+    COMMAND ./Poisson_dg
+    ARGS
+      -A,//meshes/mesh/filename=meshes/circle_cut.quad-tria.msh
       inputs/circle.2D.arc)
-    add_test(NAME [Poisson_dg]circle_homogenous_quad_med COMMAND Poisson_dg
-      -A,//meshes/mesh/filename=meshes/circle_cut-quad.med
-      inputs/circle.2D.arc)
-    add_test(NAME [Poisson_dg]circle_homogenous_poly_med COMMAND Poisson_dg
-      -A,//meshes/mesh/filename=meshes/circle_cut-poly.med
-      inputs/circle.2D.arc)
+
+    arcanefem_add_seq_test(NAME circle_neumann_tria_petsc
+      COMMAND ./Poisson_dg
+      ARGS
+        -A,//fem/matrix-format=CSR
+        -A,//fem/linear-system/@name=PetscLinearSystem
+        -A,//fem/solution-comparison-file=check/circle.2D.neumann.txt
+        inputs/circle.2D.neumann.arc)
+  
+  if(MEDFile_FOUND)
+    message(STATUS "MEDFile found: ${MEDFile_FOUND}")
+    arcanefem_add_seq_test(NAME circle_homogenous_tria_med
+      COMMAND ./Poisson_dg
+      ARGS
+        -A,//meshes/mesh/filename=meshes/circle_cut-tria.med
+        -A,//fem/solution-comparison-file=check/circle_homogenous_tria.txt
+        inputs/circle.2D.arc)
+    arcanefem_add_seq_test(NAME circle_homogenous_tria_med_petsc
+      COMMAND ./Poisson_dg
+      ARGS
+        -A,//meshes/mesh/filename=meshes/circle_cut-tria.med
+        -A,//fem/solution-comparison-file=check/circle_homogenous_tria.txt
+        -A,//fem/matrix-format=CSR
+        -A,//fem/linear-system/@name=PetscLinearSystem
+        inputs/circle.2D.arc)
+    arcanefem_add_seq_test(NAME circle_homogenous_quad_tria_med
+      COMMAND ./Poisson_dg
+      ARGS
+        -A,//fem/solution-comparison-file=check/circle_homogenous_quad_tria.txt
+        -A,//meshes/mesh/filename=meshes/circle_cut-quad-tria.med
+        inputs/circle.2D.arc)
+    arcanefem_add_seq_test(NAME circle_homogenous_quad_med
+      COMMAND ./Poisson_dg
+      ARGS
+        -A,//meshes/mesh/filename=meshes/circle_cut-quad.med
+        inputs/circle.2D.arc)
+    arcanefem_add_seq_test(NAME circle_homogenous_poly_med
+      COMMAND ./Poisson_dg
+      ARGS
+        -A,//meshes/mesh/filename=meshes/circle_cut-poly.med
+        inputs/circle.2D.arc)
   endif()
 endif()
 
 if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-  add_test(NAME [Poisson_dg]circle_homogenous_tria_hypre COMMAND Poisson_dg
-    -A,//fem/matrix-format=CSR
-    -A,//fem/linear-system/@name=HypreLinearSystem
-    -A,//fem/solution-comparison-file=check/circle_homogenous_tria.txt
-    inputs/circle.2D.arc)
+  arcanefem_add_seq_test(NAME circle_homogenous_tria_hypre
+    COMMAND ./Poisson_dg
+    ARGS
+      -A,//fem/matrix-format=CSR
+      -A,//fem/linear-system/@name=HypreLinearSystem
+      -A,//fem/solution-comparison-file=check/circle_homogenous_tria.txt
+      inputs/circle.2D.arc)
 
-  add_test(NAME [Poisson_dg]circle_neumann_tria_hypre COMMAND Poisson_dg
-    -A,//fem/matrix-format=CSR
-    -A,//fem/solution-comparison-file=check/circle.2D.neumann.txt
-    -A,//fem/linear-system/@name=HypreLinearSystem
-    inputs/circle.2D.neumann.arc)
+  arcanefem_add_seq_test(NAME circle_neumann_tria_hypre
+    COMMAND ./Poisson_dg
+    ARGS
+      -A,//fem/matrix-format=CSR
+      -A,//fem/solution-comparison-file=check/circle.2D.neumann.txt
+      -A,//fem/linear-system/@name=HypreLinearSystem
+      inputs/circle.2D.neumann.arc)
 endif()
