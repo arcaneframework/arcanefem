@@ -113,6 +113,7 @@ class FemModulePoisson
   RealMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);
   RealMatrix<4, 4> _computeElementMatrixQuad4(Cell cell);
   RealMatrix<8, 8> _computeElementMatrixQuad8(Cell cell);
+  RealMatrix<9, 9> _computeElementMatrixQuad9(Cell cell);
   RealMatrix<8, 8> _computeElementMatrixHexa8(Cell cell);
   template <int N>
   void _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
