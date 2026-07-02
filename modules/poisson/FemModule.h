@@ -100,6 +100,8 @@ class FemModulePoisson
   bool m_cross_validation = false;
   bool m_hex_quad_mesh = false;
   bool m_is_quad8_mesh = false;
+  bool m_is_quad9_mesh = false;
+
 
   void _doStationarySolve();
   void _getMaterialParameters();
