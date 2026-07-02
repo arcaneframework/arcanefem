@@ -147,6 +147,5 @@ jobs:
         if: always()
         shell: bash
         run: |
-          rm -fr ${{ env.SOURCE_DIR }} \
-            ${{ env.BUILD_DIR }} \
+          rm -fr ${{ env.BUILD_DIR }} \
             ${{ env.CT_RESULT_DIR }}
