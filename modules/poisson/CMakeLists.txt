@@ -29,6 +29,7 @@ set(MESH_FILES
     sphere_cut.hexa.msh
     circle_cut.msh
     circle_cut.quad.msh
+    circle_cut.quad8.msh
     plancher.msh
 )
 foreach(MESH_FILE IN LISTS MESH_FILES)
@@ -51,6 +52,9 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/circle.neumann.2D.arc)
   add_test(NAME [poisson]2D_quad COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D_quad.txt
+    inputs/circle.2D.quad.arc)
+  add_test(NAME [poisson]2D_quad8 COMMAND Poisson
+    -A,//meshes/mesh/filename=meshes/circle_cut.quad8.msh
     inputs/circle.2D.quad.arc)
   add_test(NAME [poisson]2D_neumann_quad COMMAND Poisson
     -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_neumann_2D_quad.txt
