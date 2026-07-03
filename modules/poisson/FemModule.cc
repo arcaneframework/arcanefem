@@ -167,7 +167,7 @@ _getMaterialParameters()
 
 void FemModulePoisson::_assembleLinearOperator()
 {
-  // Quad8 support is currently CPU-only 
+  // Quad8 and Quad9 support is currently CPU-only 
   if (m_is_quad8_mesh || m_is_quad9_mesh) {
     _assembleLinearOperatorCpu();
     return;
@@ -343,8 +343,8 @@ _assembleBilinearOperator()
       if(m_hex_quad_mesh)
         if(m_is_quad9_mesh)
           _assembleBilinear<9>([this](const Cell& cell) { return _computeElementMatrixQuad9(cell); });
-        else(m_is_quad8_mesh)
-          _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixQuad8(cell); });
+        else if (m_is_quad8_mesh)
+         _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixQuad8(cell); });
         else
           _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
       else
