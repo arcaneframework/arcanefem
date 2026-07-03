@@ -349,6 +349,21 @@ computeGradientsAndJacobianQuad4Gpu(CellLocalId cell_lid,
   return { dN_dx_result, dN_dy_result, detJ };
 }
 
+/*-------------------------------------------------------------------------*/
+/*-------------------------------------------------------------------------*/
+ARCCORE_HOST_DEVICE inline RealVector<4> computeShapeFunctionsQuad4(Real xi, Real eta)
+{
+  RealVector<4> N;
+  N(0) = 0.25 * (1. - xi) * (1. - eta); // 𝑁₁
+  N(1) = 0.25 * (1. + xi) * (1. - eta); // 𝑁₂
+  N(2) = 0.25 * (1. + xi) * (1. + eta); // 𝑁₃
+  N(3) = 0.25 * (1. - xi) * (1. + eta); // 𝑁₄
+  return N;
+}
+
+/*-------------------------------------------------------------------------*/
+/*-------------------------------------------------------------------------*/
+
 } // namespace Arcane::FemUtils::Gpu::FeOperation2D
 
 /*---------------------------------------------------------------------------*/
@@ -627,6 +642,30 @@ computeGradientsAndJacobianHexa8Gpu(CellLocalId cell_lid,
   }
 
   return { dN_dx_result, dN_dy_result, dN_dz_result, detJ };
+}
+
+/*-------------------------------------------------------------------------*/
+/*-------------------------------------------------------------------------*/
+ARCCORE_HOST_DEVICE inline RealVector<8> computeShapeFunctionsHexa8(Real xi, Real eta, Real zeta)
+{
+  RealVector<8> N;
+  const Real one_minus_eta = 1.0 - eta;
+  const Real one_plus_eta = 1.0 + eta;
+  const Real one_minus_xi = 1.0 - xi;
+  const Real one_plus_xi = 1.0 + xi;
+  const Real one_minus_zeta = 1.0 - zeta;
+  const Real one_plus_zeta = 1.0 + zeta;
+
+  N(0) = 0.125 * one_minus_xi * one_minus_eta * one_minus_zeta; // 𝑁₁
+  N(1) = 0.125 * one_plus_xi * one_minus_eta * one_minus_zeta; // 𝑁₂
+  N(2) = 0.125 * one_plus_xi * one_plus_eta * one_minus_zeta; // 𝑁₃
+  N(3) = 0.125 * one_minus_xi * one_plus_eta * one_minus_zeta; // 𝑁₄
+  N(4) = 0.125 * one_minus_xi * one_minus_eta * one_plus_zeta; // 𝑁₅
+  N(5) = 0.125 * one_plus_xi * one_minus_eta * one_plus_zeta; // 𝑁₆
+  N(6) = 0.125 * one_plus_xi * one_plus_eta * one_plus_zeta; // 𝑁₇
+  N(7) = 0.125 * one_minus_xi * one_plus_eta * one_plus_zeta; // 𝑁₈
+
+  return N;
 }
 
 /*-------------------------------------------------------------------------*/
