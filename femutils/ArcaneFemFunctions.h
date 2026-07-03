@@ -794,7 +794,122 @@ class ArcaneFemFunctions
 
       return { dN_dx_result, dN_dy_result, detJ };
     }
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Holds information for a Quad9 element at a single Gauss point.
+     *
+     * This includes the gradients of the shape functions in the physical space (x, y)
+     * and the determinant of the Jacobian matrix.
+     */
+    /*---------------------------------------------------------------------------*/
+    struct Quad9GaussPointInfo
+    {
+      RealVector<9> dN_dx; // Derivatives of shape functions in x {∂𝑁₁/∂𝑥  ∂𝑁₂/∂𝑥  ...  ∂𝑁₉/∂𝑥 }
+      RealVector<9> dN_dy; // Derivatives of shape functions in y {∂𝑁₁/∂𝑦  ∂𝑁₂/∂𝑦  ...  ∂𝑁₉/∂𝑦}
+      Real det_j; // Determinant of the Jacobian matrix at the Gauss point.
+    };
 
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Computes shape function gradients and the Jacobian determinant for a Quad9 element.
+     * https://www.meil.pw.edu.pl/content/download/50088/264514/file/FEM_1_9_8node_2D.pdf
+     *
+     *   3 ---- 6 ---- 2
+     *   |             |
+     *   7      8      5
+     *   |             |
+     *   0 ---- 4 ---- 1
+     *
+     *   Reference coordinates:
+     *  0: (-1,-1), 1: (1,-1), 2: (1,1), 3: (-1,1)
+     *  4: (0,-1),  5: (1,0),  6: (0,1), 7: (-1,0), 8: (0,0)
+     *
+     * @param cell The Quad9 (Lagrange) cell entity.
+     * @param node_coord The coordinates of the mesh nodes.
+     * @param xi The ξ coordinate of the evaluation point (-1 to 1).
+     * @param eta The η coordinate of the evaluation point (-1 to 1).
+     * @return A Quad9GaussPointInfo struct containing {∂𝐍/∂𝑥, ∂𝐍/∂𝑦, det(𝑱)}.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline Quad9GaussPointInfo
+    computeGradientsAndJacobianQuad9(Cell cell, const VariableNodeReal3& node_coord, Real xi, Real eta)
+    {
+      // Shape function derivatives ∂𝐍/∂ξ and ∂𝐍/∂η
+      //     ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ...  ∂𝑁₉/∂ξ ]
+      const Real dN_dxi[9] = {
+        0.25 * (2.0 * xi - 1.0) * eta * (eta - 1.0),
+        0.25 * (2.0 * xi + 1.0) * eta * (eta - 1.0),
+        0.25 * (2.0 * xi + 1.0) * eta * (eta + 1.0),
+        0.25 * (2.0 * xi - 1.0) * eta * (eta + 1.0),
+        -xi * eta * (eta - 1.0),
+        0.5 * (2.0 * xi + 1.0) * (1.0 - eta * eta),
+        -xi * eta * (eta + 1.0),
+        0.5 * (2.0 * xi - 1.0) * (1.0 - eta * eta),
+        -2.0 * xi * (1.0 - eta * eta)
+      };
+
+      //     ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ...  ∂𝑁₉/∂η ]
+      const Real dN_deta[9] = {
+        0.25 * xi * (xi - 1.0) * (2.0 * eta - 1.0),
+        0.25 * xi * (xi + 1.0) * (2.0 * eta - 1.0),
+        0.25 * xi * (xi + 1.0) * (2.0 * eta + 1.0),
+        0.25 * xi * (xi - 1.0) * (2.0 * eta + 1.0),
+        0.5 * (1.0 - xi * xi) * (2.0 * eta - 1.0),
+        -eta * xi * (xi + 1.0),
+        0.5 * (1.0 - xi * xi) * (2.0 * eta + 1.0),
+        -eta * xi * (xi - 1.0),
+        -2.0 * eta * (1.0 - xi * xi)
+      };
+
+      // Jacobian calculation 𝑱
+      //    𝑱 = [ 𝒋₀₀  𝒋₀₁ ] = [ ∂𝑥/∂ξ  ∂𝑦/∂ξ ]
+      //        [ 𝒋₁₀  𝒋₁₁ ]   [ ∂𝑥/∂η  ∂𝑦/∂η ]
+      //
+      // The Jacobian is computed as follows:
+      //   𝒋₀₀ = ∑ (∂𝑁ᵢ/∂ξ * 𝑥ᵢ) ∀ 𝑖= 1,……,9
+      //   𝒋₀₁ = ∑ (∂𝑁ᵢ/∂ξ * 𝑦ᵢ) ∀ 𝑖= 1,……,9
+      //   𝒋₁₀ = ∑ (∂𝑁ᵢ/∂η * 𝑦ᵢ) ∀ 𝑖= 1,……,9
+      //   𝒋₁₁ = ∑ (∂𝑁ᵢ/∂η * 𝑥ᵢ) ∀ 𝑖= 1,……,9
+      Real2x2 J;
+      J[0][0] = 0.0;
+      J[0][1] = 0.0;
+      J[1][0] = 0.0;
+      J[1][1] = 0.0;
+
+      for (Int8 a = 0; a < 9; ++a) {
+        const auto& coord = node_coord[cell.nodeId(a)];
+        J[0][0] += dN_dxi[a] * coord.x;
+        J[0][1] += dN_dxi[a] * coord.y;
+        J[1][0] += dN_deta[a] * coord.x;
+        J[1][1] += dN_deta[a] * coord.y;
+      }
+
+      const Real detJ = J[0][0] * J[1][1] - J[0][1] * J[1][0];
+
+      if (detJ <= 0.0) {
+        ARCANE_FATAL("Invalid (non-positive) Jacobian determinant: {0}", detJ);
+      }
+
+      // Inverse of J
+      const Real invJ00 = J[1][1] / detJ;
+      const Real invJ01 = -J[0][1] / detJ;
+      const Real invJ10 = -J[1][0] / detJ;
+      const Real invJ11 = J[0][0] / detJ;
+
+      //   Gradients in physical space (∂𝐍/∂𝑥, ∂𝐍/∂𝑦)
+      //    {∂𝐍/∂𝑥} = [J]⁻¹ {∂𝐍/∂ξ}
+      //    {∂𝐍/∂𝑦}         {∂𝐍/∂η}
+      RealVector<9> dN_dx_result;
+      RealVector<9> dN_dy_result;
+
+      for (Int8 a = 0; a < 9; ++a) {
+        dN_dx_result(a) = invJ00 * dN_dxi[a] + invJ01 * dN_deta[a];
+        dN_dy_result(a) = invJ10 * dN_dxi[a] + invJ11 * dN_deta[a];
+      }
+
+      return { dN_dx_result, dN_dy_result, detJ };
+    }
     /*---------------------------------------------------------------------------*/
     /**
      * @brief Holds information for a Quad4 element at a single Gauss point.
