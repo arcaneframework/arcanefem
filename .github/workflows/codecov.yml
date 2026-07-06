@@ -71,7 +71,7 @@ jobs:
           cmake \
           -S ${{ env.SOURCE_DIR }} \
           -B ${{ env.BUILD_DIR }} \
-          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo \
           -DFEMUTILS_ENABLE_CODE_COVERAGE=ON \
           ${{ case(needs.check-runner.outputs.is_a_gpu_runner == 'true', '-DCMAKE_CUDA_ARCHITECTURES=89', '') }} \
           -GNinja
@@ -120,13 +120,15 @@ jobs:
         shell: bash
         continue-on-error: true
         run: |
-          gcov -p $(find . -name "*.gcno" -o -name "*.gcda")
+          gcov -c -b -p $(find . -name "*.gcno" -o -name "*.gcda")
 
       - name: Remove gcov files for generated axl .h
         shell: bash
         run: |
           rm -v -f *_axl.h.gcov
+          rm -v -f \#usr\#*
 
+      # Executable='true' pour contourner le lancement de gcov par l'action.
       - name: Upload coverage files to Codecov
         uses: codecov/codecov-action@v7
         env:
@@ -134,6 +136,7 @@ jobs:
         with:
           verbose: true
           fail_ci_if_error: true
+          gcov_executable: 'true'
 
       - name: Upload test artifact
         uses: actions/upload-artifact@v7
