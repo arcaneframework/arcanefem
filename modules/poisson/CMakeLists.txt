@@ -25,11 +25,12 @@ file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 # Copy the mesh files into meshes directory
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
-  sphere_cut.msh
-  sphere_cut.hexa.msh
-  circle_cut.msh
-  circle_cut.quad.msh
-  plancher.msh
+    sphere_cut.msh
+    sphere_cut.hexa.msh
+    circle_cut.msh
+    circle_cut.quad.msh
+    circle_cut.quad8.msh
+    plancher.msh
 )
 foreach (MESH_FILE IN LISTS MESH_FILES)
   file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
@@ -72,6 +73,11 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_scalar_neumann_2D_quad.txt
       -A,//fem/boundary-conditions/neumann/value=2
       inputs/circle.neumann.2D.quad.arc)
+  arcanefem_add_seq_test(NAME 2D_quad8
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/circle_cut.quad8.msh
+      inputs/circle.2D.quad.arc)
   arcanefem_add_seq_test(NAME 3D
     COMMAND ./Poisson
     ARGS
