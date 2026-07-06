@@ -1,4 +1,5 @@
 option(ENABLE_DEBUG_MATRIX "Enable Debug matrix instead of a sparse one" OFF)
+option(FEMUTILS_ENABLE_CODE_COVERAGE "Whether we use compiler option for code coverage" OFF)
 
 set(ACCELERATOR_SOURCES
   ArcaneFemFunctionsGpu.cc
@@ -111,6 +112,7 @@ endif()
 
 if (TARGET Arcane::arcane_aleph_petsc)
   set(FEMUTILS_HAS_PARALLEL_SOLVER TRUE)
+  target_compile_definitions(FemUtils PRIVATE FEMUTILS_HAS_PETSC)
   target_link_libraries(FemUtils PRIVATE Arcane::arcane_aleph_petsc)
   message(STATUS "Petsc backend is available")
   set(FEMUTILS_HAS_SOLVER_BACKEND_PETSC TRUE)
@@ -148,6 +150,16 @@ endif()
 
 if(NOT FEMUTILS_HAS_PARALLEL_SOLVER)
   message(STATUS "WARNING: No Arcane parallel solver is available. Parallel linear solver system is disabled")
+endif()
+
+if (FEMUTILS_ENABLE_CODE_COVERAGE)
+  message(STATUS "Code coverage is enabled")
+  if (CMAKE_COMPILER_IS_GNUCXX)
+    target_compile_options(FemUtils PUBLIC --coverage -fprofile-abs-path -ftest-coverage)
+    target_link_options(FemUtils PUBLIC --coverage -fprofile-abs-path -ftest-coverage)
+  else()
+    message(FATAL_ERROR "Code coverage is only enabled for GCC compiler")
+  endif()
 endif()
 
 # Add a variable in cache to check which parallel solvers are availables
