@@ -95,20 +95,16 @@ computeElementMatrixQuad4Gpu(CellLocalId cell_lid,
 
       // Get shape function gradients and determinant of Jacobian
       const auto gp_info = FemUtils::Gpu::FeOperation2D::computeGradientsAndJacobianQuad4Gpu(cell_lid, cn_cv, in_node_coord, xi, eta);
-
       const RealVector<4>& dxU = gp_info.dN_dx;
       const RealVector<4>& dyU = gp_info.dN_dy;
       const Real detJ = gp_info.det_j;
 
       // Evaluate lambda at the gauss point
       const RealVector<4> N = FemUtils::Gpu::FeOperation2D::computeShapeFunctionsQuad4(xi, eta);
-      Real uk_cell = (in_node_uk[cn_cv.nodeId(cell_lid, 0)]
-                    + in_node_uk[cn_cv.nodeId(cell_lid, 1)]
-                    + in_node_uk[cn_cv.nodeId(cell_lid, 2)]
-                    + in_node_uk[cn_cv.nodeId(cell_lid, 3)]) / 4.;
+
       Real lambda_gp = 0.0;
       for (Int8 ik = 0; ik < 4; ++ik) {
-        lambda_gp += _lambdaGpu(uk_cell, lambda_exp) * N[ik];
+        lambda_gp += _lambdaGpu(in_node_uk[cn_cv.nodeId(cell_lid, ik)], lambda_exp) * N[ik];
       }
 
       // Integration weight
@@ -146,20 +142,16 @@ computeElementVectorQuad4Gpu(CellLocalId cell_lid,
 
       // Get shape function gradients and determinant of Jacobian
       const auto gp_info = FemUtils::Gpu::FeOperation2D::computeGradientsAndJacobianQuad4Gpu(cell_lid, cn_cv, in_node_coord, xi, eta);
-
       const RealVector<4>& dxU = gp_info.dN_dx;
       const RealVector<4>& dyU = gp_info.dN_dy;
       const Real detJ = gp_info.det_j;
 
       // Evaluate lambda at the gauss point
       const RealVector<4> N = FemUtils::Gpu::FeOperation2D::computeShapeFunctionsQuad4(xi, eta);
-      Real uk_cell = (in_node_uk[cn_cv.nodeId(cell_lid, 0)]
-                    + in_node_uk[cn_cv.nodeId(cell_lid, 1)]
-                    + in_node_uk[cn_cv.nodeId(cell_lid, 2)]
-                    + in_node_uk[cn_cv.nodeId(cell_lid, 3)]) / 4.;
+
       Real lambda_gp = 0.0;
       for (Int8 ik = 0; ik < 4; ++ik) {
-        lambda_gp += _lambdaGpu(uk_cell, lambda_exp) * N[ik];
+        lambda_gp += _lambdaGpu(in_node_uk[cn_cv.nodeId(cell_lid, ik)], lambda_exp) * N[ik];
       }
 
       // Integration weight
@@ -272,18 +264,10 @@ computeElementMatrixHexa8Gpu(CellLocalId cell_lid,
 
         // Evaluate lambda at the gauss point
         const RealVector<8> N = FemUtils::Gpu::FeOperation3D::computeShapeFunctionsHexa8(xi, eta, zeta);
-        Real uk_cell = (in_node_uk[cn_cv.nodeId(cell_lid, 0)]
-                      + in_node_uk[cn_cv.nodeId(cell_lid, 1)]
-                      + in_node_uk[cn_cv.nodeId(cell_lid, 2)]
-                      + in_node_uk[cn_cv.nodeId(cell_lid, 3)]
-                      + in_node_uk[cn_cv.nodeId(cell_lid, 4)]
-                      + in_node_uk[cn_cv.nodeId(cell_lid, 5)]
-                      + in_node_uk[cn_cv.nodeId(cell_lid, 6)]
-                      + in_node_uk[cn_cv.nodeId(cell_lid, 7)]) / 8.;
 
         Real lambda_gp = 0.0;
         for (Int8 ik = 0; ik < 8; ++ik) {
-          lambda_gp += _lambdaGpu(uk_cell, lambda_exp) * N[ik];
+          lambda_gp += _lambdaGpu(in_node_uk[cn_cv.nodeId(cell_lid, ik)], lambda_exp) * N[ik];
         }
 
         // Integration weight

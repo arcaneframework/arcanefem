@@ -106,13 +106,13 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           inputs/Test.3d.nonlinear.conduction.arc)
 
   arcanefem_add_gpu_test(NAME [fouriernl]2d_nonlinear_conduction_quad_petsc_bsr COMMAND ./FourierNL ARGS
-#          -A,//fem/solution-comparison-file=check/conduction_quad.txt
+          -A,//fem/solution-comparison-file=check/conduction_quad.txt
           -A,//fem/matrix-format=BSR
           -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
           inputs/Test.nonlinear.conduction.quad.arc)
 
   arcanefem_add_gpu_test(NAME [fouriernl]2d_nonlinear_conduction_quad_petsc_af-bsr COMMAND ./FourierNL ARGS
-#          -A,//fem/solution-comparison-file=check/conduction_quad.txt
+          -A,//fem/solution-comparison-file=check/conduction_quad.txt
           -A,//fem/matrix-format=AF-BSR
           -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
           inputs/Test.nonlinear.conduction.quad.arc)
@@ -160,21 +160,21 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           -A,//fem/matrix-format=BSR
           ${SOLVER_PETSC_CG}
           -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
-#          -A,//fem/solution-comparison-file=check/conduction_quad.txt
+          -A,//fem/solution-comparison-file=check/conduction_quad.txt
           inputs/Test.nonlinear.conduction.quad.arc)
 
   arcanefem_add_gpu_test(NAME [fouriernl]2d_nonlinear_conduction_quad_petsc-direct_af-bsr COMMAND ./FourierNL ARGS
           -A,//fem/matrix-format=AF-BSR
           ${SOLVER_PETSC_CG}
           -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
-#          -A,//fem/solution-comparison-file=check/conduction_quad.txt
+          -A,//fem/solution-comparison-file=check/conduction_quad.txt
           inputs/Test.nonlinear.conduction.quad.arc)
 
   arcanefem_add_gpu_test(NAME [fouriernl]3d_nonlinear_conduction_hexa_petsc-direct_bsr COMMAND ./FourierNL ARGS
           -A,//fem/matrix-format=BSR
           ${SOLVER_PETSC_CG}
           -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
-#          -A,//fem/solution-comparison-file=check/conduction_hexa.txt
+          -A,//fem/solution-comparison-file=check/conduction_hexa.txt
           inputs/Test.3d.nonlinear.conduction.hexa.arc)
 
 
@@ -235,18 +235,18 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   arcanefem_add_gpu_test(NAME [fouriernl]2d_nonlinear_conduction_quad_hypre_bsr COMMAND ./FourierNL ARGS
           -A,//fem/matrix-format=BSR
           ${SOLVER_HYPRE_CG}
-#          -A,//fem/solution-comparison-file=check/conduction_quad.txt
+          -A,//fem/solution-comparison-file=check/conduction_quad.txt
           inputs/Test.nonlinear.conduction.quad.arc)
 
   arcanefem_add_gpu_test(NAME [fouriernl]2d_nonlinear_conduction_quad_hypre_af-bsr COMMAND ./FourierNL ARGS
           -A,//fem/matrix-format=AF-BSR
           ${SOLVER_HYPRE_CG}
-#          -A,//fem/solution-comparison-file=check/conduction_quad.txt
+          -A,//fem/solution-comparison-file=check/conduction_quad.txt
           inputs/Test.nonlinear.conduction.quad.arc)
 
   arcanefem_add_gpu_test(NAME [fouriernl]3d_nonlinear_conduction_hexa_hypre_bsr COMMAND ./FourierNL ARGS
           -A,//fem/matrix-format=BSR
           ${SOLVER_HYPRE_CG}
-#          -A,//fem/solution-comparison-file=check/conduction_hexa.txt
+          -A,//fem/solution-comparison-file=check/conduction_hexa.txt
           inputs/Test.3d.nonlinear.conduction.hexa.arc)
 endif()
