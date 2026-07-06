@@ -14,6 +14,8 @@ concurrency:
 env:
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"
+  # For now, PETSC in the U26 images doesn't work with CUDA.
+  EXCLUDED_TESTS: '^.*petsc.*cuda$'
 
   # MPI
   OMPI_ALLOW_RUN_AS_ROOT: 1
@@ -67,6 +69,7 @@ jobs:
           cmake \
           -S ${{ env.SOURCE_DIR }} \
           -B ${{ env.BUILD_DIR }} \
+          ${{ case(needs.check-runner.outputs.is_a_gpu_runner == 'true', '-DCMAKE_CUDA_ARCHITECTURES=89', '') }} \
           -GNinja
 
       - name: Build
@@ -79,7 +82,12 @@ jobs:
         run: |
           [ -f /root/scripts/config_env.sh ] && source /root/scripts/config_env.sh
           mkdir -p ${{ env.CT_RESULT_DIR }}
-          ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }}
+          ctest \
+            --test-dir ${{ env.BUILD_DIR }} \
+            --output-junit ${{ env.CT_RESULT_DIR }}/results.xml \
+            ${{ case(needs.check-runner.outputs.runner_tag == 'ubuntu-latest', '-j4', '-j32 --test-load 192') }} \
+            -E '${{ env.EXCLUDED_TESTS }}' \
+            ${{ env.CT_OPTS }}
 
       - name: Upload test artifact
         uses: actions/upload-artifact@v7
@@ -88,3 +96,11 @@ jobs:
           name: test-all-modules-artifact
           path: ${{ env.CT_RESULT_DIR }}
           retention-days: 7
+
+      - name: Clear dirs
+        if: always()
+        shell: bash
+        run: |
+          rm -fr ${{ env.SOURCE_DIR }} \
+            ${{ env.BUILD_DIR }} \
+            ${{ env.CT_RESULT_DIR }}

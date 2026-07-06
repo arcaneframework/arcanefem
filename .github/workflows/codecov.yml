@@ -14,6 +14,8 @@ concurrency:
 env:
   # CTest
   CT_OPTS: "--timeout 300 --output-on-failure"
+  # For now, PETSC in the U26 images doesn't work with CUDA.
+  EXCLUDED_TESTS: '^.*petsc.*cuda$'
 
   # MPI
   OMPI_ALLOW_RUN_AS_ROOT: 1
@@ -53,6 +55,11 @@ jobs:
           echo "BUILD_DIR=${GITHUB_WORKSPACE}/build" >> $GITHUB_ENV
           echo "CT_RESULT_DIR=${GITHUB_WORKSPACE}/test" >> $GITHUB_ENV
 
+      - name: Configure environment
+        shell: bash
+        run: |
+          source /root/scripts/default_alternatives.sh
+
       - name: Checkout repo
         uses: actions/checkout@v6
         with:
@@ -64,8 +71,9 @@ jobs:
           cmake \
           -S ${{ env.SOURCE_DIR }} \
           -B ${{ env.BUILD_DIR }} \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_CXX_FLAGS_RELEASE="-O2 -g --coverage -fprofile-abs-path -ftest-coverage" \
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+          -DFEMUTILS_ENABLE_CODE_COVERAGE=ON \
+          ${{ case(needs.check-runner.outputs.is_a_gpu_runner == 'true', '-DCMAKE_CUDA_ARCHITECTURES=89', '') }} \
           -GNinja
 
       - name: Build
@@ -78,7 +86,12 @@ jobs:
         run: |
           [ -f /root/scripts/config_env.sh ] && source /root/scripts/config_env.sh
           mkdir -p ${{ env.CT_RESULT_DIR }}
-          ctest --test-dir ${{ env.BUILD_DIR }} --output-junit ${{ env.CT_RESULT_DIR }}/results.xml ${{ env.CT_OPTS }}
+          ctest \
+            --test-dir ${{ env.BUILD_DIR }} \
+            --output-junit ${{ env.CT_RESULT_DIR }}/results.xml \
+            ${{ case(needs.check-runner.outputs.runner_tag == 'ubuntu-latest', '-j4', '-j32 --test-load 192') }} \
+            -E '${{ env.EXCLUDED_TESTS }}' \
+            ${{ env.CT_OPTS }}
 
       # https://www.ibm.com/docs/en/developer-for-zos/9.1.1?topic=formats-junit-xml-format
       - name: Edit results.xml for Codecov (need valid JUnit XML)
@@ -107,13 +120,15 @@ jobs:
         shell: bash
         continue-on-error: true
         run: |
-          gcov -p $(find . -name "*.gcno" -o -name "*.gcda")
+          gcov -c -b -p $(find . -name "*.gcno" -o -name "*.gcda")
 
       - name: Remove gcov files for generated axl .h
         shell: bash
         run: |
           rm -v -f *_axl.h.gcov
+          rm -v -f \#usr\#*
 
+      # Executable='true' pour contourner le lancement de gcov par l'action.
       - name: Upload coverage files to Codecov
         uses: codecov/codecov-action@v7
         env:
@@ -121,6 +136,7 @@ jobs:
         with:
           verbose: true
           fail_ci_if_error: true
+          gcov_executable: 'true'
 
       - name: Upload test artifact
         uses: actions/upload-artifact@v7
@@ -129,3 +145,10 @@ jobs:
           name: test-all-modules-artifact
           path: ${{ env.CT_RESULT_DIR }}
           retention-days: 7
+
+      - name: Clear dirs
+        if: always()
+        shell: bash
+        run: |
+          rm -fr ${{ env.BUILD_DIR }} \
+            ${{ env.CT_RESULT_DIR }}
