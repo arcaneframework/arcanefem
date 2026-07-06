@@ -39,6 +39,8 @@ startInit()
   m_cross_validation = options()->hasSolutionComparisonFile();
   m_petsc_flags = options()->petscFlags();
   m_hex_quad_mesh = options()->hexQuadMesh();
+  m_nlin_exp = options()->expNlin;
+
 
   m_perform_fixed_point_iters = options()->performFpIters();
   if(!m_perform_fixed_point_iters) {
@@ -330,23 +332,35 @@ _assembleBilinearOperator()
   Real elapsedTime = platform::getRealTime();
 
   if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") {
+    // if (m_perform_fixed_point_iters && m_fp_iter < 2) {
+    //   bool use_csr_in_linear_system =
+    //   options()->linearSystem.serviceName() == "HypreLinearSystem" ||
+    //   options()->linearSystem.serviceName() == "AlienLinearSystem" ||
+    //   options()->linearSystem.serviceName() == "PetscLinearSystem";
+    //   if (m_matrix_format == "BSR")
+    //     m_bsr_format.initialize(mesh(), 1, use_csr_in_linear_system, 0);
+    //   else
+    //     m_bsr_format.initialize(mesh(), 1, use_csr_in_linear_system, 1);
+    //   m_bsr_format.computeSparsity();
+    // }
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();
     auto m_queue = subDomain()->acceleratorMng()->defaultQueue();
     auto command = makeCommand(m_queue);
     auto in_node_coord = ax::viewIn(command, m_node_coord);
     auto in_node_uk    = ax::viewIn(command, m_uk);
+    auto m_nlin_exp_copy = m_nlin_exp;
 
     if (mesh()->dimension() == 2)
       if (m_matrix_format == "BSR")
-        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk); });
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk, m_nlin_exp_copy); });
       else
-        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk, node_lid); });
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk, node_lid, m_nlin_exp_copy); });
     else
       if (m_matrix_format == "BSR")
-        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk); });
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk, m_nlin_exp_copy); });
       else
-        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk, node_lid); });
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk, node_lid, m_nlin_exp_copy); });
   }
 
   if (m_matrix_format == "DOK") {

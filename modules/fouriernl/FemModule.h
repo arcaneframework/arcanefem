@@ -83,6 +83,7 @@ class FemModuleFourierNL
   Real m_qdot;
   Real ElementNodes;
   Real m_fp_tol{1e-5};
+  Real m_nlin_exp{0.};
 
   Int32 m_max_fp_iters{15}, m_fp_iter{0};
 
