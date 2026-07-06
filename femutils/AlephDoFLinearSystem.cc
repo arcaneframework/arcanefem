@@ -23,6 +23,10 @@
 #include <arcane/aleph/AlephTypesSolver.h>
 #include <arcane/aleph/Aleph.h>
 
+#ifdef FEMUTILS_HAS_PETSC
+#include <petsclog.h>
+#endif
+
 #include "FemUtils.h"
 #include "internal/DoFLinearSystemImplBase.h"
 #include "IDoFLinearSystemFactory.h"
@@ -73,6 +77,21 @@ class AlephDoFLinearSystemImpl
 
   ~AlephDoFLinearSystemImpl() override
   {
+#ifdef FEMUTILS_HAS_PETSC
+    // Aleph initializes PETSc, but currently does not call PetscFinalize().
+    // PETSc normally prints -log_view during PetscFinalize(), so explicitly
+    // process the log-view option while Aleph's PETSc communicator is valid.
+    if (m_solver_backend == eSolverBackend::Petsc) {
+      PetscBool is_initialized = PETSC_FALSE;
+      PetscBool is_finalized = PETSC_FALSE;
+
+      // Fetch PETSc initialization and finalization status
+      PetscCallAbort(PETSC_COMM_WORLD, PetscInitialized(&is_initialized));
+      PetscCallAbort(PETSC_COMM_WORLD, PetscFinalized(&is_finalized));
+      if (is_initialized && !is_finalized)
+        PetscCallAbort(PETSC_COMM_WORLD, PetscLogViewFromOptions());
+    }
+#endif
     delete m_aleph_params;
     if (m_need_destroy_matrix_and_vector){
       delete m_aleph_matrix;

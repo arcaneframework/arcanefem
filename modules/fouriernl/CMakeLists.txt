@@ -25,85 +25,114 @@ file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 # Copy the mesh files into meshes directory
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
-    unit_square.msh
-    unit_square.coarse.msh
-    unit_square.quad.msh
-    unit_cube.msh
-    unit_cube.hexa-non-cartesian.msh)
+  unit_square.msh
+  unit_square.coarse.msh
+  unit_square.quad.msh
+  unit_cube.msh
+  unit_cube.hexa-non-cartesian.msh)
 
-foreach(MESH_FILE IN LISTS MESH_FILES)
-    file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
-endforeach()
+foreach (MESH_FILE IN LISTS MESH_FILES)
+  file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
+endforeach ()
 
 enable_testing()
+set(MODULE_NAME "fouriernl")
 
-if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
-  add_test(NAME [fouriernl]2d_nonlinear_conduction COMMAND FourierNL
-          -A,//fem/solution-comparison-file=check/conduction_tria.txt
-          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
-          inputs/Test.nonlinear.conduction.arc)
-  add_test(NAME [fouriernl]2d_nonlinear_conduction_qdot_zero COMMAND FourierNL
-          -A,//fem/qdot=0.0
-          -A,//fem/solution-comparison-file=check/conduction_tria.txt
-          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
-          inputs/Test.nonlinear.conduction.arc)
-  add_test(NAME [fouriernl]2d_nonlinear_conduction_quad COMMAND FourierNL
-          -A,//fem/solution-comparison-file=check/conduction_quad.txt
-          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
-          inputs/Test.nonlinear.conduction.quad.arc)
-  add_test(NAME [fouriernl]2d_nonlinear_conduction_quad_qdot_zero COMMAND FourierNL
-          -A,//fem/qdot=0.0
-          -A,//fem/solution-comparison-file=check/conduction_quad.txt
-          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
-          inputs/Test.nonlinear.conduction.quad.arc)
-  add_test(NAME [fouriernl]2d_nonlinear_conduction_coarse COMMAND FourierNL
-          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
-          inputs/Test.nonlinear.conduction.coarse.arc)
-  add_test(NAME [fouriernl]3d_nonlinear_conduction_hexa COMMAND FourierNL
-          -A,//fem/solution-comparison-file=check/conduction_hexa.txt
-          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
-          inputs/Test.3d.nonlinear.conduction.hexa.arc)
-  add_test(NAME [fouriernl]3d_nonlinear_conduction_hexa_qdot_zero COMMAND FourierNL
-          -A,//fem/qdot=0.0
-          -A,//fem/solution-comparison-file=check/conduction_hexa.txt
-          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
-          inputs/Test.3d.nonlinear.conduction.hexa.arc)
-  add_test(NAME [fouriernl]3d_nonlinear_conduction_hexa_cartesian COMMAND FourierNL
-          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
-          inputs/Test.3d.nonlinear.conduction.hexa.cartesian.arc)
-  add_test(NAME [fouriernl]3d_nonlinear_conduction COMMAND FourierNL
-          -A,//fem/solution-comparison-file=check/conduction_tetra.txt
-          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
-          inputs/Test.3d.nonlinear.conduction.arc)
-  add_test(NAME [fouriernl]3d_nonlinear_conduction_qdot_zero  COMMAND FourierNL
-          -A,//fem/qdot=0.0
-          -A,//fem/solution-comparison-file=check/conduction_tetra.txt
-          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
-          inputs/Test.3d.nonlinear.conduction.arc)
+if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
+  arcanefem_add_seq_test(NAME 2d_nonlinear_conduction
+    COMMAND ./FourierNL
+    ARGS
+      -A,//fem/solution-comparison-file=check/conduction_tria.txt
+      -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+      inputs/Test.nonlinear.conduction.arc)
+  arcanefem_add_seq_test(NAME 2d_nonlinear_conduction_qdot_zero
+    COMMAND ./FourierNL
+    ARGS
+      -A,//fem/qdot=0.0
+      -A,//fem/solution-comparison-file=check/conduction_tria.txt
+      -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+      inputs/Test.nonlinear.conduction.arc)
+  arcanefem_add_seq_test(NAME 2d_nonlinear_conduction_quad
+    COMMAND ./FourierNL
+    ARGS
+      -A,//fem/solution-comparison-file=check/conduction_quad.txt
+      -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+      inputs/Test.nonlinear.conduction.quad.arc)
+  arcanefem_add_seq_test(NAME 2d_nonlinear_conduction_quad_qdot_zero
+    COMMAND ./FourierNL
+    ARGS
+      -A,//fem/qdot=0.0
+      -A,//fem/solution-comparison-file=check/conduction_quad.txt
+      -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+      inputs/Test.nonlinear.conduction.quad.arc)
+  arcanefem_add_seq_test(NAME 2d_nonlinear_conduction_coarse
+    COMMAND ./FourierNL
+    ARGS
+      -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+      inputs/Test.nonlinear.conduction.coarse.arc)
+  arcanefem_add_seq_test(NAME 3d_nonlinear_conduction_hexa
+    COMMAND ./FourierNL
+    ARGS
+      -A,//fem/solution-comparison-file=check/conduction_hexa.txt
+      -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+      inputs/Test.3d.nonlinear.conduction.hexa.arc)
+  arcanefem_add_seq_test(NAME 3d_nonlinear_conduction_hexa_qdot_zero
+    COMMAND ./FourierNL
+    ARGS
+      -A,//fem/qdot=0.0
+      -A,//fem/solution-comparison-file=check/conduction_hexa.txt
+      -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+      inputs/Test.3d.nonlinear.conduction.hexa.arc)
+  arcanefem_add_seq_test(NAME 3d_nonlinear_conduction_hexa_cartesian
+    COMMAND ./FourierNL
+    ARGS
+      -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+      inputs/Test.3d.nonlinear.conduction.hexa.cartesian.arc)
+  arcanefem_add_seq_test(NAME 3d_nonlinear_conduction
+    COMMAND ./FourierNL
+    ARGS
+      -A,//fem/solution-comparison-file=check/conduction_tetra.txt
+      -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+      inputs/Test.3d.nonlinear.conduction.arc)
+  arcanefem_add_seq_test(NAME 3d_nonlinear_conduction_qdot_zero
+    COMMAND ./FourierNL
+    ARGS
+      -A,//fem/qdot=0.0
+      -A,//fem/solution-comparison-file=check/conduction_tetra.txt
+      -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+      inputs/Test.3d.nonlinear.conduction.arc)
 
-  arcanefem_add_gpu_test(NAME [fouriernl]2d_conduction_petsc_bsr COMMAND ./FourierNL ARGS
-          -A,//fem/solution-comparison-file=check/conduction_tria.txt
-          -A,//fem/matrix-format=BSR
-          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
-          inputs/Test.nonlinear.conduction.arc)
+  arcanefem_add_full_test(NAME 2d_conduction_petsc_bsr
+    COMMAND ./FourierNL
+    ARGS
+      -A,//fem/solution-comparison-file=check/conduction_tria.txt
+      -A,//fem/matrix-format=BSR
+      -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+      inputs/Test.nonlinear.conduction.arc)
 
-  arcanefem_add_gpu_test(NAME [fouriernl]2d_conduction_petsc_af-bsr COMMAND ./FourierNL ARGS
-          -A,//fem/solution-comparison-file=check/conduction_tria.txt
-          -A,//fem/matrix-format=AF-BSR
-          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
-          inputs/Test.nonlinear.conduction.arc)
+  arcanefem_add_full_test(NAME 2d_conduction_petsc_af-bsr
+    COMMAND ./FourierNL
+    ARGS
+      -A,//fem/solution-comparison-file=check/conduction_tria.txt
+      -A,//fem/matrix-format=AF-BSR
+      -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+      inputs/Test.nonlinear.conduction.arc)
 
-  arcanefem_add_gpu_test(NAME [fouriernl]3d_conduction_petsc_bsr COMMAND ./FourierNL ARGS
-          -A,//fem/matrix-format=BSR
-          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
-          -A,//fem/solution-comparison-file=check/conduction_tetra.txt
-          inputs/Test.3d.nonlinear.conduction.arc)
+  arcanefem_add_full_test(NAME 3d_conduction_petsc_bsr
+    COMMAND ./FourierNL
+    ARGS
+      -A,//fem/matrix-format=BSR
+      -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+      -A,//fem/solution-comparison-file=check/conduction_tetra.txt
+      inputs/Test.3d.nonlinear.conduction.arc)
 
-  arcanefem_add_gpu_test(NAME [fouriernl]3d_conduction_petsc_af-bsr COMMAND ./FourierNL ARGS
-          -A,//fem/matrix-format=AF-BSR
-          -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
-          -A,//fem/solution-comparison-file=check/conduction_tetra.txt
-          inputs/Test.3d.nonlinear.conduction.arc)
+  arcanefem_add_full_test(NAME 3d_conduction_petsc_af-bsr
+    COMMAND ./FourierNL
+    ARGS
+      -A,//fem/matrix-format=AF-BSR
+      -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
+      -A,//fem/solution-comparison-file=check/conduction_tetra.txt
+      inputs/Test.3d.nonlinear.conduction.arc)
 
   arcanefem_add_gpu_test(NAME [fouriernl]2d_nonlinear_conduction_quad_petsc_bsr COMMAND ./FourierNL ARGS
           -A,//fem/solution-comparison-file=check/conduction_quad.txt
