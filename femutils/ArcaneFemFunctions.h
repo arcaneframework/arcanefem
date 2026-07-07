@@ -910,6 +910,30 @@ class ArcaneFemFunctions
 
       return { dN_dx_result, dN_dy_result, detJ };
     }
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Computes the shape functions for a Quad8 element at a given point (ξ, η).
+     *
+     * @param xi The ξ coordinate of the evaluation point (-1 to 1).
+     * @param eta The η coordinate of the evaluation point (-1 to 1).
+     * @return A RealVector<8> containing the shape functions {𝑁₁, 𝑁₂, 𝑁₃, 𝑁₄, 𝑁₅, 𝑁₆, 𝑁₇, 𝑁₈}.
+     */
+    /*---------------------------------------------------------------------------*/
+    static inline RealVector<8> computeShapeFunctionsQuad8(Real xi, Real eta)
+    {
+      RealVector<8> N;
+      N[0] = -0.25 * (1.0 - xi) * (1.0 - eta) * (1.0 + xi + eta);
+      N[1] = -0.25 * (1.0 + xi) * (1.0 - eta) * (1.0 + xi - eta);
+      N[2] = -0.25 * (1.0 + xi) * (1.0 + eta) * (1.0 - xi - eta);
+      N[3] = -0.25 * (1.0 - xi) * (1.0 + eta) * (1.0 - xi + eta);
+      N[4] = 0.5 * (1.0 - xi * xi) * (1.0 - eta);
+      N[5] = 0.5 * (1.0 + xi) * (1.0 - eta * eta);
+      N[6] = 0.5 * (1.0 - xi * xi) * (1.0 + eta);
+      N[7] = 0.5 * (1.0 - xi) * (1.0 - eta * eta);
+      return N;
+    }
+
     /*---------------------------------------------------------------------------*/
     /**
      * @brief Holds information for a Quad4 element at a single Gauss point.
