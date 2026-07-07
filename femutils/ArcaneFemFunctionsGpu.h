@@ -222,6 +222,67 @@ computeNormalTriangle(FaceLocalId face_lid,
 
 namespace Arcane::FemUtils::Gpu::FeOperation2D
 {
+/*---------------------------------------------------------------------------*/
+    /**
+     * @brief Computes the gradients of given function U for P1 triangles.
+     *
+     * This method calculates gradient operator ∇ Ui for a given P1 cell
+     * with i = 1,..,3 for the three values of Ui hence  at  cell nodes.
+     * The output is ∇ Ui is P0 (piece-wise constant) hence Real3  value
+     * per cell
+     *
+     *         ∇ Ui = [ ∂U/∂𝑥   ∂U/∂𝑦   ∂U/∂𝑧 ]
+     *
+     *         ∂U/∂𝑥 = ( u1*(y2 − y3) + u2*(y3 − y1) + u3*(y1 − y2) ) / (2*A)
+     *         ∂U/∂𝑦 = ( u1*(x3 − x2) + u2*(x1 − x3) + u3*(x2 − x1) ) / (2*A)
+     *         ∂U/∂𝑧 = 0
+     *
+     * @note we can adapt the same for 3D by filling the third component
+     */
+    /*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE inline Real3
+computeGradientTria3(CellLocalId cell_lid,
+                      const IndexedCellNodeConnectivityView& cn_cv,
+                      const Accelerator::VariableNodeReal3InView& in_node_coord,
+                      const Accelerator::VariableNodeRealInView&  in_u)
+{
+  Real3 n0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
+  Real3 n1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
+  Real3 n2 = in_node_coord[cn_cv.nodeId(cell_lid, 2)];
+
+  Real u0 = in_u[cn_cv.nodeId(cell_lid, 0)];
+  Real u1 = in_u[cn_cv.nodeId(cell_lid, 1)];
+  Real u2 = in_u[cn_cv.nodeId(cell_lid, 2)];
+
+  Real A2 = ((n1.x - n0.x) * (n2.y - n0.y) - (n2.x - n0.x) * (n1.y - n0.y));
+
+  return { (u0 * (n1.y - n2.y) + u1 * (n2.y - n0.y) + u2 * (n0.y - n1.y)) / A2, (u0 * (n2.x - n1.x) + u1 * (n0.x - n2.x) + u2 * (n1.x - n0.x)) / A2, 0 };
+}
+
+ARCCORE_HOST_DEVICE inline Real3x3
+computeGradientTria3(CellLocalId cell_lid,
+                      const IndexedCellNodeConnectivityView& cn_cv,
+                      const Accelerator::VariableNodeReal3InView& in_node_coord,
+                      const Accelerator::VariableNodeReal3InView& in_u)
+{
+  Real3 n0 = in_node_coord[cn_cv.nodeId(cell_lid, 0)];
+  Real3 n1 = in_node_coord[cn_cv.nodeId(cell_lid, 1)];
+  Real3 n2 = in_node_coord[cn_cv.nodeId(cell_lid, 2)];
+
+  Real3  u0 = in_u[cn_cv.nodeId(cell_lid, 0)];
+  Real3  u1 = in_u[cn_cv.nodeId(cell_lid, 1)];
+  Real3  u2 = in_u[cn_cv.nodeId(cell_lid, 2)];
+
+  Real A2 = ((n1.x - n0.x) * (n2.y - n0.y) - (n2.x - n0.x) * (n1.y - n0.y));
+
+  Real3 d_ux = { (u0.x * (n1.y - n2.y) + u1.x * (n2.y - n0.y) + u2.x * (n0.y - n1.y)) / A2, (u0.x * (n2.x - n1.x) + u1.x * (n0.x - n2.x) + u2.x * (n1.x - n0.x)) / A2, 0 };
+  Real3 d_uy = { (u0.y * (n1.y - n2.y) + u1.y * (n2.y - n0.y) + u2.y * (n0.y - n1.y)) / A2, (u0.y * (n2.x - n1.x) + u1.y * (n0.x - n2.x) + u2.y * (n1.x - n0.x)) / A2, 0 };
+  Real3 d_uz = {0. , 0. , 0. };
+  Real3x3 grad = { d_ux, d_uy, d_uz };
+
+  return grad;
+}
 
 /*---------------------------------------------------------------------------*/
 /**

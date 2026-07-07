@@ -83,6 +83,8 @@ class FemModuleElastoplasticity
   void _assembleDirichletsGpu();
   void _assembleDirichletsNewtonGpu();
 
+  inline void _applyResidualRHSTria3Gpu(VariableDoFReal& rhs_values, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord, IMesh* mesh, RunQueue* queue);
+
  private:
 
   DoFLinearSystem m_linear_system;
