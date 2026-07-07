@@ -30,6 +30,7 @@ set(MESH_FILES
     circle_cut.msh
     circle_cut.quad.msh
     circle_cut.quad8.msh
+    circle_cut.quad9.msh
     plancher.msh
 )
 foreach (MESH_FILE IN LISTS MESH_FILES)
@@ -77,6 +78,11 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     COMMAND ./Poisson
     ARGS
       -A,//meshes/mesh/filename=meshes/circle_cut.quad8.msh
+      inputs/circle.2D.quad.arc)
+  arcanefem_add_seq_test(NAME 2D_quad9
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/circle_cut.quad9.msh
       inputs/circle.2D.quad.arc)
   arcanefem_add_seq_test(NAME 3D
     COMMAND ./Poisson
