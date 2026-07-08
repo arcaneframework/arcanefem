@@ -807,10 +807,10 @@ class ArcaneFemFunctions
     static inline RealVector<8> computeShapeFunctionsQuad8(Real xi, Real eta)
     {
       RealVector<8> N;
-      N[0] = -0.25 * (1.0 - xi) * (1.0 - eta) * (1.0 + xi + eta);
-      N[1] = -0.25 * (1.0 + xi) * (1.0 - eta) * (1.0 + xi - eta);
-      N[2] = -0.25 * (1.0 + xi) * (1.0 + eta) * (1.0 - xi - eta);
-      N[3] = -0.25 * (1.0 - xi) * (1.0 + eta) * (1.0 - xi + eta);
+      N[0] = 0.25 * (1.0 - xi) * (1.0 - eta) * (-xi - eta - 1.0);
+      N[1] = 0.25 * (1.0 + xi) * (1.0 - eta) * (xi - eta - 1.0);
+      N[2] = 0.25 * (1.0 + xi) * (1.0 + eta) * (xi + eta - 1.0);
+      N[3] = 0.25 * (1.0 - xi) * (1.0 + eta) * (-xi + eta - 1.0);
       N[4] = 0.5 * (1.0 - xi * xi) * (1.0 - eta);
       N[5] = 0.5 * (1.0 + xi) * (1.0 - eta * eta);
       N[6] = 0.5 * (1.0 - xi * xi) * (1.0 + eta);
