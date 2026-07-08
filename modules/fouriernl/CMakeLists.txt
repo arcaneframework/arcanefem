@@ -227,7 +227,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       inputs/Test.3d.nonlinear.conduction.hexa.arc)
 
 
-  if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
+  if (FEMUTILS_HAS_PARALLEL_SOLVER)
     arcanefem_add_mpi_test(NAME 2d_nonlinear_conduction
       COMMAND ./FourierNL
       ARGS
@@ -245,7 +245,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       ARGS
         -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
         inputs/Test.nonlinear.conduction.coarse.arc)
-    arcanefem_add_mpi_test(NAME 3d_nonlinear_conduction_hexa_cartesian_2p
+    arcanefem_add_mpi_test(NAME 3d_nonlinear_conduction_hexa_cartesian
       COMMAND ./FourierNL
       ARGS
         -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
@@ -257,10 +257,10 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
         -A,//fem/petsc-flags=-ksp_initial_guess_nonzero
         -A,//fem/solution-comparison-file=check/conduction_tetra.txt
         inputs/Test.3d.nonlinear.conduction.arc)
-  endif()
-endif()
+  endif ()
+endif ()
 
-if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
+if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   set(SOLVER_HYPRE_CG
     -A,//fem/linear-system/@name=HypreLinearSystem
     -A,//fem/linear-system/solver=cg
@@ -322,4 +322,4 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
       ${SOLVER_HYPRE_CG}
       -A,//fem/solution-comparison-file=check/conduction_hexa.txt
       inputs/Test.3d.nonlinear.conduction.hexa.arc)
-endif()
+endif ()
