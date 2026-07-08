@@ -200,7 +200,7 @@ _applyResidualRHSTria3Gpu(VariableDoFReal& rhs_values,
 inline void FemModuleElastoplasticity::
 _applyResidualRHSTria3Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
-  ENUMERATE_ (Cell, icell, ownCells()) {
+  ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
     Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
     Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
@@ -265,7 +265,7 @@ _applyResidualRHSTria3Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConne
 void FemModuleElastoplasticity::
 _applyResidualRHSQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
-  ENUMERATE_ (Cell, icell, ownCells()) {
+  ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
     RealMatrix<3, 3> C_2d;
