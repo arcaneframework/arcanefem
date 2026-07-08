@@ -36,8 +36,6 @@ set(MESH_FILES
     plancher.msh
     unit_square.msh
     unit_square.quad.msh
-    unit_cube.msh
-    unitHexa.msh
 )
 foreach (MESH_FILE IN LISTS MESH_FILES)
   file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
