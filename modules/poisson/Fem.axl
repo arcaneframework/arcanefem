@@ -11,6 +11,9 @@
     <variable field-name="u" name="U" data-type="real" item-kind="node" dim="0">
       <description>FEM variable u on nodes</description>
     </variable>
+    <variable field-name="u_exact" name="UExact" data-type="real" item-kind="node" dim="0" optional="true">
+      <description>Manufactured FEM solution on nodes</description>
+    </variable>
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
       <description>Node coordinates from Arcane variable</description>
     </variable>
@@ -43,6 +46,14 @@
 
     <simple name="hex-quad-mesh" type="bool" default="false" optional="true">
       <description>Boolean to use hexagonal quadrature for element matrix assembly.</description>
+    </simple>
+
+    <simple name="manufactured-solution-tolerance" type="real" default="1.0e-1" optional="true">
+      <description>Maximum L2 error accepted for manufactured-solution tests.</description>
+    </simple>
+
+    <simple name="manufactured-solution" type="string" default="" optional="true">
+      <description>Built-in manufactured solution case: sine, poly, or empty to disable.</description>
     </simple>
 
     <!-- Linear system service instance -->

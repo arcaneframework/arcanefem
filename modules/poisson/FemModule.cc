@@ -39,6 +39,10 @@ startInit()
   m_petsc_flags = options()->petscFlags();
   m_hex_quad_mesh = options()->hexQuadMesh();
 
+  m_manufactured_solution_tolerance = options()->manufacturedSolutionTolerance();
+  m_manufactured_solution_name = options()->manufacturedSolution();
+  m_has_manufactured_solution = ManufacturedSolutions::isEnabled(m_manufactured_solution_name);
+
   // Check if the mesh is a quad8 mesh by examining the number of nodes in the first cell
   // TODO: maye a user flag
   if (mesh()->dimension() == 2) {
@@ -166,6 +170,13 @@ _getMaterialParameters()
 
 void FemModulePoisson::_assembleLinearOperator()
 {
+
+  if (m_has_manufactured_solution) {
+    _applyManufacturedSource();
+    _applyManufacturedDirichlet();
+    return;
+  }
+
   // Quad8 support is currently CPU-only 
   if (m_is_quad8_mesh) {
     _assembleLinearOperatorCpu();
@@ -431,6 +442,15 @@ _updateVariables()
   }
 
   m_u.synchronize();
+
+  if (m_has_manufactured_solution) {
+    _updateManufacturedExactSolution();
+    m_u_exact.synchronize();
+    const Real l2_error = _computeManufacturedL2Error();
+    info() << "[ArcaneFem-Info] Manufactured solution L2 error = " << l2_error;
+    if (l2_error > m_manufactured_solution_tolerance)
+      ARCANE_FATAL("Manufactured solution L2 error '{0}' is greater than tolerance '{1}'", l2_error, m_manufactured_solution_tolerance);
+  }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
