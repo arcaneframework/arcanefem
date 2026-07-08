@@ -116,6 +116,7 @@ class FemModuleElastoplasticity
   String m_matrix_format = "DOK";
   String m_gp_material_tensor_strategy = "local";
 
+  bool m_use_gpu_functions = true;
   bool m_assemble_linear_system = true;
   bool m_assemble_nonlinear_system = true;
   bool m_solve_linear_system = true;

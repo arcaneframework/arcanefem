@@ -56,11 +56,47 @@ ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeElementMatrixTria3Base(Real3 dxu, Re
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeElementMatrixTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, RealMatrix<3, 3> C_tang)
+ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeHookeElementMatrixTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, RealVector<2> params)
 {
   Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
   Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
   Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+
+  Real lambda = params[0];
+  Real mu = params[1];
+  RealMatrix<3, 3> C_tang{0.};
+
+  C_tang(0, 0) = lambda + 2. * mu;
+  C_tang(0, 1) = lambda;
+  C_tang(0, 2) = 0.;
+  C_tang(1, 0) = lambda;
+  C_tang(1, 1) = lambda + 2. * mu;
+  C_tang(1, 2) = 0.;
+  C_tang(2, 0) = 0.;
+  C_tang(2, 1) = 0.;
+  C_tang(2, 2) = mu;
+
+  return computeElementMatrixTria3Base(dxu, dyu, area, C_tang);
+}
+
+ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeElementMatrixTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1, -1>>& in_C_tang)
+{
+  Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
+  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+
+  RealMatrix<3, 3> C_tang;
+
+  // a flattened sequence is faster than a for loop on GPUs
+  C_tang(0, 0) = in_C_tang(cell_lid, 0, 0);
+  C_tang(0, 1) = in_C_tang(cell_lid, 0, 1);
+  C_tang(0, 2) = in_C_tang(cell_lid, 0, 2);
+  C_tang(1, 0) = in_C_tang(cell_lid, 1, 0);
+  C_tang(1, 1) = in_C_tang(cell_lid, 1, 1);
+  C_tang(1, 2) = in_C_tang(cell_lid, 1, 2);
+  C_tang(2, 0) = in_C_tang(cell_lid, 2, 0);
+  C_tang(2, 1) = in_C_tang(cell_lid, 2, 1);
+  C_tang(2, 2) = in_C_tang(cell_lid, 2, 2);
 
   return computeElementMatrixTria3Base(dxu, dyu, area, C_tang);
 }
@@ -90,11 +126,8 @@ RealMatrix<6, 6> FemModuleElastoplasticity::_computeElementMatrixTria3(Cell cell
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeElementVectorTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, RealMatrix<3, 3> C_tang, Int32 node_lid)
+ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeElementVectorTria3GpuBase(Real3 dxu, Real3 dyu, Real area, RealMatrix<3, 3> C_tang, Int32 node_lid)
 {
-  Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
-  Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
-  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
 
   RealVector<6> epsxx = { dxu[0], 0., dxu[1], 0., dxu[2], 0. };
   RealVector<6> epsyy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
@@ -122,6 +155,53 @@ ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeElementVectorTria3Gpu(CellLocalId ce
 
   return result;
 }
+
+ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeHookeElementVectorTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, RealVector<2> params, Int32 node_lid)
+{
+  Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
+  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+
+  Real lambda = params[0];
+  Real mu = params[1];
+  RealMatrix<3, 3> C_tang;
+  C_tang(0, 0) = lambda + 2. * mu;
+  C_tang(0, 1) = lambda;
+  C_tang(0, 2) = 0.;
+  C_tang(1, 0) = lambda;
+  C_tang(1, 1) = lambda + 2. * mu;
+  C_tang(1, 2) = 0.;
+  C_tang(2, 0) = 0.;
+  C_tang(2, 1) = 0.;
+  C_tang(2, 2) = mu;
+
+
+  return computeElementVectorTria3GpuBase(dxu, dyu, area, C_tang, node_lid);
+}
+
+
+ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeElementVectorTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1, -1>>& in_C_tang, Int32 node_lid)
+{
+  Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
+  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+
+  RealMatrix<3, 3> C_tang;
+
+  // a flattened sequence is faster than a for loop on GPUs
+  C_tang(0, 0) = in_C_tang(cell_lid, 0, 0);
+  C_tang(0, 1) = in_C_tang(cell_lid, 0, 1);
+  C_tang(0, 2) = in_C_tang(cell_lid, 0, 2);
+  C_tang(1, 0) = in_C_tang(cell_lid, 1, 0);
+  C_tang(1, 1) = in_C_tang(cell_lid, 1, 1);
+  C_tang(1, 2) = in_C_tang(cell_lid, 1, 2);
+  C_tang(2, 0) = in_C_tang(cell_lid, 2, 0);
+  C_tang(2, 1) = in_C_tang(cell_lid, 2, 1);
+  C_tang(2, 2) = in_C_tang(cell_lid, 2, 2);
+
+  return computeElementVectorTria3GpuBase(dxu, dyu, area, C_tang, node_lid);
+}
+
 
 /*---------------------------------------------------------------------------*/
 /**

@@ -29,7 +29,7 @@ _applyDirichlet(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityVie
   // check if Hypre|Petsc solver is used and delegate to GPU for dirichlet assembly
   auto use_gpu = options()->linearSystem.serviceName() == "HypreLinearSystem" ||
     options()->linearSystem.serviceName() == "PetscLinearSystem";
-  if (use_gpu) {
+  if (use_gpu && m_use_gpu_functions) {
     _assembleDirichletsGpu();
     return;
   }
@@ -94,7 +94,7 @@ _applyDirichletNewton(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectiv
   // check if Hypre|Petsc solver is used and delegate to GPU for dirichlet assembly
   auto use_gpu = options()->linearSystem.serviceName() == "HypreLinearSystem" ||
     options()->linearSystem.serviceName() == "PetscLinearSystem";
-  if (use_gpu) {
+  if (use_gpu && m_use_gpu_functions) {
     _assembleDirichletsNewtonGpu();
     return;
   }

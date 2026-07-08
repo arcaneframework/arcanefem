@@ -45,35 +45,35 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   set(SOLVER_PETSC_GMRES
           -A,//fem/petsc-flags=-ksp_monitor\ -ksp_type\ gmres\ -pc_type\ bjacobi\ -ksp_rtol\ 1e-15\ -ksp_atol\ 1e-15)
 
-  arcanefem_add_seq_test(NAME Dirichlet
+  arcanefem_add_seq_test(NAME 2D_richlet
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/nonlinear-law=true
           -A,//fem/solution-comparison-file=check/bar.2D.Dirichlet.bodyForce.txt
           inputs/bar.2D.Dirichlet.bodyForce.arc)
 
-  arcanefem_add_seq_test(NAME Dirichlet_quad
+  arcanefem_add_seq_test(NAME 2D_richlet_quad
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/nonlinear-law=true
           -A,//fem/solution-comparison-file=check/bar.2D.Dirichlet.bodyForce.quad.txt
           inputs/bar.2D.Dirichlet.bodyForce.quad.arc)
 
-  arcanefem_add_seq_test(NAME Dirichlet_traction
+  arcanefem_add_seq_test(NAME 2D_richlet_traction
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/nonlinear-law=true
           -A,//fem/solution-comparison-file=check/bar.2D.Dirichlet.traction.txt
           inputs/bar.2D.Dirichlet.traction.arc)
 
-  arcanefem_add_seq_test(NAME Dirichlet_pointBC
+  arcanefem_add_seq_test(NAME 2D_richlet_pointBC
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/nonlinear-law=true
           -A,//fem/solution-comparison-file=check/bar.2D.PointDirichlet.Dirichlet.bodyForce.txt
           inputs/bar.2D.PointDirichlet.Dirichlet.bodyForce.arc)
 
-  arcanefem_add_seq_test(NAME Dirichlet_pointBC_via_RowElimination
+  arcanefem_add_seq_test(NAME 2D_richlet_pointBC_via_RowElimination
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/nonlinear-law=true
@@ -85,7 +85,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           ${SOLVER_PETSC_GMRES}
           inputs/bar.2D.PointDirichlet.Dirichlet.bodyForce.arc)
 
-  arcanefem_add_seq_test(NAME Dirichlet_pointBC_via_RowColElimination
+  arcanefem_add_seq_test(NAME 2D_richlet_pointBC_via_RowColElimination
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/nonlinear-law=true
@@ -96,7 +96,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           -A,//fem/boundary-conditions/dirichlet-point[2]/enforce-Dirichlet-method=RowColumnElimination
           inputs/bar.2D.PointDirichlet.Dirichlet.bodyForce.arc)
 
-  arcanefem_add_seq_test(NAME Dirichlet_via_RowElimination
+  arcanefem_add_seq_test(NAME 2D_richlet_via_RowElimination
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/nonlinear-law=true
@@ -105,7 +105,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           ${SOLVER_PETSC_GMRES}
           inputs/bar.2D.Dirichlet.bodyForce.arc)
 
-  arcanefem_add_seq_test(NAME Dirichlet_via_RowColElimination
+  arcanefem_add_seq_test(NAME 2D_richlet_via_RowColElimination
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/nonlinear-law=true
@@ -113,21 +113,21 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
           inputs/bar.2D.Dirichlet.bodyForce.arc)
 
-  arcanefem_add_seq_test(NAME Dirichlet_bodyforce_quad
+  arcanefem_add_seq_test(NAME 2D_richlet_bodyforce_quad
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/nonlinear-law=true
           -A,//fem/solution-comparison-file=check/2D.dirichlet.bodyforce.quad.txt
           inputs/2D.dirichlet.bodyforce.quad.arc)
 
-  arcanefem_add_seq_test(NAME Dirichlet_traction_bodyforce_quad
+  arcanefem_add_seq_test(NAME 2D_richlet_traction_bodyforce_quad
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/nonlinear-law=true
           -A,//fem/solution-comparison-file=check/2D.dirichlet.traction.bodyforce.quad.txt
           inputs/2D.dirichlet.traction.bodyforce.quad.arc)
 
-  arcanefem_add_seq_test(NAME Dirichlet_traction_bodyforce
+  arcanefem_add_seq_test(NAME 2D_richlet_traction_bodyforce
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/nonlinear-law=true
@@ -148,13 +148,21 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           -A,//fem/solution-comparison-file=check/bar.2D.cartesian.Dirichlet.bodyForce.txt
           inputs/bar.2D.cartesian.Dirichlet.bodyForce.arc)
 
-  arcanefem_add_seq_test(NAME bar_parse_and_exit
+  arcanefem_add_seq_test(NAME 2D_bar_parse_and_exit
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/nonlinear-law=true
           -A,//fem/assemble-nonlinear-system=false
           -A,//fem/solve-nonlinear-system=false
           inputs/bar.2D.Dirichlet.bodyForce.arc)
+
+  arcanefem_add_seq_test(NAME 3D_bar_parse_and_exit
+          COMMAND ./Elastoplasticity
+          ARGS
+          -A,//fem/nonlinear-law=true
+          -A,//fem/assemble-nonlinear-system=false
+          -A,//fem/solve-nonlinear-system=false
+          inputs/bar.3D.Dirichlet.bodyForce.arc)
 
   arcanefem_add_seq_test(NAME 3D_Dirichlet_cartesian
           COMMAND ./Elastoplasticity
@@ -183,18 +191,16 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           -A,//meshes/mesh/subdivider/nb-subdivision=2
           inputs/bar.3D.Dirichlet.bodyForce.arc)
 
-  arcanefem_add_full_test(NAME Dirichlet_pointBC_bsr
+  arcanefem_add_full_test(NAME 2D_richlet_pointBC_bsr
           COMMAND ./Elastoplasticity
           ARGS
-          -A,//fem/nonlinear-law=true
-          -A,//fem/solution-comparison-file=check/bar.3D.Dirichlet.bodyForce.txt
+          -A,//fem/solution-comparison-file=check/bar.2D.PointDirichlet.Dirichlet.bodyForce.txt
           -A,//fem/matrix-format=BSR
-          inputs/bar.3D.Dirichlet.bodyForce.arc)
+          inputs/bar.2D.PointDirichlet.Dirichlet.bodyForce.arc)
 
   arcanefem_add_full_test(NAME 3D_Dirichlet_bodyforce_bsr
           COMMAND ./Elastoplasticity
           ARGS
-          -A,//fem/nonlinear-law=true
           -A,//fem/solution-comparison-file=check/bar.3D.Dirichlet.bodyForce.txt
           -A,//fem/matrix-format=BSR
           inputs/bar.3D.Dirichlet.bodyForce.arc)
@@ -207,21 +213,21 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           -A,//fem/matrix-format=AF-BSR
           inputs/bar.3D.Dirichlet.bodyForce.arc)
 
-  arcanefem_add_full_test(NAME Dirichlet_traction_bsr
+  arcanefem_add_full_test(NAME 2D_richlet_traction_bsr
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/solution-comparison-file=check/bar.2D.Dirichlet.traction.txt
           -A,//fem/matrix-format=BSR
           inputs/bar.2D.Dirichlet.traction.arc)
 
-  arcanefem_add_full_test(NAME Dirichlet_traction_bodyforce_bsr
+  arcanefem_add_full_test(NAME 2D_richlet_traction_bodyforce_bsr
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/solution-comparison-file=check/bar.2D.traction.bodyforce.txt
           -A,//fem/matrix-format=BSR
           inputs/bar.2D.traction.bodyforce.arc)
 
-  arcanefem_add_full_test(NAME Dirichlet_traction_bodyforce_af-bsr
+  arcanefem_add_full_test(NAME 2D_richlet_traction_bodyforce_af-bsr
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/solution-comparison-file=check/bar.2D.traction.bodyforce.txt
@@ -277,7 +283,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           ${SOLVER_PETSC_DIRECT_CG}
           inputs/3D.sphere.dirichlet.traction.bodyforce.tetra.arc)
 
-  arcanefem_add_full_test(NAME Dirichlet_pointBC_RowElimination_petsc-direct_bsr
+  arcanefem_add_full_test(NAME 2D_richlet_pointBC_RowElimination_petsc-direct_bsr
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/solution-comparison-file=check/bar.2D.PointDirichlet.Dirichlet.bodyForce.txt
@@ -289,7 +295,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           -A,//fem/boundary-conditions/dirichlet-point[2]/enforce-Dirichlet-method=RowElimination
           inputs/bar.2D.PointDirichlet.Dirichlet.bodyForce.arc)
 
-  arcanefem_add_full_test(NAME Dirichlet_pointBC_RowElimination_petsc-direct_af-bsr
+  arcanefem_add_full_test(NAME 2D_richlet_pointBC_RowElimination_petsc-direct_af-bsr
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/solution-comparison-file=check/bar.2D.PointDirichlet.Dirichlet.bodyForce.txt
@@ -301,7 +307,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           -A,//fem/boundary-conditions/dirichlet-point[2]/enforce-Dirichlet-method=RowElimination
           inputs/bar.2D.PointDirichlet.Dirichlet.bodyForce.arc)
 
-  arcanefem_add_full_test(NAME Dirichlet_pointBC_RowColElimination_petsc-direct_af-bsr
+  arcanefem_add_full_test(NAME 2D_richlet_pointBC_RowColElimination_petsc-direct_af-bsr
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/solution-comparison-file=check/bar.2D.PointDirichlet.Dirichlet.bodyForce.txt
@@ -313,7 +319,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           -A,//fem/boundary-conditions/dirichlet-point[2]/enforce-Dirichlet-method=RowColumnElimination
           inputs/bar.2D.PointDirichlet.Dirichlet.bodyForce.arc)
 
-  arcanefem_add_full_test(NAME Dirichlet_pointBC_petsc-direct_bsr
+  arcanefem_add_full_test(NAME 2D_richlet_pointBC_petsc-direct_bsr
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/solution-comparison-file=check/bar.2D.PointDirichlet.Dirichlet.bodyForce.txt
@@ -325,7 +331,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           -A,//fem/boundary-conditions/dirichlet-point[2]/enforce-Dirichlet-method=Penalty
           inputs/bar.2D.PointDirichlet.Dirichlet.bodyForce.arc)
 
-  arcanefem_add_full_test(NAME Dirichlet_traction_bsr_petsc-direct
+  arcanefem_add_full_test(NAME 2D_richlet_traction_bsr_petsc-direct
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/solution-comparison-file=check/bar.2D.Dirichlet.traction.txt
@@ -333,7 +339,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           ${SOLVER_PETSC_DIRECT_CG}
           inputs/bar.2D.Dirichlet.traction.arc)
 
-  arcanefem_add_full_test(NAME Dirichlet_traction_bodyforce_af-bsr_petsc-direct
+  arcanefem_add_full_test(NAME 2D_richlet_traction_bodyforce_af-bsr_petsc-direct
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/solution-comparison-file=check/bar.2D.traction.bodyforce.txt
@@ -342,21 +348,21 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           inputs/bar.2D.traction.bodyforce.arc)
 
   if (FEMUTILS_HAS_PARALLEL_SOLVER)
-    arcanefem_add_mpi_test(NAME Dirichlet
+    arcanefem_add_mpi_test(NAME 2D_richlet
             COMMAND ./Elastoplasticity
             ARGS
             -A,//fem/nonlinear-law=true
             -A,//fem/solution-comparison-file=check/bar.2D.Dirichlet.bodyForce.txt
             inputs/bar.2D.Dirichlet.bodyForce.arc)
 
-    arcanefem_add_mpi_test(NAME Dirichlet_quad
+    arcanefem_add_mpi_test(NAME 2D_richlet_quad
             COMMAND ./Elastoplasticity
             ARGS
             -A,//fem/nonlinear-law=true
             -A,//fem/solution-comparison-file=check/bar.2D.Dirichlet.bodyForce.quad.txt
             inputs/bar.2D.Dirichlet.bodyForce.quad.arc)
 
-    arcanefem_add_mpi_test(NAME Dirichlet_via_RowElimination
+    arcanefem_add_mpi_test(NAME 2D_richlet_via_RowElimination
             COMMAND ./Elastoplasticity
             ARGS
             -A,//fem/nonlinear-law=true
@@ -365,7 +371,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
             ${SOLVER_PETSC_GMRES}
             inputs/bar.2D.Dirichlet.bodyForce.arc)
 
-    arcanefem_add_mpi_test(NAME Dirichlet_RowColumnElim_quad
+    arcanefem_add_mpi_test(NAME 2D_richlet_RowColumnElim_quad
             COMMAND ./Elastoplasticity
             ARGS
             -A,//fem/nonlinear-law=true
@@ -373,7 +379,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
             -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
             inputs/bar.2D.Dirichlet.bodyForce.quad.arc)
 
-    arcanefem_add_mpi_test(NAME Dirichlet_via_RowColElimination
+    arcanefem_add_mpi_test(NAME 2D_richlet_via_RowColElimination
             COMMAND ./Elastoplasticity
             ARGS
             -A,//fem/nonlinear-law=true
@@ -381,7 +387,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
             -A,//fem/boundary-conditions/dirichlet/enforce-Dirichlet-method=RowColumnElimination
             inputs/bar.2D.Dirichlet.bodyForce.arc)
 
-    arcanefem_add_mpi_test(NAME Dirichlet_cartesian
+    arcanefem_add_mpi_test(NAME 2D_richlet_cartesian
             COMMAND ./Elastoplasticity
             ARGS
             -A,//fem/nonlinear-law=true
@@ -425,6 +431,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   arcanefem_add_full_test(NAME 3D_Dirichlet_bodyforce_traction_hypre_af-bsr
           COMMAND ./Elastoplasticity
           ARGS
+          -A,//fem/nonlinear-law=true
           -A,//fem/matrix-format=AF-BSR
           ${SOLVER_HYPRE_CG}
           inputs/bar.3D.Dirichlet.traction.bodyForce.arc)
@@ -432,6 +439,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   arcanefem_add_full_test(NAME 3D_Dirichlet_bodyforce_hypre_bsr
           COMMAND ./Elastoplasticity
           ARGS
+          -A,//fem/nonlinear-law=true
           -A,//fem/solution-comparison-file=check/bar.3D.Dirichlet.bodyForce.txt
           -A,//fem/matrix-format=BSR
           ${SOLVER_HYPRE_CG}
@@ -440,6 +448,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   arcanefem_add_full_test(NAME 3D_Dirichlet_bodyforce_hypre_af-bsr
           COMMAND ./Elastoplasticity
           ARGS
+          -A,//fem/nonlinear-law=true
           -A,//fem/solution-comparison-file=check/bar.3D.Dirichlet.bodyForce.txt
           -A,//fem/matrix-format=AF-BSR
           ${SOLVER_HYPRE_CG}
@@ -448,11 +457,12 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
   arcanefem_add_full_test(NAME 3D_sphere_Dirichlet_bodyforce_hypre_af-bsr
           COMMAND ./Elastoplasticity
           ARGS
+          -A,//fem/nonlinear-law=true
           -A,//fem/matrix-format=AF-BSR
           ${SOLVER_HYPRE_CG}
           inputs/3D.sphere.dirichlet.traction.bodyforce.tetra.arc)
 
-  arcanefem_add_full_test(NAME Dirichlet_pointBC_RowElimination_bsr
+  arcanefem_add_full_test(NAME 2D_richlet_pointBC_RowElimination_bsr
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/solution-comparison-file=check/bar.2D.PointDirichlet.Dirichlet.bodyForce.txt
@@ -464,7 +474,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
           -A,//fem/boundary-conditions/dirichlet-point[2]/enforce-Dirichlet-method=RowElimination
           inputs/bar.2D.PointDirichlet.Dirichlet.bodyForce.arc)
 
-  arcanefem_add_full_test(NAME Dirichlet_pointBC_RowElimination_af-bsr
+  arcanefem_add_full_test(NAME 2D_richlet_pointBC_RowElimination_af-bsr
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/solution-comparison-file=check/bar.2D.PointDirichlet.Dirichlet.bodyForce.txt
@@ -476,7 +486,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
           -A,//fem/boundary-conditions/dirichlet-point[2]/enforce-Dirichlet-method=RowElimination
           inputs/bar.2D.PointDirichlet.Dirichlet.bodyForce.arc)
 
-  arcanefem_add_full_test(NAME Dirichlet_pointBC_RowColElimination_af-bsr
+  arcanefem_add_full_test(NAME 2D_richlet_pointBC_RowColElimination_af-bsr
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/solution-comparison-file=check/bar.2D.PointDirichlet.Dirichlet.bodyForce.txt
@@ -488,7 +498,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
           -A,//fem/boundary-conditions/dirichlet-point[2]/enforce-Dirichlet-method=RowColumnElimination
           inputs/bar.2D.PointDirichlet.Dirichlet.bodyForce.arc)
 
-  arcanefem_add_full_test(NAME Dirichlet_pointBC_hypre_bsr
+  arcanefem_add_full_test(NAME 2D_richlet_pointBC_hypre_bsr
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/solution-comparison-file=check/bar.2D.PointDirichlet.Dirichlet.bodyForce.txt
@@ -500,17 +510,19 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
           -A,//fem/boundary-conditions/dirichlet-point[2]/enforce-Dirichlet-method=Penalty
           inputs/bar.2D.PointDirichlet.Dirichlet.bodyForce.arc)
 
-  arcanefem_add_full_test(NAME Dirichlet_traction_bsr_hypre
+  arcanefem_add_full_test(NAME 2D_richlet_traction_bsr_hypre
           COMMAND ./Elastoplasticity
           ARGS
+          -A,//fem/nonlinear-law=true
           -A,//fem/solution-comparison-file=check/bar.2D.Dirichlet.traction.txt
           -A,//fem/matrix-format=BSR
           ${SOLVER_HYPRE_CG}
           inputs/bar.2D.Dirichlet.traction.arc)
 
-  arcanefem_add_full_test(NAME Dirichlet_traction_bodyforce_af-bsr_hypre
+  arcanefem_add_full_test(NAME 2D_richlet_traction_bodyforce_af-bsr_hypre
           COMMAND ./Elastoplasticity
           ARGS
+          -A,//fem/nonlinear-law=true
           -A,//fem/solution-comparison-file=check/bar.2D.traction.bodyforce.txt
           -A,//fem/matrix-format=AF-BSR
           ${SOLVER_HYPRE_CG}

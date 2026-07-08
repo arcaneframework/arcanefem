@@ -12,7 +12,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include <arcane/core/IParallelMng.h>
-// #include <arcane/VariableTypes.h>
+#include <arcane/accelerator/MDVariableViews.h>
 
 #include "FemModule.h"
 #include "ElementMatrix.h"
@@ -54,6 +54,11 @@ startInit()
   m_newton_atol = options()->newtonAtol();
   m_newton_rtol = options()->newtonRtol();
 
+  // m_use_gpu_functions =   (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") &&
+  //                         (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
+  //                          options()->linearSystem.serviceName() == "PetscLinearSystem" ||
+  //                          options()->linearSystem.serviceName() == "AlephLinearSystem");
+  //
   m_gp_material_tensor_strategy = options()->gpMaterialTensorStrategy();
   m_check_bilinear_operator_for_residual = options()->checkBilinearOperatorForResidual();
 
@@ -454,32 +459,52 @@ _assembleBilinearOperator()
     auto cn_cv = m_connectivity_view.cellNode();
     auto command = makeCommand(acceleratorMng()->defaultQueue());
     auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
-    RealMatrix<3, 3> C_tang_2d = m_C_tang_2d;
-    RealMatrix<6, 6> C_tang_3d = m_C_tang_3d;
+    auto in_C_tang_2d = Accelerator::viewIn(command, m_C_tang_2d_cell);
+    auto in_C_tang_3d = Accelerator::viewIn(command, m_C_tang_2d_cell);
+
+    Real lambda_cell = lambda;
+    Real mu_cell = mu;
+    RealVector<2> hooke_params = {lambda_cell, mu_cell};
+
+    auto C_tang_3d = m_C_tang_3d;
 
     m_bsr_format.computeSparsity();
-    if (mesh()->dimension() == 2)
-      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, C_tang_2d); });
-    if (mesh()->dimension() == 3)
+    if (mesh()->dimension() == 2) {
+      if (m_gp_material_tensor_strategy == "local") {
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeHookeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, hooke_params); });
+      } else {
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang_2d); });
+      }
+    }
+    else {
       m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, C_tang_3d); });
+    }
     m_bsr_format.toLinearSystem(m_linear_system);
-  }
-  else if (m_matrix_format == "AF-BSR") {
+  } else if (m_matrix_format == "AF-BSR") {
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();
     auto command = makeCommand(acceleratorMng()->defaultQueue());
     auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
-    RealMatrix<3, 3> C_tang_2d = m_C_tang_2d;
-    RealMatrix<6, 6> C_tang_3d = m_C_tang_3d;
+    auto in_C_tang_2d = Accelerator::viewIn(command, m_C_tang_2d_cell);
+    auto in_C_tang_3d = Accelerator::viewIn(command, m_C_tang_2d_cell);
+
+    Real lambda_cell = lambda;
+    Real mu_cell = mu;
+    RealVector<2> hooke_params = {lambda_cell, mu_cell};
+    auto C_tang_3d = m_C_tang_3d;
 
     m_bsr_format.computeSparsity();
-    if (mesh()->dimension() == 2)
-      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, C_tang_2d, node_lid); });
-    if (mesh()->dimension() == 3)
+    if (mesh()->dimension() == 2) {
+      if (m_gp_material_tensor_strategy == "local") {
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeHookeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, hooke_params, node_lid); });
+      } else {
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang_2d, node_lid); });
+      }
+    } else {
       m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, C_tang_3d, node_lid); });
+    }
     m_bsr_format.toLinearSystem(m_linear_system);
-  }
-  else if (m_matrix_format == "DOK") {
+  } else if (m_matrix_format == "DOK") {
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {
         _assembleBilinearOperatorCpu<8>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
@@ -496,8 +521,7 @@ _assembleBilinearOperator()
         _assembleBilinearOperatorCpu<12>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
       }
     }
-  }
-  else {
+  } else {
     ARCANE_FATAL("Unsupported matrix type, only DOK| BSR|AF-BSR is supported.");
   }
 

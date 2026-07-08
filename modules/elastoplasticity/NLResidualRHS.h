@@ -26,7 +26,18 @@ _applyResidualRHS(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityV
   auto use_gpu = options()->linearSystem.serviceName() == "HypreLinearSystem" ||
     options()->linearSystem.serviceName() == "PetscLinearSystem";
 
-  if (!use_gpu){
+  if (use_gpu && m_use_gpu_functions) {
+    auto queue = subDomain()->acceleratorMng()->defaultQueue();
+    auto mesh_ptr = mesh();
+    if (mesh()->dimension() == 2) {
+      if (m_hex_quad_mesh) {
+        _applyResidualRHSQuad4(rhs_values, node_dof);
+      } else {
+        // _applyResidualRHSTria3Gpu(rhs_values, m_dofs_on_nodes, m_node_coord, mesh_ptr, queue);
+        _applyResidualRHSTria3Cpu(rhs_values, node_dof);
+      }
+    }
+  } else {
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {
         _applyResidualRHSQuad4(rhs_values, node_dof);
@@ -38,18 +49,6 @@ _applyResidualRHS(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityV
         _applyResidualRHSHexa8(rhs_values, node_dof);
       } else {
         _applyResidualRHSTetra4(rhs_values, node_dof);
-      }
-    }
-  }
-  else {
-    auto queue = subDomain()->acceleratorMng()->defaultQueue();
-    auto mesh_ptr = mesh();
-    if (mesh()->dimension() == 2) {
-      if (m_hex_quad_mesh) {
-        _applyResidualRHSQuad4(rhs_values, node_dof);
-      } else {
-        // _applyResidualRHSTria3Gpu(rhs_values, m_dofs_on_nodes, m_node_coord, mesh_ptr, queue);
-        _applyResidualRHSTria3Cpu(rhs_values, node_dof);
       }
     }
   }
