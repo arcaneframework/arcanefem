@@ -83,7 +83,7 @@ Physical Point("botRight", 9) = {2};
 //==============================================================================
 
 Mesh.MshFileVersion = 4.1;
-Mesh 2;
+//Mesh 2;
 //+
 Show "*";
 //+
@@ -93,8 +93,4 @@ Recursive Delete {
 //+
 Recursive Delete {
   Point{4}; Curve{4}; 
-}
-//+
-Recursive Delete {
-  Curve{4}; 
 }

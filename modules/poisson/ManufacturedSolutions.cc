@@ -127,6 +127,29 @@ _applyManufacturedSource()
         }
       }
     }
+    else if (mesh()->dimension() == 2 && nb_nodes == 9) {
+      for (Int32 ixi = 0; ixi < 3; ++ixi) {
+        for (Int32 ieta = 0; ieta < 3; ++ieta) {
+          const Real xi = Quad3x3GaussPoint[ixi];
+          const Real eta = Quad3x3GaussPoint[ieta];
+          const Real weight = Quad3x3Weight[ixi] * Quad3x3Weight[ieta];
+          const RealVector<9> N = ArcaneFemFunctions::FeOperation2D::computeShapeFunctionsQuad9(xi, eta);
+          const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad9(cell, m_node_coord, xi, eta);
+        
+          Real3 x(0.0, 0.0, 0.0);
+          for (Int32 i = 0; i < 9; ++i)
+            x += N[i] * m_node_coord[cell.node(i)];
+        
+          const Real source = ManufacturedSolutions::source(m_manufactured_solution_name, x);
+          const Real integration_weight = gp_info.det_j * weight;
+          for (Int32 i = 0; i < 9; ++i) {
+            Node node = cell.node(i);
+            if (node.isOwn())
+              rhs_values[node_dof.dofId(node, 0)] += N[i] * source * integration_weight;
+          }
+        }
+      }
+    }
     else {
       ARCANE_FATAL("Manufactured source is not implemented for dimension '{0}' cells with '{1}' nodes", mesh()->dimension(), nb_nodes);
     }
@@ -211,6 +234,26 @@ _computeManufacturedL2Error()
           Real uh = 0.0;
           Real3 x(0.0, 0.0, 0.0);
           for (Int32 i = 0; i < 8; ++i) {
+            uh += N[i] * m_u[cell.node(i)];
+            x += N[i] * m_node_coord[cell.node(i)];
+          }
+          const Real error = uh - ManufacturedSolutions::dirichlet(m_manufactured_solution_name, x);
+          l2_error_square += error * error * gp_info.det_j * weight;
+        }
+      }
+    }
+    else if (mesh()->dimension() == 2 && nb_nodes == 9) {
+      for (Int32 ixi = 0; ixi < 3; ++ixi) {
+        for (Int32 ieta = 0; ieta < 3; ++ieta) {
+          const Real xi = Quad3x3GaussPoint[ixi];
+          const Real eta = Quad3x3GaussPoint[ieta];
+          const Real weight = Quad3x3Weight[ixi] * Quad3x3Weight[ieta];
+          const RealVector<9> N = ArcaneFemFunctions::FeOperation2D::computeShapeFunctionsQuad9(xi, eta);
+          const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad9(cell, m_node_coord, xi, eta);
+        
+          Real uh = 0.0;
+          Real3 x(0.0, 0.0, 0.0);
+          for (Int32 i = 0; i < 9; ++i) {
             uh += N[i] * m_u[cell.node(i)];
             x += N[i] * m_node_coord[cell.node(i)];
           }

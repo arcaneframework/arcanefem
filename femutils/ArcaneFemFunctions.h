@@ -933,7 +933,28 @@ class ArcaneFemFunctions
       N[7] = 0.5 * (1.0 - xi) * (1.0 - eta * eta);
       return N;
     }
-
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Computes the shape functions for a Quad9 element at a given point (ξ, η).
+     * @param xi The ξ coordinate of the evaluation point (-1 to 1).
+     * @param eta The η coordinate of the evaluation point (-1 to 1).
+     * @return A RealVector<9> containing {𝑁₁, ..., 𝑁₉}.
+     */
+    /*---------------------------------------------------------------------------*/
+    static inline RealVector<9> computeShapeFunctionsQuad9(Real xi, Real eta)
+    {
+      RealVector<9> N;
+      N[0] = 0.25 * xi * (xi - 1.0) * eta * (eta - 1.0);
+      N[1] = 0.25 * xi * (xi + 1.0) * eta * (eta - 1.0);
+      N[2] = 0.25 * xi * (xi + 1.0) * eta * (eta + 1.0);
+      N[3] = 0.25 * xi * (xi - 1.0) * eta * (eta + 1.0);
+      N[4] = 0.5 * (1.0 - xi * xi) * eta * (eta - 1.0);
+      N[5] = 0.5 * xi * (xi + 1.0) * (1.0 - eta * eta);
+      N[6] = 0.5 * (1.0 - xi * xi) * eta * (eta + 1.0);
+      N[7] = 0.5 * xi * (xi - 1.0) * (1.0 - eta * eta);
+      N[8] = (1.0 - xi * xi) * (1.0 - eta * eta);
+      return N;
+    }
     /*---------------------------------------------------------------------------*/
     /**
      * @brief Holds information for a Quad4 element at a single Gauss point.
