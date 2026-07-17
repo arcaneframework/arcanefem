@@ -54,10 +54,10 @@ startInit()
   m_newton_atol = options()->newtonAtol();
   m_newton_rtol = options()->newtonRtol();
 
-  // m_use_gpu_functions =   (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") &&
-  //                         (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
-  //                          options()->linearSystem.serviceName() == "PetscLinearSystem" ||
-  //                          options()->linearSystem.serviceName() == "AlephLinearSystem");
+  m_use_gpu_functions =   (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") &&
+                          (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
+                           options()->linearSystem.serviceName() == "PetscLinearSystem" ||
+                           options()->linearSystem.serviceName() == "AlephLinearSystem");
   //
   m_gp_material_tensor_strategy = options()->gpMaterialTensorStrategy();
   m_check_bilinear_operator_for_residual = options()->checkBilinearOperatorForResidual();
@@ -269,7 +269,7 @@ _solveNewton()
     ++m_newton_iter;
 
     if (m_newton_solver_converged) {
-      info() << "[ArcaneFem-Info] Newton solver converged after " << m_newton_iter << " iterations.";
+      info() << "[ArcaneFem-Info] Newton solver converged after " << m_newton_iter - 1 << " iterations.";
       m_newton_iter = 0;
       m_newton_solver_converged = false;
       break;
@@ -422,18 +422,25 @@ _assembleLinearOperator()
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
-  _applyBodyForce(rhs_values, node_dof);
-  _applyTraction(rhs_values, node_dof);
-
   if (m_nonlinear_law) {
-    m_evaluate_residual_with_increment = false;
-    _applyResidualRHS(rhs_values, node_dof);
-    if (m_newton_iter == 0) {
+    if (m_newton_iter == 0) { // we solve a linear system to get an initial guess that satisfies dirichlet
+                              // ONly works for elasticity problem TODO change strategy for other problems
+      _applyBodyForce(rhs_values, node_dof);
+      _applyTraction(rhs_values, node_dof);
       _applyDirichlet(rhs_values, node_dof);
     } else {
+
+      _applyBodyForceNewton(rhs_values, node_dof);
+      _applyTractionNewton(rhs_values, node_dof);
+
+      m_evaluate_residual_with_increment = false;
+      _applyResidualRHS(rhs_values, node_dof);
+
       _applyDirichletNewton(rhs_values, node_dof);
     }
   } else {
+    _applyBodyForce(rhs_values, node_dof);
+    _applyTraction(rhs_values, node_dof);
     _applyDirichlet(rhs_values, node_dof);
   }
 
@@ -847,7 +854,7 @@ _checkNewtonConvergence()
   // The OR criterion follows petsc SNES
   m_newton_solver_converged = (convergence_error_increment <= 1.0 || (m_newton_iter + 1 > 0 && residual_norm <= m_newton_atol));
 
-  info() << "[ArcaneFem-Info] At newton iteration "<< m_newton_iter + 1 <<": ||X_k+1 - X_k||/||X_k|| = " << increment_norm << " and ||F(dX_k)|| = " << residual_norm << " => " << (m_newton_solver_converged ? "CONVERGED" : "NOT CONVERGED");
+  info() << "[ArcaneFem-Info] At newton iteration "<< m_newton_iter <<": ||X_k+1 - X_k||/||X_k|| = " << increment_norm << " and ||F(dX_k)|| = " << residual_norm << " => " << (m_newton_solver_converged ? "CONVERGED" : "NOT CONVERGED");
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "check-newton-convergence", elapsedTime);

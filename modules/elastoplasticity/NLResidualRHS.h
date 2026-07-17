@@ -33,8 +33,7 @@ _applyResidualRHS(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityV
       if (m_hex_quad_mesh) {
         _applyResidualRHSQuad4(rhs_values, node_dof);
       } else {
-        // _applyResidualRHSTria3Gpu(rhs_values, m_dofs_on_nodes, m_node_coord, mesh_ptr, queue);
-        _applyResidualRHSTria3Cpu(rhs_values, node_dof);
+        _applyResidualRHSTria3Gpu(rhs_values, m_dofs_on_nodes, m_node_coord, mesh_ptr, queue);
       }
     }
   } else {
@@ -153,47 +152,100 @@ _applyResidualRHSTria3Gpu(VariableDoFReal& rhs_values,
   auto in_node_coord = Accelerator::viewIn(command, node_coord);
   auto in_u  = Accelerator::viewIn(command, m_U);
   auto in_du = Accelerator::viewIn(command, m_dU);
+  auto in_C_2d = Accelerator::viewIn(command, m_C_2d_cell);
   auto evaluate_residual_with_increment = m_evaluate_residual_with_increment;
+  Real lambda_cell = lambda;
+  Real mu_cell = mu;
 
-  RealMatrix<3, 3> C_2d;
   if (m_gp_material_tensor_strategy == "local") {
-    C_2d = m_C_2d;
+    // Iterate over all nodes and compute the contribution to the RHS
+    command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh->allCells())
+    {
+      Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+      Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+      Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
+
+      RealMatrix<3, 3> C_2d;
+      C_2d(0, 0) = lambda_cell + 2. * mu_cell;
+      C_2d(0, 1) = lambda_cell;
+      C_2d(0, 2) = 0.;
+      C_2d(1, 0) = lambda_cell;
+      C_2d(1, 1) = lambda_cell + 2. * mu_cell;
+      C_2d(1, 2) = 0.;
+      C_2d(2, 0) = 0.;
+      C_2d(2, 1) = 0.;
+      C_2d(2, 2) = mu_cell;
+
+      Real3x3 grad_U;
+      if (evaluate_residual_with_increment) {
+        grad_U = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientTria3(cell_lid, cn_cv, in_node_coord, in_du);
+      } else {
+        grad_U = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientTria3(cell_lid, cn_cv, in_node_coord, in_u);
+      }
+
+      RealVector<6> rhs = computeResidualTria3Base(dxu, dyu, area, C_2d, grad_U);
+
+      NodeLocalId cell_nodes[3];
+      Int32 index = 0;
+      for (NodeLocalId node_lid : cn_cv.nodes(cell_lid)) {
+        if (index < 3) {
+          cell_nodes[index++] = node_lid;
+        }
+      }
+
+      for (Int8 i = 0; i < 3; ++i) {
+        NodeLocalId node_lid = cell_nodes[i];
+        if (nodes_infos.isOwn(node_lid)) {
+          Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_values[node_dof.dofId(node_lid, 0)], rhs(2*i));
+          Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_values[node_dof.dofId(node_lid, 1)], rhs(2*i + 1));
+        }
+      }
+    };
   } else {
-    std::memcpy(&C_2d(0,0), &m_C_2d_cell(0, 0, 0), 3 * 3 * sizeof(Real));
-  } // TODO Change when ViewIn for MeshMDVar is available
+    // Iterate over all nodes and compute the contribution to the RHS
+    command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh->allCells())
+    {
+      Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+      Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+      Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
 
-  // Iterate over all nodes and compute the contribution to the RHS
-  command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh->allCells())
-  {
-    Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
-    Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
-    Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
-
-    Real3x3 grad_U;
-    if (evaluate_residual_with_increment) {
-      grad_U = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientTria3(cell_lid, cn_cv, in_node_coord, in_du);
-    } else {
-      grad_U = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientTria3(cell_lid, cn_cv, in_node_coord, in_u);
-    }
-
-    RealVector<6> rhs = computeResidualTria3Base(dxu, dyu, area, C_2d, grad_U);
-
-    NodeLocalId cell_nodes[3];
-    Int32 index = 0;
-    for (NodeLocalId node_lid : cn_cv.nodes(cell_lid)) {
-      if (index < 3) {
-        cell_nodes[index++] = node_lid;
+      Real3x3 grad_U;
+      if (evaluate_residual_with_increment) {
+        grad_U = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientTria3(cell_lid, cn_cv, in_node_coord, in_du);
+      } else {
+        grad_U = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientTria3(cell_lid, cn_cv, in_node_coord, in_u);
       }
-    }
 
-    for (Int8 i = 0; i < 3; ++i) {
-      NodeLocalId node_lid = cell_nodes[i];
-      if (nodes_infos.isOwn(node_lid)) {
-        Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_values[node_dof.dofId(node_lid, 0)], rhs(2*i));
-        Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_values[node_dof.dofId(node_lid, 1)], rhs(2*i + 1));
+      RealMatrix<3, 3> C_2d;
+      C_2d(0, 0) = in_C_2d(cell_lid, 0, 0);
+      C_2d(0, 1) = in_C_2d(cell_lid, 0, 1);
+      C_2d(0, 2) = in_C_2d(cell_lid, 0, 2);
+      C_2d(1, 0) = in_C_2d(cell_lid, 1, 0);
+      C_2d(1, 1) = in_C_2d(cell_lid, 1, 1);
+      C_2d(1, 2) = in_C_2d(cell_lid, 1, 2);
+      C_2d(2, 0) = in_C_2d(cell_lid, 2, 0);
+      C_2d(2, 1) = in_C_2d(cell_lid, 2, 1);
+      C_2d(2, 2) = in_C_2d(cell_lid, 2, 2);
+
+      RealVector<6> rhs = computeResidualTria3Base(dxu, dyu, area, C_2d, grad_U);
+
+      NodeLocalId cell_nodes[3];
+      Int32 index = 0;
+      for (NodeLocalId node_lid : cn_cv.nodes(cell_lid)) {
+        if (index < 3) {
+          cell_nodes[index++] = node_lid;
+        }
       }
-    }
-  };
+
+      for (Int8 i = 0; i < 3; ++i) {
+        NodeLocalId node_lid = cell_nodes[i];
+        if (nodes_infos.isOwn(node_lid)) {
+          Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_values[node_dof.dofId(node_lid, 0)], rhs(2*i));
+          Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_values[node_dof.dofId(node_lid, 1)], rhs(2*i + 1));
+        }
+      }
+    };
+  }
 }
 
 inline void FemModuleElastoplasticity::
