@@ -39,11 +39,11 @@ Generally, $\mathcal{P}$ is chosen to be large enough e.g, $1\times10^{31}$ so t
 
 To apply a Dirichlet condition $g_i$ on the Dirchlet DOF $i$ via row  elimination method two operations are performed. 
 
-- First is on the matrix $\mathbf{A}$ we  zero out the $i$ th row and $i$ th column of the matrix $\mathbf{A}$  and impose $1$  at the diagonal $a_{i,i}=1$. For a FEM problem, if $N_{D}$ is the total number of Dirichlet DOFs and  if $\mathbf{A}$  has the size of  $N_{DOF}$, this method involves altering $\mathbf{A}$: 
+- First is on the matrix $\mathbf{A}$ we  zero out the $i$ th row of the matrix $\mathbf{A}$  and impose $1$  at the diagonal $a_{i,i}=1$. For a FEM problem, if $N_{D}$ is the total number of Dirichlet DOFs and  if $\mathbf{A}$  has the size of  $N_{DOF}$, this method involves altering $\mathbf{A}$: 
 
 $$\forall i=1, \ldots , N_D \quad ; \quad \forall j = 1 , \ldots , N_{DOF}$$
 
-$$ a_{i,j}=0, \quad  a_{j,i}=0,  \quad a_{i,i} = 1$$
+$$ a_{i,j}=0,  \quad a_{i,i} = 1$$
 
 - Second operation is on the vector $\mathbf{b}$,  for  each Dirichlet condition to be imposed on the $i$ th DOF, we substitute the Dirichlet value $g_i$ to $i$ th component of the the vector $\mathbf{b}$.  Hence, this method involves:
 
@@ -55,17 +55,17 @@ This method is more exact way of imposing Dirichlet boundary conditions , howeve
 
 To apply a Dirichlet condition $g_i$ on the Dirchlet DOF $i$ via row column elimination method two operations are performed. 
 
-- First is on the matrix $\mathbf{A}$ we  zero out the $i$ th row of the matrix $\mathbf{A}$  and impose $1$  at the diagonal $a_{i,i}=1$. For a FEM problem, if $N_{D}$ is the total number of Dirichlet DOFs and  if $\mathbf{A}$  has the size of  $N_{DOF}$, this method involves altering $\mathbf{A}$:
+- First is on the matrix $\mathbf{A}$ we  zero out the $i$ th row and $i$ th column of the matrix $\mathbf{A}$  and impose $1$  at the diagonal $a_{i,i}=1$. For a FEM problem, if $N_{D}$ is the total number of Dirichlet DOFs and  if $\mathbf{A}$  has the size of  $N_{DOF}$, this method involves altering $\mathbf{A}$:
 
 $$\forall i=1,\ldots ,N_D \quad ; \quad \forall j = 1 ,\ldots, N_{DOF}$$
   
-$$a_{i,j}=0,  \quad a_{i,i} = 1$$
+$$a_{i,j}=0, \quad  a_{j,i}=0,  \quad a_{i,i} = 1$$
 
 - Second operation is on the vector $\mathbf{b}$,  for  each Dirichlet condition to be imposed on the $i$ th DOF, we subtract the $i$ th column from the vector $\mathbf{b}$.  Hence, this method involves:
 
 $$\forall i=1,\ldots ,N_D \quad ; \quad \forall j = 1 ,\ldots, N_{DOF}$$
 
-$$b_j = b_j - a_{j,i} , \quad b_i = g_i$$
+$$b_j = b_j - a_{j,i} \times g_i, \quad b_i = g_i$$
 
 This method is more exact way of imposing Dirichlet boundary conditions, however it is algorithmically more challenging  to implement as $\mathbf{A}$ which is a sparse matrix is stored in compressed row format (CRS) then moving the  columns to the right-hand side becomes expensive for large systems with many Dirichlet DOFs.
 
