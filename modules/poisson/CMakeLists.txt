@@ -95,17 +95,20 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     COMMAND ./Poisson
     ARGS
       -A,//meshes/mesh/filename=meshes/mms.quad4_n4.msh
-      inputs/manufactured.solution.quad.arc)
+      -A,//fem/hex-quad-mesh=true
+      inputs/manufactured.solution.arc)
   arcanefem_add_seq_test(NAME 2D_mms_quad8
     COMMAND ./Poisson
     ARGS
       -A,//meshes/mesh/filename=meshes/mms.quad8_n4.msh
-      inputs/manufactured.solution.quad.arc)
+      -A,//fem/hex-quad-mesh=true
+      inputs/manufactured.solution.arc)
   arcanefem_add_seq_test(NAME 2D_mms_quad9
     COMMAND ./Poisson
     ARGS
       -A,//meshes/mesh/filename=meshes/mms.quad9_n4.msh
-      inputs/manufactured.solution.quad.arc)
+      -A,//fem/hex-quad-mesh=true
+      inputs/manufactured.solution.arc)
   arcanefem_add_seq_test(NAME 3D
     COMMAND ./Poisson
     ARGS
@@ -152,17 +155,17 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   arcanefem_add_seq_test(NAME manufactured_2D
     COMMAND ./Poisson
     ARGS
-      inputs/manufactured.solution.quad.arc)
+      inputs/manufactured.solution.arc)
   arcanefem_add_seq_test(NAME manufactured-poly_2D
     COMMAND ./Poisson
     ARGS
       -A,//fem/manufactured-solution=poly
-      inputs/manufactured.solution.quad.arc)
+      inputs/manufactured.solution.arc)
   arcanefem_add_seq_test(NAME manufactured-quadratic_2D
     COMMAND ./Poisson
     ARGS
       -A,//fem/manufactured-solution=quadratic
-      inputs/manufactured.solution.quad.arc)
+      inputs/manufactured.solution.arc)
   arcanefem_add_seq_test(NAME manufactured_2D_quad
     COMMAND ./Poisson
     ARGS
