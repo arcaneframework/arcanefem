@@ -35,6 +35,12 @@ _applyResidualRHS(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityV
       } else {
         _applyResidualRHSTria3Gpu(rhs_values, m_dofs_on_nodes, m_node_coord, mesh_ptr, queue);
       }
+    } else {
+      if (m_hex_quad_mesh) {
+        _applyResidualRHSHexa8(rhs_values, node_dof);
+      } else {
+        _applyResidualRHSTetra4(rhs_values, node_dof);
+      }
     }
   } else {
     if (mesh()->dimension() == 2) {
@@ -299,7 +305,7 @@ _applyResidualRHSTria3Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConne
         maxx = math::max(maxx, err);
       }
       diff /= 6.0;
-      info() << "Let us check in Tria: diff = " << diff << " maxx = " << maxx;
+      info() << "Let us check in Tria: At Cell_id = "<< cell.uniqueId() << " diff = " <<  diff << " maxx = " << maxx;
     }
 
     rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0);
@@ -416,7 +422,7 @@ _applyResidualRHSQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
             maxx = math::max(maxx, err);
           }
           diff /= 8.0;
-          info() << "Let us check in Quad: diff = " << diff << " maxx = " << maxx;
+          info() << "Let us check in Quad: At Cell_id = "<< cell.uniqueId() << " diff = " <<  diff << " maxx = " << maxx;
         }
 
         rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0);
@@ -579,7 +585,7 @@ _applyResidualRHSTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnect
         maxx = math::max(maxx, err);
       }
       diff /= 12.0;
-      info() << "Let us check in Tetra: diff = " << diff << " maxx = " << maxx;
+      info() << "Let us check in Tetra: At Cell_id = "<< cell.uniqueId() << " diff = " <<  diff << " maxx = " << maxx;
     }
 
     rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs_1(0);
@@ -795,7 +801,7 @@ _applyResidualRHSHexa8(VariableDoFReal& rhs_values, const IndexedNodeDoFConnecti
               maxx = math::max(maxx, err);
             }
             diff /= 24.0;
-            info() << "Let us check in Hexa: diff = " << diff << " maxx = " << maxx;
+            info() << "Let us check in Hexa: At Cell_id = "<< cell.uniqueId() << " diff = " <<  diff << " maxx = " << maxx;
           }
 
 

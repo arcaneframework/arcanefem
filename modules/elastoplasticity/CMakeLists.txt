@@ -201,10 +201,24 @@ arcanefem_add_seq_test(NAME 2D_Dirichlet_quad_newton
           -A,//fem/matrix-format=BSR
           inputs/bar.2D.PointDirichlet.Dirichlet.bodyForce.arc)
 
-  arcanefem_add_full_test(NAME 3D_Dirichlet_bodyforce_bsr_newton
+  arcanefem_add_full_test(NAME 2D_Dirichlet_bodyforce_bsr
+          COMMAND ./Elastoplasticity
+          ARGS
+          -A,//fem/solution-comparison-file=check/bar.2D.Dirichlet.bodyForce.txt
+          -A,//fem/matrix-format=BSR
+          inputs/bar.2D.Dirichlet.bodyForce.arc)
+
+  arcanefem_add_full_test(NAME 2D_Dirichlet_bodyforce_bsr_newton
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/nonlinear-law=true
+          -A,//fem/solution-comparison-file=check/bar.2D.Dirichlet.bodyForce.txt
+          -A,//fem/matrix-format=BSR
+          inputs/bar.2D.Dirichlet.bodyForce.arc)
+
+  arcanefem_add_full_test(NAME 3D_Dirichlet_bodyforce_bsr
+          COMMAND ./Elastoplasticity
+          ARGS
           -A,//fem/solution-comparison-file=check/bar.3D.Dirichlet.bodyForce.txt
           -A,//fem/matrix-format=BSR
           inputs/bar.3D.Dirichlet.bodyForce.arc)
