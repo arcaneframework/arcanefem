@@ -39,6 +39,18 @@ startInit()
   m_petsc_flags = options()->petscFlags();
   m_hex_quad_mesh = options()->hexQuadMesh();
 
+  m_manufactured_solution_tolerance = options()->manufacturedSolutionTolerance();
+  m_manufactured_solution_name = options()->manufacturedSolution();
+  m_has_manufactured_solution = ManufacturedSolutions::isEnabled(m_manufactured_solution_name);
+
+  // Check if the mesh is a quad8 mesh by examining the number of nodes in the first cell
+  // TODO: maye a user flag
+  if (mesh()->dimension() == 2) {
+    UnstructuredMeshConnectivityView connectivity(mesh());
+    m_is_quad8_mesh = connectivity.cellNode().nbNode(CellLocalId(0)) == 8;
+    m_is_quad9_mesh = connectivity.cellNode().nbNode(CellLocalId(0)) == 9;
+  }
+
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
 }
@@ -159,6 +171,19 @@ _getMaterialParameters()
 
 void FemModulePoisson::_assembleLinearOperator()
 {
+
+  if (m_has_manufactured_solution) {
+    _applyManufacturedSource();
+    _applyManufacturedDirichlet();
+    return;
+  }
+
+  // Quad8 and Quad9 support is currently CPU-only 
+  if (m_is_quad8_mesh || m_is_quad9_mesh) {
+    _assembleLinearOperatorCpu();
+    return;
+  }
+
   if (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
       options()->linearSystem.serviceName() == "PetscLinearSystem")
     _assembleLinearOperatorGpu();
@@ -271,6 +296,12 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
+  if (m_is_quad8_mesh && m_matrix_format != "DOK")
+    ARCANE_FATAL("Quad8 Poisson assembly is currently supported on CPU with matrix-format=DOK only");
+  
+  if (m_is_quad9_mesh && m_matrix_format != "DOK")
+    ARCANE_FATAL("Quad9 Poisson assembly is currently supported on CPU with matrix-format=DOK only");
+
   if (m_matrix_format == "BSR") {
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();
@@ -321,7 +352,12 @@ _assembleBilinearOperator()
         _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
     else
       if(m_hex_quad_mesh)
-        _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+        if(m_is_quad9_mesh)
+          _assembleBilinear<9>([this](const Cell& cell) { return _computeElementMatrixQuad9(cell); });
+        else if (m_is_quad8_mesh)
+         _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixQuad8(cell); });
+        else
+          _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
       else
         _assembleBilinear<3>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
   }
@@ -412,6 +448,15 @@ _updateVariables()
   }
 
   m_u.synchronize();
+
+  if (m_has_manufactured_solution) {
+    _updateManufacturedExactSolution();
+    m_u_exact.synchronize();
+    const Real l2_error = _computeManufacturedL2Error();
+    info() << "[ArcaneFem-Info] Manufactured solution L2 error = " << l2_error;
+    if (l2_error > m_manufactured_solution_tolerance)
+      ARCANE_FATAL("Manufactured solution L2 error '{0}' is greater than tolerance '{1}'", l2_error, m_manufactured_solution_tolerance);
+  }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
