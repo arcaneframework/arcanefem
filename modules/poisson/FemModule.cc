@@ -43,12 +43,14 @@ startInit()
   m_manufactured_solution_name = options()->manufacturedSolution();
   m_has_manufactured_solution = ManufacturedSolutions::isEnabled(m_manufactured_solution_name);
 
-  // Check if the mesh is a quad8 mesh by examining the number of nodes in the first cell
+  // Check if the mesh is a quad8, quad9, hexa20 or hexa27 mesh by examining the number of nodes in the first cell
   // TODO: maye a user flag
   if (mesh()->dimension() == 2) {
     UnstructuredMeshConnectivityView connectivity(mesh());
     m_is_quad8_mesh = connectivity.cellNode().nbNode(CellLocalId(0)) == 8;
     m_is_quad9_mesh = connectivity.cellNode().nbNode(CellLocalId(0)) == 9;
+    m_is_hexa20_mesh = connectivity.cellNode().nbNode(CellLocalId(0)) == 20;
+    m_is_hexa27_mesh = connectivity.cellNode().nbNode(CellLocalId(0)) == 27;
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
