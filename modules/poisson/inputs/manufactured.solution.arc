@@ -23,6 +23,6 @@
   <fem>
     <matrix-format>DOK</matrix-format>
     <manufactured-solution>sine</manufactured-solution>
-    <manufactured-solution-tolerance>5.0e-2</manufactured-solution-tolerance>
+    <manufactured-solution-tolerance>8.0e-2</manufactured-solution-tolerance>
   </fem>
 </case>

@@ -123,6 +123,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     COMMAND ./Poisson
     ARGS
       -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa8.msh
+      -A,//fem/manufactured-solution=quadratic
       -A,//fem/hex-quad-mesh=true
       inputs/manufactured.solution.arc)
   arcanefem_add_seq_test(NAME 3D_mms_hexa20
