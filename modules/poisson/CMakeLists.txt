@@ -31,16 +31,24 @@ set(MESH_FILES
     sphere_cut.hexa.msh
     sphere_cut.hexa20.msh
     sphere_cut.hexa27.msh
+
     circle_cut.msh
     circle_cut.quad.msh
     circle_cut.quad8.msh
     circle_cut.quad9.msh
+
     plancher.msh
+
     unit_square.msh
     unit_square.quad.msh
+
     mms.quad4_n4.msh
     mms.quad8_n4.msh
     mms.quad9_n4.msh
+
+    3x3x3_cube_hexa8.msh
+    3x3x3_cube_hexa20.msh
+    3x3x3_cube_hexa27.msh
 )
 foreach (MESH_FILE IN LISTS MESH_FILES)
   file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
@@ -109,6 +117,24 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     COMMAND ./Poisson
     ARGS
       -A,//meshes/mesh/filename=meshes/mms.quad9_n4.msh
+      -A,//fem/hex-quad-mesh=true
+      inputs/manufactured.solution.arc)
+  arcanefem_add_seq_test(NAME 3D_mms_hexa8
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa8.msh
+      -A,//fem/hex-quad-mesh=true
+      inputs/manufactured.solution.arc)
+  arcanefem_add_seq_test(NAME 3D_mms_hexa20
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa20.msh
+      -A,//fem/hex-quad-mesh=true
+      inputs/manufactured.solution.arc)
+  arcanefem_add_seq_test(NAME 3D_mms_hexa27
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa27.msh
       -A,//fem/hex-quad-mesh=true
       inputs/manufactured.solution.arc)
   arcanefem_add_seq_test(NAME 3D
