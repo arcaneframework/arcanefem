@@ -2124,6 +2124,12 @@ class ArcaneFemFunctions
       else if (mesh->dimension() == 3 && nb_nodes == 8) { // Hexahedral mesh
         ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsHexa8(bs, node_dof, node_coord, rhs_values);
       }
+      else if (mesh->dimension() == 3 && nb_nodes == 20) { // Hexa20 mesh (Quad8 faces)
+        ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsHexa20(bs, node_dof, node_coord, rhs_values);
+      }
+      else if (mesh->dimension() == 3 && nb_nodes == 27) { // Hexa27 mesh (Quad9 faces)
+        ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsHexa27(bs, node_dof, node_coord, rhs_values);
+      }
       else {
         ARCANE_FATAL("Unsupported cell type in applyConstantNeumannToRhs()");
       }
@@ -2688,6 +2694,281 @@ class ArcaneFemFunctions
 
             // Apply to all four nodes of the face
             for (Int32 j = 0; j < 4; ++j) {
+              Node node = nodes[j];
+              if (!node.isOwn())
+                continue;
+
+              Real rhs_value;
+              if (scalarNeumann) {
+                rhs_value = value * N[j] * integration_weight;
+              }
+              else {
+                rhs_value = (normal.x * valueX + normal.y * valueY + normal.z * valueZ) * N[j] * integration_weight;
+              }
+
+              rhs_values[node_dof.dofId(node, 0)] += rhs_value;
+            }
+          }
+        }
+      }
+    }
+
+    static inline void applyNeumannToRhsHexa20(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      FaceGroup group = bs->getSurface();
+
+      Real value = 0.0;
+      Real valueX = 0.0;
+      Real valueY = 0.0;
+      Real valueZ = 0.0;
+
+      bool scalarNeumann = false;
+      const StringConstArrayView neumann_str = bs->getValue();
+
+      if (neumann_str.size() == 1 && neumann_str[0] != "NULL") {
+        scalarNeumann = true;
+        value = std::stod(neumann_str[0].localstr());
+      }
+      else {
+        if (neumann_str.size() > 2) {
+          if (neumann_str[0] != "NULL")
+            valueX = std::stod(neumann_str[0].localstr());
+          if (neumann_str[1] != "NULL")
+            valueY = std::stod(neumann_str[1].localstr());
+          if (neumann_str[2] != "NULL")
+            valueZ = std::stod(neumann_str[2].localstr());
+        }
+      }
+
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+
+        // 3-point Gauss rule per direction (needed for quadratic Quad8 face)
+        constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 }; // [-sqrt(3/5) , 0 , sqrt(3/5)]
+        constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+        // Get face nodes (Quad8 face)
+        Node nodes[8];
+        for (Int32 i = 0; i < 8; ++i)
+          nodes[i] = face.node(i);
+
+        // Get node coordinates
+        Real3 coords[8];
+        for (Int32 i = 0; i < 8; ++i)
+          coords[i] = node_coord[nodes[i]];
+
+        for (Int32 ixi = 0; ixi < 3; ++ixi) {
+          for (Int32 ieta = 0; ieta < 3; ++ieta) {
+            Real xi = gp[ixi];
+            Real eta = gp[ieta];
+            Real weight = weights[ixi] * weights[ieta];
+
+            // Quad8 (serendipity) shape functions
+            Real N[8];
+            N[0] = 0.25 * (1 - xi) * (1 - eta) * (-xi - eta - 1);
+            N[1] = 0.25 * (1 + xi) * (1 - eta) * (xi - eta - 1);
+            N[2] = 0.25 * (1 + xi) * (1 + eta) * (xi + eta - 1);
+            N[3] = 0.25 * (1 - xi) * (1 + eta) * (-xi + eta - 1);
+            N[4] = 0.5 * (1 - xi * xi) * (1 - eta);
+            N[5] = 0.5 * (1 + xi) * (1 - eta * eta);
+            N[6] = 0.5 * (1 - xi * xi) * (1 + eta);
+            N[7] = 0.5 * (1 - xi) * (1 - eta * eta);
+
+            // Shape function derivatives w.r.t. natural coordinates
+            Real dN_dxi[8] = {
+              0.25 * (1 - eta) * (2 * xi + eta),
+              0.25 * (1 - eta) * (2 * xi - eta),
+              0.25 * (1 + eta) * (2 * xi + eta),
+              0.25 * (1 + eta) * (2 * xi - eta),
+              -xi * (1 - eta),
+              0.5 * (1 - eta * eta),
+              -xi * (1 + eta),
+              -0.5 * (1 - eta * eta)
+            };
+            Real dN_deta[8] = {
+              0.25 * (1 - xi) * (2 * eta + xi),
+              0.25 * (1 + xi) * (2 * eta - xi),
+              0.25 * (1 + xi) * (2 * eta + xi),
+              0.25 * (1 - xi) * (2 * eta - xi),
+              -0.5 * (1 - xi * xi),
+              -eta * (1 + xi),
+              0.5 * (1 - xi * xi),
+              -eta * (1 - xi)
+            };
+
+            // Tangent vectors ∂r/∂ξ and ∂r/∂η
+            Real3 t1(0.0, 0.0, 0.0);
+            Real3 t2(0.0, 0.0, 0.0);
+            for (Int32 i = 0; i < 8; ++i) {
+              t1.x += dN_dxi[i] * coords[i].x;
+              t1.y += dN_dxi[i] * coords[i].y;
+              t1.z += dN_dxi[i] * coords[i].z;
+              t2.x += dN_deta[i] * coords[i].x;
+              t2.y += dN_deta[i] * coords[i].y;
+              t2.z += dN_deta[i] * coords[i].z;
+            }
+
+            // Normal vector (cross product of tangent vectors)
+            Real3 normal;
+            normal.x = t1.y * t2.z - t1.z * t2.y;
+            normal.y = t1.z * t2.x - t1.x * t2.z;
+            normal.z = t1.x * t2.y - t1.y * t2.x;
+
+            // Surface Jacobian
+            Real detJ = sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+            if (detJ <= 0.0) {
+              ARCANE_FATAL("Invalid (non-positive) surface Jacobian: {0}", detJ);
+            }
+
+            // Unit normal
+            normal.x /= detJ;
+            normal.y /= detJ;
+            normal.z /= detJ;
+
+            // Integration weight
+            Real integration_weight = weight * detJ;
+
+            // Apply to the eight nodes of the face
+            for (Int32 j = 0; j < 8; ++j) {
+              Node node = nodes[j];
+              if (!node.isOwn())
+                continue;
+
+              Real rhs_value;
+              if (scalarNeumann) {
+                rhs_value = value * N[j] * integration_weight;
+              }
+              else {
+                rhs_value = (normal.x * valueX + normal.y * valueY + normal.z * valueZ) * N[j] * integration_weight;
+              }
+
+              rhs_values[node_dof.dofId(node, 0)] += rhs_value;
+            }
+          }
+        }
+      }
+    }
+
+    static inline void applyNeumannToRhsHexa27(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      FaceGroup group = bs->getSurface();
+
+      Real value = 0.0;
+      Real valueX = 0.0;
+      Real valueY = 0.0;
+      Real valueZ = 0.0;
+
+      bool scalarNeumann = false;
+      const StringConstArrayView neumann_str = bs->getValue();
+
+      if (neumann_str.size() == 1 && neumann_str[0] != "NULL") {
+        scalarNeumann = true;
+        value = std::stod(neumann_str[0].localstr());
+      }
+      else {
+        if (neumann_str.size() > 2) {
+          if (neumann_str[0] != "NULL")
+            valueX = std::stod(neumann_str[0].localstr());
+          if (neumann_str[1] != "NULL")
+            valueY = std::stod(neumann_str[1].localstr());
+          if (neumann_str[2] != "NULL")
+            valueZ = std::stod(neumann_str[2].localstr());
+        }
+      }
+
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+
+        // 3-point Gauss rule per direction (needed for quadratic Quad9 face)
+        constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 }; // [-sqrt(3/5) , 0 , sqrt(3/5)]
+        constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+        // Get face nodes (Quad9 face)
+        Node nodes[9];
+        for (Int32 i = 0; i < 9; ++i)
+          nodes[i] = face.node(i);
+
+        // Get node coordinates
+        Real3 coords[9];
+        for (Int32 i = 0; i < 9; ++i)
+          coords[i] = node_coord[nodes[i]];
+
+        for (Int32 ixi = 0; ixi < 3; ++ixi) {
+          for (Int32 ieta = 0; ieta < 3; ++ieta) {
+            Real xi = gp[ixi];
+            Real eta = gp[ieta];
+            Real weight = weights[ixi] * weights[ieta];
+
+            // Quad9 (Lagrange) shape functions
+            Real N[9];
+            N[0] = 0.25 * xi * (xi - 1) * eta * (eta - 1);
+            N[1] = 0.25 * xi * (xi + 1) * eta * (eta - 1);
+            N[2] = 0.25 * xi * (xi + 1) * eta * (eta + 1);
+            N[3] = 0.25 * xi * (xi - 1) * eta * (eta + 1);
+            N[4] = 0.5 * (1 - xi * xi) * eta * (eta - 1);
+            N[5] = 0.5 * xi * (xi + 1) * (1 - eta * eta);
+            N[6] = 0.5 * (1 - xi * xi) * eta * (eta + 1);
+            N[7] = 0.5 * xi * (xi - 1) * (1 - eta * eta);
+            N[8] = (1 - xi * xi) * (1 - eta * eta);
+
+            // Shape function derivatives w.r.t. natural coordinates
+            Real dN_dxi[9] = {
+              0.25 * (2 * xi - 1) * eta * (eta - 1),
+              0.25 * (2 * xi + 1) * eta * (eta - 1),
+              0.25 * (2 * xi + 1) * eta * (eta + 1),
+              0.25 * (2 * xi - 1) * eta * (eta + 1),
+              -xi * eta * (eta - 1),
+              0.5 * (2 * xi + 1) * (1 - eta * eta),
+              -xi * eta * (eta + 1),
+              0.5 * (2 * xi - 1) * (1 - eta * eta),
+              -2 * xi * (1 - eta * eta)
+            };
+            Real dN_deta[9] = {
+              0.25 * xi * (xi - 1) * (2 * eta - 1),
+              0.25 * xi * (xi + 1) * (2 * eta - 1),
+              0.25 * xi * (xi + 1) * (2 * eta + 1),
+              0.25 * xi * (xi - 1) * (2 * eta + 1),
+              0.5 * (1 - xi * xi) * (2 * eta - 1),
+              -eta * xi * (xi + 1),
+              0.5 * (1 - xi * xi) * (2 * eta + 1),
+              -eta * xi * (xi - 1),
+              -2 * eta * (1 - xi * xi)
+            };
+
+            // Tangent vectors ∂r/∂ξ and ∂r/∂η
+            Real3 t1(0.0, 0.0, 0.0);
+            Real3 t2(0.0, 0.0, 0.0);
+            for (Int32 i = 0; i < 9; ++i) {
+              t1.x += dN_dxi[i] * coords[i].x;
+              t1.y += dN_dxi[i] * coords[i].y;
+              t1.z += dN_dxi[i] * coords[i].z;
+              t2.x += dN_deta[i] * coords[i].x;
+              t2.y += dN_deta[i] * coords[i].y;
+              t2.z += dN_deta[i] * coords[i].z;
+            }
+
+            // Normal vector (cross product of tangent vectors)
+            Real3 normal;
+            normal.x = t1.y * t2.z - t1.z * t2.y;
+            normal.y = t1.z * t2.x - t1.x * t2.z;
+            normal.z = t1.x * t2.y - t1.y * t2.x;
+
+            // Surface Jacobian
+            Real detJ = sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+            if (detJ <= 0.0) {
+              ARCANE_FATAL("Invalid (non-positive) surface Jacobian: {0}", detJ);
+            }
+
+            // Unit normal
+            normal.x /= detJ;
+            normal.y /= detJ;
+            normal.z /= detJ;
+
+            // Integration weight
+            Real integration_weight = weight * detJ;
+
+            // Apply to the nine nodes of the face
+            for (Int32 j = 0; j < 9; ++j) {
               Node node = nodes[j];
               if (!node.isOwn())
                 continue;
