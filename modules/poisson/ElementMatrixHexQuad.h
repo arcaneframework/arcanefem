@@ -13,7 +13,7 @@
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Computes the element matrix for a quadrilateral element (QUAD4, ℙ1 FE).
+ * @brief Computes the element matrix for a quadrilateral element (QUAD4, Q1 FE).
  *
  * This function calculates the integral of:
  *       𝑎(𝑢,𝑣) = ∫∫ (∂𝑢/∂𝑥 ∂𝑣/∂𝑥  + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦)dΩ
@@ -139,7 +139,7 @@ _computeElementVectorQuad4Gpu(CellLocalId cell_lid,
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Computes the element matrix for a hexahedral element (HEXA8, ℙ1 FE).
+ * @brief Computes the element matrix for a hexahedral element (HEXA8, ℚ1 FE).
  *
  * This function calculates the integral of:
  *       𝑎(𝑢,𝑣) = ∫∫∫ (∂𝑢/∂𝑥 ∂𝑣/∂𝑥 + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦 + ∂𝑢/∂𝑧 ∂𝑣/∂𝑧)dΩ
@@ -234,10 +234,123 @@ _computeElementMatrixHexa8Gpu(CellLocalId cell_lid,
   }
   return ae;
 }
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Computes the element matrix for a hexahedral element (HEXA20, ℚ2 FE, serendipity).
+ *
+ * This function calculates the integral of:
+ *       𝑎(𝑢,𝑣) = ∫∫∫ (∂𝑢/∂𝑥 ∂𝑣/∂𝑥 + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦 + ∂𝑢/∂𝑧 ∂𝑣/∂𝑧)dΩ
+ *
+ * Steps involved:
+ * 1. Define Gauss points (3x3x3) and weights.
+ * 2. Loop over Gauss points to compute the gradients in physical space (𝑥,𝑦,𝑧)
+ *    and the determinant of the Jacobian via computeGradientsAndJacobianHexa20.
+ * 3. Compute the integration weight.
+ * 4. Assemble the element matrix using the computed gradients.
+ *
+ * @param cell The cell for which the element matrix is computed.
+ * @return The computed element matrix.
+ */
+/*---------------------------------------------------------------------------*/
+
+RealMatrix<20, 20> FemModulePoisson::_computeElementMatrixHexa20(Cell cell)
+{
+  // Gauss points and weights for 3x3x3 quadrature (https://en.wikipedia.org/wiki/Gaussian_quadrature)
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 }; // [-sqrt(3/5) , 0 , sqrt(3/5)]
+  constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+  // Initialize the element matrix
+  RealMatrix<20, 20> ae;
+  ae.fill(0.0);
+
+  // Loop over Gauss points
+  for (Int8 ixi = 0; ixi < 3; ++ixi) {
+    for (Int8 ieta = 0; ieta < 3; ++ieta) {
+      for (Int8 izeta = 0; izeta < 3; ++izeta) {
+
+        // Get the coordinates of Gauss points in natural coordinates (ξ,η,ζ)
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const Real zeta = gp[izeta];
+
+        // Get shape function gradients w.r.t (𝑥,𝑦,𝑧) and determinant of Jacobian
+        const auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa20(cell, m_node_coord, xi, eta, zeta);
+        const RealVector<20>& dxU = gp_info.dN_dx;
+        const RealVector<20>& dyU = gp_info.dN_dy;
+        const RealVector<20>& dzU = gp_info.dN_dz;
+        const Real detJ = gp_info.det_j;
+
+        // Integration weight
+        const Real integration_weight = detJ * weight[ixi] * weight[ieta] * weight[izeta];
+
+        // Assemble element matrix (variational form)
+        ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight + (dzU ^ dzU) * integration_weight;
+      }
+    }
+  }
+  return ae;
+}
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Computes the element matrix for a quadrilateral element (QUAD8, ℙ1 FE).
+ * @brief Computes the element matrix for a hexahedral element (HEXA27, ℚ2 FE).
+ *
+ * This function calculates the integral of:
+ *       𝑎(𝑢,𝑣) = ∫∫∫ (∂𝑢/∂𝑥 ∂𝑣/∂𝑥 + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦 + ∂𝑢/∂𝑧 ∂𝑣/∂𝑧)dΩ
+ *
+ * Steps involved:
+ * 1. Define Gauss points (3x3x3) and weights.
+ * 2. Loop over Gauss points to compute the gradients in physical space (𝑥,𝑦,𝑧)
+ *    and the determinant of the Jacobian via computeGradientsAndJacobianHexa27.
+ * 3. Compute the integration weight.
+ * 4. Assemble the element matrix using the computed gradients.
+ *
+ * @param cell The cell for which the element matrix is computed.
+ * @return The computed element matrix.
+ */
+/*---------------------------------------------------------------------------*/
+
+RealMatrix<27, 27> FemModulePoisson::_computeElementMatrixHexa27(Cell cell)
+{
+  // Gauss points and weights for 3x3x3 quadrature (https://en.wikipedia.org/wiki/Gaussian_quadrature)
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 }; // [-sqrt(3/5) , 0 , sqrt(3/5)]
+  constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+  // Initialize the element matrix
+  RealMatrix<27, 27> ae;
+  ae.fill(0.0);
+
+  // Loop over Gauss points
+  for (Int8 ixi = 0; ixi < 3; ++ixi) {
+    for (Int8 ieta = 0; ieta < 3; ++ieta) {
+      for (Int8 izeta = 0; izeta < 3; ++izeta) {
+
+        // Get the coordinates of Gauss points in natural coordinates (ξ,η,ζ)
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const Real zeta = gp[izeta];
+
+        // Get shape function gradients w.r.t (𝑥,𝑦,𝑧) and determinant of Jacobian
+        const auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa27(cell, m_node_coord, xi, eta, zeta);
+        const RealVector<27>& dxU = gp_info.dN_dx;
+        const RealVector<27>& dyU = gp_info.dN_dy;
+        const RealVector<27>& dzU = gp_info.dN_dz;
+        const Real detJ = gp_info.det_j;
+
+        // Integration weight
+        const Real integration_weight = detJ * weight[ixi] * weight[ieta] * weight[izeta];
+
+        // Assemble element matrix (variational form)
+        ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight + (dzU ^ dzU) * integration_weight;
+      }
+    }
+  }
+  return ae;
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Computes the element matrix for a quadrilateral element (QUAD8, Q2 FE).
  *
  * This function calculates the integral of:
  *       𝑎(𝑢,𝑣) = ∫∫ (∂𝑢/∂𝑥 ∂𝑣/∂𝑥  + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦)dΩ
@@ -257,7 +370,7 @@ _computeElementMatrixHexa8Gpu(CellLocalId cell_lid,
 RealMatrix<8, 8> FemModulePoisson::_computeElementMatrixQuad8(Cell cell)
 {
   // Gauss points and weights for 3x3 quadrature (https://en.wikipedia.org/wiki/Gaussian_quadrature)
-  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 }; // [-sqrt(5/9) , 0 , sqrt(5/9)]
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 }; // [-sqrt(3/5) , 0 , sqrt(3/5)]
   constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
 
   // Initialize the element matrix
@@ -279,7 +392,7 @@ RealMatrix<8, 8> FemModulePoisson::_computeElementMatrixQuad8(Cell cell)
       const Real detJ = gp_info.det_j;
 
       // Integration weight
-      const Real integration_weight = detJ * weight[ixi] * weight[ieta];;
+      const Real integration_weight = detJ * weight[ixi] * weight[ieta];
 
       // stiffness matrix assembly
       ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight;
@@ -289,7 +402,7 @@ RealMatrix<8, 8> FemModulePoisson::_computeElementMatrixQuad8(Cell cell)
 }
 
 /**
- * @brief Computes the element matrix for a quadrilateral element (QUAD9, ℙ1 FE).
+ * @brief Computes the element matrix for a quadrilateral element (QUAD9, Q2 FE).
  *
  * This function calculates the integral of:
  *       𝑎(𝑢,𝑣) = ∫∫ (∂𝑢/∂𝑥 ∂𝑣/∂𝑥  + ∂𝑢/∂𝑦 ∂𝑣/∂𝑦)dΩ
@@ -309,7 +422,7 @@ RealMatrix<8, 8> FemModulePoisson::_computeElementMatrixQuad8(Cell cell)
 RealMatrix<9, 9> FemModulePoisson::_computeElementMatrixQuad9(Cell cell)
 {
   // Gauss points and weights for 3x3 quadrature (https://en.wikipedia.org/wiki/Gaussian_quadrature)
-  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 }; // [-sqrt(5/9) , 0 , sqrt(5/9)]
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 }; // [-sqrt(3/5) , 0 , sqrt(3/5)]
   constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
 
   // Initialize the element matrix
@@ -331,7 +444,7 @@ RealMatrix<9, 9> FemModulePoisson::_computeElementMatrixQuad9(Cell cell)
       const Real detJ = gp_info.det_j;
 
       // Integration weight
-      const Real integration_weight = detJ * weight[ixi] * weight[ieta];;
+      const Real integration_weight = detJ * weight[ixi] * weight[ieta];
 
       // stiffness matrix assembly
       ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight;

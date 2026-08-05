@@ -105,6 +105,8 @@ class FemModulePoisson
   bool m_is_quad8_mesh = false;
   bool m_has_manufactured_solution = false;
   bool m_is_quad9_mesh = false;
+  bool m_is_hexa20_mesh = false;
+  bool m_is_hexa27_mesh = false;
 
 
   void _doStationarySolve();
@@ -126,6 +128,8 @@ class FemModulePoisson
   RealMatrix<8, 8> _computeElementMatrixQuad8(Cell cell);
   RealMatrix<9, 9> _computeElementMatrixQuad9(Cell cell);
   RealMatrix<8, 8> _computeElementMatrixHexa8(Cell cell);
+  RealMatrix<20, 20> _computeElementMatrixHexa20(Cell cell);
+  RealMatrix<27, 27> _computeElementMatrixHexa27(Cell cell);
   template <int N>
   void _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
 };

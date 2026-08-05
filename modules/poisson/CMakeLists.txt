@@ -29,16 +29,24 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
     sphere_cut.msh
     sphere_cut.hexa.msh
+
     circle_cut.msh
     circle_cut.quad.msh
     circle_cut.quad8.msh
     circle_cut.quad9.msh
+
     plancher.msh
+
     unit_square.msh
     unit_square.quad.msh
+
     mms.quad4_n4.msh
     mms.quad8_n4.msh
     mms.quad9_n4.msh
+
+    3x3x3_cube_hexa8.msh
+    3x3x3_cube_hexa20.msh
+    3x3x3_cube_hexa27.msh
 )
 foreach (MESH_FILE IN LISTS MESH_FILES)
   file(COPY ${MSH_DIR}/${MESH_FILE} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
@@ -107,6 +115,25 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     COMMAND ./Poisson
     ARGS
       -A,//meshes/mesh/filename=meshes/mms.quad9_n4.msh
+      -A,//fem/hex-quad-mesh=true
+      inputs/manufactured.solution.arc)
+  arcanefem_add_seq_test(NAME 3D_mms_hexa8
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa8.msh
+      -A,//fem/manufactured-solution=quadratic
+      -A,//fem/hex-quad-mesh=true
+      inputs/manufactured.solution.arc)
+  arcanefem_add_seq_test(NAME 3D_mms_hexa20
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa20.msh
+      -A,//fem/hex-quad-mesh=true
+      inputs/manufactured.solution.arc)
+  arcanefem_add_seq_test(NAME 3D_mms_hexa27
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa27.msh
       -A,//fem/hex-quad-mesh=true
       inputs/manufactured.solution.arc)
   arcanefem_add_seq_test(NAME 3D
@@ -259,6 +286,24 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       ARGS
         -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D_hexa.txt
         inputs/sphere.3D.hexa.arc)
+    arcanefem_add_mpi_test(NAME 3D_hexa8_cube
+      COMMAND ./Poisson
+      ARGS
+        -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa8.msh
+        -A,//fem/solution-comparison-file=check/poisson_test_ref_cube_3D_hexa8.txt
+        inputs/cube.3D.hexa.arc)
+    arcanefem_add_mpi_test(NAME 3D_hexa20_cube
+      COMMAND ./Poisson
+      ARGS
+        -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa20.msh
+        -A,//fem/solution-comparison-file=check/poisson_test_ref_cube_3D_hexa8.txt
+        inputs/cube.3D.hexa.arc)
+    arcanefem_add_mpi_test(NAME 3D_hexa27_cube
+      COMMAND ./Poisson
+      ARGS
+        -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa27.msh
+        -A,//fem/solution-comparison-file=check/poisson_test_ref_cube_3D_hexa8.txt
+        inputs/cube.3D.hexa.arc)
     arcanefem_add_mpi_test(NAME 3D_scalar_neumann_hexa
       COMMAND ./Poisson
       ARGS

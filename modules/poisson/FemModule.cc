@@ -43,12 +43,18 @@ startInit()
   m_manufactured_solution_name = options()->manufacturedSolution();
   m_has_manufactured_solution = ManufacturedSolutions::isEnabled(m_manufactured_solution_name);
 
-  // Check if the mesh is a quad8 mesh by examining the number of nodes in the first cell
+  // Check if the mesh is a quad8, quad9, hexa20 or hexa27 mesh by examining the number of nodes in the first cell
   // TODO: maye a user flag
+  UnstructuredMeshConnectivityView connectivity(mesh());
+  const Int32 nb_node = connectivity.cellNode().nbNode(CellLocalId(0));
+
   if (mesh()->dimension() == 2) {
-    UnstructuredMeshConnectivityView connectivity(mesh());
-    m_is_quad8_mesh = connectivity.cellNode().nbNode(CellLocalId(0)) == 8;
-    m_is_quad9_mesh = connectivity.cellNode().nbNode(CellLocalId(0)) == 9;
+    m_is_quad8_mesh = (nb_node == 8);
+    m_is_quad9_mesh = (nb_node == 9);
+  }
+  else if (mesh()->dimension() == 3) {
+    m_is_hexa20_mesh = (nb_node == 20);
+    m_is_hexa27_mesh = (nb_node == 27);
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -184,6 +190,12 @@ void FemModulePoisson::_assembleLinearOperator()
     return;
   }
 
+  // Hexa20 and Hexa27 support is currently CPU-only 
+  if (m_is_hexa20_mesh || m_is_hexa27_mesh) {
+    _assembleLinearOperatorCpu();
+    return;
+  }
+
   if (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
       options()->linearSystem.serviceName() == "PetscLinearSystem")
     _assembleLinearOperatorGpu();
@@ -302,6 +314,12 @@ _assembleBilinearOperator()
   if (m_is_quad9_mesh && m_matrix_format != "DOK")
     ARCANE_FATAL("Quad9 Poisson assembly is currently supported on CPU with matrix-format=DOK only");
 
+  if (m_is_hexa20_mesh && m_matrix_format != "DOK")
+    ARCANE_FATAL("Hexa20 Poisson assembly is currently supported on CPU with matrix-format=DOK only");
+
+  if (m_is_hexa27_mesh && m_matrix_format != "DOK")
+    ARCANE_FATAL("Hexa27 Poisson assembly is currently supported on CPU with matrix-format=DOK only");
+
   if (m_matrix_format == "BSR") {
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();
@@ -346,7 +364,11 @@ _assembleBilinearOperator()
 
   if (m_matrix_format == "DOK") {
     if (mesh()->dimension() == 3)
-      if(m_hex_quad_mesh)
+      if(m_is_hexa27_mesh)
+        _assembleBilinear<27>([this](const Cell& cell) { return _computeElementMatrixHexa27(cell); });
+      else if(m_is_hexa20_mesh)
+        _assembleBilinear<20>([this](const Cell& cell) { return _computeElementMatrixHexa20(cell); });
+      else if(m_hex_quad_mesh)
         _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
       else
         _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
@@ -355,7 +377,7 @@ _assembleBilinearOperator()
         if(m_is_quad9_mesh)
           _assembleBilinear<9>([this](const Cell& cell) { return _computeElementMatrixQuad9(cell); });
         else if (m_is_quad8_mesh)
-         _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixQuad8(cell); });
+          _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixQuad8(cell); });
         else
           _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
       else
