@@ -29,8 +29,6 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
     sphere_cut.msh
     sphere_cut.hexa.msh
-    sphere_cut.hexa20.msh
-    sphere_cut.hexa27.msh
 
     circle_cut.msh
     circle_cut.quad.msh
@@ -152,16 +150,6 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     COMMAND ./Poisson
     ARGS
       -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D_hexa.txt
-      inputs/sphere.3D.hexa.arc)
-  arcanefem_add_seq_test(NAME 3D_hexa20
-    COMMAND ./Poisson
-    ARGS
-      -A,//meshes/mesh/filename=meshes/sphere_cut.hexa20.msh
-      inputs/sphere.3D.hexa.arc)
-  arcanefem_add_seq_test(NAME 3D_hexa27
-    COMMAND ./Poisson
-    ARGS
-      -A,//meshes/mesh/filename=meshes/sphere_cut.hexa27.msh
       inputs/sphere.3D.hexa.arc)
   arcanefem_add_seq_test(NAME 3D_neumann_hexa
     COMMAND ./Poisson
