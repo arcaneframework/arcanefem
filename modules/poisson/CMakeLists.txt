@@ -286,6 +286,21 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       ARGS
         -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D_hexa.txt
         inputs/sphere.3D.hexa.arc)
+    arcanefem_add_mpi_test(NAME 3D_hexa8_cube
+      COMMAND ./Poisson
+      ARGS
+        -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa8.msh
+        inputs/cube.3D.hexa.arc)
+    arcanefem_add_mpi_test(NAME 3D_hexa20_cube
+      COMMAND ./Poisson
+      ARGS
+        -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa20.msh
+        inputs/cube.3D.hexa.arc)
+    arcanefem_add_mpi_test(NAME 3D_hexa27_cube
+      COMMAND ./Poisson
+      ARGS
+        -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa27.msh
+        inputs/cube.3D.hexa.arc)
     arcanefem_add_mpi_test(NAME 3D_scalar_neumann_hexa
       COMMAND ./Poisson
       ARGS
