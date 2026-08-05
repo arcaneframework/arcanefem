@@ -29,7 +29,7 @@
       </dirichlet>
       <neumann>
         <surface>right</surface>
-        <value>0.5</value>
+        <value>13.9</value>
       </neumann>
     </boundary-conditions>
   </fem>
