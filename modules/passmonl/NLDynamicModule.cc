@@ -1704,7 +1704,7 @@ _getB(const Cell& cell, const Int32& igauss, const Int32& nb_nodes)
 
   // ! Computes the Inverse Jacobian Matrix of a 2D or 3D finite-element
   NumMatrix<Real,3,3> mjac = m_gauss_jacob_mat(cell, igauss);
-  Real3x3 jac(mjac[0], mjac[1], mjac[2]);
+  Real3x3 jac = mjac;
   Real3x3 ijac;
 
   if (NDIM == 3) {
@@ -1781,9 +1781,9 @@ _compute_stress(bool init, bool store)
 
       Tensor2 epsn, sign, epspn;
 
-      epsn.fromReal3x3ToTensor2(Real3x3(mepsn[0], mepsn[1], mepsn[2]));
-      sign.fromReal3x3ToTensor2(Real3x3(msign[0], msign[1], msign[2]));
-      epspn.fromReal3x3ToTensor2(Real3x3(mepspn[0], mepspn[1], mepspn[2]));
+      epsn = mepsn;
+      sign = msign;
+      epspn = mepspn;
 
       Int32 n_index{ 0 };
       Tensor2 deps;
@@ -1940,8 +1940,8 @@ _assembleNonLinRHS(bool init){
       auto Bmat = _getB(cell,igauss,nb_nodes);
       NumMatrix<Real,3,3>msig = m_gauss_stress(cell,igauss);
       NumMatrix<Real,3,3>msig0 = m_gauss_stress0(cell,igauss);
-      Real3x3 sig(msig[0], msig[1], msig[2]);
-      Real3x3 sig0(msig0[0], msig0[1], msig0[2]);
+      Real3x3 sig = msig;
+      Real3x3 sig0 = msig0;
       auto jacobian = m_gauss_jacobian(cell,igauss);
 
       // Computing elementary mass matrix at Gauss point ig
