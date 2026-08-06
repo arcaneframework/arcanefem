@@ -77,23 +77,23 @@ Please note that the above equation is often called as the weak formulation of t
 
 #### Thermal Conductivity ###
 
-The value of thermal conductivity $\lambda$  and heat source $\dot{\mathcal{Q}}$ can be provided in  `Test.conduction.arc` file
+The value of thermal conductivity $\lambda$  and heat source $\dot{\mathcal{Q}}$ can be provided in  `inputs/conduction.arc` file
 
 ```xml
-  <Fem1>
+  <fem>
     <lambda>1.75</lambda>
     <qdot>1e5</qdot>
-  </Fem1>
+  </fem>
 ```
 
 #### Mesh ####
 
-The mesh `plancher.msh` is provided in the `Test.conduction.arc` file
+The mesh `plancher.msh` is provided in the `conduction.arc` file
 
 ```xml
   <meshes>
     <mesh>
-      <filename>plancher.msh</filename>
+      <filename>meshes/plancher.msh</filename>
     </mesh>
   </meshes>
 ```
@@ -102,36 +102,44 @@ Please not that use version 4.1 `.msh` file from `Gmsh`.
 
 #### Boundary conditions ####
 
-The Dirichlet (constant temperature) boundary conditions  are provided in `Test.conduction.arc` file
+The Dirichlet (constant temperature) boundary conditions  are provided in `conduction.arc` file
 
 ```xml
-    <dirichlet-boundary-condition>
-      <surface>Cercle</surface>
-      <value>50.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Bas</surface>
-      <value>5.0</value>
-    </dirichlet-boundary-condition>
-    <dirichlet-boundary-condition>
-      <surface>Haut</surface>
-      <value>21.0</value>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+        <penalty>1.e12</penalty>
+        <surface>Cercle</surface>
+        <value>50.0</value>
+      </dirichlet>
+      <dirichlet>
+        <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+        <penalty>1.e12</penalty>
+        <surface>Bas</surface>
+        <value>5.0</value>
+      </dirichlet>
+      <dirichlet>
+        <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+        <penalty>1.e12</penalty>
+        <surface>Haut</surface>
+        <value>21.0</value>
+      </dirichlet>
+    </boundary-conditions>
 ```
 
 So in the snippet above, three Dirichlet conditions are applied ($50 \degree C, 5.0 \degree C, 21.0 \degree C$)  on three borders ('cercle', 'Bas', 'Haut').
 
-The Neumann  boundary conditions  are also provided in `Test.conduction.arc` file
+The Neumann  boundary conditions  are also provided in `conduction.arc` file
 
 ```xml
-    <neumann-boundary-condition>
-      <surface>Droite</surface>
-      <value>15.0</value>
-    </neumann-boundary-condition>
-    <neumann-boundary-condition>
-      <surface>Gauche</surface>
-      <value>0.0</value>
-    </neumann-boundary-condition>
+      <neumann>
+        <surface>Droite</surface>
+        <value>15.0</value>
+      </neumann>
+      <neumann>
+        <surface>Gauche</surface>
+        <value>0.0</value>
+      </neumann>
 ```
 
 

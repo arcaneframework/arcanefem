@@ -29,7 +29,7 @@
       <surface>boundary</surface>
       <value>0.5</value>
     </dirichlet-boundary-condition>
-    <linear-system name="PETScLinearSystem">
+    <linear-system name="PetscLinearSystem">
 	    <solver>gmres</solver>
 	    <pc-type>bjacobi</pc-type>
       <rtol>0.</rtol>

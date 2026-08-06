@@ -22,6 +22,7 @@
   <fem>
     <solution-comparison-file>poisson_test_ref_L-shape_2D.txt</solution-comparison-file>
     <f>-5.5</f>
+    <penalty>1e10</penalty>
     <dirichlet-boundary-condition>
       <surface>boundary</surface>
       <value>0.5</value>

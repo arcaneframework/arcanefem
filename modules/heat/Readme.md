@@ -58,20 +58,20 @@ We also are provided with  $t_{max}=40$ seconds and $\delta t=0.4$, as such the 
 
 #### Thermal Conductivity ###
 
-The value of thermal conductivity $\lambda$  and heat source $t_{max}, \delta t$, and $T_{init}$ can be provided in  `Test.conduction.arc` file
+The value of thermal conductivity $\lambda$  and heat source $t_{max}, \delta t$, and $T_{init}$ can be provided in  `inputs/conduction.arc` file
 
 ```xml
-  <Fem1>
+  <fem>
     <lambda>1.75</lambda>
-    <tmax>40.</tmax>
+    <tmax>20.</tmax>
     <dt>0.4</dt>
     <Tinit>30.0</Tinit>
-  </Fem1>
+  </fem>
 ```
 
 #### Mesh ####
 
-The mesh `plate.msh` is provided in the `Test.conduction.arc` file
+The mesh `plate.msh` is provided in the `conduction.arc` file
 
 ```xml
   <meshes>
@@ -87,26 +87,34 @@ Please not that use version 4.1 `.msh` file from `Gmsh`.
 
 ##### Dirichlet only case
 
-The Dirichlet (constant temperature) boundary conditions  are provided in `Test.conduction.arc` file
+The Dirichlet (constant temperature) boundary conditions  are provided in `conduction.arc` file
 
 ```xml
-    <dirichlet-boundary-condition>
-      <surface>Left</surface>
-      <value>10.0</value>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+        <penalty>1.e31</penalty>
+        <surface>left</surface>
+        <value>10.0</value>
+      </dirichlet>
+    </boundary-conditions>
 ```
 
 So in the snippet above, three Dirichlet conditions are applied $10 \degree C$  on  border tagged as 'left' in the .
 
 ##### Dirichlet and convection boundary case
 
-See `Test.conduction.convection.arc`  for this. Here the 'Left' border has Dirichlet condition and the borders 'right', 'top'  and 'bottom' have convection boundary conditions.
+See `conduction.convection.arc`  for this. Here the 'Left' border has Dirichlet condition and the borders 'right', 'top'  and 'bottom' have convection boundary conditions.
 
 ```xml
-    <dirichlet-boundary-condition>
-      <surface>left</surface>
-      <value>10.0</value>
-    </dirichlet-boundary-condition>
+    <boundary-conditions>
+      <dirichlet>
+        <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
+        <penalty>1.e31</penalty>
+        <surface>left</surface>
+        <value>10.0</value>
+      </dirichlet>
+    </boundary-conditions>
     <convection-boundary-condition>
       <surface>right</surface>
       <h>1.</h>

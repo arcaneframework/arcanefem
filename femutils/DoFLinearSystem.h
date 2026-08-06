@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* DoFLinearSystem.h                                           (C) 2022-2025 */
+/* DoFLinearSystem.h                                           (C) 2000-2026 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b wit DoFs.          */
 /*---------------------------------------------------------------------------*/
@@ -306,11 +306,11 @@ class DoFLinearSystem
    * This method has to be called before the first call to solve().
    *
    * Currently it only works when the implementation is Aleph and when
-   * the underlying solver is PETSc. In this case the arguments in \a args
+   * the underlying solver is Petsc. In this case the arguments in \a args
    * are passed to PetscInitialize().
    *
    * \note The call to PetscInitialize() is only done one time during the
-   * simulation so only the first solver using PETSc will proceed
+   * simulation so only the first solver using Petsc will proceed
    * to the initialisation.
    */
   void setSolverCommandLineArguments(const CommandLineArguments& args);

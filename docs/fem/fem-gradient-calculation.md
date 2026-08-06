@@ -1,10 +1,10 @@
-### How do we calculate gradients of shape functions for P1 Tetrahedron Finite Element ###
+### How do we calculate gradients of shape functions for P1 Tetrahedron Finite Element
 
-For a tetrahedron with nodes we assume four  nodes $m_0 , m_1. m_2, m_3$: 
+For a tetrahedron with nodes we assume four  nodes $m_0 , m_1. m_2, m_3$:
 
 <img width="100" align="left" src="https://github.com/user-attachments/assets/d4156c9d-1eb1-498d-8146-a678dc3eedd4"/>
 
- $m_0 = (x_0, y_0, z_0)$, $m_1 = (x_1, y_1, z_1)$, $m_2 = (x_2, y_2, z_2)$, and $m_3 = (x_3, y_3, z_3)$, 
+ $m_0 = (x_0, y_0, z_0)$, $m_1 = (x_1, y_1, z_1)$, $m_2 = (x_2, y_2, z_2)$, and $m_3 = (x_3, y_3, z_3)$,
 
 The P1 finite element shape functions $\Phi_i$ for a tetrahedron can be expressed as:
 
@@ -157,7 +157,7 @@ $$
       Real3 v2 = vertex3 - vertex0;
 
       // 6 x Volume of tetrahedron
-      Real V6 =  std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2)));
+      Real V6 =  math::abs(math::dot(v0, math::cross(v1, v2)));
 
       Real4 dx;
 

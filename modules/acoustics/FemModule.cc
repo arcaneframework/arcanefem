@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemModule.cc                                                (C) 2022-2025 */
+/* FemModule.cc                                                (C) 2000-2026 */
 /*                                                                           */
 /* Simple FEM solver to solve acoustics.                                     */
 /*---------------------------------------------------------------------------*/
@@ -148,20 +148,8 @@ _assembleLinearOperator()
 
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
   if (bc) {
-    for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions()) {
-      if (mesh()->dimension() == 2) {
-        if (m_hex_quad_mesh)
-          ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhsQuad4(bs, node_dof, m_node_coord, rhs_values);
-        else
-          ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
-      }
-      if (mesh()->dimension() == 3) {
-        if (m_hex_quad_mesh)
-          ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsHexa8(bs, node_dof, m_node_coord, rhs_values);
-        else
-          ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
-      }
-    }
+    for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
+      ArcaneFemFunctions::BoundaryConditions::applyNeumannToRhs(bs, mesh(), node_dof, m_node_coord, rhs_values);
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;

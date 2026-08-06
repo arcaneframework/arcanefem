@@ -112,14 +112,14 @@ The tests are present in the form of `.arc` files with a prefix `Test.`:
 
 | Name          | Dimension | Boundary Condition                                   | Solver               | Comment                                                     |
 | ------------- | --------- | ---------------------------------------------------- | -------------------- | ----------------------------------------------------------- |
-| L-shape.2D    | 2D        | Homogeneous Dirichlet <br />Homogeneous source term  | Default (PETSc)      | - Serves as validation test                                 |
-| L-shape.3D    | 3D        | Dirichlet + Null flux <br />Homogeneous source term  | PETSc                | - Serves as validation test<br />- Uses BLCSR matrix format |
+| L-shape.2D    | 2D        | Homogeneous Dirichlet <br />Homogeneous source term  | Default (Petsc)      | - Serves as validation test                                 |
+| L-shape.3D    | 3D        | Dirichlet + Null flux <br />Homogeneous source term  | Petsc                | - Serves as validation test<br />- Uses BLCSR matrix format |
 | sphere.3D     | 3D        | Dirichlet only<br />Homogeneous source term          | HYPRE (ArcaneFEM)    | - Uses BLCSR matrix format                                  |
 | direct-solver | 2D        | Homogeneous Dirichlet <br />Homogeneous source term  | Sequential Direct LU |                                                             |
-| neumann       | 2D        | Neumann only                                         | Default (PETSc)      | - Serves as validation test                                 |
-| porous        | 2D        | Multiple Dirichlet only<br />Homogeneous source term | PETSc                | - Used for Benchmarking                                     |
+| neumann       | 2D        | Neumann only                                         | Default (Petsc)      | - Serves as validation test                                 |
+| porous        | 2D        | Multiple Dirichlet only<br />Homogeneous source term | Petsc                | - Used for Benchmarking                                     |
 | trilinos      | 2D        | Homogeneous Dirichlet <br />Homogeneous source term  | TRILINOS             | - Used to test TRILINOS                                     |
-| petsc         | 2D        | Homogeneous Dirichlet <br />Homogeneous source term  | PETSc                | - Serves as validation test                                 |
+| petsc         | 2D        | Homogeneous Dirichlet <br />Homogeneous source term  | Petsc                | - Serves as validation test                                 |
 | hypre         | 2D        | Homogeneous Dirichlet <br />Homogeneous source term  | HYPRE (Arcane)       | - Serves as validation test                                 |
 | hypre_direct  | 2D        | Homogeneous Dirichlet <br />Homogeneous source term  | HYPRE (ArcaneFEM)    | - Serves as validation test<br />- Uses BLCSR matrix format |
 |               |           |                                                      |                      |                                                             |

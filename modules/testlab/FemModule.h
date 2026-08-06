@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemModule.h                                                 (C) 2022-2025 */
+/* FemModule.h                                                 (C) 2000-2026 */
 /*                                                                           */
 /* Testlab is testing ground for algorithms in ArcaneFEM.                    */
 /*---------------------------------------------------------------------------*/
@@ -419,7 +419,7 @@ _computeElementMatrixTETRA4GPU(CellLocalId icell, IndexedCellNodeConnectivityVie
   Real3 v1 = m2 - m0;
   Real3 v2 = m3 - m0;
 
-  Real volume = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2))) / 6.0;
+  Real volume = Arcane::math::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2))) / 6.0;
 
   // Compute gradients of shape functions
   Real3 dPhi0 = Arcane::math::cross(m2 - m1, m1 - m3);
@@ -508,7 +508,7 @@ inline Real FemModuleTestlab::_computeCellMatrixGpuTETRA4(CellLocalId icell, Ind
   Real3 v2 = m3 - m0;
 
   // Compute volume using scalar triple product
-  Real volume = std::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2))) / 6.0;
+  Real volume = Arcane::math::abs(Arcane::math::dot(v0, Arcane::math::cross(v1, v2))) / 6.0;
 
   // Compute gradients of shape functions
   Real3 dPhi0 = Arcane::math::cross(m2 - m1, m1 - m3);

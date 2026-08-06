@@ -1,0 +1,134 @@
+set(ACCELERATOR_SOURCES FemModule.cc)
+
+add_executable(Poisson_dg
+  ${ACCELERATOR_SOURCES}
+  main.cc
+  Fem_axl.h
+)
+
+arcane_accelerator_add_source_files(${ACCELERATOR_SOURCES})
+arcane_accelerator_add_to_target(Poisson_dg)
+
+arcane_generate_axl(Fem)
+arcane_add_arcane_libraries_to_target(Poisson_dg)
+target_include_directories(Poisson_dg PUBLIC . ${CMAKE_CURRENT_BINARY_DIR})
+configure_file(Poisson_dg.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
+
+target_link_libraries(Poisson_dg PUBLIC FemUtils)
+
+# Copy the check files in the binary directory
+file(COPY "check" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+# Copy the inputs folder containing the arc files
+file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+# Copy the mesh files into meshes directory
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
+set(MSH_FILES
+    circle_cut.msh
+    circle_cut.quad-tria.msh
+)
+set(MED_FILES
+    circle_cut-tria.med
+    circle_cut-quad-tria.med
+    circle_cut-quad.med
+    circle_cut-poly.med
+)
+foreach(MSH_FILES IN LISTS MSH_FILES)
+    file(COPY ${MSH_DIR}/${MSH_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
+endforeach()
+foreach(MED_FILES IN LISTS MED_FILES)
+    file(COPY ${MED_DIR}/${MED_FILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/meshes)
+endforeach()
+
+
+enable_testing()
+set(MODULE_NAME "Poisson_dg")
+
+if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
+  arcanefem_add_seq_test(NAME circle_homogenous_tria
+    COMMAND ./Poisson_dg
+    ARGS
+      -A,//fem/solution-comparison-file=check/circle_homogenous_tria.txt
+      inputs/circle.2D.arc)
+
+  arcanefem_add_seq_test(NAME circle_homogenous_tria_petsc
+    COMMAND ./Poisson_dg
+    ARGS
+      -A,//fem/solution-comparison-file=check/circle_homogenous_tria.txt
+      -A,//fem/matrix-format=CSR
+      -A,//fem/linear-system/@name=PetscLinearSystem
+      inputs/circle.2D.arc)
+
+  arcanefem_add_seq_test(NAME circle_neumann_tria
+    COMMAND ./Poisson_dg
+    ARGS
+      -A,//fem/solution-comparison-file=check/circle.2D.neumann.txt
+      inputs/circle.2D.neumann.arc)
+
+  arcanefem_add_seq_test(NAME circle_homogenous_quad_tria
+    COMMAND ./Poisson_dg
+    ARGS
+      -A,//meshes/mesh/filename=meshes/circle_cut.quad-tria.msh
+      inputs/circle.2D.arc)
+
+    arcanefem_add_seq_test(NAME circle_neumann_tria_petsc
+      COMMAND ./Poisson_dg
+      ARGS
+        -A,//fem/matrix-format=CSR
+        -A,//fem/linear-system/@name=PetscLinearSystem
+        -A,//fem/solution-comparison-file=check/circle.2D.neumann.txt
+        inputs/circle.2D.neumann.arc)
+  
+  if(MEDFile_FOUND)
+    message(STATUS "MEDFile found: ${MEDFile_FOUND}")
+    arcanefem_add_seq_test(NAME circle_homogenous_tria_med
+      COMMAND ./Poisson_dg
+      ARGS
+        -A,//meshes/mesh/filename=meshes/circle_cut-tria.med
+        -A,//fem/solution-comparison-file=check/circle_homogenous_tria.txt
+        inputs/circle.2D.arc)
+    arcanefem_add_seq_test(NAME circle_homogenous_tria_med_petsc
+      COMMAND ./Poisson_dg
+      ARGS
+        -A,//meshes/mesh/filename=meshes/circle_cut-tria.med
+        -A,//fem/solution-comparison-file=check/circle_homogenous_tria.txt
+        -A,//fem/matrix-format=CSR
+        -A,//fem/linear-system/@name=PetscLinearSystem
+        inputs/circle.2D.arc)
+    arcanefem_add_seq_test(NAME circle_homogenous_quad_tria_med
+      COMMAND ./Poisson_dg
+      ARGS
+        -A,//fem/solution-comparison-file=check/circle_homogenous_quad_tria.txt
+        -A,//meshes/mesh/filename=meshes/circle_cut-quad-tria.med
+        inputs/circle.2D.arc)
+    arcanefem_add_seq_test(NAME circle_homogenous_quad_med
+      COMMAND ./Poisson_dg
+      ARGS
+        -A,//meshes/mesh/filename=meshes/circle_cut-quad.med
+        inputs/circle.2D.arc)
+    arcanefem_add_seq_test(NAME circle_homogenous_poly_med
+      COMMAND ./Poisson_dg
+      ARGS
+        -A,//meshes/mesh/filename=meshes/circle_cut-poly.med
+        inputs/circle.2D.arc)
+  endif()
+endif()
+
+if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
+  arcanefem_add_seq_test(NAME circle_homogenous_tria_hypre
+    COMMAND ./Poisson_dg
+    ARGS
+      -A,//fem/matrix-format=CSR
+      -A,//fem/linear-system/@name=HypreLinearSystem
+      -A,//fem/solution-comparison-file=check/circle_homogenous_tria.txt
+      inputs/circle.2D.arc)
+
+  arcanefem_add_seq_test(NAME circle_neumann_tria_hypre
+    COMMAND ./Poisson_dg
+    ARGS
+      -A,//fem/matrix-format=CSR
+      -A,//fem/solution-comparison-file=check/circle.2D.neumann.txt
+      -A,//fem/linear-system/@name=HypreLinearSystem
+      inputs/circle.2D.neumann.arc)
+endif()

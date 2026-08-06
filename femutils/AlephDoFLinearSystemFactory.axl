@@ -35,7 +35,7 @@
                  default = "petsc"
                  >
       <description>Backend to use to solve the linear system</description>
-      <enumvalue genvalue="Arcane::FemUtils::eSolverBackend::PETSc" name="petsc"/>
+      <enumvalue genvalue="Arcane::FemUtils::eSolverBackend::Petsc" name="petsc"/>
       <enumvalue genvalue="Arcane::FemUtils::eSolverBackend::Trilinos" name="trilinos"/>
       <enumvalue genvalue="Arcane::FemUtils::eSolverBackend::Hypre" name="hypre"/>
     </enumeration>

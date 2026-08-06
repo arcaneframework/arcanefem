@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemModule.cc                                                (C) 2022-2025 */
+/* FemModule.cc                                                (C) 2000-2026 */
 /*                                                                           */
 /* FEM code to test vectorial FE for Elasticity problem.                     */
 /*---------------------------------------------------------------------------*/
@@ -49,7 +49,7 @@ startInit()
  * This method:
  *   1. Stops the time loop after 1 iteration since the equation is steady state.
  *   2. Resets, configures, and initializes the linear system.
- *   3. Sets PETSc flags if user has provided them.
+ *   3. Sets Petsc flags if user has provided them.
  *   4. Executes the stationary solve.
  */
 /*---------------------------------------------------------------------------*/
@@ -111,7 +111,7 @@ void FemModuleElasticity::_initBsr()
   bool use_csr_in_linearsystem =
   options()->linearSystem.serviceName() == "HypreLinearSystem" ||
   options()->linearSystem.serviceName() == "AlienLinearSystem" ||
-  options()->linearSystem.serviceName() == "PETScLinearSystem";
+  options()->linearSystem.serviceName() == "PetscLinearSystem";
 
   if (m_matrix_format == "BSR")
     m_bsr_format.initialize(defaultMesh(), m_dof_per_node, use_csr_in_linearsystem, 0);

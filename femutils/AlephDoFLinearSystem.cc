@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* AlephDoFLinearSystem.cc                                     (C) 2022-2025 */
+/* AlephDoFLinearSystem.cc                                     (C) 2000-2026 */
 /*                                                                           */
 /* Linear system: Matrix A + Vector x + Vector b for Ax=b.                   */
 /*---------------------------------------------------------------------------*/
@@ -23,6 +23,10 @@
 #include <arcane/aleph/AlephTypesSolver.h>
 #include <arcane/aleph/Aleph.h>
 
+#ifdef FEMUTILS_HAS_PETSC
+#include <petsclog.h>
+#endif
+
 #include "FemUtils.h"
 #include "internal/DoFLinearSystemImplBase.h"
 #include "IDoFLinearSystemFactory.h"
@@ -34,7 +38,7 @@ enum class eSolverBackend
 {
   Hypre = 2,
   Trilinos = 3,
-  PETSc = 5,
+  Petsc = 5,
 };
 }
 
@@ -73,6 +77,21 @@ class AlephDoFLinearSystemImpl
 
   ~AlephDoFLinearSystemImpl() override
   {
+#ifdef FEMUTILS_HAS_PETSC
+    // Aleph initializes PETSc, but currently does not call PetscFinalize().
+    // PETSc normally prints -log_view during PetscFinalize(), so explicitly
+    // process the log-view option while Aleph's PETSc communicator is valid.
+    if (m_solver_backend == eSolverBackend::Petsc) {
+      PetscBool is_initialized = PETSC_FALSE;
+      PetscBool is_finalized = PETSC_FALSE;
+
+      // Fetch PETSc initialization and finalization status
+      PetscCallAbort(PETSC_COMM_WORLD, PetscInitialized(&is_initialized));
+      PetscCallAbort(PETSC_COMM_WORLD, PetscFinalized(&is_finalized));
+      if (is_initialized && !is_finalized)
+        PetscCallAbort(PETSC_COMM_WORLD, PetscLogViewFromOptions());
+    }
+#endif
     delete m_aleph_params;
     if (m_need_destroy_matrix_and_vector){
       delete m_aleph_matrix;
@@ -195,13 +214,12 @@ class AlephDoFLinearSystemImpl
   //! True is we need to manually destroy the matrix/vector
   bool m_need_destroy_matrix_and_vector = true;
 
-  UniqueArray<Real> m_vector_zero;
-
  private:
 
   AlephParams* _createAlephParam() const;
   void _applyMatrixTransformationAndFillAlephMatrix();
   void _fillRHSVector();
+  void _fillSolutionVector();
   void _applyRHSTransformation();
   void _setMatrixValue(DoF row, DoF column, Real value)
   {
@@ -420,6 +438,28 @@ _fillRHSVector()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+void AlephDoFLinearSystemImpl::
+_fillSolutionVector()
+{
+  ARCANE_CHECK_POINTER(m_aleph_solution_vector);
+
+  UniqueArray<Real> solution_values_for_linear_system;
+  VariableDoFReal& solution_values(solutionVariable());
+  IItemFamily* dof_family = dofFamily();
+  ENUMERATE_ (DoF, idof, dof_family->allItems().own()) {
+    Real v = solution_values[idof];
+    if (m_do_print_filling)
+      info() << "SET SOLUTION VECTOR VALUE (" << std::setw(4) << idof.itemLocalId() << ") = " << v;
+    solution_values_for_linear_system.add(solution_values[idof]);
+  }
+
+  m_aleph_solution_vector->setLocalComponents(solution_values_for_linear_system.view());
+  m_aleph_solution_vector->assemble();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 AlephParams* AlephDoFLinearSystemImpl::
 _createAlephParam() const
 {
@@ -471,7 +511,7 @@ _computeMatrixInfo()
   // Hypre = 2
   // Trilinos = 3
   // Cuda = 4 (not available)
-  // PETSc = 5
+  // Petsc = 5
   // We need to compile Arcane with the needed library and link
   // the code with the associated aleph library (see CMakeLists.txt)
   // TODO: Linear algebra backend should be accessed from arc file.
@@ -542,6 +582,7 @@ solve()
 
   _createRHSAndSolutionVector();
   _fillRHSVector();
+  _fillSolutionVector();
 
   info() << "Calling AlephDoFLinearSystemImpl::solve()";
   UniqueArray<Real> aleph_result;
@@ -549,11 +590,6 @@ solve()
   IItemFamily* dof_family = dofFamily();
   DoFGroup own_dofs = dof_family->allItems().own();
   const Int32 nb_dof = own_dofs.size();
-  m_vector_zero.resize(nb_dof);
-  m_vector_zero.fill(0.0);
-
-  m_aleph_solution_vector->setLocalComponents(m_vector_zero);
-  m_aleph_solution_vector->assemble();
 
   Int32 nb_iteration = 0;
   Real residual_norm = 0.0;

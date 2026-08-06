@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* BSRFormat.cc                                                (C) 2022-2025 */
+/* BSRFormat.cc                                                (C) 2000-2026 */
 /*                                                                           */
 /* Matrix format using Block Sparse Row.                                     */
 /*---------------------------------------------------------------------------*/
@@ -239,22 +239,66 @@ BSRFormat(ITraceMng* tm, RunQueue& queue, const FemDoFsOnNodes& dofs_on_nodes)
 , m_csr_matrix(tm)
 {}
 
+/*---------------------------------------------------------------------------*/
+/*
+ * Computes the number of columns for the BSR matrix based on the mesh
+ * and element type. We assume the mesh is uniform & that all elements
+ * are of the same type.
+ *
+ * Methodology:
+ * 1. For tria and tetra elements, number of columns is equal to the
+ *    number of edges plus the number of nodes.
+ * 2. For quad and hexa  elements,  number of columns is equal to the
+ *     number of edges plus number of nodes plus number of cells.
+ */
+/*---------------------------------------------------------------------------*/
 Int64 BSRFormat::
-computeNbEdge(IMesh* mesh)
+computeNbColumns(IMesh* mesh)
 {
-  Int64 nb_edge = 0;
-  if (mesh->dimension() == 2)
-    nb_edge = mesh->nbFace();
-  else {
-    auto nn_via_edge_cv = MeshUtils::computeNodeNodeViaEdgeConnectivity(mesh, "NodeNodeViaEdge");
-    IndexedNodeNodeConnectivityView nn_cv = nn_via_edge_cv->view();
-    ENUMERATE_NODE (inode, mesh->allNodes()) {
-      Node node = *inode;
-      nb_edge += nn_cv.nbNode(node);
-    }
-    nb_edge /= 2;
+  ARCANE_CHECK_PTR(mesh);
+
+  auto nn_via_edge_cv = MeshUtils::computeNodeNodeViaEdgeConnectivity(mesh, "NodeNodeViaEdge");
+  UnstructuredMeshConnectivityView connectivity_view(mesh);
+
+  IndexedNodeNodeConnectivityView nn_cv = nn_via_edge_cv->view();
+  IndexedNodeCellConnectivityView nc_cv = connectivity_view.nodeCell();
+  IndexedCellNodeConnectivityView cn_cv = connectivity_view.cellNode();
+  IndexedNodeFaceConnectivityView nf_cv = connectivity_view.nodeFace();
+
+  // Determine element type using the first cell
+  CellLocalId first_cell_lid(0);
+  auto nb_nodes = cn_cv.nbNode(first_cell_lid);
+
+  auto command = makeCommand(m_queue);
+
+  // Total number of columns will be computed using a reduction operation
+  Accelerator::ReducerSum2<Int64> total_nb_col_reducer(command);
+
+  if ((mesh->dimension() == 2 && nb_nodes == 3) || (mesh->dimension() == 3 && nb_nodes == 4)) { // Tria3 or Tetra4
+    command << RUNCOMMAND_ENUMERATE(Node, node_id, mesh->allNodes(), total_nb_col_reducer)
+    {
+      total_nb_col_reducer.combine(nn_cv.nbNode(node_id) + 1); // nb_edges + 1 (for the node itself)
+    };
   }
-  return nb_edge;
+  else if (mesh->dimension() == 2 && nb_nodes == 4) { // Quad4
+    command << RUNCOMMAND_ENUMERATE(Node, node_id, mesh->allNodes(), total_nb_col_reducer)
+    {
+      total_nb_col_reducer.combine((nn_cv.nbNode(node_id) + 1) + nc_cv.nbCell(node_id)); // nb_edges + 1 + nb_cells (1 diagonal/cell)
+    };
+  }
+  else if (mesh->dimension() == 3 && nb_nodes == 8) { // Hexa8
+    command << RUNCOMMAND_ENUMERATE(Node, node_id, mesh->allNodes(), total_nb_col_reducer)
+    {
+      // Hexahedron neighbors: nb_edges + 1 (self) + nb_faces (face diagonals) + nb_cells (body diagonals)
+      total_nb_col_reducer.combine(nn_cv.nbNode(node_id) + 1 + nf_cv.nbFace(node_id) + nc_cv.nbCell(node_id));
+    };
+  }
+  else {
+    return 0; // Unsupported element type
+  }
+
+  // Return the total number of columns computed from the reduction
+  return total_nb_col_reducer.reducedValue();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -272,10 +316,9 @@ initialize(IMesh* mesh, Int8 nb_dof, bool does_linear_system_use_csr, bool use_a
 
   m_mesh = mesh;
   m_nb_dof = nb_dof;
-  Int64 nb_edge = computeNbEdge(mesh);
   Int32 nb_node = m_mesh->nbNode();
-  Int32 nb_col = 2 * nb_edge + nb_node;
-  Int32 nb_non_zero_value = (m_nb_dof * m_nb_dof) * (2 * nb_edge + nb_node);
+  Int32 nb_col = computeNbColumns(m_mesh);
+  Int32 nb_non_zero_value = (m_nb_dof * m_nb_dof) * (nb_col);
 
   m_use_csr_in_linear_system = does_linear_system_use_csr;
   bool order_values_per_block = !does_linear_system_use_csr;
@@ -363,12 +406,27 @@ computeNeighborsAtomicFree(SmallSpan<Int32>& neighbors_ss)
   if (m_mesh->dimension() == 2) {
     UnstructuredMeshConnectivityView connectivity_view(m_mesh);
     auto node_face_cv = connectivity_view.nodeFace();
-    command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
-    {
-      neighbors_ss[node_id] = node_face_cv.nbFace(node_id) + 1;
-    };
+
+    // Detect element type: quads need an extra diagonal neighbor per cell
+    CellLocalId first_cell_lid(0);
+    auto cn_cv = connectivity_view.cellNode();
+    auto nb_nodes = cn_cv.nbNode(first_cell_lid);
+
+    if (nb_nodes == 4) { // Quad mesh: edge-neighbors + self + one diagonal per cell
+      auto node_cell_cv = connectivity_view.nodeCell();
+      command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
+      {
+        neighbors_ss[node_id] = node_face_cv.nbFace(node_id) + 1 + node_cell_cv.nbCell(node_id);
+      };
+    }
+    else { // Triangle mesh: edge-neighbors + self
+      command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
+      {
+        neighbors_ss[node_id] = node_face_cv.nbFace(node_id) + 1;
+      };
+    }
   }
-  else {
+  else { // 3D mesh: node-node connectivity via edge-neighbors + self
     auto connectivity_mng = m_mesh->indexedConnectivityMng();
     auto connectivity_ptr = connectivity_mng->findOrCreateConnectivity(m_mesh->nodeFamily(), m_mesh->nodeFamily(), "NodeNodeViaEdge");
     IndexedNodeNodeConnectivityView node_node_cv = connectivity_ptr->view();
@@ -411,18 +469,55 @@ computeColumnsAtomicFree()
     auto node_face_cv = connectivity_view.nodeFace();
     auto face_node_cv = connectivity_view.faceNode();
 
-    command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
-    {
-      auto offset = row_index[node_id];
+    // Detect element type: quads require diagonal connections in addition to edge connections
+    CellLocalId first_cell_lid(0);
+    auto cn_cv = connectivity_view.cellNode();
+    auto nb_nodes = cn_cv.nbNode(first_cell_lid);
 
-      for (auto face_lid : node_face_cv.faceIds(node_id)) {
-        auto nodes = face_node_cv.nodes(face_lid);
-        inout_columns[offset] = nodes[0] == node_id ? nodes[1] : nodes[0];
-        ++offset;
-      }
+    if (nb_nodes == 4) { // Quad mesh
+      auto node_cell_cv = connectivity_view.nodeCell();
+      command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
+      {
+        auto offset = row_index[node_id];
 
-      inout_columns[offset] = node_id;
-    };
+        // Add edge-adjacent neighbors via faces
+        for (auto face_lid : node_face_cv.faceIds(node_id)) {
+          auto nodes = face_node_cv.nodes(face_lid);
+          inout_columns[offset] = nodes[0] == node_id ? nodes[1] : nodes[0];
+          ++offset;
+        }
+
+        // Add diagonal neighbor from each cell (node at local position (k+2)%4)
+        // In a quad n0-n1-n2-n3, n0's diagonal is n2, n1's diagonal is n3, etc.
+        for (auto cell_lid : node_cell_cv.cellIds(node_id)) {
+          for (Int32 k = 0; k < 4; ++k) {
+            if (cn_cv.nodeId(cell_lid, k) == node_id) {
+              inout_columns[offset] = cn_cv.nodeId(cell_lid, (k + 2) % 4);
+              ++offset;
+              break;
+            }
+          }
+        }
+
+        // Add self
+        inout_columns[offset] = node_id;
+      };
+    }
+    else { // Triangle mesh only edge-adjacent neighbors via faces
+      command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
+      {
+        auto offset = row_index[node_id];
+
+        for (auto face_lid : node_face_cv.faceIds(node_id)) {
+          auto nodes = face_node_cv.nodes(face_lid);
+          inout_columns[offset] = nodes[0] == node_id ? nodes[1] : nodes[0];
+          ++offset;
+        }
+
+        // Add self
+        inout_columns[offset] = node_id;
+      };
+    }
   }
   else {
     auto connectivity_mng = m_mesh->indexedConnectivityMng();
@@ -462,6 +557,10 @@ computeSparsityAtomicFree()
 }
 
 /*---------------------------------------------------------------------------*/
+// TODO
+// bad name should be computeSortedDofPairs or something like that since it's
+// not really edges but dof-pairs, but keeping for now to avoid confusion with
+// the previous version which was computeSortedEdges and was really about edges
 /*---------------------------------------------------------------------------*/
 
 void BSRFormat::
@@ -474,38 +573,117 @@ computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64
   UnstructuredMeshConnectivityView m_connectivity_view(m_mesh);
   auto cell_node_cv = m_connectivity_view.cellNode();
 
+  CellLocalId first_cell_lid(0);
+  Int32 nb_nodes = cell_node_cv.nbNode(first_cell_lid);
+
   {
     auto command = makeCommand(m_queue);
     auto inout_edges = viewInOut(command, edges);
 
-    if (m_mesh->dimension() == 2) {
+    // Triangular element mesh
+    if (m_mesh->dimension() == 2 && nb_nodes == 3) {
       command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, m_mesh->allCells())
       {
+        auto start = cell_lid * edges_per_element;
+        // Triangle (3 node-pairs)
         auto n0 = cell_node_cv.nodeId(cell_lid, 0);
         auto n1 = cell_node_cv.nodeId(cell_lid, 1);
         auto n2 = cell_node_cv.nodeId(cell_lid, 2);
-
-        auto start = cell_lid * edges_per_element;
         inout_edges[start] = pack(n0, n1);
         inout_edges[start + 1] = pack(n0, n2);
         inout_edges[start + 2] = pack(n1, n2);
       };
     }
-    else {
+
+    // Quadrangular element mesh
+    if (m_mesh->dimension() == 2 && nb_nodes == 4) {
       command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, m_mesh->allCells())
       {
+        auto start = cell_lid * edges_per_element;
+        // Quad (6 node-pairs: 4 edges + 2 diagonals)
         auto n0 = cell_node_cv.nodeId(cell_lid, 0);
         auto n1 = cell_node_cv.nodeId(cell_lid, 1);
         auto n2 = cell_node_cv.nodeId(cell_lid, 2);
         auto n3 = cell_node_cv.nodeId(cell_lid, 3);
+        // Perimeter edges
+        inout_edges[start] = pack(n0, n1);
+        inout_edges[start + 1] = pack(n1, n2);
+        inout_edges[start + 2] = pack(n2, n3);
+        inout_edges[start + 3] = pack(n3, n0);
+        // Diagonals
+        inout_edges[start + 4] = pack(n0, n2);
+        inout_edges[start + 5] = pack(n1, n3);
+      };
+    }
 
+    // Tetrahedral element mesh
+    if (m_mesh->dimension() == 3 && nb_nodes == 4) {
+      command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, m_mesh->allCells())
+      {
         auto start = cell_lid * edges_per_element;
+        // Tetra (6 node-pairs)
+        auto n0 = cell_node_cv.nodeId(cell_lid, 0);
+        auto n1 = cell_node_cv.nodeId(cell_lid, 1);
+        auto n2 = cell_node_cv.nodeId(cell_lid, 2);
+        auto n3 = cell_node_cv.nodeId(cell_lid, 3);
         inout_edges[start] = pack(n0, n1);
         inout_edges[start + 1] = pack(n0, n2);
         inout_edges[start + 2] = pack(n0, n3);
         inout_edges[start + 3] = pack(n1, n2);
         inout_edges[start + 4] = pack(n1, n3);
         inout_edges[start + 5] = pack(n2, n3);
+      };
+    }
+
+    // hexahedral element mesh
+    if (m_mesh->dimension() == 3 && nb_nodes == 8) {
+      command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, m_mesh->allCells())
+      {
+        auto start = cell_lid * edges_per_element;
+        // Hexahedron (28 node-pairs unrolled for GPU safety)
+        auto n0 = cell_node_cv.nodeId(cell_lid, 0);
+        auto n1 = cell_node_cv.nodeId(cell_lid, 1);
+        auto n2 = cell_node_cv.nodeId(cell_lid, 2);
+        auto n3 = cell_node_cv.nodeId(cell_lid, 3);
+        auto n4 = cell_node_cv.nodeId(cell_lid, 4);
+        auto n5 = cell_node_cv.nodeId(cell_lid, 5);
+        auto n6 = cell_node_cv.nodeId(cell_lid, 6);
+        auto n7 = cell_node_cv.nodeId(cell_lid, 7);
+
+        inout_edges[start     ] = pack(n0, n1);
+        inout_edges[start +  1] = pack(n0, n2);
+        inout_edges[start +  2] = pack(n0, n3);
+        inout_edges[start +  3] = pack(n0, n4);
+        inout_edges[start +  4] = pack(n0, n5);
+        inout_edges[start +  5] = pack(n0, n6);
+        inout_edges[start +  6] = pack(n0, n7);
+
+        inout_edges[start +  7] = pack(n1, n2);
+        inout_edges[start +  8] = pack(n1, n3);
+        inout_edges[start +  9] = pack(n1, n4);
+        inout_edges[start + 10] = pack(n1, n5);
+        inout_edges[start + 11] = pack(n1, n6);
+        inout_edges[start + 12] = pack(n1, n7);
+
+        inout_edges[start + 13] = pack(n2, n3);
+        inout_edges[start + 14] = pack(n2, n4);
+        inout_edges[start + 15] = pack(n2, n5);
+        inout_edges[start + 16] = pack(n2, n6);
+        inout_edges[start + 17] = pack(n2, n7);
+
+        inout_edges[start + 18] = pack(n3, n4);
+        inout_edges[start + 19] = pack(n3, n5);
+        inout_edges[start + 20] = pack(n3, n6);
+        inout_edges[start + 21] = pack(n3, n7);
+
+        inout_edges[start + 22] = pack(n4, n5);
+        inout_edges[start + 23] = pack(n4, n6);
+        inout_edges[start + 24] = pack(n4, n7);
+
+        inout_edges[start + 25] = pack(n5, n6);
+        inout_edges[start + 26] = pack(n5, n7);
+
+        inout_edges[start + 27] = pack(n6, n7);
       };
     }
   }
@@ -611,17 +789,30 @@ computeSparsityAtomic()
   info() << "BSRFormat(computeSparsityAtomic): Computing sparsity of BSR matrix without Arcane connectivities (e.g with atomics)...";
   auto startTime = platform::getRealTime();
 
-  auto edges_per_element = m_mesh->dimension() == 2 ? 3 : 6;
-  auto nb_edge_total = m_mesh->nbCell() * edges_per_element;
+  Int8 dof_pairs_per_element = 3; // dof-pairs per element, default is for triangle 3
+
+  UnstructuredMeshConnectivityView m_connectivity_view(m_mesh);
+  auto cell_node_cv = m_connectivity_view.cellNode();
+  CellLocalId first_cell_lid(0);
+  auto nb_nodes = cell_node_cv.nbNode(first_cell_lid);
+
+  if (m_mesh->dimension() == 2) {
+    dof_pairs_per_element = (nb_nodes == 4) ? 6 : 3; // Quad needs 6 pairs, Triangle needs 3
+  }
+  else {
+    dof_pairs_per_element = (nb_nodes == 8) ? 28 : 6; // Hex needs 28 pairs, Tetra needs 6
+  }
+
+  auto nb_edge_total = m_mesh->nbCell() * dof_pairs_per_element;
 
   auto mem_ressource = m_queue.memoryRessource();
   NumArray<UInt64, MDDim1> sorted_edges(mem_ressource);
   sorted_edges.resize(nb_edge_total);
   auto sorted_edges_ss = sorted_edges.to1DSmallSpan();
 
-  computeSortedEdges(edges_per_element, nb_edge_total, sorted_edges_ss);
-  computeRowIndex(edges_per_element, nb_edge_total, sorted_edges_ss);
-  computeColumns(edges_per_element, nb_edge_total, sorted_edges_ss);
+  computeSortedEdges(dof_pairs_per_element, nb_edge_total, sorted_edges_ss);
+  computeRowIndex(dof_pairs_per_element, nb_edge_total, sorted_edges_ss);
+  computeColumns(dof_pairs_per_element, nb_edge_total, sorted_edges_ss);
 
   info() << std::left << std::setw(40) << "[BsrMatrix-Timer] build-sparsity-bsr" << " = " << (platform::getRealTime() - startTime);
 

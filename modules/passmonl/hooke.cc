@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* Hooke.cc                                                    (C) 2022-2025 */
+/* Hooke.cc                                                    (C) 2000-2026 */
 /*                                                                           */
 /* PASSMO : Performant Assessment for Seismic Site Modelling with finite-    */
 /* element (FEM) numerical modelling approach                                */

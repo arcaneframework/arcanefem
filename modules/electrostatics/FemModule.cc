@@ -1,11 +1,11 @@
 ﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
-// Copyright 2000-2025 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
+// Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FemModule.cc                                                (C) 2022-2025 */
+/* FemModule.cc                                                (C) 2000-2026 */
 /*                                                                           */
 /* Simple module to solve electrostatics using FEM.                          */
 /*---------------------------------------------------------------------------*/
@@ -76,7 +76,7 @@ compute()
     bool use_csr_in_linear_system =
     options()->linearSystem.serviceName() == "HypreLinearSystem" ||
     options()->linearSystem.serviceName() == "AlienLinearSystem" ||
-    options()->linearSystem.serviceName() == "PETScLinearSystem";
+    options()->linearSystem.serviceName() == "PetscLinearSystem";
     if (m_matrix_format == "BSR")
       m_bsr_format.initialize(mesh(), 1, use_csr_in_linear_system, 0);
     else
@@ -158,7 +158,7 @@ _getMaterialParameters()
 void FemModuleElectrostatics::_assembleLinearOperator()
 {
   if (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
-      options()->linearSystem.serviceName() == "PETScLinearSystem")
+      options()->linearSystem.serviceName() == "PetscLinearSystem")
     _assembleLinearOperatorGpu();
   else
     _assembleLinearOperatorCpu();
@@ -195,45 +195,20 @@ _assembleLinearOperatorCpu()
 
   if (options()->rho.isPresent()) {
     Real f = -rho / epsilon;
-    if (mesh()->dimension() == 2) {
-      if (m_hex_quad_mesh)
-        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhsQuad4(f, mesh(), node_dof, m_node_coord, rhs_values);
-      else
-        ArcaneFemFunctions::BoundaryConditions2D::applyConstantSourceToRhs(f, mesh(), node_dof, m_node_coord, rhs_values);
-    }
-
-    if (mesh()->dimension() == 3) {
-      if (m_hex_quad_mesh)
-        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhsHexa8(f, mesh(), node_dof, m_node_coord, rhs_values);
-      else
-        ArcaneFemFunctions::BoundaryConditions3D::applyConstantSourceToRhs(f, mesh(), node_dof, m_node_coord, rhs_values);
-    }
+    ArcaneFemFunctions::BoundaryConditions::applyConstantSourceToRhs(f, mesh(), node_dof, m_node_coord, rhs_values);
   }
 
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
   if (bc) {
-
-    for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions()){
-      if (mesh()->dimension() == 2){
-        if (m_hex_quad_mesh)
-          ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhsQuad4(bs, node_dof, m_node_coord, rhs_values);
-        else
-          ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
-      }
-      if (mesh()->dimension() == 3){
-        if (m_hex_quad_mesh)
-          ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsHexa8(bs, node_dof, m_node_coord, rhs_values);
-        else
-          ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhs(bs, node_dof, m_node_coord, rhs_values);
-      }
-    }
+    for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
+      ArcaneFemFunctions::BoundaryConditions::applyNeumannToRhs(bs, mesh(), node_dof, m_node_coord, rhs_values);
 
     for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
       ArcaneFemFunctions::BoundaryConditions::applyDirichletToLhsAndRhs(bs, node_dof, m_linear_system, rhs_values);
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-assembly", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-assembly", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -246,8 +221,9 @@ _assembleLinearOperatorCpu()
  *
  * Steps involved:
  *  1. The RHS vector is initialized to zero before applying any conditions.
- *  2. If Neumann BC are specified applied to the RHS.
- *  3. If Dirichlet BC/Point are specified apply to the LHS & RHS.
+ *  2. If a constant source term is specified (`rho`), apply it to the RHS.
+ *  3. If Neumann BC are specified applied to the RHS.
+ *  4. If Dirichlet BC/Point are specified apply to the LHS & RHS.
  */
 /*---------------------------------------------------------------------------*/
 
@@ -267,30 +243,23 @@ void FemModuleElectrostatics::_assembleLinearOperatorGpu()
   auto queue = subDomain()->acceleratorMng()->defaultQueue();
   auto mesh_ptr = mesh();
 
-  auto applyBoundaryConditions = [&](auto BCFunctions) {
-    BC::IArcaneFemBC* bc = options()->boundaryConditions();
+  BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
-    if (options()->rho.isPresent()){
-      Real qdot = -rho / epsilon;
-      BCFunctions.applyConstantSourceToRhs(qdot, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
-    }
+  if (options()->rho.isPresent()) {
+    Real qdot = -rho / epsilon;
+    FemUtils::Gpu::BoundaryConditions::applyConstantSourceToRhs(qdot, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
+  }
 
-    if (bc) {
-      for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
-        BCFunctions.applyNeumannToRhs(bs, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
+  if (bc) {
+    for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions())
+      FemUtils::Gpu::BoundaryConditions::applyNeumannToRhs(bs, m_dofs_on_nodes, m_node_coord, rhs_values, mesh_ptr, queue);
 
-      for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
-        FemUtils::Gpu::BoundaryConditions::applyDirichletToLhsAndRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
-    }
-  };
-
-  if (mesh()->dimension() == 3)
-    applyBoundaryConditions(FemUtils::Gpu::BoundaryConditions3D());
-  else
-    applyBoundaryConditions(FemUtils::Gpu::BoundaryConditions2D());
+    for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions())
+      FemUtils::Gpu::BoundaryConditions::applyDirichletToLhsAndRhs(bs, m_dofs_on_nodes, m_linear_system, mesh_ptr, queue);
+  }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"rhs-vector-assembly-gpu", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly-gpu", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/

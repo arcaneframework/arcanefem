@@ -23,7 +23,7 @@
     </simple>
 
     <simple name="petsc-flags" type="string" default="-mat_type baij" optional="true">
-      <description>Flags for PETSc from commandline.</description>
+      <description>Flags for Petsc from commandline.</description>
     </simple>
 
     <simple name="solve-linear-system" type="bool" default="true" optional="true">
