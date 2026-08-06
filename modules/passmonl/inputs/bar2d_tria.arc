@@ -5,6 +5,7 @@
     <timeloop>PassmonlLoop</timeloop>
   </arcane>
   <arcane-post-processing>
+   <format name="VtkHdfV2PostProcessor" />
    <output-period>1</output-period>
    <output>
      <variable>Displ</variable>
