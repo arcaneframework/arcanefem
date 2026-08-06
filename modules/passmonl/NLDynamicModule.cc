@@ -594,10 +594,11 @@ _initGaussStep()
       m_gauss_jacob_mat(cell,ig) = NumMatrix<Real,3,3>(jac);
 
       if (!is_linear) {
-        // Tensors are initialized to the value of previous step
-        m_gauss_prev_stress(cell,ig) = m_gauss_stress(cell,ig);
-        m_gauss_prev_strain(cell,ig) = m_gauss_strain(cell,ig);
-        m_gauss_prev_strainp(cell,ig) = m_gauss_strainp(cell,ig);
+//        m_gauss_prev_stress(cell,ig) = m_gauss_stress(cell,ig);
+//        m_gauss_prev_strain(cell,ig) = m_gauss_strain(cell,ig);
+//        m_gauss_prev_strainp(cell,ig) = m_gauss_strainp(cell,ig);
+
+        // Current step tensors are initialized to zero
         m_gauss_stress(cell,ig) = NumMatrix<Real,3,3>(Real3x3::zero());
         m_gauss_strain(cell,ig) = NumMatrix<Real,3,3>(Real3x3::zero());
         m_gauss_strainp(cell,ig) = NumMatrix<Real,3,3>(Real3x3::zero());
@@ -625,7 +626,8 @@ _iterate(){
   do {
 
     // Predict stresses from the nonlinear constitutive models
-    is_linear = _stress_prediction(!iter);
+//    is_linear = _stress_prediction(!iter);
+    _stress_prediction(!iter);
 
     if (is_linear) {
       // Add the linear contributions to the RHS (B)
@@ -1807,7 +1809,7 @@ _compute_stress(bool init, bool store)
             bool is_u { init && (bool)m_imposed_displ[node][iddl] && fabs(m_displ[node][iddl]) > 0. };
 
             if (!init || is_u) {
-              du = m_displ[node] - m_prev_displ[node];
+              du[iddl] = m_displ[node][iddl] - m_prev_displ[node][iddl];
             }
           }
 
@@ -1819,7 +1821,7 @@ _compute_stress(bool init, bool store)
           RealVector<6> vdeps;
           vdeps(0) = Bnod.x * du.x; // deps_xx
           vdeps(1) = Bnod.y * du.y; // deps_yy
-          vdeps(NDIM) = Bnod.x * du.y + Bnod.y * du.x; //dgamma_xy (2 x deps_xy)
+          vdeps(3) = Bnod.x * du.y + Bnod.y * du.x; //dgamma_xy (2 x deps_xy)
 
           if (NDIM == 3) {
             vdeps(2) = Bnod.z * du.z; // deps_zz
@@ -1839,7 +1841,7 @@ _compute_stress(bool init, bool store)
 
       // Compute the current stress from the law at this Gauss point
       // Tangent stiffness operator is not computed at prediction stage
-      bool is_plastic = cell_law.computeStress(init, store);
+      bool is_plastic = cell_law.computeStress(init, store, NDIM);
 
       if (!is_plastic)
         ++nbelastg;
@@ -1872,8 +1874,8 @@ _compute_stress(bool init, bool store)
     if (nbelastg == cell_nbgauss)
       ++nbelast;
   }
-//  m_converge = (nbcell == nbelast);
-  return (nbcell == nbelast);
+  m_converge = (nbcell == nbelast);
+  return m_converge;
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -2556,6 +2558,8 @@ _doSolve(){
   {
     VariableDoFReal& dof_d(m_linear_system.solutionVariable());
     auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    Real tol{1.0e-15};
+
     ENUMERATE_ (Node, inode, ownNodes()) {
       Node node = *inode;
 
@@ -2563,30 +2567,27 @@ _doSolve(){
 
       auto ux = dof_d[node_dof.dofId(node, 0)];
       auto uy = dof_d[node_dof.dofId(node, 1)];
+      if (fabs(ux) < tol) ux = 0.;
+      if (fabs(uy) < tol) uy = 0.;
+
       auto uz{0.};
-
-      if (NDIM == 3)
+      if (NDIM == 3) {
         uz = dof_d[node_dof.dofId(node, 2)];
-
+        if (fabs(uz) < tol) uz = 0.;
+      }
       m_displ[node] = Real3(ux,uy,uz);
-
-//      info() << "Node: " << node.localId() << " Ux=" << ux << " Uy=" << uy << " Uz=" << uz;
     }
   }
-
-  // Re-Apply Dirichlet boundary conditions because the solver has modified the values
-  // on all nodes
-//  _applyDirichletBoundaryConditions();// --- Check if it is required (re-apply paraxial conditions too?)
-
   m_displ.synchronize();
+  /*
   m_vel.synchronize();
   m_acc.synchronize();
+  */
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {
     long p = std::cout.precision();
     ENUMERATE_ (Node, inode, allNodes()) {
       Node node = *inode;
-//      info() << "Node: " << node.uniqueId() << " Ux=" << m_displ[node].x << " Uy=" << m_displ[node].y << " Uz=" << m_displ[node].z;
       info() << node.uniqueId() << " " << m_displ[node].x << " " << m_displ[node].y << " " << m_displ[node].z;
     }
     std::cout.precision(p);
@@ -2600,7 +2601,7 @@ _doNLSolve(bool init){
   m_linear_system.applyLinearSystemTransformationAndSolve();
 
   Real tol{1.0e-15};
-//  Real dxnorm{0.}, xinorm{0.};
+//  Real xinorm{0.};
   Real dxnorm{0.};
 
   VariableDoFReal& dof_d(m_linear_system.solutionVariable());
@@ -2620,16 +2621,33 @@ _doNLSolve(bool init){
        duz = dof_d[node_dof.dofId(node, 2)];
 
      Real3 dx(dux,duy,duz);
+     Real3 u{dx};
 
-     m_displ[node] = dx + ui;
-//   xinorm += math::dot(ui,ui);
+    if (!(bool)m_imposed_displ[node].x)
+      u.x += ui.x;
+
+    if (!(bool)m_imposed_displ[node].y)
+      u.y += ui.y;
+
+    if (NDIM == 3 && !(bool)m_imposed_displ[node].z)
+      u.z += ui.z;
+
+    if (fabs(u.x) < tol) u.x = 0.;
+    if (fabs(u.y) < tol) u.y = 0.;
+    if (fabs(u.z) < tol) u.z = 0.;
+    m_displ[node] = u;
+
+  //   xinorm += math::dot(ui,ui);
      if (init) m_norm_U0 += math::dot(un,un);
      dxnorm += math::dot(dx,dx);
+     if (fabs(dxnorm) < tol) dxnorm = 0.;
   }
 
   m_displ.synchronize();
+  /*
   m_vel.synchronize();
   m_acc.synchronize();
+  */
   const bool do_print = (allNodes().size() < 200);
   if (do_print) {
     long p = std::cout.precision();

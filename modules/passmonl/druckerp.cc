@@ -232,7 +232,7 @@ void DruckPReadLawParams(RealUniqueArray* law_params, Real lambda, Real mu, bool
 }
 
 bool DruckPComputeStress(RealUniqueArray* law_params, RealUniqueArray* history_vars, Tensor2& sig, Tensor2& eps, Tensor2& epsp, Tensor2& dsig,
-                                     const Tensor2& deps, Tensor4& tangent_tensor, bool /*isRef*/)
+                                     const Tensor2& deps, Tensor4& tangent_tensor, const int& dim, bool /*isRef*/)
 {
   RealUniqueArray consts = DruckPInitConsts(law_params);
 
@@ -247,6 +247,11 @@ bool DruckPComputeStress(RealUniqueArray* law_params, RealUniqueArray* history_v
   auto elast_tensor = DruckPComputeElastTensor(law_params,Tensor2::zero());
   elast_tensor.isSymmetric(true);
   elast_tensor.isConstitutive(true);
+  if (dim < 3) {
+    for (int i = dim; i < 3; i++) {
+      elast_tensor[0][i] = 0.;
+    }
+  }
   tangent_tensor = elast_tensor;
 
   Real3	un(1,1,1);
@@ -254,6 +259,7 @@ bool DruckPComputeStress(RealUniqueArray* law_params, RealUniqueArray* history_v
 
   Tensor2 sign(sig);
   dsig = elast_tensor * deps;
+  eps += deps;
 
   // stress estimation
   sig = sign + dsig;
@@ -345,6 +351,11 @@ bool DruckPComputeStress(RealUniqueArray* law_params, RealUniqueArray* history_v
       for (int i = 0; i < ninc; i++)
       {
         tangent_tensor = DruckPComputeTangentTensor(law_params,history_vars,sig,deps1);
+        if (dim < 3) {
+          for (int i = dim; i < 3; i++) {
+            tangent_tensor[0][i] = 0.;
+          }
+        }
 
         sig += tangent_tensor * deps1;
 

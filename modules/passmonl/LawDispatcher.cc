@@ -34,7 +34,7 @@ extern void HookeInitHistoryVars(RealUniqueArray* /*history_vars*/);
 extern bool HookeInitState(const Tensor2& /*sig*/, RealUniqueArray* /*history_vars*/);
 extern void HookeReadLawParams(RealUniqueArray* /*law_params*/, Real /*lambda*/, Real /*mu*/, bool /*default_param*/, const String& /*name*/, Integer /*ilaw*/);
 extern bool HookeComputeStress(RealUniqueArray* /*law_params*/, RealUniqueArray* /*history_vars*/, Tensor2& /*sig*/, Tensor2& /*eps*/, Tensor2& /*epsp*/, Tensor2& /*dsig*/,
-                               const Tensor2& /*deps*/, Tensor4& /*tangent_tensor*/, bool /*isRef*/);
+                               const Tensor2& /*deps*/, Tensor4& /*tangent_tensor*/, const int& /*dim*/, bool /*isRef*/);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -48,7 +48,7 @@ extern void DruckPInitHistoryVars(RealUniqueArray* /*history_vars*/);
 extern bool DruckPInitState(const Tensor2& /*sig*/, RealUniqueArray* /*history_vars*/);
 extern void DruckPReadLawParams(RealUniqueArray* /*law_params*/, Real /*lambda*/, Real /*mu*/, bool /*default_param*/, const String& /*name*/, Integer /*ilaw*/);
 extern bool DruckPComputeStress(RealUniqueArray* /*law_params*/, RealUniqueArray* /*history_vars*/, Tensor2& /*sig*/, Tensor2& /*eps*/, Tensor2& /*epsp*/, Tensor2& /*dsig*/,
-                               const Tensor2& /*deps*/, Tensor4& /*tangent_tensor*/, bool /*isRef*/);
+                               const Tensor2& /*deps*/, Tensor4& /*tangent_tensor*/, const int& /*dim*/, bool /*isRef*/);
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -129,14 +129,14 @@ void	LawDispatcher::setStrainIncrement(const Tensor2& tensor) { m_deps = tensor;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-bool LawDispatcher::computeStress(bool init, bool isRef) {
+bool LawDispatcher::computeStress(bool init, bool isRef, const int& dim) {
 
     auto f = m_compute_stress[m_law_type];
     bool is_plastic{false};
     if (f != nullptr)
     {
     	Tensor4 tangent_tensor;
-      is_plastic = f(m_law_params,m_history_vars,m_sig,m_eps,m_epsp,m_dsig,m_deps,tangent_tensor,isRef);
+      is_plastic = f(m_law_params,m_history_vars,m_sig,m_eps,m_epsp,m_dsig,m_deps,tangent_tensor,dim, isRef);
     	if (init || isRef) m_tangent_tensor = tangent_tensor;
     }
     return is_plastic;

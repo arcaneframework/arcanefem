@@ -4488,6 +4488,7 @@ class ArcaneFemFunctions
       case 4:
       case 5:
         si = -1;
+
         break;
       }
       if (inod == 1 || inod == 2 || inod == 5 || inod == 6)
@@ -4544,9 +4545,9 @@ class ArcaneFemFunctions
      *     /   |          /  |
      *    2----|--10-----3   |   z   y
      *  (-1,-1,1)        |   |   | /
-     *    |   16         |  19   |/--->x
+     *    |   17         |  16   |/--->x
      *    |    |         |   |
-     *   17    |        18   |
+     *   18    |        19   |
      *    |    5----12---|---4 (1,1,-1)
      *    |  /           |  /
      *    | 13           | 15
@@ -4621,17 +4622,17 @@ class ArcaneFemFunctions
         break;
 
       case 17:
-        si = -1.;
+        ri = -1.;
         [[fallthrough]];
       case 16:
-        ri = -1.;
         ti = 0.;
         break;
 
       case 18:
-        si = -1.;
+        ri = -1.;
         [[fallthrough]];
       case 19:
+        si = -1.;
         ti = 0.;
         break;
       }
@@ -4708,15 +4709,17 @@ class ArcaneFemFunctions
         break;
 
       case 17:
-        si = -1.;
-      case 16:
         ri = -1.;
+        [[fallthrough]];
+      case 16:
         ti = 0.;
         break;
 
       case 18:
-        si = -1.;
+        ri = -1.;
+        [[fallthrough]];
       case 19:
+        si = -1.;
         ti = 0.;
         break;
       }
