@@ -235,6 +235,13 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
       -A,//fem/matrix-format=AF-BSR
       inputs/sphere.3D.arc)
+  arcanefem_add_full_test(NAME 3D_hexa8_af-bsr
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa8.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_cube_3D_hexa8.txt
+      -A,//fem/matrix-format=AF-BSR
+      inputs/cube.3D.hexa.arc)
   arcanefem_add_full_test(NAME 3D_neumann_bsr-hexa
     COMMAND ./Poisson
     ARGS

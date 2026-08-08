@@ -234,6 +234,36 @@ _computeElementMatrixHexa8Gpu(CellLocalId cell_lid,
   }
   return ae;
 }
+
+ARCCORE_HOST_DEVICE RealMatrix<1, 8>
+_computeElementVectorHexa8Gpu(CellLocalId cell_lid,
+                              const IndexedCellNodeConnectivityView& cn_cv,
+                              const ax::VariableNodeReal3InView& in_node_coord,
+                              Int32 node_lid)
+{
+  constexpr Real gp[2] = { -0.57735026918962576451, 0.57735026918962576451 };
+
+  RealVector<8> ae_local = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+
+  for (Int8 ixi = 0; ixi < 2; ++ixi) {
+    for (Int8 ieta = 0; ieta < 2; ++ieta) {
+      for (Int8 izeta = 0; izeta < 2; ++izeta) {
+        const auto gp_info = FemUtils::Gpu::FeOperation3D::computeGradientsAndJacobianHexa8Gpu(cell_lid, cn_cv, in_node_coord, gp[ixi], gp[ieta], gp[izeta]);
+        const RealVector<8>& dxU = gp_info.dN_dx;
+        const RealVector<8>& dyU = gp_info.dN_dy;
+        const RealVector<8>& dzU = gp_info.dN_dz;
+
+        for (Int8 col = 0; col < 8; ++col) {
+          const Real grad_dot = dxU[node_lid] * dxU[col] + dyU[node_lid] * dyU[col] + dzU[node_lid] * dzU[col];
+          ae_local[col] += grad_dot * gp_info.det_j;
+        }
+      }
+    }
+  }
+
+  return { ae_local[0], ae_local[1], ae_local[2], ae_local[3],
+           ae_local[4], ae_local[5], ae_local[6], ae_local[7] };
+}
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Computes the element matrix for a hexahedral element (HEXA20, ℚ2 FE, serendipity).

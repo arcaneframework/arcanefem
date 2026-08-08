@@ -426,15 +426,31 @@ computeNeighborsAtomicFree(SmallSpan<Int32>& neighbors_ss)
       };
     }
   }
-  else { // 3D mesh: node-node connectivity via edge-neighbors + self
+  else { // 3D mesh
+    UnstructuredMeshConnectivityView connectivity_view(m_mesh);
+    auto cell_node_cv = connectivity_view.cellNode();
+    auto node_cell_cv = connectivity_view.nodeCell();
+    auto node_face_cv = connectivity_view.nodeFace();
+
     auto connectivity_mng = m_mesh->indexedConnectivityMng();
     auto connectivity_ptr = connectivity_mng->findOrCreateConnectivity(m_mesh->nodeFamily(), m_mesh->nodeFamily(), "NodeNodeViaEdge");
     IndexedNodeNodeConnectivityView node_node_cv = connectivity_ptr->view();
 
-    command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
-    {
-      neighbors_ss[node_id] = node_node_cv.nbNode(node_id) + 1;
-    };
+    CellLocalId first_cell_lid(0);
+    auto nb_nodes = cell_node_cv.nbNode(first_cell_lid);
+
+    if (nb_nodes == 8) { // Hexa8: edges + face diagonals + body diagonals + self
+      command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
+      {
+        neighbors_ss[node_id] = node_node_cv.nbNode(node_id) + node_face_cv.nbFace(node_id) + node_cell_cv.nbCell(node_id) + 1;
+      };
+    }
+    else { // Tetra4: edge-neighbors + self
+      command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
+      {
+        neighbors_ss[node_id] = node_node_cv.nbNode(node_id) + 1;
+      };
+    }
   }
 }
 
@@ -520,21 +536,69 @@ computeColumnsAtomicFree()
     }
   }
   else {
+    UnstructuredMeshConnectivityView connectivity_view(m_mesh);
+    auto cell_node_cv = connectivity_view.cellNode();
+    auto node_cell_cv = connectivity_view.nodeCell();
+    auto face_node_cv = connectivity_view.faceNode();
+    auto node_face_cv = connectivity_view.nodeFace();
+
     auto connectivity_mng = m_mesh->indexedConnectivityMng();
     auto connectivity_ptr = connectivity_mng->findOrCreateConnectivity(m_mesh->nodeFamily(), m_mesh->nodeFamily(), "NodeNodeViaEdge");
     IndexedNodeNodeConnectivityView node_node_cv = connectivity_ptr->view();
 
-    command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
-    {
-      auto offset = row_index[node_id];
+    CellLocalId first_cell_lid(0);
+    auto nb_nodes = cell_node_cv.nbNode(first_cell_lid);
 
-      for (auto neighbor_idx : node_node_cv.nodeIds(node_id)) {
-        inout_columns[offset] = neighbor_idx;
-        ++offset;
-      }
+    if (nb_nodes == 8) { // Hexa8
+      command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
+      {
+        auto offset = row_index[node_id];
 
-      inout_columns[offset] = node_id;
-    };
+        // Nodes joined to this node by a hexahedron edge.
+        for (auto neighbor_idx : node_node_cv.nodeIds(node_id)) {
+          inout_columns[offset] = neighbor_idx;
+          ++offset;
+        }
+
+        // The opposite node of every incident quadrilateral face.
+        for (auto face_lid : node_face_cv.faceIds(node_id)) {
+          for (Int32 k = 0; k < 4; ++k) {
+            if (face_node_cv.nodeId(face_lid, k) == node_id) {
+              inout_columns[offset] = face_node_cv.nodeId(face_lid, (k + 2) % 4);
+              ++offset;
+              break;
+            }
+          }
+        }
+
+        // The opposite node of every incident hexahedron. Arcane's Hexa8
+        // local numbering pairs (0,6), (1,7), (2,4), and (3,5).
+        for (auto cell_lid : node_cell_cv.cellIds(node_id)) {
+          for (Int32 k = 0; k < 8; ++k) {
+            if (cell_node_cv.nodeId(cell_lid, k) == node_id) {
+              inout_columns[offset] = cell_node_cv.nodeId(cell_lid, k ^ 6);
+              ++offset;
+              break;
+            }
+          }
+        }
+
+        inout_columns[offset] = node_id;
+      };
+    }
+    else { // Tetra4
+      command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
+      {
+        auto offset = row_index[node_id];
+
+        for (auto neighbor_idx : node_node_cv.nodeIds(node_id)) {
+          inout_columns[offset] = neighbor_idx;
+          ++offset;
+        }
+
+        inout_columns[offset] = node_id;
+      };
+    }
   }
 }
 

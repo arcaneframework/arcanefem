@@ -320,9 +320,6 @@ _assembleBilinearOperator()
   if (m_is_hexa27_mesh && m_matrix_format != "DOK")
     ARCANE_FATAL("Hexa27 Poisson assembly is currently supported on CPU with matrix-format=DOK only");
 
-  if (m_is_hexa8_mesh && m_matrix_format == "AF-BSR")
-    ARCANE_FATAL("Hexa8 Poisson assembly is not supported with matrix-format=AF-BSR");
-
   if (m_matrix_format == "BSR") {
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();
@@ -358,6 +355,8 @@ _assembleBilinearOperator()
         m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorQuad4Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
       else
         m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
+    else if (m_is_hexa8_mesh)
+      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorHexa8Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
     else
       m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
 
