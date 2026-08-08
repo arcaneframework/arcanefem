@@ -33,13 +33,11 @@
 
   <!--
     FEM (Finite Element Method) settings:
-      - hex-quad-mesh: Indicates if the mesh is a hexahedral or quadrilateral mesh.
       - kc2: Coefficient used in the FEM calculations.
       - boundary-conditions: Defines neumann boundary conditions for the simulation.
       - linear-system: Specifies the linear system solver to use.
   -->
   <fem>
-    <hex-quad-mesh>true</hex-quad-mesh>
     <kc2>18e5</kc2>
     <boundary-conditions>
       <neumann>

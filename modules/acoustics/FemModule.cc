@@ -37,7 +37,15 @@ startInit()
   m_solve_linear_system = options()->solveLinearSystem();
   m_cross_validation = options()->hasSolutionComparisonFile();
   m_petsc_flags = options()->petscFlags();
-  m_hex_quad_mesh = options()->hexQuadMesh();
+
+  // Check if the mesh is a quad or hex mesh by examining the number of nodes in the first cell
+  UnstructuredMeshConnectivityView connectivity(mesh());
+  const Int32 nb_node = connectivity.cellNode().nbNode(CellLocalId(0));
+
+  if (mesh()->dimension() == 2)
+    m_is_quad4_mesh = (nb_node == 4);
+  else if (mesh()->dimension() == 3)
+    m_is_hexa8_mesh = (nb_node == 8);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "initialize", elapsedTime);
@@ -168,17 +176,19 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (mesh()->dimension() == 3)
-    if(m_hex_quad_mesh)
+  if (mesh()->dimension() == 3) {
+    if (m_is_hexa8_mesh)
       _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
     else
       _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
+  }
 
-  if (mesh()->dimension() == 2)
-    if(m_hex_quad_mesh)
+  if (mesh()->dimension() == 2) {
+    if (m_is_quad4_mesh)
       _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
     else
       _assembleBilinear<3>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
+  }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "lhs-matrix-assembly", elapsedTime);
