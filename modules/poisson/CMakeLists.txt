@@ -103,38 +103,32 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     COMMAND ./Poisson
     ARGS
       -A,//meshes/mesh/filename=meshes/mms.quad4_n4.msh
-      -A,//fem/hex-quad-mesh=true
       inputs/manufactured.solution.arc)
   arcanefem_add_seq_test(NAME 2D_mms_quad8
     COMMAND ./Poisson
     ARGS
       -A,//meshes/mesh/filename=meshes/mms.quad8_n4.msh
-      -A,//fem/hex-quad-mesh=true
       inputs/manufactured.solution.arc)
   arcanefem_add_seq_test(NAME 2D_mms_quad9
     COMMAND ./Poisson
     ARGS
       -A,//meshes/mesh/filename=meshes/mms.quad9_n4.msh
-      -A,//fem/hex-quad-mesh=true
       inputs/manufactured.solution.arc)
   arcanefem_add_seq_test(NAME 3D_mms_hexa8
     COMMAND ./Poisson
     ARGS
       -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa8.msh
       -A,//fem/manufactured-solution=quadratic
-      -A,//fem/hex-quad-mesh=true
       inputs/manufactured.solution.arc)
   arcanefem_add_seq_test(NAME 3D_mms_hexa20
     COMMAND ./Poisson
     ARGS
       -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa20.msh
-      -A,//fem/hex-quad-mesh=true
       inputs/manufactured.solution.arc)
   arcanefem_add_seq_test(NAME 3D_mms_hexa27
     COMMAND ./Poisson
     ARGS
       -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa27.msh
-      -A,//fem/hex-quad-mesh=true
       inputs/manufactured.solution.arc)
   arcanefem_add_seq_test(NAME 3D
     COMMAND ./Poisson
@@ -196,27 +190,23 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   arcanefem_add_seq_test(NAME manufactured_2D_quad
     COMMAND ./Poisson
     ARGS
-      -A,//fem/hex-quad-mesh=true
       -A,//meshes/mesh/filename=meshes/unit_square.quad.msh
       inputs/manufactured.solution.arc)
   arcanefem_add_seq_test(NAME manufactured-poly_2D_quad
     COMMAND ./Poisson
     ARGS
-      -A,//fem/hex-quad-mesh=true
       -A,//fem/manufactured-solution=poly
       -A,//meshes/mesh/filename=meshes/unit_square.quad.msh
       inputs/manufactured.solution.arc)
   arcanefem_add_seq_test(NAME manufactured-quadratic_2D_quad
     COMMAND ./Poisson
     ARGS
-      -A,//fem/hex-quad-mesh=true
       -A,//fem/manufactured-solution=quadratic
       -A,//meshes/mesh/filename=meshes/unit_square.quad.msh
       inputs/manufactured.solution.arc)
   arcanefem_add_seq_test(NAME manufactured-quadratic_2D_quad8
     COMMAND ./Poisson
     ARGS
-      -A,//fem/hex-quad-mesh=true
       -A,//fem/manufactured-solution=quadratic
       -A,//meshes/mesh/filename=meshes/circle_cut.quad8.msh
       inputs/manufactured.solution.arc)
