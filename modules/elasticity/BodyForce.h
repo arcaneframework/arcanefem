@@ -50,7 +50,7 @@ _applyBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityVie
 
   // apply bodyforce based on dimension and mesh type
   if (mesh()->dimension() == 2) {
-    if (m_hex_quad_mesh) {
+    if (m_is_quad4_mesh) {
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
 
@@ -103,7 +103,7 @@ _applyBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityVie
     }
   }
   if (mesh()->dimension() == 3) {
-    if (m_hex_quad_mesh) {
+    if (m_is_hexa8_mesh) {
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
 

@@ -90,7 +90,8 @@ class FemModuleFourier
   bool m_assemble_linear_system = true;
   bool m_solve_linear_system = true;
   bool m_cross_validation = false;
-  bool m_hex_quad_mesh = false;
+  bool m_is_quad4_mesh = false;
+  bool m_is_hexa8_mesh = false;
 
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;

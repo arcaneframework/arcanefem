@@ -38,7 +38,16 @@ startInit()
   m_solve_linear_system = options()->solveLinearSystem();
   m_cross_validation = options()->hasSolutionComparisonFile();
   m_petsc_flags = options()->petscFlags();
-  m_hex_quad_mesh = options()->hexQuadMesh();
+
+  // Check if the mesh is a quad or hex mesh by examining the number of nodes in the first cell
+  UnstructuredMeshConnectivityView connectivity(mesh());
+  const Int32 nb_node = connectivity.cellNode().nbNode(CellLocalId(0));
+
+  if (mesh()->dimension() == 2)
+    m_is_quad4_mesh = (nb_node == 4);
+  else if (mesh()->dimension() == 3)
+    m_is_hexa8_mesh = (nb_node == 8);
+
   m_nlin_exp = options()->expNlin;
 
   m_max_nlin_iters = options()->maxNlinIters();
@@ -324,6 +333,9 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
+  if (m_is_hexa8_mesh && m_matrix_format == "AF-BSR")
+    ARCANE_FATAL("Hexa8 FourierNL assembly is not supported with matrix-format=AF-BSR");
+
   if (m_matrix_format == "BSR") {
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();
@@ -334,12 +346,12 @@ _assembleBilinearOperator()
     auto m_nlin_exp_copy = m_nlin_exp;
 
     if (mesh()->dimension() == 2)
-      if (m_hex_quad_mesh)
+      if (m_is_quad4_mesh)
         m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixQuad4Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk, m_nlin_exp_copy); });
       else
         m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk, m_nlin_exp_copy); });
     else
-      if (m_hex_quad_mesh)
+      if (m_is_hexa8_mesh)
         m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixHexa8Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk, m_nlin_exp_copy); });
     else
         m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk, m_nlin_exp_copy); });
@@ -355,7 +367,7 @@ _assembleBilinearOperator()
     auto m_nlin_exp_copy = m_nlin_exp;
 
     if (mesh()->dimension() == 2)
-      if (m_hex_quad_mesh)
+      if (m_is_quad4_mesh)
         m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorQuad4Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk, node_lid, m_nlin_exp_copy); });
       else
         m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_node_uk, node_lid, m_nlin_exp_copy); });
@@ -365,13 +377,13 @@ _assembleBilinearOperator()
 
   if (m_matrix_format == "DOK") {
     if (mesh()->dimension() == 3)
-      if(m_hex_quad_mesh)
+      if (m_is_hexa8_mesh)
         _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
       else
         _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
 
     if (mesh()->dimension() == 2)
-      if(m_hex_quad_mesh)
+      if (m_is_quad4_mesh)
         _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
       else
         _assembleBilinear<3>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });

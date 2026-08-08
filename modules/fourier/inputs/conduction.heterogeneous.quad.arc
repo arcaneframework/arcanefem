@@ -32,7 +32,6 @@
 
   <!--
     FEM (Finite Element Method) settings:
-      - hex-quad-mesh: Boolean to indicate the use of hexagonal quadrature for element matrix assembly.
       - lambda: Default thermal conductivity or diffusivity coefficient.
       - qdot: Heat source term or volumetric heat generation.
       - boundary-conditions: Defines the boundary conditions for the simulation.
@@ -43,7 +42,6 @@
         - lambda: Thermal conductivity or diffusivity for the specified material.
   -->
   <fem>
-    <hex-quad-mesh>true</hex-quad-mesh>
     <lambda>0.0</lambda>
     <qdot>15.</qdot>
     <boundary-conditions>

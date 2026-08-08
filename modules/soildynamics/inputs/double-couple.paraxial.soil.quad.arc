@@ -26,7 +26,6 @@
     <cs>11.5</cs>
     <cp>20.</cp>
     <rho>9.0</rho>
-    <hex-quad-mesh>true</hex-quad-mesh>
     <double-couple>
       <north-node-name>DcNorthPointCord</north-node-name>
       <south-node-name>DcSouthPointCord</south-node-name>

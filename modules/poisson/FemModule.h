@@ -101,10 +101,11 @@ class FemModulePoisson
   bool m_assemble_linear_system = true;
   bool m_solve_linear_system = true;
   bool m_cross_validation = false;
-  bool m_hex_quad_mesh = false;
-  bool m_is_quad8_mesh = false;
   bool m_has_manufactured_solution = false;
+  bool m_is_quad4_mesh = false;
+  bool m_is_quad8_mesh = false;
   bool m_is_quad9_mesh = false;
+  bool m_is_hexa8_mesh = false;
   bool m_is_hexa20_mesh = false;
   bool m_is_hexa27_mesh = false;
 

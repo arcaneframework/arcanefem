@@ -20,7 +20,6 @@
   </meshes>
 
   <fem>
-    <hex-quad-mesh>true</hex-quad-mesh>
     <f>9.8</f>
     <boundary-conditions>
       <dirichlet>
