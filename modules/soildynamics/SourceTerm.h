@@ -30,13 +30,13 @@ void FemModuleSoildynamics::
 _applySourceTerm(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
   if (mesh()->dimension() == 2)
-    if (m_hex_quad_mesh)
+    if (m_is_quad4_mesh)
       _applySourceTermQuad4(rhs_values, node_dof);
     else
       _applySourceTermTria3(rhs_values, node_dof);
 
   if (mesh()->dimension() == 3)
-    if (m_hex_quad_mesh)
+    if (m_is_hexa8_mesh)
       _applySourceTermHexa8(rhs_values, node_dof);
     else
       _applySourceTermTetra4(rhs_values, node_dof);
