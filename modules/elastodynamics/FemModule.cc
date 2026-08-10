@@ -521,7 +521,7 @@ _validateResults()
   info() << "[ArcaneFem-Info] Started module  _validateResults()";
   Real elapsedTime = platform::getRealTime();
 
-  if (allNodes().size() < 200) {
+  {
     int p = std::cout.precision();
     std::cout.precision(17);
     ENUMERATE_ (Node, inode, allNodes()) {

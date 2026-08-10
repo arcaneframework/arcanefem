@@ -537,6 +537,16 @@ _solve()
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Validates and prints the results of the FEM computation.
+ *
+ * This method performs the following actions:
+ *   1. Prints the computed values for each node.
+ *   2. Retrieves the filename for the result file from options.
+ *   3. If a filename is provided, checks the computed results against result file.
+ *
+ * @note The result comparison uses a tolerance of 1.0e-4.
+ */
 /*---------------------------------------------------------------------------*/
 
 void FemModuleHeat::
@@ -545,11 +555,10 @@ _validateResults()
   info() << "[ArcaneFem-Info] Started module _validateResults()";
   Real elapsedTime = platform::getRealTime();
 
-  if (allNodes().size() < 200)
-    ENUMERATE_ (Node, inode, allNodes()) {
-      Node node = *inode;
-      info() << "T[" << node.uniqueId() << "] = " << m_node_temperature[node];
-    }
+  ENUMERATE_ (Node, inode, allNodes()) {
+    Node node = *inode;
+    info() << "T[" << node.uniqueId() << "] = " << m_node_temperature[node];
+  }
 
   String filename = options()->solutionComparisonFile();
 
