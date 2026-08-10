@@ -281,39 +281,34 @@ computeGradientYTria3(CellLocalId cell_lid,
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-struct Quad4GaussPointInfo
+template <Int32 N> struct QuadGaussPointInfo
 {
-  RealVector<4> dN_dx; // Derivatives of shape functions in x {∂𝑁₁/∂𝑥  ∂𝑁₂/∂𝑥  ∂𝑁₃/∂𝑥  ∂𝑁₄/∂𝑥}
-  RealVector<4> dN_dy; // Derivatives of shape functions in y {∂𝑁₁/∂𝑦  ∂𝑁₂/∂𝑦  ∂𝑁₃/∂𝑦  ∂𝑁₄/∂𝑦}
-  Real det_j; // Determinant of the Jacobian matrix at the Gauss point.
+  RealVector<N> dN_dx;
+  RealVector<N> dN_dy;
+  Real det_j;
 };
 
-ARCCORE_HOST_DEVICE inline Quad4GaussPointInfo
-computeGradientsAndJacobianQuad4Gpu(CellLocalId cell_lid,
-                                    const IndexedCellNodeConnectivityView& cn_cv,
-                                    const Accelerator::VariableNodeReal3InView& in_node_coord,
-                                    Real xi, Real eta)
+template <Int32 N> ARCCORE_HOST_DEVICE inline QuadGaussPointInfo<N>
+_computeQuadGradientsAndJacobian(CellLocalId cell_lid,
+                                 const IndexedCellNodeConnectivityView& cn_cv,
+                                 const Accelerator::VariableNodeReal3InView& in_node_coord,
+                                 const Real (&dN_dxi)[N],
+                                 const Real (&dN_deta)[N])
 {
-  // Shape function derivatives ∂𝐍/∂ξ and ∂𝐍/∂η
-  //     ∂𝐍/∂ξ = [ ∂C₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ ]
-  //     ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ∂𝑁₃/∂η  ∂𝑁₄/∂η ]
-  const Real dN_dxi[4]  = { -0.25 * (1.0 - eta),  0.25 * (1.0 - eta), 0.25 * (1.0 + eta), -0.25 * (1.0 + eta) };
-  const Real dN_deta[4] = { -0.25 * (1.0 - xi),  -0.25 * (1.0 + xi),  0.25 * (1.0 + xi),   0.25 * (1.0 - xi) };
-
   // Jacobian calculation 𝑱
   //    𝑱 = [ 𝒋₀₀  𝒋₀₁ ] = [ ∂𝑥/∂ξ  ∂𝑦/∂ξ ]
   //        [ 𝒋₁₀  𝒋₁₁ ]   [ ∂𝑥/∂η  ∂𝑦/∂η ]
   //
   // The Jacobian is computed as follows:
-  //   𝒋₀₀ = ∑ (∂𝑁ᵢ/∂ξ * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,𝟒
-  //   𝒋₀₁ = ∑ (∂𝑁ᵢ/∂ξ * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,𝟒
-  //   𝒋₁₀ = ∑ (∂𝑁ᵢ/∂η * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,𝟒
-  //   𝒋₁₁ = ∑ (∂𝑁ᵢ/∂η * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,𝟒
+  //   𝒋₀₀ = ∑ (∂𝑁ᵢ/∂ξ * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,N
+  //   𝒋₀₁ = ∑ (∂𝑁ᵢ/∂ξ * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,N
+  //   𝒋₁₀ = ∑ (∂𝑁ᵢ/∂η * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,N
+  //   𝒋₁₁ = ∑ (∂𝑁ᵢ/∂η * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,N
   Real2x2 J;
   J[0][0] = 0.0; J[0][1] = 0.0;
   J[1][0] = 0.0; J[1][1] = 0.0;
 
-  for (Int8 a = 0; a < 4; ++a) {
+  for (Int8 a = 0; a < N; ++a) {
     const auto& coord = in_node_coord[cn_cv.nodeId(cell_lid, a)];
     J[0][0] += dN_dxi[a] * coord.x;
     J[0][1] += dN_dxi[a] * coord.y;
@@ -340,13 +335,90 @@ computeGradientsAndJacobianQuad4Gpu(CellLocalId cell_lid,
   //   Gradients in physical space (∂𝐍/∂𝑥, ∂𝐍/∂𝑦)
   //    {∂𝐍/∂𝑥} = [J]⁻¹ {∂𝐍/∂ξ}
   //    {∂𝐍/∂𝑦}         {∂𝐍/∂η}
-  RealVector<4> dN_dx_result, dN_dy_result;
-  for (Int8 a = 0; a < 4; ++a) {
+  RealVector<N> dN_dx_result, dN_dy_result;
+  for (Int8 a = 0; a < N; ++a) {
     dN_dx_result(a) = invJ00 * dN_dxi[a] + invJ01 * dN_deta[a];
     dN_dy_result(a) = invJ10 * dN_dxi[a] + invJ11 * dN_deta[a];
   }
 
   return { dN_dx_result, dN_dy_result, detJ };
+}
+
+ARCCORE_HOST_DEVICE inline QuadGaussPointInfo<4>
+computeGradientsAndJacobianQuad4Gpu(CellLocalId cell_lid,
+                                    const IndexedCellNodeConnectivityView& cn_cv,
+                                    const Accelerator::VariableNodeReal3InView& in_node_coord,
+                                    Real xi, Real eta)
+{
+  // Shape function derivatives ∂𝐍/∂ξ and ∂𝐍/∂η
+  //     ∂𝐍/∂ξ = [ ∂C₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ ]
+  //     ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ∂𝑁₃/∂η  ∂𝑁₄/∂η ]
+  const Real dN_dxi[4]  = { -0.25 * (1.0 - eta),  0.25 * (1.0 - eta), 0.25 * (1.0 + eta), -0.25 * (1.0 + eta) };
+  const Real dN_deta[4] = { -0.25 * (1.0 - xi),  -0.25 * (1.0 + xi),  0.25 * (1.0 + xi),   0.25 * (1.0 - xi) };
+
+  return _computeQuadGradientsAndJacobian<4>(cell_lid, cn_cv, in_node_coord, dN_dxi, dN_deta);
+}
+
+ARCCORE_HOST_DEVICE inline QuadGaussPointInfo<8>
+computeGradientsAndJacobianQuad8Gpu(CellLocalId cell_lid,
+                                    const IndexedCellNodeConnectivityView& cn_cv,
+                                    const Accelerator::VariableNodeReal3InView& in_node_coord,
+                                    Real xi, Real eta)
+{
+  const Real dN_dxi[8] = {
+    0.25 * (1.0 - eta) * (2.0 * xi + eta),
+    0.25 * (1.0 - eta) * (2.0 * xi - eta),
+    0.25 * (1.0 + eta) * (2.0 * xi + eta),
+    0.25 * (1.0 + eta) * (2.0 * xi - eta),
+    -xi * (1.0 - eta),
+    0.5 * (1.0 - eta * eta),
+    -xi * (1.0 + eta),
+    -0.5 * (1.0 - eta * eta)
+  };
+  const Real dN_deta[8] = {
+    0.25 * (1.0 - xi) * (xi + 2.0 * eta),
+    0.25 * (1.0 + xi) * (-xi + 2.0 * eta),
+    0.25 * (1.0 + xi) * (xi + 2.0 * eta),
+    0.25 * (1.0 - xi) * (-xi + 2.0 * eta),
+    -0.5 * (1.0 - xi * xi),
+    -eta * (1.0 + xi),
+    0.5 * (1.0 - xi * xi),
+    -eta * (1.0 - xi)
+  };
+
+  return _computeQuadGradientsAndJacobian<8>(cell_lid, cn_cv, in_node_coord, dN_dxi, dN_deta);
+}
+
+ARCCORE_HOST_DEVICE inline QuadGaussPointInfo<9>
+computeGradientsAndJacobianQuad9Gpu(CellLocalId cell_lid,
+                                    const IndexedCellNodeConnectivityView& cn_cv,
+                                    const Accelerator::VariableNodeReal3InView& in_node_coord,
+                                    Real xi, Real eta)
+{
+  const Real dN_dxi[9] = {
+    0.25 * (2.0 * xi - 1.0) * eta * (eta - 1.0),
+    0.25 * (2.0 * xi + 1.0) * eta * (eta - 1.0),
+    0.25 * (2.0 * xi + 1.0) * eta * (eta + 1.0),
+    0.25 * (2.0 * xi - 1.0) * eta * (eta + 1.0),
+    -xi * eta * (eta - 1.0),
+    0.5 * (2.0 * xi + 1.0) * (1.0 - eta * eta),
+    -xi * eta * (eta + 1.0),
+    0.5 * (2.0 * xi - 1.0) * (1.0 - eta * eta),
+    -2.0 * xi * (1.0 - eta * eta)
+  };
+  const Real dN_deta[9] = {
+    0.25 * xi * (xi - 1.0) * (2.0 * eta - 1.0),
+    0.25 * xi * (xi + 1.0) * (2.0 * eta - 1.0),
+    0.25 * xi * (xi + 1.0) * (2.0 * eta + 1.0),
+    0.25 * xi * (xi - 1.0) * (2.0 * eta + 1.0),
+    0.5 * (1.0 - xi * xi) * (2.0 * eta - 1.0),
+    -eta * xi * (xi + 1.0),
+    0.5 * (1.0 - xi * xi) * (2.0 * eta + 1.0),
+    -eta * xi * (xi - 1.0),
+    -2.0 * eta * (1.0 - xi * xi)
+  };
+
+  return _computeQuadGradientsAndJacobian<9>(cell_lid, cn_cv, in_node_coord, dN_dxi, dN_deta);
 }
 
 /*-------------------------------------------------------------------------*/
