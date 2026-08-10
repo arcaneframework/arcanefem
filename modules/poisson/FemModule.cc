@@ -184,7 +184,7 @@ void FemModulePoisson::_assembleLinearOperator()
     return;
   }
 
-  // Quad8 and Quad9 support is currently CPU-only 
+  // High-order quad RHS and boundary-condition assembly is currently CPU-only.
   if (m_is_quad8_mesh || m_is_quad9_mesh) {
     _assembleLinearOperatorCpu();
     return;
@@ -308,12 +308,6 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (m_is_quad8_mesh && m_matrix_format != "DOK")
-    ARCANE_FATAL("Quad8 Poisson assembly is currently supported on CPU with matrix-format=DOK only");
-
-  if (m_is_quad9_mesh && m_matrix_format != "DOK")
-    ARCANE_FATAL("Quad9 Poisson assembly is currently supported on CPU with matrix-format=DOK only");
-
   if (m_is_hexa20_mesh && m_matrix_format != "DOK")
     ARCANE_FATAL("Hexa20 Poisson assembly is currently supported on CPU with matrix-format=DOK only");
 
@@ -328,7 +322,11 @@ _assembleBilinearOperator()
     auto in_node_coord = ax::viewIn(command, m_node_coord);
 
     if (mesh()->dimension() == 2){
-      if(m_is_quad4_mesh)
+      if (m_is_quad8_mesh)
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixQuad8Gpu(cell_lid, cn_cv, in_node_coord); });
+      else if (m_is_quad9_mesh)
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixQuad9Gpu(cell_lid, cn_cv, in_node_coord); });
+      else if(m_is_quad4_mesh)
         m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixQuad4Gpu(cell_lid, cn_cv, in_node_coord); });
       else
         m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
@@ -351,7 +349,11 @@ _assembleBilinearOperator()
     auto in_node_coord = ax::viewIn(command, m_node_coord);
 
     if (mesh()->dimension() == 2)
-      if(m_is_quad4_mesh)
+      if (m_is_quad8_mesh)
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorQuad8Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
+      else if (m_is_quad9_mesh)
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorQuad9Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
+      else if(m_is_quad4_mesh)
         m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorQuad4Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
       else
         m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
@@ -506,11 +508,10 @@ _validateResults()
   info() << "[ArcaneFem-Info] Started module _validateResults()";
   Real elapsedTime = platform::getRealTime();
 
-  if (allNodes().size() < 200)
-    ENUMERATE_ (Node, inode, allNodes()) {
-      Node node = *inode;
-      info() << "u["  << node.uniqueId() << "] = " << m_u[node];
-    }
+  ENUMERATE_ (Node, inode, allNodes()) {
+    Node node = *inode;
+    info() << "u[" << node.uniqueId() << "] = " << m_u[node];
+  }
 
   String filename = options()->solutionComparisonFile();
 

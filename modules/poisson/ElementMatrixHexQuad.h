@@ -431,6 +431,80 @@ RealMatrix<8, 8> FemModulePoisson::_computeElementMatrixQuad8(Cell cell)
   return ae;
 }
 
+ARCCORE_HOST_DEVICE RealMatrix<8, 8>
+_computeElementMatrixQuad8Gpu(CellLocalId cell_lid,
+                              const IndexedCellNodeConnectivityView& cn_cv,
+                              const ax::VariableNodeReal3InView& in_node_coord)
+{
+
+  // Gauss points and weights for 3x3 quadrature (https://en.wikipedia.org/wiki/Gaussian_quadrature)
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+  constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+  // Initialize the element matrix
+  RealMatrix<8, 8> ae;
+  ae.fill(0.0);
+
+  // Loop over Gauss points
+  for (Int8 ixi = 0; ixi < 3; ++ixi) {
+    for (Int8 ieta = 0; ieta < 3; ++ieta) {
+
+      // Get the coordinates of the Gauss point in natural coordinates (ξ,η,ζ)
+      const Real xi = gp[ixi];
+      const Real eta = gp[ieta];
+
+      // Get shape function gradients w.r.t (𝑥,𝑦) and determinant of Jacobian
+      const auto gp_info = FemUtils::Gpu::FeOperation2D::computeGradientsAndJacobianQuad8Gpu(cell_lid, cn_cv, in_node_coord, xi, eta);
+      const RealVector<8>& dxU = gp_info.dN_dx;
+      const RealVector<8>& dyU = gp_info.dN_dy;
+      const Real detJ = gp_info.det_j;
+
+      // Integration weight
+      const Real integration_weight = detJ * weight[ixi] * weight[ieta];
+      ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight;
+    }
+  }
+  return ae;
+}
+
+ARCCORE_HOST_DEVICE RealMatrix<1, 8>
+_computeElementVectorQuad8Gpu(CellLocalId cell_lid,
+                              const IndexedCellNodeConnectivityView& cn_cv,
+                              const ax::VariableNodeReal3InView& in_node_coord,
+                              Int32 node_lid)
+{
+
+  // Gauss points and weights for 3x3 quadrature (https://en.wikipedia.org/wiki/Gaussian_quadrature)
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+  constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+  // Initialize the element vector
+  RealVector<8> ae = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+
+  // Loop over Gauss points
+  for (Int8 ixi = 0; ixi < 3; ++ixi) {
+    for (Int8 ieta = 0; ieta < 3; ++ieta) {
+
+      // Get the coordinates of the Gauss point in natural coordinates (ξ,η,ζ)
+      const Real xi = gp[ixi];
+      const Real eta = gp[ieta];
+
+      // Get shape function gradients w.r.t (𝑥,𝑦) and determinant of Jacobian
+      const auto gp_info = FemUtils::Gpu::FeOperation2D::computeGradientsAndJacobianQuad8Gpu(cell_lid, cn_cv, in_node_coord, xi, eta);
+      const RealVector<8>& dxU = gp_info.dN_dx;
+      const RealVector<8>& dyU = gp_info.dN_dy;
+      const Real detJ = gp_info.det_j;
+
+      const Real integration_weight = detJ * weight[ixi] * weight[ieta];
+      for (Int8 col = 0; col < 8; ++col) {
+        const Real grad_dot = dxU[node_lid] * dxU[col] + dyU[node_lid] * dyU[col];
+        ae[col] += grad_dot * integration_weight;
+      }
+    }
+  }
+  return { ae[0], ae[1], ae[2], ae[3], ae[4], ae[5], ae[6], ae[7] };
+}
+
 /**
  * @brief Computes the element matrix for a quadrilateral element (QUAD9, Q2 FE).
  *
@@ -481,4 +555,83 @@ RealMatrix<9, 9> FemModulePoisson::_computeElementMatrixQuad9(Cell cell)
     }
   }
   return ae;
+}
+
+ARCCORE_HOST_DEVICE RealMatrix<9, 9>
+_computeElementMatrixQuad9Gpu(CellLocalId cell_lid,
+                              const IndexedCellNodeConnectivityView& cn_cv,
+                              const ax::VariableNodeReal3InView& in_node_coord)
+{
+
+  // Gauss points and weights for 3x3 quadrature (https://en.wikipedia.org/wiki/Gaussian_quadrature)
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 }; // [-sqrt(3/5) , 0 , sqrt(3/5)]
+  constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+  // Initialize the element matrix
+  RealMatrix<9, 9> ae;
+  ae.fill(0.0);
+
+  // Loop over Gauss points
+  for (Int8 ixi = 0; ixi < 3; ++ixi) {
+    for (Int8 ieta = 0; ieta < 3; ++ieta) {
+
+      // Get the coordinates of the Gauss point in natural coordinates (ξ,η,ζ)
+      const Real xi = gp[ixi];
+      const Real eta = gp[ieta];
+
+      // Get shape function gradients w.r.t (𝑥,𝑦) and determinant of Jacobian
+      const auto gp_info = FemUtils::Gpu::FeOperation2D::computeGradientsAndJacobianQuad9Gpu(cell_lid, cn_cv, in_node_coord, xi, eta);
+      const RealVector<9>& dxU = gp_info.dN_dx;
+      const RealVector<9>& dyU = gp_info.dN_dy;
+      const Real detJ = gp_info.det_j;
+
+      // Integration weight
+      const Real integration_weight = detJ * weight[ixi] * weight[ieta];
+
+      // stiffness matrix assembly
+      ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight;
+    }
+  }
+  return ae;
+}
+
+ARCCORE_HOST_DEVICE RealMatrix<1, 9>
+_computeElementVectorQuad9Gpu(CellLocalId cell_lid,
+                              const IndexedCellNodeConnectivityView& cn_cv,
+                              const ax::VariableNodeReal3InView& in_node_coord,
+                              Int32 node_lid)
+{
+
+  // Gauss points and weights for 3x3 quadrature (https://en.wikipedia.org/wiki/Gaussian_quadrature)
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+  constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+  // Initialize the element vector
+  RealVector<9> ae = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+
+  // Loop over Gauss points
+  for (Int8 ixi = 0; ixi < 3; ++ixi) {
+    for (Int8 ieta = 0; ieta < 3; ++ieta) {
+
+      // Get the coordinates of the Gauss point in natural coordinates (ξ,η,ζ)
+      const Real xi = gp[ixi];
+      const Real eta = gp[ieta];
+
+      // Get shape function gradients w.r.t (𝑥,𝑦) and determinant of Jacobian
+      const auto gp_info = FemUtils::Gpu::FeOperation2D::computeGradientsAndJacobianQuad9Gpu(cell_lid, cn_cv, in_node_coord, xi, eta);
+      const RealVector<9>& dxU = gp_info.dN_dx;
+      const RealVector<9>& dyU = gp_info.dN_dy;
+      const Real detJ = gp_info.det_j;
+
+      // Integration weight
+      const Real integration_weight = detJ * weight[ixi] * weight[ieta];
+
+      // stiffness vector assembly
+      for (Int8 col = 0; col < 9; ++col) {
+        const Real grad_dot = dxU[node_lid] * dxU[col] + dyU[node_lid] * dyU[col];
+        ae[col] += grad_dot * integration_weight;
+      }
+    }
+  }
+  return { ae[0], ae[1], ae[2], ae[3], ae[4], ae[5], ae[6], ae[7], ae[8] };
 }
