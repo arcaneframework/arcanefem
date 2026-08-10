@@ -280,12 +280,17 @@ computeGradientYTria3(CellLocalId cell_lid,
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Quad Gauss point information structure for 2D quadrilateral elements.
+ *
+ * This structure holds the derivatives of shape functions with respect to
+ * physical coordinates (𝑥, 𝑦) and the determinant of the Jacobian.
 /*---------------------------------------------------------------------------*/
-template <Int32 N> struct QuadGaussPointInfo
+template <Int32 n> struct QuadGaussPointInfo
 {
-  RealVector<N> dN_dx;
-  RealVector<N> dN_dy;
-  Real det_j;
+  RealVector<n> dN_dx; // Derivatives of shape functions in 𝑥 {∂𝑁₁/∂𝑥  ∂𝑁₂/∂𝑥  ∂𝑁₃/∂𝑥  ... ∂𝑁ₙ/∂𝑥}
+  RealVector<n> dN_dy; // Derivatives of shape functions in 𝑦 {∂𝑁₁/∂𝑦  ∂𝑁₂/∂𝑦  ∂𝑁₃/∂𝑦  ... ∂𝑁ₙ/∂𝑦}
+  Real det_j; // Determinant of the Jacobian matrix at the Gauss point.
 };
 
 template <Int32 N> ARCCORE_HOST_DEVICE inline QuadGaussPointInfo<N>
@@ -365,6 +370,8 @@ computeGradientsAndJacobianQuad8Gpu(CellLocalId cell_lid,
                                     const Accelerator::VariableNodeReal3InView& in_node_coord,
                                     Real xi, Real eta)
 {
+  // Shape function derivatives ∂𝐍/∂ξ and ∂𝐍/∂η
+  //     ∂𝐍/∂ξ = [ ∂C₁/∂ξ  ∂𝑁₂/∂ξ  ...  ∂𝑁₈/∂ξ ]
   const Real dN_dxi[8] = {
     0.25 * (1.0 - eta) * (2.0 * xi + eta),
     0.25 * (1.0 - eta) * (2.0 * xi - eta),
@@ -375,6 +382,7 @@ computeGradientsAndJacobianQuad8Gpu(CellLocalId cell_lid,
     -xi * (1.0 + eta),
     -0.5 * (1.0 - eta * eta)
   };
+  //     ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ...  ∂𝑁₈/∂η ]
   const Real dN_deta[8] = {
     0.25 * (1.0 - xi) * (xi + 2.0 * eta),
     0.25 * (1.0 + xi) * (-xi + 2.0 * eta),
@@ -395,6 +403,8 @@ computeGradientsAndJacobianQuad9Gpu(CellLocalId cell_lid,
                                     const Accelerator::VariableNodeReal3InView& in_node_coord,
                                     Real xi, Real eta)
 {
+  // Shape function derivatives ∂𝐍/∂ξ and ∂𝐍/∂η
+  //     ∂𝐍/∂ξ = [ ∂C₁/∂ξ  ∂𝑁₂/∂ξ  ...  ∂𝑁₉/∂ξ ]
   const Real dN_dxi[9] = {
     0.25 * (2.0 * xi - 1.0) * eta * (eta - 1.0),
     0.25 * (2.0 * xi + 1.0) * eta * (eta - 1.0),
@@ -406,6 +416,7 @@ computeGradientsAndJacobianQuad9Gpu(CellLocalId cell_lid,
     0.5 * (2.0 * xi - 1.0) * (1.0 - eta * eta),
     -2.0 * xi * (1.0 - eta * eta)
   };
+  //     ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ...  ∂𝑁₉/∂η ]
   const Real dN_deta[9] = {
     0.25 * xi * (xi - 1.0) * (2.0 * eta - 1.0),
     0.25 * xi * (xi + 1.0) * (2.0 * eta - 1.0),
