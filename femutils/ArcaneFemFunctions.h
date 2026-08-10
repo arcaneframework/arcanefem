@@ -2004,6 +2004,12 @@ class ArcaneFemFunctions
       else if (mesh->dimension() == 2 && nb_nodes == 4) { // Quadrilateral mesh
         ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhsQuad4(bs, node_dof, node_coord, rhs_values);
       }
+      else if (mesh->dimension() == 2 && nb_nodes == 8) { // Quadrilateral mesh Quad8
+        ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhsQuad8(bs, node_dof, node_coord, rhs_values);
+      }
+      else if (mesh->dimension() == 2 && nb_nodes == 9) { // Quadrilateral mesh Quad9
+        ArcaneFemFunctions::BoundaryConditions2D::applyNeumannToRhsQuad9(bs, node_dof, node_coord, rhs_values);
+      }
       else if (mesh->dimension() == 3 && nb_nodes == 4) { // Tetrahedral mesh
         ArcaneFemFunctions::BoundaryConditions3D::applyNeumannToRhsTetra4(bs, node_dof, node_coord, rhs_values);
       }
@@ -3639,6 +3645,94 @@ class ArcaneFemFunctions
           }
         }
       }
+    }
+
+    /*---------------------------------------------------------------------------*/
+    /**
+     * @brief Applies a Neumann condition on a quadratic Line3 face.
+     *
+     * Uses three-point Gauss integration and an isoparametric Line3 mapping.
+     * This supports both scalar fluxes and vector fluxes projected onto the
+     * outward normal, including curved quadratic edges.
+     */
+    /*---------------------------------------------------------------------------*/
+
+    static inline void _applyNeumannToRhsLine3(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      FaceGroup group = bs->getSurface();
+
+      Real value = 0.0;
+      Real valueX = 0.0;
+      Real valueY = 0.0;
+      bool scalar_neumann = false;
+      const StringConstArrayView neumann_str = bs->getValue();
+
+      if (neumann_str.size() == 1 && neumann_str[0] != "NULL") {
+        scalar_neumann = true;
+        value = std::stod(neumann_str[0].localstr());
+      }
+      else if (neumann_str.size() > 1) {
+        if (neumann_str[0] != "NULL")
+          valueX = std::stod(neumann_str[0].localstr());
+        if (neumann_str[1] != "NULL")
+          valueY = std::stod(neumann_str[1].localstr());
+      }
+
+      constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+      constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+      ENUMERATE_ (Face, iface, group) {
+        Face face = *iface;
+        if (face.nbNode() != 3)
+          ARCANE_FATAL("Expected a Line3 face for quadratic quadrilateral Neumann assembly, got '{0}' nodes", face.nbNode());
+
+        Node nodes[3] = { face.node(0), face.node(1), face.node(2) };
+        Real3 coords[3] = { node_coord[nodes[0]], node_coord[nodes[1]], node_coord[nodes[2]] };
+        const Real orientation = face.isSubDomainBoundaryOutside() ? 1.0 : -1.0;
+
+        for (Int32 igauss = 0; igauss < 3; ++igauss) {
+          const Real xi = gp[igauss];
+          const Real N[3] = {
+            0.5 * xi * (xi - 1.0),
+            0.5 * xi * (xi + 1.0),
+            1.0 - xi * xi
+          };
+          const Real dN[3] = { xi - 0.5, xi + 0.5, -2.0 * xi };
+
+          Real dx_dxi = 0.0;
+          Real dy_dxi = 0.0;
+          for (Int32 i = 0; i < 3; ++i) {
+            dx_dxi += dN[i] * coords[i].x;
+            dy_dxi += dN[i] * coords[i].y;
+          }
+
+          const Real jacobian = math::sqrt(dx_dxi * dx_dxi + dy_dxi * dy_dxi);
+          if (jacobian <= 0.0)
+            ARCANE_FATAL("Invalid (non-positive) Line3 Jacobian: {0}", jacobian);
+
+          const Real normal_x = orientation * dy_dxi / jacobian;
+          const Real normal_y = orientation * -dx_dxi / jacobian;
+          const Real flux = scalar_neumann ? value : normal_x * valueX + normal_y * valueY;
+          const Real integration_weight = weights[igauss] * jacobian;
+
+          for (Int32 i = 0; i < 3; ++i) {
+            Node node = nodes[i];
+            if (node.isOwn())
+              rhs_values[node_dof.dofId(node, 0)] += flux * N[i] * integration_weight;
+          }
+        }
+      }
+    }
+
+    static inline void applyNeumannToRhsQuad8(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      _applyNeumannToRhsLine3(bs, node_dof, node_coord, rhs_values);
+    }
+
+    //! Quad9 has the same quadratic Line3 boundary interpolation as Quad8.
+    static inline void applyNeumannToRhsQuad9(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+    {
+      _applyNeumannToRhsLine3(bs, node_dof, node_coord, rhs_values);
     }
 
     /*---------------------------------------------------------------------------*/
