@@ -458,7 +458,7 @@ _updateVariables()
  * @brief Validates and prints the results of the FEM computation.
  *
  * This method performs the following actions:
- *   1. If number of nodes < 200, prints the computed values for each node.
+ *   1. Prints the computed values for each node.
  *   2. Retrieves the filename for the result file from options.
  *   3. If a filename is provided, checks the computed results against result file.
  *
@@ -472,11 +472,10 @@ _validateResults()
   info() << "[ArcaneFem-Module] _validateResults()";
   Real elapsedTime = platform::getRealTime();
 
-  if (allNodes().size() < 200)
-    ENUMERATE_ (Node, inode, allNodes()) {
-      Node node = *inode;
-      info() << "phi[" << node.uniqueId() << "] = " << m_phi[node];
-    }
+  ENUMERATE_ (Node, inode, allNodes()) {
+    Node node = *inode;
+    info() << "phi[" << node.uniqueId() << "] = " << m_phi[node];
+  }
 
   String filename = options()->solutionComparisonFile();
 
