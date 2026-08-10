@@ -101,6 +101,32 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       -A,//meshes/mesh/filename=meshes/circle_cut.quad9.msh
       -A,//fem/solution-comparison-file=check/poisson_test_ref_circle_2D_quad9.txt
       inputs/circle.2D.quad.arc)
+  arcanefem_add_seq_test(NAME 2D_neumann_quad8
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad8_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad8.txt
+      inputs/quadratic.neumann.2D.arc)
+  arcanefem_add_seq_test(NAME 2D_neumann_quad9
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad9_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad9.txt
+      inputs/quadratic.neumann.2D.arc)
+  arcanefem_add_seq_test(NAME 2D_vector_neumann_quad8
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad8_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad8.txt
+      "-A,//fem/boundary-conditions/neumann/value=2 0"
+      inputs/quadratic.neumann.2D.arc)
+  arcanefem_add_seq_test(NAME 2D_vector_neumann_quad9
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad9_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad9.txt
+      "-A,//fem/boundary-conditions/neumann/value=2 0"
+      inputs/quadratic.neumann.2D.arc)
   arcanefem_add_seq_test(NAME 2D_mms_quad4
     COMMAND ./Poisson
     ARGS
@@ -435,6 +461,74 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
       -A,//fem/matrix-format=AF-BSR
       ${SOLVER_HYPRE_CG_2D}
       inputs/circle.2D.quad.arc)
+  arcanefem_add_seq_test(NAME 2D_neumann_quad8_bsr_hypre
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad8_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad8.txt
+      -A,//fem/matrix-format=BSR
+      ${SOLVER_HYPRE_CG_2D}
+      inputs/quadratic.neumann.2D.arc)
+  arcanefem_add_seq_test(NAME 2D_vector_neumann_quad8_bsr_hypre
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad8_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad8.txt
+      -A,//fem/matrix-format=BSR
+      "-A,//fem/boundary-conditions/neumann/value=2 0"
+      ${SOLVER_HYPRE_CG_2D}
+      inputs/quadratic.neumann.2D.arc)
+  arcanefem_add_seq_test(NAME 2D_neumann_quad8_af-bsr_hypre
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad8_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad8.txt
+      -A,//fem/matrix-format=AF-BSR
+      ${SOLVER_HYPRE_CG_2D}
+      inputs/quadratic.neumann.2D.arc)
+  arcanefem_add_seq_test(NAME 2D_vector_neumann_quad8_af-bsr_hypre
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad8_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad8.txt
+      -A,//fem/matrix-format=AF-BSR
+      "-A,//fem/boundary-conditions/neumann/value=2 0"
+      ${SOLVER_HYPRE_CG_2D}
+      inputs/quadratic.neumann.2D.arc)
+  arcanefem_add_seq_test(NAME 2D_neumann_quad9_bsr_hypre
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad9_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad9.txt
+      -A,//fem/matrix-format=BSR
+      ${SOLVER_HYPRE_CG_2D}
+      inputs/quadratic.neumann.2D.arc)
+  arcanefem_add_seq_test(NAME 2D_vector_neumann_quad9_bsr_hypre
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad9_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad9.txt
+      -A,//fem/matrix-format=BSR
+      "-A,//fem/boundary-conditions/neumann/value=2 0"
+      ${SOLVER_HYPRE_CG_2D}
+      inputs/quadratic.neumann.2D.arc)
+  arcanefem_add_seq_test(NAME 2D_neumann_quad9_af-bsr_hypre
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad9_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad9.txt
+      -A,//fem/matrix-format=AF-BSR
+      ${SOLVER_HYPRE_CG_2D}
+      inputs/quadratic.neumann.2D.arc)
+  arcanefem_add_seq_test(NAME 2D_vector_neumann_quad9_af-bsr_hypre
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad9_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad9.txt
+      -A,//fem/matrix-format=AF-BSR
+      "-A,//fem/boundary-conditions/neumann/value=2 0"
+      ${SOLVER_HYPRE_CG_2D}
+      inputs/quadratic.neumann.2D.arc)
   arcanefem_add_full_test(NAME 2D_quad_neumann_af-bsr_hypre
     COMMAND ./Poisson
     ARGS
@@ -590,6 +684,74 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       -A,//fem/matrix-format=AF-BSR
       ${SOLVER_PETSC_CG_2D}
       inputs/circle.2D.quad.arc)
+  arcanefem_add_seq_test(NAME 2D_neumann_quad8_bsr_petsc
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad8_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad8.txt
+      -A,//fem/matrix-format=BSR
+      ${SOLVER_PETSC_CG_2D}
+      inputs/quadratic.neumann.2D.arc)
+  arcanefem_add_seq_test(NAME 2D_vector_neumann_quad8_bsr_petsc
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad8_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad8.txt
+      -A,//fem/matrix-format=BSR
+      "-A,//fem/boundary-conditions/neumann/value=2 0"
+      ${SOLVER_PETSC_CG_2D}
+      inputs/quadratic.neumann.2D.arc)
+  arcanefem_add_seq_test(NAME 2D_neumann_quad8_af-bsr_petsc
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad8_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad8.txt
+      -A,//fem/matrix-format=AF-BSR
+      ${SOLVER_PETSC_CG_2D}
+      inputs/quadratic.neumann.2D.arc)
+  arcanefem_add_seq_test(NAME 2D_vector_neumann_quad8_af-bsr_petsc
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad8_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad8.txt
+      -A,//fem/matrix-format=AF-BSR
+      "-A,//fem/boundary-conditions/neumann/value=2 0"
+      ${SOLVER_PETSC_CG_2D}
+      inputs/quadratic.neumann.2D.arc)
+  arcanefem_add_seq_test(NAME 2D_neumann_quad9_bsr_petsc
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad9_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad9.txt
+      -A,//fem/matrix-format=BSR
+      ${SOLVER_PETSC_CG_2D}
+      inputs/quadratic.neumann.2D.arc)
+  arcanefem_add_seq_test(NAME 2D_vector_neumann_quad9_bsr_petsc
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad9_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad9.txt
+      -A,//fem/matrix-format=BSR
+      "-A,//fem/boundary-conditions/neumann/value=2 0"
+      ${SOLVER_PETSC_CG_2D}
+      inputs/quadratic.neumann.2D.arc)
+  arcanefem_add_seq_test(NAME 2D_neumann_quad9_af-bsr_petsc
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad9_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad9.txt
+      -A,//fem/matrix-format=AF-BSR
+      ${SOLVER_PETSC_CG_2D}
+      inputs/quadratic.neumann.2D.arc)
+  arcanefem_add_seq_test(NAME 2D_vector_neumann_quad9_af-bsr_petsc
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/mms.quad9_n4.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_quadratic_neumann_2D_quad9.txt
+      -A,//fem/matrix-format=AF-BSR
+      "-A,//fem/boundary-conditions/neumann/value=2 0"
+      ${SOLVER_PETSC_CG_2D}
+      inputs/quadratic.neumann.2D.arc)
   arcanefem_add_full_test(NAME 2D_quad_neumann_af-bsr_petsc
     COMMAND ./Poisson
     ARGS
