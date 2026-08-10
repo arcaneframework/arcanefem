@@ -934,6 +934,14 @@ class BoundaryConditions2D
   static void applyConstantSourceToRhsQuad4(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
                                             const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                                             IMesh* mesh, Accelerator::RunQueue* queue);
+
+  static void applyConstantSourceToRhsQuad8(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+                                            const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                            IMesh* mesh, Accelerator::RunQueue* queue);
+
+  static void applyConstantSourceToRhsQuad9(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+                                            const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                            IMesh* mesh, Accelerator::RunQueue* queue);
   /*---------------------------------------------------------------------------*/
   /**
    * @brief Applies Neumann conditions to the right-hand side (RHS) values.
@@ -950,6 +958,14 @@ class BoundaryConditions2D
                                 IMesh* mesh, Accelerator::RunQueue* queue);
 
   static void applyNeumannToRhsQuad4(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                                     const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                     IMesh* mesh, Accelerator::RunQueue* queue);
+
+  static void applyNeumannToRhsQuad8(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                                     const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                     IMesh* mesh, Accelerator::RunQueue* queue);
+
+  static void applyNeumannToRhsQuad9(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
                                      const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                                      IMesh* mesh, Accelerator::RunQueue* queue);
 };

@@ -289,6 +289,12 @@ applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_
   else if (mesh->dimension() == 2 && nb_nodes == 4) { // Quad mesh
     BoundaryConditions2D::applyNeumannToRhsQuad4(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
   }
+  else if (mesh->dimension() == 2 && nb_nodes == 8) { // Quadratic serendipity quad mesh
+    BoundaryConditions2D::applyNeumannToRhsQuad8(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
+  else if (mesh->dimension() == 2 && nb_nodes == 9) { // Quadratic Lagrange quad mesh
+    BoundaryConditions2D::applyNeumannToRhsQuad9(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
   else if (mesh->dimension() == 3 && nb_nodes == 4) { // Tetra mesh
     BoundaryConditions3D::applyNeumannToRhsTetra4(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
   }
@@ -296,7 +302,7 @@ applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_
     BoundaryConditions3D::applyNeumannToRhsHexa8(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
   }
   else {
-    ARCANE_FATAL("Unknown mesh type only works for uniform TRIA3, QUAD4, TETRA4, HEXA8");
+    ARCANE_FATAL("Unknown mesh type only works for uniform TRIA3, QUAD4, QUAD8, QUAD9, TETRA4, HEXA8");
   }
 }
 /*---------------------------------------------------------------------------*/
@@ -332,6 +338,12 @@ applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
   else if (mesh->dimension() == 2 && nb_nodes == 4) { // Quad mesh
     BoundaryConditions2D::applyConstantSourceToRhsQuad4(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
   }
+  else if (mesh->dimension() == 2 && nb_nodes == 8) { // Quadratic serendipity quad mesh
+    BoundaryConditions2D::applyConstantSourceToRhsQuad8(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
+  else if (mesh->dimension() == 2 && nb_nodes == 9) { // Quadratic Lagrange quad mesh
+    BoundaryConditions2D::applyConstantSourceToRhsQuad9(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
   else if (mesh->dimension() == 3 && nb_nodes == 4) { // Tetra mesh
     BoundaryConditions3D::applyConstantSourceToRhsTetra4(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
   }
@@ -339,7 +351,7 @@ applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
     BoundaryConditions3D::applyConstantSourceToRhsHexa8(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
   }
   else {
-    ARCANE_FATAL("Unknown mesh type only works for uniform TRIA3, QUAD4, TETRA4, HEXA8");
+    ARCANE_FATAL("Unknown mesh type only works for uniform TRIA3, QUAD4, QUAD8, QUAD9, TETRA4, HEXA8");
   }
 }
 
@@ -440,6 +452,232 @@ applyConstantSourceToRhsQuad4(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
       }
     }
   };
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies a constant source term to the RHS quadratic quad elements.
+ *
+ * This method adds a constant source term `qdot` to the RHS vector for each
+ * node in the mesh. The contribution to each node is weighted by the area of
+ * the cell and evenly distributed among the number of nodes of the cell.
+ *
+ */
+void _applyConstantSourceToRhsQuadraticQuad(Real qdot, Int32 nb_cell_node,
+                                            const FemDoFsOnNodes& dofs_on_nodes,
+                                            const VariableNodeReal3& node_coord,
+                                            VariableDoFReal& rhs_variable_na,
+                                            IMesh* mesh, RunQueue* queue)
+{
+  UnstructuredMeshConnectivityView connectivity_view(mesh);
+  NodeInfoListView nodes_infos(mesh->nodeFamily());
+  auto node_dof = dofs_on_nodes.nodeDoFConnectivityView();
+  auto cn_cv = connectivity_view.cellNode();
+
+  if (nb_cell_node == 8) {
+    auto command = makeCommand(queue);
+    auto in_out_rhs = viewInOut(command, rhs_variable_na);
+    auto in_node_coord = viewIn(command, node_coord);
+
+    command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh->allCells())
+    {
+      // Gauss points and weights (3x3 Gauss Quadrature)
+      constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+      constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+      // Fetch cell nodes into a local array for quick access inside the integration loops
+      NodeLocalId cell_nodes[8];
+      for (Int32 i = 0; i < 8; ++i)
+        cell_nodes[i] = cn_cv.nodeId(cell_lid, i);
+
+      for (Int32 ixi = 0; ixi < 3; ++ixi) {
+        for (Int32 ieta = 0; ieta < 3; ++ieta) {
+          const Real xi = gp[ixi];
+          const Real eta = gp[ieta];
+
+          // Shape functions N for Quad8
+          Real N[8];
+          N[0] = 0.25 * (1.0 - xi) * (1.0 - eta) * (-xi - eta - 1.0);
+          N[1] = 0.25 * (1.0 + xi) * (1.0 - eta) * (xi - eta - 1.0);
+          N[2] = 0.25 * (1.0 + xi) * (1.0 + eta) * (xi + eta - 1.0);
+          N[3] = 0.25 * (1.0 - xi) * (1.0 + eta) * (-xi + eta - 1.0);
+          N[4] = 0.5 * (1.0 - xi * xi) * (1.0 - eta);
+          N[5] = 0.5 * (1.0 + xi) * (1.0 - eta * eta);
+          N[6] = 0.5 * (1.0 - xi * xi) * (1.0 + eta);
+          N[7] = 0.5 * (1.0 - xi) * (1.0 - eta * eta);
+
+          // Determinant of the Jacobian
+          const Real det_j = FeOperation2D::computeGradientsAndJacobianQuad8Gpu(cell_lid, cn_cv, in_node_coord, xi, eta).det_j;
+          const Real integration_weight = weights[ixi] * weights[ieta] * det_j;
+
+          // Assemble RHS via Atomic Operations
+          for (Int32 i = 0; i < 8; ++i) {
+            const NodeLocalId node_lid = cell_nodes[i];
+            if (nodes_infos.isOwn(node_lid)) {
+              const Real rhs_value = N[i] * qdot * integration_weight;
+              Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs[node_dof.dofId(node_lid, 0)], rhs_value);
+            }
+          }
+        }
+      }
+    };
+  }
+  else if (nb_cell_node == 9) {
+    auto command = makeCommand(queue);
+    auto in_out_rhs = viewInOut(command, rhs_variable_na);
+    auto in_node_coord = viewIn(command, node_coord);
+
+    command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh->allCells())
+    {
+      // Gauss points and weights (3x3 Gauss Quadrature)
+      constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+      constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+      // Fetch cell nodes into a local array for quick access inside the integration loops
+      NodeLocalId cell_nodes[9];
+      for (Int32 i = 0; i < 9; ++i)
+        cell_nodes[i] = cn_cv.nodeId(cell_lid, i);
+
+      for (Int32 ixi = 0; ixi < 3; ++ixi) {
+        for (Int32 ieta = 0; ieta < 3; ++ieta) {
+          const Real xi = gp[ixi];
+          const Real eta = gp[ieta];
+
+          // Shape functions N for Quad9
+          Real N[9];
+          N[0] = 0.25 * xi * (xi - 1.0) * eta * (eta - 1.0);
+          N[1] = 0.25 * xi * (xi + 1.0) * eta * (eta - 1.0);
+          N[2] = 0.25 * xi * (xi + 1.0) * eta * (eta + 1.0);
+          N[3] = 0.25 * xi * (xi - 1.0) * eta * (eta + 1.0);
+          N[4] = 0.5 * (1.0 - xi * xi) * eta * (eta - 1.0);
+          N[5] = 0.5 * xi * (xi + 1.0) * (1.0 - eta * eta);
+          N[6] = 0.5 * (1.0 - xi * xi) * eta * (eta + 1.0);
+          N[7] = 0.5 * xi * (xi - 1.0) * (1.0 - eta * eta);
+          N[8] = (1.0 - xi * xi) * (1.0 - eta * eta);
+
+          // Determinant of the Jacobian
+          const Real det_j = FeOperation2D::computeGradientsAndJacobianQuad9Gpu(cell_lid, cn_cv, in_node_coord, xi, eta).det_j;
+          const Real integration_weight = weights[ixi] * weights[ieta] * det_j;
+
+          // Assemble RHS via Atomic Operations
+          for (Int32 i = 0; i < 9; ++i) {
+            const NodeLocalId node_lid = cell_nodes[i];
+            if (nodes_infos.isOwn(node_lid)) {
+              const Real rhs_value = N[i] * qdot * integration_weight;
+              Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs[node_dof.dofId(node_lid, 0)], rhs_value);
+            }
+          }
+        }
+      }
+    };
+  }
+  else
+    ARCANE_FATAL("Unsupported quadratic quadrilateral with '{0}' nodes", nb_cell_node);
+}
+
+void _applyNeumannToRhsLine3(BC::INeumannBoundaryCondition* bs,
+                             const FemDoFsOnNodes& dofs_on_nodes,
+                             const VariableNodeReal3& node_coord,
+                             VariableDoFReal& rhs_variable_na,
+                             IMesh* mesh, RunQueue* queue)
+{
+  const FaceGroup group = bs->getSurface();
+  const StringConstArrayView neumann_str = bs->getValue();
+  const bool scalar_neumann = neumann_str.size() == 1 && neumann_str[0] != "NULL";
+  const Real scalar_value = scalar_neumann ? std::stod(neumann_str[0].localstr()) : 0.0;
+  const Real value_x = !scalar_neumann && neumann_str.size() > 0 && neumann_str[0] != "NULL"
+  ? std::stod(neumann_str[0].localstr())
+  : 0.0;
+  const Real value_y = !scalar_neumann && neumann_str.size() > 1 && neumann_str[1] != "NULL"
+  ? std::stod(neumann_str[1].localstr())
+  : 0.0;
+
+  UnstructuredMeshConnectivityView connectivity_view(mesh);
+  NodeInfoListView nodes_infos(mesh->nodeFamily());
+  FaceInfoListView faces_infos(mesh->faceFamily());
+  auto node_dof = dofs_on_nodes.nodeDoFConnectivityView();
+  auto fn_cv = connectivity_view.faceNode();
+
+  auto command = makeCommand(queue);
+  auto in_out_rhs = viewInOut(command, rhs_variable_na);
+  auto in_node_coord = viewIn(command, node_coord);
+
+  command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
+  {
+    constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+    constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+    NodeLocalId face_nodes[3];
+    Real3 coords[3];
+    for (Int32 i = 0; i < 3; ++i) {
+      face_nodes[i] = fn_cv.nodeId(face_lid, i);
+      coords[i] = in_node_coord[face_nodes[i]];
+    }
+    const Real orientation = faces_infos.isSubDomainBoundaryOutside(face_lid) ? 1.0 : -1.0;
+
+    for (Int32 igauss = 0; igauss < 3; ++igauss) {
+      const Real xi = gp[igauss];
+      const Real N[3] = {
+        0.5 * xi * (xi - 1.0),
+        0.5 * xi * (xi + 1.0),
+        1.0 - xi * xi
+      };
+      const Real dN[3] = { xi - 0.5, xi + 0.5, -2.0 * xi };
+
+      Real dx_dxi = 0.0;
+      Real dy_dxi = 0.0;
+      for (Int32 i = 0; i < 3; ++i) {
+        dx_dxi += dN[i] * coords[i].x;
+        dy_dxi += dN[i] * coords[i].y;
+      }
+
+      const Real jacobian = math::sqrt(dx_dxi * dx_dxi + dy_dxi * dy_dxi);
+      const Real normal_x = orientation * dy_dxi / jacobian;
+      const Real normal_y = orientation * -dx_dxi / jacobian;
+      const Real flux = scalar_neumann ? scalar_value : normal_x * value_x + normal_y * value_y;
+      const Real integration_weight = weights[igauss] * jacobian;
+
+      for (Int32 i = 0; i < 3; ++i) {
+        const NodeLocalId node_lid = face_nodes[i];
+        if (nodes_infos.isOwn(node_lid)) {
+          const Real rhs_value = flux * N[i] * integration_weight;
+          Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs[node_dof.dofId(node_lid, 0)], rhs_value);
+        }
+      }
+    }
+  };
+}
+
+void BoundaryConditions2D::
+applyConstantSourceToRhsQuad8(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+                              const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                              IMesh* mesh, RunQueue* queue)
+{
+  _applyConstantSourceToRhsQuadraticQuad(qdot, 8, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+}
+
+void BoundaryConditions2D::
+applyConstantSourceToRhsQuad9(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+                              const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                              IMesh* mesh, RunQueue* queue)
+{
+  _applyConstantSourceToRhsQuadraticQuad(qdot, 9, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+}
+
+void BoundaryConditions2D::
+applyNeumannToRhsQuad8(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                       const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                       IMesh* mesh, RunQueue* queue)
+{
+  _applyNeumannToRhsLine3(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+}
+
+void BoundaryConditions2D::
+applyNeumannToRhsQuad9(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                       const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                       IMesh* mesh, RunQueue* queue)
+{
+  _applyNeumannToRhsLine3(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
 }
 
 /*---------------------------------------------------------------------------*/

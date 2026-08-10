@@ -184,13 +184,7 @@ void FemModulePoisson::_assembleLinearOperator()
     return;
   }
 
-  // High-order quad RHS and boundary-condition assembly is currently CPU-only.
-  if (m_is_quad8_mesh || m_is_quad9_mesh) {
-    _assembleLinearOperatorCpu();
-    return;
-  }
-
-  // Hexa20 and Hexa27 support is currently CPU-only 
+  // Hexa20 and Hexa27 support is currently CPU-only
   if (m_is_hexa20_mesh || m_is_hexa27_mesh) {
     _assembleLinearOperatorCpu();
     return;
