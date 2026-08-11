@@ -590,6 +590,38 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
       -A,//fem/matrix-format=AF-BSR
       ${SOLVER_HYPRE_CG_3D}
       inputs/sphere.3D.arc)
+  arcanefem_add_full_test(NAME 3D_hexa20_cube_bsr_hypre
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa20.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_cube_3D_hexa20.txt
+      -A,//fem/matrix-format=BSR
+      ${SOLVER_HYPRE_CG_3D}
+      inputs/cube.3D.hexa.arc)
+  arcanefem_add_full_test(NAME 3D_hexa20_cube_af-bsr_hypre
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa20.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_cube_3D_hexa20.txt
+      -A,//fem/matrix-format=AF-BSR
+      ${SOLVER_HYPRE_CG_3D}
+      inputs/cube.3D.hexa.arc)
+  arcanefem_add_full_test(NAME 3D_hexa27_cube_bsr_hypre
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa27.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_cube_3D_hexa27.txt
+      -A,//fem/matrix-format=BSR
+      ${SOLVER_HYPRE_CG_3D}
+      inputs/cube.3D.hexa.arc)
+  arcanefem_add_full_test(NAME 3D_hexa27_cube_af-bsr_hypre
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa27.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_cube_3D_hexa27.txt
+      -A,//fem/matrix-format=AF-BSR
+      ${SOLVER_HYPRE_CG_3D}
+      inputs/cube.3D.hexa.arc)
   arcanefem_add_full_test(NAME 3D_neumann_bsr-hexa_hypre
     COMMAND ./Poisson
     ARGS
@@ -813,6 +845,38 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       -A,//fem/matrix-format=AF-BSR
       ${SOLVER_PETSC_CG_3D}
       inputs/sphere.3D.arc)
+  arcanefem_add_full_test(NAME 3D_hexa20_cube_bsr_petsc
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa20.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_cube_3D_hexa20.txt
+      -A,//fem/matrix-format=BSR
+      ${SOLVER_PETSC_CG_3D}
+      inputs/cube.3D.hexa.arc)
+  arcanefem_add_full_test(NAME 3D_hexa20_cube_af-bsr_petsc
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa20.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_cube_3D_hexa20.txt
+      -A,//fem/matrix-format=AF-BSR
+      ${SOLVER_PETSC_CG_3D}
+      inputs/cube.3D.hexa.arc)
+  arcanefem_add_full_test(NAME 3D_hexa27_cube_bsr_petsc
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa27.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_cube_3D_hexa27.txt
+      -A,//fem/matrix-format=BSR
+      ${SOLVER_PETSC_CG_3D}
+      inputs/cube.3D.hexa.arc)
+  arcanefem_add_full_test(NAME 3D_hexa27_cube_af-bsr_petsc
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa27.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_cube_3D_hexa27.txt
+      -A,//fem/matrix-format=AF-BSR
+      ${SOLVER_PETSC_CG_3D}
+      inputs/cube.3D.hexa.arc)
   arcanefem_add_full_test(NAME 3D_neumann_bsr-hexa_petsc
     COMMAND ./Poisson
     ARGS
