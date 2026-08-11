@@ -321,6 +321,84 @@ RealMatrix<20, 20> FemModulePoisson::_computeElementMatrixHexa20(Cell cell)
   return ae;
 }
 
+ARCCORE_HOST_DEVICE RealMatrix<20, 20>
+_computeElementMatrixHexa20Gpu(CellLocalId cell_lid,
+                               const IndexedCellNodeConnectivityView& cn_cv,
+                               const ax::VariableNodeReal3InView& in_node_coord)
+{
+  // Gauss points and weights for 3x3x3 quadrature (https://en.wikipedia.org/wiki/Gaussian_quadrature)
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+  constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+  // Initialize the element matrix
+  RealMatrix<20, 20> ae;
+  ae.fill(0.0);
+
+  // Loop over Gauss points
+  for (Int8 ixi = 0; ixi < 3; ++ixi) {
+    for (Int8 ieta = 0; ieta < 3; ++ieta) {
+      for (Int8 izeta = 0; izeta < 3; ++izeta) {
+
+        // Get the coordinates of Gauss points in natural coordinates (ξ,η,ζ)
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const Real zeta = gp[izeta];
+
+        // Get shape function gradients w.r.t (𝑥,𝑦,𝑧) and determinant of Jacobian
+        const auto gp_info = FemUtils::Gpu::FeOperation3D::computeGradientsAndJacobianHexa20Gpu(cell_lid, cn_cv, in_node_coord, xi, eta, zeta);
+        const RealVector<20>& dxU = gp_info.dN_dx;
+        const RealVector<20>& dyU = gp_info.dN_dy;
+        const RealVector<20>& dzU = gp_info.dN_dz;
+        const Real detJ = gp_info.det_j;
+
+        // Integration weight
+        const Real integration_weight = detJ * weight[ixi] * weight[ieta] * weight[izeta];
+
+        // Assemble element matrix (variational form)
+        ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight + (dzU ^ dzU) * integration_weight;
+      }
+    }
+  }
+  return ae;
+}
+
+ARCCORE_HOST_DEVICE RealMatrix<1, 20>
+_computeElementVectorHexa20Gpu(CellLocalId cell_lid,
+                               const IndexedCellNodeConnectivityView& cn_cv,
+                               const ax::VariableNodeReal3InView& in_node_coord,
+                               Int32 node_lid)
+{
+  RealMatrix<1, 20> row;
+  row.fill(0.0);
+
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+  constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+  for (Int8 ixi = 0; ixi < 3; ++ixi) {
+    for (Int8 ieta = 0; ieta < 3; ++ieta) {
+      for (Int8 izeta = 0; izeta < 3; ++izeta) {
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const Real zeta = gp[izeta];
+
+        const auto gp_info = FemUtils::Gpu::FeOperation3D::computeGradientsAndJacobianHexa20Gpu(cell_lid, cn_cv, in_node_coord, xi, eta, zeta);
+        const RealVector<20>& dxU = gp_info.dN_dx;
+        const RealVector<20>& dyU = gp_info.dN_dy;
+        const RealVector<20>& dzU = gp_info.dN_dz;
+        const Real detJ = gp_info.det_j;
+
+        const Real integration_weight = detJ * weight[ixi] * weight[ieta] * weight[izeta];
+        for (Int32 col = 0; col < 20; ++col) {
+          const Real grad_dot = dxU(node_lid) * dxU(col) + dyU(node_lid) * dyU(col) + dzU(node_lid) * dzU(col);
+          row(0, col) += grad_dot * integration_weight;
+        }
+      }
+    }
+  }
+
+  return row;
+}
+
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Computes the element matrix for a hexahedral element (HEXA27, ℚ2 FE).
@@ -376,6 +454,84 @@ RealMatrix<27, 27> FemModulePoisson::_computeElementMatrixHexa27(Cell cell)
     }
   }
   return ae;
+}
+
+ARCCORE_HOST_DEVICE RealMatrix<27, 27>
+_computeElementMatrixHexa27Gpu(CellLocalId cell_lid,
+                               const IndexedCellNodeConnectivityView& cn_cv,
+                               const ax::VariableNodeReal3InView& in_node_coord)
+{
+  // Gauss points and weights for 3x3x3 quadrature (https://en.wikipedia.org/wiki/Gaussian_quadrature)
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+  constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+  // Initialize the element matrix
+  RealMatrix<27, 27> ae;
+  ae.fill(0.0);
+
+  // Loop over Gauss points
+  for (Int8 ixi = 0; ixi < 3; ++ixi) {
+    for (Int8 ieta = 0; ieta < 3; ++ieta) {
+      for (Int8 izeta = 0; izeta < 3; ++izeta) {
+
+        // Get the coordinates of Gauss points in natural coordinates (ξ,η,ζ)
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const Real zeta = gp[izeta];
+
+        // Get shape function gradients w.r.t (𝑥,𝑦,𝑧) and determinant of Jacobian
+        const auto gp_info = FemUtils::Gpu::FeOperation3D::computeGradientsAndJacobianHexa27Gpu(cell_lid, cn_cv, in_node_coord, xi, eta, zeta);
+        const RealVector<27>& dxU = gp_info.dN_dx;
+        const RealVector<27>& dyU = gp_info.dN_dy;
+        const RealVector<27>& dzU = gp_info.dN_dz;
+        const Real detJ = gp_info.det_j;
+
+        // Integration weight
+        const Real integration_weight = detJ * weight[ixi] * weight[ieta] * weight[izeta];
+
+        // Assemble element matrix (variational form)
+        ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight + (dzU ^ dzU) * integration_weight;
+      }
+    }
+  }
+  return ae;
+}
+
+ARCCORE_HOST_DEVICE RealMatrix<1, 27>
+_computeElementVectorHexa27Gpu(CellLocalId cell_lid,
+                               const IndexedCellNodeConnectivityView& cn_cv,
+                               const ax::VariableNodeReal3InView& in_node_coord,
+                               Int32 node_lid)
+{
+  RealMatrix<1, 27> row;
+  row.fill(0.0);
+
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+  constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+  for (Int8 ixi = 0; ixi < 3; ++ixi) {
+    for (Int8 ieta = 0; ieta < 3; ++ieta) {
+      for (Int8 izeta = 0; izeta < 3; ++izeta) {
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const Real zeta = gp[izeta];
+
+        const auto gp_info = FemUtils::Gpu::FeOperation3D::computeGradientsAndJacobianHexa27Gpu(cell_lid, cn_cv, in_node_coord, xi, eta, zeta);
+        const RealVector<27>& dxU = gp_info.dN_dx;
+        const RealVector<27>& dyU = gp_info.dN_dy;
+        const RealVector<27>& dzU = gp_info.dN_dz;
+        const Real detJ = gp_info.det_j;
+
+        const Real integration_weight = detJ * weight[ixi] * weight[ieta] * weight[izeta];
+        for (Int32 col = 0; col < 27; ++col) {
+          const Real grad_dot = dxU(node_lid) * dxU(col) + dyU(node_lid) * dyU(col) + dzU(node_lid) * dzU(col);
+          row(0, col) += grad_dot * integration_weight;
+        }
+      }
+    }
+  }
+
+  return row;
 }
 
 /*---------------------------------------------------------------------------*/

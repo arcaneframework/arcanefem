@@ -315,6 +315,27 @@ computeNbColumns(IMesh* mesh)
       total_nb_col_reducer.combine(nn_cv.nbNode(node_id) + 1 + nf_cv.nbFace(node_id) + nc_cv.nbCell(node_id));
     };
   }
+  else if (mesh->dimension() == 3 && (nb_nodes == 20 || nb_nodes == 27)) { // Hexa20 or Hexa27
+    const Int32 dof_pairs_per_element = (nb_nodes * (nb_nodes - 1)) / 2;
+    const Int64 nb_pair_total = mesh->nbCell() * dof_pairs_per_element;
+
+    auto mem_ressource = m_queue.memoryRessource();
+    NumArray<UInt64, MDDim1> sorted_pairs(mem_ressource);
+    sorted_pairs.resize(nb_pair_total);
+    auto sorted_pairs_ss = sorted_pairs.to1DSmallSpan();
+    computeSortedEdges(dof_pairs_per_element, nb_pair_total, sorted_pairs_ss);
+
+    auto pair_command = makeCommand(m_queue);
+    Accelerator::ReducerSum2<Int64> unique_pair_reducer(pair_command);
+    pair_command << RUNCOMMAND_LOOP1(iter, nb_pair_total, unique_pair_reducer)
+    {
+      auto [pair_index] = iter();
+      if (pair_index == (nb_pair_total - 1) || sorted_pairs_ss[pair_index] != sorted_pairs_ss[pair_index + 1])
+        unique_pair_reducer.combine(1);
+    };
+
+    return mesh->nbNode() + 2 * unique_pair_reducer.reducedValue();
+  }
   else {
     return 0; // Unsupported element type
   }
@@ -497,6 +518,35 @@ computeNeighborsAtomicFree(SmallSpan<Int32>& neighbors_ss)
         neighbors_ss[node_id] = node_node_cv.nbNode(node_id) + node_face_cv.nbFace(node_id) + node_cell_cv.nbCell(node_id) + 1;
       };
     }
+    else if (nb_nodes == 20 || nb_nodes == 27) { // High-order hexa: all nodes sharing a cell
+      command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
+      {
+        Int32 nb_neighbor = 1; // The node itself.
+        for (auto cell_lid : node_cell_cv.cellIds(node_id)) {
+          for (auto candidate : cell_node_cv.nodeIds(cell_lid)) {
+            if (candidate == node_id)
+              continue;
+
+            bool is_first_occurrence = true;
+            for (auto previous_cell_lid : node_cell_cv.cellIds(node_id)) {
+              if (previous_cell_lid >= cell_lid)
+                continue;
+              for (auto previous_candidate : cell_node_cv.nodeIds(previous_cell_lid)) {
+                if (previous_candidate == candidate) {
+                  is_first_occurrence = false;
+                  break;
+                }
+              }
+              if (!is_first_occurrence)
+                break;
+            }
+            if (is_first_occurrence)
+              ++nb_neighbor;
+          }
+        }
+        neighbors_ss[node_id] = nb_neighbor;
+      };
+    }
     else { // Tetra4: edge-neighbors + self
       command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
       {
@@ -672,6 +722,39 @@ computeColumnsAtomicFree()
         inout_columns[offset] = node_id;
       };
     }
+    else if (nb_nodes == 20 || nb_nodes == 27) { // High-order hexa
+      command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
+      {
+        auto offset = row_index[node_id];
+
+        for (auto cell_lid : node_cell_cv.cellIds(node_id)) {
+          for (auto candidate : cell_node_cv.nodeIds(cell_lid)) {
+            if (candidate == node_id)
+              continue;
+
+            bool is_first_occurrence = true;
+            for (auto previous_cell_lid : node_cell_cv.cellIds(node_id)) {
+              if (previous_cell_lid >= cell_lid)
+                continue;
+              for (auto previous_candidate : cell_node_cv.nodeIds(previous_cell_lid)) {
+                if (previous_candidate == candidate) {
+                  is_first_occurrence = false;
+                  break;
+                }
+              }
+              if (!is_first_occurrence)
+                break;
+            }
+            if (is_first_occurrence) {
+              inout_columns[offset] = candidate;
+              ++offset;
+            }
+          }
+        }
+
+        inout_columns[offset] = node_id;
+      };
+    }
     else { // Tetra4
       command << RUNCOMMAND_ENUMERATE(Node, node_id, m_mesh->allNodes())
       {
@@ -714,7 +797,7 @@ computeSparsityAtomicFree()
 /*---------------------------------------------------------------------------*/
 
 void BSRFormat::
-computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss)
+computeSortedEdges(Int32 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss)
 {
   auto mem_ressource = m_queue.memoryRessource();
   NumArray<UInt64, MDDim1> edges(mem_ressource);
@@ -779,55 +862,18 @@ computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64
       };
     }
 
-    // hexahedral element mesh
-    if (m_mesh->dimension() == 3 && nb_nodes == 8) {
+    // Hexahedral element mesh: all element-local node pairs are coupled.
+    if (m_mesh->dimension() == 3 && (nb_nodes == 8 || nb_nodes == 20 || nb_nodes == 27)) {
       command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, m_mesh->allCells())
       {
         auto start = cell_lid * edges_per_element;
-        // Hexahedron (28 node-pairs unrolled for GPU safety)
-        auto n0 = cell_node_cv.nodeId(cell_lid, 0);
-        auto n1 = cell_node_cv.nodeId(cell_lid, 1);
-        auto n2 = cell_node_cv.nodeId(cell_lid, 2);
-        auto n3 = cell_node_cv.nodeId(cell_lid, 3);
-        auto n4 = cell_node_cv.nodeId(cell_lid, 4);
-        auto n5 = cell_node_cv.nodeId(cell_lid, 5);
-        auto n6 = cell_node_cv.nodeId(cell_lid, 6);
-        auto n7 = cell_node_cv.nodeId(cell_lid, 7);
-
-        inout_edges[start     ] = pack(n0, n1);
-        inout_edges[start +  1] = pack(n0, n2);
-        inout_edges[start +  2] = pack(n0, n3);
-        inout_edges[start +  3] = pack(n0, n4);
-        inout_edges[start +  4] = pack(n0, n5);
-        inout_edges[start +  5] = pack(n0, n6);
-        inout_edges[start +  6] = pack(n0, n7);
-
-        inout_edges[start +  7] = pack(n1, n2);
-        inout_edges[start +  8] = pack(n1, n3);
-        inout_edges[start +  9] = pack(n1, n4);
-        inout_edges[start + 10] = pack(n1, n5);
-        inout_edges[start + 11] = pack(n1, n6);
-        inout_edges[start + 12] = pack(n1, n7);
-
-        inout_edges[start + 13] = pack(n2, n3);
-        inout_edges[start + 14] = pack(n2, n4);
-        inout_edges[start + 15] = pack(n2, n5);
-        inout_edges[start + 16] = pack(n2, n6);
-        inout_edges[start + 17] = pack(n2, n7);
-
-        inout_edges[start + 18] = pack(n3, n4);
-        inout_edges[start + 19] = pack(n3, n5);
-        inout_edges[start + 20] = pack(n3, n6);
-        inout_edges[start + 21] = pack(n3, n7);
-
-        inout_edges[start + 22] = pack(n4, n5);
-        inout_edges[start + 23] = pack(n4, n6);
-        inout_edges[start + 24] = pack(n4, n7);
-
-        inout_edges[start + 25] = pack(n5, n6);
-        inout_edges[start + 26] = pack(n5, n7);
-
-        inout_edges[start + 27] = pack(n6, n7);
+        Int32 pair_index = 0;
+        for (Int32 i = 0; i < nb_nodes; ++i) {
+          for (Int32 j = i + 1; j < nb_nodes; ++j) {
+            inout_edges[start + pair_index] = pack(cell_node_cv.nodeId(cell_lid, i), cell_node_cv.nodeId(cell_lid, j));
+            ++pair_index;
+          }
+        }
       };
     }
   }
@@ -842,7 +888,7 @@ computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64
 /*---------------------------------------------------------------------------*/
 
 void BSRFormat::
-computeNeighbors(Int8 edges_per_element, Int64 nb_edge_total, NumArray<Int32, MDDim1>& neighbors, SmallSpan<UInt64>& sorted_edges_ss)
+computeNeighbors(Int32 edges_per_element, Int64 nb_edge_total, NumArray<Int32, MDDim1>& neighbors, SmallSpan<UInt64>& sorted_edges_ss)
 {
   auto command = makeCommand(m_queue);
   auto inout_neighbors = viewInOut(command, neighbors);
@@ -864,7 +910,7 @@ computeNeighbors(Int8 edges_per_element, Int64 nb_edge_total, NumArray<Int32, MD
 /*---------------------------------------------------------------------------*/
 
 void BSRFormat::
-computeRowIndex(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss)
+computeRowIndex(Int32 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss)
 {
   auto mem_ressource = m_queue.memoryRessource();
   NumArray<Int32, MDDim1> neighbors(mem_ressource);
@@ -881,7 +927,7 @@ computeRowIndex(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& 
 /*---------------------------------------------------------------------------*/
 
 void BSRFormat::
-computeColumns(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>& sorted_edges_ss)
+computeColumns(Int32 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>& sorted_edges_ss)
 {
   auto nb_node = m_mesh->nbNode();
 
@@ -933,19 +979,14 @@ computeSparsityAtomic()
   info() << "BSRFormat(computeSparsityAtomic): Computing sparsity of BSR matrix without Arcane connectivities (e.g with atomics)...";
   auto startTime = platform::getRealTime();
 
-  Int8 dof_pairs_per_element = 3; // dof-pairs per element, default is for triangle 3
+  Int32 dof_pairs_per_element = 3; // dof-pairs per element, default is for triangle 3
 
   UnstructuredMeshConnectivityView m_connectivity_view(m_mesh);
   auto cell_node_cv = m_connectivity_view.cellNode();
   CellLocalId first_cell_lid(0);
   auto nb_nodes = cell_node_cv.nbNode(first_cell_lid);
 
-  if (m_mesh->dimension() == 2) {
-    dof_pairs_per_element = (nb_nodes * (nb_nodes - 1)) / 2;
-  }
-  else {
-    dof_pairs_per_element = (nb_nodes == 8) ? 28 : 6; // Hex needs 28 pairs, Tetra needs 6
-  }
+  dof_pairs_per_element = (nb_nodes * (nb_nodes - 1)) / 2;
 
   auto nb_edge_total = m_mesh->nbCell() * dof_pairs_per_element;
 

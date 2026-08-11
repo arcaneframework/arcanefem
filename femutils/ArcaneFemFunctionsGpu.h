@@ -604,19 +604,56 @@ computeGradientZTetra4(CellLocalId cell_lid,
 
 /*---------------------------------------------------------------------------*/
 /**
-  * @brief Holds information for a Hexa8 element at a single Gauss point.
+  * @brief Holds information for a hexahedral element at a single Gauss point.
   *
   * This includes the gradients of the shape functions in the physical space (𝑥,𝑦,𝑧)
   * and the determinant of the Jacobian matrix.
   */
 /*---------------------------------------------------------------------------*/
-struct Hexa8GaussPointInfo
+template <Int32 N> struct HexaGaussPointInfo
 {
-  RealVector<8> dN_dx; // Derivatives of shape functions in x {∂𝑁₁/∂𝑥  ∂𝑁₂/∂𝑥  ...  ∂𝑁₈/∂𝑥}
-  RealVector<8> dN_dy; // Derivatives of shape functions in y {∂𝑁₁/∂𝑦  ∂𝑁₂/∂𝑦  ...  ∂𝑁₈/∂𝑦}
-  RealVector<8> dN_dz; // Derivatives of shape functions in z {∂𝑁₁/∂𝑧  ∂𝑁₂/∂𝑧  ...  ∂𝑁₈/∂𝑧}
+  RealVector<N> dN_dx; // Derivatives of shape functions in x.
+  RealVector<N> dN_dy; // Derivatives of shape functions in y.
+  RealVector<N> dN_dz; // Derivatives of shape functions in z.
   Real det_j; // Determinant of the Jacobian matrix at the Gauss point.
 };
+
+template <Int32 N> ARCCORE_HOST_DEVICE inline HexaGaussPointInfo<N>
+_computeHexaGradientsAndJacobian(CellLocalId cell_lid,
+                                 const IndexedCellNodeConnectivityView& cn_cv,
+                                 const Accelerator::VariableNodeReal3InView& in_node_coord,
+                                 const Real (&dN_dxi)[N],
+                                 const Real (&dN_deta)[N],
+                                 const Real (&dN_dzeta)[N])
+{
+  Real3x3 J;
+  for (Int8 a = 0; a < N; ++a) {
+    const Real3& n_coord = in_node_coord[cn_cv.nodeId(cell_lid, a)];
+    J[0][0] += dN_dxi[a] * n_coord.x;
+    J[0][1] += dN_dxi[a] * n_coord.y;
+    J[0][2] += dN_dxi[a] * n_coord.z;
+    J[1][0] += dN_deta[a] * n_coord.x;
+    J[1][1] += dN_deta[a] * n_coord.y;
+    J[1][2] += dN_deta[a] * n_coord.z;
+    J[2][0] += dN_dzeta[a] * n_coord.x;
+    J[2][1] += dN_dzeta[a] * n_coord.y;
+    J[2][2] += dN_dzeta[a] * n_coord.z;
+  }
+
+  const Real detJ = math::matrixDeterminant(J);
+  const Real3x3 invJ = math::inverseMatrix(J, detJ);
+
+  RealVector<N> dN_dx_result;
+  RealVector<N> dN_dy_result;
+  RealVector<N> dN_dz_result;
+  for (Int8 a = 0; a < N; ++a) {
+    dN_dx_result(a) = invJ[0][0] * dN_dxi[a] + invJ[0][1] * dN_deta[a] + invJ[0][2] * dN_dzeta[a];
+    dN_dy_result(a) = invJ[1][0] * dN_dxi[a] + invJ[1][1] * dN_deta[a] + invJ[1][2] * dN_dzeta[a];
+    dN_dz_result(a) = invJ[2][0] * dN_dxi[a] + invJ[2][1] * dN_deta[a] + invJ[2][2] * dN_dzeta[a];
+  }
+
+  return { dN_dx_result, dN_dy_result, dN_dz_result, detJ };
+}
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -628,11 +665,11 @@ struct Hexa8GaussPointInfo
   * @param xi The ξ coordinate of the evaluation point (-1 to 1).
   * @param eta The η coordinate of the evaluation point (-1 to 1).
   * @param zeta The ζ coordinate of the evaluation point (-1 to 1).
-  * @return A Hexa8GaussPointInfo struct containing the gradients and Jacobian determinant.
+  * @return A HexaGaussPointInfo<8> struct containing the gradients and Jacobian determinant.
   */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE inline Hexa8GaussPointInfo
+ARCCORE_HOST_DEVICE inline HexaGaussPointInfo<8>
 computeGradientsAndJacobianHexa8Gpu(CellLocalId cell_lid,
                                     const IndexedCellNodeConnectivityView& cn_cv,
                                     const Accelerator::VariableNodeReal3InView& in_node_coord,
@@ -677,54 +714,220 @@ computeGradientsAndJacobianHexa8Gpu(CellLocalId cell_lid,
   dN_dzeta[6] = 0.125 * one_plus_xi * one_plus_eta;
   dN_dzeta[7] = 0.125 * one_minus_xi * one_plus_eta;
 
-  // Jacobian matrix (default-initialized to zero see Real3x3.h)
-  //    𝑱 = [ 𝒋₀₀  𝒋₀₁  𝒋₀₂ ]
-  //        [ 𝒋₁₀  𝒋₁₁  𝒋₁₂ ]
-  //        [ 𝒋₂₀  𝒋₂₁  𝒋₂₂ ]
-  //
-  // The Jacobian is computed as follows:
-  //   𝒋₀₀ = ∑ (∂𝑥/∂ξ * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,𝟖
-  //   𝒋₀₁ = ∑ (∂𝑥/∂ξ * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,𝟖
-  //   𝒋₀₂ = ∑ (∂𝑥/∂ξ * 𝑧ᵢ) ∀ 𝑖= 𝟏,……,𝟖
-  //   𝒋₁₀ = ∑ (∂𝑦/∂η * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,𝟖
-  //   𝒋₁₁ = ∑ (∂𝑦/∂η * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,𝟖
-  //   𝒋₁₂ = ∑ (∂𝑦/∂η * 𝑧ᵢ) ∀ 𝑖= 𝟏,……,𝟖
-  //   𝒋₂₀ = ∑ (∂𝑧/∂ζ * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,𝟖
-  //   𝒋₂₁ = ∑ (∂𝑧/∂ζ * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,𝟖
-  //   𝒋₂₂ = ∑ (∂𝑧/∂ζ * 𝑧ᵢ) ∀ 𝑖= 𝟏,……,𝟖
-  Real3x3 J;
-  for (Int8 a = 0; a < 8; ++a) {
-    const Real3& n_coord = in_node_coord[cn_cv.nodeId(cell_lid, a)];
-    J[0][0] += dN_dxi[a] * n_coord.x; // ∂𝑥/∂ξ
-    J[0][1] += dN_dxi[a] * n_coord.y; // ∂𝑦/∂ξ
-    J[0][2] += dN_dxi[a] * n_coord.z; // ∂𝑧/∂ξ
-    J[1][0] += dN_deta[a] * n_coord.x; // ∂𝑥/∂η
-    J[1][1] += dN_deta[a] * n_coord.y; // ∂𝑦/∂η
-    J[1][2] += dN_deta[a] * n_coord.z; // ∂𝑧/∂η
-    J[2][0] += dN_dzeta[a] * n_coord.x; // ∂𝑥/∂ζ
-    J[2][1] += dN_dzeta[a] * n_coord.y; // ∂𝑦/∂ζ
-    J[2][2] += dN_dzeta[a] * n_coord.z; // ∂𝑧/∂ζ
-  }
+  return _computeHexaGradientsAndJacobian<8>(cell_lid, cn_cv, in_node_coord, dN_dxi, dN_deta, dN_dzeta);
+}
 
-  // Determinant and Inverse of the Jacobian
-  const Real detJ = math::matrixDeterminant(J);
-  // if (detJ <= 0.0) {
-  //   ARCANE_FATAL("Invalid (non-positive) Jacobian determinant: {0}", detJ);
-  // }
-  const Real3x3 invJ = math::inverseMatrix(J, detJ);
+/*---------------------------------------------------------------------------*/
+/**
+  * @brief Computes shape function gradients and the Jacobian determinant for a Hexa20 element.
+  *
+  * @param cell_lid The local ID of the cell in the mesh.
+  * @param cn_cv The connectivity view for the cell nodes.
+  * @param in_node_coord The coordinates of the mesh nodes.
+  * @param xi The ξ coordinate of the evaluation point (-1 to 1).
+  * @param eta The η coordinate of the evaluation point (-1 to 1).
+  * @param zeta The ζ coordinate of the evaluation point (-1 to 1).
+  * @return A HexaGaussPointInfo<20> struct containing the gradients and Jacobian determinant.
+  */
+/*---------------------------------------------------------------------------*/
 
-  // Gradients in physical space (∂𝐍/∂𝑥, ∂𝐍/∂𝑦, ∂𝐍/∂𝑧)
-  //    {∂𝐍/∂𝑥} = [J]⁻¹ {∂𝐍/∂ξ}
-  //    {∂𝐍/∂𝑦}         {∂𝐍/∂η}
-  //    {∂𝐍/∂𝑧}         {∂𝐍/∂ζ}
-  RealVector<8> dN_dx_result, dN_dy_result, dN_dz_result;
-  for (Int8 a = 0; a < 8; ++a) {
-    dN_dx_result(a) = invJ[0][0] * dN_dxi[a] + invJ[0][1] * dN_deta[a] + invJ[0][2] * dN_dzeta[a];
-    dN_dy_result(a) = invJ[1][0] * dN_dxi[a] + invJ[1][1] * dN_deta[a] + invJ[1][2] * dN_dzeta[a];
-    dN_dz_result(a) = invJ[2][0] * dN_dxi[a] + invJ[2][1] * dN_deta[a] + invJ[2][2] * dN_dzeta[a];
-  }
+ARCCORE_HOST_DEVICE inline HexaGaussPointInfo<20>
+computeGradientsAndJacobianHexa20Gpu(CellLocalId cell_lid,
+                                     const IndexedCellNodeConnectivityView& cn_cv,
+                                     const Accelerator::VariableNodeReal3InView& in_node_coord,
+                                     Real xi, Real eta, Real zeta)
+{
+  // Shape function derivatives ∂𝐍/∂ξ, ∂𝐍/∂η, ∂𝐍/∂ζ
+  //     ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ...  ∂𝑁₁₉/∂ξ  ∂𝑁₂₀/∂ξ ]
+  //     ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ...  ∂𝑁₁₉/∂η  ∂𝑁₂₀/∂η ]
+  //     ∂𝐍/∂ζ = [ ∂𝑁₁/∂ζ  ∂𝑁₂/∂ζ  ...  ∂𝑁₁₉/∂ζ  ∂𝑁₂₀/∂ζ ]
+  const Real dN_dxi[20] = {
+    0.125 * (1 - eta) * (1 - zeta) * (2 * xi + eta + zeta + 1),
+    0.125 * (1 - eta) * (1 - zeta) * (2 * xi - eta - zeta - 1),
+    0.125 * (1 + eta) * (1 - zeta) * (2 * xi + eta - zeta - 1),
+    0.125 * (1 + eta) * (1 - zeta) * (2 * xi - eta + zeta + 1),
+    0.125 * (1 - eta) * (1 + zeta) * (2 * xi + eta - zeta + 1),
+    0.125 * (1 - eta) * (1 + zeta) * (2 * xi - eta + zeta - 1),
+    0.125 * (1 + eta) * (1 + zeta) * (2 * xi + eta + zeta - 1),
+    0.125 * (1 + eta) * (1 + zeta) * (2 * xi - eta - zeta + 1),
+    -0.5 * xi * (1 - eta) * (1 - zeta),
+    0.25 * (1 - eta * eta) * (1 - zeta),
+    -0.5 * xi * (1 + eta) * (1 - zeta),
+    -0.25 * (1 - eta * eta) * (1 - zeta),
+    -0.5 * xi * (1 - eta) * (1 + zeta),
+    0.25 * (1 - eta * eta) * (1 + zeta),
+    -0.5 * xi * (1 + eta) * (1 + zeta),
+    -0.25 * (1 - eta * eta) * (1 + zeta),
+    -0.25 * (1 - eta) * (1 - zeta * zeta),
+    0.25 * (1 - eta) * (1 - zeta * zeta),
+    0.25 * (1 + eta) * (1 - zeta * zeta),
+    -0.25 * (1 + eta) * (1 - zeta * zeta)
+  };
 
-  return { dN_dx_result, dN_dy_result, dN_dz_result, detJ };
+  const Real dN_deta[20] = {
+    0.125 * (1 - xi) * (1 - zeta) * (xi + 2 * eta + zeta + 1),
+    0.125 * (1 + xi) * (1 - zeta) * (-xi + 2 * eta + zeta + 1),
+    0.125 * (1 + xi) * (1 - zeta) * (xi + 2 * eta - zeta - 1),
+    0.125 * (1 - xi) * (1 - zeta) * (-xi + 2 * eta - zeta - 1),
+    0.125 * (1 - xi) * (1 + zeta) * (xi + 2 * eta - zeta + 1),
+    0.125 * (1 + xi) * (1 + zeta) * (-xi + 2 * eta - zeta + 1),
+    0.125 * (1 + xi) * (1 + zeta) * (xi + 2 * eta + zeta - 1),
+    0.125 * (1 - xi) * (1 + zeta) * (-xi + 2 * eta + zeta - 1),
+    -0.25 * (1 - xi * xi) * (1 - zeta),
+    -0.5 * eta * (1 + xi) * (1 - zeta),
+    0.25 * (1 - xi * xi) * (1 - zeta),
+    -0.5 * eta * (1 - xi) * (1 - zeta),
+    -0.25 * (1 - xi * xi) * (1 + zeta),
+    -0.5 * eta * (1 + xi) * (1 + zeta),
+    0.25 * (1 - xi * xi) * (1 + zeta),
+    -0.5 * eta * (1 - xi) * (1 + zeta),
+    -0.25 * (1 - xi) * (1 - zeta * zeta),
+    -0.25 * (1 + xi) * (1 - zeta * zeta),
+    0.25 * (1 + xi) * (1 - zeta * zeta),
+    0.25 * (1 - xi) * (1 - zeta * zeta)
+  };
+
+  const Real dN_dzeta[20] = {
+    0.125 * (1 - xi) * (1 - eta) * (xi + eta + 2 * zeta + 1),
+    0.125 * (1 + xi) * (1 - eta) * (-xi + eta + 2 * zeta + 1),
+    0.125 * (1 + xi) * (1 + eta) * (-xi - eta + 2 * zeta + 1),
+    0.125 * (1 - xi) * (1 + eta) * (xi - eta + 2 * zeta + 1),
+    0.125 * (1 - xi) * (1 - eta) * (-xi - eta + 2 * zeta - 1),
+    0.125 * (1 + xi) * (1 - eta) * (xi - eta + 2 * zeta - 1),
+    0.125 * (1 + xi) * (1 + eta) * (xi + eta + 2 * zeta - 1),
+    0.125 * (1 - xi) * (1 + eta) * (-xi + eta + 2 * zeta - 1),
+    -0.25 * (1 - xi * xi) * (1 - eta),
+    -0.25 * (1 + xi) * (1 - eta * eta),
+    -0.25 * (1 - xi * xi) * (1 + eta),
+    -0.25 * (1 - xi) * (1 - eta * eta),
+    0.25 * (1 - xi * xi) * (1 - eta),
+    0.25 * (1 + xi) * (1 - eta * eta),
+    0.25 * (1 - xi * xi) * (1 + eta),
+    0.25 * (1 - xi) * (1 - eta * eta),
+    -0.5 * zeta * (1 - xi) * (1 - eta),
+    -0.5 * zeta * (1 + xi) * (1 - eta),
+    -0.5 * zeta * (1 + xi) * (1 + eta),
+    -0.5 * zeta * (1 - xi) * (1 + eta)
+  };
+
+  return _computeHexaGradientsAndJacobian<20>(cell_lid, cn_cv, in_node_coord, dN_dxi, dN_deta, dN_dzeta);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+  * @brief Computes shape function gradients and the Jacobian determinant for a Hexa27 element.
+  *
+  * @param cell_lid The local ID of the cell in the mesh.
+  * @param cn_cv The connectivity view for the cell nodes.
+  * @param in_node_coord The coordinates of the mesh nodes.
+  * @param xi The ξ coordinate of the evaluation point (-1 to 1).
+  * @param eta The η coordinate of the evaluation point (-1 to 1).
+  * @param zeta The ζ coordinate of the evaluation point (-1 to 1).
+  * @return A HexaGaussPointInfo<27> struct containing the gradients and Jacobian determinant.
+  */
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE inline HexaGaussPointInfo<27>
+computeGradientsAndJacobianHexa27Gpu(CellLocalId cell_lid,
+                                     const IndexedCellNodeConnectivityView& cn_cv,
+                                     const Accelerator::VariableNodeReal3InView& in_node_coord,
+                                     Real xi, Real eta, Real zeta)
+{
+  // Shape function derivatives ∂𝐍/∂ξ, ∂𝐍/∂η, ∂𝐍/∂ζ
+  //     ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ...  ∂𝑁₁₉/∂ξ  ∂𝑁₂₇/∂ξ ]
+  //     ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ...  ∂𝑁₁₉/∂η  ∂𝑁₂₇/∂η ]
+  //     ∂𝐍/∂ζ = [ ∂𝑁₁/∂ζ  ∂𝑁₂/∂ζ  ...  ∂𝑁₁₉/∂ζ  ∂𝑁₂₇/∂ζ ]
+  const Real dN_dxi[27] = {
+    0.125 * (2 * xi - 1) * eta * (eta - 1) * zeta * (zeta - 1),
+    0.125 * (2 * xi + 1) * eta * (eta - 1) * zeta * (zeta - 1),
+    0.125 * (2 * xi + 1) * eta * (eta + 1) * zeta * (zeta - 1),
+    0.125 * (2 * xi - 1) * eta * (eta + 1) * zeta * (zeta - 1),
+    0.125 * (2 * xi - 1) * eta * (eta - 1) * zeta * (zeta + 1),
+    0.125 * (2 * xi + 1) * eta * (eta - 1) * zeta * (zeta + 1),
+    0.125 * (2 * xi + 1) * eta * (eta + 1) * zeta * (zeta + 1),
+    0.125 * (2 * xi - 1) * eta * (eta + 1) * zeta * (zeta + 1),
+    0.25 * (-2 * xi) * eta * (eta - 1) * zeta * (zeta - 1),
+    0.25 * (2 * xi + 1) * (1 - eta * eta) * zeta * (zeta - 1),
+    0.25 * (-2 * xi) * eta * (eta + 1) * zeta * (zeta - 1),
+    0.25 * (2 * xi - 1) * (1 - eta * eta) * zeta * (zeta - 1),
+    0.25 * (-2 * xi) * eta * (eta - 1) * zeta * (zeta + 1),
+    0.25 * (2 * xi + 1) * (1 - eta * eta) * zeta * (zeta + 1),
+    0.25 * (-2 * xi) * eta * (eta + 1) * zeta * (zeta + 1),
+    0.25 * (2 * xi - 1) * (1 - eta * eta) * zeta * (zeta + 1),
+    0.25 * (2 * xi - 1) * eta * (eta - 1) * (1 - zeta * zeta),
+    0.25 * (2 * xi + 1) * eta * (eta - 1) * (1 - zeta * zeta),
+    0.25 * (2 * xi + 1) * eta * (eta + 1) * (1 - zeta * zeta),
+    0.25 * (2 * xi - 1) * eta * (eta + 1) * (1 - zeta * zeta),
+    0.5 * (2 * xi - 1) * (1 - eta * eta) * (1 - zeta * zeta),
+    0.5 * (2 * xi + 1) * (1 - eta * eta) * (1 - zeta * zeta),
+    0.5 * (-2 * xi) * eta * (eta - 1) * (1 - zeta * zeta),
+    0.5 * (-2 * xi) * eta * (eta + 1) * (1 - zeta * zeta),
+    0.5 * (-2 * xi) * (1 - eta * eta) * zeta * (zeta - 1),
+    0.5 * (-2 * xi) * (1 - eta * eta) * zeta * (zeta + 1),
+    (-2 * xi) * (1 - eta * eta) * (1 - zeta * zeta)
+  };
+
+  const Real dN_deta[27] = {
+    0.125 * xi * (xi - 1) * (2 * eta - 1) * zeta * (zeta - 1),
+    0.125 * xi * (xi + 1) * (2 * eta - 1) * zeta * (zeta - 1),
+    0.125 * xi * (xi + 1) * (2 * eta + 1) * zeta * (zeta - 1),
+    0.125 * xi * (xi - 1) * (2 * eta + 1) * zeta * (zeta - 1),
+    0.125 * xi * (xi - 1) * (2 * eta - 1) * zeta * (zeta + 1),
+    0.125 * xi * (xi + 1) * (2 * eta - 1) * zeta * (zeta + 1),
+    0.125 * xi * (xi + 1) * (2 * eta + 1) * zeta * (zeta + 1),
+    0.125 * xi * (xi - 1) * (2 * eta + 1) * zeta * (zeta + 1),
+    0.25 * (1 - xi * xi) * (2 * eta - 1) * zeta * (zeta - 1),
+    0.25 * xi * (xi + 1) * (-2 * eta) * zeta * (zeta - 1),
+    0.25 * (1 - xi * xi) * (2 * eta + 1) * zeta * (zeta - 1),
+    0.25 * xi * (xi - 1) * (-2 * eta) * zeta * (zeta - 1),
+    0.25 * (1 - xi * xi) * (2 * eta - 1) * zeta * (zeta + 1),
+    0.25 * xi * (xi + 1) * (-2 * eta) * zeta * (zeta + 1),
+    0.25 * (1 - xi * xi) * (2 * eta + 1) * zeta * (zeta + 1),
+    0.25 * xi * (xi - 1) * (-2 * eta) * zeta * (zeta + 1),
+    0.25 * xi * (xi - 1) * (2 * eta - 1) * (1 - zeta * zeta),
+    0.25 * xi * (xi + 1) * (2 * eta - 1) * (1 - zeta * zeta),
+    0.25 * xi * (xi + 1) * (2 * eta + 1) * (1 - zeta * zeta),
+    0.25 * xi * (xi - 1) * (2 * eta + 1) * (1 - zeta * zeta),
+    0.5 * xi * (xi - 1) * (-2 * eta) * (1 - zeta * zeta),
+    0.5 * xi * (xi + 1) * (-2 * eta) * (1 - zeta * zeta),
+    0.5 * (1 - xi * xi) * (2 * eta - 1) * (1 - zeta * zeta),
+    0.5 * (1 - xi * xi) * (2 * eta + 1) * (1 - zeta * zeta),
+    0.5 * (1 - xi * xi) * (-2 * eta) * zeta * (zeta - 1),
+    0.5 * (1 - xi * xi) * (-2 * eta) * zeta * (zeta + 1),
+    (1 - xi * xi) * (-2 * eta) * (1 - zeta * zeta)
+  };
+
+  const Real dN_dzeta[27] = {
+    0.125 * xi * (xi - 1) * eta * (eta - 1) * (2 * zeta - 1),
+    0.125 * xi * (xi + 1) * eta * (eta - 1) * (2 * zeta - 1),
+    0.125 * xi * (xi + 1) * eta * (eta + 1) * (2 * zeta - 1),
+    0.125 * xi * (xi - 1) * eta * (eta + 1) * (2 * zeta - 1),
+    0.125 * xi * (xi - 1) * eta * (eta - 1) * (2 * zeta + 1),
+    0.125 * xi * (xi + 1) * eta * (eta - 1) * (2 * zeta + 1),
+    0.125 * xi * (xi + 1) * eta * (eta + 1) * (2 * zeta + 1),
+    0.125 * xi * (xi - 1) * eta * (eta + 1) * (2 * zeta + 1),
+    0.25 * (1 - xi * xi) * eta * (eta - 1) * (2 * zeta - 1),
+    0.25 * xi * (xi + 1) * (1 - eta * eta) * (2 * zeta - 1),
+    0.25 * (1 - xi * xi) * eta * (eta + 1) * (2 * zeta - 1),
+    0.25 * xi * (xi - 1) * (1 - eta * eta) * (2 * zeta - 1),
+    0.25 * (1 - xi * xi) * eta * (eta - 1) * (2 * zeta + 1),
+    0.25 * xi * (xi + 1) * (1 - eta * eta) * (2 * zeta + 1),
+    0.25 * (1 - xi * xi) * eta * (eta + 1) * (2 * zeta + 1),
+    0.25 * xi * (xi - 1) * (1 - eta * eta) * (2 * zeta + 1),
+    0.25 * xi * (xi - 1) * eta * (eta - 1) * (-2 * zeta),
+    0.25 * xi * (xi + 1) * eta * (eta - 1) * (-2 * zeta),
+    0.25 * xi * (xi + 1) * eta * (eta + 1) * (-2 * zeta),
+    0.25 * xi * (xi - 1) * eta * (eta + 1) * (-2 * zeta),
+    0.5 * xi * (xi - 1) * (1 - eta * eta) * (-2 * zeta),
+    0.5 * xi * (xi + 1) * (1 - eta * eta) * (-2 * zeta),
+    0.5 * (1 - xi * xi) * eta * (eta - 1) * (-2 * zeta),
+    0.5 * (1 - xi * xi) * eta * (eta + 1) * (-2 * zeta),
+    0.5 * (1 - xi * xi) * (1 - eta * eta) * (2 * zeta - 1),
+    0.5 * (1 - xi * xi) * (1 - eta * eta) * (2 * zeta + 1),
+    (1 - xi * xi) * (1 - eta * eta) * (-2 * zeta)
+  };
+
+  return _computeHexaGradientsAndJacobian<27>(cell_lid, cn_cv, in_node_coord, dN_dxi, dN_deta, dN_dzeta);
 }
 
 /*-------------------------------------------------------------------------*/

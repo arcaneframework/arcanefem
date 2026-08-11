@@ -302,12 +302,6 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (m_is_hexa20_mesh && m_matrix_format != "DOK")
-    ARCANE_FATAL("Hexa20 Poisson assembly is currently supported on CPU with matrix-format=DOK only");
-
-  if (m_is_hexa27_mesh && m_matrix_format != "DOK")
-    ARCANE_FATAL("Hexa27 Poisson assembly is currently supported on CPU with matrix-format=DOK only");
-
   if (m_matrix_format == "BSR") {
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();
@@ -326,7 +320,11 @@ _assembleBilinearOperator()
         m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
     }
     else{
-      if(m_is_hexa8_mesh)
+      if (m_is_hexa27_mesh)
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixHexa27Gpu(cell_lid, cn_cv, in_node_coord); });
+      else if (m_is_hexa20_mesh)
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixHexa20Gpu(cell_lid, cn_cv, in_node_coord); });
+      else if(m_is_hexa8_mesh)
         m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixHexa8Gpu(cell_lid, cn_cv, in_node_coord); });
       else
         m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord); });
@@ -351,6 +349,10 @@ _assembleBilinearOperator()
         m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorQuad4Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
       else
         m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
+    else if (m_is_hexa27_mesh)
+      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorHexa27Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
+    else if (m_is_hexa20_mesh)
+      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorHexa20Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
     else if (m_is_hexa8_mesh)
       m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorHexa8Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
     else

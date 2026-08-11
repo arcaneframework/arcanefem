@@ -190,9 +190,9 @@ class BSRFormat
     n1 = (Int32)(packed_edge & 0xFFFFFFFF);
   }
 
-  void computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss);
-  void computeNeighbors(Int8 edges_per_element, Int64 nb_edge_total, NumArray<Int32, MDDim1>& neighbors, SmallSpan<UInt64>& sorted_edges_ss);
-  void computeRowIndex(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss);
+  void computeSortedEdges(Int32 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss);
+  void computeNeighbors(Int32 edges_per_element, Int64 nb_edge_total, NumArray<Int32, MDDim1>& neighbors, SmallSpan<UInt64>& sorted_edges_ss);
+  void computeRowIndex(Int32 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss);
 
   ARCCORE_HOST_DEVICE static void
   registerEdgeInColumns(Int32 src, Int32 dst,
@@ -205,7 +205,7 @@ class BSRFormat
     columns[start + offset] = dst;
   }
 
-  void computeColumns(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>& sorted_edges_ss);
+  void computeColumns(Int32 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>& sorted_edges_ss);
   void computeSparsityAtomic();
   void computeSparsity();
 
