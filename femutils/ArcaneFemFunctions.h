@@ -2125,113 +2125,8 @@ class ArcaneFemFunctions
       }
     }
 
-    static inline void applyConstantSourceToRhsHexa8(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
-    {
-      ENUMERATE_ (Cell, icell, mesh->allCells()) {
-        Cell cell = *icell;
-
-        // Gauss quadrature for Hexa8
-        // Using 2x2x2 Gauss points for integration
-        constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // {-1/sqrt(3) 1/sqrt(3)}
-        constexpr Real weights[2] = { 1.0, 1.0 };
-
-        for (Int32 ixi = 0; ixi < 2; ++ixi) {
-          for (Int32 ieta = 0; ieta < 2; ++ieta) {
-            for (Int32 izeta = 0; izeta < 2; ++izeta) {
-
-              // Gauss point coordinates in reference space
-              Real xi = gp[ixi]; // ξ coordinate
-              Real eta = gp[ieta]; // η coordinate
-              Real zeta = gp[izeta]; // ζ coordinate
-              Real weight = weights[ixi] * weights[ieta] * weights[izeta];
-
-              // Shape functions 𝐍 for Hexa8
-              //   𝐍 = [𝑁₁  𝑁₂  𝑁₃  𝑁₄  𝑁₅  𝑁₆  𝑁₇  𝑁₈]
-              //   𝑁₁ = 1/8 * (1 - ξ) * (1 - η) * (1 - ζ)
-              //   𝑁₂ = 1/8 * (1 + ξ) * (1 - η) * (1 - ζ)
-              //   𝑁₃ = 1/8 * (1 + ξ) * (1 + η) * (1 - ζ)
-              //   𝑁₄ = 1/8 * (1 - ξ) * (1 + η) * (1 - ζ)
-              //   𝑁₅ = 1/8 * (1 - ξ) * (1 - η) * (1 + ζ)
-              //   𝑁₆ = 1/8 * (1 + ξ) * (1 - η) * (1 + ζ)
-              //   𝑁₇ = 1/8 * (1 + ξ) * (1 + η) * (1 + ζ)
-              //   𝑁₈ = 1/8 * (1 - ξ) * (1 + η) * (1 + ζ)
-              Real N[8];
-              N[0] = 0.125 * (1 - xi) * (1 - eta) * (1 - zeta);
-              N[1] = 0.125 * (1 + xi) * (1 - eta) * (1 - zeta);
-              N[2] = 0.125 * (1 + xi) * (1 + eta) * (1 - zeta);
-              N[3] = 0.125 * (1 - xi) * (1 + eta) * (1 - zeta);
-              N[4] = 0.125 * (1 - xi) * (1 - eta) * (1 + zeta);
-              N[5] = 0.125 * (1 + xi) * (1 - eta) * (1 + zeta);
-              N[6] = 0.125 * (1 + xi) * (1 + eta) * (1 + zeta);
-              N[7] = 0.125 * (1 - xi) * (1 + eta) * (1 + zeta);
-
-              // Shape function derivatives in reference space
-              //  ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ  ∂𝑁₅/∂ξ  ∂𝑁₆/∂ξ  ∂𝑁₇/∂ξ  ∂𝑁₈/∂ξ ]
-              //  ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ∂𝑁₃/∂η  ∂𝑁₄/∂η  ∂𝑁₅/∂η  ∂𝑁₆/∂η  ∂𝑁₇/∂η  ∂𝑁₈/∂η ]
-              //  ∂𝐍/∂ζ = [ ∂𝑁₁/∂ζ  ∂𝑁₂/∂ζ  ∂𝑁₃/∂ζ  ∂𝑁₄/∂ζ  ∂𝑁₅/∂ζ  ∂𝑁₆/∂ζ  ∂𝑁₇/∂ζ  ∂𝑁₈/∂ζ ]
-              Real dN_dxi[8], dN_deta[8], dN_dzeta[8];
-              dN_dxi[0] = -0.125 * (1 - eta) * (1 - zeta);
-              dN_dxi[1] = 0.125 * (1 - eta) * (1 - zeta);
-              dN_dxi[2] = 0.125 * (1 + eta) * (1 - zeta);
-              dN_dxi[3] = -0.125 * (1 + eta) * (1 - zeta);
-              dN_dxi[4] = -0.125 * (1 - eta) * (1 + zeta);
-              dN_dxi[5] = 0.125 * (1 - eta) * (1 + zeta);
-              dN_dxi[6] = 0.125 * (1 + eta) * (1 + zeta);
-              dN_dxi[7] = -0.125 * (1 + eta) * (1 + zeta);
-
-              dN_deta[0] = -0.125 * (1 - xi) * (1 - zeta);
-              dN_deta[1] = -0.125 * (1 + xi) * (1 - zeta);
-              dN_deta[2] = 0.125 * (1 + xi) * (1 - zeta);
-              dN_deta[3] = 0.125 * (1 - xi) * (1 - zeta);
-              dN_deta[4] = -0.125 * (1 - xi) * (1 + zeta);
-              dN_deta[5] = -0.125 * (1 + xi) * (1 + zeta);
-              dN_deta[6] = 0.125 * (1 + xi) * (1 + zeta);
-              dN_deta[7] = 0.125 * (1 - xi) * (1 + zeta);
-
-              dN_dzeta[0] = -0.125 * (1 - xi) * (1 - eta);
-              dN_dzeta[1] = -0.125 * (1 + xi) * (1 - eta);
-              dN_dzeta[2] = -0.125 * (1 + xi) * (1 + eta);
-              dN_dzeta[3] = -0.125 * (1 - xi) * (1 + eta);
-              dN_dzeta[4] = 0.125 * (1 - xi) * (1 - eta);
-              dN_dzeta[5] = 0.125 * (1 + xi) * (1 - eta);
-              dN_dzeta[6] = 0.125 * (1 + xi) * (1 + eta);
-              dN_dzeta[7] = 0.125 * (1 - xi) * (1 + eta);
-
-              // Jacobian for 3D (using your working stiffness matrix approach)
-              Real3x3 J;
-              for (Int8 a = 0; a < 8; ++a) {
-                const Real3& n = node_coord[cell.nodeId(a)];
-                J[0][0] += dN_dxi[a] * n.x; // ∂𝑥/∂ξ
-                J[0][1] += dN_dxi[a] * n.y; // ∂𝑦/∂ξ
-                J[0][2] += dN_dxi[a] * n.z; // ∂𝑧/∂ξ
-                J[1][0] += dN_deta[a] * n.x; // ∂𝑥/∂η
-                J[1][1] += dN_deta[a] * n.y; // ∂𝑦/∂η
-                J[1][2] += dN_deta[a] * n.z; // ∂𝑧/∂η
-                J[2][0] += dN_dzeta[a] * n.x; // ∂𝑥/∂ζ
-                J[2][1] += dN_dzeta[a] * n.y; // ∂𝑦/∂ζ
-                J[2][2] += dN_dzeta[a] * n.z; // ∂𝑧/∂ζ
-              }
-
-              // Compute determinant of Jacobian
-              Real detJ = math::matrixDeterminant(J);
-
-              // Compute integration weight
-              Real integration_weight = weight * detJ;
-
-              // Assemble RHS
-              for (Int32 i = 0; i < 8; ++i) {
-                Node node = cell.node(i);
-                if (node.isOwn()) {
-                  rhs_values[node_dof.dofId(node, 0)] += N[i] * qdot * integration_weight;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+    static void applyConstantSourceToRhsHexa8(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values);
     static void applyConstantSourceToRhsHexa20(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values);
-
     static void applyConstantSourceToRhsHexa27(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values);
     /*---------------------------------------------------------------------------*/
     /**
@@ -3647,92 +3542,17 @@ class ArcaneFemFunctions
       }
     }
 
-    /*---------------------------------------------------------------------------*/
-    /**
-     * @brief Applies a Neumann condition on a quadratic Line3 face.
-     *
-     * Uses three-point Gauss integration and an isoparametric Line3 mapping.
-     * This supports both scalar fluxes and vector fluxes projected onto the
-     * outward normal, including curved quadratic edges.
-     */
-    /*---------------------------------------------------------------------------*/
-
-    static inline void _applyNeumannToRhsLine3(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
-    {
-      FaceGroup group = bs->getSurface();
-
-      Real value = 0.0;
-      Real valueX = 0.0;
-      Real valueY = 0.0;
-      bool scalar_neumann = false;
-      const StringConstArrayView neumann_str = bs->getValue();
-
-      if (neumann_str.size() == 1 && neumann_str[0] != "NULL") {
-        scalar_neumann = true;
-        value = std::stod(neumann_str[0].localstr());
-      }
-      else if (neumann_str.size() > 1) {
-        if (neumann_str[0] != "NULL")
-          valueX = std::stod(neumann_str[0].localstr());
-        if (neumann_str[1] != "NULL")
-          valueY = std::stod(neumann_str[1].localstr());
-      }
-
-      constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
-      constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
-
-      ENUMERATE_ (Face, iface, group) {
-        Face face = *iface;
-        if (face.nbNode() != 3)
-          ARCANE_FATAL("Expected a Line3 face for quadratic quadrilateral Neumann assembly, got '{0}' nodes", face.nbNode());
-
-        Node nodes[3] = { face.node(0), face.node(1), face.node(2) };
-        Real3 coords[3] = { node_coord[nodes[0]], node_coord[nodes[1]], node_coord[nodes[2]] };
-        const Real orientation = face.isSubDomainBoundaryOutside() ? 1.0 : -1.0;
-
-        for (Int32 igauss = 0; igauss < 3; ++igauss) {
-          const Real xi = gp[igauss];
-          const Real N[3] = {
-            0.5 * xi * (xi - 1.0),
-            0.5 * xi * (xi + 1.0),
-            1.0 - xi * xi
-          };
-          const Real dN[3] = { xi - 0.5, xi + 0.5, -2.0 * xi };
-
-          Real dx_dxi = 0.0;
-          Real dy_dxi = 0.0;
-          for (Int32 i = 0; i < 3; ++i) {
-            dx_dxi += dN[i] * coords[i].x;
-            dy_dxi += dN[i] * coords[i].y;
-          }
-
-          const Real jacobian = math::sqrt(dx_dxi * dx_dxi + dy_dxi * dy_dxi);
-          if (jacobian <= 0.0)
-            ARCANE_FATAL("Invalid (non-positive) Line3 Jacobian: {0}", jacobian);
-
-          const Real normal_x = orientation * dy_dxi / jacobian;
-          const Real normal_y = orientation * -dx_dxi / jacobian;
-          const Real flux = scalar_neumann ? value : normal_x * valueX + normal_y * valueY;
-          const Real integration_weight = weights[igauss] * jacobian;
-
-          for (Int32 i = 0; i < 3; ++i) {
-            Node node = nodes[i];
-            if (node.isOwn())
-              rhs_values[node_dof.dofId(node, 0)] += flux * N[i] * integration_weight;
-          }
-        }
-      }
-    }
+    static void applyNeumannToRhsLine3(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values);
 
     static inline void applyNeumannToRhsQuad8(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
     {
-      _applyNeumannToRhsLine3(bs, node_dof, node_coord, rhs_values);
+      applyNeumannToRhsLine3(bs, node_dof, node_coord, rhs_values);
     }
 
     //! Quad9 has the same quadratic Line3 boundary interpolation as Quad8.
     static inline void applyNeumannToRhsQuad9(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
     {
-      _applyNeumannToRhsLine3(bs, node_dof, node_coord, rhs_values);
+      applyNeumannToRhsLine3(bs, node_dof, node_coord, rhs_values);
     }
 
     /*---------------------------------------------------------------------------*/
