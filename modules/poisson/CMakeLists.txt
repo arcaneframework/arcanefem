@@ -158,6 +158,18 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     ARGS
       -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa27.msh
       inputs/manufactured.solution.arc)
+  arcanefem_add_seq_test(NAME 3D_hexa20_cube
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa20.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_cube_3D_hexa20.txt
+      inputs/cube.3D.hexa.arc)
+  arcanefem_add_seq_test(NAME 3D_hexa27_cube
+    COMMAND ./Poisson
+    ARGS
+      -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa27.msh
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_cube_3D_hexa27.txt
+      inputs/cube.3D.hexa.arc)
   arcanefem_add_seq_test(NAME 3D
     COMMAND ./Poisson
     ARGS
@@ -353,13 +365,13 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       COMMAND ./Poisson
       ARGS
         -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa20.msh
-        -A,//fem/solution-comparison-file=check/poisson_test_ref_cube_3D_hexa8.txt
+        -A,//fem/solution-comparison-file=check/poisson_test_ref_cube_3D_hexa20.txt
         inputs/cube.3D.hexa.arc)
     arcanefem_add_mpi_test(NAME 3D_hexa27_cube
       COMMAND ./Poisson
       ARGS
         -A,//meshes/mesh/filename=meshes/3x3x3_cube_hexa27.msh
-        -A,//fem/solution-comparison-file=check/poisson_test_ref_cube_3D_hexa8.txt
+        -A,//fem/solution-comparison-file=check/poisson_test_ref_cube_3D_hexa27.txt
         inputs/cube.3D.hexa.arc)
     arcanefem_add_mpi_test(NAME 3D_scalar_neumann_hexa
       COMMAND ./Poisson
