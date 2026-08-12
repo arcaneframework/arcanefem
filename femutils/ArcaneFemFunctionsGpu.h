@@ -957,6 +957,75 @@ ARCCORE_HOST_DEVICE inline RealVector<8> computeShapeFunctionsHexa8(Real xi, Rea
 /*-------------------------------------------------------------------------*/
 /*-------------------------------------------------------------------------*/
 
+ARCCORE_HOST_DEVICE inline RealVector<20> computeShapeFunctionsHexa20(Real xi, Real eta, Real zeta)
+{
+  RealVector<20> N;
+
+  N(0) = 0.125 * (1 - xi) * (1 - eta) * (1 - zeta) * (-xi - eta - zeta - 2);
+  N(1) = 0.125 * (1 + xi) * (1 - eta) * (1 - zeta) * (xi - eta - zeta - 2);
+  N(2) = 0.125 * (1 + xi) * (1 + eta) * (1 - zeta) * (xi + eta - zeta - 2);
+  N(3) = 0.125 * (1 - xi) * (1 + eta) * (1 - zeta) * (-xi + eta - zeta - 2);
+  N(4) = 0.125 * (1 - xi) * (1 - eta) * (1 + zeta) * (-xi - eta + zeta - 2);
+  N(5) = 0.125 * (1 + xi) * (1 - eta) * (1 + zeta) * (xi - eta + zeta - 2);
+  N(6) = 0.125 * (1 + xi) * (1 + eta) * (1 + zeta) * (xi + eta + zeta - 2);
+  N(7) = 0.125 * (1 - xi) * (1 + eta) * (1 + zeta) * (-xi + eta + zeta - 2);
+  N(8) = 0.25 * (1 - xi * xi) * (1 - eta) * (1 - zeta);
+  N(9) = 0.25 * (1 + xi) * (1 - eta * eta) * (1 - zeta);
+  N(10) = 0.25 * (1 - xi * xi) * (1 + eta) * (1 - zeta);
+  N(11) = 0.25 * (1 - xi) * (1 - eta * eta) * (1 - zeta);
+  N(12) = 0.25 * (1 - xi * xi) * (1 - eta) * (1 + zeta);
+  N(13) = 0.25 * (1 + xi) * (1 - eta * eta) * (1 + zeta);
+  N(14) = 0.25 * (1 - xi * xi) * (1 + eta) * (1 + zeta);
+  N(15) = 0.25 * (1 - xi) * (1 - eta * eta) * (1 + zeta);
+  N(16) = 0.25 * (1 - xi) * (1 - eta) * (1 - zeta * zeta);
+  N(17) = 0.25 * (1 + xi) * (1 - eta) * (1 - zeta * zeta);
+  N(18) = 0.25 * (1 + xi) * (1 + eta) * (1 - zeta * zeta);
+  N(19) = 0.25 * (1 - xi) * (1 + eta) * (1 - zeta * zeta);
+
+  return N;
+}
+
+/*-------------------------------------------------------------------------*/
+/*-------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE inline RealVector<27> computeShapeFunctionsHexa27(Real xi, Real eta, Real zeta)
+{
+  RealVector<27> N;
+
+  N(0) = 0.125 * xi * (xi - 1) * eta * (eta - 1) * zeta * (zeta - 1);
+  N(1) = 0.125 * xi * (xi + 1) * eta * (eta - 1) * zeta * (zeta - 1);
+  N(2) = 0.125 * xi * (xi + 1) * eta * (eta + 1) * zeta * (zeta - 1);
+  N(3) = 0.125 * xi * (xi - 1) * eta * (eta + 1) * zeta * (zeta - 1);
+  N(4) = 0.125 * xi * (xi - 1) * eta * (eta - 1) * zeta * (zeta + 1);
+  N(5) = 0.125 * xi * (xi + 1) * eta * (eta - 1) * zeta * (zeta + 1);
+  N(6) = 0.125 * xi * (xi + 1) * eta * (eta + 1) * zeta * (zeta + 1);
+  N(7) = 0.125 * xi * (xi - 1) * eta * (eta + 1) * zeta * (zeta + 1);
+  N(8) = 0.25 * (1 - xi * xi) * eta * (eta - 1) * zeta * (zeta - 1);
+  N(9) = 0.25 * xi * (xi + 1) * (1 - eta * eta) * zeta * (zeta - 1);
+  N(10) = 0.25 * (1 - xi * xi) * eta * (eta + 1) * zeta * (zeta - 1);
+  N(11) = 0.25 * xi * (xi - 1) * (1 - eta * eta) * zeta * (zeta - 1);
+  N(12) = 0.25 * (1 - xi * xi) * eta * (eta - 1) * zeta * (zeta + 1);
+  N(13) = 0.25 * xi * (xi + 1) * (1 - eta * eta) * zeta * (zeta + 1);
+  N(14) = 0.25 * (1 - xi * xi) * eta * (eta + 1) * zeta * (zeta + 1);
+  N(15) = 0.25 * xi * (xi - 1) * (1 - eta * eta) * zeta * (zeta + 1);
+  N(16) = 0.25 * xi * (xi - 1) * eta * (eta - 1) * (1 - zeta * zeta);
+  N(17) = 0.25 * xi * (xi + 1) * eta * (eta - 1) * (1 - zeta * zeta);
+  N(18) = 0.25 * xi * (xi + 1) * eta * (eta + 1) * (1 - zeta * zeta);
+  N(19) = 0.25 * xi * (xi - 1) * eta * (eta + 1) * (1 - zeta * zeta);
+  N(20) = 0.5 * xi * (xi - 1) * (1 - eta * eta) * (1 - zeta * zeta);
+  N(21) = 0.5 * xi * (xi + 1) * (1 - eta * eta) * (1 - zeta * zeta);
+  N(22) = 0.5 * (1 - xi * xi) * eta * (eta - 1) * (1 - zeta * zeta);
+  N(23) = 0.5 * (1 - xi * xi) * eta * (eta + 1) * (1 - zeta * zeta);
+  N(24) = 0.5 * (1 - xi * xi) * (1 - eta * eta) * zeta * (zeta - 1);
+  N(25) = 0.5 * (1 - xi * xi) * (1 - eta * eta) * zeta * (zeta + 1);
+  N(26) = (1 - xi * xi) * (1 - eta * eta) * (1 - zeta * zeta);
+
+  return N;
+}
+
+/*-------------------------------------------------------------------------*/
+/*-------------------------------------------------------------------------*/
+
 } // namespace Arcane::FemUtils::Gpu::FeOperation3D
 
 /*-------------------------------------------------------------------------*/
@@ -1196,6 +1265,14 @@ class BoundaryConditions3D
                                        const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                                        IMesh* mesh, Accelerator::RunQueue* queue);
 
+  static void applyConstantSourceToRhsHexa20(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+                                             const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                             IMesh* mesh, Accelerator::RunQueue* queue);
+
+  static void applyConstantSourceToRhsHexa27(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+                                             const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                             IMesh* mesh, Accelerator::RunQueue* queue);
+
   /*---------------------------------------------------------------------------*/
   /**
    * @brief Applies Neumann conditions to the right-hand side (RHS) values.
@@ -1214,6 +1291,14 @@ class BoundaryConditions3D
   static void applyNeumannToRhsHexa8(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
                        const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                        IMesh* mesh, Accelerator::RunQueue* queue);
+
+  static void applyNeumannToRhsHexa20(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                                      const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                      IMesh* mesh, Accelerator::RunQueue* queue);
+
+  static void applyNeumannToRhsHexa27(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                                      const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                      IMesh* mesh, Accelerator::RunQueue* queue);
 };
 
 /*---------------------------------------------------------------------------*/

@@ -301,8 +301,14 @@ applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_
   else if (mesh->dimension() == 3 && nb_nodes == 8) { // Hexa mesh
     BoundaryConditions3D::applyNeumannToRhsHexa8(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
   }
+  else if (mesh->dimension() == 3 && nb_nodes == 20) { // Quadratic serendipity hexa mesh
+    BoundaryConditions3D::applyNeumannToRhsHexa20(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
+  else if (mesh->dimension() == 3 && nb_nodes == 27) { // Quadratic Lagrange hexa mesh
+    BoundaryConditions3D::applyNeumannToRhsHexa27(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
   else {
-    ARCANE_FATAL("Unknown mesh type only works for uniform TRIA3, QUAD4, QUAD8, QUAD9, TETRA4, HEXA8");
+    ARCANE_FATAL("Unknown mesh type only works for uniform TRIA3, QUAD4, QUAD8, QUAD9, TETRA4, HEXA8, HEXA20, HEXA27");
   }
 }
 /*---------------------------------------------------------------------------*/
@@ -350,8 +356,14 @@ applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
   else if (mesh->dimension() == 3 && nb_nodes == 8) { // Hexa mesh
     BoundaryConditions3D::applyConstantSourceToRhsHexa8(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
   }
+  else if (mesh->dimension() == 3 && nb_nodes == 20) { // Quadratic serendipity hexa mesh
+    BoundaryConditions3D::applyConstantSourceToRhsHexa20(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
+  else if (mesh->dimension() == 3 && nb_nodes == 27) { // Quadratic Lagrange hexa mesh
+    BoundaryConditions3D::applyConstantSourceToRhsHexa27(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
   else {
-    ARCANE_FATAL("Unknown mesh type only works for uniform TRIA3, QUAD4, QUAD8, QUAD9, TETRA4, HEXA8");
+    ARCANE_FATAL("Unknown mesh type only works for uniform TRIA3, QUAD4, QUAD8, QUAD9, TETRA4, HEXA8, HEXA20, HEXA27");
   }
 }
 
@@ -1023,6 +1035,113 @@ applyConstantSourceToRhsHexa8(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, co
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+
+void BoundaryConditions3D::
+applyConstantSourceToRhsHexa20(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord,
+                               VariableDoFReal& rhs_variable_na, IMesh* mesh, RunQueue* queue)
+{
+  ARCANE_CHECK_PTR(mesh);
+  ARCANE_CHECK_PTR(queue);
+
+  UnstructuredMeshConnectivityView connectivity_view(mesh);
+  NodeInfoListView nodes_infos(mesh->nodeFamily());
+  auto node_dof = dofs_on_nodes.nodeDoFConnectivityView();
+  auto cn_cv = connectivity_view.cellNode();
+
+  auto command = makeCommand(queue);
+  auto in_out_rhs_variable_na = viewInOut(command, rhs_variable_na);
+  auto in_node_coord = viewIn(command, node_coord);
+
+  command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh->allCells())
+  {
+    constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+    constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+    NodeLocalId cell_nodes[20];
+    for (Int32 i = 0; i < 20; ++i)
+      cell_nodes[i] = cn_cv.nodeId(cell_lid, i);
+
+    for (Int32 ixi = 0; ixi < 3; ++ixi) {
+      for (Int32 ieta = 0; ieta < 3; ++ieta) {
+        for (Int32 izeta = 0; izeta < 3; ++izeta) {
+          const Real xi = gp[ixi];
+          const Real eta = gp[ieta];
+          const Real zeta = gp[izeta];
+          const Real weight = weights[ixi] * weights[ieta] * weights[izeta];
+
+          const RealVector<20> N = FeOperation3D::computeShapeFunctionsHexa20(xi, eta, zeta);
+          const auto gp_info = FeOperation3D::computeGradientsAndJacobianHexa20Gpu(cell_lid, cn_cv, in_node_coord, xi, eta, zeta);
+          const Real integration_weight = weight * gp_info.det_j;
+
+          for (Int32 i = 0; i < 20; ++i) {
+            const NodeLocalId node_lid = cell_nodes[i];
+            if (nodes_infos.isOwn(node_lid)) {
+              const Real rhs_value = N(i) * qdot * integration_weight;
+              Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(
+              in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
+            }
+          }
+        }
+      }
+    }
+  };
+}
+
+/*---------------------------------------------------------------------------*/
+
+void BoundaryConditions3D::
+applyConstantSourceToRhsHexa27(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord,
+                               VariableDoFReal& rhs_variable_na, IMesh* mesh, RunQueue* queue)
+{
+  ARCANE_CHECK_PTR(mesh);
+  ARCANE_CHECK_PTR(queue);
+
+  UnstructuredMeshConnectivityView connectivity_view(mesh);
+  NodeInfoListView nodes_infos(mesh->nodeFamily());
+  auto node_dof = dofs_on_nodes.nodeDoFConnectivityView();
+  auto cn_cv = connectivity_view.cellNode();
+
+  auto command = makeCommand(queue);
+  auto in_out_rhs_variable_na = viewInOut(command, rhs_variable_na);
+  auto in_node_coord = viewIn(command, node_coord);
+
+  command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh->allCells())
+  {
+    constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+    constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+    NodeLocalId cell_nodes[27];
+    for (Int32 i = 0; i < 27; ++i)
+      cell_nodes[i] = cn_cv.nodeId(cell_lid, i);
+
+    for (Int32 ixi = 0; ixi < 3; ++ixi) {
+      for (Int32 ieta = 0; ieta < 3; ++ieta) {
+        for (Int32 izeta = 0; izeta < 3; ++izeta) {
+          const Real xi = gp[ixi];
+          const Real eta = gp[ieta];
+          const Real zeta = gp[izeta];
+          const Real weight = weights[ixi] * weights[ieta] * weights[izeta];
+
+          const RealVector<27> N = FeOperation3D::computeShapeFunctionsHexa27(xi, eta, zeta);
+          const auto gp_info = FeOperation3D::computeGradientsAndJacobianHexa27Gpu(cell_lid, cn_cv, in_node_coord, xi, eta, zeta);
+          const Real integration_weight = weight * gp_info.det_j;
+
+          for (Int32 i = 0; i < 27; ++i) {
+            const NodeLocalId node_lid = cell_nodes[i];
+            if (nodes_infos.isOwn(node_lid)) {
+              const Real rhs_value = N(i) * qdot * integration_weight;
+              Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(
+              in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
+            }
+          }
+        }
+      }
+    }
+  };
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 /**
  * @brief Applies Neumann conditions to the right-hand side (RHS) values.
  *
@@ -1300,6 +1419,226 @@ applyNeumannToRhsHexa8(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& 
       }
     };
   }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void BoundaryConditions3D::
+applyNeumannToRhsHexa20(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                        const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                        IMesh* mesh, RunQueue* queue)
+{
+  ARCANE_CHECK_PTR(bs);
+  ARCANE_CHECK_PTR(mesh);
+  ARCANE_CHECK_PTR(queue);
+
+  const FaceGroup group = bs->getSurface();
+  const StringConstArrayView neumann_str = bs->getValue();
+  const bool scalar_neumann = neumann_str.size() == 1 && neumann_str[0] != "NULL";
+  const Real value = scalar_neumann ? std::stod(neumann_str[0].localstr()) : 0.0;
+  const Real value_x = !scalar_neumann && neumann_str.size() > 0 && neumann_str[0] != "NULL"
+  ? std::stod(neumann_str[0].localstr())
+  : 0.0;
+  const Real value_y = !scalar_neumann && neumann_str.size() > 1 && neumann_str[1] != "NULL"
+  ? std::stod(neumann_str[1].localstr())
+  : 0.0;
+  const Real value_z = !scalar_neumann && neumann_str.size() > 2 && neumann_str[2] != "NULL"
+  ? std::stod(neumann_str[2].localstr())
+  : 0.0;
+
+  UnstructuredMeshConnectivityView connectivity_view(mesh);
+  NodeInfoListView nodes_infos(mesh->nodeFamily());
+  auto node_dof = dofs_on_nodes.nodeDoFConnectivityView();
+  auto fn_cv = connectivity_view.faceNode();
+
+  auto command = makeCommand(queue);
+  auto in_out_rhs_variable_na = viewInOut(command, rhs_variable_na);
+  auto in_node_coord = viewIn(command, node_coord);
+
+  command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
+  {
+    constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+    constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+    NodeLocalId face_nodes[8];
+    Real3 coords[8];
+    for (Int32 i = 0; i < 8; ++i) {
+      face_nodes[i] = fn_cv.nodeId(face_lid, i);
+      coords[i] = in_node_coord[face_nodes[i]];
+    }
+
+    for (Int32 ixi = 0; ixi < 3; ++ixi) {
+      for (Int32 ieta = 0; ieta < 3; ++ieta) {
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const Real weight = weights[ixi] * weights[ieta];
+
+        Real N[8];
+        N[0] = 0.25 * (1 - xi) * (1 - eta) * (-xi - eta - 1);
+        N[1] = 0.25 * (1 + xi) * (1 - eta) * (xi - eta - 1);
+        N[2] = 0.25 * (1 + xi) * (1 + eta) * (xi + eta - 1);
+        N[3] = 0.25 * (1 - xi) * (1 + eta) * (-xi + eta - 1);
+        N[4] = 0.5 * (1 - xi * xi) * (1 - eta);
+        N[5] = 0.5 * (1 + xi) * (1 - eta * eta);
+        N[6] = 0.5 * (1 - xi * xi) * (1 + eta);
+        N[7] = 0.5 * (1 - xi) * (1 - eta * eta);
+
+        Real dN_dxi[8];
+        dN_dxi[0] = 0.25 * (1 - eta) * (2 * xi + eta);
+        dN_dxi[1] = 0.25 * (1 - eta) * (2 * xi - eta);
+        dN_dxi[2] = 0.25 * (1 + eta) * (2 * xi + eta);
+        dN_dxi[3] = 0.25 * (1 + eta) * (2 * xi - eta);
+        dN_dxi[4] = -xi * (1 - eta);
+        dN_dxi[5] = 0.5 * (1 - eta * eta);
+        dN_dxi[6] = -xi * (1 + eta);
+        dN_dxi[7] = -0.5 * (1 - eta * eta);
+
+        Real dN_deta[8];
+        dN_deta[0] = 0.25 * (1 - xi) * (2 * eta + xi);
+        dN_deta[1] = 0.25 * (1 + xi) * (2 * eta - xi);
+        dN_deta[2] = 0.25 * (1 + xi) * (2 * eta + xi);
+        dN_deta[3] = 0.25 * (1 - xi) * (2 * eta - xi);
+        dN_deta[4] = -0.5 * (1 - xi * xi);
+        dN_deta[5] = -eta * (1 + xi);
+        dN_deta[6] = 0.5 * (1 - xi * xi);
+        dN_deta[7] = -eta * (1 - xi);
+
+        Real3 tangent_xi(0.0, 0.0, 0.0);
+        Real3 tangent_eta(0.0, 0.0, 0.0);
+        for (Int32 i = 0; i < 8; ++i) {
+          tangent_xi += dN_dxi[i] * coords[i];
+          tangent_eta += dN_deta[i] * coords[i];
+        }
+
+        const Real3 normal = math::cross(tangent_xi, tangent_eta);
+        const Real surface_jacobian = math::sqrt(math::dot(normal, normal));
+        const Real flux = scalar_neumann ? value
+                                          : (normal.x * value_x + normal.y * value_y + normal.z * value_z) / surface_jacobian;
+        const Real integration_weight = weight * surface_jacobian;
+
+        for (Int32 i = 0; i < 8; ++i) {
+          const NodeLocalId node_lid = face_nodes[i];
+          if (nodes_infos.isOwn(node_lid)) {
+            const Real rhs_value = flux * N[i] * integration_weight;
+            Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(
+            in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
+          }
+        }
+      }
+    }
+  };
+}
+
+/*---------------------------------------------------------------------------*/
+
+void BoundaryConditions3D::
+applyNeumannToRhsHexa27(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                        const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                        IMesh* mesh, RunQueue* queue)
+{
+  ARCANE_CHECK_PTR(bs);
+  ARCANE_CHECK_PTR(mesh);
+  ARCANE_CHECK_PTR(queue);
+
+  const FaceGroup group = bs->getSurface();
+  const StringConstArrayView neumann_str = bs->getValue();
+  const bool scalar_neumann = neumann_str.size() == 1 && neumann_str[0] != "NULL";
+  const Real value = scalar_neumann ? std::stod(neumann_str[0].localstr()) : 0.0;
+  const Real value_x = !scalar_neumann && neumann_str.size() > 0 && neumann_str[0] != "NULL"
+  ? std::stod(neumann_str[0].localstr())
+  : 0.0;
+  const Real value_y = !scalar_neumann && neumann_str.size() > 1 && neumann_str[1] != "NULL"
+  ? std::stod(neumann_str[1].localstr())
+  : 0.0;
+  const Real value_z = !scalar_neumann && neumann_str.size() > 2 && neumann_str[2] != "NULL"
+  ? std::stod(neumann_str[2].localstr())
+  : 0.0;
+
+  UnstructuredMeshConnectivityView connectivity_view(mesh);
+  NodeInfoListView nodes_infos(mesh->nodeFamily());
+  auto node_dof = dofs_on_nodes.nodeDoFConnectivityView();
+  auto fn_cv = connectivity_view.faceNode();
+
+  auto command = makeCommand(queue);
+  auto in_out_rhs_variable_na = viewInOut(command, rhs_variable_na);
+  auto in_node_coord = viewIn(command, node_coord);
+
+  command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
+  {
+    constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+    constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+    NodeLocalId face_nodes[9];
+    Real3 coords[9];
+    for (Int32 i = 0; i < 9; ++i) {
+      face_nodes[i] = fn_cv.nodeId(face_lid, i);
+      coords[i] = in_node_coord[face_nodes[i]];
+    }
+
+    for (Int32 ixi = 0; ixi < 3; ++ixi) {
+      for (Int32 ieta = 0; ieta < 3; ++ieta) {
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const Real weight = weights[ixi] * weights[ieta];
+
+        Real N[9];
+        N[0] = 0.25 * xi * (xi - 1) * eta * (eta - 1);
+        N[1] = 0.25 * xi * (xi + 1) * eta * (eta - 1);
+        N[2] = 0.25 * xi * (xi + 1) * eta * (eta + 1);
+        N[3] = 0.25 * xi * (xi - 1) * eta * (eta + 1);
+        N[4] = 0.5 * (1 - xi * xi) * eta * (eta - 1);
+        N[5] = 0.5 * xi * (xi + 1) * (1 - eta * eta);
+        N[6] = 0.5 * (1 - xi * xi) * eta * (eta + 1);
+        N[7] = 0.5 * xi * (xi - 1) * (1 - eta * eta);
+        N[8] = (1 - xi * xi) * (1 - eta * eta);
+
+        Real dN_dxi[9];
+        dN_dxi[0] = 0.25 * (2 * xi - 1) * eta * (eta - 1);
+        dN_dxi[1] = 0.25 * (2 * xi + 1) * eta * (eta - 1);
+        dN_dxi[2] = 0.25 * (2 * xi + 1) * eta * (eta + 1);
+        dN_dxi[3] = 0.25 * (2 * xi - 1) * eta * (eta + 1);
+        dN_dxi[4] = -xi * eta * (eta - 1);
+        dN_dxi[5] = 0.5 * (2 * xi + 1) * (1 - eta * eta);
+        dN_dxi[6] = -xi * eta * (eta + 1);
+        dN_dxi[7] = 0.5 * (2 * xi - 1) * (1 - eta * eta);
+        dN_dxi[8] = -2 * xi * (1 - eta * eta);
+
+        Real dN_deta[9];
+        dN_deta[0] = 0.25 * xi * (xi - 1) * (2 * eta - 1);
+        dN_deta[1] = 0.25 * xi * (xi + 1) * (2 * eta - 1);
+        dN_deta[2] = 0.25 * xi * (xi + 1) * (2 * eta + 1);
+        dN_deta[3] = 0.25 * xi * (xi - 1) * (2 * eta + 1);
+        dN_deta[4] = 0.5 * (1 - xi * xi) * (2 * eta - 1);
+        dN_deta[5] = -eta * xi * (xi + 1);
+        dN_deta[6] = 0.5 * (1 - xi * xi) * (2 * eta + 1);
+        dN_deta[7] = -eta * xi * (xi - 1);
+        dN_deta[8] = -2 * eta * (1 - xi * xi);
+
+        Real3 tangent_xi(0.0, 0.0, 0.0);
+        Real3 tangent_eta(0.0, 0.0, 0.0);
+        for (Int32 i = 0; i < 9; ++i) {
+          tangent_xi += dN_dxi[i] * coords[i];
+          tangent_eta += dN_deta[i] * coords[i];
+        }
+
+        const Real3 normal = math::cross(tangent_xi, tangent_eta);
+        const Real surface_jacobian = math::sqrt(math::dot(normal, normal));
+        const Real flux = scalar_neumann ? value
+                                          : (normal.x * value_x + normal.y * value_y + normal.z * value_z) / surface_jacobian;
+        const Real integration_weight = weight * surface_jacobian;
+
+        for (Int32 i = 0; i < 9; ++i) {
+          const NodeLocalId node_lid = face_nodes[i];
+          if (nodes_infos.isOwn(node_lid)) {
+            const Real rhs_value = flux * N[i] * integration_weight;
+            Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(
+            in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
+          }
+        }
+      }
+    }
+  };
 }
 
 /*---------------------------------------------------------------------------*/
