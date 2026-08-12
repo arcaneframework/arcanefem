@@ -184,12 +184,6 @@ void FemModulePoisson::_assembleLinearOperator()
     return;
   }
 
-  // Hexa20 and Hexa27 support is currently CPU-only
-  if (m_is_hexa20_mesh || m_is_hexa27_mesh) {
-    _assembleLinearOperatorCpu();
-    return;
-  }
-
   if (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
       options()->linearSystem.serviceName() == "PetscLinearSystem")
     _assembleLinearOperatorGpu();
@@ -200,7 +194,7 @@ void FemModulePoisson::_assembleLinearOperator()
 /*---------------------------------------------------------------------------*/
 /**
  * @brief FEM linear operator for the current simulation step.
- * GPU compatible. Currently working with HypreDoFLinearSystem.
+ * GPU compatible with HypreDoFLinearSystem and PetscDoFLinearSystem.
  *
  * This method constructs the linear  system by  assembling the LHS matrix
  * and  RHS vector, applying various boundary conditions and source terms.
