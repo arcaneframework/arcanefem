@@ -428,12 +428,8 @@ applyConstantSourceToRhsQuad4(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
         Real eta = gp[ieta];
         Real weight = weights[ixi] * weights[ieta];
 
-        // Shape functions N for Quad4
-        Real N[4];
-        N[0] = 0.25 * (1.0 - xi) * (1.0 - eta);
-        N[1] = 0.25 * (1.0 + xi) * (1.0 - eta);
-        N[2] = 0.25 * (1.0 + xi) * (1.0 + eta);
-        N[3] = 0.25 * (1.0 - xi) * (1.0 + eta);
+        // Shape functions 𝐍 for Quad4
+        RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
 
         // Shape function derivatives
         Real dN_dxi[4] = { -0.25 * (1.0 - eta), 0.25 * (1.0 - eta), 0.25 * (1.0 + eta), -0.25 * (1.0 + eta) };
@@ -507,16 +503,8 @@ void _applyConstantSourceToRhsQuadraticQuad(Real qdot, Int32 nb_cell_node,
           const Real xi = gp[ixi];
           const Real eta = gp[ieta];
 
-          // Shape functions N for Quad8
-          Real N[8];
-          N[0] = 0.25 * (1.0 - xi) * (1.0 - eta) * (-xi - eta - 1.0);
-          N[1] = 0.25 * (1.0 + xi) * (1.0 - eta) * (xi - eta - 1.0);
-          N[2] = 0.25 * (1.0 + xi) * (1.0 + eta) * (xi + eta - 1.0);
-          N[3] = 0.25 * (1.0 - xi) * (1.0 + eta) * (-xi + eta - 1.0);
-          N[4] = 0.5 * (1.0 - xi * xi) * (1.0 - eta);
-          N[5] = 0.5 * (1.0 + xi) * (1.0 - eta * eta);
-          N[6] = 0.5 * (1.0 - xi * xi) * (1.0 + eta);
-          N[7] = 0.5 * (1.0 - xi) * (1.0 - eta * eta);
+          // Shape functions 𝐍 for Quad8
+          RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad8(xi, eta);
 
           // Determinant of the Jacobian
           const Real det_j = FeOperation2D::computeGradientsAndJacobianQuad8Gpu(cell_lid, cn_cv, in_node_coord, xi, eta).det_j;
@@ -555,17 +543,8 @@ void _applyConstantSourceToRhsQuadraticQuad(Real qdot, Int32 nb_cell_node,
           const Real xi = gp[ixi];
           const Real eta = gp[ieta];
 
-          // Shape functions N for Quad9
-          Real N[9];
-          N[0] = 0.25 * xi * (xi - 1.0) * eta * (eta - 1.0);
-          N[1] = 0.25 * xi * (xi + 1.0) * eta * (eta - 1.0);
-          N[2] = 0.25 * xi * (xi + 1.0) * eta * (eta + 1.0);
-          N[3] = 0.25 * xi * (xi - 1.0) * eta * (eta + 1.0);
-          N[4] = 0.5 * (1.0 - xi * xi) * eta * (eta - 1.0);
-          N[5] = 0.5 * xi * (xi + 1.0) * (1.0 - eta * eta);
-          N[6] = 0.5 * (1.0 - xi * xi) * eta * (eta + 1.0);
-          N[7] = 0.5 * xi * (xi - 1.0) * (1.0 - eta * eta);
-          N[8] = (1.0 - xi * xi) * (1.0 - eta * eta);
+          // Shape functions 𝐍 for Quad9
+          RealVector<9> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad9(xi, eta);
 
           // Determinant of the Jacobian
           const Real det_j = FeOperation2D::computeGradientsAndJacobianQuad9Gpu(cell_lid, cn_cv, in_node_coord, xi, eta).det_j;
@@ -946,24 +925,7 @@ applyConstantSourceToRhsHexa8(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, co
           Real weight = weights[ixi] * weights[ieta] * weights[izeta];
 
           // Shape functions 𝐍 for Hexa8
-          //   𝐍 = [𝑁₁  𝑁₂  𝑁₃  𝑁₄  𝑁₅  𝑁₆  𝑁₇  𝑁₈]
-          //   𝑁₁ = 1/8 * (1 - ξ) * (1 - η) * (1 - ζ)
-          //   𝑁₂ = 1/8 * (1 + ξ) * (1 - η) * (1 - ζ)
-          //   𝑁₃ = 1/8 * (1 + ξ) * (1 + η) * (1 - ζ)
-          //   𝑁₄ = 1/8 * (1 - ξ) * (1 + η) * (1 - ζ)
-          //   𝑁₅ = 1/8 * (1 - ξ) * (1 - η) * (1 + ζ)
-          //   𝑁₆ = 1/8 * (1 + ξ) * (1 - η) * (1 + ζ)
-          //   𝑁₇ = 1/8 * (1 + ξ) * (1 + η) * (1 + ζ)
-          //   𝑁₈ = 1/8 * (1 - ξ) * (1 + η) * (1 + ζ)
-          Real N[8];
-          N[0] = 0.125 * (1 - xi) * (1 - eta) * (1 - zeta);
-          N[1] = 0.125 * (1 + xi) * (1 - eta) * (1 - zeta);
-          N[2] = 0.125 * (1 + xi) * (1 + eta) * (1 - zeta);
-          N[3] = 0.125 * (1 - xi) * (1 + eta) * (1 - zeta);
-          N[4] = 0.125 * (1 - xi) * (1 - eta) * (1 + zeta);
-          N[5] = 0.125 * (1 + xi) * (1 - eta) * (1 + zeta);
-          N[6] = 0.125 * (1 + xi) * (1 + eta) * (1 + zeta);
-          N[7] = 0.125 * (1 - xi) * (1 + eta) * (1 + zeta);
+          RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa8(xi, eta, zeta);
 
           // Shape function derivatives in reference space
           //  ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ  ∂𝑁₅/∂ξ  ∂𝑁₆/∂ξ  ∂𝑁₇/∂ξ  ∂𝑁₈/∂ξ ]
@@ -1069,7 +1031,8 @@ applyConstantSourceToRhsHexa20(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, c
           const Real zeta = gp[izeta];
           const Real weight = weights[ixi] * weights[ieta] * weights[izeta];
 
-          const RealVector<20> N = FeOperation3D::computeShapeFunctionsHexa20(xi, eta, zeta);
+          // Shape functions 𝐍 for Hexa20
+          const RealVector<20> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa20(xi, eta, zeta);
           const auto gp_info = FeOperation3D::computeGradientsAndJacobianHexa20Gpu(cell_lid, cn_cv, in_node_coord, xi, eta, zeta);
           const Real integration_weight = weight * gp_info.det_j;
 
@@ -1122,7 +1085,8 @@ applyConstantSourceToRhsHexa27(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, c
           const Real zeta = gp[izeta];
           const Real weight = weights[ixi] * weights[ieta] * weights[izeta];
 
-          const RealVector<27> N = FeOperation3D::computeShapeFunctionsHexa27(xi, eta, zeta);
+          // Shape functions 𝐍 for Hexa27
+          const RealVector<27> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa27(xi, eta, zeta);
           const auto gp_info = FeOperation3D::computeGradientsAndJacobianHexa27Gpu(cell_lid, cn_cv, in_node_coord, xi, eta, zeta);
           const Real integration_weight = weight * gp_info.det_j;
 
@@ -1268,12 +1232,8 @@ applyNeumannToRhsHexa8(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& 
           Real xi = gp[ixi];
           Real eta = gp[ieta];
 
-          // Quad4 shape functions
-          Real N[4];
-          N[0] = 0.25 * (1.0 - xi) * (1.0 - eta);
-          N[1] = 0.25 * (1.0 + xi) * (1.0 - eta);
-          N[2] = 0.25 * (1.0 + xi) * (1.0 + eta);
-          N[3] = 0.25 * (1.0 - xi) * (1.0 + eta);
+          // Shape functions 𝐍 for Quad4
+          RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
 
           // Shape function derivatives w.r.t. natural coordinates
           Real dN_dxi[4], dN_deta[4];
@@ -1357,12 +1317,8 @@ applyNeumannToRhsHexa8(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& 
           Real xi = gp[ixi];
           Real eta = gp[ieta];
 
-          // Quad4 shape functions
-          Real N[4];
-          N[0] = 0.25 * (1.0 - xi) * (1.0 - eta);
-          N[1] = 0.25 * (1.0 + xi) * (1.0 - eta);
-          N[2] = 0.25 * (1.0 + xi) * (1.0 + eta);
-          N[3] = 0.25 * (1.0 - xi) * (1.0 + eta);
+          // Shape functions 𝐍 for Quad4
+          RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
 
           // Shape function derivatives w.r.t. natural coordinates
           Real dN_dxi[4], dN_deta[4];

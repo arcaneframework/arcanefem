@@ -72,7 +72,7 @@ _computeElementMatrixQuad4(Cell cell)
       RealVector<8> dxUy = { 0, dN_dx(0), 0, dN_dx(1), 0, dN_dx(2), 0, dN_dx(3) };
       RealVector<8> dyUy = { 0, dN_dy(0), 0, dN_dy(1), 0, dN_dy(2), 0, dN_dy(3) };
 
-      RealVector<4> N = ArcaneFemFunctions::FeOperation2D::computeShapeFunctionsQuad4(xi, eta);
+      RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
       RealVector<8> Nx = { N(0), 0, N(1), 0, N(2), 0, N(3), 0 };
       RealVector<8> Ny = { 0, N(0), 0, N(1), 0, N(2), 0, N(3) };
 
@@ -175,7 +175,7 @@ _computeElementMatrixHexa8(Cell cell)
         RealVector<24> dzUz = { 0., 0., dzu(0), 0., 0., dzu(1), 0., 0., dzu(2), 0., 0., dzu(3),
                                 0., 0., dzu(4), 0., 0., dzu(5), 0., 0., dzu(6), 0., 0., dzu(7) };
 
-        RealVector<8> N = ArcaneFemFunctions::FeOperation3D::computeShapeFunctionsHexa8(xi, eta, zeta);
+        RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa8(xi, eta, zeta);
         RealVector<24> Nx = { N(0), 0, 0, N(1), 0, 0, N(2), 0, 0, N(3), 0, 0,
                               N(4), 0, 0, N(5), 0, 0, N(6), 0, 0, N(7), 0, 0 };
         RealVector<24> Ny = { 0, N(0), 0, 0, N(1), 0, 0, N(2), 0, 0, N(3), 0,

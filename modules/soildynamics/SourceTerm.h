@@ -110,7 +110,7 @@ _applySourceTermQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectiv
         Real weight = w * w; // Weight
 
         // Shape functions  𝐍 for Quad4
-        RealVector<4> N = ArcaneFemFunctions::FeOperation2D::computeShapeFunctionsQuad4(xi, eta);
+        RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
 
         // compute the det(Jacobian)
         auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad4(cell, m_node_coord, xi, eta);
@@ -235,7 +235,7 @@ _applySourceTermHexa8(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectiv
           Real weight = w * w * w; // Weight
 
           // Shape functions  𝐍 for Hexa8
-          RealVector<8> N = ArcaneFemFunctions::FeOperation3D::computeShapeFunctionsHexa8(xi, eta, zeta);
+          RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa8(xi, eta, zeta);
 
           // compute the det(Jacobian)
           auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa8(cell, m_node_coord, xi, eta, zeta);

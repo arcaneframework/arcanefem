@@ -55,7 +55,7 @@ RealMatrix<4, 4> FemModuleAcoustics::_computeElementMatrixQuad4(Cell cell)
       const Real detJ = gp_info.det_j;
 
       // Shape functions at the Gauss point
-      RealVector<4> N = ArcaneFemFunctions::FeOperation2D::computeShapeFunctionsQuad4(xi, eta);
+      RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
 
       // Integration weight
       const Real integration_weight = detJ * w * w;
@@ -114,7 +114,7 @@ RealMatrix<8, 8> FemModuleAcoustics::_computeElementMatrixHexa8(Cell cell)
         const Real detJ = gp_info.det_j;
 
         // Shape functions at the Gauss point
-        RealVector<8> N = ArcaneFemFunctions::FeOperation3D::computeShapeFunctionsHexa8(xi, eta, zeta);
+        RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa8(xi, eta, zeta);
 
         // Integration weight
         const Real integration_weight = detJ * w * w;
