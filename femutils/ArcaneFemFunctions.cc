@@ -239,20 +239,7 @@ applyConstantSourceToRhsQuad8(Real qdot, IMesh* mesh, const IndexedNodeDoFConnec
         Real weight = weights[ixi] * weights[ieta];
 
         // Shape functions 𝐍 for Quad8 (serendipity)
-        //   𝐍 = [𝑁₁  𝑁₂  𝑁₃  𝑁₄  𝑁₅  𝑁₆  𝑁₇  𝑁₈]
-        //   𝑁₁ = 1/4 * (1-ξ)(1-η)(-ξ-η-1)     𝑁₅ = 1/2 * (1-ξ²)(1-η)
-        //   𝑁₂ = 1/4 * (1+ξ)(1-η)( ξ-η-1)     𝑁₆ = 1/2 * (1+ξ)(1-η²)
-        //   𝑁₃ = 1/4 * (1+ξ)(1+η)( ξ+η-1)     𝑁₇ = 1/2 * (1-ξ²)(1+η)
-        //   𝑁₄ = 1/4 * (1-ξ)(1+η)(-ξ+η-1)     𝑁₈ = 1/2 * (1-ξ)(1-η²)
-        Real N[8];
-        N[0] = 0.25 * (1 - xi) * (1 - eta) * (-xi - eta - 1);
-        N[1] = 0.25 * (1 + xi) * (1 - eta) * (xi - eta - 1);
-        N[2] = 0.25 * (1 + xi) * (1 + eta) * (xi + eta - 1);
-        N[3] = 0.25 * (1 - xi) * (1 + eta) * (-xi + eta - 1);
-        N[4] = 0.5 * (1 - xi * xi) * (1 - eta);
-        N[5] = 0.5 * (1 + xi) * (1 - eta * eta);
-        N[6] = 0.5 * (1 - xi * xi) * (1 + eta);
-        N[7] = 0.5 * (1 - xi) * (1 - eta * eta);
+        RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad8(xi, eta);
 
         // Shape function derivatives ∂𝐍/∂ξ and ∂𝐍/∂η
         //     ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ  ∂𝑁₅/∂ξ  ∂𝑁₆/∂ξ  ∂𝑁₇/∂ξ  ∂𝑁₈/∂ξ ]
@@ -344,22 +331,7 @@ applyConstantSourceToRhsQuad9(Real qdot, IMesh* mesh, const IndexedNodeDoFConnec
         Real weight = weights[ixi] * weights[ieta];
 
         // Shape functions 𝐍 for Quad9 (Lagrange)
-        //   𝐍 = [𝑁₁  𝑁₂  𝑁₃  𝑁₄  𝑁₅  𝑁₆  𝑁₇  𝑁₈  𝑁₉]
-        //   𝑁₁ = 1/4 * ξ(ξ-1)η(η-1)     𝑁₅ = 1/2 * (1-ξ²)η(η-1)
-        //   𝑁₂ = 1/4 * ξ(ξ+1)η(η-1)     𝑁₆ = 1/2 * ξ(ξ+1)(1-η²)
-        //   𝑁₃ = 1/4 * ξ(ξ+1)η(η+1)     𝑁₇ = 1/2 * (1-ξ²)η(η+1)
-        //   𝑁₄ = 1/4 * ξ(ξ-1)η(η+1)     𝑁₈ = 1/2 * ξ(ξ-1)(1-η²)
-        //                               𝑁₉ = (1-ξ²)(1-η²)
-        Real N[9];
-        N[0] = 0.25 * xi * (xi - 1) * eta * (eta - 1);
-        N[1] = 0.25 * xi * (xi + 1) * eta * (eta - 1);
-        N[2] = 0.25 * xi * (xi + 1) * eta * (eta + 1);
-        N[3] = 0.25 * xi * (xi - 1) * eta * (eta + 1);
-        N[4] = 0.5 * (1 - xi * xi) * eta * (eta - 1);
-        N[5] = 0.5 * xi * (xi + 1) * (1 - eta * eta);
-        N[6] = 0.5 * (1 - xi * xi) * eta * (eta + 1);
-        N[7] = 0.5 * xi * (xi - 1) * (1 - eta * eta);
-        N[8] = (1 - xi * xi) * (1 - eta * eta);
+        RealVector<9> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad9(xi, eta);
 
         // Shape function derivatives ∂𝐍/∂ξ and ∂𝐍/∂η
         //     ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ  ∂𝑁₅/∂ξ  ∂𝑁₆/∂ξ  ∂𝑁₇/∂ξ  ∂𝑁₈/∂ξ  ∂𝑁₉/∂ξ ]
@@ -453,24 +425,7 @@ applyConstantSourceToRhsHexa8(Real qdot, IMesh* mesh, const IndexedNodeDoFConnec
           Real weight = weights[ixi] * weights[ieta] * weights[izeta];
 
           // Shape functions 𝐍 for Hexa8
-          //   𝐍 = [𝑁₁  𝑁₂  𝑁₃  𝑁₄  𝑁₅  𝑁₆  𝑁₇  𝑁₈]
-          //   𝑁₁ = 1/8 * (1 - ξ) * (1 - η) * (1 - ζ)
-          //   𝑁₂ = 1/8 * (1 + ξ) * (1 - η) * (1 - ζ)
-          //   𝑁₃ = 1/8 * (1 + ξ) * (1 + η) * (1 - ζ)
-          //   𝑁₄ = 1/8 * (1 - ξ) * (1 + η) * (1 - ζ)
-          //   𝑁₅ = 1/8 * (1 - ξ) * (1 - η) * (1 + ζ)
-          //   𝑁₆ = 1/8 * (1 + ξ) * (1 - η) * (1 + ζ)
-          //   𝑁₇ = 1/8 * (1 + ξ) * (1 + η) * (1 + ζ)
-          //   𝑁₈ = 1/8 * (1 - ξ) * (1 + η) * (1 + ζ)
-          Real N[8];
-          N[0] = 0.125 * (1 - xi) * (1 - eta) * (1 - zeta);
-          N[1] = 0.125 * (1 + xi) * (1 - eta) * (1 - zeta);
-          N[2] = 0.125 * (1 + xi) * (1 + eta) * (1 - zeta);
-          N[3] = 0.125 * (1 - xi) * (1 + eta) * (1 - zeta);
-          N[4] = 0.125 * (1 - xi) * (1 - eta) * (1 + zeta);
-          N[5] = 0.125 * (1 + xi) * (1 - eta) * (1 + zeta);
-          N[6] = 0.125 * (1 + xi) * (1 + eta) * (1 + zeta);
-          N[7] = 0.125 * (1 - xi) * (1 + eta) * (1 + zeta);
+          RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa8(xi, eta, zeta);
 
           // Shape function derivatives in reference space
           //  ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ  ∂𝑁₅/∂ξ  ∂𝑁₆/∂ξ  ∂𝑁₇/∂ξ  ∂𝑁₈/∂ξ ]
@@ -568,27 +523,7 @@ applyConstantSourceToRhsHexa20(Real qdot, IMesh* mesh, const IndexedNodeDoFConne
           Real weight = weights[ixi] * weights[ieta] * weights[izeta];
 
           // Shape functions 𝐍 for Hexa20 (serendipity)
-          Real N[20];
-          N[0] = 0.125 * (1 - xi) * (1 - eta) * (1 - zeta) * (-xi - eta - zeta - 2);
-          N[1] = 0.125 * (1 + xi) * (1 - eta) * (1 - zeta) * (xi - eta - zeta - 2);
-          N[2] = 0.125 * (1 + xi) * (1 + eta) * (1 - zeta) * (xi + eta - zeta - 2);
-          N[3] = 0.125 * (1 - xi) * (1 + eta) * (1 - zeta) * (-xi + eta - zeta - 2);
-          N[4] = 0.125 * (1 - xi) * (1 - eta) * (1 + zeta) * (-xi - eta + zeta - 2);
-          N[5] = 0.125 * (1 + xi) * (1 - eta) * (1 + zeta) * (xi - eta + zeta - 2);
-          N[6] = 0.125 * (1 + xi) * (1 + eta) * (1 + zeta) * (xi + eta + zeta - 2);
-          N[7] = 0.125 * (1 - xi) * (1 + eta) * (1 + zeta) * (-xi + eta + zeta - 2);
-          N[8] = 0.25 * (1 - xi * xi) * (1 - eta) * (1 - zeta);
-          N[9] = 0.25 * (1 + xi) * (1 - eta * eta) * (1 - zeta);
-          N[10] = 0.25 * (1 - xi * xi) * (1 + eta) * (1 - zeta);
-          N[11] = 0.25 * (1 - xi) * (1 - eta * eta) * (1 - zeta);
-          N[12] = 0.25 * (1 - xi * xi) * (1 - eta) * (1 + zeta);
-          N[13] = 0.25 * (1 + xi) * (1 - eta * eta) * (1 + zeta);
-          N[14] = 0.25 * (1 - xi * xi) * (1 + eta) * (1 + zeta);
-          N[15] = 0.25 * (1 - xi) * (1 - eta * eta) * (1 + zeta);
-          N[16] = 0.25 * (1 - xi) * (1 - eta) * (1 - zeta * zeta);
-          N[17] = 0.25 * (1 + xi) * (1 - eta) * (1 - zeta * zeta);
-          N[18] = 0.25 * (1 + xi) * (1 + eta) * (1 - zeta * zeta);
-          N[19] = 0.25 * (1 - xi) * (1 + eta) * (1 - zeta * zeta);
+          RealVector<20> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa20(xi, eta, zeta);
 
           // Shape function derivatives ∂𝐍/∂ξ, ∂𝐍/∂η, ∂𝐍/∂ζ
           Real dN_dxi[20] = {
@@ -727,34 +662,7 @@ applyConstantSourceToRhsHexa27(Real qdot, IMesh* mesh, const IndexedNodeDoFConne
           Real weight = weights[ixi] * weights[ieta] * weights[izeta];
 
           // Shape functions 𝐍 for Hexa27 (triquadratic Lagrange)
-          Real N[27];
-          N[0] = 0.125 * xi * (xi - 1) * eta * (eta - 1) * zeta * (zeta - 1);
-          N[1] = 0.125 * xi * (xi + 1) * eta * (eta - 1) * zeta * (zeta - 1);
-          N[2] = 0.125 * xi * (xi + 1) * eta * (eta + 1) * zeta * (zeta - 1);
-          N[3] = 0.125 * xi * (xi - 1) * eta * (eta + 1) * zeta * (zeta - 1);
-          N[4] = 0.125 * xi * (xi - 1) * eta * (eta - 1) * zeta * (zeta + 1);
-          N[5] = 0.125 * xi * (xi + 1) * eta * (eta - 1) * zeta * (zeta + 1);
-          N[6] = 0.125 * xi * (xi + 1) * eta * (eta + 1) * zeta * (zeta + 1);
-          N[7] = 0.125 * xi * (xi - 1) * eta * (eta + 1) * zeta * (zeta + 1);
-          N[8] = 0.25 * (1 - xi * xi) * eta * (eta - 1) * zeta * (zeta - 1);
-          N[9] = 0.25 * xi * (xi + 1) * (1 - eta * eta) * zeta * (zeta - 1);
-          N[10] = 0.25 * (1 - xi * xi) * eta * (eta + 1) * zeta * (zeta - 1);
-          N[11] = 0.25 * xi * (xi - 1) * (1 - eta * eta) * zeta * (zeta - 1);
-          N[12] = 0.25 * (1 - xi * xi) * eta * (eta - 1) * zeta * (zeta + 1);
-          N[13] = 0.25 * xi * (xi + 1) * (1 - eta * eta) * zeta * (zeta + 1);
-          N[14] = 0.25 * (1 - xi * xi) * eta * (eta + 1) * zeta * (zeta + 1);
-          N[15] = 0.25 * xi * (xi - 1) * (1 - eta * eta) * zeta * (zeta + 1);
-          N[16] = 0.25 * xi * (xi - 1) * eta * (eta - 1) * (1 - zeta * zeta);
-          N[17] = 0.25 * xi * (xi + 1) * eta * (eta - 1) * (1 - zeta * zeta);
-          N[18] = 0.25 * xi * (xi + 1) * eta * (eta + 1) * (1 - zeta * zeta);
-          N[19] = 0.25 * xi * (xi - 1) * eta * (eta + 1) * (1 - zeta * zeta);
-          N[20] = 0.5 * xi * (xi - 1) * (1 - eta * eta) * (1 - zeta * zeta);
-          N[21] = 0.5 * xi * (xi + 1) * (1 - eta * eta) * (1 - zeta * zeta);
-          N[22] = 0.5 * (1 - xi * xi) * eta * (eta - 1) * (1 - zeta * zeta);
-          N[23] = 0.5 * (1 - xi * xi) * eta * (eta + 1) * (1 - zeta * zeta);
-          N[24] = 0.5 * (1 - xi * xi) * (1 - eta * eta) * zeta * (zeta - 1);
-          N[25] = 0.5 * (1 - xi * xi) * (1 - eta * eta) * zeta * (zeta + 1);
-          N[26] = (1 - xi * xi) * (1 - eta * eta) * (1 - zeta * zeta);
+          RealVector<27> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa27(xi, eta, zeta);
 
           // Shape function derivatives ∂𝐍/∂ξ, ∂𝐍/∂η, ∂𝐍/∂ζ
           Real dN_dxi[27] = {

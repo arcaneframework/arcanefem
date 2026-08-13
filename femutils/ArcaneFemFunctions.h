@@ -29,6 +29,7 @@
 #include "IArcaneFemBC.h"
 #include "GaussQuadrature.h"
 #include "DoFLinearSystem.h"
+#include "ShapeFunctions.h"
 
 using namespace Arcane;
 using namespace Arcane::FemUtils;
@@ -856,50 +857,6 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-     * @brief Computes the shape functions for a Quad8 element at a given point (ξ, η).
-     *
-     * @param xi The ξ coordinate of the evaluation point (-1 to 1).
-     * @param eta The η coordinate of the evaluation point (-1 to 1).
-     * @return A RealVector<8> containing the shape functions {𝑁₁, 𝑁₂, 𝑁₃, 𝑁₄, 𝑁₅, 𝑁₆, 𝑁₇, 𝑁₈}.
-     */
-    /*---------------------------------------------------------------------------*/
-    static inline RealVector<8> computeShapeFunctionsQuad8(Real xi, Real eta)
-    {
-      RealVector<8> N;
-      N[0] = 0.25 * (1.0 - xi) * (1.0 - eta) * (-xi - eta - 1.0);
-      N[1] = 0.25 * (1.0 + xi) * (1.0 - eta) * (xi - eta - 1.0);
-      N[2] = 0.25 * (1.0 + xi) * (1.0 + eta) * (xi + eta - 1.0);
-      N[3] = 0.25 * (1.0 - xi) * (1.0 + eta) * (-xi + eta - 1.0);
-      N[4] = 0.5 * (1.0 - xi * xi) * (1.0 - eta);
-      N[5] = 0.5 * (1.0 + xi) * (1.0 - eta * eta);
-      N[6] = 0.5 * (1.0 - xi * xi) * (1.0 + eta);
-      N[7] = 0.5 * (1.0 - xi) * (1.0 - eta * eta);
-      return N;
-    }
-    /*---------------------------------------------------------------------------*/
-    /**
-     * @brief Computes the shape functions for a Quad9 element at a given point (ξ, η).
-     * @param xi The ξ coordinate of the evaluation point (-1 to 1).
-     * @param eta The η coordinate of the evaluation point (-1 to 1).
-     * @return A RealVector<9> containing {𝑁₁, ..., 𝑁₉}.
-     */
-    /*---------------------------------------------------------------------------*/
-    static inline RealVector<9> computeShapeFunctionsQuad9(Real xi, Real eta)
-    {
-      RealVector<9> N;
-      N[0] = 0.25 * xi * (xi - 1.0) * eta * (eta - 1.0);
-      N[1] = 0.25 * xi * (xi + 1.0) * eta * (eta - 1.0);
-      N[2] = 0.25 * xi * (xi + 1.0) * eta * (eta + 1.0);
-      N[3] = 0.25 * xi * (xi - 1.0) * eta * (eta + 1.0);
-      N[4] = 0.5 * (1.0 - xi * xi) * eta * (eta - 1.0);
-      N[5] = 0.5 * xi * (xi + 1.0) * (1.0 - eta * eta);
-      N[6] = 0.5 * (1.0 - xi * xi) * eta * (eta + 1.0);
-      N[7] = 0.5 * xi * (xi - 1.0) * (1.0 - eta * eta);
-      N[8] = (1.0 - xi * xi) * (1.0 - eta * eta);
-      return N;
-    }
-    /*---------------------------------------------------------------------------*/
-    /**
      * @brief Computes shape function gradients and the Jacobian determinant for a Quad4 element.
      *
      * @param cell The Quad4 cell entity.
@@ -960,24 +917,6 @@ class ArcaneFemFunctions
       return { grad_x, grad_y, 0.0 };
     }
 
-    /*---------------------------------------------------------------------------*/
-    /**
-     * @brief Computes the shape functions for a Quad4 element at a given point (ξ, η).
-     * 
-     * @param xi The ξ coordinate of the evaluation point (-1 to 1).
-     * @param eta The η coordinate of the evaluation point (-1 to 1).
-     * @return A RealVector<4> containing the shape functions {𝑁₁, 𝑁₂, 𝑁₃, 𝑁₄}.
-     */
-    /*---------------------------------------------------------------------------*/
-    static inline RealVector<4> computeShapeFunctionsQuad4(Real xi, Real eta)
-    {
-      RealVector<4> N;
-      N(0) = 0.25 * (1. - xi) * (1. - eta); // 𝑁₁
-      N(1) = 0.25 * (1. + xi) * (1. - eta); // 𝑁₂
-      N(2) = 0.25 * (1. + xi) * (1. + eta); // 𝑁₃
-      N(3) = 0.25 * (1. - xi) * (1. + eta); // 𝑁₄
-      return N;
-    }
   };
 
   /*---------------------------------------------------------------------------*/
@@ -1345,37 +1284,6 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-     * @brief Computes the shape functions for a Hexa8 element at a given point (ξ,η,ζ).
-     * 
-     * @param xi The ξ coordinate of the evaluation point (-1 to 1).
-     * @param eta The η coordinate of the evaluation point (-1 to 1).
-     * @param zeta The ζ coordinate of the evaluation point (-1 to 1).
-     * @return A RealVector<8> containing the shape functions {𝑁₁, 𝑁₂, 𝑁₃, 𝑁₄, 𝑁₅, 𝑁₆, 𝑁₇, 𝑁₈}.
-     */
-    /*---------------------------------------------------------------------------*/
-    static inline RealVector<8> computeShapeFunctionsHexa8(Real xi, Real eta, Real zeta)
-    {
-      RealVector<8> N;
-      const Real one_minus_eta = 1.0 - eta;
-      const Real one_plus_eta = 1.0 + eta;
-      const Real one_minus_xi = 1.0 - xi;
-      const Real one_plus_xi = 1.0 + xi;
-      const Real one_minus_zeta = 1.0 - zeta;
-      const Real one_plus_zeta = 1.0 + zeta;
-
-      N(0) = 0.125 * one_minus_xi * one_minus_eta * one_minus_zeta; // 𝑁₁
-      N(1) = 0.125 * one_plus_xi * one_minus_eta * one_minus_zeta; // 𝑁₂
-      N(2) = 0.125 * one_plus_xi * one_plus_eta * one_minus_zeta; // 𝑁₃
-      N(3) = 0.125 * one_minus_xi * one_plus_eta * one_minus_zeta; // 𝑁₄
-      N(4) = 0.125 * one_minus_xi * one_minus_eta * one_plus_zeta; // 𝑁₅
-      N(5) = 0.125 * one_plus_xi * one_minus_eta * one_plus_zeta; // 𝑁₆
-      N(6) = 0.125 * one_plus_xi * one_plus_eta * one_plus_zeta; // 𝑁₇
-      N(7) = 0.125 * one_minus_xi * one_plus_eta * one_plus_zeta; // 𝑁₈
-
-      return N;
-    }
-    /*---------------------------------------------------------------------------*/
-    /**
      * @brief Holds information for a Hexa20 element at a single Gauss point.
      */
     /*---------------------------------------------------------------------------*/
@@ -1501,44 +1409,6 @@ class ArcaneFemFunctions
       return { dN_dx_result, dN_dy_result, dN_dz_result, detJ };
     }
     
-  /*---------------------------------------------------------------------------*/
-  /**
-   * @brief Computes the shape functions for a Hexa20 element at a given point (ξ,η,ζ).
-   *
-   * @param xi   The ξ coordinate of the evaluation point (-1 to 1).
-   * @param eta  The η coordinate of the evaluation point (-1 to 1).
-   * @param zeta The ζ coordinate of the evaluation point (-1 to 1).
-   * @return A RealVector<20> containing the shape functions {N1, ..., N20}.
-   */
-  /*---------------------------------------------------------------------------*/
-    static inline RealVector<20> computeShapeFunctionsHexa20(Real xi, Real eta, Real zeta)
-    {
-      RealVector<20> N;
-
-      N[0] = 0.125 * (1 - xi) * (1 - eta) * (1 - zeta) * (-xi - eta - zeta - 2);
-      N[1] = 0.125 * (1 + xi) * (1 - eta) * (1 - zeta) * (xi - eta - zeta - 2);
-      N[2] = 0.125 * (1 + xi) * (1 + eta) * (1 - zeta) * (xi + eta - zeta - 2);
-      N[3] = 0.125 * (1 - xi) * (1 + eta) * (1 - zeta) * (-xi + eta - zeta - 2);
-      N[4] = 0.125 * (1 - xi) * (1 - eta) * (1 + zeta) * (-xi - eta + zeta - 2);
-      N[5] = 0.125 * (1 + xi) * (1 - eta) * (1 + zeta) * (xi - eta + zeta - 2);
-      N[6] = 0.125 * (1 + xi) * (1 + eta) * (1 + zeta) * (xi + eta + zeta - 2);
-      N[7] = 0.125 * (1 - xi) * (1 + eta) * (1 + zeta) * (-xi + eta + zeta - 2);
-      N[8] = 0.25 * (1 - xi * xi) * (1 - eta) * (1 - zeta);
-      N[9] = 0.25 * (1 + xi) * (1 - eta * eta) * (1 - zeta);
-      N[10] = 0.25 * (1 - xi * xi) * (1 + eta) * (1 - zeta);
-      N[11] = 0.25 * (1 - xi) * (1 - eta * eta) * (1 - zeta);
-      N[12] = 0.25 * (1 - xi * xi) * (1 - eta) * (1 + zeta);
-      N[13] = 0.25 * (1 + xi) * (1 - eta * eta) * (1 + zeta);
-      N[14] = 0.25 * (1 - xi * xi) * (1 + eta) * (1 + zeta);
-      N[15] = 0.25 * (1 - xi) * (1 - eta * eta) * (1 + zeta);
-      N[16] = 0.25 * (1 - xi) * (1 - eta) * (1 - zeta * zeta);
-      N[17] = 0.25 * (1 + xi) * (1 - eta) * (1 - zeta * zeta);
-      N[18] = 0.25 * (1 + xi) * (1 + eta) * (1 - zeta * zeta);
-      N[19] = 0.25 * (1 - xi) * (1 + eta) * (1 - zeta * zeta);
-
-      return N;
-    }
-
     /*---------------------------------------------------------------------------*/
     /**
      * @brief Holds information for a Hexa27 element at a single Gauss point.
@@ -1685,50 +1555,6 @@ class ArcaneFemFunctions
       }
 
       return { dN_dx_result, dN_dy_result, dN_dz_result, detJ };
-    }
-    /*---------------------------------------------------------------------------*/
-    /**
-     * @brief Computes the shape functions for a Hexa27 element at a given point (ξ,η,ζ).
-     *
-     * @param xi   The ξ coordinate of the evaluation point (-1 to 1).
-     * @param eta  The η coordinate of the evaluation point (-1 to 1).
-     * @param zeta The ζ coordinate of the evaluation point (-1 to 1).
-     * @return A RealVector<27> containing the shape functions {N1, ..., N27}.
-     */
-    /*---------------------------------------------------------------------------*/
-      static inline RealVector<27> computeShapeFunctionsHexa27(Real xi, Real eta, Real zeta)
-    {
-      RealVector<27> N;
-
-      N[0] = 0.125 * xi * (xi - 1) * eta * (eta - 1) * zeta * (zeta - 1);
-      N[1] = 0.125 * xi * (xi + 1) * eta * (eta - 1) * zeta * (zeta - 1);
-      N[2] = 0.125 * xi * (xi + 1) * eta * (eta + 1) * zeta * (zeta - 1);
-      N[3] = 0.125 * xi * (xi - 1) * eta * (eta + 1) * zeta * (zeta - 1);
-      N[4] = 0.125 * xi * (xi - 1) * eta * (eta - 1) * zeta * (zeta + 1);
-      N[5] = 0.125 * xi * (xi + 1) * eta * (eta - 1) * zeta * (zeta + 1);
-      N[6] = 0.125 * xi * (xi + 1) * eta * (eta + 1) * zeta * (zeta + 1);
-      N[7] = 0.125 * xi * (xi - 1) * eta * (eta + 1) * zeta * (zeta + 1);
-      N[8] = 0.25 * (1 - xi * xi) * eta * (eta - 1) * zeta * (zeta - 1);
-      N[9] = 0.25 * xi * (xi + 1) * (1 - eta * eta) * zeta * (zeta - 1);
-      N[10] = 0.25 * (1 - xi * xi) * eta * (eta + 1) * zeta * (zeta - 1);
-      N[11] = 0.25 * xi * (xi - 1) * (1 - eta * eta) * zeta * (zeta - 1);
-      N[12] = 0.25 * (1 - xi * xi) * eta * (eta - 1) * zeta * (zeta + 1);
-      N[13] = 0.25 * xi * (xi + 1) * (1 - eta * eta) * zeta * (zeta + 1);
-      N[14] = 0.25 * (1 - xi * xi) * eta * (eta + 1) * zeta * (zeta + 1);
-      N[15] = 0.25 * xi * (xi - 1) * (1 - eta * eta) * zeta * (zeta + 1);
-      N[16] = 0.25 * xi * (xi - 1) * eta * (eta - 1) * (1 - zeta * zeta);
-      N[17] = 0.25 * xi * (xi + 1) * eta * (eta - 1) * (1 - zeta * zeta);
-      N[18] = 0.25 * xi * (xi + 1) * eta * (eta + 1) * (1 - zeta * zeta);
-      N[19] = 0.25 * xi * (xi - 1) * eta * (eta + 1) * (1 - zeta * zeta);
-      N[20] = 0.5 * xi * (xi - 1) * (1 - eta * eta) * (1 - zeta * zeta);
-      N[21] = 0.5 * xi * (xi + 1) * (1 - eta * eta) * (1 - zeta * zeta);
-      N[22] = 0.5 * (1 - xi * xi) * eta * (eta - 1) * (1 - zeta * zeta);
-      N[23] = 0.5 * (1 - xi * xi) * eta * (eta + 1) * (1 - zeta * zeta);
-      N[24] = 0.5 * (1 - xi * xi) * (1 - eta * eta) * zeta * (zeta - 1);
-      N[25] = 0.5 * (1 - xi * xi) * (1 - eta * eta) * zeta * (zeta + 1);
-      N[26] = (1 - xi * xi) * (1 - eta * eta) * (1 - zeta * zeta);
-
-      return N;
     }
   };
 
