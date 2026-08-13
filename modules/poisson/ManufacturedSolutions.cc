@@ -88,7 +88,7 @@ _applyManufacturedSource()
           const Real xi = Quad2x2GaussPoint[ixi];
           const Real eta = Quad2x2GaussPoint[ieta];
           const Real weight = Quad2x2Weight * Quad2x2Weight;
-          const RealVector<4> N = ArcaneFemFunctions::FeOperation2D::computeShapeFunctionsQuad4(xi, eta);
+          const RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
           const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad4(cell, m_node_coord, xi, eta);
 
           Real3 x(0.0, 0.0, 0.0);
@@ -111,7 +111,7 @@ _applyManufacturedSource()
           const Real xi = Quad3x3GaussPoint[ixi];
           const Real eta = Quad3x3GaussPoint[ieta];
           const Real weight = Quad3x3Weight[ixi] * Quad3x3Weight[ieta];
-          const RealVector<8> N = ArcaneFemFunctions::FeOperation2D::computeShapeFunctionsQuad8(xi, eta);
+          const RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad8(xi, eta);
           const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad8(cell, m_node_coord, xi, eta);
 
           Real3 x(0.0, 0.0, 0.0);
@@ -134,7 +134,7 @@ _applyManufacturedSource()
           const Real xi = Quad3x3GaussPoint[ixi];
           const Real eta = Quad3x3GaussPoint[ieta];
           const Real weight = Quad3x3Weight[ixi] * Quad3x3Weight[ieta];
-          const RealVector<9> N = ArcaneFemFunctions::FeOperation2D::computeShapeFunctionsQuad9(xi, eta);
+          const RealVector<9> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad9(xi, eta);
           const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad9(cell, m_node_coord, xi, eta);
         
           Real3 x(0.0, 0.0, 0.0);
@@ -160,7 +160,7 @@ _applyManufacturedSource()
             const Real eta = Quad3x3GaussPoint[ieta]; 
             const Real zeta = Quad3x3GaussPoint[izeta]; 
             const Real weight = Quad3x3Weight[ixi] * Quad3x3Weight[ieta] * Quad3x3Weight[izeta];
-            const RealVector<8> N = ArcaneFemFunctions::FeOperation3D::computeShapeFunctionsHexa8(xi,eta,zeta);
+            const RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa8(xi,eta,zeta);
             const auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa8(cell, m_node_coord, xi, eta, zeta);
 
             Real3 x(0.0, 0.0, 0.0);
@@ -186,7 +186,7 @@ _applyManufacturedSource()
             const Real eta = Quad3x3GaussPoint[ieta]; 
             const Real zeta = Quad3x3GaussPoint[izeta]; 
             const Real weight = Quad3x3Weight[ixi] * Quad3x3Weight[ieta] * Quad3x3Weight[izeta];
-            const RealVector<20> N = ArcaneFemFunctions::FeOperation3D::computeShapeFunctionsHexa20(xi,eta,zeta);
+            const RealVector<20> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa20(xi,eta,zeta);
             const auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa20(cell, m_node_coord, xi, eta, zeta);
 
             Real3 x(0.0, 0.0, 0.0);
@@ -212,7 +212,7 @@ _applyManufacturedSource()
             const Real eta = Quad3x3GaussPoint[ieta]; 
             const Real zeta = Quad3x3GaussPoint[izeta]; 
             const Real weight = Quad3x3Weight[ixi] * Quad3x3Weight[ieta] * Quad3x3Weight[izeta];
-            const RealVector<27> N = ArcaneFemFunctions::FeOperation3D::computeShapeFunctionsHexa27(xi,eta,zeta);
+            const RealVector<27> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa27(xi,eta,zeta);
             const auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa27(cell, m_node_coord, xi, eta, zeta);
 
             Real3 x(0.0, 0.0, 0.0);
@@ -288,7 +288,7 @@ _computeManufacturedL2Error()
           const Real xi = Quad2x2GaussPoint[ixi];
           const Real eta = Quad2x2GaussPoint[ieta];
           const Real weight = Quad2x2Weight * Quad2x2Weight;
-          const RealVector<4> N = ArcaneFemFunctions::FeOperation2D::computeShapeFunctionsQuad4(xi, eta);
+          const RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
           const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad4(cell, m_node_coord, xi, eta);
 
           Real uh = 0.0;
@@ -308,7 +308,7 @@ _computeManufacturedL2Error()
           const Real xi = Quad3x3GaussPoint[ixi];
           const Real eta = Quad3x3GaussPoint[ieta];
           const Real weight = Quad3x3Weight[ixi] * Quad3x3Weight[ieta];
-          const RealVector<8> N = ArcaneFemFunctions::FeOperation2D::computeShapeFunctionsQuad8(xi, eta);
+          const RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad8(xi, eta);
           const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad8(cell, m_node_coord, xi, eta);
 
           Real uh = 0.0;
@@ -328,7 +328,7 @@ _computeManufacturedL2Error()
           const Real xi = Quad3x3GaussPoint[ixi];
           const Real eta = Quad3x3GaussPoint[ieta];
           const Real weight = Quad3x3Weight[ixi] * Quad3x3Weight[ieta];
-          const RealVector<9> N = ArcaneFemFunctions::FeOperation2D::computeShapeFunctionsQuad9(xi, eta);
+          const RealVector<9> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad9(xi, eta);
           const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad9(cell, m_node_coord, xi, eta);
         
           Real uh = 0.0;
@@ -351,7 +351,7 @@ _computeManufacturedL2Error()
             const Real eta = Quad3x3GaussPoint[ieta]; 
             const Real zeta = Quad3x3GaussPoint[izeta]; 
             const Real weight = Quad3x3Weight[ixi] * Quad3x3Weight[ieta] * Quad3x3Weight[izeta];
-            const RealVector<8> N = ArcaneFemFunctions::FeOperation3D::computeShapeFunctionsHexa8(xi,eta,zeta);
+            const RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa8(xi,eta,zeta);
             const auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa8(cell, m_node_coord, xi, eta, zeta);
 
             Real uh = 0.0;
@@ -374,7 +374,7 @@ _computeManufacturedL2Error()
             const Real eta = Quad3x3GaussPoint[ieta]; 
             const Real zeta = Quad3x3GaussPoint[izeta]; 
             const Real weight = Quad3x3Weight[ixi] * Quad3x3Weight[ieta] * Quad3x3Weight[izeta];
-            const RealVector<20> N = ArcaneFemFunctions::FeOperation3D::computeShapeFunctionsHexa20(xi,eta,zeta);
+            const RealVector<20> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa20(xi,eta,zeta);
             const auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa20(cell, m_node_coord, xi, eta, zeta);
 
             Real uh = 0.0;
@@ -397,7 +397,7 @@ _computeManufacturedL2Error()
             const Real eta = Quad3x3GaussPoint[ieta]; 
             const Real zeta = Quad3x3GaussPoint[izeta]; 
             const Real weight = Quad3x3Weight[ixi] * Quad3x3Weight[ieta] * Quad3x3Weight[izeta];
-            const RealVector<27> N = ArcaneFemFunctions::FeOperation3D::computeShapeFunctionsHexa27(xi,eta,zeta);
+            const RealVector<27> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa27(xi,eta,zeta);
             const auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa27(cell, m_node_coord, xi, eta, zeta);
 
             Real uh = 0.0;

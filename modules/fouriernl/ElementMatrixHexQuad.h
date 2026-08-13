@@ -55,7 +55,7 @@ RealMatrix<4, 4> FemModuleFourierNL::_computeElementMatrixQuad4(Cell cell)
       const Real detJ = gp_info.det_j;
 
       // Evaluate lambda at the gauss point
-      const RealVector<4> N = ArcaneFemFunctions::FeOperation2D::computeShapeFunctionsQuad4(xi, eta);
+      const RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
       Real lambda_gp = 0.0;
       for (Int8 ik = 0; ik < 4; ++ik) {
         lambda_gp += FemModuleFourierNL::_lambdaCpu(m_uk[cell.nodeId(ik)]) * N[ik];
@@ -100,7 +100,7 @@ computeElementMatrixQuad4Gpu(CellLocalId cell_lid,
       const Real detJ = gp_info.det_j;
 
       // Evaluate lambda at the gauss point
-      const RealVector<4> N = FemUtils::Gpu::FeOperation2D::computeShapeFunctionsQuad4(xi, eta);
+      const RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
 
       Real lambda_gp = 0.0;
       for (Int8 ik = 0; ik < 4; ++ik) {
@@ -147,7 +147,7 @@ computeElementVectorQuad4Gpu(CellLocalId cell_lid,
       const Real detJ = gp_info.det_j;
 
       // Evaluate lambda at the gauss point
-      const RealVector<4> N = FemUtils::Gpu::FeOperation2D::computeShapeFunctionsQuad4(xi, eta);
+      const RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
 
       Real lambda_gp = 0.0;
       for (Int8 ik = 0; ik < 4; ++ik) {
@@ -213,7 +213,7 @@ RealMatrix<8, 8> FemModuleFourierNL::_computeElementMatrixHexa8(Cell cell)
         const Real detJ = gp_info.det_j;
 
         // Evaluate lambda at the gauss point
-        const RealVector<8> N = ArcaneFemFunctions::FeOperation3D::computeShapeFunctionsHexa8(xi, eta, zeta);
+        const RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa8(xi, eta, zeta);
         Real lambda_gp = 0.0;
         for (Int8 ik = 0; ik < 8; ++ik) {
           lambda_gp += FemModuleFourierNL::_lambdaCpu(m_uk[cell.nodeId(ik)]) * N[ik];
@@ -263,7 +263,7 @@ computeElementMatrixHexa8Gpu(CellLocalId cell_lid,
         const Real detJ = gp_info.det_j;
 
         // Evaluate lambda at the gauss point
-        const RealVector<8> N = FemUtils::Gpu::FeOperation3D::computeShapeFunctionsHexa8(xi, eta, zeta);
+        const RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa8(xi, eta, zeta);
 
         Real lambda_gp = 0.0;
         for (Int8 ik = 0; ik < 8; ++ik) {
