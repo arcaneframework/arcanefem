@@ -244,28 +244,7 @@ applyConstantSourceToRhsQuad8(Real qdot, IMesh* mesh, const IndexedNodeDoFConnec
         // Shape function derivatives ∂𝐍/∂ξ and ∂𝐍/∂η
         //     ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ  ∂𝑁₅/∂ξ  ∂𝑁₆/∂ξ  ∂𝑁₇/∂ξ  ∂𝑁₈/∂ξ ]
         //     ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ∂𝑁₃/∂η  ∂𝑁₄/∂η  ∂𝑁₅/∂η  ∂𝑁₆/∂η  ∂𝑁₇/∂η  ∂𝑁₈/∂η ]
-        Real dN_dxi[8] = {
-          0.25 * (1 - eta) * (2 * xi + eta),
-          0.25 * (1 - eta) * (2 * xi - eta),
-          0.25 * (1 + eta) * (2 * xi + eta),
-          0.25 * (1 + eta) * (2 * xi - eta),
-          -xi * (1 - eta),
-          0.5 * (1 - eta * eta),
-          -xi * (1 + eta),
-          -0.5 * (1 - eta * eta)
-        };
-
-        Real dN_deta[8] = {
-          0.25 * (1 - xi) * (2 * eta + xi),
-          0.25 * (1 + xi) * (2 * eta - xi),
-          0.25 * (1 + xi) * (2 * eta + xi),
-          0.25 * (1 - xi) * (2 * eta - xi),
-          -0.5 * (1 - xi * xi),
-          -eta * (1 + xi),
-          0.5 * (1 - xi * xi),
-          -eta * (1 - xi)
-        };
-
+        const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsQuad8(xi, eta);
         // Jacobian calculation 𝑱
         //    𝑱 = [ 𝒋₀₀  𝒋₀₁ ] = [ ∂𝑥/∂ξ  ∂𝑦/∂ξ ]
         //        [ 𝒋₁₀  𝒋₁₁ ]   [ ∂𝑥/∂η  ∂𝑦/∂η ]
@@ -278,10 +257,10 @@ applyConstantSourceToRhsQuad8(Real qdot, IMesh* mesh, const IndexedNodeDoFConnec
 
         Real J00 = 0, J01 = 0, J10 = 0, J11 = 0;
         for (Int8 a = 0; a < 8; ++a) {
-          J00 += dN_dxi[a] * node_coord[cell.nodeId(a)].x;
-          J01 += dN_dxi[a] * node_coord[cell.nodeId(a)].y;
-          J10 += dN_deta[a] * node_coord[cell.nodeId(a)].x;
-          J11 += dN_deta[a] * node_coord[cell.nodeId(a)].y;
+          J00 += reference_gradients.dN_dxi[a] * node_coord[cell.nodeId(a)].x;
+          J01 += reference_gradients.dN_dxi[a] * node_coord[cell.nodeId(a)].y;
+          J10 += reference_gradients.dN_deta[a] * node_coord[cell.nodeId(a)].x;
+          J11 += reference_gradients.dN_deta[a] * node_coord[cell.nodeId(a)].y;
         }
 
         // Determinant of the Jacobian
@@ -336,30 +315,7 @@ applyConstantSourceToRhsQuad9(Real qdot, IMesh* mesh, const IndexedNodeDoFConnec
         // Shape function derivatives ∂𝐍/∂ξ and ∂𝐍/∂η
         //     ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ  ∂𝑁₅/∂ξ  ∂𝑁₆/∂ξ  ∂𝑁₇/∂ξ  ∂𝑁₈/∂ξ  ∂𝑁₉/∂ξ ]
         //     ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ∂𝑁₃/∂η  ∂𝑁₄/∂η  ∂𝑁₅/∂η  ∂𝑁₆/∂η  ∂𝑁₇/∂η  ∂𝑁₈/∂η  ∂𝑁₉/∂η ]
-        Real dN_dxi[9] = {
-          0.25 * (2 * xi - 1) * eta * (eta - 1),
-          0.25 * (2 * xi + 1) * eta * (eta - 1),
-          0.25 * (2 * xi + 1) * eta * (eta + 1),
-          0.25 * (2 * xi - 1) * eta * (eta + 1),
-          -xi * eta * (eta - 1),
-          0.5 * (2 * xi + 1) * (1 - eta * eta),
-          -xi * eta * (eta + 1),
-          0.5 * (2 * xi - 1) * (1 - eta * eta),
-          -2 * xi * (1 - eta * eta)
-        };
-
-        Real dN_deta[9] = {
-          0.25 * xi * (xi - 1) * (2 * eta - 1),
-          0.25 * xi * (xi + 1) * (2 * eta - 1),
-          0.25 * xi * (xi + 1) * (2 * eta + 1),
-          0.25 * xi * (xi - 1) * (2 * eta + 1),
-          0.5 * (1 - xi * xi) * (2 * eta - 1),
-          -eta * xi * (xi + 1),
-          0.5 * (1 - xi * xi) * (2 * eta + 1),
-          -eta * xi * (xi - 1),
-          -2 * eta * (1 - xi * xi)
-        };
-
+        const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsQuad9(xi, eta);
         // Jacobian calculation 𝑱
         //    𝑱 = [ 𝒋₀₀  𝒋₀₁ ] = [ ∂𝑥/∂ξ  ∂𝑦/∂ξ ]
         //        [ 𝒋₁₀  𝒋₁₁ ]   [ ∂𝑥/∂η  ∂𝑦/∂η ]
@@ -372,10 +328,10 @@ applyConstantSourceToRhsQuad9(Real qdot, IMesh* mesh, const IndexedNodeDoFConnec
 
         Real J00 = 0, J01 = 0, J10 = 0, J11 = 0;
         for (Int8 a = 0; a < 9; ++a) {
-          J00 += dN_dxi[a] * node_coord[cell.nodeId(a)].x;
-          J01 += dN_dxi[a] * node_coord[cell.nodeId(a)].y;
-          J10 += dN_deta[a] * node_coord[cell.nodeId(a)].x;
-          J11 += dN_deta[a] * node_coord[cell.nodeId(a)].y;
+          J00 += reference_gradients.dN_dxi[a] * node_coord[cell.nodeId(a)].x;
+          J01 += reference_gradients.dN_dxi[a] * node_coord[cell.nodeId(a)].y;
+          J10 += reference_gradients.dN_deta[a] * node_coord[cell.nodeId(a)].x;
+          J11 += reference_gradients.dN_deta[a] * node_coord[cell.nodeId(a)].y;
         }
 
         // Determinant of the Jacobian
@@ -431,47 +387,20 @@ applyConstantSourceToRhsHexa8(Real qdot, IMesh* mesh, const IndexedNodeDoFConnec
           //  ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ  ∂𝑁₅/∂ξ  ∂𝑁₆/∂ξ  ∂𝑁₇/∂ξ  ∂𝑁₈/∂ξ ]
           //  ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ∂𝑁₃/∂η  ∂𝑁₄/∂η  ∂𝑁₅/∂η  ∂𝑁₆/∂η  ∂𝑁₇/∂η  ∂𝑁₈/∂η ]
           //  ∂𝐍/∂ζ = [ ∂𝑁₁/∂ζ  ∂𝑁₂/∂ζ  ∂𝑁₃/∂ζ  ∂𝑁₄/∂ζ  ∂𝑁₅/∂ζ  ∂𝑁₆/∂ζ  ∂𝑁₇/∂ζ  ∂𝑁₈/∂ζ ]
-          Real dN_dxi[8], dN_deta[8], dN_dzeta[8];
-          dN_dxi[0] = -0.125 * (1 - eta) * (1 - zeta);
-          dN_dxi[1] = 0.125 * (1 - eta) * (1 - zeta);
-          dN_dxi[2] = 0.125 * (1 + eta) * (1 - zeta);
-          dN_dxi[3] = -0.125 * (1 + eta) * (1 - zeta);
-          dN_dxi[4] = -0.125 * (1 - eta) * (1 + zeta);
-          dN_dxi[5] = 0.125 * (1 - eta) * (1 + zeta);
-          dN_dxi[6] = 0.125 * (1 + eta) * (1 + zeta);
-          dN_dxi[7] = -0.125 * (1 + eta) * (1 + zeta);
-
-          dN_deta[0] = -0.125 * (1 - xi) * (1 - zeta);
-          dN_deta[1] = -0.125 * (1 + xi) * (1 - zeta);
-          dN_deta[2] = 0.125 * (1 + xi) * (1 - zeta);
-          dN_deta[3] = 0.125 * (1 - xi) * (1 - zeta);
-          dN_deta[4] = -0.125 * (1 - xi) * (1 + zeta);
-          dN_deta[5] = -0.125 * (1 + xi) * (1 + zeta);
-          dN_deta[6] = 0.125 * (1 + xi) * (1 + zeta);
-          dN_deta[7] = 0.125 * (1 - xi) * (1 + zeta);
-
-          dN_dzeta[0] = -0.125 * (1 - xi) * (1 - eta);
-          dN_dzeta[1] = -0.125 * (1 + xi) * (1 - eta);
-          dN_dzeta[2] = -0.125 * (1 + xi) * (1 + eta);
-          dN_dzeta[3] = -0.125 * (1 - xi) * (1 + eta);
-          dN_dzeta[4] = 0.125 * (1 - xi) * (1 - eta);
-          dN_dzeta[5] = 0.125 * (1 + xi) * (1 - eta);
-          dN_dzeta[6] = 0.125 * (1 + xi) * (1 + eta);
-          dN_dzeta[7] = 0.125 * (1 - xi) * (1 + eta);
-
+          const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsHexa8(xi, eta, zeta);
           // Jacobian for 3D (using your working stiffness matrix approach)
           Real3x3 J;
           for (Int8 a = 0; a < 8; ++a) {
             const Real3& n = node_coord[cell.nodeId(a)];
-            J[0][0] += dN_dxi[a] * n.x; // ∂𝑥/∂ξ
-            J[0][1] += dN_dxi[a] * n.y; // ∂𝑦/∂ξ
-            J[0][2] += dN_dxi[a] * n.z; // ∂𝑧/∂ξ
-            J[1][0] += dN_deta[a] * n.x; // ∂𝑥/∂η
-            J[1][1] += dN_deta[a] * n.y; // ∂𝑦/∂η
-            J[1][2] += dN_deta[a] * n.z; // ∂𝑧/∂η
-            J[2][0] += dN_dzeta[a] * n.x; // ∂𝑥/∂ζ
-            J[2][1] += dN_dzeta[a] * n.y; // ∂𝑦/∂ζ
-            J[2][2] += dN_dzeta[a] * n.z; // ∂𝑧/∂ζ
+            J[0][0] += reference_gradients.dN_dxi[a] * n.x; // ∂𝑥/∂ξ
+            J[0][1] += reference_gradients.dN_dxi[a] * n.y; // ∂𝑦/∂ξ
+            J[0][2] += reference_gradients.dN_dxi[a] * n.z; // ∂𝑧/∂ξ
+            J[1][0] += reference_gradients.dN_deta[a] * n.x; // ∂𝑥/∂η
+            J[1][1] += reference_gradients.dN_deta[a] * n.y; // ∂𝑦/∂η
+            J[1][2] += reference_gradients.dN_deta[a] * n.z; // ∂𝑧/∂η
+            J[2][0] += reference_gradients.dN_dzeta[a] * n.x; // ∂𝑥/∂ζ
+            J[2][1] += reference_gradients.dN_dzeta[a] * n.y; // ∂𝑦/∂ζ
+            J[2][2] += reference_gradients.dN_dzeta[a] * n.z; // ∂𝑧/∂ζ
           }
 
           // Compute determinant of Jacobian
@@ -526,88 +455,20 @@ applyConstantSourceToRhsHexa20(Real qdot, IMesh* mesh, const IndexedNodeDoFConne
           RealVector<20> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa20(xi, eta, zeta);
 
           // Shape function derivatives ∂𝐍/∂ξ, ∂𝐍/∂η, ∂𝐍/∂ζ
-          Real dN_dxi[20] = {
-            0.125 * (1 - eta) * (1 - zeta) * (2 * xi + eta + zeta + 1),
-            0.125 * (1 - eta) * (1 - zeta) * (2 * xi - eta - zeta - 1),
-            0.125 * (1 + eta) * (1 - zeta) * (2 * xi + eta - zeta - 1),
-            0.125 * (1 + eta) * (1 - zeta) * (2 * xi - eta + zeta + 1),
-            0.125 * (1 - eta) * (1 + zeta) * (2 * xi + eta - zeta + 1),
-            0.125 * (1 - eta) * (1 + zeta) * (2 * xi - eta + zeta - 1),
-            0.125 * (1 + eta) * (1 + zeta) * (2 * xi + eta + zeta - 1),
-            0.125 * (1 + eta) * (1 + zeta) * (2 * xi - eta - zeta + 1),
-            -0.5 * xi * (1 - eta) * (1 - zeta),
-            0.25 * (1 - eta * eta) * (1 - zeta),
-            -0.5 * xi * (1 + eta) * (1 - zeta),
-            -0.25 * (1 - eta * eta) * (1 - zeta),
-            -0.5 * xi * (1 - eta) * (1 + zeta),
-            0.25 * (1 - eta * eta) * (1 + zeta),
-            -0.5 * xi * (1 + eta) * (1 + zeta),
-            -0.25 * (1 - eta * eta) * (1 + zeta),
-            -0.25 * (1 - eta) * (1 - zeta * zeta),
-            0.25 * (1 - eta) * (1 - zeta * zeta),
-            0.25 * (1 + eta) * (1 - zeta * zeta),
-            -0.25 * (1 + eta) * (1 - zeta * zeta)
-          };
-
-          Real dN_deta[20] = {
-            0.125 * (1 - xi) * (1 - zeta) * (xi + 2 * eta + zeta + 1),
-            0.125 * (1 + xi) * (1 - zeta) * (-xi + 2 * eta + zeta + 1),
-            0.125 * (1 + xi) * (1 - zeta) * (xi + 2 * eta - zeta - 1),
-            0.125 * (1 - xi) * (1 - zeta) * (-xi + 2 * eta - zeta - 1),
-            0.125 * (1 - xi) * (1 + zeta) * (xi + 2 * eta - zeta + 1),
-            0.125 * (1 + xi) * (1 + zeta) * (-xi + 2 * eta - zeta + 1),
-            0.125 * (1 + xi) * (1 + zeta) * (xi + 2 * eta + zeta - 1),
-            0.125 * (1 - xi) * (1 + zeta) * (-xi + 2 * eta + zeta - 1),
-            -0.25 * (1 - xi * xi) * (1 - zeta),
-            -0.5 * eta * (1 + xi) * (1 - zeta),
-            0.25 * (1 - xi * xi) * (1 - zeta),
-            -0.5 * eta * (1 - xi) * (1 - zeta),
-            -0.25 * (1 - xi * xi) * (1 + zeta),
-            -0.5 * eta * (1 + xi) * (1 + zeta),
-            0.25 * (1 - xi * xi) * (1 + zeta),
-            -0.5 * eta * (1 - xi) * (1 + zeta),
-            -0.25 * (1 - xi) * (1 - zeta * zeta),
-            -0.25 * (1 + xi) * (1 - zeta * zeta),
-            0.25 * (1 + xi) * (1 - zeta * zeta),
-            0.25 * (1 - xi) * (1 - zeta * zeta)
-          };
-
-          Real dN_dzeta[20] = {
-            0.125 * (1 - xi) * (1 - eta) * (xi + eta + 2 * zeta + 1),
-            0.125 * (1 + xi) * (1 - eta) * (-xi + eta + 2 * zeta + 1),
-            0.125 * (1 + xi) * (1 + eta) * (-xi - eta + 2 * zeta + 1),
-            0.125 * (1 - xi) * (1 + eta) * (xi - eta + 2 * zeta + 1),
-            0.125 * (1 - xi) * (1 - eta) * (-xi - eta + 2 * zeta - 1),
-            0.125 * (1 + xi) * (1 - eta) * (xi - eta + 2 * zeta - 1),
-            0.125 * (1 + xi) * (1 + eta) * (xi + eta + 2 * zeta - 1),
-            0.125 * (1 - xi) * (1 + eta) * (-xi + eta + 2 * zeta - 1),
-            -0.25 * (1 - xi * xi) * (1 - eta),
-            -0.25 * (1 + xi) * (1 - eta * eta),
-            -0.25 * (1 - xi * xi) * (1 + eta),
-            -0.25 * (1 - xi) * (1 - eta * eta),
-            0.25 * (1 - xi * xi) * (1 - eta),
-            0.25 * (1 + xi) * (1 - eta * eta),
-            0.25 * (1 - xi * xi) * (1 + eta),
-            0.25 * (1 - xi) * (1 - eta * eta),
-            -0.5 * zeta * (1 - xi) * (1 - eta),
-            -0.5 * zeta * (1 + xi) * (1 - eta),
-            -0.5 * zeta * (1 + xi) * (1 + eta),
-            -0.5 * zeta * (1 - xi) * (1 + eta)
-          };
-
+          const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsHexa20(xi, eta, zeta);
           // Jacobian matrix (default-initialized to zero see Real3x3.h)
           Real3x3 J;
           for (Int8 a = 0; a < 20; ++a) {
             const Real3& n_coord = node_coord[cell.nodeId(a)];
-            J[0][0] += dN_dxi[a] * n_coord.x;
-            J[0][1] += dN_dxi[a] * n_coord.y;
-            J[0][2] += dN_dxi[a] * n_coord.z;
-            J[1][0] += dN_deta[a] * n_coord.x;
-            J[1][1] += dN_deta[a] * n_coord.y;
-            J[1][2] += dN_deta[a] * n_coord.z;
-            J[2][0] += dN_dzeta[a] * n_coord.x;
-            J[2][1] += dN_dzeta[a] * n_coord.y;
-            J[2][2] += dN_dzeta[a] * n_coord.z;
+            J[0][0] += reference_gradients.dN_dxi[a] * n_coord.x;
+            J[0][1] += reference_gradients.dN_dxi[a] * n_coord.y;
+            J[0][2] += reference_gradients.dN_dxi[a] * n_coord.z;
+            J[1][0] += reference_gradients.dN_deta[a] * n_coord.x;
+            J[1][1] += reference_gradients.dN_deta[a] * n_coord.y;
+            J[1][2] += reference_gradients.dN_deta[a] * n_coord.z;
+            J[2][0] += reference_gradients.dN_dzeta[a] * n_coord.x;
+            J[2][1] += reference_gradients.dN_dzeta[a] * n_coord.y;
+            J[2][2] += reference_gradients.dN_dzeta[a] * n_coord.z;
           }
 
           // Determinant of the Jacobian
@@ -665,109 +526,20 @@ applyConstantSourceToRhsHexa27(Real qdot, IMesh* mesh, const IndexedNodeDoFConne
           RealVector<27> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa27(xi, eta, zeta);
 
           // Shape function derivatives ∂𝐍/∂ξ, ∂𝐍/∂η, ∂𝐍/∂ζ
-          Real dN_dxi[27] = {
-            0.125 * (2 * xi - 1) * eta * (eta - 1) * zeta * (zeta - 1),
-            0.125 * (2 * xi + 1) * eta * (eta - 1) * zeta * (zeta - 1),
-            0.125 * (2 * xi + 1) * eta * (eta + 1) * zeta * (zeta - 1),
-            0.125 * (2 * xi - 1) * eta * (eta + 1) * zeta * (zeta - 1),
-            0.125 * (2 * xi - 1) * eta * (eta - 1) * zeta * (zeta + 1),
-            0.125 * (2 * xi + 1) * eta * (eta - 1) * zeta * (zeta + 1),
-            0.125 * (2 * xi + 1) * eta * (eta + 1) * zeta * (zeta + 1),
-            0.125 * (2 * xi - 1) * eta * (eta + 1) * zeta * (zeta + 1),
-            0.25 * (-2 * xi) * eta * (eta - 1) * zeta * (zeta - 1),
-            0.25 * (2 * xi + 1) * (1 - eta * eta) * zeta * (zeta - 1),
-            0.25 * (-2 * xi) * eta * (eta + 1) * zeta * (zeta - 1),
-            0.25 * (2 * xi - 1) * (1 - eta * eta) * zeta * (zeta - 1),
-            0.25 * (-2 * xi) * eta * (eta - 1) * zeta * (zeta + 1),
-            0.25 * (2 * xi + 1) * (1 - eta * eta) * zeta * (zeta + 1),
-            0.25 * (-2 * xi) * eta * (eta + 1) * zeta * (zeta + 1),
-            0.25 * (2 * xi - 1) * (1 - eta * eta) * zeta * (zeta + 1),
-            0.25 * (2 * xi - 1) * eta * (eta - 1) * (1 - zeta * zeta),
-            0.25 * (2 * xi + 1) * eta * (eta - 1) * (1 - zeta * zeta),
-            0.25 * (2 * xi + 1) * eta * (eta + 1) * (1 - zeta * zeta),
-            0.25 * (2 * xi - 1) * eta * (eta + 1) * (1 - zeta * zeta),
-            0.5 * (2 * xi - 1) * (1 - eta * eta) * (1 - zeta * zeta),
-            0.5 * (2 * xi + 1) * (1 - eta * eta) * (1 - zeta * zeta),
-            0.5 * (-2 * xi) * eta * (eta - 1) * (1 - zeta * zeta),
-            0.5 * (-2 * xi) * eta * (eta + 1) * (1 - zeta * zeta),
-            0.5 * (-2 * xi) * (1 - eta * eta) * zeta * (zeta - 1),
-            0.5 * (-2 * xi) * (1 - eta * eta) * zeta * (zeta + 1),
-            (-2 * xi) * (1 - eta * eta) * (1 - zeta * zeta)
-          };
-
-          Real dN_deta[27] = {
-            0.125 * xi * (xi - 1) * (2 * eta - 1) * zeta * (zeta - 1),
-            0.125 * xi * (xi + 1) * (2 * eta - 1) * zeta * (zeta - 1),
-            0.125 * xi * (xi + 1) * (2 * eta + 1) * zeta * (zeta - 1),
-            0.125 * xi * (xi - 1) * (2 * eta + 1) * zeta * (zeta - 1),
-            0.125 * xi * (xi - 1) * (2 * eta - 1) * zeta * (zeta + 1),
-            0.125 * xi * (xi + 1) * (2 * eta - 1) * zeta * (zeta + 1),
-            0.125 * xi * (xi + 1) * (2 * eta + 1) * zeta * (zeta + 1),
-            0.125 * xi * (xi - 1) * (2 * eta + 1) * zeta * (zeta + 1),
-            0.25 * (1 - xi * xi) * (2 * eta - 1) * zeta * (zeta - 1),
-            0.25 * xi * (xi + 1) * (-2 * eta) * zeta * (zeta - 1),
-            0.25 * (1 - xi * xi) * (2 * eta + 1) * zeta * (zeta - 1),
-            0.25 * xi * (xi - 1) * (-2 * eta) * zeta * (zeta - 1),
-            0.25 * (1 - xi * xi) * (2 * eta - 1) * zeta * (zeta + 1),
-            0.25 * xi * (xi + 1) * (-2 * eta) * zeta * (zeta + 1),
-            0.25 * (1 - xi * xi) * (2 * eta + 1) * zeta * (zeta + 1),
-            0.25 * xi * (xi - 1) * (-2 * eta) * zeta * (zeta + 1),
-            0.25 * xi * (xi - 1) * (2 * eta - 1) * (1 - zeta * zeta),
-            0.25 * xi * (xi + 1) * (2 * eta - 1) * (1 - zeta * zeta),
-            0.25 * xi * (xi + 1) * (2 * eta + 1) * (1 - zeta * zeta),
-            0.25 * xi * (xi - 1) * (2 * eta + 1) * (1 - zeta * zeta),
-            0.5 * xi * (xi - 1) * (-2 * eta) * (1 - zeta * zeta),
-            0.5 * xi * (xi + 1) * (-2 * eta) * (1 - zeta * zeta),
-            0.5 * (1 - xi * xi) * (2 * eta - 1) * (1 - zeta * zeta),
-            0.5 * (1 - xi * xi) * (2 * eta + 1) * (1 - zeta * zeta),
-            0.5 * (1 - xi * xi) * (-2 * eta) * zeta * (zeta - 1),
-            0.5 * (1 - xi * xi) * (-2 * eta) * zeta * (zeta + 1),
-            (1 - xi * xi) * (-2 * eta) * (1 - zeta * zeta)
-          };
-
-          Real dN_dzeta[27] = {
-            0.125 * xi * (xi - 1) * eta * (eta - 1) * (2 * zeta - 1),
-            0.125 * xi * (xi + 1) * eta * (eta - 1) * (2 * zeta - 1),
-            0.125 * xi * (xi + 1) * eta * (eta + 1) * (2 * zeta - 1),
-            0.125 * xi * (xi - 1) * eta * (eta + 1) * (2 * zeta - 1),
-            0.125 * xi * (xi - 1) * eta * (eta - 1) * (2 * zeta + 1),
-            0.125 * xi * (xi + 1) * eta * (eta - 1) * (2 * zeta + 1),
-            0.125 * xi * (xi + 1) * eta * (eta + 1) * (2 * zeta + 1),
-            0.125 * xi * (xi - 1) * eta * (eta + 1) * (2 * zeta + 1),
-            0.25 * (1 - xi * xi) * eta * (eta - 1) * (2 * zeta - 1),
-            0.25 * xi * (xi + 1) * (1 - eta * eta) * (2 * zeta - 1),
-            0.25 * (1 - xi * xi) * eta * (eta + 1) * (2 * zeta - 1),
-            0.25 * xi * (xi - 1) * (1 - eta * eta) * (2 * zeta - 1),
-            0.25 * (1 - xi * xi) * eta * (eta - 1) * (2 * zeta + 1),
-            0.25 * xi * (xi + 1) * (1 - eta * eta) * (2 * zeta + 1),
-            0.25 * (1 - xi * xi) * eta * (eta + 1) * (2 * zeta + 1),
-            0.25 * xi * (xi - 1) * (1 - eta * eta) * (2 * zeta + 1),
-            0.25 * xi * (xi - 1) * eta * (eta - 1) * (-2 * zeta),
-            0.25 * xi * (xi + 1) * eta * (eta - 1) * (-2 * zeta),
-            0.25 * xi * (xi + 1) * eta * (eta + 1) * (-2 * zeta),
-            0.25 * xi * (xi - 1) * eta * (eta + 1) * (-2 * zeta),
-            0.5 * xi * (xi - 1) * (1 - eta * eta) * (-2 * zeta),
-            0.5 * xi * (xi + 1) * (1 - eta * eta) * (-2 * zeta),
-            0.5 * (1 - xi * xi) * eta * (eta - 1) * (-2 * zeta),
-            0.5 * (1 - xi * xi) * eta * (eta + 1) * (-2 * zeta),
-            0.5 * (1 - xi * xi) * (1 - eta * eta) * (2 * zeta - 1),
-            0.5 * (1 - xi * xi) * (1 - eta * eta) * (2 * zeta + 1),
-            (1 - xi * xi) * (1 - eta * eta) * (-2 * zeta)
-          };
-
+          const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsHexa27(xi, eta, zeta);
           // Jacobian matrix (default-initialized to zero see Real3x3.h)
           Real3x3 J;
           for (Int8 a = 0; a < 27; ++a) {
             const Real3& n_coord = node_coord[cell.nodeId(a)];
-            J[0][0] += dN_dxi[a] * n_coord.x;
-            J[0][1] += dN_dxi[a] * n_coord.y;
-            J[0][2] += dN_dxi[a] * n_coord.z;
-            J[1][0] += dN_deta[a] * n_coord.x;
-            J[1][1] += dN_deta[a] * n_coord.y;
-            J[1][2] += dN_deta[a] * n_coord.z;
-            J[2][0] += dN_dzeta[a] * n_coord.x;
-            J[2][1] += dN_dzeta[a] * n_coord.y;
-            J[2][2] += dN_dzeta[a] * n_coord.z;
+            J[0][0] += reference_gradients.dN_dxi[a] * n_coord.x;
+            J[0][1] += reference_gradients.dN_dxi[a] * n_coord.y;
+            J[0][2] += reference_gradients.dN_dxi[a] * n_coord.z;
+            J[1][0] += reference_gradients.dN_deta[a] * n_coord.x;
+            J[1][1] += reference_gradients.dN_deta[a] * n_coord.y;
+            J[1][2] += reference_gradients.dN_deta[a] * n_coord.z;
+            J[2][0] += reference_gradients.dN_dzeta[a] * n_coord.x;
+            J[2][1] += reference_gradients.dN_dzeta[a] * n_coord.y;
+            J[2][2] += reference_gradients.dN_dzeta[a] * n_coord.z;
           }
 
           // Determinant of the Jacobian
