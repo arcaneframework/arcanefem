@@ -25,6 +25,7 @@ add_library(FemUtils
   FemUtils.h
   FemUtils.cc
   FemUtilsGlobal.h
+  ShapeFunctions.h
   DoFLinearSystem.h
   DoFLinearSystem.cc
   CooFormatMatrix.h
