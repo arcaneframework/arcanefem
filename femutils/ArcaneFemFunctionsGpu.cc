@@ -432,17 +432,15 @@ applyConstantSourceToRhsQuad4(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
         RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
 
         // Shape function derivatives
-        Real dN_dxi[4] = { -0.25 * (1.0 - eta), 0.25 * (1.0 - eta), 0.25 * (1.0 + eta), -0.25 * (1.0 + eta) };
-        Real dN_deta[4] = { -0.25 * (1.0 - xi), -0.25 * (1.0 + xi), 0.25 * (1.0 + xi), 0.25 * (1.0 - xi) };
-
+        const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsQuad4(xi, eta);
         // Jacobian calculation
         Real J00 = 0.0, J01 = 0.0, J10 = 0.0, J11 = 0.0;
         for (Int8 a = 0; a < 4; ++a) {
           Real3 coord = in_node_coord[cell_nodes[a]];
-          J00 += dN_dxi[a] * coord.x;
-          J01 += dN_dxi[a] * coord.y;
-          J10 += dN_deta[a] * coord.x;
-          J11 += dN_deta[a] * coord.y;
+          J00 += reference_gradients.dN_dxi[a] * coord.x;
+          J01 += reference_gradients.dN_dxi[a] * coord.y;
+          J10 += reference_gradients.dN_deta[a] * coord.x;
+          J11 += reference_gradients.dN_deta[a] * coord.y;
         }
 
         // Determinant of the Jacobian
@@ -931,47 +929,20 @@ applyConstantSourceToRhsHexa8(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, co
           //  ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ  ∂𝑁₅/∂ξ  ∂𝑁₆/∂ξ  ∂𝑁₇/∂ξ  ∂𝑁₈/∂ξ ]
           //  ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ∂𝑁₃/∂η  ∂𝑁₄/∂η  ∂𝑁₅/∂η  ∂𝑁₆/∂η  ∂𝑁₇/∂η  ∂𝑁₈/∂η ]
           //  ∂𝐍/∂ζ = [ ∂𝑁₁/∂ζ  ∂𝑁₂/∂ζ  ∂𝑁₃/∂ζ  ∂𝑁₄/∂ζ  ∂𝑁₅/∂ζ  ∂𝑁₆/∂ζ  ∂𝑁₇/∂ζ  ∂𝑁₈/∂ζ ]
-          Real dN_dxi[8], dN_deta[8], dN_dzeta[8];
-          dN_dxi[0] = -0.125 * (1 - eta) * (1 - zeta);
-          dN_dxi[1] = 0.125 * (1 - eta) * (1 - zeta);
-          dN_dxi[2] = 0.125 * (1 + eta) * (1 - zeta);
-          dN_dxi[3] = -0.125 * (1 + eta) * (1 - zeta);
-          dN_dxi[4] = -0.125 * (1 - eta) * (1 + zeta);
-          dN_dxi[5] = 0.125 * (1 - eta) * (1 + zeta);
-          dN_dxi[6] = 0.125 * (1 + eta) * (1 + zeta);
-          dN_dxi[7] = -0.125 * (1 + eta) * (1 + zeta);
-
-          dN_deta[0] = -0.125 * (1 - xi) * (1 - zeta);
-          dN_deta[1] = -0.125 * (1 + xi) * (1 - zeta);
-          dN_deta[2] = 0.125 * (1 + xi) * (1 - zeta);
-          dN_deta[3] = 0.125 * (1 - xi) * (1 - zeta);
-          dN_deta[4] = -0.125 * (1 - xi) * (1 + zeta);
-          dN_deta[5] = -0.125 * (1 + xi) * (1 + zeta);
-          dN_deta[6] = 0.125 * (1 + xi) * (1 + zeta);
-          dN_deta[7] = 0.125 * (1 - xi) * (1 + zeta);
-
-          dN_dzeta[0] = -0.125 * (1 - xi) * (1 - eta);
-          dN_dzeta[1] = -0.125 * (1 + xi) * (1 - eta);
-          dN_dzeta[2] = -0.125 * (1 + xi) * (1 + eta);
-          dN_dzeta[3] = -0.125 * (1 - xi) * (1 + eta);
-          dN_dzeta[4] = 0.125 * (1 - xi) * (1 - eta);
-          dN_dzeta[5] = 0.125 * (1 + xi) * (1 - eta);
-          dN_dzeta[6] = 0.125 * (1 + xi) * (1 + eta);
-          dN_dzeta[7] = 0.125 * (1 - xi) * (1 + eta);
-
+          const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsHexa8(xi, eta, zeta);
           // Jacobian for 3D (using your working stiffness matrix approach)
           Real3x3 J;
           for (Int8 a = 0; a < 8; ++a) {
             const Real3& n = in_node_coord[cell_nodes[a]];
-            J[0][0] += dN_dxi[a] * n.x; // ∂𝑥/∂ξ
-            J[0][1] += dN_dxi[a] * n.y; // ∂𝑦/∂ξ
-            J[0][2] += dN_dxi[a] * n.z; // ∂𝑧/∂ξ
-            J[1][0] += dN_deta[a] * n.x; // ∂𝑥/∂η
-            J[1][1] += dN_deta[a] * n.y; // ∂𝑦/∂η
-            J[1][2] += dN_deta[a] * n.z; // ∂𝑧/∂η
-            J[2][0] += dN_dzeta[a] * n.x; // ∂𝑥/∂ζ
-            J[2][1] += dN_dzeta[a] * n.y; // ∂𝑦/∂ζ
-            J[2][2] += dN_dzeta[a] * n.z; // ∂𝑧/∂ζ
+            J[0][0] += reference_gradients.dN_dxi[a] * n.x; // ∂𝑥/∂ξ
+            J[0][1] += reference_gradients.dN_dxi[a] * n.y; // ∂𝑦/∂ξ
+            J[0][2] += reference_gradients.dN_dxi[a] * n.z; // ∂𝑧/∂ξ
+            J[1][0] += reference_gradients.dN_deta[a] * n.x; // ∂𝑥/∂η
+            J[1][1] += reference_gradients.dN_deta[a] * n.y; // ∂𝑦/∂η
+            J[1][2] += reference_gradients.dN_deta[a] * n.z; // ∂𝑧/∂η
+            J[2][0] += reference_gradients.dN_dzeta[a] * n.x; // ∂𝑥/∂ζ
+            J[2][1] += reference_gradients.dN_dzeta[a] * n.y; // ∂𝑦/∂ζ
+            J[2][2] += reference_gradients.dN_dzeta[a] * n.z; // ∂𝑧/∂ζ
           }
 
           // Compute determinant of Jacobian
@@ -1236,28 +1207,18 @@ applyNeumannToRhsHexa8(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& 
           RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
 
           // Shape function derivatives w.r.t. natural coordinates
-          Real dN_dxi[4], dN_deta[4];
-          dN_dxi[0] = -0.25 * (1.0 - eta);
-          dN_dxi[1] = 0.25 * (1.0 - eta);
-          dN_dxi[2] = 0.25 * (1.0 + eta);
-          dN_dxi[3] = -0.25 * (1.0 + eta);
-
-          dN_deta[0] = -0.25 * (1.0 - xi);
-          dN_deta[1] = -0.25 * (1.0 + xi);
-          dN_deta[2] = 0.25 * (1.0 + xi);
-          dN_deta[3] = 0.25 * (1.0 - xi);
-
+          const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsQuad4(xi, eta);
           // Tangent vectors: t1 = ∂r/∂ξ,  t2 = ∂r/∂η
           Real3 t1(0.0, 0.0, 0.0);
           Real3 t2(0.0, 0.0, 0.0);
           for (Int32 i = 0; i < 4; ++i) {
-            t1.x += dN_dxi[i] * coords[i].x;
-            t1.y += dN_dxi[i] * coords[i].y;
-            t1.z += dN_dxi[i] * coords[i].z;
+            t1.x += reference_gradients.dN_dxi[i] * coords[i].x;
+            t1.y += reference_gradients.dN_dxi[i] * coords[i].y;
+            t1.z += reference_gradients.dN_dxi[i] * coords[i].z;
 
-            t2.x += dN_deta[i] * coords[i].x;
-            t2.y += dN_deta[i] * coords[i].y;
-            t2.z += dN_deta[i] * coords[i].z;
+            t2.x += reference_gradients.dN_deta[i] * coords[i].x;
+            t2.y += reference_gradients.dN_deta[i] * coords[i].y;
+            t2.z += reference_gradients.dN_deta[i] * coords[i].z;
           }
 
           // Normal vector via cross product t1 × t2
@@ -1321,28 +1282,18 @@ applyNeumannToRhsHexa8(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& 
           RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
 
           // Shape function derivatives w.r.t. natural coordinates
-          Real dN_dxi[4], dN_deta[4];
-          dN_dxi[0] = -0.25 * (1.0 - eta);
-          dN_dxi[1] = 0.25 * (1.0 - eta);
-          dN_dxi[2] = 0.25 * (1.0 + eta);
-          dN_dxi[3] = -0.25 * (1.0 + eta);
-
-          dN_deta[0] = -0.25 * (1.0 - xi);
-          dN_deta[1] = -0.25 * (1.0 + xi);
-          dN_deta[2] = 0.25 * (1.0 + xi);
-          dN_deta[3] = 0.25 * (1.0 - xi);
-
+          const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsQuad4(xi, eta);
           // Tangent vectors: t1 = ∂r/∂ξ,  t2 = ∂r/∂η
           Real3 t1(0.0, 0.0, 0.0);
           Real3 t2(0.0, 0.0, 0.0);
           for (Int32 i = 0; i < 4; ++i) {
-            t1.x += dN_dxi[i] * coords[i].x;
-            t1.y += dN_dxi[i] * coords[i].y;
-            t1.z += dN_dxi[i] * coords[i].z;
+            t1.x += reference_gradients.dN_dxi[i] * coords[i].x;
+            t1.y += reference_gradients.dN_dxi[i] * coords[i].y;
+            t1.z += reference_gradients.dN_dxi[i] * coords[i].z;
 
-            t2.x += dN_deta[i] * coords[i].x;
-            t2.y += dN_deta[i] * coords[i].y;
-            t2.z += dN_deta[i] * coords[i].z;
+            t2.x += reference_gradients.dN_deta[i] * coords[i].x;
+            t2.y += reference_gradients.dN_deta[i] * coords[i].y;
+            t2.z += reference_gradients.dN_deta[i] * coords[i].z;
           }
 
           // Normal vector via cross product t1 × t2
@@ -1440,31 +1391,12 @@ applyNeumannToRhsHexa20(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes&
         N[6] = 0.5 * (1 - xi * xi) * (1 + eta);
         N[7] = 0.5 * (1 - xi) * (1 - eta * eta);
 
-        Real dN_dxi[8];
-        dN_dxi[0] = 0.25 * (1 - eta) * (2 * xi + eta);
-        dN_dxi[1] = 0.25 * (1 - eta) * (2 * xi - eta);
-        dN_dxi[2] = 0.25 * (1 + eta) * (2 * xi + eta);
-        dN_dxi[3] = 0.25 * (1 + eta) * (2 * xi - eta);
-        dN_dxi[4] = -xi * (1 - eta);
-        dN_dxi[5] = 0.5 * (1 - eta * eta);
-        dN_dxi[6] = -xi * (1 + eta);
-        dN_dxi[7] = -0.5 * (1 - eta * eta);
-
-        Real dN_deta[8];
-        dN_deta[0] = 0.25 * (1 - xi) * (2 * eta + xi);
-        dN_deta[1] = 0.25 * (1 + xi) * (2 * eta - xi);
-        dN_deta[2] = 0.25 * (1 + xi) * (2 * eta + xi);
-        dN_deta[3] = 0.25 * (1 - xi) * (2 * eta - xi);
-        dN_deta[4] = -0.5 * (1 - xi * xi);
-        dN_deta[5] = -eta * (1 + xi);
-        dN_deta[6] = 0.5 * (1 - xi * xi);
-        dN_deta[7] = -eta * (1 - xi);
-
+        const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsQuad8(xi, eta);
         Real3 tangent_xi(0.0, 0.0, 0.0);
         Real3 tangent_eta(0.0, 0.0, 0.0);
         for (Int32 i = 0; i < 8; ++i) {
-          tangent_xi += dN_dxi[i] * coords[i];
-          tangent_eta += dN_deta[i] * coords[i];
+          tangent_xi += reference_gradients.dN_dxi[i] * coords[i];
+          tangent_eta += reference_gradients.dN_deta[i] * coords[i];
         }
 
         const Real3 normal = math::cross(tangent_xi, tangent_eta);
@@ -1549,33 +1481,12 @@ applyNeumannToRhsHexa27(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes&
         N[7] = 0.5 * xi * (xi - 1) * (1 - eta * eta);
         N[8] = (1 - xi * xi) * (1 - eta * eta);
 
-        Real dN_dxi[9];
-        dN_dxi[0] = 0.25 * (2 * xi - 1) * eta * (eta - 1);
-        dN_dxi[1] = 0.25 * (2 * xi + 1) * eta * (eta - 1);
-        dN_dxi[2] = 0.25 * (2 * xi + 1) * eta * (eta + 1);
-        dN_dxi[3] = 0.25 * (2 * xi - 1) * eta * (eta + 1);
-        dN_dxi[4] = -xi * eta * (eta - 1);
-        dN_dxi[5] = 0.5 * (2 * xi + 1) * (1 - eta * eta);
-        dN_dxi[6] = -xi * eta * (eta + 1);
-        dN_dxi[7] = 0.5 * (2 * xi - 1) * (1 - eta * eta);
-        dN_dxi[8] = -2 * xi * (1 - eta * eta);
-
-        Real dN_deta[9];
-        dN_deta[0] = 0.25 * xi * (xi - 1) * (2 * eta - 1);
-        dN_deta[1] = 0.25 * xi * (xi + 1) * (2 * eta - 1);
-        dN_deta[2] = 0.25 * xi * (xi + 1) * (2 * eta + 1);
-        dN_deta[3] = 0.25 * xi * (xi - 1) * (2 * eta + 1);
-        dN_deta[4] = 0.5 * (1 - xi * xi) * (2 * eta - 1);
-        dN_deta[5] = -eta * xi * (xi + 1);
-        dN_deta[6] = 0.5 * (1 - xi * xi) * (2 * eta + 1);
-        dN_deta[7] = -eta * xi * (xi - 1);
-        dN_deta[8] = -2 * eta * (1 - xi * xi);
-
+        const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsQuad9(xi, eta);
         Real3 tangent_xi(0.0, 0.0, 0.0);
         Real3 tangent_eta(0.0, 0.0, 0.0);
         for (Int32 i = 0; i < 9; ++i) {
-          tangent_xi += dN_dxi[i] * coords[i];
-          tangent_eta += dN_deta[i] * coords[i];
+          tangent_xi += reference_gradients.dN_dxi[i] * coords[i];
+          tangent_eta += reference_gradients.dN_deta[i] * coords[i];
         }
 
         const Real3 normal = math::cross(tangent_xi, tangent_eta);
