@@ -178,11 +178,8 @@ applyNeumannToRhsLine3(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFCo
 
     for (Int32 igauss = 0; igauss < 3; ++igauss) {
       const Real xi = gp[igauss];
-      const Real N[3] = {
-        0.5 * xi * (xi - 1.0),
-        0.5 * xi * (xi + 1.0),
-        1.0 - xi * xi
-      };
+      RealVector<3> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsLine3(xi);
+
       const Real dN[3] = { xi - 0.5, xi + 0.5, -2.0 * xi };
 
       Real dx_dxi = 0.0;
@@ -205,6 +202,83 @@ applyNeumannToRhsLine3(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFCo
         Node node = nodes[i];
         if (node.isOwn())
           rhs_values[node_dof.dofId(node, 0)] += flux * N[i] * integration_weight;
+      }
+    }
+  }
+}
+
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies a constant source term to the RHS vector for Quad4 elements.
+ *
+ * Uses a 2x2 Gauss rule to integrate the biquadratic (serendipity) shape
+ * functions exactly. For each Gauss point the shape functions, their
+ * derivatives, the Jacobian and its determinant are computed, then the
+ * weighted contribution N[i]*qdot*detJ is scattered onto the owned nodes.
+ */
+/*---------------------------------------------------------------------------*/
+void ArcaneFemFunctions::BoundaryConditions2D::
+applyConstantSourceToRhsQuad4(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+{
+  ENUMERATE_ (Cell, icell, mesh->allCells()) {
+    Cell cell = *icell;
+    // Real area = ArcaneFemFunctions::MeshOperation::computeAreaQuad4(cell, node_coord);
+    // for (Node node : cell.nodes()) {
+    //   if (node.isOwn())
+    //     rhs_values[node_dof.dofId(node, 0)] += qdot * area / cell.nbNode();
+    // }
+
+    constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
+    constexpr Real weights[2] = { 1.0, 1.0 };
+
+    for (Int32 ixi = 0; ixi < 2; ++ixi) {
+      for (Int32 ieta = 0; ieta < 2; ++ieta) {
+
+        // Get the coordinates of the Gauss point
+        Real xi = gp[ixi]; // Get the ξ coordinate of the Gauss point
+        Real eta = gp[ieta]; // Get the η coordinate of the Gauss point
+        Real weight = weights[ixi] * weights[ieta];
+
+        // Shape functions 𝐍 for Quad4
+        RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
+
+        // Shape function derivatives ∂𝐍/∂ξ and ∂𝐍/∂η
+        //     ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ ]
+        //     ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ∂𝑁₃/∂η  ∂𝑁₄/∂η ]
+        const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsQuad4(xi, eta);
+
+        // Jacobian calculation 𝑱
+        //    𝑱 = [ 𝒋₀₀  𝒋₀₁ ] = [ ∂𝑥/∂ξ  ∂𝑦/∂ξ ]
+        //        [ 𝒋₁₀  𝒋₁₁ ]   [ ∂𝑥/∂η  ∂𝑦/∂η ]
+        //
+        // The Jacobian is computed as follows:
+        //   𝒋₀₀ = ∑ (∂𝑁ᵢ/∂ξ * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,𝟒
+        //   𝒋₀₁ = ∑ (∂𝑁ᵢ/∂ξ * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,𝟒
+        //   𝒋₁₀ = ∑ (∂𝑁ᵢ/∂η * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,𝟒
+        //   𝒋₁₁ = ∑ (∂𝑁ᵢ/∂η * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,𝟒
+
+        Real J00 = 0, J01 = 0, J10 = 0, J11 = 0;
+        for (Int8 a = 0; a < 4; ++a) {
+          J00 += reference_gradients.dN_dxi[a] * node_coord[cell.nodeId(a)].x;
+          J01 += reference_gradients.dN_dxi[a] * node_coord[cell.nodeId(a)].y;
+          J10 += reference_gradients.dN_deta[a] * node_coord[cell.nodeId(a)].x;
+          J11 += reference_gradients.dN_deta[a] * node_coord[cell.nodeId(a)].y;
+        }
+
+        // Determinant of the Jacobian
+        Real detJ = J00 * J11 - J01 * J10;
+
+        // Compute integration weight
+        Real integration_weight = weight * detJ;
+
+        // Assemble RHS
+        for (Int32 i = 0; i < 4; ++i) {
+          Node node = cell.node(i);
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += N[i] * qdot * integration_weight;
+          }
+        }
       }
     }
   }
