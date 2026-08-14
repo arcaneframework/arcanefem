@@ -178,11 +178,8 @@ applyNeumannToRhsLine3(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFCo
 
     for (Int32 igauss = 0; igauss < 3; ++igauss) {
       const Real xi = gp[igauss];
-      const Real N[3] = {
-        0.5 * xi * (xi - 1.0),
-        0.5 * xi * (xi + 1.0),
-        1.0 - xi * xi
-      };
+      RealVector<3> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsLine3(xi);
+
       const Real dN[3] = { xi - 0.5, xi + 0.5, -2.0 * xi };
 
       Real dx_dxi = 0.0;

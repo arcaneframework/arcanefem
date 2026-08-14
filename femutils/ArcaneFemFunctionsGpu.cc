@@ -606,11 +606,8 @@ void _applyNeumannToRhsLine3(BC::INeumannBoundaryCondition* bs,
 
     for (Int32 igauss = 0; igauss < 3; ++igauss) {
       const Real xi = gp[igauss];
-      const Real N[3] = {
-        0.5 * xi * (xi - 1.0),
-        0.5 * xi * (xi + 1.0),
-        1.0 - xi * xi
-      };
+      RealVector<3> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsLine3(xi);
+
       const Real dN[3] = { xi - 0.5, xi + 0.5, -2.0 * xi };
 
       Real dx_dxi = 0.0;
@@ -791,9 +788,7 @@ applyNeumannToRhsQuad4(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& 
         Real xi = gp[i];
         Real weight = weights[i];
 
-        Real N[2];
-        N[0] = 0.5 * (1.0 - xi);
-        N[1] = 0.5 * (1.0 + xi);
+        RealVector<2> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsLine2(xi);
 
         Real integration_weight = weight * length * 0.5;
 
@@ -836,9 +831,7 @@ applyNeumannToRhsQuad4(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& 
         Real xi = gp[i];
         Real weight = weights[i];
 
-        Real N[2];
-        N[0] = 0.5 * (1.0 - xi);
-        N[1] = 0.5 * (1.0 + xi);
+        RealVector<2> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsLine2(xi);
 
         Real integration_weight = weight * length * 0.5;
 

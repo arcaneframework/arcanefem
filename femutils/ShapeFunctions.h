@@ -55,6 +55,43 @@ template <Int32 N> struct ReferenceGradients3D
 
 /*---------------------------------------------------------------------------*/
 /**
+ * @brief Computes the shape functions for a Line2 element at a given point (ξ).
+ *
+ * @param xi The ξ coordinate of the evaluation point (-1 to 1).
+ * @return A RealVector<2> containing the shape functions {𝑁₁, 𝑁₂}.
+ */
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE inline RealVector<2>
+computeShapeFunctionsLine2(Real xi)
+{
+  RealVector<2> N;
+  N(0) = 0.5 * (1.0 - xi);
+  N(1) = 0.5 * (1.0 + xi);
+  return N;
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Computes the shape functions for a Line3 element at a given point (ξ).
+ *
+ * @param xi The ξ coordinate of the evaluation point (-1 to 1).
+ * @return A RealVector<3> containing the shape functions {𝑁₁, 𝑁₂, 𝑁₃}.
+ */
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE inline RealVector<3>
+computeShapeFunctionsLine3(Real xi)
+{
+  RealVector<3> N;
+  N(0) = 0.5 * xi * (xi - 1.0);
+  N(1) = 0.5 * xi * (xi + 1.0);
+  N(2) = 1.0 - xi * xi;
+  return N;
+}
+
+/*---------------------------------------------------------------------------*/
+/**
  * @brief Computes the shape functions for a Quad4 element at a given point (ξ, η).
  *
  * @param xi The ξ coordinate of the evaluation point (-1 to 1).

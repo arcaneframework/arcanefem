@@ -2889,9 +2889,7 @@ class ArcaneFemFunctions
           Real weight = weights[i];
 
           // Linear shape functions for Line2
-          Real N[2];
-          N[0] = 0.5 * (1 - xi);
-          N[1] = 0.5 * (1 + xi);
+          RealVector<2> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsLine2(xi);
 
           // Integration weight: weight * jacobian (length/2 for reference element [-1,1])
           Real integration_weight = weight * length * 0.5;
@@ -3013,9 +3011,7 @@ class ArcaneFemFunctions
           Real weight = weights[i];
 
           // Linear shape functions for Line2
-          Real N[2];
-          N[0] = 0.5 * (1 - xi);
-          N[1] = 0.5 * (1 + xi);
+          RealVector<2> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsLine2(xi);
 
           // Integration weight: weight * jacobian (length/2 for reference element [-1,1])
           Real integration_weight = weight * length * 0.5;
@@ -3134,9 +3130,7 @@ class ArcaneFemFunctions
           Real weight = weights[i];
 
           // Linear shape functions for Line2
-          Real N[2];
-          N[0] = 0.5 * (1 - xi);
-          N[1] = 0.5 * (1 + xi);
+          RealVector<2> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsLine2(xi);
 
           // Integration weight: weight * jacobian (length/2 for reference element [-1,1])
           Real integration_weight = weight * length * 0.5;
