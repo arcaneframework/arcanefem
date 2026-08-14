@@ -1381,15 +1381,7 @@ applyNeumannToRhsHexa20(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes&
         const Real eta = gp[ieta];
         const Real weight = weights[ixi] * weights[ieta];
 
-        Real N[8];
-        N[0] = 0.25 * (1 - xi) * (1 - eta) * (-xi - eta - 1);
-        N[1] = 0.25 * (1 + xi) * (1 - eta) * (xi - eta - 1);
-        N[2] = 0.25 * (1 + xi) * (1 + eta) * (xi + eta - 1);
-        N[3] = 0.25 * (1 - xi) * (1 + eta) * (-xi + eta - 1);
-        N[4] = 0.5 * (1 - xi * xi) * (1 - eta);
-        N[5] = 0.5 * (1 + xi) * (1 - eta * eta);
-        N[6] = 0.5 * (1 - xi * xi) * (1 + eta);
-        N[7] = 0.5 * (1 - xi) * (1 - eta * eta);
+        RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad8(xi, eta);
 
         const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsQuad8(xi, eta);
         Real3 tangent_xi(0.0, 0.0, 0.0);
@@ -1470,16 +1462,7 @@ applyNeumannToRhsHexa27(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes&
         const Real eta = gp[ieta];
         const Real weight = weights[ixi] * weights[ieta];
 
-        Real N[9];
-        N[0] = 0.25 * xi * (xi - 1) * eta * (eta - 1);
-        N[1] = 0.25 * xi * (xi + 1) * eta * (eta - 1);
-        N[2] = 0.25 * xi * (xi + 1) * eta * (eta + 1);
-        N[3] = 0.25 * xi * (xi - 1) * eta * (eta + 1);
-        N[4] = 0.5 * (1 - xi * xi) * eta * (eta - 1);
-        N[5] = 0.5 * xi * (xi + 1) * (1 - eta * eta);
-        N[6] = 0.5 * (1 - xi * xi) * eta * (eta + 1);
-        N[7] = 0.5 * xi * (xi - 1) * (1 - eta * eta);
-        N[8] = (1 - xi * xi) * (1 - eta * eta);
+        RealVector<9> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad9(xi, eta);
 
         const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsQuad9(xi, eta);
         Real3 tangent_xi(0.0, 0.0, 0.0);
