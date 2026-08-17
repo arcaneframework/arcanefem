@@ -25,7 +25,7 @@
       </simple>
       <simple name = "traction-input-file" type = "string"  optional="true">
         <description>
-          File containing traction inputs (three columns: (T,t_x,t_y,t_z))
+          File containing traction inputs (4 columns: (T,t_x,t_y,t_z))
         </description>
       </simple>
     </complex>
@@ -49,6 +49,11 @@
           Value of the boundary condition
         </description>
       </simple>
+      <simple name = "neumann-input-file" type = "string"  optional="true">
+        <description>
+          File containing time-history for Neumann condition (4 columns: (time,val_x,val_y,val_z))
+        </description>
+      </simple>
     </complex>
 
     <complex name  = "dirichlet-point"
@@ -68,6 +73,17 @@
       <simple name = "value" type = "string[]" default="NULL NULL NULL" optional = "true">
         <description>
           Value of the point Dirichlet condition
+        </description>
+      </simple>
+      <simple name = "direction" type = "string[]" default="1 1 1" optional = "true">
+        <description>
+          Indicators for imposed point loading along x, y and z directions (useful for input file only):
+          NULL or 0 means no imposed loading ; 1 means loading
+        </description>
+      </simple>
+      <simple name = "dirichlet-input-file" type = "string"  optional="true">
+        <description>
+          File containing time-history for point Dirichlet condition (four columns: (time,val_x,val_y,val_z))
         </description>
       </simple>
       <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
@@ -99,6 +115,17 @@
       <simple name = "value" type = "string[]" default="NULL NULL NULL" optional = "true">
         <description>
           Value of the point Dirichlet condition
+        </description>
+      </simple>
+       <simple name = "direction" type = "string[]" default="1 1 1" optional = "true">
+         <description>
+           Indicators for imposed point loading along x, y and z directions (useful for input file only):
+           NULL or 0 means no imposed loading ; 1 means loading
+        </description>
+      </simple>
+      <simple name = "dirichlet-input-file" type = "string"  optional="true">
+        <description>
+          File containing time-history for point Dirichlet condition (four columns: (time,val_x,val_y,val_z))
         </description>
       </simple>
       <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
@@ -140,6 +167,139 @@
       <simple name="manufactured-source" type="bool"  default="false" optional="true">
         <description>
           Function for manufactured source term condition
+        </description>
+      </simple>
+    </complex>
+
+    <complex name  = "point-condition"
+             type  = "PointCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+             interface ="BC::IPointCondition"
+      >
+      <description>
+        Point imposed condition
+      </description>
+      <extended name = "node" type = "Arcane::NodeGroup">
+        <description>
+          NodeGroup on which to apply these point condition
+        </description>
+      </extended>
+      <simple name = "value" type = "string[]" default="NULL NULL NULL" optional = "true">
+        <description>
+          Value of the point condition
+        </description>
+      </simple>
+      <simple name = "direction" type = "string[]" default="1 1 1" optional = "true">
+        <description>
+          Indicators for imposed point loading along x, y and z directions (useful for input file only):
+          NULL or 0 means no imposed loading ; 1 means loading
+        </description>
+      </simple>
+      <simple name = "point-input-file" type = "string"  optional="true">
+        <description>
+          File containing time-history for point condition (four columns: (time,val_x,val_y,val_z))
+        </description>
+      </simple>
+      <simple name = "point-condition-type" type = "string" default="A" optional="true">
+        <description>
+
+          String indicating the imposed point condition type (values : "U", "V", "A" or "F")
+        </description>
+      </simple>
+    </complex>
+
+    <complex name  = "paraxial-condition"
+             type  = "ParaxialCondition"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+             interface ="BC::IParaxialCondition"
+      >
+      <description>
+        Paraxial boundary condition to apply on a cell group (edges or surfaces)
+      </description>
+      <extended name = "surface" type = "Arcane::FaceGroup">
+        <description>
+          FaceGroup on which to apply these conditions
+        </description>
+      </extended>
+
+      <simple name = "cs" type = "real" default="0." optional="true">
+        <description>
+          Shear wave velocity for the outer domain (if default, i.e. =0., same as inner)
+        </description>
+      </simple>
+      <simple name = "cp" type = "real" default="0." optional="true">
+        <description>
+          P-wave velocity for the outer domain (if default, i.e. =0., same as inner)
+        </description>
+      </simple>
+      <simple name = "rho" type = "real" default="0." optional="true">
+        <description>
+          Bulk density for the outer domain (if default, i.e. =0., same as inner)
+        </description>
+      </simple>
+
+      <!-- - - - - - input-motion - - - - -->
+      <simple name = "input-motion-type" type = "integer" default="0" optional="true">
+        <description>
+          Indicator for the type of incoming wave motion (1 to 5 = analytical, 6= file):
+                 0=none, 1=Harmonic, 2=Ricker, 3=Decay, 4=Tsang, 5=Dirac, 6=user-defined
+        </description>
+      </simple>
+      <simple name = "tp" type = "real" default="1.0" optional="true">
+        <description>
+          Characteristic period if analytical input motion (Ricker/Harmonic/Tsang)
+        </description>
+      </simple>
+      <simple name = "ts" type = "real" default="1.0" optional="true">
+        <description>
+          Max amplitude time if analytical input motion (Ricker)
+        </description>
+      </simple>
+      <simple name = "coef" type = "real" default="1.0" optional="true">
+        <description>
+          Exponential coefficient if analytical input motion (Decay/Tsang)
+        </description>
+      </simple>
+      <simple name = "amplit" type = "real" default="1.0" optional="true">
+        <description>
+          Amplitude if analytical input motion (all)
+        </description>
+      </simple>
+      <simple name = "phase" type = "real" default="0.0" optional="true">
+        <description>
+          Phase if analytical input motion (Harmonic/Tsang)
+        </description>
+      </simple>
+      <simple name = "order" type = "integer" default="2" optional="true">
+        <description>
+          Order if analytical input motion (Ricker)
+        </description>
+      </simple>
+      <simple name = "a-input-file" type = "string"  optional="true">
+        <description>
+          For type=6, filename containing the input acceleration time history (4 columns: time, ax, ay, az)
+        </description>
+      </simple>
+      <simple name = "v-input-file" type = "string"  optional="true">
+        <description>
+          For type=6, filename containing the input velocity time history (4 columns: time, vx, vy, vz)
+        </description>
+      </simple>
+      <simple name = "u-input-file" type = "string"  optional="true">
+        <description>
+          For type=6, filename containing the input displacement time history (4 columns: time, ux, uy, uz)
+        </description>
+      </simple>
+      <simple name = "normal-angle" type = "real" default="0.0" optional="true">
+        <description>
+          Angle w.r.t. the boundary normal (0.0 = normal to the boundary)
+        </description>
+      </simple>
+      <simple name = "in-plane-angle" type = "real" default="0.0" optional="true">
+        <description>
+          Angle w.r.t. the boundary plane (0.0 = along e1)
         </description>
       </simple>
     </complex>

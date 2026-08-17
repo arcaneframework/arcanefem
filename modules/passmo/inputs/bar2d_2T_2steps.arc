@@ -14,37 +14,35 @@
 
   <meshes>
     <mesh>
-      <filename>bar_dynamic_3Dhexa.msh</filename>
+      <filename>bar.two_trias.msh</filename>
       <initialization>
-        <variable><name>Rho</name><value>1.000000</value><group>vol</group></variable>
-        <variable><name>Lambda</name><value>576.9230769</value><group>vol</group></variable>
-        <variable><name>Mu</name><value>384.6153846</value><group>vol</group></variable>
+        <variable><name>Rho</name><value>2000.000000</value><group>volume</group></variable>
+        <variable><name>Lambda</name><value>640.000e6</value><group>volume</group></variable>
+        <variable><name>Mu</name><value>320.000e6</value><group>volume</group></variable>
       </initialization>
     </mesh>
   </meshes>
 
   <elastodynamic>
-    <analysis-type>3D</analysis-type>
+    <analysis-type>planestrain</analysis-type>
     <start>0.</start>
-    <final-time>2.0</final-time>
+    <final-time>0.16</final-time>
     <deltat>0.08</deltat>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
 
     <init-elast-type>lame</init-elast-type>
 
     <dirichlet-surface-condition>
-      <surface>left</surface>
+      <surface>surfaceleft</surface>
       <Ux>0.0</Ux>
       <Uy>0.0</Uy>
-      <Uz>0.0</Uz>
     </dirichlet-surface-condition>
 
     <dirichlet-surface-condition>
-      <surface>right</surface>
-      <Ux>1.0</Ux>
+      <surface>surfaceright</surface>
+      <Ux>0.1</Ux>
     </dirichlet-surface-condition>
+    <linear-system name="SequentialBasicLinearSystem" />
     
-    <result-file>bar3d-hexa.txt</result-file>
-
   </elastodynamic>
 </case>
