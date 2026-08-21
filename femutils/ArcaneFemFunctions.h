@@ -631,6 +631,26 @@ class ArcaneFemFunctions
       return { (u0 * (n1.y - n2.y) + u1 * (n2.y - n0.y) + u2 * (n0.y - n1.y)) / A2, (u0 * (n2.x - n1.x) + u1 * (n0.x - n2.x) + u2 * (n1.x - n0.x)) / A2, 0 };
     }
 
+    static inline Real3x3 computeGradientTria3(Cell cell, const VariableNodeReal3& node_coord, VariableNodeReal3 u)
+    {
+      Real3 n0 = node_coord[cell.nodeId(0)];
+      Real3 n1 = node_coord[cell.nodeId(1)];
+      Real3 n2 = node_coord[cell.nodeId(2)];
+
+      Real3  u0 = u[cell.nodeId(0)];
+      Real3  u1 = u[cell.nodeId(1)];
+      Real3  u2 = u[cell.nodeId(2)];
+
+      Real A2 = ((n1.x - n0.x) * (n2.y - n0.y) - (n2.x - n0.x) * (n1.y - n0.y));
+
+      Real3 d_ux = { (u0.x * (n1.y - n2.y) + u1.x * (n2.y - n0.y) + u2.x * (n0.y - n1.y)) / A2, (u0.x * (n2.x - n1.x) + u1.x * (n0.x - n2.x) + u2.x * (n1.x - n0.x)) / A2, 0 };
+      Real3 d_uy = { (u0.y * (n1.y - n2.y) + u1.y * (n2.y - n0.y) + u2.y * (n0.y - n1.y)) / A2, (u0.y * (n2.x - n1.x) + u1.y * (n0.x - n2.x) + u2.y * (n1.x - n0.x)) / A2, 0 };
+      Real3 d_uz = {0. , 0. , 0. };
+      Real3x3 grad = { d_ux, d_uy, d_uz };
+
+      return grad;
+    }
+
     /*---------------------------------------------------------------------------*/
     /**
      * @brief Computes the 𝑥 gradients of basis functions 𝐍 for ℙ1 triangles.
@@ -828,7 +848,7 @@ class ArcaneFemFunctions
      *
      * @param cell The Quad4 cell entity.
      * @param node_coord The coordinates of the mesh nodes.
-     * @param u The scalar variable 𝑢 defined at the nodes.
+     * @param u The variable 𝑢 defined at the nodes.
      * @return A Real3 vector of the gradient ∇𝑢 = {∂𝑢/∂𝑥, ∂𝑢/∂𝑦, 0} at the cell center.
      */
     /*---------------------------------------------------------------------------*/
@@ -861,6 +881,38 @@ class ArcaneFemFunctions
       return { grad_x, grad_y, 0.0 };
     }
 
+    static inline Real3x3
+    computeGradientQuad4(Cell cell, const VariableNodeReal3& node_coord, const VariableNodeReal3& u, const Real xi, const Real eta)
+    {
+      // get shape function gradients w.r.t (𝑥,𝑦) and determinant of Jacobian at (ξ,η)
+      const auto gp_util = computeGradientsAndJacobianQuad4(cell, node_coord, xi, eta);
+      const RealVector<4>& dN_dx = gp_util.dN_dx;
+      const RealVector<4>& dN_dy = gp_util.dN_dy;
+
+      // get the nodal values of the variable 𝑢ᵢ ∀ 𝑖= 1,……,4 for the cell.
+      const Real3 u_nodes[4] = {
+        u[cell.nodeId(0)],
+        u[cell.nodeId(1)],
+        u[cell.nodeId(2)],
+        u[cell.nodeId(3)]
+      };
+
+      // Compute the gradient components using shape function for each component (ₖ) of the vector field
+      //    ∂𝑢ₖ/∂𝑥 = Σ (∂𝑁ᵢ/∂𝑥 * uᵢ) ∀ 𝑖= 1,……,4
+      //    ∂𝑢ₖ/∂𝑦 = Σ (∂𝑁ᵢ/∂𝑦 * uᵢ) ∀ 𝑖= 1,……,4
+      Real3 d_ux = {0., 0., 0.};
+      Real3 d_uy = {0., 0., 0.};
+      Real3 d_uz = {0., 0., 0.};
+
+      for (Int8 a = 0; a < 4; ++a) {
+        d_ux[0] += dN_dx(a) * u_nodes[a].x;
+        d_ux[1] += dN_dy(a) * u_nodes[a].x;
+        d_uy[0] += dN_dx(a) * u_nodes[a].y;
+        d_uy[1] += dN_dy(a) * u_nodes[a].y;
+      }
+
+      return { d_ux, d_uy, d_uz };
+    }
   };
 
   /*---------------------------------------------------------------------------*/
@@ -1057,6 +1109,68 @@ class ArcaneFemFunctions
       return grad;
     }
 
+    static inline Real3x3 computeGradientTetra4(Cell cell, const VariableNodeReal3& node_coord, VariableNodeReal3 u)
+    {
+      Real3 m0 = node_coord[cell.nodeId(0)];
+      Real3 m1 = node_coord[cell.nodeId(1)];
+      Real3 m2 = node_coord[cell.nodeId(2)];
+      Real3 m3 = node_coord[cell.nodeId(3)];
+
+      Real3 f0 = u[cell.nodeId(0)];
+      Real3 f1 = u[cell.nodeId(1)];
+      Real3 f2 = u[cell.nodeId(2)];
+      Real3 f3 = u[cell.nodeId(3)];
+
+      Real3 v0 = m1 - m0;
+      Real3 v1 = m2 - m0;
+      Real3 v2 = m3 - m0;
+
+      // 6 x Volume of tetrahedron
+      Real V6 = math::abs(math::dot(v0, math::cross(v1, v2)));
+
+      // Compute gradient components
+
+      Real3 d_ux = {(f0.x * (m1.y * m2.z + m2.y * m3.z + m3.y * m1.z - m3.y * m2.z - m2.y * m1.z - m1.y * m3.z)
+                      - f1.x * (m0.y * m2.z + m2.y * m3.z + m3.y * m0.z - m3.y * m2.z - m2.y * m0.z - m0.y * m3.z)
+                      + f2.x * (m0.y * m1.z + m1.y * m3.z + m3.y * m0.z - m3.y * m1.z - m1.y * m0.z - m0.y * m3.z)
+                      - f3.x * (m0.y * m1.z + m1.y * m2.z + m2.y * m0.z - m2.y * m1.z - m1.y * m0.z - m0.y * m2.z)) / V6,
+                    (f0.x * (m1.z * m2.x + m2.z * m3.x + m3.z * m1.x - m3.z * m2.x - m2.z * m1.x - m1.z * m3.x)
+                      - f1.x * (m0.z * m2.x + m2.z * m3.x + m3.z * m0.x - m3.z * m2.x - m2.z * m0.x - m0.z * m3.x)
+                      + f2.x * (m0.z * m1.x + m1.z * m3.x + m3.z * m0.x - m3.z * m1.x - m1.z * m0.x - m0.z * m3.x)
+                      - f3.x * (m0.z * m1.x + m1.z * m2.x + m2.z * m0.x - m2.z * m1.x - m1.z * m0.x - m0.z * m2.x)) / V6,
+                    (f0.x * (m1.x * m2.y + m2.x * m3.y + m3.x * m1.y - m3.x * m2.y - m2.x * m1.y - m1.x * m3.y)
+                      - f1.x * (m0.x * m2.y + m2.x * m3.y + m3.x * m0.y - m3.x * m2.y - m2.x * m0.y - m0.x * m3.y)
+                      + f2.x * (m0.x * m1.y + m1.x * m3.y + m3.x * m0.y - m3.x * m1.y - m1.x * m0.y - m0.x * m3.y)
+                      - f3.x * (m0.x * m1.y + m1.x * m2.y + m2.x * m0.y - m2.x * m1.y - m1.x * m0.y - m0.x * m2.y)) / V6};
+      Real3 d_uy = {(f0.y * (m1.y * m2.z + m2.y * m3.z + m3.y * m1.z - m3.y * m2.z - m2.y * m1.z - m1.y * m3.z)
+                      - f1.y * (m0.y * m2.z + m2.y * m3.z + m3.y * m0.z - m3.y * m2.z - m2.y * m0.z - m0.y * m3.z)
+                      + f2.y * (m0.y * m1.z + m1.y * m3.z + m3.y * m0.z - m3.y * m1.z - m1.y * m0.z - m0.y * m3.z)
+                      - f3.y * (m0.y * m1.z + m1.y * m2.z + m2.y * m0.z - m2.y * m1.z - m1.y * m0.z - m0.y * m2.z)) / V6,
+                    (f0.y * (m1.z * m2.x + m2.z * m3.x + m3.z * m1.x - m3.z * m2.x - m2.z * m1.x - m1.z * m3.x)
+                      - f1.y * (m0.z * m2.x + m2.z * m3.x + m3.z * m0.x - m3.z * m2.x - m2.z * m0.x - m0.z * m3.x)
+                      + f2.y * (m0.z * m1.x + m1.z * m3.x + m3.z * m0.x - m3.z * m1.x - m1.z * m0.x - m0.z * m3.x)
+                      - f3.y * (m0.z * m1.x + m1.z * m2.x + m2.z * m0.x - m2.z * m1.x - m1.z * m0.x - m0.z * m2.x)) / V6,
+                    (f0.y * (m1.x * m2.y + m2.x * m3.y + m3.x * m1.y - m3.x * m2.y - m2.x * m1.y - m1.x * m3.y)
+                      - f1.y * (m0.x * m2.y + m2.x * m3.y + m3.x * m0.y - m3.x * m2.y - m2.x * m0.y - m0.x * m3.y)
+                      + f2.y * (m0.x * m1.y + m1.x * m3.y + m3.x * m0.y - m3.x * m1.y - m1.x * m0.y - m0.x * m3.y)
+                      - f3.y * (m0.x * m1.y + m1.x * m2.y + m2.x * m0.y - m2.x * m1.y - m1.x * m0.y - m0.x * m2.y)) / V6};
+      Real3 d_uz = {(f0.z * (m1.y * m2.z + m2.y * m3.z + m3.y * m1.z - m3.y * m2.z - m2.y * m1.z - m1.y * m3.z)
+                      - f1.z * (m0.y * m2.z + m2.y * m3.z + m3.y * m0.z - m3.y * m2.z - m2.y * m0.z - m0.y * m3.z)
+                      + f2.z * (m0.y * m1.z + m1.y * m3.z + m3.y * m0.z - m3.y * m1.z - m1.y * m0.z - m0.y * m3.z)
+                      - f3.z * (m0.y * m1.z + m1.y * m2.z + m2.y * m0.z - m2.y * m1.z - m1.y * m0.z - m0.y * m2.z)) / V6,
+                    (f0.z * (m1.z * m2.x + m2.z * m3.x + m3.z * m1.x - m3.z * m2.x - m2.z * m1.x - m1.z * m3.x)
+                      - f1.z * (m0.z * m2.x + m2.z * m3.x + m3.z * m0.x - m3.z * m2.x - m2.z * m0.x - m0.z * m3.x)
+                      + f2.z * (m0.z * m1.x + m1.z * m3.x + m3.z * m0.x - m3.z * m1.x - m1.z * m0.x - m0.z * m3.x)
+                      - f3.z * (m0.z * m1.x + m1.z * m2.x + m2.z * m0.x - m2.z * m1.x - m1.z * m0.x - m0.z * m2.x)) / V6,
+                    (f0.z * (m1.x * m2.y + m2.x * m3.y + m3.x * m1.y - m3.x * m2.y - m2.x * m1.y - m1.x * m3.y)
+                      - f1.z * (m0.x * m2.y + m2.x * m3.y + m3.x * m0.y - m3.x * m2.y - m2.x * m0.y - m0.x * m3.y)
+                      + f2.z * (m0.x * m1.y + m1.x * m3.y + m3.x * m0.y - m3.x * m1.y - m1.x * m0.y - m0.x * m3.y)
+                      - f3.z * (m0.x * m1.y + m1.x * m2.y + m2.x * m0.y - m2.x * m1.y - m1.x * m0.y - m0.x * m2.y)) / V6};
+
+      Real3x3 grad =  { d_ux, d_uy, d_uz };
+      return grad;
+    }
+
     /*---------------------------------------------------------------------------*/
     /**
      * @brief Holds information for a hexahedral element at a single Gauss point.
@@ -1136,11 +1250,11 @@ class ArcaneFemFunctions
 
     /*---------------------------------------------------------------------------*/
     /**
-     * @brief Computes the gradient of a scalar field 'u' for a Hexa8 element.
+     * @brief Computes the gradient of a field 'u' for a Hexa8 element.
      *
      * @param cell The Hexa8 cell entity.
      * @param node_coord The coordinates of the mesh nodes.
-     * @param u The scalar variable 𝑢 defined at the nodes.
+     * @param u The variable 𝑢 defined at the nodes.
      * @return A Real3 vector of the gradient ∇𝑢 = {∂𝑢/∂𝑥, ∂𝑢/∂𝑦, ∂𝑢/∂𝑧} at the cell center.
      */
     /*---------------------------------------------------------------------------*/
@@ -1179,6 +1293,51 @@ class ArcaneFemFunctions
       }
 
       return { grad_x, grad_y, grad_z };
+    }
+
+  static inline Real3x3
+    computeGradientHexa8(Cell cell, const VariableNodeReal3& node_coord, const VariableNodeReal3& u, const Real xi, const Real eta, const Real zeta)
+    {
+      // get shape function gradients w.r.t (𝑥,𝑦) and determinant of Jacobian at (ξ,η,ζ)
+      const auto gp_util = computeGradientsAndJacobianHexa8(cell, node_coord, xi, eta, zeta);
+      const RealVector<8>& dN_dx = gp_util.dN_dx;
+      const RealVector<8>& dN_dy = gp_util.dN_dy;
+      const RealVector<8>& dN_dz = gp_util.dN_dz;
+
+      // get the nodal values of the variable 𝑢ᵢ ∀ 𝑖= 1,……,8 for the cell.
+      const Real3 u_nodes[8] = {
+        u[cell.nodeId(0)],
+        u[cell.nodeId(1)],
+        u[cell.nodeId(2)],
+        u[cell.nodeId(3)],
+        u[cell.nodeId(4)],
+        u[cell.nodeId(5)],
+        u[cell.nodeId(6)],
+        u[cell.nodeId(7)]
+      };
+
+      // Compute the gradient components using shape function for each component (ₖ) of the vector field
+      //    ∂𝑢ₖ/∂𝑥 = Σ (∂𝑁ᵢ/∂𝑥 * uᵢ) ∀ 𝑖= 1,……,8
+      //    ∂𝑢ₖ/∂𝑦 = Σ (∂𝑁ᵢ/∂𝑦 * uᵢ) ∀ 𝑖= 1,……,8
+      //    ∂𝑢ₖ/∂𝑧 = Σ (∂𝑁ᵢ/∂𝑧 * uᵢ) ∀ 𝑖= 1,……,8
+
+      Real3 d_ux = {0., 0., 0.};
+      Real3 d_uy = {0., 0., 0.};
+      Real3 d_uz = {0., 0., 0.};
+
+      for (Int8 a = 0; a < 8; ++a) {
+        d_ux[0] += dN_dx(a) * u_nodes[a].x;
+        d_ux[1] += dN_dy(a) * u_nodes[a].x;
+        d_ux[2] += dN_dz(a) * u_nodes[a].x;
+        d_uy[0] += dN_dx(a) * u_nodes[a].y;
+        d_uy[1] += dN_dy(a) * u_nodes[a].y;
+        d_uy[2] += dN_dz(a) * u_nodes[a].y;
+        d_uz[0] += dN_dx(a) * u_nodes[a].z;
+        d_uz[1] += dN_dy(a) * u_nodes[a].z;
+        d_uz[2] += dN_dz(a) * u_nodes[a].z;
+      }
+
+      return { d_ux, d_uy, d_uz };
     }
 
 

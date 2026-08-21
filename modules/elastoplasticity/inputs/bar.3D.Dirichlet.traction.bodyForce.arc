@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<case codename="Elastoplasticity" xml:lang="en" codeversion="1.0">
+  <arcane>
+    <title>3D Linear Elastoplasticity</title>
+    <timeloop>ElastoplasticityLoop</timeloop>
+  </arcane>
+
+  <arcane-post-processing>
+   <output-period>1</output-period>
+   <output>
+     <variable>U</variable>
+   </output>
+  </arcane-post-processing>
+
+  <meshes>
+    <mesh>
+      <filename>meshes/bar_dynamic_3D.msh</filename>
+      <subdivider>
+        <nb-subdivision>0</nb-subdivision>
+      </subdivider>
+    </mesh>
+  </meshes>
+
+  <fem>
+    <E>21.0e5</E>
+    <nu>0.28</nu>
+    <f>-1.0</f>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>surfaceleft</surface>
+        <value>0.0 0.0 0.0</value>
+      </dirichlet>
+      <traction>
+        <surface>surfaceright</surface>
+        <value>NULL 1.0 NULL</value>
+      </traction>
+    </boundary-conditions>
+    <linear-system name="HypreLinearSystem">
+      <solver>bicgstab</solver>
+      <rtol>1e-9</rtol>
+      <atol>0.</atol>
+    </linear-system>
+  </fem>
+</case>
