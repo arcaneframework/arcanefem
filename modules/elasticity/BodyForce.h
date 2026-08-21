@@ -50,7 +50,7 @@ _applyBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityVie
 
   // apply bodyforce based on dimension and mesh type
   if (mesh()->dimension() == 2) {
-    if (m_hex_quad_mesh) {
+    if (m_is_quad4_mesh) {
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
 
@@ -68,7 +68,7 @@ _applyBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityVie
             Real weight = weights[ixi] * weights[ieta];
 
             // get shape functions 𝐍 for Quad4: 𝐍(ξ,η) = [𝑁₁  𝑁₂  𝑁₃  𝑁₄]
-            RealVector<4> N = ArcaneFemFunctions::FeOperation2D::computeShapeFunctionsQuad4(xi, eta);
+            RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
 
             // get determinant of Jacobian
             const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad4(cell, m_node_coord, xi, eta);
@@ -103,7 +103,7 @@ _applyBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityVie
     }
   }
   if (mesh()->dimension() == 3) {
-    if (m_hex_quad_mesh) {
+    if (m_is_hexa8_mesh) {
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
 
@@ -123,7 +123,7 @@ _applyBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityVie
               Real weight = weights[ixi] * weights[ieta] * weights[izeta];
 
               // Get shape functions for Hexa8: 𝐍(ξ,η,ζ) = [𝑁₁  𝑁₂  𝑁₃  𝑁₄  𝑁₅  𝑁₆  𝑁₇  𝑁₈]
-              RealVector<8> N = ArcaneFemFunctions::FeOperation3D::computeShapeFunctionsHexa8(xi, eta, zeta);
+              RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa8(xi, eta, zeta);
 
               // get determinant of Jacobian
               const auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa8(cell, m_node_coord, xi, eta, zeta);

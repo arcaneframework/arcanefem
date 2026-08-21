@@ -33,6 +33,7 @@
 #include "FemDoFsOnNodes.h"
 #include "IArcaneFemBC.h"
 #include "FemUtils.h"
+#include "ShapeFunctions.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -341,45 +342,44 @@ computeGradientYTria3(CellLocalId cell_lid,
 }
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Quad Gauss point information structure for 2D quadrilateral elements.
+ *
+ * This structure holds the derivatives of shape functions with respect to
+ * physical coordinates (𝑥, 𝑦) and the determinant of the Jacobian.
 /*---------------------------------------------------------------------------*/
-struct Quad4GaussPointInfo
+template <Int32 n> struct QuadGaussPointInfo
 {
-  RealVector<4> dN_dx; // Derivatives of shape functions in x {∂𝑁₁/∂𝑥  ∂𝑁₂/∂𝑥  ∂𝑁₃/∂𝑥  ∂𝑁₄/∂𝑥}
-  RealVector<4> dN_dy; // Derivatives of shape functions in y {∂𝑁₁/∂𝑦  ∂𝑁₂/∂𝑦  ∂𝑁₃/∂𝑦  ∂𝑁₄/∂𝑦}
+  RealVector<n> dN_dx; // Derivatives of shape functions in 𝑥 {∂𝑁₁/∂𝑥  ∂𝑁₂/∂𝑥  ∂𝑁₃/∂𝑥  ... ∂𝑁ₙ/∂𝑥}
+  RealVector<n> dN_dy; // Derivatives of shape functions in 𝑦 {∂𝑁₁/∂𝑦  ∂𝑁₂/∂𝑦  ∂𝑁₃/∂𝑦  ... ∂𝑁ₙ/∂𝑦}
   Real det_j; // Determinant of the Jacobian matrix at the Gauss point.
 };
 
-ARCCORE_HOST_DEVICE inline Quad4GaussPointInfo
-computeGradientsAndJacobianQuad4Gpu(CellLocalId cell_lid,
-                                    const IndexedCellNodeConnectivityView& cn_cv,
-                                    const Accelerator::VariableNodeReal3InView& in_node_coord,
-                                    Real xi, Real eta)
+template <Int32 N> ARCCORE_HOST_DEVICE inline QuadGaussPointInfo<N>
+_computeQuadGradientsAndJacobian(CellLocalId cell_lid,
+                                 const IndexedCellNodeConnectivityView& cn_cv,
+                                 const Accelerator::VariableNodeReal3InView& in_node_coord,
+                                 const Arcane::FemUtils::ShapeFunctions::ReferenceGradients2D<N>& reference_gradients)
 {
-  // Shape function derivatives ∂𝐍/∂ξ and ∂𝐍/∂η
-  //     ∂𝐍/∂ξ = [ ∂C₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ ]
-  //     ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ∂𝑁₃/∂η  ∂𝑁₄/∂η ]
-  const Real dN_dxi[4]  = { -0.25 * (1.0 - eta),  0.25 * (1.0 - eta), 0.25 * (1.0 + eta), -0.25 * (1.0 + eta) };
-  const Real dN_deta[4] = { -0.25 * (1.0 - xi),  -0.25 * (1.0 + xi),  0.25 * (1.0 + xi),   0.25 * (1.0 - xi) };
-
   // Jacobian calculation 𝑱
   //    𝑱 = [ 𝒋₀₀  𝒋₀₁ ] = [ ∂𝑥/∂ξ  ∂𝑦/∂ξ ]
   //        [ 𝒋₁₀  𝒋₁₁ ]   [ ∂𝑥/∂η  ∂𝑦/∂η ]
   //
   // The Jacobian is computed as follows:
-  //   𝒋₀₀ = ∑ (∂𝑁ᵢ/∂ξ * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,𝟒
-  //   𝒋₀₁ = ∑ (∂𝑁ᵢ/∂ξ * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,𝟒
-  //   𝒋₁₀ = ∑ (∂𝑁ᵢ/∂η * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,𝟒
-  //   𝒋₁₁ = ∑ (∂𝑁ᵢ/∂η * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,𝟒
+  //   𝒋₀₀ = ∑ (∂𝑁ᵢ/∂ξ * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,N
+  //   𝒋₀₁ = ∑ (∂𝑁ᵢ/∂ξ * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,N
+  //   𝒋₁₀ = ∑ (∂𝑁ᵢ/∂η * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,N
+  //   𝒋₁₁ = ∑ (∂𝑁ᵢ/∂η * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,N
   Real2x2 J;
   J[0][0] = 0.0; J[0][1] = 0.0;
   J[1][0] = 0.0; J[1][1] = 0.0;
 
-  for (Int8 a = 0; a < 4; ++a) {
+  for (Int8 a = 0; a < N; ++a) {
     const auto& coord = in_node_coord[cn_cv.nodeId(cell_lid, a)];
-    J[0][0] += dN_dxi[a] * coord.x;
-    J[0][1] += dN_dxi[a] * coord.y;
-    J[1][0] += dN_deta[a] * coord.x;
-    J[1][1] += dN_deta[a] * coord.y;
+    J[0][0] += reference_gradients.dN_dxi[a] * coord.x;
+    J[0][1] += reference_gradients.dN_dxi[a] * coord.y;
+    J[1][0] += reference_gradients.dN_deta[a] * coord.x;
+    J[1][1] += reference_gradients.dN_deta[a] * coord.y;
   }
 
   // Determinant of the Jacobian
@@ -401,13 +401,43 @@ computeGradientsAndJacobianQuad4Gpu(CellLocalId cell_lid,
   //   Gradients in physical space (∂𝐍/∂𝑥, ∂𝐍/∂𝑦)
   //    {∂𝐍/∂𝑥} = [J]⁻¹ {∂𝐍/∂ξ}
   //    {∂𝐍/∂𝑦}         {∂𝐍/∂η}
-  RealVector<4> dN_dx_result, dN_dy_result;
-  for (Int8 a = 0; a < 4; ++a) {
-    dN_dx_result(a) = invJ00 * dN_dxi[a] + invJ01 * dN_deta[a];
-    dN_dy_result(a) = invJ10 * dN_dxi[a] + invJ11 * dN_deta[a];
+  RealVector<N> dN_dx_result, dN_dy_result;
+  for (Int8 a = 0; a < N; ++a) {
+    dN_dx_result(a) = invJ00 * reference_gradients.dN_dxi[a] + invJ01 * reference_gradients.dN_deta[a];
+    dN_dy_result(a) = invJ10 * reference_gradients.dN_dxi[a] + invJ11 * reference_gradients.dN_deta[a];
   }
 
   return { dN_dx_result, dN_dy_result, detJ };
+}
+
+ARCCORE_HOST_DEVICE inline QuadGaussPointInfo<4>
+computeGradientsAndJacobianQuad4Gpu(CellLocalId cell_lid,
+                                    const IndexedCellNodeConnectivityView& cn_cv,
+                                    const Accelerator::VariableNodeReal3InView& in_node_coord,
+                                    Real xi, Real eta)
+{
+  const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsQuad4(xi, eta);
+  return _computeQuadGradientsAndJacobian<4>(cell_lid, cn_cv, in_node_coord, reference_gradients);
+}
+
+ARCCORE_HOST_DEVICE inline QuadGaussPointInfo<8>
+computeGradientsAndJacobianQuad8Gpu(CellLocalId cell_lid,
+                                    const IndexedCellNodeConnectivityView& cn_cv,
+                                    const Accelerator::VariableNodeReal3InView& in_node_coord,
+                                    Real xi, Real eta)
+{
+  const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsQuad8(xi, eta);
+  return _computeQuadGradientsAndJacobian<8>(cell_lid, cn_cv, in_node_coord, reference_gradients);
+}
+
+ARCCORE_HOST_DEVICE inline QuadGaussPointInfo<9>
+computeGradientsAndJacobianQuad9Gpu(CellLocalId cell_lid,
+                                    const IndexedCellNodeConnectivityView& cn_cv,
+                                    const Accelerator::VariableNodeReal3InView& in_node_coord,
+                                    Real xi, Real eta)
+{
+  const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsQuad9(xi, eta);
+  return _computeQuadGradientsAndJacobian<9>(cell_lid, cn_cv, in_node_coord, reference_gradients);
 }
 
 } // namespace Arcane::FemUtils::Gpu::FeOperation2D
@@ -567,19 +597,54 @@ computeGradientZTetra4(CellLocalId cell_lid,
 
 /*---------------------------------------------------------------------------*/
 /**
-  * @brief Holds information for a Hexa8 element at a single Gauss point.
+  * @brief Holds information for a hexahedral element at a single Gauss point.
   *
   * This includes the gradients of the shape functions in the physical space (𝑥,𝑦,𝑧)
   * and the determinant of the Jacobian matrix.
   */
 /*---------------------------------------------------------------------------*/
-struct Hexa8GaussPointInfo
+template <Int32 N> struct HexaGaussPointInfo
 {
-  RealVector<8> dN_dx; // Derivatives of shape functions in x {∂𝑁₁/∂𝑥  ∂𝑁₂/∂𝑥  ...  ∂𝑁₈/∂𝑥}
-  RealVector<8> dN_dy; // Derivatives of shape functions in y {∂𝑁₁/∂𝑦  ∂𝑁₂/∂𝑦  ...  ∂𝑁₈/∂𝑦}
-  RealVector<8> dN_dz; // Derivatives of shape functions in z {∂𝑁₁/∂𝑧  ∂𝑁₂/∂𝑧  ...  ∂𝑁₈/∂𝑧}
+  RealVector<N> dN_dx; // Derivatives of shape functions in x.
+  RealVector<N> dN_dy; // Derivatives of shape functions in y.
+  RealVector<N> dN_dz; // Derivatives of shape functions in z.
   Real det_j; // Determinant of the Jacobian matrix at the Gauss point.
 };
+
+template <Int32 N> ARCCORE_HOST_DEVICE inline HexaGaussPointInfo<N>
+_computeHexaGradientsAndJacobian(CellLocalId cell_lid,
+                                 const IndexedCellNodeConnectivityView& cn_cv,
+                                 const Accelerator::VariableNodeReal3InView& in_node_coord,
+                                  const Arcane::FemUtils::ShapeFunctions::ReferenceGradients3D<N>& reference_gradients)
+{
+  Real3x3 J;
+  for (Int8 a = 0; a < N; ++a) {
+    const Real3& n_coord = in_node_coord[cn_cv.nodeId(cell_lid, a)];
+    J[0][0] += reference_gradients.dN_dxi[a] * n_coord.x;
+    J[0][1] += reference_gradients.dN_dxi[a] * n_coord.y;
+    J[0][2] += reference_gradients.dN_dxi[a] * n_coord.z;
+    J[1][0] += reference_gradients.dN_deta[a] * n_coord.x;
+    J[1][1] += reference_gradients.dN_deta[a] * n_coord.y;
+    J[1][2] += reference_gradients.dN_deta[a] * n_coord.z;
+    J[2][0] += reference_gradients.dN_dzeta[a] * n_coord.x;
+    J[2][1] += reference_gradients.dN_dzeta[a] * n_coord.y;
+    J[2][2] += reference_gradients.dN_dzeta[a] * n_coord.z;
+  }
+
+  const Real detJ = math::matrixDeterminant(J);
+  const Real3x3 invJ = math::inverseMatrix(J, detJ);
+
+  RealVector<N> dN_dx_result;
+  RealVector<N> dN_dy_result;
+  RealVector<N> dN_dz_result;
+  for (Int8 a = 0; a < N; ++a) {
+    dN_dx_result(a) = invJ[0][0] * reference_gradients.dN_dxi[a] + invJ[0][1] * reference_gradients.dN_deta[a] + invJ[0][2] * reference_gradients.dN_dzeta[a];
+    dN_dy_result(a) = invJ[1][0] * reference_gradients.dN_dxi[a] + invJ[1][1] * reference_gradients.dN_deta[a] + invJ[1][2] * reference_gradients.dN_dzeta[a];
+    dN_dz_result(a) = invJ[2][0] * reference_gradients.dN_dxi[a] + invJ[2][1] * reference_gradients.dN_deta[a] + invJ[2][2] * reference_gradients.dN_dzeta[a];
+  }
+
+  return { dN_dx_result, dN_dy_result, dN_dz_result, detJ };
+}
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -591,107 +656,67 @@ struct Hexa8GaussPointInfo
   * @param xi The ξ coordinate of the evaluation point (-1 to 1).
   * @param eta The η coordinate of the evaluation point (-1 to 1).
   * @param zeta The ζ coordinate of the evaluation point (-1 to 1).
-  * @return A Hexa8GaussPointInfo struct containing the gradients and Jacobian determinant.
+  * @return A HexaGaussPointInfo<8> struct containing the gradients and Jacobian determinant.
   */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE inline Hexa8GaussPointInfo
+ARCCORE_HOST_DEVICE inline HexaGaussPointInfo<8>
 computeGradientsAndJacobianHexa8Gpu(CellLocalId cell_lid,
                                     const IndexedCellNodeConnectivityView& cn_cv,
                                     const Accelerator::VariableNodeReal3InView& in_node_coord,
                                     Real xi, Real eta, Real zeta)
 {
-  // Shape function derivatives ∂𝐍/∂ξ, ∂𝐍/∂η, ∂𝐍/∂ζ
-  //     ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ  ∂𝑁₅/∂ξ  ∂𝑁₆/∂ξ  ∂𝑁₇/∂ξ  ∂𝑁₈/∂ξ ]
-  //     ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ∂𝑁₃/∂η  ∂𝑁₄/∂η  ∂𝑁₅/∂η  ∂𝑁₆/∂η  ∂𝑁₇/∂η  ∂𝑁₈/∂η ]
-  //     ∂𝐍/∂ζ = [ ∂𝑁₁/∂ζ  ∂𝑁₂/∂ζ  ∂𝑁₃/∂ζ  ∂𝑁₄/∂ζ  ∂𝑁₅/∂ζ  ∂𝑁₆/∂ζ  ∂𝑁₇/∂ζ  ∂𝑁₈/∂ζ ]
-  Real dN_dxi[8], dN_deta[8], dN_dzeta[8];
-  const Real one_minus_eta = 1.0 - eta;
-  const Real one_plus_eta = 1.0 + eta;
-  const Real one_minus_xi = 1.0 - xi;
-  const Real one_plus_xi = 1.0 + xi;
-  const Real one_minus_zeta = 1.0 - zeta;
-  const Real one_plus_zeta = 1.0 + zeta;
-
-  dN_dxi[0] = -0.125 * one_minus_eta * one_minus_zeta;
-  dN_dxi[1] = 0.125 * one_minus_eta * one_minus_zeta;
-  dN_dxi[2] = 0.125 * one_plus_eta * one_minus_zeta;
-  dN_dxi[3] = -0.125 * one_plus_eta * one_minus_zeta;
-  dN_dxi[4] = -0.125 * one_minus_eta * one_plus_zeta;
-  dN_dxi[5] = 0.125 * one_minus_eta * one_plus_zeta;
-  dN_dxi[6] = 0.125 * one_plus_eta * one_plus_zeta;
-  dN_dxi[7] = -0.125 * one_plus_eta * one_plus_zeta;
-
-  dN_deta[0] = -0.125 * one_minus_xi * one_minus_zeta;
-  dN_deta[1] = -0.125 * one_plus_xi * one_minus_zeta;
-  dN_deta[2] = 0.125 * one_plus_xi * one_minus_zeta;
-  dN_deta[3] = 0.125 * one_minus_xi * one_minus_zeta;
-  dN_deta[4] = -0.125 * one_minus_xi * one_plus_zeta;
-  dN_deta[5] = -0.125 * one_plus_xi * one_plus_zeta;
-  dN_deta[6] = 0.125 * one_plus_xi * one_plus_zeta;
-  dN_deta[7] = 0.125 * one_minus_xi * one_plus_zeta;
-
-  dN_dzeta[0] = -0.125 * one_minus_xi * one_minus_eta;
-  dN_dzeta[1] = -0.125 * one_plus_xi * one_minus_eta;
-  dN_dzeta[2] = -0.125 * one_plus_xi * one_plus_eta;
-  dN_dzeta[3] = -0.125 * one_minus_xi * one_plus_eta;
-  dN_dzeta[4] = 0.125 * one_minus_xi * one_minus_eta;
-  dN_dzeta[5] = 0.125 * one_plus_xi * one_minus_eta;
-  dN_dzeta[6] = 0.125 * one_plus_xi * one_plus_eta;
-  dN_dzeta[7] = 0.125 * one_minus_xi * one_plus_eta;
-
-  // Jacobian matrix (default-initialized to zero see Real3x3.h)
-  //    𝑱 = [ 𝒋₀₀  𝒋₀₁  𝒋₀₂ ]
-  //        [ 𝒋₁₀  𝒋₁₁  𝒋₁₂ ]
-  //        [ 𝒋₂₀  𝒋₂₁  𝒋₂₂ ]
-  //
-  // The Jacobian is computed as follows:
-  //   𝒋₀₀ = ∑ (∂𝑥/∂ξ * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,𝟖
-  //   𝒋₀₁ = ∑ (∂𝑥/∂ξ * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,𝟖
-  //   𝒋₀₂ = ∑ (∂𝑥/∂ξ * 𝑧ᵢ) ∀ 𝑖= 𝟏,……,𝟖
-  //   𝒋₁₀ = ∑ (∂𝑦/∂η * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,𝟖
-  //   𝒋₁₁ = ∑ (∂𝑦/∂η * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,𝟖
-  //   𝒋₁₂ = ∑ (∂𝑦/∂η * 𝑧ᵢ) ∀ 𝑖= 𝟏,……,𝟖
-  //   𝒋₂₀ = ∑ (∂𝑧/∂ζ * 𝑥ᵢ) ∀ 𝑖= 𝟏,……,𝟖
-  //   𝒋₂₁ = ∑ (∂𝑧/∂ζ * 𝑦ᵢ) ∀ 𝑖= 𝟏,……,𝟖
-  //   𝒋₂₂ = ∑ (∂𝑧/∂ζ * 𝑧ᵢ) ∀ 𝑖= 𝟏,……,𝟖
-  Real3x3 J;
-  for (Int8 a = 0; a < 8; ++a) {
-    const Real3& n_coord = in_node_coord[cn_cv.nodeId(cell_lid, a)];
-    J[0][0] += dN_dxi[a] * n_coord.x; // ∂𝑥/∂ξ
-    J[0][1] += dN_dxi[a] * n_coord.y; // ∂𝑦/∂ξ
-    J[0][2] += dN_dxi[a] * n_coord.z; // ∂𝑧/∂ξ
-    J[1][0] += dN_deta[a] * n_coord.x; // ∂𝑥/∂η
-    J[1][1] += dN_deta[a] * n_coord.y; // ∂𝑦/∂η
-    J[1][2] += dN_deta[a] * n_coord.z; // ∂𝑧/∂η
-    J[2][0] += dN_dzeta[a] * n_coord.x; // ∂𝑥/∂ζ
-    J[2][1] += dN_dzeta[a] * n_coord.y; // ∂𝑦/∂ζ
-    J[2][2] += dN_dzeta[a] * n_coord.z; // ∂𝑧/∂ζ
-  }
-
-  // Determinant and Inverse of the Jacobian
-  const Real detJ = math::matrixDeterminant(J);
-  // if (detJ <= 0.0) {
-  //   ARCANE_FATAL("Invalid (non-positive) Jacobian determinant: {0}", detJ);
-  // }
-  const Real3x3 invJ = math::inverseMatrix(J, detJ);
-
-  // Gradients in physical space (∂𝐍/∂𝑥, ∂𝐍/∂𝑦, ∂𝐍/∂𝑧)
-  //    {∂𝐍/∂𝑥} = [J]⁻¹ {∂𝐍/∂ξ}
-  //    {∂𝐍/∂𝑦}         {∂𝐍/∂η}
-  //    {∂𝐍/∂𝑧}         {∂𝐍/∂ζ}
-  RealVector<8> dN_dx_result, dN_dy_result, dN_dz_result;
-  for (Int8 a = 0; a < 8; ++a) {
-    dN_dx_result(a) = invJ[0][0] * dN_dxi[a] + invJ[0][1] * dN_deta[a] + invJ[0][2] * dN_dzeta[a];
-    dN_dy_result(a) = invJ[1][0] * dN_dxi[a] + invJ[1][1] * dN_deta[a] + invJ[1][2] * dN_dzeta[a];
-    dN_dz_result(a) = invJ[2][0] * dN_dxi[a] + invJ[2][1] * dN_deta[a] + invJ[2][2] * dN_dzeta[a];
-  }
-
-  return { dN_dx_result, dN_dy_result, dN_dz_result, detJ };
+  const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsHexa8(xi, eta, zeta);
+  return _computeHexaGradientsAndJacobian<8>(cell_lid, cn_cv, in_node_coord, reference_gradients);
 }
 
-/*-------------------------------------------------------------------------*/
-/*-------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/**
+  * @brief Computes shape function gradients and the Jacobian determinant for a Hexa20 element.
+  *
+  * @param cell_lid The local ID of the cell in the mesh.
+  * @param cn_cv The connectivity view for the cell nodes.
+  * @param in_node_coord The coordinates of the mesh nodes.
+  * @param xi The ξ coordinate of the evaluation point (-1 to 1).
+  * @param eta The η coordinate of the evaluation point (-1 to 1).
+  * @param zeta The ζ coordinate of the evaluation point (-1 to 1).
+  * @return A HexaGaussPointInfo<20> struct containing the gradients and Jacobian determinant.
+  */
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE inline HexaGaussPointInfo<20>
+computeGradientsAndJacobianHexa20Gpu(CellLocalId cell_lid,
+                                     const IndexedCellNodeConnectivityView& cn_cv,
+                                     const Accelerator::VariableNodeReal3InView& in_node_coord,
+                                     Real xi, Real eta, Real zeta)
+{
+  const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsHexa20(xi, eta, zeta);
+  return _computeHexaGradientsAndJacobian<20>(cell_lid, cn_cv, in_node_coord, reference_gradients);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+  * @brief Computes shape function gradients and the Jacobian determinant for a Hexa27 element.
+  *
+  * @param cell_lid The local ID of the cell in the mesh.
+  * @param cn_cv The connectivity view for the cell nodes.
+  * @param in_node_coord The coordinates of the mesh nodes.
+  * @param xi The ξ coordinate of the evaluation point (-1 to 1).
+  * @param eta The η coordinate of the evaluation point (-1 to 1).
+  * @param zeta The ζ coordinate of the evaluation point (-1 to 1).
+  * @return A HexaGaussPointInfo<27> struct containing the gradients and Jacobian determinant.
+  */
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE inline HexaGaussPointInfo<27>
+computeGradientsAndJacobianHexa27Gpu(CellLocalId cell_lid,
+                                     const IndexedCellNodeConnectivityView& cn_cv,
+                                     const Accelerator::VariableNodeReal3InView& in_node_coord,
+                                     Real xi, Real eta, Real zeta)
+{
+  const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsHexa27(xi, eta, zeta);
+  return _computeHexaGradientsAndJacobian<27>(cell_lid, cn_cv, in_node_coord, reference_gradients);
+}
 
 } // namespace Arcane::FemUtils::Gpu::FeOperation3D
 
@@ -873,6 +898,14 @@ class BoundaryConditions2D
   static void applyConstantSourceToRhsQuad4(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
                                             const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                                             IMesh* mesh, Accelerator::RunQueue* queue);
+
+  static void applyConstantSourceToRhsQuad8(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+                                            const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                            IMesh* mesh, Accelerator::RunQueue* queue);
+
+  static void applyConstantSourceToRhsQuad9(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+                                            const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                            IMesh* mesh, Accelerator::RunQueue* queue);
   /*---------------------------------------------------------------------------*/
   /**
    * @brief Applies Neumann conditions to the right-hand side (RHS) values.
@@ -889,6 +922,14 @@ class BoundaryConditions2D
                                 IMesh* mesh, Accelerator::RunQueue* queue);
 
   static void applyNeumannToRhsQuad4(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                                     const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                     IMesh* mesh, Accelerator::RunQueue* queue);
+
+  static void applyNeumannToRhsQuad8(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                                     const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                     IMesh* mesh, Accelerator::RunQueue* queue);
+
+  static void applyNeumannToRhsQuad9(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
                                      const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                                      IMesh* mesh, Accelerator::RunQueue* queue);
 };
@@ -916,6 +957,14 @@ class BoundaryConditions3D
                                        const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                                        IMesh* mesh, Accelerator::RunQueue* queue);
 
+  static void applyConstantSourceToRhsHexa20(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+                                             const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                             IMesh* mesh, Accelerator::RunQueue* queue);
+
+  static void applyConstantSourceToRhsHexa27(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+                                             const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                             IMesh* mesh, Accelerator::RunQueue* queue);
+
   /*---------------------------------------------------------------------------*/
   /**
    * @brief Applies Neumann conditions to the right-hand side (RHS) values.
@@ -934,6 +983,14 @@ class BoundaryConditions3D
   static void applyNeumannToRhsHexa8(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
                        const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
                        IMesh* mesh, Accelerator::RunQueue* queue);
+
+  static void applyNeumannToRhsHexa20(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                                      const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                      IMesh* mesh, Accelerator::RunQueue* queue);
+
+  static void applyNeumannToRhsHexa27(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                                      const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                                      IMesh* mesh, Accelerator::RunQueue* queue);
 };
 
 /*---------------------------------------------------------------------------*/

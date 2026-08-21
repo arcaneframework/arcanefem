@@ -21,7 +21,6 @@
   </meshes>
 
   <fem>
-    <hex-quad-mesh>true</hex-quad-mesh>
     <tmax>2.</tmax>
     <dt>0.08</dt>
     <alpm>0.20</alpm>

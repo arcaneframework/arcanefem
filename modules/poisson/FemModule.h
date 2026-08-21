@@ -41,6 +41,7 @@
 #include "IArcaneFemBC.h"
 #include "BSRFormat.h"
 #include "FemUtils.h"
+#include "ManufacturedSolutions.h"
 
 #include "Fem_axl.h"
 
@@ -91,6 +92,8 @@ class FemModulePoisson
   FemDoFsOnNodes m_dofs_on_nodes;
 
   Real f;
+  Real m_manufactured_solution_tolerance = 1.0e-1;
+  String m_manufactured_solution_name;
 
   String m_petsc_flags;
   String m_matrix_format = "DOK";
@@ -98,7 +101,14 @@ class FemModulePoisson
   bool m_assemble_linear_system = true;
   bool m_solve_linear_system = true;
   bool m_cross_validation = false;
-  bool m_hex_quad_mesh = false;
+  bool m_has_manufactured_solution = false;
+  bool m_is_quad4_mesh = false;
+  bool m_is_quad8_mesh = false;
+  bool m_is_quad9_mesh = false;
+  bool m_is_hexa8_mesh = false;
+  bool m_is_hexa20_mesh = false;
+  bool m_is_hexa27_mesh = false;
+
 
   void _doStationarySolve();
   void _getMaterialParameters();
@@ -107,11 +117,20 @@ class FemModulePoisson
   void _assembleLinearOperator();
   void _updateVariables();
   void _validateResults();
+  void _updateManufacturedExactSolution();
+  void _applyManufacturedSource();
+  void _applyManufacturedDirichlet();
+
+  Real _computeManufacturedL2Error();
 
   RealMatrix<3, 3> _computeElementMatrixTria3(Cell cell);
   RealMatrix<4, 4> _computeElementMatrixTetra4(Cell cell);
   RealMatrix<4, 4> _computeElementMatrixQuad4(Cell cell);
+  RealMatrix<8, 8> _computeElementMatrixQuad8(Cell cell);
+  RealMatrix<9, 9> _computeElementMatrixQuad9(Cell cell);
   RealMatrix<8, 8> _computeElementMatrixHexa8(Cell cell);
+  RealMatrix<20, 20> _computeElementMatrixHexa20(Cell cell);
+  RealMatrix<27, 27> _computeElementMatrixHexa27(Cell cell);
   template <int N>
   void _assembleBilinear(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
 };

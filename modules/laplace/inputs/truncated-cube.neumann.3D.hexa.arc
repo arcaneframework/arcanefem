@@ -19,7 +19,6 @@
   </meshes>
 
   <fem>
-    <hex-quad-mesh>true</hex-quad-mesh>
     <boundary-conditions>
       <dirichlet>
         <surface>horizontal</surface>

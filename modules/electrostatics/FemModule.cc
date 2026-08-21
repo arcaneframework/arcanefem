@@ -37,7 +37,15 @@ startInit()
   m_solve_linear_system = options()->solveLinearSystem();
   m_cross_validation = options()->hasSolutionComparisonFile();
   m_petsc_flags = options()->petscFlags();
-  m_hex_quad_mesh = options()->hexQuadMesh();
+
+  // Check if the mesh is a quad or hex mesh by examining the number of nodes in the first cell
+  UnstructuredMeshConnectivityView connectivity(mesh());
+  const Int32 nb_node = connectivity.cellNode().nbNode(CellLocalId(0));
+
+  if (mesh()->dimension() == 2)
+    m_is_quad4_mesh = (nb_node == 4);
+  else if (mesh()->dimension() == 3)
+    m_is_hexa8_mesh = (nb_node == 8);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
@@ -306,12 +314,12 @@ _assembleBilinearOperator()
 
   if (m_matrix_format == "DOK") {
     if (mesh()->dimension() == 3)
-      if(m_hex_quad_mesh)
+      if (m_is_hexa8_mesh)
         _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
       else
         _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
     else
-      if(m_hex_quad_mesh)
+      if (m_is_quad4_mesh)
         _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
       else
         _assembleBilinear<3>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
@@ -412,7 +420,7 @@ _updateVariables()
   m_phi.synchronize();
 
   if (mesh()->dimension() == 2)
-    if (m_hex_quad_mesh)
+    if (m_is_quad4_mesh)
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
         Real3 grad = ArcaneFemFunctions::FeOperation2D::computeGradientQuad4(cell, m_node_coord, m_phi);
@@ -426,7 +434,7 @@ _updateVariables()
       }
 
   if (mesh()->dimension() == 3)
-    if (m_hex_quad_mesh)
+    if (m_is_hexa8_mesh)
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
         Real3 grad = ArcaneFemFunctions::FeOperation3D::computeGradientHexa8(cell, m_node_coord, m_phi);
@@ -450,7 +458,7 @@ _updateVariables()
  * @brief Validates and prints the results of the FEM computation.
  *
  * This method performs the following actions:
- *   1. If number of nodes < 200, prints the computed values for each node.
+ *   1. Prints the computed values for each node.
  *   2. Retrieves the filename for the result file from options.
  *   3. If a filename is provided, checks the computed results against result file.
  *
@@ -464,11 +472,10 @@ _validateResults()
   info() << "[ArcaneFem-Module] _validateResults()";
   Real elapsedTime = platform::getRealTime();
 
-  if (allNodes().size() < 200)
-    ENUMERATE_ (Node, inode, allNodes()) {
-      Node node = *inode;
-      info() << "phi[" << node.uniqueId() << "] = " << m_phi[node];
-    }
+  ENUMERATE_ (Node, inode, allNodes()) {
+    Node node = *inode;
+    info() << "phi[" << node.uniqueId() << "] = " << m_phi[node];
+  }
 
   String filename = options()->solutionComparisonFile();
 

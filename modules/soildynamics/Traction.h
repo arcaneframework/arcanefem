@@ -46,7 +46,7 @@ _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView
     auto constantTraction = [&](auto fn) { fn(bs, node_dof, m_node_coord, rhs_values); };
 
     if (mesh()->dimension() == 2) {
-      if (m_hex_quad_mesh)
+      if (m_is_quad4_mesh)
         is_transient_traction ? transientTraction(ArcaneFemFunctions::BoundaryConditions2D::applyTractionTableToRhsQuad4)
                               : constantTraction(ArcaneFemFunctions::BoundaryConditions2D::applyTractionToRhsQuad4);
       else
@@ -54,7 +54,7 @@ _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView
                               : constantTraction(ArcaneFemFunctions::BoundaryConditions2D::applyTractionToRhsTria3);
     }
     else if (mesh()->dimension() == 3) {
-      if (m_hex_quad_mesh)
+      if (m_is_hexa8_mesh)
         is_transient_traction ? transientTraction(ArcaneFemFunctions::BoundaryConditions3D::applyTractionTableToRhsHexa8)
                               : constantTraction(ArcaneFemFunctions::BoundaryConditions3D::applyTractionToRhsHexa8);
       else

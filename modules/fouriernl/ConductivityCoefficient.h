@@ -29,7 +29,7 @@
  */
 /*---------------------------------------------------------------------------*/
 inline Real FemModuleFourierNL::_lambdaCpu(const Real& u) {
-  return LAMBDA_CONDUCTIVITY_COEFFICIENT(u, options()->expNlin);
+  return LAMBDA_CONDUCTIVITY_COEFFICIENT(u, m_nlin_exp);
 }
 
 /**
@@ -44,5 +44,32 @@ inline Real FemModuleFourierNL::_lambdaCpu(const Real& u) {
  */
 /*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE inline Real _lambdaGpu_m2(const Real& u) {
-  return LAMBDA_CONDUCTIVITY_COEFFICIENT(u, 2.);
+  // return LAMBDA_CONDUCTIVITY_COEFFICIENT(u, 2.);
+  return (1.0 + 2.0 * u + u * u);
+}
+
+ARCCORE_HOST_DEVICE inline Real _lambdaGpu_m0(const Real& u) {
+  return 1.0;
+}
+
+ARCCORE_HOST_DEVICE inline Real _lambdaGpu_m5(const Real& u) {
+  return LAMBDA_CONDUCTIVITY_COEFFICIENT(u, 5.);
+}
+
+ARCCORE_HOST_DEVICE inline Real _lambdaGpu_maybe_slow(const Real& u, const Real expNlin) {
+  return LAMBDA_CONDUCTIVITY_COEFFICIENT(u, expNlin);
+}
+
+ARCCORE_HOST_DEVICE inline Real _lambdaGpu(const Real& u, const Real expNlin)
+{
+  if (expNlin == 0.) {
+    return _lambdaGpu_m0(u);
+  } else if (expNlin == 2.) {
+    return _lambdaGpu_m2(u);
+  } else if (expNlin == 5.) {
+    return _lambdaGpu_m5(u);
+  } else {
+    // ARCANE_FATAL("The chosen value of m is not implemented for GPUs");
+    return _lambdaGpu_maybe_slow(u, expNlin);
+  }
 }

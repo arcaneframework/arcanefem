@@ -63,5 +63,5 @@ Physical Curve("curved", 9) = {1, 2, 3};
 // ---- msh version/algo imposed ----
 //==============================================================================
 
-Mesh.Algorithm = 5;
+//Mesh.Algorithm = 5;//produces delaunay triangles and =11 produces quadqs
 Mesh.MshFileVersion = 4.1;

@@ -289,14 +289,26 @@ applyNeumannToRhs(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_
   else if (mesh->dimension() == 2 && nb_nodes == 4) { // Quad mesh
     BoundaryConditions2D::applyNeumannToRhsQuad4(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
   }
+  else if (mesh->dimension() == 2 && nb_nodes == 8) { // Quadratic serendipity quad mesh
+    BoundaryConditions2D::applyNeumannToRhsQuad8(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
+  else if (mesh->dimension() == 2 && nb_nodes == 9) { // Quadratic Lagrange quad mesh
+    BoundaryConditions2D::applyNeumannToRhsQuad9(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
   else if (mesh->dimension() == 3 && nb_nodes == 4) { // Tetra mesh
     BoundaryConditions3D::applyNeumannToRhsTetra4(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
   }
   else if (mesh->dimension() == 3 && nb_nodes == 8) { // Hexa mesh
     BoundaryConditions3D::applyNeumannToRhsHexa8(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
   }
+  else if (mesh->dimension() == 3 && nb_nodes == 20) { // Quadratic serendipity hexa mesh
+    BoundaryConditions3D::applyNeumannToRhsHexa20(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
+  else if (mesh->dimension() == 3 && nb_nodes == 27) { // Quadratic Lagrange hexa mesh
+    BoundaryConditions3D::applyNeumannToRhsHexa27(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
   else {
-    ARCANE_FATAL("Unknown mesh type only works for uniform TRIA3, QUAD4, TETRA4, HEXA8");
+    ARCANE_FATAL("Unknown mesh type only works for uniform TRIA3, QUAD4, QUAD8, QUAD9, TETRA4, HEXA8, HEXA20, HEXA27");
   }
 }
 /*---------------------------------------------------------------------------*/
@@ -332,14 +344,26 @@ applyConstantSourceToRhs(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
   else if (mesh->dimension() == 2 && nb_nodes == 4) { // Quad mesh
     BoundaryConditions2D::applyConstantSourceToRhsQuad4(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
   }
+  else if (mesh->dimension() == 2 && nb_nodes == 8) { // Quadratic serendipity quad mesh
+    BoundaryConditions2D::applyConstantSourceToRhsQuad8(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
+  else if (mesh->dimension() == 2 && nb_nodes == 9) { // Quadratic Lagrange quad mesh
+    BoundaryConditions2D::applyConstantSourceToRhsQuad9(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
   else if (mesh->dimension() == 3 && nb_nodes == 4) { // Tetra mesh
     BoundaryConditions3D::applyConstantSourceToRhsTetra4(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
   }
   else if (mesh->dimension() == 3 && nb_nodes == 8) { // Hexa mesh
     BoundaryConditions3D::applyConstantSourceToRhsHexa8(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
   }
+  else if (mesh->dimension() == 3 && nb_nodes == 20) { // Quadratic serendipity hexa mesh
+    BoundaryConditions3D::applyConstantSourceToRhsHexa20(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
+  else if (mesh->dimension() == 3 && nb_nodes == 27) { // Quadratic Lagrange hexa mesh
+    BoundaryConditions3D::applyConstantSourceToRhsHexa27(qdot, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+  }
   else {
-    ARCANE_FATAL("Unknown mesh type only works for uniform TRIA3, QUAD4, TETRA4, HEXA8");
+    ARCANE_FATAL("Unknown mesh type only works for uniform TRIA3, QUAD4, QUAD8, QUAD9, TETRA4, HEXA8, HEXA20, HEXA27");
   }
 }
 
@@ -404,25 +428,19 @@ applyConstantSourceToRhsQuad4(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
         Real eta = gp[ieta];
         Real weight = weights[ixi] * weights[ieta];
 
-        // Shape functions N for Quad4
-        Real N[4];
-        N[0] = 0.25 * (1.0 - xi) * (1.0 - eta);
-        N[1] = 0.25 * (1.0 + xi) * (1.0 - eta);
-        N[2] = 0.25 * (1.0 + xi) * (1.0 + eta);
-        N[3] = 0.25 * (1.0 - xi) * (1.0 + eta);
+        // Shape functions 𝐍 for Quad4
+        RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
 
         // Shape function derivatives
-        Real dN_dxi[4] = { -0.25 * (1.0 - eta), 0.25 * (1.0 - eta), 0.25 * (1.0 + eta), -0.25 * (1.0 + eta) };
-        Real dN_deta[4] = { -0.25 * (1.0 - xi), -0.25 * (1.0 + xi), 0.25 * (1.0 + xi), 0.25 * (1.0 - xi) };
-
+        const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsQuad4(xi, eta);
         // Jacobian calculation
         Real J00 = 0.0, J01 = 0.0, J10 = 0.0, J11 = 0.0;
         for (Int8 a = 0; a < 4; ++a) {
           Real3 coord = in_node_coord[cell_nodes[a]];
-          J00 += dN_dxi[a] * coord.x;
-          J01 += dN_dxi[a] * coord.y;
-          J10 += dN_deta[a] * coord.x;
-          J11 += dN_deta[a] * coord.y;
+          J00 += reference_gradients.dN_dxi[a] * coord.x;
+          J01 += reference_gradients.dN_dxi[a] * coord.y;
+          J10 += reference_gradients.dN_deta[a] * coord.x;
+          J11 += reference_gradients.dN_deta[a] * coord.y;
         }
 
         // Determinant of the Jacobian
@@ -440,6 +458,212 @@ applyConstantSourceToRhsQuad4(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
       }
     }
   };
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies a constant source term to the RHS quadratic quad elements.
+ *
+ * This method adds a constant source term `qdot` to the RHS vector for each
+ * node in the mesh. The contribution to each node is weighted by the area of
+ * the cell and evenly distributed among the number of nodes of the cell.
+ *
+ */
+void _applyConstantSourceToRhsQuadraticQuad(Real qdot, Int32 nb_cell_node,
+                                            const FemDoFsOnNodes& dofs_on_nodes,
+                                            const VariableNodeReal3& node_coord,
+                                            VariableDoFReal& rhs_variable_na,
+                                            IMesh* mesh, RunQueue* queue)
+{
+  UnstructuredMeshConnectivityView connectivity_view(mesh);
+  NodeInfoListView nodes_infos(mesh->nodeFamily());
+  auto node_dof = dofs_on_nodes.nodeDoFConnectivityView();
+  auto cn_cv = connectivity_view.cellNode();
+
+  if (nb_cell_node == 8) {
+    auto command = makeCommand(queue);
+    auto in_out_rhs = viewInOut(command, rhs_variable_na);
+    auto in_node_coord = viewIn(command, node_coord);
+
+    command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh->allCells())
+    {
+      // Gauss points and weights (3x3 Gauss Quadrature)
+      constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+      constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+      // Fetch cell nodes into a local array for quick access inside the integration loops
+      NodeLocalId cell_nodes[8];
+      for (Int32 i = 0; i < 8; ++i)
+        cell_nodes[i] = cn_cv.nodeId(cell_lid, i);
+
+      for (Int32 ixi = 0; ixi < 3; ++ixi) {
+        for (Int32 ieta = 0; ieta < 3; ++ieta) {
+          const Real xi = gp[ixi];
+          const Real eta = gp[ieta];
+
+          // Shape functions 𝐍 for Quad8
+          RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad8(xi, eta);
+
+          // Determinant of the Jacobian
+          const Real det_j = FeOperation2D::computeGradientsAndJacobianQuad8Gpu(cell_lid, cn_cv, in_node_coord, xi, eta).det_j;
+          const Real integration_weight = weights[ixi] * weights[ieta] * det_j;
+
+          // Assemble RHS via Atomic Operations
+          for (Int32 i = 0; i < 8; ++i) {
+            const NodeLocalId node_lid = cell_nodes[i];
+            if (nodes_infos.isOwn(node_lid)) {
+              const Real rhs_value = N[i] * qdot * integration_weight;
+              Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs[node_dof.dofId(node_lid, 0)], rhs_value);
+            }
+          }
+        }
+      }
+    };
+  }
+  else if (nb_cell_node == 9) {
+    auto command = makeCommand(queue);
+    auto in_out_rhs = viewInOut(command, rhs_variable_na);
+    auto in_node_coord = viewIn(command, node_coord);
+
+    command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh->allCells())
+    {
+      // Gauss points and weights (3x3 Gauss Quadrature)
+      constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+      constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+      // Fetch cell nodes into a local array for quick access inside the integration loops
+      NodeLocalId cell_nodes[9];
+      for (Int32 i = 0; i < 9; ++i)
+        cell_nodes[i] = cn_cv.nodeId(cell_lid, i);
+
+      for (Int32 ixi = 0; ixi < 3; ++ixi) {
+        for (Int32 ieta = 0; ieta < 3; ++ieta) {
+          const Real xi = gp[ixi];
+          const Real eta = gp[ieta];
+
+          // Shape functions 𝐍 for Quad9
+          RealVector<9> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad9(xi, eta);
+
+          // Determinant of the Jacobian
+          const Real det_j = FeOperation2D::computeGradientsAndJacobianQuad9Gpu(cell_lid, cn_cv, in_node_coord, xi, eta).det_j;
+          const Real integration_weight = weights[ixi] * weights[ieta] * det_j;
+
+          // Assemble RHS via Atomic Operations
+          for (Int32 i = 0; i < 9; ++i) {
+            const NodeLocalId node_lid = cell_nodes[i];
+            if (nodes_infos.isOwn(node_lid)) {
+              const Real rhs_value = N[i] * qdot * integration_weight;
+              Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs[node_dof.dofId(node_lid, 0)], rhs_value);
+            }
+          }
+        }
+      }
+    };
+  }
+  else
+    ARCANE_FATAL("Unsupported quadratic quadrilateral with '{0}' nodes", nb_cell_node);
+}
+
+void _applyNeumannToRhsLine3(BC::INeumannBoundaryCondition* bs,
+                             const FemDoFsOnNodes& dofs_on_nodes,
+                             const VariableNodeReal3& node_coord,
+                             VariableDoFReal& rhs_variable_na,
+                             IMesh* mesh, RunQueue* queue)
+{
+  const FaceGroup group = bs->getSurface();
+  const StringConstArrayView neumann_str = bs->getValue();
+  const bool scalar_neumann = neumann_str.size() == 1 && neumann_str[0] != "NULL";
+  const Real scalar_value = scalar_neumann ? std::stod(neumann_str[0].localstr()) : 0.0;
+  const Real value_x = !scalar_neumann && neumann_str.size() > 0 && neumann_str[0] != "NULL"
+  ? std::stod(neumann_str[0].localstr())
+  : 0.0;
+  const Real value_y = !scalar_neumann && neumann_str.size() > 1 && neumann_str[1] != "NULL"
+  ? std::stod(neumann_str[1].localstr())
+  : 0.0;
+
+  UnstructuredMeshConnectivityView connectivity_view(mesh);
+  NodeInfoListView nodes_infos(mesh->nodeFamily());
+  FaceInfoListView faces_infos(mesh->faceFamily());
+  auto node_dof = dofs_on_nodes.nodeDoFConnectivityView();
+  auto fn_cv = connectivity_view.faceNode();
+
+  auto command = makeCommand(queue);
+  auto in_out_rhs = viewInOut(command, rhs_variable_na);
+  auto in_node_coord = viewIn(command, node_coord);
+
+  command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
+  {
+    constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+    constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+    NodeLocalId face_nodes[3];
+    Real3 coords[3];
+    for (Int32 i = 0; i < 3; ++i) {
+      face_nodes[i] = fn_cv.nodeId(face_lid, i);
+      coords[i] = in_node_coord[face_nodes[i]];
+    }
+    const Real orientation = faces_infos.isSubDomainBoundaryOutside(face_lid) ? 1.0 : -1.0;
+
+    for (Int32 igauss = 0; igauss < 3; ++igauss) {
+      const Real xi = gp[igauss];
+      RealVector<3> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsLine3(xi);
+
+      const Real dN[3] = { xi - 0.5, xi + 0.5, -2.0 * xi };
+
+      Real dx_dxi = 0.0;
+      Real dy_dxi = 0.0;
+      for (Int32 i = 0; i < 3; ++i) {
+        dx_dxi += dN[i] * coords[i].x;
+        dy_dxi += dN[i] * coords[i].y;
+      }
+
+      const Real jacobian = math::sqrt(dx_dxi * dx_dxi + dy_dxi * dy_dxi);
+      const Real normal_x = orientation * dy_dxi / jacobian;
+      const Real normal_y = orientation * -dx_dxi / jacobian;
+      const Real flux = scalar_neumann ? scalar_value : normal_x * value_x + normal_y * value_y;
+      const Real integration_weight = weights[igauss] * jacobian;
+
+      for (Int32 i = 0; i < 3; ++i) {
+        const NodeLocalId node_lid = face_nodes[i];
+        if (nodes_infos.isOwn(node_lid)) {
+          const Real rhs_value = flux * N[i] * integration_weight;
+          Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs[node_dof.dofId(node_lid, 0)], rhs_value);
+        }
+      }
+    }
+  };
+}
+
+void BoundaryConditions2D::
+applyConstantSourceToRhsQuad8(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+                              const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                              IMesh* mesh, RunQueue* queue)
+{
+  _applyConstantSourceToRhsQuadraticQuad(qdot, 8, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+}
+
+void BoundaryConditions2D::
+applyConstantSourceToRhsQuad9(Real qdot, const FemDoFsOnNodes& dofs_on_nodes,
+                              const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                              IMesh* mesh, RunQueue* queue)
+{
+  _applyConstantSourceToRhsQuadraticQuad(qdot, 9, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+}
+
+void BoundaryConditions2D::
+applyNeumannToRhsQuad8(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                       const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                       IMesh* mesh, RunQueue* queue)
+{
+  _applyNeumannToRhsLine3(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
+}
+
+void BoundaryConditions2D::
+applyNeumannToRhsQuad9(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                       const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                       IMesh* mesh, RunQueue* queue)
+{
+  _applyNeumannToRhsLine3(bs, dofs_on_nodes, node_coord, rhs_variable_na, mesh, queue);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -564,9 +788,7 @@ applyNeumannToRhsQuad4(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& 
         Real xi = gp[i];
         Real weight = weights[i];
 
-        Real N[2];
-        N[0] = 0.5 * (1.0 - xi);
-        N[1] = 0.5 * (1.0 + xi);
+        RealVector<2> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsLine2(xi);
 
         Real integration_weight = weight * length * 0.5;
 
@@ -609,9 +831,7 @@ applyNeumannToRhsQuad4(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& 
         Real xi = gp[i];
         Real weight = weights[i];
 
-        Real N[2];
-        N[0] = 0.5 * (1.0 - xi);
-        N[1] = 0.5 * (1.0 + xi);
+        RealVector<2> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsLine2(xi);
 
         Real integration_weight = weight * length * 0.5;
 
@@ -696,70 +916,26 @@ applyConstantSourceToRhsHexa8(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, co
           Real weight = weights[ixi] * weights[ieta] * weights[izeta];
 
           // Shape functions 𝐍 for Hexa8
-          //   𝐍 = [𝑁₁  𝑁₂  𝑁₃  𝑁₄  𝑁₅  𝑁₆  𝑁₇  𝑁₈]
-          //   𝑁₁ = 1/8 * (1 - ξ) * (1 - η) * (1 - ζ)
-          //   𝑁₂ = 1/8 * (1 + ξ) * (1 - η) * (1 - ζ)
-          //   𝑁₃ = 1/8 * (1 + ξ) * (1 + η) * (1 - ζ)
-          //   𝑁₄ = 1/8 * (1 - ξ) * (1 + η) * (1 - ζ)
-          //   𝑁₅ = 1/8 * (1 - ξ) * (1 - η) * (1 + ζ)
-          //   𝑁₆ = 1/8 * (1 + ξ) * (1 - η) * (1 + ζ)
-          //   𝑁₇ = 1/8 * (1 + ξ) * (1 + η) * (1 + ζ)
-          //   𝑁₈ = 1/8 * (1 - ξ) * (1 + η) * (1 + ζ)
-          Real N[8];
-          N[0] = 0.125 * (1 - xi) * (1 - eta) * (1 - zeta);
-          N[1] = 0.125 * (1 + xi) * (1 - eta) * (1 - zeta);
-          N[2] = 0.125 * (1 + xi) * (1 + eta) * (1 - zeta);
-          N[3] = 0.125 * (1 - xi) * (1 + eta) * (1 - zeta);
-          N[4] = 0.125 * (1 - xi) * (1 - eta) * (1 + zeta);
-          N[5] = 0.125 * (1 + xi) * (1 - eta) * (1 + zeta);
-          N[6] = 0.125 * (1 + xi) * (1 + eta) * (1 + zeta);
-          N[7] = 0.125 * (1 - xi) * (1 + eta) * (1 + zeta);
+          RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa8(xi, eta, zeta);
 
           // Shape function derivatives in reference space
           //  ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ  ∂𝑁₅/∂ξ  ∂𝑁₆/∂ξ  ∂𝑁₇/∂ξ  ∂𝑁₈/∂ξ ]
           //  ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ∂𝑁₃/∂η  ∂𝑁₄/∂η  ∂𝑁₅/∂η  ∂𝑁₆/∂η  ∂𝑁₇/∂η  ∂𝑁₈/∂η ]
           //  ∂𝐍/∂ζ = [ ∂𝑁₁/∂ζ  ∂𝑁₂/∂ζ  ∂𝑁₃/∂ζ  ∂𝑁₄/∂ζ  ∂𝑁₅/∂ζ  ∂𝑁₆/∂ζ  ∂𝑁₇/∂ζ  ∂𝑁₈/∂ζ ]
-          Real dN_dxi[8], dN_deta[8], dN_dzeta[8];
-          dN_dxi[0] = -0.125 * (1 - eta) * (1 - zeta);
-          dN_dxi[1] = 0.125 * (1 - eta) * (1 - zeta);
-          dN_dxi[2] = 0.125 * (1 + eta) * (1 - zeta);
-          dN_dxi[3] = -0.125 * (1 + eta) * (1 - zeta);
-          dN_dxi[4] = -0.125 * (1 - eta) * (1 + zeta);
-          dN_dxi[5] = 0.125 * (1 - eta) * (1 + zeta);
-          dN_dxi[6] = 0.125 * (1 + eta) * (1 + zeta);
-          dN_dxi[7] = -0.125 * (1 + eta) * (1 + zeta);
-
-          dN_deta[0] = -0.125 * (1 - xi) * (1 - zeta);
-          dN_deta[1] = -0.125 * (1 + xi) * (1 - zeta);
-          dN_deta[2] = 0.125 * (1 + xi) * (1 - zeta);
-          dN_deta[3] = 0.125 * (1 - xi) * (1 - zeta);
-          dN_deta[4] = -0.125 * (1 - xi) * (1 + zeta);
-          dN_deta[5] = -0.125 * (1 + xi) * (1 + zeta);
-          dN_deta[6] = 0.125 * (1 + xi) * (1 + zeta);
-          dN_deta[7] = 0.125 * (1 - xi) * (1 + zeta);
-
-          dN_dzeta[0] = -0.125 * (1 - xi) * (1 - eta);
-          dN_dzeta[1] = -0.125 * (1 + xi) * (1 - eta);
-          dN_dzeta[2] = -0.125 * (1 + xi) * (1 + eta);
-          dN_dzeta[3] = -0.125 * (1 - xi) * (1 + eta);
-          dN_dzeta[4] = 0.125 * (1 - xi) * (1 - eta);
-          dN_dzeta[5] = 0.125 * (1 + xi) * (1 - eta);
-          dN_dzeta[6] = 0.125 * (1 + xi) * (1 + eta);
-          dN_dzeta[7] = 0.125 * (1 - xi) * (1 + eta);
-
+          const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsHexa8(xi, eta, zeta);
           // Jacobian for 3D (using your working stiffness matrix approach)
           Real3x3 J;
           for (Int8 a = 0; a < 8; ++a) {
             const Real3& n = in_node_coord[cell_nodes[a]];
-            J[0][0] += dN_dxi[a] * n.x; // ∂𝑥/∂ξ
-            J[0][1] += dN_dxi[a] * n.y; // ∂𝑦/∂ξ
-            J[0][2] += dN_dxi[a] * n.z; // ∂𝑧/∂ξ
-            J[1][0] += dN_deta[a] * n.x; // ∂𝑥/∂η
-            J[1][1] += dN_deta[a] * n.y; // ∂𝑦/∂η
-            J[1][2] += dN_deta[a] * n.z; // ∂𝑧/∂η
-            J[2][0] += dN_dzeta[a] * n.x; // ∂𝑥/∂ζ
-            J[2][1] += dN_dzeta[a] * n.y; // ∂𝑦/∂ζ
-            J[2][2] += dN_dzeta[a] * n.z; // ∂𝑧/∂ζ
+            J[0][0] += reference_gradients.dN_dxi[a] * n.x; // ∂𝑥/∂ξ
+            J[0][1] += reference_gradients.dN_dxi[a] * n.y; // ∂𝑦/∂ξ
+            J[0][2] += reference_gradients.dN_dxi[a] * n.z; // ∂𝑧/∂ξ
+            J[1][0] += reference_gradients.dN_deta[a] * n.x; // ∂𝑥/∂η
+            J[1][1] += reference_gradients.dN_deta[a] * n.y; // ∂𝑦/∂η
+            J[1][2] += reference_gradients.dN_deta[a] * n.z; // ∂𝑧/∂η
+            J[2][0] += reference_gradients.dN_dzeta[a] * n.x; // ∂𝑥/∂ζ
+            J[2][1] += reference_gradients.dN_dzeta[a] * n.y; // ∂𝑦/∂ζ
+            J[2][2] += reference_gradients.dN_dzeta[a] * n.z; // ∂𝑧/∂ζ
           }
 
           // Compute determinant of Jacobian
@@ -775,6 +951,115 @@ applyConstantSourceToRhsHexa8(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, co
               Real rhs_value = N[i] * qdot * integration_weight;
 
               Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
+            }
+          }
+        }
+      }
+    }
+  };
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void BoundaryConditions3D::
+applyConstantSourceToRhsHexa20(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord,
+                               VariableDoFReal& rhs_variable_na, IMesh* mesh, RunQueue* queue)
+{
+  ARCANE_CHECK_PTR(mesh);
+  ARCANE_CHECK_PTR(queue);
+
+  UnstructuredMeshConnectivityView connectivity_view(mesh);
+  NodeInfoListView nodes_infos(mesh->nodeFamily());
+  auto node_dof = dofs_on_nodes.nodeDoFConnectivityView();
+  auto cn_cv = connectivity_view.cellNode();
+
+  auto command = makeCommand(queue);
+  auto in_out_rhs_variable_na = viewInOut(command, rhs_variable_na);
+  auto in_node_coord = viewIn(command, node_coord);
+
+  command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh->allCells())
+  {
+    constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+    constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+    NodeLocalId cell_nodes[20];
+    for (Int32 i = 0; i < 20; ++i)
+      cell_nodes[i] = cn_cv.nodeId(cell_lid, i);
+
+    for (Int32 ixi = 0; ixi < 3; ++ixi) {
+      for (Int32 ieta = 0; ieta < 3; ++ieta) {
+        for (Int32 izeta = 0; izeta < 3; ++izeta) {
+          const Real xi = gp[ixi];
+          const Real eta = gp[ieta];
+          const Real zeta = gp[izeta];
+          const Real weight = weights[ixi] * weights[ieta] * weights[izeta];
+
+          // Shape functions 𝐍 for Hexa20
+          const RealVector<20> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa20(xi, eta, zeta);
+          const auto gp_info = FeOperation3D::computeGradientsAndJacobianHexa20Gpu(cell_lid, cn_cv, in_node_coord, xi, eta, zeta);
+          const Real integration_weight = weight * gp_info.det_j;
+
+          for (Int32 i = 0; i < 20; ++i) {
+            const NodeLocalId node_lid = cell_nodes[i];
+            if (nodes_infos.isOwn(node_lid)) {
+              const Real rhs_value = N(i) * qdot * integration_weight;
+              Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(
+              in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
+            }
+          }
+        }
+      }
+    }
+  };
+}
+
+/*---------------------------------------------------------------------------*/
+
+void BoundaryConditions3D::
+applyConstantSourceToRhsHexa27(Real qdot, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord,
+                               VariableDoFReal& rhs_variable_na, IMesh* mesh, RunQueue* queue)
+{
+  ARCANE_CHECK_PTR(mesh);
+  ARCANE_CHECK_PTR(queue);
+
+  UnstructuredMeshConnectivityView connectivity_view(mesh);
+  NodeInfoListView nodes_infos(mesh->nodeFamily());
+  auto node_dof = dofs_on_nodes.nodeDoFConnectivityView();
+  auto cn_cv = connectivity_view.cellNode();
+
+  auto command = makeCommand(queue);
+  auto in_out_rhs_variable_na = viewInOut(command, rhs_variable_na);
+  auto in_node_coord = viewIn(command, node_coord);
+
+  command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh->allCells())
+  {
+    constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+    constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+    NodeLocalId cell_nodes[27];
+    for (Int32 i = 0; i < 27; ++i)
+      cell_nodes[i] = cn_cv.nodeId(cell_lid, i);
+
+    for (Int32 ixi = 0; ixi < 3; ++ixi) {
+      for (Int32 ieta = 0; ieta < 3; ++ieta) {
+        for (Int32 izeta = 0; izeta < 3; ++izeta) {
+          const Real xi = gp[ixi];
+          const Real eta = gp[ieta];
+          const Real zeta = gp[izeta];
+          const Real weight = weights[ixi] * weights[ieta] * weights[izeta];
+
+          // Shape functions 𝐍 for Hexa27
+          const RealVector<27> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa27(xi, eta, zeta);
+          const auto gp_info = FeOperation3D::computeGradientsAndJacobianHexa27Gpu(cell_lid, cn_cv, in_node_coord, xi, eta, zeta);
+          const Real integration_weight = weight * gp_info.det_j;
+
+          for (Int32 i = 0; i < 27; ++i) {
+            const NodeLocalId node_lid = cell_nodes[i];
+            if (nodes_infos.isOwn(node_lid)) {
+              const Real rhs_value = N(i) * qdot * integration_weight;
+              Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(
+              in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
             }
           }
         }
@@ -911,36 +1196,22 @@ applyNeumannToRhsHexa8(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& 
           Real xi = gp[ixi];
           Real eta = gp[ieta];
 
-          // Quad4 shape functions
-          Real N[4];
-          N[0] = 0.25 * (1.0 - xi) * (1.0 - eta);
-          N[1] = 0.25 * (1.0 + xi) * (1.0 - eta);
-          N[2] = 0.25 * (1.0 + xi) * (1.0 + eta);
-          N[3] = 0.25 * (1.0 - xi) * (1.0 + eta);
+          // Shape functions 𝐍 for Quad4
+          RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
 
           // Shape function derivatives w.r.t. natural coordinates
-          Real dN_dxi[4], dN_deta[4];
-          dN_dxi[0] = -0.25 * (1.0 - eta);
-          dN_dxi[1] = 0.25 * (1.0 - eta);
-          dN_dxi[2] = 0.25 * (1.0 + eta);
-          dN_dxi[3] = -0.25 * (1.0 + eta);
-
-          dN_deta[0] = -0.25 * (1.0 - xi);
-          dN_deta[1] = -0.25 * (1.0 + xi);
-          dN_deta[2] = 0.25 * (1.0 + xi);
-          dN_deta[3] = 0.25 * (1.0 - xi);
-
+          const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsQuad4(xi, eta);
           // Tangent vectors: t1 = ∂r/∂ξ,  t2 = ∂r/∂η
           Real3 t1(0.0, 0.0, 0.0);
           Real3 t2(0.0, 0.0, 0.0);
           for (Int32 i = 0; i < 4; ++i) {
-            t1.x += dN_dxi[i] * coords[i].x;
-            t1.y += dN_dxi[i] * coords[i].y;
-            t1.z += dN_dxi[i] * coords[i].z;
+            t1.x += reference_gradients.dN_dxi[i] * coords[i].x;
+            t1.y += reference_gradients.dN_dxi[i] * coords[i].y;
+            t1.z += reference_gradients.dN_dxi[i] * coords[i].z;
 
-            t2.x += dN_deta[i] * coords[i].x;
-            t2.y += dN_deta[i] * coords[i].y;
-            t2.z += dN_deta[i] * coords[i].z;
+            t2.x += reference_gradients.dN_deta[i] * coords[i].x;
+            t2.y += reference_gradients.dN_deta[i] * coords[i].y;
+            t2.z += reference_gradients.dN_deta[i] * coords[i].z;
           }
 
           // Normal vector via cross product t1 × t2
@@ -1000,36 +1271,22 @@ applyNeumannToRhsHexa8(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& 
           Real xi = gp[ixi];
           Real eta = gp[ieta];
 
-          // Quad4 shape functions
-          Real N[4];
-          N[0] = 0.25 * (1.0 - xi) * (1.0 - eta);
-          N[1] = 0.25 * (1.0 + xi) * (1.0 - eta);
-          N[2] = 0.25 * (1.0 + xi) * (1.0 + eta);
-          N[3] = 0.25 * (1.0 - xi) * (1.0 + eta);
+          // Shape functions 𝐍 for Quad4
+          RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
 
           // Shape function derivatives w.r.t. natural coordinates
-          Real dN_dxi[4], dN_deta[4];
-          dN_dxi[0] = -0.25 * (1.0 - eta);
-          dN_dxi[1] = 0.25 * (1.0 - eta);
-          dN_dxi[2] = 0.25 * (1.0 + eta);
-          dN_dxi[3] = -0.25 * (1.0 + eta);
-
-          dN_deta[0] = -0.25 * (1.0 - xi);
-          dN_deta[1] = -0.25 * (1.0 + xi);
-          dN_deta[2] = 0.25 * (1.0 + xi);
-          dN_deta[3] = 0.25 * (1.0 - xi);
-
+          const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsQuad4(xi, eta);
           // Tangent vectors: t1 = ∂r/∂ξ,  t2 = ∂r/∂η
           Real3 t1(0.0, 0.0, 0.0);
           Real3 t2(0.0, 0.0, 0.0);
           for (Int32 i = 0; i < 4; ++i) {
-            t1.x += dN_dxi[i] * coords[i].x;
-            t1.y += dN_dxi[i] * coords[i].y;
-            t1.z += dN_dxi[i] * coords[i].z;
+            t1.x += reference_gradients.dN_dxi[i] * coords[i].x;
+            t1.y += reference_gradients.dN_dxi[i] * coords[i].y;
+            t1.z += reference_gradients.dN_dxi[i] * coords[i].z;
 
-            t2.x += dN_deta[i] * coords[i].x;
-            t2.y += dN_deta[i] * coords[i].y;
-            t2.z += dN_deta[i] * coords[i].z;
+            t2.x += reference_gradients.dN_deta[i] * coords[i].x;
+            t2.y += reference_gradients.dN_deta[i] * coords[i].y;
+            t2.z += reference_gradients.dN_deta[i] * coords[i].z;
           }
 
           // Normal vector via cross product t1 × t2
@@ -1062,6 +1319,169 @@ applyNeumannToRhsHexa8(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& 
       }
     };
   }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void BoundaryConditions3D::
+applyNeumannToRhsHexa20(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                        const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                        IMesh* mesh, RunQueue* queue)
+{
+  ARCANE_CHECK_PTR(bs);
+  ARCANE_CHECK_PTR(mesh);
+  ARCANE_CHECK_PTR(queue);
+
+  const FaceGroup group = bs->getSurface();
+  const StringConstArrayView neumann_str = bs->getValue();
+  const bool scalar_neumann = neumann_str.size() == 1 && neumann_str[0] != "NULL";
+  const Real value = scalar_neumann ? std::stod(neumann_str[0].localstr()) : 0.0;
+  const Real value_x = !scalar_neumann && neumann_str.size() > 0 && neumann_str[0] != "NULL"
+  ? std::stod(neumann_str[0].localstr())
+  : 0.0;
+  const Real value_y = !scalar_neumann && neumann_str.size() > 1 && neumann_str[1] != "NULL"
+  ? std::stod(neumann_str[1].localstr())
+  : 0.0;
+  const Real value_z = !scalar_neumann && neumann_str.size() > 2 && neumann_str[2] != "NULL"
+  ? std::stod(neumann_str[2].localstr())
+  : 0.0;
+
+  UnstructuredMeshConnectivityView connectivity_view(mesh);
+  NodeInfoListView nodes_infos(mesh->nodeFamily());
+  auto node_dof = dofs_on_nodes.nodeDoFConnectivityView();
+  auto fn_cv = connectivity_view.faceNode();
+
+  auto command = makeCommand(queue);
+  auto in_out_rhs_variable_na = viewInOut(command, rhs_variable_na);
+  auto in_node_coord = viewIn(command, node_coord);
+
+  command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
+  {
+    constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+    constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+    NodeLocalId face_nodes[8];
+    Real3 coords[8];
+    for (Int32 i = 0; i < 8; ++i) {
+      face_nodes[i] = fn_cv.nodeId(face_lid, i);
+      coords[i] = in_node_coord[face_nodes[i]];
+    }
+
+    for (Int32 ixi = 0; ixi < 3; ++ixi) {
+      for (Int32 ieta = 0; ieta < 3; ++ieta) {
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const Real weight = weights[ixi] * weights[ieta];
+
+        RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad8(xi, eta);
+
+        const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsQuad8(xi, eta);
+        Real3 tangent_xi(0.0, 0.0, 0.0);
+        Real3 tangent_eta(0.0, 0.0, 0.0);
+        for (Int32 i = 0; i < 8; ++i) {
+          tangent_xi += reference_gradients.dN_dxi[i] * coords[i];
+          tangent_eta += reference_gradients.dN_deta[i] * coords[i];
+        }
+
+        const Real3 normal = math::cross(tangent_xi, tangent_eta);
+        const Real surface_jacobian = math::sqrt(math::dot(normal, normal));
+        const Real flux = scalar_neumann ? value
+                                          : (normal.x * value_x + normal.y * value_y + normal.z * value_z) / surface_jacobian;
+        const Real integration_weight = weight * surface_jacobian;
+
+        for (Int32 i = 0; i < 8; ++i) {
+          const NodeLocalId node_lid = face_nodes[i];
+          if (nodes_infos.isOwn(node_lid)) {
+            const Real rhs_value = flux * N[i] * integration_weight;
+            Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(
+            in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
+          }
+        }
+      }
+    }
+  };
+}
+
+/*---------------------------------------------------------------------------*/
+
+void BoundaryConditions3D::
+applyNeumannToRhsHexa27(BC::INeumannBoundaryCondition* bs, const FemDoFsOnNodes& dofs_on_nodes,
+                        const VariableNodeReal3& node_coord, VariableDoFReal& rhs_variable_na,
+                        IMesh* mesh, RunQueue* queue)
+{
+  ARCANE_CHECK_PTR(bs);
+  ARCANE_CHECK_PTR(mesh);
+  ARCANE_CHECK_PTR(queue);
+
+  const FaceGroup group = bs->getSurface();
+  const StringConstArrayView neumann_str = bs->getValue();
+  const bool scalar_neumann = neumann_str.size() == 1 && neumann_str[0] != "NULL";
+  const Real value = scalar_neumann ? std::stod(neumann_str[0].localstr()) : 0.0;
+  const Real value_x = !scalar_neumann && neumann_str.size() > 0 && neumann_str[0] != "NULL"
+  ? std::stod(neumann_str[0].localstr())
+  : 0.0;
+  const Real value_y = !scalar_neumann && neumann_str.size() > 1 && neumann_str[1] != "NULL"
+  ? std::stod(neumann_str[1].localstr())
+  : 0.0;
+  const Real value_z = !scalar_neumann && neumann_str.size() > 2 && neumann_str[2] != "NULL"
+  ? std::stod(neumann_str[2].localstr())
+  : 0.0;
+
+  UnstructuredMeshConnectivityView connectivity_view(mesh);
+  NodeInfoListView nodes_infos(mesh->nodeFamily());
+  auto node_dof = dofs_on_nodes.nodeDoFConnectivityView();
+  auto fn_cv = connectivity_view.faceNode();
+
+  auto command = makeCommand(queue);
+  auto in_out_rhs_variable_na = viewInOut(command, rhs_variable_na);
+  auto in_node_coord = viewIn(command, node_coord);
+
+  command << RUNCOMMAND_ENUMERATE(FaceLocalId, face_lid, group)
+  {
+    constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+    constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+    NodeLocalId face_nodes[9];
+    Real3 coords[9];
+    for (Int32 i = 0; i < 9; ++i) {
+      face_nodes[i] = fn_cv.nodeId(face_lid, i);
+      coords[i] = in_node_coord[face_nodes[i]];
+    }
+
+    for (Int32 ixi = 0; ixi < 3; ++ixi) {
+      for (Int32 ieta = 0; ieta < 3; ++ieta) {
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const Real weight = weights[ixi] * weights[ieta];
+
+        RealVector<9> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad9(xi, eta);
+
+        const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsQuad9(xi, eta);
+        Real3 tangent_xi(0.0, 0.0, 0.0);
+        Real3 tangent_eta(0.0, 0.0, 0.0);
+        for (Int32 i = 0; i < 9; ++i) {
+          tangent_xi += reference_gradients.dN_dxi[i] * coords[i];
+          tangent_eta += reference_gradients.dN_deta[i] * coords[i];
+        }
+
+        const Real3 normal = math::cross(tangent_xi, tangent_eta);
+        const Real surface_jacobian = math::sqrt(math::dot(normal, normal));
+        const Real flux = scalar_neumann ? value
+                                          : (normal.x * value_x + normal.y * value_y + normal.z * value_z) / surface_jacobian;
+        const Real integration_weight = weight * surface_jacobian;
+
+        for (Int32 i = 0; i < 9; ++i) {
+          const NodeLocalId node_lid = face_nodes[i];
+          if (nodes_infos.isOwn(node_lid)) {
+            const Real rhs_value = flux * N[i] * integration_weight;
+            Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(
+            in_out_rhs_variable_na[node_dof.dofId(node_lid, 0)], rhs_value);
+          }
+        }
+      }
+    }
+  };
 }
 
 /*---------------------------------------------------------------------------*/

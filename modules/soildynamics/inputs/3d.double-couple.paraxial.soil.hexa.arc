@@ -26,7 +26,6 @@
     <cs>21.5</cs>
     <cp>40.</cp>
     <rho>9.0</rho>
-    <hex-quad-mesh>true</hex-quad-mesh>
     <paraxial-boundary-condition>
       <surface>boundaries</surface>
     </paraxial-boundary-condition>

@@ -163,8 +163,14 @@ _getParameters()
   nu = options()->nu(); // Poisson ratio ν
   rho = options()->rho(); // Density ρ
 
-  //--------- mesh parameter ------------//
-  m_hex_quad_mesh = options()->hexQuadMesh();
+  // Check if the mesh is a quad or hex mesh by examining the number of nodes in the first cell
+  UnstructuredMeshConnectivityView connectivity(mesh());
+  const Int32 nb_node = connectivity.cellNode().nbNode(CellLocalId(0));
+
+  if (mesh()->dimension() == 2)
+    m_is_quad4_mesh = (nb_node == 4);
+  else if (mesh()->dimension() == 3)
+    m_is_hexa8_mesh = (nb_node == 8);
 
   mu = E / (2 * (1 + nu)); // lame parameter μ
   lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
@@ -458,7 +464,7 @@ _assembleBilinearOperator()
   if (t <= dt) {
     if (m_matrix_format == "DOK") {
       if (mesh()->dimension() == 2) {
-        if (m_hex_quad_mesh) {
+        if (m_is_quad4_mesh) {
           _assembleBilinearOperatorCpu<8>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
         }
         else {
@@ -466,7 +472,7 @@ _assembleBilinearOperator()
         }
       }
       if (mesh()->dimension() == 3) {
-        if (m_hex_quad_mesh) {
+        if (m_is_hexa8_mesh) {
           _assembleBilinearOperatorCpu<24>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
         }
         else{
@@ -515,7 +521,7 @@ _validateResults()
   info() << "[ArcaneFem-Info] Started module  _validateResults()";
   Real elapsedTime = platform::getRealTime();
 
-  if (allNodes().size() < 200) {
+  {
     int p = std::cout.precision();
     std::cout.precision(17);
     ENUMERATE_ (Node, inode, allNodes()) {

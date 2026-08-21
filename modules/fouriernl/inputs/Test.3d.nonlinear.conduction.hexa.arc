@@ -34,7 +34,6 @@
       - boundary-conditions: Specifies boundary conditions
   -->
   <fem>
-    <hex-quad-mesh>true</hex-quad-mesh>
     <boundary-conditions>
         <dirichlet>
             <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
