@@ -913,25 +913,6 @@ class ArcaneFemFunctions
 
       return { d_ux, d_uy, d_uz };
     }
-
-    /*---------------------------------------------------------------------------*/
-    /**
-     * @brief Computes the shape functions for a Quad4 element at a given point (ξ, η).
-     * 
-     * @param xi The ξ coordinate of the evaluation point (-1 to 1).
-     * @param eta The η coordinate of the evaluation point (-1 to 1).
-     * @return A RealVector<4> containing the shape functions {𝑁₁, 𝑁₂, 𝑁₃, 𝑁₄}.
-     */
-    /*---------------------------------------------------------------------------*/
-    static inline RealVector<4> computeShapeFunctionsQuad4(Real xi, Real eta)
-    {
-      RealVector<4> N;
-      N(0) = 0.25 * (1. - xi) * (1. - eta); // 𝑁₁
-      N(1) = 0.25 * (1. + xi) * (1. - eta); // 𝑁₂
-      N(2) = 0.25 * (1. + xi) * (1. + eta); // 𝑁₃
-      N(3) = 0.25 * (1. - xi) * (1. + eta); // 𝑁₄
-      return N;
-    }
   };
 
   /*---------------------------------------------------------------------------*/
