@@ -1,8 +1,8 @@
 <?xml version='1.0'?>
-<case codename="Passmo" xml:lang="en" codeversion="1.0">
+<case codename="Passmonl" xml:lang="en" codeversion="1.0">
   <arcane>
     <title>Sample</title>
-    <timeloop>PassmoLoop</timeloop>
+    <timeloop>PassmonlLoop</timeloop>
   </arcane>
   <arcane-post-processing>
    <format name="VtkHdfV2PostProcessor" />
@@ -14,7 +14,7 @@
 
   <meshes>
     <mesh>
-      <filename>bar_dynamic_quad.msh</filename>
+      <filename>bar_dynamic.msh</filename>
       <initialization>
         <variable><name>Rho</name><value>1.000000</value><group>volume</group></variable>
         <variable><name>Lambda</name><value>576.9230769</value><group>volume</group></variable>
@@ -23,33 +23,32 @@
     </mesh>
   </meshes>
 
-  <elastodynamic>
+  <n-l-dynamic>
     <analysis-type>planestrain</analysis-type>
     <start>0.</start>
     <final-time>2.0</final-time>
     <deltat>0.08</deltat>
-    <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
 
     <init-elast-type>lame</init-elast-type>
 
-    <dirichlet-surface-condition>
+    <boundary-conditions>
+     <dirichlet>
       <surface>surfaceleft</surface>
-      <Ux>0.0</Ux>
-      <Uy>0.0</Uy>
-    </dirichlet-surface-condition>
+        <value>0.0 0.0 0.0</value>
+     </dirichlet>
 
-    <dirichlet-surface-condition>
+     <dirichlet>
       <surface>surfaceright</surface>
-      <Ux>1.0</Ux>
-    </dirichlet-surface-condition>
-    
-    <result-file>bar2d-quad.txt</result-file>
+        <value>1.0 0.0 0.0</value>
+      </dirichlet>
+    </boundary-conditions>
 
-    <linear-system>
-      <solver-backend>petsc</solver-backend>
-      <solver-method>pcg</solver-method>
-      <epsilon>1e-34</epsilon>
-    </linear-system>
+    <nonlin-algo-type>linear</nonlin-algo-type>
+    <integration-type>femcell</integration-type>
+    <law-model>
+       <cell-group>volume</cell-group>
+       <law-type>Hooke</law-type>
+    </law-model>
 
-  </elastodynamic>
+  </n-l-dynamic>
 </case>

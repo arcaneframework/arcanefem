@@ -5,7 +5,7 @@
     <timeloop>PassmoLoop</timeloop>
   </arcane>
   <arcane-post-processing>
-   <format name="VtkHdfV2PostProcessor" />
+     <format name="VtkHdfV2PostProcessor" />
    <output-period>1</output-period>
    <output>
      <variable>Displ</variable>
@@ -14,37 +14,37 @@
 
   <meshes>
     <mesh>
-      <filename>bar_dynamic_3Dhexa.msh</filename>
+      <filename>bar_dynamic_P2.msh</filename>
       <initialization>
-        <variable><name>Rho</name><value>1.000000</value><group>vol</group></variable>
-        <variable><name>Lambda</name><value>576.9230769</value><group>vol</group></variable>
-        <variable><name>Mu</name><value>384.6153846</value><group>vol</group></variable>
+        <variable><name>Rho</name><value>1.000000</value><group>volume</group></variable>
+        <variable><name>Lambda</name><value>576.9230769</value><group>volume</group></variable>
+        <variable><name>Mu</name><value>384.6153846</value><group>volume</group></variable>
       </initialization>
     </mesh>
   </meshes>
 
   <elastodynamic>
-    <analysis-type>3D</analysis-type>
+    <analysis-type>planestrain</analysis-type>
     <start>0.</start>
     <final-time>2.0</final-time>
-    <deltat>0.08</deltat>
+    <deltat>0.1</deltat>
     <enforce-Dirichlet-method>Penalty</enforce-Dirichlet-method>
 
     <init-elast-type>lame</init-elast-type>
+    <gauss-nint>3</gauss-nint>
 
     <dirichlet-surface-condition>
-      <surface>left</surface>
+      <surface>surfaceleft</surface>
       <Ux>0.0</Ux>
       <Uy>0.0</Uy>
-      <Uz>0.0</Uz>
     </dirichlet-surface-condition>
 
     <dirichlet-surface-condition>
-      <surface>right</surface>
+      <surface>surfaceright</surface>
       <Ux>1.0</Ux>
     </dirichlet-surface-condition>
     
-    <result-file>bar3d-hexa.txt</result-file>
+    <!--result-file>bar2d-tria.txt</result-file-->
 
   </elastodynamic>
 </case>
