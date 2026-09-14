@@ -19,7 +19,7 @@
   </meshes>
 
   <fem>
-    <tmax>13.</tmax>
+    <tmax>2.</tmax>
     <dt>1.</dt>
     <constitutive-law>
       <law>DruckerPrager</law>
@@ -36,7 +36,6 @@
       <dirichlet>
         <surface>left</surface>
         <value>0.0 NULL</value>
-        <enforce-Dirichlet-method>RowColumnElimination</enforce-Dirichlet-method>
       </dirichlet>
       <dirichlet>
         <surface>right</surface>
@@ -48,7 +47,7 @@
       </dirichlet>
       <dirichlet>
         <surface>footing</surface>
-        <value>NULL 0.0</value>
+        <value>NULL -0.0025</value>
       </dirichlet>
     </boundary-conditions>
   </fem>

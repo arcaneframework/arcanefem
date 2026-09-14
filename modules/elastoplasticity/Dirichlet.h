@@ -44,10 +44,12 @@ _applyDirichletNewton(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectiv
       for (Int32 dof_index = 0; dof_index < u_dirichlet_string.size(); ++dof_index) {
         if (u_dirichlet_string[dof_index] != "NULL") {
           Real value = std::stod(u_dirichlet_string[dof_index].localstr());
-          if (face_group.name() == "footing") {
-            value = - (t / tmax) * max_settlement;
-            // info() << "Apply footing dirichlet condition with value: " << value;
-          }
+          // if (face_group.name() == "footing") {
+          //   value = - (t / tmax) * max_settlement;
+          //   info() << "Apply footing dirichlet condition with value: " << value << " for t " << t << " and tmax " << tmax;
+          // } else {
+          //   value = std::stod(u_dirichlet_string[dof_index].localstr());
+          // }
           if (bs->getEnforceDirichletMethod() == "Penalty") {
             Real penalty = bs->getPenalty();
             ENUMERATE_ (Node, inode, node_group) {
@@ -148,10 +150,10 @@ void FemModuleElastoplasticity::_assembleDirichletsNewtonGpu()
       for (Int32 dof_index = 0; dof_index < u_dirichlet_string.size(); ++dof_index) {
         if (u_dirichlet_string[dof_index] != "NULL") {
           Real value = std::stod(u_dirichlet_string[dof_index].localstr());
-          if (face_group.name() == "footing") {
-            value = - (t / tmax) * max_settlement;
-            // info() << "Apply footing dirichlet condition with value: " << value;
-          }
+          // if (face_group.name() == "footing") {
+          //   value = - (t / tmax) * max_settlement;
+          //   // info() << "Apply footing dirichlet condition with value: " << value;
+          // }
           if (bs->getEnforceDirichletMethod() == "Penalty") {
             Real penalty = bs->getPenalty();
             ARCANE_CHECK_PTR(queue);

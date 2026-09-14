@@ -360,15 +360,18 @@ _solveNewton()
         _assembleLinearOperator(); // assembles Residuals(m_DUn) + BCs
       }
     }
-    // if (m_newton_iter == 1) { // moved to check newton convergence
-    //   if (m_constitutive_law == "DruckerPrager") {
-    //     // --- calculate_residual ---- //
-    //     VariableDoFReal& residual_values_k(m_linear_system.rhsVariable());
-    //     _applyZeroRHSOnConstrainedDOFs(residual_values_k, node_dof);
-    //     m_residual_norm0 = _normL2(residual_values_k, node_dof);
-    //     info() << "[ArcaneFem-Info] Updated initial residual norm = " << m_residual_norm0;
-    //   }
-    // }
+
+    if (m_newton_iter == 1) {
+      if (m_constitutive_law == "DruckerPrager") {
+        // The first assembled rhs contains the large algebraic enforcement of the
+        // non-zero footing displacement. Reset the Newton reference norm after that
+        // correction so convergence is measured using the physical equilibrium
+        // residual, not the Dirichlet penalty.
+        VariableDoFReal& residual_values_k(m_linear_system.rhsVariable());
+        m_residual_norm0 = _normL2(residual_values_k, node_dof);
+        info() << "[ArcaneFem-Info] Updated initial residual norm = " << m_residual_norm0;
+      }
+    }
 
     // --- calculate_and_check_residual ---- //
     _checkNewtonConvergence();
@@ -393,9 +396,6 @@ _solveNewton()
              << t - 1 << ":\tPressure applied: " << Qlim * tl
              << "\tNewton iters: " << m_newton_iter
              << "\tResidual norm: " << m_residual_norm;
-
-
-
     }
 
     if (m_constitutive_law == "DruckerPrager") {
@@ -413,16 +413,19 @@ _solveNewton()
 
       alg_reaction = _normL1(residual_values, node_dof);
 
+      info() << "[ArcaneFem-Info] Algebraic reaction norm = " << alg_reaction
+      << " Cohesion = " << cohesion
+      << " Footing width = " << footing_width
+      << " Max settlement = " << max_settlement;
+
       Real normalized_pressure = -alg_reaction / (footing_width * cohesion);
       Real settlement = t / tmax * max_settlement;
 
       info() << "[ArcaneFem-Info] At Time Step "
              << t - 1 << ":\tSettlement: " << settlement
-             << ":\tNormalised pressure: " << normalized_pressure
+             << "\tNormalised pressure: " << normalized_pressure
              << "\tNewton iters: " << m_newton_iter
              << "\tResidual norm: " << m_residual_norm;
-
-
     }
 
     m_newton_solver_converged = false;
@@ -1028,15 +1031,10 @@ _checkNewtonConvergence()
   VariableDoFReal& residual_values(m_linear_system.rhsVariable());
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   _applyZeroRHSOnConstrainedDOFs(residual_values, node_dof);
-
   Real l2_norm_rhs = _normL2(residual_values, node_dof);
 
-  if (m_residual_norm0 == 0.0) {
-    m_residual_norm0 = math::max(1.0, l2_norm_rhs);
-  }
-
-  m_residual_norm = l2_norm_rhs / m_residual_norm0;
-  Real convergence_error_residual = l2_norm_rhs / (m_residual_norm0 + 1e-30);
+  m_residual_norm = m_residual_norm0 !=0. ? l2_norm_rhs / (m_residual_norm0 + 1e-30) : l2_norm_rhs / (1.0 + 1e-30);
+  Real convergence_error_residual = m_residual_norm;
 
   // The OR criterion follows petsc SNES
   if (convergence_error_residual <= m_newton_rtol) {
