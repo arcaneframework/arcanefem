@@ -46,10 +46,10 @@
         <surface>bottom</surface>
         <value>NULL 0.0</value>
       </dirichlet>
-      <manufactured-solution>
+      <dirichlet>
         <surface>footing</surface>
-        <manufactured-dirichlet>true</manufactured-dirichlet>
-      </manufactured-solution>
+        <value>NULL 0.0</value>
+      </dirichlet>
     </boundary-conditions>
   </fem>
 </case>

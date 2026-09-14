@@ -203,26 +203,6 @@ class FemModuleElastoplasticity
   RealMatrix<24, 24> _computeElementMatrixHexa8(Cell cell);
   IBinaryMathFunctor<Real, Real3, Real>* m_prescribed_settlement = nullptr;
 
-  // Generic adapter once somewhere in your codebase:
-  template <typename Func>
-  class RealReal3RealFunctionAdapter : public IBinaryMathFunctor<Real, Real3, Real> {
-    Func m_func;
-  public:
-    // Bring all base class 'apply' overloads into scope
-    using IBinaryMathFunctor<Real, Real3, Real>::apply;
-    RealReal3RealFunctionAdapter(Func f) : m_func(f) {}
-    Real apply(Real a1, Real3 a2) override {
-      return m_func(a1, a2);
-    }
-  };
-
-  // Helper function to deduce types automatically:
-  template <typename Func>
-  auto make_functor(Func f) {
-    return new RealReal3RealFunctionAdapter<Func>(f);
-  }
-
-
   template <int N>
   void _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
 

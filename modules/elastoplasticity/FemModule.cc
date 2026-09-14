@@ -202,15 +202,6 @@ _initConstitutiveLaw()
         cohesion = drucker_prager->cohesion(); // Cohesion
         friction_angle = drucker_prager->frictionAngle(); // Friction angle
       }
-
-      BC::IArcaneFemBC* bc = options()->boundaryConditions();
-      for (BC::IManufacturedSolution* bs : bc->manufacturedSolutions()) {
-        if (bs->getManufacturedDirichlet()) {
-          m_prescribed_settlement = make_functor([&](Real a, Real3 b) -> Real {
-                                                return (t / tmax) * max_settlement;
-                                                });
-        }
-      }
     } else {
       ARCANE_FATAL("Undefined constitutive law");
     }
@@ -369,13 +360,13 @@ _solveNewton()
         _assembleLinearOperator(); // assembles Residuals(m_DUn) + BCs
       }
     }
-    // if (m_newton_iter ==1) {
+    // if (m_newton_iter == 1) { // moved to check newton convergence
     //   if (m_constitutive_law == "DruckerPrager") {
     //     // --- calculate_residual ---- //
     //     VariableDoFReal& residual_values_k(m_linear_system.rhsVariable());
     //     _applyZeroRHSOnConstrainedDOFs(residual_values_k, node_dof);
     //     m_residual_norm0 = _normL2(residual_values_k, node_dof);
-    //     info() << "[ArcaneFem-Info] Initial residual norm = " << m_residual_norm0;
+    //     info() << "[ArcaneFem-Info] Updated initial residual norm = " << m_residual_norm0;
     //   }
     // }
 
@@ -1040,7 +1031,11 @@ _checkNewtonConvergence()
 
   Real l2_norm_rhs = _normL2(residual_values, node_dof);
 
-  m_residual_norm = l2_norm_rhs!=0 ? l2_norm_rhs / m_residual_norm0 : 1.0;
+  if (m_residual_norm0 == 0.0) {
+    m_residual_norm0 = math::max(1.0, l2_norm_rhs);
+  }
+
+  m_residual_norm = l2_norm_rhs / m_residual_norm0;
   Real convergence_error_residual = l2_norm_rhs / (m_residual_norm0 + 1e-30);
 
   // The OR criterion follows petsc SNES

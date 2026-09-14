@@ -30,12 +30,12 @@ inline void FemModuleElastoplasticity::_restoreConvergedStateDruckerPrager()
       m_sigma_gp(cell, iGP, 0) = m_sigma_old_gp(cell, iGP, 0);
       m_sigma_gp(cell, iGP, 1) = m_sigma_old_gp(cell, iGP, 1);
       m_sigma_gp(cell, iGP, 2) = m_sigma_old_gp(cell, iGP, 2);
-      m_sigma_zz_old_gp(cell, iGP)   = m_sigma_zz_gp(cell, iGP);
+      m_sigma_zz_gp(cell, iGP) = m_sigma_zz_old_gp(cell, iGP);
       
       m_eps_p_gp(cell, iGP, 0) = m_eps_p_old_gp(cell, iGP, 0);
       m_eps_p_gp(cell, iGP, 1) = m_eps_p_old_gp(cell, iGP, 1);
       m_eps_p_gp(cell, iGP, 2) = m_eps_p_old_gp(cell, iGP, 2);
-      m_eps_p_zz_old_gp(cell, iGP)   = m_eps_p_zz_gp(cell, iGP);
+      m_eps_p_zz_gp(cell, iGP) = m_eps_p_zz_old_gp(cell, iGP);
     }
 
     for (Int8 iGP = 0; iGP < m_nGP; ++iGP)
@@ -204,7 +204,7 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDrucker
       m_eps_p_gp(cell, iGP, 0) = m_eps_p_old_gp(cell, iGP, 0) + lambda_smooth * (normal_xx / M_SQRT2 + dpEta/3.) + apex_switch * (eps_xx -dpC / (3. * bulk * dpEta) - m_eps_p_old_gp(cell, iGP, 0));
       m_eps_p_gp(cell, iGP, 1) = m_eps_p_old_gp(cell, iGP, 1) + lambda_smooth * (normal_yy / M_SQRT2 + dpEta/3.) + apex_switch * (eps_yy -dpC / (3. * bulk * dpEta) - m_eps_p_old_gp(cell, iGP, 1));
       m_eps_p_gp(cell, iGP, 2) = m_eps_p_old_gp(cell, iGP, 2) + lambda_smooth * normal_xy / M_SQRT2 + apex_switch * (eps_xy - m_eps_p_old_gp(cell, iGP, 2));
-      m_eps_p_gp(cell, iGP, 1) = m_eps_p_zz_old_gp(cell, iGP) + lambda_smooth * (normal_zz / M_SQRT2 + dpEta/3.) + apex_switch * (eps_zz -dpC / (3. * bulk * dpEta) - m_eps_p_zz_old_gp(cell, iGP));
+      m_eps_p_zz_gp(cell, iGP) = m_eps_p_zz_old_gp(cell, iGP) + lambda_smooth * (normal_zz / M_SQRT2 + dpEta/3.) + apex_switch * (eps_zz -dpC / (3. * bulk * dpEta) - m_eps_p_zz_old_gp(cell, iGP));
 
       // --- update_consistent_tangent ---- //
       m_sigma_gp(cell, iGP, 0) = sigma_xx;
@@ -233,6 +233,9 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDrucker
 
 inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDruckerPragerTria3Gpu()
 {
+
+  ARCANE_FATAL("Not IMPLEMENTED");
+
   auto queue = subDomain()->acceleratorMng()->defaultQueue();
   UnstructuredMeshConnectivityView m_connectivity_view(mesh());
   auto cn_cv = m_connectivity_view.cellNode();
@@ -240,96 +243,43 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDrucker
   auto command = Accelerator::makeCommand(queue);
 
   auto in_out_C_tang_gp = Accelerator::viewInOut(command, m_C_tang_gp);
-  auto in_out_dp_gp = Accelerator::viewInOut(command, m_dp_gp);
-  auto in_out_sigma_gp = Accelerator::viewInOut(command, m_sigma_gp);
-  auto in_out_sigma_zz_gp = Accelerator::viewInOut(command, m_sigma_zz_gp);
-
-  auto in_sigma_old_gp = Accelerator::viewIn(command, m_sigma_old_gp);
-  auto in_sigma_zz_old_gp = Accelerator::viewIn(command, m_sigma_zz_old_gp);
-  auto in_p_old_gp = Accelerator::viewIn(command, m_p_old_gp);
+  // auto in_out_dp_gp = Accelerator::viewInOut(command, m_dp_gp);
+  // auto in_out_sigma_gp = Accelerator::viewInOut(command, m_sigma_gp);
+  // auto in_out_sigma_zz_gp = Accelerator::viewInOut(command, m_sigma_zz_gp);
+  //
+  // auto in_sigma_old_gp = Accelerator::viewIn(command, m_sigma_old_gp);
+  // auto in_sigma_zz_old_gp = Accelerator::viewIn(command, m_sigma_zz_old_gp);
+  // auto in_p_old_gp = Accelerator::viewIn(command, m_p_old_gp);
 
   auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
   auto in_DUn = Accelerator::viewIn(command, m_DUn);
 
   auto in_nGP = m_nGP;
   auto in_C_elas_2d = m_C_elas_2d;
-  auto in_sig0 = sig0;
-  auto in_H = H;
-  auto in_mu = mu;
+  // auto in_sig0 = sig0;
+  // auto in_H = H;
+  // auto in_mu = mu;
 
 
   command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh()->allCells())
   {
     for (Int8 iGP = 0; iGP < in_nGP; ++iGP ) {
-      // --- compute_trial_state ---- //
-      // computeTrialStateVM();
-      // epsilon(DU) // NOTE: for nGP>1 it has to evaluated and interpolated at Gauss points
       Real3x3 grad_DU = Gpu::FeOperation2D::computeGradientTria3(cell_lid, cn_cv, in_node_coord, in_DUn);
       Real eps_xx = grad_DU(0, 0);
       Real eps_yy = grad_DU(1, 1);
       Real eps_xy = 0.70710678118654752440 * (grad_DU(0, 1) + grad_DU(1, 0));
 
-      Real sigma_trial_xx = in_sigma_old_gp(cell_lid, iGP, 0) + in_C_elas_2d(0, 0) * eps_xx + in_C_elas_2d(0, 1) * eps_yy + in_C_elas_2d(0, 2) * eps_xy;
-      Real sigma_trial_yy = in_sigma_old_gp(cell_lid, iGP, 1) + in_C_elas_2d(1, 0) * eps_xx + in_C_elas_2d(1, 1) * eps_yy + in_C_elas_2d(1, 2) * eps_xy;
-      Real sigma_trial_xy = in_sigma_old_gp(cell_lid, iGP, 2) + in_C_elas_2d(2, 0) * eps_xx + in_C_elas_2d(2, 1) * eps_yy + in_C_elas_2d(2, 2) * eps_xy;
-
-      Real sigma_trial_zz = in_sigma_zz_old_gp(cell_lid, iGP) + in_C_elas_2d(0, 1) * eps_yy + in_C_elas_2d(1, 0) * eps_xx;
-
-      // Plane strain retains sigma_zz in the three-dimensional deviator.
-      Real sigma_trial_mean = (sigma_trial_xx + sigma_trial_yy + sigma_trial_zz) / 3.0;
-
-      Real dev_xx = sigma_trial_xx - sigma_trial_mean;
-      Real dev_yy = sigma_trial_yy - sigma_trial_mean;
-      Real dev_xy = sigma_trial_xy;
-
-      Real dev_zz = sigma_trial_zz - sigma_trial_mean;
-
-      Real sigma_eq_trial = math::sqrt(1.5 * (dev_xx * dev_xx + dev_yy * dev_yy + dev_zz * dev_zz + dev_xy * dev_xy) );
-
-      // --- evaluate_yield_function ---- //
-      // _computeYieldFunctionVM();
-      Real yield_function = sigma_eq_trial - in_sig0 - in_H * in_p_old_gp(cell_lid, iGP);
-      Real yield_positive = (yield_function + math::abs(yield_function)) / 2.;
-      in_out_dp_gp(cell_lid, iGP) = yield_positive/ (3. * in_mu + in_H);
-      Real plastic_switch = yield_positive / (math::abs(yield_function) + 1e-14 * in_sig0);
-
-      // --- radial_return_update ---- //
-      // _computeRadialReturnVM();
-      Real flowN_xx = plastic_switch * dev_xx / (sigma_eq_trial + 1e-14 * in_sig0);
-      Real flowN_yy = plastic_switch * dev_yy / (sigma_eq_trial + 1e-14 * in_sig0);
-      Real flowN_xy = plastic_switch * dev_xy / (sigma_eq_trial + 1e-14 * in_sig0);
-      // Real flowN_zz = plastic_switch * dev_zz / (sigma_eq_trial + 1e-14 * in_sig0);
-
-      Real beta = 3. * in_mu * in_out_dp_gp(cell_lid, iGP) / (sigma_eq_trial + 1e-14 * in_sig0);
-
-      // --- update_consistent_tangent ---- //
-      // _updateStressTensorVM();
-      Real sigma_xx = sigma_trial_xx - dev_xx * beta;
-      Real sigma_yy = sigma_trial_yy - dev_yy * beta;
-      Real sigma_xy = sigma_trial_xy - dev_xy * beta;
-
-      Real sigma_zz = sigma_trial_zz - dev_zz * beta;
-
-      in_out_sigma_gp(cell_lid, iGP, 0) = sigma_xx;
-      in_out_sigma_gp(cell_lid, iGP, 1) = sigma_yy;
-      in_out_sigma_gp(cell_lid, iGP, 2) = sigma_xy;
-
-      in_out_sigma_zz_gp(cell_lid, iGP) = sigma_zz;
 
       // _updateTangentMaterialTensorVM();
-      Real tangentA = 3.* in_mu * (3. * in_mu / (3. * in_mu + in_H) - beta);
-
-      in_out_C_tang_gp(cell_lid, iGP, 0, 0) = in_C_elas_2d(0, 0) - tangentA * flowN_xx * flowN_xx - 4. * in_mu * beta / 3.;
-      in_out_C_tang_gp(cell_lid, iGP, 0, 1) = in_C_elas_2d(0, 1) - tangentA * flowN_xx * flowN_yy + 2. * in_mu * beta / 3.;
-      in_out_C_tang_gp(cell_lid, iGP, 0, 2) = in_C_elas_2d(0, 2) - tangentA * flowN_xx * flowN_xy;
-
-      in_out_C_tang_gp(cell_lid, iGP, 1, 0) = in_C_elas_2d(1, 0) - tangentA * flowN_xx * flowN_yy + 2. * in_mu * beta / 3.;
-      in_out_C_tang_gp(cell_lid, iGP, 1, 1) = in_C_elas_2d(1, 1) - tangentA * flowN_yy * flowN_yy - 4. * in_mu * beta / 3.;
-      in_out_C_tang_gp(cell_lid, iGP, 1, 2) = in_C_elas_2d(1, 2) - tangentA * flowN_yy * flowN_xy;
-
-      in_out_C_tang_gp(cell_lid, iGP, 2, 0) = in_C_elas_2d(2, 0) - tangentA * flowN_xx * flowN_xy;
-      in_out_C_tang_gp(cell_lid, iGP, 2, 1) = in_C_elas_2d(2, 1) - tangentA * flowN_yy * flowN_xy;
-      in_out_C_tang_gp(cell_lid, iGP, 2, 2) = in_C_elas_2d(2, 2) - tangentA * flowN_xy * flowN_xy - 2. * in_mu * beta;
+      in_out_C_tang_gp(cell_lid, iGP, 0, 0) = in_C_elas_2d(0, 0);
+      in_out_C_tang_gp(cell_lid, iGP, 0, 1) = in_C_elas_2d(0, 1);
+      in_out_C_tang_gp(cell_lid, iGP, 0, 2) = in_C_elas_2d(0, 2);
+      in_out_C_tang_gp(cell_lid, iGP, 1, 0) = in_C_elas_2d(1, 0);
+      in_out_C_tang_gp(cell_lid, iGP, 1, 1) = in_C_elas_2d(1, 1);
+      in_out_C_tang_gp(cell_lid, iGP, 1, 2) = in_C_elas_2d(1, 2);
+      in_out_C_tang_gp(cell_lid, iGP, 2, 0) = in_C_elas_2d(2, 0);
+      in_out_C_tang_gp(cell_lid, iGP, 2, 1) = in_C_elas_2d(2, 1);
+      in_out_C_tang_gp(cell_lid, iGP, 2, 2) = in_C_elas_2d(2, 2);
     }
   };
 }

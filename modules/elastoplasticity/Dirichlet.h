@@ -38,20 +38,23 @@ _applyDirichletNewton(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectiv
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
   if (bc) {
     for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions()) {
-      FaceGroup face_group = bs->getSurface();
+      FaceGroup face_group = bs->getSurface(); // .name();;
       NodeGroup node_group = face_group.nodeGroup();
       const StringConstArrayView u_dirichlet_string = bs->getValue();
       for (Int32 dof_index = 0; dof_index < u_dirichlet_string.size(); ++dof_index) {
         if (u_dirichlet_string[dof_index] != "NULL") {
-
           Real value = std::stod(u_dirichlet_string[dof_index].localstr());
+          if (face_group.name() == "footing") {
+            value = - (t / tmax) * max_settlement;
+            // info() << "Apply footing dirichlet condition with value: " << value;
+          }
           if (bs->getEnforceDirichletMethod() == "Penalty") {
             Real penalty = bs->getPenalty();
             ENUMERATE_ (Node, inode, node_group) {
               Node node = *inode;
               if (node.isOwn()) {
                 m_linear_system.matrixSetValue(node_dof.dofId(node, dof_index), node_dof.dofId(node, dof_index), penalty);
-                Real u_g = penalty * (value - m_DUn[node][dof_index]);
+                Real u_g = penalty * (value - m_U[node][dof_index] - m_DUn[node][dof_index]);
                 rhs_values[node_dof.dofId(node, dof_index)] = u_g;
               }
             }
@@ -145,6 +148,10 @@ void FemModuleElastoplasticity::_assembleDirichletsNewtonGpu()
       for (Int32 dof_index = 0; dof_index < u_dirichlet_string.size(); ++dof_index) {
         if (u_dirichlet_string[dof_index] != "NULL") {
           Real value = std::stod(u_dirichlet_string[dof_index].localstr());
+          if (face_group.name() == "footing") {
+            value = - (t / tmax) * max_settlement;
+            // info() << "Apply footing dirichlet condition with value: " << value;
+          }
           if (bs->getEnforceDirichletMethod() == "Penalty") {
             Real penalty = bs->getPenalty();
             ARCANE_CHECK_PTR(queue);
@@ -157,7 +164,8 @@ void FemModuleElastoplasticity::_assembleDirichletsNewtonGpu()
             auto in_out_forced_info = viewInOut(command, m_linear_system.getForcedInfo());
             auto in_out_forced_value = viewInOut(command, m_linear_system.getForcedValue());
             auto in_out_rhs_variable = viewInOut(command, m_linear_system.rhsVariable());
-            auto in_u = viewIn(command, m_DUn);
+            auto in_DUn = viewIn(command, m_DUn);
+            auto in_U = viewIn(command, m_U);
 
             command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
             {
@@ -165,7 +173,7 @@ void FemModuleElastoplasticity::_assembleDirichletsNewtonGpu()
                 DoFLocalId dof_id = node_dof.dofId(node_lid, dof_index);
                 in_out_forced_info[dof_id] = true;
                 in_out_forced_value[dof_id] = penalty;
-                in_out_rhs_variable[dof_id] = penalty * (value - in_u[node_lid][dof_index]);
+                in_out_rhs_variable[dof_id] = penalty * (value - in_U[node_lid][dof_index] - in_DUn[node_lid][dof_index]);
               }
             };
           }

@@ -29,6 +29,7 @@ inline void FemModuleElastoplasticity::_restoreConvergedStateVonMises()
       m_sigma_gp(cell, iGP, 0) = m_sigma_old_gp(cell, iGP, 0);
       m_sigma_gp(cell, iGP, 1) = m_sigma_old_gp(cell, iGP, 1);
       m_sigma_gp(cell, iGP, 2) = m_sigma_old_gp(cell, iGP, 2);
+      m_sigma_zz_gp(cell, iGP) = m_sigma_zz_old_gp(cell, iGP);
     }
 
     for (Int8 iGP = 0; iGP < m_nGP; ++iGP)
