@@ -423,14 +423,44 @@ _solveNewton()
 
       VariableDoFReal& algebraic_reaction(m_linear_system.rhsVariable());
       algebraic_reaction.fill(0.);
-      alg_reaction = _normL2(residual_values, node_dof);
+      // _applyInternalBodyForce(algebraic_reaction, node_dof);
 
-      info() << "[ArcaneFem-Info] Algebraic reaction norm = " << alg_reaction
-      << " Cohesion = " << cohesion
-      << " Footing width = " << footing_width
-      << " Max settlement = " << max_settlement;
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
 
-      Real normalized_pressure = alg_reaction / (footing_width * cohesion);
+        Int8 iGP = 0; // for tria P1 elements nGP=1
+        Real sigma_xx = m_sigma_gp(cell , iGP, 0);
+        Real sigma_yy = m_sigma_gp(cell , iGP, 1);
+        Real sigma_xy = m_sigma_gp(cell , iGP, 2);
+
+        RealVector<6> u = {0., 0., 0., 0., 0., 0.};
+        for (Int8 i = 0; i < 3; ++i) {
+          Real3 vertex = m_node_coord[cell.nodeId(i)];
+          u[2*i + 1] = (math::abs(vertex.y - 10.) < 1.e-8 && vertex.x <= footing_width + 1.e-8);
+        }
+
+        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
+        Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
+        Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
+
+        RealVector<6> epsxx = { dxu[0] * u[0], 0., dxu[1] * u[2], 0., dxu[2] * u[4], 0. };
+        RealVector<6> epsyy = { 0., dyu[0] * u[1], 0., dyu[1] * u[3], 0., dyu[2] * u[5] };
+        RealVector<6> epsxy = { dyu[0] * u[0], dxu[0] * u[1], dyu[1] * u[2], dxu[1] * u[3], dyu[2] * u[4], dxu[2] * u[5] };
+        epsxy = 0.70710678118654746172 * epsxy;
+
+        RealVector<6> rhs = area * (sigma_xx * epsxx + sigma_yy * epsyy + sigma_xy * epsxy);
+
+        algebraic_reaction[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0);
+        algebraic_reaction[node_dof.dofId(cell.nodeId(0), 1)] += rhs(1);
+        algebraic_reaction[node_dof.dofId(cell.nodeId(1), 0)] += rhs(2);
+        algebraic_reaction[node_dof.dofId(cell.nodeId(1), 1)] += rhs(3);
+        algebraic_reaction[node_dof.dofId(cell.nodeId(2), 0)] += rhs(4);
+        algebraic_reaction[node_dof.dofId(cell.nodeId(2), 1)] += rhs(5);
+      }
+
+      alg_reaction = _normL1(algebraic_reaction, node_dof);
+
+      Real normalized_pressure = - alg_reaction / (footing_width * cohesion);
       Real settlement = t / tmax * max_settlement;
 
       info() << "[ArcaneFem-Info] At Time Step "
