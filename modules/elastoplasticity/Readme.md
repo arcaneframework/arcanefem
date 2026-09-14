@@ -221,4 +221,6 @@ The post-processing configuration is specified to control how and when results a
 
 For post processing the `ensight.case` file is outputted (in `output/depouillement/` folder), which can be read by ParaView. The output is of the $\mathbb{P}_1$ FE order (on nodes).
 
-![pressure_vs_displacement.png](../../../assets/elstoplasticity/pressure_vs_displacement.png)
+#### Cross Validation 
+The plot presented here you find a comparative cross-validation of ArcaneFEM elastoplasticity against other reference solvers. 
+<img width="500" align="left" src="https://github.com/user-attachments/assets/427c29b1-052a-401c-98b7-1da122eae620" />
