@@ -1,6 +1,6 @@
 # Elastoplasticity
 
-![elp.gif](../../../assets/elstoplasticity/elp.gif)
+<img width="1592" height="364" alt="vp" src="https://github.com/user-attachments/assets/a91ffcd3-1ee2-4946-87c7-773c22c944d9" />
 
 We focus on the nonlinear solid mechanics, specifically analyzing the elastoplastic response of solid bodies through a system of partial differential equations (PDEs) and internal state variable updates. The nonlinear solver implemented using Newton method resolves the  elastoplasticity problem utilizing the finite element method (FEM).
 
