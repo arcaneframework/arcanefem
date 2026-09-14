@@ -37,19 +37,31 @@ _applyDirichletNewton(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectiv
 
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
   if (bc) {
+    Int32 boundary_condition_index = 0;
     for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions()) {
       FaceGroup face_group = bs->getSurface(); // .name();;
       NodeGroup node_group = face_group.nodeGroup();
       const StringConstArrayView u_dirichlet_string = bs->getValue();
-      for (Int32 dof_index = 0; dof_index < u_dirichlet_string.size(); ++dof_index) {
-        if (u_dirichlet_string[dof_index] != "NULL") {
-          Real value = std::stod(u_dirichlet_string[dof_index].localstr());
-          // if (face_group.name() == "footing") {
-          //   value = - (t / tmax) * max_settlement;
-          //   info() << "Apply footing dirichlet condition with value: " << value << " for t " << t << " and tmax " << tmax;
-          // } else {
-          //   value = std::stod(u_dirichlet_string[dof_index].localstr());
-          // }
+      const String dirichlet_table_file_name = bs->getDirichletInputFile();
+      const bool get_dirichlet_from_table = !dirichlet_table_file_name.empty();
+      Real3 table_value;
+      const CaseTableInfo* dirichlet_table_info = nullptr;
+      if (get_dirichlet_from_table) {
+        const CaseTableInfo& case_table_info = m_dirichlet_case_table_list[boundary_condition_index];
+        dirichlet_table_info = &case_table_info;
+        CaseTable* case_table = case_table_info.case_table;
+        if (!case_table)
+          ARCANE_FATAL("Dirichlet CaseTable is null. Maybe there is a missing call to _readCaseTables()");
+        if (dirichlet_table_file_name != case_table_info.file_name)
+          ARCANE_FATAL("Incoherent Dirichlet CaseTable. The current CaseTable is associated to file '{0}'", case_table_info.file_name);
+        case_table->value(t, table_value);
+      }
+      const Int32 component_count = get_dirichlet_from_table ? m_dof_per_node : u_dirichlet_string.size();
+      for (Int32 dof_index = 0; dof_index < component_count; ++dof_index) {
+        if (get_dirichlet_from_table ? dirichlet_table_info->component_tokens[dof_index] != "NULL" : u_dirichlet_string[dof_index] != "NULL") {
+          Real value = table_value[dof_index];
+          if (!get_dirichlet_from_table && builtInGetValue(value, u_dirichlet_string[dof_index]))
+            ARCANE_FATAL("Invalid Dirichlet value '{0}'", u_dirichlet_string[dof_index]);
           if (bs->getEnforceDirichletMethod() == "Penalty") {
             Real penalty = bs->getPenalty();
             ENUMERATE_ (Node, inode, node_group) {
@@ -74,6 +86,7 @@ _applyDirichletNewton(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectiv
           }
         }
       }
+      ++boundary_condition_index;
     }
 
     for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions()) {
@@ -139,6 +152,7 @@ void FemModuleElastoplasticity::_assembleDirichletsNewtonGpu()
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
   if (bc) {
+    Int32 boundary_condition_index = 0;
     for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions()) {
       ARCANE_CHECK_PTR(bs);
 
@@ -146,14 +160,27 @@ void FemModuleElastoplasticity::_assembleDirichletsNewtonGpu()
       NodeGroup node_group = face_group.nodeGroup();
 
       const StringConstArrayView u_dirichlet_string = bs->getValue();
+      const String dirichlet_table_file_name = bs->getDirichletInputFile();
+      const bool get_dirichlet_from_table = !dirichlet_table_file_name.empty();
+      Real3 table_value;
+      const CaseTableInfo* dirichlet_table_info = nullptr;
+      if (get_dirichlet_from_table) {
+        const CaseTableInfo& case_table_info = m_dirichlet_case_table_list[boundary_condition_index];
+        dirichlet_table_info = &case_table_info;
+        CaseTable* case_table = case_table_info.case_table;
+        if (!case_table)
+          ARCANE_FATAL("Dirichlet CaseTable is null. Maybe there is a missing call to _readCaseTables()");
+        if (dirichlet_table_file_name != case_table_info.file_name)
+          ARCANE_FATAL("Incoherent Dirichlet CaseTable. The current CaseTable is associated to file '{0}'", case_table_info.file_name);
+        case_table->value(t, table_value);
+      }
 
-      for (Int32 dof_index = 0; dof_index < u_dirichlet_string.size(); ++dof_index) {
-        if (u_dirichlet_string[dof_index] != "NULL") {
-          Real value = std::stod(u_dirichlet_string[dof_index].localstr());
-          // if (face_group.name() == "footing") {
-          //   value = - (t / tmax) * max_settlement;
-          //   // info() << "Apply footing dirichlet condition with value: " << value;
-          // }
+      const Int32 component_count = get_dirichlet_from_table ? m_dof_per_node : u_dirichlet_string.size();
+      for (Int32 dof_index = 0; dof_index < component_count; ++dof_index) {
+        if (get_dirichlet_from_table ? dirichlet_table_info->component_tokens[dof_index] != "NULL" : u_dirichlet_string[dof_index] != "NULL") {
+          Real value = table_value[dof_index];
+          if (!get_dirichlet_from_table && builtInGetValue(value, u_dirichlet_string[dof_index]))
+            ARCANE_FATAL("Invalid Dirichlet value '{0}'", u_dirichlet_string[dof_index]);
           if (bs->getEnforceDirichletMethod() == "Penalty") {
             Real penalty = bs->getPenalty();
             ARCANE_CHECK_PTR(queue);
@@ -192,6 +219,7 @@ void FemModuleElastoplasticity::_assembleDirichletsNewtonGpu()
           }
         }
       }
+      ++boundary_condition_index;
     }
 
     for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions()) {
@@ -254,18 +282,25 @@ _applyZeroRHSOnConstrainedDOFs(VariableDoFReal& rhs_values, const IndexedNodeDoF
   // Explicitly remove reaction components so the norm contains free DoFs only.
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
   if (bc) {
+    Int32 boundary_condition_index = 0;
     for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions()) {
       FaceGroup face_group = bs->getSurface();
       NodeGroup node_group = face_group.nodeGroup();
       const StringConstArrayView u_dirichlet_string = bs->getValue();
-      for (Int32 dof_index = 0; dof_index < u_dirichlet_string.size(); ++dof_index) {
-        if (u_dirichlet_string[dof_index] != "NULL") {
+      const bool get_dirichlet_from_table = !bs->getDirichletInputFile().empty();
+      const CaseTableInfo* dirichlet_table_info = get_dirichlet_from_table ? &m_dirichlet_case_table_list[boundary_condition_index] : nullptr;
+      const Int32 component_count = get_dirichlet_from_table ? m_dof_per_node : u_dirichlet_string.size();
+      for (Int32 dof_index = 0; dof_index < component_count; ++dof_index) {
+        if (get_dirichlet_from_table
+            ? dirichlet_table_info->component_tokens[dof_index] != "NULL"
+            : u_dirichlet_string[dof_index] != "NULL") {
           ENUMERATE_ (Node, inode, node_group) {
             if (inode->isOwn())
               rhs_values[node_dof.dofId(*inode, dof_index)] = 0.0;
           }
         }
       }
+      ++boundary_condition_index;
     }
 
     for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions()) {
@@ -305,13 +340,19 @@ void FemModuleElastoplasticity::_assembleZeroRHSOnConstrainedDOFsGpu()
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
   if (bc) {
+    Int32 boundary_condition_index = 0;
     for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions()) {
       ARCANE_CHECK_PTR(bs);
       FaceGroup face_group = bs->getSurface();
       NodeGroup node_group = face_group.nodeGroup();
       const StringConstArrayView u_dirichlet_string = bs->getValue();
-      for (Int32 dof_index = 0; dof_index < u_dirichlet_string.size(); ++dof_index) {
-        if (u_dirichlet_string[dof_index] != "NULL") {
+      const bool get_dirichlet_from_table = !bs->getDirichletInputFile().empty();
+      const CaseTableInfo* dirichlet_table_info = get_dirichlet_from_table ? &m_dirichlet_case_table_list[boundary_condition_index] : nullptr;
+      const Int32 component_count = get_dirichlet_from_table ? m_dof_per_node : u_dirichlet_string.size();
+      for (Int32 dof_index = 0; dof_index < component_count; ++dof_index) {
+        if (get_dirichlet_from_table
+              ? dirichlet_table_info->component_tokens[dof_index] != "NULL"
+              : u_dirichlet_string[dof_index] != "NULL") {
           ARCANE_CHECK_PTR(queue);
           ARCANE_CHECK_PTR(mesh_ptr);
           NodeInfoListView nodes_infos(mesh_ptr->nodeFamily());
@@ -328,6 +369,7 @@ void FemModuleElastoplasticity::_assembleZeroRHSOnConstrainedDOFsGpu()
           };
         }
       }
+      ++boundary_condition_index;
     }
 
     for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions()) {

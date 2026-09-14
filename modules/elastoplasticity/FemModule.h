@@ -7,7 +7,7 @@
 /*---------------------------------------------------------------------------*/
 /* FemModule.h                                                (C) 2000-2026  */
 /*                                                                           */
-/* FemModuleElastoplasticity class definition.                                     */
+/* FemModuleElastoplasticity class definition.                               */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 #ifndef ARCANFEM_ELASTOPLATICITY_FEMMODULE
@@ -71,6 +71,8 @@ class FemModuleElastoplasticity
   {
     for (const CaseTableInfo& t : m_traction_case_table_list)
       delete t.case_table;
+    for (const CaseTableInfo& t : m_dirichlet_case_table_list)
+      delete t.case_table;
   }
 
   void startInit() override; //! Method called at the beginning of the simulation
@@ -95,6 +97,8 @@ class FemModuleElastoplasticity
 
   // List of CaseTable for traction boundary conditions
   UniqueArray<CaseTableInfo> m_traction_case_table_list;
+  // List of CaseTable for Dirichlet boundary conditions
+  UniqueArray<CaseTableInfo> m_dirichlet_case_table_list;
   Real t = 0.;
   Real dt = 0.;
   Real tmax = 0.;

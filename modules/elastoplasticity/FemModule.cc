@@ -13,6 +13,7 @@
 
 #include <arcane/core/IParallelMng.h>
 #include <arcane/accelerator/MDVariableViews.h>
+#include <arcane/utils/ValueConvert.h>
 
 #include "FemModule.h"
 #include "ElementMatrix.h"
@@ -92,6 +93,12 @@ startInit()
   m_global_deltat.assign(dt);
 
   _initConstitutiveLaw();
+
+  // The Drucker-Prager return mapping is currently implemented on the CPU.
+  // BSR may still assemble the matrix on an accelerator, but constitutive,
+  // internal-force, and Dirichlet updates must use their CPU implementations.
+  if (m_constitutive_law == "DruckerPrager")
+    m_use_gpu_functions = false;
 
   _readCaseTables();
 
@@ -516,8 +523,8 @@ _getMaterialParameters()
     lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
 
     bulk   = E/(3.*(1.-2.*nu));
-    dpEta  = 3. * tan(friction_angle) / math::sqrt(9. + 12. * tan(friction_angle * friction_angle));
-    dpC    = 3. * cohesion / sqrt(9.+ 12. * tan(friction_angle * friction_angle));
+    dpEta = 3. * tan(friction_angle) / (math::sqrt(9. + 12. * tan(friction_angle) * tan(friction_angle)));
+    dpC = 3. * cohesion / (math::sqrt(9. + 12. * tan(friction_angle) * tan(friction_angle)));
 
     ENUMERATE_ (Cell, icell, allCells())
     {
@@ -836,7 +843,7 @@ _validateResults()
 
 /*---------------------------------------------------------------------------*/
 /*
-  * @brief Reads case tables for traction boundary conditions.
+  * @brief Reads case tables for traction and Dirichlet boundary conditions.
   *
   * This method reads the case tables specified in the options and stores
   * them in a list for later use.
@@ -849,7 +856,8 @@ _readCaseTables()
   IParallelMng* pm = subDomain()->parallelMng();
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
-  // loop over all traction boundries
+  // Keep one entry per boundary condition so that the table list and the
+  // boundary-condition list always have identical indices.
   for (BC::ITractionBoundaryCondition* bs : bc->tractionBoundaryConditions()) {
     CaseTable* case_table = nullptr;
     auto traction_table_file_name = bs->getTractionInputFile();
@@ -857,6 +865,14 @@ _readCaseTables()
     if (getTractionFromTable)
       case_table = readFileAsCaseTable(pm, traction_table_file_name, 3);
     m_traction_case_table_list.add(CaseTableInfo{ traction_table_file_name, case_table });
+  }
+
+  for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions()) {
+    auto dirichlet_table_file_name = bs->getDirichletInputFile();
+    if (!dirichlet_table_file_name.empty())
+      m_dirichlet_case_table_list.add(readDirichletFileAsCaseTable(pm, dirichlet_table_file_name));
+    else
+      m_dirichlet_case_table_list.add(CaseTableInfo{ dirichlet_table_file_name, nullptr });
   }
 }
 
