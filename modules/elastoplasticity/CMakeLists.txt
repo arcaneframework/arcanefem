@@ -95,6 +95,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   arcanefem_add_seq_test(NAME 2D_Strip_footing_drucker_prager_table
           COMMAND ./Elastoplasticity
           ARGS
+          -A,//fem/solution-comparison-file=check/2D.strip.footing.drucker_prager.t12.txt
           -A,//fem/matrix-format=BSR
           ${SOLVER_PETSC_DIRECT_CG}
           inputs/2D.strip.footing.DruckerPrager.arc)
