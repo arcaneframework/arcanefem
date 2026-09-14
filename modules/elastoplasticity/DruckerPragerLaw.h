@@ -161,7 +161,7 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDrucker
       Real elastic_deviator_zz = elastic_trial_strain_zz - mean_elastic_trial_strain;
 
       // trial stress
-      Real elastic_norm = math::sqrt(max(0.,elastic_trial_strain_xx * elastic_deviator_xx
+      Real elastic_norm = math::sqrt(math::max(0.,elastic_trial_strain_xx * elastic_deviator_xx
                                                 + elastic_trial_strain_yy * elastic_deviator_yy
                                                 + elastic_trial_strain_zz * elastic_deviator_zz
                                                 + elastic_trial_strain_xy * elastic_deviator_xy));
