@@ -98,7 +98,12 @@
       </extended>
       <simple name = "value" type = "string[]" default="NULL NULL NULL" optional = "true">
         <description>
-          Value of the point Dirichlet condition
+          Constant value of the Dirichlet condition
+        </description>
+      </simple>
+      <simple name = "dirichlet-input-file" type = "string" optional="true">
+        <description>
+          File containing time-dependent Dirichlet values (T,u_x,u_y,u_z); use NULL for unconstrained components
         </description>
       </simple>
       <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">

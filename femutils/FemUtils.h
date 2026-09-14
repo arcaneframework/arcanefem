@@ -80,6 +80,7 @@ struct CaseTableInfo
 {
   String file_name;
   CaseTable* case_table = nullptr;
+  UniqueArray<String> component_tokens;
 };
 /*---------------------------------------------------------------------------*/
 /*!
@@ -1017,6 +1018,15 @@ checkNodeResultFile(ITraceMng* tm, const String& filename,
  */
 extern "C++" CaseTable*
 readFileAsCaseTable(IParallelMng* pm, const String& filename, const Int32& ndim);
+
+/*!
+ * \brief Read a Dirichlet table with rows `(time ux uy uz)`.
+ *
+ * A component equal to `NULL` is unconstrained. The NULL pattern must be the
+ * same on every row.
+ */
+extern "C++" CaseTableInfo
+readDirichletFileAsCaseTable(IParallelMng* pm, const String& filename);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
