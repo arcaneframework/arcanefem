@@ -92,6 +92,13 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           -A,//fem/linear-system/atol=1e-9
           -A,//fem/linear-system/rtol=0)
 
+  arcanefem_add_seq_test(NAME 2D_Strip_footing_drucker_prager_table
+          COMMAND ./Elastoplasticity
+          ARGS
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_PETSC_DIRECT_CG}
+          inputs/2D.strip.footing.DruckerPrager.arc)
+
     arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_bsr_petsc-direct
           COMMAND ./Elastoplasticity
           ARGS

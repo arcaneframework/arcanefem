@@ -47,7 +47,7 @@
       </dirichlet>
       <dirichlet>
         <surface>footing</surface>
-        <value>NULL -0.0025</value>
+        <dirichlet-input-file>data/dirichlet_strip_footing_12steps.txt</dirichlet-input-file>
       </dirichlet>
     </boundary-conditions>
   </fem>
