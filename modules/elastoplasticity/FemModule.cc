@@ -329,6 +329,12 @@ _solveNewton()
   info() << "[ArcaneFem-Info] Initial residual norm = " << m_residual_norm0;
 
 
+  // ENUMERATE_ (Node, inode, ownNodes()) {
+  //   Node node = *inode;
+  //   info() << "Res0["<< node.uniqueId() << "] = " << residual_values[node_dof.dofId(node, 0)] << " " << residual_values[node_dof.dofId(node, 1)];
+  // }
+
+
   // --- start_newton_loop ---- //
   while (m_newton_iter < m_newton_max_iters && !m_newton_solver_converged) {
     m_newton_iter++;
@@ -370,6 +376,11 @@ _solveNewton()
         VariableDoFReal& residual_values_k(m_linear_system.rhsVariable());
         m_residual_norm0 = _normL2(residual_values_k, node_dof);
         info() << "[ArcaneFem-Info] Updated initial residual norm = " << m_residual_norm0;
+
+        ENUMERATE_ (Node, inode, ownNodes()) {
+          Node node = *inode;
+          info() << "Res0["<< node.uniqueId() << "] = " << residual_values_k[node_dof.dofId(node, 0)] << " " << residual_values_k[node_dof.dofId(node, 1)];
+        }
       }
     }
 
@@ -1030,11 +1041,13 @@ _checkNewtonConvergence()
 
   VariableDoFReal& residual_values(m_linear_system.rhsVariable());
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-  _applyZeroRHSOnConstrainedDOFs(residual_values, node_dof);
+  // _applyZeroRHSOnConstrainedDOFs(residual_values, node_dof);
   Real l2_norm_rhs = _normL2(residual_values, node_dof);
 
   m_residual_norm = m_residual_norm0 !=0. ? l2_norm_rhs / (m_residual_norm0 + 1e-30) : l2_norm_rhs / (1.0 + 1e-30);
   Real convergence_error_residual = m_residual_norm;
+
+  info() << "[ArcaneFem-Info] Res = " << l2_norm_rhs << " Res0 = " << m_residual_norm0;
 
   // The OR criterion follows petsc SNES
   if (convergence_error_residual <= m_newton_rtol) {

@@ -19,7 +19,7 @@
   </meshes>
 
   <fem>
-    <tmax>2.</tmax>
+    <tmax>13.</tmax>
     <dt>1.</dt>
     <constitutive-law>
       <law>DruckerPrager</law>
@@ -27,7 +27,7 @@
         <E>1.0e7</E>
         <nu>0.48</nu>
         <cohesion>450.0</cohesion>
-        <friction-angle>0.35</friction-angle>
+        <friction-angle>0.34906585039</friction-angle>
       </drucker-prager>
     </constitutive-law>
     <gp-material-tensor-strategy>global</gp-material-tensor-strategy>

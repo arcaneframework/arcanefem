@@ -145,7 +145,7 @@
         <simple name="cohesion" type="real" default="450.0">
           <description>Cohesion parameter of the material.</description>
         </simple>
-        <simple name="friction-angle" type="real" default="0.35">
+        <simple name="friction-angle" type="real" default="0.34906585039">
           <description>Friction angle parameter of the material.</description>
         </simple>
       </complex>
