@@ -39,7 +39,7 @@ _applyDirichletNewton(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectiv
   if (bc) {
     Int32 boundary_condition_index = 0;
     for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions()) {
-      FaceGroup face_group = bs->getSurface(); // .name();;
+      FaceGroup face_group = bs->getSurface();
       NodeGroup node_group = face_group.nodeGroup();
       const StringConstArrayView u_dirichlet_string = bs->getValue();
       const String dirichlet_table_file_name = bs->getDirichletInputFile();
