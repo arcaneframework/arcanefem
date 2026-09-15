@@ -8,5 +8,8 @@
 
     <simple name="solver" type="string" default="cg" />
     <simple name="pc-type" type="string" default="jacobi" />
+    <simple name="amg-near-null-space" type="bool" default="false">
+      <description>Request an AMG near-null-space basis from the FEM module.</description>
+    </simple>
   </options>
 </service>
