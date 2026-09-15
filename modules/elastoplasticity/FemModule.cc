@@ -682,11 +682,7 @@ _assembleBilinearOperator()
 
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2) {
-      if (m_gp_material_tensor_strategy == "local") {
-        ARCANE_FATAL("local GP element matrix assembly strategy not implemented for Tria3 elements");
-      } else {
-        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang); });
-      }
+      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang); });
     }
     else {
       m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, C_tang_3d); });
@@ -706,11 +702,7 @@ _assembleBilinearOperator()
 
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2) {
-      if (m_gp_material_tensor_strategy == "local") {
-        ARCANE_FATAL("local GP element vector assembly strategy not implemented for Tria3 elements");
-      } else {
-        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang, node_lid); });
-      }
+      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang, node_lid); });
     } else {
       m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, C_tang_3d, node_lid); });
     }
