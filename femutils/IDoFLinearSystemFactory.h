@@ -39,6 +39,9 @@ class IDoFLinearSystemFactory
 
  public:
 
+  //! Whether the FEM module should provide an AMG near-null-space basis.
+  virtual bool amgNearNullSpace() { return false; }
+
   virtual IDoFLinearSystemImpl*
   createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) = 0;
 };

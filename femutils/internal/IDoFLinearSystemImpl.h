@@ -16,6 +16,7 @@
 
 #include <arcane/core/VariableTypedef.h>
 #include <arcane/core/ItemTypes.h>
+#include <arcane/utils/NumArray.h>
 
 #include "FemUtilsGlobal.h"
 
@@ -52,6 +53,7 @@ class IDoFLinearSystemImpl
 
   virtual VariableDoFReal& solutionVariable() = 0;
   virtual VariableDoFReal& rhsVariable() = 0;
+  virtual void setNearNullSpaceVectors(NumArray<Real, MDDim2>& vectors, Int32 block_size) = 0;
   virtual void setSolverCommandLineArguments(const CommandLineArguments& args) = 0;
   virtual void clearValues() = 0;
   virtual void setCSRValues(const CSRFormatView& csr_view) = 0;
