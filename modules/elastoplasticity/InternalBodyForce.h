@@ -5,10 +5,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* InternalBodyForceVonMises.h                                 (C) 2000-2026 */
+/* InternalBodyForce.h                                 (C) 2000-2026 */
 /*                                                                           */
 /* Contains functions to compute and assemble source term contribution to RHS*/
-/* corresponding to the internal force term for VonMises plasticity law      */
+/* corresponding to the internal force term                                  */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -23,7 +23,7 @@
 /*---------------------------------------------------------------------------*/
 
 inline void FemModuleElastoplasticity::
-_applyInternalBodyForceVonMises(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
+_applyInternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
   auto use_gpu = options()->linearSystem.serviceName() == "HypreLinearSystem" ||
     options()->linearSystem.serviceName() == "PetscLinearSystem";
@@ -35,7 +35,7 @@ _applyInternalBodyForceVonMises(VariableDoFReal& rhs_values, const IndexedNodeDo
       if (m_hex_quad_mesh) {
         ARCANE_FATAL("Not IMPLEMENTED");
       } else {
-        _applyInternalBodyForceVonMisesTria3Gpu(rhs_values, m_dofs_on_nodes, m_node_coord, mesh_ptr, queue);
+        _applyInternalBodyForceTria3Gpu(rhs_values, m_dofs_on_nodes, m_node_coord, mesh_ptr, queue);
       }
     } else {
       if (m_hex_quad_mesh) {
@@ -49,7 +49,7 @@ _applyInternalBodyForceVonMises(VariableDoFReal& rhs_values, const IndexedNodeDo
       if (m_hex_quad_mesh) {
         ARCANE_FATAL("Not IMPLEMENTED");
       } else {
-        _applyInternalBodyForceVonMisesTria3Cpu(rhs_values, node_dof);
+        _applyInternalBodyForceTria3Cpu(rhs_values, node_dof);
       }
     } else {
       if (m_hex_quad_mesh) {
@@ -86,7 +86,7 @@ _applyInternalBodyForceVonMises(VariableDoFReal& rhs_values, const IndexedNodeDo
 /*---------------------------------------------------------------------------*/
 
 ARCCORE_HOST_DEVICE inline RealVector<6>
-computeInternalBodyForceVonMisesTria3Base(Real3 dxu,
+computeInternalBodyForceTria3Base(Real3 dxu,
                                           Real3 dyu,
                                           Real area,
                                           RealVector<3> sigma_2d)
@@ -103,9 +103,9 @@ computeInternalBodyForceVonMisesTria3Base(Real3 dxu,
 }
 
 inline void FemModuleElastoplasticity::
-_applyInternalBodyForceVonMisesTria3Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
+_applyInternalBodyForceTria3Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
-  info() << "[ArcaneFem-Info] Started module  _applyInternalBodyForceVonMisesTria3Cpu()";
+  info() << "[ArcaneFem-Info] Started module  _applyInternalBodyForceTria3Cpu()";
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
@@ -114,11 +114,11 @@ _applyInternalBodyForceVonMisesTria3Cpu(VariableDoFReal& rhs_values, const Index
     Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
 
     Int8 iGP = 0; // for tria P1 elements nGP=1
-    Real sigma_xx = m_sigma_2d_gp(cell , iGP, 0);
-    Real sigma_yy = m_sigma_2d_gp(cell , iGP, 1);
-    Real sigma_xy = m_sigma_2d_gp(cell , iGP, 2);
+    Real sigma_xx = m_sigma_gp(cell , iGP, 0);
+    Real sigma_yy = m_sigma_gp(cell , iGP, 1);
+    Real sigma_xy = m_sigma_gp(cell , iGP, 2);
 
-    RealVector<6> rhs = computeInternalBodyForceVonMisesTria3Base(dxu, dyu, area, { sigma_xx, sigma_yy, sigma_xy });
+    RealVector<6> rhs = computeInternalBodyForceTria3Base(dxu, dyu, area, { sigma_xx, sigma_yy, sigma_xy });
 
     rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0);
     rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(1);
@@ -130,12 +130,12 @@ _applyInternalBodyForceVonMisesTria3Cpu(VariableDoFReal& rhs_values, const Index
 }
 
 inline void FemModuleElastoplasticity::
-_applyInternalBodyForceVonMisesTria3Gpu(VariableDoFReal& rhs_values,
+_applyInternalBodyForceTria3Gpu(VariableDoFReal& rhs_values,
                                         const FemDoFsOnNodes& dofs_on_nodes,
                                         const VariableNodeReal3& node_coord,
                                         IMesh* mesh, RunQueue* queue)
 {
-  info() << "[ArcaneFem-Info] Started module  _applyInternalBodyForceVonMisesTria3Gpu()";
+  info() << "[ArcaneFem-Info] Started module  _applyInternalBodyForceTria3Gpu()";
   ARCANE_CHECK_PTR(queue);
   ARCANE_CHECK_PTR(mesh);
 
@@ -151,7 +151,7 @@ _applyInternalBodyForceVonMisesTria3Gpu(VariableDoFReal& rhs_values,
   auto in_out_rhs_values = Accelerator::viewInOut(command, rhs_values);
   auto in_node_coord = Accelerator::viewIn(command, node_coord);
 
-  auto in_sigma_2d_gp = Accelerator::viewIn(command, m_sigma_2d_gp);
+  auto in_sigma_gp = Accelerator::viewIn(command, m_sigma_gp);
 
   command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh->allCells())
   {
@@ -160,11 +160,11 @@ _applyInternalBodyForceVonMisesTria3Gpu(VariableDoFReal& rhs_values,
     Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
 
     Int8 iGP = 0; // for tria P1 elements nGP=1
-    Real sigma_xx = in_sigma_2d_gp(cell_lid , iGP, 0);
-    Real sigma_yy = in_sigma_2d_gp(cell_lid , iGP, 1);
-    Real sigma_xy = in_sigma_2d_gp(cell_lid , iGP, 2);
+    Real sigma_xx = in_sigma_gp(cell_lid , iGP, 0);
+    Real sigma_yy = in_sigma_gp(cell_lid , iGP, 1);
+    Real sigma_xy = in_sigma_gp(cell_lid , iGP, 2);
 
-    RealVector<6> rhs = computeInternalBodyForceVonMisesTria3Base(dxu, dyu, area, { sigma_xx, sigma_yy, sigma_xy });
+    RealVector<6> rhs = computeInternalBodyForceTria3Base(dxu, dyu, area, { sigma_xx, sigma_yy, sigma_xy });
 
     NodeLocalId cell_nodes[3];
     Int32 index = 0;

@@ -69,6 +69,7 @@ RealMatrix<8, 8> FemModuleElastoplasticity::_computeElementMatrixQuad4(Cell cell
   ae.fill(0.0);
 
   // Loop over Gauss points
+  Int8 iGP = 0; // TODO verify order with ixi, ieta, izeta.
   for (Int8 ixi = 0; ixi < 2; ++ixi) {
     for (Int8 ieta = 0; ieta < 2; ++ieta) {
       // Get the coordinates of the Gauss point in natural coordinates (ξ,η)
@@ -91,9 +92,10 @@ RealMatrix<8, 8> FemModuleElastoplasticity::_computeElementMatrixQuad4(Cell cell
         RealMatrix<3, 3> C_tang_2d;
         for (Int32 ix = 0; ix < 3; ++ix) {
           for (Int32 iy = 0; iy < 3; ++iy) {
-            C_tang_2d(ix, iy) = m_C_tang_2d_cell(cell, ix, iy);
+            C_tang_2d(ix, iy) = m_C_tang_gp(cell, iGP, ix, iy);
           }
         }
+        iGP++;
         ae += computeElementMatrixQuad4Base(dxU, dyU, integration_weight, C_tang_2d);
       }
     }
@@ -191,6 +193,7 @@ RealMatrix<24, 24> FemModuleElastoplasticity::_computeElementMatrixHexa8(Cell ce
   ae.fill(0.0);
 
   // Loop over Gauss points
+  Int8 iGP = 0; // TODO verify order with ixi, ieta, izeta.
   for (Int8 ixi = 0; ixi < 2; ++ixi) {
     for (Int8 ieta = 0; ieta < 2; ++ieta) {
       for (Int8 izeta = 0; izeta < 2; ++izeta) {
@@ -217,9 +220,10 @@ RealMatrix<24, 24> FemModuleElastoplasticity::_computeElementMatrixHexa8(Cell ce
           RealMatrix<6, 6> C_tang_3d;
           for (Int32 ix = 0; ix < 6; ++ix) {
             for (Int32 iy = 0; iy < 6; ++iy) {
-              C_tang_3d(ix, iy) = m_C_tang_3d_cell(cell, ix, iy);
+              C_tang_3d(ix, iy) = m_C_tang_gp(cell, iGP, ix, iy);
             }
           }
+          iGP++;
           ae += computeElementMatrixHexa8Base(dxU, dyU, dzU, integration_weight,  C_tang_3d);
         }
       }

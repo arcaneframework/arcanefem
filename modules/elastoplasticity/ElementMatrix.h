@@ -57,24 +57,24 @@ ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeElementMatrixTria3Base(Real3 dxu, Re
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeElementMatrixTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1, -1>>& in_C_tang)
+ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeElementMatrixTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1, -1, -1>>& in_C_tang)
 {
   Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
   Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
   Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
 
   RealMatrix<3, 3> C_tang;
-
+  Int8 iGP = 0;
   // a flattened sequence is faster than a for loop on GPUs
-  C_tang(0, 0) = in_C_tang(cell_lid, 0, 0);
-  C_tang(0, 1) = in_C_tang(cell_lid, 0, 1);
-  C_tang(0, 2) = in_C_tang(cell_lid, 0, 2);
-  C_tang(1, 0) = in_C_tang(cell_lid, 1, 0);
-  C_tang(1, 1) = in_C_tang(cell_lid, 1, 1);
-  C_tang(1, 2) = in_C_tang(cell_lid, 1, 2);
-  C_tang(2, 0) = in_C_tang(cell_lid, 2, 0);
-  C_tang(2, 1) = in_C_tang(cell_lid, 2, 1);
-  C_tang(2, 2) = in_C_tang(cell_lid, 2, 2);
+  C_tang(0, 0) = in_C_tang(cell_lid, iGP, 0, 0);
+  C_tang(0, 1) = in_C_tang(cell_lid, iGP, 0, 1);
+  C_tang(0, 2) = in_C_tang(cell_lid, iGP, 0, 2);
+  C_tang(1, 0) = in_C_tang(cell_lid, iGP, 1, 0);
+  C_tang(1, 1) = in_C_tang(cell_lid, iGP, 1, 1);
+  C_tang(1, 2) = in_C_tang(cell_lid, iGP, 1, 2);
+  C_tang(2, 0) = in_C_tang(cell_lid, iGP, 2, 0);
+  C_tang(2, 1) = in_C_tang(cell_lid, iGP, 2, 1);
+  C_tang(2, 2) = in_C_tang(cell_lid, iGP, 2, 2);
 
   return computeElementMatrixTria3Base(dxu, dyu, area, C_tang);
 }
@@ -90,13 +90,15 @@ RealMatrix<6, 6> FemModuleElastoplasticity::_computeElementMatrixTria3(Cell cell
   if (m_gp_material_tensor_strategy == "local") {
     return computeElementMatrixTria3Base(dxu, dyu, area, m_C_tang_2d);
   } else {
-    RealMatrix<3, 3> C_tang_2d;
-    for (Int32 ix = 0; ix < 3; ++ix) {
-      for (Int32 iy = 0; iy < 3; ++iy) {
-        C_tang_2d(ix, iy) = m_C_tang_2d_cell(cell, ix, iy);
+    RealMatrix<3, 3> C_tang;
+    for (Int32 iGP = 0; iGP < m_nGP; ++iGP) {
+      for (Int32 ix = 0; ix < 3; ++ix) {
+        for (Int32 iy = 0; iy < 3; ++iy) {
+          C_tang(ix, iy) = m_C_tang_gp(cell, iGP, ix, iy);
+        }
       }
     }
-    return computeElementMatrixTria3Base(dxu, dyu, area, C_tang_2d);
+    return computeElementMatrixTria3Base(dxu, dyu, area, C_tang);
   }
 
 }
@@ -135,24 +137,24 @@ ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeElementVectorTria3GpuBase(Real3 dxu,
   return result;
 }
 
-ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeElementVectorTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1, -1>>& in_C_tang, Int32 node_lid)
+ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeElementVectorTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1, -1, -1>>& in_C_tang, Int32 node_lid)
 {
   Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
   Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
   Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
 
   RealMatrix<3, 3> C_tang;
-
+  Int8 iGP = 0;
   // a flattened sequence is faster than a for loop on GPUs
-  C_tang(0, 0) = in_C_tang(cell_lid, 0, 0);
-  C_tang(0, 1) = in_C_tang(cell_lid, 0, 1);
-  C_tang(0, 2) = in_C_tang(cell_lid, 0, 2);
-  C_tang(1, 0) = in_C_tang(cell_lid, 1, 0);
-  C_tang(1, 1) = in_C_tang(cell_lid, 1, 1);
-  C_tang(1, 2) = in_C_tang(cell_lid, 1, 2);
-  C_tang(2, 0) = in_C_tang(cell_lid, 2, 0);
-  C_tang(2, 1) = in_C_tang(cell_lid, 2, 1);
-  C_tang(2, 2) = in_C_tang(cell_lid, 2, 2);
+  C_tang(0, 0) = in_C_tang(cell_lid, iGP, 0, 0);
+  C_tang(0, 1) = in_C_tang(cell_lid, iGP, 0, 1);
+  C_tang(0, 2) = in_C_tang(cell_lid, iGP, 0, 2);
+  C_tang(1, 0) = in_C_tang(cell_lid, iGP, 1, 0);
+  C_tang(1, 1) = in_C_tang(cell_lid, iGP, 1, 1);
+  C_tang(1, 2) = in_C_tang(cell_lid, iGP, 1, 2);
+  C_tang(2, 0) = in_C_tang(cell_lid, iGP, 2, 0);
+  C_tang(2, 1) = in_C_tang(cell_lid, iGP, 2, 1);
+  C_tang(2, 2) = in_C_tang(cell_lid, iGP, 2, 2);
 
   return computeElementVectorTria3GpuBase(dxu, dyu, area, C_tang, node_lid);
 }
@@ -228,9 +230,10 @@ RealMatrix<12, 12> FemModuleElastoplasticity::_computeElementMatrixTetra4(Cell c
     return computeElementMatrixTetra4Base(dxu, dyu, dzu, volume, m_C_tang_3d);
   } else {
     RealMatrix<6, 6> C_tang_3d;
+    Int8 iGP = 0;
     for (Int32 ix = 0; ix < 6; ++ix) {
       for (Int32 iy = 0; iy < 6; ++iy) {
-        C_tang_3d(ix, iy) = m_C_tang_3d_cell(cell, ix, iy);
+        C_tang_3d(ix, iy) = m_C_tang_gp(cell, iGP, ix, iy);
       }
     }
     return computeElementMatrixTetra4Base(dxu, dyu, dzu, volume, C_tang_3d);

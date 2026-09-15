@@ -31,6 +31,7 @@ file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
         quater_cylinder.msh
+        strip_footing.msh
 )
 
 foreach (MESH_FILE IN LISTS MESH_FILES)
@@ -90,6 +91,14 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           -A,//fem/linear-system/solver=gmres
           -A,//fem/linear-system/atol=1e-9
           -A,//fem/linear-system/rtol=0)
+
+  arcanefem_add_seq_test(NAME 2D_Strip_footing_drucker_prager_table
+          COMMAND ./Elastoplasticity
+          ARGS
+          -A,//fem/solution-comparison-file=check/2D.strip.footing.drucker_prager.t12.txt
+          -A,//fem/matrix-format=BSR
+          ${SOLVER_PETSC_DIRECT_CG}
+          inputs/2D.strip.footing.DruckerPrager.arc)
 
     arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_bsr_petsc-direct
           COMMAND ./Elastoplasticity

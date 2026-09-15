@@ -7,7 +7,7 @@
 /*---------------------------------------------------------------------------*/
 /* FemModule.h                                                (C) 2000-2026  */
 /*                                                                           */
-/* FemModuleElastoplasticity class definition.                                     */
+/* FemModuleElastoplasticity class definition.                               */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 #ifndef ARCANFEM_ELASTOPLATICITY_FEMMODULE
@@ -44,9 +44,6 @@
 /*---------------------------------------------------------------------------*/
 
 using namespace Arcane;
-using namespace Arcane::FemUtils;
-
-/*---------------------------------------------------------------------------*/
 /**
  * @brief A module for finite element method.
  *
@@ -72,7 +69,9 @@ class FemModuleElastoplasticity
   }
   ~FemModuleElastoplasticity()
   {
-    for( const CaseTableInfo&  t : m_traction_case_table_list )
+    for (const CaseTableInfo& t : m_traction_case_table_list)
+      delete t.case_table;
+    for (const CaseTableInfo& t : m_dirichlet_case_table_list)
       delete t.case_table;
   }
 
@@ -85,7 +84,10 @@ class FemModuleElastoplasticity
   void _assembleDirichletsNewtonGpu();
   void _assembleZeroRHSOnConstrainedDOFsGpu();
 
-  inline void _applyInternalBodyForceVonMisesTria3Gpu(VariableDoFReal& rhs_values, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord, IMesh* mesh, RunQueue* queue);
+  inline void _applyInternalBodyForceTria3Gpu(VariableDoFReal& rhs_values, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord, IMesh* mesh, RunQueue* queue);
+
+  inline void _updateGlobalTangentMaterialTensorVonMisesTria3Gpu();
+  inline void _updateGlobalTangentMaterialTensorDruckerPragerTria3Gpu();
 
  private:
 
@@ -95,17 +97,27 @@ class FemModuleElastoplasticity
 
   // List of CaseTable for traction boundary conditions
   UniqueArray<CaseTableInfo> m_traction_case_table_list;
+  // List of CaseTable for Dirichlet boundary conditions
+  UniqueArray<CaseTableInfo> m_dirichlet_case_table_list;
   Real t = 0.;
   Real dt = 0.;
   Real tmax = 0.;
   Real E; // Youngs modulus
   Real nu; // Poisson ratio
   Real sig0; // Yield strength
+  Real cohesion; // Yield strength
+  Real friction_angle; // Yield strength
   Real mu;
   Real lambda;
   Real Et; // Tangent modulus
   Real H; // Hardening modulus
   Real Qlim; // Limiting pressure
+  Real bulk; // Bulk modulus
+  Real dpEta; //
+  Real dpC; //
+  Real max_settlement; // Limiting settlement
+  Real footing_width; // Footing width
+  Real alg_reaction; // Algebraic reaction
   Real m_newton_atol;
   Real m_newton_rtol;
   Real m_residual_norm0 = 0.0;
@@ -114,13 +126,13 @@ class FemModuleElastoplasticity
 
   Real3 f;
 
-  RealMatrix<3, 3> m_C_2d;
+  RealMatrix<3, 3> m_C_elas_2d;
   RealMatrix<3, 3> m_C_tang_2d;
-  RealMatrix<6, 6> m_C_3d;
+  RealMatrix<6, 6> m_C_elas_3d;
   RealMatrix<6, 6> m_C_tang_3d;
 
   Int8 m_dof_per_node;
-  Int8 m_nGP=1;
+  Int8 m_nGP = 1;
   Int32 m_newton_iter;
   Int32 m_newton_max_iters;
 
@@ -152,35 +164,46 @@ class FemModuleElastoplasticity
   void _validateResults();
   void _readCaseTables();
   void _updateNewtonIncrements();
-  void _updateGuessFromIncrement();
-  void _updateVariables();
+  void _updateTimeVariables();
   void _initBsr();
+  void _initConstitutiveLaw();
 
   // Von Mises Law
   inline void _restoreConvergedStateVonMises();
+  inline void _commitInternalVariablesVonMises();
   inline void _updateGlobalTangentMaterialTensorVonMises();
   inline void _updateGlobalTangentMaterialTensorVonMisesTria3Cpu();
 
   inline void _applyInternalBodyForceVonMises(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyInternalBodyForceVonMisesTria3Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
 
+  // Drucker Prager Law
+  inline void _restoreConvergedStateDruckerPrager();
+  inline void _commitInternalVariablesDruckerPrager();
+  inline void _updateGlobalTangentMaterialTensorDruckerPrager();
+  inline void _updateGlobalTangentMaterialTensorDruckerPragerTria3Cpu();
+
+  // RHS assembly helper functions
+  inline void _applyInternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyInternalBodyForceTria3Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+
   inline void _applyExternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
 
   inline void _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   static inline void _applyPressureTableToRhsTria3(BC::ITractionBoundaryCondition* bs, const Real t, Int32 boundary_condition_index, const UniqueArray<Arcane::FemUtils::CaseTableInfo>& traction_case_table_list, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values);
 
-
   inline void _applyDirichletNewton(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyZeroRHSOnConstrainedDOFs(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
 
-
   inline Real _normL2(VariableNodeReal3& u);
   inline Real _normL2(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline Real _normL1(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
 
   RealMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
   RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
   RealMatrix<8, 8> _computeElementMatrixQuad4(Cell cell);
   RealMatrix<24, 24> _computeElementMatrixHexa8(Cell cell);
+  IBinaryMathFunctor<Real, Real3, Real>* m_prescribed_settlement = nullptr;
 
   template <int N>
   void _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
@@ -188,5 +211,8 @@ class FemModuleElastoplasticity
   inline Real _getL2NormFEM(const VariableNodeReal& u);
   inline Real _getL2NormFEM(const VariableNodeReal3& u);
 };
+using namespace Arcane::FemUtils;
+
+/*---------------------------------------------------------------------------*/
 
 #endif

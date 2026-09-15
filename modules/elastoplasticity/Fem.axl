@@ -18,29 +18,38 @@
     <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
       <description>Node coordinates from Arcane variable</description>
     </variable>
-    <variable field-name="C_tang_2d_cell" name="CTang2dCell" data-type="real" item-kind="cell" shape-dim="2">
-      <description>Tangent of the material tensor for 2D constitutive law</description>
+    <variable field-name="C_tang_gp" name="CTangGp" data-type="real" item-kind="cell" shape-dim="3">
+      <description>Tangent of the material tensor for constitutive law</description>
     </variable>
-    <variable field-name="C_tang_3d_cell" name="CTang3dCell" data-type="real" item-kind="cell" shape-dim="2">
-       <description>Tangent of the material tensor for 3D constitutive law</description>
+    <variable field-name="sigma_gp" name="SigmaGp" data-type="real" item-kind="cell" shape-dim="2">
+      <description>Stress tensor on gauss points</description>
     </variable>
-    <variable field-name="sigma_2d_gp" name="Sigma2dGp" data-type="real" item-kind="cell" shape-dim="2">
-      <description>Stress tensor for 2D on gauss points</description>
+    <variable field-name="sigma_old_gp" name="SigmaOldGp" data-type="real" item-kind="cell" shape-dim="2">
+      <description>Previous step stress tensor on gauss points</description>
     </variable>
-    <variable field-name="sigma_old_2d_gp" name="SigmaOld2dGp" data-type="real" item-kind="cell" shape-dim="2">
-      <description>Previous step stress tensor for 2D on gauss points</description>
+    <variable field-name="sigma_zz_gp" name="SigmaZZGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>zz component of stress tensor on gauss points</description>
     </variable>
-    <variable field-name="sigma_zz_2d_gp" name="SigmaZZ2dGp" data-type="real" item-kind="cell" shape-dim="1">
-      <description>zz component of stress tensor for 2D on gauss points</description>
+    <variable field-name="sigma_zz_old_gp" name="SigmaZZOldGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>Previous step zz component of stress tensor on gauss points</description>
     </variable>
-    <variable field-name="sigma_zz_old_2d_gp" name="SigmaZZOld2dGp" data-type="real" item-kind="cell" shape-dim="1">
-      <description>Previous step zz component of stress tensor for 2D on gauss points</description>
+    <variable field-name="eps_p_gp" name="EpsPGp" data-type="real" item-kind="cell" shape-dim="2">
+      <description>Plastic strain tensor on gauss points</description>
     </variable>
-    <variable field-name="p_old_2d_gp" name="POld2dGp" data-type="real" item-kind="cell" shape-dim="1">
-      <description>Previous step plastic strain for 2D on gauss points</description>
+    <variable field-name="eps_p_old_gp" name="EpsPOldGp" data-type="real" item-kind="cell" shape-dim="2">
+      <description>Previous step plastic strain tensor on gauss points</description>
     </variable>
-    <variable field-name="dp_2d_gp" name="Dp2dGp" data-type="real" item-kind="cell" shape-dim="1">
-      <description>Change in plastic strain for 2D on gauss points</description>
+    <variable field-name="eps_p_zz_gp" name="EpsPZZGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>zz component of plastic strain tensor on gauss points</description>
+    </variable>
+    <variable field-name="eps_p_zz_old_gp" name="EpsPZZOldGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>Previous step zz component of plastic strain tensor on gauss points</description>
+    </variable>
+    <variable field-name="p_old_gp" name="POldGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>Previous step plastic strain on gauss points</description>
+    </variable>
+    <variable field-name="dp_gp" name="DpGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>Change in plastic strain on gauss points</description>
     </variable>
   </variables>
   <options>
@@ -88,22 +97,59 @@
       <description>Boolean to use hexagonal quadrature for element matrix assembly.</description>
     </simple>
 
-    <!-- - - - - - constitutive law for plasticity/elasticity - - - - TODO make complex type - -->
-    <simple name="constitutive-law" type="string" default="VonMises" optional="true">
-      <description>Which constitutive law to use VonMises|Drucker-Prager|Hooke.</description>
-    </simple>
+    <!-- - - - - - constitutive law for plasticity/elasticity - - - - -->
+    <complex name="constitutive-law"
+             type="ConstitutiveLaw"
+             minOccurs = "0"
+             maxOccurs = "1"
+      >
+      <description>
+        List of constitutive laws to use from VonMises|DruckerPrager|Hooke.
+      </description>
+      <simple name="law" type="string" default="VonMises">
+        <description>Name of constitutive law</description>
+      </simple>
+      <complex name="von-mises"
+               type="VonMises"
+               minOccurs = "0"
+               maxOccurs = "1"
+        >
+        <description>
+          List of parameters for VonMises law
+        </description>
+        <simple name="E" type="real" default="70.e3">
+          <description>Youngs Modulus of the material.</description>
+        </simple>
+        <simple name="nu" type="real" default="0.3">
+          <description>Poissons ratio of the material.</description>
+        </simple>
+        <simple name="sig0" type="real" default="250.0">
+          <description>Yeild strength of the material.</description>
+        </simple>
+      </complex>
 
-    <simple name="E" type="real" default="0.0">
-      <description>Youngs Modulus of the material.</description>
-    </simple>
-
-    <simple name="nu" type="real" default="0.0">
-      <description>Poissons ratio of the material.</description>
-    </simple>
-
-    <simple name="sig0" type="real" default="0.0">
-      <description>Yeild strength of material.</description>
-    </simple>
+      <complex name="drucker-prager"
+               type="DruckerPrager"
+               minOccurs = "0"
+               maxOccurs = "1"
+        >
+        <description>
+          List of parameters for DruckerPrager law
+        </description>
+        <simple name="E" type="real" default="1.e7">
+          <description>Youngs Modulus of the material.</description>
+        </simple>
+        <simple name="nu" type="real" default="0.48">
+          <description>Poissons ratio of the material.</description>
+        </simple>
+        <simple name="cohesion" type="real" default="450.0">
+          <description>Cohesion parameter of the material.</description>
+        </simple>
+        <simple name="friction-angle" type="real" default="0.34906585039">
+          <description>Friction angle parameter of the material.</description>
+        </simple>
+      </complex>
+    </complex>
 
     <!-- - - - - - nonlinear-analysis-parameters - - - - -->
     <simple name="check-bilinear-operator-for-residual" type="bool" default="false" optional="true">

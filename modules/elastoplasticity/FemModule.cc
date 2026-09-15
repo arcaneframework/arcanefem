@@ -13,6 +13,7 @@
 
 #include <arcane/core/IParallelMng.h>
 #include <arcane/accelerator/MDVariableViews.h>
+#include <arcane/utils/ValueConvert.h>
 
 #include "FemModule.h"
 #include "ElementMatrix.h"
@@ -20,8 +21,9 @@
 #include "ExternalBodyForce.h"
 #include "Traction.h"
 #include "Dirichlet.h"
-#include "InternalBodyForceVonMises.h"
+#include "InternalBodyForce.h"
 #include "VonMisesLaw.h"
+#include "DruckerPragerLaw.h"
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -40,10 +42,6 @@ startInit()
   tmax = options()->tmax(); // max time 𝑡ₘₐₓ
   dt = options()->dt(); // time step δ𝑡
 
-  E = options()->E(); // Youngs modulus
-  nu = options()->nu(); // Poission ratio ν
-  sig0 = options()->sig0(); // Yield Strength
-
   m_dof_per_node = defaultMesh()->dimension();
   m_matrix_format = options()->matrixFormat();
   m_assemble_linear_system = options()->assembleLinearSystem();
@@ -55,7 +53,6 @@ startInit()
 
   m_dofs_on_nodes.initialize(defaultMesh(), m_dof_per_node);
 
-  m_constitutive_law = options()->constitutiveLaw();
   m_newton_max_iters = options()->newtonMaxIters();
   m_newton_atol = options()->newtonAtol();
   m_newton_rtol = options()->newtonRtol();
@@ -68,46 +65,40 @@ startInit()
   m_gp_material_tensor_strategy = options()->gpMaterialTensorStrategy();
   m_check_with_bilinear_operator = options()->checkBilinearOperatorForResidual();
 
-  // The native von Mises update stores one algorithmic tangent per integration
-  // point. Tria3 has one integration point, so a cell variable is sufficient.
-  if (m_constitutive_law == "VonMises")
-    m_gp_material_tensor_strategy = "global";
-
   if (m_gp_material_tensor_strategy == "global") {
     if (mesh()->dimension() == 2) {
-      m_C_tang_2d_cell.reshape({ 3, 3 });
+      if (m_hex_quad_mesh)
+        m_nGP = 4;
+      else
+        m_nGP = 1;
+
+      m_C_tang_gp.reshape({m_nGP, 3, 3 });
+      m_sigma_gp.reshape({m_nGP, 3});
+      m_sigma_old_gp.reshape({m_nGP, 3});
+      m_sigma_zz_gp.reshape({m_nGP});
+      m_sigma_zz_old_gp.reshape({m_nGP});
     } else {
-      m_C_tang_3d_cell.reshape({ 6, 6 });
-    }
-  }
-
-  if (m_constitutive_law == "VonMises") {
-
-    if (mesh()->dimension() != 2 || m_hex_quad_mesh)
-      ARCANE_FATAL("Native von Mises plasticity currently supports only 2D Tria3 elements");
-
-    if (mesh()->dimension() == 2) {
-
-      m_nGP = 1;
-
-      // m_epsilon_2d_gp.reshape({m_nGP, 3}); // not needed to store for Von Mises law
-      m_sigma_2d_gp.reshape({m_nGP, 3});
-      m_sigma_old_2d_gp.reshape({m_nGP, 3});
-      // m_sigma_trial_2d_gp.reshape({m_nGP, 3}); // not needed to store for Von Mises law
-      // m_dev_2d_gp.reshape({m_nGP, 3}); // not needed to store for Von Mises law
-      // m_flowN_2d_gp.reshape({m_nGP, 3}); // not needed to store for Von Mises law
-
-      m_sigma_zz_2d_gp.reshape({m_nGP});
-      m_sigma_zz_old_2d_gp.reshape({m_nGP});
-      m_p_old_2d_gp.reshape({m_nGP});
-      m_dp_2d_gp.reshape({m_nGP});
-
+      if (m_hex_quad_mesh)
+        m_nGP = 8;
+      else
+        m_nGP = 1;
+      m_C_tang_gp.reshape({ m_nGP, 6, 6 });
+      m_sigma_gp.reshape({m_nGP, 6});
+      m_sigma_old_gp.reshape({m_nGP, 6});
     }
   }
 
   t = dt;
   tmax = tmax - dt;
   m_global_deltat.assign(dt);
+
+  _initConstitutiveLaw();
+
+  // The Drucker-Prager return mapping is currently implemented on the CPU.
+  // BSR may still assemble the matrix on an accelerator, but constitutive,
+  // internal-force, and Dirichlet updates must use their CPU implementations.
+  if (m_constitutive_law == "DruckerPrager")
+    m_use_gpu_functions = false;
 
   _readCaseTables();
 
@@ -178,12 +169,74 @@ compute()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Updates time.
+ */
+/*---------------------------------------------------------------------------*/
 void FemModuleElastoplasticity::
 _updateTime()
 {
   t += dt;
 }
 
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Initializes constitutive law parameters.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleElastoplasticity::
+_initConstitutiveLaw()
+{
+  info() << "[ArcaneFem-Info] Started module  _initConstitutiveLaw()";
+  Real elapsedTime = platform::getRealTime();
+
+  for (const auto& constitutive_law : options()->constitutiveLaw()) {
+    String law_name = constitutive_law->law();
+    m_constitutive_law = law_name;
+    if (law_name == "VonMises") {
+      for (const auto von_mises : constitutive_law->vonMises()) {
+        E = von_mises->E(); // Youngs modulus
+        nu = von_mises->nu(); // Poission ratio ν
+        sig0 = von_mises->sig0(); // Yield Strength
+      }
+    } else if (law_name == "DruckerPrager") {
+      for (const auto drucker_prager : constitutive_law->druckerPrager()) {
+        E = drucker_prager->E(); // Youngs modulus
+        nu = drucker_prager->nu(); // Poission ratio ν
+        cohesion = drucker_prager->cohesion(); // Cohesion
+        friction_angle = drucker_prager->frictionAngle(); // Friction angle
+      }
+    } else {
+      ARCANE_FATAL("Undefined constitutive law");
+    }
+  }
+
+  if (m_constitutive_law == "VonMises" || m_constitutive_law == "DruckerPrager") {
+    if (m_gp_material_tensor_strategy == "local")
+      ARCANE_FATAL("Local material tensor strategy not supported for plasticity laws");
+
+    if (mesh()->dimension() != 2 || m_hex_quad_mesh)
+      ARCANE_FATAL("Native von Mises plasticity currently supports only 2D Tria3 elements");
+
+    if (m_constitutive_law == "VonMises") {
+      m_p_old_gp.reshape({m_nGP});
+      m_dp_gp.reshape({m_nGP});
+    }
+
+    if (m_constitutive_law == "DruckerPrager") {
+      m_eps_p_gp.reshape({m_nGP, 3});
+      m_eps_p_old_gp.reshape({m_nGP, 3});
+      m_eps_p_zz_gp.reshape({m_nGP});
+      m_eps_p_zz_old_gp.reshape({m_nGP});
+    }
+
+  }
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize-constitutive-law", elapsedTime);
+}
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -227,10 +280,10 @@ _doStationarySolve()
     if (m_solve_nonlinear_system)
       _solveNewton();
 
-  if(m_cross_validation)
-   if (t > 0. && t==tmax) {
-      _validateResults();
-    }
+   if(m_cross_validation)
+     if (t > 0. && t==tmax)
+       _validateResults();
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -266,6 +319,8 @@ _solveNewton()
 
   if (m_constitutive_law == "VonMises") {
     _restoreConvergedStateVonMises();
+  } else if (m_constitutive_law == "DruckerPrager") {
+    _restoreConvergedStateDruckerPrager();
   }
 
   // --- assemble_linear_system ---- //
@@ -279,7 +334,6 @@ _solveNewton()
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   m_residual_norm0 = _normL2(residual_values, node_dof);
   info() << "[ArcaneFem-Info] Initial residual norm = " << m_residual_norm0;
-
 
   // --- start_newton_loop ---- //
   while (m_newton_iter < m_newton_max_iters && !m_newton_solver_converged) {
@@ -296,6 +350,8 @@ _solveNewton()
 
     if (m_constitutive_law == "VonMises") {
       _updateGlobalTangentMaterialTensorVonMises();
+    } else if (m_constitutive_law == "DruckerPrager") {
+      _updateGlobalTangentMaterialTensorDruckerPrager();
     }
 
     // --- assemble_linear_system ---- //
@@ -311,22 +367,100 @@ _solveNewton()
       }
     }
 
-    // --- calculate_residual ---- //
-    _checkNewtonConvergence();
+    if (m_newton_iter == 1) {
+      if (m_constitutive_law == "DruckerPrager") {
+        // The first assembled rhs contains the large algebraic enforcement of the
+        // non-zero footing displacement. Reset the Newton reference norm after that
+        // correction so convergence is measured using the physical equilibrium
+        // residual, not the Dirichlet penalty.
+        VariableDoFReal& residual_values_k(m_linear_system.rhsVariable());
+        auto node_dof_k(m_dofs_on_nodes.nodeDoFConnectivityView());
+        _applyZeroRHSOnConstrainedDOFs(residual_values_k, node_dof_k);
+        m_residual_norm0 = _normL2(residual_values_k, node_dof_k);
+      }
+    }
 
+    // --- calculate_and_check_residual ---- //
+    _checkNewtonConvergence();
   }
 
   if (m_newton_solver_converged) {
     info() << "[ArcaneFem-Info] Newton solver converged after " << m_newton_iter << " iterations.";
+    //-- update global displacement after newton convergence -- //
+    _updateTimeVariables();
 
     if (m_constitutive_law == "VonMises") {
+      //-- commit increment for von mises -- //
+      _commitInternalVariablesVonMises();
+
       if (t == dt) {
         Real Ri = 1.0;
         Real Re = 1.3;
         Qlim = 2./math::sqrt(3.) * math::log( Re/Ri) * sig0;
       }
       Real tl = math::sqrt(1.1 / tmax * (t));
-      info() << "[ArcaneFem-Info] At Time Step " << t - 1 << ":\tPressure applied: " << Qlim * tl << "\tNewton iters: " << m_newton_iter << "\tresidual norm: " << m_residual_norm;
+      info() << "[ArcaneFem-Info] At Time Step "
+             << t - 1 << ":\tPressure applied: " << Qlim * tl
+             << "\tNewton iters: " << m_newton_iter
+             << "\tResidual norm: " << m_residual_norm;
+    }
+
+    if (m_constitutive_law == "DruckerPrager") {
+      // -- commit increment for Drucker Prager --//
+      _commitInternalVariablesDruckerPrager();
+
+      if (t == dt) {
+        max_settlement = 0.03;
+        footing_width = 1.0;
+      }
+
+      VariableDoFReal& algebraic_reaction(m_linear_system.rhsVariable());
+      algebraic_reaction.fill(0.);
+      // _applyInternalBodyForce(algebraic_reaction, node_dof);
+
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+
+        Int8 iGP = 0; // for tria P1 elements nGP=1
+        Real sigma_xx = m_sigma_gp(cell , iGP, 0);
+        Real sigma_yy = m_sigma_gp(cell , iGP, 1);
+        Real sigma_xy = m_sigma_gp(cell , iGP, 2);
+
+        RealVector<6> u = {0., 0., 0., 0., 0., 0.};
+        for (Int8 i = 0; i < 3; ++i) {
+          Real3 vertex = m_node_coord[cell.nodeId(i)];
+          u[2*i + 1] = (math::abs(vertex.y - 10.) < 1.e-8 && vertex.x <= footing_width + 1.e-8);
+        }
+
+        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
+        Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
+        Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
+
+        RealVector<6> epsxx = { dxu[0] * u[0], 0., dxu[1] * u[2], 0., dxu[2] * u[4], 0. };
+        RealVector<6> epsyy = { 0., dyu[0] * u[1], 0., dyu[1] * u[3], 0., dyu[2] * u[5] };
+        RealVector<6> epsxy = { dyu[0] * u[0], dxu[0] * u[1], dyu[1] * u[2], dxu[1] * u[3], dyu[2] * u[4], dxu[2] * u[5] };
+        epsxy = 0.70710678118654746172 * epsxy;
+
+        RealVector<6> rhs = area * (sigma_xx * epsxx + sigma_yy * epsyy + sigma_xy * epsxy);
+
+        algebraic_reaction[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0);
+        algebraic_reaction[node_dof.dofId(cell.nodeId(0), 1)] += rhs(1);
+        algebraic_reaction[node_dof.dofId(cell.nodeId(1), 0)] += rhs(2);
+        algebraic_reaction[node_dof.dofId(cell.nodeId(1), 1)] += rhs(3);
+        algebraic_reaction[node_dof.dofId(cell.nodeId(2), 0)] += rhs(4);
+        algebraic_reaction[node_dof.dofId(cell.nodeId(2), 1)] += rhs(5);
+      }
+
+      alg_reaction = _normL1(algebraic_reaction, node_dof);
+
+      Real normalized_pressure = - alg_reaction / (footing_width * cohesion);
+      Real settlement = t / tmax * max_settlement;
+
+      info() << "[ArcaneFem-Info] At Time Step "
+             << t - 1 << ":\tSettlement: " << settlement
+             << "\tNormalised pressure: " << normalized_pressure
+             << "\tNewton iters: " << m_newton_iter
+             << "\tResidual norm: " << m_residual_norm;
     }
 
     m_newton_solver_converged = false;
@@ -337,33 +471,6 @@ _solveNewton()
     info() << "[ArcaneFem-Info] Newton iterations did not converge after maximum (" << m_newton_max_iters << ") iterations";
     ARCANE_FATAL("Newton iterations diverged after max iters");
   }
-
-  // TODO Move to stationary solve
-  // --- commit_displacements ---- //
-  m_U.synchronize();
-  m_DUn.synchronize();
-  ENUMERATE_ (Node, inode, ownNodes()) {
-    m_U[inode] += m_DUn[inode];
-  }
-  m_U.synchronize();
-
-    // --- commit_internal_variables ---- //
-  if (m_constitutive_law == "VonMises") {
-    ENUMERATE_ (Cell, icell, allCells())
-    {
-      Cell cell = *icell;
-
-      for (Int8 iGP = 0; iGP < m_nGP; ++iGP ) {
-        m_sigma_old_2d_gp(cell, iGP, 0) = m_sigma_2d_gp(cell, iGP, 0);
-        m_sigma_old_2d_gp(cell, iGP, 1) = m_sigma_2d_gp(cell, iGP, 1);
-        m_sigma_old_2d_gp(cell, iGP, 2) = m_sigma_2d_gp(cell, iGP, 2);
-
-        m_sigma_zz_old_2d_gp(cell, iGP) = m_sigma_zz_2d_gp(cell, iGP);
-        m_p_old_2d_gp(cell, iGP) += m_dp_2d_gp(cell, iGP);
-      }
-    }
-  }
-
 }
 
 /*---------------------------------------------------------------------------*/
@@ -388,6 +495,39 @@ _getMaterialParameters()
     Et = E / 100.;
     H = E * Et / (E - Et);
 
+    ENUMERATE_ (Cell, icell, allCells())
+    {
+      for (Int8 iGP = 0; iGP < m_nGP; ++iGP ) {
+        m_p_old_gp(icell, iGP) = 0.;
+        m_dp_gp(icell, iGP) = 0.;
+      }
+    }
+
+  } else if (m_constitutive_law == "DruckerPrager") {
+
+    mu = (E / (2 * (1 + nu))); // lame parameter μ
+    lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
+
+    bulk   = E/(3.*(1.-2.*nu));
+    dpEta = 3. * tan(friction_angle) / (math::sqrt(9. + 12. * tan(friction_angle) * tan(friction_angle)));
+    dpC = 3. * cohesion / (math::sqrt(9. + 12. * tan(friction_angle) * tan(friction_angle)));
+
+    ENUMERATE_ (Cell, icell, allCells())
+    {
+      for (Int8 iGP = 0; iGP < m_nGP; ++iGP ) {
+        m_eps_p_gp(icell, iGP, 0) = 0.;
+        m_eps_p_gp(icell, iGP, 1) = 0.;
+        m_eps_p_gp(icell, iGP, 2) = 0.;
+        m_eps_p_zz_gp(icell, iGP) = 0.;
+        m_eps_p_old_gp(icell, iGP, 0) = 0.;
+        m_eps_p_old_gp(icell, iGP, 1) = 0.;
+        m_eps_p_old_gp(icell, iGP, 2) = 0.;
+        m_eps_p_zz_old_gp(icell, iGP) = 0.;
+      }
+    }
+  }
+
+  if (m_constitutive_law == "VonMises" || m_constitutive_law == "DruckerPrager") {
     if (mesh()->dimension() == 2) {
 
       // Initialize elastic part of the material tensor
@@ -396,40 +536,39 @@ _getMaterialParameters()
         lambda        lambda + 2mu   0
           0             0           2mu
       */
-      m_C_2d.fill(0.);
-      m_C_2d(0, 0) = lambda + 2. * mu;
-      m_C_2d(1, 1) = lambda + 2. * mu;
-      m_C_2d(2, 2) = 2. * mu;
-      m_C_2d(0, 1) = lambda;
-      m_C_2d(1, 0) = lambda;
+      m_C_elas_2d.fill(0.);
+      m_C_elas_2d(0, 0) = lambda + 2. * mu;
+      m_C_elas_2d(1, 1) = lambda + 2. * mu;
+      m_C_elas_2d(2, 2) = 2. * mu;
+      m_C_elas_2d(0, 1) = lambda;
+      m_C_elas_2d(1, 0) = lambda;
 
       // Initialize constitutive history
       ENUMERATE_ (Cell, icell, allCells()) // TODO check if MDMeshVars provide initialisation method
       {
         for (Int8 iGP = 0; iGP < m_nGP; ++iGP ) {
-          m_sigma_2d_gp(icell, iGP, 0) = 0.;
-          m_sigma_2d_gp(icell, iGP, 1) = 0.;
-          m_sigma_2d_gp(icell, iGP, 2) = 0.;
-          m_sigma_zz_2d_gp(icell, iGP) = 0.;
+          m_sigma_gp(icell, iGP, 0) = 0.;
+          m_sigma_gp(icell, iGP, 1) = 0.;
+          m_sigma_gp(icell, iGP, 2) = 0.;
+          m_sigma_zz_gp(icell, iGP) = 0.;
 
-          m_sigma_old_2d_gp(icell, iGP, 0) = 0.;
-          m_sigma_old_2d_gp(icell, iGP, 1) = 0.;
-          m_sigma_old_2d_gp(icell, iGP, 2) = 0.;
-          m_sigma_zz_old_2d_gp(icell, iGP) = 0.;
-
-          m_p_old_2d_gp(icell, iGP) = 0.;
-          m_dp_2d_gp(icell, iGP) = 0.;
+          m_sigma_old_gp(icell, iGP, 0) = 0.;
+          m_sigma_old_gp(icell, iGP, 1) = 0.;
+          m_sigma_old_gp(icell, iGP, 2) = 0.;
+          m_sigma_zz_old_gp(icell, iGP) = 0.;
         }
       }
 
       // Initialize the tangent material tensor
       if (m_gp_material_tensor_strategy == "local") {
-        m_C_tang_2d = m_C_2d;
+        m_C_tang_2d = m_C_elas_2d;
       } else {
         ENUMERATE_ (Cell, icell, allCells()) {
-          for (Int8 ix = 0; ix < 3; ++ix) {
-            for (Int8 iy = 0; iy < 3; ++iy) {
-              m_C_tang_2d_cell(icell, ix, iy) = m_C_2d(ix, iy);
+          for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
+            for (Int8 ix = 0; ix < 3; ++ix) {
+              for (Int8 iy = 0; iy < 3; ++iy) {
+                m_C_tang_gp(icell, iGP, ix, iy) = m_C_elas_2d(ix, iy);
+              }
             }
           }
         }
@@ -446,28 +585,30 @@ _getMaterialParameters()
           0           0          0          0    2mu  0
           0           0          0          0    0    2mu
       */
-      m_C_3d.fill(0.);
-      m_C_3d(0, 0) = lambda + 2. * mu;
-      m_C_3d(1, 1) = lambda + 2. * mu;
-      m_C_3d(2, 2) = lambda + 2. * mu;
-      m_C_3d(3, 3) = 2 * mu;
-      m_C_3d(4, 4) = 2 * mu;
-      m_C_3d(5, 5) = 2 * mu;
-      m_C_3d(0, 1) = lambda;
-      m_C_3d(1, 0) = lambda;
-      m_C_3d(0, 2) = lambda;
-      m_C_3d(2, 0) = lambda;
-      m_C_3d(1, 2) = lambda;
-      m_C_3d(2, 1) = lambda;
+      m_C_elas_3d.fill(0.);
+      m_C_elas_3d(0, 0) = lambda + 2. * mu;
+      m_C_elas_3d(1, 1) = lambda + 2. * mu;
+      m_C_elas_3d(2, 2) = lambda + 2. * mu;
+      m_C_elas_3d(3, 3) = 2 * mu;
+      m_C_elas_3d(4, 4) = 2 * mu;
+      m_C_elas_3d(5, 5) = 2 * mu;
+      m_C_elas_3d(0, 1) = lambda;
+      m_C_elas_3d(1, 0) = lambda;
+      m_C_elas_3d(0, 2) = lambda;
+      m_C_elas_3d(2, 0) = lambda;
+      m_C_elas_3d(1, 2) = lambda;
+      m_C_elas_3d(2, 1) = lambda;
 
       // Initialize the tangent material tensor
       if (m_gp_material_tensor_strategy == "local") {
-        m_C_tang_3d = m_C_3d;
+        m_C_tang_3d = m_C_elas_3d;
       } else {
         ENUMERATE_ (Cell, icell, allCells()) {
-          for (Int8 ix = 0; ix < 6; ++ix) {
-            for (Int8 iy = 0; iy < 6; ++iy) {
-              m_C_tang_3d_cell(icell,ix, iy) = m_C_3d(ix, iy);
+          for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
+            for (Int8 ix = 0; ix < 6; ++ix) {
+              for (Int8 iy = 0; iy < 6; ++iy) {
+                m_C_tang_gp(icell, iGP, ix, iy) = m_C_elas_3d(ix, iy);
+              }
             }
           }
         }
@@ -510,9 +651,7 @@ _assembleLinearOperator()
   _applyExternalBodyForce(rhs_values, node_dof);
   _applyTraction(rhs_values, node_dof);
 
-  if (m_constitutive_law == "VonMises") {
-    _applyInternalBodyForceVonMises(rhs_values, node_dof);
-  }
+  _applyInternalBodyForce(rhs_values, node_dof);
 
   _applyDirichletNewton(rhs_values, node_dof);
 
@@ -537,12 +676,7 @@ _assembleBilinearOperator()
     auto cn_cv = m_connectivity_view.cellNode();
     auto command = makeCommand(acceleratorMng()->defaultQueue());
     auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
-    auto in_C_tang_2d = Accelerator::viewIn(command, m_C_tang_2d_cell);
-    // auto in_C_tang_3d = Accelerator::viewIn(command, m_C_tang_3d_cell); // not implemented
-
-    Real lambda_cell = lambda;
-    Real mu_cell = mu;
-    RealVector<2> hooke_params = {lambda_cell, mu_cell};
+    auto in_C_tang = Accelerator::viewIn(command, m_C_tang_gp);
 
     auto C_tang_3d = m_C_tang_3d;
 
@@ -551,7 +685,7 @@ _assembleBilinearOperator()
       if (m_gp_material_tensor_strategy == "local") {
         ARCANE_FATAL("local GP element matrix assembly strategy not implemented for Tria3 elements");
       } else {
-        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang_2d); });
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang); });
       }
     }
     else {
@@ -563,8 +697,7 @@ _assembleBilinearOperator()
     auto cn_cv = m_connectivity_view.cellNode();
     auto command = makeCommand(acceleratorMng()->defaultQueue());
     auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
-    auto in_C_tang_2d = Accelerator::viewIn(command, m_C_tang_2d_cell);
-    // auto in_C_tang_3d = Accelerator::viewIn(command, m_C_tang_3d_cell); // not implemented
+    auto in_C_tang = Accelerator::viewIn(command, m_C_tang_gp);
 
     Real lambda_cell = lambda;
     Real mu_cell = mu;
@@ -576,7 +709,7 @@ _assembleBilinearOperator()
       if (m_gp_material_tensor_strategy == "local") {
         ARCANE_FATAL("local GP element vector assembly strategy not implemented for Tria3 elements");
       } else {
-        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang_2d, node_lid); });
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang, node_lid); });
       }
     } else {
       m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, C_tang_3d, node_lid); });
@@ -696,7 +829,7 @@ _validateResults()
 
 /*---------------------------------------------------------------------------*/
 /*
-  * @brief Reads case tables for traction boundary conditions.
+  * @brief Reads case tables for traction and Dirichlet boundary conditions.
   *
   * This method reads the case tables specified in the options and stores
   * them in a list for later use.
@@ -709,7 +842,8 @@ _readCaseTables()
   IParallelMng* pm = subDomain()->parallelMng();
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
 
-  // loop over all traction boundries
+  // Keep one entry per boundary condition so that the table list and the
+  // boundary-condition list always have identical indices.
   for (BC::ITractionBoundaryCondition* bs : bc->tractionBoundaryConditions()) {
     CaseTable* case_table = nullptr;
     auto traction_table_file_name = bs->getTractionInputFile();
@@ -718,49 +852,42 @@ _readCaseTables()
       case_table = readFileAsCaseTable(pm, traction_table_file_name, 3);
     m_traction_case_table_list.add(CaseTableInfo{ traction_table_file_name, case_table });
   }
+
+  for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions()) {
+    auto dirichlet_table_file_name = bs->getDirichletInputFile();
+    if (!dirichlet_table_file_name.empty())
+      m_dirichlet_case_table_list.add(readDirichletFileAsCaseTable(pm, dirichlet_table_file_name));
+    else
+      m_dirichlet_case_table_list.add(CaseTableInfo{ dirichlet_table_file_name, nullptr });
+  }
 }
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Update the FEM variables.
+ * @brief Update the FEM variables in time.
  *
  * This method performs the following actions:
- *   1. Fetches values of solution from solved linear system to FEM variables,
- *      i.e., it copies RHS DOF to u.
+ *   1. Fetches values of FEM variable DU for solved time step and,
+ *      adds it to global time FEM variable U.
  *   2. Performs synchronize of FEM variables across subdomains.
  */
 /*---------------------------------------------------------------------------*/
 
 void FemModuleElastoplasticity::
-_updateVariables()
+_updateTimeVariables()
 {
-  info() << "[ArcaneFem-Info] Started module  _updateVariables()";
+  info() << "[ArcaneFem-Info] Started module  _updateTimeVariables()";
   Real elapsedTime = platform::getRealTime();
 
-  {
-    VariableDoFReal& dof_u(m_linear_system.solutionVariable());
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    if (mesh()->dimension() == 3)
-      ENUMERATE_ (Node, inode, ownNodes()) {
-        Node node = *inode;
-        Real u1_val = dof_u[node_dof.dofId(node, 0)];
-        Real u2_val = dof_u[node_dof.dofId(node, 1)];
-        Real u3_val = dof_u[node_dof.dofId(node, 2)];
-        m_DUn[node] = Real3(u1_val, u2_val, u3_val);
-      }
-    else
-      ENUMERATE_ (Node, inode, ownNodes()) {
-        Node node = *inode;
-        Real u1_val = dof_u[node_dof.dofId(node, 0)];
-        Real u2_val = dof_u[node_dof.dofId(node, 1)];
-        m_DUn[node] = Real3(u1_val, u2_val, 0.);
-      }
-  }
-
+  m_U.synchronize();
   m_DUn.synchronize();
+  ENUMERATE_ (Node, inode, ownNodes()) {
+    m_U[inode] += m_DUn[inode];
+  }
+  m_U.synchronize();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-time-variables", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -804,49 +931,6 @@ _updateNewtonIncrements()
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-Newton-increments", elapsedTime);
 }
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Reinitialize the solution vector of the linear solve with the FEM variables.
- *
- * This method performs the following actions:
- *   1. Performs synchronization of FEM increment variables across subdomains.
- *   2. Fetches the FEM increment variables to the solution vector of the
- *      linear solver for the next nonlinear solver iteration.
- */
-/*---------------------------------------------------------------------------*/
-
-void FemModuleElastoplasticity::
-_updateGuessFromIncrement()
-{
-  info() << "[ArcaneFem-Info] Started module _updateGuessFromIncrement()";
-  Real elapsedTime = platform::getRealTime();
-
-  m_DUk.synchronize();
-
-  {
-    VariableDoFReal& dof_du(m_linear_system.solutionVariable());
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    if (mesh()->dimension() == 3)
-      ENUMERATE_ (Node, inode, ownNodes()) {
-      Node node = *inode;
-      dof_du[node_dof.dofId(node, 0)] = m_DUk[node][0];
-      dof_du[node_dof.dofId(node, 1)] = m_DUk[node][1];
-      dof_du[node_dof.dofId(node, 2)] = m_DUk[node][2];
-    }
-    else
-      ENUMERATE_ (Node, inode, ownNodes()) {
-      Node node = *inode;
-      dof_du[node_dof.dofId(node, 0)] = m_DUk[node][0];
-      dof_du[node_dof.dofId(node, 1)] = m_DUk[node][1];
-    }
-  }
-
-  elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "_update-guess-from-increment", elapsedTime);
-}
-/*---------------------------------------------------------------------------*/
-
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -905,11 +989,10 @@ _checkNewtonConvergence()
   VariableDoFReal& residual_values(m_linear_system.rhsVariable());
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   _applyZeroRHSOnConstrainedDOFs(residual_values, node_dof);
-
   Real l2_norm_rhs = _normL2(residual_values, node_dof);
 
-  m_residual_norm = l2_norm_rhs!=0 ? l2_norm_rhs / m_residual_norm0 : 1.0;
-  Real convergence_error_residual = l2_norm_rhs / (m_residual_norm0 + 1e-30);
+  m_residual_norm = m_residual_norm0 !=0. ? l2_norm_rhs / (m_residual_norm0 + 1e-30) : l2_norm_rhs / (1.0 + 1e-30);
+  Real convergence_error_residual = m_residual_norm;
 
   // The OR criterion follows petsc SNES
   if (convergence_error_residual <= m_newton_rtol) {
@@ -974,6 +1057,29 @@ _normL2(VariableDoFReal& u, const IndexedNodeDoFConnectivityView& node_dof) {
   IParallelMng* pm = defaultMesh()->parallelMng();
   l2_norm_u = pm->reduce(Parallel::ReduceSum, l2_norm_u);
   return math::sqrt(l2_norm_u);
+}
+
+inline Real FemModuleElastoplasticity::
+_normL1(VariableDoFReal& u, const IndexedNodeDoFConnectivityView& node_dof) {
+  Real l1_norm_u = 0.0;
+  Int32 mesh_dimension = mesh()->dimension();
+  {
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Real norm_residual = 0.0;
+      if (mesh_dimension == 2) {
+        norm_residual = u[node_dof.dofId(inode, 0)]
+                      + u[node_dof.dofId(inode, 1)];
+      } else {
+        norm_residual = u[node_dof.dofId(inode, 0)]
+                      + u[node_dof.dofId(inode, 1)]
+                      + u[node_dof.dofId(inode, 2)];
+      }
+      l1_norm_u += norm_residual;
+    }
+  }
+  IParallelMng* pm = defaultMesh()->parallelMng();
+  l1_norm_u = pm->reduce(Parallel::ReduceSum, l1_norm_u);
+  return l1_norm_u;
 }
 
 /*---------------------------------------------------------------------------*/
