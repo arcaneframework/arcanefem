@@ -314,16 +314,26 @@ _solveNewton()
   m_DUk.fill({0., 0., 0.});
   m_newton_iter = 0;
 
-  if (m_constitutive_law == "VonMises") {
-    _restoreConvergedStateVonMises();
-  } else if (m_constitutive_law == "DruckerPrager") {
-    _restoreConvergedStateDruckerPrager();
-  }
+  if (m_gp_material_tensor_strategy == "local") {
+    if (m_constitutive_law == "VonMises") {
+      ARCANE_FATAL("Local material tensor strategy not supported for Von Mises law");
+      // _assembleLHSandRHSVonMises();
+    } else if (m_constitutive_law == "DruckerPrager") {
+      ARCANE_FATAL("Local material tensor strategy not supported for Drucker Prager law");
+      // _assembleLHSandRHSDruckerPrager();
+    }
+  } else {
+    if (m_constitutive_law == "VonMises") {
+      _restoreConvergedStateVonMises();
+    } else if (m_constitutive_law == "DruckerPrager") {
+      _restoreConvergedStateDruckerPrager();
+    }
 
-  // --- assemble_linear_system ---- //
-  if (m_assemble_linear_system) {
-    _assembleBilinearOperator();
-    _assembleLinearOperator();
+    // --- assemble_linear_system ---- //
+    if (m_assemble_linear_system) {
+      _assembleBilinearOperator();
+      _assembleLinearOperator();
+    }
   }
 
   // --- calculate_residual ---- //
@@ -345,36 +355,46 @@ _solveNewton()
     // --- update_increment ---- //
     _incrementVariables();
 
-    if (m_constitutive_law == "VonMises") {
-      _updateGlobalTangentMaterialTensorVonMises();
-    } else if (m_constitutive_law == "DruckerPrager") {
-      _updateGlobalTangentMaterialTensorDruckerPrager();
-    }
-
-    // --- assemble_linear_system ---- //
-    if (m_linear_system.isInitialized()) {
-      m_linear_system.clearValues();
-
-      if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
-        m_bsr_format.resetMatrixValues();
-
-      _assembleBilinearOperator(); // assembles Jacobian
-      _assembleLinearOperator(); // assembles Residuals(m_DUn) + BCs
-    }
-
-    if (m_newton_iter == 1) {
-      if (m_constitutive_law == "DruckerPrager") {
-        // The first assembled rhs contains the large algebraic enforcement of the
-        // non-zero footing displacement. Reset the Newton reference norm after that
-        // correction so convergence is measured using the physical equilibrium
-        // residual, not the Dirichlet penalty.
-        _applyZeroRHSOnConstrainedDOFs(residual_values, node_dof);
-        m_residual_norm0 = _normL2(residual_values, node_dof);
+    if (m_gp_material_tensor_strategy == "local") {
+      if (m_constitutive_law == "VonMises") {
+        ARCANE_FATAL("Local material tensor strategy not supported for Von Mises law");
+        // _assembleLHSandRHSVonMises();
+      } else if (m_constitutive_law == "DruckerPrager") {
+        ARCANE_FATAL("Local material tensor strategy not supported for Drucker Prager law");
+        // _assembleLHSandRHSDruckerPrager();
       }
-    }
+    } else {
+      if (m_constitutive_law == "VonMises") {
+        _updateGlobalTangentMaterialTensorVonMises();
+      } else if (m_constitutive_law == "DruckerPrager") {
+        _updateGlobalTangentMaterialTensorDruckerPrager();
+      }
 
-    // --- calculate_and_check_residual ---- //
-    _checkNewtonConvergence();
+      // --- assemble_linear_system ---- //
+      if (m_linear_system.isInitialized()) {
+        m_linear_system.clearValues();
+
+        if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
+          m_bsr_format.resetMatrixValues();
+
+        _assembleBilinearOperator(); // assembles Jacobian
+        _assembleLinearOperator(); // assembles Residuals(m_DUn) + BCs
+      }
+
+      if (m_newton_iter == 1) {
+        if (m_constitutive_law == "DruckerPrager") {
+          // The first assembled rhs contains the large algebraic enforcement of the
+          // non-zero footing displacement. Reset the Newton reference norm after that
+          // correction so convergence is measured using the physical equilibrium
+          // residual, not the Dirichlet penalty.
+          _applyZeroRHSOnConstrainedDOFs(residual_values, node_dof);
+          m_residual_norm0 = _normL2(residual_values, node_dof);
+        }
+      }
+
+      // --- calculate_and_check_residual ---- //
+      _checkNewtonConvergence();
+    }
   }
 
   if (m_newton_solver_converged) {
@@ -384,7 +404,8 @@ _solveNewton()
 
     if (m_constitutive_law == "VonMises") {
       //-- commit increment for von mises -- //
-      _commitInternalVariablesVonMises();
+      if (m_gp_material_tensor_strategy == "global")
+        _commitInternalVariablesVonMises();
 
       if (t == dt) {
         Real Ri = 1.0;
@@ -400,7 +421,8 @@ _solveNewton()
 
     if (m_constitutive_law == "DruckerPrager") {
       // -- commit increment for Drucker Prager --//
-      _commitInternalVariablesDruckerPrager();
+      if (m_gp_material_tensor_strategy == "global")
+        _commitInternalVariablesDruckerPrager();
 
       if (t == dt) {
         max_settlement = 0.03;
