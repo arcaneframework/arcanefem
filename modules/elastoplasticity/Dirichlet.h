@@ -74,12 +74,14 @@ _applyDirichletNewton(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectiv
             }
           }
           else if (bs->getEnforceDirichletMethod() == "RowElimination") {
-            Real value0 = 0.0;
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(dof_index, value0, node_dof, m_linear_system, rhs_values, node_group);
+            ARCANE_FATAL("RowElimination method is not implemented for Newton solver. Use Penalty instead.");
+            // Real value0 = 0.0;
+            // ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(dof_index, value0, node_dof, m_linear_system, rhs_values, node_group);
           }
           else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
-            Real value0 = 0.0;
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(dof_index, value0, node_dof, m_linear_system, rhs_values, node_group);
+            ARCANE_FATAL("RowColumnElimination method is not implemented for Newton solver. Use Penalty instead.");
+            // Real value0 = 0.0;
+            // ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(dof_index, value0, node_dof, m_linear_system, rhs_values, node_group);
           }
           else {
             ARCANE_FATAL("Unknown Dirichlet method");
@@ -87,45 +89,6 @@ _applyDirichletNewton(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectiv
         }
       }
       ++boundary_condition_index;
-    }
-
-    for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions()) {
-      NodeGroup node_group = bs->getNode();
-      const StringConstArrayView u_dirichlet_string = bs->getValue();
-      for (Int32 dof_index = 0; dof_index < u_dirichlet_string.size(); ++dof_index) {
-        if (u_dirichlet_string[dof_index] != "NULL") {
-          Real value = 0.0;
-          if (m_newton_iter == 0) {
-            value = std::stod(u_dirichlet_string[dof_index].localstr());
-          }
-          if (bs->getEnforceDirichletMethod() == "Penalty") {
-            Real penalty = bs->getPenalty();
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(dof_index, value, penalty, node_dof, m_linear_system, rhs_values, node_group);
-          }
-          else if (bs->getEnforceDirichletMethod() == "RowElimination") {
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowElimination(dof_index, value, node_dof, m_linear_system, rhs_values, node_group);
-          }
-          else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
-            ArcaneFemFunctions::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowColumnElimination(dof_index, value, node_dof, m_linear_system, rhs_values, node_group);
-          }
-          else {
-            ARCANE_FATAL("Unknown Dirichlet method");
-          }
-        }
-      }
-    }
-    // Manufactured boundary conditions
-    for (BC::IManufacturedSolution* bs : bc->manufacturedSolutions()) {
-      if (bs->getManufacturedDirichlet()) {
-        ARCANE_CHECK_POINTER(m_prescribed_settlement);
-        info() << "Apply prescribed settlement dirichlet condition to all borders";
-        FaceGroup group = bs->getSurface(); // could be avoided if we use node coord to look for bc.
-        if (mesh()->dimension() == 2) {
-          ArcaneFemFunctions::BoundaryConditions2D::applyManufacturedDirichletToLhsAndRhs(m_prescribed_settlement, 0., group, bs, node_dof, m_node_coord, m_linear_system, rhs_values);
-        } else {
-          ArcaneFemFunctions::BoundaryConditions3D::applyManufacturedDirichletToLhsAndRhs(m_prescribed_settlement, 0., group, bs, node_dof, m_node_coord, m_linear_system, rhs_values);
-        }
-      }
     }
   }
 }
@@ -207,12 +170,14 @@ void FemModuleElastoplasticity::_assembleDirichletsNewtonGpu()
             };
           }
           else if (bs->getEnforceDirichletMethod() == "RowElimination") {
-            Real value0 = 0.0;
-            Gpu::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowOrRowColumnElimination(ELIMINATE_ROW, dof_index, value0, queue, m_linear_system, m_dofs_on_nodes, node_group);
+            ARCANE_FATAL("RowElimination method is not implemented for Newton solver. Use Penalty instead.");
+            // Real value0 = 0.0;
+            // Gpu::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowOrRowColumnElimination(ELIMINATE_ROW, dof_index, value0, queue, m_linear_system, m_dofs_on_nodes, node_group);
           }
           else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
-            Real value0 = 0.0;
-            Gpu::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowOrRowColumnElimination(ELIMINATE_ROW_COLUMN, dof_index, value0, queue, m_linear_system, m_dofs_on_nodes, node_group);
+            ARCANE_FATAL("RowColumnElimination method is not implemented for Newton solver. Use Penalty instead.");
+            // Real value0 = 0.0;
+            // Gpu::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowOrRowColumnElimination(ELIMINATE_ROW_COLUMN, dof_index, value0, queue, m_linear_system, m_dofs_on_nodes, node_group);
           }
           else {
             ARCANE_FATAL("Unknown method to enforce Dirichlet BC: '{0}'", bs->getEnforceDirichletMethod());
@@ -220,36 +185,6 @@ void FemModuleElastoplasticity::_assembleDirichletsNewtonGpu()
         }
       }
       ++boundary_condition_index;
-    }
-
-    for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions()) {
-      ARCANE_CHECK_PTR(bs);
-      NodeGroup node_group = bs->getNode();
-
-      const StringConstArrayView u_dirichlet_str = bs->getValue();
-
-      for (Int32 dof_index = 0; dof_index < u_dirichlet_str.size(); ++dof_index) {
-        if (u_dirichlet_str[dof_index] != "NULL") {
-          Real value = 0.0;
-          if (m_newton_iter == 0) {
-            value = std::stod(u_dirichlet_str[dof_index].localstr());
-          }
-
-          if (bs->getEnforceDirichletMethod() == "Penalty") {
-            Real penalty = bs->getPenalty();
-            Gpu::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaPenalty(dof_index, value, penalty, queue, mesh_ptr, m_linear_system, m_dofs_on_nodes, node_group);
-          }
-          else if (bs->getEnforceDirichletMethod() == "RowElimination") {
-            Gpu::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowOrRowColumnElimination(ELIMINATE_ROW, dof_index, value, queue, m_linear_system, m_dofs_on_nodes, node_group);
-          }
-          else if (bs->getEnforceDirichletMethod() == "RowColumnElimination") {
-            Gpu::BoundaryConditionsHelpers::applyDirichletToNodeGroupViaRowOrRowColumnElimination(ELIMINATE_ROW_COLUMN, dof_index, value, queue, m_linear_system, m_dofs_on_nodes, node_group);
-          }
-          else {
-            ARCANE_FATAL("Unknown method to enforce Dirichlet BC: '{0}'", bs->getEnforceDirichletMethod());
-          }
-        }
-      }
     }
    }
 }
@@ -301,19 +236,6 @@ _applyZeroRHSOnConstrainedDOFs(VariableDoFReal& rhs_values, const IndexedNodeDoF
         }
       }
       ++boundary_condition_index;
-    }
-
-    for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions()) {
-      NodeGroup node_group = bs->getNode();
-      const StringConstArrayView u_dirichlet_string = bs->getValue();
-      for (Int32 dof_index = 0; dof_index < u_dirichlet_string.size(); ++dof_index) {
-        if (u_dirichlet_string[dof_index] != "NULL") {
-          ENUMERATE_ (Node, inode, node_group) {
-            if (inode->isOwn())
-              rhs_values[node_dof.dofId(*inode, dof_index)] = 0.0;
-          }
-        }
-      }
     }
   }
 }
@@ -370,30 +292,6 @@ void FemModuleElastoplasticity::_assembleZeroRHSOnConstrainedDOFsGpu()
         }
       }
       ++boundary_condition_index;
-    }
-
-    for (BC::IDirichletPointCondition* bs : bc->dirichletPointConditions()) {
-      ARCANE_CHECK_PTR(bs);
-      NodeGroup node_group = bs->getNode();
-      const StringConstArrayView u_dirichlet_str = bs->getValue();
-      for (Int32 dof_index = 0; dof_index < u_dirichlet_str.size(); ++dof_index) {
-        if (u_dirichlet_str[dof_index] != "NULL") {
-          ARCANE_CHECK_PTR(queue);
-          ARCANE_CHECK_PTR(mesh_ptr);
-          NodeInfoListView nodes_infos(mesh_ptr->nodeFamily());
-          auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-          auto command = makeCommand(queue);
-          auto in_out_rhs_variable = viewInOut(command, m_linear_system.rhsVariable());
-
-          command << RUNCOMMAND_ENUMERATE(NodeLocalId, node_lid, node_group)
-          {
-            if (nodes_infos.isOwn(node_lid)) {
-              DoFLocalId dof_id = node_dof.dofId(node_lid, dof_index);
-              in_out_rhs_variable[dof_id] = 0.0;
-            }
-          };
-        }
-      }
     }
   }
 }
