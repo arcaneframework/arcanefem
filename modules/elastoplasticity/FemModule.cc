@@ -377,8 +377,6 @@ _solveNewton()
         auto node_dof_k(m_dofs_on_nodes.nodeDoFConnectivityView());
         _applyZeroRHSOnConstrainedDOFs(residual_values_k, node_dof_k);
         m_residual_norm0 = _normL2(residual_values_k, node_dof_k);
-
-        info() << "[ArcaneFem-Info] Updated initial residual norm = " << m_residual_norm0;
       }
     }
 
@@ -866,49 +864,6 @@ _readCaseTables()
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Update the FEM variables.
- *
- * This method performs the following actions:
- *   1. Fetches values of solution from solved linear system to FEM variables,
- *      i.e., it copies RHS DOF to du.
- *   2. Performs synchronize of FEM variables across subdomains.
- */
-/*---------------------------------------------------------------------------*/
-
-void FemModuleElastoplasticity::
-_updateVariables()
-{
-  info() << "[ArcaneFem-Info] Started module  _updateVariables()";
-  Real elapsedTime = platform::getRealTime();
-
-  {
-    VariableDoFReal& dof_u(m_linear_system.solutionVariable());
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    if (mesh()->dimension() == 3)
-      ENUMERATE_ (Node, inode, ownNodes()) {
-        Node node = *inode;
-        Real u1_val = dof_u[node_dof.dofId(node, 0)];
-        Real u2_val = dof_u[node_dof.dofId(node, 1)];
-        Real u3_val = dof_u[node_dof.dofId(node, 2)];
-        m_DUn[node] = Real3(u1_val, u2_val, u3_val);
-      }
-    else
-      ENUMERATE_ (Node, inode, ownNodes()) {
-        Node node = *inode;
-        Real u1_val = dof_u[node_dof.dofId(node, 0)];
-        Real u2_val = dof_u[node_dof.dofId(node, 1)];
-        m_DUn[node] = Real3(u1_val, u2_val, 0.);
-      }
-  }
-
-  m_DUn.synchronize();
-
-  elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-variables", elapsedTime);
-}
-
-/*---------------------------------------------------------------------------*/
-/**
  * @brief Update the FEM variables in time.
  *
  * This method performs the following actions:
@@ -976,49 +931,6 @@ _updateNewtonIncrements()
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-Newton-increments", elapsedTime);
 }
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Reinitialize the solution vector of the linear solve with the FEM variables.
- *
- * This method performs the following actions:
- *   1. Performs synchronization of FEM increment variables across subdomains.
- *   2. Fetches the FEM increment variables to the solution vector of the
- *      linear solver for the next nonlinear solver iteration.
- */
-/*---------------------------------------------------------------------------*/
-
-void FemModuleElastoplasticity::
-_updateGuessFromIncrement()
-{
-  info() << "[ArcaneFem-Info] Started module _updateGuessFromIncrement()";
-  Real elapsedTime = platform::getRealTime();
-
-  m_DUk.synchronize();
-
-  {
-    VariableDoFReal& dof_du(m_linear_system.solutionVariable());
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    if (mesh()->dimension() == 3)
-      ENUMERATE_ (Node, inode, ownNodes()) {
-      Node node = *inode;
-      dof_du[node_dof.dofId(node, 0)] = m_DUk[node][0];
-      dof_du[node_dof.dofId(node, 1)] = m_DUk[node][1];
-      dof_du[node_dof.dofId(node, 2)] = m_DUk[node][2];
-    }
-    else
-      ENUMERATE_ (Node, inode, ownNodes()) {
-      Node node = *inode;
-      dof_du[node_dof.dofId(node, 0)] = m_DUk[node][0];
-      dof_du[node_dof.dofId(node, 1)] = m_DUk[node][1];
-    }
-  }
-
-  elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "_update-guess-from-increment", elapsedTime);
-}
-/*---------------------------------------------------------------------------*/
-
 
 /*---------------------------------------------------------------------------*/
 /**

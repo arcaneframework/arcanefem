@@ -164,8 +164,6 @@ class FemModuleElastoplasticity
   void _validateResults();
   void _readCaseTables();
   void _updateNewtonIncrements();
-  void _updateGuessFromIncrement();
-  void _updateVariables();
   void _updateTimeVariables();
   void _initBsr();
   void _initConstitutiveLaw();
