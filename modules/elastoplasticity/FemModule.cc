@@ -305,9 +305,6 @@ _doStationarySolve()
 void FemModuleElastoplasticity::
 _solveNewton()
 {
-  if (!m_assemble_nonlinear_system)
-    return;
-
   info() << "[ArcaneFem-Info] Started module  _solveNewton()";
 
   _getMaterialParameters();
@@ -355,16 +352,14 @@ _solveNewton()
     }
 
     // --- assemble_linear_system ---- //
-    if(m_assemble_nonlinear_system) {
-      if (m_linear_system.isInitialized()) {
-        m_linear_system.clearValues();
+    if (m_linear_system.isInitialized()) {
+      m_linear_system.clearValues();
 
-        if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
-          m_bsr_format.resetMatrixValues();
+      if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
+        m_bsr_format.resetMatrixValues();
 
-        _assembleBilinearOperator(); // assembles Jacobian
-        _assembleLinearOperator(); // assembles Residuals(m_DUn) + BCs
-      }
+      _assembleBilinearOperator(); // assembles Jacobian
+      _assembleLinearOperator(); // assembles Residuals(m_DUn) + BCs
     }
 
     if (m_newton_iter == 1) {

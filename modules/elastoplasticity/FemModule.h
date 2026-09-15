@@ -144,7 +144,6 @@ class FemModuleElastoplasticity
 
   bool m_use_gpu_functions = true;
   bool m_assemble_linear_system = true;
-  bool m_assemble_nonlinear_system = true;
   bool m_solve_linear_system = true;
   bool m_solve_nonlinear_system = true;
   bool m_cross_validation = false;
