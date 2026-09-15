@@ -51,6 +51,12 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       -A,//fem/solution-comparison-file=check/bar.2D.Dirichlet.bodyForce.txt
       inputs/bar.2D.Dirichlet.bodyForce.arc)
 
+  arcanefem_add_full_test(NAME petsc_gamg_near_null_space
+    COMMAND ./Elasticity
+    ARGS
+      -A,//fem/solution-comparison-file=check/bar.2D.Dirichlet.bodyForce.txt
+      inputs/bar.2D.near-null-space.petsc.arc)
+
   arcanefem_add_seq_test(NAME Dirichlet_quad
     COMMAND ./Elasticity
     ARGS
@@ -386,6 +392,20 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/linear-system/solver=gmres
     -A,//fem/linear-system/atol=1e-9
     -A,//fem/linear-system/rtol=0)
+
+  arcanefem_add_seq_test(NAME hypre_amg_near_null_space
+    COMMAND ./Elasticity
+    ARGS
+      -A,//fem/solution-comparison-file=check/bar.2D.Dirichlet.bodyForce.txt
+      inputs/bar.2D.near-null-space.hypre.arc)
+
+  if (FEMUTILS_HAS_PARALLEL_SOLVER)
+    arcanefem_add_mpi_test(NAME hypre_amg_near_null_space
+      COMMAND ./Elasticity
+      ARGS
+        -A,//fem/solution-comparison-file=check/bar.2D.Dirichlet.bodyForce.txt
+        inputs/bar.2D.near-null-space.hypre.arc)
+  endif ()
 
   arcanefem_add_full_test(NAME 3D_Dirichlet_bodyforce_traction_hypre_bsr
     COMMAND ./Elasticity
