@@ -373,10 +373,8 @@ _solveNewton()
         // non-zero footing displacement. Reset the Newton reference norm after that
         // correction so convergence is measured using the physical equilibrium
         // residual, not the Dirichlet penalty.
-        VariableDoFReal& residual_values_k(m_linear_system.rhsVariable());
-        auto node_dof_k(m_dofs_on_nodes.nodeDoFConnectivityView());
-        _applyZeroRHSOnConstrainedDOFs(residual_values_k, node_dof_k);
-        m_residual_norm0 = _normL2(residual_values_k, node_dof_k);
+        _applyZeroRHSOnConstrainedDOFs(residual_values, node_dof);
+        m_residual_norm0 = _normL2(residual_values, node_dof);
       }
     }
 
