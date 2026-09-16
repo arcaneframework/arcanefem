@@ -57,6 +57,14 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           ${SOLVER_ALEPH_CG}
           inputs/2D.quater.cylinder.vonMises.arc)
 
+  arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_local
+          COMMAND ./Elastoplasticity
+          ARGS
+          -A,//fem/solution-comparison-file=check/2D.quater.cylinder.t20.txt
+          -A,//fem/gp-material-tensor-strategy=local
+          ${SOLVER_ALEPH_CG}
+          inputs/2D.quater.cylinder.vonMises.arc)
+
   arcanefem_add_seq_test(NAME 2D_Quater_cylinder_parse_and_exit
           COMMAND ./Elastoplasticity
           ARGS
