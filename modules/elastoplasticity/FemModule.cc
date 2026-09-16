@@ -317,240 +317,172 @@ _solveNewton()
   m_DUk.fill({0., 0., 0.});
   m_newton_iter = 0;
 
-  if (m_gp_material_tensor_strategy == "local") {
-    info() << "[ArcaneFem-Info] Local material tensor strategy for Newton solve";
-    if (m_constitutive_law == "VonMises") {
-      info() << "[ArcaneFem-Info] Local material tensor strategy for von Mises plasticity";
+  if (m_constitutive_law == "VonMises") {
+    _restoreConvergedStateVonMises();
 
-      _restoreConvergedStateVonMises();
-
-      bool elastic_assembly = true;
-      _assembleBilinearOperatorLocal(elastic_assembly);
-      _assembleLinearOperator(); // uses sigma
-
-      // --- calculate_residual ---- //
-      auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-      VariableDoFReal& residual_values(m_linear_system.rhsVariable());
-      m_residual_norm0 = _normL2(residual_values, node_dof);
-      info() << "[ArcaneFem-Info] Initial residual norm = " << m_residual_norm0;
-
-      // --- start_newton_loop ---- //
-      while (m_newton_iter < m_newton_max_iters && !m_newton_solver_converged) {
-        m_newton_iter++;
-
-        // --- solve_linear_system ---- //
-        if(m_solve_linear_system){
-          _solve();
-          _updateNewtonIncrements();
-        }
-
-        // --- update_increment ---- //
-        _incrementVariables();
-
-        if (m_linear_system.isInitialized()) {
-          m_linear_system.clearValues();
-
-          if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
-            m_bsr_format.resetMatrixValues();
-
-          // --- assemble RHS of linear_system ---- //
-          _assembleBilinearOperatorLocal();
-          _assembleLinearOperator(); // assembles Residuals(m_DUn) + BCs
-        }
-
-        // --- calculate_and_check_residual ---- //
-        _checkNewtonConvergence();
-      }
-
-      if (m_newton_solver_converged) {
-        info() << "[ArcaneFem-Info] Newton solver converged after " << m_newton_iter << " iterations.";
-        //-- update global displacement after newton convergence -- //
-        _updateTimeVariables();
-
-        //-- commit increment for von mises -- //
-        _commitInternalVariablesVonMises();
-
-        if (t == dt) {
-          Real Ri = 1.0;
-          Real Re = 1.3;
-          Qlim = 2./math::sqrt(3.) * math::log( Re/Ri) * sig0;
-        }
-        Real tl = math::sqrt(1.1 / tmax * (t));
-        info() << "[ArcaneFem-Info] At Time Step "
-               << t - 1 << ":\tPressure applied: " << Qlim * tl
-               << "\tNewton iters: " << m_newton_iter
-               << "\tResidual norm: " << m_residual_norm;
-
-        m_newton_solver_converged = false;
-        m_newton_iter = 0;
-      }
-
-      if (m_newton_iter == m_newton_max_iters && !m_newton_solver_converged) {
-        info() << "[ArcaneFem-Info] Newton iterations did not converge after maximum (" << m_newton_max_iters << ") iterations";
-        ARCANE_FATAL("Newton iterations diverged after max iters");
-      }
-    } else if (m_constitutive_law == "DruckerPrager") {
-      ARCANE_FATAL("DruckerPrager constitutive law not supported for local nonlinear solve");
-    } else {
-      ARCANE_FATAL("Nonlinear constitutive law not supported");
-    }
-  } else {
-    info() << "[ArcaneFem-Info] Global material tensor strategy for Newton solve";
-    if (m_constitutive_law == "VonMises") {
-      info() << "[ArcaneFem-Info] Global material tensor strategy for von Mises plasticity";
-      _restoreConvergedStateVonMises();
+    if (m_gp_material_tensor_strategy == "global")
       _setElasticMaterialTensorAtGPs();
-    } else if (m_constitutive_law == "DruckerPrager") {
-      _restoreConvergedStateDruckerPrager();
-      _setElasticMaterialTensorAtGPs();
-    }
 
-    // --- assemble_linear_system ---- //
-    if (m_assemble_linear_system) {
+  } else if (m_constitutive_law == "DruckerPrager") {
+    _restoreConvergedStateDruckerPrager();
+    _setElasticMaterialTensorAtGPs();
+  }
+
+  // --- assemble_linear_system ---- //
+  if (m_assemble_linear_system) {
+    if (m_gp_material_tensor_strategy == "global")
       _assembleBilinearOperatorGlobal();
-      _assembleLinearOperator();
+    else
+      _assembleBilinearOperatorLocal(true); //checks law an assembles corresponding matrix
+
+    _assembleLinearOperator();
+  }
+
+  // --- calculate_residual ---- //
+  VariableDoFReal& residual_values(m_linear_system.rhsVariable());
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  m_residual_norm0 = _normL2(residual_values, node_dof);
+  info() << "[ArcaneFem-Info] Initial residual norm = " << m_residual_norm0;
+
+  // --- start_newton_loop ---- //
+  while (m_newton_iter < m_newton_max_iters && !m_newton_solver_converged) {
+    m_newton_iter++;
+
+    // --- solve_linear_system ---- //
+    if(m_solve_linear_system){
+      _solve();
+      _updateNewtonIncrements();
     }
 
-    // --- calculate_residual ---- //
-    VariableDoFReal& residual_values(m_linear_system.rhsVariable());
-    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-    m_residual_norm0 = _normL2(residual_values, node_dof);
-    info() << "[ArcaneFem-Info] Initial residual norm = " << m_residual_norm0;
+    // --- update_increment ---- //
+    _incrementVariables();
 
-    // --- start_newton_loop ---- //
-    while (m_newton_iter < m_newton_max_iters && !m_newton_solver_converged) {
-      m_newton_iter++;
-
-      // --- solve_linear_system ---- //
-      if(m_solve_linear_system){
-        _solve();
-        _updateNewtonIncrements();
-      }
-
-      // --- update_increment ---- //
-      _incrementVariables();
-
+    if (m_gp_material_tensor_strategy == "global") {
       if (m_constitutive_law == "VonMises") {
         _updateGlobalTangentMaterialTensorVonMises();
       } else if (m_constitutive_law == "DruckerPrager") {
         _updateGlobalTangentMaterialTensorDruckerPrager();
       }
+    }
 
-      // --- assemble_linear_system ---- //
-      if (m_linear_system.isInitialized()) {
-        m_linear_system.clearValues();
+    // --- assemble_linear_system ---- //
+    if (m_linear_system.isInitialized()) {
+      m_linear_system.clearValues();
 
-        if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
-          m_bsr_format.resetMatrixValues();
-
+      if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
+        m_bsr_format.resetMatrixValues();
+      if (m_gp_material_tensor_strategy == "global")
         _assembleBilinearOperatorGlobal(); // assembles Jacobian
-        _assembleLinearOperator(); // assembles Residuals(m_DUn) + BCs
-      }
+      else
+        _assembleBilinearOperatorLocal(); // assembles Jacobian based on the law
 
-      if (m_newton_iter == 1) {
-        if (m_constitutive_law == "DruckerPrager") {
-          // The first assembled rhs contains the large algebraic enforcement of the
-          // non-zero footing displacement. Reset the Newton reference norm after that
-          // correction so convergence is measured using the physical equilibrium
-          // residual, not the Dirichlet penalty.
-          _applyZeroRHSOnConstrainedDOFs(residual_values, node_dof);
-          m_residual_norm0 = _normL2(residual_values, node_dof);
-        }
-      }
-
-      // --- calculate_and_check_residual ---- //
-      _checkNewtonConvergence();
-
+      _assembleLinearOperator(); // assembles Residuals(m_DUn) + BCs
     }
 
-    if (m_newton_solver_converged) {
-      info() << "[ArcaneFem-Info] Newton solver converged after " << m_newton_iter << " iterations.";
-      //-- update global displacement after newton convergence -- //
-      _updateTimeVariables();
-
-      if (m_constitutive_law == "VonMises") {
-        //-- commit increment for von mises -- //
-        _commitInternalVariablesVonMises();
-
-        if (t == dt) {
-          Real Ri = 1.0;
-          Real Re = 1.3;
-          Qlim = 2./math::sqrt(3.) * math::log( Re/Ri) * sig0;
-        }
-        Real tl = math::sqrt(1.1 / tmax * (t));
-        info() << "[ArcaneFem-Info] At Time Step "
-               << t - 1 << ":\tPressure applied: " << Qlim * tl
-               << "\tNewton iters: " << m_newton_iter
-               << "\tResidual norm: " << m_residual_norm;
-      }
-
+    if (m_newton_iter == 1) {
       if (m_constitutive_law == "DruckerPrager") {
-        // -- commit increment for Drucker Prager --//
-        _commitInternalVariablesDruckerPrager();
+        // The first assembled rhs contains the large algebraic enforcement of the
+        // non-zero footing displacement. Reset the Newton reference norm after that
+        // correction so convergence is measured using the physical equilibrium
+        // residual, not the Dirichlet penalty.
+        _applyZeroRHSOnConstrainedDOFs(residual_values, node_dof);
+        m_residual_norm0 = _normL2(residual_values, node_dof);
+      }
+    }
 
-        if (t == dt) {
-          max_settlement = 0.03;
-          footing_width = 1.0;
-        }
+    // --- calculate_and_check_residual ---- //
+    _checkNewtonConvergence();
 
-        VariableDoFReal& algebraic_reaction(m_linear_system.rhsVariable());
-        algebraic_reaction.fill(0.);
+  }
 
-        ENUMERATE_ (Cell, icell, allCells()) {
-          Cell cell = *icell;
+  if (m_newton_solver_converged) {
+    info() << "[ArcaneFem-Info] Newton solver converged after " << m_newton_iter << " iterations.";
+    //-- update global displacement after newton convergence -- //
+    _updateTimeVariables();
 
-          Int8 iGP = 0; // for tria P1 elements nGP=1
-          Real sigma_xx = m_sigma_gp(cell , iGP, 0);
-          Real sigma_yy = m_sigma_gp(cell , iGP, 1);
-          Real sigma_xy = m_sigma_gp(cell , iGP, 2);
+    if (m_constitutive_law == "VonMises") {
+      //-- commit increment for von mises -- //
+      _commitInternalVariablesVonMises();
 
-          RealVector<6> u = {0., 0., 0., 0., 0., 0.};
-          for (Int8 i = 0; i < 3; ++i) {
-            Real3 vertex = m_node_coord[cell.nodeId(i)];
-            u[2*i + 1] = (math::abs(vertex.y - 10.) < 1.e-8 && vertex.x <= footing_width + 1.e-8);
-          }
+      if (t == dt) {
+        Real Ri = 1.0;
+        Real Re = 1.3;
+        Qlim = 2./math::sqrt(3.) * math::log( Re/Ri) * sig0;
+      }
+      Real tl = math::sqrt(1.1 / tmax * (t));
+      info() << "[ArcaneFem-Info] At Time Step "
+             << t - 1 << ":\tPressure applied: " << Qlim * tl
+             << "\tNewton iters: " << m_newton_iter
+             << "\tResidual norm: " << m_residual_norm;
+    }
 
-          Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
-          Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
-          Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
+    if (m_constitutive_law == "DruckerPrager") {
+      // -- commit increment for Drucker Prager --//
+      _commitInternalVariablesDruckerPrager();
 
-          RealVector<6> epsxx = { dxu[0] * u[0], 0., dxu[1] * u[2], 0., dxu[2] * u[4], 0. };
-          RealVector<6> epsyy = { 0., dyu[0] * u[1], 0., dyu[1] * u[3], 0., dyu[2] * u[5] };
-          RealVector<6> epsxy = { dyu[0] * u[0], dxu[0] * u[1], dyu[1] * u[2], dxu[1] * u[3], dyu[2] * u[4], dxu[2] * u[5] };
-          epsxy = 0.70710678118654746172 * epsxy;
-
-          RealVector<6> rhs = area * (sigma_xx * epsxx + sigma_yy * epsyy + sigma_xy * epsxy);
-
-          algebraic_reaction[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0);
-          algebraic_reaction[node_dof.dofId(cell.nodeId(0), 1)] += rhs(1);
-          algebraic_reaction[node_dof.dofId(cell.nodeId(1), 0)] += rhs(2);
-          algebraic_reaction[node_dof.dofId(cell.nodeId(1), 1)] += rhs(3);
-          algebraic_reaction[node_dof.dofId(cell.nodeId(2), 0)] += rhs(4);
-          algebraic_reaction[node_dof.dofId(cell.nodeId(2), 1)] += rhs(5);
-        }
-
-        alg_reaction = _normL1(algebraic_reaction, node_dof);
-
-        Real normalized_pressure = - alg_reaction / (footing_width * cohesion);
-        Real settlement = t / tmax * max_settlement;
-
-        info() << "[ArcaneFem-Info] At Time Step "
-               << t - 1 << ":\tSettlement: " << settlement
-               << "\tNormalised pressure: " << normalized_pressure
-               << "\tNewton iters: " << m_newton_iter
-               << "\tResidual norm: " << m_residual_norm;
+      if (t == dt) {
+        max_settlement = 0.03;
+        footing_width = 1.0;
       }
 
-      m_newton_solver_converged = false;
-      m_newton_iter = 0;
+      VariableDoFReal& algebraic_reaction(m_linear_system.rhsVariable());
+      algebraic_reaction.fill(0.);
+
+      ENUMERATE_ (Cell, icell, allCells()) {
+        Cell cell = *icell;
+
+        Int8 iGP = 0; // for tria P1 elements nGP=1
+        Real sigma_xx = m_sigma_gp(cell , iGP, 0);
+        Real sigma_yy = m_sigma_gp(cell , iGP, 1);
+        Real sigma_xy = m_sigma_gp(cell , iGP, 2);
+
+        RealVector<6> u = {0., 0., 0., 0., 0., 0.};
+        for (Int8 i = 0; i < 3; ++i) {
+          Real3 vertex = m_node_coord[cell.nodeId(i)];
+          u[2*i + 1] = (math::abs(vertex.y - 10.) < 1.e-8 && vertex.x <= footing_width + 1.e-8);
+        }
+
+        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
+        Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
+        Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
+
+        RealVector<6> epsxx = { dxu[0] * u[0], 0., dxu[1] * u[2], 0., dxu[2] * u[4], 0. };
+        RealVector<6> epsyy = { 0., dyu[0] * u[1], 0., dyu[1] * u[3], 0., dyu[2] * u[5] };
+        RealVector<6> epsxy = { dyu[0] * u[0], dxu[0] * u[1], dyu[1] * u[2], dxu[1] * u[3], dyu[2] * u[4], dxu[2] * u[5] };
+        epsxy = 0.70710678118654746172 * epsxy;
+
+        RealVector<6> rhs = area * (sigma_xx * epsxx + sigma_yy * epsyy + sigma_xy * epsxy);
+
+        algebraic_reaction[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0);
+        algebraic_reaction[node_dof.dofId(cell.nodeId(0), 1)] += rhs(1);
+        algebraic_reaction[node_dof.dofId(cell.nodeId(1), 0)] += rhs(2);
+        algebraic_reaction[node_dof.dofId(cell.nodeId(1), 1)] += rhs(3);
+        algebraic_reaction[node_dof.dofId(cell.nodeId(2), 0)] += rhs(4);
+        algebraic_reaction[node_dof.dofId(cell.nodeId(2), 1)] += rhs(5);
+      }
+
+      alg_reaction = _normL1(algebraic_reaction, node_dof);
+
+      Real normalized_pressure = - alg_reaction / (footing_width * cohesion);
+      Real settlement = t / tmax * max_settlement;
+
+      info() << "[ArcaneFem-Info] At Time Step "
+             << t - 1 << ":\tSettlement: " << settlement
+             << "\tNormalised pressure: " << normalized_pressure
+             << "\tNewton iters: " << m_newton_iter
+             << "\tResidual norm: " << m_residual_norm;
     }
 
-    if (m_newton_iter == m_newton_max_iters && !m_newton_solver_converged) {
-      info() << "[ArcaneFem-Info] Newton iterations did not converge after maximum (" << m_newton_max_iters << ") iterations";
-      ARCANE_FATAL("Newton iterations diverged after max iters");
-    }
+    m_newton_solver_converged = false;
+    m_newton_iter = 0;
+  }
+
+  if (m_newton_iter == m_newton_max_iters && !m_newton_solver_converged) {
+    info() << "[ArcaneFem-Info] Newton iterations did not converge after maximum (" << m_newton_max_iters << ") iterations";
+    ARCANE_FATAL("Newton iterations diverged after max iters");
   }
 }
+
 
 /*---------------------------------------------------------------------------*/
 /**
