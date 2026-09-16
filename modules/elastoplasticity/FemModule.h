@@ -171,9 +171,7 @@ class FemModuleElastoplasticity
   inline void _commitInternalVariablesVonMises();
   inline void _updateGlobalTangentMaterialTensorVonMises();
   inline void _updateGlobalTangentMaterialTensorVonMisesTria3Cpu();
-
-  inline void _applyInternalBodyForceVonMises(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
-  inline void _applyInternalBodyForceVonMisesTria3Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline RealMatrix<3,3> _updateGlobalTangentMaterialTensorVonMisesTria3CpuBase(Cell& cell, Int8& iGP);
 
   // Drucker Prager Law
   inline void _restoreConvergedStateDruckerPrager();
@@ -206,8 +204,6 @@ class FemModuleElastoplasticity
   template <int N>
   void _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
 
-  inline Real _getL2NormFEM(const VariableNodeReal& u);
-  inline Real _getL2NormFEM(const VariableNodeReal3& u);
 };
 using namespace Arcane::FemUtils;
 
