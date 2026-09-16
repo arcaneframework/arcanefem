@@ -126,6 +126,31 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMise
   }
 }
 
+RealMatrix<6, 6> FemModuleElastoplasticity::_computeLocalVonMisesElementMatrixTria3Cpu(Cell cell, bool assemble_elastic)
+{
+  Int8 iGP = 0;
+  RealMatrix<3, 3> C_tang;
+  if (assemble_elastic) {
+    C_tang = m_C_elas_2d;
+  } else {
+    RealMatrix<3,3> C_tang_update = _updateGlobalTangentMaterialTensorVonMisesTria3CpuBase(cell, iGP);
+    C_tang( 0, 0) = m_C_elas_2d(0, 0) + C_tang_update(0, 0);
+    C_tang( 0, 1) = m_C_elas_2d(0, 1) + C_tang_update(0, 1);
+    C_tang( 0, 2) = m_C_elas_2d(0, 2) + C_tang_update(0, 2);
+    C_tang( 1, 0) = C_tang(0, 1);
+    C_tang( 1, 1) = m_C_elas_2d(1, 1) + C_tang_update(1, 1);
+    C_tang( 1, 2) = m_C_elas_2d(1, 2) + C_tang_update(1, 2);
+    C_tang( 2, 0) = C_tang(0, 2);
+    C_tang( 2, 1) = C_tang(1, 2);
+    C_tang( 2, 2) = m_C_elas_2d(2, 2) + C_tang_update(2, 2);
+  }
+  Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
+  Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
+  Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
+
+  return computeElementMatrixTria3Base(dxu, dyu, area, C_tang);
+}
+
 inline RealMatrix<3, 3> FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMisesTria3CpuBase(const Cell& cell, Int8& iGP)
 {
   // --- compute_trial_state ---- //

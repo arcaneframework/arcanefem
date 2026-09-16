@@ -80,7 +80,8 @@ class FemModuleElastoplasticity
   VersionInfo versionInfo() const override { return VersionInfo(1, 0, 0); }
 
   void _doStationarySolve();
-  void _assembleBilinearOperator();
+  void _assembleBilinearOperatorGlobal();
+  void _assembleBilinearOperatorLocal(bool elastic_assembly = false);
   void _assembleDirichletsNewtonGpu();
   void _assembleZeroRHSOnConstrainedDOFsGpu();
 
@@ -199,6 +200,9 @@ class FemModuleElastoplasticity
   RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
   RealMatrix<8, 8> _computeElementMatrixQuad4(Cell cell);
   RealMatrix<24, 24> _computeElementMatrixHexa8(Cell cell);
+
+  RealMatrix<6, 6> _computeLocalVonMisesElementMatrixTria3Cpu(Cell cell, bool elastic_assembly = false);
+
   IBinaryMathFunctor<Real, Real3, Real>* m_prescribed_settlement = nullptr;
 
   template <int N>
