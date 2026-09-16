@@ -37,11 +37,6 @@ inline void FemModuleElastoplasticity::_restoreConvergedStateDruckerPrager()
       m_eps_p_gp(cell, iGP, 2) = m_eps_p_old_gp(cell, iGP, 2);
       m_eps_p_zz_gp(cell, iGP) = m_eps_p_zz_old_gp(cell, iGP);
     }
-
-    for (Int8 iGP = 0; iGP < m_nGP; ++iGP)
-      for (Int8 ix = 0; ix < 3; ++ix)
-        for (Int8 iy = 0; iy < 3; ++iy)
-          m_C_tang_gp(cell, iGP, ix, iy) = m_C_elas_2d(ix, iy); // set tangent C equal to elastic C
   }
 }
 

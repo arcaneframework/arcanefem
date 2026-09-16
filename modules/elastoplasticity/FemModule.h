@@ -155,6 +155,7 @@ class FemModuleElastoplasticity
 
   void _updateTime();
   void _getMaterialParameters();
+  void _setElasticMaterialTensorGP();
   void _solveNewton();
   void _checkNewtonConvergence();
   void _incrementVariables();
