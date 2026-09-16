@@ -333,42 +333,21 @@ _solveNewton()
         }
       }
 
-      /* assemble LHS of elastic linear system */
-      Int8 dim = mesh()->dimension();
-      auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-      ENUMERATE_ (Cell, icell, allCells()) {
-        Cell cell = *icell;
-
+      auto assemble_tria3_vonmises_elast = [&](const Cell& cell) {
         Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
         Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
         Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
+        return computeElementMatrixTria3Base(dxu, dyu, area, m_C_elas_2d);
+      };
+      _assembleBilinearOperatorCpu<6>(assemble_tria3_vonmises_elast);
 
-        auto K_e = computeElementMatrixTria3Base(dxu, dyu, area, m_C_elas_2d);
 
-        Int32 n1_index = 0;
-        for (Node node1 : cell.nodes()) {
-          if (node1.isOwn()) {
-            Int32 n2_index = 0;
-            for (Node node2 : cell.nodes()) {
-              for (Int32 i = 0; i < dim; ++i) {
-                DoFLocalId dof1 = node_dof.dofId(node1, i);
-                for (Int32 j = 0; j < dim; ++j) {
-                  DoFLocalId dof2 = node_dof.dofId(node2, j);
-                  Real value = K_e(dim * n1_index + i, dim * n2_index + j);
-                  m_linear_system.matrixAddValue(dof1, dof2, value);
-                }
-              }
-              ++n2_index;
-            }
-          }
-          ++n1_index;
-        }
-      }
       info() << "[ArcaneFem-Info] Assembled elastic LHS of local linear system";
       // --- assemble RHS of linear system ---- //
       _assembleLinearOperator(); // uses sigma
 
       // --- calculate_residual ---- //
+      auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
       VariableDoFReal& residual_values(m_linear_system.rhsVariable());
       m_residual_norm0 = _normL2(residual_values, node_dof);
       info() << "[ArcaneFem-Info] Initial residual norm = " << m_residual_norm0;
@@ -393,11 +372,8 @@ _solveNewton()
             m_bsr_format.resetMatrixValues();
 
           info() << "[ArcaneFem-Info] Assembling LHS of local linear system";
-          // TODO write this as a function with argument as cell and then it can be passed to generic assembly modules
-          ENUMERATE_ (Cell, icell, allCells()) {
-            Cell cell = *icell;
-            Int8 iGP = 0;
-
+          Int8 iGP = 0;
+          auto assemble_tria3_vonmises = [&](const Cell& cell) {
             RealMatrix<3,3> C_tang_update = _updateGlobalTangentMaterialTensorVonMisesTria3CpuBase(cell, iGP);
             RealMatrix<3, 3> C_tang;
             C_tang( 0, 0) = m_C_elas_2d(0, 0) + C_tang_update(0, 0);
@@ -410,30 +386,14 @@ _solveNewton()
             C_tang( 2, 1) = C_tang(1, 2);
             C_tang( 2, 2) = m_C_elas_2d(2, 2) + C_tang_update(2, 2);
 
+
             Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
             Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
             Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
-            auto K_e = computeElementMatrixTria3Base(dxu, dyu, area, C_tang);
 
-            Int32 n1_index = 0;
-            for (Node node1 : cell.nodes()) {
-              if (node1.isOwn()) {
-                Int32 n2_index = 0;
-                for (Node node2 : cell.nodes()) {
-                  for (Int32 i = 0; i < dim; ++i) {
-                    DoFLocalId dof1 = node_dof.dofId(node1, i);
-                    for (Int32 j = 0; j < dim; ++j) {
-                      DoFLocalId dof2 = node_dof.dofId(node2, j);
-                      Real value = K_e(dim * n1_index + i, dim * n2_index + j);
-                      m_linear_system.matrixAddValue(dof1, dof2, value);
-                    }
-                  }
-                  ++n2_index;
-                }
-              }
-              ++n1_index;
-            }
-          }
+            return computeElementMatrixTria3Base(dxu, dyu, area, C_tang);
+          };
+          _assembleBilinearOperatorCpu<6>(assemble_tria3_vonmises);
           info() << "[ArcaneFem-Info] Assembled LHS of local linear system";
 
           // --- assemble RHS of linear_system ---- //
@@ -577,7 +537,6 @@ _solveNewton()
 
         VariableDoFReal& algebraic_reaction(m_linear_system.rhsVariable());
         algebraic_reaction.fill(0.);
-        // _applyInternalBodyForce(algebraic_reaction, node_dof);
 
         ENUMERATE_ (Cell, icell, allCells()) {
           Cell cell = *icell;

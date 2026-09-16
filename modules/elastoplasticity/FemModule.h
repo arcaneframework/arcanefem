@@ -171,7 +171,7 @@ class FemModuleElastoplasticity
   inline void _commitInternalVariablesVonMises();
   inline void _updateGlobalTangentMaterialTensorVonMises();
   inline void _updateGlobalTangentMaterialTensorVonMisesTria3Cpu();
-  inline RealMatrix<3,3> _updateGlobalTangentMaterialTensorVonMisesTria3CpuBase(Cell& cell, Int8& iGP);
+  inline RealMatrix<3,3> _updateGlobalTangentMaterialTensorVonMisesTria3CpuBase(const Cell& cell, Int8& iGP);
 
   // Drucker Prager Law
   inline void _restoreConvergedStateDruckerPrager();

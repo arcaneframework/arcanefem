@@ -126,7 +126,7 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMise
   }
 }
 
-inline RealMatrix<3, 3> FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMisesTria3CpuBase(Cell& cell, Int8& iGP)
+inline RealMatrix<3, 3> FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMisesTria3CpuBase(const Cell& cell, Int8& iGP)
 {
   // --- compute_trial_state ---- //
   // epsilon(DU) // NOTE: for nGP>1 it has to evaluated and interpolated at Gauss points
