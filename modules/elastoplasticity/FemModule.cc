@@ -533,10 +533,10 @@ _solveNewton()
     if (m_constitutive_law == "VonMises") {
       info() << "[ArcaneFem-Info] Global material tensor strategy for von Mises plasticity";
       _restoreConvergedStateVonMises();
-      _setElasticMaterialTensorGP();
+      _setElasticMaterialTensorAtGPs();
     } else if (m_constitutive_law == "DruckerPrager") {
       _restoreConvergedStateDruckerPrager();
-      _setElasticMaterialTensorGP();
+      _setElasticMaterialTensorAtGPs();
     }
 
     // --- assemble_linear_system ---- //
@@ -693,7 +693,7 @@ _solveNewton()
  */
 /*---------------------------------------------------------------------------*/
 void FemModuleElastoplasticity::
-_setElasticMaterialTensorGP()
+_setElasticMaterialTensorAtGPs()
 {
   Int8 nDim = (mesh()->dimension() == 2) ? 3 : 6;
   ENUMERATE_ (Cell, icell, allCells())
@@ -793,18 +793,8 @@ _getMaterialParameters()
       }
 
       // Initialize the tangent material tensor
-      if (m_gp_material_tensor_strategy == "local") { // TODO replace this check with global and remove single value tang variables
-        m_C_tang_2d = m_C_elas_2d;
-      } else {
-        ENUMERATE_ (Cell, icell, allCells()) {
-          for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
-            for (Int8 ix = 0; ix < 3; ++ix) {
-              for (Int8 iy = 0; iy < 3; ++iy) {
-                m_C_tang_gp(icell, iGP, ix, iy) = m_C_elas_2d(ix, iy);
-              }
-            }
-          }
-        }
+      if (m_gp_material_tensor_strategy == "global") {
+        _setElasticMaterialTensorAtGPs();
       }
     } else {
       ARCANE_FATAL("Not implemented for 3D yet");
@@ -833,18 +823,8 @@ _getMaterialParameters()
       m_C_elas_3d(2, 1) = lambda;
 
       // Initialize the tangent material tensor
-      if (m_gp_material_tensor_strategy == "local") {
-        m_C_tang_3d = m_C_elas_3d;
-      } else {
-        ENUMERATE_ (Cell, icell, allCells()) {
-          for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
-            for (Int8 ix = 0; ix < 6; ++ix) {
-              for (Int8 iy = 0; iy < 6; ++iy) {
-                m_C_tang_gp(icell, iGP, ix, iy) = m_C_elas_3d(ix, iy);
-              }
-            }
-          }
-        }
+      if (m_gp_material_tensor_strategy == "global") {
+        _setElasticMaterialTensorAtGPs();
       }
     }
   }

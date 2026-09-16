@@ -127,9 +127,7 @@ class FemModuleElastoplasticity
   Real3 f;
 
   RealMatrix<3, 3> m_C_elas_2d;
-  RealMatrix<3, 3> m_C_tang_2d;
   RealMatrix<6, 6> m_C_elas_3d;
-  RealMatrix<6, 6> m_C_tang_3d;
 
   Int8 m_dof_per_node;
   Int8 m_nGP = 1;
@@ -155,7 +153,7 @@ class FemModuleElastoplasticity
 
   void _updateTime();
   void _getMaterialParameters();
-  void _setElasticMaterialTensorGP();
+  void _setElasticMaterialTensorAtGPs();
   void _solveNewton();
   void _checkNewtonConvergence();
   void _incrementVariables();
