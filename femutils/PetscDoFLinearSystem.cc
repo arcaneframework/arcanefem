@@ -152,6 +152,7 @@ class PetscDoFLinearSystemImpl
   void _computeMatrixNumeration();
   void _handleParameters(IParallelMng* pm);
   void _preallocateMatrix();
+  void _attachNearNullSpace();
   void _initSolve();
 };
 
@@ -318,6 +319,8 @@ _preallocateMatrix()
 
   PetscCallAbort(mpi_comm, MatCreate(mpi_comm, &m_petsc_matrix));
   PetscCallAbort(mpi_comm, MatSetSizes(m_petsc_matrix, local_rows, local_rows, global_rows, global_rows));
+  if (hasNearNullSpace())
+    PetscCallAbort(mpi_comm, MatSetBlockSize(m_petsc_matrix, nearNullSpaceBlockSize()));
   PetscCallAbort(mpi_comm, MatSetFromOptions(m_petsc_matrix));
   PetscCallAbort(mpi_comm, MatSetLocalToGlobalMapping(m_petsc_matrix, m_petsc_map, m_petsc_map));
 
@@ -347,6 +350,51 @@ _preallocateMatrix()
   PetscCallAbort(mpi_comm, KSPSetTolerances(m_petsc_solver_context, m_ksp_rtol, m_ksp_atol, PETSC_DEFAULT, m_ksp_max_it)); // Todo: add dtol in ArcaneFEM and replace PETSC_DEFAULT
   PetscCallAbort(mpi_comm, KSPSetErrorIfNotConverged(m_petsc_solver_context, PETSC_TRUE)); // To catch errors if the solver does not converge
   PetscCallAbort(mpi_comm, KSPSetFromOptions(m_petsc_solver_context));
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void PetscDoFLinearSystemImpl::
+_attachNearNullSpace()
+{
+  if (!hasNearNullSpace())
+    return;
+
+  IItemFamily* dof_family = dofFamily();
+  IParallelMng* pm = dof_family->parallelMng();
+  MPI_Comm mpi_comm = static_cast<MPI_Comm>(pm->communicator());
+  DoFGroup own_dofs = dof_family->allItems().own();
+  const auto& modes = nearNullSpaceValues();
+  const Int32 nb_mode = modes.extent0();
+
+  UniqueArray<PetscInt> indices(m_nb_own_row);
+  UniqueArray<PetscScalar> values(m_nb_own_row);
+  UniqueArray<Vec> petsc_vectors(nb_mode);
+
+  for (Int32 mode_index = 0; mode_index < nb_mode; ++mode_index) {
+    PetscCallAbort(mpi_comm, MatCreateVecs(m_petsc_matrix, &petsc_vectors[mode_index], nullptr));
+    Int32 index = 0;
+    ENUMERATE_DOF (idof, own_dofs) {
+      indices[index] = m_dof_matrix_numbering[idof];
+      values[index] = modes(mode_index, idof.itemLocalId());
+      ++index;
+    }
+    PetscCallAbort(mpi_comm, VecSetValues(petsc_vectors[mode_index], m_nb_own_row,
+                                         indices.data(), values.data(), INSERT_VALUES));
+    PetscCallAbort(mpi_comm, VecAssemblyBegin(petsc_vectors[mode_index]));
+    PetscCallAbort(mpi_comm, VecAssemblyEnd(petsc_vectors[mode_index]));
+  }
+
+  MatNullSpace near_null_space = nullptr;
+  PetscCallAbort(mpi_comm, MatNullSpaceCreate(mpi_comm, PETSC_FALSE, nb_mode,
+                                              petsc_vectors.data(), &near_null_space));
+  PetscCallAbort(mpi_comm, MatSetNearNullSpace(m_petsc_matrix, near_null_space));
+  PetscCallAbort(mpi_comm, MatNullSpaceDestroy(&near_null_space));
+  for (Vec& vector : petsc_vectors)
+    PetscCallAbort(mpi_comm, VecDestroy(&vector));
+
+  info() << "[Petsc-Info] Attached " << nb_mode << " near-null-space vectors";
 }
 
 /*---------------------------------------------------------------------------*/
@@ -522,6 +570,8 @@ solve()
   PetscCallAbort(mpi_comm, VecAssemblyBegin(m_petsc_solution_vector));
   PetscCallAbort(mpi_comm, VecAssemblyEnd(m_petsc_solution_vector));
 
+  _attachNearNullSpace();
+
   Real a1 = platform::getRealTime();
   info() << "[Petsc-Timer] Time to create vectors = " << (a1 - b1);
 
@@ -581,6 +631,12 @@ class PetscDoFLinearSystemFactoryService
   {
     info() << "[Petsc-Info] Create PetscDoF";
   };
+
+  bool amgNearNullSpace() override
+  {
+    return options()->amgNearNullSpace();
+  }
+
   IDoFLinearSystemImpl*
   createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
   {

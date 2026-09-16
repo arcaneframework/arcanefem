@@ -180,6 +180,11 @@ public:
     return m_rhs_variable;
   }
 
+  void setNearNullSpaceVectors(NumArray<Real, MDDim2>&, Int32) override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+
   CSRFormatView& getCSRValues() override
   {
     ARCANE_THROW(NotImplementedException, "");
@@ -510,6 +515,16 @@ rhsVariable()
 {
   _checkInit();
   return m_p->rhsVariable();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystem::
+setNearNullSpaceVectors(NumArray<Real, MDDim2>& vectors, Int32 block_size)
+{
+  _checkInit();
+  m_p->setNearNullSpaceVectors(vectors, block_size);
 }
 
 /*---------------------------------------------------------------------------*/

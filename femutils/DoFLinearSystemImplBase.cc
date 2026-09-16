@@ -14,6 +14,7 @@
 #include "internal/DoFLinearSystemImplBase.h"
 
 #include <arcane/core/IItemFamily.h>
+#include <arcane/core/IParallelMng.h>
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -47,6 +48,59 @@ clearValues()
   m_dof_forced_info.fill(false);
   m_dof_elimination_info.fill(ELIMINATE_NONE);
   m_dof_elimination_value.fill(0.0);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystemImplBase::
+setNearNullSpaceVectors(NumArray<Real, MDDim2>& vectors, Int32 block_size)
+{
+  if (block_size <= 0)
+    ARCANE_FATAL("Invalid near-null-space block size '{0}'", block_size);
+
+  m_near_null_space_block_size = block_size;
+  if (vectors.extent0() == 0) {
+    m_near_null_space_values.resize(0, 0);
+    return;
+  }
+
+  IItemFamily* dof_family = dofFamily();
+  const Int32 nb_dof = dof_family->allItems().size();
+  const Int32 nb_mode = vectors.extent0();
+  if (vectors.extent1() != nb_dof)
+    ARCANE_FATAL("Near-null-space vectors have {0} values per mode, expected {1}", vectors.extent1(), nb_dof);
+
+  m_near_null_space_values.swap(vectors);
+
+  // Gram–Schmidt orthonormalization of the near-null-space vectors.
+  // Done once for PETSc and Hypre, which require orthonormal vectors for their AMG preconditioners.
+  IParallelMng* pm = dof_family->parallelMng();
+  DoFGroup own_dofs = dof_family->allItems().own();
+  for (Int32 i = 0; i < nb_mode; ++i) {
+    for (Int32 j = 0; j < i; ++j) {
+      Real dot = 0.0;
+      ENUMERATE_DOF (idof, own_dofs)
+        dot += m_near_null_space_values(i, idof.itemLocalId()) * m_near_null_space_values(j, idof.itemLocalId());
+      dot = pm->reduce(Parallel::ReduceSum, dot);
+      for (Int32 k = 0; k < nb_dof; ++k)
+        m_near_null_space_values(i, k) -= dot * m_near_null_space_values(j, k);
+    }
+
+    Real norm2 = 0.0;
+    ENUMERATE_DOF (idof, own_dofs) {
+      Real value = m_near_null_space_values(i, idof.itemLocalId());
+      norm2 += value * value;
+    }
+    norm2 = pm->reduce(Parallel::ReduceSum, norm2);
+    if (norm2 <= 1.0e-30)
+      ARCANE_FATAL("Near-null-space vector {0} is zero or linearly dependent", i);
+    const Real inverse_norm = 1.0 / math::sqrt(norm2);
+    for (Int32 k = 0; k < nb_dof; ++k)
+      m_near_null_space_values(i, k) *= inverse_norm;
+  }
+
+  //info() << "Registered " << nb_mode << " near-null-space vectors (block size=" << block_size << ")";
 }
 
 /*---------------------------------------------------------------------------*/

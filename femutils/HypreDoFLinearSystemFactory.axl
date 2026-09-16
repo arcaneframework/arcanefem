@@ -12,7 +12,9 @@
     <simple name="amg-coarsener" type="int32" default="8" />
     <simple name="amg-interp-type" type="int32" default="6" />
     <simple name="amg-smoother" type="int32" default="6" />
-
+    <simple name="amg-near-null-space" type="bool" default="false">
+      <description>Request an AMG near-null-space basis from the FEM module.</description>
+    </simple>
     <enumeration name = "solver"
                  type = "Arcane::FemUtils::solver"
                  default = "cg"

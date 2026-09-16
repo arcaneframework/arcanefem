@@ -15,6 +15,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include <arcane/utils/UtilsTypes.h>
+#include <arcane/utils/NumArray.h>
 
 #include <arcane/core/VariableTypedef.h>
 #include <arcane/core/ItemTypes.h>
@@ -293,6 +294,19 @@ class DoFLinearSystem
    * fill the right hand side vector.
    */
   VariableDoFReal& rhsVariable();
+
+  /*!
+   * \brief Set vectors spanning the near null space used by AMG.
+   *
+   * The "vectors" have shape [# vectors][# local DoFs]. Allocation
+   * is transferred (NumArray::swap()) to the linear system. The
+   * "block_size" is the number of coupled unknowns at each physical
+   * point (for example 2 or 3 for displacement in linear elasticity).
+   *
+   * This method has to be called before the first call to solve(). An empty
+   * first dimension clears the near null space.
+   */
+  void setNearNullSpaceVectors(NumArray<Real, MDDim2>& vectors, Int32 block_size);
 
   //! Set the factory used to create the underlying linear system solver
   void setLinearSystemFactory(IDoFLinearSystemFactory* factory)
