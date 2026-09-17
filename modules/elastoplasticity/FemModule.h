@@ -81,7 +81,8 @@ class FemModuleElastoplasticity
 
   void _doStationarySolve();
   void _assembleBilinearOperatorGlobal();
-  void _assembleBilinearOperatorLocal(bool elastic_assembly = false);
+  void _assembleBilinearOperatorLocalVonMises(bool elastic_assembly = false);
+  void _assembleBilinearOperatorLocalDruckerPrager(bool elastic_assembly = false);
   void _assembleDirichletsNewtonGpu();
   void _assembleZeroRHSOnConstrainedDOFsGpu();
 
@@ -154,7 +155,7 @@ class FemModuleElastoplasticity
 
   void _updateTime();
   void _getMaterialParameters();
-  void _setElasticMaterialTensorAtGPs();
+  void _setGlobalElasticMaterialTensorAtGPs();
   void _solveNewton();
   void _checkNewtonConvergence();
   void _incrementVariables();
@@ -172,7 +173,6 @@ class FemModuleElastoplasticity
   inline void _commitInternalVariablesVonMises();
   inline void _updateGlobalTangentMaterialTensorVonMises();
   inline void _updateGlobalTangentMaterialTensorVonMisesTria3Cpu();
-  inline RealMatrix<3,3> _updateGlobalTangentMaterialTensorVonMisesTria3CpuBase(const Cell& cell, Int8& iGP);
 
   // Drucker Prager Law
   inline void _restoreConvergedStateDruckerPrager();
@@ -202,6 +202,7 @@ class FemModuleElastoplasticity
   RealMatrix<24, 24> _computeElementMatrixHexa8(Cell cell);
 
   RealMatrix<6, 6> _computeLocalVonMisesElementMatrixTria3Cpu(Cell cell, bool elastic_assembly = false);
+  RealMatrix<6, 6> _computeLocalDruckerPragerElementMatrixTria3Cpu(Cell cell, bool elastic_assembly = false);
 
   IBinaryMathFunctor<Real, Real3, Real>* m_prescribed_settlement = nullptr;
 

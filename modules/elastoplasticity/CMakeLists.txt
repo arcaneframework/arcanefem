@@ -118,7 +118,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           -A,//fem/linear-system/atol=1e-9
           -A,//fem/linear-system/rtol=0)
 
-  arcanefem_add_seq_test(NAME 2D_Strip_footing_drucker_prager_table
+  arcanefem_add_full_test(NAME 2D_Strip_footing_drucker_prager_bsr_petsc-direct
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/solution-comparison-file=check/2D.strip.footing.drucker_prager.t12.txt
@@ -126,7 +126,33 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           ${SOLVER_PETSC_DIRECT_CG}
           inputs/2D.strip.footing.DruckerPrager.arc)
 
-    arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_bsr_petsc-direct
+  arcanefem_add_full_test(NAME 2D_Strip_footing_drucker_prager_af-bsr_petsc-direct
+          COMMAND ./Elastoplasticity
+          ARGS
+          -A,//fem/solution-comparison-file=check/2D.strip.footing.drucker_prager.t12.txt
+          -A,//fem/matrix-format=AF-BSR
+          ${SOLVER_PETSC_DIRECT_CG}
+          inputs/2D.strip.footing.DruckerPrager.arc)
+
+  arcanefem_add_full_test(NAME 2D_Strip_footing_drucker_prager_bsr_local_petsc-direct
+          COMMAND ./Elastoplasticity
+          ARGS
+          -A,//fem/solution-comparison-file=check/2D.strip.footing.drucker_prager.t12.txt
+          -A,//fem/matrix-format=BSR
+          -A,//fem/gp-material-tensor-strategy=local
+          ${SOLVER_PETSC_DIRECT_CG}
+          inputs/2D.strip.footing.DruckerPrager.arc)
+
+  arcanefem_add_full_test(NAME 2D_Strip_footing_drucker_prager_af-bsr_local_petsc-direct
+          COMMAND ./Elastoplasticity
+          ARGS
+          -A,//fem/solution-comparison-file=check/2D.strip.footing.drucker_prager.t12.txt
+          -A,//fem/matrix-format=AF-BSR
+          -A,//fem/gp-material-tensor-strategy=local
+          ${SOLVER_PETSC_DIRECT_CG}
+          inputs/2D.strip.footing.DruckerPrager.arc)
+
+  arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_bsr_petsc-direct
           COMMAND ./Elastoplasticity
           ARGS
           -A,//fem/solution-comparison-file=check/2D.quater.cylinder.t20.txt
@@ -212,4 +238,37 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
             ${SOLVER_HYPRE_CG}
             inputs/2D.quater.cylinder.vonMises.arc)
 
+    arcanefem_add_full_test(NAME 2D_Strip_footing_drucker_prager_bsr_hypre
+            COMMAND ./Elastoplasticity
+            ARGS
+            -A,//fem/solution-comparison-file=check/2D.strip.footing.drucker_prager.t12.txt
+            -A,//fem/matrix-format=BSR
+            ${SOLVER_HYPRE_CG}
+            inputs/2D.strip.footing.DruckerPrager.arc)
+
+    arcanefem_add_full_test(NAME 2D_Strip_footing_drucker_prager_af-bsr_hypre
+            COMMAND ./Elastoplasticity
+            ARGS
+            -A,//fem/solution-comparison-file=check/2D.strip.footing.drucker_prager.t12.txt
+            -A,//fem/matrix-format=AF-BSR
+            ${SOLVER_HYPRE_CG}
+            inputs/2D.strip.footing.DruckerPrager.arc)
+
+    arcanefem_add_full_test(NAME 2D_Strip_footing_drucker_prager_bsr_local_phypre
+            COMMAND ./Elastoplasticity
+            ARGS
+            -A,//fem/solution-comparison-file=check/2D.strip.footing.drucker_prager.t12.txt
+            -A,//fem/matrix-format=BSR
+            -A,//fem/gp-material-tensor-strategy=local
+            ${SOLVER_HYPRE_CG}
+            inputs/2D.strip.footing.DruckerPrager.arc)
+
+    arcanefem_add_full_test(NAME 2D_Strip_footing_drucker_prager_af-bsr_local_hypre
+            COMMAND ./Elastoplasticity
+            ARGS
+            -A,//fem/solution-comparison-file=check/2D.strip.footing.drucker_prager.t12.txt
+            -A,//fem/matrix-format=AF-BSR
+            -A,//fem/gp-material-tensor-strategy=local
+            ${SOLVER_HYPRE_CG}
+            inputs/2D.strip.footing.DruckerPrager.arc)
 endif ()
