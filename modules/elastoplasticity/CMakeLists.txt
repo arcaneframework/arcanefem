@@ -134,13 +134,31 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           ${SOLVER_PETSC_DIRECT_CG}
           inputs/2D.quater.cylinder.vonMises.arc)
 
-  arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_af-bsr_petsc-direct
-          COMMAND ./Elastoplasticity
-          ARGS
-          -A,//fem/solution-comparison-file=check/2D.quater.cylinder.t20.txt
-          -A,//fem/matrix-format=AF-BSR
-          ${SOLVER_PETSC_DIRECT_CG}
-          inputs/2D.quater.cylinder.vonMises.arc)
+    arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_af-bsr_petsc-direct
+            COMMAND ./Elastoplasticity
+            ARGS
+            -A,//fem/solution-comparison-file=check/2D.quater.cylinder.t20.txt
+            -A,//fem/matrix-format=AF-BSR
+            ${SOLVER_PETSC_DIRECT_CG}
+            inputs/2D.quater.cylinder.vonMises.arc)
+
+    arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_bsr_local_petsc-direct
+            COMMAND ./Elastoplasticity
+            ARGS
+            -A,//fem/solution-comparison-file=check/2D.quater.cylinder.t20.txt
+            -A,//fem/matrix-format=BSR
+            -A,//fem/gp-material-tensor-strategy=local
+            ${SOLVER_PETSC_DIRECT_CG}
+            inputs/2D.quater.cylinder.vonMises.arc)
+
+    arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_af-bsr_local_petsc-direct
+            COMMAND ./Elastoplasticity
+            ARGS
+            -A,//fem/solution-comparison-file=check/2D.quater.cylinder.t20.txt
+            -A,//fem/matrix-format=AF-BSR
+            -A,//fem/gp-material-tensor-strategy=local
+            ${SOLVER_PETSC_DIRECT_CG}
+            inputs/2D.quater.cylinder.vonMises.arc)
 endif ()
 
 if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
@@ -175,5 +193,23 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
           -A,//fem/matrix-format=AF-BSR
           ${SOLVER_HYPRE_CG}
           inputs/2D.quater.cylinder.vonMises.arc)
+
+  arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_bsr_local_hypre
+            COMMAND ./Elastoplasticity
+            ARGS
+            -A,//fem/solution-comparison-file=check/2D.quater.cylinder.t20.txt
+            -A,//fem/matrix-format=BSR
+            -A,//fem/gp-material-tensor-strategy=local
+            ${SOLVER_HYPRE_CG}
+            inputs/2D.quater.cylinder.vonMises.arc)
+
+    arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_af-bsr_local_hypre
+            COMMAND ./Elastoplasticity
+            ARGS
+            -A,//fem/solution-comparison-file=check/2D.quater.cylinder.t20.txt
+            -A,//fem/matrix-format=AF-BSR
+            -A,//fem/gp-material-tensor-strategy=local
+            ${SOLVER_HYPRE_CG}
+            inputs/2D.quater.cylinder.vonMises.arc)
 
 endif ()
