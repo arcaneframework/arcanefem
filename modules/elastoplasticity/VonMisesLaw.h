@@ -432,3 +432,63 @@ ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeLocalVonMisesElementMatrixTria3Gpu(C
 
   return computeElementMatrixTria3Base(dxu, dyu, area, C_tang_gp);
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeLocalVonMisesElementVectorTria3Gpu(CellLocalId cell_lid,
+                    const IndexedCellNodeConnectivityView& cn_cv,
+                    const Accelerator::VariableNodeReal3InView& in_node_coord,
+                    const Accelerator::VariableNodeReal3InView& in_DUn,
+                    const Accelerator::MeshMDVariableInOutView<Cell, double, ExtentsV<int, -1, -1>>& in_out_sigma_gp,
+                    const Accelerator::MeshMDVariableInOutView<Cell, double, ExtentsV<int, -1>>& in_out_sigma_zz_gp,
+                    const Accelerator::MeshMDVariableInOutView<Cell, double, ExtentsV<int, -1>>& in_out_dp_gp,
+                    const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1, -1>>& in_sigma_old_gp,
+                    const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1>>& in_sigma_zz_old_gp,
+                    const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1>>& in_p_old_gp,
+                    const RealMatrix<3, 3>& C_elas_2d,
+                    const Real& in_sig0,
+                    const Real& in_H,
+                    const Real& in_mu,
+                    bool assemble_elastic,
+                    Int32 node_lid)
+{
+  Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
+  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+  if (assemble_elastic) {
+    return computeElementVectorTria3GpuBase(dxu, dyu, area, C_elas_2d, node_lid);
+  }
+
+  Int8 iGP = 0;
+  RealMatrix<3, 3> C_tang_gp;
+  RealVector<3> sigma_gp;
+  sigma_gp(0) = in_out_sigma_gp(cell_lid, iGP, 0);
+  sigma_gp(1) = in_out_sigma_gp(cell_lid, iGP, 1);
+  sigma_gp(2) = in_out_sigma_gp(cell_lid, iGP, 2);
+  Real sigma_zz_gp = in_out_sigma_zz_gp(cell_lid, iGP);
+
+  RealVector<3> sigma_old_gp;
+  sigma_old_gp(0) = in_sigma_old_gp(cell_lid, iGP, 0);
+  sigma_old_gp(1) = in_sigma_old_gp(cell_lid, iGP, 1);
+  sigma_old_gp(2) = in_sigma_old_gp(cell_lid, iGP, 2);
+  Real sigma_zz_old_gp = in_sigma_zz_old_gp(cell_lid, iGP);
+
+  Real dp_gp = in_out_dp_gp(cell_lid, iGP);
+  Real p_old_gp = in_p_old_gp(cell_lid, iGP);
+
+  // epsilon(DU) // NOTE: for nGP>1 it has to evaluated and interpolated at Gauss points
+  Real3x3 grad_DU = Gpu::FeOperation2D::computeGradientTria3(cell_lid, cn_cv, in_node_coord, in_DUn);
+
+  computeMaterialTensorVonMisesTria3Base(C_tang_gp, sigma_gp, sigma_zz_gp, dp_gp, grad_DU,
+                                          sigma_old_gp, sigma_zz_old_gp, p_old_gp,
+                                          C_elas_2d, in_sig0, in_H, in_mu);
+
+  // update gp variables //
+  in_out_sigma_gp(cell_lid, iGP, 0) = sigma_gp(0);
+  in_out_sigma_gp(cell_lid, iGP, 1) = sigma_gp(1);
+  in_out_sigma_gp(cell_lid, iGP, 2) = sigma_gp(2);
+  in_out_sigma_zz_gp(cell_lid, iGP) = sigma_zz_gp;
+  in_out_dp_gp(cell_lid, iGP) = dp_gp;
+
+  return computeElementVectorTria3GpuBase(dxu, dyu, area, C_tang_gp, node_lid);
+}

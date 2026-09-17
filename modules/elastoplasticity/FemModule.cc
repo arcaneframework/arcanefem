@@ -794,17 +794,40 @@ _assembleBilinearOperatorLocal(bool elastic_assembly)
     m_bsr_format.toLinearSystem(m_linear_system);
 
   } else if (m_matrix_format == "AF-BSR") {
-    ARCANE_FATAL("Unsupported matrix format for local assembly");
-    // UnstructuredMeshConnectivityView m_connectivity_view(mesh());
-    // auto cn_cv = m_connectivity_view.cellNode();
-    // auto command = makeCommand(acceleratorMng()->defaultQueue());
-    // auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
-    // auto in_C_tang = Accelerator::viewIn(command, m_C_tang_gp);
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cn_cv = m_connectivity_view.cellNode();
+    auto command = makeCommand(acceleratorMng()->defaultQueue());
+
+    auto in_out_dp_gp = Accelerator::viewInOut(command, m_dp_gp);
+    auto in_out_sigma_gp = Accelerator::viewInOut(command, m_sigma_gp);
+    auto in_out_sigma_zz_gp = Accelerator::viewInOut(command, m_sigma_zz_gp);
+
+    auto in_sigma_old_gp = Accelerator::viewIn(command, m_sigma_old_gp);
+    auto in_sigma_zz_old_gp = Accelerator::viewIn(command, m_sigma_zz_old_gp);
+    auto in_p_old_gp = Accelerator::viewIn(command, m_p_old_gp);
+
+    auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
+    auto in_DUn = Accelerator::viewIn(command, m_DUn);
+
+    auto C_elas_2d = m_C_elas_2d;
+    auto in_sig0 = sig0;
+    auto in_H = H;
+    auto in_mu = mu;
+    auto assemble_elastic = elastic_assembly;
 
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2) {
-      ARCANE_FATAL("Unsupported matrix type for local assembly");
-      // m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang, node_lid); });
+      m_bsr_format.assembleBilinearAtomicFree(
+      [=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) {
+      return computeLocalVonMisesElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_DUn,
+                                                        in_out_sigma_gp, in_out_sigma_zz_gp,
+                                                        in_out_dp_gp,
+                                                        in_sigma_old_gp, in_sigma_zz_old_gp,
+                                                        in_p_old_gp,
+                                                        C_elas_2d, in_sig0,
+                                                        in_H, in_mu,
+                                                        assemble_elastic,
+                                                        node_lid); });
     } else {
       ARCANE_FATAL("Unsupported matrix type for local assembly");
       // m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang, node_lid); });

@@ -87,6 +87,24 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
           ${SOLVER_ALEPH_CG}
           inputs/2D.quater.cylinder.vonMises.arc)
 
+  arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_bsr_local
+          COMMAND ./Elastoplasticity
+          ARGS
+          -A,//fem/solution-comparison-file=check/2D.quater.cylinder.t20.txt
+          -A,//fem/matrix-format=BSR
+          -A,//fem/gp-material-tensor-strategy=local
+          ${SOLVER_ALEPH_CG}
+          inputs/2D.quater.cylinder.vonMises.arc)
+
+  arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_af-bsr_local
+          COMMAND ./Elastoplasticity
+          ARGS
+          -A,//fem/solution-comparison-file=check/2D.quater.cylinder.t20.txt
+          -A,//fem/matrix-format=AF-BSR
+          -A,//fem/gp-material-tensor-strategy=local
+          ${SOLVER_ALEPH_CG}
+          inputs/2D.quater.cylinder.vonMises.arc)
+
   set(SOLVER_PETSC_DIRECT_CG
           -A,//fem/linear-system/@name=PetscLinearSystem
           -A,//fem/linear-system/solver=cg
