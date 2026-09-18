@@ -34,6 +34,7 @@ inline void FemModuleElastoplasticity::_restoreConvergedStateDruckerPrager()
     }
   }
 }
+/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -56,6 +57,7 @@ inline void FemModuleElastoplasticity::_commitInternalVariablesDruckerPrager()
     }
   }
 }
+/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -100,7 +102,9 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDrucker
     }
   }
 }
+/*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE void computeDruckerPragerLawAtGpBase(RealMatrix<3, 3>& C_tang_gp,
                                                           RealVector<3>& sigma_gp,
                                                           Real& sigma_zz_gp,
@@ -208,7 +212,9 @@ ARCCORE_HOST_DEVICE void computeDruckerPragerLawAtGpBase(RealMatrix<3, 3>& C_tan
   C_tang_gp(2, 1) = C_tang_gp(1, 2);
   C_tang_gp(2, 2) = (1. - apex_switch) * (C_elas_2d(2, 2) - curvature_factor * ( 1. - normal_xy*normal_xy) - correction_xy*correction_xy / denominator_smooth);
 }
+/*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE void computeTangentMaterialTensorDruckerPragerAtGp(RealMatrix<3, 3>& C_tang_gp,
                                                                         const Real3x3& grad_DU,
                                                                         const Real3x3& grad_U,
@@ -296,7 +302,9 @@ ARCCORE_HOST_DEVICE void computeTangentMaterialTensorDruckerPragerAtGp(RealMatri
   C_tang_gp(2, 1) = C_tang_gp(1, 2);
   C_tang_gp(2, 2) = (1. - apex_switch) * (C_elas_2d(2, 2) - curvature_factor * ( 1. - normal_xy*normal_xy) - correction_xy*correction_xy / denominator_smooth);
 }
+/*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE void computeStressAndInVarsDruckerPragerAtGp(RealVector<3>& sigma_gp,
                                                               Real& sigma_zz_gp,
                                                               RealVector<3>& eps_p_gp,
@@ -389,8 +397,10 @@ ARCCORE_HOST_DEVICE void computeStressAndInVarsDruckerPragerAtGp(RealVector<3>& 
   eps_p_gp(1) = eps_p_old_gp( 1) + lambda_smooth * (normal_yy / SQRT2 + in_dpEta/3.) + apex_switch * (eps_yy -in_dpC / (3. * in_bulk * in_dpEta) - eps_p_old_gp( 1));
   eps_p_gp(2) = eps_p_old_gp( 2) + lambda_smooth * normal_xy / SQRT2 + apex_switch * (eps_xy - eps_p_old_gp( 2));
   eps_p_zz_gp= eps_p_zz_old_gp + lambda_smooth * (normal_zz / SQRT2 + in_dpEta/3.) + apex_switch * (eps_zz -in_dpC / (3. * in_bulk * in_dpEta) - eps_p_zz_old_gp);
-  }
+}
+/*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
 inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDruckerPragerTria3Cpu()
 {
   ENUMERATE_ (Cell, icell, allCells())
@@ -458,7 +468,9 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDrucker
     }
   }
 }
+/*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
 inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDruckerPragerTria3Gpu()
 {
   auto queue = subDomain()->acceleratorMng()->defaultQueue();
@@ -551,6 +563,7 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDrucker
     }
   };
 }
+/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -588,6 +601,120 @@ RealMatrix<6, 6> FemModuleElastoplasticity::_computeLocalDruckerPragerElementMat
                                                 m_C_elas_2d, bulk, dpEta, dpC, mu);
 
   return computeElementMatrixTria3Base(dxu, dyu, area, C_tang_gp);
+}
+/*---------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
+ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeLocalDruckerPragerElementMatrixTria3Gpu(CellLocalId cell_lid,
+                    const IndexedCellNodeConnectivityView& cn_cv,
+                    const Accelerator::VariableNodeReal3InView& in_node_coord,
+                    const Accelerator::VariableNodeReal3InView& in_DUn,
+                    const Accelerator::VariableNodeReal3InView& in_U,
+                    const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1, -1>>& in_eps_p_old_gp,
+                    const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1>>& in_eps_p_zz_old_gp,
+                    const RealMatrix<3, 3>& C_elas_2d,
+                    const Real& in_bulk,
+                    const Real& in_dpEta,
+                    const Real& in_dpC,
+                    const Real& in_mu,
+                    bool assemble_elastic)
+{
+  Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
+  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+  if (assemble_elastic) {
+    return computeElementMatrixTria3Base(dxu, dyu, area, C_elas_2d);
+  }
+
+  Int8 iGP = 0;
+  RealMatrix<3, 3> C_tang_gp;
+
+  RealVector<3> eps_p_old_gp;
+  eps_p_old_gp(0) = in_eps_p_old_gp(cell_lid, iGP, 0);
+  eps_p_old_gp(1) = in_eps_p_old_gp(cell_lid, iGP, 1);
+  eps_p_old_gp(2) = in_eps_p_old_gp(cell_lid, iGP, 2);
+  Real eps_p_zz_old_gp = in_eps_p_zz_old_gp(cell_lid, iGP);
+
+  // epsilon(DU) // NOTE: for nGP>1 it has to evaluated and interpolated at Gauss points
+  Real3x3 grad_DU = Gpu::FeOperation2D::computeGradientTria3(cell_lid, cn_cv, in_node_coord, in_DUn);
+  Real3x3 grad_U = Gpu::FeOperation2D::computeGradientTria3(cell_lid, cn_cv, in_node_coord, in_U);
+
+  computeTangentMaterialTensorDruckerPragerAtGp(C_tang_gp,
+                                                grad_DU, grad_U,
+                                                eps_p_old_gp, eps_p_zz_old_gp,
+                                                C_elas_2d, in_bulk, in_dpEta, in_dpC, in_mu);
+
+  return computeElementMatrixTria3Base(dxu, dyu, area, C_tang_gp);
+}
+/*---------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
+ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeLocalDruckerPragerElementVectorTria3Gpu(CellLocalId cell_lid,
+                    const IndexedCellNodeConnectivityView& cn_cv,
+                    const Accelerator::VariableNodeReal3InView& in_node_coord,
+                    const Accelerator::VariableNodeReal3InView& in_DUn,
+                    const Accelerator::VariableNodeReal3InView& in_U,
+                    const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1, -1>>& in_eps_p_old_gp,
+                    const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1>>& in_eps_p_zz_old_gp,
+                    const RealMatrix<3, 3>& C_elas_2d,
+                    const Real& in_bulk,
+                    const Real& in_dpEta,
+                    const Real& in_dpC,
+                    const Real& in_mu,
+                    bool assemble_elastic,
+                    Int32 node_lid)
+{
+  Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
+  Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
+  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
+  if (assemble_elastic) {
+    return computeElementVectorTria3GpuBase(dxu, dyu, area, C_elas_2d, node_lid);
+  }
+
+  Int8 iGP = 0;
+  RealMatrix<3, 3> C_tang_gp;
+
+  RealVector<3> eps_p_old_gp;
+  eps_p_old_gp(0) = in_eps_p_old_gp(cell_lid, iGP, 0);
+  eps_p_old_gp(1) = in_eps_p_old_gp(cell_lid, iGP, 1);
+  eps_p_old_gp(2) = in_eps_p_old_gp(cell_lid, iGP, 2);
+  Real eps_p_zz_old_gp = in_eps_p_zz_old_gp(cell_lid, iGP);
+
+  // epsilon(DU) // NOTE: for nGP>1 it has to evaluated and interpolated at Gauss points
+  Real3x3 grad_DU = Gpu::FeOperation2D::computeGradientTria3(cell_lid, cn_cv, in_node_coord, in_DUn);
+  Real3x3 grad_U = Gpu::FeOperation2D::computeGradientTria3(cell_lid, cn_cv, in_node_coord, in_U);
+
+  computeTangentMaterialTensorDruckerPragerAtGp(C_tang_gp,
+                                                grad_DU, grad_U,
+                                                eps_p_old_gp, eps_p_zz_old_gp,
+                                                C_elas_2d, in_bulk, in_dpEta, in_dpC, in_mu);
+
+  return computeElementVectorTria3GpuBase(dxu, dyu, area, C_tang_gp, node_lid);
+}
+/*---------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies the DruckerPrager plasticity criteria to update the
+ * stress and internal state variables at each quadrature point for each
+ * element
+ */
+/*---------------------------------------------------------------------------*/
+inline void FemModuleElastoplasticity::_updateStressAndInVarsDruckerPrager()
+{
+  if (mesh()->dimension() == 2) {
+    if (m_hex_quad_mesh) {
+      ARCANE_FATAL("Not IMPLEMENTED");
+    } else {
+      _updateStressAndInVarsDruckerPragerTria3Gpu();
+    }
+  } else {
+    if (m_hex_quad_mesh) {
+      ARCANE_FATAL("Not IMPLEMENTED");
+    } else {
+      ARCANE_FATAL("Not IMPLEMENTED");
+    }
+  }
 }
 /*---------------------------------------------------------------------------*/
 
@@ -647,119 +774,11 @@ ARCCORE_HOST_DEVICE void computeLocalDruckerPragerStressAndInVarsTria3Gpu(CellLo
   in_out_eps_p_gp(cell_lid, iGP, 2) = eps_p_gp(2);
   in_out_eps_p_zz_gp(cell_lid, iGP) = eps_p_zz_gp;
 }
-
-ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeLocalDruckerPragerElementMatrixTria3Gpu(CellLocalId cell_lid,
-                    const IndexedCellNodeConnectivityView& cn_cv,
-                    const Accelerator::VariableNodeReal3InView& in_node_coord,
-                    const Accelerator::VariableNodeReal3InView& in_DUn,
-                    const Accelerator::VariableNodeReal3InView& in_U,
-                    const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1, -1>>& in_eps_p_old_gp,
-                    const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1>>& in_eps_p_zz_old_gp,
-                    const RealMatrix<3, 3>& C_elas_2d,
-                    const Real& in_bulk,
-                    const Real& in_dpEta,
-                    const Real& in_dpC,
-                    const Real& in_mu,
-                    bool assemble_elastic)
-{
-  Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
-  Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
-  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
-  if (assemble_elastic) {
-    return computeElementMatrixTria3Base(dxu, dyu, area, C_elas_2d);
-  }
-
-  Int8 iGP = 0;
-  RealMatrix<3, 3> C_tang_gp;
-
-  RealVector<3> eps_p_old_gp;
-  eps_p_old_gp(0) = in_eps_p_old_gp(cell_lid, iGP, 0);
-  eps_p_old_gp(1) = in_eps_p_old_gp(cell_lid, iGP, 1);
-  eps_p_old_gp(2) = in_eps_p_old_gp(cell_lid, iGP, 2);
-  Real eps_p_zz_old_gp = in_eps_p_zz_old_gp(cell_lid, iGP);
-
-  // epsilon(DU) // NOTE: for nGP>1 it has to evaluated and interpolated at Gauss points
-  Real3x3 grad_DU = Gpu::FeOperation2D::computeGradientTria3(cell_lid, cn_cv, in_node_coord, in_DUn);
-  Real3x3 grad_U = Gpu::FeOperation2D::computeGradientTria3(cell_lid, cn_cv, in_node_coord, in_U);
-
-  computeTangentMaterialTensorDruckerPragerAtGp(C_tang_gp,
-                                                grad_DU, grad_U,
-                                                eps_p_old_gp, eps_p_zz_old_gp,
-                                                C_elas_2d, in_bulk, in_dpEta, in_dpC, in_mu);
-
-  return computeElementMatrixTria3Base(dxu, dyu, area, C_tang_gp);
-}
 /*---------------------------------------------------------------------------*/
-ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeLocalDruckerPragerElementVectorTria3Gpu(CellLocalId cell_lid,
-                    const IndexedCellNodeConnectivityView& cn_cv,
-                    const Accelerator::VariableNodeReal3InView& in_node_coord,
-                    const Accelerator::VariableNodeReal3InView& in_DUn,
-                    const Accelerator::VariableNodeReal3InView& in_U,
-                    const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1, -1>>& in_eps_p_old_gp,
-                    const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1>>& in_eps_p_zz_old_gp,
-                    const RealMatrix<3, 3>& C_elas_2d,
-                    const Real& in_bulk,
-                    const Real& in_dpEta,
-                    const Real& in_dpC,
-                    const Real& in_mu,
-                    bool assemble_elastic,
-                    Int32 node_lid)
-{
-  Real3 dxu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
-  Real3 dyu = Arcane::FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
-  Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
-  if (assemble_elastic) {
-    return computeElementVectorTria3GpuBase(dxu, dyu, area, C_elas_2d, node_lid);
-  }
-
-  Int8 iGP = 0;
-  RealMatrix<3, 3> C_tang_gp;
-
-  RealVector<3> eps_p_old_gp;
-  eps_p_old_gp(0) = in_eps_p_old_gp(cell_lid, iGP, 0);
-  eps_p_old_gp(1) = in_eps_p_old_gp(cell_lid, iGP, 1);
-  eps_p_old_gp(2) = in_eps_p_old_gp(cell_lid, iGP, 2);
-  Real eps_p_zz_old_gp = in_eps_p_zz_old_gp(cell_lid, iGP);
-
-  // epsilon(DU) // NOTE: for nGP>1 it has to evaluated and interpolated at Gauss points
-  Real3x3 grad_DU = Gpu::FeOperation2D::computeGradientTria3(cell_lid, cn_cv, in_node_coord, in_DUn);
-  Real3x3 grad_U = Gpu::FeOperation2D::computeGradientTria3(cell_lid, cn_cv, in_node_coord, in_U);
-
-  computeTangentMaterialTensorDruckerPragerAtGp(C_tang_gp,
-                                                grad_DU, grad_U,
-                                                eps_p_old_gp, eps_p_zz_old_gp,
-                                                C_elas_2d, in_bulk, in_dpEta, in_dpC, in_mu);
-
-  return computeElementVectorTria3GpuBase(dxu, dyu, area, C_tang_gp, node_lid);
-}
 
 /*---------------------------------------------------------------------------*/
-/**
- * @brief Applies the DruckerPrager plasticity criteria to update the
- * stress and internal state variables at each quadrature point for each
- * element
- */
-/*---------------------------------------------------------------------------*/
-inline void FemModuleElastoplasticity::_updateStressAndInVarsDruckerPrager()
-{
-  if (mesh()->dimension() == 2) {
-    if (m_hex_quad_mesh) {
-      ARCANE_FATAL("Not IMPLEMENTED");
-    } else {
-      _updateStressAndInVarsDruckerPragerTria3Gpu();
-    }
-  } else {
-    if (m_hex_quad_mesh) {
-      ARCANE_FATAL("Not IMPLEMENTED");
-    } else {
-      ARCANE_FATAL("Not IMPLEMENTED");
-    }
-  }
-}
-
 inline void FemModuleElastoplasticity::_updateStressAndInVarsDruckerPragerTria3Gpu()
 {
-  auto queue = subDomain()->acceleratorMng()->defaultQueue();
   UnstructuredMeshConnectivityView m_connectivity_view(mesh());
   auto cn_cv = m_connectivity_view.cellNode();
   auto command = makeCommand(acceleratorMng()->defaultQueue());
@@ -826,3 +845,4 @@ inline void FemModuleElastoplasticity::_updateStressAndInVarsDruckerPragerTria3G
     }
   };
 }
+/*---------------------------------------------------------------------------*/

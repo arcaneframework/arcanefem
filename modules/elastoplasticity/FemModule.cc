@@ -327,6 +327,7 @@ _solveNewton()
     } else {
       if (m_constitutive_law == "VonMises") {
         _assembleBilinearOperatorLocalVonMises(true); //checks law an assembles corresponding matrix
+        _updateStressAndInVarsVonMises();
       } else if (m_constitutive_law == "DruckerPrager") {
         _assembleBilinearOperatorLocalDruckerPrager(true);
         _updateStressAndInVarsDruckerPrager();
@@ -376,6 +377,7 @@ _solveNewton()
       } else {
         if (m_constitutive_law == "VonMises"){
           _assembleBilinearOperatorLocalVonMises(); // assembles Jacobian for Von Mises
+          _updateStressAndInVarsVonMises();
         } else if (m_constitutive_law == "DruckerPrager") {
           _assembleBilinearOperatorLocalDruckerPrager(); // assembles Jacobian for Drucker Prager
           _updateStressAndInVarsDruckerPrager();
@@ -763,10 +765,6 @@ _assembleBilinearOperatorLocalVonMises(bool elastic_assembly)
     auto cn_cv = m_connectivity_view.cellNode();
     auto command = makeCommand(acceleratorMng()->defaultQueue());
 
-    auto in_out_dp_gp = Accelerator::viewInOut(command, m_dp_gp);
-    auto in_out_sigma_gp = Accelerator::viewInOut(command, m_sigma_gp);
-    auto in_out_sigma_zz_gp = Accelerator::viewInOut(command, m_sigma_zz_gp);
-
     auto in_sigma_old_gp = Accelerator::viewIn(command, m_sigma_old_gp);
     auto in_sigma_zz_old_gp = Accelerator::viewIn(command, m_sigma_zz_old_gp);
     auto in_p_old_gp = Accelerator::viewIn(command, m_p_old_gp);
@@ -785,8 +783,6 @@ _assembleBilinearOperatorLocalVonMises(bool elastic_assembly)
       m_bsr_format.assembleBilinearAtomic(
       [=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) {
         return computeLocalVonMisesElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_DUn,
-                                                         in_out_sigma_gp, in_out_sigma_zz_gp,
-                                                         in_out_dp_gp,
                                                          in_sigma_old_gp, in_sigma_zz_old_gp,
                                                          in_p_old_gp,
                                                          C_elas_2d, in_sig0,
@@ -803,10 +799,6 @@ _assembleBilinearOperatorLocalVonMises(bool elastic_assembly)
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();
     auto command = makeCommand(acceleratorMng()->defaultQueue());
-
-    auto in_out_dp_gp = Accelerator::viewInOut(command, m_dp_gp);
-    auto in_out_sigma_gp = Accelerator::viewInOut(command, m_sigma_gp);
-    auto in_out_sigma_zz_gp = Accelerator::viewInOut(command, m_sigma_zz_gp);
 
     auto in_sigma_old_gp = Accelerator::viewIn(command, m_sigma_old_gp);
     auto in_sigma_zz_old_gp = Accelerator::viewIn(command, m_sigma_zz_old_gp);
@@ -826,8 +818,6 @@ _assembleBilinearOperatorLocalVonMises(bool elastic_assembly)
       m_bsr_format.assembleBilinearAtomicFree(
     [=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) {
       return computeLocalVonMisesElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_DUn,
-                                                       in_out_sigma_gp, in_out_sigma_zz_gp,
-                                                       in_out_dp_gp,
                                                        in_sigma_old_gp, in_sigma_zz_old_gp,
                                                        in_p_old_gp,
                                                        C_elas_2d, in_sig0,

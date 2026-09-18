@@ -89,8 +89,10 @@ class FemModuleElastoplasticity
   inline void _applyInternalBodyForceTria3Gpu(VariableDoFReal& rhs_values, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord, IMesh* mesh, RunQueue* queue);
 
   inline void _updateGlobalTangentMaterialTensorVonMisesTria3Gpu();
+  inline void _updateStressAndInVarsVonMisesTria3Gpu();
   inline void _updateGlobalTangentMaterialTensorDruckerPragerTria3Gpu();
   inline void _updateStressAndInVarsDruckerPragerTria3Gpu();
+
 
  private:
 
@@ -174,6 +176,7 @@ class FemModuleElastoplasticity
   inline void _commitInternalVariablesVonMises();
   inline void _updateGlobalTangentMaterialTensorVonMises();
   inline void _updateGlobalTangentMaterialTensorVonMisesTria3Cpu();
+  inline void _updateStressAndInVarsVonMises();
 
   // Drucker Prager Law
   inline void _restoreConvergedStateDruckerPrager();
