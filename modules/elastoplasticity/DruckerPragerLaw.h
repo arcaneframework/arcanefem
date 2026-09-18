@@ -105,6 +105,18 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDrucker
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies the DruckerPrager plasticity criteria at a quadrature point
+ * to compute the updated stress, the plastic strain and the consistent
+ * tangent material tensor
+ *
+ * The total strain is obtained from the gradients of the displacement and of
+ * its increment. An elastic trial state is built from the plastic strain of
+ * the previous converged step, then classified as elastic, smooth (cone)
+ * return or apex return. Plane strain is assumed (eps_zz = 0).
+ *
+ */
+/*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE void computeDruckerPragerLawAtGpBase(RealMatrix<3, 3>& C_tang_gp,
                                                           RealVector<3>& sigma_gp,
                                                           Real& sigma_zz_gp,
@@ -215,6 +227,16 @@ ARCCORE_HOST_DEVICE void computeDruckerPragerLawAtGpBase(RealMatrix<3, 3>& C_tan
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies the DruckerPrager plasticity criteria at a quadrature point
+ * to compute the consistent tangent material tensor only
+ *
+ * Same trial state and elastic/smooth/apex classification as in
+ * computeDruckerPragerLawAtGpBase(), but the updated stress and plastic
+ * strain are not returned.
+ *
+ */
+/*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE void computeTangentMaterialTensorDruckerPragerAtGp(RealMatrix<3, 3>& C_tang_gp,
                                                                         const Real3x3& grad_DU,
                                                                         const Real3x3& grad_U,
@@ -304,6 +326,16 @@ ARCCORE_HOST_DEVICE void computeTangentMaterialTensorDruckerPragerAtGp(RealMatri
 }
 /*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies the DruckerPrager plasticity criteria at a quadrature point
+ * to compute the updated stress and plastic strain only
+ *
+ * Same trial state and elastic/smooth/apex classification as in
+ * computeDruckerPragerLawAtGpBase(), but the consistent tangent material
+ * tensor is not computed.
+ *
+ */
 /*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE void computeStressAndInVarsDruckerPragerAtGp(RealVector<3>& sigma_gp,
                                                               Real& sigma_zz_gp,
@@ -401,6 +433,13 @@ ARCCORE_HOST_DEVICE void computeStressAndInVarsDruckerPragerAtGp(RealVector<3>& 
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies the DruckerPrager plasticity criteria on the CPU to update
+ * the tangent material tensor, the stress and the plastic strain at each
+ * quadrature point for each TRIA3 element
+ *
+ */
+/*---------------------------------------------------------------------------*/
 inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDruckerPragerTria3Cpu()
 {
   ENUMERATE_ (Cell, icell, allCells())
@@ -470,6 +509,13 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDrucker
 }
 /*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies the DruckerPrager plasticity criteria on the accelerator
+ * (GPU) to update the tangent material tensor, the stress and the plastic
+ * strain at each quadrature point for each TRIA3 element
+ *
+ */
 /*---------------------------------------------------------------------------*/
 inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDruckerPragerTria3Gpu()
 {
@@ -605,6 +651,16 @@ RealMatrix<6, 6> FemModuleElastoplasticity::_computeLocalDruckerPragerElementMat
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies the DruckerPrager plasticity criteria to compute the local
+ * LHS matrix of a TRIA3 element from accelerator views (device counterpart
+ * of _computeLocalDruckerPragerElementMatrixTria3Cpu)
+ *
+ * If assemble_elastic is true, the elastic material tensor is used instead
+ * of the DruckerPrager tangent material tensor.
+ *
+ */
+/*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeLocalDruckerPragerElementMatrixTria3Gpu(CellLocalId cell_lid,
                     const IndexedCellNodeConnectivityView& cn_cv,
                     const Accelerator::VariableNodeReal3InView& in_node_coord,
@@ -648,6 +704,17 @@ ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeLocalDruckerPragerElementMatrixTria3
 }
 /*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies the DruckerPrager plasticity criteria to compute the part
+ * of the local LHS matrix of a TRIA3 element related to the node node_lid
+ * (2x6 block), from accelerator views
+ *
+ * Node-wise variant of computeLocalDruckerPragerElementMatrixTria3Gpu(). If
+ * assemble_elastic is true, the elastic material tensor is used instead of
+ * the DruckerPrager tangent material tensor.
+ *
+ */
 /*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeLocalDruckerPragerElementVectorTria3Gpu(CellLocalId cell_lid,
                     const IndexedCellNodeConnectivityView& cn_cv,
@@ -718,6 +785,13 @@ inline void FemModuleElastoplasticity::_updateStressAndInVarsDruckerPrager()
 }
 /*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies the DruckerPrager plasticity criteria on the accelerator
+ * (GPU) to update the stress and the plastic strain at each quadrature
+ * point for each TRIA3 element
+ *
+ */
 /*---------------------------------------------------------------------------*/
 inline void FemModuleElastoplasticity::_updateStressAndInVarsDruckerPragerTria3Gpu()
 {

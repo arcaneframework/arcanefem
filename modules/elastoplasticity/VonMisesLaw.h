@@ -105,6 +105,19 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMise
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies the VonMises plasticity criteria at a quadrature point
+ * to compute the updated stress, the plastic strain increment and the
+ * consistent tangent material tensor
+ *
+ * The update starts from an elastic trial state (built from the gradient of
+ * the displacement increment and the state of the previous converged step),
+ * evaluates the yield function (linear isotropic hardening) and applies a
+ * radial return when the yield limit is exceeded. Plane strain is assumed:
+ * sigma_zz is kept in the three-dimensional deviator.
+ *
+ */
+/*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE void computeMaterialTensorVonMisesLawAtGpBase(RealMatrix<3, 3>& C_tang_gp,
                                                                   RealVector<3>& sigma_gp,
                                                                   Real& sigma_zz_gp,
@@ -177,6 +190,16 @@ ARCCORE_HOST_DEVICE void computeMaterialTensorVonMisesLawAtGpBase(RealMatrix<3, 
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies the VonMises plasticity criteria at a quadrature point
+ * to compute the consistent tangent material tensor only
+ *
+ * Same trial state and radial return as in
+ * computeMaterialTensorVonMisesLawAtGpBase(), but the updated stress and
+ * the plastic strain increment are not returned.
+ *
+ */
+/*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE void computeTangentMaterialTensorVonMisesAtGp(RealMatrix<3, 3>& C_tang_gp,
                                                                   const Real3x3& grad_DU,
                                                                   const RealVector<3>& sigma_old_gp,
@@ -239,6 +262,16 @@ ARCCORE_HOST_DEVICE void computeTangentMaterialTensorVonMisesAtGp(RealMatrix<3, 
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies the VonMises plasticity criteria at a quadrature point
+ * to compute the updated stress and the plastic strain increment only
+ *
+ * Same trial state and radial return as in
+ * computeMaterialTensorVonMisesLawAtGpBase(), but the consistent tangent
+ * material tensor is not computed.
+ *
+ */
+/*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE void computeStressAndInVarsVonMisesAtGp(RealVector<3>& sigma_gp,
                                                             Real& sigma_zz_gp,
                                                             Real& dp_gp,
@@ -290,6 +323,13 @@ ARCCORE_HOST_DEVICE void computeStressAndInVarsVonMisesAtGp(RealVector<3>& sigma
 }
 /*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies the VonMises plasticity criteria on the CPU to update the
+ * tangent material tensor, the stress and the plastic strain increment at
+ * each quadrature point for each TRIA3 element
+ *
+ */
 /*---------------------------------------------------------------------------*/
 inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMisesTria3Cpu()
 {
@@ -352,6 +392,13 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMise
 }
 /*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies the VonMises plasticity criteria on the accelerator (GPU)
+ * to update the tangent material tensor, the stress and the plastic strain
+ * increment at each quadrature point for each TRIA3 element
+ *
+ */
 /*---------------------------------------------------------------------------*/
 inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMisesTria3Gpu()
 {
@@ -476,6 +523,16 @@ RealMatrix<6, 6> FemModuleElastoplasticity::_computeLocalVonMisesElementMatrixTr
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies the VonMises plasticity criteria to compute the local LHS
+ * matrix of a TRIA3 element from accelerator views (device counterpart of
+ * _computeLocalVonMisesElementMatrixTria3Cpu)
+ *
+ * If assemble_elastic is true, the elastic material tensor is used instead
+ * of the VonMises tangent material tensor.
+ *
+ */
+/*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeLocalVonMisesElementMatrixTria3Gpu(CellLocalId cell_lid,
                     const IndexedCellNodeConnectivityView& cn_cv,
                     const Accelerator::VariableNodeReal3InView& in_node_coord,
@@ -518,6 +575,17 @@ ARCCORE_HOST_DEVICE RealMatrix<6, 6> computeLocalVonMisesElementMatrixTria3Gpu(C
 }
 /*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies the VonMises plasticity criteria to compute the part of
+ * the local LHS matrix of a TRIA3 element related to the node node_lid
+ * (2x6 block), from accelerator views
+ *
+ * Node-wise variant of computeLocalVonMisesElementMatrixTria3Gpu(). If
+ * assemble_elastic is true, the elastic material tensor is used instead of
+ * the VonMises tangent material tensor.
+ *
+ */
 /*---------------------------------------------------------------------------*/
 ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeLocalVonMisesElementVectorTria3Gpu(CellLocalId cell_lid,
                     const IndexedCellNodeConnectivityView& cn_cv,
@@ -585,6 +653,13 @@ inline void FemModuleElastoplasticity::_updateStressAndInVarsVonMises()
   }
 }
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies the VonMises plasticity criteria on the accelerator (GPU)
+ * to update the stress and the plastic strain increment at each quadrature
+ * point for each TRIA3 element
+ *
+ */
 /*---------------------------------------------------------------------------*/
 inline void FemModuleElastoplasticity::_updateStressAndInVarsVonMisesTria3Gpu()
 {
