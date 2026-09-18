@@ -90,6 +90,7 @@ class FemModuleElastoplasticity
 
   inline void _updateGlobalTangentMaterialTensorVonMisesTria3Gpu();
   inline void _updateGlobalTangentMaterialTensorDruckerPragerTria3Gpu();
+  inline void _updateStressAndInVarsDruckerPragerTria3Gpu();
 
  private:
 
@@ -179,6 +180,7 @@ class FemModuleElastoplasticity
   inline void _commitInternalVariablesDruckerPrager();
   inline void _updateGlobalTangentMaterialTensorDruckerPrager();
   inline void _updateGlobalTangentMaterialTensorDruckerPragerTria3Cpu();
+  inline void _updateStressAndInVarsDruckerPrager();
 
   // RHS assembly helper functions
   inline void _applyInternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);

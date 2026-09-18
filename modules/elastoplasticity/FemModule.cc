@@ -287,15 +287,18 @@ _doStationarySolve()
  * This method follows a sequence of steps to solve FEM system:
  *
  *   1. _getMaterialParameters()     Updates nonlinear material parameters
- *   2. _assembleBilinearOperatorGlobal()  Assembles the FEM  matrix 𝐀ʹ
- *   3. _assembleLinearOperator()    Assembles the FEM RHS vector 𝐛
- *   4. _solve()                     Solves for solution vector 𝐝𝐮 = 𝐀ʹ⁻¹𝐛
- *   5. _updateNewtonIncrements()    Updates FEM variables 𝐝𝐮 = 𝐱
- *   5. _checkNewtonConvergence()    Check convergence on norm of 𝐝𝐮 /𝐮
- *   6. _validateResults()           Regression test
+ *   2. _restoreConvergedState<law>() Restored the previous converged state
+ *                                    as the starting state for nonlinear solve.
+ *   3. _updateGlobalTangentMaterialTensor<law>() and
+ *      _assembleBilinearOperatorGlobal()
+ *            OR
+ *      _assembleBilinearOperatorLocal<law>() Assembles the FEM  matrix 𝐀ʹ
+ *   4. _assembleLinearOperator()    Assembles the FEM RHS vector 𝐛
+ *   5. _solve()                     Solves for solution vector 𝐝𝐮 = 𝐀ʹ⁻¹𝐛
+ *   6. _updateNewtonIncrements()    Updates FEM variables 𝐝𝐮 = 𝐱
+ *   7. _checkNewtonConvergence()    Check convergence to stop Newton iters
  */
 /*---------------------------------------------------------------------------*/
-
 void FemModuleElastoplasticity::
 _solveNewton()
 {
@@ -319,16 +322,18 @@ _solveNewton()
 
   // --- assemble_linear_system ---- //
   if (m_assemble_linear_system) {
-    if (m_gp_material_tensor_strategy == "global")
+    if (m_gp_material_tensor_strategy == "global") {
       _assembleBilinearOperatorGlobal();
-    else
-      if (m_constitutive_law == "VonMises")
+    } else {
+      if (m_constitutive_law == "VonMises") {
         _assembleBilinearOperatorLocalVonMises(true); //checks law an assembles corresponding matrix
-      else if (m_constitutive_law == "DruckerPrager")
+      } else if (m_constitutive_law == "DruckerPrager") {
         _assembleBilinearOperatorLocalDruckerPrager(true);
-      else
+        _updateStressAndInVarsDruckerPrager();
+      } else {
         ARCANE_FATAL("Constitutive law not supported");
-
+      }
+    }
     _assembleLinearOperator();
   }
 
@@ -365,16 +370,19 @@ _solveNewton()
 
       if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
         m_bsr_format.resetMatrixValues();
-      if (m_gp_material_tensor_strategy == "global")
-        _assembleBilinearOperatorGlobal(); // assembles Jacobian
-      else
-        if (m_constitutive_law == "VonMises")
-          _assembleBilinearOperatorLocalVonMises(); // assembles Jacobian for Von Mises
-        else if (m_constitutive_law == "DruckerPrager")
-          _assembleBilinearOperatorLocalDruckerPrager(); // assembles Jacobian for Drucker Prager
-        else
-          ARCANE_FATAL("Constitutive law not supported");
 
+      if (m_gp_material_tensor_strategy == "global") {
+        _assembleBilinearOperatorGlobal(); // assembles Jacobian
+      } else {
+        if (m_constitutive_law == "VonMises"){
+          _assembleBilinearOperatorLocalVonMises(); // assembles Jacobian for Von Mises
+        } else if (m_constitutive_law == "DruckerPrager") {
+          _assembleBilinearOperatorLocalDruckerPrager(); // assembles Jacobian for Drucker Prager
+          _updateStressAndInVarsDruckerPrager();
+        } else {
+          ARCANE_FATAL("Constitutive law not supported");
+        }
+      }
       _assembleLinearOperator(); // assembles Residuals(m_DUn) + BCs
     }
 
@@ -878,11 +886,6 @@ _assembleBilinearOperatorLocalDruckerPrager(bool elastic_assembly)
     auto cn_cv = m_connectivity_view.cellNode();
     auto command = makeCommand(acceleratorMng()->defaultQueue());
 
-    auto in_out_sigma_gp = Accelerator::viewInOut(command, m_sigma_gp);
-    auto in_out_sigma_zz_gp = Accelerator::viewInOut(command, m_sigma_zz_gp);
-    auto in_out_eps_p_gp = Accelerator::viewInOut(command, m_eps_p_gp);
-    auto in_out_eps_p_zz_gp = Accelerator::viewInOut(command, m_eps_p_zz_gp);
-
     auto in_eps_p_old_gp = Accelerator::viewIn(command, m_eps_p_old_gp);
     auto in_eps_p_zz_old_gp = Accelerator::viewIn(command, m_eps_p_zz_old_gp);
 
@@ -899,12 +902,10 @@ _assembleBilinearOperatorLocalDruckerPrager(bool elastic_assembly)
 
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2) {
-    m_bsr_format.assembleBilinearAtomic(
+      m_bsr_format.assembleBilinearAtomic(
     [=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) {
       return computeLocalDruckerPragerElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord,
                                                              in_DUn, in_U,
-                                                             in_out_sigma_gp, in_out_sigma_zz_gp,
-                                                             in_out_eps_p_gp, in_out_eps_p_zz_gp,
                                                              in_eps_p_old_gp, in_eps_p_zz_old_gp,
                                                              C_elas_2d,
                                                              in_bulk, in_dpEta, in_dpC, in_mu,
@@ -919,11 +920,6 @@ _assembleBilinearOperatorLocalDruckerPrager(bool elastic_assembly)
     auto cn_cv = m_connectivity_view.cellNode();
     auto command = makeCommand(acceleratorMng()->defaultQueue());
 
-    auto in_out_sigma_gp = Accelerator::viewInOut(command, m_sigma_gp);
-    auto in_out_sigma_zz_gp = Accelerator::viewInOut(command, m_sigma_zz_gp);
-    auto in_out_eps_p_gp = Accelerator::viewInOut(command, m_eps_p_gp);
-    auto in_out_eps_p_zz_gp = Accelerator::viewInOut(command, m_eps_p_zz_gp);
-
     auto in_eps_p_old_gp = Accelerator::viewIn(command, m_eps_p_old_gp);
     auto in_eps_p_zz_old_gp = Accelerator::viewIn(command, m_eps_p_zz_old_gp);
 
@@ -940,12 +936,10 @@ _assembleBilinearOperatorLocalDruckerPrager(bool elastic_assembly)
 
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2) {
-    m_bsr_format.assembleBilinearAtomicFree(
+      m_bsr_format.assembleBilinearAtomicFree(
     [=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) {
       return computeLocalDruckerPragerElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord,
                                                              in_DUn, in_U,
-                                                             in_out_sigma_gp, in_out_sigma_zz_gp,
-                                                             in_out_eps_p_gp, in_out_eps_p_zz_gp,
                                                              in_eps_p_old_gp, in_eps_p_zz_old_gp,
                                                              C_elas_2d,
                                                              in_bulk, in_dpEta, in_dpC, in_mu,
