@@ -86,8 +86,8 @@ RealMatrix<8, 8> FemModuleElastoplasticity::_computeElementMatrixQuad4(Cell cell
       const Real integration_weight = detJ * w * w;
 
       RealMatrix<3, 3> C_tang_2d;
-      for (Int32 ix = 0; ix < 3; ++ix) {
-        for (Int32 iy = 0; iy < 3; ++iy) {
+      for (Int8 ix = 0; ix < 3; ++ix) {
+        for (Int8 iy = 0; iy < 3; ++iy) {
           C_tang_2d(ix, iy) = m_C_tang_gp(cell, iGP, ix, iy);
         }
       }
