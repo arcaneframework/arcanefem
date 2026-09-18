@@ -97,12 +97,6 @@ startInit()
 
   _initConstitutiveLaw();
 
-  // The Drucker-Prager return mapping is currently implemented on the CPU.
-  // BSR may still assemble the matrix on an accelerator, but constitutive,
-  // internal-force, and Dirichlet updates must use their CPU implementations.
-  if (m_constitutive_law == "DruckerPrager")
-    m_use_gpu_functions = false;
-
   _readCaseTables();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
