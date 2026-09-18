@@ -111,7 +111,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/linear-system/max-iter=5000
     -A,//fem/linear-system/atol=1e-12
     -A,//fem/linear-system/rtol=0
-    -A,//fem/petsc-flags=-ksp_view\ -mat_block_size\ 2\ -pc_type\ gamg\ -ksp_initial_guess_nonzero\ true
+    -A,//fem/petsc-flags=-ksp_view\ -mat_block_size\ 2\ -pc_type\ gamg
     )
 
   set(SOLVER_PETSC_DIRECT_GMRES
@@ -119,7 +119,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/linear-system/solver=gmres
     -A,//fem/linear-system/atol=1e-9
     -A,//fem/linear-system/rtol=0
-    -A,//fem/petsc-flags=-ksp_view\ -mat_block_size\ 2\ -pc_type\ gamg\-ksp_initial_guess_nonzero\ true
+    -A,//fem/petsc-flags=-ksp_view\ -mat_block_size\ 2\ -pc_type\ gamg
     )
 
   arcanefem_add_full_test(NAME 2D_Strip_footing_drucker_prager_bsr_petsc-direct
