@@ -1009,7 +1009,7 @@ template <int N>
 void FemModuleElastoplasticity::
 _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
-  const Int32 dim = mesh()->dimension();
+  const Int8 dim = mesh()->dimension();
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
@@ -1021,9 +1021,9 @@ _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>&
       if (node1.isOwn()) {
         Int32 n2_index = 0;
         for (Node node2 : cell.nodes()) {
-          for (Int32 i = 0; i < dim; ++i) {
+          for (Int8 i = 0; i < dim; ++i) {
             DoFLocalId dof1 = node_dof.dofId(node1, i);
-            for (Int32 j = 0; j < dim; ++j) {
+            for (Int8 j = 0; j < dim; ++j) {
               DoFLocalId dof2 = node_dof.dofId(node2, j);
               Real value = K_e(dim * n1_index + i, dim * n2_index + j);
               m_linear_system.matrixAddValue(dof1, dof2, value);

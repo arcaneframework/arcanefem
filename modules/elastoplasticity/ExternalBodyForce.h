@@ -57,8 +57,8 @@ _applyExternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnect
         constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; //(ξ,η)
         constexpr Real weights[2] = { 1.0, 1.0 };
 
-        for (Int32 ixi = 0; ixi < 2; ++ixi) {
-          for (Int32 ieta = 0; ieta < 2; ++ieta) {
+        for (Int8 ixi = 0; ixi < 2; ++ixi) {
+          for (Int8 ieta = 0; ieta < 2; ++ieta) {
 
             // set the coordinates of the Gauss point
             Real xi = gp[ixi]; // Get the ξ coordinate of the Gauss point
@@ -78,7 +78,7 @@ _applyExternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnect
             Real integration_weight = weight * detJ;
 
             // Assemble RHS
-            for (Int32 i = 0; i < 4; ++i) {
+            for (Int8 i = 0; i < 4; ++i) {
               Node node = cell.node(i);
               if (node.isOwn()) {
                 rhs_values[node_dof.dofId(node, 0)] += N[i] * f[0] * integration_weight;
@@ -110,9 +110,9 @@ _applyExternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnect
         constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // [-1/sqrt(3), 1/sqrt(3)]
         constexpr Real weights[2] = { 1.0, 1.0 };
 
-        for (Int32 ixi = 0; ixi < 2; ++ixi) {
-          for (Int32 ieta = 0; ieta < 2; ++ieta) {
-            for (Int32 izeta = 0; izeta < 2; ++izeta) {
+        for (Int8 ixi = 0; ixi < 2; ++ixi) {
+          for (Int8 ieta = 0; ieta < 2; ++ieta) {
+            for (Int8 izeta = 0; izeta < 2; ++izeta) {
 
               // set the coordinates of the Gauss point
               Real xi = gp[ixi];
@@ -133,7 +133,7 @@ _applyExternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnect
               Real integration_weight = detJ * weight;
 
               // Assemble RHS
-              for (Int32 i = 0; i < 8; ++i) {
+              for (Int8 i = 0; i < 8; ++i) {
                 Node node = cell.node(i);
                 if (node.isOwn()) {
                   rhs_values[node_dof.dofId(node, 0)] += N[i] * f[0] * integration_weight;
