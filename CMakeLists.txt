@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21)
+﻿cmake_minimum_required(VERSION 3.21)
 project(ArcaneFem LANGUAGES C CXX)
 
 # A partir de 3.27:
@@ -25,6 +25,8 @@ set(MED_DIR ${CMAKE_SOURCE_DIR}/meshes/med)
 
 # Needed for dynamic loading of services
 set(BUILD_SHARED_LIBS TRUE)
+
+option(ARCANEFEM_ENABLE_ALIEN "Whether to build Alien backend for linear systems" OFF)
 
 add_subdirectory(femutils)
 
@@ -60,3 +62,11 @@ if (Doxygen_FOUND AND TARGET Doxygen::doxygen)
     Doxygen::doxygen ${CMAKE_BINARY_DIR}/share/userdoc.doxyfile
   )
 endif()
+
+
+# ----------------------------------------------------------------------------
+# Local Variables:
+# tab-width: 2
+# indent-tabs-mode: nil
+# coding: utf-8-with-signature
+# End:
