@@ -65,27 +65,30 @@ startInit()
   m_gp_material_tensor_strategy = options()->gpMaterialTensorStrategy();
   m_check_with_bilinear_operator = options()->checkBilinearOperatorForResidual();
 
-  if (m_gp_material_tensor_strategy == "global") {
-    if (mesh()->dimension() == 2) {
-      if (m_hex_quad_mesh)
-        m_nGP = 4;
-      else
-        m_nGP = 1;
+  if (mesh()->dimension() == 2) {
+    if (m_hex_quad_mesh)
+      m_nGP = 4;
+    else
+      m_nGP = 1;
 
+    if (m_gp_material_tensor_strategy == "global")
       m_C_tang_gp.reshape({m_nGP, 3, 3 });
-      m_sigma_gp.reshape({m_nGP, 3});
-      m_sigma_old_gp.reshape({m_nGP, 3});
-      m_sigma_zz_gp.reshape({m_nGP});
-      m_sigma_zz_old_gp.reshape({m_nGP});
-    } else {
-      if (m_hex_quad_mesh)
-        m_nGP = 8;
-      else
-        m_nGP = 1;
+
+    m_sigma_gp.reshape({m_nGP, 3});
+    m_sigma_old_gp.reshape({m_nGP, 3}); // TODO move to von mises only
+    m_sigma_zz_gp.reshape({m_nGP});
+    m_sigma_zz_old_gp.reshape({m_nGP}); // TODO move to von mises only
+  } else {
+    if (m_hex_quad_mesh)
+      m_nGP = 8;
+    else
+      m_nGP = 1;
+
+    if (m_gp_material_tensor_strategy == "global")
       m_C_tang_gp.reshape({ m_nGP, 6, 6 });
-      m_sigma_gp.reshape({m_nGP, 6});
-      m_sigma_old_gp.reshape({m_nGP, 6});
-    }
+
+    m_sigma_gp.reshape({m_nGP, 6});
+    m_sigma_old_gp.reshape({m_nGP, 6});
   }
 
   t = dt;
@@ -93,12 +96,6 @@ startInit()
   m_global_deltat.assign(dt);
 
   _initConstitutiveLaw();
-
-  // The Drucker-Prager return mapping is currently implemented on the CPU.
-  // BSR may still assemble the matrix on an accelerator, but constitutive,
-  // internal-force, and Dirichlet updates must use their CPU implementations.
-  if (m_constitutive_law == "DruckerPrager")
-    m_use_gpu_functions = false;
 
   _readCaseTables();
 
@@ -215,9 +212,6 @@ _initConstitutiveLaw()
   }
 
   if (m_constitutive_law == "VonMises" || m_constitutive_law == "DruckerPrager") {
-    if (m_gp_material_tensor_strategy == "local")
-      ARCANE_FATAL("Local material tensor strategy not supported for plasticity laws");
-
     if (mesh()->dimension() != 2 || m_hex_quad_mesh)
       ARCANE_FATAL("Native von Mises plasticity currently supports only 2D Tria3 elements");
 
@@ -293,21 +287,21 @@ _doStationarySolve()
  * This method follows a sequence of steps to solve FEM system:
  *
  *   1. _getMaterialParameters()     Updates nonlinear material parameters
- *   2. _assembleBilinearOperator()  Assembles the FEM  matrix 𝐀ʹ
- *   3. _assembleLinearOperator()    Assembles the FEM RHS vector 𝐛
- *   4. _solve()                     Solves for solution vector 𝐝𝐮 = 𝐀ʹ⁻¹𝐛
- *   5. _updateNewtonIncrements()    Updates FEM variables 𝐝𝐮 = 𝐱
- *   5. _checkNewtonConvergence()    Check convergence on norm of 𝐝𝐮 /𝐮
- *   6. _validateResults()           Regression test
+ *   2. _restoreConvergedState<law>() Restored the previous converged state
+ *                                    as the starting state for nonlinear solve.
+ *   3. _updateGlobalTangentMaterialTensor<law>() and
+ *      _assembleBilinearOperatorGlobal()
+ *            OR
+ *      _assembleBilinearOperatorLocal<law>() Assembles the FEM  matrix 𝐀ʹ
+ *   4. _assembleLinearOperator()    Assembles the FEM RHS vector 𝐛
+ *   5. _solve()                     Solves for solution vector 𝐝𝐮 = 𝐀ʹ⁻¹𝐛
+ *   6. _updateNewtonIncrements()    Updates FEM variables 𝐝𝐮 = 𝐱
+ *   7. _checkNewtonConvergence()    Check convergence to stop Newton iters
  */
 /*---------------------------------------------------------------------------*/
-
 void FemModuleElastoplasticity::
 _solveNewton()
 {
-  if (!m_assemble_nonlinear_system)
-    return;
-
   info() << "[ArcaneFem-Info] Started module  _solveNewton()";
 
   _getMaterialParameters();
@@ -323,9 +317,24 @@ _solveNewton()
     _restoreConvergedStateDruckerPrager();
   }
 
+  if (m_gp_material_tensor_strategy == "global")
+    _setGlobalElasticMaterialTensorAtGPs();
+
   // --- assemble_linear_system ---- //
   if (m_assemble_linear_system) {
-    _assembleBilinearOperator();
+    if (m_gp_material_tensor_strategy == "global") {
+      _assembleBilinearOperatorGlobal();
+    } else {
+      if (m_constitutive_law == "VonMises") {
+        _assembleBilinearOperatorLocalVonMises(true); //checks law an assembles corresponding matrix
+        _updateStressAndInVarsVonMises();
+      } else if (m_constitutive_law == "DruckerPrager") {
+        _assembleBilinearOperatorLocalDruckerPrager(true);
+        _updateStressAndInVarsDruckerPrager();
+      } else {
+        ARCANE_FATAL("Constitutive law not supported");
+      }
+    }
     _assembleLinearOperator();
   }
 
@@ -348,23 +357,35 @@ _solveNewton()
     // --- update_increment ---- //
     _incrementVariables();
 
-    if (m_constitutive_law == "VonMises") {
-      _updateGlobalTangentMaterialTensorVonMises();
-    } else if (m_constitutive_law == "DruckerPrager") {
-      _updateGlobalTangentMaterialTensorDruckerPrager();
+    if (m_gp_material_tensor_strategy == "global") {
+      if (m_constitutive_law == "VonMises") {
+        _updateGlobalTangentMaterialTensorVonMises();
+      } else if (m_constitutive_law == "DruckerPrager") {
+        _updateGlobalTangentMaterialTensorDruckerPrager();
+      }
     }
 
     // --- assemble_linear_system ---- //
-    if(m_assemble_nonlinear_system) {
-      if (m_linear_system.isInitialized()) {
-        m_linear_system.clearValues();
+    if (m_linear_system.isInitialized()) {
+      m_linear_system.clearValues();
 
-        if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
-          m_bsr_format.resetMatrixValues();
+      if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
+        m_bsr_format.resetMatrixValues();
 
-        _assembleBilinearOperator(); // assembles Jacobian
-        _assembleLinearOperator(); // assembles Residuals(m_DUn) + BCs
+      if (m_gp_material_tensor_strategy == "global") {
+        _assembleBilinearOperatorGlobal(); // assembles Jacobian
+      } else {
+        if (m_constitutive_law == "VonMises"){
+          _assembleBilinearOperatorLocalVonMises(); // assembles Jacobian for Von Mises
+          _updateStressAndInVarsVonMises();
+        } else if (m_constitutive_law == "DruckerPrager") {
+          _assembleBilinearOperatorLocalDruckerPrager(); // assembles Jacobian for Drucker Prager
+          _updateStressAndInVarsDruckerPrager();
+        } else {
+          ARCANE_FATAL("Constitutive law not supported");
+        }
       }
+      _assembleLinearOperator(); // assembles Residuals(m_DUn) + BCs
     }
 
     if (m_newton_iter == 1) {
@@ -380,6 +401,7 @@ _solveNewton()
 
     // --- calculate_and_check_residual ---- //
     _checkNewtonConvergence();
+
   }
 
   if (m_newton_solver_converged) {
@@ -414,7 +436,6 @@ _solveNewton()
 
       VariableDoFReal& algebraic_reaction(m_linear_system.rhsVariable());
       algebraic_reaction.fill(0.);
-      // _applyInternalBodyForce(algebraic_reaction, node_dof);
 
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
@@ -471,12 +492,32 @@ _solveNewton()
   }
 }
 
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Sets the material tensor at Gauss points to Elastic Law.
+ */
+/*---------------------------------------------------------------------------*/
+void FemModuleElastoplasticity::
+_setGlobalElasticMaterialTensorAtGPs()
+{
+  Int8 nDim = (mesh()->dimension() == 2) ? 3 : 6;
+  ENUMERATE_ (Cell, icell, allCells())
+  {
+    Cell cell = *icell;
+    for (Int8 iGP = 0; iGP < m_nGP; ++iGP)
+      for (Int8 ix = 0; ix < nDim; ++ix)
+        for (Int8 iy = 0; iy < nDim; ++iy)
+          m_C_tang_gp(cell, iGP, ix, iy) = m_C_elas_2d(ix, iy); // set tangent C equal to elastic C
+    }
+}
+
+
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Retrieves and sets the material parameters for the simulation.
  */
 /*---------------------------------------------------------------------------*/
-
 void FemModuleElastoplasticity::
 _getMaterialParameters()
 {
@@ -558,18 +599,8 @@ _getMaterialParameters()
       }
 
       // Initialize the tangent material tensor
-      if (m_gp_material_tensor_strategy == "local") {
-        m_C_tang_2d = m_C_elas_2d;
-      } else {
-        ENUMERATE_ (Cell, icell, allCells()) {
-          for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
-            for (Int8 ix = 0; ix < 3; ++ix) {
-              for (Int8 iy = 0; iy < 3; ++iy) {
-                m_C_tang_gp(icell, iGP, ix, iy) = m_C_elas_2d(ix, iy);
-              }
-            }
-          }
-        }
+      if (m_gp_material_tensor_strategy == "global") {
+        _setGlobalElasticMaterialTensorAtGPs();
       }
     } else {
       ARCANE_FATAL("Not implemented for 3D yet");
@@ -598,18 +629,8 @@ _getMaterialParameters()
       m_C_elas_3d(2, 1) = lambda;
 
       // Initialize the tangent material tensor
-      if (m_gp_material_tensor_strategy == "local") {
-        m_C_tang_3d = m_C_elas_3d;
-      } else {
-        ENUMERATE_ (Cell, icell, allCells()) {
-          for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
-            for (Int8 ix = 0; ix < 6; ++ix) {
-              for (Int8 iy = 0; iy < 6; ++iy) {
-                m_C_tang_gp(icell, iGP, ix, iy) = m_C_elas_3d(ix, iy);
-              }
-            }
-          }
-        }
+      if (m_gp_material_tensor_strategy == "global") {
+        _setGlobalElasticMaterialTensorAtGPs();
       }
     }
   }
@@ -659,14 +680,15 @@ _assembleLinearOperator()
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Calls the right function for LHS assembly given as mesh type.
+ * @brief Calls the right function for LHS assembly given as mesh type
+ * following the global material tensor strategy.
  */
 /*---------------------------------------------------------------------------*/
 
 void FemModuleElastoplasticity::
-_assembleBilinearOperator()
+_assembleBilinearOperatorGlobal()
 {
-  info() << "[ArcaneFem-Info] Started module  _assembleBilinearOperator()";
+  info() << "[ArcaneFem-Info] Started module  _assembleBilinearOperatorGlobal()";
   Real elapsedTime = platform::getRealTime();
 
   if (m_matrix_format == "BSR") {
@@ -676,20 +698,15 @@ _assembleBilinearOperator()
     auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
     auto in_C_tang = Accelerator::viewIn(command, m_C_tang_gp);
 
-    auto C_tang_3d = m_C_tang_3d;
-
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2) {
-      if (m_gp_material_tensor_strategy == "local") {
-        ARCANE_FATAL("local GP element matrix assembly strategy not implemented for Tria3 elements");
-      } else {
-        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang); });
-      }
+      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang); });
     }
     else {
-      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, C_tang_3d); });
+      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang); });
     }
     m_bsr_format.toLinearSystem(m_linear_system);
+
   } else if (m_matrix_format == "AF-BSR") {
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();
@@ -697,22 +714,14 @@ _assembleBilinearOperator()
     auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
     auto in_C_tang = Accelerator::viewIn(command, m_C_tang_gp);
 
-    Real lambda_cell = lambda;
-    Real mu_cell = mu;
-    RealVector<2> hooke_params = {lambda_cell, mu_cell};
-    auto C_tang_3d = m_C_tang_3d;
-
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2) {
-      if (m_gp_material_tensor_strategy == "local") {
-        ARCANE_FATAL("local GP element vector assembly strategy not implemented for Tria3 elements");
-      } else {
-        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang, node_lid); });
-      }
+      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang, node_lid); });
     } else {
-      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, C_tang_3d, node_lid); });
+      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang, node_lid); });
     }
     m_bsr_format.toLinearSystem(m_linear_system);
+
   } else if (m_matrix_format == "DOK") {
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {
@@ -737,6 +746,229 @@ _assembleBilinearOperator()
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"lhs-matrix-assembly", elapsedTime);
 }
+/*---------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Calls the right function for LHS assembly for a given mesh type,
+ * it follows the local material tensor strategy for Von Mises Law.
+ */
+/*---------------------------------------------------------------------------*/
+void FemModuleElastoplasticity::
+_assembleBilinearOperatorLocalVonMises(bool elastic_assembly)
+{
+  info() << "[ArcaneFem-Info] Started module  _assembleBilinearOperatorLocalVonMises()";
+  Real elapsedTime = platform::getRealTime();
+
+  if (m_matrix_format == "BSR") {
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cn_cv = m_connectivity_view.cellNode();
+    auto command = makeCommand(acceleratorMng()->defaultQueue());
+
+    auto in_sigma_old_gp = Accelerator::viewIn(command, m_sigma_old_gp);
+    auto in_sigma_zz_old_gp = Accelerator::viewIn(command, m_sigma_zz_old_gp);
+    auto in_p_old_gp = Accelerator::viewIn(command, m_p_old_gp);
+
+    auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
+    auto in_DUn = Accelerator::viewIn(command, m_DUn);
+
+    auto C_elas_2d = m_C_elas_2d;
+    auto in_sig0 = sig0;
+    auto in_H = H;
+    auto in_mu = mu;
+    auto assemble_elastic = elastic_assembly;
+
+    m_bsr_format.computeSparsity();
+    if (mesh()->dimension() == 2) {
+      m_bsr_format.assembleBilinearAtomic(
+      [=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) {
+        return computeLocalVonMisesElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_DUn,
+                                                         in_sigma_old_gp, in_sigma_zz_old_gp,
+                                                         in_p_old_gp,
+                                                         C_elas_2d, in_sig0,
+                                                         in_H, in_mu,
+                                                         assemble_elastic); });
+    }
+    else {
+      // m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang); });
+      ARCANE_FATAL("3D not supported");
+    }
+    m_bsr_format.toLinearSystem(m_linear_system);
+  }
+  else if (m_matrix_format == "AF-BSR") {
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cn_cv = m_connectivity_view.cellNode();
+    auto command = makeCommand(acceleratorMng()->defaultQueue());
+
+    auto in_sigma_old_gp = Accelerator::viewIn(command, m_sigma_old_gp);
+    auto in_sigma_zz_old_gp = Accelerator::viewIn(command, m_sigma_zz_old_gp);
+    auto in_p_old_gp = Accelerator::viewIn(command, m_p_old_gp);
+
+    auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
+    auto in_DUn = Accelerator::viewIn(command, m_DUn);
+
+    auto C_elas_2d = m_C_elas_2d;
+    auto in_sig0 = sig0;
+    auto in_H = H;
+    auto in_mu = mu;
+    auto assemble_elastic = elastic_assembly;
+
+    m_bsr_format.computeSparsity();
+    if (mesh()->dimension() == 2) {
+      m_bsr_format.assembleBilinearAtomicFree(
+    [=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) {
+      return computeLocalVonMisesElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_DUn,
+                                                       in_sigma_old_gp, in_sigma_zz_old_gp,
+                                                       in_p_old_gp,
+                                                       C_elas_2d, in_sig0,
+                                                       in_H, in_mu,
+                                                       assemble_elastic,
+                                                       node_lid); });
+  } else {
+      ARCANE_FATAL("3D not supported");
+      // m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang, node_lid); });
+    }
+    m_bsr_format.toLinearSystem(m_linear_system);
+
+  } else if (m_matrix_format == "DOK") {
+    if (mesh()->dimension() == 2) {
+      if (m_hex_quad_mesh) {
+        ARCANE_FATAL("Unsupported 2D quad DOK for local assembly");
+        // _assembleBilinearOperatorCpu<8>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+      }
+      else {
+        _assembleBilinearOperatorCpu<6>([&](const Cell& cell) { return _computeLocalVonMisesElementMatrixTria3Cpu(cell, elastic_assembly); });
+      }
+    }
+    if (mesh()->dimension() == 3) {
+      if (m_hex_quad_mesh) {
+        ARCANE_FATAL("Unsupported 3D hexa DOK type for local assembly");
+        // _assembleBilinearOperatorCpu<24>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
+      }
+      else {
+        ARCANE_FATAL("Unsupported 3D tetra DOK for local assembly");
+        // _assembleBilinearOperatorCpu<12>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
+      }
+    }
+  } else {
+    ARCANE_FATAL("Unsupported matrix type, only DOK| BSR|AF-BSR is supported.");
+  }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "lhs-matrix-assembly", elapsedTime);
+}
+/*---------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Calls the right function for LHS assembly for a given mesh type,
+ * it follows the local material tensor strategy for Drucker Prager Law.
+ */
+/*---------------------------------------------------------------------------*/
+void FemModuleElastoplasticity::
+_assembleBilinearOperatorLocalDruckerPrager(bool elastic_assembly)
+{
+  info() << "[ArcaneFem-Info] Started module  _assembleBilinearOperatorLocalDruckerPrager()";
+  Real elapsedTime = platform::getRealTime();
+
+  if (m_matrix_format == "BSR") {
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cn_cv = m_connectivity_view.cellNode();
+    auto command = makeCommand(acceleratorMng()->defaultQueue());
+
+    auto in_eps_p_old_gp = Accelerator::viewIn(command, m_eps_p_old_gp);
+    auto in_eps_p_zz_old_gp = Accelerator::viewIn(command, m_eps_p_zz_old_gp);
+
+    auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
+    auto in_DUn = Accelerator::viewIn(command, m_DUn);
+    auto in_U = Accelerator::viewIn(command, m_U);
+
+    auto C_elas_2d = m_C_elas_2d;
+    auto in_bulk = bulk;
+    auto in_dpEta = dpEta;
+    auto in_dpC = dpC;
+    auto in_mu = mu;
+    auto assemble_elastic = elastic_assembly;
+
+    m_bsr_format.computeSparsity();
+    if (mesh()->dimension() == 2) {
+      m_bsr_format.assembleBilinearAtomic(
+    [=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) {
+      return computeLocalDruckerPragerElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord,
+                                                             in_DUn, in_U,
+                                                             in_eps_p_old_gp, in_eps_p_zz_old_gp,
+                                                             C_elas_2d,
+                                                             in_bulk, in_dpEta, in_dpC, in_mu,
+                                                             assemble_elastic); });
+    } else {
+      // m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang); });
+      ARCANE_FATAL("3D not supported");
+    }
+    m_bsr_format.toLinearSystem(m_linear_system);
+  } else if (m_matrix_format == "AF-BSR") {
+    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+    auto cn_cv = m_connectivity_view.cellNode();
+    auto command = makeCommand(acceleratorMng()->defaultQueue());
+
+    auto in_eps_p_old_gp = Accelerator::viewIn(command, m_eps_p_old_gp);
+    auto in_eps_p_zz_old_gp = Accelerator::viewIn(command, m_eps_p_zz_old_gp);
+
+    auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
+    auto in_DUn = Accelerator::viewIn(command, m_DUn);
+    auto in_U = Accelerator::viewIn(command, m_U);
+
+    auto C_elas_2d = m_C_elas_2d;
+    auto in_bulk = bulk;
+    auto in_dpEta = dpEta;
+    auto in_dpC = dpC;
+    auto in_mu = mu;
+    auto assemble_elastic = elastic_assembly;
+
+    m_bsr_format.computeSparsity();
+    if (mesh()->dimension() == 2) {
+      m_bsr_format.assembleBilinearAtomicFree(
+    [=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) {
+      return computeLocalDruckerPragerElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord,
+                                                             in_DUn, in_U,
+                                                             in_eps_p_old_gp, in_eps_p_zz_old_gp,
+                                                             C_elas_2d,
+                                                             in_bulk, in_dpEta, in_dpC, in_mu,
+                                                             assemble_elastic, node_lid); });
+    } else {
+      ARCANE_FATAL("3D not supported");
+      // m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang, node_lid); });
+    }
+    m_bsr_format.toLinearSystem(m_linear_system);
+  }
+  else if (m_matrix_format == "DOK") {
+    if (mesh()->dimension() == 2) {
+      if (m_hex_quad_mesh) {
+        ARCANE_FATAL("Unsupported 2D quad DOK for local assembly");
+        // _assembleBilinearOperatorCpu<8>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+      }
+      else {
+        _assembleBilinearOperatorCpu<6>([&](const Cell& cell) { return _computeLocalDruckerPragerElementMatrixTria3Cpu(cell, elastic_assembly); });
+      }
+    }
+    if (mesh()->dimension() == 3) {
+      if (m_hex_quad_mesh) {
+        ARCANE_FATAL("Unsupported 3D hexa DOK type for local assembly");
+        // _assembleBilinearOperatorCpu<24>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
+      }
+      else {
+        ARCANE_FATAL("Unsupported 3D tetra DOK for local assembly");
+        // _assembleBilinearOperatorCpu<12>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
+      }
+    }
+  }
+  else {
+    ARCANE_FATAL("Unsupported matrix type, only DOK| BSR|AF-BSR is supported.");
+  }
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "lhs-matrix-assembly", elapsedTime);
+}
+/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -755,7 +987,7 @@ template <int N>
 void FemModuleElastoplasticity::
 _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix)
 {
-  const Int32 dim = mesh()->dimension();
+  const Int8 dim = mesh()->dimension();
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   ENUMERATE_ (Cell, icell, allCells()) {
@@ -767,9 +999,9 @@ _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>&
       if (node1.isOwn()) {
         Int32 n2_index = 0;
         for (Node node2 : cell.nodes()) {
-          for (Int32 i = 0; i < dim; ++i) {
+          for (Int8 i = 0; i < dim; ++i) {
             DoFLocalId dof1 = node_dof.dofId(node1, i);
-            for (Int32 j = 0; j < dim; ++j) {
+            for (Int8 j = 0; j < dim; ++j) {
               DoFLocalId dof2 = node_dof.dofId(node2, j);
               Real value = K_e(dim * n1_index + i, dim * n2_index + j);
               m_linear_system.matrixAddValue(dof1, dof2, value);
@@ -802,8 +1034,12 @@ _solve()
 }
 
 /*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Validates the result against a provided solution in a .txt file.
+ */
+/*---------------------------------------------------------------------------*/
 void FemModuleElastoplasticity::
 _validateResults()
 {
@@ -824,6 +1060,7 @@ _validateResults()
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"result-validation", elapsedTime);
 }
+/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 /*
@@ -833,7 +1070,6 @@ _validateResults()
   * them in a list for later use.
   */
 /*---------------------------------------------------------------------------*/
-
 void FemModuleElastoplasticity::
 _readCaseTables()
 {
@@ -1018,7 +1254,16 @@ _checkNewtonConvergence()
     elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "check-newton-convergence", elapsedTime);
 }
+/*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Evaluates L2 norm of Real3 FEM Variables
+ *
+ * This method evaluates L2 norm of Real3 FEM Variables
+ *
+ */
+/*---------------------------------------------------------------------------*/
 inline Real FemModuleElastoplasticity::
 _normL2(VariableNodeReal3& u) {
   Real l2_norm_u = 0.0;
@@ -1033,7 +1278,16 @@ _normL2(VariableNodeReal3& u) {
 
   return math::sqrt(l2_norm_u);
 }
+/*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Evaluates L2 norm of Dof a variable
+ *
+ * This method evaluates L2 norm of a Dof variable
+ *
+ */
+/*---------------------------------------------------------------------------*/
 inline Real FemModuleElastoplasticity::
 _normL2(VariableDoFReal& u, const IndexedNodeDoFConnectivityView& node_dof) {
   Real l2_norm_u = 0.0;
@@ -1056,7 +1310,16 @@ _normL2(VariableDoFReal& u, const IndexedNodeDoFConnectivityView& node_dof) {
   l2_norm_u = pm->reduce(Parallel::ReduceSum, l2_norm_u);
   return math::sqrt(l2_norm_u);
 }
+/*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Evaluates L1 norm of Dof a variable
+ *
+ * This method evaluates L1 norm of a Dof variable
+ *
+ */
+/*---------------------------------------------------------------------------*/
 inline Real FemModuleElastoplasticity::
 _normL1(VariableDoFReal& u, const IndexedNodeDoFConnectivityView& node_dof) {
   Real l1_norm_u = 0.0;

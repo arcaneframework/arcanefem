@@ -58,6 +58,7 @@ _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView
                               : constantTraction(ArcaneFemFunctions::BoundaryConditions3D::applyTractionToRhsTetra4);
     }
   }
+  ++boundary_condition_index;
 }
 
 
@@ -74,7 +75,7 @@ _applyPressureTableToRhsTria3(BC::ITractionBoundaryCondition* bs, const Real t, 
 
   if (getTractionFromTable) {
 
-    const Arcane::FemUtils::CaseTableInfo& case_table_info = traction_case_table_list[boundary_condition_index++];
+    const Arcane::FemUtils::CaseTableInfo& case_table_info = traction_case_table_list[boundary_condition_index];
     applyTraction = true;
 
     CaseTable* ct = case_table_info.case_table;
