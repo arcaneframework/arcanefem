@@ -862,7 +862,7 @@ _assembleBilinearOperatorLocalVonMises(bool elastic_assembly)
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Calls the right function for LHS assembly for a given mesh type,
- * it follows the local material tensor strategy for Von Mises Law.
+ * it follows the local material tensor strategy for Drucker Prager Law.
  */
 /*---------------------------------------------------------------------------*/
 void FemModuleElastoplasticity::
@@ -1034,8 +1034,12 @@ _solve()
 }
 
 /*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Validates the result against a provided solution in a .txt file.
+ */
+/*---------------------------------------------------------------------------*/
 void FemModuleElastoplasticity::
 _validateResults()
 {
@@ -1056,6 +1060,7 @@ _validateResults()
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"result-validation", elapsedTime);
 }
+/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 /*
@@ -1065,7 +1070,6 @@ _validateResults()
   * them in a list for later use.
   */
 /*---------------------------------------------------------------------------*/
-
 void FemModuleElastoplasticity::
 _readCaseTables()
 {
@@ -1250,7 +1254,16 @@ _checkNewtonConvergence()
     elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "check-newton-convergence", elapsedTime);
 }
+/*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Evaluates L2 norm of Real3 FEM Variables
+ *
+ * This method evaluates L2 norm of Real3 FEM Variables
+ *
+ */
+/*---------------------------------------------------------------------------*/
 inline Real FemModuleElastoplasticity::
 _normL2(VariableNodeReal3& u) {
   Real l2_norm_u = 0.0;
@@ -1265,7 +1278,16 @@ _normL2(VariableNodeReal3& u) {
 
   return math::sqrt(l2_norm_u);
 }
+/*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Evaluates L2 norm of Dof a variable
+ *
+ * This method evaluates L2 norm of a Dof variable
+ *
+ */
+/*---------------------------------------------------------------------------*/
 inline Real FemModuleElastoplasticity::
 _normL2(VariableDoFReal& u, const IndexedNodeDoFConnectivityView& node_dof) {
   Real l2_norm_u = 0.0;
@@ -1288,7 +1310,16 @@ _normL2(VariableDoFReal& u, const IndexedNodeDoFConnectivityView& node_dof) {
   l2_norm_u = pm->reduce(Parallel::ReduceSum, l2_norm_u);
   return math::sqrt(l2_norm_u);
 }
+/*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Evaluates L1 norm of Dof a variable
+ *
+ * This method evaluates L1 norm of a Dof variable
+ *
+ */
+/*---------------------------------------------------------------------------*/
 inline Real FemModuleElastoplasticity::
 _normL1(VariableDoFReal& u, const IndexedNodeDoFConnectivityView& node_dof) {
   Real l1_norm_u = 0.0;

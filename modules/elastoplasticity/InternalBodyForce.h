@@ -21,7 +21,6 @@
  * @param node_dof The connectivity view mapping nodes to their corresponding
  */
 /*---------------------------------------------------------------------------*/
-
 inline void FemModuleElastoplasticity::
 _applyInternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
@@ -60,10 +59,12 @@ _applyInternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnect
     }
   }
 }
+/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Computes the element matrix for a triangular element (ℙ1 FE).
+ * @brief Computes rhs vector components corresponding to integration of the
+ *        internal force for a triangular element (ℙ1 FE).
  *
  * Theory:
  *
@@ -84,7 +85,6 @@ _applyInternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnect
  *
  */
 /*---------------------------------------------------------------------------*/
-
 ARCCORE_HOST_DEVICE inline RealVector<6>
 computeInternalBodyForceTria3Base(Real3 dxu,
                                           Real3 dyu,
@@ -101,7 +101,16 @@ computeInternalBodyForceTria3Base(Real3 dxu,
 
   return rhs;
 }
+/*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/**
+* @brief Evaluates and assembles the rhs vector components corresponding
+*        to integration of the internal force for a triangular element (ℙ1 FE)
+*        using CPUs.
+*
+*/
+/*---------------------------------------------------------------------------*/
 inline void FemModuleElastoplasticity::
 _applyInternalBodyForceTria3Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
@@ -128,7 +137,16 @@ _applyInternalBodyForceTria3Cpu(VariableDoFReal& rhs_values, const IndexedNodeDo
     rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(5);
   }
 }
+/*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/**
+* @brief Evaluates and assembles the rhs vector components corresponding
+*        to integration of the internal force for a triangular element (ℙ1 FE)
+*        using GPUs.
+*
+*/
+/*---------------------------------------------------------------------------*/
 inline void FemModuleElastoplasticity::
 _applyInternalBodyForceTria3Gpu(VariableDoFReal& rhs_values,
                                         const FemDoFsOnNodes& dofs_on_nodes,
