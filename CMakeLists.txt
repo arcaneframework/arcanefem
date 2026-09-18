@@ -8,6 +8,12 @@ if(POLICY CMP0144)
 endif()
 
 find_package(Arcane 3.14.14 REQUIRED)
+
+# Load Arccon to make sure ArcaneFem is used the same
+# configuration packages than Arcane
+find_package(Arccon REQUIRED)
+list(APPEND CMAKE_MODULE_PATH ${ARCCON_MODULE_PATH})
+
 find_package(MEDFile)
 arcane_accelerator_enable()
 
