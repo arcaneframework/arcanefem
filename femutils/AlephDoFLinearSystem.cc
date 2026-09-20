@@ -49,11 +49,10 @@ enum class eSolverBackend
 
 namespace Arcane::FemUtils
 {
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-class AlephDoFLinearSystemImpl
-: public DoFLinearSystemImplBase
+
+class DoKMatrix
 {
+ public:
 
   /*!
    * \brief Map to store values by Row/Column.
@@ -63,6 +62,38 @@ class AlephDoFLinearSystemImpl
    */
   using RowColumnMap = OrderedRowColumnMap;
   using RowColumn = RowColumnMap::RowColumn;
+
+ public:
+
+  void addValue(Int32 row, Int32 column, Real value)
+  {
+    m_values_map.addValue({ row, column }, value);
+  };
+  void setValue(Int32 row, Int32 column, Real value)
+  {
+    m_forced_set_values_map.setValue({ row, column }, value);
+  };
+  void clearValues()
+  {
+    m_values_map.clear();
+    m_forced_set_values_map.clear();
+  }
+
+ public:
+
+  //! List of (i,j) values added to the matrix
+  RowColumnMap m_values_map;
+  //! List of (i,j) whose value is fixed. This will override added values in m_values_map.
+  RowColumnMap m_forced_set_values_map;
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+class AlephDoFLinearSystemImpl
+: public DoFLinearSystemImplBase
+{
+  using RowColumn = DoKMatrix::RowColumn;
 
  public:
 
@@ -130,8 +161,7 @@ class AlephDoFLinearSystemImpl
       ARCANE_FATAL("Column is null");
     if (value == 0.0)
       return;
-    RowColumn rc{ row.localId(), column.localId() };
-    m_values_map.addValue(rc, value);
+    m_dok_matrix.addValue(row.localId(), column.localId(), value);
   }
 
   void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value) override
@@ -140,7 +170,7 @@ class AlephDoFLinearSystemImpl
       ARCANE_FATAL("Row is null");
     if (column.isNull())
       ARCANE_FATAL("Column is null");
-    m_forced_set_values_map[{ row.localId(), column.localId() }] = value;
+    m_dok_matrix.setValue(row.localId(), column.localId(), value);
   }
 
   void eliminateRow(DoFLocalId row, Real value) override
@@ -178,8 +208,7 @@ class AlephDoFLinearSystemImpl
   {
     info() << "[Aleph] Clear values of current solver";
     DoFLinearSystemImplBase::clearValues();
-    m_values_map.clear();
-    m_forced_set_values_map.clear();
+    m_dok_matrix.clearValues();
     _computeMatrixInfo();
   }
 
@@ -203,10 +232,9 @@ class AlephDoFLinearSystemImpl
   AlephVector* m_aleph_solution_vector = nullptr;
   AlephParams* m_aleph_params = nullptr;
   eSolverBackend m_solver_backend = eSolverBackend::Hypre;
-  //! List of (i,j) values added to the matrix
-  RowColumnMap m_values_map;
-  //! List of (i,j) whose value is fixed. This will override added values in m_values_map.
-  RowColumnMap m_forced_set_values_map;
+
+  //! Container to store matrix values
+  DoKMatrix m_dok_matrix;
 
   //! True to print matrix values during filling
   bool m_do_print_filling = true;
@@ -218,6 +246,7 @@ class AlephDoFLinearSystemImpl
 
   AlephParams* _createAlephParam() const;
   void _applyMatrixTransformationAndFillAlephMatrix();
+  template <typename Lambda> void _visitDoKMatrix(const Lambda& func);
   void _fillRHSVector();
   void _fillSolutionVector();
   void _applyRHSTransformation();
@@ -287,7 +316,7 @@ _fillRowColumnEliminationInfos()
   auto& dof_elimination_info = getEliminationInfo();
   auto& dof_elimination_value = getEliminationValue();
 
-  for (const auto& rc_value : m_values_map) {
+  for (const auto& rc_value : m_dok_matrix.m_values_map) {
     RowColumn rc = rc_value.first;
     Real value = rc_value.second;
     DoF dof_row = item_list_view[rc.row_id];
@@ -295,15 +324,17 @@ _fillRowColumnEliminationInfos()
     Byte row_elimination_info = dof_elimination_info[dof_row];
     Byte column_elimination_info = dof_elimination_info[dof_column];
     if (row_elimination_info == ELIMINATE_ROW_COLUMN || column_elimination_info == ELIMINATE_ROW_COLUMN)
-      rc_elimination_map[{ rc.row_id, rc.column_id }] = value;
+      rc_elimination_map.setValue({ rc.row_id, rc.column_id }, value);
   }
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
-void AlephDoFLinearSystemImpl::
-_applyMatrixTransformationAndFillAlephMatrix()
+/*!
+ * \brief Visit all the non zero elements of the matrix and apply \a func
+ */
+template <typename Lambda> void AlephDoFLinearSystemImpl::
+_visitDoKMatrix(const Lambda& func)
 {
   _fillRowColumnEliminationInfos();
   OrderedRowColumnMap& rc_elimination_map = _rowColumnEliminationMap();
@@ -316,7 +347,7 @@ _applyMatrixTransformationAndFillAlephMatrix()
 
   // Fill the matrix from the values of \a m_values_map
   // Skip (row,column) values which are part of an elimination.
-  for (const auto& rc_value : m_values_map) {
+  for (const auto& rc_value : m_dok_matrix.m_values_map) {
     RowColumn rc = rc_value.first;
     Real value = rc_value.second;
     DoF dof_row = item_list_view[rc.row_id];
@@ -331,14 +362,14 @@ _applyMatrixTransformationAndFillAlephMatrix()
       continue;
 
     // Check if value is forced for current RowColumn
-    auto x = m_forced_set_values_map.find(rc);
-    if (x != m_forced_set_values_map.end()) {
+    auto x = m_dok_matrix.m_forced_set_values_map.find(rc);
+    if (x != m_dok_matrix.m_forced_set_values_map.end()) {
       info(4) << "FORCED VALUE R=" << rc.row_id << " C=" << rc.column_id
               << " old=" << value << " new=" << x->second;
       value = x->second;
     }
 
-    _setMatrixValue(dof_row, dof_column, value);
+    func(dof_row, dof_column, value);
   }
 
   const bool do_print_filling = m_do_print_filling;
@@ -355,10 +386,81 @@ _applyMatrixTransformationAndFillAlephMatrix()
       if (do_print_filling)
         info() << "EliminateMatrix info=" << static_cast<int>(elimination_info) << " row="
                << std::setw(4) << dof.localId() << " value=" << elimination_value;
-      _setMatrixValue(dof, dof, 1.0);
+      func(dof, dof, 1.0);
     }
   }
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void AlephDoFLinearSystemImpl::
+_applyMatrixTransformationAndFillAlephMatrix()
+{
+  // We provide two ways to fill the Aleph matrix.
+  // The first one (currently the default) fill the matrix using the DoK Matrix.
+  // The second one converts the DoKMatrix to a CSR Matrix then fill the Aleph Matrix.
+  // The second one will be used if we want to directly call other linear solver
+  // like PETSc or Hypre when using a DoK Matrix.
+  bool do_with_csr = false;
+  if (do_with_csr) {
+    IItemFamily* dof_family = dofFamily();
+    Int32 nb_row = dof_family->maxLocalId();
+    DoFInfoListView item_list_view(dof_family);
+
+    UniqueArray<Int32> csr_matrix_nb_row(nb_row, 0);
+    Int32 nb_value = 0;
+    auto count_row = [&](DoF row, DoF, Real) {
+      ++csr_matrix_nb_row[row.localId()];
+      ++nb_value;
+    };
+    _visitDoKMatrix(count_row);
+
+    // Now we know the number of columns per row and total number of non zeros.
+    UniqueArray<Real> csr_matrix_values(nb_value);
+    UniqueArray<Int32> csr_matrix_column_indexes(nb_value);
+    UniqueArray<Int32> csr_row_indexes(nb_row + 1);
+    Int32 current_index = 0;
+    for (Int32 i = 0; i < nb_row; ++i) {
+      csr_row_indexes[i] = current_index;
+      //info() << "ROW i=" << i << " nb_row=" << csr_matrix_nb_row[i] << " index=" << csr_row_indexes[i];
+      current_index += csr_matrix_nb_row[i];
+    }
+    csr_row_indexes[nb_row] = current_index;
+
+    // Fill the column indexes and the values of the CSR Matrix
+    UniqueArray<Int32> work_nb_value_per_row(nb_row, 0);
+    auto set_csr_matrix_value = [&](DoF row, DoF column, Real value) {
+      Int32 row_id = row.localId();
+      Int32 index = csr_row_indexes[row_id] + work_nb_value_per_row[row_id];
+      //info() << "SET_VALUE (" << row_id << ", " << column.localId() << ") = " << value << " index=" << index;
+      csr_matrix_column_indexes[index] = column.localId();
+      csr_matrix_values[index] = value;
+      ++work_nb_value_per_row[row_id];
+    };
+    _visitDoKMatrix(set_csr_matrix_value);
+
+    // Fill the Aleph Matrix
+    for (Int32 row_id = 0; row_id < nb_row; ++row_id) {
+      Int32 index = csr_row_indexes[row_id];
+      Int32 nb_column = csr_row_indexes[row_id + 1] - index;
+      //info() << "ROW=" << row_id << " NB_COLUMN=" << nb_column;
+      for (Int32 j = 0; j < nb_column; ++j) {
+        Int32 column_id = csr_matrix_column_indexes[index + j];
+        Real value = csr_matrix_values[index + j];
+        //info() << "ROW_ID=" << row_id << " column=" << column_id << " value=" << value;
+        _setMatrixValue(item_list_view[row_id], item_list_view[column_id], value);
+      }
+    }
+  }
+  else {
+    auto set_matrix_value = [&](DoF row, DoF column, Real value) {
+      _setMatrixValue(row, column, value);
+    };
+    _visitDoKMatrix(set_matrix_value);
+  }
+}
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 

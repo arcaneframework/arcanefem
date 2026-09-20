@@ -222,7 +222,7 @@ _fillRowColumnEliminationInfos()
         Byte column_elimination_info = dof_elimination_info[dof_column];
         if (row_elimination_info == ELIMINATE_ROW_COLUMN || column_elimination_info == ELIMINATE_ROW_COLUMN) {
           Real value = csr_view.value(csr_index);
-          rc_elimination_map[{ i, col_index }] = value;
+          rc_elimination_map.setValue({ i, col_index }, value);
         }
       }
     }
