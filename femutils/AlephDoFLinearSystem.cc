@@ -89,69 +89,27 @@ class DoKMatrix
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
-class AlephDoFLinearSystemImpl
+/*!
+ * \brief Linear system implementation using a DoF matrix.
+ */
+class DoKDoFLinearSystemImpl
 : public DoFLinearSystemImplBase
 {
   using RowColumn = DoKMatrix::RowColumn;
 
  public:
 
-  // TODO: do not use subDomain() but we need to modify aleph before
-  AlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
+  DoKDoFLinearSystemImpl(IItemFamily* dof_family, const String& solver_name)
   : DoFLinearSystemImplBase(dof_family, solver_name)
-  , m_sub_domain(sd)
-  , m_dof_matrix_indexes(VariableBuildInfo(dof_family, solver_name + "DoFMatrixIndexes"))
-  {
-    info() << "Creating AlephDoFLinearSystemImpl()";
-  }
-
-  ~AlephDoFLinearSystemImpl() override
-  {
-#ifdef FEMUTILS_HAS_PETSC
-    // Aleph initializes PETSc, but currently does not call PetscFinalize().
-    // PETSc normally prints -log_view during PetscFinalize(), so explicitly
-    // process the log-view option while Aleph's PETSc communicator is valid.
-    if (m_solver_backend == eSolverBackend::Petsc) {
-      PetscBool is_initialized = PETSC_FALSE;
-      PetscBool is_finalized = PETSC_FALSE;
-
-      // Fetch PETSc initialization and finalization status
-      PetscCallAbort(PETSC_COMM_WORLD, PetscInitialized(&is_initialized));
-      PetscCallAbort(PETSC_COMM_WORLD, PetscFinalized(&is_finalized));
-      if (is_initialized && !is_finalized)
-        PetscCallAbort(PETSC_COMM_WORLD, PetscLogViewFromOptions());
-    }
-#endif
-    delete m_aleph_params;
-    if (m_need_destroy_matrix_and_vector){
-      delete m_aleph_matrix;
-      delete m_aleph_rhs_vector;
-      delete m_aleph_solution_vector;
-    }
-    // Doit être fait dans Arcane
-    // delete m_aleph_kernel->factory();
-    delete m_aleph_kernel;
-  }
+  {}
 
  public:
 
-  void build()
+  void clearValues() override
   {
-    _computeMatrixInfo();
-    m_aleph_params = _createAlephParam();
     DoFLinearSystemImplBase::clearValues();
+    m_dok_matrix.clearValues();
   }
-
-  AlephParams* params() const { return m_aleph_params; }
-
-  void setSolverBackend(eSolverBackend v) { m_solver_backend = v; }
-
- private:
-
-  void _computeMatrixInfo();
-
- public:
 
   void matrixAddValue(DoFLocalId row, DoFLocalId column, Real value) override
   {
@@ -191,122 +149,31 @@ class AlephDoFLinearSystemImpl
     info() << "EliminateRowColumn row=" << row.localId() << " v=" << value;
   }
 
-  void applyMatrixTransformation() override;
   void applyRHSTransformation() override;
-  void solve() override;
 
-  void setSolverCommandLineArguments(const CommandLineArguments& args) override
-  {
-#if ARCANE_VERSION >= 31002
-    m_aleph_kernel->solverInitializeArgs().setCommandLineArguments(args);
-#else
-    pwarning() << "Call to setSolverCommandLineArguments() is not used because version of Arcane is too old (3.10.2+ required)";
-#endif
-  }
+  template <typename Lambda>
+  void visitDoKMatrix(const Lambda& func);
 
-  void clearValues() override
-  {
-    info() << "[Aleph] Clear values of current solver";
-    DoFLinearSystemImplBase::clearValues();
-    m_dok_matrix.clearValues();
-    _computeMatrixInfo();
-  }
-
-  void setCSRValues(const CSRFormatView& csr_view) override
-  {
-    ARCANE_THROW(NotImplementedException,"");
-  }
-  CSRFormatView& getCSRValues() override
-  {
-    ARCANE_THROW(NotImplementedException, "");
-  }
-  bool hasSetCSRValues() const override { return false; }
+  void setPrintFilling(bool v) { m_do_print_filling = v; }
 
  private:
-
-  ISubDomain* m_sub_domain = nullptr;
-  VariableDoFInt32 m_dof_matrix_indexes;
-  AlephKernel* m_aleph_kernel = nullptr;
-  AlephMatrix* m_aleph_matrix = nullptr;
-  AlephVector* m_aleph_rhs_vector = nullptr;
-  AlephVector* m_aleph_solution_vector = nullptr;
-  AlephParams* m_aleph_params = nullptr;
-  eSolverBackend m_solver_backend = eSolverBackend::Hypre;
 
   //! Container to store matrix values
   DoKMatrix m_dok_matrix;
 
-  //! True to print matrix values during filling
-  bool m_do_print_filling = true;
+ private:
 
-  //! True is we need to manually destroy the matrix/vector
-  bool m_need_destroy_matrix_and_vector = true;
+  bool m_do_print_filling = false;
 
  private:
 
-  AlephParams* _createAlephParam() const;
-  void _applyMatrixTransformationAndFillAlephMatrix();
-  template <typename Lambda> void _visitDoKMatrix(const Lambda& func);
-  void _fillRHSVector();
-  void _fillSolutionVector();
-  void _applyRHSTransformation();
-  void _setMatrixValue(DoF row, DoF column, Real value)
-  {
-    if (m_do_print_filling)
-      info() << "SET MATRIX VALUE (" << std::setw(4) << row.localId()
-             << "," << std::setw(4) << column.localId() << ")"
-             << " v=" << std::setw(25) << value;
-    VariableDoFReal& solution_variable = solutionVariable();
-    m_aleph_matrix->setValue(solution_variable, row, solution_variable, column, value);
-  }
   void _fillRowColumnEliminationInfos();
-  void _createRHSAndSolutionVector();
 };
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-class AlephDoFLinearSystemFactoryService
-: public ArcaneAlephDoFLinearSystemFactoryObject
-{
- public:
-
-  explicit AlephDoFLinearSystemFactoryService(const ServiceBuildInfo& sbi)
-  : ArcaneAlephDoFLinearSystemFactoryObject(sbi)
-  {
-  }
-
-  IDoFLinearSystemImpl*
-  createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
-  {
-    auto* x = new AlephDoFLinearSystemImpl(sd, dof_family, solver_name);
-    x->setSolverBackend(options()->solverBackend());
-
-    x->build();
-
-    auto* p = x->params();
-    p->setEpsilon(options()->epsilon());
-    p->setPrecond(options()->preconditioner());
-    p->setMethod(options()->solverMethod());
-
-    return x;
-  }
-};
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-extern "C++" IDoFLinearSystemImpl*
-createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
-{
-  auto* x = new AlephDoFLinearSystemImpl(sd, dof_family, solver_name);
-  x->build();
-  return x;
-}
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void AlephDoFLinearSystemImpl::
+void DoKDoFLinearSystemImpl::
 _fillRowColumnEliminationInfos()
 {
   OrderedRowColumnMap& rc_elimination_map = _rowColumnEliminationMap();
@@ -330,11 +197,46 @@ _fillRowColumnEliminationInfos()
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+
+void DoKDoFLinearSystemImpl::
+applyRHSTransformation()
+{
+  const bool do_print_filling = m_do_print_filling;
+
+  // Apply Row+Column elimination
+  // Phase 1:
+  // - subtract values of the RHS vector if Row+Column elimination
+  _applyRowColumnEliminationToRHS(do_print_filling);
+
+  IItemFamily* dof_family = dofFamily();
+
+  auto& dof_elimination_info = getEliminationInfo();
+  auto& dof_elimination_value = getEliminationValue();
+  auto& rhs_variable = rhsVariable();
+
+  // Apply Row or Row+Column elimination on RHS
+  ENUMERATE_ (DoF, idof, dof_family->allItems()) {
+    DoF dof = *idof;
+    if (!dof.isOwn())
+      continue;
+    Byte elimination_info = dof_elimination_info[dof];
+    if (elimination_info == ELIMINATE_ROW || elimination_info == ELIMINATE_ROW_COLUMN) {
+      Real elimination_value = dof_elimination_value[dof];
+      rhs_variable[dof] = elimination_value;
+      if (do_print_filling)
+        info() << "EliminateRHS info=" << static_cast<int>(elimination_info) << " row="
+               << std::setw(4) << dof.localId() << " value=" << elimination_value;
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 /*!
  * \brief Visit all the non zero elements of the matrix and apply \a func
  */
-template <typename Lambda> void AlephDoFLinearSystemImpl::
-_visitDoKMatrix(const Lambda& func)
+template <typename Lambda> void DoKDoFLinearSystemImpl::
+visitDoKMatrix(const Lambda& func)
 {
   _fillRowColumnEliminationInfos();
   OrderedRowColumnMap& rc_elimination_map = _rowColumnEliminationMap();
@@ -394,6 +296,182 @@ _visitDoKMatrix(const Lambda& func)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+class AlephDoFLinearSystemImpl
+: public DoKDoFLinearSystemImpl
+{
+  using RowColumn = DoKMatrix::RowColumn;
+
+ public:
+
+  // TODO: do not use subDomain() but we need to modify aleph before
+  AlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
+  : DoKDoFLinearSystemImpl(dof_family, solver_name)
+  , m_sub_domain(sd)
+  , m_dof_matrix_indexes(VariableBuildInfo(dof_family, solver_name + "DoFMatrixIndexes"))
+  {
+    info() << "Creating AlephDoFLinearSystemImpl()";
+  }
+
+  ~AlephDoFLinearSystemImpl() override
+  {
+#ifdef FEMUTILS_HAS_PETSC
+    // Aleph initializes PETSc, but currently does not call PetscFinalize().
+    // PETSc normally prints -log_view during PetscFinalize(), so explicitly
+    // process the log-view option while Aleph's PETSc communicator is valid.
+    if (m_solver_backend == eSolverBackend::Petsc) {
+      PetscBool is_initialized = PETSC_FALSE;
+      PetscBool is_finalized = PETSC_FALSE;
+
+      // Fetch PETSc initialization and finalization status
+      PetscCallAbort(PETSC_COMM_WORLD, PetscInitialized(&is_initialized));
+      PetscCallAbort(PETSC_COMM_WORLD, PetscFinalized(&is_finalized));
+      if (is_initialized && !is_finalized)
+        PetscCallAbort(PETSC_COMM_WORLD, PetscLogViewFromOptions());
+    }
+#endif
+    delete m_aleph_params;
+    if (m_need_destroy_matrix_and_vector) {
+      delete m_aleph_matrix;
+      delete m_aleph_rhs_vector;
+      delete m_aleph_solution_vector;
+    }
+    // Doit être fait dans Arcane
+    // delete m_aleph_kernel->factory();
+    delete m_aleph_kernel;
+  }
+
+ public:
+
+  void build()
+  {
+    _computeMatrixInfo();
+    m_aleph_params = _createAlephParam();
+    DoKDoFLinearSystemImpl::clearValues();
+  }
+
+  AlephParams* params() const { return m_aleph_params; }
+
+  void setSolverBackend(eSolverBackend v) { m_solver_backend = v; }
+
+ private:
+
+  void _computeMatrixInfo();
+
+ public:
+
+  void applyMatrixTransformation() override;
+  void solve() override;
+
+  void setSolverCommandLineArguments(const CommandLineArguments& args) override
+  {
+#if ARCANE_VERSION >= 31002
+    m_aleph_kernel->solverInitializeArgs().setCommandLineArguments(args);
+#else
+    pwarning() << "Call to setSolverCommandLineArguments() is not used because version of Arcane is too old (3.10.2+ required)";
+#endif
+  }
+
+  void clearValues() override
+  {
+    info() << "[Aleph] Clear values of current solver";
+    DoKDoFLinearSystemImpl::clearValues();
+    _computeMatrixInfo();
+  }
+
+  void setCSRValues(const CSRFormatView& csr_view) override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+  CSRFormatView& getCSRValues() override
+  {
+    ARCANE_THROW(NotImplementedException, "");
+  }
+  bool hasSetCSRValues() const override { return false; }
+
+ private:
+
+  ISubDomain* m_sub_domain = nullptr;
+  VariableDoFInt32 m_dof_matrix_indexes;
+  AlephKernel* m_aleph_kernel = nullptr;
+  AlephMatrix* m_aleph_matrix = nullptr;
+  AlephVector* m_aleph_rhs_vector = nullptr;
+  AlephVector* m_aleph_solution_vector = nullptr;
+  AlephParams* m_aleph_params = nullptr;
+  eSolverBackend m_solver_backend = eSolverBackend::Hypre;
+
+  //! True to print matrix values during filling
+  bool m_do_print_filling = true;
+
+  //! True is we need to manually destroy the matrix/vector
+  bool m_need_destroy_matrix_and_vector = true;
+
+ private:
+
+  AlephParams* _createAlephParam() const;
+  void _applyMatrixTransformationAndFillAlephMatrix();
+  void _fillRHSVector();
+  void _fillSolutionVector();
+  void _setMatrixValue(DoF row, DoF column, Real value)
+  {
+    if (m_do_print_filling)
+      info() << "SET MATRIX VALUE (" << std::setw(4) << row.localId()
+             << "," << std::setw(4) << column.localId() << ")"
+             << " v=" << std::setw(25) << value;
+    VariableDoFReal& solution_variable = solutionVariable();
+    m_aleph_matrix->setValue(solution_variable, row, solution_variable, column, value);
+  }
+  void _createRHSAndSolutionVector();
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+class AlephDoFLinearSystemFactoryService
+: public ArcaneAlephDoFLinearSystemFactoryObject
+{
+ public:
+
+  explicit AlephDoFLinearSystemFactoryService(const ServiceBuildInfo& sbi)
+  : ArcaneAlephDoFLinearSystemFactoryObject(sbi)
+  {
+  }
+
+  IDoFLinearSystemImpl*
+  createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
+  {
+    auto* x = new AlephDoFLinearSystemImpl(sd, dof_family, solver_name);
+    x->setSolverBackend(options()->solverBackend());
+
+    x->build();
+
+    auto* p = x->params();
+    p->setEpsilon(options()->epsilon());
+    p->setPrecond(options()->preconditioner());
+    p->setMethod(options()->solverMethod());
+
+    return x;
+  }
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+extern "C++" IDoFLinearSystemImpl*
+createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
+{
+  auto* x = new AlephDoFLinearSystemImpl(sd, dof_family, solver_name);
+  x->build();
+  return x;
+}
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 void AlephDoFLinearSystemImpl::
 _applyMatrixTransformationAndFillAlephMatrix()
 {
@@ -414,7 +492,7 @@ _applyMatrixTransformationAndFillAlephMatrix()
       ++csr_matrix_nb_row[row.localId()];
       ++nb_value;
     };
-    _visitDoKMatrix(count_row);
+    visitDoKMatrix(count_row);
 
     // Now we know the number of columns per row and total number of non zeros.
     UniqueArray<Real> csr_matrix_values(nb_value);
@@ -438,7 +516,7 @@ _applyMatrixTransformationAndFillAlephMatrix()
       csr_matrix_values[index] = value;
       ++work_nb_value_per_row[row_id];
     };
-    _visitDoKMatrix(set_csr_matrix_value);
+    visitDoKMatrix(set_csr_matrix_value);
 
     // Fill the Aleph Matrix
     for (Int32 row_id = 0; row_id < nb_row; ++row_id) {
@@ -457,44 +535,12 @@ _applyMatrixTransformationAndFillAlephMatrix()
     auto set_matrix_value = [&](DoF row, DoF column, Real value) {
       _setMatrixValue(row, column, value);
     };
-    _visitDoKMatrix(set_matrix_value);
+    visitDoKMatrix(set_matrix_value);
   }
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
-void AlephDoFLinearSystemImpl::
-_applyRHSTransformation()
-{
-  const bool do_print_filling = m_do_print_filling;
-
-  // Apply Row+Column elimination
-  // Phase 1:
-  // - subtract values of the RHS vector if Row+Column elimination
-  _applyRowColumnEliminationToRHS(do_print_filling);
-
-  IItemFamily* dof_family = dofFamily();
-
-  auto& dof_elimination_info = getEliminationInfo();
-  auto& dof_elimination_value = getEliminationValue();
-  auto& rhs_variable = rhsVariable();
-
-  // Apply Row or Row+Column elimination on RHS
-  ENUMERATE_ (DoF, idof, dof_family->allItems()) {
-    DoF dof = *idof;
-    if (!dof.isOwn())
-      continue;
-    Byte elimination_info = dof_elimination_info[dof];
-    if (elimination_info == ELIMINATE_ROW || elimination_info == ELIMINATE_ROW_COLUMN) {
-      Real elimination_value = dof_elimination_value[dof];
-      rhs_variable[dof] = elimination_value;
-      if (do_print_filling)
-        info() << "EliminateRHS info=" << static_cast<int>(elimination_info) << " row="
-               << std::setw(4) << dof.localId() << " value=" << elimination_value;
-    }
-  }
-}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -640,8 +686,10 @@ _computeMatrixInfo()
   }
 
   // Do not print information about setting matrix if matrix is too big
-  if (own_dofs.size() > 200)
+  if (own_dofs.size() > 200) {
     m_do_print_filling = false;
+    setPrintFilling(!m_do_print_filling);
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -660,16 +708,6 @@ applyMatrixTransformation()
   // Matrix transformation
   _applyMatrixTransformationAndFillAlephMatrix();
   m_aleph_matrix->assemble();
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void AlephDoFLinearSystemImpl::
-applyRHSTransformation()
-{
-  // RHS Transformation
-  _applyRHSTransformation();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -742,6 +780,7 @@ ARCANE_REGISTER_SERVICE_ALEPHDOFLINEARSYSTEMFACTORY(AlephLinearSystem,
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+
 } // namespace Arcane::FemUtils
 
 /*---------------------------------------------------------------------------*/
