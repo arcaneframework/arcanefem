@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* OrderedRowColumndMap.h                                      (C) 2000-2026 */
+/* OrderedRowColumnMap.h                                       (C) 2000-2026 */
 /*                                                                           */
 /* Ordered map to keep a set a values indexed by (row,column).               */
 /*---------------------------------------------------------------------------*/
@@ -60,11 +60,12 @@ class OrderedRowColumnMap
 
  public:
 
-  using iterator = typename MapType::iterator;
-  using const_iterator = typename MapType::const_iterator;
+  using iterator = MapType::iterator;
+  using const_iterator = MapType::const_iterator;
 
  public:
 
+  //! Add the value at index \a rc.
   void addValue(RowColumn rc, Real value)
   {
     auto x = m_values_map.find(rc);
@@ -73,21 +74,37 @@ class OrderedRowColumnMap
     else
       x->second += value;
   }
-
-  Real& operator[](RowColumn rc)
+  //! Set the value at index \a rc, replacing current value if it exists
+  void setValue(RowColumn rc, Real value)
   {
-    return m_values_map[rc];
+    auto x = m_values_map.find(rc);
+    if (x == m_values_map.end())
+      m_values_map.insert(std::make_pair(rc, value));
+    else
+      x->second = value;
+  }
+  /*!
+   * \brief Read-only value of the matrix at index \a rc.
+   *
+   * Return zero if there is no value at the current index.
+   */
+  const Real operator[](RowColumn rc)
+  {
+    auto x = m_values_map.find(rc);
+    if (x == m_values_map.end())
+      return {};
+    return x->second;
   }
 
   void clear() { m_values_map.clear(); }
   iterator begin() { return m_values_map.begin(); }
   iterator end() { return m_values_map.end(); }
-  const_iterator begin() const { return m_values_map.begin(); }
-  const_iterator end() const { return m_values_map.end(); }
+  [[nodiscard]] const_iterator begin() const { return m_values_map.begin(); }
+  [[nodiscard]] const_iterator end() const { return m_values_map.end(); }
   iterator find(RowColumn rc) { return m_values_map.find(rc); }
-  const_iterator find(RowColumn rc) const { return m_values_map.find(rc); }
-  bool contains(RowColumn rc) const { return find(rc) != end(); }
-  Int32 size() const { return static_cast<Int32>(m_values_map.size()); }
+  [[nodiscard]] const_iterator find(RowColumn rc) const { return m_values_map.find(rc); }
+  [[nodiscard]] bool contains(RowColumn rc) const { return find(rc) != end(); }
+  [[nodiscard]] Int32 size() const { return static_cast<Int32>(m_values_map.size()); }
 
  private:
 
