@@ -53,6 +53,14 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 		-A,//fem/linear-system/solver=cg
 		-A,//fem/linear-system/epsilon=1.0e-12)
 
+  set(SOLVER_ALEPH_CG_GAMG
+    -A,//fem/linear-system/@name=AlephLinearSystem
+    -A,//fem/linear-system/solver=cg
+    -A,//fem/linear-system/preconditioner=amg
+    -A,//fem/linear-system/amg-near-null-space=true
+    -A,//fem/petsc-flags=-ksp_type\ cg\ -mat_block_size\ 2\ -ksp_rtol\ 1e-8\ -pc_type\ gamg\ -pc_gamg_threshold\ 0.001
+    -A,//fem/linear-system/epsilon=1.0e-8)
+
   arcanefem_add_full_test(NAME petsc_gamg_near_null_space
     COMMAND ./Elastoplasticity
     ARGS
@@ -86,6 +94,63 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     ARGS
 		  -A,//fem/solve-nonlinear-system=false
 		  inputs/2D.quater.cylinder.vonMises.arc)
+
+  arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad4
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
+      -A,//fem/matrix-format=DOK
+      -A,//fem/hex-quad-mesh=true
+      ${SOLVER_ALEPH_CG_GAMG}
+      inputs/2D.quater.cylinder.vonMises.arc)
+
+  arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad4_local
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
+      -A,//fem/matrix-format=DOK
+      -A,//fem/hex-quad-mesh=true
+      -A,//fem/gp-material-tensor-strategy=local
+      ${SOLVER_ALEPH_CG_GAMG}
+      inputs/2D.quater.cylinder.vonMises.arc)
+
+  arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad8
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//meshes/mesh/filename=meshes/quater_cylinder-quad8.msh
+      -A,//fem/matrix-format=DOK
+      -A,//fem/hex-quad-mesh=true
+      ${SOLVER_ALEPH_CG_GAMG}
+      inputs/2D.quater.cylinder.vonMises.arc)
+
+  arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad8_local
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//meshes/mesh/filename=meshes/quater_cylinder-quad8.msh
+      -A,//fem/matrix-format=DOK
+      -A,//fem/hex-quad-mesh=true
+      -A,//fem/gp-material-tensor-strategy=local
+      ${SOLVER_ALEPH_CG_GAMG}
+      inputs/2D.quater.cylinder.vonMises.arc)
+
+  arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad9
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//meshes/mesh/filename=meshes/quater_cylinder-quad9.msh
+      -A,//fem/matrix-format=DOK
+      -A,//fem/hex-quad-mesh=true
+      ${SOLVER_ALEPH_CG_GAMG}
+      inputs/2D.quater.cylinder.vonMises.arc)
+
+  arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad9_local
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//meshes/mesh/filename=meshes/quater_cylinder-quad9.msh
+      -A,//fem/matrix-format=DOK
+      -A,//fem/hex-quad-mesh=true
+      -A,//fem/gp-material-tensor-strategy=local
+      ${SOLVER_ALEPH_CG_GAMG}
+      inputs/2D.quater.cylinder.vonMises.arc)
 
   arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_bsr
     COMMAND ./Elastoplasticity
