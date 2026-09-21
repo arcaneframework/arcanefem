@@ -15,6 +15,9 @@
 #include <arcane/accelerator/MDVariableViews.h>
 #include <arcane/utils/ValueConvert.h>
 
+#include <arcane/accelerator/core/Memory.h>
+#include <arcane/accelerator/core/DeviceMemoryInfo.h>
+
 #include "FemModule.h"
 #include "ElementMatrix.h"
 #include "ElementMatrixHexQuad.h"

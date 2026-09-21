@@ -69,6 +69,9 @@ inline void FemModuleElastoplasticity::_commitInternalVariablesDruckerPrager()
 /*---------------------------------------------------------------------------*/
 inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDruckerPrager()
 {
+  info() << "[ArcaneFem-Info] Started module  _updateGlobalTangentMaterialTensorDruckerPrager()";
+  Real elapsedTime = platform::getRealTime();
+
   auto use_gpu = options()->linearSystem.serviceName() == "HypreLinearSystem" ||
     options()->linearSystem.serviceName() == "PetscLinearSystem";
 
@@ -101,6 +104,8 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDrucker
       }
     }
   }
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-global-material-tensor", elapsedTime);
 }
 /*---------------------------------------------------------------------------*/
 
@@ -769,6 +774,9 @@ ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeLocalDruckerPragerElementVectorTria3
 /*---------------------------------------------------------------------------*/
 inline void FemModuleElastoplasticity::_updateStressAndInVarsDruckerPrager()
 {
+  info() << "[ArcaneFem-Info] Started module  _updateStressAndInVarsDruckerPrager()";
+  Real elapsedTime = platform::getRealTime();
+
   if (mesh()->dimension() == 2) {
     if (m_hex_quad_mesh) {
       ARCANE_FATAL("Not IMPLEMENTED");
@@ -782,6 +790,8 @@ inline void FemModuleElastoplasticity::_updateStressAndInVarsDruckerPrager()
       ARCANE_FATAL("Not IMPLEMENTED");
     }
   }
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-global-stress-ivars", elapsedTime);
 }
 /*---------------------------------------------------------------------------*/
 
