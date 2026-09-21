@@ -50,6 +50,7 @@ startInit()
   m_cross_validation = options()->hasSolutionComparisonFile();
   m_petsc_flags = options()->petscFlags();
   m_hex_quad_mesh = options()->hexQuadMesh();
+  m_use_rigid_body_near_null_space = options()->linearSystem()->amgNearNullSpace();
 
   m_dofs_on_nodes.initialize(defaultMesh(), m_dof_per_node);
 
@@ -129,10 +130,15 @@ compute()
   bool keep_struct = true;
   if (m_linear_system.isInitialized() && keep_struct) {
     m_linear_system.clearValues();
-  } else {
+  }
+  else {
     m_linear_system.reset();
     m_linear_system.setLinearSystemFactory(options()->linearSystem());
     m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
+
+    if (m_use_rigid_body_near_null_space) {
+      _buildRigidBodyNearNullSpace();
+    }
   }
 
   if (m_petsc_flags != NULL){
@@ -256,6 +262,63 @@ _initBsr()
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize-bsr-matrix", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Build the rigid-body modes used as an AMG near null space.
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleElastoplasticity::
+_buildRigidBodyNearNullSpace()
+{
+  info() << "[ArcaneFem-Info] Started module _buildRigidBodyNearNullSpace()";
+  Real elapsedTime = platform::getRealTime();
+
+  const Int32 dim = mesh()->dimension();
+  const Int32 nb_mode = (dim == 2) ? 3 : 6;
+
+  IItemFamily* dof_family = m_dofs_on_nodes.dofFamily();
+  m_near_null_space_vectors.resize(nb_mode, dof_family->allItems().size());
+  m_near_null_space_vectors.fill(0.0);
+
+  auto node_dof = m_dofs_on_nodes.nodeDoFConnectivityView();
+  ENUMERATE_NODE (inode, allNodes()) {
+    Node node = *inode;
+    const Real3 p = m_node_coord[node];
+    const DoFLocalId ux = node_dof.dofId(node, 0);
+    const DoFLocalId uy = node_dof.dofId(node, 1);
+
+    // Translations.
+    m_near_null_space_vectors(0, ux.localId()) = 1.0;
+    m_near_null_space_vectors(1, uy.localId()) = 1.0;
+
+    if (dim == 2) {
+      // Rotation around z: (y, -x).
+      m_near_null_space_vectors(2, ux.localId()) = p.y;
+      m_near_null_space_vectors(2, uy.localId()) = -p.x;
+    }
+    else {
+      const DoFLocalId uz = node_dof.dofId(node, 2);
+      m_near_null_space_vectors(2, uz.localId()) = 1.0;
+
+      // Rotations around x, y and z.
+      m_near_null_space_vectors(3, uy.localId()) = -p.z;
+      m_near_null_space_vectors(3, uz.localId()) = p.y;
+      m_near_null_space_vectors(4, ux.localId()) = p.z;
+      m_near_null_space_vectors(4, uz.localId()) = -p.x;
+      m_near_null_space_vectors(5, ux.localId()) = -p.y;
+      m_near_null_space_vectors(5, uy.localId()) = p.x;
+    }
+  }
+
+  info() << "[ArcaneFem-Info] Built " << nb_mode << " rigid-body near-null-space vectors from mesh coordinates";
+
+  m_linear_system.setNearNullSpaceVectors(m_near_null_space_vectors, m_dof_per_node);
+
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "build-rigid-body-near-null-space", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
