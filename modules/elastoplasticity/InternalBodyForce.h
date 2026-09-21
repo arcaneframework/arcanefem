@@ -216,6 +216,24 @@ _applyInternalBodyForceQuad9Cpu(VariableDoFReal& rhs_values, const IndexedNodeDo
 *        using CPUs.
 */
 /*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE inline RealVector<6>
+computeInternalBodyForceTria3Base(Real3 dxu,
+                                          Real3 dyu,
+                                          Real area,
+                                          RealVector<3> sigma_2d)
+{
+
+  RealVector<6> epsxx = { dxu[0], 0., dxu[1], 0., dxu[2], 0. };
+  RealVector<6> epsyy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
+  RealVector<6> epsxy = { dyu[0], dxu[0], dyu[1], dxu[1], dyu[2], dxu[2] };
+  epsxy = 0.70710678118654746172 * epsxy;
+
+  RealVector<6> rhs = - area * (sigma_2d[0] * epsxx + sigma_2d[1] * epsyy + sigma_2d[2] * epsxy);
+
+  return rhs;
+}
+
 inline void FemModuleElastoplasticity::
 _applyInternalBodyForceTria3Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
@@ -241,23 +259,6 @@ _applyInternalBodyForceTria3Cpu(VariableDoFReal& rhs_values, const IndexedNodeDo
     rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(4);
     rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(5);
   }
-}
-
-ARCCORE_HOST_DEVICE inline RealVector<6>
-computeInternalBodyForceTria3Base(Real3 dxu,
-                                          Real3 dyu,
-                                          Real area,
-                                          RealVector<3> sigma_2d)
-{
-
-  RealVector<6> epsxx = { dxu[0], 0., dxu[1], 0., dxu[2], 0. };
-  RealVector<6> epsyy = { 0., dyu[0], 0., dyu[1], 0., dyu[2] };
-  RealVector<6> epsxy = { dyu[0], dxu[0], dyu[1], dxu[1], dyu[2], dxu[2] };
-  epsxy = 0.70710678118654746172 * epsxy;
-
-  RealVector<6> rhs = - area * (sigma_2d[0] * epsxx + sigma_2d[1] * epsyy + sigma_2d[2] * epsxy);
-
-  return rhs;
 }
 
 /*---------------------------------------------------------------------------*/

@@ -137,6 +137,7 @@ class FemModuleElastoplasticity
 
   Int8 m_dof_per_node;
   Int8 m_nGP = 1;
+  Int8 m_nodes_per_cell = 0;
   Int32 m_newton_iter;
   Int32 m_newton_max_iters;
 
@@ -181,7 +182,13 @@ class FemModuleElastoplasticity
   inline void _commitInternalVariablesVonMises();
   inline void _updateGlobalTangentMaterialTensorVonMises();
   inline void _updateGlobalTangentMaterialTensorVonMisesTria3Cpu();
+  inline void _updateGlobalTangentMaterialTensorVonMisesQuad4Cpu();
+  inline void _updateGlobalTangentMaterialTensorVonMisesQuad8Cpu();
+  inline void _updateGlobalTangentMaterialTensorVonMisesQuad9Cpu();
   inline void _updateStressAndInVarsVonMises();
+  inline void _updateStressAndInVarsVonMisesQuad4Cpu();
+  inline void _updateStressAndInVarsVonMisesQuad8Cpu();
+  inline void _updateStressAndInVarsVonMisesQuad9Cpu();
 
   // Drucker Prager Law
   inline void _restoreConvergedStateDruckerPrager();
@@ -193,11 +200,19 @@ class FemModuleElastoplasticity
   // RHS assembly helper functions
   inline void _applyInternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyInternalBodyForceTria3Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyInternalBodyForceQuad4Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyInternalBodyForceQuad8Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyInternalBodyForceQuad9Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
 
   inline void _applyExternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyExternalBodyForceQuad4Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyExternalBodyForceQuad8Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyExternalBodyForceQuad9Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
 
   inline void _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   static inline void _applyPressureTableToRhsTria3(BC::ITractionBoundaryCondition* bs, const Real t, Int32 boundary_condition_index, const UniqueArray<Arcane::FemUtils::CaseTableInfo>& traction_case_table_list, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values);
+  static inline void _applyPressureTableToRhsLine3(BC::ITractionBoundaryCondition* bs, const Real t, Int32 boundary_condition_index, const UniqueArray<Arcane::FemUtils::CaseTableInfo>& traction_case_table_list, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values);
+  static inline void _applyTractionToRhsLine3(BC::ITractionBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values);
 
   inline void _applyDirichletNewton(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyZeroRHSOnConstrainedDOFs(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
@@ -209,9 +224,14 @@ class FemModuleElastoplasticity
   RealMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
   RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
   RealMatrix<8, 8> _computeElementMatrixQuad4(Cell cell);
+  RealMatrix<16, 16> _computeElementMatrixQuad8(Cell cell);
+  RealMatrix<18, 18> _computeElementMatrixQuad9(Cell cell);
   RealMatrix<24, 24> _computeElementMatrixHexa8(Cell cell);
 
   RealMatrix<6, 6> _computeLocalVonMisesElementMatrixTria3Cpu(Cell cell, bool elastic_assembly = false);
+  RealMatrix<8, 8> _computeLocalVonMisesElementMatrixQuad4Cpu(Cell cell, bool elastic_assembly = false);
+  RealMatrix<16, 16> _computeLocalVonMisesElementMatrixQuad8Cpu(Cell cell, bool elastic_assembly = false);
+  RealMatrix<18, 18> _computeLocalVonMisesElementMatrixQuad9Cpu(Cell cell, bool elastic_assembly = false);
   RealMatrix<6, 6> _computeLocalDruckerPragerElementMatrixTria3Cpu(Cell cell, bool elastic_assembly = false);
 
   IBinaryMathFunctor<Real, Real3, Real>* m_prescribed_settlement = nullptr;
