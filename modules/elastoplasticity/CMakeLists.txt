@@ -50,6 +50,19 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
 		-A,//fem/linear-system/solver=cg
 		-A,//fem/linear-system/epsilon=1.0e-12)
 
+  arcanefem_add_full_test(NAME petsc_gamg_near_null_space
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//fem/solution-comparison-file=check/2D.quater.cylinder.t20.txt
+      -A,//fem/matrix-format=BSR
+      -A,//fem/linear-system/@name=PetscLinearSystem
+      -A,//fem/linear-system/solver=cg
+      -A,//fem/linear-system/pc-type=gamg
+      -A,//fem/linear-system/amg-near-null-space=true
+      -A,//fem/linear-system/rtol=1.0e-9
+      -A,//fem/petsc-flags=-mat_block_size\ 2
+      inputs/2D.quater.cylinder.vonMises.arc)
+
   arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises
     COMMAND ./Elastoplasticity
     ARGS
@@ -207,6 +220,32 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/linear-system/solver=gmres
     -A,//fem/linear-system/atol=1e-9
     -A,//fem/linear-system/rtol=0)
+
+  arcanefem_add_seq_test(NAME hypre_amg_near_null_space
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//fem/solution-comparison-file=check/2D.quater.cylinder.t20.txt
+      -A,//fem/matrix-format=BSR
+      -A,//fem/linear-system/@name=HypreLinearSystem
+      -A,//fem/linear-system/solver=cg
+      -A,//fem/linear-system/preconditioner=amg
+      -A,//fem/linear-system/amg-near-null-space=true
+      -A,//fem/linear-system/rtol=1.0e-9
+      inputs/2D.quater.cylinder.vonMises.arc)
+
+  if (FEMUTILS_HAS_PARALLEL_SOLVER)
+    arcanefem_add_mpi_test(NAME hypre_amg_near_null_space
+      COMMAND ./Elastoplasticity
+      ARGS
+        -A,//fem/solution-comparison-file=check/2D.quater.cylinder.t20.txt
+        -A,//fem/matrix-format=BSR
+        -A,//fem/linear-system/@name=HypreLinearSystem
+        -A,//fem/linear-system/solver=cg
+        -A,//fem/linear-system/preconditioner=amg
+        -A,//fem/linear-system/amg-near-null-space=true
+        -A,//fem/linear-system/rtol=1.0e-9
+        inputs/2D.quater.cylinder.vonMises.arc)
+  endif ()
 
   arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_bsr_hypre
     COMMAND ./Elastoplasticity

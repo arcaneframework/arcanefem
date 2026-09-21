@@ -18,6 +18,7 @@
 #include <arcane/utils/CommandLineArguments.h>
 #include <arcane/utils/ParameterList.h>
 #include <arcane/utils/ApplicationInfo.h>
+#include <arcane/utils/NumArray.h>
 
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IMesh.h>
@@ -150,11 +151,14 @@ class FemModuleElastoplasticity
   bool m_solve_linear_system = true;
   bool m_solve_nonlinear_system = true;
   bool m_cross_validation = false;
+  bool m_use_rigid_body_near_null_space = false;
   bool m_hex_quad_mesh = false;
 
   bool m_material_initialized = false;
   bool m_newton_solver_converged = false;
   bool m_check_with_bilinear_operator = false;
+
+  NumArray<Real, MDDim2> m_near_null_space_vectors;
 
   void _updateTime();
   void _getMaterialParameters();
@@ -170,6 +174,7 @@ class FemModuleElastoplasticity
   void _updateTimeVariables();
   void _initBsr();
   void _initConstitutiveLaw();
+  void _buildRigidBodyNearNullSpace();
 
   // Von Mises Law
   inline void _restoreConvergedStateVonMises();
