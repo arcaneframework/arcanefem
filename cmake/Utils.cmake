@@ -98,9 +98,11 @@ macro(arcanefem_add_mpi_test)
     # --- Parallel CPU test (always, if mpiexec available) ---
     set(_RUNTIME_ARGS "-A,OutputDirectory=${CMAKE_CURRENT_BINARY_DIR}/test_outputs/${ARGS_MODULE}/${ARGS_NAME}_${ARGS_NB_MPI}p")
 
+    set(MPI_TEST_NAME "[${ARGS_MODULE}]${ARGS_NAME}_${ARGS_NB_MPI}p")
     #message(STATUS "Add mpi test [${ARGS_MODULE}]${ARGS_NAME}_${ARGS_NB_MPI}p")
-    add_test(NAME "[${ARGS_MODULE}]${ARGS_NAME}_${ARGS_NB_MPI}p"
+    add_test(NAME "${MPI_TEST_NAME}"
       COMMAND ${MPIEXEC_EXECUTABLE} -n ${ARGS_NB_MPI} ${ARGS_COMMAND} ${_RUNTIME_ARGS} ${ARGS_ARGS})
+    set_tests_properties(${MPI_TEST_NAME} PROPERTIES PROCESSORS ${ARGS_NB_MPI})
 
     # --- Parallel GPU test (if mpiexec AND if ARGS_GPU and accelerator available) ---
     if (ARGS_GPU AND ARCANE_HAS_ACCELERATOR)
@@ -108,8 +110,10 @@ macro(arcanefem_add_mpi_test)
       set(_RUNTIME_ARGS "-A,OutputDirectory=${CMAKE_CURRENT_BINARY_DIR}/test_outputs/${ARGS_MODULE}/${ARGS_NAME}_${ARGS_NB_MPI}p_${ARCANE_ACCELERATOR_RUNTIME},AcceleratorRuntime=${ARCANE_ACCELERATOR_RUNTIME}")
 
       #message(STATUS "Add mpi GPU test [${ARGS_MODULE}]${ARGS_NAME}_${ARGS_NB_MPI}p_${ARCANE_ACCELERATOR_RUNTIME}")
-      add_test(NAME "[${ARGS_MODULE}]${ARGS_NAME}_${ARGS_NB_MPI}p_${ARCANE_ACCELERATOR_RUNTIME}"
+      set(MPI_GPU_TEST_NAME "[${ARGS_MODULE}]${ARGS_NAME}_${ARGS_NB_MPI}p_${ARCANE_ACCELERATOR_RUNTIME}")
+      add_test(NAME "${MPI_GPU_TEST_NAME}"
         COMMAND ${MPIEXEC_EXECUTABLE} -n ${ARGS_NB_MPI} ${ARGS_COMMAND} ${_RUNTIME_ARGS} ${ARGS_ARGS})
+      set_tests_properties(${MPI_GPU_TEST_NAME} PROPERTIES PROCESSORS ${ARGS_NB_MPI})
     endif ()
   endif ()
 endmacro()
