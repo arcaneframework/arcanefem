@@ -31,6 +31,9 @@ file(COPY "inputs" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MESH_FILES
         quater_cylinder.msh
+        quater_cylinder-quad4.msh
+        quater_cylinder-quad8.msh
+        quater_cylinder-quad9.msh
         strip_footing.msh
 )
 
