@@ -391,24 +391,11 @@ _solveNewton()
     _restoreConvergedStateDruckerPrager();
   }
 
-  if (m_gp_material_tensor_strategy == "global")
-    _setGlobalElasticMaterialTensorAtGPs();
 
   // --- assemble_linear_system ---- //
   if (m_assemble_linear_system) {
-    if (m_gp_material_tensor_strategy == "global") {
-      _assembleBilinearOperatorGlobal();
-    } else {
-      if (m_constitutive_law == "VonMises") {
-        _assembleBilinearOperatorLocalVonMises(true); //checks law an assembles corresponding matrix
-        _updateStressAndInVarsVonMises();
-      } else if (m_constitutive_law == "DruckerPrager") {
-        _assembleBilinearOperatorLocalDruckerPrager(true);
-        _updateStressAndInVarsDruckerPrager();
-      } else {
-        ARCANE_FATAL("Constitutive law not supported");
-      }
-    }
+    _setGlobalElasticMaterialTensorAtGPs();
+    _assembleBilinearOperatorGlobal();
     _assembleLinearOperator();
   }
 
@@ -431,36 +418,21 @@ _solveNewton()
     // --- update_increment ---- //
     _incrementVariables();
 
-    if (m_gp_material_tensor_strategy == "global") {
-      if (m_constitutive_law == "VonMises") {
-        _updateGlobalTangentMaterialTensorVonMises();
-      } else if (m_constitutive_law == "DruckerPrager") {
-        _updateGlobalTangentMaterialTensorDruckerPrager();
-      }
-    }
-
     // --- assemble_linear_system ---- //
     if (m_linear_system.isInitialized()) {
       m_linear_system.clearValues();
 
       if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
         m_bsr_format.resetMatrixValues();
-
-      if (m_gp_material_tensor_strategy == "global") {
-        _assembleBilinearOperatorGlobal(); // assembles Jacobian
-      } else {
-        if (m_constitutive_law == "VonMises"){
-          _assembleBilinearOperatorLocalVonMises(); // assembles Jacobian for Von Mises
-          _updateStressAndInVarsVonMises();
-        } else if (m_constitutive_law == "DruckerPrager") {
-          _assembleBilinearOperatorLocalDruckerPrager(); // assembles Jacobian for Drucker Prager
-          _updateStressAndInVarsDruckerPrager();
-        } else {
-          ARCANE_FATAL("Constitutive law not supported");
-        }
-      }
-      _assembleLinearOperator(); // assembles Residuals(m_DUn) + BCs
     }
+
+    if (m_constitutive_law == "VonMises") {
+      _updateGlobalTangentMaterialTensorVonMises();
+    } else if (m_constitutive_law == "DruckerPrager") {
+      _updateGlobalTangentMaterialTensorDruckerPrager();
+    }
+    _assembleBilinearOperatorGlobal(); // assembles Jacobian
+    _assembleLinearOperator(); // assembles Residuals(m_DUn) + BCs
 
     if (m_newton_iter == 1) {
       if (m_constitutive_law == "DruckerPrager") {
