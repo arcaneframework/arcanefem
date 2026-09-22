@@ -105,6 +105,9 @@ class FemModuleElastoplasticity
   UniqueArray<CaseTableInfo> m_traction_case_table_list;
   // List of CaseTable for Dirichlet boundary conditions
   UniqueArray<CaseTableInfo> m_dirichlet_case_table_list;
+  // Material-domain cell groups. For now all groups share the constitutive
+  // properties stored in E, nu, sig0, etc.
+  UniqueArray<CellGroup> m_material_domains;
   Real t = 0.;
   Real dt = 0.;
   Real tmax = 0.;
@@ -169,12 +172,14 @@ class FemModuleElastoplasticity
   void _incrementVariables();
   void _solve();
   void _assembleLinearOperator();
+  void _assembleBilinearOperatorGlobalDOKTria3();
   void _validateResults();
   void _readCaseTables();
   void _updateNewtonIncrements();
   void _updateTimeVariables();
   void _initBsr();
   void _initConstitutiveLaw();
+  void _initMaterialDomains();
   void _buildRigidBodyNearNullSpace();
 
   // Von Mises Law

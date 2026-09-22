@@ -59,13 +59,15 @@ _applyExternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnect
         _applyExternalBodyForceQuad9Cpu(rhs_values, node_dof);
     }
     else { // Todo: move to seperate function for Tri3
-      ENUMERATE_ (Cell, icell, allCells()) {
-        Cell cell = *icell;
-        Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
-        for (Node node : cell.nodes()) {
-          if (node.isOwn()) {
-            rhs_values[node_dof.dofId(node, 0)] += f[0] * area / 3;
-            rhs_values[node_dof.dofId(node, 1)] += f[1] * area / 3;
+      for (const CellGroup& domain : m_material_domains) {
+        ENUMERATE_ (Cell, icell, domain) {
+          Cell cell = *icell;
+          Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
+          for (Node node : cell.nodes()) {
+            if (node.isOwn()) {
+              rhs_values[node_dof.dofId(node, 0)] += f[0] * area / 3;
+              rhs_values[node_dof.dofId(node, 1)] += f[1] * area / 3;
+            }
           }
         }
       }

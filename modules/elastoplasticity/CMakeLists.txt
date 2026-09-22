@@ -34,6 +34,7 @@ set(MESH_FILES
         quater_cylinder-quad4.msh
         quater_cylinder-quad8.msh
         quater_cylinder-quad9.msh
+        quater_cylinder-multi_domain.msh
         strip_footing.msh
 )
 
@@ -86,6 +87,12 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     ARGS
 		  -A,//fem/solve-nonlinear-system=false
 		  inputs/2D.quater.cylinder.vonMises.arc)
+
+  arcanefem_add_seq_test(NAME 2D_Quater_cylinder_two_domains_von_mises_dok_global
+    COMMAND ./Elastoplasticity
+    ARGS
+      ${SOLVER_ALEPH_CG}
+      inputs/2D.quater.cylinder.two-domains.vonMises.arc)
 
   arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad4
     COMMAND ./Elastoplasticity
