@@ -25,19 +25,18 @@
  *
  *      a(𝐮,𝐯) = ∫∫ [σ_𝑥𝑥ε_𝑥𝑥 + σ_𝑦𝑦ε_𝑦𝑦 + 2σ_𝑥𝑦ε_𝑥𝑦]dΩ
  *
-*   this further expands to
+ *   this further expands to
  *
- *      a(𝐮,𝐯) =   ∫∫ C_tang11 ∂𝑢𝑥/∂𝑥 ∂𝑣𝑥/∂𝑥 + C_tang12 ∂𝑢𝑦/∂𝑦 ∂𝑣𝑥/∂𝑥 + C_tang13 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
- *               + ∫∫ C_tang12 ∂𝑢𝑥/∂𝑥 ∂𝑣𝑦/∂𝑦 + C_tang22 ∂𝑢𝑦/∂𝑦 ∂𝑣𝑦/∂𝑦 + C_tang23 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
- *               + ∫∫ C_tang13 ∂𝑢𝑥/∂𝑥 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + C_tang23 ∂𝑢𝑦/∂𝑦 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + C_tang33 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦)(∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥)
+ *      a(𝐮,𝐯) =   ∫∫ 𝑪ᵗ₀₀ ∂𝑢𝑥/∂𝑥 ∂𝑣𝑥/∂𝑥 + 𝑪ᵗ₀₁ ∂𝑢𝑦/∂𝑦 ∂𝑣𝑥/∂𝑥 + 𝑪ᵗ₀₂ (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
+ *               + ∫∫ 𝑪ᵗ₀₁ ∂𝑢𝑥/∂𝑥 ∂𝑣𝑦/∂𝑦 + 𝑪ᵗ₁₁ ∂𝑢𝑦/∂𝑦 ∂𝑣𝑦/∂𝑦 + 𝑪ᵗ₁₂ (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
+ *               + ∫∫ 𝑪ᵗ₀₂ ∂𝑢𝑥/∂𝑥 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + 𝑪ᵗ₁₂ ∂𝑢𝑦/∂𝑦 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + 𝑪ᵗ₂₂ (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦)(∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥)
  *
  * @param cell The cell for which the element matrix is computed.
  * @return The computed element matrix.
  */
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE RealMatrix<8, 8> computeElementMatrixQuad4Base(
-const RealVector<4>& dxu, const RealVector<4>& dyu, Real integration_weight, RealMatrix<3, 3> C_tang)
+ARCCORE_HOST_DEVICE RealMatrix<8, 8> computeElementMatrixQuad4Base(const RealVector<4>& dxu, const RealVector<4>& dyu, Real integration_weight, RealMatrix<3, 3> C_tang)
 {
   RealVector<8> epsxx = { dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0. };
   RealVector<8> epsyy = { 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3) };
@@ -46,16 +45,30 @@ const RealVector<4>& dxu, const RealVector<4>& dyu, Real integration_weight, Rea
   // Kelvin notation: scale shear strains by 1/sqrt(2)
   epsxy = M_SQRT1_2 * epsxy;
 
-  // ∫∫ C_tang11 ∂𝑢𝑥/∂𝑥 ∂𝑣𝑥/∂𝑥 + C_tang12 ∂𝑢𝑦/∂𝑦 ∂𝑣𝑥/∂𝑥 + C_tang13 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
+  // ∫∫ 𝑪ᵗ₀₀ ∂𝑢𝑥/∂𝑥 ∂𝑣𝑥/∂𝑥 + 𝑪ᵗ₀₁ ∂𝑢𝑦/∂𝑦 ∂𝑣𝑥/∂𝑥 + 𝑪ᵗ₀₂ (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
   RealMatrix<8, 8> sigmaXepsxx = (C_tang(0, 0) * epsxx + C_tang(0, 1) * epsyy + C_tang(0, 2) * epsxy) ^ epsxx;
 
-  // ∫∫ C_tang12 ∂𝑢𝑥/∂𝑥 ∂𝑣𝑦/∂𝑦 + C_tang22 ∂𝑢𝑦/∂𝑦 ∂𝑣𝑦/∂𝑦 + C_tang23 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
+  // ∫∫ 𝑪ᵗ₀₁ ∂𝑢𝑥/∂𝑥 ∂𝑣𝑦/∂𝑦 + 𝑪ᵗ₁₁ ∂𝑢𝑦/∂𝑦 ∂𝑣𝑦/∂𝑦 + 𝑪ᵗ₁₂ (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
   RealMatrix<8, 8> sigmaXepsyy = (C_tang(0, 1) * epsxx + C_tang(1, 1) * epsyy + C_tang(1, 2) * epsxy) ^ epsyy;
 
-  // ∫∫ C_tang13 ∂𝑢𝑥/∂𝑥 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + C_tang23 ∂𝑢𝑦/∂𝑦 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + C_tang33 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦)(∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥)
+  // ∫∫ 𝑪ᵗ₀₂ ∂𝑢𝑥/∂𝑥 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + 𝑪ᵗ₁₂ ∂𝑢𝑦/∂𝑦 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + 𝑪ᵗ₂₂ (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦)(∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥)
   RealMatrix<8, 8> sigmaXepsxy = (C_tang(0, 2) * epsxx + C_tang(1, 2) * epsyy + C_tang(2, 2) * epsxy) ^ epsxy;
 
   return integration_weight * (sigmaXepsxx + sigmaXepsyy + sigmaXepsxy);
+}
+
+inline Real3x3 computeDisplacementGradientQuad4(Cell cell, const VariableNodeReal3& node_coord, const VariableNodeReal3& displacement, Real xi, Real eta)
+{
+  const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad4(cell, node_coord, xi, eta);
+  Real3x3 gradient{};
+  for (Int32 i = 0; i < 4; ++i) {
+    const Real3 u = displacement[cell.nodeId(i)];
+    gradient(0, 0) += u.x * gp_info.dN_dx(i);
+    gradient(0, 1) += u.x * gp_info.dN_dy(i);
+    gradient(1, 0) += u.y * gp_info.dN_dx(i);
+    gradient(1, 1) += u.y * gp_info.dN_dy(i);
+  }
+  return gradient;
 }
 
 RealMatrix<8, 8> FemModuleElastoplasticity::_computeElementMatrixQuad4(Cell cell)
@@ -93,6 +106,172 @@ RealMatrix<8, 8> FemModuleElastoplasticity::_computeElementMatrixQuad4(Cell cell
       }
       iGP++;
       ae += computeElementMatrixQuad4Base(dxU, dyU, integration_weight, C_tang_2d);
+    }
+  }
+  return ae;
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Computes the element matrix for a quadrilateral element (QUAD8, ℙ2 FE).
+ *
+ * Theory:
+ *
+ *   a(𝐮,𝐯) = ∫∫ σ(𝐮):ε(𝐯)dΩ     with  𝐮 = (𝑢𝑥,𝑢𝑦) and 𝐯 = (𝑣𝑥,𝑣𝑦)
+ *   σ(𝐮) is stress tensor       with  σᵢⱼ = λδᵢⱼεₖₖ + 2μεᵢⱼ
+ *   ε(𝐯) is strain tensor       with  εᵢⱼ = 0.5 (∂𝑣ᵢ/∂xⱼ + ∂𝑣ⱼ/∂xᵢ)
+ *
+ *   the bilinear integral expands to
+ *
+ *      a(𝐮,𝐯) = ∫∫ [σ_𝑥𝑥ε_𝑥𝑥 + σ_𝑦𝑦ε_𝑦𝑦 + 2σ_𝑥𝑦ε_𝑥𝑦]dΩ
+ *
+ *   this further expands to
+ *
+ *      a(𝐮,𝐯) =   ∫∫ 𝑪ᵗ₀₀ ∂𝑢𝑥/∂𝑥 ∂𝑣𝑥/∂𝑥 + 𝑪ᵗ₀₁ ∂𝑢𝑦/∂𝑦 ∂𝑣𝑥/∂𝑥 + 𝑪ᵗ₀₂ (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
+ *               + ∫∫ 𝑪ᵗ₀₁ ∂𝑢𝑥/∂𝑥 ∂𝑣𝑦/∂𝑦 + 𝑪ᵗ₁₁ ∂𝑢𝑦/∂𝑦 ∂𝑣𝑦/∂𝑦 + 𝑪ᵗ₁₂ (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
+ *               + ∫∫ 𝑪ᵗ₀₂ ∂𝑢𝑥/∂𝑥 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + 𝑪ᵗ₁₂ ∂𝑢𝑦/∂𝑦 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + 𝑪ᵗ₂₂ (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦)(∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂x)
+ *
+ * @param cell The cell for which the element matrix is computed.
+ * @return The computed element matrix.
+ */
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE RealMatrix<16, 16> computeElementMatrixQuad8Base(const RealVector<8>& dxu, const RealVector<8>& dyu, Real integration_weight, const RealMatrix<3, 3>& C_tang)
+{
+  RealVector<16> epsxx = { dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0.,
+                           dxu(4), 0., dxu(5), 0., dxu(6), 0., dxu(7), 0. };
+  RealVector<16> epsyy = { 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3),
+                           0., dyu(4), 0., dyu(5), 0., dyu(6), 0., dyu(7) };
+  RealVector<16> epsxy = { dyu(0), dxu(0), dyu(1), dxu(1), dyu(2), dxu(2), dyu(3), dxu(3),
+                           dyu(4), dxu(4), dyu(5), dxu(5), dyu(6), dxu(6), dyu(7), dxu(7) };
+
+  // Kelvin notation: scale shear strains by 1/sqrt(2)
+  epsxy = M_SQRT1_2 * epsxy;
+
+  // ∫∫ 𝑪ᵗ₀₀ ∂𝑢𝑥/∂𝑥 ∂𝑣𝑥/∂𝑥 + 𝑪ᵗ₀₁ ∂𝑢𝑦/∂𝑦 ∂𝑣𝑥/∂𝑥 + 𝑪ᵗ₀₂ (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
+  const RealMatrix<16, 16> sigma_epsxx = (C_tang(0, 0) * epsxx + C_tang(0, 1) * epsyy + C_tang(0, 2) * epsxy) ^ epsxx;
+  // ∫∫ 𝑪ᵗ₀₁ ∂𝑢𝑥/∂𝑥 ∂𝑣𝑦/∂𝑦 + 𝑪ᵗ₁₁ ∂𝑢𝑦/∂𝑦 ∂𝑣𝑦/∂𝑦 + 𝑪ᵗ₁₂ (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
+  const RealMatrix<16, 16> sigma_epsyy = (C_tang(1, 0) * epsxx + C_tang(1, 1) * epsyy + C_tang(1, 2) * epsxy) ^ epsyy;
+  // ∫∫ 𝑪ᵗ₀₂ ∂𝑢𝑥/∂𝑥 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + 𝑪ᵗ₁₂ ∂𝑢𝑦/∂𝑦 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + 𝑪ᵗ₂₂ (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦)(∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂x)
+  const RealMatrix<16, 16> sigma_epsxy = (C_tang(2, 0) * epsxx + C_tang(2, 1) * epsyy + C_tang(2, 2) * epsxy) ^ epsxy;
+
+  return integration_weight * (sigma_epsxx + sigma_epsyy + sigma_epsxy);
+}
+
+inline Real3x3 computeDisplacementGradientQuad8(Cell cell, const VariableNodeReal3& node_coord, const VariableNodeReal3& displacement, Real xi, Real eta)
+{
+  const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad8(cell, node_coord, xi, eta);
+  Real3x3 gradient{};
+  for (Int32 i = 0; i < 8; ++i) {
+    const Real3 u = displacement[cell.nodeId(i)];
+    gradient(0, 0) += u.x * gp_info.dN_dx(i);
+    gradient(0, 1) += u.x * gp_info.dN_dy(i);
+    gradient(1, 0) += u.y * gp_info.dN_dx(i);
+    gradient(1, 1) += u.y * gp_info.dN_dy(i);
+  }
+  return gradient;
+}
+
+RealMatrix<16, 16> FemModuleElastoplasticity::_computeElementMatrixQuad8(Cell cell)
+{
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+  constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+  RealMatrix<16, 16> ae;
+  ae.fill(0.0);
+  Int8 iGP = 0;
+  for (Int8 ixi = 0; ixi < 3; ++ixi) {
+    for (Int8 ieta = 0; ieta < 3; ++ieta) {
+      const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad8(cell, m_node_coord, gp[ixi], gp[ieta]);
+      RealMatrix<3, 3> C_tang;
+      for (Int8 i = 0; i < 3; ++i)
+        for (Int8 j = 0; j < 3; ++j)
+          C_tang(i, j) = m_C_tang_gp(cell, iGP, i, j);
+      ae += computeElementMatrixQuad8Base(gp_info.dN_dx, gp_info.dN_dy, gp_info.det_j * weights[ixi] * weights[ieta], C_tang);
+      ++iGP;
+    }
+  }
+  return ae;
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Computes the element matrix for a quadrilateral element (QUAD9, ℙ2 FE).
+ *
+ * Theory:
+ *
+ *   a(𝐮,𝐯) = ∫∫ σ(𝐮):ε(𝐯)dΩ     with  𝐮 = (𝑢𝑥,𝑢𝑦) and 𝐯 = (𝑣𝑥,𝑣𝑦)
+ *   σ(𝐮) is stress tensor       with  σᵢⱼ = λδᵢⱼεₖₖ + 2μεᵢⱼ
+ *   ε(𝐯) is strain tensor       with  εᵢⱼ = 0.5 (∂𝑣ᵢ/∂xⱼ + ∂𝑣ⱼ/∂xᵢ)
+ *
+ *   the bilinear integral expands to
+ *
+ *      a(𝐮,𝐯) = ∫∫ [σ_𝑥𝑥ε_𝑥𝑥 + σ_𝑦𝑦ε_𝑦𝑦 + 2σ_𝑥𝑦ε_𝑥𝑦]dΩ
+ *
+ *   this further expands to
+ *
+ *      a(𝐮,𝐯) =   ∫∫ 𝑪ᵗ₀₀ ∂𝑢𝑥/∂𝑥 ∂𝑣𝑥/∂𝑥 + 𝑪ᵗ₀₁ ∂𝑢𝑦/∂𝑦 ∂𝑣𝑥/∂𝑥 + 𝑪ᵗ₀₂ (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
+ *               + ∫∫ 𝑪ᵗ₀₁ ∂𝑢𝑥/∂𝑥 ∂𝑣𝑦/∂𝑦 + 𝑪ᵗ₁₁ ∂𝑢𝑦/∂𝑦 ∂𝑣𝑦/∂𝑦 + 𝑪ᵗ₁₂ (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
+ *               + ∫∫ 𝑪ᵗ₀₂ ∂𝑢𝑥/∂𝑥 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + 𝑪ᵗ₁₂ ∂𝑢𝑦/∂𝑦 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂x) + 𝑪ᵗ₂₂ (∂𝑢𝑦/∂x + ∂𝑢x/∂y)(∂𝑣x/∂y + ∂𝑣y/∂x)
+ *
+ * @param cell The cell for which the element matrix is computed.
+ * @return The computed element matrix.
+ */
+/*---------------------------------------------------------------------------*/
+
+ARCCORE_HOST_DEVICE RealMatrix<18, 18> computeElementMatrixQuad9Base(const RealVector<9>& dxu, const RealVector<9>& dyu, Real integration_weight, const RealMatrix<3, 3>& C_tang)
+{
+  RealVector<18> epsxx = { dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0., dxu(4), 0.,
+                           dxu(5), 0., dxu(6), 0., dxu(7), 0., dxu(8), 0. };
+
+  RealVector<18> epsyy = { 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3), 0., dyu(4),
+                           0., dyu(5), 0., dyu(6), 0., dyu(7), 0., dyu(8) };
+
+  RealVector<18> epsxy = { dyu(0), dxu(0), dyu(1), dxu(1), dyu(2), dxu(2), dyu(3), dxu(3), dyu(4), dxu(4),
+                           dyu(5), dxu(5), dyu(6), dxu(6), dyu(7), dxu(7), dyu(8), dxu(8) };
+
+  // Kelvin notation: scale shear strains by 1/sqrt(2)
+  epsxy = M_SQRT1_2 * epsxy;
+
+  // ∫∫ 𝑪ᵗ₀₀ ∂𝑢𝑥/∂𝑥 ∂𝑣𝑥/∂𝑥 + 𝑪ᵗ₀₁ ∂𝑢𝑦/∂𝑦 ∂𝑣𝑥/∂𝑥 + 𝑪ᵗ₀₂ (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
+  const RealMatrix<18, 18> sigma_epsxx = (C_tang(0, 0) * epsxx + C_tang(0, 1) * epsyy + C_tang(0, 2) * epsxy) ^ epsxx;
+  // ∫∫ 𝑪ᵗ₀₁ ∂𝑢𝑥/∂𝑥 ∂𝑣𝑦/∂𝑦 + 𝑪ᵗ₁₁ ∂𝑢𝑦/∂𝑦 ∂𝑣𝑦/∂𝑦 + 𝑪ᵗ₁₂ (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
+  const RealMatrix<18, 18> sigma_epsyy = (C_tang(1, 0) * epsxx + C_tang(1, 1) * epsyy + C_tang(1, 2) * epsxy) ^ epsyy;
+  // ∫∫ 𝑪ᵗ₀₂ ∂𝑢𝑥/∂𝑥 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + 𝑪ᵗ₁₂ ∂𝑢𝑦/∂𝑦 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂x) + 𝑪ᵗ₂₂ (∂𝑢y/∂x + ∂𝑢x/∂y)(∂𝑣x/∂y + ∂𝑣y/∂x)
+  const RealMatrix<18, 18> sigma_epsxy = (C_tang(2, 0) * epsxx + C_tang(2, 1) * epsyy + C_tang(2, 2) * epsxy) ^ epsxy;
+
+  return integration_weight * (sigma_epsxx + sigma_epsyy + sigma_epsxy);
+}
+
+inline Real3x3 computeDisplacementGradientQuad9(Cell cell, const VariableNodeReal3& node_coord, const VariableNodeReal3& displacement, Real xi, Real eta)
+{
+  const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad9(cell, node_coord, xi, eta);
+  Real3x3 gradient{};
+  for (Int32 i = 0; i < 9; ++i) {
+    const Real3 u = displacement[cell.nodeId(i)];
+    gradient(0, 0) += u.x * gp_info.dN_dx(i);
+    gradient(0, 1) += u.x * gp_info.dN_dy(i);
+    gradient(1, 0) += u.y * gp_info.dN_dx(i);
+    gradient(1, 1) += u.y * gp_info.dN_dy(i);
+  }
+  return gradient;
+}
+
+RealMatrix<18, 18> FemModuleElastoplasticity::_computeElementMatrixQuad9(Cell cell)
+{
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+  constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+  RealMatrix<18, 18> ae;
+  ae.fill(0.0);
+  Int8 iGP = 0;
+  for (Int8 ixi = 0; ixi < 3; ++ixi) {
+    for (Int8 ieta = 0; ieta < 3; ++ieta) {
+      const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad9(cell, m_node_coord, gp[ixi], gp[ieta]);
+      RealMatrix<3, 3> C_tang;
+      for (Int8 i = 0; i < 3; ++i)
+        for (Int8 j = 0; j < 3; ++j)
+          C_tang(i, j) = m_C_tang_gp(cell, iGP, i, j);
+      ae += computeElementMatrixQuad9Base(gp_info.dN_dx, gp_info.dN_dy, gp_info.det_j * weights[ixi] * weights[ieta], C_tang);
+      ++iGP;
     }
   }
   return ae;

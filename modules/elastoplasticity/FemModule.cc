@@ -67,8 +67,13 @@ startInit()
   m_check_with_bilinear_operator = options()->checkBilinearOperatorForResidual();
 
   if (mesh()->dimension() == 2) {
-    if (m_hex_quad_mesh)
-      m_nGP = 4;
+    ENUMERATE_ (Cell, icell, allCells()) {
+      m_nodes_per_cell = icell->nbNode();
+      break;
+    }
+    if (m_hex_quad_mesh) {
+      m_nGP = (m_nodes_per_cell == 4) ? 4 : 9; // 4 Gauss points for Quad4, 9 Gauss points for Quad8 and Quad9
+    }
     else
       m_nGP = 1;
 
@@ -218,8 +223,14 @@ _initConstitutiveLaw()
   }
 
   if (m_constitutive_law == "VonMises" || m_constitutive_law == "DruckerPrager") {
-    if (mesh()->dimension() != 2 || m_hex_quad_mesh)
-      ARCANE_FATAL("Native von Mises plasticity currently supports only 2D Tria3 elements");
+    if (mesh()->dimension() != 2)
+      ARCANE_FATAL("Native plasticity currently supports only 2D elements");
+
+    if (m_hex_quad_mesh && m_constitutive_law != "VonMises")
+      ARCANE_FATAL("Quadrilateral plasticity currently supports only the von Mises law");
+
+    if (m_hex_quad_mesh && m_matrix_format != "DOK")
+      ARCANE_FATAL("Quad4/Quad8/Quad9 von Mises assembly currently requires matrix-format='DOK'");
 
     if (m_constitutive_law == "VonMises") {
       m_p_old_gp.reshape({m_nGP});
@@ -788,7 +799,12 @@ _assembleBilinearOperatorGlobal()
   } else if (m_matrix_format == "DOK") {
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {
-        _assembleBilinearOperatorCpu<8>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+        if (m_nodes_per_cell == 4)
+          _assembleBilinearOperatorCpu<8>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+        else if (m_nodes_per_cell == 8)
+          _assembleBilinearOperatorCpu<16>([this](const Cell& cell) { return _computeElementMatrixQuad8(cell); });
+        else
+          _assembleBilinearOperatorCpu<18>([this](const Cell& cell) { return _computeElementMatrixQuad9(cell); });
       }
       else {
         _assembleBilinearOperatorCpu<6>([&](const Cell& cell) { return _computeElementMatrixTria3(cell); });
@@ -896,8 +912,12 @@ _assembleBilinearOperatorLocalVonMises(bool elastic_assembly)
   } else if (m_matrix_format == "DOK") {
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {
-        ARCANE_FATAL("Unsupported 2D quad DOK for local assembly");
-        // _assembleBilinearOperatorCpu<8>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+        if (m_nodes_per_cell == 4)
+          _assembleBilinearOperatorCpu<8>([&](const Cell& cell) { return _computeLocalVonMisesElementMatrixQuad4Cpu(cell, elastic_assembly); });
+        else if (m_nodes_per_cell == 8)
+          _assembleBilinearOperatorCpu<16>([&](const Cell& cell) { return _computeLocalVonMisesElementMatrixQuad8Cpu(cell, elastic_assembly); });
+        else
+          _assembleBilinearOperatorCpu<18>([&](const Cell& cell) { return _computeLocalVonMisesElementMatrixQuad9Cpu(cell, elastic_assembly); });
       }
       else {
         _assembleBilinearOperatorCpu<6>([&](const Cell& cell) { return _computeLocalVonMisesElementMatrixTria3Cpu(cell, elastic_assembly); });

@@ -75,7 +75,12 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMise
   if (use_gpu && m_use_gpu_functions) {
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {
-        ARCANE_FATAL("Not IMPLEMENTED");
+        if (m_nodes_per_cell == 4)
+          _updateGlobalTangentMaterialTensorVonMisesQuad4Cpu(); // Todo: implement GPU version
+        else if (m_nodes_per_cell == 8)
+          _updateGlobalTangentMaterialTensorVonMisesQuad8Cpu(); // Todo: implement GPU version
+        else
+          _updateGlobalTangentMaterialTensorVonMisesQuad9Cpu(); // Todo: implement GPU version
       } else {
         _updateGlobalTangentMaterialTensorVonMisesTria3Gpu();
       }
@@ -89,7 +94,12 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMise
   } else {
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {
-        ARCANE_FATAL("Not IMPLEMENTED");
+        if (m_nodes_per_cell == 4)
+          _updateGlobalTangentMaterialTensorVonMisesQuad4Cpu();
+        else if (m_nodes_per_cell == 8)
+          _updateGlobalTangentMaterialTensorVonMisesQuad8Cpu();
+        else
+          _updateGlobalTangentMaterialTensorVonMisesQuad9Cpu();
       } else {
         _updateGlobalTangentMaterialTensorVonMisesTria3Cpu();
       }
@@ -103,6 +113,19 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMise
   }
 }
 /*---------------------------------------------------------------------------*/
+
+// ARCCORE_HOST_DEVICE void computeMaterialTensorVonMisesLawAtGpBase(RealMatrix<3, 3>& C_tang_gp,
+//                                                                   RealVector<3>& sigma_gp,
+//                                                                   Real& sigma_zz_gp,
+//                                                                   Real& dp_gp,
+//                                                                   const Real3x3& grad_DU,
+//                                                                   const RealVector<3>& sigma_old_gp,
+//                                                                   const Real& sigma_zz_old_gp,
+//                                                                   const Real& p_old_gp,
+//                                                                   const RealMatrix<3,3>& C_elas_2d,
+//                                                                   const Real& in_sig0,
+//                                                                   const Real& in_H,
+//                                                                   const Real& in_mu);
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -522,6 +545,218 @@ RealMatrix<6, 6> FemModuleElastoplasticity::_computeLocalVonMisesElementMatrixTr
 }
 /*---------------------------------------------------------------------------*/
 
+inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMisesQuad4Cpu()
+{
+  constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    Int8 iGP = 0;
+    for (Int8 ixi = 0; ixi < 2; ++ixi) {
+      for (Int8 ieta = 0; ieta < 2; ++ieta) {
+        RealMatrix<3, 3> C_tang_gp;
+        RealVector<3> sigma_gp;
+        RealVector<3> sigma_old_gp;
+        for (Int8 i = 0; i < 3; ++i) {
+          sigma_gp(i) = m_sigma_gp(cell, iGP, i);
+          sigma_old_gp(i) = m_sigma_old_gp(cell, iGP, i);
+          for (Int8 j = 0; j < 3; ++j)
+            C_tang_gp(i, j) = m_C_tang_gp(cell, iGP, i, j);
+        }
+        Real sigma_zz_gp = m_sigma_zz_gp(cell, iGP);
+        Real dp_gp = m_dp_gp(cell, iGP);
+        const Real3x3 grad_DU = computeDisplacementGradientQuad4(cell, m_node_coord, m_DUn, gp[ixi], gp[ieta]);
+
+        computeMaterialTensorVonMisesLawAtGpBase(C_tang_gp, sigma_gp, sigma_zz_gp, dp_gp, grad_DU,
+                                                  sigma_old_gp, m_sigma_zz_old_gp(cell, iGP),
+                                                  m_p_old_gp(cell, iGP), m_C_elas_2d, sig0, H, mu);
+        for (Int8 i = 0; i < 3; ++i) {
+          m_sigma_gp(cell, iGP, i) = sigma_gp(i);
+          for (Int8 j = 0; j < 3; ++j)
+            m_C_tang_gp(cell, iGP, i, j) = C_tang_gp(i, j);
+        }
+        m_sigma_zz_gp(cell, iGP) = sigma_zz_gp;
+        m_dp_gp(cell, iGP) = dp_gp;
+        ++iGP;
+      }
+    }
+  }
+}
+
+inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMisesQuad8Cpu()
+{
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    Int8 iGP = 0;
+    for (Int8 ixi = 0; ixi < 3; ++ixi) {
+      for (Int8 ieta = 0; ieta < 3; ++ieta) {
+        RealMatrix<3, 3> C_tang_gp;
+        RealVector<3> sigma_gp;
+        RealVector<3> sigma_old_gp;
+        for (Int8 i = 0; i < 3; ++i) {
+          sigma_gp(i) = m_sigma_gp(cell, iGP, i);
+          sigma_old_gp(i) = m_sigma_old_gp(cell, iGP, i);
+          for (Int8 j = 0; j < 3; ++j)
+            C_tang_gp(i, j) = m_C_tang_gp(cell, iGP, i, j);
+        }
+        Real sigma_zz_gp = m_sigma_zz_gp(cell, iGP);
+        Real dp_gp = m_dp_gp(cell, iGP);
+        const Real3x3 grad_DU = computeDisplacementGradientQuad8(cell, m_node_coord, m_DUn, gp[ixi], gp[ieta]);
+
+        computeMaterialTensorVonMisesLawAtGpBase(C_tang_gp, sigma_gp, sigma_zz_gp, dp_gp, grad_DU,
+                                                  sigma_old_gp, m_sigma_zz_old_gp(cell, iGP),
+                                                  m_p_old_gp(cell, iGP), m_C_elas_2d, sig0, H, mu);
+        for (Int8 i = 0; i < 3; ++i) {
+          m_sigma_gp(cell, iGP, i) = sigma_gp(i);
+          for (Int8 j = 0; j < 3; ++j)
+            m_C_tang_gp(cell, iGP, i, j) = C_tang_gp(i, j);
+        }
+        m_sigma_zz_gp(cell, iGP) = sigma_zz_gp;
+        m_dp_gp(cell, iGP) = dp_gp;
+        ++iGP;
+      }
+    }
+  }
+}
+
+inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMisesQuad9Cpu()
+{
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    Int8 iGP = 0;
+    for (Int8 ixi = 0; ixi < 3; ++ixi) {
+      for (Int8 ieta = 0; ieta < 3; ++ieta) {
+        RealMatrix<3, 3> C_tang_gp;
+        RealVector<3> sigma_gp;
+        RealVector<3> sigma_old_gp;
+        for (Int8 i = 0; i < 3; ++i) {
+          sigma_gp(i) = m_sigma_gp(cell, iGP, i);
+          sigma_old_gp(i) = m_sigma_old_gp(cell, iGP, i);
+          for (Int8 j = 0; j < 3; ++j)
+            C_tang_gp(i, j) = m_C_tang_gp(cell, iGP, i, j);
+        }
+        Real sigma_zz_gp = m_sigma_zz_gp(cell, iGP);
+        Real dp_gp = m_dp_gp(cell, iGP);
+        const Real3x3 grad_DU = computeDisplacementGradientQuad9(cell, m_node_coord, m_DUn, gp[ixi], gp[ieta]);
+
+        computeMaterialTensorVonMisesLawAtGpBase(C_tang_gp, sigma_gp, sigma_zz_gp, dp_gp, grad_DU,
+                                                  sigma_old_gp, m_sigma_zz_old_gp(cell, iGP),
+                                                  m_p_old_gp(cell, iGP), m_C_elas_2d, sig0, H, mu);
+        for (Int8 i = 0; i < 3; ++i) {
+          m_sigma_gp(cell, iGP, i) = sigma_gp(i);
+          for (Int8 j = 0; j < 3; ++j)
+            m_C_tang_gp(cell, iGP, i, j) = C_tang_gp(i, j);
+        }
+        m_sigma_zz_gp(cell, iGP) = sigma_zz_gp;
+        m_dp_gp(cell, iGP) = dp_gp;
+        ++iGP;
+      }
+    }
+  }
+}
+
+RealMatrix<8, 8>
+FemModuleElastoplasticity::_computeLocalVonMisesElementMatrixQuad4Cpu(Cell cell, bool assemble_elastic)
+{
+  constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
+
+  RealMatrix<8, 8> ae;
+  ae.fill(0.0);
+  Int8 iGP = 0;
+  for (Int8 ixi = 0; ixi < 2; ++ixi) {
+    for (Int8 ieta = 0; ieta < 2; ++ieta) {
+      const Real xi = gp[ixi];
+      const Real eta = gp[ieta];
+      const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad4(cell, m_node_coord, xi, eta);
+
+      RealMatrix<3, 3> C_tang_gp = m_C_elas_2d;
+      if (!assemble_elastic) {
+        RealVector<3> sigma_old_gp;
+        for (Int8 i = 0; i < 3; ++i)
+          sigma_old_gp(i) = m_sigma_old_gp(cell, iGP, i);
+        const Real3x3 grad_DU = computeDisplacementGradientQuad4(cell, m_node_coord, m_DUn, xi, eta);
+        computeTangentMaterialTensorVonMisesAtGp(C_tang_gp, grad_DU, sigma_old_gp,
+                                                  m_sigma_zz_old_gp(cell, iGP), m_p_old_gp(cell, iGP),
+                                                  m_C_elas_2d, sig0, H, mu);
+      }
+      ae += computeElementMatrixQuad4Base(gp_info.dN_dx, gp_info.dN_dy, gp_info.det_j, C_tang_gp);
+      ++iGP;
+    }
+  }
+  return ae;
+}
+
+RealMatrix<16, 16>
+FemModuleElastoplasticity::_computeLocalVonMisesElementMatrixQuad8Cpu(Cell cell, bool assemble_elastic)
+{
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+  constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+  RealMatrix<16, 16> ae;
+  ae.fill(0.0);
+  Int8 iGP = 0;
+  for (Int8 ixi = 0; ixi < 3; ++ixi) {
+    for (Int8 ieta = 0; ieta < 3; ++ieta) {
+      const Real xi = gp[ixi];
+      const Real eta = gp[ieta];
+      const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad8(cell, m_node_coord, xi, eta);
+
+      RealMatrix<3, 3> C_tang_gp = m_C_elas_2d;
+      if (!assemble_elastic) {
+        RealVector<3> sigma_old_gp;
+        for (Int8 i = 0; i < 3; ++i)
+          sigma_old_gp(i) = m_sigma_old_gp(cell, iGP, i);
+        const Real3x3 grad_DU = computeDisplacementGradientQuad8(cell, m_node_coord, m_DUn, xi, eta);
+        computeTangentMaterialTensorVonMisesAtGp(C_tang_gp, grad_DU, sigma_old_gp,
+                                                  m_sigma_zz_old_gp(cell, iGP), m_p_old_gp(cell, iGP),
+                                                  m_C_elas_2d, sig0, H, mu);
+      }
+      ae += computeElementMatrixQuad8Base(gp_info.dN_dx, gp_info.dN_dy,
+                                           gp_info.det_j * weights[ixi] * weights[ieta], C_tang_gp);
+      ++iGP;
+    }
+  }
+  return ae;
+}
+
+RealMatrix<18, 18>
+FemModuleElastoplasticity::_computeLocalVonMisesElementMatrixQuad9Cpu(Cell cell, bool assemble_elastic)
+{
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+  constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+  RealMatrix<18, 18> ae;
+  ae.fill(0.0);
+  Int8 iGP = 0;
+  for (Int8 ixi = 0; ixi < 3; ++ixi) {
+    for (Int8 ieta = 0; ieta < 3; ++ieta) {
+      const Real xi = gp[ixi];
+      const Real eta = gp[ieta];
+      const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad9(
+      cell, m_node_coord, xi, eta);
+
+      RealMatrix<3, 3> C_tang_gp = m_C_elas_2d;
+      if (!assemble_elastic) {
+        RealVector<3> sigma_old_gp;
+        for (Int8 i = 0; i < 3; ++i)
+          sigma_old_gp(i) = m_sigma_old_gp(cell, iGP, i);
+        const Real3x3 grad_DU = computeDisplacementGradientQuad9(cell, m_node_coord, m_DUn, xi, eta);
+        computeTangentMaterialTensorVonMisesAtGp(C_tang_gp, grad_DU, sigma_old_gp,
+                                                  m_sigma_zz_old_gp(cell, iGP), m_p_old_gp(cell, iGP),
+                                                  m_C_elas_2d, sig0, H, mu);
+      }
+      ae += computeElementMatrixQuad9Base(gp_info.dN_dx, gp_info.dN_dy,
+                                           gp_info.det_j * weights[ixi] * weights[ieta], C_tang_gp);
+      ++iGP;
+    }
+  }
+  return ae;
+}
+
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Applies the VonMises plasticity criteria to compute the local LHS
@@ -640,14 +875,22 @@ inline void FemModuleElastoplasticity::_updateStressAndInVarsVonMises()
 {
   if (mesh()->dimension() == 2) {
     if (m_hex_quad_mesh) {
-      ARCANE_FATAL("Not IMPLEMENTED");
-    } else {
+      if (m_nodes_per_cell == 4)
+        _updateStressAndInVarsVonMisesQuad4Cpu(); // Todo: implement GPU version
+      else if (m_nodes_per_cell == 8)
+        _updateStressAndInVarsVonMisesQuad8Cpu(); // Todo: implement GPU version
+      else
+        _updateStressAndInVarsVonMisesQuad9Cpu(); // Todo: implement GPU version
+    }
+    else {
       _updateStressAndInVarsVonMisesTria3Gpu();
     }
-  } else {
+  }
+  else {
     if (m_hex_quad_mesh) {
       ARCANE_FATAL("Not IMPLEMENTED");
-    } else {
+    }
+    else {
       ARCANE_FATAL("Not IMPLEMENTED");
     }
   }
@@ -721,3 +964,96 @@ inline void FemModuleElastoplasticity::_updateStressAndInVarsVonMisesTria3Gpu()
   };
 }
 /*---------------------------------------------------------------------------*/
+
+inline void FemModuleElastoplasticity::_updateStressAndInVarsVonMisesQuad4Cpu()
+{
+  constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    Int8 iGP = 0;
+    for (Int8 ixi = 0; ixi < 2; ++ixi) {
+      for (Int8 ieta = 0; ieta < 2; ++ieta) {
+        RealVector<3> sigma_gp;
+        RealVector<3> sigma_old_gp;
+        for (Int8 i = 0; i < 3; ++i) {
+          sigma_gp(i) = m_sigma_gp(cell, iGP, i);
+          sigma_old_gp(i) = m_sigma_old_gp(cell, iGP, i);
+        }
+        Real sigma_zz_gp = m_sigma_zz_gp(cell, iGP);
+        Real dp_gp = m_dp_gp(cell, iGP);
+        const Real3x3 grad_DU = computeDisplacementGradientQuad4(cell, m_node_coord, m_DUn, gp[ixi], gp[ieta]);
+        computeStressAndInVarsVonMisesAtGp(sigma_gp, sigma_zz_gp, dp_gp, grad_DU,
+                                            sigma_old_gp, m_sigma_zz_old_gp(cell, iGP),
+                                            m_p_old_gp(cell, iGP), m_C_elas_2d, sig0, H, mu);
+        for (Int8 i = 0; i < 3; ++i)
+          m_sigma_gp(cell, iGP, i) = sigma_gp(i);
+        m_sigma_zz_gp(cell, iGP) = sigma_zz_gp;
+        m_dp_gp(cell, iGP) = dp_gp;
+        ++iGP;
+      }
+    }
+  }
+}
+
+inline void FemModuleElastoplasticity::_updateStressAndInVarsVonMisesQuad8Cpu()
+{
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    Int8 iGP = 0;
+    for (Int8 ixi = 0; ixi < 3; ++ixi) {
+      for (Int8 ieta = 0; ieta < 3; ++ieta) {
+        RealVector<3> sigma_gp;
+        RealVector<3> sigma_old_gp;
+        for (Int8 i = 0; i < 3; ++i) {
+          sigma_gp(i) = m_sigma_gp(cell, iGP, i);
+          sigma_old_gp(i) = m_sigma_old_gp(cell, iGP, i);
+        }
+        Real sigma_zz_gp = m_sigma_zz_gp(cell, iGP);
+        Real dp_gp = m_dp_gp(cell, iGP);
+        const Real3x3 grad_DU = computeDisplacementGradientQuad8(cell, m_node_coord, m_DUn, gp[ixi], gp[ieta]);
+        computeStressAndInVarsVonMisesAtGp(sigma_gp, sigma_zz_gp, dp_gp, grad_DU,
+                                            sigma_old_gp, m_sigma_zz_old_gp(cell, iGP),
+                                            m_p_old_gp(cell, iGP), m_C_elas_2d, sig0, H, mu);
+        for (Int8 i = 0; i < 3; ++i)
+          m_sigma_gp(cell, iGP, i) = sigma_gp(i);
+        m_sigma_zz_gp(cell, iGP) = sigma_zz_gp;
+        m_dp_gp(cell, iGP) = dp_gp;
+        ++iGP;
+      }
+    }
+  }
+}
+
+inline void FemModuleElastoplasticity::_updateStressAndInVarsVonMisesQuad9Cpu()
+{
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    Int8 iGP = 0;
+    for (Int8 ixi = 0; ixi < 3; ++ixi) {
+      for (Int8 ieta = 0; ieta < 3; ++ieta) {
+        RealVector<3> sigma_gp;
+        RealVector<3> sigma_old_gp;
+        for (Int8 i = 0; i < 3; ++i) {
+          sigma_gp(i) = m_sigma_gp(cell, iGP, i);
+          sigma_old_gp(i) = m_sigma_old_gp(cell, iGP, i);
+        }
+        Real sigma_zz_gp = m_sigma_zz_gp(cell, iGP);
+        Real dp_gp = m_dp_gp(cell, iGP);
+        const Real3x3 grad_DU = computeDisplacementGradientQuad9(cell, m_node_coord, m_DUn, gp[ixi], gp[ieta]);
+        computeStressAndInVarsVonMisesAtGp(sigma_gp, sigma_zz_gp, dp_gp, grad_DU,
+                                            sigma_old_gp, m_sigma_zz_old_gp(cell, iGP),
+                                            m_p_old_gp(cell, iGP), m_C_elas_2d, sig0, H, mu);
+        for (Int8 i = 0; i < 3; ++i)
+          m_sigma_gp(cell, iGP, i) = sigma_gp(i);
+        m_sigma_zz_gp(cell, iGP) = sigma_zz_gp;
+        m_dp_gp(cell, iGP) = dp_gp;
+        ++iGP;
+      }
+    }
+  }
+}
