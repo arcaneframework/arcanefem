@@ -66,6 +66,8 @@ startInit()
   m_gp_material_tensor_strategy = options()->gpMaterialTensorStrategy();
   m_check_with_bilinear_operator = options()->checkBilinearOperatorForResidual();
 
+  _initMaterialDomains();
+
   if (mesh()->dimension() == 2) {
     ENUMERATE_ (Cell, icell, allCells()) {
       m_nodes_per_cell = icell->nbNode();
@@ -107,6 +109,53 @@ startInit()
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Initializes and validates the material-domain partition.
+ *
+ * This first prototype keeps one constitutive law for every domain. The
+ * domains only control the cell loops used to assemble the DOK matrix and the
+ * volume terms of the RHS.
+ */
+/*---------------------------------------------------------------------------*/
+void FemModuleElastoplasticity::
+_initMaterialDomains()
+{
+  for (const auto& material_domain : options()->materialDomain()) {
+    CellGroup group = material_domain->volume();
+    info() << "[ArcaneFem-Info] Material domain: " << group.name()
+           << " (" << group.size() << " local cells)";
+    m_material_domains.add(group);
+  }
+
+  if (m_material_domains.empty()) {
+    m_material_domains.add(allCells());
+    return;
+  }
+
+  if (m_matrix_format != "DOK" || m_gp_material_tensor_strategy != "global" ||
+      mesh()->dimension() != 2 || m_hex_quad_mesh) {
+    ARCANE_FATAL("material-domain is currently supported only for 2D Tri3 "
+                 "with matrix-format='DOK' and gp-material-tensor-strategy='global'");
+  }
+
+  UniqueArray<Int32> domain_count(mesh()->cellFamily()->maxLocalId());
+  domain_count.fill(0);
+  for (const CellGroup& domain : m_material_domains) {
+    ENUMERATE_ (Cell, icell, domain) {
+      ++domain_count[icell->localId()];
+    }
+  }
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    const Int32 count = domain_count[icell->localId()];
+    if (count != 1) {
+      ARCANE_FATAL("Cell uid={0} belongs to {1} material domains; expected exactly one",
+                   icell->uniqueId(), count);
+    }
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -807,7 +856,7 @@ _assembleBilinearOperatorGlobal()
           _assembleBilinearOperatorCpu<18>([this](const Cell& cell) { return _computeElementMatrixQuad9(cell); });
       }
       else {
-        _assembleBilinearOperatorCpu<6>([&](const Cell& cell) { return _computeElementMatrixTria3(cell); });
+        _assembleBilinearOperatorGlobalDOKTria3();
       }
     }
     if (mesh()->dimension() == 3) {
@@ -825,6 +874,45 @@ _assembleBilinearOperatorGlobal()
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"lhs-matrix-assembly", elapsedTime);
 }
+/*---------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Assembles the global-strategy Tri3 DOK matrix by material domain.
+ */
+/*---------------------------------------------------------------------------*/
+void FemModuleElastoplasticity::
+_assembleBilinearOperatorGlobalDOKTria3()
+{
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+
+  for (const CellGroup& domain : m_material_domains) {
+    ENUMERATE_ (Cell, icell, domain) {
+      Cell cell = *icell;
+      RealMatrix<6, 6> K_e = _computeElementMatrixTria3(cell);
+
+      Int32 n1_index = 0;
+      for (Node node1 : cell.nodes()) {
+        if (node1.isOwn()) {
+          Int32 n2_index = 0;
+          for (Node node2 : cell.nodes()) {
+            for (Int8 i = 0; i < 2; ++i) {
+              DoFLocalId dof1 = node_dof.dofId(node1, i);
+              for (Int8 j = 0; j < 2; ++j) {
+                DoFLocalId dof2 = node_dof.dofId(node2, j);
+                m_linear_system.matrixAddValue(dof1, dof2,
+                                               K_e(2 * n1_index + i, 2 * n2_index + j));
+              }
+            }
+            ++n2_index;
+          }
+        }
+        ++n1_index;
+      }
+    }
+  }
+}
+
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/

@@ -97,6 +97,16 @@
       <description>Boolean to use hexagonal quadrature for element matrix assembly.</description>
     </simple>
 
+    <complex name="material-domain"
+             type="MaterialDomain"
+             minOccurs="0"
+             maxOccurs="unbounded">
+      <description>Cell group to integrate separately during DOK assembly.</description>
+      <extended name="volume" type="Arcane::CellGroup">
+        <description>Cell group belonging to this material domain.</description>
+      </extended>
+    </complex>
+
     <!-- - - - - - constitutive law for plasticity/elasticity - - - - -->
     <complex name="constitutive-law"
              type="ConstitutiveLaw"

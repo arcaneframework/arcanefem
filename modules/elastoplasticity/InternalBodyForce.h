@@ -239,25 +239,27 @@ _applyInternalBodyForceTria3Cpu(VariableDoFReal& rhs_values, const IndexedNodeDo
 {
   info() << "[ArcaneFem-Info] Started module  _applyInternalBodyForceTria3Cpu()";
 
-  ENUMERATE_ (Cell, icell, allCells()) {
-    Cell cell = *icell;
-    Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
-    Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
-    Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
+  for (const CellGroup& domain : m_material_domains) {
+    ENUMERATE_ (Cell, icell, domain) {
+      Cell cell = *icell;
+      Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
+      Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
+      Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
 
-    Int8 iGP = 0; // for tria P1 elements nGP=1
-    Real sigma_xx = m_sigma_gp(cell , iGP, 0);
-    Real sigma_yy = m_sigma_gp(cell , iGP, 1);
-    Real sigma_xy = m_sigma_gp(cell , iGP, 2);
+      Int8 iGP = 0; // for tria P1 elements nGP=1
+      Real sigma_xx = m_sigma_gp(cell , iGP, 0);
+      Real sigma_yy = m_sigma_gp(cell , iGP, 1);
+      Real sigma_xy = m_sigma_gp(cell , iGP, 2);
 
-    RealVector<6> rhs = computeInternalBodyForceTria3Base(dxu, dyu, area, { sigma_xx, sigma_yy, sigma_xy });
+      RealVector<6> rhs = computeInternalBodyForceTria3Base(dxu, dyu, area, { sigma_xx, sigma_yy, sigma_xy });
 
-    rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0);
-    rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(1);
-    rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(2);
-    rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(3);
-    rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(4);
-    rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(5);
+      rhs_values[node_dof.dofId(cell.nodeId(0), 0)] += rhs(0);
+      rhs_values[node_dof.dofId(cell.nodeId(0), 1)] += rhs(1);
+      rhs_values[node_dof.dofId(cell.nodeId(1), 0)] += rhs(2);
+      rhs_values[node_dof.dofId(cell.nodeId(1), 1)] += rhs(3);
+      rhs_values[node_dof.dofId(cell.nodeId(2), 0)] += rhs(4);
+      rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(5);
+    }
   }
 }
 
