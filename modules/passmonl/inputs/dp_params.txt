@@ -1,0 +1,7 @@
+// =========================================================================================================
+// Each constitutive law is defined with the i-law-param number defined for the associated cell group
+// Then the list of law parameters to be stored per cell in the lawparams vector, is provided, except for
+// elastic ones (Lambda, Mu) which are initialized with global mesh data
+// =========================================================================================================
+<0>
+30. 30. 1.e5 30 0
