@@ -108,7 +108,7 @@ _applyRowColumnEliminationOnMatrix()
     bool is_row_elimination = (row_elimination_info == ELIMINATE_ROW) || (row_elimination_info == ELIMINATE_ROW_COLUMN);
     for (CsrRowColumnIndex csr_index : csr_view.rowRange(dof_row)) {
       Int32 column_index = csr_view.column(csr_index);
-      if (column_index > 0) {
+      if (column_index >= 0) {
         DoFLocalId dof_column(column_index);
         auto column_elimination_info = in_elimination_info[dof_column];
         bool is_column_elimination = (column_elimination_info == ELIMINATE_ROW) || (column_elimination_info == ELIMINATE_ROW_COLUMN);
@@ -222,7 +222,7 @@ _fillRowColumnEliminationInfos()
         Byte column_elimination_info = dof_elimination_info[dof_column];
         if (row_elimination_info == ELIMINATE_ROW_COLUMN || column_elimination_info == ELIMINATE_ROW_COLUMN) {
           Real value = csr_view.value(csr_index);
-          rc_elimination_map[{ i, col_index }] = value;
+          rc_elimination_map.setValue({ i, col_index }, value);
         }
       }
     }

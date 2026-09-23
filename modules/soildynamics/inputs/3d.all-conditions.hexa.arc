@@ -27,7 +27,6 @@
     <cp>40.</cp>
     <rho>9.0</rho>
     <f>0.03 0.04 18.0</f>
-    <hex-quad-mesh>true</hex-quad-mesh>
     <boundary-conditions>
       <dirichlet>
         <surface>boundaries</surface>

@@ -267,6 +267,9 @@ solve()
 {
   const bool do_debug_print = false;
 
+  if (hasNearNullSpace() && m_preconditioner != preconditioner::AMG)
+    ARCANE_THROW(NotSupportedException, "Hypre near-null-space vectors require the BoomerAMG preconditioner");
+
 #if HYPRE_RELEASE_NUMBER >= 22700
   HYPRE_MemoryLocation hypre_memory = HYPRE_MEMORY_HOST;
   HYPRE_ExecutionPolicy hypre_exec_policy = HYPRE_EXEC_HOST;
@@ -306,6 +309,10 @@ solve()
     is_use_device = false;
   }
 #endif
+
+  // Near-null-space vectors are currently supported on the CPU only (TODO: implement on GPU)
+  if (is_use_device && hasNearNullSpace())
+    ARCANE_THROW(NotSupportedException, "Hypre near-null-space vectors are currently supported on the CPU only");
 
 #if HYPRE_RELEASE_NUMBER >= 22700
   if (is_use_device) {
@@ -534,6 +541,8 @@ solve()
   HYPRE_ParVector parvector_b = nullptr;
   HYPRE_IJVector ij_vector_x = nullptr;
   HYPRE_ParVector parvector_x = nullptr;
+  UniqueArray<HYPRE_IJVector> ij_near_null_vectors;
+  UniqueArray<HYPRE_ParVector> par_near_null_vectors;
 
   hypreCheck("IJVectorCreate", HYPRE_IJVectorCreate(mpi_comm, first_row, last_row, &ij_vector_b));
   hypreCheck("IJVectorSetObjectType", HYPRE_IJVectorSetObjectType(ij_vector_b, HYPRE_PARCSR));
@@ -577,6 +586,57 @@ solve()
   hypreCheck("HYPRE_IJVectorAssemble",
              HYPRE_IJVectorAssemble(ij_vector_x));
   HYPRE_IJVectorGetObject(ij_vector_x, (void**)&parvector_x);
+
+  if (hasNearNullSpace()) {
+    const auto& modes = nearNullSpaceValues();
+    const Int32 nb_mode = modes.extent0();
+    ij_near_null_vectors.resize(nb_mode);
+    par_near_null_vectors.resize(nb_mode);
+
+    UniqueArray<Int32> mode_indices(m_nb_own_row);
+    UniqueArray<Real> mode_values(m_nb_own_row);
+    for (Int32 mode_index = 0; mode_index < nb_mode; ++mode_index) {
+      Int32 index = 0;
+      ENUMERATE_DOF (idof, dof_family->allItems().own()) {
+        mode_indices[index] = m_dof_matrix_numbering[idof];
+        mode_values[index] = modes(mode_index, idof.itemLocalId());
+        ++index;
+      }
+
+      hypreCheck("IJVectorCreate",
+                 HYPRE_IJVectorCreate(mpi_comm, first_row, last_row,
+                                      &ij_near_null_vectors[mode_index]));
+      hypreCheck("IJVectorSetObjectType",
+                 HYPRE_IJVectorSetObjectType(ij_near_null_vectors[mode_index], HYPRE_PARCSR));
+#if HYPRE_RELEASE_NUMBER >= 22700
+      hypreCheck("IJVectorInitialize_v2",
+                 HYPRE_IJVectorInitialize_v2(ij_near_null_vectors[mode_index], hypre_memory));
+#else
+      hypreCheck("IJVectorInitialize",
+                 HYPRE_IJVectorInitialize(ij_near_null_vectors[mode_index]));
+#endif
+
+      const Int32* mode_indices_data = mode_indices.data();
+      const Real* mode_values_data = mode_values.data();
+      NumArray<Int32, MDDim1> device_mode_indices(mem_ressource);
+      NumArray<Real, MDDim1> device_mode_values(mem_ressource);
+      if (is_use_device && is_use_device_memory) {
+        _doCopy(device_mode_indices, Span<const Int32>(mode_indices), &q);
+        _doCopy(device_mode_values, Span<const Real>(mode_values), &q);
+        q.barrier();
+        mode_indices_data = device_mode_indices.to1DSpan().data();
+        mode_values_data = device_mode_values.to1DSpan().data();
+      }
+      hypreCheck("HYPRE_IJVectorSetValues",
+                 HYPRE_IJVectorSetValues(ij_near_null_vectors[mode_index], m_nb_own_row,
+                                         mode_indices_data, mode_values_data));
+      hypreCheck("HYPRE_IJVectorAssemble",
+                 HYPRE_IJVectorAssemble(ij_near_null_vectors[mode_index]));
+      hypreCheck("HYPRE_IJVectorGetObject",
+                 HYPRE_IJVectorGetObject(ij_near_null_vectors[mode_index],
+                                         (void**)&par_near_null_vectors[mode_index]));
+    }
+  }
   Real v2 = platform::getRealTime();
   info() << "[Hypre-Timer] Time to create vectors = " << (v2 - v1);
   pm->traceMng()->flush();
@@ -654,6 +714,20 @@ solve()
       HYPRE_BoomerAMGSetStrongThreshold(precond, m_amg_threshold); // amg threshold strength //
       HYPRE_BoomerAMGSetKeepTranspose(precond, 1); // for GPU the local interp. trnsp saved//
       HYPRE_BoomerAMGSetRAP2(precond, 0); // RAP in two multiplications //
+
+      if (hasNearNullSpace()) {
+        hypreCheck("HYPRE_BoomerAMGSetNumFunctions",
+                   HYPRE_BoomerAMGSetNumFunctions(precond, nearNullSpaceBlockSize()));
+        hypreCheck("HYPRE_BoomerAMGSetNodal",
+                   HYPRE_BoomerAMGSetNodal(precond, 1));
+        hypreCheck("HYPRE_BoomerAMGSetInterpVectors",
+                   HYPRE_BoomerAMGSetInterpVectors(precond, par_near_null_vectors.size(),
+                                                   par_near_null_vectors.data()));
+        hypreCheck("HYPRE_BoomerAMGSetInterpVecVariant",
+                   HYPRE_BoomerAMGSetInterpVecVariant(precond, 2));
+        info() << "[Hypre-Info] Attached " << par_near_null_vectors.size()
+               << " near-null-space vectors";
+      }
 
       switch (m_solver) {
       case solver::CG:
@@ -857,6 +931,8 @@ solve()
       break;
     }
   }
+  for (HYPRE_IJVector vector : ij_near_null_vectors)
+    hypreCheck("IJVectorDestroy", HYPRE_IJVectorDestroy(vector));
 }
 
 /*---------------------------------------------------------------------------*/
@@ -871,6 +947,11 @@ class HypreDoFLinearSystemFactoryService
   : ArcaneHypreDoFLinearSystemFactoryObject(sbi)
   {
     info() << "[Hypre-Info] Create HypreDoF";
+  }
+
+  bool amgNearNullSpace() override
+  {
+    return options()->amgNearNullSpace();
   }
 
   IDoFLinearSystemImpl*

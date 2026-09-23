@@ -242,7 +242,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   set(SOLVER_PETSC_DIRECT_CG
     -A,//fem/linear-system/@name=PetscLinearSystem
     -A,//fem/linear-system/solver=cg
-    -A,//fem/linear-system/atol=1e-9
+    -A,//fem/linear-system/atol=1e-12
     -A,//fem/linear-system/rtol=0)
 
   arcanefem_add_full_test(NAME 2D_bar_petsc-direct_bsr

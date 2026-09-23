@@ -20,7 +20,6 @@
   </meshes>
 
   <fem>
-    <hex-quad-mesh>true</hex-quad-mesh>
     <farfield-boundary-condition>
       <surface>outer</surface>
       <angle>0.1</angle>

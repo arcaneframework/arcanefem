@@ -1,6 +1,6 @@
 # Hexahedral elements Hexa8, Hexa20 and Hexa27: mathematical foundations of the implementation
 
-This report details the mathematical construction of the shape functions, their derivatives, the Jacobian and the physical gradient for the trilinear (Hexa8), quadratic serendipity (Hexa20) and full triquadratic Lagrange (Hexa27) hexahedral elements, as implemented in `ArcaneFemFunctions.h` (functions `computeShapeFunctionsHexa{8,20,27}` and `computeGradientsAndJacobianHexa{8,20,27}`). The node numbering follows the VTK convention, consistent with the topology declared in `arcane/src/arcane/core/ItemTypeMng.cc` (`IT_Hexaedron8`, `IT_Hexaedron20`, `IT_Hexaedron27`).
+This report details the mathematical construction of the shape functions, their derivatives, the Jacobian and the physical gradient for the trilinear (Hexa8), quadratic serendipity (Hexa20) and full triquadratic Lagrange (Hexa27) hexahedral elements. The shape functions are implemented in `ShapeFunctions.h`, while `computeGradientsAndJacobianHexa{8,20,27}` remains in `ArcaneFemFunctions.h`. The node numbering follows the VTK convention, consistent with the topology declared in `arcane/src/arcane/core/ItemTypeMng.cc` (`IT_Hexaedron8`, `IT_Hexaedron20`, `IT_Hexaedron27`).
 
 ---
 

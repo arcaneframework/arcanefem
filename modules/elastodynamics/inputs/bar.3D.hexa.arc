@@ -21,7 +21,6 @@
   </meshes>
 
   <fem>
-    <hex-quad-mesh>true</hex-quad-mesh>
     <time-discretization>Newmark-beta</time-discretization>
     <tmax>.5</tmax>
     <dt>0.08</dt>

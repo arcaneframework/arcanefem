@@ -37,22 +37,22 @@ startInit()
   m_solve_linear_system = options()->solveLinearSystem();
   m_cross_validation = options()->hasSolutionComparisonFile();
   m_petsc_flags = options()->petscFlags();
-  m_hex_quad_mesh = options()->hexQuadMesh();
 
   m_manufactured_solution_tolerance = options()->manufacturedSolutionTolerance();
   m_manufactured_solution_name = options()->manufacturedSolution();
   m_has_manufactured_solution = ManufacturedSolutions::isEnabled(m_manufactured_solution_name);
 
-  // Check if the mesh is a quad8, quad9, hexa20 or hexa27 mesh by examining the number of nodes in the first cell
-  // TODO: maye a user flag
+  // Check if the mesh is a quad or hex mesh by examining the number of nodes in the first cell
   UnstructuredMeshConnectivityView connectivity(mesh());
   const Int32 nb_node = connectivity.cellNode().nbNode(CellLocalId(0));
 
   if (mesh()->dimension() == 2) {
+    m_is_quad4_mesh = (nb_node == 4);
     m_is_quad8_mesh = (nb_node == 8);
     m_is_quad9_mesh = (nb_node == 9);
   }
   else if (mesh()->dimension() == 3) {
+    m_is_hexa8_mesh = (nb_node == 8);
     m_is_hexa20_mesh = (nb_node == 20);
     m_is_hexa27_mesh = (nb_node == 27);
   }
@@ -184,18 +184,6 @@ void FemModulePoisson::_assembleLinearOperator()
     return;
   }
 
-  // Quad8 and Quad9 support is currently CPU-only 
-  if (m_is_quad8_mesh || m_is_quad9_mesh) {
-    _assembleLinearOperatorCpu();
-    return;
-  }
-
-  // Hexa20 and Hexa27 support is currently CPU-only 
-  if (m_is_hexa20_mesh || m_is_hexa27_mesh) {
-    _assembleLinearOperatorCpu();
-    return;
-  }
-
   if (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
       options()->linearSystem.serviceName() == "PetscLinearSystem")
     _assembleLinearOperatorGpu();
@@ -206,7 +194,7 @@ void FemModulePoisson::_assembleLinearOperator()
 /*---------------------------------------------------------------------------*/
 /**
  * @brief FEM linear operator for the current simulation step.
- * GPU compatible. Currently working with HypreDoFLinearSystem.
+ * GPU compatible with HypreDoFLinearSystem and PetscDoFLinearSystem.
  *
  * This method constructs the linear  system by  assembling the LHS matrix
  * and  RHS vector, applying various boundary conditions and source terms.
@@ -308,18 +296,6 @@ _assembleBilinearOperator()
   info() << "[ArcaneFem-Info] Started module _assembleBilinearOperator()";
   Real elapsedTime = platform::getRealTime();
 
-  if (m_is_quad8_mesh && m_matrix_format != "DOK")
-    ARCANE_FATAL("Quad8 Poisson assembly is currently supported on CPU with matrix-format=DOK only");
-  
-  if (m_is_quad9_mesh && m_matrix_format != "DOK")
-    ARCANE_FATAL("Quad9 Poisson assembly is currently supported on CPU with matrix-format=DOK only");
-
-  if (m_is_hexa20_mesh && m_matrix_format != "DOK")
-    ARCANE_FATAL("Hexa20 Poisson assembly is currently supported on CPU with matrix-format=DOK only");
-
-  if (m_is_hexa27_mesh && m_matrix_format != "DOK")
-    ARCANE_FATAL("Hexa27 Poisson assembly is currently supported on CPU with matrix-format=DOK only");
-
   if (m_matrix_format == "BSR") {
     UnstructuredMeshConnectivityView m_connectivity_view(mesh());
     auto cn_cv = m_connectivity_view.cellNode();
@@ -328,13 +304,21 @@ _assembleBilinearOperator()
     auto in_node_coord = ax::viewIn(command, m_node_coord);
 
     if (mesh()->dimension() == 2){
-      if(m_hex_quad_mesh)
+      if (m_is_quad8_mesh)
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixQuad8Gpu(cell_lid, cn_cv, in_node_coord); });
+      else if (m_is_quad9_mesh)
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixQuad9Gpu(cell_lid, cn_cv, in_node_coord); });
+      else if(m_is_quad4_mesh)
         m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixQuad4Gpu(cell_lid, cn_cv, in_node_coord); });
       else
         m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord); });
     }
     else{
-      if(m_hex_quad_mesh)
+      if (m_is_hexa27_mesh)
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixHexa27Gpu(cell_lid, cn_cv, in_node_coord); });
+      else if (m_is_hexa20_mesh)
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixHexa20Gpu(cell_lid, cn_cv, in_node_coord); });
+      else if(m_is_hexa8_mesh)
         m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixHexa8Gpu(cell_lid, cn_cv, in_node_coord); });
       else
         m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return _computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord); });
@@ -351,10 +335,20 @@ _assembleBilinearOperator()
     auto in_node_coord = ax::viewIn(command, m_node_coord);
 
     if (mesh()->dimension() == 2)
-      if(m_hex_quad_mesh)
+      if (m_is_quad8_mesh)
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorQuad8Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
+      else if (m_is_quad9_mesh)
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorQuad9Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
+      else if(m_is_quad4_mesh)
         m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorQuad4Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
       else
         m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
+    else if (m_is_hexa27_mesh)
+      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorHexa27Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
+    else if (m_is_hexa20_mesh)
+      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorHexa20Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
+    else if (m_is_hexa8_mesh)
+      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorHexa8Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
     else
       m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return _computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, node_lid); });
 
@@ -363,25 +357,26 @@ _assembleBilinearOperator()
   }
 
   if (m_matrix_format == "DOK") {
-    if (mesh()->dimension() == 3)
-      if(m_is_hexa27_mesh)
+    if (mesh()->dimension() == 3) {
+      if (m_is_hexa27_mesh)
         _assembleBilinear<27>([this](const Cell& cell) { return _computeElementMatrixHexa27(cell); });
-      else if(m_is_hexa20_mesh)
+      else if (m_is_hexa20_mesh)
         _assembleBilinear<20>([this](const Cell& cell) { return _computeElementMatrixHexa20(cell); });
-      else if(m_hex_quad_mesh)
+      else if (m_is_hexa8_mesh)
         _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
       else
         _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixTetra4(cell); });
-    else
-      if(m_hex_quad_mesh)
-        if(m_is_quad9_mesh)
-          _assembleBilinear<9>([this](const Cell& cell) { return _computeElementMatrixQuad9(cell); });
-        else if (m_is_quad8_mesh)
-          _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixQuad8(cell); });
-        else
-          _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+    }
+    else {
+      if (m_is_quad4_mesh)
+        _assembleBilinear<4>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+      else if (m_is_quad9_mesh)
+        _assembleBilinear<9>([this](const Cell& cell) { return _computeElementMatrixQuad9(cell); });
+      else if (m_is_quad8_mesh)
+        _assembleBilinear<8>([this](const Cell& cell) { return _computeElementMatrixQuad8(cell); });
       else
         _assembleBilinear<3>([this](const Cell& cell) { return _computeElementMatrixTria3(cell); });
+    }
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -503,11 +498,10 @@ _validateResults()
   info() << "[ArcaneFem-Info] Started module _validateResults()";
   Real elapsedTime = platform::getRealTime();
 
-  if (allNodes().size() < 200)
-    ENUMERATE_ (Node, inode, allNodes()) {
-      Node node = *inode;
-      info() << "u["  << node.uniqueId() << "] = " << m_u[node];
-    }
+  ENUMERATE_ (Node, inode, allNodes()) {
+    Node node = *inode;
+    info() << "u[" << node.uniqueId() << "] = " << m_u[node];
+  }
 
   String filename = options()->solutionComparisonFile();
 

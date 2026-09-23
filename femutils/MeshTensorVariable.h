@@ -250,6 +250,7 @@ class MeshVariableInfoT<DoF,Arcane::FemUtils::Tensor2,1>
 };
 
 typedef MeshVariableArrayTensor2<Arcane::DoF> VariableDoFArrayTensor2;
+typedef MeshVariableScalarTensor2<Arcane::DoF> VariableDoFScalarTensor2;
 
 } // namespace Arcane
 

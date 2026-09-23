@@ -10,6 +10,7 @@
     * [Elastodynamics](modules/elastodynamics.md)
     * [Elasticity](modules/elasticity.md)
     * [Soildynamics](modules/soildynamics.md)
+    * [Elastoplasticity](modules/elastoplasticity.md)
     * [Acoustics](modules/acoustics.md)
     * [Bilaplacian](modules/bilaplacian.md)
 - Technical Notes

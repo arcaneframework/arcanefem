@@ -191,7 +191,7 @@ _applyParaxial(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView
     }
 
     if (mesh()->dimension() == 3) {
-      if (m_hex_quad_mesh)
+      if (m_is_hexa8_mesh)
         ENUMERATE_ (Face, iface, group) {
           Face face = *iface;
           Real area = ArcaneFemFunctions::MeshOperation::computeAreaQuad4(face, m_node_coord);

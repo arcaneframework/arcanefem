@@ -21,7 +21,6 @@
   </meshes>
 
   <fem>
-    <hex-quad-mesh>true</hex-quad-mesh>
  
     <rho>0.0</rho>
     <epsilon>1.0</epsilon>

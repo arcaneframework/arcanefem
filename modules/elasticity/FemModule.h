@@ -18,6 +18,7 @@
 #include <arcane/utils/CommandLineArguments.h>
 #include <arcane/utils/ParameterList.h>
 #include <arcane/utils/ApplicationInfo.h>
+#include <arcane/utils/NumArray.h>
 
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IMesh.h>
@@ -102,7 +103,11 @@ class FemModuleElasticity
   bool m_assemble_linear_system = true;
   bool m_solve_linear_system = true;
   bool m_cross_validation = false;
-  bool m_hex_quad_mesh = false;
+  bool m_use_rigid_body_near_null_space = false;
+  bool m_is_quad4_mesh = false;
+  bool m_is_hexa8_mesh = false;
+
+  NumArray<Real, MDDim2> m_near_null_space_vectors;
 
   void _getMaterialParameters();
   void _solve();
@@ -110,6 +115,8 @@ class FemModuleElasticity
   void _validateResults();
   void _updateVariables();
   void _initBsr();
+  void _buildRigidBodyNearNullSpace();
+  void _setRigidBodyNearNullSpace();
 
   inline void _applyBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   inline void _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);

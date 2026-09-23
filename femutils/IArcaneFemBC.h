@@ -33,6 +33,7 @@ class IDirichletBoundaryCondition
   virtual Arcane::FaceGroup getSurface() =0;
   virtual StringConstArrayView getValue() =0;
   virtual StringConstArrayView getDirection() =0;
+  virtual String getDirichletInputFile() =0;
   virtual Real getPenalty() =0;
   virtual String getDirichletInputFile() =0;
   virtual String getEnforceDirichletMethod() =0;
@@ -59,6 +60,7 @@ class IManufacturedSolution
  public:
   virtual bool getManufacturedSource() =0;
   virtual bool getManufacturedDirichlet() =0;
+  virtual Arcane::FaceGroup getSurface() =0;
   virtual Real getPenalty() =0;
   virtual String getEnforceDirichletMethod() =0;
   virtual ICaseFunction* getManufacturedDirichletFunction() =0;

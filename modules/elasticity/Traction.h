@@ -35,13 +35,13 @@ _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView
 
   for (BC::ITractionBoundaryCondition* bs : bc->tractionBoundaryConditions()) {
     if (mesh()->dimension() == 2) {
-      if (m_hex_quad_mesh)
+      if (m_is_quad4_mesh)
         ArcaneFemFunctions::BoundaryConditions2D::applyTractionToRhsQuad4(bs, node_dof, m_node_coord, rhs_values);
       else
         ArcaneFemFunctions::BoundaryConditions2D::applyTractionToRhsTria3(bs, node_dof, m_node_coord, rhs_values);
     }
     else if (mesh()->dimension() == 3) {
-      if (m_hex_quad_mesh)
+      if (m_is_hexa8_mesh)
         ArcaneFemFunctions::BoundaryConditions3D::applyTractionToRhsHexa8(bs, node_dof, m_node_coord, rhs_values);
       else
         ArcaneFemFunctions::BoundaryConditions3D::applyTractionToRhsTetra4(bs, node_dof, m_node_coord, rhs_values);

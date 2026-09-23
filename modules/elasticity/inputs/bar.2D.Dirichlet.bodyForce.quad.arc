@@ -22,7 +22,6 @@
   </meshes>
 
   <fem>
-    <hex-quad-mesh>true</hex-quad-mesh>
     <E>21.0e5</E>
     <nu>0.28</nu>
     <f>NULL -1.0</f>

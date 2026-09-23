@@ -274,12 +274,28 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
       ${SOLVER_HYPRE_CG}
       inputs/conduction.arc)
 
+  arcanefem_add_full_test(NAME conduction_quad_hypre_bsr
+    COMMAND ./Fourier
+    ARGS
+      -A,//fem/matrix-format=BSR
+      -A,//fem/solution-comparison-file=check/conduction_quad.txt
+      ${SOLVER_HYPRE_CG}
+      inputs/conduction.quad.arc)
+
   arcanefem_add_full_test(NAME conduction_hypre_af-bsr
     COMMAND ./Fourier
     ARGS
       -A,//fem/matrix-format=AF-BSR
       ${SOLVER_HYPRE_CG}
       inputs/conduction.arc)
+
+    arcanefem_add_full_test(NAME conduction_quad_hypre_af-bsr
+    COMMAND ./Fourier
+    ARGS
+      -A,//fem/matrix-format=AF-BSR
+      -A,//fem/solution-comparison-file=check/conduction_quad.txt
+      ${SOLVER_HYPRE_CG}
+      inputs/conduction.quad.arc)
 
   arcanefem_add_full_test(NAME 3d_conduction_hypre_bsr
     COMMAND ./Fourier
@@ -288,11 +304,27 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
       ${SOLVER_HYPRE_CG}
       inputs/conduction.3D.arc)
 
+  arcanefem_add_full_test(NAME 3d_conduction_hexa_hypre_bsr
+    COMMAND ./Fourier
+    ARGS
+      -A,//fem/solution-comparison-file=check/conduction_hexa.txt
+      -A,//fem/matrix-format=BSR
+      ${SOLVER_HYPRE_CG}
+      inputs/conduction.sphere-cut.hexa.arc)
+
   arcanefem_add_full_test(NAME 3d_conduction_hypre_af-bsr
     COMMAND ./Fourier
     ARGS
       -A,//fem/matrix-format=AF-BSR
       ${SOLVER_HYPRE_CG}
       inputs/conduction.3D.arc)
+
+  arcanefem_add_full_test(NAME 3d_conduction_hexa_hypre_af-bsr
+    COMMAND ./Fourier
+    ARGS
+      -A,//fem/matrix-format=AF-BSR
+      -A,//fem/solution-comparison-file=check/conduction_hexa.txt
+      ${SOLVER_HYPRE_CG}
+      inputs/conduction.sphere-cut.hexa.arc)
 
 endif()

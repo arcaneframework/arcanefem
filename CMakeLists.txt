@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21)
+﻿cmake_minimum_required(VERSION 3.21)
 project(ArcaneFem LANGUAGES C CXX)
 
 # A partir de 3.27:
@@ -8,6 +8,12 @@ if(POLICY CMP0144)
 endif()
 
 find_package(Arcane 3.14.14 REQUIRED)
+
+# Load Arccon to make sure ArcaneFem is used the same
+# configuration packages than Arcane
+find_package(Arccon REQUIRED)
+list(APPEND CMAKE_MODULE_PATH ${ARCCON_MODULE_PATH})
+
 find_package(MEDFile)
 arcane_accelerator_enable()
 
@@ -19,6 +25,8 @@ set(MED_DIR ${CMAKE_SOURCE_DIR}/meshes/med)
 
 # Needed for dynamic loading of services
 set(BUILD_SHARED_LIBS TRUE)
+
+option(ARCANEFEM_ENABLE_ALIEN "Whether to build Alien backend for linear systems" OFF)
 
 add_subdirectory(femutils)
 
@@ -34,6 +42,7 @@ add_subdirectory(modules/fouriernl)
 add_subdirectory(modules/electrostatics)
 add_subdirectory(modules/bilaplacian)
 add_subdirectory(modules/elasticity)
+add_subdirectory(modules/elastoplasticity)
 add_subdirectory(modules/elastodynamics)
 add_subdirectory(modules/soildynamics)
 add_subdirectory(modules/heat)
@@ -53,3 +62,11 @@ if (Doxygen_FOUND AND TARGET Doxygen::doxygen)
     Doxygen::doxygen ${CMAKE_BINARY_DIR}/share/userdoc.doxyfile
   )
 endif()
+
+
+# ----------------------------------------------------------------------------
+# Local Variables:
+# tab-width: 2
+# indent-tabs-mode: nil
+# coding: utf-8-with-signature
+# End:

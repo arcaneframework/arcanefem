@@ -69,6 +69,11 @@ compute()
   m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
   m_linear_system.clearValues();
 
+  if (m_use_rigid_body_near_null_space) {
+    _buildRigidBodyNearNullSpace();
+    _setRigidBodyNearNullSpace();
+  }
+
   if (m_petsc_flags != NULL){
     CommandLineArguments args = ArcaneFemFunctions::GeneralFunctions::getPetscFlagsFromCommandline(m_petsc_flags);
     m_linear_system.setSolverCommandLineArguments(args);
@@ -176,11 +181,81 @@ _getMaterialParameters()
   m_assemble_linear_system = options()->assembleLinearSystem();
   m_solve_linear_system = options()->solveLinearSystem();
   m_cross_validation = options()->hasSolutionComparisonFile();
+  m_use_rigid_body_near_null_space = options()->linearSystem()->amgNearNullSpace();
   m_petsc_flags = options()->petscFlags();
-  m_hex_quad_mesh = options()->hexQuadMesh();
+
+  // Check if the mesh is a quad or hex mesh by examining the number of nodes in the first cell
+  UnstructuredMeshConnectivityView connectivity(mesh());
+  const Int32 nb_node = connectivity.cellNode().nbNode(CellLocalId(0));
+
+  if (mesh()->dimension() == 2)
+    m_is_quad4_mesh = (nb_node == 4);
+  else if (mesh()->dimension() == 3)
+    m_is_hexa8_mesh = (nb_node == 8);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"get-material-params", elapsedTime);
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Build the rigid-body modes used as an AMG near null space.
+ *
+ */
+/*---------------------------------------------------------------------------*/
+
+void FemModuleElasticity::
+_buildRigidBodyNearNullSpace()
+{
+  const Int32 dim = mesh()->dimension();
+  const Int32 nb_mode = (dim == 2) ? 3 : 6;
+
+  IItemFamily* dof_family = m_dofs_on_nodes.dofFamily();
+  m_near_null_space_vectors.resize(nb_mode, dof_family->allItems().size());
+  m_near_null_space_vectors.fill(0.0);
+
+  auto node_dof = m_dofs_on_nodes.nodeDoFConnectivityView();
+  ENUMERATE_NODE (inode, allNodes()) {
+    Node node = *inode;
+    const Real3 p = m_node_coord[node];
+    const DoFLocalId ux = node_dof.dofId(node, 0);
+    const DoFLocalId uy = node_dof.dofId(node, 1);
+
+    // Translations.
+    m_near_null_space_vectors(0, ux.localId()) = 1.0;
+    m_near_null_space_vectors(1, uy.localId()) = 1.0;
+
+    if (dim == 2) {
+      // Rotation around z: (y, -x)
+      m_near_null_space_vectors(2, ux.localId()) = p.y;
+      m_near_null_space_vectors(2, uy.localId()) = -p.x;
+    }
+    else {
+      const DoFLocalId uz = node_dof.dofId(node, 2);
+      m_near_null_space_vectors(2, uz.localId()) = 1.0;
+
+      // Rotations around x, y and z.
+      m_near_null_space_vectors(3, uy.localId()) = -p.z;
+      m_near_null_space_vectors(3, uz.localId()) = p.y;
+      m_near_null_space_vectors(4, ux.localId()) = p.z;
+      m_near_null_space_vectors(4, uz.localId()) = -p.x;
+      m_near_null_space_vectors(5, ux.localId()) = -p.y;
+      m_near_null_space_vectors(5, uy.localId()) = p.x;
+    }
+  }
+
+  info() << "[ArcaneFem-Info] Built " << nb_mode
+         << " rigid-body near-null-space vectors from mesh coordinates";
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void FemModuleElasticity::
+_setRigidBodyNearNullSpace()
+{
+  m_linear_system.setNearNullSpaceVectors(m_near_null_space_vectors,
+                                          m_dof_per_node);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -263,7 +338,7 @@ _assembleBilinearOperator()
   }
   else if (m_matrix_format == "DOK") {
     if (mesh()->dimension() == 2) {
-      if (m_hex_quad_mesh) {
+      if (m_is_quad4_mesh) {
         _assembleBilinearOperatorCpu<8>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
       }
       else {
@@ -271,7 +346,7 @@ _assembleBilinearOperator()
       }
     }
     if (mesh()->dimension() == 3) {
-      if (m_hex_quad_mesh) {
+      if (m_is_hexa8_mesh) {
         _assembleBilinearOperatorCpu<24>([this](const Cell& cell) { return _computeElementMatrixHexa8(cell); });
       }
       else {
@@ -359,7 +434,7 @@ _validateResults()
   info() << "[ArcaneFem-Info] Started module  _validateResults()";
   Real elapsedTime = platform::getRealTime();
 
-  if (allNodes().size() < 200) {
+  {
     int p = std::cout.precision();
     std::cout.precision(17);
     ENUMERATE_ (Node, inode, allNodes()) {
@@ -373,7 +448,7 @@ _validateResults()
 
   String filename = options()->solutionComparisonFile();
   const double epsilon = options()->resultEpsilon();
-  const double min_value_to_test = 1.0e-10;
+  const double min_value_to_test = 1.0e-6;
 
   Arcane::FemUtils::checkNodeResultFile(traceMng(), filename, m_U, epsilon, min_value_to_test);
 

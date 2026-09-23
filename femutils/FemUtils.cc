@@ -187,7 +187,7 @@ CaseTable* readFileAsCaseTable(IParallelMng* pm, const String& filename, const I
   if (is_bad)
     ARCANE_FATAL("Can not read file '{0}'");
   String file_as_str(bytes);
-  tm->info() << "FILE=" << file_as_str;
+  tm->info() << "FILE=\n" << file_as_str;
   UniqueArray<Real> file_values;
   is_bad = builtInGetValue(file_values, file_as_str);
   if (is_bad)
@@ -226,6 +226,75 @@ CaseTable* readFileAsCaseTable(IParallelMng* pm, const String& filename, const I
     table->appendElement(func_param, func_value);
   }
   return table;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+CaseTableInfo readDirichletFileAsCaseTable(IParallelMng* pm, const String& filename)
+{
+  ITraceMng* tm = pm->traceMng();
+  UniqueArray<Byte> bytes;
+  if (pm->ioMng()->collectiveRead(filename, bytes, false))
+    ARCANE_FATAL("Can not read Dirichlet table file '{0}'", filename);
+
+  String file_as_string(bytes);
+
+  CaseFunctionBuildInfo cfbi(tm, "DirichletTable");
+  cfbi.m_param_type = ICaseFunction::ParamReal;
+  cfbi.m_value_type = ICaseFunction::ValueReal3;
+  auto* table = new CaseTable(cfbi, CaseTable::CurveLinear);
+
+  UniqueArray<String> component_tokens;
+  component_tokens.resize(3);
+  bool has_data_row = false;
+  Int32 line_number = 0;
+
+  auto parse_real = [&](const String& token) -> Real {
+    Real value = 0.0;
+    if (builtInGetValue(value, token))
+      ARCANE_FATAL("Invalid real value '{0}' in Dirichlet table '{1}' at line {2}", token, filename, line_number);
+    return value;
+  };
+
+  UniqueArray<String> table_lines;
+  file_as_string.split(table_lines, '\n');
+  for (const String& raw_line : table_lines) {
+    ++line_number;
+    const String line = String::collapseWhiteSpace(raw_line);
+    if (line.empty() || line.startsWith("#"))
+      continue;
+
+    UniqueArray<String> row_tokens;
+    line.split(row_tokens, ' ');
+    if (row_tokens.size() < 4)
+      ARCANE_FATAL("Dirichlet table '{0}' line {1} must contain: time ux uy uz", filename, line_number);
+    if (row_tokens.size() > 4 && !row_tokens[4].startsWith("#"))
+      ARCANE_FATAL("Too many values in Dirichlet table '{0}' at line {1}", filename, line_number);
+
+    const Real time = parse_real(row_tokens[0]);
+    Real3 value;
+    for (Int32 component = 0; component < 3; ++component) {
+      const String& row_component_token = row_tokens[component + 1];
+      value[component] = row_component_token != "NULL" ? parse_real(row_component_token) : 0.0;
+
+      if (!has_data_row)
+        component_tokens[component] = row_component_token;
+      else if ((row_component_token == "NULL") != (component_tokens[component] == "NULL"))
+        ARCANE_FATAL("The NULL component pattern changes in Dirichlet table '{0}' at line {1}", filename, line_number);
+    }
+
+    table->appendElement(String::fromNumber(time),
+                         String::format("{0} {1} {2}", value.x, value.y, value.z));
+    has_data_row = true;
+  }
+
+  if (!has_data_row) {
+    delete table;
+    ARCANE_FATAL("Dirichlet table '{0}' contains no data", filename);
+  }
+
+  return CaseTableInfo{ filename, table, component_tokens };
 }
 
 /*---------------------------------------------------------------------------*/

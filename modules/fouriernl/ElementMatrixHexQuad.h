@@ -55,7 +55,7 @@ RealMatrix<4, 4> FemModuleFourierNL::_computeElementMatrixQuad4(Cell cell)
       const Real detJ = gp_info.det_j;
 
       // Evaluate lambda at the gauss point
-      const RealVector<4> N = ArcaneFemFunctions::FeOperation2D::computeShapeFunctionsQuad4(xi, eta);
+      const RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
       Real lambda_gp = 0.0;
       for (Int8 ik = 0; ik < 4; ++ik) {
         lambda_gp += FemModuleFourierNL::_lambdaCpu(m_uk[cell.nodeId(ik)]) * N[ik];
@@ -100,7 +100,7 @@ computeElementMatrixQuad4Gpu(CellLocalId cell_lid,
       const Real detJ = gp_info.det_j;
 
       // Evaluate lambda at the gauss point
-      const RealVector<4> N = FemUtils::Gpu::FeOperation2D::computeShapeFunctionsQuad4(xi, eta);
+      const RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
 
       Real lambda_gp = 0.0;
       for (Int8 ik = 0; ik < 4; ++ik) {
@@ -147,7 +147,7 @@ computeElementVectorQuad4Gpu(CellLocalId cell_lid,
       const Real detJ = gp_info.det_j;
 
       // Evaluate lambda at the gauss point
-      const RealVector<4> N = FemUtils::Gpu::FeOperation2D::computeShapeFunctionsQuad4(xi, eta);
+      const RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
 
       Real lambda_gp = 0.0;
       for (Int8 ik = 0; ik < 4; ++ik) {
@@ -213,7 +213,7 @@ RealMatrix<8, 8> FemModuleFourierNL::_computeElementMatrixHexa8(Cell cell)
         const Real detJ = gp_info.det_j;
 
         // Evaluate lambda at the gauss point
-        const RealVector<8> N = ArcaneFemFunctions::FeOperation3D::computeShapeFunctionsHexa8(xi, eta, zeta);
+        const RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa8(xi, eta, zeta);
         Real lambda_gp = 0.0;
         for (Int8 ik = 0; ik < 8; ++ik) {
           lambda_gp += FemModuleFourierNL::_lambdaCpu(m_uk[cell.nodeId(ik)]) * N[ik];
@@ -263,7 +263,7 @@ computeElementMatrixHexa8Gpu(CellLocalId cell_lid,
         const Real detJ = gp_info.det_j;
 
         // Evaluate lambda at the gauss point
-        const RealVector<8> N = FemUtils::Gpu::FeOperation3D::computeShapeFunctionsHexa8(xi, eta, zeta);
+        const RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa8(xi, eta, zeta);
 
         Real lambda_gp = 0.0;
         for (Int8 ik = 0; ik < 8; ++ik) {
@@ -281,4 +281,57 @@ computeElementMatrixHexa8Gpu(CellLocalId cell_lid,
     }
   }
   return ae;
+}
+
+ARCCORE_HOST_DEVICE RealMatrix<8, 8>
+computeElementVectorHexa8Gpu(CellLocalId cell_lid,
+                              const IndexedCellNodeConnectivityView& cn_cv,
+                              const ax::VariableNodeReal3InView& in_node_coord,
+                              const ax::VariableNodeRealInView& in_node_uk,
+                              Int32 node_lid,
+                              Real lambda_exp)
+{
+  // 2x2x2 Gauss points and weights for [-1,1]^3
+  constexpr Real gp[2] = { -0.57735026918962576451, 0.57735026918962576451 }; // -1/sqrt(3), 1/sqrt(3)
+  constexpr Real w = 1.0;
+
+  // Initialize the element matrix
+  RealVector<8> ae_local = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+
+  // Loop over Gauss points
+  for (Int8 ixi = 0; ixi < 2; ++ixi) {
+    for (Int8 ieta = 0; ieta < 2; ++ieta) {
+      for (Int8 izeta = 0; izeta < 2; ++izeta) {
+
+        // Get the coordinates of Gauss points in natural coordinates (ξ,η,ζ)
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const Real zeta = gp[izeta];
+
+        // Get shape function gradients w.r.t (𝑥,𝑦,𝑧) and determinant of Jacobian
+        const auto gp_info = FemUtils::Gpu::FeOperation3D::computeGradientsAndJacobianHexa8Gpu(cell_lid, cn_cv, in_node_coord, xi, eta, zeta);
+        const RealVector<8>& dxU = gp_info.dN_dx;
+        const RealVector<8>& dyU = gp_info.dN_dy;
+        const RealVector<8>& dzU = gp_info.dN_dz;
+        const Real detJ = gp_info.det_j;
+
+        // Evaluate lambda at the gauss point
+        const RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa8(xi, eta, zeta);
+
+        Real lambda_gp = 0.0;
+        for (Int8 ik = 0; ik < 8; ++ik) {
+          lambda_gp += _lambdaGpu(in_node_uk[cn_cv.nodeId(cell_lid, ik)], lambda_exp) * N[ik];
+        }
+
+        // Integration weight
+        const Real integration_weight = detJ * w * w;
+
+        // Assemble element matrix (variational form)
+        ae_local += (dxU[node_lid] * dxU) * integration_weight * lambda_gp
+                  + (dyU[node_lid] * dyU) * integration_weight * lambda_gp
+                  + (dzU[node_lid] * dzU) * integration_weight * lambda_gp;
+      }
+    }
+  }
+  return {ae_local(0), ae_local(1), ae_local(2), ae_local(3), ae_local(4), ae_local(5), ae_local(6), ae_local(7) };
 }

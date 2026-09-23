@@ -28,7 +28,6 @@
     <cp>4</cp>
     <rho>1</rho>
     <f>1255.1 32289.5</f>
-    <hex-quad-mesh>true</hex-quad-mesh>
     <double-couple>
       <north-node-name>sourceT</north-node-name>
       <south-node-name>sourceB</south-node-name>
