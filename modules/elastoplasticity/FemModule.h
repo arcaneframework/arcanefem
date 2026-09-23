@@ -89,9 +89,9 @@ class FemModuleElastoplasticity
 
   inline void _applyInternalBodyForceTria3Gpu(VariableDoFReal& rhs_values, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord, IMesh* mesh, RunQueue* queue);
 
-  inline void _updateGlobalTangentMaterialTensorVonMisesTria3Gpu();
+  inline void _integrateAndSaveConstitutiveLawVonMisesTria3Gpu();
   inline void _updateStressAndInVarsVonMisesTria3Gpu();
-  inline void _updateGlobalTangentMaterialTensorDruckerPragerTria3Gpu();
+  inline void _integrateAndSaveConstitutiveLawDruckerPragerTria3Gpu();
   inline void _updateStressAndInVarsDruckerPragerTria3Gpu();
 
 
@@ -185,11 +185,11 @@ class FemModuleElastoplasticity
   // Von Mises Law
   inline void _restoreConvergedStateVonMises();
   inline void _commitInternalVariablesVonMises();
-  inline void _updateGlobalTangentMaterialTensorVonMises();
-  inline void _updateGlobalTangentMaterialTensorVonMisesTria3Cpu();
-  inline void _updateGlobalTangentMaterialTensorVonMisesQuad4Cpu();
-  inline void _updateGlobalTangentMaterialTensorVonMisesQuad8Cpu();
-  inline void _updateGlobalTangentMaterialTensorVonMisesQuad9Cpu();
+  inline void _integrateAndSaveConstitutiveLawVonMises();
+  inline void _integrateAndSaveConstitutiveLawVonMisesTria3Cpu();
+  inline void _integrateAndSaveConstitutiveLawVonMisesQuad4Cpu();
+  inline void _integrateAndSaveConstitutiveLawVonMisesQuad8Cpu();
+  inline void _integrateAndSaveConstitutiveLawVonMisesQuad9Cpu();
   inline void _updateStressAndInVarsVonMises();
   inline void _updateStressAndInVarsVonMisesQuad4Cpu();
   inline void _updateStressAndInVarsVonMisesQuad8Cpu();
@@ -198,8 +198,8 @@ class FemModuleElastoplasticity
   // Drucker Prager Law
   inline void _restoreConvergedStateDruckerPrager();
   inline void _commitInternalVariablesDruckerPrager();
-  inline void _updateGlobalTangentMaterialTensorDruckerPrager();
-  inline void _updateGlobalTangentMaterialTensorDruckerPragerTria3Cpu();
+  inline void _integrateAndSaveConstitutiveLawDruckerPrager();
+  inline void _integrateAndSaveConstitutiveLawDruckerPragerTria3Cpu();
   inline void _updateStressAndInVarsDruckerPrager();
 
   // RHS assembly helper functions
