@@ -128,11 +128,6 @@
            NULL or 0 means no imposed loading ; 1 means loading
         </description>
       </simple>
-      <simple name = "dirichlet-input-file" type = "string"  optional="true">
-        <description>
-          File containing time-history for point Dirichlet condition (four columns: (time,val_x,val_y,val_z))
-        </description>
-      </simple>
       <simple name = "enforce-Dirichlet-method" type = "string" default="Penalty" optional="true">
         <description>
           Method via which Dirichlet boundary condition is imposed

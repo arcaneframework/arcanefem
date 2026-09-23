@@ -35,7 +35,6 @@ class IDirichletBoundaryCondition
   virtual StringConstArrayView getDirection() =0;
   virtual String getDirichletInputFile() =0;
   virtual Real getPenalty() =0;
-  virtual String getDirichletInputFile() =0;
   virtual String getEnforceDirichletMethod() =0;
 };
 
