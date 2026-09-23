@@ -187,6 +187,7 @@ class FemModuleElastoplasticity
   inline void _commitInternalVariablesVonMises();
   inline void _integrateAndSaveConstitutiveLawVonMises();
   inline void _integrateAndSaveConstitutiveLawVonMisesTria3Cpu();
+  inline void _integrateAndSaveConstitutiveLawVonMisesMFrontTria3Cpu();
   inline void _integrateAndSaveConstitutiveLawVonMisesQuad4Cpu();
   inline void _integrateAndSaveConstitutiveLawVonMisesQuad8Cpu();
   inline void _integrateAndSaveConstitutiveLawVonMisesQuad9Cpu();

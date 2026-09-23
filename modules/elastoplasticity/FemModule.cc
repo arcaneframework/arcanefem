@@ -15,6 +15,9 @@
 #include <arcane/accelerator/MDVariableViews.h>
 #include <arcane/utils/ValueConvert.h>
 
+#include "MGIS/Behaviour/Behaviour.hxx"
+#include "MGIS/Behaviour/MaterialDataManager.hxx"
+
 #include "FemModule.h"
 #include "ElementMatrix.h"
 #include "ElementMatrixHexQuad.h"
@@ -103,9 +106,38 @@ startInit()
   tmax = tmax - dt;
   m_global_deltat.assign(dt);
 
+  // init mgis
+  const auto von_mises_b = mgis::behaviour::load("src/libBehaviour.so", "IsotropicLinearHardeningPlasticity", mgis::behaviour::Hypothesis::PLANESTRAIN);
+  for (const auto mps : von_mises_b.mps) {
+    std::cout << "MPS: " << mps.name << " " << std::endl;
+    if (mps.type == mgis::behaviour::Variable::SCALAR)
+      std::cout << "MPS: " << mps.name << " is scalar" << std::endl;
+  }
+
+  for (const auto isvs : von_mises_b.isvs) {
+    std::cout << "ISVS: " << isvs.name << " " << std::endl;
+    if (isvs.type == mgis::behaviour::Variable::SCALAR)
+      std::cout << "ISVS: " << isvs.name << " is scalar" << std::endl;
+    else
+      std::cout << "ISVS: is vector of size " << mgis::behaviour::getVariableSize(isvs, von_mises_b.hypothesis) << std::endl;
+  }
+
+  std::cout << mgis::behaviour::getArraySize(von_mises_b.isvs, von_mises_b.hypothesis) << std::endl;
+
+  // We can initialise global variables on Cells of size
+  // m_in_state_vars.reshape(mgis::behaviour::getArraySize(von_mises_b.isvs, von_mises_b.hypothesis), m_nGP);
+
+  auto nb_cells = mesh()->nbCell();
+  mgis::behaviour::MaterialDataManager mdm{von_mises_b, nb_cells * m_nGP}; // all internal variables are allocated for nb_cellxnb_gp
+
+
+
+  // ARCANE_FATAL("Check MGIS");
+
   _initConstitutiveLaw();
 
   _readCaseTables();
+
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"initialize", elapsedTime);
@@ -629,6 +661,32 @@ _getMaterialParameters()
     Et = E / 100.;
     H = E * Et / (E - Et);
 
+    auto nb_cells = mesh()->nbCell();
+    const auto von_mises_b = mgis::behaviour::load("src/libBehaviour.so", "IsotropicLinearHardeningPlasticity", mgis::behaviour::Hypothesis::PLANESTRAIN);
+    mgis::behaviour::MaterialDataManager mdm{von_mises_b, nb_cells * m_nGP};
+
+    for (const auto mps : von_mises_b.mps) {
+      std::cout << "MPS: " << mps.name << " " << std::endl;
+      if (mps.type == mgis::behaviour::Variable::SCALAR) {
+        if (mps.name == "YoungsModulus") {
+          mgis::behaviour::setMaterialProperty(mdm.s0, mps.name, E);
+          mgis::behaviour::setMaterialProperty(mdm.s1, mps.name, E);
+        }
+        if (mps.name == "PoissonRatio") {
+          mgis::behaviour::setMaterialProperty(mdm.s0, mps.name, nu);
+          mgis::behaviour::setMaterialProperty(mdm.s1, mps.name, nu);
+        }
+        if (mps.name == "HardeningSlope") {
+          mgis::behaviour::setMaterialProperty(mdm.s0, mps.name, H);
+          mgis::behaviour::setMaterialProperty(mdm.s1, mps.name, H);
+        }
+        if (mps.name == "YieldStress") {
+          mgis::behaviour::setMaterialProperty(mdm.s0, mps.name, sig0);
+          mgis::behaviour::setMaterialProperty(mdm.s1, mps.name, sig0);
+        }
+      }
+    }
+
     ENUMERATE_ (Cell, icell, allCells())
     {
       for (Int8 iGP = 0; iGP < m_nGP; ++iGP ) {
@@ -636,7 +694,6 @@ _getMaterialParameters()
         m_dp_gp(icell, iGP) = 0.;
       }
     }
-
   } else if (m_constitutive_law == "DruckerPrager") {
 
     mu = (E / (2 * (1 + nu))); // lame parameter μ

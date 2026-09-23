@@ -13,10 +13,11 @@ arcane_generate_axl(Fem)
 arcane_add_arcane_libraries_to_target(Elastoplasticity)
 
 target_include_directories(Elastoplasticity PUBLIC . ../fem ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(Elastoplasticity PUBLIC /home/catC/aa286863/exaquake/psd/src/PSDinstall/include)
 
 configure_file(Elastoplasticity.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
-target_link_libraries(Elastoplasticity PUBLIC FemUtils)
+target_link_libraries(Elastoplasticity PUBLIC FemUtils /home/catC/aa286863/exaquake/psd/src/PSDinstall/lib/libMFrontGenericInterface.so)
 
 #  Copy the data files in the binary directory
 file(COPY "data" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

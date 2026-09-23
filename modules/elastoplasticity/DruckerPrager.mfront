@@ -1,0 +1,84 @@
+@DSL DefaultDSL;
+@Behaviour DruckerPrager;
+@Author Mohd Afeef Badri;
+@Date 27/08/2026;
+@Description{
+  "Associated, perfectly plastic Drucker-Prager behaviour using the same "
+  "plane-strain cone mapping and apex return as the native PSD model."
+}
+
+@MaterialProperty stress young;
+young.setGlossaryName("YoungModulus");
+@MaterialProperty real nu;
+nu.setGlossaryName("PoissonRatio");
+@MaterialProperty stress cohesion;
+cohesion.setEntryName("Cohesion");
+@MaterialProperty real frictionAngle;
+frictionAngle.setEntryName("FrictionAngle");
+
+// Plastic strain is the complete history required by perfect plasticity.
+// Under plane strain MFront stores [xx, yy, zz, sqrt(2)xy].
+@StateVariable StrainStensor ep;
+ep.setGlossaryName("PlasticStrain");
+
+@PredictionOperator{
+  static_cast<void>(smt);
+  const auto lambda = computeLambda(young,nu);
+  const auto mu = computeMu(young,nu);
+  Dt = lambda*Stensor4::IxI()+2*mu*Stensor4::Id();
+}
+
+@ProvidesSymmetricTangentOperator;
+@Integrator{
+  const auto lambda = computeLambda(young,nu);
+  const auto mu = computeMu(young,nu);
+  const auto bulk = young/(3*(1-2*nu));
+  const auto tangentFriction = tan(frictionAngle);
+  const auto coneScale = sqrt(9+12*tangentFriction*tangentFriction);
+  const auto eta = 3*tangentFriction/coneScale;
+  const auto c = 3*cohesion/coneScale;
+  const auto sqrt2 = sqrt(real{2});
+
+  // The bridge supplies total strain at s1 and a zero strain at s0, hence
+  // eto+deto is the total strain at the current global Newton iterate.
+  const auto totalStrain = eval(eto+deto);
+  const auto elasticTrial = eval(totalStrain-ep);
+  const auto devElastic = deviator(elasticTrial);
+  const auto normElastic = sqrt(max(strain{0},elasticTrial|devElastic));
+  const auto rhoTrial = 2*mu*normElastic;
+  const auto pressureTrial = bulk*trace(elasticTrial);
+  const auto trialStress = eval(2*mu*devElastic+
+                                pressureTrial*StressStensor::Id());
+  const auto denominatorApex = bulk*eta*eta;
+  const auto denominatorSmooth = mu+denominatorApex;
+  const auto criterion1 = rhoTrial/sqrt2+eta*pressureTrial-c;
+  const auto criterion2 = eta*pressureTrial-
+                          denominatorApex*rhoTrial/(mu*sqrt2)-c;
+
+  if(criterion1<=stress{0}){
+    sig = trialStress;
+    if(computeTangentOperator_){
+      Dt = lambda*Stensor4::IxI()+2*mu*Stensor4::Id();
+    }
+  } else if(criterion2<=stress{0}){
+    const auto dl = criterion1/denominatorSmooth;
+    const auto normal = eval(devElastic/max(normElastic,strain{1.e-30}));
+    const auto correction = eval(sqrt2*mu*normal+
+                                 bulk*eta*StressStensor::Id());
+    sig = trialStress-dl*correction;
+    dep = dl*(normal/sqrt2+(eta/3)*StrainStensor::Id());
+    if(computeTangentOperator_){
+      const auto curvature = 2*sqrt2*mu*mu*dl/
+                             max(rhoTrial,stress{1.e-30});
+      Dt = (lambda*Stensor4::IxI()+2*mu*Stensor4::Id()
+            -curvature*(Stensor4::K()-(normal^normal))
+            -(correction^correction)/denominatorSmooth);
+    }
+  } else {
+    sig = (c/eta)*StressStensor::Id();
+    dep = totalStrain-(c/(3*bulk*eta))*StrainStensor::Id()-ep;
+    if(computeTangentOperator_){
+      Dt = stress{0}*Stensor4::Id();
+    }
+  }
+}

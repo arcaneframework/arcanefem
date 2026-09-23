@@ -102,6 +102,7 @@ inline void FemModuleElastoplasticity::_integrateAndSaveConstitutiveLawVonMises(
           _integrateAndSaveConstitutiveLawVonMisesQuad9Cpu();
       } else {
         _integrateAndSaveConstitutiveLawVonMisesTria3Cpu();
+        _integrateAndSaveConstitutiveLawVonMisesMFrontTria3Cpu();
       }
     } else {
       if (m_hex_quad_mesh) {
@@ -362,20 +363,9 @@ inline void FemModuleElastoplasticity::_integrateAndSaveConstitutiveLawVonMisesT
     for (Int8 iGP = 0; iGP < m_nGP; ++iGP ) {
       // read gp variables //
       RealMatrix<3, 3> C_tang_gp;
-      C_tang_gp(0, 0) = m_C_tang_gp(cell, iGP, 0, 0);
-      C_tang_gp(0, 1) = m_C_tang_gp(cell, iGP, 0, 1);
-      C_tang_gp(0, 2) = m_C_tang_gp(cell, iGP, 0, 2);
-      C_tang_gp(1, 0) = m_C_tang_gp(cell, iGP, 1, 0);
-      C_tang_gp(1, 1) = m_C_tang_gp(cell, iGP, 1, 1);
-      C_tang_gp(1, 2) = m_C_tang_gp(cell, iGP, 1, 2);
-      C_tang_gp(2, 0) = m_C_tang_gp(cell, iGP, 2, 0);
-      C_tang_gp(2, 1) = m_C_tang_gp(cell, iGP, 2, 1);
-      C_tang_gp(2, 2) = m_C_tang_gp(cell, iGP, 2, 2);
+
       RealVector<3> sigma_gp;
-      sigma_gp(0) = m_sigma_gp(cell, iGP, 0);
-      sigma_gp(1) = m_sigma_gp(cell, iGP, 1);
-      sigma_gp(2) = m_sigma_gp(cell, iGP, 2);
-      Real sigma_zz_gp = m_sigma_zz_gp(cell, iGP);
+      Real sigma_zz_gp;
 
       RealVector<3> sigma_old_gp;
       sigma_old_gp(0) = m_sigma_old_gp(cell, iGP, 0);
@@ -392,6 +382,71 @@ inline void FemModuleElastoplasticity::_integrateAndSaveConstitutiveLawVonMisesT
       computeMaterialTensorVonMisesLawAtGpBase(C_tang_gp, sigma_gp, sigma_zz_gp, dp_gp, grad_DU,
                                                 sigma_old_gp, sigma_zz_old_gp, p_old_gp,
                                                 m_C_elas_2d, sig0,H, mu);
+
+      // update gp variables //
+      m_C_tang_gp(cell, iGP, 0, 0) = C_tang_gp(0, 0);
+      m_C_tang_gp(cell, iGP, 0, 1) = C_tang_gp(0, 1);
+      m_C_tang_gp(cell, iGP, 0, 2) = C_tang_gp(0, 2);
+      m_C_tang_gp(cell, iGP, 1, 0) = C_tang_gp(1, 0);
+      m_C_tang_gp(cell, iGP, 1, 1) = C_tang_gp(1, 1);
+      m_C_tang_gp(cell, iGP, 1, 2) = C_tang_gp(1, 2);
+      m_C_tang_gp(cell, iGP, 2, 0) = C_tang_gp(2, 0);
+      m_C_tang_gp(cell, iGP, 2, 1) = C_tang_gp(2, 1);
+      m_C_tang_gp(cell, iGP, 2, 2) = C_tang_gp(2, 2);
+
+      m_sigma_gp(cell, iGP, 0) = sigma_gp(0);
+      m_sigma_gp(cell, iGP, 1) = sigma_gp(1);
+      m_sigma_gp(cell, iGP, 2) = sigma_gp(2);
+      m_sigma_zz_gp(cell, iGP) = sigma_zz_gp;
+
+      m_dp_gp(cell, iGP) = dp_gp;
+    }
+  }
+}
+/*---------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies the VonMises plasticity criteria on the CPU to update the
+ * tangent material tensor, the stress and the plastic strain increment at
+ * each quadrature point for each TRIA3 element using MFront
+ *
+ */
+/*---------------------------------------------------------------------------*/
+inline void FemModuleElastoplasticity::_integrateAndSaveConstitutiveLawVonMisesMFrontTria3Cpu()
+{
+  auto nb_cells = mesh()->nbCell();
+  const auto von_mises_b = mgis::behaviour::load("src/libBehaviour.so", "IsotropicLinearHardeningPlasticity", mgis::behaviour::Hypothesis::PLANESTRAIN);
+  mgis::behaviour::MaterialDataManager mdm{von_mises_b, nb_cells * m_nGP};
+
+  ENUMERATE_ (Cell, icell, allCells())
+  {
+    Cell cell = *icell;
+    for (Int8 iGP = 0; iGP < m_nGP; ++iGP ) {
+      // read gp variables //
+      RealMatrix<3, 3> C_tang_gp;
+
+      RealVector<3> sigma_gp;
+      Real sigma_zz_gp;
+
+      RealVector<3> sigma_old_gp;
+      sigma_old_gp(0) = m_sigma_old_gp(cell, iGP, 0);
+      sigma_old_gp(1) = m_sigma_old_gp(cell, iGP, 1);
+      sigma_old_gp(2) = m_sigma_old_gp(cell, iGP, 2);
+      Real sigma_zz_old_gp = m_sigma_zz_old_gp(cell, iGP);
+
+      Real dp_gp = m_dp_gp(cell, iGP);
+      Real p_old_gp = m_p_old_gp(cell, iGP);
+
+      // epsilon(DU) // NOTE: for nGP>1 it has to evaluated and interpolated at Gauss points
+      Real3x3 grad_DU = ArcaneFemFunctions::FeOperation2D::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_DUn);
+
+      // mgis::behaviour::
+      // auto K1 = mdm.K[0];
+/*      computeMaterialTensorVonMisesLawAtGpBase(C_tang_gp, sigma_gp, sigma_zz_gp, dp_gp, grad_DU,
+                                                sigma_old_gp, sigma_zz_old_gp, p_old_gp,
+                                                m_C_elas_2d, sig0,H, mu);
+*/
 
       // update gp variables //
       m_C_tang_gp(cell, iGP, 0, 0) = C_tang_gp(0, 0);
