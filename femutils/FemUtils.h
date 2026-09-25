@@ -14,20 +14,22 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/ArcaneTypes.h>
 #include <arcane/utils/MDSpan.h>
+#include <arcane/utils/NumMatrix.h>
+#include <arcane/utils/Array.h>
+
+#include <arcane/core/ArcaneTypes.h>
+#include <arcane/core/VariableTypedef.h>
+#include <arcane/core/Parallel.h>
+#include <arcane/core/IIOMng.h>
+#include <arcane/core/CaseTable.h>
+
 #include <arcane/matvec/Matrix.h>
-#include <arcane/VariableTypedef.h>
-#include <arcane/Parallel.h>
-#include <arcane/IIOMng.h>
-#include <arcane/CaseTable.h>
 
 #include <arcane/utils/Real3.h>
 #include <arcane/utils/Real3x3.h>
 
-#include <arccore/base/ArccoreGlobal.h>
 #include <array>
-#include <arcane/MeshVariableArrayRef.h>
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -95,12 +97,13 @@ class RealMatrix
  public:
 
   static constexpr Arcane::Int32 totalNbElement() { return N * M; }
-  ARCCORE_HOST_DEVICE RealMatrix() {};
+  constexpr ARCCORE_HOST_DEVICE RealMatrix() : m_values(0.0){}
+
   ARCCORE_HOST_DEVICE RealMatrix(std::initializer_list<Real> init_list)
   {
     auto i = 0;
     for (auto it = init_list.begin(); it != init_list.end(); it++) {
-      m_values[i] = *it;
+      m_values(0, i) = *it;
       i++;
     }
   };
@@ -111,7 +114,7 @@ class RealMatrix
     for (const auto& row : init_list) {
       Arcane::Int32 j = 0;
       for (const auto& value : row) {
-          m_values[i * M + j] = value;
+        m_values(i, j) = value;
         ++j;
       }
       ++i;
@@ -121,24 +124,21 @@ class RealMatrix
   //! Fill all elements with a given value
   ARCCORE_HOST_DEVICE void fill(Arcane::Real value)
   {
-    for (Arcane::Int32 i = 0; i < N * M; ++i)
-      m_values[i] = value;
+    for (Arcane::Int32 i = 0; i < N; ++i)
+      for (Arcane::Int32 j = 0; j < M; ++j)
+        m_values(i, j) = value;
   }
 
  public:
 
   ARCCORE_HOST_DEVICE Arcane::Real& operator()(Arcane::Int32 i, Arcane::Int32 j)
   {
-    ARCANE_CHECK_AT(i, N);
-    ARCANE_CHECK_AT(j, M);
-    return m_values[i * M + j];
+    return m_values(i, j);
   }
 
   ARCCORE_HOST_DEVICE Arcane::Real operator()(Arcane::Int32 i, Arcane::Int32 j) const
   {
-    ARCANE_CHECK_AT(i, N);
-    ARCANE_CHECK_AT(j, M);
-    return m_values[i * M + j];
+    return m_values(i, j);
   }
 
  public:
@@ -146,8 +146,7 @@ class RealMatrix
   //! Multiply all the components by \a v
   ARCCORE_HOST_DEVICE void multInPlace(Arcane::Real v)
   {
-    for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
-      m_values[i] *= v;
+    m_values *= v;
   }
 
   //! Dump matrix values
@@ -250,7 +249,8 @@ class RealMatrix
 
  private:
 
-  std::array<Arcane::Real, totalNbElement()> m_values = {};
+  NumMatrix<Arcane::Real,N,M> m_values;
+  //std::array<Arcane::Real, totalNbElement()> m_values = {};
 };
 
 /*---------------------------------------------------------------------------*/
