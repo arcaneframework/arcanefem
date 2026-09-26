@@ -259,7 +259,7 @@ computeElementVectorHexa8Gpu(CellLocalId cell_lid,
   constexpr Real w = 1.0;
 
   // Initialize the element matrix
-  RealVector<8> ae_local = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  RealVector<8> ae_local;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 2; ++ixi) {

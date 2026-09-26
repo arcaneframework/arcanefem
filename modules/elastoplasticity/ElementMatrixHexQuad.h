@@ -38,9 +38,9 @@
 
 ARCCORE_HOST_DEVICE RealMatrix<8, 8> computeElementMatrixQuad4Base(const RealVector<4>& dxu, const RealVector<4>& dyu, Real integration_weight, RealMatrix<3, 3> C_tang)
 {
-  RealVector<8> epsxx = { dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0. };
-  RealVector<8> epsyy = { 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3) };
-  RealVector<8> epsxy = { dyu(0), dxu(0), dyu(1), dxu(1), dyu(2), dxu(2), dyu(3), dxu(3) };
+  RealVector<8> epsxx = { { dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0. } };
+  RealVector<8> epsyy = { { 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3) } };
+  RealVector<8> epsxy = { { dyu(0), dxu(0), dyu(1), dxu(1), dyu(2), dxu(2), dyu(3), dxu(3) } };
 
   // Kelvin notation: scale shear strains by 1/sqrt(2)
   epsxy = M_SQRT1_2 * epsxy;
@@ -138,12 +138,12 @@ RealMatrix<8, 8> FemModuleElastoplasticity::_computeElementMatrixQuad4(Cell cell
 
 ARCCORE_HOST_DEVICE RealMatrix<16, 16> computeElementMatrixQuad8Base(const RealVector<8>& dxu, const RealVector<8>& dyu, Real integration_weight, const RealMatrix<3, 3>& C_tang)
 {
-  RealVector<16> epsxx = { dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0.,
-                           dxu(4), 0., dxu(5), 0., dxu(6), 0., dxu(7), 0. };
-  RealVector<16> epsyy = { 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3),
-                           0., dyu(4), 0., dyu(5), 0., dyu(6), 0., dyu(7) };
-  RealVector<16> epsxy = { dyu(0), dxu(0), dyu(1), dxu(1), dyu(2), dxu(2), dyu(3), dxu(3),
-                           dyu(4), dxu(4), dyu(5), dxu(5), dyu(6), dxu(6), dyu(7), dxu(7) };
+  RealVector<16> epsxx = { { dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0.,
+                             dxu(4), 0., dxu(5), 0., dxu(6), 0., dxu(7), 0. } };
+  RealVector<16> epsyy = { { 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3),
+                             0., dyu(4), 0., dyu(5), 0., dyu(6), 0., dyu(7) } };
+  RealVector<16> epsxy = { { dyu(0), dxu(0), dyu(1), dxu(1), dyu(2), dxu(2), dyu(3), dxu(3),
+                             dyu(4), dxu(4), dyu(5), dxu(5), dyu(6), dxu(6), dyu(7), dxu(7) } };
 
   // Kelvin notation: scale shear strains by 1/sqrt(2)
   epsxy = M_SQRT1_2 * epsxy;
@@ -220,14 +220,14 @@ RealMatrix<16, 16> FemModuleElastoplasticity::_computeElementMatrixQuad8(Cell ce
 
 ARCCORE_HOST_DEVICE RealMatrix<18, 18> computeElementMatrixQuad9Base(const RealVector<9>& dxu, const RealVector<9>& dyu, Real integration_weight, const RealMatrix<3, 3>& C_tang)
 {
-  RealVector<18> epsxx = { dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0., dxu(4), 0.,
-                           dxu(5), 0., dxu(6), 0., dxu(7), 0., dxu(8), 0. };
+  RealVector<18> epsxx = { { dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0., dxu(4), 0.,
+                             dxu(5), 0., dxu(6), 0., dxu(7), 0., dxu(8), 0. } };
 
-  RealVector<18> epsyy = { 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3), 0., dyu(4),
-                           0., dyu(5), 0., dyu(6), 0., dyu(7), 0., dyu(8) };
+  RealVector<18> epsyy = { { 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3), 0., dyu(4),
+                             0., dyu(5), 0., dyu(6), 0., dyu(7), 0., dyu(8) } };
 
-  RealVector<18> epsxy = { dyu(0), dxu(0), dyu(1), dxu(1), dyu(2), dxu(2), dyu(3), dxu(3), dyu(4), dxu(4),
-                           dyu(5), dxu(5), dyu(6), dxu(6), dyu(7), dxu(7), dyu(8), dxu(8) };
+  RealVector<18> epsxy = { { dyu(0), dxu(0), dyu(1), dxu(1), dyu(2), dxu(2), dyu(3), dxu(3), dyu(4), dxu(4),
+                             dyu(5), dxu(5), dyu(6), dxu(6), dyu(7), dxu(7), dyu(8), dxu(8) } };
 
   // Kelvin notation: scale shear strains by 1/sqrt(2)
   epsxy = M_SQRT1_2 * epsxy;
@@ -310,29 +310,29 @@ ARCCORE_HOST_DEVICE RealMatrix<24, 24> computeElementMatrixHexa8Base(
 const RealVector<8>& dxu, const RealVector<8>& dyu, const RealVector<8>& dzu,
 Real integration_weight, RealMatrix<6, 6> C_tang)
 {
-  RealVector<24> epsxx = { dxu(0), 0., 0.,    dxu(1), 0., 0.,    dxu(2), 0., 0.,    dxu(3), 0., 0.,
-                           dxu(4), 0., 0.,    dxu(5), 0., 0.,    dxu(6), 0., 0.,    dxu(7), 0., 0. };
+  RealVector<24> epsxx = { { dxu(0), 0., 0., dxu(1), 0., 0., dxu(2), 0., 0., dxu(3), 0., 0.,
+                             dxu(4), 0., 0., dxu(5), 0., 0., dxu(6), 0., 0., dxu(7), 0., 0. } };
 
-  RealVector<24> epsyy = { 0., dyu(0), 0.,    0., dyu(1), 0.,    0., dyu(2), 0.,    0., dyu(3), 0.,
-                           0., dyu(4), 0.,    0., dyu(5), 0.,    0., dyu(6), 0.,    0., dyu(7), 0. };
+  RealVector<24> epsyy = { { 0., dyu(0), 0., 0., dyu(1), 0., 0., dyu(2), 0., 0., dyu(3), 0.,
+                             0., dyu(4), 0., 0., dyu(5), 0., 0., dyu(6), 0., 0., dyu(7), 0. } };
 
-  RealVector<24> epszz = { 0., 0., dzu(0),    0., 0., dzu(1),    0., 0., dzu(2),    0., 0., dzu(3),
-                           0., 0., dzu(4),    0., 0., dzu(5),    0., 0., dzu(6),    0., 0., dzu(7) };
+  RealVector<24> epszz = { { 0., 0., dzu(0), 0., 0., dzu(1), 0., 0., dzu(2), 0., 0., dzu(3),
+                             0., 0., dzu(4), 0., 0., dzu(5), 0., 0., dzu(6), 0., 0., dzu(7) } };
 
-  RealVector<24> epsyz = { 0., dzu(0), dyu(0),    0., dzu(1), dyu(1),
-                           0., dzu(2), dyu(2),    0., dzu(3), dyu(3),
-                           0., dzu(4), dyu(4),    0., dzu(5), dyu(5),
-                           0., dzu(6), dyu(6),    0., dzu(7), dyu(7) };
+  RealVector<24> epsyz = { { 0., dzu(0), dyu(0), 0., dzu(1), dyu(1),
+                             0., dzu(2), dyu(2), 0., dzu(3), dyu(3),
+                             0., dzu(4), dyu(4), 0., dzu(5), dyu(5),
+                             0., dzu(6), dyu(6), 0., dzu(7), dyu(7) } };
 
-  RealVector<24> epszx = { dzu(0), 0., dxu(0),    dzu(1), 0., dxu(1),
-                           dzu(2), 0., dxu(2),    dzu(3), 0., dxu(3),
-                           dzu(4), 0., dxu(4),    dzu(5), 0., dxu(5),
-                           dzu(6), 0., dxu(6),    dzu(7), 0., dxu(7) };
+  RealVector<24> epszx = { { dzu(0), 0., dxu(0), dzu(1), 0., dxu(1),
+                             dzu(2), 0., dxu(2), dzu(3), 0., dxu(3),
+                             dzu(4), 0., dxu(4), dzu(5), 0., dxu(5),
+                             dzu(6), 0., dxu(6), dzu(7), 0., dxu(7) } };
 
-  RealVector<24> epsxy = { dyu(0), dxu(0), 0.,    dyu(1), dxu(1), 0.,
-                           dyu(2), dxu(2), 0.,    dyu(3), dxu(3), 0.,
-                           dyu(4), dxu(4), 0.,    dyu(5), dxu(5), 0.,
-                           dyu(6), dxu(6), 0.,    dyu(7), dxu(7), 0. };
+  RealVector<24> epsxy = { { dyu(0), dxu(0), 0., dyu(1), dxu(1), 0.,
+                             dyu(2), dxu(2), 0., dyu(3), dxu(3), 0.,
+                             dyu(4), dxu(4), 0., dyu(5), dxu(5), 0.,
+                             dyu(6), dxu(6), 0., dyu(7), dxu(7), 0. } };
 
   // Kelvin notation: scale shear strains by 1/sqrt(2)
   epsyz = M_SQRT1_2 * epsyz;
@@ -352,7 +352,7 @@ Real integration_weight, RealMatrix<6, 6> C_tang)
   // ∫∫∫ C_tang16 ∂𝑢𝑥/∂𝑥 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) + C_tang26 ∂𝑢𝑧/∂𝑦 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) + C_tang36 ∂𝑢𝑧/∂𝑧 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) + C_tang46 (∂𝑢𝑧/∂𝑦 + ∂𝑢𝑦/∂𝑧) (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) + C_tang56 (∂𝑢𝑥/∂𝑧 + ∂𝑢𝑧/∂𝑥) (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) + C_tang66 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦)
   RealMatrix<24, 24> sigmaXepsxy = (C_tang(0, 5) * epsxx + C_tang(1, 5) * epsyy + C_tang(2, 5) * epszz + C_tang(3, 5) * epsyz + C_tang(4, 5) * epszx + C_tang(5, 5) * epsxy) ^ epsxy;
 
-  return integration_weight * ( sigmaXepsxx + sigmaXepsyy + sigmaXepszz + sigmaXepsyz + sigmaXepszx + sigmaXepsxy);
+  return integration_weight * (sigmaXepsxx + sigmaXepsyy + sigmaXepszz + sigmaXepsyz + sigmaXepszx + sigmaXepsxy);
 }
 
 RealMatrix<24, 24> FemModuleElastoplasticity::_computeElementMatrixHexa8(Cell cell)

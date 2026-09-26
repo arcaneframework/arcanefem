@@ -21,6 +21,7 @@ namespace Arcane::FemUtils::ShapeFunctions
 {
 
 /*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 /**
  * @brief Shape-function derivatives in a two-dimensional reference element.
  *
@@ -28,10 +29,22 @@ namespace Arcane::FemUtils::ShapeFunctions
  * `ReferenceGradients2D<9>` contains 9 derivatives with respect to ξ and
  * 9 derivatives with respect to η.
  */
-/*---------------------------------------------------------------------------*/
-
-template <Int32 N> struct ReferenceGradients2D
+template <Int32 N>
+struct ReferenceGradients2D
 {
+  ReferenceGradients2D() = default;
+  ReferenceGradients2D(const RealVector<N>& a, const RealVector<N>& b)
+  : dN_dxi(a)
+  , dN_deta(b)
+  {
+  }
+
+  ReferenceGradients2D(std::array<Real, N>& a, std::array<Real, N>& b)
+  : dN_dxi(a)
+  , dN_deta(b)
+  {
+  }
+
   RealVector<N> dN_dxi;
   RealVector<N> dN_deta;
 };

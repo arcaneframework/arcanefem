@@ -243,7 +243,7 @@ _computeElementVectorHexa8Gpu(CellLocalId cell_lid,
 {
   constexpr Real gp[2] = { -0.57735026918962576451, 0.57735026918962576451 };
 
-  RealVector<8> ae_local = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  RealVector<8> ae_local;
 
   for (Int8 ixi = 0; ixi < 2; ++ixi) {
     for (Int8 ieta = 0; ieta < 2; ++ieta) {
@@ -635,7 +635,7 @@ _computeElementVectorQuad8Gpu(CellLocalId cell_lid,
   constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
 
   // Initialize the element vector
-  RealVector<8> ae = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  RealVector<8> ae;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 3; ++ixi) {
@@ -763,7 +763,7 @@ _computeElementVectorQuad9Gpu(CellLocalId cell_lid,
   constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
 
   // Initialize the element vector
-  RealVector<9> ae = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  RealVector<9> ae;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 3; ++ixi) {

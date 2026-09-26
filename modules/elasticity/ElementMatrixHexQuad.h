@@ -53,10 +53,10 @@ const RealVector<4>& dxu, const RealVector<4>& dyu, Real integration_weight, Rea
   // Create displacement gradient vectors for x and y components
   // For quad4: 4 nodes × 2 DOF = 8 total DOF
   // Pattern: [u1x, u1y, u2x, u2y, u3x, u3y, u4x, u4y]
-  RealVector<8> dxUx = { dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0. };
-  RealVector<8> dyUx = { dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3), 0. };
-  RealVector<8> dxUy = { 0., dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3) };
-  RealVector<8> dyUy = { 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3) };
+  RealVector<8> dxUx = {{ dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0. }};
+  RealVector<8> dyUx = {{ dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3), 0. }};
+  RealVector<8> dxUy = {{ 0., dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3) }};
+  RealVector<8> dyUy = {{ 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3) }};
 
   // ∫∫ (λ+2μ)(∂𝑢𝑥/∂𝑥 ∂𝑣𝑥/∂𝑥 + ∂𝑢𝑦/∂𝑦 ∂𝑣𝑦/∂𝑦)
   RealMatrix<8, 8> normal_strain_energy = (lambda + 2 * mu) * ((dxUx ^ dxUx) + (dyUy ^ dyUy)) * integration_weight;
@@ -144,28 +144,28 @@ Real integration_weight, Real lambda, Real mu)
   // Pattern: [u1x, u1y, u1z, u2x, u2y, u2z, u3x, u3y, u3z, ..., u8x, u8y, u8z]
 
   // X-displacement gradients
-  RealVector<24> dxUx = { dxu(0), 0., 0., dxu(1), 0., 0., dxu(2), 0., 0., dxu(3), 0., 0.,
-                          dxu(4), 0., 0., dxu(5), 0., 0., dxu(6), 0., 0., dxu(7), 0., 0. };
-  RealVector<24> dyUx = { dyu(0), 0., 0., dyu(1), 0., 0., dyu(2), 0., 0., dyu(3), 0., 0.,
-                          dyu(4), 0., 0., dyu(5), 0., 0., dyu(6), 0., 0., dyu(7), 0., 0. };
-  RealVector<24> dzUx = { dzu(0), 0., 0., dzu(1), 0., 0., dzu(2), 0., 0., dzu(3), 0., 0.,
-                          dzu(4), 0., 0., dzu(5), 0., 0., dzu(6), 0., 0., dzu(7), 0., 0. };
+  RealVector<24> dxUx = { { dxu(0), 0., 0., dxu(1), 0., 0., dxu(2), 0., 0., dxu(3), 0., 0.,
+                            dxu(4), 0., 0., dxu(5), 0., 0., dxu(6), 0., 0., dxu(7), 0., 0. } };
+  RealVector<24> dyUx = { { dyu(0), 0., 0., dyu(1), 0., 0., dyu(2), 0., 0., dyu(3), 0., 0.,
+                            dyu(4), 0., 0., dyu(5), 0., 0., dyu(6), 0., 0., dyu(7), 0., 0. } };
+  RealVector<24> dzUx = { { dzu(0), 0., 0., dzu(1), 0., 0., dzu(2), 0., 0., dzu(3), 0., 0.,
+                            dzu(4), 0., 0., dzu(5), 0., 0., dzu(6), 0., 0., dzu(7), 0., 0. } };
 
   // Y-displacement gradients
-  RealVector<24> dxUy = { 0., dxu(0), 0., 0., dxu(1), 0., 0., dxu(2), 0., 0., dxu(3), 0.,
-                          0., dxu(4), 0., 0., dxu(5), 0., 0., dxu(6), 0., 0., dxu(7), 0. };
-  RealVector<24> dyUy = { 0., dyu(0), 0., 0., dyu(1), 0., 0., dyu(2), 0., 0., dyu(3), 0.,
-                          0., dyu(4), 0., 0., dyu(5), 0., 0., dyu(6), 0., 0., dyu(7), 0. };
-  RealVector<24> dzUy = { 0., dzu(0), 0., 0., dzu(1), 0., 0., dzu(2), 0., 0., dzu(3), 0.,
-                          0., dzu(4), 0., 0., dzu(5), 0., 0., dzu(6), 0., 0., dzu(7), 0. };
+  RealVector<24> dxUy = { { 0., dxu(0), 0., 0., dxu(1), 0., 0., dxu(2), 0., 0., dxu(3), 0.,
+                            0., dxu(4), 0., 0., dxu(5), 0., 0., dxu(6), 0., 0., dxu(7), 0. } };
+  RealVector<24> dyUy = { { 0., dyu(0), 0., 0., dyu(1), 0., 0., dyu(2), 0., 0., dyu(3), 0.,
+                            0., dyu(4), 0., 0., dyu(5), 0., 0., dyu(6), 0., 0., dyu(7), 0. } };
+  RealVector<24> dzUy = { { 0., dzu(0), 0., 0., dzu(1), 0., 0., dzu(2), 0., 0., dzu(3), 0.,
+                            0., dzu(4), 0., 0., dzu(5), 0., 0., dzu(6), 0., 0., dzu(7), 0. } };
 
   // Z-displacement gradients
-  RealVector<24> dxUz = { 0., 0., dxu(0), 0., 0., dxu(1), 0., 0., dxu(2), 0., 0., dxu(3),
-                          0., 0., dxu(4), 0., 0., dxu(5), 0., 0., dxu(6), 0., 0., dxu(7) };
-  RealVector<24> dyUz = { 0., 0., dyu(0), 0., 0., dyu(1), 0., 0., dyu(2), 0., 0., dyu(3),
-                          0., 0., dyu(4), 0., 0., dyu(5), 0., 0., dyu(6), 0., 0., dyu(7) };
-  RealVector<24> dzUz = { 0., 0., dzu(0), 0., 0., dzu(1), 0., 0., dzu(2), 0., 0., dzu(3),
-                          0., 0., dzu(4), 0., 0., dzu(5), 0., 0., dzu(6), 0., 0., dzu(7) };
+  RealVector<24> dxUz = { { 0., 0., dxu(0), 0., 0., dxu(1), 0., 0., dxu(2), 0., 0., dxu(3),
+                            0., 0., dxu(4), 0., 0., dxu(5), 0., 0., dxu(6), 0., 0., dxu(7) } };
+  RealVector<24> dyUz = { { 0., 0., dyu(0), 0., 0., dyu(1), 0., 0., dyu(2), 0., 0., dyu(3),
+                            0., 0., dyu(4), 0., 0., dyu(5), 0., 0., dyu(6), 0., 0., dyu(7) } };
+  RealVector<24> dzUz = { { 0., 0., dzu(0), 0., 0., dzu(1), 0., 0., dzu(2), 0., 0., dzu(3),
+                            0., 0., dzu(4), 0., 0., dzu(5), 0., 0., dzu(6), 0., 0., dzu(7) } };
 
   // Normal strain energy terms: ∫∫∫ (λ+2μ)(∂𝑢𝑥/∂𝑥 ∂𝑣𝑥/∂𝑥 + ∂𝑢𝑦/∂𝑦 ∂𝑣𝑦/∂𝑦 + ∂𝑢𝑧/∂𝑧 ∂𝑣𝑧/∂𝑧)
   RealMatrix<24, 24> normal_strain_energy = (lambda + 2 * mu) *
@@ -175,13 +175,11 @@ Real integration_weight, Real lambda, Real mu)
   RealMatrix<24, 24> compressibility_effect = lambda *
   ((dxUx ^ (dyUy + dzUz)) + (dyUy ^ (dxUx + dzUz)) + (dzUz ^ (dxUx + dyUy))) * integration_weight;
 
-  // Shear energy terms: ∫∫∫ μ(∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦)(∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + 
-  //                         μ(∂𝑢𝑧/∂𝑦 + ∂𝑢𝑦/∂𝑧)(∂𝑣𝑦/∂𝑧 + ∂𝑣𝑧/∂𝑦) + 
+  // Shear energy terms: ∫∫∫ μ(∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦)(∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) +
+  //                         μ(∂𝑢𝑧/∂𝑦 + ∂𝑢𝑦/∂𝑧)(∂𝑣𝑦/∂𝑧 + ∂𝑣𝑧/∂𝑦) +
   //                         μ(∂𝑢𝑥/∂𝑧 + ∂𝑢𝑧/∂𝑥)(∂𝑣𝑧/∂𝑥 + ∂𝑣𝑥/∂𝑧)
-  RealMatrix<24, 24> shear_energy = mu *
-  (((dyUx + dxUy) ^ (dyUx + dxUy)) +
-   ((dzUx + dxUz) ^ (dzUx + dxUz)) +
-   ((dzUy + dyUz) ^ (dzUy + dyUz))) * integration_weight;
+  RealMatrix<24, 24> shear_energy = mu * (((dyUx + dxUy) ^ (dyUx + dxUy)) + ((dzUx + dxUz) ^ (dzUx + dxUz)) + ((dzUy + dyUz) ^ (dzUy + dyUz))) *
+  integration_weight;
 
   return (normal_strain_energy + compressibility_effect + shear_energy);
 }
