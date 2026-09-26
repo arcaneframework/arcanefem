@@ -9,8 +9,8 @@
 /*                                                                           */
 /* Utilitary classes for FEM.                                                */
 /*---------------------------------------------------------------------------*/
-#ifndef FEMTEST_FEMUTILS_H
-#define FEMTEST_FEMUTILS_H
+#ifndef ARCANEFEM_FEMUTILS_FEMUTILS_H
+#define ARCANEFEM_FEMUTILS_FEMUTILS_H
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -37,51 +37,23 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-struct Real4
-{
-  Arcane::Real data[4];
-
-  ARCCORE_HOST_DEVICE Arcane::Real& operator[](std::size_t i) { return data[i]; }
-  ARCCORE_HOST_DEVICE const Arcane::Real& operator[](std::size_t i) const { return data[i]; }
-  // Vector addition: Real4 + Real4
-  ARCCORE_HOST_DEVICE Real4 operator+(const Real4& other) const
-  {
-    Real4 result;
-    for (std::size_t i = 0; i < 4; ++i)
-      result[i] = data[i] + other[i];
-    return result;
-  }
-
-  // Vector subtraction: Real4 - Real4
-  ARCCORE_HOST_DEVICE Real4 operator-(const Real4& other) const
-  {
-    Real4 result;
-    for (std::size_t i = 0; i < 4; ++i)
-      result[i] = data[i] - other[i];
-    return result;
-  }
-  // Scalar multiplication: Real4 * scalar
-  ARCCORE_HOST_DEVICE Real4 operator*(Arcane::Real scalar) const
-  {
-    Real4 result;
-    for (std::size_t i = 0; i < 4; ++i)
-      result[i] = data[i] * scalar;
-    return result;
-  }
-  friend ARCCORE_HOST_DEVICE Real4 operator*(Arcane::Real scalar, const Real4& vec)
-  {
-    return vec * scalar;
-  }
-};
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
 namespace Arcane::FemUtils
 {
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+//! Vector of Real of size 4.
+using Real4 = NumVector<Arcane::Real, 4>;
+
 //! Vector of Real of size N.
 template <int N> using RealVector = NumVector<Arcane::Real, N>;
+
+//! Matrix of Real of size (Row, Column)
+template <int Row, int Column> using RealMatrix = NumMatrix<Arcane::Real, Row, Column>;
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 //! Struct to associate a CaseTable with the right file
 struct CaseTableInfo
@@ -89,174 +61,6 @@ struct CaseTableInfo
   String file_name;
   CaseTable* case_table = nullptr;
   UniqueArray<String> component_tokens;
-};
-/*---------------------------------------------------------------------------*/
-/*!
- * \brief Matrix of size NxM.
- */
-/*---------------------------------------------------------------------------*/
-template <int N, int M>
-class RealMatrix
-{
-  using ThatClass = RealMatrix<N, M>;
-
- public:
-
-  static constexpr Arcane::Int32 totalNbElement() { return N * M; }
-  constexpr ARCCORE_HOST_DEVICE RealMatrix() : m_values(0.0){}
-
-  ARCCORE_HOST_DEVICE RealMatrix(std::initializer_list<Real> init_list)
-  {
-    auto i = 0;
-    for (auto it = init_list.begin(); it != init_list.end(); it++) {
-      m_values(0, i) = *it;
-      i++;
-    }
-  };
-
-  ARCCORE_HOST_DEVICE RealMatrix(std::initializer_list<std::initializer_list<Real>> init_list)
-  {
-    Arcane::Int32 i = 0;
-    for (const auto& row : init_list) {
-      Arcane::Int32 j = 0;
-      for (const auto& value : row) {
-        m_values(i, j) = value;
-        ++j;
-      }
-      ++i;
-    }
-  }
-
-  //! Fill all elements with a given value
-  ARCCORE_HOST_DEVICE void fill(Arcane::Real value)
-  {
-    for (Arcane::Int32 i = 0; i < N; ++i)
-      for (Arcane::Int32 j = 0; j < M; ++j)
-        m_values(i, j) = value;
-  }
-
- public:
-
-  ARCCORE_HOST_DEVICE Arcane::Real& operator()(Arcane::Int32 i, Arcane::Int32 j)
-  {
-    return m_values(i, j);
-  }
-
-  ARCCORE_HOST_DEVICE Arcane::Real operator()(Arcane::Int32 i, Arcane::Int32 j) const
-  {
-    return m_values(i, j);
-  }
-
- public:
-
-  //! Multiply all the components by \a v
-  ARCCORE_HOST_DEVICE void multInPlace(Arcane::Real v)
-  {
-    m_values *= v;
-  }
-
-  //! Dump matrix values
-  void dump(std::ostream& o) const
-  {
-    const ThatClass& values = *this;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      o << "[ ";
-      for (Arcane::Int32 j = 0; j < M; ++j) {
-        if (j != 0)
-          o << ' ';
-        o << values(i, j);
-      }
-      o << "]\n";
-    }
-  }
-
-  //! Define the addition operator
-  ARCCORE_HOST_DEVICE RealMatrix<N, M> operator+(const RealMatrix<N, M>& other) const
-  {
-    RealMatrix<N, M> result;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      for (Arcane::Int32 j = 0; j < M; ++j) {
-        result(i, j) = (*this)(i, j) + other(i, j);
-      }
-    }
-    return result;
-  }
-
-  //! Define the addition-assignment operator
-  ARCCORE_HOST_DEVICE RealMatrix<N, M>& operator+=(const RealMatrix<N, M>& other)
-  {
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      for (Arcane::Int32 j = 0; j < M; ++j) {
-        (*this)(i, j) += other(i, j);
-      }
-    }
-    return *this;
-  }
-
-  //! Define the subtraction operator
-  RealMatrix<N, M> operator-(const RealMatrix<N, M>& other) const
-  {
-    RealMatrix<N, M> result;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      for (Arcane::Int32 j = 0; j < M; ++j) {
-        result(i, j) = (*this)(i, j) - other(i, j);
-      }
-    }
-    return result;
-  }
-
-  //! Define the unary negation operator
-  RealMatrix<N, M> operator-() const
-  {
-    RealMatrix<N, M> result;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      for (Arcane::Int32 j = 0; j < M; ++j) {
-        result(i, j) = -(*this)(i, j);
-      }
-    }
-    return result;
-  }
-
-  //! Scalar multiplication: RealMatrix * scalar
-  ARCCORE_HOST_DEVICE RealMatrix<N, M> operator*(Real scalar) const
-  {
-    RealMatrix<N, M> result;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      for (Arcane::Int32 j = 0; j < M; ++j) {
-        result(i, j) = (*this)(i, j) * scalar;
-      }
-    }
-    return result;
-  }
-
-  //! Scalar division: RealMatrix / scalar
-  ARCCORE_HOST_DEVICE RealMatrix<N, M> operator/(Real scalar) const
-  {
-    RealMatrix<N, M> result;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      for (Arcane::Int32 j = 0; j < M; ++j) {
-        result(i, j) = (*this)(i, j) / scalar;
-      }
-    }
-    return result;
-  }
-
-  //! Friend function for scalar multiplication: scalar * RealMatrix
-  ARCCORE_HOST_DEVICE friend RealMatrix<N, M> operator*(Real scalar, const RealMatrix<N, M>& matrix)
-  {
-    RealMatrix<N, M> result;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      for (Arcane::Int32 j = 0; j < M; ++j) {
-        result(i, j) = scalar * matrix(i, j);
-      }
-    }
-    return result;
-  }
-
- private:
-
-  NumMatrix<Arcane::Real,N,M> m_values;
-  //std::array<Arcane::Real, totalNbElement()> m_values = {};
 };
 
 /*---------------------------------------------------------------------------*/
@@ -454,8 +258,7 @@ real3x3Trace(const Real3x3& mat);
  * \brief Return the out-diagonal terms of the upper part of a Real3x3
  * (useful for Passmo(nl) modules)
  */
-extern "C++"
-Real3 real3x3GetSupOutdiagonal(const Real3x3& mat);
+extern "C++" Real3 real3x3GetSupOutdiagonal(const Real3x3& mat);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -463,8 +266,7 @@ Real3 real3x3GetSupOutdiagonal(const Real3x3& mat);
  * \brief Return the out-diagonal terms of the lower part of a Real3x3
  * (useful for Passmo(nl) modules)
  */
-extern "C++"
-Real3 real3x3GetLowOutdiagonal(const Real3x3& mat);
+extern "C++" Real3 real3x3GetLowOutdiagonal(const Real3x3& mat);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

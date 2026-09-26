@@ -162,7 +162,7 @@ computeElementVectorQuad4Gpu(CellLocalId cell_lid,
                 + (dyU[node_lid] * dyU) * integration_weight * lambda_gp;
     }
   }
-  return {ae_local(0), ae_local(1), ae_local(2), ae_local(3)};
+  return ae_local;
 }
 
 
@@ -185,7 +185,8 @@ computeElementVectorQuad4Gpu(CellLocalId cell_lid,
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<8, 8> FemModuleFourierNL::_computeElementMatrixHexa8(Cell cell)
+RealMatrix<8, 8> FemModuleFourierNL::
+_computeElementMatrixHexa8(Cell cell)
 {
   // 2x2x2 Gauss points and weights for [-1,1]^3
   constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // -1/sqrt(3), 1/sqrt(3)
@@ -283,7 +284,7 @@ computeElementMatrixHexa8Gpu(CellLocalId cell_lid,
   return ae;
 }
 
-ARCCORE_HOST_DEVICE RealMatrix<8, 8>
+ARCCORE_HOST_DEVICE RealMatrix<1, 8>
 computeElementVectorHexa8Gpu(CellLocalId cell_lid,
                               const IndexedCellNodeConnectivityView& cn_cv,
                               const ax::VariableNodeReal3InView& in_node_coord,
@@ -333,5 +334,5 @@ computeElementVectorHexa8Gpu(CellLocalId cell_lid,
       }
     }
   }
-  return {ae_local(0), ae_local(1), ae_local(2), ae_local(3), ae_local(4), ae_local(5), ae_local(6), ae_local(7) };
+  return ae_local;
 }

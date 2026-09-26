@@ -286,16 +286,5 @@ ARCCORE_HOST_DEVICE RealMatrix<3, 12> computeElementVectorTetra4Gpu(CellLocalId 
   RealVector<12> result_y = normal_strain_energy_y + compressibility_effect_y + shear_energy_y;
   RealVector<12> result_z = normal_strain_energy_z + compressibility_effect_z + shear_energy_z;
 
-  RealMatrix<3, 12> result = {
-    { result_x(0), result_x(1), result_x(2), result_x(3), result_x(4), result_x(5),
-      result_x(6), result_x(7), result_x(8), result_x(9), result_x(10), result_x(11) },
-
-    { result_y(0), result_y(1), result_y(2), result_y(3), result_y(4), result_y(5),
-      result_y(6), result_y(7), result_y(8), result_y(9), result_y(10), result_y(11) },
-
-    { result_z(0), result_z(1), result_z(2), result_z(3), result_z(4), result_z(5),
-      result_z(6), result_z(7), result_z(8), result_z(9), result_z(10), result_z(11) }
-  };
-
-  return result;
+  return RealMatrix<3, 12>(result_x, result_y, result_z);
 }
