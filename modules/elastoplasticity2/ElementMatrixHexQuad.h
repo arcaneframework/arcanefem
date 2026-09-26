@@ -26,7 +26,6 @@ namespace Arcane::ArcaneFem
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
 /**
  * @brief Computes the element matrix for a quadrilateral element (QUAD4, ℙ1 FE).
  *
@@ -55,9 +54,9 @@ inline ARCCORE_HOST_DEVICE RealMatrix<8, 8>
 computeElementMatrixQuad4Base(const RealVector<4>& dxu, const RealVector<4>& dyu,
                               Real integration_weight, RealMatrix<3, 3> C_tang)
 {
-  RealVector<8> epsxx = { dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0. };
-  RealVector<8> epsyy = { 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3) };
-  RealVector<8> epsxy = { dyu(0), dxu(0), dyu(1), dxu(1), dyu(2), dxu(2), dyu(3), dxu(3) };
+  RealVector<8> epsxx = { { dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0. } };
+  RealVector<8> epsyy = { { 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3) } };
+  RealVector<8> epsxy = { { dyu(0), dxu(0), dyu(1), dxu(1), dyu(2), dxu(2), dyu(3), dxu(3) } };
 
   // Kelvin notation: scale shear strains by 1/sqrt(2)
   epsxy = M_SQRT1_2 * epsxy;
@@ -105,7 +104,6 @@ _computeElementMatrixQuad4(Cell cell)
 
   // Initialize the element matrix
   RealMatrix<8, 8> ae;
-  ae.fill(0.0);
 
   // Loop over Gauss points
   Int8 iGP = 0; // TODO verify order with ixi, ieta, izeta.
@@ -165,12 +163,12 @@ inline ARCCORE_HOST_DEVICE RealMatrix<16, 16>
 computeElementMatrixQuad8Base(const RealVector<8>& dxu, const RealVector<8>& dyu,
                               Real integration_weight, const RealMatrix<3, 3>& C_tang)
 {
-  RealVector<16> epsxx = { dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0.,
-                           dxu(4), 0., dxu(5), 0., dxu(6), 0., dxu(7), 0. };
-  RealVector<16> epsyy = { 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3),
-                           0., dyu(4), 0., dyu(5), 0., dyu(6), 0., dyu(7) };
-  RealVector<16> epsxy = { dyu(0), dxu(0), dyu(1), dxu(1), dyu(2), dxu(2), dyu(3), dxu(3),
-                           dyu(4), dxu(4), dyu(5), dxu(5), dyu(6), dxu(6), dyu(7), dxu(7) };
+  RealVector<16> epsxx = { { dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0.,
+                             dxu(4), 0., dxu(5), 0., dxu(6), 0., dxu(7), 0. } };
+  RealVector<16> epsyy = { { 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3),
+                             0., dyu(4), 0., dyu(5), 0., dyu(6), 0., dyu(7) } };
+  RealVector<16> epsxy = { { dyu(0), dxu(0), dyu(1), dxu(1), dyu(2), dxu(2), dyu(3), dxu(3),
+                             dyu(4), dxu(4), dyu(5), dxu(5), dyu(6), dxu(6), dyu(7), dxu(7) } };
 
   // Kelvin notation: scale shear strains by 1/sqrt(2)
   epsxy = M_SQRT1_2 * epsxy;
@@ -210,7 +208,7 @@ _computeElementMatrixQuad8(Cell cell)
   constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
   constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
   RealMatrix<16, 16> ae;
-  ae.fill(0.0);
+
   Int8 iGP = 0;
   for (Int8 ixi = 0; ixi < 3; ++ixi) {
     for (Int8 ieta = 0; ieta < 3; ++ieta) {
@@ -254,14 +252,14 @@ _computeElementMatrixQuad8(Cell cell)
 inline ARCCORE_HOST_DEVICE RealMatrix<18, 18>
 computeElementMatrixQuad9Base(const RealVector<9>& dxu, const RealVector<9>& dyu, Real integration_weight, const RealMatrix<3, 3>& C_tang)
 {
-  RealVector<18> epsxx = { dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0., dxu(4), 0.,
-                           dxu(5), 0., dxu(6), 0., dxu(7), 0., dxu(8), 0. };
+  RealVector<18> epsxx = { { dxu(0), 0., dxu(1), 0., dxu(2), 0., dxu(3), 0., dxu(4), 0.,
+                             dxu(5), 0., dxu(6), 0., dxu(7), 0., dxu(8), 0. } };
 
-  RealVector<18> epsyy = { 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3), 0., dyu(4),
-                           0., dyu(5), 0., dyu(6), 0., dyu(7), 0., dyu(8) };
+  RealVector<18> epsyy = { { 0., dyu(0), 0., dyu(1), 0., dyu(2), 0., dyu(3), 0., dyu(4),
+                             0., dyu(5), 0., dyu(6), 0., dyu(7), 0., dyu(8) } };
 
-  RealVector<18> epsxy = { dyu(0), dxu(0), dyu(1), dxu(1), dyu(2), dxu(2), dyu(3), dxu(3), dyu(4), dxu(4),
-                           dyu(5), dxu(5), dyu(6), dxu(6), dyu(7), dxu(7), dyu(8), dxu(8) };
+  RealVector<18> epsxy = { { dyu(0), dxu(0), dyu(1), dxu(1), dyu(2), dxu(2), dyu(3), dxu(3), dyu(4), dxu(4),
+                             dyu(5), dxu(5), dyu(6), dxu(6), dyu(7), dxu(7), dyu(8), dxu(8) } };
 
   // Kelvin notation: scale shear strains by 1/sqrt(2)
   epsxy = M_SQRT1_2 * epsxy;
@@ -348,35 +346,33 @@ _computeElementMatrixQuad9(Cell cell)
  *               + ∫∫∫ C_tang16 ∂𝑢𝑥/∂𝑥 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) + C_tang26 ∂𝑢𝑧/∂𝑦 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) + C_tang36 ∂𝑢𝑧/∂𝑧 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) + C_tang46 (∂𝑢𝑧/∂𝑦 + ∂𝑢𝑦/∂𝑧) (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) + C_tang56 (∂𝑢𝑥/∂𝑧 + ∂𝑢𝑧/∂𝑥) (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) + C_tang66 (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦) (∂𝑢𝑦/∂𝑥 + ∂𝑢𝑥/∂𝑦)
  *
  */
-/*---------------------------------------------------------------------------*/
-
 inline ARCCORE_HOST_DEVICE RealMatrix<24, 24>
 computeElementMatrixHexa8Base(const RealVector<8>& dxu, const RealVector<8>& dyu, const RealVector<8>& dzu,
                               Real integration_weight, RealMatrix<6, 6> C_tang)
 {
-  RealVector<24> epsxx = { dxu(0), 0., 0., dxu(1), 0., 0., dxu(2), 0., 0., dxu(3), 0., 0.,
-                           dxu(4), 0., 0., dxu(5), 0., 0., dxu(6), 0., 0., dxu(7), 0., 0. };
+  RealVector<24> epsxx = { { dxu(0), 0., 0., dxu(1), 0., 0., dxu(2), 0., 0., dxu(3), 0., 0.,
+                             dxu(4), 0., 0., dxu(5), 0., 0., dxu(6), 0., 0., dxu(7), 0., 0. } };
 
-  RealVector<24> epsyy = { 0., dyu(0), 0., 0., dyu(1), 0., 0., dyu(2), 0., 0., dyu(3), 0.,
-                           0., dyu(4), 0., 0., dyu(5), 0., 0., dyu(6), 0., 0., dyu(7), 0. };
+  RealVector<24> epsyy = { { 0., dyu(0), 0., 0., dyu(1), 0., 0., dyu(2), 0., 0., dyu(3), 0.,
+                             0., dyu(4), 0., 0., dyu(5), 0., 0., dyu(6), 0., 0., dyu(7), 0. } };
 
-  RealVector<24> epszz = { 0., 0., dzu(0), 0., 0., dzu(1), 0., 0., dzu(2), 0., 0., dzu(3),
-                           0., 0., dzu(4), 0., 0., dzu(5), 0., 0., dzu(6), 0., 0., dzu(7) };
+  RealVector<24> epszz = { { 0., 0., dzu(0), 0., 0., dzu(1), 0., 0., dzu(2), 0., 0., dzu(3),
+                             0., 0., dzu(4), 0., 0., dzu(5), 0., 0., dzu(6), 0., 0., dzu(7) } };
 
-  RealVector<24> epsyz = { 0., dzu(0), dyu(0), 0., dzu(1), dyu(1),
-                           0., dzu(2), dyu(2), 0., dzu(3), dyu(3),
-                           0., dzu(4), dyu(4), 0., dzu(5), dyu(5),
-                           0., dzu(6), dyu(6), 0., dzu(7), dyu(7) };
+  RealVector<24> epsyz = { { 0., dzu(0), dyu(0), 0., dzu(1), dyu(1),
+                             0., dzu(2), dyu(2), 0., dzu(3), dyu(3),
+                             0., dzu(4), dyu(4), 0., dzu(5), dyu(5),
+                             0., dzu(6), dyu(6), 0., dzu(7), dyu(7) } };
 
-  RealVector<24> epszx = { dzu(0), 0., dxu(0), dzu(1), 0., dxu(1),
-                           dzu(2), 0., dxu(2), dzu(3), 0., dxu(3),
-                           dzu(4), 0., dxu(4), dzu(5), 0., dxu(5),
-                           dzu(6), 0., dxu(6), dzu(7), 0., dxu(7) };
+  RealVector<24> epszx = { { dzu(0), 0., dxu(0), dzu(1), 0., dxu(1),
+                             dzu(2), 0., dxu(2), dzu(3), 0., dxu(3),
+                             dzu(4), 0., dxu(4), dzu(5), 0., dxu(5),
+                             dzu(6), 0., dxu(6), dzu(7), 0., dxu(7) } };
 
-  RealVector<24> epsxy = { dyu(0), dxu(0), 0., dyu(1), dxu(1), 0.,
-                           dyu(2), dxu(2), 0., dyu(3), dxu(3), 0.,
-                           dyu(4), dxu(4), 0., dyu(5), dxu(5), 0.,
-                           dyu(6), dxu(6), 0., dyu(7), dxu(7), 0. };
+  RealVector<24> epsxy = { { dyu(0), dxu(0), 0., dyu(1), dxu(1), 0.,
+                             dyu(2), dxu(2), 0., dyu(3), dxu(3), 0.,
+                             dyu(4), dxu(4), 0., dyu(5), dxu(5), 0.,
+                             dyu(6), dxu(6), 0., dyu(7), dxu(7), 0. } };
 
   // Kelvin notation: scale shear strains by 1/sqrt(2)
   epsyz = M_SQRT1_2 * epsyz;
@@ -399,7 +395,11 @@ computeElementMatrixHexa8Base(const RealVector<8>& dxu, const RealVector<8>& dyu
   return integration_weight * (sigmaXepsxx + sigmaXepsyy + sigmaXepszz + sigmaXepsyz + sigmaXepszx + sigmaXepsxy);
 }
 
-RealMatrix<24, 24> Elastoplasticity2Module::_computeElementMatrixHexa8(Cell cell)
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+RealMatrix<24, 24> Elastoplasticity2Module::
+_computeElementMatrixHexa8(Cell cell)
 {
   // Gauss points and weights for 2x2x2 quadrature
   constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // [-1/sqrt(3), 1/sqrt(3)]
@@ -407,7 +407,6 @@ RealMatrix<24, 24> Elastoplasticity2Module::_computeElementMatrixHexa8(Cell cell
 
   // Initialize the element matrix
   RealMatrix<24, 24> ae;
-  ae.fill(0.0);
 
   // Loop over Gauss points
   Int8 iGP = 0; // TODO verify order with ixi, ieta, izeta.
@@ -420,8 +419,7 @@ RealMatrix<24, 24> Elastoplasticity2Module::_computeElementMatrixHexa8(Cell cell
         const Real zeta = gp[izeta];
 
         // Get shape function gradients w.r.t (x,y,z) and determinant of Jacobian
-        const auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa8(
-        cell, m_node_coord, xi, eta, zeta);
+        const auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa8(cell, m_node_coord, xi, eta, zeta);
         const RealVector<8>& dxU = gp_info.dN_dx;
         const RealVector<8>& dyU = gp_info.dN_dy;
         const RealVector<8>& dzU = gp_info.dN_dz;

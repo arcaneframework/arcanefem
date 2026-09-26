@@ -9,65 +9,30 @@
 /*                                                                           */
 /* Utilitary classes for FEM.                                                */
 /*---------------------------------------------------------------------------*/
-#ifndef FEMTEST_FEMUTILS_H
-#define FEMTEST_FEMUTILS_H
+#ifndef ARCANEFEM_FEMUTILS_FEMUTILS_H
+#define ARCANEFEM_FEMUTILS_FEMUTILS_H
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/ArcaneTypes.h>
+#include <arccore/base/MathNumeric.h>
+
 #include <arcane/utils/MDSpan.h>
+#include <arcane/utils/NumMatrix.h>
+#include <arcane/utils/NumVector.h>
+#include <arcane/utils/Array.h>
+
+#include <arcane/core/ArcaneTypes.h>
+#include <arcane/core/VariableTypedef.h>
+#include <arcane/core/Parallel.h>
+#include <arcane/core/IIOMng.h>
+#include <arcane/core/CaseTable.h>
+
 #include <arcane/matvec/Matrix.h>
-#include <arcane/VariableTypedef.h>
-#include <arcane/Parallel.h>
-#include <arcane/IIOMng.h>
-#include <arcane/CaseTable.h>
 
 #include <arcane/utils/Real3.h>
 #include <arcane/utils/Real3x3.h>
 
-#include <arccore/base/ArccoreGlobal.h>
 #include <array>
-#include <arcane/MeshVariableArrayRef.h>
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-struct Real4
-{
-  Arcane::Real data[4];
-
-  ARCCORE_HOST_DEVICE Arcane::Real& operator[](std::size_t i) { return data[i]; }
-  ARCCORE_HOST_DEVICE const Arcane::Real& operator[](std::size_t i) const { return data[i]; }
-  // Vector addition: Real4 + Real4
-  ARCCORE_HOST_DEVICE Real4 operator+(const Real4& other) const
-  {
-    Real4 result;
-    for (std::size_t i = 0; i < 4; ++i)
-      result[i] = data[i] + other[i];
-    return result;
-  }
-
-  // Vector subtraction: Real4 - Real4
-  ARCCORE_HOST_DEVICE Real4 operator-(const Real4& other) const
-  {
-    Real4 result;
-    for (std::size_t i = 0; i < 4; ++i)
-      result[i] = data[i] - other[i];
-    return result;
-  }
-  // Scalar multiplication: Real4 * scalar
-  ARCCORE_HOST_DEVICE Real4 operator*(Arcane::Real scalar) const
-  {
-    Real4 result;
-    for (std::size_t i = 0; i < 4; ++i)
-      result[i] = data[i] * scalar;
-    return result;
-  }
-  friend ARCCORE_HOST_DEVICE Real4 operator*(Arcane::Real scalar, const Real4& vec)
-  {
-    return vec * scalar;
-  }
-};
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -75,182 +40,27 @@ struct Real4
 namespace Arcane::FemUtils
 {
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+//! Vector of Real of size 4.
+using Real4 = NumVector<Arcane::Real, 4>;
+
+//! Vector of Real of size N.
+template <int N> using RealVector = NumVector<Arcane::Real, N>;
+
+//! Matrix of Real of size (Row, Column)
+template <int Row, int Column> using RealMatrix = NumMatrix<Arcane::Real, Row, Column>;
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 //! Struct to associate a CaseTable with the right file
 struct CaseTableInfo
 {
   String file_name;
   CaseTable* case_table = nullptr;
   UniqueArray<String> component_tokens;
-};
-/*---------------------------------------------------------------------------*/
-/*!
- * \brief Matrix of size NxM.
- */
-/*---------------------------------------------------------------------------*/
-template <int N, int M>
-class RealMatrix
-{
-  using ThatClass = RealMatrix<N, M>;
-
- public:
-
-  static constexpr Arcane::Int32 totalNbElement() { return N * M; }
-  ARCCORE_HOST_DEVICE RealMatrix() {};
-  ARCCORE_HOST_DEVICE RealMatrix(std::initializer_list<Real> init_list)
-  {
-    auto i = 0;
-    for (auto it = init_list.begin(); it != init_list.end(); it++) {
-      m_values[i] = *it;
-      i++;
-    }
-  };
-
-  ARCCORE_HOST_DEVICE RealMatrix(std::initializer_list<std::initializer_list<Real>> init_list)
-  {
-    Arcane::Int32 i = 0;
-    for (const auto& row : init_list) {
-      Arcane::Int32 j = 0;
-      for (const auto& value : row) {
-          m_values[i * M + j] = value;
-        ++j;
-      }
-      ++i;
-    }
-  }
-
-  //! Fill all elements with a given value
-  ARCCORE_HOST_DEVICE void fill(Arcane::Real value)
-  {
-    for (Arcane::Int32 i = 0; i < N * M; ++i)
-      m_values[i] = value;
-  }
-
- public:
-
-  ARCCORE_HOST_DEVICE Arcane::Real& operator()(Arcane::Int32 i, Arcane::Int32 j)
-  {
-    ARCANE_CHECK_AT(i, N);
-    ARCANE_CHECK_AT(j, M);
-    return m_values[i * M + j];
-  }
-
-  ARCCORE_HOST_DEVICE Arcane::Real operator()(Arcane::Int32 i, Arcane::Int32 j) const
-  {
-    ARCANE_CHECK_AT(i, N);
-    ARCANE_CHECK_AT(j, M);
-    return m_values[i * M + j];
-  }
-
- public:
-
-  //! Multiply all the components by \a v
-  ARCCORE_HOST_DEVICE void multInPlace(Arcane::Real v)
-  {
-    for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
-      m_values[i] *= v;
-  }
-
-  //! Dump matrix values
-  void dump(std::ostream& o) const
-  {
-    const ThatClass& values = *this;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      o << "[ ";
-      for (Arcane::Int32 j = 0; j < M; ++j) {
-        if (j != 0)
-          o << ' ';
-        o << values(i, j);
-      }
-      o << "]\n";
-    }
-  }
-
-  //! Define the addition operator
-  ARCCORE_HOST_DEVICE RealMatrix<N, M> operator+(const RealMatrix<N, M>& other) const
-  {
-    RealMatrix<N, M> result;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      for (Arcane::Int32 j = 0; j < M; ++j) {
-        result(i, j) = (*this)(i, j) + other(i, j);
-      }
-    }
-    return result;
-  }
-
-  //! Define the addition-assignment operator
-  ARCCORE_HOST_DEVICE RealMatrix<N, M>& operator+=(const RealMatrix<N, M>& other)
-  {
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      for (Arcane::Int32 j = 0; j < M; ++j) {
-        (*this)(i, j) += other(i, j);
-      }
-    }
-    return *this;
-  }
-
-  //! Define the subtraction operator
-  RealMatrix<N, M> operator-(const RealMatrix<N, M>& other) const
-  {
-    RealMatrix<N, M> result;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      for (Arcane::Int32 j = 0; j < M; ++j) {
-        result(i, j) = (*this)(i, j) - other(i, j);
-      }
-    }
-    return result;
-  }
-
-  //! Define the unary negation operator
-  RealMatrix<N, M> operator-() const
-  {
-    RealMatrix<N, M> result;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      for (Arcane::Int32 j = 0; j < M; ++j) {
-        result(i, j) = -(*this)(i, j);
-      }
-    }
-    return result;
-  }
-
-  //! Scalar multiplication: RealMatrix * scalar
-  ARCCORE_HOST_DEVICE RealMatrix<N, M> operator*(Real scalar) const
-  {
-    RealMatrix<N, M> result;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      for (Arcane::Int32 j = 0; j < M; ++j) {
-        result(i, j) = (*this)(i, j) * scalar;
-      }
-    }
-    return result;
-  }
-
-  //! Scalar division: RealMatrix / scalar
-  ARCCORE_HOST_DEVICE RealMatrix<N, M> operator/(Real scalar) const
-  {
-    RealMatrix<N, M> result;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      for (Arcane::Int32 j = 0; j < M; ++j) {
-        result(i, j) = (*this)(i, j) / scalar;
-      }
-    }
-    return result;
-  }
-
-  //! Friend function for scalar multiplication: scalar * RealMatrix
-  ARCCORE_HOST_DEVICE friend RealMatrix<N, M> operator*(Real scalar, const RealMatrix<N, M>& matrix)
-  {
-    RealMatrix<N, M> result;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      for (Arcane::Int32 j = 0; j < M; ++j) {
-        result(i, j) = scalar * matrix(i, j);
-      }
-    }
-    return result;
-  }
-
- private:
-
-  std::array<Arcane::Real, totalNbElement()> m_values = {};
 };
 
 /*---------------------------------------------------------------------------*/
@@ -356,195 +166,7 @@ ARCCORE_HOST_DEVICE massMatrix(const RealMatrix<1, N>& lhs, const RealMatrix<1, 
 }
 
 /*---------------------------------------------------------------------------*/
-/*!
- * \brief Vector of size N.
- */
 /*---------------------------------------------------------------------------*/
-template <int N>
-class RealVector
-{
-  using ThatClass = RealVector<N>;
-
- public:
-
-  static constexpr Arcane::Int32 totalNbElement() { return N; }
-
-  ARCCORE_HOST_DEVICE RealVector() = default;
-
-  ARCCORE_HOST_DEVICE RealVector(std::initializer_list<Arcane::Real> init_list)
-  {
-    Arcane::Int32 i = 0;
-    for (auto it = init_list.begin(); it != init_list.end() && i < N; ++it, ++i) {
-      m_values[i] = *it;
-    }
-  }
-
- public:
-
-  //! Add operator()
-  ARCCORE_HOST_DEVICE Arcane::Real& operator()(Arcane::Int32 i)
-  {
-    ARCANE_CHECK_AT(i, N);
-    return m_values[i];
-  }
-
-  //! Add operator()
-  ARCCORE_HOST_DEVICE Arcane::Real operator()(Arcane::Int32 i) const
-  {
-    ARCANE_CHECK_AT(i, N);
-    return m_values[i];
-  }
-
-  //! Add operator[]
-  ARCCORE_HOST_DEVICE Arcane::Real& operator[](Arcane::Int32 i)
-  {
-    ARCANE_CHECK_AT(i, N);
-    return m_values[i];
-  }
-
-  //! Add operator[]
-  ARCCORE_HOST_DEVICE Arcane::Real operator[](Arcane::Int32 i) const
-  {
-    ARCANE_CHECK_AT(i, N);
-    return m_values[i];
-  }
-
- public:
-
-  //! Multiply all the components by \a v
-  ARCCORE_HOST_DEVICE void multInPlace(Arcane::Real v)
-  {
-    for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
-      m_values[i] *= v;
-  }
-
-  //! Add \a v to all the components
-  ARCCORE_HOST_DEVICE void addInPlace(Arcane::Real v)
-  {
-    for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
-      m_values[i] += v;
-  }
-
-  //! Dump values
-  void dump(std::ostream& o) const
-  {
-    const ThatClass& values = *this;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      o << "[ ";
-      o << values(i);
-      o << "]\n";
-    }
-  }
-
-  //! Define the addition operator
-  ARCCORE_HOST_DEVICE RealVector<N> operator+(const RealVector<N>& other) const
-  {
-    RealVector<N> result;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      result(i) = (*this)(i) + other(i);
-    }
-    return result;
-  }
-
-
-  //! Define the addition-assignment operator
-  ARCCORE_HOST_DEVICE RealVector<N>& operator+=(const RealVector<N>& other)
-  {
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-        (*this)(i) += other(i);
-    }
-    return *this;
-  }
-
-  //! Define the subtraction operator
-  RealVector<N> operator-(const RealVector<N>& other) const
-  {
-    RealVector<N> result;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      result(i) = (*this)(i)-other(i);
-    }
-    return result;
-  }
-
-  //! Define the unary negation operator
-  RealVector<N> operator-() const
-  {
-    RealVector<N> result;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      result(i) = -(*this)(i);
-    }
-    return result;
-  }
-
-  //! Set this vector equal to b
-  ARCCORE_HOST_DEVICE void setEqualTo(const RealVector<N>& b)
-  {
-    ARCANE_CHECK_AT(totalNbElement(), N);
-    for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
-      m_values[i] = b[i];
-  }
-
-  //! Add b to this vector
-  ARCCORE_HOST_DEVICE void add(const RealVector<N>& b)
-  {
-    ARCANE_CHECK_AT(totalNbElement(), N);
-    for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
-      m_values[i] += b[i];
-  }
-
-  //! Substract b to this vector
-  ARCCORE_HOST_DEVICE void sub(const RealVector<N>& b)
-  {
-    ARCANE_CHECK_AT(totalNbElement(), N);
-    for (Arcane::Int32 i = 0, n = totalNbElement(); i < n; ++i)
-      m_values[i] -= b[i];
-  }
-
-  //! Scalar multiplication: RealVector * scalar
-  ARCCORE_HOST_DEVICE RealVector<N> operator*(Real scalar) const
-  {
-    RealVector<N> result;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      result(i) = (*this)(i)*scalar;
-    }
-    return result;
-  }
-
-  //! Scalar division: RealVector / scalar
-  ARCCORE_HOST_DEVICE RealVector<N> operator/(Real scalar) const
-  {
-    RealVector<N> result;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      result(i) = (*this)(i) / scalar;
-    }
-    return result;
-  }
-
-  //! Friend function for scalar multiplication: scalar * RealVector
-  ARCCORE_HOST_DEVICE friend RealVector<N> operator*(Real scalar, const RealVector<N>& vector)
-  {
-    RealVector<N> result;
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      result(i) = scalar * vector(i);
-    }
-    return result;
-  }
-
-  //! Friend function for dot product of RealVector
-  ARCCORE_HOST_DEVICE friend Real dot(const RealVector<N>& u, const RealVector<N>& v)
-  {
-    Real result{0.};
-    for (Arcane::Int32 i = 0; i < N; ++i) {
-      result += u(i) * v(i);
-    }
-    return result;
-  }
-
-  // private:
- protected:
-
-  std::array<Arcane::Real, totalNbElement()> m_values = {};
-};
 
 /*---------------------------------------------------------------------------*/
 //  Matrix vector product of RealVector<N> vectors and matrix RealMatrix<N, N>
@@ -636,8 +258,7 @@ real3x3Trace(const Real3x3& mat);
  * \brief Return the out-diagonal terms of the upper part of a Real3x3
  * (useful for Passmo(nl) modules)
  */
-extern "C++"
-Real3 real3x3GetSupOutdiagonal(const Real3x3& mat);
+extern "C++" Real3 real3x3GetSupOutdiagonal(const Real3x3& mat);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -645,8 +266,7 @@ Real3 real3x3GetSupOutdiagonal(const Real3x3& mat);
  * \brief Return the out-diagonal terms of the lower part of a Real3x3
  * (useful for Passmo(nl) modules)
  */
-extern "C++"
-Real3 real3x3GetLowOutdiagonal(const Real3x3& mat);
+extern "C++" Real3 real3x3GetLowOutdiagonal(const Real3x3& mat);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -661,20 +281,29 @@ class Tensor2
 
   ARCCORE_HOST_DEVICE Tensor2() = default;
 
-  ARCCORE_HOST_DEVICE Tensor2(std::initializer_list<Real> init_list):m_vec(init_list)
+  ARCCORE_HOST_DEVICE Tensor2(std::array<Real, 6> init_list)
+  : m_vec(init_list)
   {}
 
-  ARCCORE_HOST_DEVICE Tensor2(const Real3& a,const Real3& b) {
-    m_vec = {a.x, a.y, a.z, b.x, b.y, b.z};
+  ARCCORE_HOST_DEVICE Tensor2(Real a0, Real a1, Real a2, Real a3, Real a4, Real a5)
+  : m_vec(a0, a1, a2, a3, a4, a5)
+  {}
+  ARCCORE_HOST_DEVICE Tensor2(const Real3& a, const Real3& b)
+  {
+    m_vec = { a.x, a.y, a.z, b.x, b.y, b.z };
   }
-  ARCCORE_HOST_DEVICE explicit Tensor2(const RealVector<6>& vec) {
-    m_vec = {vec(0), vec(1), vec(2), vec(3), vec(4), vec(5)};
+  ARCCORE_HOST_DEVICE explicit Tensor2(const RealVector<6>& vec)
+  {
+    m_vec = { vec(0), vec(1), vec(2), vec(3), vec(4), vec(5) };
   }
 
-  ARCCORE_HOST_DEVICE explicit Tensor2(const Real3x3& mat) {
+  ARCCORE_HOST_DEVICE explicit Tensor2(const Real3x3& mat)
+  {
     ARCANE_ASSERT(real3x3IsSym(mat), ("true"));
-    for (Arcane::Int32 i = 0; i < 3; i++) m_vec(i) = mat[i][i];
-    for (Arcane::Int32 i = 3; i < 5; i++) m_vec(i) = mat[0][i - 2];
+    for (Arcane::Int32 i = 0; i < 3; i++)
+      m_vec(i) = mat[i][i];
+    for (Arcane::Int32 i = 3; i < 5; i++)
+      m_vec(i) = mat[0][i - 2];
     m_vec(5) = mat[1][2];
   }
 
@@ -682,13 +311,15 @@ class Tensor2
 
  public:
 
-  ARCCORE_HOST_DEVICE Real& operator()(Int32 i) {
+  ARCCORE_HOST_DEVICE Real& operator()(Int32 i)
+  {
     return m_vec(i);
   }
 
-  [[nodiscard]] ARCCORE_HOST_DEVICE RealVector<6> getVec() const {  return m_vec; }
+  [[nodiscard]] ARCCORE_HOST_DEVICE RealVector<6> getVec() const { return m_vec; }
 
-  ARCCORE_HOST_DEVICE Real operator()(Int32 i) const {
+  ARCCORE_HOST_DEVICE Real operator()(Int32 i) const
+  {
     return m_vec(i);
   }
 
@@ -705,9 +336,11 @@ class Tensor2
   }
 
   //! Convert this Tensor to Real3x3 matrix
-  ARCCORE_HOST_DEVICE explicit operator Real3x3() const {
+  ARCCORE_HOST_DEVICE explicit operator Real3x3() const
+  {
     Real3x3 mat;
-    for (Int32 i = 0; i < 3; i++) mat[i][i] = (*this)(i);
+    for (Int32 i = 0; i < 3; i++)
+      mat[i][i] = (*this)(i);
     for (Int32 i = 3; i < 5; i++) {
       mat[0][i - 2] = (*this)(i);
       mat[i - 2][0] = (*this)(i);
@@ -718,23 +351,25 @@ class Tensor2
   }
 
   //! Return Identity Tensor2
-  static Tensor2 identity() { return {Real3(1.,1.,1.), Real3::zero()};  }
+  static Tensor2 identity() { return { Real3(1., 1., 1.), Real3::zero() }; }
   //! Return zero Tensor2
-  static Tensor2 zero() { return {};  }
+  static Tensor2 zero() { return {}; }
 
  public:
+
   //! Multiply all the components by \a v
-  ARCCORE_HOST_DEVICE void multInPlace(Real v) { m_vec.multInPlace(v); }
+  ARCCORE_HOST_DEVICE void multInPlace(Real v) { m_vec *= v; }
 
   //! Add \a v to all the components
-  ARCCORE_HOST_DEVICE void addInPlace(Real v) { m_vec.addInPlace(v); }
+  ARCCORE_HOST_DEVICE void addInPlace(Real v) { m_vec += v; }
 
   //! Dump values
-  void dump(std::ostream& o) const { m_vec.dump(o); }
+  void dump(std::ostream& o) const { o << m_vec; }
 
   //! Define the == operator
-  ARCCORE_HOST_DEVICE bool operator==(const Tensor2& vec) {
-    Real eps{1.0e-15};
+  ARCCORE_HOST_DEVICE bool operator==(const Tensor2& vec)
+  {
+    Real eps{ 1.0e-15 };
     for (Arcane::Int32 i = 0; i < 6; ++i) {
       if (fabs(m_vec(i) - vec(i)) > eps)
         return false;
@@ -743,22 +378,27 @@ class Tensor2
   }
 
   //! Define the = operator
-  ARCCORE_HOST_DEVICE Tensor2& operator=(const Tensor2& vec) {
-    m_vec = {vec(0), vec(1), vec(2), vec(3), vec(4), vec(5)};
+  ARCCORE_HOST_DEVICE Tensor2& operator=(const Tensor2& vec)
+  {
+    m_vec = { vec(0), vec(1), vec(2), vec(3), vec(4), vec(5) };
     return (*this);
   }
 
   //! Define the = operator
-  ARCCORE_HOST_DEVICE Tensor2& operator=(const Real3x3& mat) {
+  ARCCORE_HOST_DEVICE Tensor2& operator=(const Real3x3& mat)
+  {
     ARCANE_ASSERT(real3x3IsSym(mat), ("true"));
-    for (Arcane::Int32 i = 0; i < 3; i++) m_vec(i) = mat[i][i];
-    for (Arcane::Int32 i = 3; i < 5; i++) m_vec(i) = mat[0][i - 2];
+    for (Arcane::Int32 i = 0; i < 3; i++)
+      m_vec(i) = mat[i][i];
+    for (Arcane::Int32 i = 3; i < 5; i++)
+      m_vec(i) = mat[0][i - 2];
     m_vec(5) = mat[1][2];
     return (*this);
   }
 
   //! Define the addition operator
-  ARCCORE_HOST_DEVICE Tensor2 operator+(const Tensor2& other) const {
+  ARCCORE_HOST_DEVICE Tensor2 operator+(const Tensor2& other) const
+  {
     Tensor2 result;
     for (Arcane::Int32 i = 0; i < 6; ++i) {
       result(i) = m_vec(i) + other(i);
@@ -767,28 +407,32 @@ class Tensor2
   }
 
   //! Define the += operator
-  ARCCORE_HOST_DEVICE Tensor2& operator+=(const Tensor2& vec) {
+  ARCCORE_HOST_DEVICE Tensor2& operator+=(const Tensor2& vec)
+  {
     *this = this->operator+(vec);
     return (*this);
   }
 
   //! Define the subtraction operator
-  ARCCORE_HOST_DEVICE Tensor2 operator-(const Tensor2& other) const {
+  ARCCORE_HOST_DEVICE Tensor2 operator-(const Tensor2& other) const
+  {
     Tensor2 result;
     for (Arcane::Int32 i = 0; i < 6; ++i) {
-      result(i) = m_vec(i)-other(i);
+      result(i) = m_vec(i) - other(i);
     }
     return result;
   }
 
   //! Define the -= operator
-  ARCCORE_HOST_DEVICE Tensor2& operator-=(const Tensor2& vec) {
+  ARCCORE_HOST_DEVICE Tensor2& operator-=(const Tensor2& vec)
+  {
     *this = this->operator-(vec);
     return (*this);
   }
 
   //! Define the unary negation operator
-  ARCCORE_HOST_DEVICE Tensor2 operator-() const {
+  ARCCORE_HOST_DEVICE Tensor2 operator-() const
+  {
     Tensor2 result;
     for (Arcane::Int32 i = 0; i < 6; ++i) {
       result(i) = -m_vec(i);
@@ -797,69 +441,82 @@ class Tensor2
   }
 
   //! Set this Tensor2 equal to b
-  ARCCORE_HOST_DEVICE void setEqualTo(const Tensor2& b) {
+  ARCCORE_HOST_DEVICE void setEqualTo(const Tensor2& b)
+  {
     for (Arcane::Int32 i = 0; i < 6; ++i)
       m_vec(i) = b(i);
   }
 
-  ARCCORE_HOST_DEVICE void setVec(const Real3& d, const Real3& s) {
+  ARCCORE_HOST_DEVICE void setVec(const Real3& d, const Real3& s)
+  {
     m_vec = {};
-    Arcane::Int32 i{0};
-    for (; i < 3; i++) m_vec(i) = d[i]; // xx yy zz
-    for (; i < 6; i++) m_vec(i) = s[i-3]; // xy xz yz
+    Arcane::Int32 i{ 0 };
+    for (; i < 3; i++)
+      m_vec(i) = d[i]; // xx yy zz
+    for (; i < 6; i++)
+      m_vec(i) = s[i - 3]; // xy xz yz
   }
 
   //! Add b to this Tensor2
-  ARCCORE_HOST_DEVICE void add(const Tensor2& b) {
+  ARCCORE_HOST_DEVICE void add(const Tensor2& b)
+  {
     for (Arcane::Int32 i = 0; i < 6; ++i)
       m_vec(i) += b(i);
   }
   //! Substract b to this Tensor2
-  ARCCORE_HOST_DEVICE void add(const Real3x3& b) {
+  ARCCORE_HOST_DEVICE void add(const Real3x3& b)
+  {
     Tensor2 tb(b);
     this->add(tb);
   }
 
   //! Add b to this Tensor2
-  ARCCORE_HOST_DEVICE void add(const RealVector<6>& b) {
+  ARCCORE_HOST_DEVICE void add(const RealVector<6>& b)
+  {
     for (Arcane::Int32 i = 0; i < 6; ++i)
       m_vec(i) += b(i);
   }
 
   //! Substract b to this Tensor2
-  ARCCORE_HOST_DEVICE void sub(const Tensor2& b) {
+  ARCCORE_HOST_DEVICE void sub(const Tensor2& b)
+  {
     for (Arcane::Int32 i = 0; i < 6; ++i)
       m_vec(i) -= b(i);
   }
   //! Substract b to this Tensor2
-  ARCCORE_HOST_DEVICE void sub(const Real3x3& b) {
+  ARCCORE_HOST_DEVICE void sub(const Real3x3& b)
+  {
     Tensor2 tb(b);
     this->sub(tb);
   }
 
   //! Substract b to this Tensor2
-  ARCCORE_HOST_DEVICE void sub(const RealVector<6>& b) {
+  ARCCORE_HOST_DEVICE void sub(const RealVector<6>& b)
+  {
     for (Arcane::Int32 i = 0; i < 6; ++i)
       m_vec(i) -= b(i);
   }
 
   //! Scalar multiplication: Tensor * scalar
-  ARCCORE_HOST_DEVICE Tensor2 operator*(Real scalar) const {
+  ARCCORE_HOST_DEVICE Tensor2 operator*(Real scalar) const
+  {
     Tensor2 result;
     for (Arcane::Int32 i = 0; i < 6; ++i) {
-      result(i) = m_vec(i)*scalar;
+      result(i) = m_vec(i) * scalar;
     }
     return result;
   }
 
   //! Define the *= operator
-  ARCCORE_HOST_DEVICE Tensor2& operator*=(Real scalar) {
+  ARCCORE_HOST_DEVICE Tensor2& operator*=(Real scalar)
+  {
     *this = this->operator*(scalar);
     return (*this);
   }
 
   //! Scalar division: Tensor / scalar
-  ARCCORE_HOST_DEVICE Tensor2 operator/(Real scalar) const {
+  ARCCORE_HOST_DEVICE Tensor2 operator/(Real scalar) const
+  {
     Tensor2 result;
     for (Arcane::Int32 i = 0; i < 6; ++i) {
       result(i) = m_vec(i) / scalar;
@@ -868,56 +525,72 @@ class Tensor2
   }
 
   //! Define the *= operator
-  ARCCORE_HOST_DEVICE Tensor2& operator/=(Real scalar) {
+  ARCCORE_HOST_DEVICE Tensor2& operator/=(Real scalar)
+  {
     *this = this->operator/(scalar);
     return (*this);
   }
 
-  static Arcane::Int32 get_index(Arcane::Int32 i, Arcane::Int32 j) {
+  static Arcane::Int32 get_index(Arcane::Int32 i, Arcane::Int32 j)
+  {
     ARCANE_CHECK_AT(i, 3);
     ARCANE_CHECK_AT(j, 3);
-    if (j == i) return i;
+    if (j == i)
+      return i;
 
-    Arcane::Int32 ij{0}, nrow{3};
+    Arcane::Int32 ij{ 0 }, nrow{ 3 };
 
-    if (j > i) ij = (i + 1) * (2 * nrow - i) / 2 + j - i - 1;
-    else ij = (j + 1) * (2 * nrow - j) / 2 + i - j - 1;
+    if (j > i)
+      ij = (i + 1) * (2 * nrow - i) / 2 + j - i - 1;
+    else
+      ij = (j + 1) * (2 * nrow - j) / 2 + i - j - 1;
     return ij;
   }
 
-  [[nodiscard]] ARCCORE_HOST_DEVICE Real3 get_diagonal() const { // xx yy zz
-    return {m_vec(0), m_vec(1), m_vec(2)};
+  [[nodiscard]] ARCCORE_HOST_DEVICE Real3 get_diagonal() const
+  { // xx yy zz
+    return { m_vec(0), m_vec(1), m_vec(2) };
   }
 
-  ARCCORE_HOST_DEVICE void set_diagonal(const Real3& d) {
-    for (Int32 i = 0; i < 3; i++) m_vec(i) = d[i];
+  ARCCORE_HOST_DEVICE void set_diagonal(const Real3& d)
+  {
+    for (Int32 i = 0; i < 3; i++)
+      m_vec(i) = d[i];
   }
 
-  [[nodiscard]] ARCCORE_HOST_DEVICE Real3 get_outdiagonal() const { // xy xz yz
-    return {m_vec(3), m_vec(4), m_vec(5)};
+  [[nodiscard]] ARCCORE_HOST_DEVICE Real3 get_outdiagonal() const
+  { // xy xz yz
+    return { m_vec(3), m_vec(4), m_vec(5) };
   }
-  ARCCORE_HOST_DEVICE void set_outdiagonal(const Real3& s) {
-    for (Int32 i = 3; i < 6; i++) m_vec(i) = s[i-3];
+  ARCCORE_HOST_DEVICE void set_outdiagonal(const Real3& s)
+  {
+    for (Int32 i = 3; i < 6; i++)
+      m_vec(i) = s[i - 3];
   }
 
-  [[nodiscard]] ARCCORE_HOST_DEVICE Real trace() const {
+  [[nodiscard]] ARCCORE_HOST_DEVICE Real trace() const
+  {
     return m_vec(0) + m_vec(1) + m_vec(2);
   }
 
-  [[nodiscard]] ARCCORE_HOST_DEVICE Real norm() const {
-    return sqrt(dot(m_vec,m_vec));
+  [[nodiscard]] ARCCORE_HOST_DEVICE Real norm() const
+  {
+    return math::normL2(m_vec);
   }
 
   //! Function to convert Real3x3 matrix (symmetric) to Tensor
-  ARCCORE_HOST_DEVICE void fromReal3x3ToTensor2(const Real3x3& mat) {
-    for (Arcane::Int32 i = 0; i < 3; i++) (*this)(i) = mat[i][i];
-    for (Arcane::Int32 i = 3; i < 5; i++) (*this)(i) = mat[0][i - 2];
+  ARCCORE_HOST_DEVICE void fromReal3x3ToTensor2(const Real3x3& mat)
+  {
+    for (Arcane::Int32 i = 0; i < 3; i++)
+      (*this)(i) = mat[i][i];
+    for (Arcane::Int32 i = 3; i < 5; i++)
+      (*this)(i) = mat[0][i - 2];
     (*this)(5) = mat[1][2];
   }
 
-
   //! Friend function for scalar multiplication: scalar * Tensor
-  ARCCORE_HOST_DEVICE friend Tensor2 operator*(Real scalar, const Tensor2& vector) {
+  ARCCORE_HOST_DEVICE friend Tensor2 operator*(Real scalar, const Tensor2& vector)
+  {
     Tensor2 result;
     for (Arcane::Int32 i = 0; i < 6; ++i) {
       result(i) = scalar * vector(i);
@@ -926,9 +599,11 @@ class Tensor2
   }
 
   //! Friend function to convert Tensor to Real3x3 matrix
-  ARCCORE_HOST_DEVICE friend Real3x3 fromTensor2Real3x3(const Tensor2& vector) {
+  ARCCORE_HOST_DEVICE friend Real3x3 fromTensor2Real3x3(const Tensor2& vector)
+  {
     Real3x3 mat;
-    for (Arcane::Int32 i = 0; i < 3; i++) mat[i][i] = vector(i);
+    for (Arcane::Int32 i = 0; i < 3; i++)
+      mat[i][i] = vector(i);
     for (Arcane::Int32 i = 3; i < 5; i++) {
       mat[0][i - 2] = vector(i);
       mat[i - 2][0] = vector(i);

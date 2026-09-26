@@ -164,21 +164,21 @@ RealMatrix<12, 12> FemModuleSoildynamics::_computeElementMatrixTetra4(Cell cell)
 
   Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
 
-  RealVector<12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
-  RealVector<12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. };
-  RealVector<12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. };
+  RealVector<12> Uy = {{ 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. }};
+  RealVector<12> Ux = {{ 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. }};
+  RealVector<12> Uz = {{ 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. }};
 
-  RealVector<12> dxUx = { dxu[0], 0., 0.,    dxu[1], 0., 0.,    dxu[2], 0., 0.,    dxu[3], 0., 0. };
-  RealVector<12> dyUx = { dyu[0], 0., 0.,    dyu[1], 0., 0.,    dyu[2], 0., 0.,    dyu[3], 0., 0. };
-  RealVector<12> dzUx = { dzu[0], 0., 0.,    dzu[1], 0., 0.,    dzu[2], 0., 0.,    dzu[3], 0., 0. };
+  RealVector<12> dxUx = {{ dxu[0], 0., 0.,    dxu[1], 0., 0.,    dxu[2], 0., 0.,    dxu[3], 0., 0. }};
+  RealVector<12> dyUx = {{ dyu[0], 0., 0.,    dyu[1], 0., 0.,    dyu[2], 0., 0.,    dyu[3], 0., 0. }};
+  RealVector<12> dzUx = {{ dzu[0], 0., 0.,    dzu[1], 0., 0.,    dzu[2], 0., 0.,    dzu[3], 0., 0. }};
 
-  RealVector<12> dxUy = { 0., dxu[0], 0.,    0., dxu[1], 0.,    0., dxu[2], 0.,    0., dxu[3], 0. };
-  RealVector<12> dyUy = { 0., dyu[0], 0.,    0., dyu[1], 0.,    0., dyu[2], 0.,    0., dyu[3], 0. };
-  RealVector<12> dzUy = { 0., dzu[0], 0.,    0., dzu[1], 0.,    0., dzu[2], 0.,    0., dzu[3], 0. };
+  RealVector<12> dxUy = {{ 0., dxu[0], 0.,    0., dxu[1], 0.,    0., dxu[2], 0.,    0., dxu[3], 0. }};
+  RealVector<12> dyUy = {{ 0., dyu[0], 0.,    0., dyu[1], 0.,    0., dyu[2], 0.,    0., dyu[3], 0. }};
+  RealVector<12> dzUy = {{ 0., dzu[0], 0.,    0., dzu[1], 0.,    0., dzu[2], 0.,    0., dzu[3], 0. }};
 
-  RealVector<12> dxUz = { 0., 0., dxu[0],    0., 0., dxu[1],    0., 0., dxu[2],    0., 0., dxu[3] };
-  RealVector<12> dyUz = { 0., 0., dyu[0],    0., 0., dyu[1],    0., 0., dyu[2],    0., 0., dyu[3] };
-  RealVector<12> dzUz = { 0., 0., dzu[0],    0., 0., dzu[1],    0., 0., dzu[2],    0., 0., dzu[3] };
+  RealVector<12> dxUz = {{ 0., 0., dxu[0],    0., 0., dxu[1],    0., 0., dxu[2],    0., 0., dxu[3] }};
+  RealVector<12> dyUz = {{ 0., 0., dyu[0],    0., 0., dyu[1],    0., 0., dyu[2],    0., 0., dyu[3] }};
+  RealVector<12> dzUz = {{ 0., 0., dzu[0],    0., 0., dzu[1],    0., 0., dzu[2],    0., 0., dzu[3] }};
 
   RealMatrix<12, 12> int_Omega_i = (c0 / 20.) * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz)) * volume +
                                     (c1)*((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) +
@@ -193,7 +193,10 @@ RealMatrix<12, 12> FemModuleSoildynamics::_computeElementMatrixTetra4(Cell cell)
   return int_Omega_i;
 }
 
-ARCCORE_HOST_DEVICE RealMatrix<12, 12> computeElementMatrixTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord, Real c0, Real c1, Real c2)
+ARCCORE_HOST_DEVICE RealMatrix<12, 12>
+computeElementMatrixTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv,
+                              const Accelerator::VariableNodeReal3InView& in_node_coord,
+                              Real c0, Real c1, Real c2)
 {
   Real4 dxu = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientXTetra4(cell_lid, cn_cv, in_node_coord);
   Real4 dyu = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientYTetra4(cell_lid, cn_cv, in_node_coord);
@@ -201,21 +204,21 @@ ARCCORE_HOST_DEVICE RealMatrix<12, 12> computeElementMatrixTetra4Gpu(CellLocalId
 
   Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
 
-  RealVector<12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
-  RealVector<12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. };
-  RealVector<12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. };
+  RealVector<12> Uy = {{ 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. }};
+  RealVector<12> Ux = {{ 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. }};
+  RealVector<12> Uz = {{ 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. }};
 
-  RealVector<12> dxUx = { dxu[0], 0., 0.,    dxu[1], 0., 0.,    dxu[2], 0., 0.,    dxu[3], 0., 0. };
-  RealVector<12> dyUx = { dyu[0], 0., 0.,    dyu[1], 0., 0.,    dyu[2], 0., 0.,    dyu[3], 0., 0. };
-  RealVector<12> dzUx = { dzu[0], 0., 0.,    dzu[1], 0., 0.,    dzu[2], 0., 0.,    dzu[3], 0., 0. };
+  RealVector<12> dxUx = {{ dxu[0], 0., 0.,    dxu[1], 0., 0.,    dxu[2], 0., 0.,    dxu[3], 0., 0. }};
+  RealVector<12> dyUx = {{ dyu[0], 0., 0.,    dyu[1], 0., 0.,    dyu[2], 0., 0.,    dyu[3], 0., 0. }};
+  RealVector<12> dzUx = {{ dzu[0], 0., 0.,    dzu[1], 0., 0.,    dzu[2], 0., 0.,    dzu[3], 0., 0. }};
 
-  RealVector<12> dxUy = { 0., dxu[0], 0.,    0., dxu[1], 0.,    0., dxu[2], 0.,    0., dxu[3], 0. };
-  RealVector<12> dyUy = { 0., dyu[0], 0.,    0., dyu[1], 0.,    0., dyu[2], 0.,    0., dyu[3], 0. };
-  RealVector<12> dzUy = { 0., dzu[0], 0.,    0., dzu[1], 0.,    0., dzu[2], 0.,    0., dzu[3], 0. };
+  RealVector<12> dxUy = {{ 0., dxu[0], 0.,    0., dxu[1], 0.,    0., dxu[2], 0.,    0., dxu[3], 0. }};
+  RealVector<12> dyUy = {{ 0., dyu[0], 0.,    0., dyu[1], 0.,    0., dyu[2], 0.,    0., dyu[3], 0. }};
+  RealVector<12> dzUy = {{ 0., dzu[0], 0.,    0., dzu[1], 0.,    0., dzu[2], 0.,    0., dzu[3], 0. }};
 
-  RealVector<12> dxUz = { 0., 0., dxu[0],    0., 0., dxu[1],    0., 0., dxu[2],    0., 0., dxu[3] };
-  RealVector<12> dyUz = { 0., 0., dyu[0],    0., 0., dyu[1],    0., 0., dyu[2],    0., 0., dyu[3] };
-  RealVector<12> dzUz = { 0., 0., dzu[0],    0., 0., dzu[1],    0., 0., dzu[2],    0., 0., dzu[3] };
+  RealVector<12> dxUz = {{ 0., 0., dxu[0],    0., 0., dxu[1],    0., 0., dxu[2],    0., 0., dxu[3] }};
+  RealVector<12> dyUz = {{ 0., 0., dyu[0],    0., 0., dyu[1],    0., 0., dyu[2],    0., 0., dyu[3] }};
+  RealVector<12> dzUz = {{ 0., 0., dzu[0],    0., 0., dzu[1],    0., 0., dzu[2],    0., 0., dzu[3] }};
 
   RealMatrix<12, 12> int_Omega_i = (c0 / 20.) * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz)) * volume +
                                     (c1)*((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) +
@@ -233,7 +236,10 @@ ARCCORE_HOST_DEVICE RealMatrix<12, 12> computeElementMatrixTetra4Gpu(CellLocalId
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE RealMatrix<3, 12> computeElementVectorTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const Accelerator::VariableNodeReal3InView& in_node_coord,  Real c0, Real c1, Real c2, Int32 node_lid)
+ARCCORE_HOST_DEVICE RealMatrix<3, 12>
+computeElementVectorTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv,
+                              const Accelerator::VariableNodeReal3InView& in_node_coord,
+                              Real c0, Real c1, Real c2, Int32 node_lid)
 {
   Real4 dxu = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientXTetra4(cell_lid, cn_cv, in_node_coord);
   Real4 dyu = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientYTetra4(cell_lid, cn_cv, in_node_coord);
@@ -241,35 +247,35 @@ ARCCORE_HOST_DEVICE RealMatrix<3, 12> computeElementVectorTetra4Gpu(CellLocalId 
 
   Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
 
-  RealVector<12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
-  RealVector<12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. };
-  RealVector<12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. };
+  RealVector<12> Uy = {{ 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. }};
+  RealVector<12> Ux = {{ 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. }};
+  RealVector<12> Uz = {{ 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. }};
 
-  RealVector<12> dxUx = { dxu[0], 0., 0.,    dxu[1], 0., 0.,    dxu[2], 0., 0.,    dxu[3], 0., 0. };
-  RealVector<12> dyUx = { dyu[0], 0., 0.,    dyu[1], 0., 0.,    dyu[2], 0., 0.,    dyu[3], 0., 0. };
-  RealVector<12> dzUx = { dzu[0], 0., 0.,    dzu[1], 0., 0.,    dzu[2], 0., 0.,    dzu[3], 0., 0. };
+  RealVector<12> dxUx = {{ dxu[0], 0., 0.,    dxu[1], 0., 0.,    dxu[2], 0., 0.,    dxu[3], 0., 0. }};
+  RealVector<12> dyUx = {{ dyu[0], 0., 0.,    dyu[1], 0., 0.,    dyu[2], 0., 0.,    dyu[3], 0., 0. }};
+  RealVector<12> dzUx = {{ dzu[0], 0., 0.,    dzu[1], 0., 0.,    dzu[2], 0., 0.,    dzu[3], 0., 0. }};
 
-  RealVector<12> dxUy = { 0., dxu[0], 0.,    0., dxu[1], 0.,    0., dxu[2], 0.,    0., dxu[3], 0. };
-  RealVector<12> dyUy = { 0., dyu[0], 0.,    0., dyu[1], 0.,    0., dyu[2], 0.,    0., dyu[3], 0. };
-  RealVector<12> dzUy = { 0., dzu[0], 0.,    0., dzu[1], 0.,    0., dzu[2], 0.,    0., dzu[3], 0. };
+  RealVector<12> dxUy = {{ 0., dxu[0], 0.,    0., dxu[1], 0.,    0., dxu[2], 0.,    0., dxu[3], 0. }};
+  RealVector<12> dyUy = {{ 0., dyu[0], 0.,    0., dyu[1], 0.,    0., dyu[2], 0.,    0., dyu[3], 0. }};
+  RealVector<12> dzUy = {{ 0., dzu[0], 0.,    0., dzu[1], 0.,    0., dzu[2], 0.,    0., dzu[3], 0. }};
 
-  RealVector<12> dxUz = { 0., 0., dxu[0],    0., 0., dxu[1],    0., 0., dxu[2],    0., 0., dxu[3] };
-  RealVector<12> dyUz = { 0., 0., dyu[0],    0., 0., dyu[1],    0., 0., dyu[2],    0., 0., dyu[3] };
-  RealVector<12> dzUz = { 0., 0., dzu[0],    0., 0., dzu[1],    0., 0., dzu[2],    0., 0., dzu[3] };
+  RealVector<12> dxUz = {{ 0., 0., dxu[0],    0., 0., dxu[1],    0., 0., dxu[2],    0., 0., dxu[3] }};
+  RealVector<12> dyUz = {{ 0., 0., dyu[0],    0., 0., dyu[1],    0., 0., dyu[2],    0., 0., dyu[3] }};
+  RealVector<12> dzUz = {{ 0., 0., dzu[0],    0., 0., dzu[1],    0., 0., dzu[2],    0., 0., dzu[3] }};
 
   RealMatrix<12, 12> massMat = (c0 / 20.) * (massMatrix(Ux,Ux) + massMatrix(Uy,Uy) + massMatrix(Uz,Uz)) * volume;
-  RealVector<12> massVect_x = {massMat(node_lid*3,0) , massMat(node_lid*3,1) , massMat(node_lid*3,2) ,
+  RealVector<12> massVect_x = {{massMat(node_lid*3,0) , massMat(node_lid*3,1) , massMat(node_lid*3,2) ,
                                massMat(node_lid*3,3) , massMat(node_lid*3,4) , massMat(node_lid*3,5) ,
                                massMat(node_lid*3,6) , massMat(node_lid*3,7) , massMat(node_lid*3,8) ,
-                               massMat(node_lid*3,9) , massMat(node_lid*3,10), massMat(node_lid*3,11) };
-  RealVector<12> massVect_y = {massMat(node_lid*3+1,0) , massMat(node_lid*3+1,1) , massMat(node_lid*3+1,2) ,
+                               massMat(node_lid*3,9) , massMat(node_lid*3,10), massMat(node_lid*3,11) }};
+  RealVector<12> massVect_y = {{massMat(node_lid*3+1,0) , massMat(node_lid*3+1,1) , massMat(node_lid*3+1,2) ,
                                massMat(node_lid*3+1,3) , massMat(node_lid*3+1,4) , massMat(node_lid*3+1,5) ,
                                massMat(node_lid*3+1,6) , massMat(node_lid*3+1,7) , massMat(node_lid*3+1,8) ,
-                               massMat(node_lid*3+1,9) , massMat(node_lid*3+1,10), massMat(node_lid*3+1,11) };
-  RealVector<12> massVect_z =  {massMat(node_lid*3+2,0) , massMat(node_lid*3+2,1) , massMat(node_lid*3+2,2) ,
+                               massMat(node_lid*3+1,9) , massMat(node_lid*3+1,10), massMat(node_lid*3+1,11) }};
+  RealVector<12> massVect_z =  {{massMat(node_lid*3+2,0) , massMat(node_lid*3+2,1) , massMat(node_lid*3+2,2) ,
                                 massMat(node_lid*3+2,3) , massMat(node_lid*3+2,4) , massMat(node_lid*3+2,5) ,
                                 massMat(node_lid*3+2,6) , massMat(node_lid*3+2,7) , massMat(node_lid*3+2,8) ,
-                                massMat(node_lid*3+2,9) , massMat(node_lid*3+2,10), massMat(node_lid*3+2,11) };
+                                massMat(node_lid*3+2,9) , massMat(node_lid*3+2,10), massMat(node_lid*3+2,11) }};
 
   RealVector<12> result_x = (c1)*((dxUx(node_lid*3) * dxUx) + (dyUy(node_lid*3) * dyUy) + (dzUz (node_lid*3) * dzUz) +
                                   (dyUy(node_lid*3) * dxUx) + (dxUx(node_lid*3) * dyUy) +
@@ -302,16 +308,5 @@ ARCCORE_HOST_DEVICE RealMatrix<3, 12> computeElementVectorTetra4Gpu(CellLocalId 
   result_y = result_y + massVect_y;
   result_z = result_z + massVect_z;
 
-  RealMatrix<3, 12> result = {
-    { result_x(0), result_x(1), result_x(2), result_x(3), result_x(4), result_x(5),
-      result_x(6), result_x(7), result_x(8), result_x(9), result_x(10), result_x(11) },
-
-    { result_y(0), result_y(1), result_y(2), result_y(3), result_y(4), result_y(5),
-      result_y(6), result_y(7), result_y(8), result_y(9), result_y(10), result_y(11) },
-
-    { result_z(0), result_z(1), result_z(2), result_z(3), result_z(4), result_z(5),
-      result_z(6), result_z(7), result_z(8), result_z(9), result_z(10), result_z(11) }
-  };
-
-  return result;
+  return RealMatrix<3, 12>(result_x, result_y, result_z );
 }
