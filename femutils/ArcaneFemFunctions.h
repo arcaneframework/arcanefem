@@ -1493,70 +1493,38 @@ class ArcaneFemFunctions
       return _computeHexaGradientsAndJacobian<27>(cell, node_coord, reference_gradients);
     }
   };
-
   
-
   /*---------------------------------------------------------------------------*/
   /**
-     * @brief Provides methods to help build boundary conditions in 2D/3D.
-     */
+   * @brief Provides methods to help build boundary conditions in 2D/3D.
+   */
   /*---------------------------------------------------------------------------*/
   class BoundaryConditionsHelpers
   {
    public:
 
-    static inline void applyDirichletToNodeGroupRhsOnly(const Int32 dof_index, Real value, const IndexedNodeDoFConnectivityView& node_dof, VariableDoFReal& rhs_values, NodeGroup& node_group)
-    {
-      ENUMERATE_ (Node, inode, node_group) {
-        Node node = *inode;
-        if (node.isOwn()) {
-          rhs_values[node_dof.dofId(node, dof_index)] = value;
-        }
-      }
-    }
+    static void applyDirichletToNodeGroupRhsOnly(const Int32 dof_index, Real value,
+                                                 const IndexedNodeDoFConnectivityView& node_dof,
+                                                 VariableDoFReal& rhs_values,
+                                                 NodeGroup& node_group);
 
-    static inline void applyDirichletToNodeGroupViaPenalty(const Int32 dof_index, Real value, Real penalty, const IndexedNodeDoFConnectivityView& node_dof, DoFLinearSystem& linear_system, VariableDoFReal& rhs_values, NodeGroup& node_group)
-    {
-      ENUMERATE_ (Node, inode, node_group) {
-        Node node = *inode;
-        if (node.isOwn()) {
-          linear_system.matrixSetValue(node_dof.dofId(node, dof_index), node_dof.dofId(node, dof_index), penalty);
-          Real u_g = penalty * value;
-          rhs_values[node_dof.dofId(node, dof_index)] = u_g;
-        }
-      }
-    }
+    static void applyDirichletToNodeGroupViaPenalty(const Int32 dof_index, Real value, Real penalty,
+                                                    const IndexedNodeDoFConnectivityView& node_dof,
+                                                    DoFLinearSystem& linear_system,
+                                                    VariableDoFReal& rhs_values,
+                                                    NodeGroup& node_group);
 
-    static inline void applyDirichletToNodeGroupViaRowElimination(const Int32 dof_index, Real value,
+    static void applyDirichletToNodeGroupViaRowElimination(const Int32 dof_index, Real value,
                                                                   const IndexedNodeDoFConnectivityView& node_dof,
                                                                   DoFLinearSystem& linear_system,
                                                                   VariableDoFReal& rhs_values,
-                                                                  NodeGroup& node_group)
-    {
-      DoFLinearSystemRowEliminationHelper elimination_helper(linear_system.rowEliminationHelper());
-      ENUMERATE_ (Node, inode, node_group) {
-        Node node = *inode;
-        if (node.isOwn()) {
-          elimination_helper.addElimination(node_dof.dofId(*inode, dof_index), value);
-        }
-      }
-    }
+                                                                  NodeGroup& node_group);
 
-    static inline void applyDirichletToNodeGroupViaRowColumnElimination(const Int32 dof_index, Real value,
-                                                                        const IndexedNodeDoFConnectivityView& node_dof,
-                                                                        DoFLinearSystem& linear_system,
-                                                                        VariableDoFReal& rhs_values,
-                                                                        NodeGroup& node_group)
-    {
-      DoFLinearSystemRowColumnEliminationHelper elimination_helper(linear_system.rowColumnEliminationHelper());
-
-      ENUMERATE_ (Node, inode, node_group) {
-        Node node = *inode;
-        if (node.isOwn()) {
-          elimination_helper.addElimination(node_dof.dofId(*inode, dof_index), value);
-        }
-      }
-    }
+    static void applyDirichletToNodeGroupViaRowColumnElimination(const Int32 dof_index, Real value,
+                                                                 const IndexedNodeDoFConnectivityView& node_dof,
+                                                                 DoFLinearSystem& linear_system,
+                                                                 VariableDoFReal& rhs_values,
+                                                                 NodeGroup& node_group);
   };
 
   /*---------------------------------------------------------------------------*/

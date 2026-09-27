@@ -3,6 +3,7 @@ option(FEMUTILS_ENABLE_CODE_COVERAGE "Whether we use compiler option for code co
 
 set(ACCELERATOR_SOURCES
   BoundaryConditions.cc
+  BoundaryConditionsHelpers.cc
   BoundaryConditions2D.cc
   BoundaryConditions3D.cc
   ArcaneFemFunctionsGpu.cc
