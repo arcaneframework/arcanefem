@@ -90,7 +90,7 @@ class DoKMatrix
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
- * \brief Linear system implementation using a DoF matrix.
+ * \brief Linear system implementation using a Dictionary of Keys (DoK) matrix.
  */
 class DoKDoFLinearSystemImpl
 : public DoFLinearSystemImplBase
@@ -117,8 +117,6 @@ class DoKDoFLinearSystemImpl
       ARCANE_FATAL("Row is null");
     if (column.isNull())
       ARCANE_FATAL("Column is null");
-    if (value == 0.0)
-      return;
     m_dok_matrix.addValue(row.localId(), column.localId(), value);
   }
 
