@@ -76,9 +76,18 @@ compute()
 
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
-  m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
-  if (m_petsc_flags != NULL)
-  _setPetscFlagsFromCommandline();
+  Runner runner = acceleratorMng()->runner();
+  // At the moment only Hypre linear system implementation support several matrix format
+  if (options()->linearSystem.serviceName() == "HypreLinearSystem") {
+    eLinearSystemMatrixFormat f = eLinearSystemMatrixFormat::Csr;
+    if (options()->legacy() || m_use_legacy)
+      f = eLinearSystemMatrixFormat::DoK;
+    m_linear_system.initialize(subDomain(), &runner, m_dofs_on_nodes.dofFamily(), "Solver", f);
+  }
+  else
+    m_linear_system.initialize(subDomain(), &runner, m_dofs_on_nodes.dofFamily(), "Solver");
+  if (!m_petsc_flags.empty())
+    _setPetscFlagsFromCommandline();
   _printArcaneFemTime("[ArcaneFem-Timer] init-linear-system", (platform::getRealTime() - elapsedTime));
 
   Int64 nb_node = mesh()->ownNodes().size();

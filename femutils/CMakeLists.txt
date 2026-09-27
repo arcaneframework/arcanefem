@@ -52,6 +52,7 @@ add_library(FemUtils
   CsrFormatMatrixView.cc
   BSRFormat.h
   DoFLinearSystemImplBase.cc
+  DoKDoFLinearSystemImpl.cc
   FemDoFsOnNodes.h
   FemDoFsOnNodes.cc
   FemDoFsOnCells.h
@@ -86,6 +87,7 @@ add_library(FemUtils
   internal/IDoFLinearSystemImpl.h
   internal/OrderedRowColumnMap.h
   internal/CsrDoFLinearSystemImpl.h
+  internal/DoKDoFLinearSystemImpl.h
   internal/DoFLinearSystemImplBase.h
   ${ACCELERATOR_SOURCES}
 )

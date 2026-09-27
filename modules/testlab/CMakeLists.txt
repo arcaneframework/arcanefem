@@ -308,6 +308,10 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     COMMAND ./Testlab
     ARGS
       inputs/Test.circle.2D.csr.arc)
+  arcanefem_add_seq_test(NAME hypre_direct_2D_dok
+    COMMAND ./Testlab
+    ARGS
+      inputs/Test.circle.2D.dok.arc)
   arcanefem_add_seq_test(NAME hypre_direct_trac_2D_csr
     COMMAND ./Testlab
     ARGS

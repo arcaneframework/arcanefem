@@ -63,6 +63,19 @@ static constexpr Byte ELIMINATE_ROW_COLUMN = static_cast<Byte>(MatrixElimination
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+/*!
+ * \brief List of supported matrix format for linear systems.
+ */
+enum class eLinearSystemMatrixFormat
+{
+  //! Format Column Sparse Row
+  Csr,
+  //! Format Dictionary of Keys
+  DoK
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 } // namespace Arcane::FemUtils
 
