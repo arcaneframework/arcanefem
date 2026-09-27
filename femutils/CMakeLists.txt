@@ -64,6 +64,8 @@ add_library(FemUtils
   FeOperation.cc
   FemGaussQuadrature.h
   FemGaussQuadrature.cc
+  FemShapeMethods.h
+  FemShapeMethods.cc
   MeshOperation.h
   MeshOperation.cc
   AlephDoFLinearSystem.cc
