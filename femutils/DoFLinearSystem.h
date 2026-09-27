@@ -168,7 +168,7 @@ class DoFLinearSystem
 
  public:
 
-  /*
+  /*!
    * \brief Initialize the instance.
    */
   void initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name);
@@ -194,7 +194,7 @@ class DoFLinearSystem
    */
   void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value);
 
-  /*
+  /*!
    * \brief Helper class to eliminate rows in the linear system.
    *
    * The elimination of row \a row is equivalent to the following calls:
@@ -210,7 +210,7 @@ class DoFLinearSystem
    */
   DoFLinearSystemRowEliminationHelper rowEliminationHelper();
 
-  /*
+  /*!
    * \brief Eliminate rows and columns of the linear system.
    *
    * The elimination for a row \a row is equivalent to the following calls:
