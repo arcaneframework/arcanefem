@@ -62,6 +62,8 @@ add_library(FemUtils
   ArcaneFemFunctions.cc
   FeOperation.h
   FeOperation.cc
+  FemGaussQuadrature.h
+  FemGaussQuadrature.cc
   MeshOperation.h
   MeshOperation.cc
   AlephDoFLinearSystem.cc
