@@ -154,6 +154,8 @@ class DoKDoFLinearSystemImpl
 
   void setPrintFilling(bool v) { m_do_print_filling = v; }
 
+  void fillRowColumnEliminationInfos();
+
  private:
 
   //! Container to store matrix values
@@ -162,17 +164,13 @@ class DoKDoFLinearSystemImpl
  private:
 
   bool m_do_print_filling = false;
-
- private:
-
-  void _fillRowColumnEliminationInfos();
 };
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 void DoKDoFLinearSystemImpl::
-_fillRowColumnEliminationInfos()
+fillRowColumnEliminationInfos()
 {
   OrderedRowColumnMap& rc_elimination_map = _rowColumnEliminationMap();
   rc_elimination_map.clear();
@@ -236,7 +234,6 @@ applyRHSTransformation()
 template <typename Lambda> void DoKDoFLinearSystemImpl::
 visitDoKMatrix(const Lambda& func)
 {
-  _fillRowColumnEliminationInfos();
   OrderedRowColumnMap& rc_elimination_map = _rowColumnEliminationMap();
 
   IItemFamily* dof_family = dofFamily();
@@ -473,6 +470,7 @@ createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const St
 void AlephDoFLinearSystemImpl::
 _applyMatrixTransformationAndFillAlephMatrix()
 {
+  fillRowColumnEliminationInfos();
   // We provide two ways to fill the Aleph matrix.
   // The first one (currently the default) fill the matrix using the DoK Matrix.
   // The second one converts the DoKMatrix to a CSR Matrix then fill the Aleph Matrix.
