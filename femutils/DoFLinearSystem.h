@@ -180,6 +180,14 @@ class DoFLinearSystem
    */
   void initialize(ISubDomain* sd, Runner* runner, IItemFamily* dof_family, const String& solver_name);
 
+  /*!
+   * \brief Initialize the instance with a specific runner and a specific matrix format
+   *
+   * \a runner may be null.
+   */
+  void initialize(ISubDomain* sd, Runner* runner, IItemFamily* dof_family,
+                  const String& solver_name, eLinearSystemMatrixFormat matrix_format);
+
   //! Indicate if method initialize() has been called
   [[nodiscard]] bool isInitialized() const;
 
@@ -410,6 +418,7 @@ class DoFLinearSystem
  private:
 
   void _checkInit() const;
+  void _initCommon(ISubDomain* sd, IItemFamily* dof_family);
 
   // Used by DoFLinearSystemRowEliminationHelper
   void _eliminateRow(DoFLocalId row, Real value);

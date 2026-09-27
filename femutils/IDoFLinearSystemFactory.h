@@ -9,13 +9,14 @@
 /*                                                                           */
 /* Interface to a factory to build a linear system implementation.           */
 /*---------------------------------------------------------------------------*/
-#ifndef FEMTEST_IDOFLINEARSYSTEMFACTORY_H
-#define FEMTEST_IDOFLINEARSYSTEMFACTORY_H
+#ifndef ARCANEFEM_FEMUTILS_IDOFLINEARSYSTEMFACTORY_H
+#define ARCANEFEM_FEMUTILS_IDOFLINEARSYSTEMFACTORY_H
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/ItemTypes.h>
-#include <arcane/VariableTypedef.h>
+#include <arcane/core/ItemTypes.h>
+
+#include "FemUtilsGlobal.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -26,11 +27,11 @@ namespace Arcane::FemUtils
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-class IDoFLinearSystemImpl;
-
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
+/*!
+ * \brief Interface to a factory to build a linear system implementation.
+ */
 class IDoFLinearSystemFactory
 {
  public:
@@ -42,8 +43,14 @@ class IDoFLinearSystemFactory
   //! Whether the FEM module should provide an AMG near-null-space basis.
   virtual bool amgNearNullSpace() { return false; }
 
+  //! Create an instance using the default of the factory implementation format for matrix
   virtual IDoFLinearSystemImpl*
   createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) = 0;
+
+  //! Create an instance using the format 'matrix_format' for the matrix
+  virtual IDoFLinearSystemImpl*
+  createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name,
+                 eLinearSystemMatrixFormat matrix_format);
 };
 
 /*---------------------------------------------------------------------------*/

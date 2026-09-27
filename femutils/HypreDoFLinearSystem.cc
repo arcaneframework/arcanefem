@@ -1055,20 +1055,43 @@ class HypreDoFLinearSystemFactoryService
   IDoFLinearSystemImpl*
   createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
   {
+    return _createInstance(sd, dof_family, solver_name, eLinearSystemMatrixFormat::Csr);
+  }
+
+  IDoFLinearSystemImpl*
+  createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name,
+                 eLinearSystemMatrixFormat matrix_format) override
+  {
+    return _createInstance(sd, dof_family, solver_name, matrix_format);
+  }
+
+ private:
+
+  IDoFLinearSystemImpl*
+  _createInstance(ISubDomain* sd, IItemFamily* dof_family,
+                  const String& solver_name, eLinearSystemMatrixFormat matrix_format)
+  {
     HypreSolver* x = nullptr;
     IDoFLinearSystemImpl* linear_system = nullptr;
-    bool use_dok = false;
-    if (use_dok) {
+    if (matrix_format == eLinearSystemMatrixFormat::DoK) {
       info() << "Using DoK format Hypre linear system";
       auto* v = new HypreDoKDoFLinearSystemImpl(dof_family, solver_name);
       linear_system = v;
       x = v->underlyingHypreSolver();
     }
-    else {
+    else if (matrix_format == eLinearSystemMatrixFormat::Csr) {
       auto* v = new HypreDoFLinearSystemImpl(dof_family, solver_name);
       linear_system = v;
       x = v->underlyingHypreSolver();
     }
+    else
+      ARCANE_FATAL("Unsupported matrix_format '{0}'", static_cast<int>(matrix_format));
+    _initializeHypreSolver(x);
+    return linear_system;
+  }
+
+  void _initializeHypreSolver(HypreSolver* x)
+  {
     x->build();
     x->setRelTolerance(options()->rtol());
     x->setAbsTolerance(options()->atol());
@@ -1081,7 +1104,6 @@ class HypreDoFLinearSystemFactoryService
     x->setVerbosityLevel(options()->verbosity());
     x->setSolver(options()->solver());
     x->setPreconditioner(options()->preconditioner());
-    return linear_system;
   }
 };
 
