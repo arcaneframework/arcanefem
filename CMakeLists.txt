@@ -7,7 +7,7 @@ if(POLICY CMP0144)
   cmake_policy(SET CMP0144 NEW)
 endif()
 
-find_package(Arcane 3.14.14 REQUIRED)
+find_package(Arcane 4.2.3 REQUIRED)
 
 # Load Arccon to make sure ArcaneFem is used the same
 # configuration packages than Arcane
@@ -63,7 +63,6 @@ if (Doxygen_FOUND AND TARGET Doxygen::doxygen)
     Doxygen::doxygen ${CMAKE_BINARY_DIR}/share/userdoc.doxyfile
   )
 endif()
-
 
 # ----------------------------------------------------------------------------
 # Local Variables:
