@@ -14,49 +14,49 @@ using namespace Arcane;
  * @brief Initialize the CellFEMDispatcher class (coming from PASSMO)
  */
 /*---------------------------------------------------------------------------*/
-ArcaneFemFunctions::CellFEMDispatcher::CellFEMDispatcher(){
- // Setting to null default value
- for(int i = 0; i < NB_BASIC_ITEM_TYPE; ++i )
- {
-   m_shapefunc[i] = nullptr;
-   m_shapefuncderiv[i] = nullptr;
- }
+ArcaneFemFunctions::CellFEMDispatcher::
+CellFEMDispatcher()
+{
+  // Setting to null default value
+  for (int i = 0; i < NB_BASIC_ITEM_TYPE; ++i) {
+    m_shapefunc[i] = nullptr;
+    m_shapefuncderiv[i] = nullptr;
+  }
 
- // Gives functions to compute shape function value in finite-element reference coordinate system
- // Linear elements
- m_shapefunc[IT_Line2] = ArcaneFemFunctions::FemShapeMethods::line2ShapeFuncVal;
- m_shapefunc[IT_Triangle3] = ArcaneFemFunctions::FemShapeMethods::tri3ShapeFuncVal;
- m_shapefunc[IT_Quad4] = ArcaneFemFunctions::FemShapeMethods::quad4ShapeFuncVal;
- m_shapefunc[IT_Tetraedron4] = ArcaneFemFunctions::FemShapeMethods::tetra4ShapeFuncVal;
- m_shapefunc[IT_Hexaedron8] = ArcaneFemFunctions::FemShapeMethods::hexa8ShapeFuncVal;
- m_shapefunc[IT_Pentaedron6] = ArcaneFemFunctions::FemShapeMethods::penta6ShapeFuncVal;
- m_shapefunc[IT_Pyramid5] = ArcaneFemFunctions::FemShapeMethods::pyramid5ShapeFuncVal;
+  // Gives functions to compute shape function value in finite-element reference coordinate system
+  // Linear elements
+  m_shapefunc[IT_Line2] = ArcaneFemFunctions::FemShapeMethods::line2ShapeFuncVal;
+  m_shapefunc[IT_Triangle3] = ArcaneFemFunctions::FemShapeMethods::tri3ShapeFuncVal;
+  m_shapefunc[IT_Quad4] = ArcaneFemFunctions::FemShapeMethods::quad4ShapeFuncVal;
+  m_shapefunc[IT_Tetraedron4] = ArcaneFemFunctions::FemShapeMethods::tetra4ShapeFuncVal;
+  m_shapefunc[IT_Hexaedron8] = ArcaneFemFunctions::FemShapeMethods::hexa8ShapeFuncVal;
+  m_shapefunc[IT_Pentaedron6] = ArcaneFemFunctions::FemShapeMethods::penta6ShapeFuncVal;
+  m_shapefunc[IT_Pyramid5] = ArcaneFemFunctions::FemShapeMethods::pyramid5ShapeFuncVal;
 
- // Quadratic elements
- m_shapefunc[IT_Line3] = ArcaneFemFunctions::FemShapeMethods::line3ShapeFuncVal;
- m_shapefunc[IT_Triangle6] = ArcaneFemFunctions::FemShapeMethods::tri6ShapeFuncVal;
- m_shapefunc[IT_Quad8] = ArcaneFemFunctions::FemShapeMethods::quad8ShapeFuncVal;
- m_shapefunc[IT_Tetraedron10] = ArcaneFemFunctions::FemShapeMethods::tetra10ShapeFuncVal;
- m_shapefunc[IT_Hexaedron20] = ArcaneFemFunctions::FemShapeMethods::hexa20ShapeFuncVal;
+  // Quadratic elements
+  m_shapefunc[IT_Line3] = ArcaneFemFunctions::FemShapeMethods::line3ShapeFuncVal;
+  m_shapefunc[IT_Triangle6] = ArcaneFemFunctions::FemShapeMethods::tri6ShapeFuncVal;
+  m_shapefunc[IT_Quad8] = ArcaneFemFunctions::FemShapeMethods::quad8ShapeFuncVal;
+  m_shapefunc[IT_Tetraedron10] = ArcaneFemFunctions::FemShapeMethods::tetra10ShapeFuncVal;
+  m_shapefunc[IT_Hexaedron20] = ArcaneFemFunctions::FemShapeMethods::hexa20ShapeFuncVal;
 
- // Gives functions to compute shape function derivate vector at all nodes of a finite-element
- // along a local direction (in reference coordinate system)
- // Linear elements
- m_shapefuncderiv[IT_Line2] = ArcaneFemFunctions::FemShapeMethods::line2ShapeFuncDeriv;
- m_shapefuncderiv[IT_Triangle3] = ArcaneFemFunctions::FemShapeMethods::tri3ShapeFuncDeriv;
- m_shapefuncderiv[IT_Quad4] = ArcaneFemFunctions::FemShapeMethods::quad4ShapeFuncDeriv;
- m_shapefuncderiv[IT_Tetraedron4] = ArcaneFemFunctions::FemShapeMethods::tetra4ShapeFuncDeriv;
- m_shapefuncderiv[IT_Hexaedron8] = ArcaneFemFunctions::FemShapeMethods::hexa8ShapeFuncDeriv;
- m_shapefuncderiv[IT_Pentaedron6] = ArcaneFemFunctions::FemShapeMethods::penta6ShapeFuncDeriv;
- m_shapefuncderiv[IT_Pyramid5] = ArcaneFemFunctions::FemShapeMethods::pyramid5ShapeFuncDeriv;
+  // Gives functions to compute shape function derivate vector at all nodes of a finite-element
+  // along a local direction (in reference coordinate system)
+  // Linear elements
+  m_shapefuncderiv[IT_Line2] = ArcaneFemFunctions::FemShapeMethods::line2ShapeFuncDeriv;
+  m_shapefuncderiv[IT_Triangle3] = ArcaneFemFunctions::FemShapeMethods::tri3ShapeFuncDeriv;
+  m_shapefuncderiv[IT_Quad4] = ArcaneFemFunctions::FemShapeMethods::quad4ShapeFuncDeriv;
+  m_shapefuncderiv[IT_Tetraedron4] = ArcaneFemFunctions::FemShapeMethods::tetra4ShapeFuncDeriv;
+  m_shapefuncderiv[IT_Hexaedron8] = ArcaneFemFunctions::FemShapeMethods::hexa8ShapeFuncDeriv;
+  m_shapefuncderiv[IT_Pentaedron6] = ArcaneFemFunctions::FemShapeMethods::penta6ShapeFuncDeriv;
+  m_shapefuncderiv[IT_Pyramid5] = ArcaneFemFunctions::FemShapeMethods::pyramid5ShapeFuncDeriv;
 
- // Quadratic elements
- m_shapefuncderiv[IT_Line3] = ArcaneFemFunctions::FemShapeMethods::line3ShapeFuncDeriv;
- m_shapefuncderiv[IT_Triangle6] = ArcaneFemFunctions::FemShapeMethods::tri6ShapeFuncDeriv;
- m_shapefuncderiv[IT_Quad8] = ArcaneFemFunctions::FemShapeMethods::quad8ShapeFuncDeriv;
- m_shapefuncderiv[IT_Tetraedron10] = ArcaneFemFunctions::FemShapeMethods::tetra10ShapeFuncDeriv;
- m_shapefuncderiv[IT_Hexaedron20] = ArcaneFemFunctions::FemShapeMethods::hexa20ShapeFuncDeriv;
-
+  // Quadratic elements
+  m_shapefuncderiv[IT_Line3] = ArcaneFemFunctions::FemShapeMethods::line3ShapeFuncDeriv;
+  m_shapefuncderiv[IT_Triangle6] = ArcaneFemFunctions::FemShapeMethods::tri6ShapeFuncDeriv;
+  m_shapefuncderiv[IT_Quad8] = ArcaneFemFunctions::FemShapeMethods::quad8ShapeFuncDeriv;
+  m_shapefuncderiv[IT_Tetraedron10] = ArcaneFemFunctions::FemShapeMethods::tetra10ShapeFuncDeriv;
+  m_shapefuncderiv[IT_Hexaedron20] = ArcaneFemFunctions::FemShapeMethods::hexa20ShapeFuncDeriv;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -125,11 +125,12 @@ getShapeFuncVal(Int16 item_type, Integer inod, Real3 coord)
  */
 /*---------------------------------------------------------------------------*/
 Real3 ArcaneFemFunctions::CellFEMDispatcher::
-getShapeFuncDeriv(Int16 item_type, Integer inod, Real3 ref_coord){
- auto f = m_shapefuncderiv[item_type];
- if (f!=nullptr)
-   return f(inod,ref_coord);
- return {};
+getShapeFuncDeriv(Int16 item_type, Integer inod, Real3 ref_coord)
+{
+  auto f = m_shapefuncderiv[item_type];
+  if (f != nullptr)
+    return f(inod, ref_coord);
+  return {};
 }
 
 /*---------------------------------------------------------------------------*/
@@ -143,7 +144,10 @@ getShapeFuncDeriv(Int16 item_type, Integer inod, Real3 ref_coord){
 /*---------------------------------------------------------------------------*/
 
 void ArcaneFemFunctions::BoundaryConditions2D::
-applyNeumannToRhsLine3(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+applyNeumannToRhsLine3(BC::INeumannBoundaryCondition* bs,
+                       const IndexedNodeDoFConnectivityView& node_dof,
+                       const VariableNodeReal3& node_coord,
+                       VariableDoFReal& rhs_values)
 {
   FaceGroup group = bs->getSurface();
 
@@ -206,7 +210,6 @@ applyNeumannToRhsLine3(BC::INeumannBoundaryCondition* bs, const IndexedNodeDoFCo
     }
   }
 }
-
 
 /*---------------------------------------------------------------------------*/
 /**
@@ -419,218 +422,6 @@ applyConstantSourceToRhsQuad9(Real qdot, IMesh* mesh, const IndexedNodeDoFConnec
           Node node = cell.node(i);
           if (node.isOwn()) {
             rhs_values[node_dof.dofId(node, 0)] += N[i] * qdot * integration_weight;
-          }
-        }
-      }
-    }
-  }
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Applies a constant source term to the RHS vector for Hexa8 elements.
- *
- */
-/*---------------------------------------------------------------------------*/
-
-void ArcaneFemFunctions::BoundaryConditions3D::
-applyConstantSourceToRhsHexa8(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
-{
-  ENUMERATE_ (Cell, icell, mesh->allCells()) {
-    Cell cell = *icell;
-
-    // Gauss quadrature for Hexa8
-    // Using 2x2x2 Gauss points for integration
-    constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // {-1/sqrt(3) 1/sqrt(3)}
-    constexpr Real weights[2] = { 1.0, 1.0 };
-
-    for (Int32 ixi = 0; ixi < 2; ++ixi) {
-      for (Int32 ieta = 0; ieta < 2; ++ieta) {
-        for (Int32 izeta = 0; izeta < 2; ++izeta) {
-
-          // Gauss point coordinates in reference space
-          Real xi = gp[ixi]; // ξ coordinate
-          Real eta = gp[ieta]; // η coordinate
-          Real zeta = gp[izeta]; // ζ coordinate
-          Real weight = weights[ixi] * weights[ieta] * weights[izeta];
-
-          // Shape functions 𝐍 for Hexa8
-          RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa8(xi, eta, zeta);
-
-          // Shape function derivatives in reference space
-          //  ∂𝐍/∂ξ = [ ∂𝑁₁/∂ξ  ∂𝑁₂/∂ξ  ∂𝑁₃/∂ξ  ∂𝑁₄/∂ξ  ∂𝑁₅/∂ξ  ∂𝑁₆/∂ξ  ∂𝑁₇/∂ξ  ∂𝑁₈/∂ξ ]
-          //  ∂𝐍/∂η = [ ∂𝑁₁/∂η  ∂𝑁₂/∂η  ∂𝑁₃/∂η  ∂𝑁₄/∂η  ∂𝑁₅/∂η  ∂𝑁₆/∂η  ∂𝑁₇/∂η  ∂𝑁₈/∂η ]
-          //  ∂𝐍/∂ζ = [ ∂𝑁₁/∂ζ  ∂𝑁₂/∂ζ  ∂𝑁₃/∂ζ  ∂𝑁₄/∂ζ  ∂𝑁₅/∂ζ  ∂𝑁₆/∂ζ  ∂𝑁₇/∂ζ  ∂𝑁₈/∂ζ ]
-          const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsHexa8(xi, eta, zeta);
-          // Jacobian for 3D (using your working stiffness matrix approach)
-          Real3x3 J;
-          for (Int8 a = 0; a < 8; ++a) {
-            const Real3& n = node_coord[cell.nodeId(a)];
-            J[0][0] += reference_gradients.dN_dxi[a] * n.x; // ∂𝑥/∂ξ
-            J[0][1] += reference_gradients.dN_dxi[a] * n.y; // ∂𝑦/∂ξ
-            J[0][2] += reference_gradients.dN_dxi[a] * n.z; // ∂𝑧/∂ξ
-            J[1][0] += reference_gradients.dN_deta[a] * n.x; // ∂𝑥/∂η
-            J[1][1] += reference_gradients.dN_deta[a] * n.y; // ∂𝑦/∂η
-            J[1][2] += reference_gradients.dN_deta[a] * n.z; // ∂𝑧/∂η
-            J[2][0] += reference_gradients.dN_dzeta[a] * n.x; // ∂𝑥/∂ζ
-            J[2][1] += reference_gradients.dN_dzeta[a] * n.y; // ∂𝑦/∂ζ
-            J[2][2] += reference_gradients.dN_dzeta[a] * n.z; // ∂𝑧/∂ζ
-          }
-
-          // Compute determinant of Jacobian
-          Real detJ = math::matrixDeterminant(J);
-
-          // Compute integration weight
-          Real integration_weight = weight * detJ;
-
-          // Assemble RHS
-          for (Int32 i = 0; i < 8; ++i) {
-            Node node = cell.node(i);
-            if (node.isOwn()) {
-              rhs_values[node_dof.dofId(node, 0)] += N[i] * qdot * integration_weight;
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Applies a constant source term to the RHS vector for Hexa20 elements.
- *
- * Uses a 3x3x3 Gauss rule to integrate the quadratic (serendipity) shape
- * functions exactly. Node ordering follows ItemTypeMng.cc (VTK convention):
- *   0-7 corners, 8-11 bottom edges, 12-15 top edges, 16-19 vertical edges.
- */
-/*---------------------------------------------------------------------------*/
-void ArcaneFemFunctions::BoundaryConditions3D::
-applyConstantSourceToRhsHexa20(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
-{
-  ENUMERATE_ (Cell, icell, mesh->allCells()) {
-    Cell cell = *icell;
-
-    // 3-point Gauss rule per direction (needed for exact integration of quadratic Hexa20 shape functions)
-    constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 }; // [-sqrt(3/5) , 0 , sqrt(3/5)]
-    constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
-
-    for (Int32 ixi = 0; ixi < 3; ++ixi) {
-      for (Int32 ieta = 0; ieta < 3; ++ieta) {
-        for (Int32 izeta = 0; izeta < 3; ++izeta) {
-
-          // Gauss point coordinates in reference space
-          Real xi = gp[ixi]; // ξ coordinate
-          Real eta = gp[ieta]; // η coordinate
-          Real zeta = gp[izeta]; // ζ coordinate
-          Real weight = weights[ixi] * weights[ieta] * weights[izeta];
-
-          // Shape functions 𝐍 for Hexa20 (serendipity)
-          RealVector<20> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa20(xi, eta, zeta);
-
-          // Shape function derivatives ∂𝐍/∂ξ, ∂𝐍/∂η, ∂𝐍/∂ζ
-          const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsHexa20(xi, eta, zeta);
-          // Jacobian matrix (default-initialized to zero see Real3x3.h)
-          Real3x3 J;
-          for (Int8 a = 0; a < 20; ++a) {
-            const Real3& n_coord = node_coord[cell.nodeId(a)];
-            J[0][0] += reference_gradients.dN_dxi[a] * n_coord.x;
-            J[0][1] += reference_gradients.dN_dxi[a] * n_coord.y;
-            J[0][2] += reference_gradients.dN_dxi[a] * n_coord.z;
-            J[1][0] += reference_gradients.dN_deta[a] * n_coord.x;
-            J[1][1] += reference_gradients.dN_deta[a] * n_coord.y;
-            J[1][2] += reference_gradients.dN_deta[a] * n_coord.z;
-            J[2][0] += reference_gradients.dN_dzeta[a] * n_coord.x;
-            J[2][1] += reference_gradients.dN_dzeta[a] * n_coord.y;
-            J[2][2] += reference_gradients.dN_dzeta[a] * n_coord.z;
-          }
-
-          // Determinant of the Jacobian
-          Real detJ = math::matrixDeterminant(J);
-          if (detJ <= 0.0) {
-            ARCANE_FATAL("Invalid (non-positive) Jacobian determinant: {0}", detJ);
-          }
-
-          // Compute integration weight
-          Real integration_weight = weight * detJ;
-
-          // Assemble RHS
-          for (Int32 i = 0; i < 20; ++i) {
-            Node node = cell.node(i);
-            if (node.isOwn()) {
-              rhs_values[node_dof.dofId(node, 0)] += N[i] * qdot * integration_weight;
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-/*---------------------------------------------------------------------------*/
-/**
- * @brief Applies a constant source term to the RHS vector for Hexa27 elements.
- *
- * Uses a 3x3x3 Gauss rule to integrate the triquadratic (Lagrange) shape
- * functions exactly. Node ordering follows ItemTypeMng.cc (VTK convention):
- *   0-7 corners, 8-19 edges, 20-25 face centers, 26 body center.
- */
-/*---------------------------------------------------------------------------*/
-void ArcaneFemFunctions::BoundaryConditions3D::
-applyConstantSourceToRhsHexa27(Real qdot, IMesh* mesh, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
-{
-  ENUMERATE_ (Cell, icell, mesh->allCells()) {
-    Cell cell = *icell;
-
-    // 3-point Gauss rule per direction (needed for exact integration of quadratic Hexa27 shape functions)
-    constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 }; // [-sqrt(3/5) , 0 , sqrt(3/5)]
-    constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
-
-    for (Int32 ixi = 0; ixi < 3; ++ixi) {
-      for (Int32 ieta = 0; ieta < 3; ++ieta) {
-        for (Int32 izeta = 0; izeta < 3; ++izeta) {
-
-          // Gauss point coordinates in reference space
-          Real xi = gp[ixi]; // ξ coordinate
-          Real eta = gp[ieta]; // η coordinate
-          Real zeta = gp[izeta]; // ζ coordinate
-          Real weight = weights[ixi] * weights[ieta] * weights[izeta];
-
-          // Shape functions 𝐍 for Hexa27 (triquadratic Lagrange)
-          RealVector<27> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa27(xi, eta, zeta);
-
-          // Shape function derivatives ∂𝐍/∂ξ, ∂𝐍/∂η, ∂𝐍/∂ζ
-          const auto reference_gradients = Arcane::FemUtils::ShapeFunctions::computeReferenceGradientsHexa27(xi, eta, zeta);
-          // Jacobian matrix (default-initialized to zero see Real3x3.h)
-          Real3x3 J;
-          for (Int8 a = 0; a < 27; ++a) {
-            const Real3& n_coord = node_coord[cell.nodeId(a)];
-            J[0][0] += reference_gradients.dN_dxi[a] * n_coord.x;
-            J[0][1] += reference_gradients.dN_dxi[a] * n_coord.y;
-            J[0][2] += reference_gradients.dN_dxi[a] * n_coord.z;
-            J[1][0] += reference_gradients.dN_deta[a] * n_coord.x;
-            J[1][1] += reference_gradients.dN_deta[a] * n_coord.y;
-            J[1][2] += reference_gradients.dN_deta[a] * n_coord.z;
-            J[2][0] += reference_gradients.dN_dzeta[a] * n_coord.x;
-            J[2][1] += reference_gradients.dN_dzeta[a] * n_coord.y;
-            J[2][2] += reference_gradients.dN_dzeta[a] * n_coord.z;
-          }
-
-          // Determinant of the Jacobian
-          Real detJ = math::matrixDeterminant(J);
-          if (detJ <= 0.0) {
-            ARCANE_FATAL("Invalid (non-positive) Jacobian determinant: {0}", detJ);
-          }
-
-          // Compute integration weight
-          Real integration_weight = weight * detJ;
-
-          // Assemble RHS
-          for (Int32 i = 0; i < 27; ++i) {
-            Node node = cell.node(i);
-            if (node.isOwn()) {
-              rhs_values[node_dof.dofId(node, 0)] += N[i] * qdot * integration_weight;
-            }
           }
         }
       }
