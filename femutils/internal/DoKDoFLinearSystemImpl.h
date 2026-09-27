@@ -75,11 +75,14 @@ class DoKDoFLinearSystemImpl
 {
   using RowColumn = DoKMatrix::RowColumn;
 
+  class InternalCSRMatrix;
+
  public:
 
   DoKDoFLinearSystemImpl(IItemFamily* dof_family, const String& solver_name)
   : DoFLinearSystemImplBase(dof_family, solver_name)
   {}
+  ~DoKDoFLinearSystemImpl() override;
 
  public:
 
@@ -131,8 +134,21 @@ class DoKDoFLinearSystemImpl
 
   void fillRowColumnEliminationInfos();
 
+  void convertToCSRMatrix();
+
   /*!
-   * \brief Visit all the non zero elements of the matrix and apply \a func
+   * \brief Return the view of this matrix converted to CSR.
+   *
+   * You have to call convertToCSRMatrix() before, otherwise it will return
+   * a null view.
+   */
+  CsrFormatMatrixView getCsrFormatMatrixView() const;
+
+  /*!
+   * \brief Visit all the non zero elements of the matrix and apply \a func.
+   *
+   * You need to make sure fillRowColumnEliminationInfos() has been called
+   * before calling this method
    */
   template <typename Lambda> void
   visitDoKMatrix(const Lambda& func)
@@ -195,10 +211,10 @@ class DoKDoFLinearSystemImpl
 
   //! Container to store matrix values
   DoKMatrix m_dok_matrix;
-
- private:
-
+  //! True is we want to print values during filling
   bool m_do_print_filling = false;
+  // CSR Matrix used for conversion
+  InternalCSRMatrix* m_internal_csr_matrix = nullptr;
 };
 
 /*---------------------------------------------------------------------------*/

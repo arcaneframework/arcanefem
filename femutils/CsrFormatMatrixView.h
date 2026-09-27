@@ -135,6 +135,7 @@ class CsrRow
 class CsrFormatMatrixView
 {
   friend CsrFormat;
+  friend class DoKDoFLinearSystemImpl;
 
  public:
 

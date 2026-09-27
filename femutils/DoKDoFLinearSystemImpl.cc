@@ -10,15 +10,47 @@
 /* Implementation of IDoFLinearSystemImpl using a matrix with DoK format.    */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
+
+#include <arcane/utils/Array.h>
 
 #include "internal/DoKDoFLinearSystemImpl.h"
+#include "CsrFormatMatrixView.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 namespace Arcane::FemUtils
 {
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+class DoKDoFLinearSystemImpl::InternalCSRMatrix
+{
+ public:
+
+  UniqueArray<Real> matrix_values;
+  UniqueArray<Int32> matrix_column_indexes;
+  UniqueArray<Int32> row_indexes;
+  UniqueArray<Int32> nb_value_per_row;
+
+ public:
+
+  CsrFormatMatrixView view() const
+  {
+    return CsrFormatMatrixView(row_indexes.view(), nb_value_per_row.view(),
+                               matrix_column_indexes.view(), matrix_values.view());
+  }
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+DoKDoFLinearSystemImpl::
+~DoKDoFLinearSystemImpl()
+{
+  delete m_internal_csr_matrix;
+}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -78,6 +110,68 @@ applyRHSTransformation()
                << std::setw(4) << dof.localId() << " value=" << elimination_value;
     }
   }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoKDoFLinearSystemImpl::
+convertToCSRMatrix()
+{
+  delete m_internal_csr_matrix;
+  m_internal_csr_matrix = new InternalCSRMatrix();
+
+  IItemFamily* dof_family = dofFamily();
+  Int32 nb_row = dof_family->maxLocalId();
+  DoFInfoListView item_list_view(dof_family);
+
+  UniqueArray<Int32> csr_matrix_nb_row(nb_row, 0);
+  Int32 nb_value = 0;
+  auto count_row = [&](DoF row, DoF, Real) {
+    ++csr_matrix_nb_row[row.localId()];
+    ++nb_value;
+  };
+  visitDoKMatrix(count_row);
+
+  m_internal_csr_matrix->matrix_values.resize(nb_value);
+  m_internal_csr_matrix->matrix_column_indexes.resize(nb_value);
+  m_internal_csr_matrix->row_indexes.resize(nb_row + 1);
+
+  // Now we know the number of columns per row and total number of non zeros.
+  SmallSpan<Real> csr_matrix_values = m_internal_csr_matrix->matrix_values.view();
+  SmallSpan<Int32> csr_matrix_column_indexes = m_internal_csr_matrix->matrix_column_indexes.view();
+  SmallSpan<Int32> csr_row_indexes = m_internal_csr_matrix->row_indexes.view();
+  Int32 current_index = 0;
+  for (Int32 i = 0; i < nb_row; ++i) {
+    csr_row_indexes[i] = current_index;
+    //info() << "ROW i=" << i << " nb_row=" << csr_matrix_nb_row[i] << " index=" << csr_row_indexes[i];
+    current_index += csr_matrix_nb_row[i];
+  }
+  csr_row_indexes[nb_row] = current_index;
+
+  // Fill the column indexes and the values of the CSR Matrix
+  m_internal_csr_matrix->nb_value_per_row.resize(nb_row, 0);
+  SmallSpan<Int32> work_nb_value_per_row = m_internal_csr_matrix->nb_value_per_row.view();
+  auto set_csr_matrix_value = [&](DoF row, DoF column, Real value) {
+    Int32 row_id = row.localId();
+    Int32 index = csr_row_indexes[row_id] + work_nb_value_per_row[row_id];
+    //info() << "SET_VALUE (" << row_id << ", " << column.localId() << ") = " << value << " index=" << index;
+    csr_matrix_column_indexes[index] = column.localId();
+    csr_matrix_values[index] = value;
+    ++work_nb_value_per_row[row_id];
+  };
+  visitDoKMatrix(set_csr_matrix_value);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+CsrFormatMatrixView DoKDoFLinearSystemImpl::
+getCsrFormatMatrixView() const
+{
+  if (!m_internal_csr_matrix)
+    return {};
+  return m_internal_csr_matrix->view();
 }
 
 /*---------------------------------------------------------------------------*/

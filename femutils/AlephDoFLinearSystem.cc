@@ -30,6 +30,7 @@
 #include "FemUtils.h"
 #include "internal/DoKDoFLinearSystemImpl.h"
 #include "IDoFLinearSystemFactory.h"
+#include "CsrFormatMatrixView.h"
 
 namespace Arcane::FemUtils
 {
@@ -235,50 +236,18 @@ _applyMatrixTransformationAndFillAlephMatrix()
   // like PETSc or Hypre when using a DoK Matrix.
   bool do_with_csr = false;
   if (do_with_csr) {
+    convertToCSRMatrix();
+    CsrFormatMatrixView csr_view = getCsrFormatMatrixView();
+    Int32 nb_row = csr_view.nbRow();
+
     IItemFamily* dof_family = dofFamily();
-    Int32 nb_row = dof_family->maxLocalId();
     DoFInfoListView item_list_view(dof_family);
-
-    UniqueArray<Int32> csr_matrix_nb_row(nb_row, 0);
-    Int32 nb_value = 0;
-    auto count_row = [&](DoF row, DoF, Real) {
-      ++csr_matrix_nb_row[row.localId()];
-      ++nb_value;
-    };
-    visitDoKMatrix(count_row);
-
-    // Now we know the number of columns per row and total number of non zeros.
-    UniqueArray<Real> csr_matrix_values(nb_value);
-    UniqueArray<Int32> csr_matrix_column_indexes(nb_value);
-    UniqueArray<Int32> csr_row_indexes(nb_row + 1);
-    Int32 current_index = 0;
-    for (Int32 i = 0; i < nb_row; ++i) {
-      csr_row_indexes[i] = current_index;
-      //info() << "ROW i=" << i << " nb_row=" << csr_matrix_nb_row[i] << " index=" << csr_row_indexes[i];
-      current_index += csr_matrix_nb_row[i];
-    }
-    csr_row_indexes[nb_row] = current_index;
-
-    // Fill the column indexes and the values of the CSR Matrix
-    UniqueArray<Int32> work_nb_value_per_row(nb_row, 0);
-    auto set_csr_matrix_value = [&](DoF row, DoF column, Real value) {
-      Int32 row_id = row.localId();
-      Int32 index = csr_row_indexes[row_id] + work_nb_value_per_row[row_id];
-      //info() << "SET_VALUE (" << row_id << ", " << column.localId() << ") = " << value << " index=" << index;
-      csr_matrix_column_indexes[index] = column.localId();
-      csr_matrix_values[index] = value;
-      ++work_nb_value_per_row[row_id];
-    };
-    visitDoKMatrix(set_csr_matrix_value);
 
     // Fill the Aleph Matrix
     for (Int32 row_id = 0; row_id < nb_row; ++row_id) {
-      Int32 index = csr_row_indexes[row_id];
-      Int32 nb_column = csr_row_indexes[row_id + 1] - index;
-      //info() << "ROW=" << row_id << " NB_COLUMN=" << nb_column;
-      for (Int32 j = 0; j < nb_column; ++j) {
-        Int32 column_id = csr_matrix_column_indexes[index + j];
-        Real value = csr_matrix_values[index + j];
+      for (CsrRowColumnIndex rc : csr_view.rowRange(row_id)){
+        Int32 column_id = csr_view.column(rc);
+        Real value = csr_view.value(rc);
         //info() << "ROW_ID=" << row_id << " column=" << column_id << " value=" << value;
         _setMatrixValue(item_list_view[row_id], item_list_view[column_id], value);
       }
