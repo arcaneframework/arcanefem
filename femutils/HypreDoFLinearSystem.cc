@@ -39,6 +39,7 @@
 
 #include "IDoFLinearSystemFactory.h"
 #include "internal/CsrDoFLinearSystemImpl.h"
+#include "internal/DoKDoFLinearSystemImpl.h"
 
 namespace Arcane::FemUtils
 {
@@ -985,6 +986,56 @@ class HypreDoFLinearSystemImpl
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+class HypreDoKDoFLinearSystemImpl
+: public DoKDoFLinearSystemImpl
+{
+ public:
+
+  HypreDoKDoFLinearSystemImpl(IItemFamily* dof_family, const String& solver_name)
+  : DoKDoFLinearSystemImpl(dof_family, solver_name)
+  {
+    m_hypre_solver = new HypreSolver(dof_family, solver_name);
+  }
+
+  ~HypreDoKDoFLinearSystemImpl() override
+  {
+    delete m_hypre_solver;
+  }
+
+ public:
+
+  void build() {}
+
+ public:
+
+  void solve() override
+  {
+    convertToCSRMatrix();
+    CsrFormatMatrixView csr_view = getCsrFormatMatrixView();
+    m_hypre_solver->solve(runner(), csr_view, solutionVariable(), rhsVariable(),
+                          hasNearNullSpace(), nearNullSpaceValues(), nearNullSpaceBlockSize());
+  }
+
+  void setSolverCommandLineArguments(const CommandLineArguments& args) override
+  {
+    m_hypre_solver->setSolverCommandLineArguments(args);
+  }
+
+  void applyMatrixTransformation() override
+  {
+    fillRowColumnEliminationInfos();
+  }
+
+  HypreSolver* underlyingHypreSolver() const { return m_hypre_solver; }
+
+ private:
+
+  HypreSolver* m_hypre_solver = nullptr;
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 class HypreDoFLinearSystemFactoryService
 : public ArcaneHypreDoFLinearSystemFactoryObject
 {
@@ -1004,8 +1055,20 @@ class HypreDoFLinearSystemFactoryService
   IDoFLinearSystemImpl*
   createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
   {
-    auto* v = new HypreDoFLinearSystemImpl(dof_family, solver_name);
-    HypreSolver* x = v->underlyingHypreSolver();
+    HypreSolver* x = nullptr;
+    IDoFLinearSystemImpl* linear_system = nullptr;
+    bool use_dok = false;
+    if (use_dok) {
+      info() << "Using DoK format Hypre linear system";
+      auto* v = new HypreDoKDoFLinearSystemImpl(dof_family, solver_name);
+      linear_system = v;
+      x = v->underlyingHypreSolver();
+    }
+    else {
+      auto* v = new HypreDoFLinearSystemImpl(dof_family, solver_name);
+      linear_system = v;
+      x = v->underlyingHypreSolver();
+    }
     x->build();
     x->setRelTolerance(options()->rtol());
     x->setAbsTolerance(options()->atol());
@@ -1018,7 +1081,7 @@ class HypreDoFLinearSystemFactoryService
     x->setVerbosityLevel(options()->verbosity());
     x->setSolver(options()->solver());
     x->setPreconditioner(options()->preconditioner());
-    return v;
+    return linear_system;
   }
 };
 

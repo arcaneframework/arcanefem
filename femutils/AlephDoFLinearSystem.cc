@@ -134,16 +134,6 @@ class AlephDoFLinearSystemImpl
     _computeMatrixInfo();
   }
 
-  void setCSRValues(const CSRFormatView& csr_view) override
-  {
-    ARCANE_THROW(NotImplementedException, "");
-  }
-  CSRFormatView& getCSRValues() override
-  {
-    ARCANE_THROW(NotImplementedException, "");
-  }
-  bool hasSetCSRValues() const override { return false; }
-
  private:
 
   ISubDomain* m_sub_domain = nullptr;

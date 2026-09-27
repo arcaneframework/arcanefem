@@ -125,6 +125,8 @@ convertToCSRMatrix()
   Int32 nb_row = dof_family->maxLocalId();
   DoFInfoListView item_list_view(dof_family);
 
+  info() << "Convert To CSR Matrix nb_row=" << nb_row;
+
   UniqueArray<Int32> csr_matrix_nb_row(nb_row, 0);
   Int32 nb_value = 0;
   auto count_row = [&](DoF row, DoF, Real) {
@@ -133,6 +135,7 @@ convertToCSRMatrix()
   };
   visitDoKMatrix(count_row);
 
+  info() << "Convert To CSR Matrix nb_row=" << nb_row << " nb_value=" << nb_value;
   m_internal_csr_matrix->matrix_values.resize(nb_value);
   m_internal_csr_matrix->matrix_column_indexes.resize(nb_value);
   m_internal_csr_matrix->row_indexes.resize(nb_row + 1);

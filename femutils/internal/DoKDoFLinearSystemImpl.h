@@ -130,6 +130,18 @@ class DoKDoFLinearSystemImpl
 
   void applyRHSTransformation() override;
 
+  void setCSRValues(const CSRFormatView& csr_view) override
+  {
+    ARCANE_THROW(NotSupportedException, "DoKDoFLinearSystem does not support CSR format");
+  }
+  CSRFormatView& getCSRValues() override
+  {
+    ARCANE_THROW(NotSupportedException, "DoKDoFLinearSystem does not support CSR format");
+  }
+  bool hasSetCSRValues() const override { return false; }
+
+ public:
+
   void setPrintFilling(bool v) { m_do_print_filling = v; }
 
   void fillRowColumnEliminationInfos();
