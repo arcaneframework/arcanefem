@@ -42,7 +42,6 @@ using namespace Arcane::FemUtils;
  * - BoundaryConditions2D/3D: Boundary condition related operations.
  */
 /*---------------------------------------------------------------------------*/
-
 class ArcaneFemFunctions
 {
  public:
@@ -55,50 +54,9 @@ class ArcaneFemFunctions
   {
     public:
 
-     /*---------------------------------------------------------------------------*/
-     /**
-      * @brief Logs the execution time with ArcaneFem-Timer.
-      *
-      * @param tm The Arcane trace manager for logging.
-      * @param label A short description of the event being timed.
-      * @param value The elapsed time associated with the event.
-      */
-     /*---------------------------------------------------------------------------*/
-     static inline void printArcaneFemTime(ITraceMng* tm, const String& label, const Real& value)
-     {
-       ARCANE_CHECK_POINTER(tm);
-       tm->info() << std::left << std::setw(40) << "[ArcaneFem-Timer] " + label << " = " << value;
-     }
+    static void printArcaneFemTime(ITraceMng* tm, const String& label, const Real& value);
 
-    /*---------------------------------------------------------------------------*/
-    /**
-     * @brief Parses Petsc command-line flags into a CommandLineArguments object.
-     *
-     * This method processes a space-separated string of Petsc flags and converts
-     * it into a list of individual arguments. We do the following:
-     *   1. Convert the input String to a standard C++ string.
-     *   2. Use a string stream to tokenize the input based on spaces.
-     *   3. Store the tokens in a StringList.
-     *   4. Return a CommandLineArguments object constructed from the StringList.
-     *
-     * @param `petsc_flags` space-separated string containing Petsc CLI flags.
-     * @return A CommandLineArguments object containing the parsed flags.
-     */
-    /*---------------------------------------------------------------------------*/
-
-     static inline CommandLineArguments getPetscFlagsFromCommandline(const String& petsc_flags)
-     {
-       StringList string_list;
-       std::string petsc_flags_std = petsc_flags.localstr();
-
-       // Use a string stream to split the string by spaces
-       std::istringstream iss(petsc_flags_std);
-       String token;
-       while (iss >> token) {
-         string_list.add(token);
-       }
-       return CommandLineArguments(string_list);
-     }
+    static CommandLineArguments getPetscFlagsFromCommandline(const String& petsc_flags);
   };
 
   /*---------------------------------------------------------------------------*/

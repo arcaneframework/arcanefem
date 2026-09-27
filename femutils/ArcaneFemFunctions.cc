@@ -9,11 +9,12 @@
 #include "ArcaneFemFunctions.h"
 
 using namespace Arcane;
+
+/*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Initialize the CellFEMDispatcher class (coming from PASSMO)
  */
-/*---------------------------------------------------------------------------*/
 ArcaneFemFunctions::CellFEMDispatcher::
 CellFEMDispatcher()
 {
@@ -60,44 +61,44 @@ CellFEMDispatcher()
 }
 
 /*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 /**
  * @brief Provides at once, all Gauss data of a given input finite element
  * (vector containing weights, ref. coordinates, nodal shape values & derivatives)
  * This method is generic (coming from PASSMO)
  */
-/*---------------------------------------------------------------------------*/
 RealUniqueArray ArcaneFemFunctions::CellFEMDispatcher::
-getGaussData(ItemWithNodes item, Integer nint, Integer ngauss){
+getGaussData(ItemWithNodes item, Integer nint, Integer ngauss)
+{
+  auto nnod = item.nbNode();
+  auto cell_type = item.type();
+  ngauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type, nint);
 
- auto nnod = item.nbNode();
- auto cell_type = item.type();
- ngauss = ArcaneFemFunctions::FemGaussQuadrature::getNbGaussPointsfromOrder(cell_type,nint);
+  // Vector of double containing:
+  // ngauss points * [weight, gauss ref coord [Real3], nnod * (shapefunc values, 3*shapefunc deriv
+  // in ref. coord system)]
+  Integer nsize = ngauss * 4 * (1 + nnod);
+  RealUniqueArray vec(nsize);
 
- // Vector of double containing:
- // ngauss points * [weight, gauss ref coord [Real3], nnod * (shapefunc values, 3*shapefunc deriv
- // in ref. coord system)]
- Integer nsize = ngauss * 4 * (1 + nnod);
- RealUniqueArray vec(nsize);
+  Integer index{ 0 };
+  for (Integer ig = 0; ig < ngauss; ++ig) {
+    auto wt = ArcaneFemFunctions::FemGaussQuadrature::getGaussWeight(item, nint, ig);
+    auto pos = ArcaneFemFunctions::FemGaussQuadrature::getGaussRefPosition(item, nint, ig);
+    vec[index++] = wt;
+    vec[index++] = pos.x;
+    vec[index++] = pos.y;
+    vec[index++] = pos.z;
 
- Integer index{ 0 };
- for (Integer ig = 0; ig < ngauss; ++ig) {
-   auto wt = ArcaneFemFunctions::FemGaussQuadrature::getGaussWeight(item, nint, ig);
-   auto pos = ArcaneFemFunctions::FemGaussQuadrature::getGaussRefPosition(item, nint, ig);
-   vec[index++] = wt;
-   vec[index++] = pos.x;
-   vec[index++] = pos.y;
-   vec[index++] = pos.z;
-
-   for (Int32 inod = 0; inod < nnod; ++inod) {
-     auto Phi_i = getShapeFuncVal(cell_type, inod, pos);
-     vec[index++] = Phi_i;
-     auto dPhi = getShapeFuncDeriv(cell_type, inod, pos);
-     vec[index++] = dPhi.x;
-     vec[index++] = dPhi.y;
-     vec[index++] = dPhi.z;
-   }
- }
- return vec;
+    for (Int32 inod = 0; inod < nnod; ++inod) {
+      auto Phi_i = getShapeFuncVal(cell_type, inod, pos);
+      vec[index++] = Phi_i;
+      auto dPhi = getShapeFuncDeriv(cell_type, inod, pos);
+      vec[index++] = dPhi.x;
+      vec[index++] = dPhi.y;
+      vec[index++] = dPhi.z;
+    }
+  }
+  return vec;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -110,10 +111,10 @@ getGaussData(ItemWithNodes item, Integer nint, Integer ngauss){
 Real ArcaneFemFunctions::CellFEMDispatcher::
 getShapeFuncVal(Int16 item_type, Integer inod, Real3 coord)
 {
- auto f = m_shapefunc[item_type];
- if (f!=nullptr)
-   return f(inod,coord);
- return 0.;
+  auto f = m_shapefunc[item_type];
+  if (f != nullptr)
+    return f(inod, coord);
+  return 0.;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -132,3 +133,55 @@ getShapeFuncDeriv(Int16 item_type, Integer inod, Real3 ref_coord)
     return f(inod, ref_coord);
   return {};
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Logs the execution time with ArcaneFem-Timer.
+ *
+ * @param tm The Arcane trace manager for logging.
+ * @param label A short description of the event being timed.
+ * @param value The elapsed time associated with the event.
+ */
+void ArcaneFemFunctions::GeneralFunctions::
+printArcaneFemTime(ITraceMng* tm, const String& label, const Real& value)
+{
+  ARCANE_CHECK_POINTER(tm);
+  tm->info() << std::left << std::setw(40) << "[ArcaneFem-Timer] " + label << " = " << value;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Parses Petsc command-line flags into a CommandLineArguments object.
+ *
+ * This method processes a space-separated string of Petsc flags and converts
+ * it into a list of individual arguments. We do the following:
+ *   1. Convert the input String to a standard C++ string.
+ *   2. Use a string stream to tokenize the input based on spaces.
+ *   3. Store the tokens in a StringList.
+ *   4. Return a CommandLineArguments object constructed from the StringList.
+ *
+ * @param `petsc_flags` space-separated string containing Petsc CLI flags.
+ * @return A CommandLineArguments object containing the parsed flags.
+ */
+CommandLineArguments ArcaneFemFunctions::
+GeneralFunctions::getPetscFlagsFromCommandline(const String& petsc_flags)
+{
+  StringList string_list;
+  std::string petsc_flags_std = petsc_flags.localstr();
+
+  // Use a string stream to split the string by spaces
+  std::istringstream iss(petsc_flags_std);
+  String token;
+  while (iss >> token) {
+    string_list.add(token);
+  }
+  return CommandLineArguments(string_list);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
