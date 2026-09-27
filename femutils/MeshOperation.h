@@ -15,15 +15,6 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-//#include <arcane/utils/ITraceMng.h>
-//#include <arcane/utils/StringList.h>
-//#include <arcane/utils/CommandLineArguments.h>
-
-//#include <arcane/core/IStandardFunction.h>
-//#include <arcane/core/UnstructuredMeshConnectivity.h>
-//#include <arcane/core/IndexedItemConnectivityView.h>
-//#include <arcane/core/IMesh.h>
-
 #include "FemUtilsGlobal.h"
 
 #include <arcane/core/VariableTypes.h>

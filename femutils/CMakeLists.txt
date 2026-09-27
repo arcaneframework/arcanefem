@@ -60,6 +60,8 @@ add_library(FemUtils
   ArcaneFemFunctionsGpu.h
   ArcaneFemFunctions.h
   ArcaneFemFunctions.cc
+  FeOperation.h
+  FeOperation.cc
   MeshOperation.h
   MeshOperation.cc
   AlephDoFLinearSystem.cc
