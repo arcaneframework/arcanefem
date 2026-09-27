@@ -390,7 +390,7 @@ _updateGlobalTangentMaterialTensorVonMisesTria3Cpu()
       Real p_old_gp = m_p_old_gp(cell, iGP);
 
       // epsilon(DU) // NOTE: for nGP>1 it has to evaluated and interpolated at Gauss points
-      Real3x3 grad_DU = ArcaneFemFunctions::FeOperation2D::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_DUn);
+      Real3x3 grad_DU = ArcaneFemFunctions::FemOperation2D::computeGradientTria3(cell, m_node_coord, m_DUn);
 
       computeMaterialTensorVonMisesLawAtGpBase(C_tang_gp, sigma_gp, sigma_zz_gp, dp_gp, grad_DU,
                                                sigma_old_gp, sigma_zz_old_gp, p_old_gp,
@@ -537,7 +537,7 @@ _computeLocalVonMisesElementMatrixTria3Cpu(Cell cell, bool assemble_elastic)
   Real p_old_gp = m_p_old_gp(cell, iGP);
 
   // epsilon(DU) // NOTE: for nGP>1 it has to evaluated and interpolated at Gauss points
-  Real3x3 grad_DU = ArcaneFemFunctions::FeOperation2D::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_DUn);
+  Real3x3 grad_DU = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_DUn);
 
   computeTangentMaterialTensorVonMisesAtGp(C_tang_gp, grad_DU,
                                            sigma_old_gp, sigma_zz_old_gp, p_old_gp,

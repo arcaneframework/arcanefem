@@ -484,8 +484,8 @@ _updateGlobalTangentMaterialTensorDruckerPragerTria3Cpu()
       Real eps_p_zz_old_gp = m_eps_p_zz_old_gp(cell, iGP);
 
       // epsilon(DU) // NOTE: for nGP>1 it has to evaluated and interpolated at Gauss points
-      Real3x3 grad_DU = ArcaneFemFunctions::FeOperation2D::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_DUn);
-      Real3x3 grad_U = ArcaneFemFunctions::FeOperation2D::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_U);
+      Real3x3 grad_DU = ArcaneFemFunctions::FemOperation2D::computeGradientTria3(cell, m_node_coord, m_DUn);
+      Real3x3 grad_U = ArcaneFemFunctions::FemOperation2D::computeGradientTria3(cell, m_node_coord, m_U);
 
       computeDruckerPragerLawAtGpBase(C_tang_gp,
                                       sigma_gp, sigma_zz_gp,
@@ -647,8 +647,8 @@ _computeLocalDruckerPragerElementMatrixTria3Cpu(Cell cell, bool assemble_elastic
   Real eps_p_zz_old_gp = m_eps_p_zz_old_gp(cell, iGP);
 
   // epsilon(DU) // NOTE: for nGP>1 it has to evaluated and interpolated at Gauss points
-  Real3x3 grad_DU = ArcaneFemFunctions::FeOperation2D::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_DUn);
-  Real3x3 grad_U = ArcaneFemFunctions::FeOperation2D::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_U);
+  Real3x3 grad_DU = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_DUn);
+  Real3x3 grad_U = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_U);
 
   computeTangentMaterialTensorDruckerPragerAtGp(C_tang_gp,
                                                 grad_DU, grad_U,

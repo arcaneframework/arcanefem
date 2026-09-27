@@ -66,6 +66,19 @@ static constexpr Byte ELIMINATE_ROW_COLUMN = static_cast<Byte>(MatrixElimination
 
 } // namespace Arcane::FemUtils
 
+namespace ArcaneFemFunctions
+{
+
+class FemOperation2D;
+class FemOperation3D;
+
+//! To keep compatibility with existing code
+using FeOperation2D = FemOperation2D;
+//! To keep compatibility with existing code
+using FeOperation3D = FemOperation3D;
+
+} // namespace ArcaneFemFunctions
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
