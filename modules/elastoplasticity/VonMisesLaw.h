@@ -1,4 +1,4 @@
-// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
 // Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
@@ -387,7 +387,7 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMise
       Real p_old_gp = m_p_old_gp(cell, iGP);
 
       // epsilon(DU) // NOTE: for nGP>1 it has to evaluated and interpolated at Gauss points
-      Real3x3 grad_DU = ArcaneFemFunctions::FeOperation2D::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_DUn);
+      Real3x3 grad_DU = ArcaneFemFunctions::FemOperation2D::computeGradientTria3(cell, m_node_coord, m_DUn);
 
       computeMaterialTensorVonMisesLawAtGpBase(C_tang_gp, sigma_gp, sigma_zz_gp, dp_gp, grad_DU,
                                                 sigma_old_gp, sigma_zz_old_gp, p_old_gp,
@@ -535,7 +535,7 @@ RealMatrix<6, 6> FemModuleElastoplasticity::_computeLocalVonMisesElementMatrixTr
   Real p_old_gp = m_p_old_gp(cell, iGP);
 
   // epsilon(DU) // NOTE: for nGP>1 it has to evaluated and interpolated at Gauss points
-  Real3x3 grad_DU = ArcaneFemFunctions::FeOperation2D::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_DUn);
+  Real3x3 grad_DU = ArcaneFemFunctions::FemOperation2D::computeGradientTria3(cell, m_node_coord, m_DUn);
 
   computeTangentMaterialTensorVonMisesAtGp(C_tang_gp, grad_DU,
                                           sigma_old_gp, sigma_zz_old_gp, p_old_gp,

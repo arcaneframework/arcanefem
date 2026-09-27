@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* FeOperation.h                                               (C) 2000-2026 */
+/* FemOperation.h                                              (C) 2000-2026 */
 /*                                                                           */
 /* Various 2D and 3D finite element operations on mesh items.                */
 /*---------------------------------------------------------------------------*/
@@ -46,7 +46,7 @@ using namespace Arcane::FemUtils;
   *           1 o  . .  o 2              2 o . . . . o 3
   */
 /*---------------------------------------------------------------------------*/
-class FeOperation2D
+class FemOperation2D
 {
  public:
 
@@ -436,7 +436,7 @@ class FeOperation2D
  *         0 o-----------o 1
  */
 /*---------------------------------------------------------------------------*/
-class FeOperation3D
+class FemOperation3D
 {
  public:
 

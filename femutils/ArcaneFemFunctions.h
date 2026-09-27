@@ -24,13 +24,14 @@
 #include <arcane/core/VariableTypes.h>
 #include <arcane/core/IMesh.h>
 
+#include "FemUtilsGlobal.h"
 #include "IArcaneFemBC.h"
 #include "GaussQuadrature.h"
 #include "DoFLinearSystem.h"
 #include "ShapeFunctions.h"
 
 #include "MeshOperation.h"
-#include "FeOperation.h"
+#include "FemOperation.h"
 #include "FemShapeMethods.h"
 #include "FemGaussQuadrature.h"
 

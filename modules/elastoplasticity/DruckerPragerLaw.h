@@ -1,4 +1,4 @@
-// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
 // Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
@@ -474,8 +474,8 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDrucker
       Real eps_p_zz_old_gp = m_eps_p_zz_old_gp(cell, iGP);
 
       // epsilon(DU) // NOTE: for nGP>1 it has to evaluated and interpolated at Gauss points
-      Real3x3 grad_DU = ArcaneFemFunctions::FeOperation2D::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_DUn);
-      Real3x3 grad_U = ArcaneFemFunctions::FeOperation2D::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_U);
+      Real3x3 grad_DU = ArcaneFemFunctions::FemOperation2D::computeGradientTria3(cell, m_node_coord, m_DUn);
+      Real3x3 grad_U = ArcaneFemFunctions::FemOperation2D::computeGradientTria3(cell, m_node_coord, m_U);
 
       computeDruckerPragerLawAtGpBase(C_tang_gp,
                                       sigma_gp,sigma_zz_gp,
@@ -620,8 +620,8 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDrucker
 /*---------------------------------------------------------------------------*/
 RealMatrix<6, 6> FemModuleElastoplasticity::_computeLocalDruckerPragerElementMatrixTria3Cpu(Cell cell, bool assemble_elastic)
 {
-  Real3 dxu = ArcaneFemFunctions::FeOperation2D::computeGradientXTria3(cell, m_node_coord);
-  Real3 dyu = ArcaneFemFunctions::FeOperation2D::computeGradientYTria3(cell, m_node_coord);
+  Real3 dxu = ArcaneFemFunctions::FemOperation2D::computeGradientXTria3(cell, m_node_coord);
+  Real3 dyu = ArcaneFemFunctions::FemOperation2D::computeGradientYTria3(cell, m_node_coord);
   Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
 
   if (assemble_elastic) {
@@ -638,8 +638,8 @@ RealMatrix<6, 6> FemModuleElastoplasticity::_computeLocalDruckerPragerElementMat
   Real eps_p_zz_old_gp = m_eps_p_zz_old_gp(cell, iGP);
 
   // epsilon(DU) // NOTE: for nGP>1 it has to evaluated and interpolated at Gauss points
-  Real3x3 grad_DU = ArcaneFemFunctions::FeOperation2D::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_DUn);
-  Real3x3 grad_U = ArcaneFemFunctions::FeOperation2D::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_U);
+  Real3x3 grad_DU = ArcaneFemFunctions::FemOperation2D::computeGradientTria3(cell, m_node_coord, m_DUn);
+  Real3x3 grad_U = ArcaneFemFunctions::FemOperation2D::computeGradientTria3(cell, m_node_coord, m_U);
 
   computeTangentMaterialTensorDruckerPragerAtGp(C_tang_gp,
                                                 grad_DU, grad_U,

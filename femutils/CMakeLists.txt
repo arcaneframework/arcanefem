@@ -60,8 +60,8 @@ add_library(FemUtils
   ArcaneFemFunctionsGpu.h
   ArcaneFemFunctions.h
   ArcaneFemFunctions.cc
-  FeOperation.h
-  FeOperation.cc
+  FemOperation.h
+  FemOperation.cc
   FemGaussQuadrature.h
   FemGaussQuadrature.cc
   FemShapeMethods.h
