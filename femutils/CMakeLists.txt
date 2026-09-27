@@ -2,10 +2,6 @@
 option(FEMUTILS_ENABLE_CODE_COVERAGE "Whether we use compiler option for code coverage" OFF)
 
 set(ACCELERATOR_SOURCES
-  BoundaryConditions.cc
-  BoundaryConditionsHelpers.cc
-  BoundaryConditions2D.cc
-  BoundaryConditions3D.cc
   ArcaneFemFunctionsGpu.cc
   CsrDoFLinearSystemImpl.cc
   CsrFormatMatrix.cc
@@ -43,6 +39,10 @@ add_library(FemUtils
   FemUtils.h
   FemUtils.cc
   FemUtilsGlobal.h
+  BoundaryConditions.cc
+  BoundaryConditionsHelpers.cc
+  BoundaryConditions2D.cc
+  BoundaryConditions3D.cc
   ShapeFunctions.h
   DoFLinearSystem.h
   DoFLinearSystem.cc
@@ -60,6 +60,8 @@ add_library(FemUtils
   ArcaneFemFunctionsGpu.h
   ArcaneFemFunctions.h
   ArcaneFemFunctions.cc
+  MeshOperation.h
+  MeshOperation.cc
   AlephDoFLinearSystem.cc
   GaussQuadrature.h
   GaussDoFsOnCells.h
