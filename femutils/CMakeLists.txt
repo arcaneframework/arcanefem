@@ -2,6 +2,7 @@
 option(FEMUTILS_ENABLE_CODE_COVERAGE "Whether we use compiler option for code coverage" OFF)
 
 set(ACCELERATOR_SOURCES
+  BoundaryConditions.cc
   BoundaryConditions2D.cc
   BoundaryConditions3D.cc
   ArcaneFemFunctionsGpu.cc
