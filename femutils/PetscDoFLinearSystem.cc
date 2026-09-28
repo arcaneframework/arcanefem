@@ -335,7 +335,7 @@ _preallocateMatrix()
   NumArray<PetscInt, MDDim1> coo_cols;
   //NumArray<PetscInt, MDDim1> coo_cols;
   coo_cols.resize(csr_view.columns().size());
-  MemoryUtils::copy(coo_cols.to1DSpan(), csr_view.columns(), &queue);
+  MemoryUtils::copy(coo_cols.to1DSmallSpan(), csr_view.columns(), &queue);
 
   //NumArray<PetscInt, MDDim1> coo_cols(csr_view.columns());
   //coo_cols.copy(csr_view.columns(), queue); // copy column array
