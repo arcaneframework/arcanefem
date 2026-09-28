@@ -128,7 +128,7 @@ _integrateAndSaveConstitutiveLawDruckerPrager()
     }
   }
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-global-material-tensor", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"integrate-and-save-constitutive-law", elapsedTime);
 }
 /*---------------------------------------------------------------------------*/
 
