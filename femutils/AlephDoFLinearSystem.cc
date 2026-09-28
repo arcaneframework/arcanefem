@@ -12,6 +12,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include "DoFLinearSystem.h"
+#include "internal/DoFLinearSystemImplBase.h"
 
 #include <arcane/utils/FatalErrorException.h>
 
@@ -22,6 +23,7 @@
 
 #include <arcane/aleph/AlephTypesSolver.h>
 #include <arcane/aleph/Aleph.h>
+#include <cstddef>
 
 #ifdef FEMUTILS_HAS_PETSC
 #include <petsclog.h>
@@ -40,7 +42,7 @@ enum class eSolverBackend
   Trilinos = 3,
   Petsc = 5,
 };
-}
+} // namespace Arcane::FemUtils
 
 #include "AlephDoFLinearSystemFactory_axl.h"
 
@@ -56,23 +58,25 @@ namespace Arcane::FemUtils
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-class AlephDoFLinearSystemImpl
-: public DoKDoFLinearSystemImpl
+class AlephSolver
+: public TraceAccessor
 {
   using RowColumn = DoKMatrix::RowColumn;
 
  public:
 
   // TODO: do not use subDomain() but we need to modify aleph before
-  AlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
-  : DoKDoFLinearSystemImpl(dof_family, solver_name)
+  AlephSolver(DoFLinearSystemImplBase* linear_system, ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
+  : TraceAccessor(dof_family->traceMng())
+  , m_linear_system(linear_system)
   , m_sub_domain(sd)
+  , m_dof_family(dof_family)
   , m_dof_matrix_indexes(VariableBuildInfo(dof_family, solver_name + "DoFMatrixIndexes"))
   {
     info() << "Creating AlephDoFLinearSystemImpl()";
   }
 
-  ~AlephDoFLinearSystemImpl() override
+  ~AlephSolver() override
   {
 #ifdef FEMUTILS_HAS_PETSC
     // Aleph initializes PETSc, but currently does not call PetscFinalize().
@@ -106,7 +110,6 @@ class AlephDoFLinearSystemImpl
   {
     _computeMatrixInfo();
     m_aleph_params = _createAlephParam();
-    DoKDoFLinearSystemImpl::clearValues();
   }
 
   AlephParams* params() const { return m_aleph_params; }
@@ -119,24 +122,30 @@ class AlephDoFLinearSystemImpl
 
  public:
 
-  void applyMatrixTransformation() override;
-  void solve() override;
+  //! Fill the linear system using a DoK matrix
+  void applyMatrixTransformation(DoKDoFLinearSystemImpl* dok_linear_system);
 
-  void setSolverCommandLineArguments(const CommandLineArguments& args) override
+  void solve();
+
+  void setSolverCommandLineArguments(const CommandLineArguments& args)
   {
     m_aleph_kernel->solverInitializeArgs().setCommandLineArguments(args);
   }
 
-  void clearValues() override
+  void clearValues()
   {
     info() << "[Aleph] Clear values of current solver";
-    DoKDoFLinearSystemImpl::clearValues();
     _computeMatrixInfo();
   }
 
+  void createUnderlyingMatrix();
+  AlephMatrix* alephMatrix() const { return m_aleph_matrix; }
+
  private:
 
+  DoFLinearSystemImplBase* m_linear_system = nullptr;
   ISubDomain* m_sub_domain = nullptr;
+  IItemFamily* m_dof_family = nullptr;
   VariableDoFInt32 m_dof_matrix_indexes;
   AlephKernel* m_aleph_kernel = nullptr;
   AlephMatrix* m_aleph_matrix = nullptr;
@@ -154,16 +163,15 @@ class AlephDoFLinearSystemImpl
  private:
 
   AlephParams* _createAlephParam() const;
-  void _applyMatrixTransformationAndFillAlephMatrix();
-  void _fillRHSVector();
-  void _fillSolutionVector();
-  void _setMatrixValue(DoF row, DoF column, Real value)
+  void _applyMatrixTransformationAndFillAlephMatrix(DoKDoFLinearSystemImpl* dok_linear_system);
+  void _fillRHSVector(VariableDoFReal& rhs_variable);
+  void _fillSolutionVector(VariableDoFReal& solution_variable);
+  void _setMatrixValue(VariableDoFReal& solution_variable, DoF row, DoF column, Real value)
   {
     if (m_do_print_filling)
       info() << "SET MATRIX VALUE (" << std::setw(4) << row.localId()
              << "," << std::setw(4) << column.localId() << ")"
              << " v=" << std::setw(25) << value;
-    VariableDoFReal& solution_variable = solutionVariable();
     m_aleph_matrix->setValue(solution_variable, row, solution_variable, column, value);
   }
   void _createRHSAndSolutionVector();
@@ -172,53 +180,11 @@ class AlephDoFLinearSystemImpl
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-class AlephDoFLinearSystemFactoryService
-: public ArcaneAlephDoFLinearSystemFactoryObject
+void AlephSolver::
+_applyMatrixTransformationAndFillAlephMatrix(DoKDoFLinearSystemImpl* dok_linear_system)
 {
- public:
-
-  explicit AlephDoFLinearSystemFactoryService(const ServiceBuildInfo& sbi)
-  : ArcaneAlephDoFLinearSystemFactoryObject(sbi)
-  {
-  }
-
-  IDoFLinearSystemImpl*
-  createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
-  {
-    auto* x = new AlephDoFLinearSystemImpl(sd, dof_family, solver_name);
-    x->setSolverBackend(options()->solverBackend());
-
-    x->build();
-
-    auto* p = x->params();
-    p->setEpsilon(options()->epsilon());
-    p->setPrecond(options()->preconditioner());
-    p->setMethod(options()->solverMethod());
-
-    return x;
-  }
-};
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-extern "C++" IDoFLinearSystemImpl*
-createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
-{
-  auto* x = new AlephDoFLinearSystemImpl(sd, dof_family, solver_name);
-  x->build();
-  return x;
-}
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void AlephDoFLinearSystemImpl::
-_applyMatrixTransformationAndFillAlephMatrix()
-{
-  fillRowColumnEliminationInfos();
+  VariableDoFReal& solution_variable = m_linear_system->solutionVariable();
+  //dok_linear_system->fillRowColumnEliminationInfos();
   // We provide two ways to fill the Aleph matrix.
   // The first one (currently the default) fill the matrix using the DoK Matrix.
   // The second one converts the DoKMatrix to a CSR Matrix then fill the Aleph Matrix.
@@ -226,38 +192,37 @@ _applyMatrixTransformationAndFillAlephMatrix()
   // like PETSc or Hypre when using a DoK Matrix.
   bool do_with_csr = false;
   if (do_with_csr) {
+#if 0
     convertToCSRMatrix();
     CsrFormatMatrixView csr_view = getCsrFormatMatrixView();
     Int32 nb_row = csr_view.nbRow();
 
-    IItemFamily* dof_family = dofFamily();
+    IItemFamily* dof_family = m_dof_family;
     DoFInfoListView item_list_view(dof_family);
 
     // Fill the Aleph Matrix
     for (Int32 row_id = 0; row_id < nb_row; ++row_id) {
-      for (CsrRowColumnIndex rc : csr_view.rowRange(row_id)){
+      for (CsrRowColumnIndex rc : csr_view.rowRange(row_id)) {
         Int32 column_id = csr_view.column(rc);
         Real value = csr_view.value(rc);
         //info() << "ROW_ID=" << row_id << " column=" << column_id << " value=" << value;
-        _setMatrixValue(item_list_view[row_id], item_list_view[column_id], value);
+        _setMatrixValue(solution_variable, item_list_view[row_id], item_list_view[column_id], value);
       }
     }
+#endif
   }
   else {
     auto set_matrix_value = [&](DoF row, DoF column, Real value) {
-      _setMatrixValue(row, column, value);
+      _setMatrixValue(solution_variable, row, column, value);
     };
-    visitDoKMatrix(set_matrix_value);
+    dok_linear_system->visitDoKMatrix(set_matrix_value);
   }
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void AlephDoFLinearSystemImpl::
+void AlephSolver::
 _createRHSAndSolutionVector()
 {
   // We need to call createSolverVector() two times.
@@ -272,8 +237,8 @@ _createRHSAndSolutionVector()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void AlephDoFLinearSystemImpl::
-_fillRHSVector()
+void AlephSolver::
+_fillRHSVector(VariableDoFReal& rhs_variable)
 {
   ARCANE_CHECK_POINTER(m_aleph_rhs_vector);
 
@@ -282,9 +247,8 @@ _fillRHSVector()
   // The values of 'rhs_values' should not be updated after
   // this call.
   UniqueArray<Real> rhs_values_for_linear_system;
-  VariableDoFReal& rhs_values(rhsVariable());
-  IItemFamily* dof_family = dofFamily();
-  ENUMERATE_ (DoF, idof, dof_family->allItems().own()) {
+  VariableDoFReal& rhs_values(rhs_variable);
+  ENUMERATE_ (DoF, idof, m_dof_family->allItems().own()) {
     Real v = rhs_values[idof];
     if (m_do_print_filling)
       info() << "SET VECTOR VALUE (" << std::setw(4) << idof.itemLocalId() << ") = " << v;
@@ -298,19 +262,18 @@ _fillRHSVector()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void AlephDoFLinearSystemImpl::
-_fillSolutionVector()
+void AlephSolver::
+_fillSolutionVector(VariableDoFReal& solution_variable)
 {
   ARCANE_CHECK_POINTER(m_aleph_solution_vector);
 
   UniqueArray<Real> solution_values_for_linear_system;
-  VariableDoFReal& solution_values(solutionVariable());
-  IItemFamily* dof_family = dofFamily();
+  IItemFamily* dof_family = m_dof_family;
   ENUMERATE_ (DoF, idof, dof_family->allItems().own()) {
-    Real v = solution_values[idof];
+    Real v = solution_variable[idof];
     if (m_do_print_filling)
       info() << "SET SOLUTION VECTOR VALUE (" << std::setw(4) << idof.itemLocalId() << ") = " << v;
-    solution_values_for_linear_system.add(solution_values[idof]);
+    solution_values_for_linear_system.add(solution_variable[idof]);
   }
 
   m_aleph_solution_vector->setLocalComponents(solution_values_for_linear_system.view());
@@ -320,7 +283,144 @@ _fillSolutionVector()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-AlephParams* AlephDoFLinearSystemImpl::
+void AlephSolver::
+_computeMatrixInfo()
+{
+  VariableDoFReal& solution_variable = m_linear_system->solutionVariable();
+  int solver_backend = static_cast<int>(m_solver_backend);
+  info() << "[AlephFem] COMPUTE_MATRIX_INFO solver_backend=" << solver_backend;
+  IParallelMng* pm = m_sub_domain->parallelMng();
+  // Aleph solver:
+  // Hypre = 2
+  // Trilinos = 3
+  // Cuda = 4 (not available)
+  // Petsc = 5
+  // We need to compile Arcane with the needed library and link
+  // the code with the associated aleph library (see CMakeLists.txt)
+  // TODO: Linear algebra backend should be accessed from arc file.
+  if (!m_aleph_kernel) {
+    info() << "Creating Aleph Kernel";
+    // We can use less than the number of MPI ranks
+    // but for the moment we use all the available cores.
+    Int32 nb_core = pm->commSize();
+    m_aleph_kernel = new AlephKernel(m_sub_domain, solver_backend, nb_core);
+  }
+  else {
+    //
+    m_need_destroy_matrix_and_vector = false;
+  }
+  IItemFamily* dof_family = m_dof_family;
+  DoFGroup own_dofs = dof_family->allItems().own();
+  m_dof_matrix_indexes.fill(-1);
+  AlephIndexing* indexing = m_aleph_kernel->indexing();
+  ENUMERATE_ (DoF, idof, own_dofs) {
+    DoF dof = *idof;
+    Integer row = indexing->get(solution_variable, dof);
+    m_dof_matrix_indexes[dof] = row;
+  }
+
+  // Do not print information about setting matrix if matrix is too big
+  if (own_dofs.size() > 200) {
+    m_do_print_filling = false;
+    //setPrintFilling(!m_do_print_filling);
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void AlephSolver::
+createUnderlyingMatrix()
+{
+  info() << "[AlephFem] Assemble matrix ptr=" << m_aleph_matrix;
+  // Check this is called only one time
+  if (m_aleph_matrix)
+    ARCANE_FATAL("applyMatrixTransformation() has already been called");
+  m_aleph_matrix = m_aleph_kernel->createSolverMatrix();
+  m_aleph_matrix->create();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void AlephSolver::
+applyMatrixTransformation(DoKDoFLinearSystemImpl* dok_linear_system)
+{
+  createUnderlyingMatrix();
+
+  // Matrix transformation
+  VariableDoFReal& solution_variable = m_linear_system->solutionVariable();
+  _applyMatrixTransformationAndFillAlephMatrix(dok_linear_system);
+  m_aleph_matrix->assemble();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void AlephSolver::
+solve()
+{
+  VariableDoFReal& solution_variable = m_linear_system->solutionVariable();
+  VariableDoFReal& rhs_variable = m_linear_system->rhsVariable();
+
+  info() << "Solution variable is '" << solution_variable.name() << "'";
+
+  _createRHSAndSolutionVector();
+  _fillRHSVector(rhs_variable);
+  _fillSolutionVector(solution_variable);
+
+  info() << "Calling AlephDoFLinearSystemImpl::solve()";
+  UniqueArray<Real> aleph_result;
+
+  IItemFamily* dof_family = m_dof_family;
+  DoFGroup own_dofs = dof_family->allItems().own();
+  const Int32 nb_dof = own_dofs.size();
+
+  Int32 nb_iteration = 0;
+  Real residual_norm = 0.0;
+  info() << "[AlephFem] BEGIN SOLVING WITH ALEPH solver_backend=" << static_cast<int>(m_solver_backend);
+
+  // Post the solver. The call is asynchronous, and we wait for the result
+  // when calling syncSolver().
+  // The values nb_iteration and residual_norm are not used in this case.
+  // We get them during the call to syncSolver()
+  m_aleph_matrix->solve(m_aleph_solution_vector, m_aleph_rhs_vector,
+                        nb_iteration, &residual_norm,
+                        m_aleph_params, true);
+
+  // Reset matrix and vectors because there can no longer be used
+  // They will be re-created when needed if we call solve() again.
+  // NOTE: it is the aleph library we do not need to call delete() because
+  m_aleph_rhs_vector = nullptr;
+  m_aleph_solution_vector = nullptr;
+  m_aleph_matrix = nullptr;
+
+  info() << "[AlephFem] END SOLVING WITH ALEPH r=" << residual_norm
+         << " nb_iter=" << nb_iteration;
+
+  // Wait for the solver to finish and get solution vector
+  auto* solution_vector = m_aleph_kernel->syncSolver(0, nb_iteration, &residual_norm);
+
+  solution_vector->getLocalComponents(aleph_result);
+
+  const bool do_verbose = (nb_dof < 200);
+  Int32 index = 0;
+
+  VariableDoFReal& solution_variable2 = m_linear_system->solutionVariable();
+  ENUMERATE_ (DoF, idof, m_dof_family->allItems().own()) {
+    DoF dof = *idof;
+
+    solution_variable2[dof] = aleph_result[m_aleph_kernel->indexing()->get(solution_variable2, dof)];
+    if (do_verbose)
+      info() << "Node uid=" << dof.uniqueId() << " V=" << aleph_result[index] << " T=" << solution_variable2[dof];
+    ++index;
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+AlephParams* AlephSolver::
 _createAlephParam() const
 {
   auto* p = new AlephParams(traceMng(),
@@ -361,129 +461,110 @@ _createAlephParam() const
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void AlephDoFLinearSystemImpl::
-_computeMatrixInfo()
+class AlephDoKDoFLinearSystemImpl
+: public DoKDoFLinearSystemImpl
 {
-  int solver_backend = static_cast<int>(m_solver_backend);
-  info() << "[AlephFem] COMPUTE_MATRIX_INFO solver_backend=" << solver_backend;
-  IParallelMng* pm = m_sub_domain->parallelMng();
-  // Aleph solver:
-  // Hypre = 2
-  // Trilinos = 3
-  // Cuda = 4 (not available)
-  // Petsc = 5
-  // We need to compile Arcane with the needed library and link
-  // the code with the associated aleph library (see CMakeLists.txt)
-  // TODO: Linear algebra backend should be accessed from arc file.
-  if (!m_aleph_kernel) {
-    info() << "Creating Aleph Kernel";
-    // We can use less than the number of MPI ranks
-    // but for the moment we use all the available cores.
-    Int32 nb_core = pm->commSize();
-    m_aleph_kernel = new AlephKernel(m_sub_domain, solver_backend, nb_core);
-  }
-  else {
-    //
-    m_need_destroy_matrix_and_vector = false;
-  }
-  IItemFamily* dof_family = dofFamily();
-  VariableDoFReal& solution_variable(solutionVariable());
-  DoFGroup own_dofs = dof_family->allItems().own();
-  m_dof_matrix_indexes.fill(-1);
-  AlephIndexing* indexing = m_aleph_kernel->indexing();
-  ENUMERATE_ (DoF, idof, own_dofs) {
-    DoF dof = *idof;
-    Integer row = indexing->get(solution_variable, dof);
-    m_dof_matrix_indexes[dof] = row;
+ public:
+
+  AlephDoKDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
+  : DoKDoFLinearSystemImpl(dof_family, solver_name)
+  {
+    m_aleph_solver = new AlephSolver(this, sd, dof_family, solver_name);
   }
 
-  // Do not print information about setting matrix if matrix is too big
-  if (own_dofs.size() > 200) {
-    m_do_print_filling = false;
-    setPrintFilling(!m_do_print_filling);
+  ~AlephDoKDoFLinearSystemImpl() override
+  {
+    delete m_aleph_solver;
   }
-}
+
+ public:
+
+  void build()
+  {
+    m_aleph_solver->build();
+    DoKDoFLinearSystemImpl::clearValues();
+  }
+
+ public:
+
+  void solve() override
+  {
+    // The matrix always need to be created if this is not explicitly done
+    if (!m_aleph_solver->alephMatrix())
+      applyMatrixTransformation();
+    //convertToCSRMatrix();
+    //CsrFormatMatrixView csr_view = getCsrFormatMatrixView();
+    m_aleph_solver->solve();
+  }
+
+  void setSolverCommandLineArguments(const CommandLineArguments& args) override
+  {
+    m_aleph_solver->setSolverCommandLineArguments(args);
+  }
+
+  void applyMatrixTransformation() override
+  {
+    fillRowColumnEliminationInfos();
+    m_aleph_solver->applyMatrixTransformation(this);
+  }
+
+  void clearValues() override
+  {
+    DoKDoFLinearSystemImpl::clearValues();
+    m_aleph_solver->clearValues();
+  }
+
+  AlephSolver* underlyingAlephSolver() const { return m_aleph_solver; }
+
+ private:
+
+  AlephSolver* m_aleph_solver = nullptr;
+};
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void AlephDoFLinearSystemImpl::
-applyMatrixTransformation()
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+class AlephDoFLinearSystemFactoryService
+: public ArcaneAlephDoFLinearSystemFactoryObject
 {
-  info() << "[AlephFem] Assemble matrix ptr=" << m_aleph_matrix;
-  // Check this is called only one time
-  if (m_aleph_matrix)
-    ARCANE_FATAL("applyMatrixTransformation() has already been called");
-  m_aleph_matrix = m_aleph_kernel->createSolverMatrix();
-  m_aleph_matrix->create();
+ public:
 
-  // Matrix transformation
-  _applyMatrixTransformationAndFillAlephMatrix();
-  m_aleph_matrix->assemble();
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-void AlephDoFLinearSystemImpl::
-solve()
-{
-  // The matrix always need to be created if this is not explicitly done
-  if (!m_aleph_matrix)
-    applyMatrixTransformation();
-
-  _createRHSAndSolutionVector();
-  _fillRHSVector();
-  _fillSolutionVector();
-
-  info() << "Calling AlephDoFLinearSystemImpl::solve()";
-  UniqueArray<Real> aleph_result;
-
-  IItemFamily* dof_family = dofFamily();
-  DoFGroup own_dofs = dof_family->allItems().own();
-  const Int32 nb_dof = own_dofs.size();
-
-  Int32 nb_iteration = 0;
-  Real residual_norm = 0.0;
-  info() << "[AlephFem] BEGIN SOLVING WITH ALEPH solver_backend=" << static_cast<int>(m_solver_backend);
-
-  // Post the solver. The call is asynchronous, and we wait for the result
-  // when calling syncSolver().
-  // The values nb_iteration and residual_norm are not used in this case.
-  // We get them during the call to syncSolver()
-  m_aleph_matrix->solve(m_aleph_solution_vector, m_aleph_rhs_vector,
-                        nb_iteration, &residual_norm,
-                        m_aleph_params, true);
-
-  // Reset matrix and vectors because there can no longer be used
-  // They will be re-created when needed if we call solve() again.
-  // NOTE: it is the aleph library we do not need to call delete() because
-  m_aleph_rhs_vector = nullptr;
-  m_aleph_solution_vector = nullptr;
-  m_aleph_matrix = nullptr;
-
-  info() << "[AlephFem] END SOLVING WITH ALEPH r=" << residual_norm
-         << " nb_iter=" << nb_iteration;
-
-  // Wait for the solver to finish and get solution vector
-  auto* solution_vector = m_aleph_kernel->syncSolver(0, nb_iteration, &residual_norm);
-
-  solution_vector->getLocalComponents(aleph_result);
-
-  const bool do_verbose = (nb_dof < 200);
-  Int32 index = 0;
-
-  VariableDoFReal& solution_variable(this->solutionVariable());
-  ENUMERATE_ (DoF, idof, dofFamily()->allItems().own()) {
-    DoF dof = *idof;
-
-    solution_variable[dof] = aleph_result[m_aleph_kernel->indexing()->get(solution_variable, dof)];
-    if (do_verbose)
-      info() << "Node uid=" << dof.uniqueId() << " V=" << aleph_result[index] << " T=" << solution_variable[dof];
-    ++index;
+  explicit AlephDoFLinearSystemFactoryService(const ServiceBuildInfo& sbi)
+  : ArcaneAlephDoFLinearSystemFactoryObject(sbi)
+  {
   }
-}
 
+  IDoFLinearSystemImpl*
+  createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
+  {
+    auto* v = new AlephDoKDoFLinearSystemImpl(sd, dof_family, solver_name);
+    auto* x = v->underlyingAlephSolver();
+    x->setSolverBackend(options()->solverBackend());
+
+    x->build();
+
+    auto* p = x->params();
+    p->setEpsilon(options()->epsilon());
+    p->setPrecond(options()->preconditioner());
+    p->setMethod(options()->solverMethod());
+
+    return v;
+  }
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+extern "C++" IDoFLinearSystemImpl*
+createAlephDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
+{
+  auto* x = new AlephDoKDoFLinearSystemImpl(sd, dof_family, solver_name);
+  x->build();
+  return x;
+}
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
