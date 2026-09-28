@@ -31,6 +31,7 @@
 
 #include "FemUtils.h"
 #include "internal/DoKDoFLinearSystemImpl.h"
+#include "internal/CsrDoFLinearSystemImpl.h"
 #include "IDoFLinearSystemFactory.h"
 #include "CsrFormatMatrixView.h"
 
@@ -125,6 +126,9 @@ class AlephSolver
   //! Fill the linear system using a DoK matrix
   void applyMatrixTransformation(DoKDoFLinearSystemImpl* dok_linear_system);
 
+  //! Fill the linear system using a CSR matrix
+  void applyMatrixTransformation(CsrDoFLinearSystemImpl* csr_linear_system);
+
   void solve();
 
   void setSolverCommandLineArguments(const CommandLineArguments& args)
@@ -184,39 +188,11 @@ void AlephSolver::
 _applyMatrixTransformationAndFillAlephMatrix(DoKDoFLinearSystemImpl* dok_linear_system)
 {
   VariableDoFReal& solution_variable = m_linear_system->solutionVariable();
-  //dok_linear_system->fillRowColumnEliminationInfos();
-  // We provide two ways to fill the Aleph matrix.
-  // The first one (currently the default) fill the matrix using the DoK Matrix.
-  // The second one converts the DoKMatrix to a CSR Matrix then fill the Aleph Matrix.
-  // The second one will be used if we want to directly call other linear solver
-  // like PETSc or Hypre when using a DoK Matrix.
-  bool do_with_csr = false;
-  if (do_with_csr) {
-#if 0
-    convertToCSRMatrix();
-    CsrFormatMatrixView csr_view = getCsrFormatMatrixView();
-    Int32 nb_row = csr_view.nbRow();
 
-    IItemFamily* dof_family = m_dof_family;
-    DoFInfoListView item_list_view(dof_family);
-
-    // Fill the Aleph Matrix
-    for (Int32 row_id = 0; row_id < nb_row; ++row_id) {
-      for (CsrRowColumnIndex rc : csr_view.rowRange(row_id)) {
-        Int32 column_id = csr_view.column(rc);
-        Real value = csr_view.value(rc);
-        //info() << "ROW_ID=" << row_id << " column=" << column_id << " value=" << value;
-        _setMatrixValue(solution_variable, item_list_view[row_id], item_list_view[column_id], value);
-      }
-    }
-#endif
-  }
-  else {
-    auto set_matrix_value = [&](DoF row, DoF column, Real value) {
-      _setMatrixValue(solution_variable, row, column, value);
-    };
-    dok_linear_system->visitDoKMatrix(set_matrix_value);
-  }
+  auto set_matrix_value = [&](DoF row, DoF column, Real value) {
+    _setMatrixValue(solution_variable, row, column, value);
+  };
+  dok_linear_system->visitDoKMatrix(set_matrix_value);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -346,11 +322,40 @@ createUnderlyingMatrix()
 void AlephSolver::
 applyMatrixTransformation(DoKDoFLinearSystemImpl* dok_linear_system)
 {
+  info() << "[AlephFem] Apply matrix transformation with DOK format";
   createUnderlyingMatrix();
 
   // Matrix transformation
   VariableDoFReal& solution_variable = m_linear_system->solutionVariable();
   _applyMatrixTransformationAndFillAlephMatrix(dok_linear_system);
+  m_aleph_matrix->assemble();
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void AlephSolver::
+applyMatrixTransformation(CsrDoFLinearSystemImpl* csr_linear_system)
+{
+  info() << "[AlephFem] Apply matrix transformation with CSR format";
+  createUnderlyingMatrix();
+
+  CsrFormatMatrixView csr_view = csr_linear_system->getCSRValues();
+  Int32 nb_row = csr_view.nbRow();
+
+  IItemFamily* dof_family = m_dof_family;
+  DoFInfoListView item_list_view(dof_family);
+  VariableDoFReal& solution_variable = m_linear_system->solutionVariable();
+
+  // Fill the Aleph Matrix
+  for (Int32 row_id = 0; row_id < nb_row; ++row_id) {
+    for (CsrRowColumnIndex rc : csr_view.rowRange(row_id)) {
+      Int32 column_id = csr_view.column(rc);
+      Real value = csr_view.value(rc);
+      //info() << "ROW_ID=" << row_id << " column=" << column_id << " value=" << value;
+      _setMatrixValue(solution_variable, item_list_view[row_id], item_list_view[column_id], value);
+    }
+  }
   m_aleph_matrix->assemble();
 }
 
@@ -524,6 +529,69 @@ class AlephDoKDoFLinearSystemImpl
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+class AlephCsrDoFLinearSystemImpl
+: public CsrDoFLinearSystemImpl
+{
+ public:
+
+  AlephCsrDoFLinearSystemImpl(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name)
+  : CsrDoFLinearSystemImpl(dof_family, solver_name)
+  {
+    m_aleph_solver = new AlephSolver(this, sd, dof_family, solver_name);
+  }
+
+  ~AlephCsrDoFLinearSystemImpl() override
+  {
+    delete m_aleph_solver;
+  }
+
+ public:
+
+  void build()
+  {
+    m_aleph_solver->build();
+    CsrDoFLinearSystemImpl::clearValues();
+  }
+
+ public:
+
+  void solve() override
+  {
+    // The matrix always need to be created if this is not explicitly done
+    if (!m_aleph_solver->alephMatrix())
+      applyMatrixTransformation();
+    //convertToCSRMatrix();
+    //CsrFormatMatrixView csr_view = getCsrFormatMatrixView();
+    m_aleph_solver->solve();
+  }
+
+  void setSolverCommandLineArguments(const CommandLineArguments& args) override
+  {
+    m_aleph_solver->setSolverCommandLineArguments(args);
+  }
+
+  void applyMatrixTransformation() override
+  {
+    //fillRowColumnEliminationInfos();
+    m_aleph_solver->applyMatrixTransformation(this);
+  }
+
+  void clearValues() override
+  {
+    CsrDoFLinearSystemImpl::clearValues();
+    m_aleph_solver->clearValues();
+  }
+
+  AlephSolver* underlyingAlephSolver() const { return m_aleph_solver; }
+
+ private:
+
+  AlephSolver* m_aleph_solver = nullptr;
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -542,6 +610,37 @@ class AlephDoFLinearSystemFactoryService
   {
     auto* v = new AlephDoKDoFLinearSystemImpl(sd, dof_family, solver_name);
     auto* x = v->underlyingAlephSolver();
+    _initAlephSolver(x);
+    return v;
+  }
+
+  IDoFLinearSystemImpl*
+  createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name,
+                 eLinearSystemMatrixFormat matrix_format) override
+  {
+    AlephSolver* x = nullptr;
+    IDoFLinearSystemImpl* linear_system = nullptr;
+    if (matrix_format == eLinearSystemMatrixFormat::DoK) {
+      auto* v = new AlephDoKDoFLinearSystemImpl(sd, dof_family, solver_name);
+      linear_system = v;
+      x = v->underlyingAlephSolver();
+    }
+    else if (matrix_format == eLinearSystemMatrixFormat::Csr) {
+      info() << "Using CSR format for Aleph linear system";
+      auto* v = new AlephCsrDoFLinearSystemImpl(sd, dof_family, solver_name);
+      linear_system = v;
+      x = v->underlyingAlephSolver();
+    }
+    else
+      ARCANE_FATAL("Unsupported matrix_format '{0}'", static_cast<int>(matrix_format));
+    _initAlephSolver(x);
+    return linear_system;
+  }
+
+ private:
+
+  void _initAlephSolver(AlephSolver* x)
+  {
     x->setSolverBackend(options()->solverBackend());
 
     x->build();
@@ -550,8 +649,6 @@ class AlephDoFLinearSystemFactoryService
     p->setEpsilon(options()->epsilon());
     p->setPrecond(options()->preconditioner());
     p->setMethod(options()->solverMethod());
-
-    return v;
   }
 };
 
