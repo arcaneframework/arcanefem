@@ -4,5 +4,25 @@
   <options>
     <simple name="rtol" type="real" default="1.0e-7" />
     <simple name="atol" type="real" default="0.0" />
+    <simple name="max-iter" type="int32" default="1000" />
+    <simple name="verbosity" type="int32" default="0" />
+    <enumeration name = "solver"
+                 type = "Arcane::AlinaLib::eAlinaSolverType"
+                 default = "cg"
+                 >
+      <description>Krylov solver to be used by Hypre</description>
+      <enumvalue genvalue="Arcane::AlinaLib::eAlinaSolverType::ConjugateGradient" name="cg"/>
+      <enumvalue genvalue="Arcane::AlinaLib::eAlinaSolverType::GMRES" name="gmres"/>
+      <enumvalue genvalue="Arcane::AlinaLib::eAlinaSolverType::BiCGStab" name="bicgstab"/>
+    </enumeration>
+
+    <enumeration name = "preconditioner"
+                 type = "Arcane::AlinaLib::eAlinaPreconditionerType"
+                 default = "amg"
+                 >
+      <description>Preconditioner to be used by Hypre</description>
+      <enumvalue genvalue="Arcane::AlinaLib::eAlinaPreconditionerType::AMG" name="amg"/>
+      <enumvalue genvalue="Arcane::AlinaLib::eAlinaPreconditionerType::Diagonal" name="diagonal"/>
+    </enumeration>
   </options>
 </service>

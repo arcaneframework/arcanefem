@@ -33,6 +33,7 @@
 
 namespace Arcane::FemUtils
 {
+using namespace Arcane::AlinaLib;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -65,7 +66,6 @@ class AlinaDoFLinearSystemImpl
     _computeMatrixInfo();
     m_solver_parameters = makeRef(new AlinaParameters());
     DoKDoFLinearSystemImpl::clearValues();
-    m_solver_parameters->setString("solver.type", "cg");
   }
 
  private:
@@ -92,15 +92,18 @@ class AlinaDoFLinearSystemImpl
 
   void setRelTolerance(Real v)
   {
-    m_solver_parameters->setReal("solver.tol", v);
+    m_solver_parameters->setSolverRelativeTolerance(v);
   }
   void setAbsTolerance(Real v)
   {
-    m_solver_parameters->setReal("solver.abstol", v);
+    m_solver_parameters->setSolverAbsoluteTolerance(v);
+  }
+  void setMaxIteration(Int32 v)
+  {
+    m_solver_parameters->setSolverMaxIteration(v);
   }
 
-  void setTol(Real v) { m_solver_parameters->setReal("solver.tol", v); }
-  //void setEpsilon(Real v) { m_solver_parameters->setReal("solver.abstol", v); }
+  AlinaParameters* solverParameters() const { return m_solver_parameters.get(); }
 
  private:
 
@@ -135,8 +138,6 @@ _applyMatrixTransformationAndFillAlinaMatrix()
   CsrFormatMatrixView csr_view = getCsrFormatMatrixView();
 
   AlinaCSRMatrixView alina_matrix_view(csr_view.rows(), csr_view.columns(), csr_view.values());
-  m_solver_parameters->setString("solver.type", "cg");
-  m_solver_parameters->setInt32("solver.verbose", 1);
   m_sequential_solver = makeRef(new AlinaSequentialSolver(alina_matrix_view, m_solver_parameters.get()));
 }
 
@@ -273,10 +274,17 @@ class AlinaDoFLinearSystemFactoryService
 
     x->build();
 
-    //auto* p = x->params();
-    x->setAbsTolerance(options()->atol());
-    x->setRelTolerance(options()->rtol());
+    AlinaParameters* p = x->solverParameters();
 
+    // Setting preconditioner and solver may change other values
+    // so they have to be called before others
+    p->setSolverType(options()->solver());
+    p->setSolverPreconditioner(options()->preconditioner());
+
+    p->setSolverAbsoluteTolerance(options()->atol());
+    p->setSolverRelativeTolerance(options()->rtol());
+    p->setSolverMaxIteration(options()->maxIter());
+    p->setSolverVerbosity(options()->verbosity());
     return x;
   }
 };
