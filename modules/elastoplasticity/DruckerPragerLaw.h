@@ -67,9 +67,9 @@ inline void FemModuleElastoplasticity::_commitInternalVariablesDruckerPrager()
  *
  */
 /*---------------------------------------------------------------------------*/
-inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDruckerPrager()
+inline void FemModuleElastoplasticity::_integrateAndSaveConstitutiveLawDruckerPrager()
 {
-  info() << "[ArcaneFem-Info] Started module  _updateGlobalTangentMaterialTensorDruckerPrager()";
+  info() << "[ArcaneFem-Info] Started module  _integrateAndSaveConstitutiveLawDruckerPrager()";
   Real elapsedTime = platform::getRealTime();
 
   auto use_gpu = options()->linearSystem.serviceName() == "HypreLinearSystem" ||
@@ -80,7 +80,7 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDrucker
       if (m_hex_quad_mesh) {
         ARCANE_FATAL("Not IMPLEMENTED");
       } else {
-        _updateGlobalTangentMaterialTensorDruckerPragerTria3Gpu();
+        _integrateAndSaveConstitutiveLawDruckerPragerTria3Gpu();
       }
     } else {
       if (m_hex_quad_mesh) {
@@ -94,7 +94,7 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDrucker
       if (m_hex_quad_mesh) {
         ARCANE_FATAL("Not IMPLEMENTED");
       } else {
-        _updateGlobalTangentMaterialTensorDruckerPragerTria3Cpu();
+        _integrateAndSaveConstitutiveLawDruckerPragerTria3Cpu();
       }
     } else {
       if (m_hex_quad_mesh) {
@@ -105,7 +105,7 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDrucker
     }
   }
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-global-material-tensor", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"integrate-and-save-constitutive-law", elapsedTime);
 }
 /*---------------------------------------------------------------------------*/
 
@@ -445,7 +445,7 @@ ARCCORE_HOST_DEVICE void computeStressAndInVarsDruckerPragerAtGp(RealVector<3>& 
  *
  */
 /*---------------------------------------------------------------------------*/
-inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDruckerPragerTria3Cpu()
+inline void FemModuleElastoplasticity::_integrateAndSaveConstitutiveLawDruckerPragerTria3Cpu()
 {
   ENUMERATE_ (Cell, icell, allCells())
   {
@@ -522,7 +522,7 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDrucker
  *
  */
 /*---------------------------------------------------------------------------*/
-inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorDruckerPragerTria3Gpu()
+inline void FemModuleElastoplasticity::_integrateAndSaveConstitutiveLawDruckerPragerTria3Gpu()
 {
   auto queue = subDomain()->acceleratorMng()->defaultQueue();
   UnstructuredMeshConnectivityView m_connectivity_view(mesh());
