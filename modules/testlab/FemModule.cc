@@ -77,8 +77,9 @@ compute()
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
   Runner runner = acceleratorMng()->runner();
-  // At the moment only Hypre linear system implementation support several matrix format
-  if (options()->linearSystem.serviceName() == "HypreLinearSystem") {
+  // At the moment only Hypre and Petsc linear system implementation support several matrix format
+  String solver_name = options()->linearSystem.serviceName();
+  if (solver_name == "HypreLinearSystem" || solver_name == "PetscLinearSystem") {
     eLinearSystemMatrixFormat f = eLinearSystemMatrixFormat::Csr;
     if (options()->legacy() || m_use_legacy)
       f = eLinearSystemMatrixFormat::DoK;
