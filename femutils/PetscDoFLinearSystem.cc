@@ -38,6 +38,7 @@
 
 #include "IDoFLinearSystemFactory.h"
 #include "internal/CsrDoFLinearSystemImpl.h"
+#include "internal/DoKDoFLinearSystemImpl.h"
 
 #include <petsc.h>
 #include "PetscDoFLinearSystemFactory_axl.h"
@@ -629,6 +630,9 @@ solve(Runner runner, CSRFormatView matrix_view, VariableDoFReal& solution_variab
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 class PetscDoFLinearSystemImpl
 : public CsrDoFLinearSystemImpl
 {
@@ -674,6 +678,58 @@ class PetscDoFLinearSystemImpl
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+class PetscDoKDoFLinearSystemImpl
+: public DoKDoFLinearSystemImpl
+{
+ public:
+
+  PetscDoKDoFLinearSystemImpl(IItemFamily* dof_family, const String& solver_name)
+  : DoKDoFLinearSystemImpl(dof_family, solver_name)
+  {
+    m_petsc_solver = new PetscSolver(this, dof_family, solver_name);
+  }
+
+  ~PetscDoKDoFLinearSystemImpl() override
+  {
+    delete m_petsc_solver;
+  }
+
+ public:
+
+  void build() {}
+
+ public:
+
+  void solve() override
+  {
+    convertToCSRMatrix();
+    CsrFormatMatrixView csr_view = getCsrFormatMatrixView();
+    m_petsc_solver->solve(runner(), csr_view, solutionVariable(), rhsVariable());
+  }
+
+  void setSolverCommandLineArguments(const CommandLineArguments& args) override
+  {
+    m_petsc_solver->setSolverCommandLineArguments(args);
+  }
+
+  void applyMatrixTransformation() override
+  {
+    fillRowColumnEliminationInfos();
+  }
+
+  PetscSolver* underlyingPetscSolver() const { return m_petsc_solver; }
+
+ private:
+
+  PetscSolver* m_petsc_solver = nullptr;
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 class PetscDoFLinearSystemFactoryService
 : public ArcanePetscDoFLinearSystemFactoryObject
 {
@@ -693,9 +749,44 @@ class PetscDoFLinearSystemFactoryService
   IDoFLinearSystemImpl*
   createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
   {
-    auto* v = new PetscDoFLinearSystemImpl(dof_family, solver_name);
-    PetscSolver* x = v->underlyingPetscSolver();
+    return _createInstance(sd, dof_family, solver_name, eLinearSystemMatrixFormat::Csr);
+  }
 
+  IDoFLinearSystemImpl*
+  createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name,
+                 eLinearSystemMatrixFormat matrix_format) override
+  {
+    return _createInstance(sd, dof_family, solver_name, matrix_format);
+  }
+
+ private:
+
+  IDoFLinearSystemImpl*
+  _createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name,
+                  eLinearSystemMatrixFormat matrix_format)
+  {
+    PetscSolver* x = nullptr;
+    IDoFLinearSystemImpl* linear_system = nullptr;
+    if (matrix_format == eLinearSystemMatrixFormat::DoK) {
+      info() << "Using DoK format for PETSc linear system";
+      auto* v = new PetscDoKDoFLinearSystemImpl(dof_family, solver_name);
+      linear_system = v;
+      x = v->underlyingPetscSolver();
+    }
+    else if (matrix_format == eLinearSystemMatrixFormat::Csr) {
+      auto* v = new PetscDoFLinearSystemImpl(dof_family, solver_name);
+      linear_system = v;
+      x = v->underlyingPetscSolver();
+    }
+    else
+      ARCANE_FATAL("Unsupported matrix_format '{0}'", static_cast<int>(matrix_format));
+    _initializePetscSolver(x);
+    return linear_system;
+  }
+
+  void _initializePetscSolver(PetscSolver* x)
+  {
+    x->build();
     x->options = options();
 
     x->setRelTolerance(options()->rtol());
@@ -704,8 +795,6 @@ class PetscDoFLinearSystemFactoryService
     x->setSolver(options()->solver());
     x->setPreconditioner(options()->pcType());
     x->build();
-
-    return v;
   }
 };
 
