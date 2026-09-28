@@ -127,8 +127,6 @@ set(FEMUTILS_HAS_PARALLEL_SOLVER_HYPRE FALSE)
 set(FEMUTILS_HAS_PARALLEL_SOLVER_PETSC FALSE)
 set(FEMUTILS_HAS_PARALLEL_SOLVER_ALIEN FALSE)
 
-target_link_libraries(FemUtils PRIVATE Arccore::arccore_alina)
-
 if (ARCANEFEM_ENABLE_ALIEN)
   target_link_libraries(FemUtils PRIVATE
     Alien::alien_core
@@ -186,6 +184,7 @@ set(FEMUTILS_HAS_SOLVER_BACKEND_ALINA FALSE)
 if (TARGET Arccore::arccore_alina)
   message(STATUS "Alina backend is available")
   set(FEMUTILS_HAS_SOLVER_BACKEND_ALINA TRUE)
+  target_link_libraries(FemUtils PRIVATE Arccore::arccore_alina)
 endif()
 
 if(NOT FEMUTILS_HAS_PARALLEL_SOLVER)
