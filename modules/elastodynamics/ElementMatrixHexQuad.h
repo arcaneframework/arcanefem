@@ -66,14 +66,14 @@ RealMatrix<8, 8> FemModuleElastodynamics::_computeElementMatrixQuad4(Cell cell)
 
       const Real weight = detJ * w * w;
 
-      RealVector<8> dxUx = { dN_dx(0), 0, dN_dx(1), 0, dN_dx(2), 0, dN_dx(3), 0 };
-      RealVector<8> dyUx = { dN_dy(0), 0, dN_dy(1), 0, dN_dy(2), 0, dN_dy(3), 0 };
-      RealVector<8> dxUy = { 0, dN_dx(0), 0, dN_dx(1), 0, dN_dx(2), 0, dN_dx(3) };
-      RealVector<8> dyUy = { 0, dN_dy(0), 0, dN_dy(1), 0, dN_dy(2), 0, dN_dy(3) };
+      RealVector<8> dxUx = {{ dN_dx(0), 0, dN_dx(1), 0, dN_dx(2), 0, dN_dx(3), 0 }};
+      RealVector<8> dyUx = {{ dN_dy(0), 0, dN_dy(1), 0, dN_dy(2), 0, dN_dy(3), 0 }};
+      RealVector<8> dxUy = {{ 0, dN_dx(0), 0, dN_dx(1), 0, dN_dx(2), 0, dN_dx(3) }};
+      RealVector<8> dyUy = {{ 0, dN_dy(0), 0, dN_dy(1), 0, dN_dy(2), 0, dN_dy(3) }};
 
       RealVector<4> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
-      RealVector<8> Nx = { N(0), 0, N(1), 0, N(2), 0, N(3), 0 };
-      RealVector<8> Ny = { 0, N(0), 0, N(1), 0, N(2), 0, N(3) };
+      RealVector<8> Nx = {{ N(0), 0, N(1), 0, N(2), 0, N(3), 0 }};
+      RealVector<8> Ny = {{ 0, N(0), 0, N(1), 0, N(2), 0, N(3) }};
 
       ae += c0 * ((Nx ^ Nx) + (Ny ^ Ny)) * weight + c1 * ((dyUy ^ dxUx) + (dxUx ^ dyUy)) * weight + (2 * c2 + c1) * ((dxUx ^ dxUx) + (dyUy ^ dyUy)) * weight + c2 * ((dxUy + dyUx) ^ (dyUx + dxUy)) * weight;
     }
@@ -147,36 +147,36 @@ RealMatrix<24, 24> FemModuleElastodynamics::_computeElementMatrixHexa8(Cell cell
         const Real weight = detJ * w * w * w;
 
         // X-displacement gradients
-        RealVector<24> dxUx = { dxu(0), 0., 0., dxu(1), 0., 0., dxu(2), 0., 0., dxu(3), 0., 0.,
-                                dxu(4), 0., 0., dxu(5), 0., 0., dxu(6), 0., 0., dxu(7), 0., 0. };
-        RealVector<24> dyUx = { dyu(0), 0., 0., dyu(1), 0., 0., dyu(2), 0., 0., dyu(3), 0., 0.,
-                                dyu(4), 0., 0., dyu(5), 0., 0., dyu(6), 0., 0., dyu(7), 0., 0. };
-        RealVector<24> dzUx = { dzu(0), 0., 0., dzu(1), 0., 0., dzu(2), 0., 0., dzu(3), 0., 0.,
-                                dzu(4), 0., 0., dzu(5), 0., 0., dzu(6), 0., 0., dzu(7), 0., 0. };
+        RealVector<24> dxUx = {{ dxu(0), 0., 0., dxu(1), 0., 0., dxu(2), 0., 0., dxu(3), 0., 0.,
+            dxu(4), 0., 0., dxu(5), 0., 0., dxu(6), 0., 0., dxu(7), 0., 0. }};
+        RealVector<24> dyUx = {{ dyu(0), 0., 0., dyu(1), 0., 0., dyu(2), 0., 0., dyu(3), 0., 0.,
+            dyu(4), 0., 0., dyu(5), 0., 0., dyu(6), 0., 0., dyu(7), 0., 0. }};
+        RealVector<24> dzUx = {{ dzu(0), 0., 0., dzu(1), 0., 0., dzu(2), 0., 0., dzu(3), 0., 0.,
+            dzu(4), 0., 0., dzu(5), 0., 0., dzu(6), 0., 0., dzu(7), 0., 0. }};
 
         // Y-displacement gradients
-        RealVector<24> dxUy = { 0., dxu(0), 0., 0., dxu(1), 0., 0., dxu(2), 0., 0., dxu(3), 0.,
-                                0., dxu(4), 0., 0., dxu(5), 0., 0., dxu(6), 0., 0., dxu(7), 0. };
-        RealVector<24> dyUy = { 0., dyu(0), 0., 0., dyu(1), 0., 0., dyu(2), 0., 0., dyu(3), 0.,
-                                0., dyu(4), 0., 0., dyu(5), 0., 0., dyu(6), 0., 0., dyu(7), 0. };
-        RealVector<24> dzUy = { 0., dzu(0), 0., 0., dzu(1), 0., 0., dzu(2), 0., 0., dzu(3), 0.,
-                                0., dzu(4), 0., 0., dzu(5), 0., 0., dzu(6), 0., 0., dzu(7), 0. };
+        RealVector<24> dxUy = {{ 0., dxu(0), 0., 0., dxu(1), 0., 0., dxu(2), 0., 0., dxu(3), 0.,
+            0., dxu(4), 0., 0., dxu(5), 0., 0., dxu(6), 0., 0., dxu(7), 0. }};
+        RealVector<24> dyUy = {{ 0., dyu(0), 0., 0., dyu(1), 0., 0., dyu(2), 0., 0., dyu(3), 0.,
+            0., dyu(4), 0., 0., dyu(5), 0., 0., dyu(6), 0., 0., dyu(7), 0. }};
+        RealVector<24> dzUy = {{ 0., dzu(0), 0., 0., dzu(1), 0., 0., dzu(2), 0., 0., dzu(3), 0.,
+            0., dzu(4), 0., 0., dzu(5), 0., 0., dzu(6), 0., 0., dzu(7), 0. }};
 
         // Z-displacement gradients
-        RealVector<24> dxUz = { 0., 0., dxu(0), 0., 0., dxu(1), 0., 0., dxu(2), 0., 0., dxu(3),
-                                0., 0., dxu(4), 0., 0., dxu(5), 0., 0., dxu(6), 0., 0., dxu(7) };
-        RealVector<24> dyUz = { 0., 0., dyu(0), 0., 0., dyu(1), 0., 0., dyu(2), 0., 0., dyu(3),
-                                0., 0., dyu(4), 0., 0., dyu(5), 0., 0., dyu(6), 0., 0., dyu(7) };
-        RealVector<24> dzUz = { 0., 0., dzu(0), 0., 0., dzu(1), 0., 0., dzu(2), 0., 0., dzu(3),
-                                0., 0., dzu(4), 0., 0., dzu(5), 0., 0., dzu(6), 0., 0., dzu(7) };
+        RealVector<24> dxUz = {{ 0., 0., dxu(0), 0., 0., dxu(1), 0., 0., dxu(2), 0., 0., dxu(3),
+            0., 0., dxu(4), 0., 0., dxu(5), 0., 0., dxu(6), 0., 0., dxu(7) }};
+        RealVector<24> dyUz = {{ 0., 0., dyu(0), 0., 0., dyu(1), 0., 0., dyu(2), 0., 0., dyu(3),
+            0., 0., dyu(4), 0., 0., dyu(5), 0., 0., dyu(6), 0., 0., dyu(7) }};
+        RealVector<24> dzUz = {{ 0., 0., dzu(0), 0., 0., dzu(1), 0., 0., dzu(2), 0., 0., dzu(3),
+            0., 0., dzu(4), 0., 0., dzu(5), 0., 0., dzu(6), 0., 0., dzu(7) }};
 
         RealVector<8> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsHexa8(xi, eta, zeta);
-        RealVector<24> Nx = { N(0), 0, 0, N(1), 0, 0, N(2), 0, 0, N(3), 0, 0,
-                              N(4), 0, 0, N(5), 0, 0, N(6), 0, 0, N(7), 0, 0 };
-        RealVector<24> Ny = { 0, N(0), 0, 0, N(1), 0, 0, N(2), 0, 0, N(3), 0,
-                              0, N(4), 0, 0, N(5), 0, 0, N(6), 0, 0, N(7), 0 };
-        RealVector<24> Nz = { 0, 0, N(0), 0, 0, N(1), 0, 0, N(2), 0, 0, N(3),
-                              0, 0, N(4), 0, 0, N(5), 0, 0, N(6), 0, 0, N(7) };
+        RealVector<24> Nx = {{ N(0), 0, 0, N(1), 0, 0, N(2), 0, 0, N(3), 0, 0,
+            N(4), 0, 0, N(5), 0, 0, N(6), 0, 0, N(7), 0, 0 }};
+        RealVector<24> Ny = {{ 0, N(0), 0, 0, N(1), 0, 0, N(2), 0, 0, N(3), 0,
+            0, N(4), 0, 0, N(5), 0, 0, N(6), 0, 0, N(7), 0 }};
+        RealVector<24> Nz = {{ 0, 0, N(0), 0, 0, N(1), 0, 0, N(2), 0, 0, N(3),
+            0, 0, N(4), 0, 0, N(5), 0, 0, N(6), 0, 0, N(7) }};
 
         ae += c0 * ((Nx ^ Nx) + (Ny ^ Ny) + (Nz ^ Nz)) * weight + (c1) * ((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz) + (dyUy ^ dxUx) + (dxUx ^ dyUy) + (dzUz ^ dxUx) + (dxUx ^ dzUz) + (dyUy ^ dzUz) + (dzUz ^ dyUy)) * weight + (c2) * (2. * ((dxUx ^ dxUx) + (dyUy ^ dyUy) + (dzUz ^ dzUz)) + (((dxUy + dyUx) ^ (dyUx + dxUy)) + ((dzUy + dyUz) ^ (dyUz + dzUy)) + ((dxUz + dzUx) ^ (dzUx + dxUz)))) * weight;
       }

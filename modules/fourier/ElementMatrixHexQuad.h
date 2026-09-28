@@ -116,7 +116,7 @@ computeElementVectorQuad4Gpu(CellLocalId cell_lid,
   constexpr Real w = 1.0;
 
   // Initialize the element vector
-  RealVector<4> ae_local = {0.0, 0.0, 0.0, 0.0};
+  RealVector<4> ae_local;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 2; ++ixi) {
@@ -142,7 +142,7 @@ computeElementVectorQuad4Gpu(CellLocalId cell_lid,
                 + (dyU[node_lid] * dyU) * integration_weight * in_lambda;
     }
   }
-  return { ae_local[0], ae_local[1], ae_local[2], ae_local[3] };
+  return ae_local;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -259,7 +259,7 @@ computeElementVectorHexa8Gpu(CellLocalId cell_lid,
   constexpr Real w = 1.0;
 
   // Initialize the element matrix
-  RealVector<8> ae_local = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  RealVector<8> ae_local;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 2; ++ixi) {
@@ -291,6 +291,5 @@ computeElementVectorHexa8Gpu(CellLocalId cell_lid,
       }
     }
   }
-  return { ae_local[0], ae_local[1], ae_local[2], ae_local[3],
-           ae_local[4], ae_local[5], ae_local[6], ae_local[7] };
+  return ae_local;
 }

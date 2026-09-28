@@ -1,0 +1,178 @@
+<?xml version="1.0" ?>
+<module name="Elastoplasticity2" version="1.0">
+  <description>FEM module descriptor</description>
+  <entry-points>
+    <entry-point method-name="compute" name="Compute" where="compute-loop" property="none" />
+    <entry-point method-name="startInit" name="StartInit" where="start-init" property="none" />
+  </entry-points>
+  <variables>
+    <variable field-name="U" name="U" data-type="real3" item-kind="node" dim="0">
+      <description>Global displacement U vector from Arcane variable</description>
+    </variable>
+    <variable field-name="DUn" name="DUn" data-type="real3" item-kind="node" dim="0">
+      <description>Time step DUn vector from Arcane variable</description>
+    </variable>
+    <variable field-name="DUk" name="DUk" data-type="real3" item-kind="node" dim="0">
+      <description>Newton step DUk vector from Arcane variable for Newton increment</description>
+    </variable>
+    <variable field-name="node_coord" name="NodeCoord" data-type="real3" item-kind="node" dim="0">
+      <description>Node coordinates from Arcane variable</description>
+    </variable>
+    <variable field-name="C_tang_gp" name="CTangGp" data-type="real" item-kind="cell" shape-dim="3">
+      <description>Tangent of the material tensor for constitutive law</description>
+    </variable>
+    <variable field-name="sigma_gp" name="SigmaGp" data-type="real" item-kind="cell" shape-dim="2">
+      <description>Stress tensor on gauss points</description>
+    </variable>
+    <variable field-name="sigma_old_gp" name="SigmaOldGp" data-type="real" item-kind="cell" shape-dim="2">
+      <description>Previous step stress tensor on gauss points</description>
+    </variable>
+    <variable field-name="sigma_zz_gp" name="SigmaZZGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>zz component of stress tensor on gauss points</description>
+    </variable>
+    <variable field-name="sigma_zz_old_gp" name="SigmaZZOldGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>Previous step zz component of stress tensor on gauss points</description>
+    </variable>
+    <variable field-name="eps_p_gp" name="EpsPGp" data-type="real" item-kind="cell" shape-dim="2">
+      <description>Plastic strain tensor on gauss points</description>
+    </variable>
+    <variable field-name="eps_p_old_gp" name="EpsPOldGp" data-type="real" item-kind="cell" shape-dim="2">
+      <description>Previous step plastic strain tensor on gauss points</description>
+    </variable>
+    <variable field-name="eps_p_zz_gp" name="EpsPZZGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>zz component of plastic strain tensor on gauss points</description>
+    </variable>
+    <variable field-name="eps_p_zz_old_gp" name="EpsPZZOldGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>Previous step zz component of plastic strain tensor on gauss points</description>
+    </variable>
+    <variable field-name="p_old_gp" name="POldGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>Previous step plastic strain on gauss points</description>
+    </variable>
+    <variable field-name="dp_gp" name="DpGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>Change in plastic strain on gauss points</description>
+    </variable>
+  </variables>
+  <options>
+    <simple name = "f" type = "string[]" default="NULL NULL NULL" optional="true">
+      <description>External body force vector (space separated list).</description>
+    </simple>
+
+    <simple name="tmax" type="real" default="0.0">
+      <description>Maximum time.</description>
+    </simple>
+
+    <simple name="dt" type="real" default="0.0">
+      <description>Time step.</description>
+    </simple>
+
+    <simple name="solution-comparison-file" type="string" optional="true">
+      <description>File name of a file containing the values of the solution vector to check the results</description>
+    </simple>
+
+    <simple name="result-epsilon" type="real" default="1.0e-3">
+      <description>Relative epsilon used when comparing the values of the solution vector to check the results</description>
+    </simple>
+
+    <simple name="matrix-format" type="string" default="DOK" optional="true">
+      <description>Which matrix format to use DOK|BSR|AF-BSR.</description>
+    </simple>
+
+    <simple name="petsc-flags" type="string" default="-mat_type baij" optional="true">
+      <description>Flags for Petsc from commandline.</description>
+    </simple>
+
+    <simple name="solve-linear-system" type="bool" default="true" optional="true">
+      <description>Boolean to enable linear system solving.</description>
+    </simple>
+
+    <simple name="solve-nonlinear-system" type="bool" default="true" optional="true">
+      <description>Boolean to enable nonlinear system solving.</description>
+    </simple>
+
+    <simple name="assemble-linear-system" type="bool" default="true" optional="true">
+      <description>Boolean to enable linear system assembly.</description>
+    </simple>
+
+    <simple name="hex-quad-mesh" type="bool" default="false" optional="true">
+      <description>Boolean to use hexagonal quadrature for element matrix assembly.</description>
+    </simple>
+
+    <!-- - - - - - constitutive law for plasticity/elasticity - - - - -->
+    <complex name="constitutive-law"
+             type="ConstitutiveLaw"
+             minOccurs = "0"
+             maxOccurs = "1"
+      >
+      <description>
+        List of constitutive laws to use from VonMises|DruckerPrager|Hooke.
+      </description>
+      <simple name="law" type="string" default="VonMises">
+        <description>Name of constitutive law</description>
+      </simple>
+      <complex name="von-mises"
+               type="VonMises"
+               minOccurs = "0"
+               maxOccurs = "1"
+        >
+        <description>
+          List of parameters for VonMises law
+        </description>
+        <simple name="E" type="real" default="70.e3">
+          <description>Youngs Modulus of the material.</description>
+        </simple>
+        <simple name="nu" type="real" default="0.3">
+          <description>Poissons ratio of the material.</description>
+        </simple>
+        <simple name="sig0" type="real" default="250.0">
+          <description>Yeild strength of the material.</description>
+        </simple>
+      </complex>
+
+      <complex name="drucker-prager"
+               type="DruckerPrager"
+               minOccurs = "0"
+               maxOccurs = "1"
+        >
+        <description>
+          List of parameters for DruckerPrager law
+        </description>
+        <simple name="E" type="real" default="1.e7">
+          <description>Youngs Modulus of the material.</description>
+        </simple>
+        <simple name="nu" type="real" default="0.48">
+          <description>Poissons ratio of the material.</description>
+        </simple>
+        <simple name="cohesion" type="real" default="450.0">
+          <description>Cohesion parameter of the material.</description>
+        </simple>
+        <simple name="friction-angle" type="real" default="0.34906585039">
+          <description>Friction angle parameter of the material.</description>
+        </simple>
+      </complex>
+    </complex>
+
+    <!-- - - - - - nonlinear-analysis-parameters - - - - -->
+    <simple name="check-bilinear-operator-for-residual" type="bool" default="false" optional="true">
+      <description>Boolean to enable verification of RHS residual with that evaluated using the bilinear operator</description>
+    </simple>
+    <simple name="gp-material-tensor-strategy" type="string" default="local" optional="true">
+      <description>Which material tensor assembly format to use local|global.</description>
+    </simple>
+    <simple name="newton-rtol" type ="real" default="1e-8" optional="true">
+      <description>Relative tolerance for convergence of Newton iterations</description>
+    </simple>
+    <simple name="newton-atol" type ="real" default="1e-9" optional="true">
+      <description>Absolute tolerance for convergence of Newton iterations</description>
+    </simple>
+    <simple name="newton-max-iters" type="integer" default="30" optional="true">
+      <description>Maximum number of allowed Newton iterations</description>
+    </simple>
+
+
+    <!-- Linear system service instance -->
+    <service-instance name="linear-system" type="Arcane::FemUtils::IDoFLinearSystemFactory" default="AlephLinearSystem" />
+
+    <!-- Boundary conditions service instance -->
+    <service-instance name = "boundary-conditions" type = "BC::IArcaneFemBC" optional = "true" default="FemBoundaryConditions" />
+  </options>
+</module>

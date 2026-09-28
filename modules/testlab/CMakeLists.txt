@@ -96,6 +96,10 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_ALIEN)
 endif ()
 
 if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
+  arcanefem_add_seq_test(NAME petsc_direct_2D_dok
+    COMMAND ./Testlab
+    ARGS
+      inputs/Test.circle.2D.petsc.dok.arc)
   arcanefem_add_seq_test(NAME circle_2D_petsc_traction_dok
     COMMAND ./Testlab
     ARGS
@@ -276,6 +280,10 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       COMMAND ./Testlab
       ARGS
         inputs/Test.circle.2D.trac-x.dok.arc)
+    arcanefem_add_mpi_test(NAME petsc_direct_2D_dok
+      COMMAND ./Testlab
+      ARGS
+        inputs/Test.circle.2D.petsc.dok.arc)
     arcanefem_add_mpi_test(NAME circle_2D_petsc_vect-traction-y_dok
       COMMAND ./Testlab
       ARGS
@@ -308,6 +316,10 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     COMMAND ./Testlab
     ARGS
       inputs/Test.circle.2D.csr.arc)
+  arcanefem_add_seq_test(NAME hypre_direct_2D_dok
+    COMMAND ./Testlab
+    ARGS
+      inputs/Test.circle.2D.hypre.dok.arc)
   arcanefem_add_seq_test(NAME hypre_direct_trac_2D_csr
     COMMAND ./Testlab
     ARGS
@@ -403,6 +415,10 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
       COMMAND ./Testlab
       ARGS
         inputs/Test.circle.2D.csr.arc)
+    arcanefem_add_mpi_test(NAME hypre_direct_2D_dok
+      COMMAND ./Testlab
+      ARGS
+        inputs/Test.circle.2D.hypre.dok.arc)
     arcanefem_add_mpi_test(NAME L-2D_bsr_hypre_direct_gmres NB_MPI 4
       COMMAND ./Testlab
       ARGS

@@ -76,9 +76,19 @@ compute()
 
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
-  m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
-  if (m_petsc_flags != NULL)
-  _setPetscFlagsFromCommandline();
+  Runner runner = acceleratorMng()->runner();
+  // At the moment only Hypre and Petsc linear system implementation support several matrix format
+  String solver_name = options()->linearSystem.serviceName();
+  if (solver_name == "HypreLinearSystem" || solver_name == "PetscLinearSystem") {
+    eLinearSystemMatrixFormat f = eLinearSystemMatrixFormat::Csr;
+    if (options()->legacy() || m_use_legacy)
+      f = eLinearSystemMatrixFormat::DoK;
+    m_linear_system.initialize(subDomain(), &runner, m_dofs_on_nodes.dofFamily(), "Solver", f);
+  }
+  else
+    m_linear_system.initialize(subDomain(), &runner, m_dofs_on_nodes.dofFamily(), "Solver");
+  if (!m_petsc_flags.empty())
+    _setPetscFlagsFromCommandline();
   _printArcaneFemTime("[ArcaneFem-Timer] init-linear-system", (platform::getRealTime() - elapsedTime));
 
   Int64 nb_node = mesh()->ownNodes().size();
@@ -282,8 +292,7 @@ ARCCORE_HOST_DEVICE RealMatrix<1, 3> computeElementVectorTria3Gpu(CellLocalId ce
   Real3 dxU = FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
   Real3 dyU = FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
 
-  Real3 node_vector_integral = area * dxU[node_lid] * dxU + area * dyU[node_lid] * dyU;
-  return { node_vector_integral[0], node_vector_integral[1], node_vector_integral[2] };
+  return RealVector<3>(area * dxU[node_lid] * dxU + area * dyU[node_lid] * dyU);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -309,9 +318,7 @@ ARCCORE_HOST_DEVICE RealMatrix<1, 4> computeElementVectorTetra4Gpu(CellLocalId c
   Real4 dyU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientYTetra4(cell_lid, cn_cv, in_node_coord);
   Real4 dzU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientZTetra4(cell_lid, cn_cv, in_node_coord);
 
-  Real4 node_vector_integral = volume * dxU[node_lid] * dxU + volume * dyU[node_lid] * dyU + volume * dzU[node_lid] * dzU;
-
-  return { node_vector_integral[0], node_vector_integral[1], node_vector_integral[2], node_vector_integral[3] };
+  return Real4(volume * dxU[node_lid] * dxU + volume * dyU[node_lid] * dyU + volume * dzU[node_lid] * dzU);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -1890,10 +1897,10 @@ _computeElementMatrixTRIA3(Cell cell)
   b_matrix(1, 1) = dPhi1.y;
   b_matrix(1, 2) = dPhi2.y;
 
-  b_matrix.multInPlace(1.0 / (2.0 * area));
+  b_matrix *= 1.0 / (2.0 * area);
 
   RealMatrix<3, 3> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
-  int_cdPi_dPj.multInPlace(area);
+  int_cdPi_dPj *= area;
 
   //info() << "Cell=" << cell.localId();
   //std::cout << " int_cdPi_dPj=";
@@ -1951,11 +1958,11 @@ _computeElementMatrixTETRA4(Cell cell)
   b_matrix(1, 3) = dPhi3.y;
   b_matrix(2, 3) = dPhi3.z;
 
-  b_matrix.multInPlace(1.0 / (6.0 * volume));
+  b_matrix *= 1.0 / (6.0 * volume);
 
   // Compute the element matrix
   RealMatrix<4, 4> int_cdPi_dPj = matrixMultiplication(matrixTranspose(b_matrix), b_matrix);
-  int_cdPi_dPj.multInPlace(volume);
+  int_cdPi_dPj *= volume;
 
   /*
   cout << " Ae \n"

@@ -165,37 +165,37 @@ _applySourceTermQuad4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectiv
 inline void FemModuleElastodynamics::
 _applySourceTermTetra4(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
-  RealVector<12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
-  RealVector<12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. };
-  RealVector<12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. };
-  RealVector<12> F = { f[0], f[1], f[2], f[0], f[1], f[2], f[0], f[1], f[2], f[0], f[1], f[2] };
+  RealVector<12> Uy = { { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. } };
+  RealVector<12> Ux = { { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. } };
+  RealVector<12> Uz = { { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. } };
+  RealVector<12> F = { { f[0], f[1], f[2], f[0], f[1], f[2], f[0], f[1], f[2], f[0], f[1], f[2] } };
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
     Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
     Real4 dxu = ArcaneFemFunctions::FeOperation3D::computeGradientXTetra4(cell, m_node_coord);
     Real4 dyu = ArcaneFemFunctions::FeOperation3D::computeGradientYTetra4(cell, m_node_coord);
     Real4 dzu = ArcaneFemFunctions::FeOperation3D::computeGradientZTetra4(cell, m_node_coord);
-    RealVector<12> dxUx = { dxu[0], 0., 0., dxu[1], 0., 0., dxu[2], 0., 0., dxu[3], 0., 0. };
-    RealVector<12> dyUx = { dyu[0], 0., 0., dyu[1], 0., 0., dyu[2], 0., 0., dyu[3], 0., 0. };
-    RealVector<12> dzUx = { dzu[0], 0., 0., dzu[1], 0., 0., dzu[2], 0., 0., dzu[3], 0., 0. };
-    RealVector<12> dxUy = { 0., dxu[0], 0., 0., dxu[1], 0., 0., dxu[2], 0., 0., dxu[3], 0. };
-    RealVector<12> dyUy = { 0., dyu[0], 0., 0., dyu[1], 0., 0., dyu[2], 0., 0., dyu[3], 0. };
-    RealVector<12> dzUy = { 0., dzu[0], 0., 0., dzu[1], 0., 0., dzu[2], 0., 0., dzu[3], 0. };
-    RealVector<12> dxUz = { 0., 0., dxu[0], 0., 0., dxu[1], 0., 0., dxu[2], 0., 0., dxu[3] };
-    RealVector<12> dyUz = { 0., 0., dyu[0], 0., 0., dyu[1], 0., 0., dyu[2], 0., 0., dyu[3] };
-    RealVector<12> dzUz = { 0., 0., dzu[0], 0., 0., dzu[1], 0., 0., dzu[2], 0., 0., dzu[3] };
-    RealVector<12> Un = { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y, m_U[cell.nodeId(0)].z,
-                          m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y, m_U[cell.nodeId(1)].z,
-                          m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y, m_U[cell.nodeId(2)].z,
-                          m_U[cell.nodeId(3)].x, m_U[cell.nodeId(3)].y, m_U[cell.nodeId(3)].z };
-    RealVector<12> Vn = { m_V[cell.nodeId(0)].x, m_V[cell.nodeId(0)].y, m_V[cell.nodeId(0)].z,
-                          m_V[cell.nodeId(1)].x, m_V[cell.nodeId(1)].y, m_V[cell.nodeId(1)].z,
-                          m_V[cell.nodeId(2)].x, m_V[cell.nodeId(2)].y, m_V[cell.nodeId(2)].z,
-                          m_V[cell.nodeId(3)].x, m_V[cell.nodeId(3)].y, m_V[cell.nodeId(3)].z };
-    RealVector<12> An = { m_A[cell.nodeId(0)].x, m_A[cell.nodeId(0)].y, m_A[cell.nodeId(0)].z,
-                          m_A[cell.nodeId(1)].x, m_A[cell.nodeId(1)].y, m_A[cell.nodeId(1)].z,
-                          m_A[cell.nodeId(2)].x, m_A[cell.nodeId(2)].y, m_A[cell.nodeId(2)].z,
-                          m_A[cell.nodeId(3)].x, m_A[cell.nodeId(3)].y, m_A[cell.nodeId(3)].z };
+    RealVector<12> dxUx = { { dxu[0], 0., 0., dxu[1], 0., 0., dxu[2], 0., 0., dxu[3], 0., 0. } };
+    RealVector<12> dyUx = { { dyu[0], 0., 0., dyu[1], 0., 0., dyu[2], 0., 0., dyu[3], 0., 0. } };
+    RealVector<12> dzUx = { { dzu[0], 0., 0., dzu[1], 0., 0., dzu[2], 0., 0., dzu[3], 0., 0. } };
+    RealVector<12> dxUy = { { 0., dxu[0], 0., 0., dxu[1], 0., 0., dxu[2], 0., 0., dxu[3], 0. } };
+    RealVector<12> dyUy = { { 0., dyu[0], 0., 0., dyu[1], 0., 0., dyu[2], 0., 0., dyu[3], 0. } };
+    RealVector<12> dzUy = { { 0., dzu[0], 0., 0., dzu[1], 0., 0., dzu[2], 0., 0., dzu[3], 0. } };
+    RealVector<12> dxUz = { { 0., 0., dxu[0], 0., 0., dxu[1], 0., 0., dxu[2], 0., 0., dxu[3] } };
+    RealVector<12> dyUz = { { 0., 0., dyu[0], 0., 0., dyu[1], 0., 0., dyu[2], 0., 0., dyu[3] } };
+    RealVector<12> dzUz = { { 0., 0., dzu[0], 0., 0., dzu[1], 0., 0., dzu[2], 0., 0., dzu[3] } };
+    RealVector<12> Un = { { m_U[cell.nodeId(0)].x, m_U[cell.nodeId(0)].y, m_U[cell.nodeId(0)].z,
+                            m_U[cell.nodeId(1)].x, m_U[cell.nodeId(1)].y, m_U[cell.nodeId(1)].z,
+                            m_U[cell.nodeId(2)].x, m_U[cell.nodeId(2)].y, m_U[cell.nodeId(2)].z,
+                            m_U[cell.nodeId(3)].x, m_U[cell.nodeId(3)].y, m_U[cell.nodeId(3)].z } };
+    RealVector<12> Vn = { { m_V[cell.nodeId(0)].x, m_V[cell.nodeId(0)].y, m_V[cell.nodeId(0)].z,
+                            m_V[cell.nodeId(1)].x, m_V[cell.nodeId(1)].y, m_V[cell.nodeId(1)].z,
+                            m_V[cell.nodeId(2)].x, m_V[cell.nodeId(2)].y, m_V[cell.nodeId(2)].z,
+                            m_V[cell.nodeId(3)].x, m_V[cell.nodeId(3)].y, m_V[cell.nodeId(3)].z } };
+    RealVector<12> An = { { m_A[cell.nodeId(0)].x, m_A[cell.nodeId(0)].y, m_A[cell.nodeId(0)].z,
+                            m_A[cell.nodeId(1)].x, m_A[cell.nodeId(1)].y, m_A[cell.nodeId(1)].z,
+                            m_A[cell.nodeId(2)].x, m_A[cell.nodeId(2)].y, m_A[cell.nodeId(2)].z,
+                            m_A[cell.nodeId(3)].x, m_A[cell.nodeId(3)].y, m_A[cell.nodeId(3)].z } };
     //----------------------------------------------------------------------
     //  ∫∫∫ (𝐟.𝐯) + ∫∫∫ (c₀)(𝐮ₙ.𝐯) + ∫∫∫ (c₃)(𝐮ᵗₙ.𝐯) + ∫∫∫ (c₄)(𝐮ᵗᵗₙ.𝐯) +
     //  ∫∫∫ (c₅)(∇𝐮ₙ.∇𝐯) + ∫∫∫ (c₆)(ε(𝐮ₙ):ε(𝐯)) +

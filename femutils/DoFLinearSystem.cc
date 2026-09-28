@@ -370,7 +370,7 @@ _checkInit() const
 /*---------------------------------------------------------------------------*/
 
 void DoFLinearSystem::
-initialize(ISubDomain* sd, Runner* runner, IItemFamily* dof_family, const String& solver_name)
+_initCommon(ISubDomain* sd, IItemFamily* dof_family)
 {
   ARCANE_CHECK_POINTER(sd);
   ARCANE_CHECK_POINTER(dof_family);
@@ -384,7 +384,29 @@ initialize(ISubDomain* sd, Runner* runner, IItemFamily* dof_family, const String
     m_linear_system_factory = m_default_linear_system_factory;
   }
   m_item_family = dof_family;
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystem::
+initialize(ISubDomain* sd, Runner* runner, IItemFamily* dof_family, const String& solver_name)
+{
+  _initCommon(sd, dof_family);
   m_p = m_linear_system_factory->createInstance(sd, dof_family, solver_name);
+  if (runner)
+    m_p->setRunner(*runner);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DoFLinearSystem::
+initialize(ISubDomain* sd, Runner* runner, IItemFamily* dof_family,
+           const String& solver_name, eLinearSystemMatrixFormat matrix_format)
+{
+  _initCommon(sd, dof_family);
+  m_p = m_linear_system_factory->createInstance(sd, dof_family, solver_name, matrix_format);
   if (runner)
     m_p->setRunner(*runner);
 }
@@ -795,6 +817,16 @@ class SequentialBasicDoFLinearSystemFactoryService
     return x;
   }
 };
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+IDoFLinearSystemImpl* IDoFLinearSystemFactory::
+createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name,
+               eLinearSystemMatrixFormat matrix_format)
+{
+  ARCANE_FATAL("overload of createInstance() with matrix_format is not implemented for this factory");
+}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

@@ -63,9 +63,9 @@ _computeParaxialElementMatrixTria3(Face face)
 {
   Real3 N = ArcaneFemFunctions::MeshOperation::computeNormalTriangle(face, m_node_coord);
 
-  RealVector<9> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0. };
-  RealVector<9> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0. };
-  RealVector<9> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1. };
+  RealVector<9> Ux = {{ 1., 0., 0., 1., 0., 0., 1., 0., 0. }};
+  RealVector<9> Uy = {{ 0., 1., 0., 0., 1., 0., 0., 1., 0. }};
+  RealVector<9> Uz = {{ 0., 0., 1., 0., 0., 1., 0., 0., 1. }};
 
   RealMatrix<9, 9> int_Omega_i = (((N.x * N.x * cp + (1. - N.x * N.x) * cs)) * (massMatrix(Ux, Ux)) +
                                   ((N.y * N.y * cp + (1. - N.y * N.y) * cs)) * (massMatrix(Uy, Uy)) +
@@ -101,9 +101,9 @@ _computeParaxialElementMatrixQuad4(Face face)
 {
   Real3 N = ArcaneFemFunctions::MeshOperation::computeNormalQuad(face, m_node_coord);
 
-  RealVector<12> Ux = { 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. };
-  RealVector<12> Uy = { 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. };
-  RealVector<12> Uz = { 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. };
+  RealVector<12> Ux = {{ 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0. }};
+  RealVector<12> Uy = {{ 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1., 0. }};
+  RealVector<12> Uz = {{ 0., 0., 1., 0., 0., 1., 0., 0., 1., 0., 0., 1. }};
 
   RealMatrix<12, 12> int_Omega_i = (((N.x * N.x * cp + (1. - N.x * N.x) * cs)) * (massMatrix(Ux, Ux)) +
                                     ((N.y * N.y * cp + (1. - N.y * N.y) * cs)) * (massMatrix(Uy, Uy)) +
@@ -196,50 +196,20 @@ _applyParaxial(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView
           Face face = *iface;
           Real area = ArcaneFemFunctions::MeshOperation::computeAreaQuad4(face, m_node_coord);
 
-          RealVector<12> Un = {
-            m_U[face.nodeId(0)].x,
-            m_U[face.nodeId(0)].y,
-            m_U[face.nodeId(0)].z,
-            m_U[face.nodeId(1)].x,
-            m_U[face.nodeId(1)].y,
-            m_U[face.nodeId(1)].z,
-            m_U[face.nodeId(2)].x,
-            m_U[face.nodeId(2)].y,
-            m_U[face.nodeId(2)].z,
-            m_U[face.nodeId(3)].x,
-            m_U[face.nodeId(3)].y,
-            m_U[face.nodeId(3)].z
-          };
+          RealVector<12> Un = { { m_U[face.nodeId(0)].x, m_U[face.nodeId(0)].y, m_U[face.nodeId(0)].z,
+                                  m_U[face.nodeId(1)].x, m_U[face.nodeId(1)].y, m_U[face.nodeId(1)].z,
+                                  m_U[face.nodeId(2)].x, m_U[face.nodeId(2)].y, m_U[face.nodeId(2)].z,
+                                  m_U[face.nodeId(3)].x, m_U[face.nodeId(3)].y, m_U[face.nodeId(3)].z } };
 
-          RealVector<12> Vn = {
-            m_V[face.nodeId(0)].x,
-            m_V[face.nodeId(0)].y,
-            m_V[face.nodeId(0)].z,
-            m_V[face.nodeId(1)].x,
-            m_V[face.nodeId(1)].y,
-            m_V[face.nodeId(1)].z,
-            m_V[face.nodeId(2)].x,
-            m_V[face.nodeId(2)].y,
-            m_V[face.nodeId(2)].z,
-            m_V[face.nodeId(3)].x,
-            m_V[face.nodeId(3)].y,
-            m_V[face.nodeId(3)].z
-          };
+          RealVector<12> Vn = { { m_V[face.nodeId(0)].x, m_V[face.nodeId(0)].y, m_V[face.nodeId(0)].z,
+                                  m_V[face.nodeId(1)].x, m_V[face.nodeId(1)].y, m_V[face.nodeId(1)].z,
+                                  m_V[face.nodeId(2)].x, m_V[face.nodeId(2)].y, m_V[face.nodeId(2)].z,
+                                  m_V[face.nodeId(3)].x, m_V[face.nodeId(3)].y, m_V[face.nodeId(3)].z } };
 
-          RealVector<12> An = {
-            m_A[face.nodeId(0)].x,
-            m_A[face.nodeId(0)].y,
-            m_A[face.nodeId(0)].z,
-            m_A[face.nodeId(1)].x,
-            m_A[face.nodeId(1)].y,
-            m_A[face.nodeId(1)].z,
-            m_A[face.nodeId(2)].x,
-            m_A[face.nodeId(2)].y,
-            m_A[face.nodeId(2)].z,
-            m_A[face.nodeId(3)].x,
-            m_A[face.nodeId(3)].y,
-            m_A[face.nodeId(3)].z
-          };
+          RealVector<12> An = { { m_A[face.nodeId(0)].x, m_A[face.nodeId(0)].y, m_A[face.nodeId(0)].z,
+                                  m_A[face.nodeId(1)].x, m_A[face.nodeId(1)].y, m_A[face.nodeId(1)].z,
+                                  m_A[face.nodeId(2)].x, m_A[face.nodeId(2)].y, m_A[face.nodeId(2)].z,
+                                  m_A[face.nodeId(3)].x, m_A[face.nodeId(3)].y, m_A[face.nodeId(3)].z } };
 
           RealMatrix<12, 12> ParaxialElementMatrix = _computeParaxialElementMatrixQuad4(face);
           RealVector<12> rhs = area * (c7 * Un * ParaxialElementMatrix - c8 * Vn * ParaxialElementMatrix + c9 * An * ParaxialElementMatrix);
@@ -321,41 +291,41 @@ _applyParaxial(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView
           Face face = *iface;
           Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(face, m_node_coord);
 
-          RealVector<9> Un = {
-            m_U[face.nodeId(0)].x,
-            m_U[face.nodeId(0)].y,
-            m_U[face.nodeId(0)].z,
-            m_U[face.nodeId(1)].x,
-            m_U[face.nodeId(1)].y,
-            m_U[face.nodeId(1)].z,
-            m_U[face.nodeId(2)].x,
-            m_U[face.nodeId(2)].y,
-            m_U[face.nodeId(2)].z,
-          };
+          RealVector<9> Un = { {
+          m_U[face.nodeId(0)].x,
+          m_U[face.nodeId(0)].y,
+          m_U[face.nodeId(0)].z,
+          m_U[face.nodeId(1)].x,
+          m_U[face.nodeId(1)].y,
+          m_U[face.nodeId(1)].z,
+          m_U[face.nodeId(2)].x,
+          m_U[face.nodeId(2)].y,
+          m_U[face.nodeId(2)].z,
+          } };
 
-          RealVector<9> Vn = {
-            m_V[face.nodeId(0)].x,
-            m_V[face.nodeId(0)].y,
-            m_V[face.nodeId(0)].z,
-            m_V[face.nodeId(1)].x,
-            m_V[face.nodeId(1)].y,
-            m_V[face.nodeId(1)].z,
-            m_V[face.nodeId(2)].x,
-            m_V[face.nodeId(2)].y,
-            m_V[face.nodeId(2)].z,
-          };
+          RealVector<9> Vn = { {
+          m_V[face.nodeId(0)].x,
+          m_V[face.nodeId(0)].y,
+          m_V[face.nodeId(0)].z,
+          m_V[face.nodeId(1)].x,
+          m_V[face.nodeId(1)].y,
+          m_V[face.nodeId(1)].z,
+          m_V[face.nodeId(2)].x,
+          m_V[face.nodeId(2)].y,
+          m_V[face.nodeId(2)].z,
+          } };
 
-          RealVector<9> An = {
-            m_A[face.nodeId(0)].x,
-            m_A[face.nodeId(0)].y,
-            m_A[face.nodeId(0)].z,
-            m_A[face.nodeId(1)].x,
-            m_A[face.nodeId(1)].y,
-            m_A[face.nodeId(1)].z,
-            m_A[face.nodeId(2)].x,
-            m_A[face.nodeId(2)].y,
-            m_A[face.nodeId(2)].z,
-          };
+          RealVector<9> An = { {
+          m_A[face.nodeId(0)].x,
+          m_A[face.nodeId(0)].y,
+          m_A[face.nodeId(0)].z,
+          m_A[face.nodeId(1)].x,
+          m_A[face.nodeId(1)].y,
+          m_A[face.nodeId(1)].z,
+          m_A[face.nodeId(2)].x,
+          m_A[face.nodeId(2)].y,
+          m_A[face.nodeId(2)].z,
+          } };
 
           RealMatrix<9, 9> ParaxialElementMatrixTria3 = _computeParaxialElementMatrixTria3(face);
           RealVector<9> rhs = area * (c7 * Un * ParaxialElementMatrixTria3 - c8 * Vn * ParaxialElementMatrixTria3 + c9 * An * ParaxialElementMatrixTria3);

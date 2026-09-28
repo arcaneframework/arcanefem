@@ -58,8 +58,7 @@ ARCCORE_HOST_DEVICE RealMatrix<1, 3> _computeElementVectorTria3Gpu(CellLocalId c
   Real3 dxU = FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
   Real3 dyU = FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
 
-  Real3 node_vector_integral = area * dxU[node_lid] * dxU + area * dyU[node_lid] * dyU;
-  return { node_vector_integral[0], node_vector_integral[1], node_vector_integral[2] };
+  return RealVector<3>(area * dxU[node_lid] * dxU + area * dyU[node_lid] * dyU);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -76,7 +75,8 @@ ARCCORE_HOST_DEVICE RealMatrix<1, 3> _computeElementVectorTria3Gpu(CellLocalId c
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<4, 4> FemModulePoisson::_computeElementMatrixTetra4(Cell cell)
+RealMatrix<4, 4> FemModulePoisson::
+_computeElementMatrixTetra4(Cell cell)
 {
   Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
 
@@ -90,7 +90,8 @@ RealMatrix<4, 4> FemModulePoisson::_computeElementMatrixTetra4(Cell cell)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE RealMatrix<4, 4> _computeElementMatrixTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE RealMatrix<4, 4>
+_computeElementMatrixTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord)
 {
   Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
 
@@ -104,7 +105,8 @@ ARCCORE_HOST_DEVICE RealMatrix<4, 4> _computeElementMatrixTetra4Gpu(CellLocalId 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE RealMatrix<1, 4> _computeElementVectorTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
+ARCCORE_HOST_DEVICE RealMatrix<1, 4>
+_computeElementVectorTetra4Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
 {
   Real volume = Arcane::FemUtils::Gpu::MeshOperation::computeVolumeTetra4(cell_lid, cn_cv, in_node_coord);
 
@@ -112,7 +114,5 @@ ARCCORE_HOST_DEVICE RealMatrix<1, 4> _computeElementVectorTetra4Gpu(CellLocalId 
   Real4 dyU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientYTetra4(cell_lid, cn_cv, in_node_coord);
   Real4 dzU = Arcane::FemUtils::Gpu::FeOperation3D::computeGradientZTetra4(cell_lid, cn_cv, in_node_coord);
 
-  Real4 node_vector_integral = volume * dxU[node_lid] * dxU + volume * dyU[node_lid] * dyU + volume * dzU[node_lid] * dzU;
-
-  return { node_vector_integral[0], node_vector_integral[1], node_vector_integral[2], node_vector_integral[3] };
+  return Real4(volume * dxU[node_lid] * dxU + volume * dyU[node_lid] * dyU + volume * dzU[node_lid] * dzU);
 }

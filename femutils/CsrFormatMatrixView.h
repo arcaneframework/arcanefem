@@ -135,6 +135,7 @@ class CsrRow
 class CsrFormatMatrixView
 {
   friend CsrFormat;
+  friend class DoKDoFLinearSystemImpl;
 
  public:
 
@@ -154,12 +155,12 @@ class CsrFormatMatrixView
 
  public:
 
-  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Span<const Int32> rows() const { return m_matrix_rows; }
-  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Span<const Int32> columns() const { return m_matrix_columns; }
-  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Span<Real> values() const { return m_values; }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<const Int32> rows() const { return m_matrix_rows; }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<const Int32> columns() const { return m_matrix_columns; }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<Real> values() const { return m_values; }
 
   //! Number of the rows in the matrix
-  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 nbRow() const { return m_matrix_rows.size(); }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 nbRow() const { return m_matrix_rows_nb_column.size(); }
   //! Number of the values in the matrix
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 nbColumn() const { return m_matrix_columns.size(); }
   //! Number of the values in the matrix

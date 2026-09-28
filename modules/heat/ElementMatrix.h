@@ -1,4 +1,4 @@
-// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
+﻿// -*- tab-width: 2; indent-tabs-mode: nil; coding: utf-8-with-signature -*-
 //-----------------------------------------------------------------------------
 // Copyright 2000-2026 CEA (www.cea.fr) IFPEN (www.ifpenergiesnouvelles.com)
 // See the top-level COPYRIGHT file for details.
@@ -68,8 +68,8 @@ ARCCORE_HOST_DEVICE RealMatrix<1, 3> _computeElementVectorTria3Gpu(CellLocalId c
   RealMatrix<3, 3> massMat = (1 / 12.) * (massMatrix(U, U)) * area / in_dt;
   Real3 massVect = {massMat(node_lid,0) , massMat(node_lid,1) , massMat(node_lid,2) };
 
-  Real3 node_vector_integral = lambda * area * dxU[node_lid] * dxU + lambda * area * dyU[node_lid] * dyU + massVect;
-  return { node_vector_integral[0], node_vector_integral[1], node_vector_integral[2] };
+  RealVector<3> node_vector_integral(lambda * area * dxU[node_lid] * dxU + lambda * area * dyU[node_lid] * dyU + massVect);
+  return RealMatrix<1, 3>(node_vector_integral);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -134,5 +134,5 @@ ARCCORE_HOST_DEVICE RealMatrix<1, 4> _computeElementVectorTetra4Gpu(CellLocalId 
 
   Real4 node_vector_integral = lambda * volume * dxU[node_lid] * dxU + lambda * volume * dyU[node_lid] * dyU + lambda * volume * dzU[node_lid] * dzU + massVect;
 
-  return { node_vector_integral[0], node_vector_integral[1], node_vector_integral[2], node_vector_integral[3] };
+  return RealMatrix<1, 4>(node_vector_integral);
 }

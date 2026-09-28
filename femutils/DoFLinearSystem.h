@@ -168,7 +168,7 @@ class DoFLinearSystem
 
  public:
 
-  /*
+  /*!
    * \brief Initialize the instance.
    */
   void initialize(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name);
@@ -179,6 +179,14 @@ class DoFLinearSystem
    * \a runner may be null.
    */
   void initialize(ISubDomain* sd, Runner* runner, IItemFamily* dof_family, const String& solver_name);
+
+  /*!
+   * \brief Initialize the instance with a specific runner and a specific matrix format
+   *
+   * \a runner may be null.
+   */
+  void initialize(ISubDomain* sd, Runner* runner, IItemFamily* dof_family,
+                  const String& solver_name, eLinearSystemMatrixFormat matrix_format);
 
   //! Indicate if method initialize() has been called
   [[nodiscard]] bool isInitialized() const;
@@ -194,7 +202,7 @@ class DoFLinearSystem
    */
   void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value);
 
-  /*
+  /*!
    * \brief Helper class to eliminate rows in the linear system.
    *
    * The elimination of row \a row is equivalent to the following calls:
@@ -210,7 +218,7 @@ class DoFLinearSystem
    */
   DoFLinearSystemRowEliminationHelper rowEliminationHelper();
 
-  /*
+  /*!
    * \brief Eliminate rows and columns of the linear system.
    *
    * The elimination for a row \a row is equivalent to the following calls:
@@ -410,6 +418,7 @@ class DoFLinearSystem
  private:
 
   void _checkInit() const;
+  void _initCommon(ISubDomain* sd, IItemFamily* dof_family);
 
   // Used by DoFLinearSystemRowEliminationHelper
   void _eliminateRow(DoFLocalId row, Real value);

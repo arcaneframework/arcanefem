@@ -39,6 +39,10 @@ add_library(FemUtils
   FemUtils.h
   FemUtils.cc
   FemUtilsGlobal.h
+  BoundaryConditions.cc
+  BoundaryConditionsHelpers.cc
+  BoundaryConditions2D.cc
+  BoundaryConditions3D.cc
   ShapeFunctions.h
   DoFLinearSystem.h
   DoFLinearSystem.cc
@@ -48,6 +52,7 @@ add_library(FemUtils
   CsrFormatMatrixView.cc
   BSRFormat.h
   DoFLinearSystemImplBase.cc
+  DoKDoFLinearSystemImpl.cc
   FemDoFsOnNodes.h
   FemDoFsOnNodes.cc
   FemDoFsOnCells.h
@@ -56,6 +61,14 @@ add_library(FemUtils
   ArcaneFemFunctionsGpu.h
   ArcaneFemFunctions.h
   ArcaneFemFunctions.cc
+  FemOperation.h
+  FemOperation.cc
+  FemGaussQuadrature.h
+  FemGaussQuadrature.cc
+  FemShapeMethods.h
+  FemShapeMethods.cc
+  MeshOperation.h
+  MeshOperation.cc
   AlephDoFLinearSystem.cc
   GaussQuadrature.h
   GaussDoFsOnCells.h
@@ -74,6 +87,7 @@ add_library(FemUtils
   internal/IDoFLinearSystemImpl.h
   internal/OrderedRowColumnMap.h
   internal/CsrDoFLinearSystemImpl.h
+  internal/DoKDoFLinearSystemImpl.h
   internal/DoFLinearSystemImplBase.h
   ${ACCELERATOR_SOURCES}
 )

@@ -111,7 +111,7 @@ _computeElementVectorQuad4Gpu(CellLocalId cell_lid,
   constexpr Real w = 1.0;
 
   // Initialize the element vector
-  RealVector<4> ae_local = {0.0, 0.0, 0.0, 0.0};
+  RealVector<4> ae_local;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 2; ++ixi) {
@@ -134,7 +134,7 @@ _computeElementVectorQuad4Gpu(CellLocalId cell_lid,
       ae_local += (dxU[node_lid] * dxU) * integration_weight + (dyU[node_lid] * dyU) * integration_weight;
     }
   }
-  return {ae_local(0), ae_local(1), ae_local(2), ae_local(3)};
+  return ae_local;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -243,7 +243,7 @@ _computeElementVectorHexa8Gpu(CellLocalId cell_lid,
 {
   constexpr Real gp[2] = { -0.57735026918962576451, 0.57735026918962576451 };
 
-  RealVector<8> ae_local = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  RealVector<8> ae_local;
 
   for (Int8 ixi = 0; ixi < 2; ++ixi) {
     for (Int8 ieta = 0; ieta < 2; ++ieta) {
@@ -261,8 +261,7 @@ _computeElementVectorHexa8Gpu(CellLocalId cell_lid,
     }
   }
 
-  return { ae_local[0], ae_local[1], ae_local[2], ae_local[3],
-           ae_local[4], ae_local[5], ae_local[6], ae_local[7] };
+  return ae_local;
 }
 /*---------------------------------------------------------------------------*/
 /**
@@ -635,7 +634,7 @@ _computeElementVectorQuad8Gpu(CellLocalId cell_lid,
   constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
 
   // Initialize the element vector
-  RealVector<8> ae = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  RealVector<8> ae;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 3; ++ixi) {
@@ -658,7 +657,7 @@ _computeElementVectorQuad8Gpu(CellLocalId cell_lid,
       }
     }
   }
-  return { ae[0], ae[1], ae[2], ae[3], ae[4], ae[5], ae[6], ae[7] };
+  return ae;
 }
 
 /**
@@ -679,7 +678,8 @@ _computeElementVectorQuad8Gpu(CellLocalId cell_lid,
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<9, 9> FemModulePoisson::_computeElementMatrixQuad9(Cell cell)
+RealMatrix<9, 9> FemModulePoisson::
+_computeElementMatrixQuad9(Cell cell)
 {
   // Gauss points and weights for 3x3 quadrature (https://en.wikipedia.org/wiki/Gaussian_quadrature)
   constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 }; // [-sqrt(3/5) , 0 , sqrt(3/5)]
@@ -687,7 +687,6 @@ RealMatrix<9, 9> FemModulePoisson::_computeElementMatrixQuad9(Cell cell)
 
   // Initialize the element matrix
   RealMatrix<9, 9> ae;
-  ae.fill(0.0);
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 3; ++ixi) {
@@ -763,7 +762,7 @@ _computeElementVectorQuad9Gpu(CellLocalId cell_lid,
   constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
 
   // Initialize the element vector
-  RealVector<9> ae = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+  RealVector<9> ae;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 3; ++ixi) {
@@ -789,5 +788,5 @@ _computeElementVectorQuad9Gpu(CellLocalId cell_lid,
       }
     }
   }
-  return { ae[0], ae[1], ae[2], ae[3], ae[4], ae[5], ae[6], ae[7], ae[8] };
+  return ae;
 }

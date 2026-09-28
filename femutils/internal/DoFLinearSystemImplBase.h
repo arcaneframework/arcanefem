@@ -69,14 +69,16 @@ class DoFLinearSystemImplBase
   bool isMatrixSparsityConstant() const final { return m_constant_matrix_sparsity; }
   bool isMatrixValuesConstant() const final { return m_constant_matrix_values; }
 
- protected:
-
-  OrderedRowColumnMap& _rowColumnEliminationMap() { return m_row_column_elimination_map; }
-  void _applyRowColumnEliminationToRHS(bool is_verbose);
+ public:
 
   const NumArray<Real, MDDim2>& nearNullSpaceValues() const { return m_near_null_space_values; }
   Int32 nearNullSpaceBlockSize() const { return m_near_null_space_block_size; }
   bool hasNearNullSpace() const { return m_near_null_space_values.extent0() != 0; }
+
+ protected:
+
+  OrderedRowColumnMap& _rowColumnEliminationMap() { return m_row_column_elimination_map; }
+  void _applyRowColumnEliminationToRHS(bool is_verbose);
 
  private:
 

@@ -247,7 +247,7 @@ gaussLawParam(){
 /*---------------------------------------------------------------------------*/
 VariableDoFArrayReal& GaussDoFsOnCells::
 gaussLawHistoryParam(){
-  return *m_p->m_gauss_law_param;
+  return *m_p->m_gauss_law_history_param;
 }
 
 /*---------------------------------------------------------------------------*/

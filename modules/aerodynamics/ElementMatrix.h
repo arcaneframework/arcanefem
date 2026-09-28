@@ -35,7 +35,10 @@ RealMatrix<3, 3> FemModuleAerodynamics::_computeElementMatrixTria3(Cell cell)
   return area * (dxU ^ dxU) + area * (dyU ^ dyU);
 }
 
-ARCCORE_HOST_DEVICE RealMatrix<3, 3> computeElementMatrixTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord)
+ARCCORE_HOST_DEVICE RealMatrix<3, 3>
+computeElementMatrixTria3Gpu(CellLocalId cell_lid,
+                             const IndexedCellNodeConnectivityView& cn_cv,
+                             const ax::VariableNodeReal3InView& in_node_coord)
 {
   Real area = FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
 
@@ -45,15 +48,18 @@ ARCCORE_HOST_DEVICE RealMatrix<3, 3> computeElementMatrixTria3Gpu(CellLocalId ce
   return area * (dxU ^ dxU) + area * (dyU ^ dyU);
 }
 
-ARCCORE_HOST_DEVICE RealMatrix<1, 3> computeElementVectorTria3Gpu(CellLocalId cell_lid, const IndexedCellNodeConnectivityView& cn_cv, const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
+ARCCORE_HOST_DEVICE RealMatrix<1, 3>
+computeElementVectorTria3Gpu(CellLocalId cell_lid,
+                             const IndexedCellNodeConnectivityView& cn_cv,
+                             const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
 {
   Real area = Arcane::FemUtils::Gpu::MeshOperation::computeAreaTria3(cell_lid, cn_cv, in_node_coord);
 
   Real3 dxU = FemUtils::Gpu::FeOperation2D::computeGradientXTria3(cell_lid, cn_cv, in_node_coord);
   Real3 dyU = FemUtils::Gpu::FeOperation2D::computeGradientYTria3(cell_lid, cn_cv, in_node_coord);
 
-  Real3 node_vector_integral = area * dxU[node_lid] * dxU + area * dyU[node_lid] * dyU;
-  return { node_vector_integral[0], node_vector_integral[1], node_vector_integral[2] };
+  RealVector<3> node_vector_integral(area * dxU[node_lid] * dxU + area * dyU[node_lid] * dyU);
+  return RealMatrix<1, 3>(node_vector_integral);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -70,7 +76,8 @@ ARCCORE_HOST_DEVICE RealMatrix<1, 3> computeElementVectorTria3Gpu(CellLocalId ce
  */
 /*---------------------------------------------------------------------------*/
 
-RealMatrix<4, 4> FemModuleAerodynamics::_computeElementMatrixTetra4(Cell cell)
+RealMatrix<4, 4> FemModuleAerodynamics::
+_computeElementMatrixTetra4(Cell cell)
 {
   Real volume = ArcaneFemFunctions::MeshOperation::computeVolumeTetra4(cell, m_node_coord);
 
@@ -102,5 +109,5 @@ ARCCORE_HOST_DEVICE RealMatrix<1, 4> computeElementVectorTetra4Gpu(CellLocalId c
 
   Real4 node_vector_integral = volume * dxU[node_lid] * dxU + volume * dyU[node_lid] * dyU + volume * dzU[node_lid] * dzU;
 
-  return { node_vector_integral[0], node_vector_integral[1], node_vector_integral[2], node_vector_integral[3] };
+  return RealMatrix<1, 4>(node_vector_integral);
 }

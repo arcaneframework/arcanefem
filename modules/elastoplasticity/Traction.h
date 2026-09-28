@@ -14,18 +14,18 @@
 /*---------------------------------------------------------------------------*/
 /**
  * @brief Applies traction to the RHS vector of the linear system.
- * 
- * This function  computes  the  contribution of traction to the RHS vector 
- * of the linear system. It iterates over all cells in the mesh, calculates 
- * the appropriate force  contributions  based on the element type and mesh 
+ *
+ * This function  computes  the  contribution of traction to the RHS vector
+ * of the linear system. It iterates over all cells in the mesh, calculates
+ * the appropriate force  contributions  based on the element type and mesh
  * dimension, and updates the RHS vector accordingly.
- * 
+ *
  * traction term ∫∫ (𝐭.𝐯)  with 𝐭 = (𝑡𝑥, 𝑡𝑦, 𝑡𝑧) = (t[0], t[1], t[2])
  * 
  * @param rhs_values The variable representing the RHS vector to be updated.
- * @param node_dof The connectivity view mapping nodes to their corresponding 
+ * @param node_dof The connectivity view mapping nodes to their corresponding
  *                 degrees of freedom (DoFs).
- * 
+ *
 /*---------------------------------------------------------------------------*/
 
 inline void FemModuleElastoplasticity::
@@ -42,9 +42,20 @@ _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView
     auto constantTraction = [&](auto fn) { fn(bs, node_dof, m_node_coord, rhs_values); };
 
     if (mesh()->dimension() == 2) {
-      if (m_hex_quad_mesh)
-        is_transient_traction ? transientTraction(ArcaneFemFunctions::BoundaryConditions2D::applyTractionTableToRhsQuad4)
-                              : constantTraction(ArcaneFemFunctions::BoundaryConditions2D::applyTractionToRhsQuad4);
+      if (m_hex_quad_mesh) {
+        if (is_transient_traction) {
+          if (m_nodes_per_cell == 4)
+            transientTraction(_applyPressureTableToRhsTria3);
+          else
+            transientTraction(_applyPressureTableToRhsLine3);
+        }
+        else {
+          if (m_nodes_per_cell == 4)
+            constantTraction(ArcaneFemFunctions::BoundaryConditions2D::applyTractionToRhsQuad4);
+          else
+            constantTraction(_applyTractionToRhsLine3);
+        }
+      }
       else
         is_transient_traction ? transientTraction(_applyPressureTableToRhsTria3)
                               : constantTraction(ArcaneFemFunctions::BoundaryConditions2D::applyTractionToRhsTria3);
@@ -57,10 +68,150 @@ _applyTraction(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView
         is_transient_traction ? transientTraction(ArcaneFemFunctions::BoundaryConditions3D::applyTractionTableToRhsTetra4)
                               : constantTraction(ArcaneFemFunctions::BoundaryConditions3D::applyTractionToRhsTetra4);
     }
+    ++boundary_condition_index;
   }
-  ++boundary_condition_index;
 }
 
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies traction to the RHS vector for a Line3 element.
+ *
+ * This function computes the contribution of traction to the RHS vector
+ * specifically for Line3 elements. It uses Gaussian quadrature to evaluate
+ * the integral of the traction over the element and updates the RHS vector
+ * accordingly.
+ *
+ * @param bs The traction boundary condition object containing traction values.
+ * @param node_dof The connectivity view mapping nodes to their corresponding
+ *                 degrees of freedom (DoFs).
+ * @param node_coord The coordinates of the mesh nodes.
+ * @param rhs_values The variable representing the RHS vector to be updated.
+ *
+/*---------------------------------------------------------------------------*/
+
+inline void FemModuleElastoplasticity::
+_applyTractionToRhsLine3(BC::ITractionBoundaryCondition* bs, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+{
+  const StringConstArrayView values = bs->getValue();
+  Real3 traction{};
+  for (Int32 i = 0; i < values.size() && i < 2; ++i)
+    if (values[i] != "NULL")
+      traction[i] = std::stod(values[i].localstr());
+
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+  constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+  ENUMERATE_ (Face, iface, bs->getSurface()) {
+    Face face = *iface;
+    Node nodes[3] = { face.node(0), face.node(1), face.node(2) };
+    const Real3 coords[3] = { node_coord[nodes[0]], node_coord[nodes[1]], node_coord[nodes[2]] };
+    for (Int8 igauss = 0; igauss < 3; ++igauss) {
+      const Real xi = gp[igauss];
+      const RealVector<3> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsLine3(xi);
+      const Real dN[3] = { xi - 0.5, xi + 0.5, -2.0 * xi };
+      Real dx_dxi = 0.0;
+      Real dy_dxi = 0.0;
+      for (Int8 i = 0; i < 3; ++i) {
+        dx_dxi += dN[i] * coords[i].x;
+        dy_dxi += dN[i] * coords[i].y;
+      }
+      const Real jacobian = math::sqrt(dx_dxi * dx_dxi + dy_dxi * dy_dxi);
+      if (jacobian <= 0.0)
+        ARCANE_FATAL("Invalid (non-positive) Line3 Jacobian: {0}", jacobian);
+      const Real integration_weight = weights[igauss] * jacobian;
+      for (Int8 i = 0; i < 3; ++i) {
+        if (!nodes[i].isOwn())
+          continue;
+        rhs_values[node_dof.dofId(nodes[i], 0)] += traction[0] * N[i] * integration_weight;
+        rhs_values[node_dof.dofId(nodes[i], 1)] += traction[1] * N[i] * integration_weight;
+      }
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/** 
+ * @brief Applies pressure table to the RHS vector for a Line3 element.
+ *
+ * This function computes the contribution of a pressure table to the RHS vector
+ * specifically for Line3 elements. It uses Gaussian quadrature to evaluate the
+ * integral of the pressure over the element and updates the RHS vector accordingly.
+ *
+ * @param bs The traction boundary condition object containing pressure values.
+ * @param t The current time for evaluating the pressure table.
+ * @param boundary_condition_index The index of the boundary condition in the list.
+ * @param traction_case_table_list The list of case tables for traction boundary conditions.
+ * @param node_dof The connectivity view mapping nodes to their corresponding
+ *                degrees of freedom (DoFs).
+ * @param node_coord The coordinates of the mesh nodes.
+ * @param rhs_values The variable representing the RHS vector to be updated.
+ *
+/*---------------------------------------------------------------------------*/
+
+inline void FemModuleElastoplasticity::
+_applyPressureTableToRhsLine3(BC::ITractionBoundaryCondition* bs, const Real t, Int32 boundary_condition_index, const UniqueArray<Arcane::FemUtils::CaseTableInfo>& traction_case_table_list, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)
+{
+  const auto& case_table_info = traction_case_table_list[boundary_condition_index];
+  CaseTable* ct = case_table_info.case_table;
+  if (!ct)
+    ARCANE_FATAL("CaseTable is null. Maybe there is a missing call to _readCaseTables()");
+  if (bs->getTractionInputFile() != case_table_info.file_name)
+    ARCANE_FATAL("Incoherent CaseTable. The current CaseTable is associated to file '{0}'", case_table_info.file_name);
+
+  Real3 traction;
+  ct->value(t, traction);
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+  constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+  ENUMERATE_ (Face, iface, bs->getSurface()) {
+    Face face = *iface;
+    Node nodes[3] = { face.node(0), face.node(1), face.node(2) };
+    const Real3 coords[3] = { node_coord[nodes[0]], node_coord[nodes[1]], node_coord[nodes[2]] };
+    const Real orientation = face.isSubDomainBoundaryOutside() ? 1.0 : -1.0;
+
+    for (Int8 igauss = 0; igauss < 3; ++igauss) {
+      const Real xi = gp[igauss];
+      const RealVector<3> N = Arcane::FemUtils::ShapeFunctions::computeShapeFunctionsLine3(xi);
+      const Real dN[3] = { xi - 0.5, xi + 0.5, -2.0 * xi };
+      Real dx_dxi = 0.0;
+      Real dy_dxi = 0.0;
+      for (Int8 i = 0; i < 3; ++i) {
+        dx_dxi += dN[i] * coords[i].x;
+        dy_dxi += dN[i] * coords[i].y;
+      }
+      const Real jacobian = math::sqrt(dx_dxi * dx_dxi + dy_dxi * dy_dxi);
+      if (jacobian <= 0.0)
+        ARCANE_FATAL("Invalid (non-positive) Line3 Jacobian: {0}", jacobian);
+      const Real normal_x = orientation * dy_dxi / jacobian;
+      const Real normal_y = orientation * -dx_dxi / jacobian;
+      const Real integration_weight = weights[igauss] * jacobian;
+      for (Int8 i = 0; i < 3; ++i) {
+        if (!nodes[i].isOwn())
+          continue;
+        rhs_values[node_dof.dofId(nodes[i], 0)] -= traction[0] * normal_x * N[i] * integration_weight;
+        rhs_values[node_dof.dofId(nodes[i], 1)] -= traction[1] * normal_y * N[i] * integration_weight;
+      }
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies pressure table to the RHS vector for a Tri3 element.
+ *
+ * This function computes the contribution of a pressure table to the RHS vector
+ * specifically for Tri3 elements. It uses Gaussian quadrature to evaluate the
+ * integral of the pressure over the element and updates the RHS vector accordingly.
+ *
+ * @param bs The traction boundary condition object containing pressure values.
+ * @param t The current time for evaluating the pressure table.
+ * @param boundary_condition_index The index of the boundary condition in the list.
+ * @param traction_case_table_list The list of case tables for traction boundary conditions.
+ * @param node_dof The connectivity view mapping nodes to their corresponding
+ *                degrees of freedom (DoFs).
+ * @param node_coord The coordinates of the mesh nodes.
+ * @param rhs_values The variable representing the RHS vector to be updated.
+ *
+/*---------------------------------------------------------------------------*/
 
 inline void FemModuleElastoplasticity::
 _applyPressureTableToRhsTria3(BC::ITractionBoundaryCondition* bs, const Real t, Int32 boundary_condition_index, const UniqueArray<Arcane::FemUtils::CaseTableInfo>& traction_case_table_list, const IndexedNodeDoFConnectivityView& node_dof, const VariableNodeReal3& node_coord, VariableDoFReal& rhs_values)

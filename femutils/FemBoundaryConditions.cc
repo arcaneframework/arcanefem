@@ -18,11 +18,13 @@ class FemBoundaryConditionsService
   explicit FemBoundaryConditionsService(const ServiceBuildInfo & sbi)
   : ArcaneFemBoundaryConditionsObject(sbi) {}
   
+  ConstArrayView<BC::IPointCondition*> pointConditions() { return options()->getPointCondition(); }
   ConstArrayView<BC::IDirichletPointCondition*> dirichletPointConditions() { return options()->getDirichletPoint(); }
   ConstArrayView<BC::IDirichletBoundaryCondition*> dirichletBoundaryConditions() { return options()->getDirichlet(); }
   ConstArrayView<BC::INeumannBoundaryCondition*> neumannBoundaryConditions() { return options()->getNeumann(); }
   ConstArrayView<BC::ITractionBoundaryCondition*> tractionBoundaryConditions() { return options()->getTraction(); }
   ConstArrayView<BC::IManufacturedSolution*> manufacturedSolutions() { return options()->getManufacturedSolution(); }
+  ConstArrayView<BC::IParaxialCondition*> paraxialBoundaryConditions() { return options()->getParaxialCondition(); }
   String getHandler() { return options()->getHandler();}
 };
 /*---------------------------------------------------------------------------*/

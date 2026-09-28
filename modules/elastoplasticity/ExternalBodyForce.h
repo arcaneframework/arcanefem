@@ -51,45 +51,14 @@ _applyExternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnect
   // apply bodyforce based on dimension and mesh type
   if (mesh()->dimension() == 2) {
     if (m_hex_quad_mesh) {
-      ENUMERATE_ (Cell, icell, allCells()) {
-        Cell cell = *icell;
-
-        constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; //(ξ,η)
-        constexpr Real weights[2] = { 1.0, 1.0 };
-
-        for (Int8 ixi = 0; ixi < 2; ++ixi) {
-          for (Int8 ieta = 0; ieta < 2; ++ieta) {
-
-            // set the coordinates of the Gauss point
-            Real xi = gp[ixi]; // Get the ξ coordinate of the Gauss point
-            Real eta = gp[ieta]; // Get the η coordinate of the Gauss point
-
-            // set the weight of the Gauss point
-            Real weight = weights[ixi] * weights[ieta];
-
-            // get shape functions 𝐍 for Quad4: 𝐍(ξ,η) = [𝑁₁  𝑁₂  𝑁₃  𝑁₄]
-            RealVector<4> N = ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
-
-            // get determinant of Jacobian
-            const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad4(cell, m_node_coord, xi, eta);
-            const Real detJ = gp_info.det_j;
-
-            // compute integration weight
-            Real integration_weight = weight * detJ;
-
-            // Assemble RHS
-            for (Int8 i = 0; i < 4; ++i) {
-              Node node = cell.node(i);
-              if (node.isOwn()) {
-                rhs_values[node_dof.dofId(node, 0)] += N[i] * f[0] * integration_weight;
-                rhs_values[node_dof.dofId(node, 1)] += N[i] * f[1] * integration_weight;
-              }
-            }
-          }
-        }
-      }
+      if (m_nodes_per_cell == 4)
+        _applyExternalBodyForceQuad4Cpu(rhs_values, node_dof);
+      else if (m_nodes_per_cell == 8)
+        _applyExternalBodyForceQuad8Cpu(rhs_values, node_dof);
+      else
+        _applyExternalBodyForceQuad9Cpu(rhs_values, node_dof);
     }
-    else {
+    else { // Todo: move to seperate function for Tri3
       ENUMERATE_ (Cell, icell, allCells()) {
         Cell cell = *icell;
         Real area = ArcaneFemFunctions::MeshOperation::computeAreaTria3(cell, m_node_coord);
@@ -155,6 +124,127 @@ _applyExternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnect
             rhs_values[node_dof.dofId(node, 0)] += f[0] * volume / 4;
             rhs_values[node_dof.dofId(node, 1)] += f[1] * volume / 4;
             rhs_values[node_dof.dofId(node, 2)] += f[2] * volume / 4;
+          }
+        }
+      }
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies external body force for Quad4 elements on CPU.
+ *
+ * This function computes the contribution of external body forces to the RHS
+ * vector for Quad4 elements. It iterates over all cells, evaluates the shape
+ * functions at Gauss points, computes the Jacobian determinant, and updates
+ * the RHS vector accordingly.
+ *
+ * @param rhs_values The variable representing the RHS vector to be updated.
+ * @param node_dof The connectivity view mapping nodes to their corresponding
+ *                 degrees of freedom (DoFs).
+ */
+/*---------------------------------------------------------------------------*/
+
+inline void FemModuleElastoplasticity::_applyExternalBodyForceQuad4Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
+{
+  constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    for (Int8 ixi = 0; ixi < 2; ++ixi) {
+      for (Int8 ieta = 0; ieta < 2; ++ieta) {
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const RealVector<4> N_values = ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
+        const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad4(cell, m_node_coord, xi, eta);
+        for (Int32 i = 0; i < 4; ++i) {
+          Node node = cell.node(i);
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += N_values[i] * f[0] * gp_info.det_j;
+            rhs_values[node_dof.dofId(node, 1)] += N_values[i] * f[1] * gp_info.det_j;
+          }
+        }
+      }
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies external body force for Quad8 elements on CPU.
+ *
+ * This function computes the contribution of external body forces to the RHS
+ * vector for Quad8 elements. It iterates over all cells, evaluates the shape
+ * functions at Gauss points, computes the Jacobian determinant, and updates
+ * the RHS vector accordingly.
+ *
+ * @param rhs_values The variable representing the RHS vector to be updated.
+ * @param node_dof The connectivity view mapping nodes to their corresponding
+ *                 degrees of freedom (DoFs).
+ */
+/*---------------------------------------------------------------------------*/
+
+inline void FemModuleElastoplasticity::_applyExternalBodyForceQuad8Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
+{
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+  constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    for (Int8 ixi = 0; ixi < 3; ++ixi) {
+      for (Int8 ieta = 0; ieta < 3; ++ieta) {
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const RealVector<8> N_values = ShapeFunctions::computeShapeFunctionsQuad8(xi, eta);
+        const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad8(cell, m_node_coord, xi, eta);
+        const Real integration_weight = gp_info.det_j * weights[ixi] * weights[ieta];
+        for (Int32 i = 0; i < 8; ++i) {
+          Node node = cell.node(i);
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += N_values[i] * f[0] * integration_weight;
+            rhs_values[node_dof.dofId(node, 1)] += N_values[i] * f[1] * integration_weight;
+          }
+        }
+      }
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies external body force for Quad9 elements on CPU.
+ *
+ * This function computes the contribution of external body forces to the RHS
+ * vector for Quad9 elements. It iterates over all cells, evaluates the shape
+ * functions at Gauss points, computes the Jacobian determinant, and updates
+ * the RHS vector accordingly.
+ *
+ * @param rhs_values The variable representing the RHS vector to be updated.
+ * @param node_dof The connectivity view mapping nodes to their corresponding
+ *                 degrees of freedom (DoFs).
+ */
+/*---------------------------------------------------------------------------*/
+
+inline void FemModuleElastoplasticity::_applyExternalBodyForceQuad9Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
+{
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+  constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    for (Int8 ixi = 0; ixi < 3; ++ixi) {
+      for (Int8 ieta = 0; ieta < 3; ++ieta) {
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const RealVector<9> N_values = ShapeFunctions::computeShapeFunctionsQuad9(xi, eta);
+        const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad9(cell, m_node_coord, xi, eta);
+        const Real integration_weight = gp_info.det_j * weights[ixi] * weights[ieta];
+        for (Int32 i = 0; i < 9; ++i) {
+          Node node = cell.node(i);
+          if (node.isOwn()) {
+            rhs_values[node_dof.dofId(node, 0)] += N_values[i] * f[0] * integration_weight;
+            rhs_values[node_dof.dofId(node, 1)] += N_values[i] * f[1] * integration_weight;
           }
         }
       }

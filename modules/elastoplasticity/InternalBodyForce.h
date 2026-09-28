@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* InternalBodyForce.h                                 (C) 2000-2026 */
+/* InternalBodyForce.h                                 (C) 2000-2026         */
 /*                                                                           */
 /* Contains functions to compute and assemble source term contribution to RHS*/
 /* corresponding to the internal force term                                  */
@@ -32,59 +32,191 @@ _applyInternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnect
     auto mesh_ptr = mesh();
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {
-        ARCANE_FATAL("Not IMPLEMENTED");
-      } else {
+        if (m_nodes_per_cell == 4)
+          _applyInternalBodyForceQuad4Cpu(rhs_values, node_dof);  // TODO: Implement GPU version for Quad4
+        else if (m_nodes_per_cell == 8)
+          _applyInternalBodyForceQuad8Cpu(rhs_values, node_dof);  // TODO: Implement GPU version for Quad8
+        else
+          _applyInternalBodyForceQuad9Cpu(rhs_values, node_dof);  // TODO: Implement GPU version for Quad9
+      }
+      else {
         _applyInternalBodyForceTria3Gpu(rhs_values, m_dofs_on_nodes, m_node_coord, mesh_ptr, queue);
       }
-    } else {
+    }
+    else {
       if (m_hex_quad_mesh) {
         ARCANE_FATAL("Not IMPLEMENTED");
-      } else {
+      }
+      else {
         ARCANE_FATAL("Not IMPLEMENTED");
       }
     }
-  } else {
+  }
+  else {
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {
-        ARCANE_FATAL("Not IMPLEMENTED");
-      } else {
+        if (m_nodes_per_cell == 4)
+          _applyInternalBodyForceQuad4Cpu(rhs_values, node_dof);
+        else if (m_nodes_per_cell == 8)
+          _applyInternalBodyForceQuad8Cpu(rhs_values, node_dof);
+        else
+          _applyInternalBodyForceQuad9Cpu(rhs_values, node_dof);
+      }
+      else {
         _applyInternalBodyForceTria3Cpu(rhs_values, node_dof);
       }
-    } else {
+    }
+    else {
       if (m_hex_quad_mesh) {
         ARCANE_FATAL("Not IMPLEMENTED");
-      } else {
+      }
+      else {
         ARCANE_FATAL("Not IMPLEMENTED");
       }
     }
   }
 }
 /*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies internal body force for Quad4 elements on CPU.
+ *
+ * This function computes the contribution of internal body forces to the RHS
+ * vector for Quad4 elements. It iterates over all cells, evaluates the shape
+ * functions at Gauss points, computes the Jacobian determinant, and updates
+ * the RHS vector accordingly.
+ *
+ * @param rhs_values The variable representing the RHS vector to be updated.
+ * @param node_dof The connectivity view mapping nodes to their corresponding
+ *                 degrees of freedom (DoFs).
+ */
+/*---------------------------------------------------------------------------*/
+
+inline void FemModuleElastoplasticity::
+_applyInternalBodyForceQuad4Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
+{
+  constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    Int8 iGP = 0;
+    for (Int8 ixi = 0; ixi < 2; ++ixi) {
+      for (Int8 ieta = 0; ieta < 2; ++ieta) {
+        const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad4(cell, m_node_coord, gp[ixi], gp[ieta]);
+        const Real sigma_xx = m_sigma_gp(cell, iGP, 0);
+        const Real sigma_yy = m_sigma_gp(cell, iGP, 1);
+        const Real sigma_xy = m_sigma_gp(cell, iGP, 2);
+
+        for (Int32 i = 0; i < 4; ++i) {
+          const Node node = cell.node(i);
+          if (!node.isOwn())
+            continue;
+          rhs_values[node_dof.dofId(node, 0)] -= gp_info.det_j * (sigma_xx * gp_info.dN_dx(i) + M_SQRT1_2 * sigma_xy * gp_info.dN_dy(i));
+          rhs_values[node_dof.dofId(node, 1)] -= gp_info.det_j * (sigma_yy * gp_info.dN_dy(i) + M_SQRT1_2 * sigma_xy * gp_info.dN_dx(i));
+        }
+        ++iGP;
+      }
+    }
+  }
+}
 
 /*---------------------------------------------------------------------------*/
 /**
- * @brief Computes rhs vector components corresponding to integration of the
- *        internal force for a triangular element (ℙ1 FE).
+ * @brief Applies internal body force for Quad8 elements on CPU.
  *
- * Theory:
+ * This function computes the contribution of internal body forces to the RHS
+ * vector for Quad8 elements. It iterates over all cells, evaluates the shape
+ * functions at Gauss points, computes the Jacobian determinant, and updates
+ * the RHS vector accordingly.
  *
- *   a(𝑈,𝐯) = ∫∫ σ(𝑈):ε(𝐯)dΩ        with  𝑈 = (𝑈𝑥,𝑈𝑦) and 𝐯 = (𝑣𝑥,𝑣𝑦)
- *   σ(𝑈) is known stress tensor    with  σᵢⱼ = Cᵢⱼₖₗεₖₗ
- *   ε(𝐯) is strain tensor          with  εᵢⱼ = 0.5 (∂𝑣ᵢ/∂xⱼ + ∂𝑣ⱼ/∂xᵢ)
- *
- *   the linear integral expands to
- *
- *      a(𝑈,𝐯) = ∫∫ [σ_𝑥𝑥 ε_𝑥𝑥 + σ_𝑦𝑦 ε_𝑦𝑦 + 2 σ_𝑥𝑦 ε_𝑥𝑦]dΩ
- *
- *   this further expands to
- *
- *      a(𝐮,𝐯) =   ∫∫ C11 ∂𝑈𝑥/∂𝑥 ∂𝑣𝑥/∂𝑥 + C12 ∂𝑈𝑦/∂𝑦 ∂𝑣𝑥/∂𝑥 + C13 (∂𝑈𝑦/∂𝑥 + ∂𝑈𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
- *               + ∫∫ C12 ∂𝑈𝑥/∂𝑥 ∂𝑣𝑦/∂𝑦 + C22 ∂𝑈𝑦/∂𝑦 ∂𝑣𝑦/∂𝑦 + C23 (∂𝑈𝑦/∂𝑥 + ∂𝑈𝑥/∂𝑦) ∂𝑣𝑥/∂𝑥
- *               + ∫∫ C13 ∂𝑈𝑥/∂𝑥 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + C23 ∂𝑈𝑦/∂𝑦 (∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥) + C33 (∂𝑈𝑦/∂𝑥 + ∂𝑈𝑥/∂𝑦)(∂𝑣𝑥/∂𝑦 + ∂𝑣𝑦/∂𝑥)
- *
- *
+ * @param rhs_values The variable representing the RHS vector to be updated.
+ * @param node_dof The connectivity view mapping nodes to their corresponding
+ *                 degrees of freedom (DoFs).
  */
 /*---------------------------------------------------------------------------*/
+
+inline void FemModuleElastoplasticity::
+_applyInternalBodyForceQuad8Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
+{
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+  constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    Int8 iGP = 0;
+    for (Int8 ixi = 0; ixi < 3; ++ixi) {
+      for (Int8 ieta = 0; ieta < 3; ++ieta) {
+        const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad8(cell, m_node_coord, gp[ixi], gp[ieta]);
+        const Real integration_weight = gp_info.det_j * weights[ixi] * weights[ieta];
+        const Real sigma_xx = m_sigma_gp(cell, iGP, 0);
+        const Real sigma_yy = m_sigma_gp(cell, iGP, 1);
+        const Real sigma_xy = m_sigma_gp(cell, iGP, 2);
+
+        for (Int32 i = 0; i < 8; ++i) {
+          const Node node = cell.node(i);
+          if (!node.isOwn())
+            continue;
+          rhs_values[node_dof.dofId(node, 0)] -= integration_weight * (sigma_xx * gp_info.dN_dx(i) + M_SQRT1_2 * sigma_xy * gp_info.dN_dy(i));
+          rhs_values[node_dof.dofId(node, 1)] -= integration_weight * (sigma_yy * gp_info.dN_dy(i) + M_SQRT1_2 * sigma_xy * gp_info.dN_dx(i));
+        }
+        ++iGP;
+      }
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies internal body force for Quad9 elements on CPU.
+ *
+ * This function computes the contribution of internal body forces to the RHS
+ * vector for Quad9 elements. It iterates over all cells, evaluates the shape
+ * functions at Gauss points, computes the Jacobian determinant, and updates
+ * the RHS vector accordingly.
+ *
+ * @param rhs_values The variable representing the RHS vector to be updated.
+ * @param node_dof The connectivity view mapping nodes to their corresponding
+ *                 degrees of freedom (DoFs).
+ */
+/*---------------------------------------------------------------------------*/
+
+inline void FemModuleElastoplasticity::
+_applyInternalBodyForceQuad9Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
+{
+  constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
+  constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    Cell cell = *icell;
+    Int8 iGP = 0;
+    for (Int8 ixi = 0; ixi < 3; ++ixi) {
+      for (Int8 ieta = 0; ieta < 3; ++ieta) {
+        const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad9(cell, m_node_coord, gp[ixi], gp[ieta]);
+        const Real integration_weight = gp_info.det_j * weights[ixi] * weights[ieta];
+        const Real sigma_xx = m_sigma_gp(cell, iGP, 0);
+        const Real sigma_yy = m_sigma_gp(cell, iGP, 1);
+        const Real sigma_xy = m_sigma_gp(cell, iGP, 2);
+
+        for (Int32 i = 0; i < 9; ++i) {
+          const Node node = cell.node(i);
+          if (!node.isOwn())
+            continue;
+          rhs_values[node_dof.dofId(node, 0)] -= integration_weight * (sigma_xx * gp_info.dN_dx(i) + M_SQRT1_2 * sigma_xy * gp_info.dN_dy(i));
+          rhs_values[node_dof.dofId(node, 1)] -= integration_weight * (sigma_yy * gp_info.dN_dy(i) + M_SQRT1_2 * sigma_xy * gp_info.dN_dx(i));
+        }
+        ++iGP;
+      }
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+* @brief Evaluates and assembles the rhs vector components corresponding
+*        to integration of the internal force for a triangular element (ℙ1 FE)
+*        using CPUs.
+*/
+/*---------------------------------------------------------------------------*/
+
 ARCCORE_HOST_DEVICE inline RealVector<6>
 computeInternalBodyForceTria3Base(Real3 dxu,
                                           Real3 dyu,
@@ -101,16 +233,7 @@ computeInternalBodyForceTria3Base(Real3 dxu,
 
   return rhs;
 }
-/*---------------------------------------------------------------------------*/
 
-/*---------------------------------------------------------------------------*/
-/**
-* @brief Evaluates and assembles the rhs vector components corresponding
-*        to integration of the internal force for a triangular element (ℙ1 FE)
-*        using CPUs.
-*
-*/
-/*---------------------------------------------------------------------------*/
 inline void FemModuleElastoplasticity::
 _applyInternalBodyForceTria3Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
 {
@@ -137,7 +260,6 @@ _applyInternalBodyForceTria3Cpu(VariableDoFReal& rhs_values, const IndexedNodeDo
     rhs_values[node_dof.dofId(cell.nodeId(2), 1)] += rhs(5);
   }
 }
-/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 /**
