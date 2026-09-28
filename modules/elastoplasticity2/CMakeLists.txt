@@ -92,14 +92,6 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/2D.quater.cylinder.vonMises.arc
   )
 
-  arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_local
-    COMMAND ./Elastoplasticity2 ARGS
-    -A,//elastoplasticity2/solution-comparison-file=check/2D.quater.cylinder.t20.txt
-    -A,//elastoplasticity2/gp-material-tensor-strategy=local
-    ${SOLVER_ALEPH_CG}
-    inputs/2D.quater.cylinder.vonMises.arc
-  )
-
   arcanefem_add_seq_test(NAME 2D_Quater_cylinder_parse_and_exit
     COMMAND ./Elastoplasticity2 ARGS
     -A,//elastoplasticity2/solve-nonlinear-system=false
@@ -115,16 +107,6 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/2D.quater.cylinder.vonMises.arc
   )
 
-  arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad4_local
-    COMMAND ./Elastoplasticity2 ARGS
-    -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
-    -A,//elastoplasticity2/matrix-format=DOK
-    -A,//elastoplasticity2/hex-quad-mesh=true
-    -A,//elastoplasticity2/gp-material-tensor-strategy=local
-    ${SOLVER_ALEPH_CG_GAMG}
-    inputs/2D.quater.cylinder.vonMises.arc
-  )
-
   arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad8
     COMMAND ./Elastoplasticity2 ARGS
     -A,//meshes/mesh/filename=meshes/quater_cylinder-quad8.msh
@@ -134,31 +116,11 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/2D.quater.cylinder.vonMises.arc
   )
 
-  arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad8_local
-    COMMAND ./Elastoplasticity2 ARGS
-    -A,//meshes/mesh/filename=meshes/quater_cylinder-quad8.msh
-    -A,//elastoplasticity2/matrix-format=DOK
-    -A,//elastoplasticity2/hex-quad-mesh=true
-    -A,//elastoplasticity2/gp-material-tensor-strategy=local
-    ${SOLVER_ALEPH_CG_GAMG}
-    inputs/2D.quater.cylinder.vonMises.arc
-  )
-
   arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad9
     COMMAND ./Elastoplasticity2 ARGS
     -A,//meshes/mesh/filename=meshes/quater_cylinder-quad9.msh
     -A,//elastoplasticity2/matrix-format=DOK
     -A,//elastoplasticity2/hex-quad-mesh=true
-    ${SOLVER_ALEPH_CG_GAMG}
-    inputs/2D.quater.cylinder.vonMises.arc
-  )
-
-  arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad9_local
-    COMMAND ./Elastoplasticity2 ARGS
-    -A,//meshes/mesh/filename=meshes/quater_cylinder-quad9.msh
-    -A,//elastoplasticity2/matrix-format=DOK
-    -A,//elastoplasticity2/hex-quad-mesh=true
-    -A,//elastoplasticity2/gp-material-tensor-strategy=local
     ${SOLVER_ALEPH_CG_GAMG}
     inputs/2D.quater.cylinder.vonMises.arc
   )
@@ -175,24 +137,6 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     COMMAND ./Elastoplasticity2 ARGS
     -A,//elastoplasticity2/solution-comparison-file=check/2D.quater.cylinder.t20.txt
     -A,//elastoplasticity2/matrix-format=AF-BSR
-    ${SOLVER_ALEPH_CG}
-    inputs/2D.quater.cylinder.vonMises.arc
-  )
-
-  arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_bsr_local
-    COMMAND ./Elastoplasticity2 ARGS
-    -A,//elastoplasticity2/solution-comparison-file=check/2D.quater.cylinder.t20.txt
-    -A,//elastoplasticity2/matrix-format=BSR
-    -A,//elastoplasticity2/gp-material-tensor-strategy=local
-    ${SOLVER_ALEPH_CG}
-    inputs/2D.quater.cylinder.vonMises.arc
-  )
-
-  arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_af-bsr_local
-    COMMAND ./Elastoplasticity2 ARGS
-    -A,//elastoplasticity2/solution-comparison-file=check/2D.quater.cylinder.t20.txt
-    -A,//elastoplasticity2/matrix-format=AF-BSR
-    -A,//elastoplasticity2/gp-material-tensor-strategy=local
     ${SOLVER_ALEPH_CG}
     inputs/2D.quater.cylinder.vonMises.arc
   )
@@ -230,24 +174,6 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/2D.strip.footing.DruckerPrager.arc
   )
 
-  arcanefem_add_full_test(NAME 2D_Strip_footing_drucker_prager_bsr_local_petsc-direct
-    COMMAND ./Elastoplasticity2 ARGS
-    -A,//elastoplasticity2/solution-comparison-file=check/2D.strip.footing.drucker_prager.t12.txt
-    -A,//elastoplasticity2/matrix-format=BSR
-    -A,//elastoplasticity2/gp-material-tensor-strategy=local
-    ${SOLVER_PETSC_DIRECT_CG}
-    inputs/2D.strip.footing.DruckerPrager.arc
-  )
-
-  arcanefem_add_full_test(NAME 2D_Strip_footing_drucker_prager_af-bsr_local_petsc-direct
-    COMMAND ./Elastoplasticity2 ARGS
-    -A,//elastoplasticity2/solution-comparison-file=check/2D.strip.footing.drucker_prager.t12.txt
-    -A,//elastoplasticity2/matrix-format=AF-BSR
-    -A,//elastoplasticity2/gp-material-tensor-strategy=local
-    ${SOLVER_PETSC_DIRECT_CG}
-    inputs/2D.strip.footing.DruckerPrager.arc
-  )
-
   arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_bsr_petsc-direct
     COMMAND ./Elastoplasticity2 ARGS
     -A,//elastoplasticity2/solution-comparison-file=check/2D.quater.cylinder.t20.txt
@@ -260,24 +186,6 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     COMMAND ./Elastoplasticity2 ARGS
     -A,//elastoplasticity2/solution-comparison-file=check/2D.quater.cylinder.t20.txt
     -A,//elastoplasticity2/matrix-format=AF-BSR
-    ${SOLVER_PETSC_DIRECT_CG}
-    inputs/2D.quater.cylinder.vonMises.arc
-  )
-
-  arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_bsr_local_petsc-direct
-    COMMAND ./Elastoplasticity2 ARGS
-    -A,//elastoplasticity2/solution-comparison-file=check/2D.quater.cylinder.t20.txt
-    -A,//elastoplasticity2/matrix-format=BSR
-    -A,//elastoplasticity2/gp-material-tensor-strategy=local
-    ${SOLVER_PETSC_DIRECT_CG}
-    inputs/2D.quater.cylinder.vonMises.arc
-  )
-
-  arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_af-bsr_local_petsc-direct
-    COMMAND ./Elastoplasticity2 ARGS
-    -A,//elastoplasticity2/solution-comparison-file=check/2D.quater.cylinder.t20.txt
-    -A,//elastoplasticity2/matrix-format=AF-BSR
-    -A,//elastoplasticity2/gp-material-tensor-strategy=local
     ${SOLVER_PETSC_DIRECT_CG}
     inputs/2D.quater.cylinder.vonMises.arc
   )
@@ -342,24 +250,6 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     inputs/2D.quater.cylinder.vonMises.arc
   )
 
-  arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_bsr_local_hypre
-    COMMAND ./Elastoplasticity2 ARGS
-    -A,//elastoplasticity2/solution-comparison-file=check/2D.quater.cylinder.t20.txt
-    -A,//elastoplasticity2/matrix-format=BSR
-    -A,//elastoplasticity2/gp-material-tensor-strategy=local
-    ${SOLVER_HYPRE_CG}
-    inputs/2D.quater.cylinder.vonMises.arc
-  )
-
-  arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_af-bsr_local_hypre
-    COMMAND ./Elastoplasticity2 ARGS
-    -A,//elastoplasticity2/solution-comparison-file=check/2D.quater.cylinder.t20.txt
-    -A,//elastoplasticity2/matrix-format=AF-BSR
-    -A,//elastoplasticity2/gp-material-tensor-strategy=local
-    ${SOLVER_HYPRE_CG}
-    inputs/2D.quater.cylinder.vonMises.arc
-  )
-
   arcanefem_add_full_test(NAME 2D_Strip_footing_drucker_prager_bsr_hypre
     COMMAND ./Elastoplasticity2 ARGS
     -A,//elastoplasticity2/solution-comparison-file=check/2D.strip.footing.drucker_prager.t12.txt
@@ -372,24 +262,6 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     COMMAND ./Elastoplasticity2 ARGS
     -A,//elastoplasticity2/solution-comparison-file=check/2D.strip.footing.drucker_prager.t12.txt
     -A,//elastoplasticity2/matrix-format=AF-BSR
-    ${SOLVER_HYPRE_CG}
-    inputs/2D.strip.footing.DruckerPrager.arc
-  )
-
-  arcanefem_add_full_test(NAME 2D_Strip_footing_drucker_prager_bsr_local_hypre
-    COMMAND ./Elastoplasticity2  ARGS
-    -A,//elastoplasticity2/solution-comparison-file=check/2D.strip.footing.drucker_prager.t12.txt
-    -A,//elastoplasticity2/matrix-format=BSR
-    -A,//elastoplasticity2/gp-material-tensor-strategy=local
-    ${SOLVER_HYPRE_CG}
-    inputs/2D.strip.footing.DruckerPrager.arc
-  )
-
-  arcanefem_add_full_test(NAME 2D_Strip_footing_drucker_prager_af-bsr_local_hypre
-    COMMAND ./Elastoplasticity2 ARGS
-    -A,//elastoplasticity2/solution-comparison-file=check/2D.strip.footing.drucker_prager.t12.txt
-    -A,//elastoplasticity2/matrix-format=AF-BSR
-    -A,//elastoplasticity2/gp-material-tensor-strategy=local
     ${SOLVER_HYPRE_CG}
     inputs/2D.strip.footing.DruckerPrager.arc
   )

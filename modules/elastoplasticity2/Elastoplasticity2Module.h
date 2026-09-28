@@ -73,17 +73,13 @@ public:
 
   void _doStationarySolve();
   void _assembleBilinearOperatorGlobal();
-  void _assembleBilinearOperatorLocalVonMises(bool elastic_assembly = false);
-  void _assembleBilinearOperatorLocalDruckerPrager(bool elastic_assembly = false);
   void _assembleDirichletsNewtonGpu();
   void _assembleZeroRHSOnConstrainedDOFsGpu();
 
   inline void _applyInternalBodyForceTria3Gpu(VariableDoFReal& rhs_values, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord, IMesh* mesh, RunQueue* queue);
 
-  inline void _updateGlobalTangentMaterialTensorVonMisesTria3Gpu();
-  inline void _updateStressAndInVarsVonMisesTria3Gpu();
-  inline void _updateGlobalTangentMaterialTensorDruckerPragerTria3Gpu();
-  inline void _updateStressAndInVarsDruckerPragerTria3Gpu();
+  inline void _integrateAndSaveConstitutiveLawVonMisesTria3Gpu();
+  inline void _integrateAndSaveConstitutiveLawDruckerPragerTria3Gpu();
 
 
 private:
@@ -171,22 +167,17 @@ private:
   // Von Mises Law
   void _restoreConvergedStateVonMises();
   void _commitInternalVariablesVonMises();
-  void _updateGlobalTangentMaterialTensorVonMises();
-  void _updateGlobalTangentMaterialTensorVonMisesTria3Cpu();
-  void _updateGlobalTangentMaterialTensorVonMisesQuad4Cpu();
-  void _updateGlobalTangentMaterialTensorVonMisesQuad8Cpu();
-  void _updateGlobalTangentMaterialTensorVonMisesQuad9Cpu();
-  void _updateStressAndInVarsVonMises();
-  void _updateStressAndInVarsVonMisesQuad4Cpu();
-  void _updateStressAndInVarsVonMisesQuad8Cpu();
-  void _updateStressAndInVarsVonMisesQuad9Cpu();
+  void _integrateAndSaveConstitutiveLawVonMises();
+  void _integrateAndSaveConstitutiveLawVonMisesTria3Cpu();
+  void _integrateAndSaveConstitutiveLawVonMisesQuad4Cpu();
+  void _integrateAndSaveConstitutiveLawVonMisesQuad8Cpu();
+  void _integrateAndSaveConstitutiveLawVonMisesQuad9Cpu();
 
   // Drucker Prager Law
   void _restoreConvergedStateDruckerPrager();
   void _commitInternalVariablesDruckerPrager();
-  void _updateGlobalTangentMaterialTensorDruckerPrager();
-  void _updateGlobalTangentMaterialTensorDruckerPragerTria3Cpu();
-  void _updateStressAndInVarsDruckerPrager();
+  void _integrateAndSaveConstitutiveLawDruckerPrager();
+  void _integrateAndSaveConstitutiveLawDruckerPragerTria3Cpu();
 
   // RHS assembly helper functions
   void _applyInternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
@@ -227,12 +218,6 @@ private:
   inline RealMatrix<16, 16> _computeElementMatrixQuad8(Cell cell);
   inline RealMatrix<18, 18> _computeElementMatrixQuad9(Cell cell);
   inline RealMatrix<24, 24> _computeElementMatrixHexa8(Cell cell);
-
-  inline RealMatrix<6, 6> _computeLocalVonMisesElementMatrixTria3Cpu(Cell cell, bool elastic_assembly = false);
-  inline RealMatrix<8, 8> _computeLocalVonMisesElementMatrixQuad4Cpu(Cell cell, bool elastic_assembly = false);
-  inline RealMatrix<16, 16> _computeLocalVonMisesElementMatrixQuad8Cpu(Cell cell, bool elastic_assembly = false);
-  inline RealMatrix<18, 18> _computeLocalVonMisesElementMatrixQuad9Cpu(Cell cell, bool elastic_assembly = false);
-  inline RealMatrix<6, 6> _computeLocalDruckerPragerElementMatrixTria3Cpu(Cell cell, bool elastic_assembly = false);
 
   IBinaryMathFunctor<Real, Real3, Real>* m_prescribed_settlement = nullptr;
 
