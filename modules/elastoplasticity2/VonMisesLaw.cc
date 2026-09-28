@@ -81,6 +81,9 @@ _commitInternalVariablesVonMises()
 void Elastoplasticity2Module::
 _updateGlobalTangentMaterialTensorVonMises()
 {
+  info() << "[ArcaneFem-Info] Started module  _updateGlobalTangentMaterialTensorVonMises()";
+  Real elapsedTime = platform::getRealTime();
+
   auto use_gpu = options()->linearSystem.serviceName() == "HypreLinearSystem" ||
   options()->linearSystem.serviceName() == "PetscLinearSystem";
 
@@ -130,6 +133,8 @@ _updateGlobalTangentMaterialTensorVonMises()
       }
     }
   }
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-global-material-tensor", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -898,6 +903,9 @@ computeLocalVonMisesElementVectorTria3Gpu(CellLocalId cell_lid,
 void Elastoplasticity2Module::
 _updateStressAndInVarsVonMises()
 {
+  info() << "[ArcaneFem-Info] Started module  _updateStressAndInVarsVonMiises()";
+  Real elapsedTime = platform::getRealTime();
+
   if (mesh()->dimension() == 2) {
     if (m_hex_quad_mesh) {
       if (m_nodes_per_cell == 4)
@@ -919,6 +927,8 @@ _updateStressAndInVarsVonMises()
       ARCANE_FATAL("Not IMPLEMENTED");
     }
   }
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-global-stress-ivars", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
