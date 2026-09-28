@@ -1,4 +1,4 @@
-set(ACCELERATOR_SOURCES FemModule.cc)
+﻿set(ACCELERATOR_SOURCES FemModule.cc)
 
 add_executable(Poisson
   ${ACCELERATOR_SOURCES}
@@ -639,7 +639,6 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
       inputs/sphere.neumann.3D.hexa.arc)
 endif ()
 
-
 if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   set(SOLVER_PETSC_CG_2D
     -A,//fem/linear-system/@name=PetscLinearSystem
@@ -1013,3 +1012,31 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_ALIEN)
         inputs/sphere.neumann.3D.hexa.arc)
   endif ()
 endif ()
+
+if (FEMUTILS_HAS_SOLVER_BACKEND_ALINA)
+  set(SOLVER_ALINA_CG_2D
+    -A,//fem/linear-system/@name=AlinaLinearSystem
+    -A,//fem/linear-system/atol=1e-15
+    -A,//fem/linear-system/rtol=0)
+
+  set(SOLVER_ALINA_CG_3D
+    -A,//fem/linear-system/@name=AlinaLinearSystem
+    -A,//fem/linear-system/solver=cg
+    -A,//fem/linear-system/atol=1e-15
+    -A,//fem/linear-system/rtol=0)
+
+  arcanefem_add_seq_test(NAME 3D_alina
+    COMMAND ./Poisson
+    ARGS
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
+      -A,//fem/matrix-format=DOK
+      ${SOLVER_ALINA_CG_3D}
+      inputs/sphere.3D.arc)
+endif()
+
+# ----------------------------------------------------------------------------
+# Local Variables:
+# tab-width: 2
+# indent-tabs-mode: nil
+# coding: utf-8-with-signature
+# End:
