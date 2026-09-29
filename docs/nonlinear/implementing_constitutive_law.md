@@ -1,8 +1,8 @@
-# Adding a New Constitutive Law in ArcaneFEM
+# Adding a new constitutive law inside an ArcaneFEM module
 
 Setting up a new law takes two things: a `[MyLaw].cc` (and declarations in `[module].h`) file containing the law functions, and a few additions in the `module.cc` file that contains the Newton loop. 
 
-Here, `[MyLaw]` is a placeholder to replace with the name of your law (e.g. `VonMises`, `DruckerPrager`).
+Here, `[MyLaw]` is a placeholder to replace with the name of your law (e.g. `VonMises`, `DruckerPrager` in `elastoplasticity` module).
 
 ---
 
@@ -19,11 +19,11 @@ Example: `VonMisesLaw.cc`.
 
 ---
 
-## 2. Modify the Newton module file
+## 2. Update the Newton loop in `module.cc` file
 
 **a) Initialize the variables, name and shape.** In `initConstitutiveLaw()`, add a branch for your law that declares and initializes every history and internal variable stored globally, with the shape `cells × number of Gauss points (× components)`. This includes the current and `_old` versions of the stress and history variables, and the tangent tensor.
 
-**b) Register the law and its parameters.** Add the law name and its material parameters (options in the `.axl` file that are parsed in `initConstitutiveLaw()` and the derived parameters are then evaluated in `_getMaterialParameters()`.
+**b) Register the law and its parameters.** Add the law name and its material parameters (`<options>` in the `.axl` file) that are parsed in `initConstitutiveLaw()` and then used in `_getMaterialParameters()`.
 
 **c) Add your functions in the Newton loop**, at three places:
 
@@ -39,5 +39,3 @@ else if (m_constitutive_law == "[MyLaw]") _commitInternalVariables[MyLaw]();
 ```
 
 The rest of the loop (solve, assembly, convergence check) does not change, since it only reads the stress tensor (as vector) and the tangent material tensor (as matrix) stored by your law.
-
-> In the Newton loop as pasted, the `VonMises` commit block is missing its closing brace and there is no commit branch for `DruckerPrager`. Check the braces when adding your branch.
