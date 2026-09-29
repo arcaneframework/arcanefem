@@ -25,6 +25,9 @@
 #include "modules/elastoplasticity2/ElementMatrix.h"
 #include "modules/elastoplasticity2/ElementMatrixHexQuad.h"
 
+#include "MGIS/Behaviour/Behaviour.hxx"
+#include "MGIS/Behaviour/BehaviourData.hxx"
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -249,6 +252,25 @@ _initConstitutiveLaw()
         friction_angle = drucker_prager->frictionAngle(); // Friction angle
       }
     }
+    else if (law_name == "MFront") {
+      for (const auto mfront : constitutive_law->mfront()) {
+        m_mfront_behaviour_file = mfront->behaviourFile();
+        m_mfront_behaviour_name = mfront->behaviourName();
+        m_mfront_hypothesis = mfront->hypothesis();
+        m_mfront_material_properties = mfront->materialProperties();
+      }
+      if (m_mfront_behaviour_file.empty())
+        ARCANE_FATAL("MFront law requires a 'behaviour-file'");
+      if (m_mfront_behaviour_name.empty())
+        ARCANE_FATAL("MFront law requires a 'behaviour-name'");
+      const mgis::behaviour::Hypothesis hyp = mgis::behaviour::fromString(m_mfront_hypothesis.c_str());
+      m_mfront_behaviour.reset(new mgis::behaviour::Behaviour(mgis::behaviour::load(
+          m_mfront_behaviour_file.c_str(), m_mfront_behaviour_name.c_str(), hyp)));
+      info() << "[ArcaneFem-Info] MFront: loaded behaviour '" << m_mfront_behaviour_name
+             << "' from '" << m_mfront_behaviour_file << "' (hypothesis: "
+             << m_mfront_hypothesis << ", " << m_mfront_material_properties.size()
+             << " material properties)";
+    }
     else {
       ARCANE_FATAL("Undefined constitutive law");
     }
@@ -275,6 +297,15 @@ _initConstitutiveLaw()
       m_eps_p_zz_gp.reshape({ m_nGP });
       m_eps_p_zz_old_gp.reshape({ m_nGP });
     }
+  }
+  else if (m_constitutive_law == "MFront") {
+    // MFront/MGIS integration is CPU-only and implemented for Tria3 (2D, 1 GP).
+    if (mesh()->dimension() != 2)
+      ARCANE_FATAL("MFront behaviours currently support only 2D meshes");
+    if (m_hex_quad_mesh)
+      ARCANE_FATAL("MFront behaviours currently support only Tria3 (non-quad) meshes");
+    // Allocate the per-Gauss-point persistent state now that the behaviour is loaded.
+    _initMFrontGpData();
   }
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "initialize-constitutive-law", elapsedTime);
@@ -421,10 +452,19 @@ _solveNewton()
   else if (m_constitutive_law == "DruckerPrager") {
     _restoreConvergedStateDruckerPrager();
   }
+  else if (m_constitutive_law == "MFront") {
+    _restoreConvergedStateMFront();
+  }
 
   // --- assemble_linear_system ---- //
   if (m_assemble_linear_system) {
-    _setGlobalElasticMaterialTensorAtGPs();
+    if (m_constitutive_law == "MFront") {
+      // Seed the initial (elastic) tangent by integrating at zero increment.
+      _integrateAndSaveConstitutiveLawMFront();
+    }
+    else {
+      _setGlobalElasticMaterialTensorAtGPs();
+    }
     _assembleBilinearOperatorGlobal();
     _assembleLinearOperator();
   }
@@ -460,6 +500,9 @@ _solveNewton()
       }
       else if (m_constitutive_law == "DruckerPrager") {
         _integrateAndSaveConstitutiveLawDruckerPrager();
+      }
+      else if (m_constitutive_law == "MFront") {
+        _integrateAndSaveConstitutiveLawMFront();
       }
       _assembleBilinearOperatorGlobal(); // assembles Jacobian
       _assembleLinearOperator(); // assembles Residuals(m_DUn) + BCs
@@ -553,13 +596,20 @@ _solveNewton()
 
       info() << "[ArcaneFem-Info] At Time Step "
              << t - 1 << ":\tSettlement: " << settlement
-             << "\tNormalised pressure: " << normalized_pressure
-             << "\tNewton iters: " << m_newton_iter
-             << "\tResidual norm: " << m_residual_norm;
-    }
+<< "\tNormalised pressure: " << normalized_pressure
+              << "\tNewton iters: " << m_newton_iter
+              << "\tResidual norm: " << m_residual_norm;
+     }
 
-    m_newton_solver_converged = false;
-    m_newton_iter = 0;
+     if (m_constitutive_law == "MFront") {
+       _commitInternalVariablesMFront();
+       info() << "[ArcaneFem-Info] At Time Step "
+              << t - 1 << ":\tNewton iters: " << m_newton_iter
+              << "\tResidual norm: " << m_residual_norm;
+     }
+
+     m_newton_solver_converged = false;
+     m_newton_iter = 0;
   }
 
   if (m_newton_iter == m_newton_max_iters && !m_newton_solver_converged) {
@@ -633,6 +683,23 @@ _getMaterialParameters()
         m_eps_p_old_gp(icell, iGP, 1) = 0.;
         m_eps_p_old_gp(icell, iGP, 2) = 0.;
         m_eps_p_zz_old_gp(icell, iGP) = 0.;
+      }
+    }
+  }
+  else if (m_constitutive_law == "MFront") {
+    // The MFront behaviour carries its own material model; only zero the
+    // stress history so the first time step starts from an unloaded state.
+    ENUMERATE_ (Cell, icell, allCells()) {
+      for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
+        m_sigma_gp(icell, iGP, 0) = 0.;
+        m_sigma_gp(icell, iGP, 1) = 0.;
+        m_sigma_gp(icell, iGP, 2) = 0.;
+        m_sigma_zz_gp(icell, iGP) = 0.;
+
+        m_sigma_old_gp(icell, iGP, 0) = 0.;
+        m_sigma_old_gp(icell, iGP, 1) = 0.;
+        m_sigma_old_gp(icell, iGP, 2) = 0.;
+        m_sigma_zz_old_gp(icell, iGP) = 0.;
       }
     }
   }

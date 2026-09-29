@@ -42,6 +42,33 @@
 //#include "femutils/ArcaneFemFunctions.h"
 //#include "femutils/ArcaneFemFunctionsGpu.h"
 
+// Forward declarations of the MGIS (MFront) behaviour API. The complete types
+// are only required in the translation units that include the MGIS headers
+// (Elastoplasticity2Module.cc / MFrontLaw.cc), which keeps this header light
+// and avoids pulling C++20-only MGIS headers into every consumer.
+namespace mgis {
+namespace behaviour {
+struct Behaviour;
+struct BehaviourData;
+}  // namespace behaviour
+}  // namespace mgis
+
+#include <memory>
+#include <vector>
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+// Forward declarations of the MGIS (MFront) behaviour API. The complete types
+// are only needed in the translation units that include the MGIS headers
+// (Elastoplasticity2Module.cc / MFrontLaw.cc), keeping this header light.
+namespace mgis {
+namespace behaviour {
+struct Behaviour;
+struct BehaviourData;
+}  // namespace behaviour
+}  // namespace mgis
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -179,6 +206,12 @@ private:
   void _integrateAndSaveConstitutiveLawDruckerPrager();
   void _integrateAndSaveConstitutiveLawDruckerPragerTria3Cpu();
 
+  // MFront / MGIS Law (generic behaviour)
+  void _initMFrontGpData();
+  void _restoreConvergedStateMFront();
+  void _commitInternalVariablesMFront();
+  void _integrateAndSaveConstitutiveLawMFront();
+
   // RHS assembly helper functions
   void _applyInternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
   void _applyInternalBodyForceTria3Cpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
@@ -220,6 +253,17 @@ private:
   inline RealMatrix<24, 24> _computeElementMatrixHexa8(Cell cell);
 
   IBinaryMathFunctor<Real, Real3, Real>* m_prescribed_settlement = nullptr;
+
+  // -- MFront / MGIS generic constitutive law --
+  // Options read from the axl `mfront` complex.
+  String m_mfront_behaviour_file;
+  String m_mfront_behaviour_name;
+  String m_mfront_hypothesis = "PlaneStrain";
+  UniqueArray<Real> m_mfront_material_properties;
+  // The compiled behaviour (loaded once at init) and one BehaviourData per
+  // Gauss point, holding the persistent state (old stress / isv / esv).
+  std::unique_ptr<mgis::behaviour::Behaviour> m_mfront_behaviour;
+  std::vector<mgis::behaviour::BehaviourData> m_mfront_gp_data;
 
   template <int N>
   void _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);

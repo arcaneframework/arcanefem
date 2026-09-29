@@ -161,7 +161,7 @@ Let us explain this point wise
   <tmax>21.</tmax>
   <dt>1.</dt>
 ```
-- **Constitutive law:** As of now only `Von Mises` law is implemented and is chosen. 
+- **Constitutive law:** The module supports three constitutive laws: `VonMises`, `DruckerPrager` and the generic `MFront` (MFront/MGIS) law. In the example `VonMises` is chosen. 
 ```xml
   <constitutive-law>VonMises</constitutive-law>
 ```
@@ -224,3 +224,81 @@ For post processing the `ensight.case` file is outputted (in `output/depouilleme
 #### Cross Validation 
 The plot presented here you find a comparative cross-validation of ArcaneFEM elastoplasticity against other reference solvers. 
 <img width="500" align="left" src="https://github.com/user-attachments/assets/427c29b1-052a-401c-98b7-1da122eae620" />
+
+## MFront / MGIS (generic constitutive law)
+
+The module also exposes a **generic** constitutive law, `MFront`, which delegates
+the entire local constitutive integration to a **compiled MFront behaviour**
+through the [MFrontGenericInterface (MGIS)](../../MFrontGenericInterfaceSupport/).
+This is the mechanism anticipated in the note above: instead of hand-coding the
+radial return and the algorithmic tangent for a specific model, any behaviour
+written in MFront (elastic, viscoplastic, damage, coupled models, …) can be
+dropped in as a third law.
+
+### How it works
+
+Within each Newton iteration the module builds the strain increment
+`Δε` at every Gauss point and hands it to MGIS, which returns:
+
+- the **updated stress** `σ_{n+1}` (stored back into `m_sigma_gp`), and
+- the **consistent (algorithmic) tangent** `K` (stored into `m_C_tang_gp`),
+
+exactly as the built-in `VonMises`/`DruckerPrager` laws do. The path-dependent
+state (plastic strain, damage, etc.) lives inside the MGIS `BehaviourData` and
+is committed at each converged time step, so the integration is fully
+incremental and consistent with the Newton scheme.
+
+### Building and enabling MGIS
+
+MGIS is vendored under `MFrontGenericInterfaceSupport/` and is built
+**standalone** (no TFEL is required for the `load`/`integrate` path). Point the
+ArcaneFem build at the MGIS build/install tree with:
+
+```bash
+cmake -DMFRONT_MGIS_ROOT=/path/to/mgis-build ...
+```
+
+`MFRONT_MGIS_ROOT` must contain both the MGIS headers
+(`MGIS/Behaviour/Behaviour.hxx`) and `libMFrontGenericInterface`.
+
+### Example input
+
+The constitutive-law block selects `MFront` and points to a compiled behaviour
+library:
+
+```xml
+<elastoplasticity2>
+  <tmax>21.</tmax>
+  <dt>1.</dt>
+  <constitutive-law>
+    <law>MFront</law>
+    <mfront>
+      <behaviour-file>data/libElastic2D.so</behaviour-file>
+      <behaviour-name>Elastic2D</behaviour-name>
+      <hypothesis>PlaneStrain</hypothesis>
+      <material-properties>70000.0 0.3</material-properties>
+    </mfront>
+  </constitutive-law>
+  ...
+</elastoplasticity2>
+```
+
+- **`behaviour-file`** – path (relative to the run directory) to the compiled
+  MFront behaviour library (`.so`).
+- **`behaviour-name`** – the registration name (symbol prefix) of the behaviour
+  inside the library.
+- **`hypothesis`** – `PlaneStrain`, `PlaneStress`, `Axisymmetrical`,
+  `GeneralisedPlaneStrain` or `Tridimensional` (default `PlaneStrain`).
+- **`material-properties`** – the material properties, in the order declared by
+  the behaviour (e.g. `[YoungModulus, PoissonRatio]` for the elastic example).
+
+See `inputs/2D.quater.cylinder.mfront.arc` for a complete example.
+
+### Current scope / limitations
+
+- **CPU-only** and implemented for **2D `Tria3`** meshes (1 Gauss point per
+  cell). The module raises a `FATAL` error if a MFront behaviour is requested
+  on a 3D mesh or on a quad/hex-quad mesh.
+- The stress/tangent slots are mapped to the MGIS plane-strain convention
+  (`[xx, yy, zz, √2·xy]`); the `zz` component is handled separately in
+  `m_sigma_zz_gp`.

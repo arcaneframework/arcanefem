@@ -14,6 +14,8 @@ add_executable(Elastoplasticity2
   ElementMatrixHexQuad.h
   ExternalBodyForce.cc
   Traction.cc
+  # CPU-only MFront/MGIS integration (not dispatched to the accelerator).
+  MFrontLaw.cc
   main.cc
 )
 
@@ -28,6 +30,38 @@ target_include_directories(Elastoplasticity2 PUBLIC . ${CMAKE_BINARY_DIR} ${Arca
 configure_file(Elastoplasticity2.config ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 
 target_link_libraries(Elastoplasticity2 PUBLIC FemUtils)
+
+# ---------------------------------------------------------------------------
+# MFront / MGIS (generic constitutive law)
+#
+# The MFront/MGIS integration (MFrontLaw.cc) is CPU-only and links the
+# MFrontGenericInterface (MGIS) library. MGIS is vendored under
+# <arcaneFem>/MFrontGenericInterfaceSupport; build it once (standalone, without
+# TFEL) and point MFRONT_MGIS_ROOT at its build/install tree, e.g.
+#
+#   cmake -DMFRONT_MGIS_ROOT=/path/to/mgis-build ...
+#
+# MFRONT_MGIS_ROOT is expected to contain both the MGIS headers
+# (MGIS/Behaviour/Behaviour.hxx) and libMFrontGenericInterface.
+# ---------------------------------------------------------------------------
+find_path(MFRONT_MGIS_INCLUDE_DIR
+  NAMES MGIS/Behaviour/Behaviour.hxx
+  HINTS ${MFRONT_MGIS_ROOT}
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../MFrontGenericInterfaceSupport
+  DOC "Root of the MGIS (MFrontGenericInterface) include directory")
+find_library(MFRONT_MGIS_LIBRARY
+  NAMES MFrontGenericInterface
+  HINTS ${MFRONT_MGIS_ROOT}
+  DOC "Path to libMFrontGenericInterface")
+if (NOT MFRONT_MGIS_INCLUDE_DIR OR NOT MFRONT_MGIS_LIBRARY)
+  message(FATAL_ERROR
+    "MFront/MGIS support requires the MFrontGenericInterface (MGIS) library. "
+    "Build MFrontGenericInterfaceSupport/ (standalone, without TFEL) and pass "
+    "-DMFRONT_MGIS_ROOT=<mgis build/install dir>. "
+    "Headers found: ${MFRONT_MGIS_INCLUDE_DIR}; Library found: ${MFRONT_MGIS_LIBRARY}")
+endif()
+target_include_directories(Elastoplasticity2 PRIVATE ${MFRONT_MGIS_INCLUDE_DIR})
+target_link_libraries(Elastoplasticity2 PRIVATE ${MFRONT_MGIS_LIBRARY})
 
 #  Copy the data files in the binary directory
 file(COPY "data" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

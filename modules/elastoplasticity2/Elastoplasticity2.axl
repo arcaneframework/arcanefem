@@ -104,10 +104,10 @@
              maxOccurs = "1"
       >
       <description>
-        List of constitutive laws to use from VonMises|DruckerPrager|Hooke.
+        List of constitutive laws to use from VonMises|DruckerPrager|MFront.
       </description>
       <simple name="law" type="string" default="VonMises">
-        <description>Name of constitutive law</description>
+        <description>Name of constitutive law: VonMises | DruckerPrager | MFront</description>
       </simple>
       <complex name="von-mises"
                type="VonMises"
@@ -147,6 +147,31 @@
         </simple>
         <simple name="friction-angle" type="real" default="0.34906585039">
           <description>Friction angle parameter of the material.</description>
+        </simple>
+      </complex>
+
+      <!-- ==================== MFront / MGIS behaviour (generic) ==================== -->
+      <complex name="mfront"
+               type="MFront"
+               minOccurs = "0"
+               maxOccurs = "1"
+       >
+        <description>
+          Generic constitutive law driven by a compiled MFront behaviour
+          (MFrontGenericInterfaceSupport). The behaviour provides the stress
+          update and the consistent tangent at each Gauss point.
+        </description>
+        <simple name="behaviour-file" type="string" optional="true">
+          <description>Path to the compiled MFront behaviour library (.so).</description>
+        </simple>
+        <simple name="behaviour-name" type="string" optional="true">
+          <description>Name (symbol prefix) of the behaviour inside the library.</description>
+        </simple>
+        <simple name="hypothesis" type="string" default="PlaneStrain" optional="true">
+          <description>Modelling hypothesis: PlaneStrain | PlaneStress | Axisymmetrical | GeneralisedPlaneStrain | Tridimensional.</description>
+        </simple>
+        <simple name="material-properties" type="real[]" optional="true">
+          <description>Material properties, in the order declared by the behaviour.</description>
         </simple>
       </complex>
     </complex>
