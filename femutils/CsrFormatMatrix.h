@@ -33,7 +33,11 @@ class DoFLinearSystem;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
+/*!
+ * \brief Matrix using Compressed Sparse Row (CSR) format.
+ *
+ * You have to call initialize() before using this matrix.
+ */
 class CsrFormat
 : public TraceAccessor
 {
@@ -86,6 +90,9 @@ class CsrFormat
     return -1;
   }
 
+  //! Number of rows in the matrix
+  constexpr Int32 nbRow() const { return m_matrix_rows_nb_column.extent0(); }
+
   /**
    * @brief
    *
@@ -119,6 +126,16 @@ class CsrFormat
 
   //! View of the matrix
   CsrFormatMatrixView view();
+
+  /*!
+   * \brief Check that sizes are valid:
+   * - rowIndexes().size() = nbRow() + 1;
+   * - columns().size() = rowIndexes[nbRow()];
+   * - values().size() = rowIndexes[nbRow()];
+   *
+   * \note: At the moment theses properties are not always verified.
+   */
+  void checkValid(bool force = false) const;
 
  public:
 

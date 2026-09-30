@@ -33,9 +33,9 @@ namespace Arcane::FemUtils
 /*---------------------------------------------------------------------------*/
 
 void CsrFormat::
-initialize(IItemFamily* dof_family, Int32 nnz, Int32 nbRow, RunQueue& queue)
+initialize(IItemFamily* dof_family, Int32 nnz, Int32 nb_row, RunQueue& queue)
 {
-  info() << "Initialize CsrFormat: nb_non_zero=" << nnz << " nb_row=" << nbRow;
+  info() << "Initialize CsrFormat: nb_non_zero=" << nnz << " nb_row=" << nb_row;
 
   eMemoryRessource mem_ressource = queue.memoryRessource();
   m_matrix_row = NumArray<Int32, MDDim1>(mem_ressource);
@@ -43,13 +43,13 @@ initialize(IItemFamily* dof_family, Int32 nnz, Int32 nbRow, RunQueue& queue)
   m_matrix_value = NumArray<Real, MDDim1>(mem_ressource);
   m_matrix_rows_nb_column = NumArray<Int32, MDDim1>(mem_ressource);
 
-  m_matrix_row.resize(nbRow);
+  m_matrix_row.resize(nb_row);
   m_matrix_column.resize(nnz);
   m_matrix_value.resize(nnz);
   m_matrix_row.fill(-1, &queue);
   m_matrix_column.fill(-1, &queue);
   m_matrix_value.fill(0, &queue);
-  m_matrix_rows_nb_column.resize(nbRow);
+  m_matrix_rows_nb_column.resize(nb_row);
   m_matrix_rows_nb_column.fill(0, &queue);
   m_dof_family = dof_family;
   m_last_value = 0;
@@ -118,6 +118,37 @@ view()
 {
   return CSRFormatView(m_matrix_row.to1DSmallSpan(), m_matrix_rows_nb_column.to1DSmallSpan(),
                        m_matrix_column.to1DSmallSpan(), m_matrix_value.to1DSmallSpan());
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void CsrFormat::
+checkValid(bool force) const
+{
+  if (!arcaneIsCheck() && !force)
+    return;
+  Int32 nb_row = nbRow();
+  Int32 n1 = m_matrix_row.extent0();
+  if (n1 != (nb_row + 1))
+    ARCCORE_FATAL("Bad size '{0}' for rowIndexes() (expected value = {1})", n1, nb_row + 1);
+  Int32 nb_value = m_matrix_row[nb_row];
+  Int32 n2 = m_matrix_column.extent0();
+  Int32 n3 = m_matrix_value.extent0();
+  if (n2 != nb_value)
+    ARCCORE_FATAL("Bad size '{0}' for columns() (expected value = {1})", n2, nb_value);
+  if (n3 != nb_value)
+    ARCCORE_FATAL("Bad size '{0}' for values() (expected value = {1})", n3, nb_value);
+  auto mem_resource = m_matrix_row.memoryResource();
+  bool can_compare = (mem_resource != eMemoryResource::Device);
+  if (can_compare) {
+    for (Int32 i = 0; i < nb_row; ++i) {
+      Int32 x0 = m_matrix_rows_nb_column[i];
+      Int32 x1 = m_matrix_row[i + 1] - m_matrix_row[i];
+      if (x0 != x1)
+        ARCCORE_FATAL("Bad number of column for row='{0}' v={1} expected={2}", i, x1, x0);
+    }
+  }
 }
 
 /*---------------------------------------------------------------------------*/
