@@ -52,26 +52,33 @@ _buildMatrixCsr()
 
   Int32 nnz = nedge * 2 + nbnde;
 
-  m_csr_matrix.initialize(m_dof_family, nnz, nbNode(), m_queue);
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   //We iterate through the node, and we do not sort anymore : we assume the nodes ID are sorted, and we will iterate throught the column to avoid making < and > comparison
+  NumArray<Int32, MDDim1> rows_index(m_queue.memoryResource());
+  NumArray<Int32, MDDim1> columns(m_queue.memoryResource());
+  rows_index.resize(nbNode() + 1);
+  columns.resize(nnz);
+
+  Int32 index = 0;
+  Int32 column_index = 0;
+  rows_index[0] = 0;
   if (mesh_dim == 2) {
     ENUMERATE_NODE (inode, allNodes()) {
       Node node = *inode;
-
+      DoFLocalId dof0 = node_dof.dofId(node, 0);
       //info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(node, 0) << " )";
-      m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
-
+      columns[column_index++] = dof0;
       for (Face face : node.faces()) {
         if (face.nodeId(0) == node.localId()) {
           //info() << "DEBUG Add: 0 (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(face.nodeId(1), 0) << " )";
-          m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(1), 0));
+          columns[column_index++] = node_dof.dofId(face.nodeId(1), 0);
         }
         else {
           //info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(face.nodeId(0), 0) << " )";
-          m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
+          columns[column_index++] = node_dof.dofId(face.nodeId(0), 0);
         }
       }
+      rows_index[++index] = column_index;
     }
   }
   else if (mesh_dim == 3) {
@@ -82,13 +89,19 @@ _buildMatrixCsr()
 
     ENUMERATE_NODE (inode, allNodes()) {
       Node node = *inode;
-      DoFLocalId dof = node_dof.dofId(node, 0);
+      DoFLocalId dof0 = node_dof.dofId(node, 0);
       //info() << "DEBUG Add:   (" << node_dof.dofId(node, 0) << ", " << node_dof.dofId(node, 0) << " )";
-      m_csr_matrix.setCoordinates(dof, node_dof.dofId(node, 0));
-      for (NodeLocalId other_node : nn_cv.nodeIds(node))
-        m_csr_matrix.setCoordinates(dof, node_dof.dofId(other_node, 0));
+      columns[column_index++] = dof0;
+      for (NodeLocalId other_node : nn_cv.nodeIds(node)) {
+        columns[column_index++] = node_dof.dofId(other_node, 0);
+      }
+      rows_index[++index] = column_index;
     }
   }
+  if (column_index != nnz)
+    ARCANE_FATAL("Bad value for number of non zero: expected={0} computed={1}", nnz, column_index);
+  m_csr_matrix.initialize(m_dof_family, std::move(rows_index), std::move(columns), m_queue);
+  m_csr_matrix.checkValid();
 }
 
 /*---------------------------------------------------------------------------*/
