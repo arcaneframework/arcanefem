@@ -52,7 +52,6 @@ initialize(IItemFamily* dof_family, Int32 nnz, Int32 nb_row, RunQueue& queue)
   m_matrix_rows_nb_column.resize(nb_row);
   m_matrix_rows_nb_column.fill(0, &queue);
   m_dof_family = dof_family;
-  m_last_value = 0;
   m_nnz = nnz;
   info() << "Filling CSR Matrix with zeros";
 }
@@ -95,8 +94,9 @@ initialize(IItemFamily* dof_family, NumArray<Int32, MDDim1>&& rows_index, NumArr
     m_matrix_rows_nb_column[i] = rows_index[i + 1] - rows_index[i];
 
   m_dof_family = dof_family;
-  m_last_value = 0;
   m_nnz = nnz;
+
+  checkValid();
 }
 
 /*---------------------------------------------------------------------------*/

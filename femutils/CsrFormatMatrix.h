@@ -52,6 +52,8 @@ class CsrFormat
 
   void initialize(IItemFamily* dof_family, Int32 nnz, Int32 nbRow, RunQueue& queue);
 
+ public:
+
   /*!
    * \brief Initialize the matrix.
    *
@@ -121,17 +123,6 @@ class CsrFormat
    */
   void printMatrix(std::string fileName);
 
-  // Warning : does not support empty row (or does it ?)
-  void setCoordinates(DoFLocalId row, DoFLocalId column)
-  {
-    Int32 row_lid = row.localId();
-    if (m_matrix_row(row_lid) == -1) {
-      m_matrix_row(row_lid) = m_last_value;
-    }
-    m_matrix_column(m_last_value) = column.localId();
-    m_last_value++;
-  }
-
   void matrixSetValue(DoFLocalId row, DoFLocalId column, Real value)
   {
     m_matrix_value(indexValue(row, column)) = value;
@@ -153,10 +144,6 @@ class CsrFormat
  public:
 
   Int32 m_nnz = 0;
-  // To become parallelizable, have all the index
-  // inside a queue that would gradually pop ?
-  // or link the idnex to the index of the core ?
-  Int32 m_last_value = 0;
   NumArray<Int32, MDDim1> m_matrix_row;
   NumArray<Int32, MDDim1> m_matrix_column;
   NumArray<Real, MDDim1> m_matrix_value;
