@@ -52,6 +52,19 @@ class CsrFormat
 
   void initialize(IItemFamily* dof_family, Int32 nnz, Int32 nbRow, RunQueue& queue);
 
+  /*!
+   * \brief Initialize the matrix.
+   *
+   * The values of the arrays \a rows_index and \a columns will be moved into its class
+   * and should not be user after. It should have be allocated using queue.memoryRessource().
+   *
+   * The number of rows of the matrix will be equal to `rows_index.size()-1` and
+   * the number of column for a given \a row is `rows_index[row+1]-rows_index[row]`.
+   * So the number of non-zero is equal to `rows_index[nb_row]` and should be
+   * equal to `columns.size()`.
+   */
+  void initialize(IItemFamily* dof_family, NumArray<Int32, MDDim1>&& rows_index, NumArray<Int32, MDDim1>&& columns, RunQueue& queue);
+
   /**
    * @brief
    *
