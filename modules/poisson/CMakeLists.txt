@@ -1025,13 +1025,21 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_ALINA)
     -A,//fem/linear-system/atol=1e-15
     -A,//fem/linear-system/rtol=0)
 
-  arcanefem_add_seq_test(NAME 3D_alina
+  arcanefem_add_seq_test(NAME 3D_alina_dok
     COMMAND ./Poisson
     ARGS
       -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
       -A,//fem/matrix-format=DOK
       ${SOLVER_ALINA_CG_3D}
       inputs/sphere.3D.arc)
+  # NOTE: Does not yet work because the CSR format has bad value for last row
+  # arcanefem_add_seq_test(NAME 3D_alina_csr
+  #   COMMAND ./Poisson
+  #   ARGS
+  #     -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
+  #     -A,//fem/matrix-format=AF-BSR
+  #     ${SOLVER_ALINA_CG_3D}
+  #     inputs/sphere.3D.arc)
 endif()
 
 # ----------------------------------------------------------------------------

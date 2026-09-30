@@ -83,8 +83,8 @@ compute()
     subDomain()->timeLoopMng()->stopComputeLoop(true);
 
   String name = options()->linearSystem.serviceName();
-  // At them moment some linear systems does not support using a specific matrix format
-  bool is_change_format_supported = (name == "HypreLinearSystem") || (name == "PetscLinearSystem") || (name == "AlephLinearSystem");
+  // At the moment some linear systems does not support using a specific matrix format
+  bool is_change_format_supported = (name == "HypreLinearSystem") || (name == "PetscLinearSystem") || (name == "AlephLinearSystem") || (name == "AlinaLinearSystem");
 
   eLinearSystemMatrixFormat format = eLinearSystemMatrixFormat::DoK;
   if (is_change_format_supported && (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR"))
