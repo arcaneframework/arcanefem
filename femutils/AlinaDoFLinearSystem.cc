@@ -201,19 +201,19 @@ solve(VariableDoFReal& solution_variable, VariableDoFReal& rhs_variable)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-class AlinaDoFLinearSystemImpl
+class AlinaDoKDoFLinearSystemImpl
 : public DoKDoFLinearSystemImpl
 {
  public:
 
-  AlinaDoFLinearSystemImpl(IItemFamily* dof_family, const String& solver_name)
+  AlinaDoKDoFLinearSystemImpl(IItemFamily* dof_family, const String& solver_name)
   : DoKDoFLinearSystemImpl(dof_family, solver_name)
   {
     info() << "Creating AlinaDoFLinearSystemImpl()";
     m_alina_solver = new AlinaSolver(dof_family, solver_name);
   }
 
-  ~AlinaDoFLinearSystemImpl() override
+  ~AlinaDoKDoFLinearSystemImpl() override
   {
     delete m_alina_solver;
   }
@@ -247,7 +247,60 @@ class AlinaDoFLinearSystemImpl
 
  public:
 
-  AlinaParameters* solverParameters() const { return m_alina_solver->solverParameters(); }
+  AlinaSolver* underlyingAlinaSolver() const { return m_alina_solver; }
+
+ private:
+
+  AlinaSolver* m_alina_solver = nullptr;
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+class AlinaCsrDoFLinearSystemImpl
+: public CsrDoFLinearSystemImpl
+{
+ public:
+
+  AlinaCsrDoFLinearSystemImpl(IItemFamily* dof_family, const String& solver_name)
+  : CsrDoFLinearSystemImpl(dof_family, solver_name)
+  {
+    info() << "Creating AlinaDoFLinearSystemImpl()";
+    m_alina_solver = new AlinaSolver(dof_family, solver_name);
+  }
+
+  ~AlinaCsrDoFLinearSystemImpl() override
+  {
+    delete m_alina_solver;
+  }
+
+ public:
+
+  void build()
+  {
+    m_alina_solver->build();
+    CsrDoFLinearSystemImpl::clearValues();
+  }
+
+ public:
+
+  void applyMatrixTransformation() override
+  {
+    m_alina_solver->applyMatrixTransformation(getCSRValues());
+  }
+
+  void solve() override
+  {
+    m_alina_solver->solve(solutionVariable(), rhsVariable());
+  }
+
+  void setSolverCommandLineArguments([[maybe_unused]] const CommandLineArguments& args) override
+  {
+  }
+
+ public:
+
+  AlinaSolver* underlyingAlinaSolver() const { return m_alina_solver; }
 
  private:
 
@@ -270,15 +323,44 @@ class AlinaDoFLinearSystemFactoryService
   IDoFLinearSystemImpl*
   createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name) override
   {
-    IParallelMng* pm = dof_family->parallelMng();
-    if (pm->commSize() > 1)
-      ARCANE_THROW(NotImplementedException, "Alina solver in parallel is not yet implemented");
-    auto* x = new AlinaDoFLinearSystemImpl(dof_family, solver_name);
+    return _createInstance(dof_family, solver_name, eLinearSystemMatrixFormat::Csr);
+  }
 
+  IDoFLinearSystemImpl*
+  createInstance(ISubDomain* sd, IItemFamily* dof_family, const String& solver_name,
+                 eLinearSystemMatrixFormat matrix_format) override
+  {
+    return _createInstance(dof_family, solver_name, matrix_format);
+  }
+
+  IDoFLinearSystemImpl*
+  _createInstance(IItemFamily* dof_family, const String& solver_name,
+                  eLinearSystemMatrixFormat matrix_format)
+  {
+    AlinaSolver* x = nullptr;
+    IDoFLinearSystemImpl* linear_system = nullptr;
+    if (matrix_format == eLinearSystemMatrixFormat::DoK) {
+      info() << "Using DoK format Alina linear system";
+      auto* v = new AlinaDoKDoFLinearSystemImpl(dof_family, solver_name);
+      linear_system = v;
+      x = v->underlyingAlinaSolver();
+    }
+    else if (matrix_format == eLinearSystemMatrixFormat::Csr) {
+      info() << "Using Csr format Alina linear system";
+      auto* v = new AlinaCsrDoFLinearSystemImpl(dof_family, solver_name);
+      linear_system = v;
+      x = v->underlyingAlinaSolver();
+    }
+    else
+      ARCANE_FATAL("Unsupported matrix_format '{0}'", static_cast<int>(matrix_format));
+    _initializeAlinaSolver(x);
+    return linear_system;
+  }
+
+  void _initializeAlinaSolver(AlinaSolver* x)
+  {
     x->build();
-
     AlinaParameters* p = x->solverParameters();
-
     // Setting preconditioner and solver may change other values
     // so they have to be called before others
     p->setSolverType(options()->solver());
@@ -288,7 +370,6 @@ class AlinaDoFLinearSystemFactoryService
     p->setSolverRelativeTolerance(options()->rtol());
     p->setSolverMaxIteration(options()->maxIter());
     p->setSolverVerbosity(options()->verbosity());
-    return x;
   }
 };
 
