@@ -7,11 +7,11 @@
 /*---------------------------------------------------------------------------*/
 /* FemModule.h                                                 (C) 2000-2026 */
 /*                                                                           */
-/* FemModulePoisson class definition.                                               */
+/* FemModulePoisson class definition.                                        */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-#ifndef FEMMODULES_H
-#define FEMMODULES_H
+#ifndef ARCANEFEM_MODULES_POISSON_H
+#define ARCANEFEM_MODULES_POISSON_H
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -22,11 +22,12 @@
 #include <arcane/utils/ArcaneGlobal.h>
 #include <arcane/utils/NumArray.h>
 
-#include <arcane/ITimeLoopMng.h>
-#include <arcane/IItemFamily.h>
-#include <arcane/ItemGroup.h>
-#include <arcane/ICaseMng.h>
-#include <arcane/IMesh.h>
+#include <arcane/core/ITimeLoopMng.h>
+#include <arcane/core/IItemFamily.h>
+#include <arcane/core/ItemGroup.h>
+#include <arcane/core/ICaseMng.h>
+#include <arcane/core/IMesh.h>
+#include <arcane/geometric/GeomElement.h>
 
 #include <arccore/base/NotImplementedException.h>
 

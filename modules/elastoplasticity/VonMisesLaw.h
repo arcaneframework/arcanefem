@@ -67,8 +67,11 @@ inline void FemModuleElastoplasticity::_commitInternalVariablesVonMises()
  *
  */
 /*---------------------------------------------------------------------------*/
-inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMises()
+inline void FemModuleElastoplasticity::_integrateAndSaveConstitutiveLawVonMises()
 {
+  info() << "[ArcaneFem-Info] Started module  _integrateAndSaveConstitutiveLawVonMises()";
+  Real elapsedTime = platform::getRealTime();
+
   auto use_gpu = options()->linearSystem.serviceName() == "HypreLinearSystem" ||
     options()->linearSystem.serviceName() == "PetscLinearSystem";
 
@@ -76,13 +79,13 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMise
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {
         if (m_nodes_per_cell == 4)
-          _updateGlobalTangentMaterialTensorVonMisesQuad4Cpu(); // Todo: implement GPU version
+          _integrateAndSaveConstitutiveLawVonMisesQuad4Cpu(); // Todo: implement GPU version
         else if (m_nodes_per_cell == 8)
-          _updateGlobalTangentMaterialTensorVonMisesQuad8Cpu(); // Todo: implement GPU version
+          _integrateAndSaveConstitutiveLawVonMisesQuad8Cpu(); // Todo: implement GPU version
         else
-          _updateGlobalTangentMaterialTensorVonMisesQuad9Cpu(); // Todo: implement GPU version
+          _integrateAndSaveConstitutiveLawVonMisesQuad9Cpu(); // Todo: implement GPU version
       } else {
-        _updateGlobalTangentMaterialTensorVonMisesTria3Gpu();
+        _integrateAndSaveConstitutiveLawVonMisesTria3Gpu();
       }
     } else {
       if (m_hex_quad_mesh) {
@@ -95,13 +98,13 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMise
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {
         if (m_nodes_per_cell == 4)
-          _updateGlobalTangentMaterialTensorVonMisesQuad4Cpu();
+          _integrateAndSaveConstitutiveLawVonMisesQuad4Cpu();
         else if (m_nodes_per_cell == 8)
-          _updateGlobalTangentMaterialTensorVonMisesQuad8Cpu();
+          _integrateAndSaveConstitutiveLawVonMisesQuad8Cpu();
         else
-          _updateGlobalTangentMaterialTensorVonMisesQuad9Cpu();
+          _integrateAndSaveConstitutiveLawVonMisesQuad9Cpu();
       } else {
-        _updateGlobalTangentMaterialTensorVonMisesTria3Cpu();
+        _integrateAndSaveConstitutiveLawVonMisesTria3Cpu();
       }
     } else {
       if (m_hex_quad_mesh) {
@@ -111,6 +114,8 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMise
       }
     }
   }
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"integrate-and-save-constitutive-law", elapsedTime);
 }
 /*---------------------------------------------------------------------------*/
 
@@ -354,7 +359,7 @@ ARCCORE_HOST_DEVICE void computeStressAndInVarsVonMisesAtGp(RealVector<3>& sigma
  *
  */
 /*---------------------------------------------------------------------------*/
-inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMisesTria3Cpu()
+inline void FemModuleElastoplasticity::_integrateAndSaveConstitutiveLawVonMisesTria3Cpu()
 {
   ENUMERATE_ (Cell, icell, allCells())
   {
@@ -423,7 +428,7 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMise
  *
  */
 /*---------------------------------------------------------------------------*/
-inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMisesTria3Gpu()
+inline void FemModuleElastoplasticity::_integrateAndSaveConstitutiveLawVonMisesTria3Gpu()
 {
   auto queue = subDomain()->acceleratorMng()->defaultQueue();
   UnstructuredMeshConnectivityView m_connectivity_view(mesh());
@@ -545,7 +550,7 @@ RealMatrix<6, 6> FemModuleElastoplasticity::_computeLocalVonMisesElementMatrixTr
 }
 /*---------------------------------------------------------------------------*/
 
-inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMisesQuad4Cpu()
+inline void FemModuleElastoplasticity::_integrateAndSaveConstitutiveLawVonMisesQuad4Cpu()
 {
   constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
 
@@ -583,7 +588,7 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMise
   }
 }
 
-inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMisesQuad8Cpu()
+inline void FemModuleElastoplasticity::_integrateAndSaveConstitutiveLawVonMisesQuad8Cpu()
 {
   constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
 
@@ -621,7 +626,7 @@ inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMise
   }
 }
 
-inline void FemModuleElastoplasticity::_updateGlobalTangentMaterialTensorVonMisesQuad9Cpu()
+inline void FemModuleElastoplasticity::_integrateAndSaveConstitutiveLawVonMisesQuad9Cpu()
 {
   constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
 
@@ -873,6 +878,9 @@ ARCCORE_HOST_DEVICE RealMatrix<2, 6> computeLocalVonMisesElementVectorTria3Gpu(C
 /*---------------------------------------------------------------------------*/
 inline void FemModuleElastoplasticity::_updateStressAndInVarsVonMises()
 {
+  info() << "[ArcaneFem-Info] Started module  _updateStressAndInVarsVonMises()";
+  Real elapsedTime = platform::getRealTime();
+
   if (mesh()->dimension() == 2) {
     if (m_hex_quad_mesh) {
       if (m_nodes_per_cell == 4)
@@ -894,6 +902,8 @@ inline void FemModuleElastoplasticity::_updateStressAndInVarsVonMises()
       ARCANE_FATAL("Not IMPLEMENTED");
     }
   }
+  elapsedTime = platform::getRealTime() - elapsedTime;
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"update-global-stress-ivars", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/

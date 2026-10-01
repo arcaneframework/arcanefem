@@ -355,26 +355,35 @@ _buildCsrSparsity()
     nnz += m_nb_dof_per_cell * m_nb_dof_per_cell * (1 + nb_connected_cell);
   }
 
-  RunQueue* queue = subDomain()->acceleratorMng()->defaultQueue();
-  m_csr_matrix.initialize(m_dof_family, nnz, nb_dof, *queue);
+  RunQueue queue = subDomain()->acceleratorMng()->queue();
 
+  NumArray<Int32, MDDim1> rows_index(queue.memoryResource());
+  NumArray<Int32, MDDim1> columns(queue.memoryResource());
+  rows_index.resize(nb_dof + 1);
+  columns.resize(nnz);
+
+  Int32 index = 0;
+  Int32 column_index = 0;
+  rows_index[0] = 0;
   ENUMERATE_CELL (icell, allCells()) {
     Cell cell = *icell;
     for (Int32 i = 0; i < m_nb_dof_per_cell; ++i) {
       DoFLocalId row_dof = cell_dof.dofId(cell, i);
       for (Int32 j = 0; j < m_nb_dof_per_cell; ++j) {
         DoFLocalId column_dof = cell_dof.dofId(cell, j);
-        m_csr_matrix.setCoordinates(row_dof, column_dof);
+        columns[column_index++] = column_dof;
       }
       for (CellLocalId neighbor_cell_id : m_cell_cell_connectivity_view.cells(icell)) {
         Cell neighbor_cell = cells[neighbor_cell_id];
         for (Int32 j = 0; j < m_nb_dof_per_cell; ++j) {
           DoFLocalId column_dof = cell_dof.dofId(neighbor_cell, j);
-          m_csr_matrix.setCoordinates(row_dof, column_dof);
+          columns[column_index++] = column_dof;
         }
       }
+      rows_index[++index] = column_index;
     }
   }
+  m_csr_matrix.initialize(m_dof_family, std::move(rows_index), std::move(columns), queue);
 }
 
 /*---------------------------------------------------------------------------*/

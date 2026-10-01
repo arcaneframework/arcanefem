@@ -82,21 +82,29 @@ compute()
   if (m_global_iteration() > 0)
     subDomain()->timeLoopMng()->stopComputeLoop(true);
 
+  String name = options()->linearSystem.serviceName();
+  // At the moment some linear systems does not support using a specific matrix format
+  bool is_change_format_supported = (name == "HypreLinearSystem") || (name == "PetscLinearSystem") || (name == "AlephLinearSystem") || (name == "AlinaLinearSystem");
+
+  eLinearSystemMatrixFormat format = eLinearSystemMatrixFormat::DoK;
+  if (is_change_format_supported && (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR"))
+    format = eLinearSystemMatrixFormat::Csr;
+
   info() << "[ArcaneFem-Info] Matrix format used " << m_matrix_format;
   m_linear_system.reset();
   m_linear_system.setLinearSystemFactory(options()->linearSystem());
-  m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
+  if (is_change_format_supported)
+    m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver", format);
+  else
+    m_linear_system.initialize(subDomain(), acceleratorMng()->defaultRunner(), m_dofs_on_nodes.dofFamily(), "Solver");
 
-  if (m_petsc_flags != NULL){
+  if (m_petsc_flags != NULL) {
     CommandLineArguments args = ArcaneFemFunctions::GeneralFunctions::getPetscFlagsFromCommandline(m_petsc_flags);
     m_linear_system.setSolverCommandLineArguments(args);
   }
 
   if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") {
-    bool use_csr_in_linear_system =
-    options()->linearSystem.serviceName() == "HypreLinearSystem" ||
-    options()->linearSystem.serviceName() == "AlienLinearSystem" ||
-    options()->linearSystem.serviceName() == "PetscLinearSystem";
+    bool use_csr_in_linear_system = is_change_format_supported || (name == "HypreLinearSystem");
     if (m_matrix_format == "BSR")
       m_bsr_format.initialize(mesh(), 1, use_csr_in_linear_system, 0);
     else
@@ -107,7 +115,7 @@ compute()
   _doStationarySolve();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"compute", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "compute", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/

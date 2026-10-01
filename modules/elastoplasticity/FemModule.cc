@@ -15,6 +15,9 @@
 #include <arcane/accelerator/MDVariableViews.h>
 #include <arcane/utils/ValueConvert.h>
 
+#include <arcane/accelerator/core/Memory.h>
+#include <arcane/accelerator/core/DeviceMemoryInfo.h>
+
 #include "FemModule.h"
 #include "ElementMatrix.h"
 #include "ElementMatrixHexQuad.h"
@@ -363,7 +366,7 @@ _doStationarySolve()
  *   1. _getMaterialParameters()     Updates nonlinear material parameters
  *   2. _restoreConvergedState<law>() Restored the previous converged state
  *                                    as the starting state for nonlinear solve.
- *   3. _updateGlobalTangentMaterialTensor<law>() and
+ *   3. _integrateAndSaveConstitutiveLaw<law>() and
  *      _assembleBilinearOperatorGlobal()
  *            OR
  *      _assembleBilinearOperatorLocal<law>() Assembles the FEM  matrix 𝐀ʹ
@@ -433,9 +436,9 @@ _solveNewton()
 
     if (m_gp_material_tensor_strategy == "global") {
       if (m_constitutive_law == "VonMises") {
-        _updateGlobalTangentMaterialTensorVonMises();
+        _integrateAndSaveConstitutiveLawVonMises();
       } else if (m_constitutive_law == "DruckerPrager") {
-        _updateGlobalTangentMaterialTensorDruckerPrager();
+        _integrateAndSaveConstitutiveLawDruckerPrager();
       }
     }
 

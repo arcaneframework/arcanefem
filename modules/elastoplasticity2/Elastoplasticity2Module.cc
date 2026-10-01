@@ -109,8 +109,7 @@ startInit()
     else
       m_nGP = 1;
 
-    if (m_gp_material_tensor_strategy == "global")
-      m_C_tang_gp.reshape({ m_nGP, 3, 3 });
+    m_C_tang_gp.reshape({ m_nGP, 3, 3 });
 
     m_sigma_gp.reshape({ m_nGP, 3 });
     m_sigma_old_gp.reshape({ m_nGP, 3 }); // TODO move to von mises only
@@ -123,8 +122,7 @@ startInit()
     else
       m_nGP = 1;
 
-    if (m_gp_material_tensor_strategy == "global")
-      m_C_tang_gp.reshape({ m_nGP, 6, 6 });
+    m_C_tang_gp.reshape({ m_nGP, 6, 6 });
 
     m_sigma_gp.reshape({ m_nGP, 6 });
     m_sigma_old_gp.reshape({ m_nGP, 6 });
@@ -395,7 +393,7 @@ _doStationarySolve()
  *   1. _getMaterialParameters()     Updates nonlinear material parameters
  *   2. _restoreConvergedState<law>() Restored the previous converged state
  *                                    as the starting state for nonlinear solve.
- *   3. _updateGlobalTangentMaterialTensor<law>() and
+ *   3. _integrateAndSaveConstitutiveLaw<law>() and
  *      _assembleBilinearOperatorGlobal()
  *            OR
  *      _assembleBilinearOperatorLocal<law>() Assembles the FEM  matrix 𝐀ʹ
@@ -424,27 +422,10 @@ _solveNewton()
     _restoreConvergedStateDruckerPrager();
   }
 
-  if (m_gp_material_tensor_strategy == "global")
-    _setGlobalElasticMaterialTensorAtGPs();
-
   // --- assemble_linear_system ---- //
   if (m_assemble_linear_system) {
-    if (m_gp_material_tensor_strategy == "global") {
-      _assembleBilinearOperatorGlobal();
-    }
-    else {
-      if (m_constitutive_law == "VonMises") {
-        _assembleBilinearOperatorLocalVonMises(true); //checks law an assembles corresponding matrix
-        _updateStressAndInVarsVonMises();
-      }
-      else if (m_constitutive_law == "DruckerPrager") {
-        _assembleBilinearOperatorLocalDruckerPrager(true);
-        _updateStressAndInVarsDruckerPrager();
-      }
-      else {
-        ARCANE_FATAL("Constitutive law not supported");
-      }
-    }
+    _setGlobalElasticMaterialTensorAtGPs();
+    _assembleBilinearOperatorGlobal();
     _assembleLinearOperator();
   }
 
@@ -467,15 +448,6 @@ _solveNewton()
     // --- update_increment ---- //
     _incrementVariables();
 
-    if (m_gp_material_tensor_strategy == "global") {
-      if (m_constitutive_law == "VonMises") {
-        _updateGlobalTangentMaterialTensorVonMises();
-      }
-      else if (m_constitutive_law == "DruckerPrager") {
-        _updateGlobalTangentMaterialTensorDruckerPrager();
-      }
-    }
-
     // --- assemble_linear_system ---- //
     if (m_linear_system.isInitialized()) {
       m_linear_system.clearValues();
@@ -483,22 +455,13 @@ _solveNewton()
       if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
         m_bsr_format.resetMatrixValues();
 
-      if (m_gp_material_tensor_strategy == "global") {
-        _assembleBilinearOperatorGlobal(); // assembles Jacobian
+      if (m_constitutive_law == "VonMises") {
+        _integrateAndSaveConstitutiveLawVonMises();
       }
-      else {
-        if (m_constitutive_law == "VonMises") {
-          _assembleBilinearOperatorLocalVonMises(); // assembles Jacobian for Von Mises
-          _updateStressAndInVarsVonMises();
-        }
-        else if (m_constitutive_law == "DruckerPrager") {
-          _assembleBilinearOperatorLocalDruckerPrager(); // assembles Jacobian for Drucker Prager
-          _updateStressAndInVarsDruckerPrager();
-        }
-        else {
-          ARCANE_FATAL("Constitutive law not supported");
-        }
+      else if (m_constitutive_law == "DruckerPrager") {
+        _integrateAndSaveConstitutiveLawDruckerPrager();
       }
+      _assembleBilinearOperatorGlobal(); // assembles Jacobian
       _assembleLinearOperator(); // assembles Residuals(m_DUn) + BCs
     }
 
@@ -707,9 +670,7 @@ _getMaterialParameters()
       }
 
       // Initialize the tangent material tensor
-      if (m_gp_material_tensor_strategy == "global") {
-        _setGlobalElasticMaterialTensorAtGPs();
-      }
+      _setGlobalElasticMaterialTensorAtGPs();
     }
     else {
       ARCANE_FATAL("Not implemented for 3D yet");
@@ -738,9 +699,7 @@ _getMaterialParameters()
       m_C_elas_3d(2, 1) = lambda;
 
       // Initialize the tangent material tensor
-      if (m_gp_material_tensor_strategy == "global") {
-        _setGlobalElasticMaterialTensorAtGPs();
-      }
+      _setGlobalElasticMaterialTensorAtGPs();
     }
   }
   m_material_initialized = true;
