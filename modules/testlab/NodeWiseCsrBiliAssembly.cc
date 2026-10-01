@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* NWCSRiliAssembly.hxx                                      (C) 2000-2026   */
+/* NWCSRiliAssembly.hxx                                        (C) 2000-2026 */
 /*                                                                           */
 /* Methods of the bilinear assembly phase using the csr data structure       */
 /* which avoid to add in the global matrix by iterating through the node.    */
@@ -33,56 +33,6 @@
  * based on the number of nodes and edges/faces in the mesh.
  */
 /*---------------------------------------------------------------------------*/
-
-/* void FemModuleTestlab::_buildMatrixNodeWiseCsrCPU()
-{
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-
-  // Compute the number of nnz and initialize the memory space
-  Int64 nbnde = nbNode();
-  Int64 nedge = mesh()->dimension() == 3 ? nbEdge() : nbFace();
-  Int32 nnz = nedge * 2 + nbnde;
-  m_csr_matrix.initialize(m_dof_family, nnz, nbnde);
-
-  if (mesh()->dimension() == 2) {
-    ENUMERATE_NODE (inode, allNodes()) {
-
-      //Since we compute the neighbouring connectivity here, we also fill the csr matrix
-
-      Node node = *inode;
-
-      m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(node, 0));
-
-      for (Face face : node.faces()) {
-        if (face.nodeId(0) == node.localId()) {
-          //    cn->addConnectedItem(node, face.node(0));
-          m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(1), 0));
-        }
-        else {
-          //  cn->addConnectedItem(node, face.node(1));
-          m_csr_matrix.setCoordinates(node_dof.dofId(node, 0), node_dof.dofId(face.nodeId(0), 0));
-        }
-      }
-    }
-  }
-  else if (mesh()->dimension() == 3) {
-    ENUMERATE_NODE (inode, allNodes()) {
-      Node node = *inode;
-      Int32 node_dof_id = node_dof.dofId(node, 0);
-      ItemLocalIdT<DoF> diagonal_entry(node_dof_id);
-
-      m_csr_matrix.setCoordinates(diagonal_entry, diagonal_entry);
-
-      for (Edge edge : node.edges()) {
-        if (edge.nodeId(0) == node.localId())
-          m_csr_matrix.setCoordinates(diagonal_entry, node_dof.dofId(edge.nodeId(1), 0));
-        else
-          m_csr_matrix.setCoordinates(diagonal_entry, node_dof.dofId(edge.nodeId(0), 0));
-      }
-    }
-  }
-}
-*/
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
