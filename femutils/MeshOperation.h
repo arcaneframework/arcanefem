@@ -311,7 +311,7 @@ class MeshOperation
   }
 
   /*---------------------------------------------------------------------------*/
-  /** @brief Computes the unit face normal directed out of a 2D cell.
+  /** @brief Computes the unit edge normal directed out of a 2D cell.
    *
    * This method calculates the unit normal vector of a face in 2D space, ensuring
    * that it is directed outward from the  specified  cell. The  normal  vector is
@@ -320,7 +320,7 @@ class MeshOperation
    * from the cell's centroid.
    */
   /*---------------------------------------------------------------------------*/
-  static inline Real3 computeUnitNormal2D(Face face, Cell cell, const VariableNodeReal3& node_coord)
+  static inline Real3 computeOutwardUnitNormalEdge2D(Face face, Cell cell, const VariableNodeReal3& node_coord)
   {
     Real3 edge = node_coord[face.nodeId(1)] - node_coord[face.nodeId(0)];
     Real3 normal = { edge.y, -edge.x, 0.0 };
@@ -336,7 +336,7 @@ class MeshOperation
   }
 
   /*---------------------------------------------------------------------------*/
-  /** @brief Computes the Newell unit normal directed out of a 3D cell.
+  /** @brief Computes the polygon unit normal directed out of a 3D cell.
    *
    * This method calculates the unit normal vector of a face in 3D space using
    * Newell's method, ensuring that it is directed outward  from the specified
@@ -345,7 +345,7 @@ class MeshOperation
    * ensure it points away from the cell's centroid.
    */
   /*---------------------------------------------------------------------------*/
-  static inline Real3 computeUnitNormal3D(Face face, Cell cell, const VariableNodeReal3& node_coord)
+  static inline Real3 computeOutwardUnitNormalPolygon3D(Face face, Cell cell, const VariableNodeReal3& node_coord)
   {
     Real3 normal = { 0.0, 0.0, 0.0 };
     for (Int32 i = 0; i < face.nbNode(); ++i) {

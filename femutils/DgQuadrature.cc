@@ -80,9 +80,7 @@ computeCellQuadrature3D(Cell cell, const VariableNodeReal3& node_coord)
     for (Int32 i = 1; i + 1 < face.nbNode(); ++i) {
       Real3 b = node_coord[face.nodeId(i)];
       Real3 c = node_coord[face.nodeId(i + 1)];
-      Real volume = math::abs(math::dot(anchor - center,
-                                        math::cross(b - center, c - center))) /
-      6.0;
+      Real volume = math::abs(math::dot(anchor - center, math::cross(b - center, c - center))) / 6.0;
       // Skip degenerate tetrahedra
       if (volume <= 1.0e-30)
         continue;

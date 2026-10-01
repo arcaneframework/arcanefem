@@ -35,13 +35,13 @@ startInit()
   m_dimension = mesh()->dimension();
   if (m_dimension == 2) {
     m_compute_dg_penalty_length = &ArcaneFemFunctions::MeshOperation::computeDGPenaltyLength2D;
-    m_compute_face_normal = &ArcaneFemFunctions::MeshOperation::computeUnitNormal2D;
+    m_compute_face_normal = &ArcaneFemFunctions::MeshOperation::computeOutwardUnitNormalEdge2D;
     m_compute_cell_quadrature = &ArcaneFemFunctions::DgQuadrature::computeCellQuadrature2D;
     m_compute_face_quadrature = &ArcaneFemFunctions::DgQuadrature::computeFaceQuadrature2D;
   }
   else if (m_dimension == 3) {
     m_compute_dg_penalty_length = &ArcaneFemFunctions::MeshOperation::computeDGPenaltyLength3D;
-    m_compute_face_normal = &ArcaneFemFunctions::MeshOperation::computeUnitNormal3D;
+    m_compute_face_normal = &ArcaneFemFunctions::MeshOperation::computeOutwardUnitNormalPolygon3D;
     m_compute_cell_quadrature = &ArcaneFemFunctions::DgQuadrature::computeCellQuadrature3D;
     m_compute_face_quadrature = &ArcaneFemFunctions::DgQuadrature::computeFaceQuadrature3D;
   }
