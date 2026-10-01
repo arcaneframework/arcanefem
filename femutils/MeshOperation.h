@@ -236,6 +236,137 @@ class MeshOperation
   }
 
   /*---------------------------------------------------------------------------*/
+  /** @brief Returns the DG penalty length 2|K|/|F| in two dimensions.
+   *
+   * This method computes the Discontinuous Galerkin (DG) penalty length for a
+   * 2D cell and face. The penalty length is calculated  as  twice the area of
+   * the cell divided by the length of the face.
+   */
+  /*---------------------------------------------------------------------------*/
+  static inline Real computeDGPenaltyLength2D(Cell cell, Face face, const VariableNodeReal3& node_coord)
+  {
+    return 2.0 * computeAreaPolygon2D(cell, node_coord) / computeLengthEdge2(face, node_coord);
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /** @brief Computes the area of a planar polygon embedded in three dimensions.
+   *
+   * This method calculates the area of a polygon in 3D space by decomposing it
+   * into triangles. Area is  computed as the sum of the areas of the triangles
+   * formed by the polygon's vertices and an anchor point.
+   */
+  /*---------------------------------------------------------------------------*/
+  static inline Real computeAreaPolygon3D(Face face, const VariableNodeReal3& node_coord)
+  {
+    Real area = 0.0;
+    Real3 anchor = node_coord[face.nodeId(0)];
+    for (Int32 i = 1; i + 1 < face.nbNode(); ++i) {
+      Real3 b = node_coord[face.nodeId(i)];
+      Real3 c = node_coord[face.nodeId(i + 1)];
+      area += 0.5 * math::cross(b - anchor, c - anchor).normL2();
+    }
+    return area;
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /** @brief Computes convex polyhedron volume by a face-tetrahedra decomposition.
+   *
+   * This method calculates the volume of a convex polyhedron by decomposing it
+   * into tetrahedra. The volume  is  computed  as the sum of the volumes of the
+   * tetrahedra formed by the polyhedron's faces and a center point.
+   */
+  /*---------------------------------------------------------------------------*/
+  static inline Real computeVolumePolyhedron3D(Cell cell, const VariableNodeReal3& node_coord)
+  {
+    Real volume = 0.0;
+    Real3 center = computeCentroid(cell, node_coord);
+    for (Face face : cell.faces()) {
+      Real3 anchor = node_coord[face.nodeId(0)];
+      for (Int32 i = 1; i + 1 < face.nbNode(); ++i) {
+        Real3 b = node_coord[face.nodeId(i)];
+        Real3 c = node_coord[face.nodeId(i + 1)];
+        volume += math::abs(math::dot(anchor - center, math::cross(b - center, c - center))) / 6.0;
+      }
+    }
+    return volume;
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /** @brief Computes cell diameter used as the DG penalty length in three dimensions.
+   *
+   * This method computes the Discontinuous Galerkin (DG) penalty length for a
+   * 3D cell. The penalty length is calculated as the maximum distance between
+   * any two nodes of the cell.
+   */
+  /*---------------------------------------------------------------------------*/
+  static inline Real computeDGPenaltyLength3D(Cell cell, Face, const VariableNodeReal3& node_coord)
+  {
+    Real diameter = 0.0;
+    for (Int32 i = 0; i < cell.nbNode(); ++i) {
+      Real3 a = node_coord[cell.nodeId(i)];
+      for (Int32 j = i + 1; j < cell.nbNode(); ++j)
+        diameter = math::max(diameter, (node_coord[cell.nodeId(j)] - a).normL2());
+    }
+    return diameter;
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /** @brief Computes the unit face normal directed out of a 2D cell.
+   *
+   * This method calculates the unit normal vector of a face in 2D space, ensuring
+   * that it is directed outward from the  specified  cell. The  normal  vector is
+   * computed based on  the  edge  defined by the  face's  nodes and is normalized
+   * to have a length of one. The orientation is adjusted to ensure it points away
+   * from the cell's centroid.
+   */
+  /*---------------------------------------------------------------------------*/
+  static inline Real3 computeUnitNormal2D(Face face, Cell cell, const VariableNodeReal3& node_coord)
+  {
+    Real3 edge = node_coord[face.nodeId(1)] - node_coord[face.nodeId(0)];
+    Real3 normal = { edge.y, -edge.x, 0.0 };
+    Real norm = normal.normL2();
+#ifdef _DEBUG
+    if (norm <= 1.0e-30)
+      ARCANE_FATAL("Degenerate face {0} has a zero normal", face.uniqueId());
+#endif
+    normal = normal / norm;
+    if (math::dot(normal, computeCentroid(face, node_coord) - computeCentroid(cell, node_coord)) < 0.0)
+      normal = -normal;
+    return normal;
+  }
+
+  /*---------------------------------------------------------------------------*/
+  /** @brief Computes the Newell unit normal directed out of a 3D cell.
+   *
+   * This method calculates the unit normal vector of a face in 3D space using
+   * Newell's method, ensuring that it is directed outward  from the specified
+   * cell. The normal vector is computed based on the vertices of the face and
+   * is normalized to have a  length  of one. The  orientation  is adjusted to
+   * ensure it points away from the cell's centroid.
+   */
+  /*---------------------------------------------------------------------------*/
+  static inline Real3 computeUnitNormal3D(Face face, Cell cell, const VariableNodeReal3& node_coord)
+  {
+    Real3 normal = { 0.0, 0.0, 0.0 };
+    for (Int32 i = 0; i < face.nbNode(); ++i) {
+      Real3 p = node_coord[face.nodeId(i)];
+      Real3 q = node_coord[face.nodeId((i + 1) % face.nbNode())];
+      normal.x += (p.y - q.y) * (p.z + q.z);
+      normal.y += (p.z - q.z) * (p.x + q.x);
+      normal.z += (p.x - q.x) * (p.y + q.y);
+    }
+    Real norm = normal.normL2();
+#ifdef _DEBUG
+    if (norm <= 1.0e-30)
+      ARCANE_FATAL("Degenerate face {0} has a zero normal", face.uniqueId());
+#endif
+    normal = normal / norm;
+    if (math::dot(normal, computeCentroid(face, node_coord) - computeCentroid(cell, node_coord)) < 0.0)
+      normal = -normal;
+    return normal;
+  }
+
+  /*---------------------------------------------------------------------------*/
   /**
    * @brief Computes the barycenter (centroid) of a triangle.
    *
