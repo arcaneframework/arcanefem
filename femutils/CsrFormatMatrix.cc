@@ -12,6 +12,7 @@
 
 #include <arcane/utils/FatalErrorException.h>
 #include <arcane/utils/NumArray.h>
+#include <arcane/utils/PlatformUtils.h>
 
 #include <arcane/core/VariableTypes.h>
 #include <arcane/core/IItemFamily.h>
@@ -36,14 +37,13 @@ void CsrFormat::
 initialize(IItemFamily* dof_family, Int32 nnz, Int32 nb_row, RunQueue& queue)
 {
   info() << "Initialize CsrFormat: nb_non_zero=" << nnz << " nb_row=" << nb_row;
-
   eMemoryRessource mem_resource = queue.memoryResource();
   m_matrix_row = NumArray<Int32, MDDim1>(mem_resource);
   m_matrix_column = NumArray<Int32, MDDim1>(mem_resource);
   m_matrix_value = NumArray<Real, MDDim1>(mem_resource);
   m_matrix_rows_nb_column = NumArray<Int32, MDDim1>(mem_resource);
 
-  m_matrix_row.resize(nb_row);
+  m_matrix_row.resize(nb_row + 1);
   m_matrix_column.resize(nnz);
   m_matrix_value.resize(nnz);
   m_matrix_row.fill(-1, &queue);
@@ -62,7 +62,7 @@ initialize(IItemFamily* dof_family, Int32 nnz, Int32 nb_row, RunQueue& queue)
 void CsrFormat::
 initialize(IItemFamily* dof_family, NumArray<Int32, MDDim1>&& rows_index, NumArray<Int32, MDDim1>&& columns, RunQueue& queue)
 {
-  info() << "Initialize CsrFormat with rows_index : nb_row=" << (rows_index.extent0() - 1);
+  info() << "Legacy Initialize CsrFormat with rows_index : nb_row=" << (rows_index.extent0() - 1);
 
   if (rows_index.extent0() == 0)
     ARCANE_FATAL("rows_index is empty");
@@ -108,48 +108,50 @@ translateToLinearSystem(DoFLinearSystem& linear_system, const RunQueue& queue)
   bool do_set_csr = linear_system.hasSetCSRValues();
   info() << "TranslateToLinearSystem this=" << this << " is_csr=" << do_set_csr;
 
-  const Int32 nb_row = m_matrix_row.dim1Size();
+  const Int32 nb_row = nbRow();
   const Int32 matrix_column_size = m_matrix_column.dim1Size();
 
-  // When using CSR format, we need to know the number of non zero values for
-  // each row.
-  // NOTE: it should be possible to compute that in setCoordinates().
-  // and this value is constant if the structure of the matrix do not change
-  // so we can store these values instead of recomputing them.
+  checkValid();
+
   if (do_set_csr) {
-    m_matrix_rows_nb_column.resize(nb_row);
-    auto command = makeCommand(queue);
-    auto out_matrix_rows_nb_column = viewOut(command, m_matrix_rows_nb_column);
-    auto in_matrix_rows = viewIn(command, m_matrix_row);
-    command << RUNCOMMAND_LOOP1(iter, nb_row)
-    {
-      auto [i] = iter();
-      Int32 nb_column = 0;
-      if (((i + 1) < nb_row) && (in_matrix_rows(i) == in_matrix_rows(i + 1))) {
-        out_matrix_rows_nb_column[0];
-        return;
-      }
-      for (Int32 j = in_matrix_rows(i); ((i + 1) < nb_row && j < in_matrix_rows(i + 1)) || ((i + 1) == nb_row && j < matrix_column_size); j++) {
-        ++nb_column;
-      }
-      out_matrix_rows_nb_column[i] = nb_column;
-    };
     CSRFormatView csr_view(view());
     linear_system.setCSRValues(csr_view);
     return;
   }
 
   for (Int32 i = 0; i < nb_row; i++) {
-    m_matrix_rows_nb_column[i] = 0;
-    if (((i + 1) < nb_row) && (m_matrix_row(i) == m_matrix_row(i + 1)))
-      continue;
-    for (Int32 j = m_matrix_row(i); ((i + 1) < nb_row && j < m_matrix_row(i + 1)) || ((i + 1) == nb_row && j < matrix_column_size); j++) {
-      if (DoFLocalId(m_matrix_column(j)).isNull())
+    Int32 begin = m_matrix_row[i];
+    Int32 end = m_matrix_row[i + 1];
+    for (Int32 z = begin; z < end; ++z) {
+      if (DoFLocalId(m_matrix_column(z)).isNull())
         continue;
       //info() << "Add: (" << i << ", " << m_matrix_column(j) << " v=" << m_matrix_value(j);
-      linear_system.matrixAddValue(DoFLocalId(i), DoFLocalId(m_matrix_column(j)), m_matrix_value(j));
+      linear_system.matrixAddValue(DoFLocalId(i), DoFLocalId(m_matrix_column(z)), m_matrix_value(z));
     }
   }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*!
+ * \brief Compute the values of \a m_matrix_rows_nb_column.
+ *
+ * We suppose \a m_matrix_row is valid and for a given
+ * \a i, we have m_matrix_rows_nb_column[i] = m_matrix_row[i+1] - m_matrix_row[i];
+ */
+void CsrFormat::
+computeNumberOfColumnsFromRowsIndex(const RunQueue& queue)
+{
+  Int32 nb_row = nbRow();
+  m_matrix_rows_nb_column.resize(nb_row);
+  auto command = makeCommand(queue);
+  auto out_matrix_rows_nb_column = viewOut(command, m_matrix_rows_nb_column);
+  auto in_matrix_rows = viewIn(command, m_matrix_row);
+  command << RUNCOMMAND_LOOP1(iter, nb_row)
+  {
+    auto [i] = iter();
+    out_matrix_rows_nb_column[i] = in_matrix_rows[i+1] - in_matrix_rows[i];
+  };
 }
 
 /*---------------------------------------------------------------------------*/
@@ -178,7 +180,7 @@ checkValid(bool force) const
   Int32 n2 = m_matrix_column.extent0();
   Int32 n3 = m_matrix_value.extent0();
   if (n2 != nb_value)
-    ARCCORE_FATAL("Bad size '{0}' for columns() (expected value = {1})", n2, nb_value);
+    ARCCORE_FATAL("Bad size '{0}' for columns() (expected value = {1} nb_row={2})", n2, nb_value, nb_row);
   if (n3 != nb_value)
     ARCCORE_FATAL("Bad size '{0}' for values() (expected value = {1})", n3, nb_value);
   auto mem_resource = m_matrix_row.memoryResource();
@@ -189,6 +191,8 @@ checkValid(bool force) const
       Int32 x1 = m_matrix_row[i + 1] - m_matrix_row[i];
       if (x0 != x1)
         ARCCORE_FATAL("Bad number of column for row='{0}' v={1} expected={2}", i, x1, x0);
+      if (x0 == 0)
+        ARCCORE_FATAL("Empty row row='{0}'", i);
     }
   }
 }
@@ -232,26 +236,23 @@ namespace Arcane
  * \brief Convert CSR format rows into COO format rows
  */
 void FemUtils::
-_translateCSRToCOO(Span<const Int32> csr_rows, SmallSpan<Int32> coo_rows,
+_translateCSRToCOO(Int32 nb_row, Span<const Int32> csr_rows, SmallSpan<Int32> coo_rows,
                    const RunQueue& queue)
 {
+  if (csr_rows.size() != (nb_row + 1))
+    ARCANE_FATAL("Incoherent size nb_row+1={0} csr_rows size={1}", nb_row + 1, csr_rows.size());
+
   const Int32 nb_value = coo_rows.size();
-  const Int32 nb_row = csr_rows.size();
 
   {
     auto command = makeCommand(queue);
     command << RUNCOMMAND_LOOP1(iter, nb_row)
     {
       auto [i] = iter();
-      if (i != (nb_row - 1)) {
-        for (int j = csr_rows[i]; j < csr_rows[i + 1]; j++)
-          coo_rows[j] = i;
-      }
-      else {
-        // The last iteration fill the remaining values
-        for (int j = csr_rows[nb_row - 1]; j < nb_value; j++)
-          coo_rows[j] = nb_row - 1;
-      }
+      Int32 begin = csr_rows[i];
+      Int32 end = csr_rows[i + 1];
+      for (Int32 z = begin; z < end; ++z)
+        coo_rows[z] = i;
     };
   }
 }
