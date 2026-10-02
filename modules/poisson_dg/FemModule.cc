@@ -278,6 +278,13 @@ _assembleLinearSystem()
     // Loop over Dirichlet BCs and apply them as penalty terms in SIPG
     for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions()) {
       FaceGroup face_group = bs->getSurface();
+
+      // Retrieve the Dirichlet value and convert to Real
+      const StringConstArrayView value = bs->getValue();
+      Real g = 0.0;
+      if (builtInGetValue(g,value[0]))
+          ARCANE_FATAL("Can not convert '{0}' to real",value[0]);
+
       ENUMERATE_ (Face, iface, face_group) {
         Face face = *iface;
         Cell cell = face.cell(0);
@@ -289,8 +296,6 @@ _assembleLinearSystem()
 
         Real h = m_compute_dg_penalty_length(cell, face, m_node_coord);
         Real sigma = m_penalty / h;
-        const StringConstArrayView value = bs->getValue();
-        Real g = std::stod(value[0].localstr());
 
         for (const QuadraturePoint& qp : m_compute_face_quadrature(face, m_node_coord)) {
           Real3 relative = qp.point - center;
@@ -310,12 +315,17 @@ _assembleLinearSystem()
 
     for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions()) {
       FaceGroup face_group = bs->getSurface();
+
+      // Retrieve the Dirichlet value and convert to Real
+      const StringConstArrayView value = bs->getValue();
+      Real g = 0.0;
+      if (builtInGetValue(g,value[0]))
+          ARCANE_FATAL("Can not convert '{0}' to real",value[0]);
+
       ENUMERATE_ (Face, iface, face_group) {
         Face face = *iface;
         Cell cell = face.cell(0);
         Real3 center = ArcaneFemFunctions::MeshOperation::computeCentroid(cell, m_node_coord);
-        const StringConstArrayView value = bs->getValue();
-        Real g = std::stod(value[0].localstr());
 
         for (const QuadraturePoint& qp : m_compute_face_quadrature(face, m_node_coord)) {
           Real3 relative = qp.point - center;

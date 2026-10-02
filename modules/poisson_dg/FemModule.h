@@ -21,6 +21,7 @@
 #include <arcane/utils/ApplicationInfo.h>
 #include <arcane/utils/ArcaneGlobal.h>
 #include <arcane/utils/NumArray.h>
+#include <arcane/utils/ValueConvert.h>
 
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IItemFamily.h>
