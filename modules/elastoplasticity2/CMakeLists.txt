@@ -62,7 +62,8 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   set(SOLVER_ALEPH_CG
     -A,//elastoplasticity2/linear-system/@name=AlephLinearSystem
     -A,//elastoplasticity2/linear-system/solver=cg
-    -A,//elastoplasticity2/linear-system/epsilon=1.0e-12)
+    -A,//elastoplasticity2/linear-system/epsilon=1.0e-12
+  )
 
   set(SOLVER_ALEPH_CG_GAMG
     -A,//elastoplasticity2/linear-system/@name=AlephLinearSystem
@@ -264,6 +265,22 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//elastoplasticity2/matrix-format=AF-BSR
     ${SOLVER_HYPRE_CG}
     inputs/2D.strip.footing.DruckerPrager.arc
+  )
+endif()
+
+if (FEMUTILS_HAS_SOLVER_BACKEND_ALINA)
+  set(SOLVER_ALINA_CG
+    -A,//elastoplasticity2/linear-system/@name=AlinaLinearSystem
+    -A,//elastoplasticity2/linear-system/atol=1.0e-9
+    -A,//elastoplasticity2/linear-system/rtol=0.0
+  )
+
+  arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_alina
+    COMMAND ./Elastoplasticity2 ARGS
+    -A,//elastoplasticity2/solution-comparison-file=check/2D.quater.cylinder.t20.txt
+    -A,//elastoplasticity2/matrix-format=BSR
+    ${SOLVER_ALINA_CG}
+    inputs/2D.quater.cylinder.vonMises.arc
   )
 endif()
 

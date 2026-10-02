@@ -90,10 +90,12 @@ startInit()
   m_newton_atol = options()->newtonAtol();
   m_newton_rtol = options()->newtonRtol();
 
+  String service_name = options()->linearSystem.serviceName();
   m_use_gpu_functions = (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR") &&
-  (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
-   options()->linearSystem.serviceName() == "PetscLinearSystem" ||
-   options()->linearSystem.serviceName() == "AlephLinearSystem");
+  (service_name == "HypreLinearSystem" ||
+   service_name == "PetscLinearSystem" ||
+   service_name == "AlephLinearSystem" ||
+   service_name == "AlinaLinearSystem");
 
   m_gp_material_tensor_strategy = options()->gpMaterialTensorStrategy();
   m_check_with_bilinear_operator = options()->checkBilinearOperatorForResidual();
@@ -295,7 +297,8 @@ _initBsr()
   bool use_csr_in_linearsystem =
   options()->linearSystem.serviceName() == "HypreLinearSystem" ||
   options()->linearSystem.serviceName() == "AlienLinearSystem" ||
-  options()->linearSystem.serviceName() == "PetscLinearSystem";
+  options()->linearSystem.serviceName() == "PetscLinearSystem" ||
+  options()->linearSystem.serviceName() == "AlinaLinearSystem";
 
   if (m_matrix_format == "BSR")
     m_bsr_format.initialize(defaultMesh(), m_dof_per_node, use_csr_in_linearsystem, 0);
