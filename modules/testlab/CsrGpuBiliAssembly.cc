@@ -130,7 +130,6 @@ _computeRowIndex(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>&
   Accelerator::Scanner<Int32> scanner;
   SmallSpan<Int32> neighbors_ss = neighbors.to1DSmallSpan();
   scanner.exclusiveSum(&m_queue, neighbors_ss, m_csr_matrix.m_matrix_row.to1DSmallSpan());
-  m_csr_matrix.computeNumberOfColumnsFromRowsIndex(m_queue);
 }
 
 /*---------------------------------------------------------------------------*/

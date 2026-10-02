@@ -122,8 +122,6 @@ class CsrFormat
   //! View of the matrix
   CsrFormatMatrixView view();
 
-  void computeNumberOfColumnsFromRowsIndex(const RunQueue& queue);
-
   /*!
    * \brief Check that sizes are valid:
    * - rowIndexes().size() = nbRow() + 1;
@@ -139,8 +137,6 @@ class CsrFormat
   NumArray<Int32, MDDim1> m_matrix_row;
   NumArray<Int32, MDDim1> m_matrix_column;
   NumArray<Real, MDDim1> m_matrix_value;
-  //! Nombre de colonnes de chaque lignes.
-  NumArray<Int32, MDDim1> m_matrix_rows_nb_column;
 
  private:
 

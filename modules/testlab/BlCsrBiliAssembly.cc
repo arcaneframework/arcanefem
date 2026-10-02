@@ -100,7 +100,6 @@ _buildMatrixGpuBuildLessCsr()
   };
   ax::Scanner<Int32> scanner;
   scanner.exclusiveSum(&queue, tmp_row, m_csr_matrix.m_matrix_row);
-  m_csr_matrix.computeNumberOfColumnsFromRowsIndex(queue);
 }
 
 /*---------------------------------------------------------------------------*/

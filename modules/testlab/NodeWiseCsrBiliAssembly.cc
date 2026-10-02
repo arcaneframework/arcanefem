@@ -104,17 +104,6 @@ _buildMatrixNodeWiseCsr()
       inout_m_matrix_column[offset] = node_id;
     };
   }
-  // Fill the values of 'm_csr_matrix.m_matrix_rows_nb_column'
-  {
-    auto command = makeCommand(queue);
-
-    auto in_matrix_row = viewIn(command, m_csr_matrix.m_matrix_row);
-    auto out_matrix_nb_column = viewInOut(command, m_csr_matrix.m_matrix_rows_nb_column);
-    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
-    {
-      out_matrix_nb_column[node_id] = in_matrix_row[node_id + 1] - in_matrix_row[node_id];
-    };
-  }
 }
 
 /*---------------------------------------------------------------------------*/
