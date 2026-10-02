@@ -325,7 +325,7 @@ class MeshOperation
     Real3 edge = node_coord[face.nodeId(1)] - node_coord[face.nodeId(0)];
     Real3 normal = { edge.y, -edge.x, 0.0 };
     Real norm = normal.normL2();
-#ifdef _DEBUG
+#ifdef ARCANE_CHECK
     if (norm <= 1.0e-30)
       ARCANE_FATAL("Degenerate face {0} has a zero normal", face.uniqueId());
 #endif
@@ -356,7 +356,7 @@ class MeshOperation
       normal.z += (p.x - q.x) * (p.y + q.y);
     }
     Real norm = normal.normL2();
-#ifdef _DEBUG
+#ifdef ARCANE_CHECK
     if (norm <= 1.0e-30)
       ARCANE_FATAL("Degenerate face {0} has a zero normal", face.uniqueId());
 #endif
