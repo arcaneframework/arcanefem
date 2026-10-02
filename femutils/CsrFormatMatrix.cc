@@ -160,8 +160,8 @@ computeNumberOfColumnsFromRowsIndex(const RunQueue& queue)
 CsrFormatMatrixView CsrFormat::
 view()
 {
-  return CSRFormatView(m_matrix_row.to1DSmallSpan(), m_matrix_rows_nb_column.to1DSmallSpan(),
-                       m_matrix_column.to1DSmallSpan(), m_matrix_value.to1DSmallSpan());
+  return CSRFormatView(m_matrix_rows_nb_column.extent0(),  m_matrix_row,
+                       m_matrix_column, m_matrix_value);
 }
 
 /*---------------------------------------------------------------------------*/

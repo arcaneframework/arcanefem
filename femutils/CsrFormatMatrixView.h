@@ -143,14 +143,14 @@ class CsrFormatMatrixView
 
  private:
 
-  CsrFormatMatrixView(SmallSpan<const Int32> rows,
-                      SmallSpan<const Int32> matrix_rows_nb_column,
+  CsrFormatMatrixView(Int32 nb_row,
+                      SmallSpan<const Int32> rows,
                       SmallSpan<const Int32> columns,
                       SmallSpan<Real> values)
   : m_matrix_rows(rows)
-  , m_matrix_rows_nb_column(matrix_rows_nb_column)
   , m_matrix_columns(columns)
   , m_values(values)
+  , m_nb_row(nb_row)
   {}
 
  public:
@@ -171,7 +171,7 @@ class CsrFormatMatrixView
   //! Number of the rows in the matrix
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 nbRow() const
   {
-    return m_matrix_rows_nb_column.size();
+    return m_nb_row;
   }
   //! Number of the values in the matrix
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 nbColumn() const { return m_matrix_columns.size(); }
@@ -220,9 +220,9 @@ class CsrFormatMatrixView
  private:
 
   SmallSpan<const Int32> m_matrix_rows;
-  SmallSpan<const Int32> m_matrix_rows_nb_column;
   SmallSpan<const Int32> m_matrix_columns;
   SmallSpan<Real> m_values;
+  Int32 m_nb_row = 0;
 };
 
 /*---------------------------------------------------------------------------*/
