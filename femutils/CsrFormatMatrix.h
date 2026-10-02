@@ -131,6 +131,8 @@ class CsrFormat
   //! View of the matrix
   CsrFormatMatrixView view();
 
+  void computeNumberOfColumnsFromRowsIndex(const RunQueue& queue);
+
   /*!
    * \brief Check that sizes are valid:
    * - rowIndexes().size() = nbRow() + 1;

@@ -85,7 +85,7 @@ class BSRMatrix
 
  public:
 
-  void initialize(Int32 nb_non_zero_value, Int32 nb_col, Int32 nb_row, Int8 nb_block, bool order_values_per_block);
+  void initialize(Int32 nb_non_zero_value, Int32 nb_col, Int32 nb_row, Int32 nb_block, bool order_values_per_block);
   Int32 findValueIndex(DoFLocalId row, DoFLocalId col) const;
   Real getValue(DoFLocalId row, DoFLocalId col) const
   {
@@ -110,7 +110,7 @@ class BSRMatrix
   Int32 nbNonZero() { return m_nb_non_zero_value; };
   Int32 nbColumn() { return m_nb_col; };
   Int32 nbRow() { return m_nb_row; };
-  Int8 nbBlock() { return m_nb_block; };
+  Int32 nbBlock() { return m_nb_block; };
 
  private:
 
@@ -126,7 +126,7 @@ class BSRMatrix
   Int32 m_nb_non_zero_value = 0;
   Int32 m_nb_col = 0;
   Int32 m_nb_row = 0;
-  Int8 m_nb_block = 1;
+  Int32 m_nb_block = 1;
 
   NumArray<Real, MDDim1> m_values;
   NumArray<Int32, MDDim1> m_columns;
@@ -163,13 +163,13 @@ class BSRFormat
 
  private:
 
-  Int8 m_nb_dof = 1;
+  Int32 m_nb_dof = 1;
 
  public:
 
   Int64 computeNbColumns(IMesh* mesh);
 
-  void initialize(IMesh* mesh, Int8 nb_dof, bool does_linear_system_use_csr, bool use_atomic_free = false);
+  void initialize(IMesh* mesh, Int32 nb_dof, bool does_linear_system_use_csr, bool use_atomic_free = false);
   void toLinearSystem(DoFLinearSystem& linear_system);
   void computeNzPerRowArray();
   void computeNeighborsAtomicFree(SmallSpan<Int32>& neighbors_ss);

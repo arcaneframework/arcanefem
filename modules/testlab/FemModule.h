@@ -307,7 +307,7 @@ class FemModuleTestlab
  public:
 
   void _buildMatrixNodeWiseCsr();
-  void _buildOffsetsNodeWiseCsr(const SmallSpan<UInt32>& offsets_smallspan);
+  void _buildOffsetsNodeWiseCsr(SmallSpan<UInt32> offsets_smallspan);
   void _assembleNodeWiseCsrBilinearOperatorTria3();
   void _assembleNodeWiseCsrBilinearOperatorTetra4();
 
