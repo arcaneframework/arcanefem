@@ -53,6 +53,7 @@ initialize(IItemFamily* dof_family, Int32 nnz, Int32 nb_row, RunQueue& queue)
   m_matrix_rows_nb_column.fill(0, &queue);
   m_dof_family = dof_family;
   m_nnz = nnz;
+  m_nb_row = nb_row;
   info() << "Filling CSR Matrix with zeros";
 }
 
@@ -77,6 +78,8 @@ initialize(IItemFamily* dof_family, NumArray<Int32, MDDim1>&& rows_index, NumArr
   Int32 nnz = rows_index[nb_row];
   if (nnz != columns.extent0())
     ARCANE_FATAL("Incoherent sizes for columns (from_rows={0} from_columns={1})", nnz, columns.extent0());
+
+  m_nb_row = nb_row;
 
   m_matrix_row = rows_index;
   m_matrix_column = columns;
