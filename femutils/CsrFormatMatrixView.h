@@ -147,7 +147,7 @@ class CsrFormatMatrixView
                       SmallSpan<const Int32> rows,
                       SmallSpan<const Int32> columns,
                       SmallSpan<Real> values)
-  : m_matrix_rows(rows)
+  : m_rows_index(rows)
   , m_matrix_columns(columns)
   , m_values(values)
   , m_nb_row(nb_row)
@@ -157,7 +157,7 @@ class CsrFormatMatrixView
 
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<const Int32> rows() const
   {
-    return m_matrix_rows;
+    return m_rows_index;
   }
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<const Int32> columns() const
   {
@@ -178,11 +178,18 @@ class CsrFormatMatrixView
   //! Number of the values in the matrix
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 nbValue() const { return m_values.size(); }
 
-  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 row(Int32 index) const { return m_matrix_rows[index]; }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 row(Int32 index) const
+  {
+    return m_rows_index[index];
+  }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 rowIndex(Int32 index) const
+  {
+    return m_rows_index[index];
+  }
   //! Number of column for the row \a row
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 nbColumnForRow(Int32 row) const
   {
-    return m_matrix_rows[row + 1] - m_matrix_rows[row];
+    return m_rows_index[row + 1] - m_rows_index[row];
   }
 
   //! Local index of the column for the given RowColumnIndex \a rc_index
@@ -199,7 +206,7 @@ class CsrFormatMatrixView
   //! Range of CsrRowColumnIndex for the given row \a row
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE CsrRow rowRange(Int32 row) const
   {
-    return { m_matrix_rows[row], m_matrix_rows[row + 1] };
+    return { m_rows_index[row], m_rows_index[row + 1] };
   }
 
   /*!
@@ -219,7 +226,7 @@ class CsrFormatMatrixView
 
  private:
 
-  SmallSpan<const Int32> m_matrix_rows;
+  SmallSpan<const Int32> m_rows_index;
   SmallSpan<const Int32> m_matrix_columns;
   SmallSpan<Real> m_values;
   Int32 m_nb_row = 0;
