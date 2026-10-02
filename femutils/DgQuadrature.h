@@ -45,20 +45,24 @@ class DgQuadrature
  public:
 
   /** @brief One-point centroid quadrature for a two-dimensional cell. */
-  static UniqueArray<DgQuadraturePoint>
-  computeCellQuadrature2D(Cell cell, const VariableNodeReal3& node_coord);
+  static void
+  computeCellQuadrature2D(Cell cell, const VariableNodeReal3& node_coord,
+                          Array<DgQuadraturePoint>& quadrature);
 
   /** @brief One-point midpoint quadrature for a two-dimensional edge. */
-  static UniqueArray<DgQuadraturePoint>
-  computeFaceQuadrature2D(Face face, const VariableNodeReal3& node_coord);
+  static void
+  computeFaceQuadrature2D(Face face, const VariableNodeReal3& node_coord,
+                          Array<DgQuadraturePoint>& quadrature);
 
   /** @brief Degree-two quadrature for a planar polygonal face in 3D. */
-  static UniqueArray<DgQuadraturePoint>
-  computeFaceQuadrature3D(Face face, const VariableNodeReal3& node_coord);
+  static void
+  computeFaceQuadrature3D(Face face, const VariableNodeReal3& node_coord,
+                          Array<DgQuadraturePoint>& quadrature);
 
   /** @brief Degree-three quadrature for a convex polyhedron. */
-  static UniqueArray<DgQuadraturePoint>
-  computeCellQuadrature3D(Cell cell, const VariableNodeReal3& node_coord);
+  static void
+  computeCellQuadrature3D(Cell cell, const VariableNodeReal3& node_coord,
+                          Array<DgQuadraturePoint>& quadrature);
 };
 
 /*---------------------------------------------------------------------------*/

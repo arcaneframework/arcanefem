@@ -196,12 +196,13 @@ _assembleLinearSystem()
 
   const Real3 gradients[4] = { { 0.0, 0.0, 0.0 }, { 1.0, 0.0, 0.0 },
                                { 0.0, 1.0, 0.0 }, { 0.0, 0.0, 1.0 } };
+  UniqueArray<QuadraturePoint> quadrature;
 
   // Volume terms: (∇v, ∇u)_K and (v,f)_K.
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
     Real3 centroid = ArcaneFemFunctions::MeshOperation::computeCentroid(cell, m_node_coord);
-    UniqueArray<QuadraturePoint> quadrature = m_compute_cell_quadrature(cell, m_node_coord);
+    m_compute_cell_quadrature(cell, m_node_coord, quadrature);
     Real measure = 0.0;
 
     for (const QuadraturePoint& qp : quadrature) {
@@ -239,7 +240,8 @@ _assembleLinearSystem()
     Real h_j = m_compute_dg_penalty_length(cell_j, face, m_node_coord);
     Real sigma = m_penalty / math::min(h_i, h_j);
 
-    for (const QuadraturePoint& qp : m_compute_face_quadrature(face, m_node_coord)) {
+    m_compute_face_quadrature(face, m_node_coord, quadrature);
+    for (const QuadraturePoint& qp : quadrature) {
       Real3 relative_i = qp.point - center_i;
       Real3 relative_j = qp.point - center_j;
       Real phi_i[4] = { 1.0, relative_i.x, relative_i.y, relative_i.z };
@@ -297,7 +299,8 @@ _assembleLinearSystem()
         Real h = m_compute_dg_penalty_length(cell, face, m_node_coord);
         Real sigma = m_penalty / h;
 
-        for (const QuadraturePoint& qp : m_compute_face_quadrature(face, m_node_coord)) {
+        m_compute_face_quadrature(face, m_node_coord, quadrature);
+        for (const QuadraturePoint& qp : quadrature) {
           Real3 relative = qp.point - center;
           Real phi[4] = { 1.0, relative.x, relative.y, relative.z };
           for (Int32 i = 0; i < m_nb_dof_per_cell; ++i) {
@@ -327,7 +330,8 @@ _assembleLinearSystem()
         Cell cell = face.cell(0);
         Real3 center = ArcaneFemFunctions::MeshOperation::computeCentroid(cell, m_node_coord);
 
-        for (const QuadraturePoint& qp : m_compute_face_quadrature(face, m_node_coord)) {
+        m_compute_face_quadrature(face, m_node_coord, quadrature);
+        for (const QuadraturePoint& qp : quadrature) {
           Real3 relative = qp.point - center;
           Real phi[4] = { 1.0, relative.x, relative.y, relative.z };
           for (Int32 i = 0; i < m_nb_dof_per_cell; ++i)

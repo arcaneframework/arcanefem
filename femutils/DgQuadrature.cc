@@ -21,28 +21,33 @@
 namespace ArcaneFemFunctions
 {
 
-UniqueArray<DgQuadraturePoint> DgQuadrature::
-computeCellQuadrature2D(Cell cell, const VariableNodeReal3& node_coord)
+void DgQuadrature::
+computeCellQuadrature2D(Cell cell, const VariableNodeReal3& node_coord,
+                        Array<DgQuadraturePoint>& quadrature)
 {
-  return { { MeshOperation::computeCentroid(cell, node_coord),
-             MeshOperation::computeAreaPolygon2D(cell, node_coord) } };
+  quadrature.clear();
+  quadrature.add({ MeshOperation::computeCentroid(cell, node_coord),
+                   MeshOperation::computeAreaPolygon2D(cell, node_coord) });
 }
 
 /*---------------------------------------------------------------------------*/
 
-UniqueArray<DgQuadraturePoint> DgQuadrature::
-computeFaceQuadrature2D(Face face, const VariableNodeReal3& node_coord)
+void DgQuadrature::
+computeFaceQuadrature2D(Face face, const VariableNodeReal3& node_coord,
+                        Array<DgQuadraturePoint>& quadrature)
 {
-  return { { MeshOperation::computeCentroid(face, node_coord),
-             MeshOperation::computeLengthEdge2(face, node_coord) } };
+  quadrature.clear();
+  quadrature.add({ MeshOperation::computeCentroid(face, node_coord),
+                   MeshOperation::computeLengthEdge2(face, node_coord) });
 }
 
 /*---------------------------------------------------------------------------*/
 
-UniqueArray<DgQuadraturePoint> DgQuadrature::
-computeFaceQuadrature3D(Face face, const VariableNodeReal3& node_coord)
+void DgQuadrature::
+computeFaceQuadrature3D(Face face, const VariableNodeReal3& node_coord,
+                        Array<DgQuadraturePoint>& quadrature)
 {
-  UniqueArray<DgQuadraturePoint> quadrature;
+  quadrature.clear();
   Real3 center = MeshOperation::computeCentroid(face, node_coord);
   for (Int32 i = 0; i < face.nbNode(); ++i) {
     Real3 b = node_coord[face.nodeId(i)];
@@ -65,15 +70,15 @@ computeFaceQuadrature3D(Face face, const VariableNodeReal3& node_coord)
                        (center.z + b.z + 4.0 * c.z) / 6.0 },
                      weight });
   }
-  return quadrature;
 }
 
 /*---------------------------------------------------------------------------*/
 
-UniqueArray<DgQuadraturePoint> DgQuadrature::
-computeCellQuadrature3D(Cell cell, const VariableNodeReal3& node_coord)
+void DgQuadrature::
+computeCellQuadrature3D(Cell cell, const VariableNodeReal3& node_coord,
+                        Array<DgQuadraturePoint>& quadrature)
 {
-  UniqueArray<DgQuadraturePoint> quadrature;
+  quadrature.clear();
   Real3 center = MeshOperation::computeCentroid(cell, node_coord);
   for (Face face : cell.faces()) {
     Real3 anchor = node_coord[face.nodeId(0)];
@@ -96,7 +101,6 @@ computeCellQuadrature3D(Cell cell, const VariableNodeReal3& node_coord)
       }
     }
   }
-  return quadrature;
 }
 
 /*---------------------------------------------------------------------------*/

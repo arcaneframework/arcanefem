@@ -91,8 +91,8 @@ class FemModulePoisson
   using QuadraturePoint = ArcaneFemFunctions::DgQuadraturePoint;
   using DGPenaltyLengthFunction = Real (*)(Cell, Face, const VariableNodeReal3&);
   using FaceNormalFunction = Real3 (*)(Face, Cell, const VariableNodeReal3&);
-  using CellQuadratureFunction = UniqueArray<QuadraturePoint> (*)(Cell, const VariableNodeReal3&);
-  using FaceQuadratureFunction = UniqueArray<QuadraturePoint> (*)(Face, const VariableNodeReal3&);
+  using CellQuadratureFunction = void (*)(Cell, const VariableNodeReal3&, Array<QuadraturePoint>&);
+  using FaceQuadratureFunction = void (*)(Face, const VariableNodeReal3&, Array<QuadraturePoint>&);
 
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
