@@ -33,13 +33,12 @@
  * based on the number of nodes and edges/faces in the mesh.
  */
 /*---------------------------------------------------------------------------*/
-
-/*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModuleTestlab::_buildOffsetsNodeWiseCsr(const SmallSpan<UInt32>& offsets_smallspan)
+void FemModuleTestlab::
+_buildOffsetsNodeWiseCsr(SmallSpan<UInt32> offsets_smallspan)
 {
-  Accelerator::RunQueue* queue = acceleratorMng()->defaultQueue();
+  RunQueue queue = acceleratorMng()->queue();
 
   // Initialize the neighbors array and shift right by one for CSR format
   NumArray<UInt32, MDDim1> neighbors(nbNode() + 1);
@@ -53,14 +52,17 @@ void FemModuleTestlab::_buildOffsetsNodeWiseCsr(const SmallSpan<UInt32>& offsets
   auto command = makeCommand(queue);
   command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
   {
-    in_data[node_id + 1] = node_node_connectivity_view.nbNode(node_id) + 1;
+    in_data[node_id] = node_node_connectivity_view.nbNode(node_id) + 1;
   };
-  queue->barrier();
+  queue.barrier();
 
   // Do the inclusive sum for CSR row array (in_data)
   Accelerator::Scanner<UInt32> scanner;
-  scanner.inclusiveSum(queue, in_data, offsets_smallspan);
+  scanner.exclusiveSum(&queue, in_data, offsets_smallspan);
 }
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 
 void FemModuleTestlab::
 _buildMatrixNodeWiseCsr()
@@ -77,34 +79,49 @@ _buildMatrixNodeWiseCsr()
   // Compute the array of offsets on Gpu
   _buildOffsetsNodeWiseCsr(offsets_smallspan);
 
-  RunQueue* queue = acceleratorMng()->defaultQueue();
-  auto command = makeCommand(queue);
-
-  auto out_m_matrix_row = viewOut(command, m_csr_matrix.m_matrix_row);
-  auto inout_m_matrix_column = viewInOut(command, m_csr_matrix.m_matrix_column);
-
   auto* connectivity_ptr = m_node_node_via_edge_connectivity.get();
   ARCANE_CHECK_POINTER(connectivity_ptr);
   IndexedNodeNodeConnectivityView node_node_connectivity_view = connectivity_ptr->view();
 
-  command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
+  RunQueue queue = acceleratorMng()->queue();
   {
-    auto offset = offsets_smallspan[node_id];
-    out_m_matrix_row[node_id] = offset;
+    auto command = makeCommand(queue);
 
-    for (auto neighbor_idx : node_node_connectivity_view.nodeIds(node_id)) {
-      inout_m_matrix_column[offset] = neighbor_idx;
-      ++offset;
-    }
+    auto out_m_matrix_row = viewOut(command, m_csr_matrix.m_matrix_row);
+    auto inout_m_matrix_column = viewInOut(command, m_csr_matrix.m_matrix_column);
+    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
+    {
+      auto offset = offsets_smallspan[node_id];
+      out_m_matrix_row[node_id] = offset;
+      // Fill the last index of the row (only thread 0 do that)
+      if (node_id == 0)
+        out_m_matrix_row[nb_node] = offsets_smallspan[nb_node];
+      for (auto neighbor_idx : node_node_connectivity_view.nodeIds(node_id)) {
+        inout_m_matrix_column[offset] = neighbor_idx;
+        ++offset;
+      }
 
-    inout_m_matrix_column[offset] = node_id;
-  };
+      inout_m_matrix_column[offset] = node_id;
+    };
+  }
+  // Fill the values of 'm_csr_matrix.m_matrix_rows_nb_column'
+  {
+    auto command = makeCommand(queue);
+
+    auto in_matrix_row = viewIn(command, m_csr_matrix.m_matrix_row);
+    auto out_matrix_nb_column = viewInOut(command, m_csr_matrix.m_matrix_rows_nb_column);
+    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
+    {
+      out_matrix_nb_column[node_id] = in_matrix_row[node_id + 1] - in_matrix_row[node_id];
+    };
+  }
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModuleTestlab::_assembleNodeWiseCsrBilinearOperatorTria3()
+void FemModuleTestlab::
+_assembleNodeWiseCsrBilinearOperatorTria3()
 {
   Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_CsrNodeWise");
   {

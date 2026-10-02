@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* BlcsrBiliAssembly.hxx                                     (C) 2000-2026   */
+/* BlcsrBiliAssembly.hxx                                       (C) 2000-2026 */
 /*                                                                           */
 /* Methods of the bilinear assembly phase using the csr data structure       */
 /* which avoid to add in the global matrix by iterating through the node.    */
@@ -18,7 +18,7 @@
 void FemModuleTestlab::
 _buildMatrixBuildLessCsr()
 {
-
+  info() << "Calling _buildMatrixBuildLessCsr()";
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   // Compute the number of nnz and initialize the memory space
@@ -34,6 +34,7 @@ _buildMatrixBuildLessCsr()
 
   Int32 nnz = nedge * 2 + nbnde;
   m_csr_matrix.initialize(m_dof_family, nnz, nbnde, m_queue);
+  m_csr_matrix.m_matrix_row[nbnde] = nnz;
 
   Integer index = 1;
   m_csr_matrix.m_matrix_row(0) = 0;
@@ -59,8 +60,10 @@ _buildMatrixBuildLessCsr()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModuleTestlab::_buildMatrixGpuBuildLessCsr()
+void FemModuleTestlab::
+_buildMatrixGpuBuildLessCsr()
 {
+  info() << "Calling _buildMatrixGpuBuildLessCsr()";
 
   // Compute the number of nnz and initialize the memory space
   Integer nbnde = nbNode();
@@ -76,10 +79,11 @@ void FemModuleTestlab::_buildMatrixGpuBuildLessCsr()
   Int32 nnz = nedge * 2 + nbnde;
 
   NumArray<Int32, MDDim1> tmp_row;
-  tmp_row.resize(nbnde);
+  // We allocate one more than nb_node for the exclusive sum fills the 'm_matrix_row[nb_row]'
+  tmp_row.resize(nbnde+1);
   m_csr_matrix.initialize(m_dof_family, nnz, nbnde, m_queue);
 
-  RunQueue* queue = acceleratorMng()->defaultQueue();
+  RunQueue queue = acceleratorMng()->queue();
   auto command = makeCommand(queue);
   auto in_out_tmp_row = ax::viewInOut(command, tmp_row);
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
@@ -94,16 +98,19 @@ void FemModuleTestlab::_buildMatrixGpuBuildLessCsr()
     Int64 index = node_dof.dofId(inode, 0).localId();
     in_out_tmp_row[index] = node_node_connectivity_view.nbNode(inode) + 1;
   };
-
   ax::Scanner<Int32> scanner;
-  scanner.exclusiveSum(queue, tmp_row, m_csr_matrix.m_matrix_row);
+  scanner.exclusiveSum(&queue, tmp_row, m_csr_matrix.m_matrix_row);
+  m_csr_matrix.computeNumberOfColumnsFromRowsIndex(queue);
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE
-void FemModuleTestlab::_addValueToGlobalMatrixGpu(Int32 begin, Int32 end, Int32 col, ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> in_out_col_csr, ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> in_out_val_csr, Real x)
+ARCCORE_HOST_DEVICE void FemModuleTestlab::
+_addValueToGlobalMatrixGpu(Int32 begin, Int32 end, Int32 col,
+                           ax::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> in_out_col_csr,
+                           ax::NumArrayView<DataViewGetterSetter<Real>, MDDim1, DefaultLayout> in_out_val_csr,
+                           Real x)
 {
 
   // Find the right index in the csr matrix
@@ -121,7 +128,8 @@ void FemModuleTestlab::_addValueToGlobalMatrixGpu(Int32 begin, Int32 end, Int32 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModuleTestlab::_assembleBuildLessCsrBilinearOperatorTria3()
+void FemModuleTestlab::
+_assembleBuildLessCsrBilinearOperatorTria3()
 {
   Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_CsrBuildLess");
 
@@ -130,17 +138,16 @@ void FemModuleTestlab::_assembleBuildLessCsrBilinearOperatorTria3()
     _buildMatrixGpuBuildLessCsr();
   }
 
-  RunQueue* queue = acceleratorMng()->defaultQueue();
+  RunQueue queue = acceleratorMng()->queue();
   auto command = makeCommand(queue);
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-  auto in_row_csr = ax::viewIn(command, m_csr_matrix.m_matrix_row);
-  Int32 row_csr_size = m_csr_matrix.m_matrix_row.dim1Size();
-  auto in_out_col_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_column);
+  auto in_row_csr = viewIn(command, m_csr_matrix.m_matrix_row);
+  auto in_out_col_csr = viewInOut(command, m_csr_matrix.m_matrix_column);
   Int32 col_csr_size = m_csr_matrix.m_matrix_column.dim1Size();
-  auto in_out_val_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
+  auto in_out_val_csr = viewInOut(command, m_csr_matrix.m_matrix_value);
 
-  auto in_node_coord = ax::viewIn(command, m_node_coord);
+  auto in_node_coord = viewIn(command, m_node_coord);
 
   UnstructuredMeshConnectivityView m_connectivity_view;
   m_connectivity_view.setMesh(this->mesh());
@@ -168,7 +175,7 @@ void FemModuleTestlab::_assembleBuildLessCsrBilinearOperatorTria3()
       Int32 i = 0;
       Int32 row = node_dof.dofId(inode, 0).localId();
       Int32 begin = in_row_csr[row];
-      Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
+      Int32 end = in_row_csr[row + 1];
       for (NodeLocalId node2 : cnc.nodes(cell)) {
         if (nodes_infos.isOwn(inode)) {
           Real x = b_matrix[inode_index * 2] * b_matrix[i * 2] + b_matrix[inode_index * 2 + 1] * b_matrix[i * 2 + 1];
@@ -186,7 +193,8 @@ void FemModuleTestlab::_assembleBuildLessCsrBilinearOperatorTria3()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModuleTestlab::_assembleBuildLessCsrBilinearOperatorTetra4()
+void FemModuleTestlab::
+_assembleBuildLessCsrBilinearOperatorTetra4()
 {
   Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_CsrBuildLess");
 
@@ -195,17 +203,16 @@ void FemModuleTestlab::_assembleBuildLessCsrBilinearOperatorTetra4()
     _buildMatrixGpuBuildLessCsr();
   }
 
-  RunQueue* queue = acceleratorMng()->defaultQueue();
+  RunQueue queue = acceleratorMng()->queue();
   auto command = makeCommand(queue);
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-  auto in_row_csr = ax::viewIn(command, m_csr_matrix.m_matrix_row);
-  Int32 row_csr_size = m_csr_matrix.m_matrix_row.dim1Size();
-  auto in_out_col_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_column);
+  auto in_row_csr = viewIn(command, m_csr_matrix.m_matrix_row);
+  auto in_out_col_csr = viewInOut(command, m_csr_matrix.m_matrix_column);
   Int32 col_csr_size = m_csr_matrix.m_matrix_column.dim1Size();
-  auto in_out_val_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
+  auto in_out_val_csr = viewInOut(command, m_csr_matrix.m_matrix_value);
 
-  auto in_node_coord = ax::viewIn(command, m_node_coord);
+  auto in_node_coord = viewIn(command, m_node_coord);
 
   UnstructuredMeshConnectivityView m_connectivity_view;
   m_connectivity_view.setMesh(this->mesh());
@@ -238,7 +245,7 @@ void FemModuleTestlab::_assembleBuildLessCsrBilinearOperatorTetra4()
       Int32 i = 0;
       Int32 row = node_dof.dofId(inode, 0).localId();
       Int32 begin = in_row_csr[row];
-      Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
+      Int32 end = in_row_csr[row + 1];
       for (NodeLocalId node2 : cnc.nodes(cell)) {
 
         if (nodes_infos.isOwn(inode)) {

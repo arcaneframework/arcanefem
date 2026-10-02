@@ -339,19 +339,16 @@ _preallocateMatrix(CSRFormatView matrix_view)
 
   // We use COO for Petsc, so we need to convert from CSR to COO
   RunQueue queue = makeQueue(runner);
+  const Int32 nb_value = csr_view.nbValue();
   NumArray<PetscInt, MDDim1> coo_rows;
-  coo_rows.resize(csr_view.nbValue());
-  _translateCSRToCOO(csr_view.rows(), coo_rows.to1DSmallSpan(), queue);
-
+  coo_rows.resize(nb_value);
+  _translateCSRToCOO(csr_view.nbRow(), csr_view.rows(), coo_rows, queue);
   NumArray<PetscInt, MDDim1> coo_cols;
-  //NumArray<PetscInt, MDDim1> coo_cols;
+
   coo_cols.resize(csr_view.columns().size());
   MemoryUtils::copy(coo_cols.to1DSmallSpan(), csr_view.columns(), &queue);
 
-  //NumArray<PetscInt, MDDim1> coo_cols(csr_view.columns());
-  //coo_cols.copy(csr_view.columns(), queue); // copy column array
-
-  PetscCallAbort(mpi_comm, MatSetPreallocationCOOLocal(m_petsc_matrix, csr_view.nbValue(), coo_rows.to1DSpan().data(), coo_cols.to1DSpan().data()));
+  PetscCallAbort(mpi_comm, MatSetPreallocationCOOLocal(m_petsc_matrix, nb_value, coo_rows.data(), coo_cols.data()));
   PetscCallAbort(mpi_comm, MatAssemblyBegin(m_petsc_matrix, MAT_FINAL_ASSEMBLY));
   PetscCallAbort(mpi_comm, MatAssemblyEnd(m_petsc_matrix, MAT_FINAL_ASSEMBLY));
 
@@ -580,7 +577,6 @@ solve(Runner runner, CSRFormatView matrix_view, VariableDoFReal& solution_variab
 
   Real a1 = platform::getRealTime();
   info() << "[Petsc-Timer] Time to create vectors = " << (a1 - b1);
-
   PetscCallAbort(mpi_comm, KSPSolve(m_petsc_solver_context, m_petsc_rhs_vector, m_petsc_solution_vector));
   Real a2 = platform::getRealTime();
   info() << "[Petsc-Timer] Time to solve = " << (a2 - a1);

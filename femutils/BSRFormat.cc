@@ -46,7 +46,7 @@ BSRMatrix(ITraceMng* tm, const eMemoryRessource& mem_ressource, const RunQueue& 
 /*---------------------------------------------------------------------------*/
 
 void BSRMatrix::
-initialize(Int32 nb_non_zero_value, Int32 nb_col, Int32 nb_row, Int8 nb_block, bool order_values_per_block)
+initialize(Int32 nb_non_zero_value, Int32 nb_col, Int32 nb_row, Int32 nb_block, bool order_values_per_block)
 {
   if (nb_block <= 0 || nb_non_zero_value <= 0 || nb_row <= 0)
     ARCANE_THROW(ArgumentException, "BSRMatrix(initialize): arguments should be positive and not null (block_size={0}, nb_non_zero_value={1} and nb_row={2})", nb_block, nb_non_zero_value, nb_row);
@@ -69,7 +69,8 @@ initialize(Int32 nb_non_zero_value, Int32 nb_col, Int32 nb_row, Int8 nb_block, b
   m_values.resize(nb_non_zero_value);
   m_values.fill(0, &m_queue);
   m_columns.resize(nb_col);
-  m_rows_index.resize(nb_row);
+  // We allocate one more element to make sure 'm_rows_index[row+1] - m_rows_index[row]' is valid
+  m_rows_index.resize(nb_row + 1);
   m_nb_non_zero_per_rows.resize(nb_row);
 }
 
@@ -113,8 +114,8 @@ toCsr(CsrFormat* csr_matrix)
   info() << "BSRMatrix(toCsr): Convert matrix to CSR";
   auto startTime = platform::getRealTime();
 
-  auto nb_block_rows = m_rows_index.extent0();
-  auto nb_rows = (nb_block_rows * m_nb_block) + 1;
+  auto nb_block_rows = m_nb_row;
+  auto nb_rows = (nb_block_rows * m_nb_block);
   auto total_non_zero_elements = m_nb_non_zero_value;
 
   csr_matrix->initialize(nullptr, total_non_zero_elements, nb_rows, m_queue);
@@ -128,15 +129,18 @@ toCsr(CsrFormat* csr_matrix)
     // Translate `row_index`
     csr_matrix->m_matrix_row[0] = 0;
     auto offset = 1;
-    for (auto i = 0; i < m_rows_index.extent0(); ++i) {
+    for (auto i = 0; i < nb_block_rows; ++i) {
       for (auto j = 0; j < m_nb_block; ++j) {
         auto start = m_rows_index[i];
-        auto end = i == m_rows_index.extent0() - 1 ? m_nb_col : m_rows_index[i + 1];
+        auto end = m_rows_index[i + 1];
         auto nombre_de_dof_dans_la_rangee = (end - start) * m_nb_block;
         csr_matrix->m_matrix_row[offset] = csr_matrix->m_matrix_row[offset - 1] + nombre_de_dof_dans_la_rangee;
         offset++;
       }
     }
+    // NOTE: The last entry calculation might not be needed now, but keep for safety
+    // auto row_index_size = csr_matrix->m_matrix_row.extent0();
+    info() << "OFFSET=" << offset << " total_non_zero=" << total_non_zero_elements << " nb_row=" << nb_rows;
 
     // Translate `columns`
     offset = 0;
@@ -160,15 +164,12 @@ toCsr(CsrFormat* csr_matrix)
         csr_matrix->m_matrix_rows_nb_column[offset++] = m_nb_non_zero_per_rows[i] * m_nb_block;
       }
     }
-
-    // NOTE: The last entry calculation might not be needed now, but keep for safety
-    // auto row_index_size = csr_matrix->m_matrix_row.extent0();
-    // csr_matrix->m_matrix_row[row_index_size - 1] = total_non_zero_elements;
   }
 
   // NOTE: If we don't want to keep bsr matrix coefficients we could move the data instead of copying it.
   csr_matrix->m_matrix_value = m_values;
   info() << std::left << std::setw(40) << "[BsrMatrix-Timer] convert-bsr-to-csr" << " = " << (platform::getRealTime() - startTime);
+  csr_matrix->checkValid();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -348,7 +349,7 @@ computeNbColumns(IMesh* mesh)
 /*---------------------------------------------------------------------------*/
 
 void BSRFormat::
-initialize(IMesh* mesh, Int8 nb_dof, bool does_linear_system_use_csr, bool use_atomic_free)
+initialize(IMesh* mesh, Int32 nb_dof, bool does_linear_system_use_csr, bool use_atomic_free)
 {
   ARCANE_CHECK_POINTER(mesh);
 
@@ -564,10 +565,17 @@ computeRowIndexAtomicFree()
 {
   auto mem_ressource = m_queue.memoryRessource();
   NumArray<Int32, MDDim1> neighbors(mem_ressource);
-  neighbors.resize(m_mesh->nbNode());
+
+  Int32 nb_node = m_mesh->nbNode();
+  // We need to allocate one more element because we are using an exclusive scan
+  // and '_rowsIndex()[nb_node] will contains the last index.
+  // The value of neighbors[nb_node] will not be used
+  neighbors.resize(nb_node + 1);
+  neighbors.fill(1, &m_queue);
+
   SmallSpan<Int32> neighbors_ss = neighbors.to1DSmallSpan();
   computeNeighborsAtomicFree(neighbors_ss);
-
+  info() << "NEIGHBORS_SIZE=" << neighbors.extent0() << " rows=" << m_bsr_matrix._rowsIndex().extent0();
   Accelerator::Scanner<Int32> scanner;
   scanner.exclusiveSum(&m_queue, neighbors_ss, m_bsr_matrix._rowsIndex().to1DSmallSpan());
 }
@@ -914,13 +922,17 @@ computeRowIndex(Int32 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>&
 {
   auto mem_ressource = m_queue.memoryRessource();
   NumArray<Int32, MDDim1> neighbors(mem_ressource);
-  neighbors.resize(m_mesh->nbNode());
+  Int32 nb_node = m_mesh->nbNode();
+  // We need to allocate one more element because we are using an exclusive scan
+  // and '_rowsIndex()[nb_node] will contains the last index.
+  // The value of neighbors[nb_node] will not be used
+  neighbors.resize(nb_node + 1);
   neighbors.fill(1, &m_queue);
   computeNeighbors(edges_per_element, nb_edge_total, neighbors, sorted_edges_ss);
 
   Accelerator::Scanner<Int32> scanner;
-  SmallSpan<Int32> neighbors_ss = neighbors.to1DSmallSpan();
-  scanner.exclusiveSum(&m_queue, neighbors_ss, m_bsr_matrix._rowsIndex().to1DSmallSpan());
+  info() << "NEIGHBORS_SIZE=" << neighbors.extent0() << " rows=" << m_bsr_matrix._rowsIndex().extent0();
+  scanner.exclusiveSum(&m_queue, neighbors, m_bsr_matrix._rowsIndex());
 }
 
 /*---------------------------------------------------------------------------*/

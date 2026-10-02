@@ -39,7 +39,8 @@ ARCCORE_HOST_DEVICE static void unpack(UInt64 packed_edge, Int32& n0, Int32& n1)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModuleTestlab::_computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss)
+void FemModuleTestlab::
+_computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss)
 {
   auto mem_ressource = m_queue.memoryRessource();
   NumArray<UInt64, MDDim1> edges(mem_ressource);
@@ -93,7 +94,10 @@ void FemModuleTestlab::_computeSortedEdges(Int8 edges_per_element, Int64 nb_edge
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModuleTestlab::_computeNeighbors(Int8 edges_per_element, Int64 nb_edge_total, NumArray<Int32, MDDim1>& neighbors, SmallSpan<UInt64>& sorted_edges_ss)
+void FemModuleTestlab::
+_computeNeighbors(Int8 edges_per_element, Int64 nb_edge_total,
+                  NumArray<Int32, MDDim1>& neighbors,
+                  SmallSpan<UInt64>& sorted_edges_ss)
 {
   auto command = makeCommand(m_queue);
   auto inout_neighbors = viewInOut(command, neighbors);
@@ -114,22 +118,29 @@ void FemModuleTestlab::_computeNeighbors(Int8 edges_per_element, Int64 nb_edge_t
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModuleTestlab::_computeRowIndex(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss) {
-    auto mem_ressource = m_queue.memoryRessource();
-    NumArray<Int32, MDDim1> neighbors(mem_ressource);
-    neighbors.resize(mesh()->nbNode());
-    neighbors.fill(1, &m_queue);
-    _computeNeighbors(edges_per_element, nb_edge_total, neighbors, sorted_edges_ss);
+void FemModuleTestlab::
+_computeRowIndex(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss)
+{
+  auto mem_ressource = m_queue.memoryRessource();
+  NumArray<Int32, MDDim1> neighbors(mem_ressource);
+  neighbors.resize(mesh()->nbNode()+1);
+  neighbors.fill(1, &m_queue);
+  _computeNeighbors(edges_per_element, nb_edge_total, neighbors, sorted_edges_ss);
 
-    Accelerator::Scanner<Int32> scanner;
-    SmallSpan<Int32> neighbors_ss = neighbors.to1DSmallSpan();
-    scanner.exclusiveSum(&m_queue, neighbors_ss, m_csr_matrix.m_matrix_row.to1DSmallSpan());
+  Accelerator::Scanner<Int32> scanner;
+  SmallSpan<Int32> neighbors_ss = neighbors.to1DSmallSpan();
+  scanner.exclusiveSum(&m_queue, neighbors_ss, m_csr_matrix.m_matrix_row.to1DSmallSpan());
+  m_csr_matrix.computeNumberOfColumnsFromRowsIndex(m_queue);
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-ARCCORE_HOST_DEVICE static void registerEdgeInColumns(Int32 src, Int32 dst, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> offsets, Accelerator::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> row_index, Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> columns)
+ARCCORE_HOST_DEVICE static void
+registerEdgeInColumns(Int32 src, Int32 dst,
+                      Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> offsets,
+                      Accelerator::NumArrayView<DataViewGetter<Int32>, MDDim1, DefaultLayout> row_index,
+                      Accelerator::NumArrayView<DataViewGetterSetter<Int32>, MDDim1, DefaultLayout> columns)
 {
   Int32 start = row_index[src];
   Int32 offset = Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(offsets[src], 1);
@@ -139,54 +150,56 @@ ARCCORE_HOST_DEVICE static void registerEdgeInColumns(Int32 src, Int32 dst, Acce
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModuleTestlab::_computeColumns(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>& sorted_edges_ss) {
-    auto nb_node = mesh()->nbNode();
+void FemModuleTestlab::
+_computeColumns(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>& sorted_edges_ss)
+{
+  auto nb_node = mesh()->nbNode();
 
+  {
+    auto command = makeCommand(m_queue);
+    auto in_row_index = viewIn(command, m_csr_matrix.m_matrix_row);
+    auto inout_columns = viewInOut(command, m_csr_matrix.m_matrix_column);
+
+    command << RUNCOMMAND_LOOP1(iter, nb_node)
     {
-      auto command = makeCommand(m_queue);
-      auto in_row_index = viewIn(command, m_csr_matrix.m_matrix_row);
-      auto inout_columns = viewInOut(command, m_csr_matrix.m_matrix_column);
+      auto [n] = iter();
+      auto start = in_row_index[n];
+      inout_columns[start] = n;
+    };
+  }
+  m_queue.barrier();
 
-      command << RUNCOMMAND_LOOP1(iter, nb_node)
-      {
-        auto [n] = iter();
-        auto start = in_row_index[n];
-        inout_columns[start] = n;
-      };
-    }
-    m_queue.barrier();
+  auto mem_ressource = m_queue.memoryRessource();
+  NumArray<Int32, MDDim1> offsets(mem_ressource);
+  offsets.resize(nb_node);
+  offsets.fill(1, &m_queue);
 
-    auto mem_ressource = m_queue.memoryRessource();
-    NumArray<Int32, MDDim1> offsets(mem_ressource);
-    offsets.resize(nb_node);
-    offsets.fill(1, &m_queue);
+  {
+    auto command = makeCommand(m_queue);
+    auto inout_columns = viewInOut(command, m_csr_matrix.m_matrix_column);
+    auto in_row_index = viewIn(command, m_csr_matrix.m_matrix_row);
+    auto inout_offsets = viewInOut(command, offsets);
 
+    command << RUNCOMMAND_LOOP1(iter, nb_edge_total)
     {
-      auto command = makeCommand(m_queue);
-      auto inout_columns = viewInOut(command, m_csr_matrix.m_matrix_column);
-      auto in_row_index = viewIn(command, m_csr_matrix.m_matrix_row);
-      auto inout_offsets = viewInOut(command, offsets);
-
-      command << RUNCOMMAND_LOOP1(iter, nb_edge_total)
-      {
-        auto [thread_id] = iter();
-        auto cur_edge = sorted_edges_ss[thread_id];
-        if (thread_id == (nb_edge_total - 1) || cur_edge != sorted_edges_ss[thread_id + 1]) {
-          Int32 n0, n1 = 0;
-          unpack(cur_edge, n0, n1);
-          registerEdgeInColumns(n0, n1, inout_offsets, in_row_index, inout_columns);
-          registerEdgeInColumns(n1, n0, inout_offsets, in_row_index, inout_columns);
-        }
-      };
-    }
+      auto [thread_id] = iter();
+      auto cur_edge = sorted_edges_ss[thread_id];
+      if (thread_id == (nb_edge_total - 1) || cur_edge != sorted_edges_ss[thread_id + 1]) {
+        Int32 n0, n1 = 0;
+        unpack(cur_edge, n0, n1);
+        registerEdgeInColumns(n0, n1, inout_offsets, in_row_index, inout_columns);
+        registerEdgeInColumns(n1, n0, inout_offsets, in_row_index, inout_columns);
+      }
+    };
+  }
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-void FemModuleTestlab::_computeSparsity()
+void FemModuleTestlab::
+_computeSparsity()
 {
-
   Int8 mesh_dim = mesh()->dimension();
 
   Int32 nb_node = nbNode();
@@ -236,13 +249,13 @@ _assembleCsrGPUBilinearOperatorTRIA3()
   auto command = makeCommand(queue);
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-  auto in_row_csr = ax::viewIn(command, m_csr_matrix.m_matrix_row);
-  Int32 row_csr_size = m_csr_matrix.m_matrix_row.dim1Size();
-  auto in_col_csr = ax::viewIn(command, m_csr_matrix.m_matrix_column);
+  auto in_row_csr = viewIn(command, m_csr_matrix.m_matrix_row);
+  Int32 row_csr_size = m_csr_matrix.nbRow();
+  auto in_col_csr = viewIn(command, m_csr_matrix.m_matrix_column);
   Int32 col_csr_size = m_csr_matrix.m_matrix_column.dim1Size();
-  auto in_out_val_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
+  auto in_out_val_csr = viewInOut(command, m_csr_matrix.m_matrix_value);
   UnstructuredMeshConnectivityView m_connectivity_view;
-  auto in_node_coord = ax::viewIn(command, m_node_coord);
+  auto in_node_coord = viewIn(command, m_node_coord);
   m_connectivity_view.setMesh(this->mesh());
   auto cnc = m_connectivity_view.cellNode();
   Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
@@ -275,7 +288,7 @@ _assembleCsrGPUBilinearOperatorTRIA3()
           Int32 row = node_dof.dofId(node1, 0).localId();
           Int32 col = node_dof.dofId(node2, 0).localId();
           Int32 begin = in_row_csr[row];
-          Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
+          Int32 end = in_row_csr[row + 1];
 
           while (begin < end) {
             if (in_col_csr[begin] == col) {
@@ -317,60 +330,57 @@ _assembleCsrGPUBilinearOperatorTETRA4()
     _computeSparsity();
   }
 
+  auto command = makeCommand(m_queue);
+
+  Int32 row_csr_size = m_csr_matrix.m_matrix_row.extent0();
+  Int32 col_csr_size = m_csr_matrix.m_matrix_column.extent0();
+
+  auto in_row_csr = ax::viewIn(command, m_csr_matrix.m_matrix_row);
+  auto in_col_csr = ax::viewIn(command, m_csr_matrix.m_matrix_column);
+  auto inout_val_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
+
+  auto in_node_coord = ax::viewIn(command, m_node_coord);
+
+  UnstructuredMeshConnectivityView m_connectivity_view(mesh());
+  auto cell_node_connectivity_view = m_connectivity_view.cellNode();
+
+  ItemGenericInfoListView nodes_infos(mesh()->nodeFamily());
+
+  Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
+  ax::ProfileRegion ps_region(m_queue, "AddAndComputeBilinearTetra4", 0x00FF7F);
+  command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
   {
-    auto command = makeCommand(m_queue);
 
-    Int32 row_csr_size = m_csr_matrix.m_matrix_row.extent0();
-    Int32 col_csr_size = m_csr_matrix.m_matrix_column.extent0();
+    Real K_e[16]{};
+    _computeElementMatrixTETRA4GPU(icell, cell_node_connectivity_view, in_node_coord, K_e);
 
-    auto in_row_csr = ax::viewIn(command, m_csr_matrix.m_matrix_row);
-    auto in_col_csr = ax::viewIn(command, m_csr_matrix.m_matrix_column);
-    auto inout_val_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
+    Int32 node1_idx_in_cell = 0;
+    for (NodeLocalId node1_id : cell_node_connectivity_view.nodes(icell)) {
 
-    auto in_node_coord = ax::viewIn(command, m_node_coord);
+      Int32 node2_idx_in_cell = 0;
+      for (NodeLocalId node2_id : cell_node_connectivity_view.nodes(icell)) {
 
-    UnstructuredMeshConnectivityView m_connectivity_view(mesh());
-    auto cell_node_connectivity_view = m_connectivity_view.cellNode();
+        if (nodes_infos.isOwn(node1_id)) {
+          double v = K_e[node1_idx_in_cell * 4 + node2_idx_in_cell];
 
-    ItemGenericInfoListView nodes_infos(mesh()->nodeFamily());
+          Int32 row = node1_id.localId();
+          Int32 col = node2_id.localId();
+          Int32 begin = in_row_csr[row];
+          Int32 end = in_row_csr[row + 1];
 
-    Timer::Action timer_add_compute(m_time_stats, "AddAndCompute");
-    ax::ProfileRegion ps_region(m_queue,"AddAndComputeBilinearTetra4",0x00FF7F);
-    command << RUNCOMMAND_ENUMERATE(Cell, icell, allCells())
-    {
-
-      Real K_e[16]{};
-      _computeElementMatrixTETRA4GPU(icell, cell_node_connectivity_view, in_node_coord, K_e);
-
-      Int32 node1_idx_in_cell = 0;
-      for (NodeLocalId node1_id : cell_node_connectivity_view.nodes(icell)) {
-
-        Int32 node2_idx_in_cell = 0;
-        for (NodeLocalId node2_id : cell_node_connectivity_view.nodes(icell)) {
-
-          if (nodes_infos.isOwn(node1_id)) {
-            double v = K_e[node1_idx_in_cell * 4 + node2_idx_in_cell];
-
-            Int32 row = node1_id.localId();
-            Int32 col = node2_id.localId();
-            Int32 begin = in_row_csr[row];
-
-            Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
-
-            while (begin < end) {
-              if (in_col_csr[begin] == col) {
-                ax::doAtomic<ax::eAtomicOperation::Add>(inout_val_csr(begin), v);
-                break;
-              }
-              begin++;
+          while (begin < end) {
+            if (in_col_csr[begin] == col) {
+              ax::doAtomic<ax::eAtomicOperation::Add>(inout_val_csr(begin), v);
+              break;
             }
+            begin++;
           }
-          ++node2_idx_in_cell;
         }
-        ++node1_idx_in_cell;
+        ++node2_idx_in_cell;
       }
-    };
-  }
+      ++node1_idx_in_cell;
+    }
+  };
 }
 
 /*---------------------------------------------------------------------------*/

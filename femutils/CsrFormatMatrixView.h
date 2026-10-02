@@ -218,7 +218,7 @@ class CsrFormatMatrixView
  * The computation will be done using RunQueue \a queue.
  */
 extern "C++" void
-_translateCSRToCOO(Span<const Int32> csr_rows, SmallSpan<Int32> coo_rows, const RunQueue& queue);
+_translateCSRToCOO(Int32 nb_row, Span<const Int32> csr_rows, SmallSpan<Int32> coo_rows, const RunQueue& queue);
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
