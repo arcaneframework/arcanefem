@@ -41,6 +41,10 @@ class DoFLinearSystem;
 class CsrFormat
 : public TraceAccessor
 {
+  friend class BSRMatrix;
+  // TEMPORARY
+  friend class FemModuleTestlab;
+
  public:
 
   explicit CsrFormat(Arcane::ITraceMng* tm)
@@ -65,7 +69,27 @@ class CsrFormat
    * So the number of non-zero is equal to `rows_index[nb_row]` and should be
    * equal to `columns.size()`.
    */
-  void initialize(IItemFamily* dof_family, NumArray<Int32, MDDim1>&& rows_index, NumArray<Int32, MDDim1>&& columns, RunQueue& queue);
+  void initialize(IItemFamily* dof_family, NumArray<Int32, MDDim1>&& rows_index,
+                  NumArray<Int32, MDDim1>&& columns, RunQueue& queue);
+
+ public:
+
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<const Int32> rowsIndex() const
+  {
+    return m_matrix_row;
+  }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<const Int32> columns() const
+  {
+    return m_matrix_column;
+  }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<const Real> values() const
+  {
+    return m_matrix_value;
+  }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<Real> values()
+  {
+    return m_matrix_value;
+  }
 
   /**
    * @brief
@@ -87,26 +111,17 @@ class CsrFormat
 
   Int32 indexValue(DoFLocalId row, DoFLocalId column)
   {
-    Int32 begin = m_matrix_row(row.localId());
-    Int32 end = 0;
-    if (row.localId() == m_matrix_row.extent0() - 1) {
-
-      end = m_matrix_column.extent0();
-    }
-    else {
-
-      end = m_matrix_row(row + 1);
-    }
+    Int32 begin = m_matrix_row[row];
+    Int32 end = m_matrix_row[row + 1];
     for (Int32 i = begin; i < end; i++) {
-      if (m_matrix_column(i) == column.localId()) {
+      if (m_matrix_column(i) == column)
         return i;
-      }
     }
-    return -1;
+    ARCANE_FATAL("Column {0} not found in row {1}", column, row);
   }
 
   //! Number of rows in the matrix
-  constexpr Int32 nbRow() const { return m_matrix_rows_nb_column.extent0(); }
+  constexpr Int32 nbRow() const { return m_nb_row; }
 
   /**
    * @brief
@@ -131,8 +146,6 @@ class CsrFormat
   //! View of the matrix
   CsrFormatMatrixView view();
 
-  void computeNumberOfColumnsFromRowsIndex(const RunQueue& queue);
-
   /*!
    * \brief Check that sizes are valid:
    * - rowIndexes().size() = nbRow() + 1;
@@ -145,19 +158,16 @@ class CsrFormat
 
  public:
 
-  Int32 m_nnz = 0;
+  // TODO: make private
   NumArray<Int32, MDDim1> m_matrix_row;
   NumArray<Int32, MDDim1> m_matrix_column;
   NumArray<Real, MDDim1> m_matrix_value;
-  //! Nombre de colonnes de chaque lignes.
-  NumArray<Int32, MDDim1> m_matrix_rows_nb_column;
-  IItemFamily* m_dof_family = nullptr;
 
-  //! Return the Value at the (row, column) coordinates.
-  Int32 getValue(DoFLocalId row, DoFLocalId column)
-  {
-    return m_matrix_value(indexValue(row, column));
-  }
+ private:
+
+  Int32 m_nnz = 0;
+  Int32 m_nb_row = 0;
+  IItemFamily* m_dof_family = nullptr;
 };
 
 /*---------------------------------------------------------------------------*/

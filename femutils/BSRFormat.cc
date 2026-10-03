@@ -123,7 +123,6 @@ toCsr(CsrFormat* csr_matrix)
   if (m_nb_block == 1) {
     csr_matrix->m_matrix_row = m_rows_index;
     csr_matrix->m_matrix_column = m_columns;
-    csr_matrix->m_matrix_rows_nb_column = m_nb_non_zero_per_rows;
   }
   else {
     // Translate `row_index`
@@ -161,7 +160,7 @@ toCsr(CsrFormat* csr_matrix)
     offset = 0;
     for (auto i = 0; i < m_nb_non_zero_per_rows.extent0(); ++i) {
       for (auto j = 0; j < m_nb_block; ++j) {
-        csr_matrix->m_matrix_rows_nb_column[offset++] = m_nb_non_zero_per_rows[i] * m_nb_block;
+        //csr_matrix->m_matrix_rows_nb_column[offset++] = m_nb_non_zero_per_rows[i] * m_nb_block;
       }
     }
   }
