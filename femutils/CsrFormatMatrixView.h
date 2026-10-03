@@ -16,6 +16,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include <arcane/utils/ArrayView.h>
+#include <arcane/utils/FatalErrorException.h>
 #include <arcane/accelerator/core/AcceleratorCoreGlobal.h>
 
 /*---------------------------------------------------------------------------*/
@@ -53,6 +54,7 @@ class CsrRowColumnIndex
 
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE IndexType value() const { return m_index; }
   constexpr ARCCORE_HOST_DEVICE operator IndexType() const { return m_index; }
+  constexpr ARCCORE_HOST_DEVICE bool isNull() const { return m_index == (-1); }
 
  private:
 
@@ -131,6 +133,9 @@ class CsrRow
  *
  * This view is a temporary object and is invalided when the underlying matrix
  * structure is modified.
+ *
+ * This class and its methods are available on accelerator if the spans points
+ * to memory accessible from accelerator.
  */
 class CsrFormatMatrixView
 {
@@ -220,12 +225,42 @@ class CsrFormatMatrixView
    * If not found return a null index.
    */
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE CsrRowColumnIndex
-  tryFindColumnInRow(Int32 row, Int32 column_id) const
+  tryFindColumnInRow(Int32 row, Int32 column) const
   {
     for (CsrRowColumnIndex csr_index : rowRange(row))
-      if (column(csr_index) == column_id)
+      if (this->column(csr_index) == column)
         return csr_index;
     return {};
+  }
+
+  /*!
+   * \brief Index of (row,column) in the matrix.
+   *
+   * Throws an exception (if running on host) if the index is not found.
+   */
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE CsrRowColumnIndex
+  indexValue(Int32 row, Int32 column) const
+  {
+#if defined(ARCCORE_DEVICE_CODE)
+    return tryFindColumnInRow(row, column);
+#else
+    CsrRowColumnIndex x = tryFindColumnInRow(row, column);
+    if (x.isNull())
+      ARCANE_FATAL_IF(x.isNull(), "Column {0} not found in row {1}", column, row);
+    return x;
+#endif
+  }
+  //! Add value \a value at (row,column)
+  constexpr ARCCORE_HOST_DEVICE void matrixAddValue(Int32 row, Int32 column, Real value) const
+  {
+    if (value == 0.0)
+      return;
+    m_values[indexValue(row, column)] += value;
+  }
+  //! Set value \a value at (row,column)
+  constexpr ARCCORE_HOST_DEVICE void matrixSetValue(Int32 row, Int32 column, Real value) const
+  {
+    m_values[indexValue(row, column)] = value;
   }
 
  private:
