@@ -40,7 +40,7 @@ ARCCORE_HOST_DEVICE static void unpack(UInt64 packed_edge, Int32& n0, Int32& n1)
 /*---------------------------------------------------------------------------*/
 
 void FemModuleTestlab::
-_computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss)
+_computeSortedEdges(Int16 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64> sorted_edges_ss)
 {
   auto mem_ressource = m_queue.memoryRessource();
   NumArray<UInt64, MDDim1> edges(mem_ressource);
@@ -95,9 +95,9 @@ _computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt6
 /*---------------------------------------------------------------------------*/
 
 void FemModuleTestlab::
-_computeNeighbors(Int8 edges_per_element, Int64 nb_edge_total,
+_computeNeighbors(Int16 edges_per_element, Int64 nb_edge_total,
                   NumArray<Int32, MDDim1>& neighbors,
-                  SmallSpan<UInt64>& sorted_edges_ss)
+                  SmallSpan<UInt64> sorted_edges_ss)
 {
   auto command = makeCommand(m_queue);
   auto inout_neighbors = viewInOut(command, neighbors);
@@ -119,7 +119,7 @@ _computeNeighbors(Int8 edges_per_element, Int64 nb_edge_total,
 /*---------------------------------------------------------------------------*/
 
 void FemModuleTestlab::
-_computeRowIndex(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss)
+_computeRowIndex(Int16 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64> sorted_edges_ss)
 {
   auto mem_ressource = m_queue.memoryRessource();
   NumArray<Int32, MDDim1> neighbors(mem_ressource);
@@ -150,7 +150,7 @@ registerEdgeInColumns(Int32 src, Int32 dst,
 /*---------------------------------------------------------------------------*/
 
 void FemModuleTestlab::
-_computeColumns(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>& sorted_edges_ss)
+_computeColumns(Int16 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t> sorted_edges_ss)
 {
   auto nb_node = mesh()->nbNode();
 
