@@ -19,7 +19,7 @@ $$
 or in a more compact form
 
 $$
-\nabla^2 u = {\mathcal{f}} \quad \forall (x,y)\in\Omega^h.
+- \nabla^2 u = {\mathcal{f}} \quad \forall (x,y)\in\Omega^h.
 $$
 
 To complete the problem description,   first type (Dirichlet) boundary conditions is applied to this problem:
@@ -41,6 +41,10 @@ given
 $u^h = g \quad \forall (x,y)\in\partial\Omega^h_{\text{Dirichlet}}\subset\partial \Omega^h,$
 
 where $K$ are elements, $F$ faces, $\{\cdot\}$ average, $[\cdot]$ jump, $\alpha$ penalty parameter, $h_F$ face size.
+
+In three dimensions, the cell-local basis is $\{1,x-x_c,y-y_c,z-z_c\}$, giving four unknowns per cell. Polygonal faces are split into triangles about the face centroid. A symmetric three-point rule is used on every triangle, so the quadratic products of P1 traces in the penalty term are integrated exactly. Polyhedral cells are decomposed into tetrahedra and integrated with the five-point degree-three tetrahedron rule.
+
+The SIPG penalty factor can be selected with the `<penalty>` option. Its default value is `10.0`.
 
 ## The code ##
 

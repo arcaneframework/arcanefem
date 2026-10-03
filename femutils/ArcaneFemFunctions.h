@@ -34,6 +34,7 @@
 #include "FemOperation.h"
 #include "FemShapeMethods.h"
 #include "FemGaussQuadrature.h"
+#include "DgQuadrature.h"
 
 using namespace Arcane;
 using namespace Arcane::FemUtils;

@@ -32,7 +32,22 @@ startInit()
   info() << "[ArcaneFem-Info] Started module startInit()";
   Real elapsedTime = platform::getRealTime();
 
-  m_dofs_on_cells.initialize(mesh(), 3);
+  m_dimension = mesh()->dimension();
+  if (m_dimension == 2) {
+    m_compute_dg_penalty_length = &ArcaneFemFunctions::MeshOperation::computeDGPenaltyLength2D;
+    m_compute_face_normal = &ArcaneFemFunctions::MeshOperation::computeOutwardUnitNormalEdge2D;
+    m_compute_cell_quadrature = &ArcaneFemFunctions::DgQuadrature::computeCellQuadrature2D;
+    m_compute_face_quadrature = &ArcaneFemFunctions::DgQuadrature::computeFaceQuadrature2D;
+  }
+  else if (m_dimension == 3) {
+    m_compute_dg_penalty_length = &ArcaneFemFunctions::MeshOperation::computeDGPenaltyLength3D;
+    m_compute_face_normal = &ArcaneFemFunctions::MeshOperation::computeOutwardUnitNormalPolygon3D;
+    m_compute_cell_quadrature = &ArcaneFemFunctions::DgQuadrature::computeCellQuadrature3D;
+    m_compute_face_quadrature = &ArcaneFemFunctions::DgQuadrature::computeFaceQuadrature3D;
+  }
+
+  m_nb_dof_per_cell = m_dimension + 1;
+  m_dofs_on_cells.initialize(mesh(), m_nb_dof_per_cell);
   m_dof_family = m_dofs_on_cells.dofFamily();
 
   m_matrix_format = options()->matrixFormat();
@@ -146,6 +161,7 @@ _getMaterialParameters()
   Real elapsedTime = platform::getRealTime();
 
   f = options()->f();
+  m_penalty = options()->penalty();
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "get-material-params", elapsedTime);
@@ -178,221 +194,148 @@ _assembleLinearSystem()
       m_linear_system.matrixAddValue(row, column, value);
   };
 
-  Real penalty = 10.0; // Can be made configurable later
+  const Real3 gradients[4] = { { 0.0, 0.0, 0.0 }, { 1.0, 0.0, 0.0 },
+                               { 0.0, 1.0, 0.0 }, { 0.0, 0.0, 1.0 } };
+  UniqueArray<QuadraturePoint> quadrature;
 
-  // Volume terms: (∇v, ∇u)_K
+  // Volume terms: (∇v, ∇u)_K and (v,f)_K.
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    Real area = ArcaneFemFunctions::MeshOperation::computeAreaPolygon2D(cell, m_node_coord);
     Real3 centroid = ArcaneFemFunctions::MeshOperation::computeCentroid(cell, m_node_coord);
+    m_compute_cell_quadrature(cell, m_node_coord, quadrature);
+    Real measure = 0.0;
 
-    // Evaluate basis at centroid for volume integral approximation
-    // Basis: phi_0 = 1, phi_1 = x - x_c, phi_2 = y - y_c
-    Real x_rel = centroid.x - centroid.x;
-    Real y_rel = centroid.y - centroid.y;
-    Real phi[3] = { 1.0, x_rel, y_rel };
-    Real grad_x[3] = { 0.0, 1.0, 0.0 };
-    Real grad_y[3] = { 0.0, 0.0, 1.0 };
-
-    // RHS: (f, phi)_K
-    for (Int32 i = 0; i < 3; ++i) {
-      DoFLocalId dof_i = cell_dof.dofId(cell, i);
-      rhs_values[dof_i] += f * phi[i] * area;
+    for (const QuadraturePoint& qp : quadrature) {
+      measure += qp.weight;
+      Real3 relative = qp.point - centroid;
+      Real phi[4] = { 1.0, relative.x, relative.y, relative.z };
+      for (Int32 i = 0; i < m_nb_dof_per_cell; ++i)
+        rhs_values[cell_dof.dofId(cell, i)] += f * phi[i] * qp.weight;
     }
 
-    // Stiffness: ∫ ∇phi_i · ∇phi_j dK
-    for (Int32 i = 0; i < 3; ++i) {
-      for (Int32 j = 0; j < 3; ++j) {
-        DoFLocalId dof_i = cell_dof.dofId(cell, i);
-        DoFLocalId dof_j = cell_dof.dofId(cell, j);
-        Real stiff = (grad_x[i] * grad_x[j] + grad_y[i] * grad_y[j]) * area;
-        add_matrix_value(dof_i, dof_j, stiff);
+    for (Int32 i = 0; i < m_nb_dof_per_cell; ++i) {
+      for (Int32 j = 0; j < m_nb_dof_per_cell; ++j) {
+        Real stiff = math::dot(gradients[i], gradients[j]) * measure;
+        add_matrix_value(cell_dof.dofId(cell, i), cell_dof.dofId(cell, j), stiff);
       }
     }
   }
 
-  // Face terms (SIPG)
+  // Interior-face SIPG terms.
   ENUMERATE_ (Face, iface, allFaces()) {
     Face face = *iface;
-    // Compute length
-    Real3 p0 = m_node_coord[face.nodeId(0)];
-    Real3 p1 = m_node_coord[face.nodeId(1)];
-    Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-    // Compute centroid
-    Real3 face_center = ArcaneFemFunctions::MeshOperation::computeCentroid(face, m_node_coord);
+    if (face.nbCell() != 2)
+      continue;
 
-    if (face.nbCell() == 2) { // Interior face
-      Cell cell_i = face.cell(0);
-      Cell cell_j = face.cell(1);
+    Cell cell_i = face.cell(0);
+    Cell cell_j = face.cell(1);
+    Real3 center_i = ArcaneFemFunctions::MeshOperation::computeCentroid(cell_i, m_node_coord);
+    Real3 center_j = ArcaneFemFunctions::MeshOperation::computeCentroid(cell_j, m_node_coord);
+    Real3 normal = m_compute_face_normal(face, cell_i, m_node_coord);
+    Real grad_n[4];
+    for (Int32 i = 0; i < m_nb_dof_per_cell; ++i)
+      grad_n[i] = math::dot(gradients[i], normal);
 
-      // compute centroids for normal orientation
-      Real3 cell_center_cell_i = ArcaneFemFunctions::MeshOperation::computeCentroid(cell_i, m_node_coord);
-      Real3 cell_center_cell_j = ArcaneFemFunctions::MeshOperation::computeCentroid(cell_j, m_node_coord);
+    Real h_i = m_compute_dg_penalty_length(cell_i, face, m_node_coord);
+    Real h_j = m_compute_dg_penalty_length(cell_j, face, m_node_coord);
+    Real sigma = m_penalty / math::min(h_i, h_j);
 
-      // Compute normal (assuming 2D, outward from cell_i)
-      Real3 edge_vec = p1 - p0;
-      Real3 normal = { edge_vec.y, -edge_vec.x, 0.0 };
-      normal = normal / normal.normL2();
-      // Ensure pointing from i to j
-      if (math::dot(normal, cell_center_cell_j - cell_center_cell_i) < 0)
-        normal = -normal;
+    m_compute_face_quadrature(face, m_node_coord, quadrature);
+    for (const QuadraturePoint& qp : quadrature) {
+      Real3 relative_i = qp.point - center_i;
+      Real3 relative_j = qp.point - center_j;
+      Real phi_i[4] = { 1.0, relative_i.x, relative_i.y, relative_i.z };
+      Real phi_j[4] = { 1.0, relative_j.x, relative_j.y, relative_j.z };
 
-      // Evaluate basis at face center
-      Real x_rel_i = face_center.x - cell_center_cell_i.x;
-      Real y_rel_i = face_center.y - cell_center_cell_i.y;
-      Real phi_i[3] = { 1.0, x_rel_i, y_rel_i };
-      Real grad_x_i[3] = { 0.0, 1.0, 0.0 };
-      Real grad_y_i[3] = { 0.0, 0.0, 1.0 };
-      Real grad_n_i[3] = { grad_x_i[0] * normal.x + grad_y_i[0] * normal.y,
-                           grad_x_i[1] * normal.x + grad_y_i[1] * normal.y,
-                           grad_x_i[2] * normal.x + grad_y_i[2] * normal.y };
-
-      Real x_rel_j = face_center.x - cell_center_cell_j.x;
-      Real y_rel_j = face_center.y - cell_center_cell_j.y;
-      Real phi_j[3] = { 1.0, x_rel_j, y_rel_j };
-      Real grad_x_j[3] = { 0.0, 1.0, 0.0 };
-      Real grad_y_j[3] = { 0.0, 0.0, 1.0 };
-      Real grad_n_j[3] = { grad_x_j[0] * normal.x + grad_y_j[0] * normal.y,
-                           grad_x_j[1] * normal.x + grad_y_j[1] * normal.y,
-                           grad_x_j[2] * normal.x + grad_y_j[2] * normal.y };
-
-      // Penalty parameter σ = γ/h using a face-based cell size
-      Real area_i = ArcaneFemFunctions::MeshOperation::computeAreaPolygon2D(cell_i, m_node_coord);
-      Real area_j = ArcaneFemFunctions::MeshOperation::computeAreaPolygon2D(cell_j, m_node_coord);
-      Real h_i = 2.0 * area_i / length;
-      Real h_j = 2.0 * area_j / length;
-      Real h = math::min(h_i, h_j);
-      Real sigma = penalty / h;
-
-      // SIPG terms
-      for (Int32 i = 0; i < 3; ++i) {
-        for (Int32 j = 0; j < 3; ++j) {
-          DoFLocalId dof_i_i = cell_dof.dofId(cell_i, i);
-          DoFLocalId dof_j_i = cell_dof.dofId(cell_i, j);
-          DoFLocalId dof_i_j = cell_dof.dofId(cell_j, i);
-          DoFLocalId dof_j_j = cell_dof.dofId(cell_j, j);
+      for (Int32 i = 0; i < m_nb_dof_per_cell; ++i) {
+        for (Int32 j = 0; j < m_nb_dof_per_cell; ++j) {
+          DoFLocalId row_i = cell_dof.dofId(cell_i, i);
+          DoFLocalId row_j = cell_dof.dofId(cell_j, i);
+          DoFLocalId column_i = cell_dof.dofId(cell_i, j);
+          DoFLocalId column_j = cell_dof.dofId(cell_j, j);
+          Real weight = qp.weight;
 
           // - <[[v]], {∇u·n}> = - <v_i - v_j, 0.5(∇u_i·n + ∇u_j·n)>
-          Real term1_ii = -0.5 * phi_i[i] * grad_n_i[j] * length;
-          Real term1_ij = -0.5 * phi_i[i] * grad_n_j[j] * length;
-          Real term1_ji = 0.5 * phi_j[i] * grad_n_i[j] * length;
-          Real term1_jj = 0.5 * phi_j[i] * grad_n_j[j] * length;
-
           // - <{∇v·n}, [[u]]> = - <0.5(∇v_i·n + ∇v_j·n), u_i - u_j>
-          Real term2_ii = -0.5 * grad_n_i[i] * phi_i[j] * length;
-          Real term2_ij = 0.5 * grad_n_i[i] * phi_j[j] * length;
-          Real term2_ji = -0.5 * grad_n_j[i] * phi_i[j] * length;
-          Real term2_jj = 0.5 * grad_n_j[i] * phi_j[j] * length;
-
           // + <σ[[v]], [[u]]> = <σ(v_i - v_j), u_i - u_j>
-          Real term3_ii = sigma * phi_i[i] * phi_i[j] * length;
-          Real term3_ij = -sigma * phi_i[i] * phi_j[j] * length;
-          Real term3_ji = -sigma * phi_j[i] * phi_i[j] * length;
-          Real term3_jj = sigma * phi_j[i] * phi_j[j] * length;
-
-          add_matrix_value(dof_i_i, dof_j_i, term1_ii + term2_ii + term3_ii);
-          add_matrix_value(dof_i_i, dof_j_j, term1_ij + term2_ij + term3_ij);
-          add_matrix_value(dof_i_j, dof_j_i, term1_ji + term2_ji + term3_ji);
-          add_matrix_value(dof_i_j, dof_j_j, term1_jj + term2_jj + term3_jj);
+          add_matrix_value(row_i, column_i, weight * (
+            -0.5 * phi_i[i] * grad_n[j] - 0.5 * grad_n[i] * phi_i[j]
+            + sigma * phi_i[i] * phi_i[j]));
+          add_matrix_value(row_i, column_j, weight * (
+            -0.5 * phi_i[i] * grad_n[j] + 0.5 * grad_n[i] * phi_j[j]
+            - sigma * phi_i[i] * phi_j[j]));
+          add_matrix_value(row_j, column_i, weight * (
+            0.5 * phi_j[i] * grad_n[j] - 0.5 * grad_n[i] * phi_i[j]
+            - sigma * phi_j[i] * phi_i[j]));
+          add_matrix_value(row_j, column_j, weight * (
+            0.5 * phi_j[i] * grad_n[j] + 0.5 * grad_n[i] * phi_j[j]
+            + sigma * phi_j[i] * phi_j[j]));
         }
       }
-    }
-    else {
-      continue;
     }
   }
 
   BC::IArcaneFemBC* bc = options()->boundaryConditions();
   if (bc) { // Only process if BCs are defined
-
     // Loop over Dirichlet BCs and apply them as penalty terms in SIPG
     for (BC::IDirichletBoundaryCondition* bs : bc->dirichletBoundaryConditions()) {
       FaceGroup face_group = bs->getSurface();
+
+      // Retrieve the Dirichlet value and convert to Real
+      const StringConstArrayView value = bs->getValue();
+      Real g = 0.0;
+      if (builtInGetValue(g,value[0]))
+          ARCANE_FATAL("Can not convert '{0}' to real",value[0]);
+
       ENUMERATE_ (Face, iface, face_group) {
         Face face = *iface;
-        Cell cell_i = face.cell(0);
+        Cell cell = face.cell(0);
+        Real3 center = ArcaneFemFunctions::MeshOperation::computeCentroid(cell, m_node_coord);
+        Real3 normal = m_compute_face_normal(face, cell, m_node_coord);
+        Real grad_n[4];
+        for (Int32 i = 0; i < m_nb_dof_per_cell; ++i)
+          grad_n[i] = math::dot(gradients[i], normal);
 
-        // Get face points
-        Real3 p0 = m_node_coord[face.nodeId(0)];
-        Real3 p1 = m_node_coord[face.nodeId(1)];
+        Real h = m_compute_dg_penalty_length(cell, face, m_node_coord);
+        Real sigma = m_penalty / h;
 
-        // Compute length
-        Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-
-        // Compute normal (outward)
-        Real3 edge_vec = p1 - p0;
-        Real3 normal = { edge_vec.y, -edge_vec.x, 0.0 };
-        normal = normal / normal.normL2();
-
-        // Compute centroid for basis evaluation
-        Real3 face_center = ArcaneFemFunctions::MeshOperation::computeCentroid(face, m_node_coord);
-        Real3 cell_center_cell_i = ArcaneFemFunctions::MeshOperation::computeCentroid(cell_i, m_node_coord);
-
-        // Ensure outward normal points from cell to face
-        if (math::dot(normal, face_center - cell_center_cell_i) < 0)
-          normal = -normal;
-
-        // Evaluate basis at face center
-        Real x_rel_i = face_center.x - cell_center_cell_i.x;
-        Real y_rel_i = face_center.y - cell_center_cell_i.y;
-        Real phi_i[3] = { 1.0, x_rel_i, y_rel_i };
-        Real grad_x_i[3] = { 0.0, 1.0, 0.0 };
-        Real grad_y_i[3] = { 0.0, 0.0, 1.0 };
-        Real grad_n_i[3] = { grad_x_i[0] * normal.x + grad_y_i[0] * normal.y,
-                             grad_x_i[1] * normal.x + grad_y_i[1] * normal.y,
-                             grad_x_i[2] * normal.x + grad_y_i[2] * normal.y };
-
-        Real area_i = ArcaneFemFunctions::MeshOperation::computeAreaPolygon2D(cell_i, m_node_coord);
-        Real h = 2.0 * area_i / length;
-        Real sigma = penalty / h;
-
-        const StringConstArrayView u_dirichlet_string = bs->getValue();
-        Real g = std::stod(u_dirichlet_string[0].localstr());
-
-        for (Int32 i = 0; i < 3; ++i) {
-          for (Int32 j = 0; j < 3; ++j) {
-            DoFLocalId dof_i_i = cell_dof.dofId(cell_i, i);
-            DoFLocalId dof_j_i = cell_dof.dofId(cell_i, j);
-
-            // - <v, ∇u·n> - <∇v·n, u> + <σv, u>
-            add_matrix_value(dof_i_i, dof_j_i, -phi_i[i] * grad_n_i[j] * length);
-            add_matrix_value(dof_i_i, dof_j_i, -grad_n_i[i] * phi_i[j] * length);
-            add_matrix_value(dof_i_i, dof_j_i, sigma * phi_i[i] * phi_i[j] * length);
+        m_compute_face_quadrature(face, m_node_coord, quadrature);
+        for (const QuadraturePoint& qp : quadrature) {
+          Real3 relative = qp.point - center;
+          Real phi[4] = { 1.0, relative.x, relative.y, relative.z };
+          for (Int32 i = 0; i < m_nb_dof_per_cell; ++i) {
+            DoFLocalId row = cell_dof.dofId(cell, i);
+            for (Int32 j = 0; j < m_nb_dof_per_cell; ++j) {
+              DoFLocalId column = cell_dof.dofId(cell, j);
+              add_matrix_value(row, column, qp.weight * (
+                -phi[i] * grad_n[j] - grad_n[i] * phi[j] + sigma * phi[i] * phi[j]));
+            }
+            rhs_values[row] += qp.weight * (-grad_n[i] * g + sigma * phi[i] * g);
           }
-
-          // RHS: - <∇v·n, g> + <σv, g> (g=0 for homogeneous Neumann)
-          DoFLocalId dof_i = cell_dof.dofId(cell_i, i);
-          rhs_values[dof_i] -= grad_n_i[i] * g * length;
-          rhs_values[dof_i] += sigma * phi_i[i] * g * length;
         }
       }
     }
 
     for (BC::INeumannBoundaryCondition* bs : bc->neumannBoundaryConditions()) {
       FaceGroup face_group = bs->getSurface();
+
+      // Retrieve the Dirichlet value and convert to Real
+      const StringConstArrayView value = bs->getValue();
+      Real g = 0.0;
+      if (builtInGetValue(g,value[0]))
+          ARCANE_FATAL("Can not convert '{0}' to real",value[0]);
+
       ENUMERATE_ (Face, iface, face_group) {
         Face face = *iface;
-        Cell cell_i = face.cell(0);
+        Cell cell = face.cell(0);
+        Real3 center = ArcaneFemFunctions::MeshOperation::computeCentroid(cell, m_node_coord);
 
-        // Compute length
-        Real length = ArcaneFemFunctions::MeshOperation::computeLengthEdge2(face, m_node_coord);
-
-        // Compute centroid for basis evaluation
-        Real3 face_center = ArcaneFemFunctions::MeshOperation::computeCentroid(face, m_node_coord);
-        Real3 cell_center_cell_i = ArcaneFemFunctions::MeshOperation::computeCentroid(cell_i, m_node_coord);
-
-        // Evaluate basis at face center
-        Real x_rel_i = face_center.x - cell_center_cell_i.x;
-        Real y_rel_i = face_center.y - cell_center_cell_i.y;
-        Real phi_i[3] = { 1.0, x_rel_i, y_rel_i };
-
-        const StringConstArrayView u_neumann_string = bs->getValue();
-        Real g = std::stod(u_neumann_string[0].localstr());
-
-        // RHS contribution: <v, g> =  <phi_i, g> = phi_i[i] * g * length
-        for (Int32 i = 0; i < 3; ++i) {
-          DoFLocalId dof_i = cell_dof.dofId(cell_i, i);
-          rhs_values[dof_i] += phi_i[i] * g * length;
+        m_compute_face_quadrature(face, m_node_coord, quadrature);
+        for (const QuadraturePoint& qp : quadrature) {
+          Real3 relative = qp.point - center;
+          Real phi[4] = { 1.0, relative.x, relative.y, relative.z };
+          for (Int32 i = 0; i < m_nb_dof_per_cell; ++i)
+            rhs_values[cell_dof.dofId(cell, i)] += phi[i] * g * qp.weight;
         }
       }
     }
@@ -423,7 +366,7 @@ _buildCsrSparsity()
 
   ENUMERATE_CELL (icell, allCells()) {
     Int32 nb_connected_cell = m_cell_cell_connectivity_view.nbCell(icell);
-    nnz += 3 * 3 * (1 + nb_connected_cell);
+    nnz += m_nb_dof_per_cell * m_nb_dof_per_cell * (1 + nb_connected_cell);
   }
 
   RunQueue queue = subDomain()->acceleratorMng()->queue();
@@ -438,15 +381,15 @@ _buildCsrSparsity()
   rows_index[0] = 0;
   ENUMERATE_CELL (icell, allCells()) {
     Cell cell = *icell;
-    for (Int32 i = 0; i < 3; ++i) {
+    for (Int32 i = 0; i < m_nb_dof_per_cell; ++i) {
       DoFLocalId row_dof = cell_dof.dofId(cell, i);
-      for (Int32 j = 0; j < 3; ++j) {
+      for (Int32 j = 0; j < m_nb_dof_per_cell; ++j) {
         DoFLocalId column_dof = cell_dof.dofId(cell, j);
         columns[column_index++] = column_dof;
       }
       for (CellLocalId neighbor_cell_id : m_cell_cell_connectivity_view.cells(icell)) {
         Cell neighbor_cell = cells[neighbor_cell_id];
-        for (Int32 j = 0; j < 3; ++j) {
+        for (Int32 j = 0; j < m_nb_dof_per_cell; ++j) {
           DoFLocalId column_dof = cell_dof.dofId(neighbor_cell, j);
           columns[column_index++] = column_dof;
         }
@@ -497,22 +440,22 @@ _updateVariables()
     auto cell_dof = m_dofs_on_cells.cellDoFConnectivityView();
 
     dof_u.synchronize(); // Ensure solution is up to date across subdomains before interpolation
+    m_u.fill(0.0);
 
     ENUMERATE_ (Cell, icell, allCells()) {
       Cell cell = *icell;
       Real3 centroid =  ArcaneFemFunctions::MeshOperation::computeCentroid(cell, m_node_coord);
 
-      // Get DG coefficients for this cell
-      Real a0 = dof_u[cell_dof.dofId(cell, 0)]; // constant term
-      Real a1 = dof_u[cell_dof.dofId(cell, 1)]; // x-gradient
-      Real a2 = dof_u[cell_dof.dofId(cell, 2)]; // y-gradient
+      Real coefficients[4] = {};
+      for (Int32 i = 0; i < m_nb_dof_per_cell; ++i)
+        coefficients[i] = dof_u[cell_dof.dofId(cell, i)];
 
       // Evaluate solution at each node of this cell
       for (Node node : cell.nodes()) {
-        Real3 node_pos = m_node_coord[node];
-        Real x_rel = node_pos.x - centroid.x;
-        Real y_rel = node_pos.y - centroid.y;
-        Real u_value = a0 + a1 * x_rel + a2 * y_rel;
+        Real3 relative = m_node_coord[node] - centroid;
+        Real u_value = coefficients[0];
+        for (Int32 d = 0; d < m_dimension; ++d)
+          u_value += coefficients[d + 1] * relative[d];
 
         m_u[node] += u_value / node.nbCell(); // Average contributions from all cells sharing this node
       }

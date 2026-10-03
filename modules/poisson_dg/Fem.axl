@@ -21,6 +21,10 @@
       <description>Volume source within the material.</description>
     </simple>
 
+    <simple name="penalty" type="real" default="10.0">
+      <description>SIPG penalty parameter gamma in sigma=gamma/h.</description>
+    </simple>
+
     <simple name="solution-comparison-file" type="string" optional="true">
       <description>File name of a file containing the values of the solution vector to check the results</description>
     </simple>
