@@ -36,7 +36,7 @@ namespace Arcane::FemUtils
 void CsrFormat::
 initialize(IItemFamily* dof_family, Int32 nnz, Int32 nb_row, RunQueue& queue)
 {
-  info() << "Initialize CsrFormat: nb_non_zero=" << nnz << " nb_row=" << nb_row;
+  info() << "Legacy Initialize CsrFormat: nb_non_zero=" << nnz << " nb_row=" << nb_row;
   eMemoryRessource mem_resource = queue.memoryResource();
   m_matrix_row = NumArray<Int32, MDDim1>(mem_resource);
   m_matrix_column = NumArray<Int32, MDDim1>(mem_resource);
@@ -60,7 +60,7 @@ initialize(IItemFamily* dof_family, Int32 nnz, Int32 nb_row, RunQueue& queue)
 void CsrFormat::
 initialize(IItemFamily* dof_family, NumArray<Int32, MDDim1>&& rows_index, NumArray<Int32, MDDim1>&& columns, RunQueue& queue)
 {
-  info() << "Legacy Initialize CsrFormat with rows_index : nb_row=" << (rows_index.extent0() - 1);
+  info() << "Initialize CsrFormat with rows_index : nb_row=" << (rows_index.extent0() - 1);
 
   if (rows_index.extent0() == 0)
     ARCANE_FATAL("rows_index is empty");

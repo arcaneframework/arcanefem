@@ -41,6 +41,10 @@ class DoFLinearSystem;
 class CsrFormat
 : public TraceAccessor
 {
+  friend class BSRMatrix;
+  // TEMPORARY
+  friend class FemModuleTestlab;
+
  public:
 
   explicit CsrFormat(Arcane::ITraceMng* tm)
@@ -65,7 +69,27 @@ class CsrFormat
    * So the number of non-zero is equal to `rows_index[nb_row]` and should be
    * equal to `columns.size()`.
    */
-  void initialize(IItemFamily* dof_family, NumArray<Int32, MDDim1>&& rows_index, NumArray<Int32, MDDim1>&& columns, RunQueue& queue);
+  void initialize(IItemFamily* dof_family, NumArray<Int32, MDDim1>&& rows_index,
+                  NumArray<Int32, MDDim1>&& columns, RunQueue& queue);
+
+ public:
+
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<const Int32> rowsIndex() const
+  {
+    return m_matrix_row;
+  }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<const Int32> columns() const
+  {
+    return m_matrix_column;
+  }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<const Real> values() const
+  {
+    return m_matrix_value;
+  }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<Real> values()
+  {
+    return m_matrix_value;
+  }
 
   /**
    * @brief
@@ -134,6 +158,7 @@ class CsrFormat
 
  public:
 
+  // TODO: make private
   NumArray<Int32, MDDim1> m_matrix_row;
   NumArray<Int32, MDDim1> m_matrix_column;
   NumArray<Real, MDDim1> m_matrix_value;

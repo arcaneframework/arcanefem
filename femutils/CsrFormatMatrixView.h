@@ -159,6 +159,10 @@ class CsrFormatMatrixView
   {
     return m_rows_index;
   }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<const Int32> rowsIndex() const
+  {
+    return m_rows_index;
+  }
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<const Int32> columns() const
   {
     return m_matrix_columns;
