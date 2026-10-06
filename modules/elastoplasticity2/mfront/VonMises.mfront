@@ -1,0 +1,33 @@
+@DSL       IsotropicPlasticMisesFlow;
+@Behaviour VonMises;
+@Author    ArcaneFEM;
+@Date      06/10/2026;
+@Description {
+  Small strain elastoplasticity with a von Mises yield surface and
+  linear isotropic hardening.
+
+  This behaviour is the MFront/MGIS counterpart of the native von Mises
+  implementation of the Elastoplasticity2 module of ArcaneFEM. The yield
+  function reads:
+
+  f(seq,p) = seq - s0 - H*p
+
+  where seq is the equivalent stress, s0 the initial yield strength and H
+  the linear isotropic hardening modulus. All the material coefficients
+  are material properties provided at runtime by the calling solver. It is
+  meant to be used with the PlaneStrain modelling hypothesis, consistently
+  with the two-dimensional plane strain formulation of the module.
+}
+
+@Epsilon 1.e-14;
+
+@MaterialProperty stress s0;
+s0.setGlossaryName("YieldStress");
+@MaterialProperty stress H;
+H.setEntryName("HardeningSlope");
+
+@FlowRule{
+  f       = seq-H*p-s0;
+  df_dseq = 1;
+  df_dp   = -H;
+}

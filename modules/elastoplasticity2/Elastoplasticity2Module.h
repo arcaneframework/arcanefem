@@ -45,6 +45,17 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+namespace mgis::behaviour
+{
+// Forward declarations to avoid a dependency of this header, which is
+// also compiled for accelerators, on the MGIS headers.
+struct Behaviour;
+struct MaterialDataManager;
+} // namespace mgis::behaviour
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 namespace Arcane::ArcaneFem
 {
 
@@ -62,7 +73,7 @@ using namespace FemUtils;
 class Elastoplasticity2Module
 : public ArcaneElastoplasticity2Object
 {
-public:
+ public:
 
   explicit Elastoplasticity2Module(const ModuleBuildInfo& mbi);
   ~Elastoplasticity2Module() override;
@@ -81,8 +92,7 @@ public:
   inline void _integrateAndSaveConstitutiveLawVonMisesTria3Gpu();
   inline void _integrateAndSaveConstitutiveLawDruckerPragerTria3Gpu();
 
-
-private:
+ private:
 
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
@@ -134,6 +144,12 @@ private:
   String m_gp_material_tensor_strategy = "local";
   String m_newton_converged_reason = "";
 
+  // MGIS binding for the Von Mises law
+  String m_mgis_library = "libVonMises.so";
+  String m_mgis_behaviour_name = "VonMises";
+  mgis::behaviour::Behaviour* m_mgis_behaviour = nullptr;
+  mgis::behaviour::MaterialDataManager* m_mgis_data = nullptr;
+
   bool m_use_gpu_functions = true;
   bool m_assemble_linear_system = true;
   bool m_solve_linear_system = true;
@@ -172,6 +188,18 @@ private:
   void _integrateAndSaveConstitutiveLawVonMisesQuad4Cpu();
   void _integrateAndSaveConstitutiveLawVonMisesQuad8Cpu();
   void _integrateAndSaveConstitutiveLawVonMisesQuad9Cpu();
+
+  // Von Mises Law through the MGIS library
+  void _initMgisVonMises();
+  void _freeMgisVonMises();
+  void _restoreConvergedStateVonMisesMgis();
+  void _commitInternalVariablesVonMisesMgis();
+  void _integrateAndSaveConstitutiveLawVonMisesMgis();
+  void _integrateAndSaveConstitutiveLawVonMisesMgisTria3Cpu();
+  void _integrateAndSaveConstitutiveLawVonMisesMgisQuad4Cpu();
+  void _integrateAndSaveConstitutiveLawVonMisesMgisQuad8Cpu();
+  void _integrateAndSaveConstitutiveLawVonMisesMgisQuad9Cpu();
+  void _mgisIntegrateAndSaveResults();
 
   // Drucker Prager Law
   void _restoreConvergedStateDruckerPrager();
@@ -223,13 +251,12 @@ private:
 
   template <int N>
   void _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
-
 };
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-}
+} // namespace Arcane::ArcaneFem
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

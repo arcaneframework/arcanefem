@@ -55,6 +55,7 @@ Elastoplasticity2Module::
     delete t.case_table;
   for (const CaseTableInfo& t : m_dirichlet_case_table_list)
     delete t.case_table;
+  _freeMgisVonMises();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -243,6 +244,21 @@ _initConstitutiveLaw()
         sig0 = von_mises->sig0(); // Yield Strength
       }
     }
+    else if (law_name == "VonMisesMGIS") {
+      for (const auto von_mises_mgis : constitutive_law->vonMisesMgis()) {
+        E = von_mises_mgis->E(); // Youngs modulus
+        nu = von_mises_mgis->nu(); // Poission ratio ν
+        sig0 = von_mises_mgis->sig0(); // Yield Strength
+        H = von_mises_mgis->H(); // Linear isotropic hardening modulus
+        m_mgis_library = von_mises_mgis->library(); // MFront behaviour library
+        m_mgis_behaviour_name = von_mises_mgis->behaviour(); // Behaviour name
+      }
+      // By default, the hardening modulus is derived from E as in the
+      // native VonMises law.
+      Et = E / 100.;
+      if (H < 0.)
+        H = E * Et / (E - Et);
+    }
     else if (law_name == "DruckerPrager") {
       for (const auto drucker_prager : constitutive_law->druckerPrager()) {
         E = drucker_prager->E(); // Youngs modulus
@@ -256,11 +272,12 @@ _initConstitutiveLaw()
     }
   }
 
-  if (m_constitutive_law == "VonMises" || m_constitutive_law == "DruckerPrager") {
+  if (m_constitutive_law == "VonMises" || m_constitutive_law == "DruckerPrager" ||
+      m_constitutive_law == "VonMisesMGIS") {
     if (mesh()->dimension() != 2)
       ARCANE_FATAL("Native plasticity currently supports only 2D elements");
 
-    if (m_hex_quad_mesh && m_constitutive_law != "VonMises")
+    if (m_hex_quad_mesh && m_constitutive_law != "VonMises" && m_constitutive_law != "VonMisesMGIS")
       ARCANE_FATAL("Quadrilateral plasticity currently supports only the von Mises law");
 
     if (m_hex_quad_mesh && m_matrix_format != "DOK")
@@ -269,6 +286,10 @@ _initConstitutiveLaw()
     if (m_constitutive_law == "VonMises") {
       m_p_old_gp.reshape({ m_nGP });
       m_dp_gp.reshape({ m_nGP });
+    }
+
+    if (m_constitutive_law == "VonMisesMGIS") {
+      _initMgisVonMises();
     }
 
     if (m_constitutive_law == "DruckerPrager") {
@@ -421,6 +442,9 @@ _solveNewton()
   if (m_constitutive_law == "VonMises") {
     _restoreConvergedStateVonMises();
   }
+  else if (m_constitutive_law == "VonMisesMGIS") {
+    _restoreConvergedStateVonMisesMgis();
+  }
   else if (m_constitutive_law == "DruckerPrager") {
     _restoreConvergedStateDruckerPrager();
   }
@@ -461,6 +485,9 @@ _solveNewton()
       if (m_constitutive_law == "VonMises") {
         _integrateAndSaveConstitutiveLawVonMises();
       }
+      else if (m_constitutive_law == "VonMisesMGIS") {
+        _integrateAndSaveConstitutiveLawVonMisesMgis();
+      }
       else if (m_constitutive_law == "DruckerPrager") {
         _integrateAndSaveConstitutiveLawDruckerPrager();
       }
@@ -488,9 +515,12 @@ _solveNewton()
     //-- update global displacement after newton convergence -- //
     _updateTimeVariables();
 
-    if (m_constitutive_law == "VonMises") {
+    if (m_constitutive_law == "VonMises" || m_constitutive_law == "VonMisesMGIS") {
       //-- commit increment for von mises -- //
-      _commitInternalVariablesVonMises();
+      if (m_constitutive_law == "VonMises")
+        _commitInternalVariablesVonMises();
+      else
+        _commitInternalVariablesVonMisesMgis();
 
       if (t == dt) {
         Real Ri = 1.0;
@@ -617,6 +647,13 @@ _getMaterialParameters()
       }
     }
   }
+  else if (m_constitutive_law == "VonMisesMGIS") {
+    // The hardening modulus has already been computed in
+    // _initConstitutiveLaw() and the internal state variables are handled
+    // by the MGIS material data manager.
+    mu = (E / (2 * (1 + nu))); // lame parameter μ
+    lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
+  }
   else if (m_constitutive_law == "DruckerPrager") {
 
     mu = (E / (2 * (1 + nu))); // lame parameter μ
@@ -640,7 +677,8 @@ _getMaterialParameters()
     }
   }
 
-  if (m_constitutive_law == "VonMises" || m_constitutive_law == "DruckerPrager") {
+  if (m_constitutive_law == "VonMises" || m_constitutive_law == "DruckerPrager" ||
+      m_constitutive_law == "VonMisesMGIS") {
     if (mesh()->dimension() == 2) {
 
       // Initialize elastic part of the material tensor
