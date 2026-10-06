@@ -104,16 +104,16 @@
              maxOccurs = "1"
       >
       <description>
-        List of constitutive laws to use from VonMises|DruckerPrager|Hooke.
+        List of constitutive laws to use from VonMises|VonMisesMGIS|DruckerPrager|Hooke.
       </description>
       <simple name="law" type="string" default="VonMises">
         <description>Name of constitutive law</description>
       </simple>
       <complex name="von-mises"
-               type="VonMises"
-               minOccurs = "0"
-               maxOccurs = "1"
-        >
+                type="VonMises"
+                minOccurs = "0"
+                maxOccurs = "1"
+         >
         <description>
           List of parameters for VonMises law
         </description>
@@ -125,6 +125,37 @@
         </simple>
         <simple name="sig0" type="real" default="250.0">
           <description>Yeild strength of the material.</description>
+        </simple>
+      </complex>
+
+      <complex name="von-mises-mgis"
+                type="VonMisesMgis"
+                minOccurs = "0"
+                maxOccurs = "1"
+         >
+        <description>
+          List of parameters for the VonMises law handled by the MGIS
+          (MFrontGenericInterfaceSupport) library
+        </description>
+        <simple name="library" type="string" default="libVonMises.so">
+          <description>Path of the MFront behaviour library.</description>
+        </simple>
+        <simple name="behaviour" type="string" default="VonMises">
+          <description>Name of the behaviour in the MFront library.</description>
+        </simple>
+        <simple name="E" type="real" default="70.e3">
+          <description>Youngs Modulus of the material.</description>
+        </simple>
+        <simple name="nu" type="real" default="0.3">
+          <description>Poissons ratio of the material.</description>
+        </simple>
+        <simple name="sig0" type="real" default="250.0">
+          <description>Yeild strength of the material.</description>
+        </simple>
+        <simple name="H" type="real" default="-1.0">
+          <description>Linear isotropic hardening modulus. If negative, it is
+          derived from E as in the native VonMises law, i.e. H = E*Et/(E-Et)
+          with Et = E/100.</description>
         </simple>
       </complex>
 
