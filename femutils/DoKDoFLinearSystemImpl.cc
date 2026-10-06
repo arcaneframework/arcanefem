@@ -29,16 +29,24 @@ class DoKDoFLinearSystemImpl::InternalCSRMatrix
 {
  public:
 
+  explicit InternalCSRMatrix(Int32 nb_row)
+  : m_nb_row(nb_row)
+  , row_indexes(nb_row + 1)
+  {
+  }
+
+ public:
+
+  Int32 m_nb_row = 0;
   UniqueArray<Real> matrix_values;
   UniqueArray<Int32> matrix_column_indexes;
   UniqueArray<Int32> row_indexes;
-  UniqueArray<Int32> nb_value_per_row;
 
  public:
 
   CsrFormatMatrixView view() const
   {
-    return CsrFormatMatrixView(row_indexes.view(), nb_value_per_row.view(),
+    return CsrFormatMatrixView(m_nb_row, row_indexes.view(),
                                matrix_column_indexes.view(), matrix_values.view());
   }
 };
@@ -118,12 +126,13 @@ applyRHSTransformation()
 void DoKDoFLinearSystemImpl::
 convertToCSRMatrix()
 {
-  delete m_internal_csr_matrix;
-  m_internal_csr_matrix = new InternalCSRMatrix();
 
   IItemFamily* dof_family = dofFamily();
   Int32 nb_row = dof_family->maxLocalId();
   DoFInfoListView item_list_view(dof_family);
+
+  delete m_internal_csr_matrix;
+  m_internal_csr_matrix = new InternalCSRMatrix(nb_row);
 
   info() << "Convert To CSR Matrix nb_row=" << nb_row;
 
@@ -138,7 +147,6 @@ convertToCSRMatrix()
   info() << "Convert To CSR Matrix nb_row=" << nb_row << " nb_value=" << nb_value;
   m_internal_csr_matrix->matrix_values.resize(nb_value);
   m_internal_csr_matrix->matrix_column_indexes.resize(nb_value);
-  m_internal_csr_matrix->row_indexes.resize(nb_row + 1);
 
   // Now we know the number of columns per row and total number of non zeros.
   SmallSpan<Real> csr_matrix_values = m_internal_csr_matrix->matrix_values.view();
@@ -153,8 +161,8 @@ convertToCSRMatrix()
   csr_row_indexes[nb_row] = current_index;
 
   // Fill the column indexes and the values of the CSR Matrix
-  m_internal_csr_matrix->nb_value_per_row.resize(nb_row, 0);
-  SmallSpan<Int32> work_nb_value_per_row = m_internal_csr_matrix->nb_value_per_row.view();
+  UniqueArray<Int32> nb_value_per_row(nb_row, 0);
+  SmallSpan<Int32> work_nb_value_per_row = nb_value_per_row.view();
   auto set_csr_matrix_value = [&](DoF row, DoF column, Real value) {
     Int32 row_id = row.localId();
     Int32 index = csr_row_indexes[row_id] + work_nb_value_per_row[row_id];

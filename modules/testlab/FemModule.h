@@ -277,10 +277,10 @@ class FemModuleTestlab
  public:
 
   // Compute Sparsity functions:
-  void _computeSortedEdges(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss);
-  void _computeNeighbors(Int8 edges_per_element, Int64 nb_edge_total, NumArray<Int32, MDDim1>& neighbors, SmallSpan<UInt64>& sorted_edges_ss);
-  void _computeRowIndex(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>& sorted_edges_ss);
-  void _computeColumns(Int8 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>& sorted_edges_ss);
+  void _computeSortedEdges(Int16 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64> sorted_edges_ss);
+  void _computeNeighbors(Int16 edges_per_element, Int64 nb_edge_total, NumArray<Int32, MDDim1>& neighbors, SmallSpan<UInt64> sorted_edges_ss);
+  void _computeRowIndex(Int16 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64> sorted_edges_ss);
+  void _computeColumns(Int16 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t> sorted_edges_ss);
   void _computeSparsity();
 
   void _fillDiagonal(Int64 nb_edge, NodeGroup nodes);

@@ -16,6 +16,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include <arcane/utils/ArrayView.h>
+#include <arcane/utils/FatalErrorException.h>
 #include <arcane/accelerator/core/AcceleratorCoreGlobal.h>
 
 /*---------------------------------------------------------------------------*/
@@ -53,6 +54,7 @@ class CsrRowColumnIndex
 
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE IndexType value() const { return m_index; }
   constexpr ARCCORE_HOST_DEVICE operator IndexType() const { return m_index; }
+  constexpr ARCCORE_HOST_DEVICE bool isNull() const { return m_index == (-1); }
 
  private:
 
@@ -131,6 +133,9 @@ class CsrRow
  *
  * This view is a temporary object and is invalided when the underlying matrix
  * structure is modified.
+ *
+ * This class and its methods are available on accelerator if the spans points
+ * to memory accessible from accelerator.
  */
 class CsrFormatMatrixView
 {
@@ -143,48 +148,74 @@ class CsrFormatMatrixView
 
  private:
 
-  CsrFormatMatrixView(SmallSpan<const Int32> rows,
-                      SmallSpan<const Int32> matrix_rows_nb_column,
+  CsrFormatMatrixView(Int32 nb_row,
+                      SmallSpan<const Int32> rows,
                       SmallSpan<const Int32> columns,
                       SmallSpan<Real> values)
-  : m_matrix_rows(rows)
-  , m_matrix_rows_nb_column(matrix_rows_nb_column)
+  : m_rows_index(rows)
   , m_matrix_columns(columns)
   , m_values(values)
+  , m_nb_row(nb_row)
   {}
 
  public:
 
-  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<const Int32> rows() const { return m_matrix_rows; }
-  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<const Int32> columns() const { return m_matrix_columns; }
-  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<Real> values() const { return m_values; }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<const Int32> rows() const
+  {
+    return m_rows_index;
+  }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<const Int32> rowsIndex() const
+  {
+    return m_rows_index;
+  }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<const Int32> columns() const
+  {
+    return m_matrix_columns;
+  }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE SmallSpan<Real> values() const
+  {
+    return m_values;
+  }
 
   //! Number of the rows in the matrix
-  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 nbRow() const { return m_matrix_rows_nb_column.size(); }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 nbRow() const
+  {
+    return m_nb_row;
+  }
   //! Number of the values in the matrix
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 nbColumn() const { return m_matrix_columns.size(); }
   //! Number of the values in the matrix
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 nbValue() const { return m_values.size(); }
 
-  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 row(Int32 index) const { return m_matrix_rows[index]; }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 row(Int32 index) const
+  {
+    return m_rows_index[index];
+  }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 rowIndex(Int32 index) const
+  {
+    return m_rows_index[index];
+  }
   //! Number of column for the row \a row
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 nbColumnForRow(Int32 row) const
   {
-    return m_matrix_rows_nb_column[row];
+    return m_rows_index[row + 1] - m_rows_index[row];
   }
 
   //! Local index of the column for the given RowColumnIndex \a rc_index
-  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 column(CsrRowColumnIndex rc_index) const { return m_matrix_columns[rc_index]; }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Int32 column(CsrRowColumnIndex rc_index) const
+  {
+    return m_matrix_columns[rc_index];
+  }
   //! Value of the matrix for the given RowColumnIndex \a rc_index
-  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Real& value(CsrRowColumnIndex rc_index) const { return m_values[rc_index]; }
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE Real& value(CsrRowColumnIndex rc_index) const
+  {
+    return m_values[rc_index];
+  }
 
   //! Range of CsrRowColumnIndex for the given row \a row
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE CsrRow rowRange(Int32 row) const
   {
-    // TODO: look if we can use rowsNbColumn() to compute 'end'.
-    auto begin = m_matrix_rows[row];
-    auto end = (row == (nbRow() - 1)) ? nbColumn() : m_matrix_rows[row + 1];
-    return { begin, end };
+    return { m_rows_index[row], m_rows_index[row + 1] };
   }
 
   /*!
@@ -194,20 +225,50 @@ class CsrFormatMatrixView
    * If not found return a null index.
    */
   [[nodiscard]] constexpr ARCCORE_HOST_DEVICE CsrRowColumnIndex
-  tryFindColumnInRow(Int32 row, Int32 column_id) const
+  tryFindColumnInRow(Int32 row, Int32 column) const
   {
     for (CsrRowColumnIndex csr_index : rowRange(row))
-      if (column(csr_index) == column_id)
+      if (this->column(csr_index) == column)
         return csr_index;
     return {};
   }
 
+  /*!
+   * \brief Index of (row,column) in the matrix.
+   *
+   * Throws an exception (if running on host) if the index is not found.
+   */
+  [[nodiscard]] constexpr ARCCORE_HOST_DEVICE CsrRowColumnIndex
+  indexValue(Int32 row, Int32 column) const
+  {
+#if defined(ARCCORE_DEVICE_CODE)
+    return tryFindColumnInRow(row, column);
+#else
+    CsrRowColumnIndex x = tryFindColumnInRow(row, column);
+    if (x.isNull())
+      ARCANE_FATAL_IF(x.isNull(), "Column {0} not found in row {1}", column, row);
+    return x;
+#endif
+  }
+  //! Add value \a value at (row,column)
+  constexpr ARCCORE_HOST_DEVICE void matrixAddValue(Int32 row, Int32 column, Real value) const
+  {
+    if (value == 0.0)
+      return;
+    m_values[indexValue(row, column)] += value;
+  }
+  //! Set value \a value at (row,column)
+  constexpr ARCCORE_HOST_DEVICE void matrixSetValue(Int32 row, Int32 column, Real value) const
+  {
+    m_values[indexValue(row, column)] = value;
+  }
+
  private:
 
-  SmallSpan<const Int32> m_matrix_rows;
-  SmallSpan<const Int32> m_matrix_rows_nb_column;
+  SmallSpan<const Int32> m_rows_index;
   SmallSpan<const Int32> m_matrix_columns;
   SmallSpan<Real> m_values;
+  Int32 m_nb_row = 0;
 };
 
 /*---------------------------------------------------------------------------*/

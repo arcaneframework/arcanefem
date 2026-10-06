@@ -36,12 +36,11 @@ namespace Arcane::FemUtils
 void CsrFormat::
 initialize(IItemFamily* dof_family, Int32 nnz, Int32 nb_row, RunQueue& queue)
 {
-  info() << "Initialize CsrFormat: nb_non_zero=" << nnz << " nb_row=" << nb_row;
+  info() << "Legacy Initialize CsrFormat: nb_non_zero=" << nnz << " nb_row=" << nb_row;
   eMemoryRessource mem_resource = queue.memoryResource();
   m_matrix_row = NumArray<Int32, MDDim1>(mem_resource);
   m_matrix_column = NumArray<Int32, MDDim1>(mem_resource);
   m_matrix_value = NumArray<Real, MDDim1>(mem_resource);
-  m_matrix_rows_nb_column = NumArray<Int32, MDDim1>(mem_resource);
 
   m_matrix_row.resize(nb_row + 1);
   m_matrix_column.resize(nnz);
@@ -49,10 +48,9 @@ initialize(IItemFamily* dof_family, Int32 nnz, Int32 nb_row, RunQueue& queue)
   m_matrix_row.fill(-1, &queue);
   m_matrix_column.fill(-1, &queue);
   m_matrix_value.fill(0, &queue);
-  m_matrix_rows_nb_column.resize(nb_row);
-  m_matrix_rows_nb_column.fill(0, &queue);
   m_dof_family = dof_family;
   m_nnz = nnz;
+  m_nb_row = nb_row;
   info() << "Filling CSR Matrix with zeros";
 }
 
@@ -62,7 +60,7 @@ initialize(IItemFamily* dof_family, Int32 nnz, Int32 nb_row, RunQueue& queue)
 void CsrFormat::
 initialize(IItemFamily* dof_family, NumArray<Int32, MDDim1>&& rows_index, NumArray<Int32, MDDim1>&& columns, RunQueue& queue)
 {
-  info() << "Legacy Initialize CsrFormat with rows_index : nb_row=" << (rows_index.extent0() - 1);
+  info() << "Initialize CsrFormat with rows_index : nb_row=" << (rows_index.extent0() - 1);
 
   if (rows_index.extent0() == 0)
     ARCANE_FATAL("rows_index is empty");
@@ -78,20 +76,16 @@ initialize(IItemFamily* dof_family, NumArray<Int32, MDDim1>&& rows_index, NumArr
   if (nnz != columns.extent0())
     ARCANE_FATAL("Incoherent sizes for columns (from_rows={0} from_columns={1})", nnz, columns.extent0());
 
+  m_nb_row = nb_row;
+
   m_matrix_row = rows_index;
   m_matrix_column = columns;
 
   m_matrix_value = NumArray<Real, MDDim1>(mem_resource);
-  m_matrix_rows_nb_column = NumArray<Int32, MDDim1>(mem_resource);
 
   // TODO: Make the filling optional
   m_matrix_value.resize(nnz);
   m_matrix_value.fill(0, &queue);
-
-  m_matrix_rows_nb_column.resize(nb_row);
-  m_matrix_rows_nb_column.fill(0, &queue);
-  for (Int32 i = 0; i < nb_row; ++i)
-    m_matrix_rows_nb_column[i] = rows_index[i + 1] - rows_index[i];
 
   m_dof_family = dof_family;
   m_nnz = nnz;
@@ -133,35 +127,11 @@ translateToLinearSystem(DoFLinearSystem& linear_system, const RunQueue& queue)
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-/*!
- * \brief Compute the values of \a m_matrix_rows_nb_column.
- *
- * We suppose \a m_matrix_row is valid and for a given
- * \a i, we have m_matrix_rows_nb_column[i] = m_matrix_row[i+1] - m_matrix_row[i];
- */
-void CsrFormat::
-computeNumberOfColumnsFromRowsIndex(const RunQueue& queue)
-{
-  Int32 nb_row = nbRow();
-  m_matrix_rows_nb_column.resize(nb_row);
-  auto command = makeCommand(queue);
-  auto out_matrix_rows_nb_column = viewOut(command, m_matrix_rows_nb_column);
-  auto in_matrix_rows = viewIn(command, m_matrix_row);
-  command << RUNCOMMAND_LOOP1(iter, nb_row)
-  {
-    auto [i] = iter();
-    out_matrix_rows_nb_column[i] = in_matrix_rows[i+1] - in_matrix_rows[i];
-  };
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
 
 CsrFormatMatrixView CsrFormat::
 view()
 {
-  return CSRFormatView(m_matrix_row.to1DSmallSpan(), m_matrix_rows_nb_column.to1DSmallSpan(),
-                       m_matrix_column.to1DSmallSpan(), m_matrix_value.to1DSmallSpan());
+  return CSRFormatView(m_nb_row,  m_matrix_row,                       m_matrix_column, m_matrix_value);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -187,10 +157,7 @@ checkValid(bool force) const
   bool can_compare = (mem_resource != eMemoryResource::Device);
   if (can_compare) {
     for (Int32 i = 0; i < nb_row; ++i) {
-      Int32 x0 = m_matrix_rows_nb_column[i];
-      Int32 x1 = m_matrix_row[i + 1] - m_matrix_row[i];
-      if (x0 != x1)
-        ARCCORE_FATAL("Bad number of column for row='{0}' v={1} expected={2}", i, x1, x0);
+      Int32 x0 = m_matrix_row[i + 1] - m_matrix_row[i];
       if (x0 == 0)
         ARCCORE_FATAL("Empty row row='{0}'", i);
     }

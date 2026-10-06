@@ -67,7 +67,7 @@ _buildOffsetsNodeWiseCsr(SmallSpan<UInt32> offsets_smallspan)
 void FemModuleTestlab::
 _buildMatrixNodeWiseCsr()
 {
-  Int8 mesh_dim = mesh()->dimension();
+  Int32 mesh_dim = mesh()->dimension();
 
   Int32 nb_node = nbNode();
   Int32 nb_non_zero = nb_node + 2 * (mesh_dim == 2 ? nbFace() : m_nb_edge);
@@ -104,17 +104,6 @@ _buildMatrixNodeWiseCsr()
       inout_m_matrix_column[offset] = node_id;
     };
   }
-  // Fill the values of 'm_csr_matrix.m_matrix_rows_nb_column'
-  {
-    auto command = makeCommand(queue);
-
-    auto in_matrix_row = viewIn(command, m_csr_matrix.m_matrix_row);
-    auto out_matrix_nb_column = viewInOut(command, m_csr_matrix.m_matrix_rows_nb_column);
-    command << RUNCOMMAND_ENUMERATE(Node, node_id, allNodes())
-    {
-      out_matrix_nb_column[node_id] = in_matrix_row[node_id + 1] - in_matrix_row[node_id];
-    };
-  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -129,17 +118,14 @@ _assembleNodeWiseCsrBilinearOperatorTria3()
     _buildMatrixNodeWiseCsr();
   }
 
-  RunQueue* queue = acceleratorMng()->defaultQueue();
+  CsrFormatMatrixView csr_view = m_csr_matrix.view();
+
+  RunQueue queue = acceleratorMng()->queue();
   auto command = makeCommand(queue);
 
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-  auto in_row_csr = ax::viewIn(command, m_csr_matrix.m_matrix_row);
-  Int32 row_csr_size = m_csr_matrix.m_matrix_row.dim1Size();
-  auto in_col_csr = ax::viewIn(command, m_csr_matrix.m_matrix_column);
-  Int32 col_csr_size = m_csr_matrix.m_matrix_column.dim1Size();
-  auto in_out_val_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
 
-  auto in_node_coord = ax::viewIn(command, m_node_coord);
+  auto in_node_coord = viewIn(command, m_node_coord);
 
   UnstructuredMeshConnectivityView m_connectivity_view;
   m_connectivity_view.setMesh(this->mesh());
@@ -151,7 +137,7 @@ _assembleNodeWiseCsrBilinearOperatorTria3()
 
   command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
   {
-    Int32 inode_index = 0;
+    const DoFLocalId row = node_dof.dofId(inode, 0);
     for (auto cell : ncc.cells(inode)) {
 
       // How can I know the right index ?
@@ -159,7 +145,7 @@ _assembleNodeWiseCsrBilinearOperatorTria3()
       // Working currently, but maybe only because p = 1 ?
       auto nodeId1 = cnc.nodeId(cell, 1);
       auto nodeId2 = cnc.nodeId(cell, 2);
-      inode_index = (inode == nodeId1) ? 1 : ((inode == nodeId2) ? 2 : 0);
+      const Int32 inode_index = (inode == nodeId1) ? 1 : ((inode == nodeId2) ? 2 : 0);
 
       Real b_matrix[6] = { 0 };
       Real area = _computeCellMatrixGpuTRIA3(cell, cnc, in_node_coord, b_matrix);
@@ -169,17 +155,8 @@ _assembleNodeWiseCsrBilinearOperatorTria3()
         Real x = b_matrix[inode_index * 2] * b_matrix[i * 2] + b_matrix[inode_index * 2 + 1] * b_matrix[i * 2 + 1];
 
         if (nodes_infos.isOwn(inode)) {
-          Int32 row = node_dof.dofId(inode, 0).localId();
           Int32 col = node_dof.dofId(node2, 0).localId();
-          Int32 begin = in_row_csr[row];
-          Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
-          while (begin < end) {
-            if (in_col_csr[begin] == col) {
-              in_out_val_csr[begin] += x * area;
-              break;
-            }
-            begin++;
-          }
+          csr_view.matrixAddValue(row, col, x * area);
         }
         i++;
       }
@@ -196,7 +173,8 @@ _assembleNodeWiseCsrBilinearOperatorTria3()
  * for a TETRA4 mesh type. It initializes the CSR matrix, sets up the
  * necessary views, and performs the computation on the accelerator.
  */
-void FemModuleTestlab::_assembleNodeWiseCsrBilinearOperatorTetra4()
+void FemModuleTestlab::
+_assembleNodeWiseCsrBilinearOperatorTetra4()
 {
   Timer::Action timer_bili(m_time_stats, "AssembleBilinearOperator_CsrNodeWise");
   {
@@ -204,19 +182,15 @@ void FemModuleTestlab::_assembleNodeWiseCsrBilinearOperatorTetra4()
     _buildMatrixNodeWiseCsr();
   }
 
-  RunQueue* queue = acceleratorMng()->defaultQueue();
+  RunQueue queue = acceleratorMng()->queue();
   auto command = makeCommand(queue);
 
-  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
-  auto in_row_csr = ax::viewIn(command, m_csr_matrix.m_matrix_row);
-  Int32 row_csr_size = m_csr_matrix.m_matrix_row.dim1Size();
-  auto in_col_csr = ax::viewIn(command, m_csr_matrix.m_matrix_column);
-  Int32 col_csr_size = m_csr_matrix.m_matrix_column.dim1Size();
-  auto in_out_val_csr = ax::viewInOut(command, m_csr_matrix.m_matrix_value);
-  auto in_node_coord = ax::viewIn(command, m_node_coord);
+  CsrFormatMatrixView csr_view = m_csr_matrix.view();
 
-  UnstructuredMeshConnectivityView m_connectivity_view;
-  m_connectivity_view.setMesh(this->mesh());
+  auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+  auto in_node_coord = viewIn(command, m_node_coord);
+
+  UnstructuredMeshConnectivityView m_connectivity_view(this->mesh());
   auto ncc = m_connectivity_view.nodeCell();
   auto cnc = m_connectivity_view.cellNode();
   Arcane::ItemGenericInfoListView nodes_infos(this->mesh()->nodeFamily());
@@ -225,9 +199,9 @@ void FemModuleTestlab::_assembleNodeWiseCsrBilinearOperatorTetra4()
 
   command << RUNCOMMAND_ENUMERATE(Node, inode, allNodes())
   {
-    Int32 inode_index = 0;
+    const DoFLocalId row = node_dof.dofId(inode, 0);
     for (auto cell : ncc.cells(inode)) {
-
+      Int32 inode_index = 0;
       if (inode == cnc.nodeId(cell, 1))
         inode_index = 1;
       else if (inode == cnc.nodeId(cell, 2))
@@ -241,21 +215,13 @@ void FemModuleTestlab::_assembleNodeWiseCsrBilinearOperatorTetra4()
       Real volume = _computeCellMatrixGpuTETRA4(cell, cnc, in_node_coord, b_matrix);
 
       Int32 i = 0;
+      // TODO: number of nodes in cell seems to be always 4. Use it to optimize
       for (NodeLocalId node2 : cnc.nodes(cell)) {
         Real x = b_matrix[inode_index * 3] * b_matrix[i * 3] + b_matrix[inode_index * 3 + 1] * b_matrix[i * 3 + 1] + b_matrix[inode_index * 3 + 2] * b_matrix[i * 3 + 2];
 
         if (nodes_infos.isOwn(inode)) {
-          Int32 row = node_dof.dofId(inode, 0).localId();
-          Int32 col = node_dof.dofId(node2, 0).localId();
-          Int32 begin = in_row_csr[row];
-          Int32 end = (row == row_csr_size - 1) ? col_csr_size : in_row_csr[row + 1];
-          while (begin < end) {
-            if (in_col_csr[begin] == col) {
-              in_out_val_csr[begin] += x * volume;
-              break;
-            }
-            ++begin;
-          }
+          Int32 col = node_dof.dofId(node2, 0);
+          csr_view.matrixAddValue(row, col, x * volume);
         }
         i++;
       }
