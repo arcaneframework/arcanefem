@@ -35,20 +35,36 @@ configure_file(${MSH_DIR}/bar_dynamic.msh ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
 file(COPY "inputs/" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 enable_testing()
+set(MODULE_NAME "passmonl")
+
 if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
-  add_test(NAME [passmonl]bar2D_T3_petsc COMMAND Passmonl bar2d_2T_lin_2steps.arc)
-  add_test(NAME [passmonl]bar2D_Q4_dp_petsc COMMAND Passmonl bar2d_4Q_dp.arc)
+  arcanefem_add_seq_test(NAME bar2D_T3_petsc
+    COMMAND ./Passmonl
+    ARGS
+      bar2d_2T_lin_2steps.arc)
+  arcanefem_add_seq_test(NAME bar2D_Q4_dp_petsc
+    COMMAND ./Passmonl
+    ARGS
+      bar2d_4Q_dp.arc)
 endif()
 
 if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
-  add_test(NAME [passmonl]bar2D_T3_hypre COMMAND Passmonl bar2d_2T_lin_2steps.arc)
-  add_test(NAME [passmonl]bar2D_Q4_dp_hypre COMMAND Passmonl bar2d_4Q_dp.arc)
+  arcanefem_add_seq_test(NAME bar2D_T3_hypre
+    COMMAND ./Passmonl
+    ARGS
+      bar2d_2T_lin_2steps.arc)
+  arcanefem_add_seq_test(NAME bar2D_Q4_dp_hypre 
+    COMMAND ./Passmonl
+    ARGS
+      bar2d_4Q_dp.arc)
 endif ()
 
 if(FEMUTILS_HAS_PARALLEL_SOLVER AND MPIEXEC_EXECUTABLE)
-  add_test(NAME [passmonl]bar2D_T3_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Passmonl
-    -A,//n-l-dynamic/linear-system/@name=AlephLinearSystem
-    bar2d_2T_lin_2steps.arc)
+  arcanefem_add_mpi_test(NAME bar2D_T3
+    COMMAND ./Passmonl
+    ARGS
+      -A,//n-l-dynamic/linear-system/@name=AlephLinearSystem
+      bar2d_2T_lin_2steps.arc)
   # add_test(NAME [passmonl]bar2D_Q4_dp_2pu COMMAND ${MPIEXEC_EXECUTABLE} -n 2 ./Passmonl
   #   -A,//n-l-dynamic/linear-system/@name=AlephLinearSystem
   #   bar2d_4Q_dp.arc)

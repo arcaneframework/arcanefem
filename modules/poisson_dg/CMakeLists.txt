@@ -27,6 +27,8 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/meshes)
 set(MSH_FILES
     circle_cut.msh
     circle_cut.quad-tria.msh
+    3x3x3_cube_hexa8.msh
+    unit_cube.msh
 )
 set(MED_FILES
     circle_cut-tria.med
@@ -79,7 +81,20 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
         -A,//fem/linear-system/@name=PetscLinearSystem
         -A,//fem/solution-comparison-file=check/circle.2D.neumann.txt
         inputs/circle.2D.neumann.arc)
-  
+
+    arcanefem_add_seq_test(NAME cube_constant_3d_hexa
+      COMMAND ./Poisson_dg
+      ARGS
+        -A,//fem/matrix-format=CSR
+        -A,//fem/linear-system/@name=PetscLinearSystem
+        inputs/cube.3D.arc)
+
+    arcanefem_add_seq_test(NAME cube_constant_3d_tetra
+      COMMAND ./Poisson_dg
+      ARGS
+        -A,//meshes/mesh/filename=meshes/unit_cube.msh
+        inputs/cube.3D.arc)
+
   if(MEDFile_FOUND)
     message(STATUS "MEDFile found: ${MEDFile_FOUND}")
     arcanefem_add_seq_test(NAME circle_homogenous_tria_med

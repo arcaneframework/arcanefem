@@ -21,6 +21,7 @@
 #include <arcane/utils/ApplicationInfo.h>
 #include <arcane/utils/ArcaneGlobal.h>
 #include <arcane/utils/NumArray.h>
+#include <arcane/utils/ValueConvert.h>
 
 #include <arcane/ITimeLoopMng.h>
 #include <arcane/IItemFamily.h>
@@ -44,6 +45,8 @@
 #include "FemUtils.h"
 
 #include "Fem_axl.h"
+
+#include <arcane/utils/Array.h>
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -85,12 +88,26 @@ class FemModulePoisson
 
  private:
 
+  using QuadraturePoint = ArcaneFemFunctions::DgQuadraturePoint;
+  using DGPenaltyLengthFunction = Real (*)(Cell, Face, const VariableNodeReal3&);
+  using FaceNormalFunction = Real3 (*)(Face, Cell, const VariableNodeReal3&);
+  using CellQuadratureFunction = void (*)(Cell, const VariableNodeReal3&, Array<QuadraturePoint>&);
+  using FaceQuadratureFunction = void (*)(Face, const VariableNodeReal3&, Array<QuadraturePoint>&);
+
   DoFLinearSystem m_linear_system;
   IItemFamily* m_dof_family = nullptr;
   FemDoFsOnCells m_dofs_on_cells;
   CsrFormat m_csr_matrix;
 
   Real f;
+  Real m_penalty = 10.0;
+  Int32 m_dimension = 2;
+  Int32 m_nb_dof_per_cell = 3;
+
+  DGPenaltyLengthFunction m_compute_dg_penalty_length = nullptr;
+  FaceNormalFunction m_compute_face_normal = nullptr;
+  CellQuadratureFunction m_compute_cell_quadrature = nullptr;
+  FaceQuadratureFunction m_compute_face_quadrature = nullptr;
 
   String m_petsc_flags;
   String m_matrix_format = "DOK";
