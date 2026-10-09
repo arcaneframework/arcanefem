@@ -12,6 +12,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include <arcane/utils/FatalErrorException.h>
+#include <arcane/utils/PlatformUtils.h>
 
 #include <arcane/core/VariableTypes.h>
 #include <arcane/core/IItemFamily.h>
@@ -51,7 +52,7 @@ class AlinaSolver
   AlinaSolver(IItemFamily* dof_family, const String& solver_name)
   : TraceAccessor(dof_family->traceMng())
   , m_dof_family(dof_family)
-  , m_dof_matrix_indexes(VariableBuildInfo(dof_family, solver_name + "DoFMatrixIndexes"))
+  , m_dof_matrix_numbering(VariableBuildInfo(dof_family, solver_name + "MatrixNumbering"))
   {
     info() << "Creating AlinaDoFLinearSystemImpl()";
   }
@@ -64,13 +65,14 @@ class AlinaSolver
 
   void build()
   {
-    m_solver_parameters = makeRef(new AlinaParameters());
+    MessagePassing::IMessagePassingMng* mpm = m_dof_family->parallelMng()->messagePassingMng();
+    m_solver_parameters = makeRef(new AlinaSolverParameters(mpm,traceMng()));
   }
 
  public:
 
-  void applyMatrixTransformation(CsrFormatMatrixView csr_view);
-  void solve(VariableDoFReal& solution_variable, VariableDoFReal& rhs_variable);
+  //void applyMatrixTransformation(CsrFormatMatrixView csr_view);
+  void solve(CsrFormatMatrixView csr_view, VariableDoFReal& solution_variable, VariableDoFReal& rhs_variable);
 
  public:
 
@@ -87,14 +89,15 @@ class AlinaSolver
     m_solver_parameters->setSolverMaxIteration(v);
   }
 
-  AlinaParameters* solverParameters() const { return m_solver_parameters.get(); }
+  AlinaSolverParameters* solverParameters() const { return m_solver_parameters.get(); }
 
  private:
 
   IItemFamily* m_dof_family = nullptr;
-  VariableDoFInt32 m_dof_matrix_indexes;
-  Ref<AlinaParameters> m_solver_parameters;
-  Ref<AlinaSequentialSolver> m_sequential_solver;
+  IParallelMng* m_parallel_mng = m_dof_family->parallelMng();
+  VariableDoFInt32 m_dof_matrix_numbering;
+  Ref<AlinaSolverParameters> m_solver_parameters;
+  Ref<AlinaLib::AlinaSolver> m_solver;
   UniqueArray<double> m_solver_solution;
   UniqueArray<double> m_solver_rhs;
   bool m_do_print_filling = false;
@@ -103,6 +106,7 @@ class AlinaSolver
 
   void _fillRHSVector(VariableDoFReal& rhs_variable);
   void _fillSolutionVector(VariableDoFReal& rhs_solution);
+  void _computeMatrixNumbering();
 };
 
 /*---------------------------------------------------------------------------*/
@@ -154,38 +158,141 @@ _fillSolutionVector(VariableDoFReal& solution_variable)
 /*---------------------------------------------------------------------------*/
 
 void AlinaSolver::
-applyMatrixTransformation(CsrFormatMatrixView csr_view)
+_computeMatrixNumbering()
 {
-  AlinaCSRMatrixView alina_matrix_view(csr_view.rows(), csr_view.columns(), csr_view.values());
-  m_sequential_solver = makeRef(new AlinaSequentialSolver(alina_matrix_view, m_solver_parameters.get()));
+  // TODO: This code is similar with the code in Hypre or PETSc.
+  // Create a class to handle that.
+  IItemFamily* dof_family = m_dof_family;
+  IParallelMng* pm = dof_family->parallelMng();
+  const bool is_parallel = pm->isParallel();
+  const Int32 nb_rank = pm->commSize();
+  const Int32 my_rank = pm->commRank();
+
+  DoFGroup all_dofs = dof_family->allItems();
+  DoFGroup own_dofs = all_dofs.own();
+  const Int32 nb_own_row = own_dofs.size();
+
+  Int32 own_first_index = 0;
+
+  if (is_parallel) {
+    // TODO: utiliser un Scan lorsque ce sera disponible dans Arcane
+    UniqueArray<Int32> parallel_rows_index(nb_rank, 0);
+    pm->allGather(ConstArrayView<Int32>(1, &nb_own_row), parallel_rows_index);
+    info() << "ALL_NB_ROW = " << parallel_rows_index;
+    for (Int32 i = 0; i < my_rank; ++i)
+      own_first_index += parallel_rows_index[i];
+  }
+
+  info() << "OwnFirstIndex=" << own_first_index << " NbOwnRow=" << nb_own_row;
+
+  //m_first_own_row = own_first_index;
+  //m_nb_own_row = nb_own_row;
+
+  // TODO: Faire avec API accelerateur
+  ENUMERATE_DOF (idof, own_dofs) {
+    DoF dof = *idof;
+    m_dof_matrix_numbering[idof] = own_first_index + idof.index();
+    //info() << "Numbering dof_uid=" << dof.uniqueId() << " M=" << m_dof_matrix_numbering[idof];
+  }
+  info() << " nb_own_row=" << nb_own_row << " nb_item=" << dof_family->nbItem();
+  m_dof_matrix_numbering.synchronize();
 }
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 void AlinaSolver::
-solve(VariableDoFReal& solution_variable, VariableDoFReal& rhs_variable)
+solve(CsrFormatMatrixView csr_view, VariableDoFReal& solution_variable, VariableDoFReal& rhs_variable)
 {
   _fillRHSVector(rhs_variable);
   _fillSolutionVector(solution_variable);
 
+  const bool is_parallel = m_parallel_mng->isParallel();
+  if (is_parallel)
+    _computeMatrixNumbering();
+
   info() << "Calling AlinaDoFLinearSystemImpl::solve()";
 
   IItemFamily* dof_family = m_dof_family;
-  DoFGroup own_dofs = dof_family->allItems().own();
-  const Int32 nb_dof = own_dofs.size();
+  DoFGroup all_dofs = dof_family->allItems();
+  DoFGroup own_dofs = all_dofs.own();
+  const Int32 nb_own_dof = own_dofs.size();
 
   Int32 nb_iteration = 0;
   Real residual_norm = 0.0;
 
-  AlinaConvergenceInfo convergence_info = m_sequential_solver->solve(m_solver_rhs.view(),
-                                                                     m_solver_solution.view());
-  info() << "ConvergenceInfo: " << convergence_info.iterations << "  r=" << convergence_info.residual;
+  //! Indexes of the columns (in global numbering)
+  NumArray<Int32, MDDim1> m_parallel_columns_index;
+  // Indexes of own rows (exluding rows which are not from own items)
+  NumArray<Int32, MDDim1> m_parallel_rows_index;
+  // Indexes of own rows (exluding rows which are not from own items)
+  NumArray<Real, MDDim1> m_parallel_values;
 
-  const bool do_verbose = (nb_dof < 200);
+  // csr_view.columns() use matrix coordinates local to sub-domain
+  // We need to translate them to global matrix coordinates
+  // The original matrix (csr_view) contains values for ghost items
+  // so we need to remove them.
+  // NOTE: This rebuilding is not needed if the matrix structure and/or
+  // values are unchanged.
+  SmallSpan<const Int32> rows_index_span = csr_view.rows();
+  SmallSpan<const Int32> columns_index_span = csr_view.columns();
+  SmallSpan<const Real> values_index_span = csr_view.values();
+  if (is_parallel) {
+    Int32 nb_orig_row = csr_view.nbRow();
+    Int32 nb_orig_value = rows_index_span[nb_orig_row];
+
+    m_parallel_columns_index.resize(nb_orig_value);
+    m_parallel_rows_index.resize(csr_view.rows().size());
+    m_parallel_values.resize(nb_orig_value);
+
+    Int32 index = 0;
+    Int32 parallel_nb_row = 0;
+    Int32 parallel_row_index = 0;
+    Int32 column_index = 0;
+    m_parallel_rows_index[0] = 0;
+    ++index;
+    ENUMERATE_ (DoF, idof, all_dofs) {
+      DoF dof = *idof;
+      if (!dof.isOwn())
+        continue;
+      for (CsrRowColumnIndex rc : csr_view.rowRange(idof.index())) {
+        DoFLocalId local_column(csr_view.column(rc));
+        m_parallel_columns_index[column_index] = m_dof_matrix_numbering[local_column];
+        m_parallel_values[column_index] = csr_view.value(rc);
+        ++column_index;
+      }
+      m_parallel_rows_index[index] = column_index;
+      ++index;
+    }
+
+    columns_index_span = m_parallel_columns_index.to1DSmallSpan().subSpan(0, column_index);
+    values_index_span = m_parallel_values.to1DSmallSpan().subSpan(0, column_index);
+    rows_index_span = m_parallel_rows_index.to1DSmallSpan().subSpan(0, index);
+  }
+
+  AlinaCSRMatrixView alina_matrix_view(rows_index_span, columns_index_span, values_index_span);
+
+  {
+    m_solver_parameters->setString("precond.coarsening.type", "smoothed_aggregation");
+    m_solver_parameters->setString("precond.relax.type", "ilu0");
+    double t0 = platform::getRealTime();
+
+    m_solver = makeRef(new AlinaLib::AlinaSolver(*m_solver_parameters.get(), alina_matrix_view));
+
+    double t1 = platform::getRealTime();
+    info() << "[Alina-Timer] Time to setup = " << (t1 - t0);
+
+    AlinaConvergenceInfo convergence_info = m_solver->solve(m_solver_rhs.view(),
+                                                            m_solver_solution.view());
+    double t2 = platform::getRealTime();
+    info() << "ConvergenceInfo: " << convergence_info.iterations << "  r=" << convergence_info.residual;
+    info() << "[Alina-Timer] Time to solve = " << (t2 - t1);
+  }
+
+  const bool do_verbose = (nb_own_dof < 200);
   Int32 index = 0;
 
-  ENUMERATE_ (DoF, idof, dof_family->allItems().own()) {
+  ENUMERATE_ (DoF, idof, own_dofs) {
     DoF dof = *idof;
 
     solution_variable[dof] = m_solver_solution[index];
@@ -233,12 +340,11 @@ class AlinaDoKDoFLinearSystemImpl
     fillRowColumnEliminationInfos();
     convertToCSRMatrix();
     CsrFormatMatrixView csr_view = getCsrFormatMatrixView();
-    m_alina_solver->applyMatrixTransformation(csr_view);
   }
 
   void solve() override
   {
-    m_alina_solver->solve(solutionVariable(), rhsVariable());
+    m_alina_solver->solve(getCsrFormatMatrixView(), solutionVariable(), rhsVariable());
   }
 
   void setSolverCommandLineArguments([[maybe_unused]] const CommandLineArguments& args) override
@@ -286,12 +392,11 @@ class AlinaCsrDoFLinearSystemImpl
 
   void applyMatrixTransformation() override
   {
-    m_alina_solver->applyMatrixTransformation(getCSRValues());
   }
 
   void solve() override
   {
-    m_alina_solver->solve(solutionVariable(), rhsVariable());
+    m_alina_solver->solve(getCSRValues(), solutionVariable(), rhsVariable());
   }
 
   void setSolverCommandLineArguments([[maybe_unused]] const CommandLineArguments& args) override
@@ -360,12 +465,11 @@ class AlinaDoFLinearSystemFactoryService
   void _initializeAlinaSolver(AlinaSolver* x)
   {
     x->build();
-    AlinaParameters* p = x->solverParameters();
+    AlinaSolverParameters* p = x->solverParameters();
     // Setting preconditioner and solver may change other values
     // so they have to be called before others
     p->setSolverType(options()->solver());
     p->setSolverPreconditioner(options()->preconditioner());
-
     p->setSolverAbsoluteTolerance(options()->atol());
     p->setSolverRelativeTolerance(options()->rtol());
     p->setSolverMaxIteration(options()->maxIter());

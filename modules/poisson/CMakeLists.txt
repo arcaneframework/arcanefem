@@ -1039,6 +1039,13 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_ALINA)
       -A,//fem/matrix-format=AF-BSR
       ${SOLVER_ALINA_CG_3D}
       inputs/sphere.3D.arc)
+  arcanefem_add_mpi_test(NAME 3D_alina_csr
+   COMMAND ./Poisson
+    ARGS
+      -A,//fem/solution-comparison-file=check/poisson_test_ref_sphere_3D.txt
+      -A,//fem/matrix-format=AF-BSR
+      ${SOLVER_ALINA_CG_3D}
+      inputs/sphere.3D.arc)
 endif()
 
 # ----------------------------------------------------------------------------
