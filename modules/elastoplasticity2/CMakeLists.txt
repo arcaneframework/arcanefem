@@ -134,19 +134,6 @@ endforeach ()
 enable_testing()
 set(MODULE_NAME "elastoplasticity2")
 
-# Cross validation of the Von Mises law handled by MGIS against the native
-# Von Mises law: the reference values are the ones of the native law on the
-# current mesh. The sequential basic solver is used so that the test does
-# not depend on the availability of an external linear solver backend.
-if (ARCANEFEM_HAS_MGIS)
-  arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_mgis
-    COMMAND ./Elastoplasticity2 ARGS
-    -A,//elastoplasticity2/solution-comparison-file=check/2D.quater.cylinder.mgis.t20.txt
-    -A,//elastoplasticity2/linear-system/@name=SequentialBasicLinearSystem
-    -A,//elastoplasticity2/linear-system/epsilon=1.0e-12
-    inputs/2D.quater.cylinder.vonMisesMgis.arc
-  )
-endif ()
 
 if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   set(SOLVER_PETSC_GMRES
@@ -192,7 +179,19 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/2D.quater.cylinder.vonMises.arc
   )
 
-  arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad4
+  # Cross validation of the Von Mises law handled by MGIS against the native
+  # Von Mises law: the reference values are the ones of the native law on the
+  # current mesh. The sequential basic solver is used so that the test does
+  # not depend on the availability of an external linear solver backend.
+  if (ARCANEFEM_HAS_MGIS)
+    arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_mgis
+      COMMAND ./Elastoplasticity2 ARGS
+      ${SOLVER_ALEPH_CG}
+      inputs/2D.quater.cylinder.vonMisesMgis.arc
+    )
+  endif ()
+
+arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad4
     COMMAND ./Elastoplasticity2 ARGS
     -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
     -A,//elastoplasticity2/matrix-format=DOK
