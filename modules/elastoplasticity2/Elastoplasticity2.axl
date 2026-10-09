@@ -97,6 +97,8 @@
       <description>Boolean to use hexagonal quadrature for element matrix assembly.</description>
     </simple>
 
+    <service-instance name="constitutive-law-service" type="Arcane::ArcaneFem::IConstitutiveLaw" />
+
     <!-- - - - - - constitutive law for plasticity/elasticity - - - - -->
     <complex name="constitutive-law"
              type="ConstitutiveLaw"

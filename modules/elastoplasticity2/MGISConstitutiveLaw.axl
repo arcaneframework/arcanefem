@@ -1,0 +1,27 @@
+<?xml version="1.0" ?>
+<service name="MGISConstitutiveLaw" version="1.0" type="caseoption">
+  <description>Law using the MGIS library</description>
+  <interface name="Arcane::ArcaneFem::IConstitutiveLaw" />
+  <options>
+    <simple name="library" type="string" default="libVonMises.so">
+      <description>Path of the MFront behaviour library.</description>
+    </simple>
+    <simple name="behaviour" type="string" default="VonMises">
+      <description>Name of the behaviour in the MFront library.</description>
+    </simple>
+    <simple name="E" type="real" default="70.e3">
+      <description>Youngs Modulus of the material.</description>
+    </simple>
+    <simple name="nu" type="real" default="0.3">
+      <description>Poissons ratio of the material.</description>
+    </simple>
+    <simple name="sig0" type="real" default="250.0">
+      <description>Yeild strength of the material.</description>
+    </simple>
+    <simple name="H" type="real" default="-1.0">
+      <description>Linear isotropic hardening modulus. If negative, it is
+      derived from E as in the native VonMises law, i.e. H = E*Et/(E-Et)
+      with Et = E/100.</description>
+    </simple>
+  </options>
+</service>

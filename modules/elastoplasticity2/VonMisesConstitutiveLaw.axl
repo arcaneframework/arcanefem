@@ -1,0 +1,45 @@
+<?xml version="1.0" ?>
+<service name="VonMisesConstitutiveLaw" version="1.0" type="caseoption"
+         parent-name="Arcane::ArcaneFem::ConstitutiveLawBase"
+         namespace-name="Arcane::ArcaneFem"
+         >
+  <description>VonMises law</description>
+  <interface name="Arcane::ArcaneFem::IConstitutiveLaw" inherited="false"/>
+  <variables>
+    <variable field-name="sigma_gp" name="SigmaGp" data-type="real" item-kind="cell" shape-dim="2">
+      <description>Stress tensor on gauss points</description>
+    </variable>
+    <variable field-name="sigma_old_gp" name="SigmaOldGp" data-type="real" item-kind="cell" shape-dim="2">
+      <description>Previous step stress tensor on gauss points</description>
+    </variable>
+    <variable field-name="sigma_zz_gp" name="SigmaZZGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>zz component of stress tensor on gauss points</description>
+    </variable>
+    <variable field-name="sigma_zz_old_gp" name="SigmaZZOldGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>Previous step zz component of stress tensor on gauss points</description>
+    </variable>
+    <variable field-name="C_tang_gp" name="CTangGp" data-type="real" item-kind="cell" shape-dim="3">
+      <description>Tangent of the material tensor for constitutive law</description>
+    </variable>
+    <variable field-name="p_old_gp" name="POldGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>Previous step plastic strain on gauss points</description>
+    </variable>
+    <variable field-name="dp_gp" name="DpGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>Change in plastic strain on gauss points</description>
+    </variable>
+    <variable field-name="DUn" name="DUn" data-type="real3" item-kind="node" dim="0">
+      <description>Time step DUn vector from Arcane variable</description>
+    </variable>
+  </variables>
+  <options>
+    <simple name="E" type="real" default="70.e3">
+      <description>Youngs Modulus of the material.</description>
+    </simple>
+    <simple name="nu" type="real" default="0.3">
+      <description>Poissons ratio of the material.</description>
+    </simple>
+    <simple name="sig0" type="real" default="250.0">
+      <description>Yeild strength of the material.</description>
+    </simple>
+  </options>
+</service>

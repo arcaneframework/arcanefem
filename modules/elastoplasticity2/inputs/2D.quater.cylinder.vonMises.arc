@@ -21,6 +21,11 @@
   <elastoplasticity2>
     <tmax>21.</tmax>
     <dt>1.</dt>
+    <constitutive-law-service name="VonMises">
+      <E>70.0e3</E>
+      <nu>0.3</nu>
+      <sig0>250.</sig0>
+    </constitutive-law-service>
     <constitutive-law>
       <law>VonMises</law>
       <von-mises>

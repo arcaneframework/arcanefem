@@ -20,6 +20,7 @@
 #include "femutils/DoFLinearSystem.h"
 #include "femutils/BSRFormat.h"
 
+#include "modules/elastoplasticity2/IConstitutiveLaw.h"
 #include "modules/elastoplasticity2/Elastoplasticity2_axl.h"
 
 /*---------------------------------------------------------------------------*/
