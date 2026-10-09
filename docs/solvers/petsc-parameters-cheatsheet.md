@@ -1,4 +1,4 @@
-### ArcaneFEM interface to Petsc cheat  sheet
+### ArcaneFEM interface to PETSc cheat sheet
 
 ## Axl parameters
 
@@ -19,9 +19,9 @@ Following abbreviations can be useful for reading the table below.
 
 ## Matrix and Vector types
 
-The matrix and vector types use  internally by Petsc are deducted by default by a number of parameters:
+The matrix and vector types used internally by Petsc are deducted by default by a number of parameters:
 
-- Is the program running on a single process or on multi processes ?
+- Is the program running on a single process or on multiple processes ?
 - Is the program running on GPU(s) (`AcceleratorRuntime` option) ?
 
 **Notes**:
@@ -31,7 +31,7 @@ The matrix and vector types use  internally by Petsc are deducted by default by 
 
 ## Custom options
 
-Finally, you can specify any Petsc option you want with the `-A,petsc_flags` Arcane option. The flags specified by this option will **overwrite** the default ones (`atol`, `rtol`, `pc\_type`, `mat\_type`...). This can be useful to test some options quickly or to specify ones that are not in the `.axl` ([GAMG options](https://petsc.org/release/manualpages/PC/PCGAMG) for example).
+Finally, you can specify any Petsc option you want with the `-A,petsc_flags` Arcane option. The flags specified by this option will **overwrite** the default ones (`atol`, `rtol`, `pc_type`, `mat_type`...). This can be useful to test some options quickly or to specify ones that are not in the `.axl` ([GAMG options](https://petsc.org/release/manualpages/PC/PCGAMG) for example).
 
 To enable the optimizations that were done for the allocation of the matrix, the user has to put ```m_linear_system.setConstantMatrixSparsity(true);``` and / or ```m_linear_system.setConstantMatrixValues(true);```.
 The user cannot have constant values without constant sparsity. Arcane will prevent this behaviour by throwing an error.
