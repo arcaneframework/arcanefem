@@ -22,6 +22,7 @@
 #include <arcane/accelerator/core/IAcceleratorMng.h>
 
 #include "modules/elastoplasticity2/Elastoplasticity2Module.h"
+#include "IConstitutiveLaw.h"
 #include "modules/elastoplasticity2/ElementMatrix.h"
 #include "modules/elastoplasticity2/ElementMatrixHexQuad.h"
 
@@ -233,6 +234,16 @@ _initConstitutiveLaw()
 {
   info() << "[ArcaneFem-Info] Started module  _initConstitutiveLaw()";
   Real elapsedTime = platform::getRealTime();
+
+  bool use_gpu = options()->linearSystem.serviceName() == "HypreLinearSystem" || options()->linearSystem.serviceName() == "PetscLinearSystem";
+
+  IConstitutiveLaw* constitutive_law = options()->constitutiveLawService();
+  ConstitutiveLawInitInfo law_init_info = { .m_nGP = m_nGP,
+                                            .m_use_gpu = use_gpu,
+                                            .m_hex_quad_mesh = m_hex_quad_mesh,
+                                            .m_use_gpu_functions = m_use_gpu_functions,
+                                            .m_nodes_per_cell = m_nodes_per_cell };
+  constitutive_law->initialize(law_init_info);
 
   for (const auto& constitutive_law : options()->constitutiveLaw()) {
     String law_name = constitutive_law->law();

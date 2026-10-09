@@ -1,0 +1,19 @@
+<?xml version="1.0" ?>
+<service name="DruckerPragerConstitutiveLaw" version="1.0" type="caseoption">
+  <description>DruckerPrager law</description>
+  <interface name="Arcane::ArcaneFem::IConstitutiveLaw" />
+  <options>
+    <simple name="E" type="real" default="1.e7">
+      <description>Youngs Modulus of the material.</description>
+    </simple>
+    <simple name="nu" type="real" default="0.48">
+      <description>Poissons ratio of the material.</description>
+    </simple>
+    <simple name="cohesion" type="real" default="450.0">
+      <description>Cohesion parameter of the material.</description>
+    </simple>
+    <simple name="friction-angle" type="real" default="0.34906585039">
+      <description>Friction angle parameter of the material.</description>
+    </simple>
+  </options>
+</service>

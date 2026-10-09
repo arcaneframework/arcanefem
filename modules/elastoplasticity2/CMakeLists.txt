@@ -4,6 +4,8 @@
   DruckerPragerLaw.cc
   VonMisesLaw.cc
   InternalBodyForce.cc
+
+  VonMisesConstitutiveLaw.cc
 )
 
 # The MGIS binding only contains host code: the behaviour integration is
@@ -15,19 +17,27 @@ set(MGIS_SOURCES
 add_executable(Elastoplasticity2
   ${ACCELERATOR_SOURCES}
   ${MGIS_SOURCES}
+  IConstitutiveLaw.h
   Elastoplasticity2Module.h
-  Elastoplasticity2_axl.h
   ElementMatrix.h
   ElementMatrixHexQuad.h
   ExternalBodyForce.cc
   Traction.cc
   main.cc
+
+  Elastoplasticity2_axl.h
+  VonMisesConstitutiveLaw_axl.h
+  DruckerPragerConstitutiveLaw_axl.h
+  MGISConstitutiveLaw_axl.h
 )
+
+arcane_generate_axl(Elastoplasticity2)
+arcane_generate_axl(VonMisesConstitutiveLaw)
+arcane_generate_axl(DruckerPragerConstitutiveLaw)
+arcane_generate_axl(MGISConstitutiveLaw)
 
 arcane_accelerator_add_source_files(${ACCELERATOR_SOURCES})
 arcane_accelerator_add_to_target(Elastoplasticity2)
-
-arcane_generate_axl(Elastoplasticity2)
 arcane_add_arcane_libraries_to_target(Elastoplasticity2)
 
 target_include_directories(Elastoplasticity2 PUBLIC . ${CMAKE_BINARY_DIR} ${ArcaneFem_SOURCE_DIR})
