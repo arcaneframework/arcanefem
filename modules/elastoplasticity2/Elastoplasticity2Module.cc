@@ -236,7 +236,7 @@ _initConstitutiveLaw()
 
   for (const auto& constitutive_law : options()->constitutiveLaw()) {
     String law_name = constitutive_law->law();
-    m_constitutive_law = law_name;
+    m_constitutive_law_name = law_name;
     if (law_name == "VonMises") {
       for (const auto von_mises : constitutive_law->vonMises()) {
         E = von_mises->E(); // Youngs modulus
@@ -272,27 +272,27 @@ _initConstitutiveLaw()
     }
   }
 
-  if (m_constitutive_law == "VonMises" || m_constitutive_law == "DruckerPrager" ||
-      m_constitutive_law == "VonMisesMGIS") {
+  if (m_constitutive_law_name == "VonMises" || m_constitutive_law_name == "DruckerPrager" ||
+      m_constitutive_law_name == "VonMisesMGIS") {
     if (mesh()->dimension() != 2)
       ARCANE_FATAL("Native plasticity currently supports only 2D elements");
 
-    if (m_hex_quad_mesh && m_constitutive_law != "VonMises" && m_constitutive_law != "VonMisesMGIS")
+    if (m_hex_quad_mesh && m_constitutive_law_name != "VonMises" && m_constitutive_law_name != "VonMisesMGIS")
       ARCANE_FATAL("Quadrilateral plasticity currently supports only the von Mises law");
 
     if (m_hex_quad_mesh && m_matrix_format != "DOK")
       ARCANE_FATAL("Quad4/Quad8/Quad9 von Mises assembly currently requires matrix-format='DOK'");
 
-    if (m_constitutive_law == "VonMises") {
+    if (m_constitutive_law_name == "VonMises") {
       m_p_old_gp.reshape({ m_nGP });
       m_dp_gp.reshape({ m_nGP });
     }
 
-    if (m_constitutive_law == "VonMisesMGIS") {
+    if (m_constitutive_law_name == "VonMisesMGIS") {
       _initMgisVonMises();
     }
 
-    if (m_constitutive_law == "DruckerPrager") {
+    if (m_constitutive_law_name == "DruckerPrager") {
       m_eps_p_gp.reshape({ m_nGP, 3 });
       m_eps_p_old_gp.reshape({ m_nGP, 3 });
       m_eps_p_zz_gp.reshape({ m_nGP });
@@ -439,13 +439,13 @@ _solveNewton()
   m_DUk.fill({ 0., 0., 0. });
   m_newton_iter = 0;
 
-  if (m_constitutive_law == "VonMises") {
+  if (m_constitutive_law_name == "VonMises") {
     _restoreConvergedStateVonMises();
   }
-  else if (m_constitutive_law == "VonMisesMGIS") {
+  else if (m_constitutive_law_name == "VonMisesMGIS") {
     _restoreConvergedStateVonMisesMgis();
   }
-  else if (m_constitutive_law == "DruckerPrager") {
+  else if (m_constitutive_law_name == "DruckerPrager") {
     _restoreConvergedStateDruckerPrager();
   }
 
@@ -482,13 +482,13 @@ _solveNewton()
       if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
         m_bsr_format.resetMatrixValues();
 
-      if (m_constitutive_law == "VonMises") {
+      if (m_constitutive_law_name == "VonMises") {
         _integrateAndSaveConstitutiveLawVonMises();
       }
-      else if (m_constitutive_law == "VonMisesMGIS") {
+      else if (m_constitutive_law_name == "VonMisesMGIS") {
         _integrateAndSaveConstitutiveLawVonMisesMgis();
       }
-      else if (m_constitutive_law == "DruckerPrager") {
+      else if (m_constitutive_law_name == "DruckerPrager") {
         _integrateAndSaveConstitutiveLawDruckerPrager();
       }
       _assembleBilinearOperatorGlobal(); // assembles Jacobian
@@ -496,7 +496,7 @@ _solveNewton()
     }
 
     if (m_newton_iter == 1) {
-      if (m_constitutive_law == "DruckerPrager") {
+      if (m_constitutive_law_name == "DruckerPrager") {
         // The first assembled rhs contains the large algebraic enforcement of the
         // non-zero footing displacement. Reset the Newton reference norm after that
         // correction so convergence is measured using the physical equilibrium
@@ -515,9 +515,9 @@ _solveNewton()
     //-- update global displacement after newton convergence -- //
     _updateTimeVariables();
 
-    if (m_constitutive_law == "VonMises" || m_constitutive_law == "VonMisesMGIS") {
+    if (m_constitutive_law_name == "VonMises" || m_constitutive_law_name == "VonMisesMGIS") {
       //-- commit increment for von mises -- //
-      if (m_constitutive_law == "VonMises")
+      if (m_constitutive_law_name == "VonMises")
         _commitInternalVariablesVonMises();
       else
         _commitInternalVariablesVonMisesMgis();
@@ -534,7 +534,7 @@ _solveNewton()
              << "\tResidual norm: " << m_residual_norm;
     }
 
-    if (m_constitutive_law == "DruckerPrager") {
+    if (m_constitutive_law_name == "DruckerPrager") {
       // -- commit increment for Drucker Prager --//
       _commitInternalVariablesDruckerPrager();
 
@@ -633,7 +633,7 @@ _getMaterialParameters()
   if (m_material_initialized)
     return;
 
-  if (m_constitutive_law == "VonMises") {
+  if (m_constitutive_law_name == "VonMises") {
     mu = (E / (2 * (1 + nu))); // lame parameter μ
     lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
 
@@ -647,14 +647,14 @@ _getMaterialParameters()
       }
     }
   }
-  else if (m_constitutive_law == "VonMisesMGIS") {
+  else if (m_constitutive_law_name == "VonMisesMGIS") {
     // The hardening modulus has already been computed in
     // _initConstitutiveLaw() and the internal state variables are handled
     // by the MGIS material data manager.
     mu = (E / (2 * (1 + nu))); // lame parameter μ
     lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
   }
-  else if (m_constitutive_law == "DruckerPrager") {
+  else if (m_constitutive_law_name == "DruckerPrager") {
 
     mu = (E / (2 * (1 + nu))); // lame parameter μ
     lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
@@ -677,8 +677,8 @@ _getMaterialParameters()
     }
   }
 
-  if (m_constitutive_law == "VonMises" || m_constitutive_law == "DruckerPrager" ||
-      m_constitutive_law == "VonMisesMGIS") {
+  if (m_constitutive_law_name == "VonMises" || m_constitutive_law_name == "DruckerPrager" ||
+      m_constitutive_law_name == "VonMisesMGIS") {
     if (mesh()->dimension() == 2) {
 
       // Initialize elastic part of the material tensor

@@ -15,32 +15,12 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-//#include <arcane/utils/CommandLineArguments.h>
-//#include <arcane/utils/ParameterList.h>
-//#include <arcane/utils/ApplicationInfo.h>
-//#include <arcane/utils/NumArray.h>
-
-//#include <arcane/ITimeLoopMng.h>
-//#include <arcane/IMesh.h>
-//#include <arcane/IItemFamily.h>
-//#include <arcane/ItemGroup.h>
-//#include <arcane/accelerator/core/IAcceleratorMng.h>
-//#include <arcane/accelerator/core/RunQueue.h>
-//#include <arcane/core/ItemTypes.h>
-//#include <arccore/base/ArccoreGlobal.h>
-//#include "arccore/base/NotImplementedException.h"
-
 #include "femutils/IArcaneFemBC.h"
 #include "femutils/IDoFLinearSystemFactory.h"
-// #include "femutils/FemUtils.h"
 #include "femutils/DoFLinearSystem.h"
-// #include "femutils/FemDoFsOnNodes.h"
 #include "femutils/BSRFormat.h"
 
 #include "modules/elastoplasticity2/Elastoplasticity2_axl.h"
-
-//#include "femutils/ArcaneFemFunctions.h"
-//#include "femutils/ArcaneFemFunctionsGpu.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -140,7 +120,7 @@ class Elastoplasticity2Module
 
   String m_petsc_flags;
   String m_matrix_format = "DOK";
-  String m_constitutive_law = "VonMises";
+  String m_constitutive_law_name = "VonMises";
   String m_gp_material_tensor_strategy = "local";
   String m_newton_converged_reason = "";
 
