@@ -50,6 +50,9 @@ if (MFrontGenericInterface_FOUND AND MFRONT_EXECUTABLE)
          " (mgis: ${MFrontGenericInterface_DIR}, mfront: ${MFRONT_EXECUTABLE})")
   target_link_libraries(Elastoplasticity2 PRIVATE mgis::MFrontGenericInterface)
   target_compile_definitions(Elastoplasticity2 PRIVATE ARCANEFEM_HAS_MGIS)
+  # Some version of MGIS are compiled with TBB so we need it
+  find_package(TBB)
+  target_link_libraries(Elastoplasticity2 PRIVATE arccon::TBB)
   set_target_properties(Elastoplasticity2 PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
@@ -179,10 +182,6 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     inputs/2D.quater.cylinder.vonMises.arc
   )
 
-  # Cross validation of the Von Mises law handled by MGIS against the native
-  # Von Mises law: the reference values are the ones of the native law on the
-  # current mesh. The sequential basic solver is used so that the test does
-  # not depend on the availability of an external linear solver backend.
   if (ARCANEFEM_HAS_MGIS)
     arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_mgis
       COMMAND ./Elastoplasticity2 ARGS
@@ -191,7 +190,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     )
   endif ()
 
-arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad4
+  arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad4
     COMMAND ./Elastoplasticity2 ARGS
     -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
     -A,//elastoplasticity2/matrix-format=DOK
@@ -217,6 +216,35 @@ arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad4
     ${SOLVER_ALEPH_CG_GAMG}
     inputs/2D.quater.cylinder.vonMises.arc
   )
+
+  if (ARCANEFEM_HAS_MGIS)
+    arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad4_mgis
+      COMMAND ./Elastoplasticity2 ARGS
+      -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
+      -A,//elastoplasticity2/matrix-format=DOK
+      -A,//elastoplasticity2/hex-quad-mesh=true
+      ${SOLVER_ALEPH_CG_GAMG}
+      inputs/2D.quater.cylinder.vonMisesMgis.arc
+    )
+
+    arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad8_mgis
+      COMMAND ./Elastoplasticity2 ARGS
+      -A,//meshes/mesh/filename=meshes/quater_cylinder-quad8.msh
+      -A,//elastoplasticity2/matrix-format=DOK
+      -A,//elastoplasticity2/hex-quad-mesh=true
+      ${SOLVER_ALEPH_CG_GAMG}
+      inputs/2D.quater.cylinder.vonMisesMgis.arc
+    )
+
+    arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad9_mgis
+      COMMAND ./Elastoplasticity2 ARGS
+      -A,//meshes/mesh/filename=meshes/quater_cylinder-quad9.msh
+      -A,//elastoplasticity2/matrix-format=DOK
+      -A,//elastoplasticity2/hex-quad-mesh=true
+      ${SOLVER_ALEPH_CG_GAMG}
+      inputs/2D.quater.cylinder.vonMisesMgis.arc
+    )
+  endif()
 
   arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_bsr
     COMMAND ./Elastoplasticity2 ARGS
