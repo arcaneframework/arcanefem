@@ -41,7 +41,6 @@ class VonMisesConstitutiveLaw
 
   explicit VonMisesConstitutiveLaw(const ServiceBuildInfo& sbi)
   : ArcaneVonMisesConstitutiveLawObject(sbi)
-  //, m_node_coord(sbi.mesh()->nodesCoordinates())
   {
     m_law_name = "VonMises";
   };
@@ -65,7 +64,6 @@ class VonMisesConstitutiveLaw
 
  private:
 
-  //VariableNodeReal3 m_node_coord;
   Real E = 0.0; // Youngs modulus
   Real nu = 0.0; // Poisson ratio
   Real sig0 = 0.0; // Yield strength

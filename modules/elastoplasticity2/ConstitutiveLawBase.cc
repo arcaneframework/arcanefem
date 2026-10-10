@@ -43,6 +43,7 @@ _initialize(const ConstitutiveLawInitInfo& x)
   m_hex_quad_mesh = x.m_hex_quad_mesh;
   m_use_gpu_functions = x.m_use_gpu_functions;
   m_nodes_per_cell = x.m_nodes_per_cell;
+  m_run_queue = x.m_run_queue;
 }
 
 /*---------------------------------------------------------------------------*/
