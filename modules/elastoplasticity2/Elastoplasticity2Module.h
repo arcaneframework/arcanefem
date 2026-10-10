@@ -72,20 +72,16 @@ class Elastoplasticity2Module
   UniqueArray<CaseTableInfo> m_traction_case_table_list;
   // List of CaseTable for Dirichlet boundary conditions
   UniqueArray<CaseTableInfo> m_dirichlet_case_table_list;
+
   Real t = 0.;
   Real dt = 0.;
   Real tmax = 0.;
 
-  Real E = 0.0; // Youngs modulus
-  Real nu = 0.0; // Poisson ratio
-  Real sig0 = 0.0; // Yield strength
-  Real Et = 0.0; // Tangent modulus
-  Real H = 0.0; // Hardening modulus
-  Real Qlim = 0.0; // Limiting pressure
-
+  //TODO Used by Drucker Prager. To be removed
   Real max_settlement = 0.0; // Limiting settlement
   Real footing_width = 0.0; // Footing width
   Real alg_reaction = 0.0; // Algebraic reaction
+
   Real m_newton_atol = 0.0;
   Real m_newton_rtol = 0.0;
   Real m_residual_norm0 = 0.0;
