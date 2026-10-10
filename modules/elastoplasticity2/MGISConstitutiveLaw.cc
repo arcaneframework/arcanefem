@@ -170,6 +170,8 @@ initialize(const ConstitutiveLawInitInfo& law_info)
   if (H < 0.)
     H = E * Et / (E - Et);
 
+  m_sigma_zz_gp.reshape({ m_nGP });
+
   _initMgisVonMises();
 }
 
