@@ -28,16 +28,6 @@
       <nu>0.3</nu>
       <sig0>250.</sig0>
     </constitutive-law-service>
-    <constitutive-law>
-      <law>VonMisesMGIS</law>
-      <von-mises-mgis>
-        <library>libVonMises.so</library>
-        <behaviour>VonMises</behaviour>
-        <E>70.0e3</E>
-        <nu>0.3</nu>
-        <sig0>250.</sig0>
-      </von-mises-mgis>
-    </constitutive-law>
     <gp-material-tensor-strategy>global</gp-material-tensor-strategy>
     <f>NULL NULL</f>
     <boundary-conditions>
