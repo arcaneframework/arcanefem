@@ -61,7 +61,6 @@ class ConstitutiveLawBase
 
   Real mu = 0.0;
   Real lambda = 0.0;
-  Real H = 0.0;
 
   VariableNodeReal3 m_node_coord;
 

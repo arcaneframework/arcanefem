@@ -65,7 +65,7 @@ class VonMisesConstitutiveLaw
   Real E = 0.0; // Youngs modulus
   Real nu = 0.0; // Poisson ratio
   Real sig0 = 0.0; // Yield strength
-  Real Et = 0.0; // Tangent modulus
+  Real H = 0.0; // HardeningSlope
 
  public:
 
@@ -123,7 +123,7 @@ getMaterialProperties()
   mu = (E / (2 * (1 + nu))); // lame parameter μ
   lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
 
-  Et = E / 100.;
+  Real Et = E / 100.;
   H = E * Et / (E - Et);
 
   ENUMERATE_ (Cell, icell, allCells()) {
