@@ -56,7 +56,10 @@ class IConstitutiveLaw
   virtual void commitInternalVariables() =0;
   virtual Real getMu() const = 0;
   virtual Real getLambda() const = 0;
-  virtual FemUtils::RealMatrix<3,3> getElasticityMatrix2D() const =0;
+  virtual FemUtils::RealMatrix<3, 3> getElasticityMatrix2D() const = 0;
+
+  // TODO: Should not be here
+  virtual void setTimeStep(Real dt) =0;
 };
 
 /*---------------------------------------------------------------------------*/

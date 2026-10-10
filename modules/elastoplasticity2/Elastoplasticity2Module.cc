@@ -251,11 +251,13 @@ _initConstitutiveLaw()
                                             .m_nodes_per_cell = m_nodes_per_cell };
   if (m_constitutive_law) {
     m_constitutive_law->initialize(law_init_info);
+    m_constitutive_law->setTimeStep(dt);
   }
 
   for (const auto& constitutive_law : options()->constitutiveLaw()) {
     String law_name = constitutive_law->law();
     m_constitutive_law_name = law_name;
+    info() << "ConstitutiveLawName = " << m_constitutive_law_name;
     if (law_name == "VonMises") {
       for (const auto von_mises : constitutive_law->vonMises()) {
         E = von_mises->E(); // Youngs modulus
@@ -461,6 +463,8 @@ _solveNewton()
   m_DUk.fill({ 0., 0., 0. });
   m_newton_iter = 0;
 
+  info() << "** ** ** LawName=" << m_constitutive_law_name;
+
   if (m_constitutive_law_name == "VonMises") {
     if (m_use_legacy_law)
       _restoreConvergedStateVonMises();
@@ -468,7 +472,10 @@ _solveNewton()
       m_constitutive_law->restoreConvergedState();
   }
   else if (m_constitutive_law_name == "VonMisesMGIS") {
-    _restoreConvergedStateVonMisesMgis();
+    if (m_use_legacy_law)
+      _restoreConvergedStateVonMisesMgis();
+    else
+      m_constitutive_law->restoreConvergedState();
   }
   else if (m_constitutive_law_name == "DruckerPrager") {
     _restoreConvergedStateDruckerPrager();
@@ -507,15 +514,20 @@ _solveNewton()
       if (m_matrix_format == "BSR" || m_matrix_format == "AF-BSR")
         m_bsr_format.resetMatrixValues();
 
+      info() << "Calling integrateAndSaveConstitutiveLaw()";
+
       if (m_constitutive_law_name == "VonMises") {
         if (m_use_legacy_law)
-          // ERROR IS HERE
           _integrateAndSaveConstitutiveLawVonMises();
         else
           m_constitutive_law->integrateAndSave();
       }
       else if (m_constitutive_law_name == "VonMisesMGIS") {
-        _integrateAndSaveConstitutiveLawVonMisesMgis();
+        info() << "Calling integrateAndSaveConstitutiveLaw() for VonMises use_legacy=" << m_use_legacy_law;
+        if (m_use_legacy_law)
+          _integrateAndSaveConstitutiveLawVonMisesMgis();
+        else
+          m_constitutive_law->integrateAndSave();
       }
       else if (m_constitutive_law_name == "DruckerPrager") {
         _integrateAndSaveConstitutiveLawDruckerPrager();
@@ -552,9 +564,12 @@ _solveNewton()
         else
           m_constitutive_law->commitInternalVariables();
       }
-      else
-        _commitInternalVariablesVonMisesMgis();
-
+      else {
+        if (m_use_legacy_law)
+          _commitInternalVariablesVonMisesMgis();
+        else
+          m_constitutive_law->commitInternalVariables();
+      }
       if (t == dt) {
         Real Ri = 1.0;
         Real Re = 1.3;
@@ -693,8 +708,15 @@ _getMaterialParameters()
     // The hardening modulus has already been computed in
     // _initConstitutiveLaw() and the internal state variables are handled
     // by the MGIS material data manager.
-    mu = (E / (2 * (1 + nu))); // lame parameter μ
-    lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
+    if (m_use_legacy_law) {
+      mu = (E / (2 * (1 + nu))); // lame parameter μ
+      lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
+    }
+    else {
+      m_constitutive_law->getMaterialProperties();
+      mu = m_constitutive_law->getMu(); //(E / (2 * (1 + nu))); // lame parameter μ
+      lambda = m_constitutive_law->getLambda(); //E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
+    }
   }
   else if (m_constitutive_law_name == "DruckerPrager") {
 
