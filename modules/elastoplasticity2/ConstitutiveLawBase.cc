@@ -5,59 +5,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* IConstitutiveLaw.h                                          (C) 2000-2026 */
+/* ConstitutiveLawBase.cc                                      (C) 2000-2026 */
 /*                                                                           */
-/* Interface of a constitutive law.                                          */
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-#ifndef ARCANEFEM_ICONSTITUTIVELAW_H
-#define ARCANEFEM_ICONSTITUTIVELAW_H
+/* Base class of a constitutive law.                                         */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/core/ItemTypes.h>
-
-#include <femutils/FemUtilsGlobal.h>
+#include <modules/elastoplasticity2/ConstitutiveLawBase.h>
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 namespace Arcane::ArcaneFem
 {
-
+    
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-struct ConstitutiveLawInitInfo
+void ConstitutiveLawBase::
+_initialize(const ConstitutiveLawInitInfo& x)
 {
-  Int16 m_nGP = 1;
-  bool m_use_gpu = false;
-  bool m_hex_quad_mesh = false;
-  bool m_use_gpu_functions = false;
-  Int16 m_nodes_per_cell = 0;
-};
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-class IConstitutiveLaw
-{
- public:
-
-  virtual ~IConstitutiveLaw() = default;
-
- public:
-
-  virtual String lawName() const =0;
-  virtual void initialize(const ConstitutiveLawInitInfo&) = 0;
-  virtual void getMaterialProperties() = 0;
-  virtual void integrateAndSave() = 0;
-  virtual void restoreConvergedState() =0;
-  virtual void commitInternalVariables() =0;
-  virtual Real getMu() const = 0;
-  virtual Real getLambda() const = 0;
-  virtual FemUtils::RealMatrix<3,3> getElasticityMatrix2D() const =0;
-};
+  m_nGP = x.m_nGP;
+  m_use_gpu = x.m_use_gpu;
+  m_hex_quad_mesh = x.m_hex_quad_mesh;
+  m_use_gpu_functions = x.m_use_gpu_functions;
+  m_nodes_per_cell = x.m_nodes_per_cell;
+}
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -66,5 +39,3 @@ class IConstitutiveLaw
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-
-#endif

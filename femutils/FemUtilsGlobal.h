@@ -11,12 +11,10 @@
 /*---------------------------------------------------------------------------*/
 #ifndef ARCANEFEM_FEMUTILS_FEMUTILSGLOBAL_H
 #define ARCANEFEM_FEMUTILS_FEMUTILSGLOBAL_H
-
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include "FemDoFsOnNodes.h"
-#include <arcane/utils/ArcaneGlobal.h>
+#include <arcane/utils/UtilsTypes.h>
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -60,6 +58,18 @@ enum class MatrixEliminationType : Byte
 static constexpr Byte ELIMINATE_NONE = static_cast<Byte>(MatrixEliminationType::None);
 static constexpr Byte ELIMINATE_ROW = static_cast<Byte>(MatrixEliminationType::Row);
 static constexpr Byte ELIMINATE_ROW_COLUMN = static_cast<Byte>(MatrixEliminationType::RowColumn);
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+//! Vector of Real of size 4.
+using Real4 = NumVector<Arcane::Real, 4>;
+
+//! Vector of Real of size N.
+template <int N> using RealVector = NumVector<Arcane::Real, N>;
+
+//! Matrix of Real of size (Row, Column)
+template <int Row, int Column> using RealMatrix = NumMatrix<Arcane::Real, Row, Column>;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

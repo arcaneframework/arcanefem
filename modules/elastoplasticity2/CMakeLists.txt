@@ -23,6 +23,8 @@ add_executable(Elastoplasticity2
   ElementMatrixHexQuad.h
   ExternalBodyForce.cc
   Traction.cc
+  ConstitutiveLawBase.h
+  ConstitutiveLawBase.cc
   main.cc
 
   Elastoplasticity2_axl.h
