@@ -11,27 +11,69 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/accelerator/core/IAcceleratorMng.h>
+#include <arcane/utils/PlatformUtils.h>
 #include <arcane/accelerator/VariableViews.h>
-#include <arcane/accelerator/MDVariableViews.h>
-
-#include "modules/elastoplasticity2/Elastoplasticity2Module.h"
-#include "modules/elastoplasticity2/ElementMatrix.h"
-#include "modules/elastoplasticity2/ElementMatrixHexQuad.h"
 
 #include "femutils/ArcaneFemFunctions.h"
-#include "femutils/ArcaneFemFunctionsGpu.h"
 
+#include "modules/elastoplasticity2/Elastoplasticity2Module.h"
+#include "modules/elastoplasticity2/ElementMatrixHexQuad.h"
 #include "modules/elastoplasticity2/ConstitutiveLawBase.h"
 #include "modules/elastoplasticity2/MGISConstitutiveLaw_axl.h"
-
-// TODO: Remove that
-#include <filesystem>
 
 #include "MGIS/Behaviour/Behaviour.hxx"
 #include "MGIS/Behaviour/Hypothesis.hxx"
 #include "MGIS/Behaviour/MaterialDataManager.hxx"
 #include "MGIS/Behaviour/Integrate.hxx"
+
+#include <memory>
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+namespace
+{
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+// Indices of the components of the plane strain MGIS tensors with respect to
+// the two-dimensional storage of the module ([xx, yy, sqrt(2)xy]).
+constexpr Int32 MGIS_PS_XX = 0;
+constexpr Int32 MGIS_PS_YY = 1;
+constexpr Int32 MGIS_PS_ZZ = 2;
+constexpr Int32 MGIS_PS_XY = 3;
+constexpr Int32 MGIS_PS_SIZE = 4;
+
+// Indices of the components of the two-dimensional tensors of the module.
+constexpr Int32 C2D_XX = 0;
+constexpr Int32 C2D_YY = 1;
+constexpr Int32 C2D_XY = 2;
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*!
+ * \brief Adds the strain increment associated with a displacement gradient
+ * to the gradients of an integration point of the MGIS material data
+ * manager.
+ *
+ * Plane strain is assumed: the out-of-plane strain increment vanishes.
+ * The shear component follows the MGIS (TFEL) convention in which the
+ * symmetric tensors are stored with a sqrt(2) scaled shear term.
+ */
+void
+_addStrainIncrementToGradients(mgis::real* gradients, const Real3x3& grad_DU)
+{
+  gradients[MGIS_PS_XX] += grad_DU(0, 0);
+  gradients[MGIS_PS_YY] += grad_DU(1, 1);
+  gradients[MGIS_PS_ZZ] += 0.;
+  gradients[MGIS_PS_XY] += M_SQRT1_2 * (grad_DU(0, 1) + grad_DU(1, 0));
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+} // namespace
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -50,29 +92,17 @@ class MGISConstitutiveLaw
   explicit MGISConstitutiveLaw(const ServiceBuildInfo& sbi)
   : ArcaneMGISConstitutiveLawObject(sbi)
   {
+    // This is needed because Elastoplasticity module use it
     m_law_name = "VonMisesMGIS";
   };
-  ~MGISConstitutiveLaw()
-  {
-    _freeMgisVonMises();
-  }
 
  public:
 
   void initialize(const ConstitutiveLawInitInfo& law_info) override;
   void getMaterialProperties() override;
-  void integrateAndSave() override
-  {
-    _integrateAndSaveConstitutiveLawVonMisesMgis();
-  }
-  void restoreConvergedState() override
-  {
-    _restoreConvergedStateVonMisesMgis();
-  }
-  void commitInternalVariables() override
-  {
-    _commitInternalVariablesVonMisesMgis();
-  }
+  void integrateAndSave() override;
+  void restoreConvergedState() override;
+  void commitInternalVariables() override;
 
  private:
 
@@ -81,25 +111,17 @@ class MGISConstitutiveLaw
   Real sig0 = 0.0; // Yield strength
   Real Et = 0.0; // Tangent modulus
 
-  // MGIS binding for the Von Mises law
-  String m_mgis_library = "libVonMises.so";
-  String m_mgis_behaviour_name = "VonMises";
-  mgis::behaviour::Behaviour* m_mgis_behaviour = nullptr;
-  mgis::behaviour::MaterialDataManager* m_mgis_data = nullptr;
+  std::unique_ptr<mgis::behaviour::Behaviour> m_mgis_behaviour;
+  std::unique_ptr<mgis::behaviour::MaterialDataManager> m_mgis_data_manager;
 
  private:
 
-  // Von Mises Law through the MGIS library
-  void _initMgisVonMises();
-  void _freeMgisVonMises();
-  void _restoreConvergedStateVonMisesMgis();
-  void _commitInternalVariablesVonMisesMgis();
-  void _integrateAndSaveConstitutiveLawVonMisesMgis();
-  void _integrateAndSaveConstitutiveLawVonMisesMgisTria3Cpu();
-  void _integrateAndSaveConstitutiveLawVonMisesMgisQuad4Cpu();
-  void _integrateAndSaveConstitutiveLawVonMisesMgisQuad8Cpu();
-  void _integrateAndSaveConstitutiveLawVonMisesMgisQuad9Cpu();
-  void _mgisIntegrateAndSaveResults();
+  void _initializeMGIS();
+  void _integrateAndSaveTria3Cpu();
+  void _integrateAndSaveQuad4Cpu();
+  void _integrateAndSaveQuad8Cpu();
+  void _integrateAndSaveQuad9Cpu();
+  void _integrateAndSaveResults();
 };
 
 /*---------------------------------------------------------------------------*/
@@ -107,47 +129,6 @@ class MGISConstitutiveLaw
 
 ARCANE_REGISTER_SERVICE_MGISCONSTITUTIVELAW(MGIS, MGISConstitutiveLaw);
 
-namespace
-{
-
-  // Indices of the components of the plane strain MGIS tensors with respect to
-  // the two-dimensional storage of the module ([xx, yy, sqrt(2)xy]).
-  constexpr Int8 MGIS_PS_XX = 0;
-  constexpr Int8 MGIS_PS_YY = 1;
-  constexpr Int8 MGIS_PS_ZZ = 2;
-  constexpr Int8 MGIS_PS_XY = 3;
-  constexpr Int8 MGIS_PS_SIZE = 4;
-
-  // Indices of the components of the two-dimensional tensors of the module.
-  constexpr Int8 C2D_XX = 0;
-  constexpr Int8 C2D_YY = 1;
-  constexpr Int8 C2D_XY = 2;
-
-  /*---------------------------------------------------------------------------*/
-  /*---------------------------------------------------------------------------*/
-  /*!
-   * \brief Adds the strain increment associated with a displacement gradient
-   * to the gradients of an integration point of the MGIS material data
-   * manager.
-   *
-   * Plane strain is assumed: the out-of-plane strain increment vanishes.
-   * The shear component follows the MGIS (TFEL) convention in which the
-   * symmetric tensors are stored with a sqrt(2) scaled shear term.
-   */
-  inline void
-  mgisAddStrainIncrementToGradients(mgis::real* gradients,
-                                    const Real3x3& grad_DU)
-  {
-    gradients[MGIS_PS_XX] += grad_DU(0, 0);
-    gradients[MGIS_PS_YY] += grad_DU(1, 1);
-    gradients[MGIS_PS_ZZ] += 0.;
-    gradients[MGIS_PS_XY] += M_SQRT1_2 * (grad_DU(0, 1) + grad_DU(1, 0));
-  }
-
-  /*---------------------------------------------------------------------------*/
-  /*---------------------------------------------------------------------------*/
-
-} // namespace
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -161,8 +142,6 @@ initialize(const ConstitutiveLawInitInfo& law_info)
   nu = options()->nu(); // Poission ratio ν
   sig0 = options()->sig0(); // Yield Strength
   H = options()->H(); // Linear isotropic hardening modulus
-  m_mgis_library = options()->library(); // MFront behaviour library
-  m_mgis_behaviour_name = options()->behaviour(); // Behaviour name
 
   // By default, the hardening modulus is derived from E as in the
   // native VonMises law.
@@ -172,7 +151,7 @@ initialize(const ConstitutiveLawInitInfo& law_info)
 
   m_sigma_zz_gp.reshape({ m_nGP });
 
-  _initMgisVonMises();
+  _initializeMGIS();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -199,7 +178,7 @@ getMaterialProperties()
     // Initialize constitutive history
     ENUMERATE_ (Cell, icell, allCells()) // TODO check if MDMeshVars provide initialisation method
     {
-      for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
+      for (Int16 iGP = 0; iGP < m_nGP; ++iGP) {
         m_sigma_gp(icell, iGP, 0) = 0.;
         m_sigma_gp(icell, iGP, 1) = 0.;
         m_sigma_gp(icell, iGP, 2) = 0.;
@@ -221,77 +200,72 @@ getMaterialProperties()
  * (Young modulus, Poisson ratio, yield strength and hardening slope).
  */
 void MGISConstitutiveLaw::
-_initMgisVonMises()
+_initializeMGIS()
 {
   info() << "[ArcaneFem-Info] Started module  _initMgisVonMises()";
   Real elapsedTime = platform::getRealTime();
 
-  if (m_mgis_behaviour != nullptr || m_mgis_data != nullptr)
+  if (m_mgis_behaviour.get() || m_mgis_data_manager.get())
     ARCANE_FATAL("The MGIS binding is already initialized");
 
   if (mesh()->dimension() != 2)
     ARCANE_FATAL("The VonMisesMGIS law currently supports only 2D elements");
 
-  const mgis::behaviour::Hypothesis hypothesis =
-  mgis::behaviour::Hypothesis::PLANESTRAIN;
+  const auto hypothesis = mgis::behaviour::Hypothesis::PLANESTRAIN;
 
-  // The library name given in the options can either be an absolute or a
-  // relative path. As dlopen does not search the current directory, a bare
-  // library name which is found in the current directory, where the MFront
-  // behaviours built by ArcaneFEM are placed, is resolved explicitly.
-  std::filesystem::path library_path(m_mgis_library.localstr());
-  if (library_path.is_relative() && !library_path.has_parent_path()) {
-    const auto local_library_path = std::filesystem::path(".") / library_path;
-    if (std::filesystem::exists(local_library_path))
-      library_path = local_library_path;
-  }
+  String library_name = options()->library();
+  String behaviour_name = options()->behaviour(); // Behaviour name
+  info() << "Initializing MGIS library='" << library_name << "' and behaviour '" << behaviour_name << "'";
+  if (library_name.empty())
+    ARCANE_FATAL("Invalid empty value for MGIS library name");
 
   try {
-    std::unique_ptr<mgis::behaviour::Behaviour> behaviour(
-    new mgis::behaviour::Behaviour(
-    mgis::behaviour::load(library_path.string(), m_mgis_behaviour_name.localstr(), hypothesis)));
+    {
+      std::string l(library_name.toStdStringView());
+      std::string b(behaviour_name.toStdStringView());
+      m_mgis_behaviour = std::make_unique<mgis::behaviour::Behaviour>(mgis::behaviour::load(l, b, hypothesis));
+    }
 
-    if (behaviour->btype != mgis::behaviour::Behaviour::STANDARDSTRAINBASEDBEHAVIOUR)
+    auto& behaviour = *m_mgis_behaviour;
+
+    if (behaviour.btype != mgis::behaviour::Behaviour::STANDARDSTRAINBASEDBEHAVIOUR)
       ARCANE_FATAL("The behaviour '{0}' of library '{1}' is not a standard small strain behaviour",
-                   m_mgis_behaviour_name, m_mgis_library);
+                   behaviour_name, library_name);
 
     // Number of integration points, one set of Gauss points per cell.
     const Int32 nb_cell = mesh()->allCells().size();
-    const auto nb_integration_points = mgis::size_type(nb_cell * m_nGP);
+    const mgis::size_type nb_integration_points = nb_cell * m_nGP;
 
-    std::unique_ptr<mgis::behaviour::MaterialDataManager> data_manager(
-    new mgis::behaviour::MaterialDataManager(*behaviour, nb_integration_points));
-    data_manager->allocateArrayOfTangentOperatorBlocks();
+    m_mgis_data_manager = std::make_unique<mgis::behaviour::MaterialDataManager>(behaviour, nb_integration_points);
+    auto& data_manager = *m_mgis_data_manager;
+    data_manager.allocateArrayOfTangentOperatorBlocks();
 
     // The behaviour is expected to exchange one 4x4 tangent operator block
     // (Stress,Strain) with the plane strain hypothesis.
-    if (data_manager->K_stride != mgis::size_type(MGIS_PS_SIZE * MGIS_PS_SIZE))
+    if (data_manager.K_stride != (MGIS_PS_SIZE * MGIS_PS_SIZE))
       ARCANE_FATAL("Unexpected tangent operator size for the behaviour '{0}' of library '{1}'",
-                   m_mgis_behaviour_name, m_mgis_library);
+                   behaviour_name, library_name);
 
     // The material properties are uniform and are set on the state at the
     // end of the time step before being propagated to the state at the
     // beginning of the time step by the update() call.
-    mgis::behaviour::setMaterialProperty(data_manager->s1, "YoungModulus", E);
-    mgis::behaviour::setMaterialProperty(data_manager->s1, "PoissonRatio", nu);
-    mgis::behaviour::setMaterialProperty(data_manager->s1, "YieldStrength", sig0);
-    mgis::behaviour::setMaterialProperty(data_manager->s1, "HardeningSlope", H);
+    mgis::behaviour::setMaterialProperty(data_manager.s1, "YoungModulus", E);
+    mgis::behaviour::setMaterialProperty(data_manager.s1, "PoissonRatio", nu);
+    mgis::behaviour::setMaterialProperty(data_manager.s1, "YieldStrength", sig0);
+    mgis::behaviour::setMaterialProperty(data_manager.s1, "HardeningSlope", H);
     // The mechanical behaviours generated by MFront declare the temperature
     // as an external state variable. It is kept constant.
-    if (mgis::behaviour::contains(behaviour->esvs, "Temperature"))
-      mgis::behaviour::setExternalStateVariable(data_manager->s1, "Temperature", 293.15);
-    mgis::behaviour::update(*data_manager);
-
-    m_mgis_behaviour = behaviour.release();
-    m_mgis_data = data_manager.release();
+    if (mgis::behaviour::contains(behaviour.esvs, "Temperature"))
+      mgis::behaviour::setExternalStateVariable(data_manager.s1, "Temperature", 293.15);
+    mgis::behaviour::update(data_manager);
   }
   catch (const std::exception& e) {
     ARCANE_FATAL("Failed to initialize the MGIS behaviour '{0}' of library '{1}': {2}",
-                 m_mgis_behaviour_name, m_mgis_library, String(e.what()));
+                 behaviour_name, library_name, String(e.what()));
   }
 
-  info() << "[ArcaneFem-Info] MGIS behaviour '" << m_mgis_behaviour_name
-         << "' of library '" << m_mgis_library
+  info() << "[ArcaneFem-Info] MGIS behaviour '" << behaviour_name
+         << "' of library '" << library_name
          << "' loaded for hypothesis " << mgis::behaviour::toString(hypothesis)
          << " on " << (mesh()->allCells().size() * m_nGP) << " integration points";
 
@@ -302,29 +276,15 @@ _initMgisVonMises()
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 /*!
- * @brief Frees the resources associated with the MGIS binding.
- */
-void MGISConstitutiveLaw::
-_freeMgisVonMises()
-{
-  delete m_mgis_data;
-  delete m_mgis_behaviour;
-  m_mgis_data = nullptr;
-  m_mgis_behaviour = nullptr;
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-/*!
  * @brief Restores the converged state of the previous time step in the
  * MGIS material data manager (the state at the end of the time step is
  * reset to the state at the beginning of the time step).
  */
 void MGISConstitutiveLaw::
-_restoreConvergedStateVonMisesMgis()
+restoreConvergedState()
 {
-  ARCANE_CHECK_PTR(m_mgis_data);
-  mgis::behaviour::revert(*m_mgis_data);
+  ARCANE_CHECK_PTR(m_mgis_data_manager);
+  mgis::behaviour::revert(*m_mgis_data_manager);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -335,10 +295,10 @@ _restoreConvergedStateVonMisesMgis()
  * with the converged state at the end of the time step).
  */
 void MGISConstitutiveLaw::
-_commitInternalVariablesVonMisesMgis()
+commitInternalVariables()
 {
-  ARCANE_CHECK_PTR(m_mgis_data);
-  mgis::behaviour::update(*m_mgis_data);
+  ARCANE_CHECK_PTR(m_mgis_data_manager);
+  mgis::behaviour::update(*m_mgis_data_manager);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -353,28 +313,28 @@ _commitInternalVariablesVonMisesMgis()
  * on an accelerator.
  */
 void MGISConstitutiveLaw::
-_integrateAndSaveConstitutiveLawVonMisesMgis()
+integrateAndSave()
 {
   info() << "[ArcaneFem-Info] Started module  _integrateAndSaveConstitutiveLawVonMisesMgis()";
   Real elapsedTime = platform::getRealTime();
 
-  ARCANE_CHECK_PTR(m_mgis_data);
+  ARCANE_CHECK_PTR(m_mgis_data_manager);
 
   // The behaviour is integrated from the state at the beginning of the time
   // step with the strain increment associated with the current estimate of
   // the displacement increment m_DUn.
-  mgis::behaviour::revert(*m_mgis_data);
+  mgis::behaviour::revert(*m_mgis_data_manager);
 
   if (m_hex_quad_mesh) {
     if (m_nodes_per_cell == 4)
-      _integrateAndSaveConstitutiveLawVonMisesMgisQuad4Cpu();
+      _integrateAndSaveQuad4Cpu();
     else if (m_nodes_per_cell == 8)
-      _integrateAndSaveConstitutiveLawVonMisesMgisQuad8Cpu();
+      _integrateAndSaveQuad8Cpu();
     else
-      _integrateAndSaveConstitutiveLawVonMisesMgisQuad9Cpu();
+      _integrateAndSaveQuad9Cpu();
   }
   else {
-    _integrateAndSaveConstitutiveLawVonMisesMgisTria3Cpu();
+    _integrateAndSaveTria3Cpu();
   }
 
   elapsedTime = platform::getRealTime() - elapsedTime;
@@ -388,9 +348,9 @@ _integrateAndSaveConstitutiveLawVonMisesMgis()
  * elements of the mesh.
  */
 void MGISConstitutiveLaw::
-_integrateAndSaveConstitutiveLawVonMisesMgisTria3Cpu()
+_integrateAndSaveTria3Cpu()
 {
-  auto& s1 = m_mgis_data->s1;
+  auto& s1 = m_mgis_data_manager->s1;
   const auto gradients_stride = s1.gradients_stride;
 
   ENUMERATE_ (Cell, icell, allCells()) {
@@ -399,13 +359,13 @@ _integrateAndSaveConstitutiveLawVonMisesMgisTria3Cpu()
     // The strain increment is constant on a P1 triangle.
     const Real3x3 grad_DU = ArcaneFemFunctions::FeOperation2D::computeGradientTria3(cell, m_node_coord, m_DUn);
 
-    for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
-      const auto gp = mgis::size_type(cell.localId() * m_nGP + iGP);
-      mgisAddStrainIncrementToGradients(s1.gradients.data() + gp * gradients_stride, grad_DU);
+    for (Int16 iGP = 0; iGP < m_nGP; ++iGP) {
+      const mgis::size_type gp = cell.localId() * m_nGP + iGP;
+      _addStrainIncrementToGradients(s1.gradients.data() + gp * gradients_stride, grad_DU);
     }
   }
 
-  _mgisIntegrateAndSaveResults();
+  _integrateAndSaveResults();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -415,27 +375,27 @@ _integrateAndSaveConstitutiveLawVonMisesMgisTria3Cpu()
  * elements of the mesh.
  */
 void MGISConstitutiveLaw::
-_integrateAndSaveConstitutiveLawVonMisesMgisQuad4Cpu()
+_integrateAndSaveQuad4Cpu()
 {
   constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
 
-  auto& s1 = m_mgis_data->s1;
+  auto& s1 = m_mgis_data_manager->s1;
   const auto gradients_stride = s1.gradients_stride;
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    Int8 iGP = 0;
-    for (Int8 ixi = 0; ixi < 2; ++ixi) {
-      for (Int8 ieta = 0; ieta < 2; ++ieta) {
+    Int16 iGP = 0;
+    for (Int16 ixi = 0; ixi < 2; ++ixi) {
+      for (Int16 ieta = 0; ieta < 2; ++ieta) {
         const Real3x3 grad_DU = computeDisplacementGradientQuad4(cell, m_node_coord, m_DUn, gp[ixi], gp[ieta]);
-        const auto gpid = mgis::size_type(cell.localId() * m_nGP + iGP);
-        mgisAddStrainIncrementToGradients(s1.gradients.data() + gpid * gradients_stride, grad_DU);
+        const mgis::size_type gpid = cell.localId() * m_nGP + iGP;
+        _addStrainIncrementToGradients(s1.gradients.data() + gpid * gradients_stride, grad_DU);
         ++iGP;
       }
     }
   }
 
-  _mgisIntegrateAndSaveResults();
+  _integrateAndSaveResults();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -445,27 +405,27 @@ _integrateAndSaveConstitutiveLawVonMisesMgisQuad4Cpu()
  * elements of the mesh.
  */
 void MGISConstitutiveLaw::
-_integrateAndSaveConstitutiveLawVonMisesMgisQuad8Cpu()
+_integrateAndSaveQuad8Cpu()
 {
   constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
 
-  auto& s1 = m_mgis_data->s1;
+  auto& s1 = m_mgis_data_manager->s1;
   const auto gradients_stride = s1.gradients_stride;
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    Int8 iGP = 0;
-    for (Int8 ixi = 0; ixi < 3; ++ixi) {
-      for (Int8 ieta = 0; ieta < 3; ++ieta) {
+    Int16 iGP = 0;
+    for (Int16 ixi = 0; ixi < 3; ++ixi) {
+      for (Int16 ieta = 0; ieta < 3; ++ieta) {
         const Real3x3 grad_DU = computeDisplacementGradientQuad8(cell, m_node_coord, m_DUn, gp[ixi], gp[ieta]);
-        const auto gpid = mgis::size_type(cell.localId() * m_nGP + iGP);
-        mgisAddStrainIncrementToGradients(s1.gradients.data() + gpid * gradients_stride, grad_DU);
+        const mgis::size_type gpid = cell.localId() * m_nGP + iGP;
+        _addStrainIncrementToGradients(s1.gradients.data() + gpid * gradients_stride, grad_DU);
         ++iGP;
       }
     }
   }
 
-  _mgisIntegrateAndSaveResults();
+  _integrateAndSaveResults();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -475,27 +435,27 @@ _integrateAndSaveConstitutiveLawVonMisesMgisQuad8Cpu()
  * elements of the mesh.
  */
 void MGISConstitutiveLaw::
-_integrateAndSaveConstitutiveLawVonMisesMgisQuad9Cpu()
+_integrateAndSaveQuad9Cpu()
 {
   constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
 
-  auto& s1 = m_mgis_data->s1;
+  auto& s1 = m_mgis_data_manager->s1;
   const auto gradients_stride = s1.gradients_stride;
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    Int8 iGP = 0;
-    for (Int8 ixi = 0; ixi < 3; ++ixi) {
-      for (Int8 ieta = 0; ieta < 3; ++ieta) {
+    Int16 iGP = 0;
+    for (Int16 ixi = 0; ixi < 3; ++ixi) {
+      for (Int16 ieta = 0; ieta < 3; ++ieta) {
         const Real3x3 grad_DU = computeDisplacementGradientQuad9(cell, m_node_coord, m_DUn, gp[ixi], gp[ieta]);
-        const auto gpid = mgis::size_type(cell.localId() * m_nGP + iGP);
-        mgisAddStrainIncrementToGradients(s1.gradients.data() + gpid * gradients_stride, grad_DU);
+        const mgis::size_type gpid = cell.localId() * m_nGP + iGP;
+        _addStrainIncrementToGradients(s1.gradients.data() + gpid * gradients_stride, grad_DU);
         ++iGP;
       }
     }
   }
 
-  _mgisIntegrateAndSaveResults();
+  _integrateAndSaveResults();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -506,32 +466,31 @@ _integrateAndSaveConstitutiveLawVonMisesMgisQuad9Cpu()
  * Gauss point variables of the module.
  */
 void MGISConstitutiveLaw::
-_mgisIntegrateAndSaveResults()
+_integrateAndSaveResults()
 {
   mgis::behaviour::BehaviourIntegrationOptions options;
   options.integration_type =
   mgis::behaviour::IntegrationType::INTEGRATION_CONSISTENT_TANGENT_OPERATOR;
 
-  const auto result = mgis::behaviour::integrate(*m_mgis_data, options, dt);
+  const auto result = mgis::behaviour::integrate(*m_mgis_data_manager, options, dt);
 
   if (result.exit_status < 0)
-    ARCANE_FATAL("The MGIS integration of behaviour '{0}' failed at integration point {1} : {2}",
-                 m_mgis_behaviour_name, (Integer)result.n,
+    ARCANE_FATAL("The MGIS integration failed at integration point {1} : {2}",
+                 (Integer)result.n,
                  String(result.error_message.empty() ? "unknown error" : result.error_message));
 
   if (result.exit_status == 0)
-    warning() << "[ArcaneFem-Warning] The MGIS integration of behaviour '"
-              << m_mgis_behaviour_name << "' succeeded but the results are unreliable";
+    info() << "WARNING: The MGIS integration succeeded but the results are unreliable";
 
-  const auto& s1 = m_mgis_data->s1;
+  const auto& s1 = m_mgis_data_manager->s1;
   const auto forces_stride = s1.thermodynamic_forces_stride;
-  const auto K_stride = m_mgis_data->K_stride;
+  const auto K_stride = m_mgis_data_manager->K_stride;
   const auto* const forces = s1.thermodynamic_forces.data();
-  const auto* const K = m_mgis_data->K.data();
+  const auto* const K = m_mgis_data_manager->K.data();
 
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
+    for (Int16 iGP = 0; iGP < m_nGP; ++iGP) {
       const auto gp = mgis::size_type(cell.localId() * m_nGP + iGP);
       const auto* const sigma = forces + gp * forces_stride;
       const auto* const K_block = K + gp * K_stride;
@@ -541,9 +500,9 @@ _mgisIntegrateAndSaveResults()
       m_sigma_gp(cell, iGP, C2D_XY) = sigma[MGIS_PS_XY];
       m_sigma_zz_gp(cell, iGP) = sigma[MGIS_PS_ZZ];
 
-      for (Int8 i = 0; i < 3; ++i) {
+      for (Int16 i = 0; i < 3; ++i) {
         const auto row = (i == C2D_XY) ? MGIS_PS_XY : i;
-        for (Int8 j = 0; j < 3; ++j) {
+        for (Int16 j = 0; j < 3; ++j) {
           const auto column = (j == C2D_XY) ? MGIS_PS_XY : j;
           m_C_tang_gp(cell, iGP, i, j) = K_block[row * MGIS_PS_SIZE + column];
         }
