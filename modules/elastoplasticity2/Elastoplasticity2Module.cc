@@ -44,11 +44,6 @@ Elastoplasticity2Module(const ModuleBuildInfo& mbi)
   ICaseMng* cm = mbi.subDomain()->caseMng();
   cm->setTreatWarningAsError(true);
   cm->setAllowUnkownRootElelement(false);
-
-  m_use_legacy_law = true;
-  if (auto v = Convert::Type<Int32>::tryParseFromEnvironment("ARCANEFEM_USE_LEGACY_LAW", true))
-    m_use_legacy_law = (v.value() != 0);
-  info() << "UsingLegacyLaw?=" << m_use_legacy_law;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -305,24 +300,6 @@ _initConstitutiveLaw()
 
     if (m_hex_quad_mesh && m_matrix_format != "DOK")
       ARCANE_FATAL("Quad4/Quad8/Quad9 von Mises assembly currently requires matrix-format='DOK'");
-
-    if (m_use_legacy_law) {
-      if (m_constitutive_law_name == "VonMises") {
-        m_p_old_gp.reshape({ m_nGP });
-        m_dp_gp.reshape({ m_nGP });
-      }
-    }
-
-    if (m_constitutive_law_name == "VonMisesMGIS") {
-      _initMgisVonMises();
-    }
-
-    if (m_constitutive_law_name == "DruckerPrager") {
-      m_eps_p_gp.reshape({ m_nGP, 3 });
-      m_eps_p_old_gp.reshape({ m_nGP, 3 });
-      m_eps_p_zz_gp.reshape({ m_nGP });
-      m_eps_p_zz_old_gp.reshape({ m_nGP });
-    }
   }
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "initialize-constitutive-law", elapsedTime);
@@ -466,24 +443,7 @@ _solveNewton()
 
   info() << "** ** ** LawName=" << m_constitutive_law_name;
 
-  if (m_constitutive_law_name == "VonMises") {
-    if (m_use_legacy_law)
-      _restoreConvergedStateVonMises();
-    else
-      m_constitutive_law->restoreConvergedState();
-  }
-  else if (m_constitutive_law_name == "VonMisesMGIS") {
-    if (m_use_legacy_law)
-      _restoreConvergedStateVonMisesMgis();
-    else
-      m_constitutive_law->restoreConvergedState();
-  }
-  else if (m_constitutive_law_name == "DruckerPrager") {
-    if (m_use_legacy_law)
-      _restoreConvergedStateDruckerPrager();
-    else
-      m_constitutive_law->restoreConvergedState();
-  }
+  m_constitutive_law->restoreConvergedState();
 
   // --- assemble_linear_system ---- //
   if (m_assemble_linear_system) {
@@ -519,26 +479,7 @@ _solveNewton()
         m_bsr_format.resetMatrixValues();
 
       info() << "Calling integrateAndSaveConstitutiveLaw()";
-
-      if (m_constitutive_law_name == "VonMises") {
-        if (m_use_legacy_law)
-          _integrateAndSaveConstitutiveLawVonMises();
-        else
-          m_constitutive_law->integrateAndSave();
-      }
-      else if (m_constitutive_law_name == "VonMisesMGIS") {
-        info() << "Calling integrateAndSaveConstitutiveLaw() for VonMises use_legacy=" << m_use_legacy_law;
-        if (m_use_legacy_law)
-          _integrateAndSaveConstitutiveLawVonMisesMgis();
-        else
-          m_constitutive_law->integrateAndSave();
-      }
-      else if (m_constitutive_law_name == "DruckerPrager") {
-        if (m_use_legacy_law)
-          _integrateAndSaveConstitutiveLawDruckerPrager();
-        else
-          m_constitutive_law->integrateAndSave();
-      }
+      m_constitutive_law->integrateAndSave();
       _assembleBilinearOperatorGlobal(); // assembles Jacobian
       _assembleLinearOperator(); // assembles Residuals(m_DUn) + BCs
     }
@@ -565,18 +506,7 @@ _solveNewton()
 
     if (m_constitutive_law_name == "VonMises" || m_constitutive_law_name == "VonMisesMGIS") {
       //-- commit increment for von mises -- //
-      if (m_constitutive_law_name == "VonMises") {
-        if (m_use_legacy_law)
-          _commitInternalVariablesVonMises();
-        else
-          m_constitutive_law->commitInternalVariables();
-      }
-      else {
-        if (m_use_legacy_law)
-          _commitInternalVariablesVonMisesMgis();
-        else
-          m_constitutive_law->commitInternalVariables();
-      }
+      m_constitutive_law->commitInternalVariables();
       if (t == dt) {
         Real Ri = 1.0;
         Real Re = 1.3;
@@ -591,10 +521,7 @@ _solveNewton()
 
     if (m_constitutive_law_name == "DruckerPrager") {
       // -- commit increment for Drucker Prager --//
-      if (m_use_legacy_law)
-        _commitInternalVariablesDruckerPrager();
-      else
-        m_constitutive_law->commitInternalVariables();
+      m_constitutive_law->commitInternalVariables();
 
       if (t == dt) {
         max_settlement = 0.03;
@@ -667,8 +594,7 @@ _solveNewton()
 void Elastoplasticity2Module::
 _setGlobalElasticMaterialTensorAtGPs()
 {
-  if (!m_use_legacy_law)
-    m_C_elas_2d = m_constitutive_law->getElasticityMatrix2D();
+  m_C_elas_2d = m_constitutive_law->getElasticityMatrix2D();
   Int16 nDim = (mesh()->dimension() == 2) ? 3 : 6;
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
@@ -693,70 +619,9 @@ _getMaterialParameters()
   if (m_material_initialized)
     return;
 
-  if (m_constitutive_law_name == "VonMises") {
-    if (m_use_legacy_law) {
-      mu = (E / (2 * (1 + nu))); // lame parameter μ
-      lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
-
-      Et = E / 100.;
-      H = E * Et / (E - Et);
-    }
-    else {
-      m_constitutive_law->getMaterialProperties();
-      mu = m_constitutive_law->getMu(); //(E / (2 * (1 + nu))); // lame parameter μ
-      lambda = m_constitutive_law->getLambda(); //E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
-    }
-
-    ENUMERATE_ (Cell, icell, allCells()) {
-      for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
-        m_p_old_gp(icell, iGP) = 0.;
-        m_dp_gp(icell, iGP) = 0.;
-      }
-    }
-  }
-  else if (m_constitutive_law_name == "VonMisesMGIS") {
-    // The hardening modulus has already been computed in
-    // _initConstitutiveLaw() and the internal state variables are handled
-    // by the MGIS material data manager.
-    if (m_use_legacy_law) {
-      mu = (E / (2 * (1 + nu))); // lame parameter μ
-      lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
-    }
-    else {
-      m_constitutive_law->getMaterialProperties();
-      mu = m_constitutive_law->getMu(); //(E / (2 * (1 + nu))); // lame parameter μ
-      lambda = m_constitutive_law->getLambda(); //E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
-    }
-  }
-  else if (m_constitutive_law_name == "DruckerPrager") {
-
-    if (m_use_legacy_law) {
-      mu = (E / (2 * (1 + nu))); // lame parameter μ
-      lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
-
-      bulk = E / (3. * (1. - 2. * nu));
-      dpEta = 3. * tan(friction_angle) / (math::sqrt(9. + 12. * tan(friction_angle) * tan(friction_angle)));
-      dpC = 3. * cohesion / (math::sqrt(9. + 12. * tan(friction_angle) * tan(friction_angle)));
-
-      ENUMERATE_ (Cell, icell, allCells()) {
-        for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
-          m_eps_p_gp(icell, iGP, 0) = 0.;
-          m_eps_p_gp(icell, iGP, 1) = 0.;
-          m_eps_p_gp(icell, iGP, 2) = 0.;
-          m_eps_p_zz_gp(icell, iGP) = 0.;
-          m_eps_p_old_gp(icell, iGP, 0) = 0.;
-          m_eps_p_old_gp(icell, iGP, 1) = 0.;
-          m_eps_p_old_gp(icell, iGP, 2) = 0.;
-          m_eps_p_zz_old_gp(icell, iGP) = 0.;
-        }
-      }
-    }
-    else {
-      m_constitutive_law->getMaterialProperties();
-      mu = m_constitutive_law->getMu(); //(E / (2 * (1 + nu))); // lame parameter μ
-      lambda = m_constitutive_law->getLambda(); //E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
-    }
-  }
+  m_constitutive_law->getMaterialProperties();
+  mu = m_constitutive_law->getMu(); //(E / (2 * (1 + nu))); // lame parameter μ
+  lambda = m_constitutive_law->getLambda(); //E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
 
   if (m_constitutive_law_name == "VonMises" || m_constitutive_law_name == "DruckerPrager" ||
       m_constitutive_law_name == "VonMisesMGIS") {
