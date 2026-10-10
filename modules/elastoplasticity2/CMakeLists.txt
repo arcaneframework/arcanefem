@@ -12,6 +12,7 @@
 # performed on the CPU and only its results are used by the assembly.
 set(MGIS_SOURCES
   VonMisesLawMgis.cc
+  MGISConstitutiveLaw.cc
 )
 
 add_executable(Elastoplasticity2

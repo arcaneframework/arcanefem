@@ -1,7 +1,24 @@
 <?xml version="1.0" ?>
-<service name="MGISConstitutiveLaw" version="1.0" type="caseoption">
+<service name="MGISConstitutiveLaw" version="1.0" type="caseoption"
+         parent-name="Arcane::ArcaneFem::ConstitutiveLawBase"
+         namespace-name="Arcane::ArcaneFem"
+         >
   <description>Law using the MGIS library</description>
-  <interface name="Arcane::ArcaneFem::IConstitutiveLaw" />
+  <interface name="Arcane::ArcaneFem::IConstitutiveLaw" inherited="false"/>
+  <variables>
+    <variable field-name="sigma_gp" name="SigmaGp" data-type="real" item-kind="cell" shape-dim="2">
+      <description>Stress tensor on gauss points</description>
+    </variable>
+    <variable field-name="sigma_zz_gp" name="SigmaZZGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>zz component of stress tensor on gauss points</description>
+    </variable>
+    <variable field-name="C_tang_gp" name="CTangGp" data-type="real" item-kind="cell" shape-dim="3">
+      <description>Tangent of the material tensor for constitutive law</description>
+    </variable>
+    <variable field-name="DUn" name="DUn" data-type="real3" item-kind="node" dim="0">
+      <description>Time step DUn vector from Arcane variable</description>
+    </variable>
+  </variables>
   <options>
     <simple name="library" type="string" default="libVonMises.so">
       <description>Path of the MFront behaviour library.</description>

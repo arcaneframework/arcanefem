@@ -36,9 +36,7 @@ class ConstitutiveLawBase
 {
  public:
 
-  ConstitutiveLawBase(const ServiceBuildInfo& sbi)
-  : BasicService(sbi)
-  {}
+  ConstitutiveLawBase(const ServiceBuildInfo& sbi);
 
  public:
 
@@ -46,6 +44,8 @@ class ConstitutiveLawBase
   Real getMu() const override { return mu; }
   Real getLambda() const override { return lambda; }
   FemUtils::RealMatrix<3,3> getElasticityMatrix2D() const override { return m_C_elas_2d; }
+
+  void setTimeStep(Real v) override { dt = v; }
 
  protected:
 
@@ -56,9 +56,13 @@ class ConstitutiveLawBase
   bool m_use_gpu_functions = false;
   Int16 m_nodes_per_cell = 0;
 
+  Real dt = 0.0; // This is set by the service user
+
   Real mu = 0.0;
   Real lambda = 0.0;
   Real H = 0.0;
+
+  VariableNodeReal3 m_node_coord;
 
   FemUtils::RealMatrix<3, 3> m_C_elas_2d;
   FemUtils::RealMatrix<6, 6> m_C_elas_3d;

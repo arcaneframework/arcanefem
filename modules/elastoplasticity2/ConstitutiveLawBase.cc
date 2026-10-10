@@ -13,12 +13,25 @@
 
 #include <modules/elastoplasticity2/ConstitutiveLawBase.h>
 
+#include <arcane/core/ServiceBuildInfo.h>
+#include <arcane/core/IMesh.h>
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 namespace Arcane::ArcaneFem
 {
-    
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ConstitutiveLawBase::
+ConstitutiveLawBase(const ServiceBuildInfo& sbi)
+: BasicService(sbi)
+, m_node_coord(sbi.mesh()->nodesCoordinates())
+{
+}
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
