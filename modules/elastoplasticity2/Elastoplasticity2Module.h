@@ -69,10 +69,7 @@ class Elastoplasticity2Module
   void _assembleDirichletsNewtonGpu();
   void _assembleZeroRHSOnConstrainedDOFsGpu();
 
-  inline void _applyInternalBodyForceTria3Gpu(VariableDoFReal& rhs_values, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord, IMesh* mesh, RunQueue* queue);
-
-  inline void _integrateAndSaveConstitutiveLawVonMisesTria3Gpu();
-  inline void _integrateAndSaveConstitutiveLawDruckerPragerTria3Gpu();
+  void _applyInternalBodyForceTria3Gpu(VariableDoFReal& rhs_values, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord, IMesh* mesh, RunQueue* queue);
 
  private:
 
@@ -163,33 +160,6 @@ class Elastoplasticity2Module
   void _initBsr();
   void _initConstitutiveLaw();
   void _buildRigidBodyNearNullSpace();
-
-  // Von Mises Law
-  void _restoreConvergedStateVonMises();
-  void _commitInternalVariablesVonMises();
-  void _integrateAndSaveConstitutiveLawVonMises();
-  void _integrateAndSaveConstitutiveLawVonMisesTria3Cpu();
-  void _integrateAndSaveConstitutiveLawVonMisesQuad4Cpu();
-  void _integrateAndSaveConstitutiveLawVonMisesQuad8Cpu();
-  void _integrateAndSaveConstitutiveLawVonMisesQuad9Cpu();
-
-  // Von Mises Law through the MGIS library
-  void _initMgisVonMises();
-  void _freeMgisVonMises();
-  void _restoreConvergedStateVonMisesMgis();
-  void _commitInternalVariablesVonMisesMgis();
-  void _integrateAndSaveConstitutiveLawVonMisesMgis();
-  void _integrateAndSaveConstitutiveLawVonMisesMgisTria3Cpu();
-  void _integrateAndSaveConstitutiveLawVonMisesMgisQuad4Cpu();
-  void _integrateAndSaveConstitutiveLawVonMisesMgisQuad8Cpu();
-  void _integrateAndSaveConstitutiveLawVonMisesMgisQuad9Cpu();
-  void _mgisIntegrateAndSaveResults();
-
-  // Drucker Prager Law
-  void _restoreConvergedStateDruckerPrager();
-  void _commitInternalVariablesDruckerPrager();
-  void _integrateAndSaveConstitutiveLawDruckerPrager();
-  void _integrateAndSaveConstitutiveLawDruckerPragerTria3Cpu();
 
   // RHS assembly helper functions
   void _applyInternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);

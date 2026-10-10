@@ -67,8 +67,6 @@ class DruckerPragerConstitutiveLaw
   Real nu = 0.0; // Poisson ratio
   Real cohesion = 0.0;
   Real friction_angle = 0.0;
-  //Real sig0 = 0.0; // Yield strength
-  //Real Et = 0.0; // Tangent modulus
 
   Real bulk = 0.0; // Bulk modulus
   Real dpEta = 0.0; //
