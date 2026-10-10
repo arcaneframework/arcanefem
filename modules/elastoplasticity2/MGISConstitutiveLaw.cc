@@ -16,8 +16,7 @@
 
 #include "femutils/ArcaneFemFunctions.h"
 
-#include "modules/elastoplasticity2/Elastoplasticity2Module.h"
-#include "modules/elastoplasticity2/ElementMatrixHexQuad.h"
+#include "modules/elastoplasticity2/DisplacementGradientFunctions.h"
 #include "modules/elastoplasticity2/ConstitutiveLawBase.h"
 #include "modules/elastoplasticity2/MGISConstitutiveLaw_axl.h"
 

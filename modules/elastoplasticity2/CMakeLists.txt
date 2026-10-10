@@ -24,6 +24,7 @@ add_executable(Elastoplasticity2
   Traction.cc
   ConstitutiveLawBase.h
   ConstitutiveLawBase.cc
+  DisplacementGradientFunctions.h
   main.cc
 
   Elastoplasticity2_axl.h

@@ -702,14 +702,14 @@ _assembleBilinearOperatorGlobal()
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {
         if (m_nodes_per_cell == 4)
-          _assembleBilinearOperatorCpu<8>([this](const Cell& cell) { return _computeElementMatrixQuad4(cell); });
+          _assembleBilinearOperatorCpu<8>([&](Cell cell) { return _computeElementMatrixQuad4(cell, m_node_coord, m_C_tang_gp); });
         else if (m_nodes_per_cell == 8)
-          _assembleBilinearOperatorCpu<16>([this](const Cell& cell) { return _computeElementMatrixQuad8(cell); });
+          _assembleBilinearOperatorCpu<16>([this](Cell cell) { return _computeElementMatrixQuad8(cell); });
         else
-          _assembleBilinearOperatorCpu<18>([this](const Cell& cell) { return _computeElementMatrixQuad9(cell); });
+          _assembleBilinearOperatorCpu<18>([this](Cell cell) { return _computeElementMatrixQuad9(cell); });
       }
       else {
-        _assembleBilinearOperatorCpu<6>([&](const Cell& cell) { return _computeElementMatrixTria3(cell); });
+        _assembleBilinearOperatorCpu<6>([&](Cell cell) { return _computeElementMatrixTria3(cell); });
       }
     }
     if (mesh()->dimension() == 3) {
