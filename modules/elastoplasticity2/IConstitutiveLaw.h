@@ -16,6 +16,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include <arcane/core/ItemTypes.h>
+#include <arccore/common/accelerator/RunQueue.h>
 
 #include <femutils/FemUtilsGlobal.h>
 
@@ -35,6 +36,7 @@ struct ConstitutiveLawInitInfo
   bool m_hex_quad_mesh = false;
   bool m_use_gpu_functions = false;
   Int16 m_nodes_per_cell = 0;
+  RunQueue m_run_queue;
 };
 
 /*---------------------------------------------------------------------------*/

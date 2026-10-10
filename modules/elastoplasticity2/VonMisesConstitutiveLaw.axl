@@ -3,7 +3,7 @@
          parent-name="Arcane::ArcaneFem::ConstitutiveLawBase"
          namespace-name="Arcane::ArcaneFem"
          >
-  <description>VonMises law</description>
+  <description>Von Mises law</description>
   <interface name="Arcane::ArcaneFem::IConstitutiveLaw" inherited="false"/>
   <variables>
     <variable field-name="sigma_gp" name="SigmaGp" data-type="real" item-kind="cell" shape-dim="2">

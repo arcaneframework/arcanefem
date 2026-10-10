@@ -55,6 +55,7 @@ class ConstitutiveLawBase
   bool m_hex_quad_mesh = false;
   bool m_use_gpu_functions = false;
   Int16 m_nodes_per_cell = 0;
+  RunQueue m_run_queue;
 
   Real dt = 0.0; // This is set by the service user
 

@@ -248,7 +248,8 @@ _initConstitutiveLaw()
                                             .m_use_gpu = use_gpu,
                                             .m_hex_quad_mesh = m_hex_quad_mesh,
                                             .m_use_gpu_functions = m_use_gpu_functions,
-                                            .m_nodes_per_cell = m_nodes_per_cell };
+                                            .m_nodes_per_cell = m_nodes_per_cell,
+                                            .m_run_queue = acceleratorMng()->queue() };
   if (m_constitutive_law) {
     m_constitutive_law->initialize(law_init_info);
     m_constitutive_law->setTimeStep(dt);
@@ -478,7 +479,10 @@ _solveNewton()
       m_constitutive_law->restoreConvergedState();
   }
   else if (m_constitutive_law_name == "DruckerPrager") {
-    _restoreConvergedStateDruckerPrager();
+    if (m_use_legacy_law)
+      _restoreConvergedStateDruckerPrager();
+    else
+      m_constitutive_law->restoreConvergedState();
   }
 
   // --- assemble_linear_system ---- //
@@ -530,7 +534,10 @@ _solveNewton()
           m_constitutive_law->integrateAndSave();
       }
       else if (m_constitutive_law_name == "DruckerPrager") {
-        _integrateAndSaveConstitutiveLawDruckerPrager();
+        if (m_use_legacy_law)
+          _integrateAndSaveConstitutiveLawDruckerPrager();
+        else
+          m_constitutive_law->integrateAndSave();
       }
       _assembleBilinearOperatorGlobal(); // assembles Jacobian
       _assembleLinearOperator(); // assembles Residuals(m_DUn) + BCs
@@ -584,7 +591,10 @@ _solveNewton()
 
     if (m_constitutive_law_name == "DruckerPrager") {
       // -- commit increment for Drucker Prager --//
-      _commitInternalVariablesDruckerPrager();
+      if (m_use_legacy_law)
+        _commitInternalVariablesDruckerPrager();
+      else
+        m_constitutive_law->commitInternalVariables();
 
       if (t == dt) {
         max_settlement = 0.03;
@@ -720,24 +730,31 @@ _getMaterialParameters()
   }
   else if (m_constitutive_law_name == "DruckerPrager") {
 
-    mu = (E / (2 * (1 + nu))); // lame parameter μ
-    lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
+    if (m_use_legacy_law) {
+      mu = (E / (2 * (1 + nu))); // lame parameter μ
+      lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
 
-    bulk = E / (3. * (1. - 2. * nu));
-    dpEta = 3. * tan(friction_angle) / (math::sqrt(9. + 12. * tan(friction_angle) * tan(friction_angle)));
-    dpC = 3. * cohesion / (math::sqrt(9. + 12. * tan(friction_angle) * tan(friction_angle)));
+      bulk = E / (3. * (1. - 2. * nu));
+      dpEta = 3. * tan(friction_angle) / (math::sqrt(9. + 12. * tan(friction_angle) * tan(friction_angle)));
+      dpC = 3. * cohesion / (math::sqrt(9. + 12. * tan(friction_angle) * tan(friction_angle)));
 
-    ENUMERATE_ (Cell, icell, allCells()) {
-      for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
-        m_eps_p_gp(icell, iGP, 0) = 0.;
-        m_eps_p_gp(icell, iGP, 1) = 0.;
-        m_eps_p_gp(icell, iGP, 2) = 0.;
-        m_eps_p_zz_gp(icell, iGP) = 0.;
-        m_eps_p_old_gp(icell, iGP, 0) = 0.;
-        m_eps_p_old_gp(icell, iGP, 1) = 0.;
-        m_eps_p_old_gp(icell, iGP, 2) = 0.;
-        m_eps_p_zz_old_gp(icell, iGP) = 0.;
+      ENUMERATE_ (Cell, icell, allCells()) {
+        for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
+          m_eps_p_gp(icell, iGP, 0) = 0.;
+          m_eps_p_gp(icell, iGP, 1) = 0.;
+          m_eps_p_gp(icell, iGP, 2) = 0.;
+          m_eps_p_zz_gp(icell, iGP) = 0.;
+          m_eps_p_old_gp(icell, iGP, 0) = 0.;
+          m_eps_p_old_gp(icell, iGP, 1) = 0.;
+          m_eps_p_old_gp(icell, iGP, 2) = 0.;
+          m_eps_p_zz_old_gp(icell, iGP) = 0.;
+        }
       }
+    }
+    else {
+      m_constitutive_law->getMaterialProperties();
+      mu = m_constitutive_law->getMu(); //(E / (2 * (1 + nu))); // lame parameter μ
+      lambda = m_constitutive_law->getLambda(); //E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
     }
   }
 

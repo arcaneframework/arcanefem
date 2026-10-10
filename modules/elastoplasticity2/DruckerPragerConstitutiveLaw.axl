@@ -1,7 +1,41 @@
 <?xml version="1.0" ?>
-<service name="DruckerPragerConstitutiveLaw" version="1.0" type="caseoption">
-  <description>DruckerPrager law</description>
-  <interface name="Arcane::ArcaneFem::IConstitutiveLaw" />
+<service name="DruckerPragerConstitutiveLaw" version="1.0" type="caseoption"
+         parent-name="Arcane::ArcaneFem::ConstitutiveLawBase"
+         namespace-name="Arcane::ArcaneFem"
+         >
+  <description>Drucker Prager law</description>
+  <interface name="Arcane::ArcaneFem::IConstitutiveLaw" inherited="false"/>
+  <variables>
+    <variable field-name="sigma_gp" name="SigmaGp" data-type="real" item-kind="cell" shape-dim="2">
+      <description>Stress tensor on gauss points</description>
+    </variable>
+    <variable field-name="sigma_zz_gp" name="SigmaZZGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>zz component of stress tensor on gauss points</description>
+    </variable>
+    <variable field-name="C_tang_gp" name="CTangGp" data-type="real" item-kind="cell" shape-dim="3">
+      <description>Tangent of the material tensor for constitutive law</description>
+    </variable>
+    <variable field-name="DUn" name="DUn" data-type="real3" item-kind="node" dim="0">
+      <description>Time step DUn vector from Arcane variable</description>
+    </variable>
+
+    <variable field-name="U" name="U" data-type="real3" item-kind="node" dim="0">
+      <description>Global displacement U vector from Arcane variable</description>
+    </variable>
+
+    <variable field-name="eps_p_gp" name="EpsPGp" data-type="real" item-kind="cell" shape-dim="2">
+      <description>Plastic strain tensor on gauss points</description>
+    </variable>
+    <variable field-name="eps_p_old_gp" name="EpsPOldGp" data-type="real" item-kind="cell" shape-dim="2">
+      <description>Previous step plastic strain tensor on gauss points</description>
+    </variable>
+    <variable field-name="eps_p_zz_gp" name="EpsPZZGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>zz component of plastic strain tensor on gauss points</description>
+    </variable>
+    <variable field-name="eps_p_zz_old_gp" name="EpsPZZOldGp" data-type="real" item-kind="cell" shape-dim="1">
+      <description>Previous step zz component of plastic strain tensor on gauss points</description>
+    </variable>
+  </variables>
   <options>
     <simple name="E" type="real" default="1.e7">
       <description>Youngs Modulus of the material.</description>

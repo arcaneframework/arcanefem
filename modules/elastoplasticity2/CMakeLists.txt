@@ -6,6 +6,7 @@
   InternalBodyForce.cc
 
   VonMisesConstitutiveLaw.cc
+  DruckerPragerConstitutiveLaw.cc
 )
 
 # The MGIS binding only contains host code: the behaviour integration is
