@@ -26,19 +26,20 @@
     <simple name="behaviour" type="string" default="VonMises">
       <description>Name of the behaviour in the MFront library.</description>
     </simple>
-    <simple name="E" type="real" default="70.e3">
-      <description>Youngs Modulus of the material.</description>
-    </simple>
-    <simple name="nu" type="real" default="0.3">
-      <description>Poissons ratio of the material.</description>
-    </simple>
-    <simple name="sig0" type="real" default="250.0">
-      <description>Yeild strength of the material.</description>
-    </simple>
-    <simple name="H" type="real" default="-1.0">
-      <description>Linear isotropic hardening modulus. If negative, it is
-      derived from E as in the native VonMises law, i.e. H = E*Et/(E-Et)
-      with Et = E/100.</description>
-    </simple>
+    <complex name="material-property"
+             type="MaterialProperty"
+             minOccurs = "0"
+             maxOccurs = "unbounded"
+      >
+      <description>
+        List of materials properties used in mgis::behaviour::setMaterialProperty()
+      </description>
+      <simple name="name" type="string">
+        <description>Name of the property</description>
+      </simple>
+      <simple name="value" type="real">
+        <description>Value of the property</description>
+      </simple>
+    </complex>
   </options>
 </service>

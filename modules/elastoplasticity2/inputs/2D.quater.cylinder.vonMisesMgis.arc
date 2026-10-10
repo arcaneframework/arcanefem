@@ -24,9 +24,22 @@
     <constitutive-law-service name="MGIS">
       <library>./libVonMises.so</library>
       <behaviour>VonMises</behaviour>
-      <E>70.0e3</E>
-      <nu>0.3</nu>
-      <sig0>250.</sig0>
+      <material-property>
+        <name>YoungModulus</name>
+        <value>70.0e3</value>
+      </material-property>
+      <material-property>
+        <name>PoissonRatio</name>
+        <value>0.3</value>
+      </material-property>
+      <material-property>
+        <name>YieldStrength</name>
+        <value>250.0</value>
+      </material-property>
+      <material-property>
+        <name>HardeningSlope</name>
+        <value>707.0707070707070707</value>
+      </material-property>
     </constitutive-law-service>
     <gp-material-tensor-strategy>global</gp-material-tensor-strategy>
     <f>NULL NULL</f>
