@@ -61,11 +61,13 @@ class DruckerPragerConstitutiveLaw
     _commitInternalVariablesDruckerPrager();
   }
 
+  virtual Real cohesion() const { return m_cohesion; }
+
  private:
 
   Real E = 0.0; // Youngs modulus
   Real nu = 0.0; // Poisson ratio
-  Real cohesion = 0.0;
+  Real m_cohesion = 0.0;
   Real friction_angle = 0.0;
 
   Real bulk = 0.0; // Bulk modulus
@@ -99,7 +101,7 @@ initialize(const ConstitutiveLawInitInfo& law_info)
 
   E = options()->E(); // Youngs modulus
   nu = options()->nu(); // Poission ratio ν
-  cohesion = options()->cohesion(); // Cohesion
+  m_cohesion = options()->cohesion(); // Cohesion
   friction_angle = options()->frictionAngle(); // Friction angle
 
   m_eps_p_gp.reshape({ m_nGP, 3 });
@@ -119,7 +121,7 @@ getMaterialProperties()
 
   bulk = E / (3. * (1. - 2. * nu));
   dpEta = 3. * std::tan(friction_angle) / (math::sqrt(9. + 12. * std::tan(friction_angle) * std::tan(friction_angle)));
-  dpC = 3. * cohesion / (math::sqrt(9. + 12. * tan(friction_angle) * tan(friction_angle)));
+  dpC = 3. * m_cohesion / (math::sqrt(9. + 12. * tan(friction_angle) * tan(friction_angle)));
 
   ENUMERATE_ (Cell, icell, allCells()) {
     for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {

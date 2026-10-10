@@ -27,17 +27,6 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-namespace mgis::behaviour
-{
-// Forward declarations to avoid a dependency of this header, which is
-// also compiled for accelerators, on the MGIS headers.
-struct Behaviour;
-struct MaterialDataManager;
-} // namespace mgis::behaviour
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
 namespace Arcane::ArcaneFem
 {
 
@@ -86,19 +75,14 @@ class Elastoplasticity2Module
   Real t = 0.;
   Real dt = 0.;
   Real tmax = 0.;
+
   Real E = 0.0; // Youngs modulus
   Real nu = 0.0; // Poisson ratio
   Real sig0 = 0.0; // Yield strength
-  Real cohesion = 0.0; // Yield strength
-  Real friction_angle = 0.0; // Yield strength
-  Real mu = 0.0;
-  Real lambda = 0.0;
   Real Et = 0.0; // Tangent modulus
   Real H = 0.0; // Hardening modulus
   Real Qlim = 0.0; // Limiting pressure
-  Real bulk = 0.0; // Bulk modulus
-  Real dpEta = 0.0; //
-  Real dpC = 0.0; //
+
   Real max_settlement = 0.0; // Limiting settlement
   Real footing_width = 0.0; // Footing width
   Real alg_reaction = 0.0; // Algebraic reaction
@@ -124,12 +108,6 @@ class Elastoplasticity2Module
   String m_constitutive_law_name = "VonMises";
   String m_gp_material_tensor_strategy = "local";
   String m_newton_converged_reason = "";
-
-  // MGIS binding for the Von Mises law
-  String m_mgis_library = "libVonMises.so";
-  String m_mgis_behaviour_name = "VonMises";
-  mgis::behaviour::Behaviour* m_mgis_behaviour = nullptr;
-  mgis::behaviour::MaterialDataManager* m_mgis_data = nullptr;
 
   bool m_use_gpu_functions = true;
   bool m_assemble_linear_system = true;

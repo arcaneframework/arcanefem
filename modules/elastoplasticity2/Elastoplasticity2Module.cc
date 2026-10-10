@@ -238,6 +238,8 @@ _initConstitutiveLaw()
   bool use_gpu = options()->linearSystem.serviceName() == "HypreLinearSystem" || options()->linearSystem.serviceName() == "PetscLinearSystem";
 
   m_constitutive_law = options()->constitutiveLawService();
+  m_constitutive_law_name = m_constitutive_law->lawName();
+
   ConstitutiveLawInitInfo law_init_info = { .m_nGP = m_nGP,
                                             .m_use_gpu = use_gpu,
                                             .m_hex_quad_mesh = m_hex_quad_mesh,
@@ -247,46 +249,6 @@ _initConstitutiveLaw()
   if (m_constitutive_law) {
     m_constitutive_law->initialize(law_init_info);
     m_constitutive_law->setTimeStep(dt);
-  }
-
-  for (const auto& constitutive_law : options()->constitutiveLaw()) {
-    String law_name = constitutive_law->law();
-    m_constitutive_law_name = law_name;
-    info() << "ConstitutiveLawName = " << m_constitutive_law_name;
-    if (law_name == "VonMises") {
-      for (const auto von_mises : constitutive_law->vonMises()) {
-        E = von_mises->E(); // Youngs modulus
-        nu = von_mises->nu(); // Poission ratio ν
-        sig0 = von_mises->sig0(); // Yield Strength
-        info() << "FromModule: E=" << E << " nu=" << nu << " sig0=" << sig0;
-      }
-    }
-    else if (law_name == "VonMisesMGIS") {
-      for (const auto von_mises_mgis : constitutive_law->vonMisesMgis()) {
-        E = von_mises_mgis->E(); // Youngs modulus
-        nu = von_mises_mgis->nu(); // Poission ratio ν
-        sig0 = von_mises_mgis->sig0(); // Yield Strength
-        H = von_mises_mgis->H(); // Linear isotropic hardening modulus
-        m_mgis_library = von_mises_mgis->library(); // MFront behaviour library
-        m_mgis_behaviour_name = von_mises_mgis->behaviour(); // Behaviour name
-      }
-      // By default, the hardening modulus is derived from E as in the
-      // native VonMises law.
-      Et = E / 100.;
-      if (H < 0.)
-        H = E * Et / (E - Et);
-    }
-    else if (law_name == "DruckerPrager") {
-      for (const auto drucker_prager : constitutive_law->druckerPrager()) {
-        E = drucker_prager->E(); // Youngs modulus
-        nu = drucker_prager->nu(); // Poission ratio ν
-        cohesion = drucker_prager->cohesion(); // Cohesion
-        friction_angle = drucker_prager->frictionAngle(); // Friction angle
-      }
-    }
-    else {
-      ARCANE_FATAL("Undefined constitutive law");
-    }
   }
 
   if (m_constitutive_law_name == "VonMises" || m_constitutive_law_name == "DruckerPrager" ||
@@ -565,6 +527,7 @@ _solveNewton()
 
       alg_reaction = _normL1(algebraic_reaction, node_dof);
 
+      Real cohesion = m_constitutive_law->cohesion();
       Real normalized_pressure = -alg_reaction / (footing_width * cohesion);
       Real settlement = t / tmax * max_settlement;
 
@@ -619,41 +582,14 @@ _getMaterialParameters()
     return;
 
   m_constitutive_law->getMaterialProperties();
-  mu = m_constitutive_law->getMu(); //(E / (2 * (1 + nu))); // lame parameter μ
-  lambda = m_constitutive_law->getLambda(); //E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
+  Real mu = m_constitutive_law->getMu(); //(E / (2 * (1 + nu))); // lame parameter μ
+  Real lambda = m_constitutive_law->getLambda(); //E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
 
   if (m_constitutive_law_name == "VonMises" || m_constitutive_law_name == "DruckerPrager" ||
       m_constitutive_law_name == "VonMisesMGIS") {
     if (mesh()->dimension() == 2) {
 
-      // Initialize elastic part of the material tensor
-      /*
-        lambda + 2mu  lambda         0
-        lambda        lambda + 2mu   0
-          0             0           2mu
-      */
-      m_C_elas_2d.fill(0.);
-      m_C_elas_2d(0, 0) = lambda + 2. * mu;
-      m_C_elas_2d(1, 1) = lambda + 2. * mu;
-      m_C_elas_2d(2, 2) = 2. * mu;
-      m_C_elas_2d(0, 1) = lambda;
-      m_C_elas_2d(1, 0) = lambda;
-
-      // Initialize constitutive history
-      ENUMERATE_ (Cell, icell, allCells()) // TODO check if MDMeshVars provide initialisation method
-      {
-        for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
-          m_sigma_gp(icell, iGP, 0) = 0.;
-          m_sigma_gp(icell, iGP, 1) = 0.;
-          m_sigma_gp(icell, iGP, 2) = 0.;
-          m_sigma_zz_gp(icell, iGP) = 0.;
-
-          m_sigma_old_gp(icell, iGP, 0) = 0.;
-          m_sigma_old_gp(icell, iGP, 1) = 0.;
-          m_sigma_old_gp(icell, iGP, 2) = 0.;
-          m_sigma_zz_old_gp(icell, iGP) = 0.;
-        }
-      }
+      m_C_elas_2d = m_constitutive_law->getElasticityMatrix2D();
 
       // Initialize the tangent material tensor
       _setGlobalElasticMaterialTensorAtGPs();

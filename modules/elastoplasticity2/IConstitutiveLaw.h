@@ -60,6 +60,9 @@ class IConstitutiveLaw
   virtual Real getLambda() const = 0;
   virtual FemUtils::RealMatrix<3, 3> getElasticityMatrix2D() const = 0;
 
+  // TODO: temporary for Drucker Prager
+  virtual Real cohesion() const { return 0.0; }
+
   // TODO: Should not be here
   virtual void setTimeStep(Real dt) =0;
 };
