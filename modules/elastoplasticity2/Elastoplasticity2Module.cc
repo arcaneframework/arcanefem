@@ -464,14 +464,7 @@ _solveNewton()
     if (m_constitutive_law_name == "VonMises" || m_constitutive_law_name == "VonMisesMGIS") {
       //-- commit increment for von mises -- //
       m_constitutive_law->commitInternalVariables();
-      if (t == dt) {
-        Real Ri = 1.0;
-        Real Re = 1.3;
-        Qlim = 2. / math::sqrt(3.) * math::log(Re / Ri) * sig0;
-      }
-      Real tl = math::sqrt(1.1 / tmax * (t));
-      info() << "[ArcaneFem-Info] At Time Step "
-             << t - 1 << ":\tPressure applied: " << Qlim * tl
+      info() << "[ArcaneFem-Info] At Time Step " << t - 1
              << "\tNewton iters: " << m_newton_iter
              << "\tResidual norm: " << m_residual_norm;
     }
@@ -652,13 +645,9 @@ _assembleLinearOperator()
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   _applyExternalBodyForce(rhs_values, node_dof);
-  info() << "NORM1=" << _normL2(rhs_values, node_dof);
   _applyTraction(rhs_values, node_dof);
-  info() << "NORM2=" << _normL2(rhs_values, node_dof);
   _applyInternalBodyForce(rhs_values, node_dof);
-  info() << "NORM3=" << _normL2(rhs_values, node_dof);
   _applyDirichletNewton(rhs_values, node_dof);
-  info() << "NORM4=" << _normL2(rhs_values, node_dof);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
@@ -797,11 +786,6 @@ _solve()
   Real elapsedTime = platform::getRealTime();
 
   m_linear_system.applyLinearSystemTransformationAndSolve();
-
-  //VariableDoFReal& residual_values(m_linear_system.rhsVariable());
-  //ENUMERATE_ (DoF, idof, m_dofs_on_nodes.dofFamily()->allItems()) {
-  //info() << " AfterSolveIndex=" << idof.index() << " V=" << residual_values[idof];
-  //}
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "solve-linear-system", elapsedTime);
