@@ -76,27 +76,9 @@ computeElementMatrixQuad4Base(const RealVector<4>& dxu, const RealVector<4>& dyu
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-inline Real3x3
-computeDisplacementGradientQuad4(Cell cell, const VariableNodeReal3& node_coord,
-                                 const VariableNodeReal3& displacement, Real xi, Real eta)
-{
-  const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad4(cell, node_coord, xi, eta);
-  Real3x3 gradient{};
-  for (Int32 i = 0; i < 4; ++i) {
-    const Real3 u = displacement[cell.nodeId(i)];
-    gradient(0, 0) += u.x * gp_info.dN_dx(i);
-    gradient(0, 1) += u.x * gp_info.dN_dy(i);
-    gradient(1, 0) += u.y * gp_info.dN_dx(i);
-    gradient(1, 1) += u.y * gp_info.dN_dy(i);
-  }
-  return gradient;
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-inline RealMatrix<8, 8> Elastoplasticity2Module::
-_computeElementMatrixQuad4(Cell cell)
+inline RealMatrix<8, 8>
+_computeElementMatrixQuad4(Cell cell, const VariableNodeReal3& node_coord,
+                           const MeshMDVariableRefT<Cell,Real,MDDim3>& C_tang_gp)
 {
   // Gauss points and weights for 2x2 quadrature
   constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // [-1/sqrt(3) , 1/sqrt(3)]
@@ -106,15 +88,15 @@ _computeElementMatrixQuad4(Cell cell)
   RealMatrix<8, 8> ae;
 
   // Loop over Gauss points
-  Int8 iGP = 0; // TODO verify order with ixi, ieta, izeta.
-  for (Int8 ixi = 0; ixi < 2; ++ixi) {
-    for (Int8 ieta = 0; ieta < 2; ++ieta) {
+  Int16 iGP = 0; // TODO verify order with ixi, ieta, izeta.
+  for (Int16 ixi = 0; ixi < 2; ++ixi) {
+    for (Int16 ieta = 0; ieta < 2; ++ieta) {
       // Get the coordinates of the Gauss point in natural coordinates (ξ,η)
       const Real xi = gp[ixi];
       const Real eta = gp[ieta];
 
       // Get shape function gradients w.r.t (𝑥,𝑦) and determinant of Jacobian
-      const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad4(cell, m_node_coord, xi, eta);
+      const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad4(cell, node_coord, xi, eta);
       const RealVector<4>& dxU = gp_info.dN_dx;
       const RealVector<4>& dyU = gp_info.dN_dy;
       const Real detJ = gp_info.det_j;
@@ -122,14 +104,14 @@ _computeElementMatrixQuad4(Cell cell)
       // Integration weight
       const Real integration_weight = detJ * w * w;
 
-      RealMatrix<3, 3> C_tang_2d;
-      for (Int8 ix = 0; ix < 3; ++ix) {
-        for (Int8 iy = 0; iy < 3; ++iy) {
-          C_tang_2d(ix, iy) = m_C_tang_gp(cell, iGP, ix, iy);
+      RealMatrix<3, 3> local_C_tang_2d;
+      for (Int16 ix = 0; ix < 3; ++ix) {
+        for (Int16 iy = 0; iy < 3; ++iy) {
+          local_C_tang_2d(ix, iy) = C_tang_gp(cell, iGP, ix, iy);
         }
       }
       iGP++;
-      ae += computeElementMatrixQuad4Base(dxU, dyU, integration_weight, C_tang_2d);
+      ae += computeElementMatrixQuad4Base(dxU, dyU, integration_weight, local_C_tang_2d);
     }
   }
   return ae;
@@ -186,22 +168,6 @@ computeElementMatrixQuad8Base(const RealVector<8>& dxu, const RealVector<8>& dyu
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-inline Real3x3
-computeDisplacementGradientQuad8(Cell cell, const VariableNodeReal3& node_coord,
-                                 const VariableNodeReal3& displacement, Real xi, Real eta)
-{
-  const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad8(cell, node_coord, xi, eta);
-  Real3x3 gradient{};
-  for (Int32 i = 0; i < 8; ++i) {
-    const Real3 u = displacement[cell.nodeId(i)];
-    gradient(0, 0) += u.x * gp_info.dN_dx(i);
-    gradient(0, 1) += u.x * gp_info.dN_dy(i);
-    gradient(1, 0) += u.y * gp_info.dN_dx(i);
-    gradient(1, 1) += u.y * gp_info.dN_dy(i);
-  }
-  return gradient;
-}
-
 inline RealMatrix<16, 16> Elastoplasticity2Module::
 _computeElementMatrixQuad8(Cell cell)
 {
@@ -209,13 +175,13 @@ _computeElementMatrixQuad8(Cell cell)
   constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
   RealMatrix<16, 16> ae;
 
-  Int8 iGP = 0;
-  for (Int8 ixi = 0; ixi < 3; ++ixi) {
-    for (Int8 ieta = 0; ieta < 3; ++ieta) {
+  Int16 iGP = 0;
+  for (Int16 ixi = 0; ixi < 3; ++ixi) {
+    for (Int16 ieta = 0; ieta < 3; ++ieta) {
       const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad8(cell, m_node_coord, gp[ixi], gp[ieta]);
       RealMatrix<3, 3> C_tang;
-      for (Int8 i = 0; i < 3; ++i)
-        for (Int8 j = 0; j < 3; ++j)
+      for (Int16 i = 0; i < 3; ++i)
+        for (Int16 j = 0; j < 3; ++j)
           C_tang(i, j) = m_C_tang_gp(cell, iGP, i, j);
       ae += computeElementMatrixQuad8Base(gp_info.dN_dx, gp_info.dN_dy, gp_info.det_j * weights[ixi] * weights[ieta], C_tang);
       ++iGP;
@@ -277,25 +243,6 @@ computeElementMatrixQuad9Base(const RealVector<9>& dxu, const RealVector<9>& dyu
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-inline Real3x3
-computeDisplacementGradientQuad9(Cell cell, const VariableNodeReal3& node_coord,
-                                 const VariableNodeReal3& displacement, Real xi, Real eta)
-{
-  const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad9(cell, node_coord, xi, eta);
-  Real3x3 gradient{};
-  for (Int32 i = 0; i < 9; ++i) {
-    const Real3 u = displacement[cell.nodeId(i)];
-    gradient(0, 0) += u.x * gp_info.dN_dx(i);
-    gradient(0, 1) += u.x * gp_info.dN_dy(i);
-    gradient(1, 0) += u.y * gp_info.dN_dx(i);
-    gradient(1, 1) += u.y * gp_info.dN_dy(i);
-  }
-  return gradient;
-}
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
 RealMatrix<18, 18> Elastoplasticity2Module::
 _computeElementMatrixQuad9(Cell cell)
 {
@@ -303,13 +250,13 @@ _computeElementMatrixQuad9(Cell cell)
   constexpr Real weights[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
   RealMatrix<18, 18> ae;
   ae.fill(0.0);
-  Int8 iGP = 0;
-  for (Int8 ixi = 0; ixi < 3; ++ixi) {
-    for (Int8 ieta = 0; ieta < 3; ++ieta) {
+  Int16 iGP = 0;
+  for (Int16 ixi = 0; ixi < 3; ++ixi) {
+    for (Int16 ieta = 0; ieta < 3; ++ieta) {
       const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad9(cell, m_node_coord, gp[ixi], gp[ieta]);
       RealMatrix<3, 3> C_tang;
-      for (Int8 i = 0; i < 3; ++i)
-        for (Int8 j = 0; j < 3; ++j)
+      for (Int16 i = 0; i < 3; ++i)
+        for (Int16 j = 0; j < 3; ++j)
           C_tang(i, j) = m_C_tang_gp(cell, iGP, i, j);
       ae += computeElementMatrixQuad9Base(gp_info.dN_dx, gp_info.dN_dy, gp_info.det_j * weights[ixi] * weights[ieta], C_tang);
       ++iGP;
@@ -409,10 +356,10 @@ _computeElementMatrixHexa8(Cell cell)
   RealMatrix<24, 24> ae;
 
   // Loop over Gauss points
-  Int8 iGP = 0; // TODO verify order with ixi, ieta, izeta.
-  for (Int8 ixi = 0; ixi < 2; ++ixi) {
-    for (Int8 ieta = 0; ieta < 2; ++ieta) {
-      for (Int8 izeta = 0; izeta < 2; ++izeta) {
+  Int16 iGP = 0; // TODO verify order with ixi, ieta, izeta.
+  for (Int16 ixi = 0; ixi < 2; ++ixi) {
+    for (Int16 ieta = 0; ieta < 2; ++ieta) {
+      for (Int16 izeta = 0; izeta < 2; ++izeta) {
         // Get the coordinates of the Gauss point in natural coordinates (ξ,η,ζ)
         const Real xi = gp[ixi];
         const Real eta = gp[ieta];

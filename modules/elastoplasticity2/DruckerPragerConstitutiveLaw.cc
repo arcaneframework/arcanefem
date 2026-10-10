@@ -14,9 +14,7 @@
 #include <arcane/accelerator/VariableViews.h>
 #include <arcane/accelerator/MDVariableViews.h>
 
-#include "modules/elastoplasticity2/Elastoplasticity2Module.h"
-#include "modules/elastoplasticity2/ElementMatrix.h"
-#include "modules/elastoplasticity2/ElementMatrixHexQuad.h"
+#include "modules/elastoplasticity2/DisplacementGradientFunctions.h"
 
 #include "femutils/ArcaneFemFunctions.h"
 #include "femutils/ArcaneFemFunctionsGpu.h"

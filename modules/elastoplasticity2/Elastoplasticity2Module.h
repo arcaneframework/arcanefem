@@ -170,7 +170,6 @@ class Elastoplasticity2Module
 
   inline RealMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
   inline RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
-  inline RealMatrix<8, 8> _computeElementMatrixQuad4(Cell cell);
   inline RealMatrix<16, 16> _computeElementMatrixQuad8(Cell cell);
   inline RealMatrix<18, 18> _computeElementMatrixQuad9(Cell cell);
   inline RealMatrix<24, 24> _computeElementMatrixHexa8(Cell cell);
