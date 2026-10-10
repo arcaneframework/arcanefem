@@ -115,9 +115,6 @@ startInit()
     m_C_tang_gp.reshape({ m_nGP, 3, 3 });
 
     m_sigma_gp.reshape({ m_nGP, 3 });
-    m_sigma_old_gp.reshape({ m_nGP, 3 }); // TODO move to von mises only
-    m_sigma_zz_gp.reshape({ m_nGP });
-    m_sigma_zz_old_gp.reshape({ m_nGP }); // TODO move to von mises only
   }
   else {
     if (m_hex_quad_mesh)
@@ -128,7 +125,6 @@ startInit()
     m_C_tang_gp.reshape({ m_nGP, 6, 6 });
 
     m_sigma_gp.reshape({ m_nGP, 6 });
-    m_sigma_old_gp.reshape({ m_nGP, 6 });
   }
 
   t = dt;

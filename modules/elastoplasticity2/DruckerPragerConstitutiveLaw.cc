@@ -104,6 +104,8 @@ initialize(const ConstitutiveLawInitInfo& law_info)
   m_cohesion = options()->cohesion(); // Cohesion
   friction_angle = options()->frictionAngle(); // Friction angle
 
+  // TODO: Not implemented for 3D.
+  m_sigma_zz_gp.reshape({ m_nGP });
   m_eps_p_gp.reshape({ m_nGP, 3 });
   m_eps_p_old_gp.reshape({ m_nGP, 3 });
   m_eps_p_zz_gp.reshape({ m_nGP });
