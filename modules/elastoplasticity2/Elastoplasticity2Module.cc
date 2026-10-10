@@ -56,7 +56,6 @@ Elastoplasticity2Module::
     delete t.case_table;
   for (const CaseTableInfo& t : m_dirichlet_case_table_list)
     delete t.case_table;
-  _freeMgisVonMises();
 }
 
 /*---------------------------------------------------------------------------*/

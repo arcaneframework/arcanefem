@@ -1,8 +1,6 @@
 ﻿set(ACCELERATOR_SOURCES
   Elastoplasticity2Module.cc
   Dirichlet.cc
-  DruckerPragerLaw.cc
-  VonMisesLaw.cc
   InternalBodyForce.cc
 
   VonMisesConstitutiveLaw.cc
@@ -12,7 +10,6 @@
 # The MGIS binding only contains host code: the behaviour integration is
 # performed on the CPU and only its results are used by the assembly.
 set(MGIS_SOURCES
-  VonMisesLawMgis.cc
   MGISConstitutiveLaw.cc
 )
 
