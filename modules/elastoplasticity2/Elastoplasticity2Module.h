@@ -19,6 +19,7 @@
 #include "femutils/IDoFLinearSystemFactory.h"
 #include "femutils/DoFLinearSystem.h"
 #include "femutils/BSRFormat.h"
+#include "femutils/FemDoFsOnNodes.h"
 
 #include "modules/elastoplasticity2/IConstitutiveLaw.h"
 #include "modules/elastoplasticity2/Elastoplasticity2_axl.h"
@@ -79,6 +80,8 @@ class Elastoplasticity2Module
   FemDoFsOnNodes m_dofs_on_nodes;
   BSRFormat m_bsr_format;
 
+  IConstitutiveLaw* m_constitutive_law = nullptr;
+
   // List of CaseTable for traction boundary conditions
   UniqueArray<CaseTableInfo> m_traction_case_table_list;
   // List of CaseTable for Dirichlet boundary conditions
@@ -113,9 +116,9 @@ class Elastoplasticity2Module
   RealMatrix<3, 3> m_C_elas_2d;
   RealMatrix<6, 6> m_C_elas_3d;
 
-  Int8 m_dof_per_node = 0;
-  Int8 m_nGP = 1;
-  Int8 m_nodes_per_cell = 0;
+  Int16 m_dof_per_node = 0;
+  Int16 m_nGP = 1;
+  Int16 m_nodes_per_cell = 0;
   Int32 m_newton_iter = 0;
   Int32 m_newton_max_iters = 0;
 
@@ -144,6 +147,8 @@ class Elastoplasticity2Module
   bool m_check_with_bilinear_operator = false;
 
   NumArray<Real, MDDim2> m_near_null_space_vectors;
+
+  bool m_use_legacy_law = false;
 
   void _updateTime();
   void _getMaterialParameters();

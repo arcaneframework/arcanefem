@@ -41,7 +41,7 @@ class VonMisesConstitutiveLaw
 
   explicit VonMisesConstitutiveLaw(const ServiceBuildInfo& sbi)
   : ArcaneVonMisesConstitutiveLawObject(sbi)
-  , m_node_coord(sbi.mesh()->nodesCoordinates())
+  //, m_node_coord(sbi.mesh()->nodesCoordinates())
   {
     m_law_name = "VonMises";
   };
@@ -49,14 +49,27 @@ class VonMisesConstitutiveLaw
  public:
 
   void initialize(const ConstitutiveLawInitInfo& law_info) override;
+  void getMaterialProperties() override;
+  void integrateAndSave() override
+  {
+    _integrateAndSaveConstitutiveLawVonMises();
+  }
+  void restoreConvergedState() override
+  {
+    _restoreConvergedStateVonMises();
+  }
+  void commitInternalVariables() override
+  {
+    _commitInternalVariablesVonMises();
+  }
 
  private:
 
-  VariableNodeReal3 m_node_coord;
-  Int16 m_nGP = 1;
+  //VariableNodeReal3 m_node_coord;
   Real E = 0.0; // Youngs modulus
   Real nu = 0.0; // Poisson ratio
   Real sig0 = 0.0; // Yield strength
+  Real Et = 0.0; // Tangent modulus
 
  public:
 
@@ -90,6 +103,57 @@ initialize(const ConstitutiveLawInitInfo& law_info)
   E = options()->E(); // Youngs modulus
   nu = options()->nu(); // Poission ratio ν
   sig0 = options()->sig0(); // Yield Strength
+
+  info() << "FromVonMisesLaw: E=" << E << " nu=" << nu << " sig0=" << sig0;
+
+  m_p_old_gp.reshape({ m_nGP });
+  m_dp_gp.reshape({ m_nGP });
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void VonMisesConstitutiveLaw::
+getMaterialProperties()
+{
+  mu = (E / (2 * (1 + nu))); // lame parameter μ
+  lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
+
+  Et = E / 100.;
+  H = E * Et / (E - Et);
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    for (Int16 iGP = 0; iGP < m_nGP; ++iGP) {
+      m_p_old_gp(icell, iGP) = 0.;
+      m_dp_gp(icell, iGP) = 0.;
+    }
+  }
+
+  if (mesh()->dimension() == 2) {
+
+    m_C_elas_2d.fill(0.);
+    m_C_elas_2d(0, 0) = lambda + 2. * mu;
+    m_C_elas_2d(1, 1) = lambda + 2. * mu;
+    m_C_elas_2d(2, 2) = 2. * mu;
+    m_C_elas_2d(0, 1) = lambda;
+    m_C_elas_2d(1, 0) = lambda;
+
+    // Initialize constitutive history
+    ENUMERATE_ (Cell, icell, allCells()) // TODO check if MDMeshVars provide initialisation method
+    {
+      for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
+        m_sigma_gp(icell, iGP, 0) = 0.;
+        m_sigma_gp(icell, iGP, 1) = 0.;
+        m_sigma_gp(icell, iGP, 2) = 0.;
+        m_sigma_zz_gp(icell, iGP) = 0.;
+
+        m_sigma_old_gp(icell, iGP, 0) = 0.;
+        m_sigma_old_gp(icell, iGP, 1) = 0.;
+        m_sigma_old_gp(icell, iGP, 2) = 0.;
+        m_sigma_zz_old_gp(icell, iGP) = 0.;
+      }
+    }
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -104,7 +168,7 @@ _restoreConvergedStateVonMises()
 {
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
+    for (Int16 iGP = 0; iGP < m_nGP; ++iGP) {
       m_sigma_gp(cell, iGP, 0) = m_sigma_old_gp(cell, iGP, 0);
       m_sigma_gp(cell, iGP, 1) = m_sigma_old_gp(cell, iGP, 1);
       m_sigma_gp(cell, iGP, 2) = m_sigma_old_gp(cell, iGP, 2);
@@ -124,7 +188,7 @@ _commitInternalVariablesVonMises()
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
+    for (Int16 iGP = 0; iGP < m_nGP; ++iGP) {
       m_sigma_old_gp(cell, iGP, 0) = m_sigma_gp(cell, iGP, 0);
       m_sigma_old_gp(cell, iGP, 1) = m_sigma_gp(cell, iGP, 1);
       m_sigma_old_gp(cell, iGP, 2) = m_sigma_gp(cell, iGP, 2);
@@ -146,13 +210,16 @@ void VonMisesConstitutiveLaw::
 _integrateAndSaveConstitutiveLawVonMises()
 {
   info() << "[ArcaneFem-Info] Started module  _integrateAndSaveConstitutiveLawVonMises()";
+  info() << "UseGpu=" << m_use_gpu << " " << m_use_gpu_functions << " hex_quad=" << m_hex_quad_mesh << " nodes_per_cell=" << m_nodes_per_cell;
   Real elapsedTime = platform::getRealTime();
 
   if (m_use_gpu && m_use_gpu_functions) {
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {
-        if (m_nodes_per_cell == 4)
+        if (m_nodes_per_cell == 4) {
+          info() << "DO_QUAD";
           _integrateAndSaveConstitutiveLawVonMisesQuad4Cpu(); // Todo: implement GPU version
+        }
         else if (m_nodes_per_cell == 8)
           _integrateAndSaveConstitutiveLawVonMisesQuad8Cpu(); // Todo: implement GPU version
         else
@@ -452,6 +519,7 @@ _integrateAndSaveConstitutiveLawVonMisesTria3Gpu()
 void VonMisesConstitutiveLaw::
 _integrateAndSaveConstitutiveLawVonMisesQuad4Cpu()
 {
+  info() << "INTEGRATE_QUAD\n";
   constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
 
   ENUMERATE_ (Cell, icell, allCells()) {

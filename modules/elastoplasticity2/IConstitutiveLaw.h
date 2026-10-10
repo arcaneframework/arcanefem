@@ -17,6 +17,8 @@
 
 #include <arcane/core/ItemTypes.h>
 
+#include <femutils/FemUtilsGlobal.h>
+
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -48,9 +50,13 @@ class IConstitutiveLaw
 
   virtual String lawName() const =0;
   virtual void initialize(const ConstitutiveLawInitInfo&) = 0;
-
+  virtual void getMaterialProperties() = 0;
+  virtual void integrateAndSave() = 0;
+  virtual void restoreConvergedState() =0;
+  virtual void commitInternalVariables() =0;
   virtual Real getMu() const = 0;
-  virtual Real getLambda() const =0;
+  virtual Real getLambda() const = 0;
+  virtual FemUtils::RealMatrix<3,3> getElasticityMatrix2D() const =0;
 };
 
 /*---------------------------------------------------------------------------*/

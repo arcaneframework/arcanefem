@@ -44,6 +44,11 @@ Elastoplasticity2Module(const ModuleBuildInfo& mbi)
   ICaseMng* cm = mbi.subDomain()->caseMng();
   cm->setTreatWarningAsError(true);
   cm->setAllowUnkownRootElelement(false);
+
+  m_use_legacy_law = true;
+  if (auto v = Convert::Type<Int32>::tryParseFromEnvironment("ARCANEFEM_USE_LEGACY_LAW", true))
+    m_use_legacy_law = (v.value() != 0);
+  info() << "UsingLegacyLaw?=" << m_use_legacy_law;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -136,6 +141,7 @@ startInit()
   tmax = tmax - dt;
   m_global_deltat.assign(dt);
 
+  info() << "NumberOfGaussPoint = " << m_nGP;
   _initConstitutiveLaw();
 
   _readCaseTables();
@@ -237,13 +243,15 @@ _initConstitutiveLaw()
 
   bool use_gpu = options()->linearSystem.serviceName() == "HypreLinearSystem" || options()->linearSystem.serviceName() == "PetscLinearSystem";
 
-  IConstitutiveLaw* constitutive_law = options()->constitutiveLawService();
+  m_constitutive_law = options()->constitutiveLawService();
   ConstitutiveLawInitInfo law_init_info = { .m_nGP = m_nGP,
                                             .m_use_gpu = use_gpu,
                                             .m_hex_quad_mesh = m_hex_quad_mesh,
                                             .m_use_gpu_functions = m_use_gpu_functions,
                                             .m_nodes_per_cell = m_nodes_per_cell };
-  constitutive_law->initialize(law_init_info);
+  if (m_constitutive_law) {
+    m_constitutive_law->initialize(law_init_info);
+  }
 
   for (const auto& constitutive_law : options()->constitutiveLaw()) {
     String law_name = constitutive_law->law();
@@ -253,6 +261,7 @@ _initConstitutiveLaw()
         E = von_mises->E(); // Youngs modulus
         nu = von_mises->nu(); // Poission ratio ν
         sig0 = von_mises->sig0(); // Yield Strength
+        info() << "FromModule: E=" << E << " nu=" << nu << " sig0=" << sig0;
       }
     }
     else if (law_name == "VonMisesMGIS") {
@@ -294,9 +303,11 @@ _initConstitutiveLaw()
     if (m_hex_quad_mesh && m_matrix_format != "DOK")
       ARCANE_FATAL("Quad4/Quad8/Quad9 von Mises assembly currently requires matrix-format='DOK'");
 
-    if (m_constitutive_law_name == "VonMises") {
-      m_p_old_gp.reshape({ m_nGP });
-      m_dp_gp.reshape({ m_nGP });
+    if (m_use_legacy_law) {
+      if (m_constitutive_law_name == "VonMises") {
+        m_p_old_gp.reshape({ m_nGP });
+        m_dp_gp.reshape({ m_nGP });
+      }
     }
 
     if (m_constitutive_law_name == "VonMisesMGIS") {
@@ -451,7 +462,10 @@ _solveNewton()
   m_newton_iter = 0;
 
   if (m_constitutive_law_name == "VonMises") {
-    _restoreConvergedStateVonMises();
+    if (m_use_legacy_law)
+      _restoreConvergedStateVonMises();
+    else
+      m_constitutive_law->restoreConvergedState();
   }
   else if (m_constitutive_law_name == "VonMisesMGIS") {
     _restoreConvergedStateVonMisesMgis();
@@ -494,7 +508,11 @@ _solveNewton()
         m_bsr_format.resetMatrixValues();
 
       if (m_constitutive_law_name == "VonMises") {
-        _integrateAndSaveConstitutiveLawVonMises();
+        if (m_use_legacy_law)
+          // ERROR IS HERE
+          _integrateAndSaveConstitutiveLawVonMises();
+        else
+          m_constitutive_law->integrateAndSave();
       }
       else if (m_constitutive_law_name == "VonMisesMGIS") {
         _integrateAndSaveConstitutiveLawVonMisesMgis();
@@ -528,8 +546,12 @@ _solveNewton()
 
     if (m_constitutive_law_name == "VonMises" || m_constitutive_law_name == "VonMisesMGIS") {
       //-- commit increment for von mises -- //
-      if (m_constitutive_law_name == "VonMises")
-        _commitInternalVariablesVonMises();
+      if (m_constitutive_law_name == "VonMises") {
+        if (m_use_legacy_law)
+          _commitInternalVariablesVonMises();
+        else
+          m_constitutive_law->commitInternalVariables();
+      }
       else
         _commitInternalVariablesVonMisesMgis();
 
@@ -620,12 +642,14 @@ _solveNewton()
 void Elastoplasticity2Module::
 _setGlobalElasticMaterialTensorAtGPs()
 {
-  Int8 nDim = (mesh()->dimension() == 2) ? 3 : 6;
+  if (!m_use_legacy_law)
+    m_C_elas_2d = m_constitutive_law->getElasticityMatrix2D();
+  Int16 nDim = (mesh()->dimension() == 2) ? 3 : 6;
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    for (Int8 iGP = 0; iGP < m_nGP; ++iGP)
-      for (Int8 ix = 0; ix < nDim; ++ix)
-        for (Int8 iy = 0; iy < nDim; ++iy)
+    for (Int16 iGP = 0; iGP < m_nGP; ++iGP)
+      for (Int16 ix = 0; ix < nDim; ++ix)
+        for (Int16 iy = 0; iy < nDim; ++iy)
           m_C_tang_gp(cell, iGP, ix, iy) = m_C_elas_2d(ix, iy); // set tangent C equal to elastic C
   }
 }
@@ -645,11 +669,18 @@ _getMaterialParameters()
     return;
 
   if (m_constitutive_law_name == "VonMises") {
-    mu = (E / (2 * (1 + nu))); // lame parameter μ
-    lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
+    if (m_use_legacy_law) {
+      mu = (E / (2 * (1 + nu))); // lame parameter μ
+      lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
 
-    Et = E / 100.;
-    H = E * Et / (E - Et);
+      Et = E / 100.;
+      H = E * Et / (E - Et);
+    }
+    else {
+      m_constitutive_law->getMaterialProperties();
+      mu = m_constitutive_law->getMu(); //(E / (2 * (1 + nu))); // lame parameter μ
+      lambda = m_constitutive_law->getLambda(); //E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
+    }
 
     ENUMERATE_ (Cell, icell, allCells()) {
       for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
@@ -786,11 +817,13 @@ _assembleLinearOperator()
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
 
   _applyExternalBodyForce(rhs_values, node_dof);
+  info() << "NORM1=" << _normL2(rhs_values, node_dof);
   _applyTraction(rhs_values, node_dof);
-
+  info() << "NORM2=" << _normL2(rhs_values, node_dof);
   _applyInternalBodyForce(rhs_values, node_dof);
-
+  info() << "NORM3=" << _normL2(rhs_values, node_dof);
   _applyDirichletNewton(rhs_values, node_dof);
+  info() << "NORM4=" << _normL2(rhs_values, node_dof);
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "rhs-vector-assembly", elapsedTime);
@@ -929,6 +962,11 @@ _solve()
   Real elapsedTime = platform::getRealTime();
 
   m_linear_system.applyLinearSystemTransformationAndSolve();
+
+  //VariableDoFReal& residual_values(m_linear_system.rhsVariable());
+  //ENUMERATE_ (DoF, idof, m_dofs_on_nodes.dofFamily()->allItems()) {
+  //info() << " AfterSolveIndex=" << idof.index() << " V=" << residual_values[idof];
+  //}
 
   elapsedTime = platform::getRealTime() - elapsedTime;
   ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "solve-linear-system", elapsedTime);
@@ -1117,17 +1155,21 @@ _checkNewtonConvergence()
 
   Real l2_norm_du = _normL2(m_DUk);
   Real l2_norm_u = _normL2(m_DUn);
-
   m_increment_norm = l2_norm_u != 0.0 ? l2_norm_du / l2_norm_u : 1.0;
   Real convergence_error_increment = l2_norm_du / (m_newton_rtol * l2_norm_u + m_newton_atol);
 
   VariableDoFReal& residual_values(m_linear_system.rhsVariable());
+  //ENUMERATE_ (DoF, idof, m_dofs_on_nodes.dofFamily()->allItems()) {
+  //info() << " Index=" << idof.index() << " V=" << residual_values[idof];
+  //}
   auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
   _applyZeroRHSOnConstrainedDOFs(residual_values, node_dof);
   Real l2_norm_rhs = _normL2(residual_values, node_dof);
 
   m_residual_norm = m_residual_norm0 != 0. ? l2_norm_rhs / (m_residual_norm0 + 1e-30) : l2_norm_rhs / (1.0 + 1e-30);
   Real convergence_error_residual = m_residual_norm;
+  info() << "Norms: DUk=" << l2_norm_du << " DUn=" << l2_norm_u;
+  info() << "Norms: RHS=" << l2_norm_rhs << " residual0" << m_residual_norm0 << " residual=" << m_residual_norm;
 
   // The OR criterion follows petsc SNES
   if (convergence_error_residual <= m_newton_rtol) {

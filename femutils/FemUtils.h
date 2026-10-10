@@ -32,6 +32,8 @@
 #include <arcane/utils/Real3.h>
 #include <arcane/utils/Real3x3.h>
 
+#include "FemUtilsGlobal.h"
+
 #include <array>
 
 /*---------------------------------------------------------------------------*/
@@ -39,18 +41,6 @@
 
 namespace Arcane::FemUtils
 {
-
-/*---------------------------------------------------------------------------*/
-/*---------------------------------------------------------------------------*/
-
-//! Vector of Real of size 4.
-using Real4 = NumVector<Arcane::Real, 4>;
-
-//! Vector of Real of size N.
-template <int N> using RealVector = NumVector<Arcane::Real, N>;
-
-//! Matrix of Real of size (Row, Column)
-template <int Row, int Column> using RealMatrix = NumMatrix<Arcane::Real, Row, Column>;
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

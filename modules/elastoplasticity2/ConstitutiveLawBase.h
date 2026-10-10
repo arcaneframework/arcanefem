@@ -45,6 +45,7 @@ class ConstitutiveLawBase
   String lawName() const override { return m_law_name; }
   Real getMu() const override { return mu; }
   Real getLambda() const override { return lambda; }
+  FemUtils::RealMatrix<3,3> getElasticityMatrix2D() const override { return m_C_elas_2d; }
 
  protected:
 
@@ -59,19 +60,12 @@ class ConstitutiveLawBase
   Real lambda = 0.0;
   Real H = 0.0;
 
-  RealMatrix<3, 3> m_C_elas_2d;
-  RealMatrix<6, 6> m_C_elas_3d;
+  FemUtils::RealMatrix<3, 3> m_C_elas_2d;
+  FemUtils::RealMatrix<6, 6> m_C_elas_3d;
 
  protected:
 
-  void _initialize(const ConstitutiveLawInitInfo& x)
-  {
-    m_nGP = x.m_nGP;
-    m_use_gpu = x.m_use_gpu;
-    m_hex_quad_mesh = x.m_hex_quad_mesh;
-    m_use_gpu_functions = x.m_use_gpu_functions;
-    m_nodes_per_cell = x.m_nodes_per_cell;
-  }
+  void _initialize(const ConstitutiveLawInitInfo& x);
 };
 
 /*---------------------------------------------------------------------------*/
