@@ -148,8 +148,6 @@ class Elastoplasticity2Module
 
   NumArray<Real, MDDim2> m_near_null_space_vectors;
 
-  bool m_use_legacy_law = false;
-
   void _updateTime();
   void _getMaterialParameters();
   void _setGlobalElasticMaterialTensorAtGPs();
