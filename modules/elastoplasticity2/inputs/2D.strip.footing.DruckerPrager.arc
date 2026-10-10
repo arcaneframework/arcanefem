@@ -27,15 +27,6 @@
       <cohesion>450.0</cohesion>
       <friction-angle>0.34906585039</friction-angle>
     </constitutive-law-service>
-    <constitutive-law>
-      <law>DruckerPrager</law>
-      <drucker-prager>
-        <E>1.0e7</E>
-        <nu>0.48</nu>
-        <cohesion>450.0</cohesion>
-        <friction-angle>0.34906585039</friction-angle>
-      </drucker-prager>
-    </constitutive-law>
     <gp-material-tensor-strategy>global</gp-material-tensor-strategy>
     <f>NULL NULL</f>
     <boundary-conditions>
