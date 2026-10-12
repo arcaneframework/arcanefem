@@ -15,7 +15,6 @@ set(MGIS_SOURCES
 
 add_executable(Elastoplasticity2
   ${ACCELERATOR_SOURCES}
-  ${MGIS_SOURCES}
   IConstitutiveLaw.h
   Elastoplasticity2Module.h
   ElementMatrix.h
@@ -58,6 +57,8 @@ find_program(MFRONT_EXECUTABLE mfront)
 
 if (MFrontGenericInterface_FOUND AND MFRONT_EXECUTABLE)
   set(ARCANEFEM_HAS_MGIS ON)
+  target_sources(Elastoplasticity2 PUBLIC
+    ${MGIS_SOURCES})
   message(STATUS "Elastoplasticity2: MGIS support enabled"
          " (mgis: ${MFrontGenericInterface_DIR}, mfront: ${MFRONT_EXECUTABLE})")
   target_link_libraries(Elastoplasticity2 PRIVATE mgis::MFrontGenericInterface)
@@ -198,6 +199,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_mgis
       COMMAND ./Elastoplasticity2 ARGS
       ${SOLVER_ALEPH_CG}
+      -A,//elastoplasticity2/solution-comparison-file=check/2D.quater.cylinder.t20.txt
       inputs/2D.quater.cylinder.vonMisesMgis.arc
     )
   endif ()
@@ -232,6 +234,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
   if (ARCANEFEM_HAS_MGIS)
     arcanefem_add_seq_test(NAME 2D_Quater_cylinder_von_mises_quad4_mgis
       COMMAND ./Elastoplasticity2 ARGS
+      -A,//elastoplasticity2/solution-comparison-file=check/2D.quater.cylinder.t20.txt
       -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
       -A,//elastoplasticity2/matrix-format=DOK
       -A,//elastoplasticity2/hex-quad-mesh=true
