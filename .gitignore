@@ -36,6 +36,9 @@
 /cmake-build-release
 /cmake-build-release-coverage
 .idea
+/.cache
+/compile_commands.json
+
 *~
 .vscode
 CMakeUserPresets.json
