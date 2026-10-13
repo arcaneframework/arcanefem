@@ -33,7 +33,6 @@
       <preconditioner>bjacobi</preconditioner>
       <rtol>0.</rtol>
       <atol>1e-5</atol>
-      <amg-threshold>0.25</amg-threshold>
     </linear-system>
   </fem>
 </case>
