@@ -54,6 +54,7 @@ enum class solver
 enum class preconditioner
 {
   AMG,
+  JACOBI,
   BJACOBI
 };
 } // namespace Arcane::FemUtils
@@ -756,6 +757,29 @@ solve(Runner runner, CSRFormatView matrix_view,
         break;
       }
       break;
+    case preconditioner::JACOBI:
+      switch (m_solver) {
+      case solver::CG:
+        hypreCheck("HYPRE_ParCSRPCGSetPrecond",
+                   HYPRE_ParCSRPCGSetPrecond(solver, HYPRE_ParCSRDiagScale, HYPRE_ParCSRDiagScaleSetup, nullptr));
+        break;
+      case solver::GMRES:
+        hypreCheck("HYPRE_ParCSRGMRESSetPrecond",
+                   HYPRE_ParCSRGMRESSetPrecond(solver, HYPRE_ParCSRDiagScale, HYPRE_ParCSRDiagScaleSetup, nullptr));
+        break;
+      case solver::FGMRES:
+        hypreCheck("HYPRE_ParCSRFlexGMRESSetPrecond",
+                   HYPRE_ParCSRFlexGMRESSetPrecond(solver, HYPRE_ParCSRDiagScale, HYPRE_ParCSRDiagScaleSetup, nullptr));
+        break;
+      case solver::BICGSTAB:
+        hypreCheck("HYPRE_ParCSRBiCGSTABSetPrecond",
+                   HYPRE_ParCSRBiCGSTABSetPrecond(solver, HYPRE_ParCSRDiagScale, HYPRE_ParCSRDiagScaleSetup, nullptr));
+        break;
+      default:
+        ARCANE_FATAL("Hypre solver type not correct use: cg|gmres|fgmres|bicgstab");
+        break;
+      }
+      break;
     case preconditioner::BJACOBI:
       HYPRE_ILUCreate(&precond);
       HYPRE_ILUSetType(precond, 0); // GPU supported: 0(ILU0) //
@@ -787,7 +811,7 @@ solve(Runner runner, CSRFormatView matrix_view,
       }
       break;
     default:
-      ARCANE_FATAL("Hypre preconditioner type not correct use: amg|bjacobi");
+      ARCANE_FATAL("Hypre preconditioner type not correct use: amg|jacobi|bjacobi");
       break;
     }
   }
@@ -928,11 +952,13 @@ solve(Runner runner, CSRFormatView matrix_view,
     case preconditioner::AMG:
       HYPRE_BoomerAMGDestroy(precond);
       break;
+    case preconditioner::JACOBI:
+      break;
     case preconditioner::BJACOBI:
       HYPRE_ILUDestroy(precond);
       break;
     default:
-      ARCANE_FATAL("Hypre preconditioner type not correct use: amg|bjacobi");
+      ARCANE_FATAL("Hypre preconditioner type not correct use: amg|jacobi|bjacobi");
       break;
     }
   }

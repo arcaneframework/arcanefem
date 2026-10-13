@@ -33,6 +33,7 @@
                  >
       <description>Preconditioner to be used by Hypre</description>
       <enumvalue genvalue="Arcane::FemUtils::preconditioner::AMG" name="amg"/>
+       <enumvalue genvalue="Arcane::FemUtils::preconditioner::JACOBI" name="jacobi"/>
       <enumvalue genvalue="Arcane::FemUtils::preconditioner::BJACOBI" name="bjacobi"/>
     </enumeration>
 
