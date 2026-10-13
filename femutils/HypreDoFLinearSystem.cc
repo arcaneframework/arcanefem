@@ -163,6 +163,7 @@ class HypreSolver
   void setAmgInterpType(Int32 v) { m_amg_interp_type = v; }
   void setAmgSmoother(Int32 v) { m_amg_smoother = v; }
   void setKrylovDim(Int32 v) { m_krylov_dim = v; }
+  void setAmgAggLevels(Int32 v) { m_amg_agg_levels = v; }
 
   void setRelTolerance(Real v) { m_rtol = v; }
   void setAbsTolerance(Real v) { m_atol = v; }
@@ -188,6 +189,7 @@ class HypreSolver
   Int32 m_amg_coarsener = 8;
   Int32 m_amg_interp_type = 6;
   Int32 m_amg_smoother = 6;
+  Int32 m_amg_agg_levels = 0;
   Int32 m_krylov_dim = 2;
 
   Real m_amg_threshold = 0.25;
@@ -711,6 +713,7 @@ solve(Runner runner, CSRFormatView matrix_view,
       HYPRE_BoomerAMGSetInterpType(precond, m_amg_interp_type); // GPU supported: 3, 15, extended+i 6, 14, 18 //
       HYPRE_BoomerAMGSetRelaxType(precond, m_amg_smoother); // GPU support: 3, 4, 6 Sym G.S./Jacobi hybrid, 7, 18, 11, 12//
       HYPRE_BoomerAMGSetRelaxOrder(precond, 0); // must be false //
+      HYPRE_BoomerAMGSetAggNumLevels(precond, m_amg_agg_levels); // set number of aggressive coarsening levels //
       HYPRE_BoomerAMGSetTol(precond, 0.0); // conv. tolerance zero //
       HYPRE_BoomerAMGSetMaxIter(precond, 1); // do only one iteration! //
       HYPRE_BoomerAMGSetStrongThreshold(precond, m_amg_threshold); // amg threshold strength //
@@ -1100,6 +1103,7 @@ class HypreDoFLinearSystemFactoryService
     x->setAmgCoarsener(options()->amgCoarsener());
     x->setAmgInterpType(options()->amgInterpType());
     x->setAmgSmoother(options()->amgSmoother());
+    x->setAmgAggLevels(options()->amgAggLevels());
     x->setKrylovDim(options()->krylovDim());
     x->setVerbosityLevel(options()->verbosity());
     x->setSolver(options()->solver());
