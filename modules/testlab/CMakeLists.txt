@@ -361,6 +361,29 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     COMMAND ./Testlab
     ARGS
       inputs/Test.L-shape.2D.bsr.hypre.bicgstab.arc)
+  arcanefem_add_full_test(NAME 2D_bsr_hypre_direct_cg_jac
+    COMMAND ./Testlab
+    ARGS
+      -A,//fem/linear-system/preconditioner=jacobi
+      inputs/Test.L-shape.2D.bsr.hypre.cg.bjacobi.arc)
+  arcanefem_add_seq_test(NAME 2D_bsr_hypre_direct_gmres_jac
+    COMMAND ./Testlab
+    ARGS
+      -A,//fem/linear-system/solver=gmres
+      -A,//fem/linear-system/preconditioner=jacobi
+      inputs/Test.L-shape.2D.bsr.hypre.cg.bjacobi.arc)
+  arcanefem_add_seq_test(NAME 2D_bsr_hypre_direct_fgmres_jac
+    COMMAND ./Testlab
+    ARGS
+      -A,//fem/linear-system/solver=fgmres
+      -A,//fem/linear-system/preconditioner=jacobi
+      inputs/Test.L-shape.2D.bsr.hypre.cg.bjacobi.arc)
+  arcanefem_add_seq_test(NAME 2D_bsr_hypre_direct_bicgstab_jac
+    COMMAND ./Testlab
+    ARGS
+      -A,//fem/linear-system/solver=bicgstab
+      -A,//fem/linear-system/preconditioner=jacobi
+      inputs/Test.L-shape.2D.bsr.hypre.cg.bjacobi.arc)
   arcanefem_add_full_test(NAME 2D_bsr_hypre_direct_cg_bjac
     COMMAND ./Testlab
     ARGS

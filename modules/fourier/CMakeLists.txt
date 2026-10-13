@@ -274,6 +274,14 @@ if(FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
       ${SOLVER_HYPRE_CG}
       inputs/conduction.arc)
 
+  arcanefem_add_full_test(NAME conduction_hypre_jacobi_bsr
+    COMMAND ./Fourier
+    ARGS
+      -A,//fem/matrix-format=BSR
+      ${SOLVER_HYPRE_CG}
+      -A,//fem/linear-system/preconditioner=jacobi
+      inputs/conduction.arc)
+
   arcanefem_add_full_test(NAME conduction_quad_hypre_bsr
     COMMAND ./Fourier
     ARGS
