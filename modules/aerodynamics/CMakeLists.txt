@@ -166,6 +166,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
     -A,//fem/linear-system/solver=cg
     -A,//fem/linear-system/preconditioner=amg
     -A,//fem/linear-system/amg-threshold=0.55
+    -A,//fem/linear-system/amg-agg-levels=1
     -A,//fem/linear-system/atol=1e-15
     -A,//fem/linear-system/rtol=0)
 

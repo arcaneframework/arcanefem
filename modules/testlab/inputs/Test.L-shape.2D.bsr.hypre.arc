@@ -31,6 +31,7 @@
       <rtol>0.</rtol>
       <atol>1e-5</atol>
       <amg-threshold>0.25</amg-threshold>
+      <amg-agg-levels>0</amg-agg-levels>
     </linear-system>
   </fem>
 </case>
