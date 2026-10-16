@@ -5,23 +5,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* DruckerPragerLaw.cc                                         (C) 2000-2026 */
+/* DruckerPragerConstitutiveLaw.cc                             (C) 2000-2026 */
 /*                                                                           */
-/* Contains functions to compute and assemble the Drucker-Prager             */
-/* plasticity law                                                            */
+/* Implementation of Drucker Prager law.                                     */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#include <arcane/accelerator/core/IAcceleratorMng.h>
 #include <arcane/accelerator/VariableViews.h>
 #include <arcane/accelerator/MDVariableViews.h>
 
-#include "modules/elastoplasticity2/Elastoplasticity2Module.h"
-#include "modules/elastoplasticity2/ElementMatrix.h"
-#include "modules/elastoplasticity2/ElementMatrixHexQuad.h"
+#include "modules/elastoplasticity2/DisplacementGradientFunctions.h"
 
 #include "femutils/ArcaneFemFunctions.h"
 #include "femutils/ArcaneFemFunctionsGpu.h"
+
+#include "modules/elastoplasticity2/ConstitutiveLawBase.h"
+#include "modules/elastoplasticity2/DruckerPragerConstitutiveLaw_axl.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -31,12 +30,148 @@ namespace Arcane::ArcaneFem
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+
+class DruckerPragerConstitutiveLaw
+: public ArcaneDruckerPragerConstitutiveLawObject
+{
+ public:
+
+  explicit DruckerPragerConstitutiveLaw(const ServiceBuildInfo& sbi)
+  : ArcaneDruckerPragerConstitutiveLawObject(sbi)
+  {
+    m_law_name = "DruckerPrager";
+  };
+
+ public:
+
+  void initialize(const ConstitutiveLawInitInfo& law_info) override;
+  void getMaterialProperties() override;
+  void integrateAndSave() override
+  {
+    _integrateAndSaveConstitutiveLawDruckerPrager();
+  }
+  void restoreConvergedState() override
+  {
+    _restoreConvergedStateDruckerPrager();
+  }
+  void commitInternalVariables() override
+  {
+    _commitInternalVariablesDruckerPrager();
+  }
+
+  virtual Real cohesion() const { return m_cohesion; }
+
+ private:
+
+  Real E = 0.0; // Youngs modulus
+  Real nu = 0.0; // Poisson ratio
+  Real m_cohesion = 0.0;
+  Real friction_angle = 0.0;
+
+  Real bulk = 0.0; // Bulk modulus
+  Real dpEta = 0.0; //
+  Real dpC = 0.0; //
+
+ public:
+
+  void _integrateAndSaveConstitutiveLawDruckerPragerTria3Gpu();
+
+ private:
+
+  void _restoreConvergedStateDruckerPrager();
+  void _commitInternalVariablesDruckerPrager();
+  void _integrateAndSaveConstitutiveLawDruckerPrager();
+  void _integrateAndSaveConstitutiveLawDruckerPragerTria3Cpu();
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCANE_REGISTER_SERVICE_DRUCKERPRAGERCONSTITUTIVELAW(DruckerPrager, DruckerPragerConstitutiveLaw);
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DruckerPragerConstitutiveLaw::
+initialize(const ConstitutiveLawInitInfo& law_info)
+{
+  _initialize(law_info);
+
+  E = options()->E(); // Youngs modulus
+  nu = options()->nu(); // Poission ratio ν
+  m_cohesion = options()->cohesion(); // Cohesion
+  friction_angle = options()->frictionAngle(); // Friction angle
+
+  // TODO: Not implemented for 3D.
+  m_sigma_zz_gp.reshape({ m_nGP });
+  m_eps_p_gp.reshape({ m_nGP, 3 });
+  m_eps_p_old_gp.reshape({ m_nGP, 3 });
+  m_eps_p_zz_gp.reshape({ m_nGP });
+  m_eps_p_zz_old_gp.reshape({ m_nGP });
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void DruckerPragerConstitutiveLaw::
+getMaterialProperties()
+{
+  mu = (E / (2 * (1 + nu))); // lame parameter μ
+  lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
+
+  bulk = E / (3. * (1. - 2. * nu));
+  dpEta = 3. * std::tan(friction_angle) / (math::sqrt(9. + 12. * std::tan(friction_angle) * std::tan(friction_angle)));
+  dpC = 3. * m_cohesion / (math::sqrt(9. + 12. * tan(friction_angle) * tan(friction_angle)));
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
+      m_eps_p_gp(icell, iGP, 0) = 0.;
+      m_eps_p_gp(icell, iGP, 1) = 0.;
+      m_eps_p_gp(icell, iGP, 2) = 0.;
+      m_eps_p_zz_gp(icell, iGP) = 0.;
+      m_eps_p_old_gp(icell, iGP, 0) = 0.;
+      m_eps_p_old_gp(icell, iGP, 1) = 0.;
+      m_eps_p_old_gp(icell, iGP, 2) = 0.;
+      m_eps_p_zz_old_gp(icell, iGP) = 0.;
+    }
+  }
+
+  if (mesh()->dimension() == 2) {
+
+    // Initialize elastic part of the material tensor
+    /*
+        lambda + 2mu  lambda         0
+        lambda        lambda + 2mu   0
+          0             0           2mu
+      */
+    m_C_elas_2d.fill(0.);
+    m_C_elas_2d(0, 0) = lambda + 2. * mu;
+    m_C_elas_2d(1, 1) = lambda + 2. * mu;
+    m_C_elas_2d(2, 2) = 2. * mu;
+    m_C_elas_2d(0, 1) = lambda;
+    m_C_elas_2d(1, 0) = lambda;
+
+    // Initialize constitutive history
+    ENUMERATE_ (Cell, icell, allCells()) // TODO check if MDMeshVars provide initialisation method
+    {
+      for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
+        m_sigma_gp(icell, iGP, 0) = 0.;
+        m_sigma_gp(icell, iGP, 1) = 0.;
+        m_sigma_gp(icell, iGP, 2) = 0.;
+        m_sigma_zz_gp(icell, iGP) = 0.;
+      }
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 /**
  * @brief Restores the initial or the converged solution state
  * from the previous time step solve for stress and material
  * tangent tensors at quadrature points
  */
-void Elastoplasticity2Module::
+void DruckerPragerConstitutiveLaw::
 _restoreConvergedStateDruckerPrager()
 {
   ENUMERATE_ (Cell, icell, allCells()) {
@@ -59,7 +194,7 @@ _restoreConvergedStateDruckerPrager()
  *
  */
 /*---------------------------------------------------------------------------*/
-void Elastoplasticity2Module::
+void DruckerPragerConstitutiveLaw::
 _commitInternalVariablesDruckerPrager()
 {
   ENUMERATE_ (Cell, icell, allCells()) {
@@ -82,16 +217,13 @@ _commitInternalVariablesDruckerPrager()
  * element
  *
  */
-void Elastoplasticity2Module::
+void DruckerPragerConstitutiveLaw::
 _integrateAndSaveConstitutiveLawDruckerPrager()
 {
   info() << "[ArcaneFem-Info] Started module  _integrateAndSaveConstitutiveLawDruckerPrager()";
   Real elapsedTime = platform::getRealTime();
 
-  auto use_gpu = options()->linearSystem.serviceName() == "HypreLinearSystem" ||
-  options()->linearSystem.serviceName() == "PetscLinearSystem";
-
-  if (use_gpu && m_use_gpu_functions) {
+  if (m_use_gpu && m_use_gpu_functions) {
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {
         ARCANE_FATAL("Not IMPLEMENTED");
@@ -128,7 +260,7 @@ _integrateAndSaveConstitutiveLawDruckerPrager()
     }
   }
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"integrate-and-save-constitutive-law", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "integrate-and-save-constitutive-law", elapsedTime);
 }
 /*---------------------------------------------------------------------------*/
 
@@ -145,20 +277,21 @@ _integrateAndSaveConstitutiveLawDruckerPrager()
  *
  */
 /*---------------------------------------------------------------------------*/
-ARCCORE_HOST_DEVICE void computeDruckerPragerLawAtGpBase(RealMatrix<3, 3>& C_tang_gp,
-                                                         RealVector<3>& sigma_gp,
-                                                         Real& sigma_zz_gp,
-                                                         RealVector<3>& eps_p_gp,
-                                                         Real& eps_p_zz_gp,
-                                                         const Real3x3& grad_DU,
-                                                         const Real3x3& grad_U,
-                                                         const RealVector<3>& eps_p_old_gp,
-                                                         const Real& eps_p_zz_old_gp,
-                                                         const RealMatrix<3, 3>& C_elas_2d,
-                                                         const Real& in_bulk,
-                                                         const Real& in_dpEta,
-                                                         const Real& in_dpC,
-                                                         const Real& in_mu)
+ARCCORE_HOST_DEVICE void
+computeDruckerPragerLawAtGpBase(RealMatrix<3, 3>& C_tang_gp,
+                                RealVector<3>& sigma_gp,
+                                Real& sigma_zz_gp,
+                                RealVector<3>& eps_p_gp,
+                                Real& eps_p_zz_gp,
+                                const Real3x3& grad_DU,
+                                const Real3x3& grad_U,
+                                const RealVector<3>& eps_p_old_gp,
+                                Real eps_p_zz_old_gp,
+                                const RealMatrix<3, 3>& C_elas_2d,
+                                Real in_bulk,
+                                Real in_dpEta,
+                                Real in_dpC,
+                                Real in_mu)
 {
   const Real SQRT1_2 = 0.70710678118654752440;
   const Real SQRT2 = 1.41421356237309504880;
@@ -256,7 +389,7 @@ ARCCORE_HOST_DEVICE void computeDruckerPragerLawAtGpBase(RealMatrix<3, 3>& C_tan
  * the tangent material tensor, the stress and the plastic strain at each
  * quadrature point for each TRIA3 element
  */
-void Elastoplasticity2Module::
+void DruckerPragerConstitutiveLaw::
 _integrateAndSaveConstitutiveLawDruckerPragerTria3Cpu()
 {
   ENUMERATE_ (Cell, icell, allCells()) {
@@ -331,26 +464,25 @@ _integrateAndSaveConstitutiveLawDruckerPragerTria3Cpu()
  * (GPU) to update the tangent material tensor, the stress and the plastic
  * strain at each quadrature point for each TRIA3 element
  */
-void Elastoplasticity2Module::
+void DruckerPragerConstitutiveLaw::
 _integrateAndSaveConstitutiveLawDruckerPragerTria3Gpu()
 {
-  auto queue = subDomain()->acceleratorMng()->defaultQueue();
   UnstructuredMeshConnectivityView m_connectivity_view(mesh());
   auto cn_cv = m_connectivity_view.cellNode();
-  auto command = makeCommand(acceleratorMng()->defaultQueue());
+  auto command = makeCommand(m_run_queue);
 
-  auto in_out_C_tang_gp = Accelerator::viewInOut(command, m_C_tang_gp);
-  auto in_out_sigma_gp = Accelerator::viewInOut(command, m_sigma_gp);
-  auto in_out_sigma_zz_gp = Accelerator::viewInOut(command, m_sigma_zz_gp);
-  auto in_out_eps_p_gp = Accelerator::viewInOut(command, m_eps_p_gp);
-  auto in_out_eps_p_zz_gp = Accelerator::viewInOut(command, m_eps_p_zz_gp);
+  auto in_out_C_tang_gp = viewInOut(command, m_C_tang_gp);
+  auto in_out_sigma_gp = viewInOut(command, m_sigma_gp);
+  auto in_out_sigma_zz_gp = viewInOut(command, m_sigma_zz_gp);
+  auto in_out_eps_p_gp = viewInOut(command, m_eps_p_gp);
+  auto in_out_eps_p_zz_gp = viewInOut(command, m_eps_p_zz_gp);
 
-  auto in_eps_p_old_gp = Accelerator::viewIn(command, m_eps_p_old_gp);
-  auto in_eps_p_zz_old_gp = Accelerator::viewIn(command, m_eps_p_zz_old_gp);
+  auto in_eps_p_old_gp = viewIn(command, m_eps_p_old_gp);
+  auto in_eps_p_zz_old_gp = viewIn(command, m_eps_p_zz_old_gp);
 
-  auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
-  auto in_DUn = Accelerator::viewIn(command, m_DUn);
-  auto in_U = Accelerator::viewIn(command, m_U);
+  auto in_node_coord = viewIn(command, m_node_coord);
+  auto in_DUn = viewIn(command, m_DUn);
+  auto in_U = viewIn(command, m_U);
 
   auto in_nGP = m_nGP;
   auto C_elas_2d = m_C_elas_2d;
@@ -424,6 +556,8 @@ _integrateAndSaveConstitutiveLawDruckerPragerTria3Gpu()
     }
   };
 }
+
+/*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
 } // namespace Arcane::ArcaneFem

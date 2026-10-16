@@ -16,6 +16,7 @@
 /*---------------------------------------------------------------------------*/
 
 #include <arcane/core/VariableTypes.h>
+#include <arcane/core/IItemFamily.h>
 
 #include "internal/DoFLinearSystemImplBase.h"
 

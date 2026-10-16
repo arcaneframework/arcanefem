@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<case codename="Elastoplasticity2" xml:lang="en" codeversion="1.0">
+  <arcane>
+    <title>2D cylinder plastic strain test from fenics (MGIS/MFront von Mises law)</title>
+    <timeloop>Elastoplasticity2Loop</timeloop>
+  </arcane>
+
+  <arcane-post-processing>
+   <output-period>1</output-period>
+   <output>
+     <variable>U</variable>
+   </output>
+  </arcane-post-processing>
+
+  <meshes>
+    <mesh>
+      <filename>meshes/quater_cylinder.msh</filename>
+    </mesh>
+  </meshes>
+
+  <elastoplasticity2>
+    <tmax>21.</tmax>
+    <dt>1.</dt>
+    <constitutive-law-service name="MGIS">
+      <library>./libVonMises.so</library>
+      <behaviour>VonMises</behaviour>
+      <material-property>
+        <name>YoungModulus</name>
+        <value>70.0e3</value>
+      </material-property>
+      <material-property>
+        <name>PoissonRatio</name>
+        <value>0.3</value>
+      </material-property>
+      <material-property>
+        <name>YieldStrength</name>
+        <value>250.0</value>
+      </material-property>
+      <material-property>
+        <name>HardeningSlope</name>
+        <value>707.0707070707070707</value>
+      </material-property>
+    </constitutive-law-service>
+    <gp-material-tensor-strategy>global</gp-material-tensor-strategy>
+    <f>NULL NULL</f>
+    <boundary-conditions>
+      <dirichlet>
+        <surface>left</surface>
+        <value>0.0 NULL</value>
+      </dirichlet>
+      <dirichlet>
+        <surface>bottom</surface>
+        <value>NULL 0.0</value>
+      </dirichlet>
+      <traction>
+        <surface>inner</surface>
+        <traction-input-file>data/traction_quater_cylinder_20steps.txt</traction-input-file>
+      </traction>
+    </boundary-conditions>
+  </elastoplasticity2>
+</case>

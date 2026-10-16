@@ -5,9 +5,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //-----------------------------------------------------------------------------
 /*---------------------------------------------------------------------------*/
-/* VonMisesLaw.cc                                              (C) 2000-2026 */
+/* VonMisesConstitutiveLaw.cc                                  (C) 2000-2026 */
 /*                                                                           */
-/* Contains functions to compute and assemble the Von Mises plasticity law   */
+/* Contains functions to compute and assemble the Von Mises plasticity law.  */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
@@ -15,12 +15,13 @@
 #include <arcane/accelerator/VariableViews.h>
 #include <arcane/accelerator/MDVariableViews.h>
 
-#include "modules/elastoplasticity2/Elastoplasticity2Module.h"
-#include "modules/elastoplasticity2/ElementMatrix.h"
-#include "modules/elastoplasticity2/ElementMatrixHexQuad.h"
+#include "modules/elastoplasticity2/DisplacementGradientFunctions.h"
 
 #include "femutils/ArcaneFemFunctions.h"
 #include "femutils/ArcaneFemFunctionsGpu.h"
+
+#include "modules/elastoplasticity2/ConstitutiveLawBase.h"
+#include "modules/elastoplasticity2/VonMisesConstitutiveLaw_axl.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -30,17 +31,148 @@ namespace Arcane::ArcaneFem
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
+
+class VonMisesConstitutiveLaw
+: public ArcaneVonMisesConstitutiveLawObject
+{
+ public:
+
+  explicit VonMisesConstitutiveLaw(const ServiceBuildInfo& sbi)
+  : ArcaneVonMisesConstitutiveLawObject(sbi)
+  {
+    m_law_name = "VonMises";
+  };
+
+ public:
+
+  void initialize(const ConstitutiveLawInitInfo& law_info) override;
+  void getMaterialProperties() override;
+  void integrateAndSave() override
+  {
+    _integrateAndSaveConstitutiveLawVonMises();
+  }
+  void restoreConvergedState() override
+  {
+    _restoreConvergedStateVonMises();
+  }
+  void commitInternalVariables() override
+  {
+    _commitInternalVariablesVonMises();
+  }
+
+ private:
+
+  Real E = 0.0; // Youngs modulus
+  Real nu = 0.0; // Poisson ratio
+  Real sig0 = 0.0; // Yield strength
+  Real H = 0.0; // HardeningSlope
+
+ public:
+
+  void _integrateAndSaveConstitutiveLawVonMisesTria3Gpu();
+
+ private:
+
+  // Von Mises Law
+  void _restoreConvergedStateVonMises();
+  void _commitInternalVariablesVonMises();
+  void _integrateAndSaveConstitutiveLawVonMises();
+  void _integrateAndSaveConstitutiveLawVonMisesTria3Cpu();
+  void _integrateAndSaveConstitutiveLawVonMisesQuad4Cpu();
+  void _integrateAndSaveConstitutiveLawVonMisesQuad8Cpu();
+  void _integrateAndSaveConstitutiveLawVonMisesQuad9Cpu();
+};
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+ARCANE_REGISTER_SERVICE_VONMISESCONSTITUTIVELAW(VonMises, VonMisesConstitutiveLaw);
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void VonMisesConstitutiveLaw::
+initialize(const ConstitutiveLawInitInfo& law_info)
+{
+  _initialize(law_info);
+
+  E = options()->E(); // Youngs modulus
+  nu = options()->nu(); // Poission ratio ν
+  sig0 = options()->sig0(); // Yield Strength
+
+  info() << "FromVonMisesLaw: E=" << E << " nu=" << nu << " sig0=" << sig0;
+
+  if (mesh()->dimension() == 2) {
+    m_p_old_gp.reshape({ m_nGP });
+    m_dp_gp.reshape({ m_nGP });
+    m_sigma_zz_gp.reshape({ m_nGP });
+    m_sigma_zz_old_gp.reshape({ m_nGP });
+    m_sigma_old_gp.reshape({ m_nGP, 3 });
+  }
+  else if (mesh()->dimension() == 3) {
+    m_sigma_old_gp.reshape({ m_nGP, 6 });
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+void VonMisesConstitutiveLaw::
+getMaterialProperties()
+{
+  mu = (E / (2 * (1 + nu))); // lame parameter μ
+  lambda = E * nu / ((1 + nu) * (1 - 2 * nu)); // lame parameter λ
+
+  Real Et = E / 100.;
+  H = E * Et / (E - Et);
+
+  ENUMERATE_ (Cell, icell, allCells()) {
+    for (Int16 iGP = 0; iGP < m_nGP; ++iGP) {
+      m_p_old_gp(icell, iGP) = 0.;
+      m_dp_gp(icell, iGP) = 0.;
+    }
+  }
+
+  if (mesh()->dimension() == 2) {
+
+    m_C_elas_2d.fill(0.);
+    m_C_elas_2d(0, 0) = lambda + 2. * mu;
+    m_C_elas_2d(1, 1) = lambda + 2. * mu;
+    m_C_elas_2d(2, 2) = 2. * mu;
+    m_C_elas_2d(0, 1) = lambda;
+    m_C_elas_2d(1, 0) = lambda;
+
+    // Initialize constitutive history
+    ENUMERATE_ (Cell, icell, allCells()) // TODO check if MDMeshVars provide initialisation method
+    {
+      for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
+        m_sigma_gp(icell, iGP, 0) = 0.;
+        m_sigma_gp(icell, iGP, 1) = 0.;
+        m_sigma_gp(icell, iGP, 2) = 0.;
+        m_sigma_zz_gp(icell, iGP) = 0.;
+
+        m_sigma_old_gp(icell, iGP, 0) = 0.;
+        m_sigma_old_gp(icell, iGP, 1) = 0.;
+        m_sigma_old_gp(icell, iGP, 2) = 0.;
+        m_sigma_zz_old_gp(icell, iGP) = 0.;
+      }
+    }
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
 /**
  * @brief Restores the initial or the converged solution state
  * from the previous time step solve for stress and material
  * tangent tensors at quadrature points
  */
-void Elastoplasticity2Module::
+void VonMisesConstitutiveLaw::
 _restoreConvergedStateVonMises()
 {
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
-    for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
+    for (Int16 iGP = 0; iGP < m_nGP; ++iGP) {
       m_sigma_gp(cell, iGP, 0) = m_sigma_old_gp(cell, iGP, 0);
       m_sigma_gp(cell, iGP, 1) = m_sigma_old_gp(cell, iGP, 1);
       m_sigma_gp(cell, iGP, 2) = m_sigma_old_gp(cell, iGP, 2);
@@ -54,13 +186,13 @@ _restoreConvergedStateVonMises()
  * @brief Commits to the internal state variables after convergence of the
  * nonlinear solver for a given time step
  */
-void Elastoplasticity2Module::
+void VonMisesConstitutiveLaw::
 _commitInternalVariablesVonMises()
 {
   ENUMERATE_ (Cell, icell, allCells()) {
     Cell cell = *icell;
 
-    for (Int8 iGP = 0; iGP < m_nGP; ++iGP) {
+    for (Int16 iGP = 0; iGP < m_nGP; ++iGP) {
       m_sigma_old_gp(cell, iGP, 0) = m_sigma_gp(cell, iGP, 0);
       m_sigma_old_gp(cell, iGP, 1) = m_sigma_gp(cell, iGP, 1);
       m_sigma_old_gp(cell, iGP, 2) = m_sigma_gp(cell, iGP, 2);
@@ -78,20 +210,20 @@ _commitInternalVariablesVonMises()
  * tangent material tensor matrix at each quadrature point for each
  * element
  */
-void Elastoplasticity2Module::
+void VonMisesConstitutiveLaw::
 _integrateAndSaveConstitutiveLawVonMises()
 {
   info() << "[ArcaneFem-Info] Started module  _integrateAndSaveConstitutiveLawVonMises()";
+  info() << "UseGpu=" << m_use_gpu << " " << m_use_gpu_functions << " hex_quad=" << m_hex_quad_mesh << " nodes_per_cell=" << m_nodes_per_cell;
   Real elapsedTime = platform::getRealTime();
 
-  auto use_gpu = options()->linearSystem.serviceName() == "HypreLinearSystem" ||
-  options()->linearSystem.serviceName() == "PetscLinearSystem";
-
-  if (use_gpu && m_use_gpu_functions) {
+  if (m_use_gpu && m_use_gpu_functions) {
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {
-        if (m_nodes_per_cell == 4)
+        if (m_nodes_per_cell == 4) {
+          info() << "DO_QUAD";
           _integrateAndSaveConstitutiveLawVonMisesQuad4Cpu(); // Todo: implement GPU version
+        }
         else if (m_nodes_per_cell == 8)
           _integrateAndSaveConstitutiveLawVonMisesQuad8Cpu(); // Todo: implement GPU version
         else
@@ -134,7 +266,7 @@ _integrateAndSaveConstitutiveLawVonMises()
     }
   }
   elapsedTime = platform::getRealTime() - elapsedTime;
-  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(),"integrate-and-save-constitutive-law", elapsedTime);
+  ArcaneFemFunctions::GeneralFunctions::printArcaneFemTime(traceMng(), "integrate-and-save-constitutive-law", elapsedTime);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -158,12 +290,12 @@ computeMaterialTensorVonMisesLawAtGpBase(RealMatrix<3, 3>& C_tang_gp,
                                          Real& dp_gp,
                                          const Real3x3& grad_DU,
                                          const RealVector<3>& sigma_old_gp,
-                                         const Real& sigma_zz_old_gp,
-                                         const Real& p_old_gp,
+                                         Real sigma_zz_old_gp,
+                                         Real p_old_gp,
                                          const RealMatrix<3, 3>& C_elas_2d,
-                                         const Real& in_sig0,
-                                         const Real& in_H,
-                                         const Real& in_mu)
+                                         Real in_sig0,
+                                         Real in_H,
+                                         Real in_mu)
 {
   // --- compute_trial_state ---- //
   Real eps_xx = grad_DU(0, 0);
@@ -230,7 +362,7 @@ computeMaterialTensorVonMisesLawAtGpBase(RealMatrix<3, 3>& C_tang_gp,
  * each quadrature point for each TRIA3 element
  *
  */
-inline void Elastoplasticity2Module::
+void VonMisesConstitutiveLaw::
 _integrateAndSaveConstitutiveLawVonMisesTria3Cpu()
 {
   ENUMERATE_ (Cell, icell, allCells()) {
@@ -298,7 +430,7 @@ _integrateAndSaveConstitutiveLawVonMisesTria3Cpu()
  * increment at each quadrature point for each TRIA3 element
  *
  */
-void Elastoplasticity2Module::
+void VonMisesConstitutiveLaw::
 _integrateAndSaveConstitutiveLawVonMisesTria3Gpu()
 {
   auto queue = subDomain()->acceleratorMng()->defaultQueue();
@@ -388,9 +520,10 @@ _integrateAndSaveConstitutiveLawVonMisesTria3Gpu()
  * matrix for each element
  */
 /*---------------------------------------------------------------------------*/
-void Elastoplasticity2Module::
+void VonMisesConstitutiveLaw::
 _integrateAndSaveConstitutiveLawVonMisesQuad4Cpu()
 {
+  info() << "INTEGRATE_QUAD\n";
   constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
 
   ENUMERATE_ (Cell, icell, allCells()) {
@@ -429,7 +562,7 @@ _integrateAndSaveConstitutiveLawVonMisesQuad4Cpu()
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
-void Elastoplasticity2Module::
+void VonMisesConstitutiveLaw::
 _integrateAndSaveConstitutiveLawVonMisesQuad8Cpu()
 {
   constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
@@ -467,10 +600,11 @@ _integrateAndSaveConstitutiveLawVonMisesQuad8Cpu()
     }
   }
 }
-/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
-void Elastoplasticity2Module::
+/*---------------------------------------------------------------------------*/
+
+void VonMisesConstitutiveLaw::
 _integrateAndSaveConstitutiveLawVonMisesQuad9Cpu()
 {
   constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
@@ -508,6 +642,7 @@ _integrateAndSaveConstitutiveLawVonMisesQuad9Cpu()
     }
   }
 }
+
 /*---------------------------------------------------------------------------*/
 
 } // namespace Arcane::ArcaneFem

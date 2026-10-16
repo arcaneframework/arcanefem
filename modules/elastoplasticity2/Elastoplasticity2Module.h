@@ -15,32 +15,14 @@
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-//#include <arcane/utils/CommandLineArguments.h>
-//#include <arcane/utils/ParameterList.h>
-//#include <arcane/utils/ApplicationInfo.h>
-//#include <arcane/utils/NumArray.h>
-
-//#include <arcane/ITimeLoopMng.h>
-//#include <arcane/IMesh.h>
-//#include <arcane/IItemFamily.h>
-//#include <arcane/ItemGroup.h>
-//#include <arcane/accelerator/core/IAcceleratorMng.h>
-//#include <arcane/accelerator/core/RunQueue.h>
-//#include <arcane/core/ItemTypes.h>
-//#include <arccore/base/ArccoreGlobal.h>
-//#include "arccore/base/NotImplementedException.h"
-
 #include "femutils/IArcaneFemBC.h"
 #include "femutils/IDoFLinearSystemFactory.h"
-// #include "femutils/FemUtils.h"
 #include "femutils/DoFLinearSystem.h"
-// #include "femutils/FemDoFsOnNodes.h"
 #include "femutils/BSRFormat.h"
+#include "femutils/FemDoFsOnNodes.h"
 
+#include "modules/elastoplasticity2/IConstitutiveLaw.h"
 #include "modules/elastoplasticity2/Elastoplasticity2_axl.h"
-
-//#include "femutils/ArcaneFemFunctions.h"
-//#include "femutils/ArcaneFemFunctionsGpu.h"
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -62,7 +44,7 @@ using namespace FemUtils;
 class Elastoplasticity2Module
 : public ArcaneElastoplasticity2Object
 {
-public:
+ public:
 
   explicit Elastoplasticity2Module(const ModuleBuildInfo& mbi);
   ~Elastoplasticity2Module() override;
@@ -76,41 +58,30 @@ public:
   void _assembleDirichletsNewtonGpu();
   void _assembleZeroRHSOnConstrainedDOFsGpu();
 
-  inline void _applyInternalBodyForceTria3Gpu(VariableDoFReal& rhs_values, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord, IMesh* mesh, RunQueue* queue);
+  void _applyInternalBodyForceTria3Gpu(VariableDoFReal& rhs_values, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord, IMesh* mesh, RunQueue* queue);
 
-  inline void _integrateAndSaveConstitutiveLawVonMisesTria3Gpu();
-  inline void _integrateAndSaveConstitutiveLawDruckerPragerTria3Gpu();
-
-
-private:
+ private:
 
   DoFLinearSystem m_linear_system;
   FemDoFsOnNodes m_dofs_on_nodes;
   BSRFormat m_bsr_format;
 
+  IConstitutiveLaw* m_constitutive_law = nullptr;
+
   // List of CaseTable for traction boundary conditions
   UniqueArray<CaseTableInfo> m_traction_case_table_list;
   // List of CaseTable for Dirichlet boundary conditions
   UniqueArray<CaseTableInfo> m_dirichlet_case_table_list;
+
   Real t = 0.;
   Real dt = 0.;
   Real tmax = 0.;
-  Real E = 0.0; // Youngs modulus
-  Real nu = 0.0; // Poisson ratio
-  Real sig0 = 0.0; // Yield strength
-  Real cohesion = 0.0; // Yield strength
-  Real friction_angle = 0.0; // Yield strength
-  Real mu = 0.0;
-  Real lambda = 0.0;
-  Real Et = 0.0; // Tangent modulus
-  Real H = 0.0; // Hardening modulus
-  Real Qlim = 0.0; // Limiting pressure
-  Real bulk = 0.0; // Bulk modulus
-  Real dpEta = 0.0; //
-  Real dpC = 0.0; //
+
+  //TODO Used by Drucker Prager. To be removed
   Real max_settlement = 0.0; // Limiting settlement
   Real footing_width = 0.0; // Footing width
   Real alg_reaction = 0.0; // Algebraic reaction
+
   Real m_newton_atol = 0.0;
   Real m_newton_rtol = 0.0;
   Real m_residual_norm0 = 0.0;
@@ -122,15 +93,15 @@ private:
   RealMatrix<3, 3> m_C_elas_2d;
   RealMatrix<6, 6> m_C_elas_3d;
 
-  Int8 m_dof_per_node = 0;
-  Int8 m_nGP = 1;
-  Int8 m_nodes_per_cell = 0;
+  Int16 m_dof_per_node = 0;
+  Int16 m_nGP = 1;
+  Int16 m_nodes_per_cell = 0;
   Int32 m_newton_iter = 0;
   Int32 m_newton_max_iters = 0;
 
   String m_petsc_flags;
   String m_matrix_format = "DOK";
-  String m_constitutive_law = "VonMises";
+  String m_constitutive_law_name = "VonMises";
   String m_gp_material_tensor_strategy = "local";
   String m_newton_converged_reason = "";
 
@@ -163,21 +134,6 @@ private:
   void _initBsr();
   void _initConstitutiveLaw();
   void _buildRigidBodyNearNullSpace();
-
-  // Von Mises Law
-  void _restoreConvergedStateVonMises();
-  void _commitInternalVariablesVonMises();
-  void _integrateAndSaveConstitutiveLawVonMises();
-  void _integrateAndSaveConstitutiveLawVonMisesTria3Cpu();
-  void _integrateAndSaveConstitutiveLawVonMisesQuad4Cpu();
-  void _integrateAndSaveConstitutiveLawVonMisesQuad8Cpu();
-  void _integrateAndSaveConstitutiveLawVonMisesQuad9Cpu();
-
-  // Drucker Prager Law
-  void _restoreConvergedStateDruckerPrager();
-  void _commitInternalVariablesDruckerPrager();
-  void _integrateAndSaveConstitutiveLawDruckerPrager();
-  void _integrateAndSaveConstitutiveLawDruckerPragerTria3Cpu();
 
   // RHS assembly helper functions
   void _applyInternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
@@ -214,7 +170,6 @@ private:
 
   inline RealMatrix<6, 6> _computeElementMatrixTria3(Cell cell);
   inline RealMatrix<12, 12> _computeElementMatrixTetra4(Cell cell);
-  inline RealMatrix<8, 8> _computeElementMatrixQuad4(Cell cell);
   inline RealMatrix<16, 16> _computeElementMatrixQuad8(Cell cell);
   inline RealMatrix<18, 18> _computeElementMatrixQuad9(Cell cell);
   inline RealMatrix<24, 24> _computeElementMatrixHexa8(Cell cell);
@@ -223,13 +178,12 @@ private:
 
   template <int N>
   void _assembleBilinearOperatorCpu(const std::function<RealMatrix<N, N>(const Cell&)>& compute_element_matrix);
-
 };
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-}
+} // namespace Arcane::ArcaneFem
 
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
