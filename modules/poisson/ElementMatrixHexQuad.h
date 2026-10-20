@@ -44,7 +44,7 @@ RealMatrix<4, 4> FemModulePoisson::_computeElementMatrixQuad4(Cell cell)
   m_node_coord[cell.nodeId(2)], m_node_coord[cell.nodeId(3)]);
 
   // Initialize the element matrix (default constructor sets all elements to zero)
-  RealMatrix<4, 4> ae;
+  RealMatrix<4, 4> a;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 2; ++ixi) {
@@ -68,13 +68,13 @@ RealMatrix<4, 4> FemModulePoisson::_computeElementMatrixQuad4(Cell cell)
       // Integration weight
       const Real integration_weight = detJ * w * w;
 
-      // stiffness matrix assembly
-      for (int a = 0; a < 4; ++a)
-        for (int b = 0; b < 4; ++b)
-          ae(a, b) += integration_weight * (dxU[a] * dxU[b] + dyU[a] * dyU[b]);
+      // stiffness matrix 𝑎(𝑖,𝑗) += 𝑤 (∂ₓ𝑁ᵢ ∂ₓ𝑁ⱼ + ∂ᵧ𝑁ᵢ ∂ᵧ𝑁ⱼ)   with  𝑎 ∈ ℝ⁴ˣ⁴
+      for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+          a(i, j) += integration_weight * (dxU[i] * dxU[j] + dyU[i] * dyU[j]);
     }
   }
-  return ae;
+  return a;
 }
 
 ARCCORE_HOST_DEVICE RealMatrix<4, 4>
@@ -92,7 +92,7 @@ _computeElementMatrixQuad4Gpu(CellLocalId cell_lid,
   in_node_coord[cn_cv.nodeId(cell_lid, 2)], in_node_coord[cn_cv.nodeId(cell_lid, 3)]);
 
   // Initialize the element matrix (default constructor sets all elements to zero)
-  RealMatrix<4, 4> ae;
+  RealMatrix<4, 4> a;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 2; ++ixi) {
@@ -113,13 +113,13 @@ _computeElementMatrixQuad4Gpu(CellLocalId cell_lid,
       // Integration weight
       const Real integration_weight = detJ * w * w;
 
-      // Stiffness matrix assembly using outer products (^)
-      for (int a = 0; a < 4; ++a)
-        for (int b = 0; b < 4; ++b)
-          ae(a, b) += integration_weight * (dxU[a] * dxU[b] + dyU[a] * dyU[b]);
+      // stiffness matrix 𝑎(𝑖,𝑗) += 𝑤 (∂ₓ𝑁ᵢ ∂ₓ𝑁ⱼ + ∂ᵧ𝑁ᵢ ∂ᵧ𝑁ⱼ)   with  𝑎 ∈ ℝ⁴ˣ⁴
+      for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+          a(i, j) += integration_weight * (dxU[i] * dxU[j] + dyU[i] * dyU[j]);
     }
   }
-  return ae;
+  return a;
 }
 
 ARCCORE_HOST_DEVICE RealMatrix<1, 4>
@@ -137,7 +137,7 @@ _computeElementVectorQuad4Gpu(CellLocalId cell_lid,
   in_node_coord[cn_cv.nodeId(cell_lid, 2)], in_node_coord[cn_cv.nodeId(cell_lid, 3)]);
 
   // Initialize the element vector
-  RealVector<4> ae_local;
+  RealVector<4> a_i;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 2; ++ixi) {
@@ -158,12 +158,12 @@ _computeElementVectorQuad4Gpu(CellLocalId cell_lid,
       // Integration weight
       const Real integration_weight = detJ * w * w;
 
-      // Stiffness matrix assembly using outer products (^)
-      for (int b = 0; b < 4; ++b)
-        ae_local[b] += integration_weight * (dxU[node_lid] * dxU[b] + dyU[node_lid] * dyU[b]);
+      // Stiffness vector 𝑎(𝑗) += 𝑤 (∂ₓ𝑁ᵢ ∂ₓ𝑁ⱼ + ∂ᵧ𝑁ᵢ ∂ᵧ𝑁ⱼ), with fixed 𝑖 and 𝑎 ∈ ℝ⁴
+      for (int j = 0; j < 4; ++j)
+        a_i[j] += integration_weight * (dxU[node_lid] * dxU[j] + dyU[node_lid] * dyU[j]);
     }
   }
-  return ae_local;
+  return a_i;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -192,8 +192,7 @@ RealMatrix<8, 8> FemModulePoisson::_computeElementMatrixHexa8(Cell cell)
   constexpr Real w = 1.0;
 
   // Initialize the element matrix
-  RealMatrix<8, 8> ae;
-  ae.fill(0.0);
+  RealMatrix<8, 8> a;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 2; ++ixi) {
@@ -215,12 +214,14 @@ RealMatrix<8, 8> FemModulePoisson::_computeElementMatrixHexa8(Cell cell)
         // Integration weight
         const Real integration_weight = detJ * w * w;
 
-        // Assemble element matrix (variational form)
-        ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight + (dzU ^ dzU) * integration_weight;
+        // Stiffness matrix 𝑎(𝑖,𝑗) += 𝑤 (∂ₓ𝑁ᵢ ∂ₓ𝑁ⱼ + ∂ᵧ𝑁ᵢ ∂ᵧ𝑁ⱼ + ∂𝓏𝑁ᵢ ∂𝓏𝑁ⱼ), with 𝑎 ∈ ℝ⁸ˣ⁸
+        for (Int8 i = 0; i < 8; ++i)
+          for (Int8 j = 0; j < 8; ++j)
+            a(i, j) += integration_weight * (dxU[i] * dxU[j] + dyU[i] * dyU[j] + dzU[i] * dzU[j]);
       }
     }
   }
-  return ae;
+  return a;
 }
 
 ARCCORE_HOST_DEVICE RealMatrix<8, 8>
@@ -233,8 +234,7 @@ _computeElementMatrixHexa8Gpu(CellLocalId cell_lid,
   constexpr Real w = 1.0;
 
   // Initialize the element matrix
-  RealMatrix<8, 8> ae;
-  ae.fill(0.0);
+  RealMatrix<8, 8> a;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 2; ++ixi) {
@@ -256,12 +256,14 @@ _computeElementMatrixHexa8Gpu(CellLocalId cell_lid,
         // Integration weight
         const Real integration_weight = detJ * w * w;
 
-        // Assemble element matrix (variational form)
-        ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight + (dzU ^ dzU) * integration_weight;
+        // Stiffness matrix 𝑎(𝑖,𝑗) += 𝑤 (∂ₓ𝑁ᵢ ∂ₓ𝑁ⱼ + ∂ᵧ𝑁ᵢ ∂ᵧ𝑁ⱼ + ∂𝓏𝑁ᵢ ∂𝓏𝑁ⱼ), with 𝑎 ∈ ℝ⁸ˣ⁸
+        for (Int8 i = 0; i < 8; ++i)
+          for (Int8 j = 0; j < 8; ++j)
+            a(i, j) += integration_weight * (dxU[i] * dxU[j] + dyU[i] * dyU[j] + dzU[i] * dzU[j]);
       }
     }
   }
-  return ae;
+  return a;
 }
 
 ARCCORE_HOST_DEVICE RealMatrix<1, 8>
@@ -271,8 +273,9 @@ _computeElementVectorHexa8Gpu(CellLocalId cell_lid,
                               Int32 node_lid)
 {
   constexpr Real gp[2] = { -0.57735026918962576451, 0.57735026918962576451 };
+  constexpr Real w = 1.0;
 
-  RealVector<8> ae_local;
+  RealVector<8> a_i;
 
   for (Int8 ixi = 0; ixi < 2; ++ixi) {
     for (Int8 ieta = 0; ieta < 2; ++ieta) {
@@ -281,16 +284,19 @@ _computeElementVectorHexa8Gpu(CellLocalId cell_lid,
         const RealVector<8>& dxU = gp_info.dN_dx;
         const RealVector<8>& dyU = gp_info.dN_dy;
         const RealVector<8>& dzU = gp_info.dN_dz;
+        const Real detJ = gp_info.det_j;
 
-        for (Int8 col = 0; col < 8; ++col) {
-          const Real grad_dot = dxU[node_lid] * dxU[col] + dyU[node_lid] * dyU[col] + dzU[node_lid] * dzU[col];
-          ae_local[col] += grad_dot * gp_info.det_j;
-        }
+        // Integration weight
+        const Real integration_weight = detJ * w * w;
+
+        // Stiffness vector 𝑎(𝑗) += 𝑤 (∂ₓ𝑁ᵢ ∂ₓ𝑁ⱼ + ∂ᵧ𝑁ᵢ ∂ᵧ𝑁ⱼ + ∂𝓏𝑁ᵢ ∂𝓏𝑁ⱼ), with fixed 𝑖 and 𝑎 ∈ ℝ⁸
+        for (Int8 j = 0; j < 8; ++j)
+          a_i[j] +=  integration_weight * (dxU[node_lid] * dxU[j] + dyU[node_lid] * dyU[j] + dzU[node_lid] * dzU[j]);
       }
     }
   }
 
-  return ae_local;
+  return a_i;
 }
 /*---------------------------------------------------------------------------*/
 /**
@@ -318,8 +324,7 @@ RealMatrix<20, 20> FemModulePoisson::_computeElementMatrixHexa20(Cell cell)
   constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
 
   // Initialize the element matrix
-  RealMatrix<20, 20> ae;
-  ae.fill(0.0);
+  RealMatrix<20, 20> a;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 3; ++ixi) {
@@ -342,11 +347,13 @@ RealMatrix<20, 20> FemModulePoisson::_computeElementMatrixHexa20(Cell cell)
         const Real integration_weight = detJ * weight[ixi] * weight[ieta] * weight[izeta];
 
         // Assemble element matrix (variational form)
-        ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight + (dzU ^ dzU) * integration_weight;
+        for (Int8 i = 0; i < 20; ++i)
+          for (Int8 j = 0; j < 20; ++j)
+            a(i, j) += integration_weight * (dxU[i] * dxU[j] + dyU[i] * dyU[j] + dzU[i] * dzU[j]);
       }
     }
   }
-  return ae;
+  return a;
 }
 
 ARCCORE_HOST_DEVICE RealMatrix<20, 20>
@@ -359,8 +366,7 @@ _computeElementMatrixHexa20Gpu(CellLocalId cell_lid,
   constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
 
   // Initialize the element matrix
-  RealMatrix<20, 20> ae;
-  ae.fill(0.0);
+  RealMatrix<20, 20> a;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 3; ++ixi) {
@@ -383,11 +389,15 @@ _computeElementMatrixHexa20Gpu(CellLocalId cell_lid,
         const Real integration_weight = detJ * weight[ixi] * weight[ieta] * weight[izeta];
 
         // Assemble element matrix (variational form)
-        ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight + (dzU ^ dzU) * integration_weight;
+        for (Int8 i = 0; i < 20; ++i) {
+          for (Int8 j = 0; j < 20; ++j) {
+            a(i, j) += integration_weight * (dxU[i] * dxU[j] + dyU[i] * dyU[j] + dzU[i] * dzU[j]);
+          }
+        }
       }
     }
   }
-  return ae;
+  return a;
 }
 
 ARCCORE_HOST_DEVICE RealMatrix<1, 20>
@@ -396,8 +406,7 @@ _computeElementVectorHexa20Gpu(CellLocalId cell_lid,
                                const ax::VariableNodeReal3InView& in_node_coord,
                                Int32 node_lid)
 {
-  RealMatrix<1, 20> row;
-  row.fill(0.0);
+  RealVector<20> a_i;
 
   constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
   constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
@@ -415,16 +424,17 @@ _computeElementVectorHexa20Gpu(CellLocalId cell_lid,
         const RealVector<20>& dzU = gp_info.dN_dz;
         const Real detJ = gp_info.det_j;
 
+        // Integration weight
         const Real integration_weight = detJ * weight[ixi] * weight[ieta] * weight[izeta];
-        for (Int32 col = 0; col < 20; ++col) {
-          const Real grad_dot = dxU(node_lid) * dxU(col) + dyU(node_lid) * dyU(col) + dzU(node_lid) * dzU(col);
-          row(0, col) += grad_dot * integration_weight;
-        }
+
+        // Stiffness vector 𝑎(𝑗) += 𝑤 (∂ₓ𝑁ᵢ ∂ₓ𝑁ⱼ + ∂ᵧ𝑁ᵢ ∂ᵧ𝑁ⱼ + ∂𝓏𝑁ᵢ ∂𝓏𝑁ⱼ), with fixed 𝑖 and 𝑎 ∈ ℝ²⁰
+        for (Int32 j = 0; j < 20; ++j)
+          a_i[j] += integration_weight * (dxU[node_lid] * dxU[j] + dyU[node_lid] * dyU[j] + dzU[node_lid] * dzU[j]);
       }
     }
   }
 
-  return row;
+  return a_i;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -453,8 +463,7 @@ RealMatrix<27, 27> FemModulePoisson::_computeElementMatrixHexa27(Cell cell)
   constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
 
   // Initialize the element matrix
-  RealMatrix<27, 27> ae;
-  ae.fill(0.0);
+  RealMatrix<27, 27> a;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 3; ++ixi) {
@@ -476,12 +485,14 @@ RealMatrix<27, 27> FemModulePoisson::_computeElementMatrixHexa27(Cell cell)
         // Integration weight
         const Real integration_weight = detJ * weight[ixi] * weight[ieta] * weight[izeta];
 
-        // Assemble element matrix (variational form)
-        ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight + (dzU ^ dzU) * integration_weight;
+        // Stiffness matrix 𝑎(𝑖,𝑗) += 𝑤 (∂ₓ𝑁ᵢ ∂ₓ𝑁ⱼ + ∂ᵧ𝑁ᵢ ∂ᵧ𝑁ⱼ + ∂𝓏𝑁ᵢ ∂𝓏𝑁ⱼ), with 𝑎 ∈ ℝ²⁷ˣ²⁷
+        for (Int8 i = 0; i < 27; ++i)
+          for (Int8 j = 0; j < 27; ++j)
+            a(i, j) += integration_weight * (dxU[i] * dxU[j] + dyU[i] * dyU[j] + dzU[i] * dzU[j]);
       }
     }
   }
-  return ae;
+  return a;
 }
 
 ARCCORE_HOST_DEVICE RealMatrix<27, 27>
@@ -494,8 +505,7 @@ _computeElementMatrixHexa27Gpu(CellLocalId cell_lid,
   constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
 
   // Initialize the element matrix
-  RealMatrix<27, 27> ae;
-  ae.fill(0.0);
+  RealMatrix<27, 27> a;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 3; ++ixi) {
@@ -517,12 +527,14 @@ _computeElementMatrixHexa27Gpu(CellLocalId cell_lid,
         // Integration weight
         const Real integration_weight = detJ * weight[ixi] * weight[ieta] * weight[izeta];
 
-        // Assemble element matrix (variational form)
-        ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight + (dzU ^ dzU) * integration_weight;
+        // Stiffness matrix 𝑎(𝑖,𝑗) += 𝑤 (∂ₓ𝑁ᵢ ∂ₓ𝑁ⱼ + ∂ᵧ𝑁ᵢ ∂ᵧ𝑁ⱼ + ∂𝓏𝑁ᵢ ∂𝓏𝑁ⱼ), with 𝑎 ∈ ℝ²⁷ˣ²⁷
+        for (Int8 i = 0; i < 27; ++i)
+          for (Int8 j = 0; j < 27; ++j)
+            a(i, j) += integration_weight * (dxU[i] * dxU[j] + dyU[i] * dyU[j] + dzU[i] * dzU[j]);
       }
     }
   }
-  return ae;
+  return a;
 }
 
 ARCCORE_HOST_DEVICE RealMatrix<1, 27>
@@ -531,8 +543,7 @@ _computeElementVectorHexa27Gpu(CellLocalId cell_lid,
                                const ax::VariableNodeReal3InView& in_node_coord,
                                Int32 node_lid)
 {
-  RealMatrix<1, 27> row;
-  row.fill(0.0);
+  RealMatrix<1, 27> a_i;
 
   constexpr Real gp[3] = { -0.77459666924148337704, 0.0, 0.77459666924148337704 };
   constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
@@ -550,16 +561,17 @@ _computeElementVectorHexa27Gpu(CellLocalId cell_lid,
         const RealVector<27>& dzU = gp_info.dN_dz;
         const Real detJ = gp_info.det_j;
 
+        // Integration weight
         const Real integration_weight = detJ * weight[ixi] * weight[ieta] * weight[izeta];
-        for (Int32 col = 0; col < 27; ++col) {
-          const Real grad_dot = dxU(node_lid) * dxU(col) + dyU(node_lid) * dyU(col) + dzU(node_lid) * dzU(col);
-          row(0, col) += grad_dot * integration_weight;
-        }
+
+        // Stiffness vector 𝑎(𝑗) += 𝑤 (∂ₓ𝑁ᵢ ∂ₓ𝑁ⱼ + ∂ᵧ𝑁ᵢ ∂ᵧ𝑁ⱼ + ∂𝓏𝑁ᵢ ∂𝓏𝑁ⱼ), with fixed 𝑖 and 𝑎 ∈ ℝ²⁷
+        for (Int32 j = 0; j < 27; ++j)
+          a_i(0, j) += integration_weight * (dxU(node_lid) * dxU(j) + dyU(node_lid) * dyU(j) + dzU(node_lid) * dzU(j));
       }
     }
   }
 
-  return row;
+  return a_i;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -588,8 +600,7 @@ RealMatrix<8, 8> FemModulePoisson::_computeElementMatrixQuad8(Cell cell)
   constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
 
   // Initialize the element matrix
-  RealMatrix<8, 8> ae;
-  ae.fill(0.0);
+  RealMatrix<8, 8> a;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 3; ++ixi) {
@@ -608,11 +619,13 @@ RealMatrix<8, 8> FemModulePoisson::_computeElementMatrixQuad8(Cell cell)
       // Integration weight
       const Real integration_weight = detJ * weight[ixi] * weight[ieta];
 
-      // stiffness matrix assembly
-      ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight;
+      // Stiffness matrix 𝑎(𝑖,𝑗) += 𝑤 (∂ₓ𝑁ᵢ ∂ₓ𝑁ⱼ + ∂ᵧ𝑁ᵢ ∂ᵧ𝑁ⱼ), with 𝑎 ∈ ℝ⁸ˣ⁸
+      for (Int8 i = 0; i < 8; ++i)
+        for (Int8 j = 0; j < 8; ++j)
+          a(i, j) += integration_weight * (dxU[i] * dxU[j] + dyU[i] * dyU[j]);
     }
   }
-  return ae;
+  return a;
 }
 
 ARCCORE_HOST_DEVICE RealMatrix<8, 8>
@@ -626,8 +639,7 @@ _computeElementMatrixQuad8Gpu(CellLocalId cell_lid,
   constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
 
   // Initialize the element matrix
-  RealMatrix<8, 8> ae;
-  ae.fill(0.0);
+  RealMatrix<8, 8> a;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 3; ++ixi) {
@@ -645,10 +657,14 @@ _computeElementMatrixQuad8Gpu(CellLocalId cell_lid,
 
       // Integration weight
       const Real integration_weight = detJ * weight[ixi] * weight[ieta];
-      ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight;
+
+      // Stiffness matrix 𝑎(𝑖,𝑗) += 𝑤 (∂ₓ𝑁ᵢ ∂ₓ𝑁ⱼ + ∂ᵧ𝑁ᵢ ∂ᵧ𝑁ⱼ), with 𝑎 ∈ ℝ⁸ˣ⁸
+      for (Int8 i = 0; i < 8; ++i)
+        for (Int8 j = 0; j < 8; ++j)
+          a(i, j) += integration_weight * (dxU[i] * dxU[j] + dyU[i] * dyU[j]);
     }
   }
-  return ae;
+  return a;
 }
 
 ARCCORE_HOST_DEVICE RealMatrix<1, 8>
@@ -663,7 +679,7 @@ _computeElementVectorQuad8Gpu(CellLocalId cell_lid,
   constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
 
   // Initialize the element vector
-  RealVector<8> ae;
+  RealVector<8> a_i;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 3; ++ixi) {
@@ -679,14 +695,15 @@ _computeElementVectorQuad8Gpu(CellLocalId cell_lid,
       const RealVector<8>& dyU = gp_info.dN_dy;
       const Real detJ = gp_info.det_j;
 
+      // Integration weight
       const Real integration_weight = detJ * weight[ixi] * weight[ieta];
-      for (Int8 col = 0; col < 8; ++col) {
-        const Real grad_dot = dxU[node_lid] * dxU[col] + dyU[node_lid] * dyU[col];
-        ae[col] += grad_dot * integration_weight;
-      }
+
+      // Stiffness vector 𝑎(𝑗) += 𝑤 (∂ₓ𝑁ᵢ ∂ₓ𝑁ⱼ + ∂ᵧ𝑁ᵢ ∂ᵧ𝑁ⱼ), with fixed 𝑖 and 𝑎 ∈ ℝ⁸
+      for (Int8 j = 0; j < 8; ++j)
+        a_i[j] += integration_weight * (dxU[node_lid] * dxU[j] + dyU[node_lid] * dyU[j]);
     }
   }
-  return ae;
+  return a_i;
 }
 
 /**
@@ -715,7 +732,7 @@ _computeElementMatrixQuad9(Cell cell)
   constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
 
   // Initialize the element matrix
-  RealMatrix<9, 9> ae;
+  RealMatrix<9, 9> a;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 3; ++ixi) {
@@ -734,11 +751,13 @@ _computeElementMatrixQuad9(Cell cell)
       // Integration weight
       const Real integration_weight = detJ * weight[ixi] * weight[ieta];
 
-      // stiffness matrix assembly
-      ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight;
+      // Stiffness matrix 𝑎(𝑖,𝑗) += 𝑤 (∂ₓ𝑁ᵢ ∂ₓ𝑁ⱼ + ∂ᵧ𝑁ᵢ ∂ᵧ𝑁ⱼ), with 𝑎 ∈ ℝ⁹ˣ⁹
+      for (Int8 i = 0; i < 9; ++i)
+        for (Int8 j = 0; j < 9; ++j)
+          a(i, j) += integration_weight * (dxU[i] * dxU[j] + dyU[i] * dyU[j]);
     }
   }
-  return ae;
+  return a;
 }
 
 ARCCORE_HOST_DEVICE RealMatrix<9, 9>
@@ -752,8 +771,7 @@ _computeElementMatrixQuad9Gpu(CellLocalId cell_lid,
   constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
 
   // Initialize the element matrix
-  RealMatrix<9, 9> ae;
-  ae.fill(0.0);
+  RealMatrix<9, 9> a;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 3; ++ixi) {
@@ -772,11 +790,13 @@ _computeElementMatrixQuad9Gpu(CellLocalId cell_lid,
       // Integration weight
       const Real integration_weight = detJ * weight[ixi] * weight[ieta];
 
-      // stiffness matrix assembly
-      ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight;
+      // Stiffness matrix 𝑎(𝑖,𝑗) += 𝑤 (∂ₓ𝑁ᵢ ∂ₓ𝑁ⱼ + ∂ᵧ𝑁ᵢ ∂ᵧ𝑁ⱼ), with 𝑎 ∈ ℝ⁹ˣ⁹
+      for (Int8 i = 0; i < 9; ++i)
+        for (Int8 j = 0; j < 9; ++j)
+          a(i, j) += integration_weight * (dxU[i] * dxU[j] + dyU[i] * dyU[j]);
     }
   }
-  return ae;
+  return a;
 }
 
 ARCCORE_HOST_DEVICE RealMatrix<1, 9>
@@ -791,7 +811,7 @@ _computeElementVectorQuad9Gpu(CellLocalId cell_lid,
   constexpr Real weight[3] = { 5.0 / 9.0, 8.0 / 9.0, 5.0 / 9.0 };
 
   // Initialize the element vector
-  RealVector<9> ae;
+  RealVector<9> a_i;
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 3; ++ixi) {
@@ -810,12 +830,10 @@ _computeElementVectorQuad9Gpu(CellLocalId cell_lid,
       // Integration weight
       const Real integration_weight = detJ * weight[ixi] * weight[ieta];
 
-      // stiffness vector assembly
-      for (Int8 col = 0; col < 9; ++col) {
-        const Real grad_dot = dxU[node_lid] * dxU[col] + dyU[node_lid] * dyU[col];
-        ae[col] += grad_dot * integration_weight;
-      }
+      // Stiffness vector 𝑎(𝑗) += 𝑤 (∂ₓ𝑁ᵢ ∂ₓ𝑁ⱼ + ∂ᵧ𝑁ᵢ ∂ᵧ𝑁ⱼ), with fixed 𝑖 and 𝑎 ∈ ℝ⁹
+      for (Int8 j = 0; j < 9; ++j)
+        a_i[j] += integration_weight * (dxU[node_lid] * dxU[j] + dyU[node_lid] * dyU[j]);
     }
   }
-  return ae;
+  return a_i;
 }
