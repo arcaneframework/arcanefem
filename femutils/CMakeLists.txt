@@ -1,5 +1,6 @@
 ﻿option(ENABLE_DEBUG_MATRIX "Enable Debug matrix instead of a sparse one" OFF)
 option(FEMUTILS_ENABLE_CODE_COVERAGE "Whether we use compiler option for code coverage" OFF)
+option(ARCANEFEM_ENABLE_ALINA "Whether we enable Alina back-end" OFF)
 
 set(SOURCES
   FemUtils.h
@@ -76,7 +77,14 @@ if (TARGET Arcane::arcane_aleph_petsc)
   list(APPEND ACCELERATOR_SOURCES PetscDoFLinearSystem.cc)
 endif()
 
-if (TARGET Arccore::arccore_alina)
+if (ARCANEFEM_ENABLE_ALINA)
+  message(STATUS "Alina backend is enabled")
+  if (NOT TARGET Arccore::arccore_alina)
+    message(FATAL_ERROR
+      "Alina backend is enabled but Arccore is not compiled with Alina"
+      "Compile Arccore with Alina support or use -DARCANEFEM_ENABLE_ALINA=OFF to disable Alina"
+      )
+  endif()
   list(APPEND SOURCES AlinaDoFLinearSystem.cc)
 endif()
 
@@ -184,8 +192,7 @@ if (TARGET Arcane::arcane_aleph_hypre)
 endif()
 
 set(FEMUTILS_HAS_SOLVER_BACKEND_ALINA FALSE)
-if (TARGET Arccore::arccore_alina)
-  message(STATUS "Alina backend is available")
+if (ARCANEFEM_ENABLE_ALINA)
   set(FEMUTILS_HAS_SOLVER_BACKEND_ALINA TRUE)
   target_link_libraries(FemUtils PRIVATE Arccore::arccore_alina)
 endif()
