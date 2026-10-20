@@ -10,6 +10,7 @@ set(SOURCES
   BoundaryConditions2D.cc
   BoundaryConditions3D.cc
   ShapeFunctions.h
+  ElementMapping.h
   DoFLinearSystem.h
   DoFLinearSystem.cc
   CooFormatMatrix.h

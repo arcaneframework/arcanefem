@@ -30,15 +30,21 @@
  */
 /*---------------------------------------------------------------------------*/
 
+#include "ElementMapping.h"
+
 RealMatrix<4, 4> FemModulePoisson::_computeElementMatrixQuad4(Cell cell)
 {
   // Gauss points and weights for 2x2 quadrature
-  constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // [-1/sqrt(3) , 1/sqrt(3)]
+  constexpr Real gp[2] = { -0.57735026918962576451, 0.57735026918962576451 };
   constexpr Real w = 1.0;
 
-  // Initialize the element matrix
+  // Element mapping for the quadrilateral element using the coordinates of its nodes
+  const FemUtils::ElementMapping<FemUtils::Quad4> mapping(
+  m_node_coord[cell.nodeId(0)], m_node_coord[cell.nodeId(1)],
+  m_node_coord[cell.nodeId(2)], m_node_coord[cell.nodeId(3)]);
+
+  // Initialize the element matrix (default constructor sets all elements to zero)
   RealMatrix<4, 4> ae;
-  ae.fill(0.0);
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 2; ++ixi) {
@@ -48,17 +54,24 @@ RealMatrix<4, 4> FemModulePoisson::_computeElementMatrixQuad4(Cell cell)
       const Real xi = gp[ixi];
       const Real eta = gp[ieta];
 
-      // Get shape function gradients w.r.t (𝑥,𝑦) and determinant of Jacobian
-      const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad4(cell, m_node_coord, xi, eta);
-      const RealVector<4>& dxU = gp_info.dN_dx;
-      const RealVector<4>& dyU = gp_info.dN_dy;
-      const Real detJ = gp_info.det_j;
+      // Calculate the Jacobian and its determinant
+      const auto jacobian_info = mapping.jacobianAndDeterminant(xi, eta);
+      const Real detJ = jacobian_info.det_j;
+      if (detJ <= 0.0)
+        ARCANE_FATAL("Invalid (non-positive) Jacobian determinant: {0}", detJ);
+
+      // Compute the gradients of the shape functions in physical space (𝑥,𝑦)
+      const auto gp_gradients = mapping.gradients(jacobian_info, xi, eta);
+      const RealVector<4>& dxU = gp_gradients.dN_dx;
+      const RealVector<4>& dyU = gp_gradients.dN_dy;
 
       // Integration weight
       const Real integration_weight = detJ * w * w;
 
       // stiffness matrix assembly
-      ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight;
+      for (int a = 0; a < 4; ++a)
+        for (int b = 0; b < 4; ++b)
+          ae(a, b) += integration_weight * (dxU[a] * dxU[b] + dyU[a] * dyU[b]);
     }
   }
   return ae;
@@ -69,13 +82,17 @@ _computeElementMatrixQuad4Gpu(CellLocalId cell_lid,
                               const IndexedCellNodeConnectivityView& cn_cv,
                               const ax::VariableNodeReal3InView& in_node_coord)
 {
-  // Gauss points and weights for 2x2 quadrature (1/sqrt(3) ≈ 0.57735026919)
+  // Gauss points and weights for 2x2 quadrature
   constexpr Real gp[2] = { -0.57735026918962576451, 0.57735026918962576451 };
   constexpr Real w = 1.0;
 
-  // Initialize the element matrix
+  // Element mapping for the quadrilateral element using the coordinates of its nodes
+  const FemUtils::ElementMapping<FemUtils::Quad4> mapping(
+  in_node_coord[cn_cv.nodeId(cell_lid, 0)], in_node_coord[cn_cv.nodeId(cell_lid, 1)],
+  in_node_coord[cn_cv.nodeId(cell_lid, 2)], in_node_coord[cn_cv.nodeId(cell_lid, 3)]);
+
+  // Initialize the element matrix (default constructor sets all elements to zero)
   RealMatrix<4, 4> ae;
-  ae.fill(0.0);
 
   // Loop over Gauss points
   for (Int8 ixi = 0; ixi < 2; ++ixi) {
@@ -84,18 +101,22 @@ _computeElementMatrixQuad4Gpu(CellLocalId cell_lid,
       const Real xi = gp[ixi];
       const Real eta = gp[ieta];
 
-      // Get shape function gradients and determinant of Jacobian
-      const auto gp_info = FemUtils::Gpu::FeOperation2D::computeGradientsAndJacobianQuad4Gpu(cell_lid, cn_cv, in_node_coord, xi, eta);
+      // Calculate the Jacobian and its determinant
+      const auto jacobian_info = mapping.jacobianAndDeterminant(xi, eta);
+      const Real detJ = jacobian_info.det_j;
 
-      const RealVector<4>& dxU = gp_info.dN_dx;
-      const RealVector<4>& dyU = gp_info.dN_dy;
-      const Real detJ = gp_info.det_j;
+      // Compute the gradients of the shape functions in physical space (𝑥,𝑦)
+      const auto gp_gradients = mapping.gradients(jacobian_info, xi, eta);
+      const RealVector<4>& dxU = gp_gradients.dN_dx;
+      const RealVector<4>& dyU = gp_gradients.dN_dy;
 
       // Integration weight
       const Real integration_weight = detJ * w * w;
 
       // Stiffness matrix assembly using outer products (^)
-      ae += (dxU ^ dxU) * integration_weight + (dyU ^ dyU) * integration_weight;
+      for (int a = 0; a < 4; ++a)
+        for (int b = 0; b < 4; ++b)
+          ae(a, b) += integration_weight * (dxU[a] * dxU[b] + dyU[a] * dyU[b]);
     }
   }
   return ae;
@@ -106,9 +127,14 @@ _computeElementVectorQuad4Gpu(CellLocalId cell_lid,
                               const IndexedCellNodeConnectivityView& cn_cv,
                               const ax::VariableNodeReal3InView& in_node_coord, Int32 node_lid)
 {
-  // Gauss points and weights for 2x2 quadrature (1/sqrt(3) ≈ 0.57735026919)
+  // Gauss points and weights for 2x2 quadrature
   constexpr Real gp[2] = { -0.57735026918962576451, 0.57735026918962576451 };
   constexpr Real w = 1.0;
+
+  // Element mapping for the quadrilateral element using the coordinates of its nodes
+  const FemUtils::ElementMapping<FemUtils::Quad4> mapping(
+  in_node_coord[cn_cv.nodeId(cell_lid, 0)], in_node_coord[cn_cv.nodeId(cell_lid, 1)],
+  in_node_coord[cn_cv.nodeId(cell_lid, 2)], in_node_coord[cn_cv.nodeId(cell_lid, 3)]);
 
   // Initialize the element vector
   RealVector<4> ae_local;
@@ -120,18 +146,21 @@ _computeElementVectorQuad4Gpu(CellLocalId cell_lid,
       const Real xi = gp[ixi];
       const Real eta = gp[ieta];
 
-      // Get shape function gradients and determinant of Jacobian
-      const auto gp_info = FemUtils::Gpu::FeOperation2D::computeGradientsAndJacobianQuad4Gpu(cell_lid, cn_cv, in_node_coord, xi, eta);
+      // Calculate the Jacobian and its determinant
+      const auto jacobian_info = mapping.jacobianAndDeterminant(xi, eta);
+      const Real detJ = jacobian_info.det_j;
 
-      const RealVector<4>& dxU = gp_info.dN_dx;
-      const RealVector<4>& dyU = gp_info.dN_dy;
-      const Real detJ = gp_info.det_j;
+      // Compute the gradients of the shape functions in physical space (𝑥,𝑦)
+      const auto gp_gradients = mapping.gradients(jacobian_info, xi, eta);
+      const RealVector<4>& dxU = gp_gradients.dN_dx;
+      const RealVector<4>& dyU = gp_gradients.dN_dy;
 
       // Integration weight
       const Real integration_weight = detJ * w * w;
 
       // Stiffness matrix assembly using outer products (^)
-      ae_local += (dxU[node_lid] * dxU) * integration_weight + (dyU[node_lid] * dyU) * integration_weight;
+      for (int b = 0; b < 4; ++b)
+        ae_local[b] += integration_weight * (dxU[node_lid] * dxU[b] + dyU[node_lid] * dyU[b]);
     }
   }
   return ae_local;
