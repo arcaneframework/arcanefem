@@ -176,7 +176,7 @@ _computeElementVectorQuad4Gpu(CellLocalId cell_lid,
  * Steps involved:
  * 1. Define Gauss points (2x2x2) and weights.
  * 2. Loop over Gauss points to compute the gradients in physical space (𝑥,𝑦,𝑧)
- *    and the determinant of the Jacobian via computeGradientsAndJacobianHexa8.
+ *    and the determinant of the Jacobian via ElementMapping<Hexa8>.
  * 3. Compute the integration weight.
  * 4. Assemble the element matrix using the computed gradients.
  *
@@ -190,6 +190,12 @@ RealMatrix<8, 8> FemModulePoisson::_computeElementMatrixHexa8(Cell cell)
   // 2x2x2 Gauss points and weights for [-1,1]^3
   constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 }; // -1/sqrt(3), 1/sqrt(3)
   constexpr Real w = 1.0;
+
+  const FemUtils::ElementMapping<FemUtils::Hexa8> mapping(
+  m_node_coord[cell.nodeId(0)], m_node_coord[cell.nodeId(1)],
+  m_node_coord[cell.nodeId(2)], m_node_coord[cell.nodeId(3)],
+  m_node_coord[cell.nodeId(4)], m_node_coord[cell.nodeId(5)],
+  m_node_coord[cell.nodeId(6)], m_node_coord[cell.nodeId(7)]);
 
   // Initialize the element matrix
   RealMatrix<8, 8> a;
@@ -205,11 +211,14 @@ RealMatrix<8, 8> FemModulePoisson::_computeElementMatrixHexa8(Cell cell)
         const Real zeta = gp[izeta];
 
         // Get shape function gradients w.r.t (𝑥,𝑦,𝑧) and determinant of Jacobian
-        const auto gp_info = ArcaneFemFunctions::FeOperation3D::computeGradientsAndJacobianHexa8(cell, m_node_coord, xi, eta, zeta);
-        const RealVector<8>& dxU = gp_info.dN_dx;
-        const RealVector<8>& dyU = gp_info.dN_dy;
-        const RealVector<8>& dzU = gp_info.dN_dz;
-        const Real detJ = gp_info.det_j;
+        const auto jacobian_info = mapping.jacobianAndDeterminant(xi, eta, zeta);
+        const Real detJ = jacobian_info.det_j;
+        if (detJ <= 0.0)
+          ARCANE_FATAL("Invalid (non-positive) Jacobian determinant: {0}", detJ);
+        const auto gp_gradients = mapping.gradients(jacobian_info, xi, eta, zeta);
+        const RealVector<8>& dxU = gp_gradients.dN_dx;
+        const RealVector<8>& dyU = gp_gradients.dN_dy;
+        const RealVector<8>& dzU = gp_gradients.dN_dz;
 
         // Integration weight
         const Real integration_weight = detJ * w * w;
@@ -233,6 +242,12 @@ _computeElementMatrixHexa8Gpu(CellLocalId cell_lid,
   constexpr Real gp[2] = { -0.57735026918962576451, 0.57735026918962576451 }; // -1/sqrt(3), 1/sqrt(3)
   constexpr Real w = 1.0;
 
+  const FemUtils::ElementMapping<FemUtils::Hexa8> mapping(
+  in_node_coord[cn_cv.nodeId(cell_lid, 0)], in_node_coord[cn_cv.nodeId(cell_lid, 1)],
+  in_node_coord[cn_cv.nodeId(cell_lid, 2)], in_node_coord[cn_cv.nodeId(cell_lid, 3)],
+  in_node_coord[cn_cv.nodeId(cell_lid, 4)], in_node_coord[cn_cv.nodeId(cell_lid, 5)],
+  in_node_coord[cn_cv.nodeId(cell_lid, 6)], in_node_coord[cn_cv.nodeId(cell_lid, 7)]);
+
   // Initialize the element matrix
   RealMatrix<8, 8> a;
 
@@ -247,11 +262,12 @@ _computeElementMatrixHexa8Gpu(CellLocalId cell_lid,
         const Real zeta = gp[izeta];
 
         // Get shape function gradients w.r.t (𝑥,𝑦,𝑧) and determinant of Jacobian
-        const auto gp_info = FemUtils::Gpu::FeOperation3D::computeGradientsAndJacobianHexa8Gpu(cell_lid, cn_cv, in_node_coord, xi, eta, zeta);
-        const RealVector<8>& dxU = gp_info.dN_dx;
-        const RealVector<8>& dyU = gp_info.dN_dy;
-        const RealVector<8>& dzU = gp_info.dN_dz;
-        const Real detJ = gp_info.det_j;
+        const auto jacobian_info = mapping.jacobianAndDeterminant(xi, eta, zeta);
+        const Real detJ = jacobian_info.det_j;
+        const auto gp_gradients = mapping.gradients(jacobian_info, xi, eta, zeta);
+        const RealVector<8>& dxU = gp_gradients.dN_dx;
+        const RealVector<8>& dyU = gp_gradients.dN_dy;
+        const RealVector<8>& dzU = gp_gradients.dN_dz;
 
         // Integration weight
         const Real integration_weight = detJ * w * w;
@@ -275,16 +291,26 @@ _computeElementVectorHexa8Gpu(CellLocalId cell_lid,
   constexpr Real gp[2] = { -0.57735026918962576451, 0.57735026918962576451 };
   constexpr Real w = 1.0;
 
+  const FemUtils::ElementMapping<FemUtils::Hexa8> mapping(
+  in_node_coord[cn_cv.nodeId(cell_lid, 0)], in_node_coord[cn_cv.nodeId(cell_lid, 1)],
+  in_node_coord[cn_cv.nodeId(cell_lid, 2)], in_node_coord[cn_cv.nodeId(cell_lid, 3)],
+  in_node_coord[cn_cv.nodeId(cell_lid, 4)], in_node_coord[cn_cv.nodeId(cell_lid, 5)],
+  in_node_coord[cn_cv.nodeId(cell_lid, 6)], in_node_coord[cn_cv.nodeId(cell_lid, 7)]);
+
   RealVector<8> a_i;
 
   for (Int8 ixi = 0; ixi < 2; ++ixi) {
     for (Int8 ieta = 0; ieta < 2; ++ieta) {
       for (Int8 izeta = 0; izeta < 2; ++izeta) {
-        const auto gp_info = FemUtils::Gpu::FeOperation3D::computeGradientsAndJacobianHexa8Gpu(cell_lid, cn_cv, in_node_coord, gp[ixi], gp[ieta], gp[izeta]);
-        const RealVector<8>& dxU = gp_info.dN_dx;
-        const RealVector<8>& dyU = gp_info.dN_dy;
-        const RealVector<8>& dzU = gp_info.dN_dz;
-        const Real detJ = gp_info.det_j;
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const Real zeta = gp[izeta];
+        const auto jacobian_info = mapping.jacobianAndDeterminant(xi, eta, zeta);
+        const Real detJ = jacobian_info.det_j;
+        const auto gp_gradients = mapping.gradients(jacobian_info, xi, eta, zeta);
+        const RealVector<8>& dxU = gp_gradients.dN_dx;
+        const RealVector<8>& dyU = gp_gradients.dN_dy;
+        const RealVector<8>& dzU = gp_gradients.dN_dz;
 
         // Integration weight
         const Real integration_weight = detJ * w * w;
