@@ -363,7 +363,6 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
         inputs/2D.quater.cylinder.vonMises.arc)
   endif ()
 
-  # Compare Cartesian beam displacement increments at peak load against CPU DOK.
   arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Beam_cartesian_von_mises_bsr_global
     COMMAND ./Elastoplasticity
     ARGS
