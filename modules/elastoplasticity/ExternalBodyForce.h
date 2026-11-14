@@ -51,8 +51,15 @@ _applyExternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnect
   // apply bodyforce based on dimension and mesh type
   if (mesh()->dimension() == 2) {
     if (m_hex_quad_mesh) {
-      if (m_nodes_per_cell == 4)
-        _applyExternalBodyForceQuad4Cpu(rhs_values, node_dof);
+      if (m_nodes_per_cell == 4) {
+        const bool use_gpu = m_use_gpu_functions &&
+          (options()->linearSystem.serviceName() == "HypreLinearSystem" ||
+           options()->linearSystem.serviceName() == "PetscLinearSystem");
+        if (use_gpu)
+          _applyExternalBodyForceQuad4Gpu(rhs_values, node_dof);
+        else
+          _applyExternalBodyForceQuad4Cpu(rhs_values, node_dof);
+      }
       else if (m_nodes_per_cell == 8)
         _applyExternalBodyForceQuad8Cpu(rhs_values, node_dof);
       else
@@ -250,4 +257,53 @@ inline void FemModuleElastoplasticity::_applyExternalBodyForceQuad9Cpu(VariableD
       }
     }
   }
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+ * @brief Applies external body force for Quad4 elements on GPUs.
+ *
+ * This function computes the contribution of external body forces to the RHS
+ * vector for Quad4 elements. It iterates over all cells, evaluates the shape
+ * functions at Gauss points, computes the Jacobian determinant, and updates
+ * the RHS vector accordingly.
+ *
+ * @param rhs_values The variable representing the RHS vector to be updated.
+ * @param node_dof The connectivity view mapping nodes to their corresponding
+ *                 degrees of freedom (DoFs).
+ */
+/*---------------------------------------------------------------------------*/
+inline void FemModuleElastoplasticity::
+_applyExternalBodyForceQuad4Gpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
+{
+  constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
+  UnstructuredMeshConnectivityView connectivity(mesh());
+  auto cn_cv = connectivity.cellNode();
+  NodeInfoListView nodes_infos(mesh()->nodeFamily());
+  auto command = makeCommand(acceleratorMng()->defaultQueue());
+  auto in_out_rhs_values = Accelerator::viewInOut(command, rhs_values);
+  auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
+  const Real fx = f[0];
+  const Real fy = f[1];
+  command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh()->allCells())
+  {
+    auto nodes = cn_cv.nodes(cell_lid);
+    for (Int8 ixi = 0; ixi < 2; ++ixi) {
+      for (Int8 ieta = 0; ieta < 2; ++ieta) {
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const auto gp_info = Gpu::FeOperation2D::computeGradientsAndJacobianQuad4Gpu(cell_lid, cn_cv, in_node_coord, xi, eta);
+        const RealVector<4> N_values = ShapeFunctions::computeShapeFunctionsQuad4(xi, eta);
+        for (Int32 i = 0; i < 4; ++i) {
+          const NodeLocalId node = nodes[i];
+          if (!nodes_infos.isOwn(node))
+            continue;
+          const Real force_x = N_values[i] * fx * gp_info.det_j;
+          const Real force_y = N_values[i] * fy * gp_info.det_j;
+          Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_values[node_dof.dofId(node, 0)], force_x);
+          Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_values[node_dof.dofId(node, 1)], force_y);
+        }
+      }
+    }
+  };
 }
