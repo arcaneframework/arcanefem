@@ -574,9 +574,7 @@ computeRowIndexAtomicFree()
 
   SmallSpan<Int32> neighbors_ss = neighbors.to1DSmallSpan();
   computeNeighborsAtomicFree(neighbors_ss); 
-#ifdef ARCANE_CHECK
-  info() << "[BsrMatrix-Info] Neighbors size=" << neighbors.extent0() << " rows=" << m_bsr_matrix._rowsIndex().extent0();
-#endif
+  info(99) << "[BsrMatrix-Info] Neighbors size=" << neighbors.extent0() << " rows=" << m_bsr_matrix._rowsIndex().extent0();
   Accelerator::Scanner<Int32> scanner;
   scanner.exclusiveSum(&m_queue, neighbors_ss, m_bsr_matrix._rowsIndex().to1DSmallSpan());
 }
@@ -932,9 +930,7 @@ computeRowIndex(Int32 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>&
   computeNeighbors(edges_per_element, nb_edge_total, neighbors, sorted_edges_ss);
 
   Accelerator::Scanner<Int32> scanner;
-#ifdef ARCANE_CHECK
-  info() << "[BsrMatrix-Info] neighbors=" << neighbors.extent0() << " rows=" << m_bsr_matrix._rowsIndex().extent0();
-#endif
+  info(99) << "[BsrMatrix-Info] neighbors=" << neighbors.extent0() << " rows=" << m_bsr_matrix._rowsIndex().extent0();
   scanner.exclusiveSum(&m_queue, neighbors, m_bsr_matrix._rowsIndex());
 }
 
