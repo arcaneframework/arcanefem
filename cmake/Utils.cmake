@@ -122,9 +122,10 @@ endmacro()
 # Usage:
 #
 # arcanefem_add_full_test(NAME test_name MODULE module_name NB_MPI test_nb_proc COMMAND exe_file ARGS exe_args)
+# ("NO_GPU_MPI" to disable only the parallel GPU test)
 #
 macro(arcanefem_add_full_test)
-  set(options)
+  set(options NO_GPU_MPI)
   set(oneValueArgs NB_MPI NAME COMMAND MODULE)
   set(multiValueArgs ARGS)
   cmake_parse_arguments(ARGS "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -141,8 +142,8 @@ macro(arcanefem_add_full_test)
       set(ARGS_MODULE ${MODULE_NAME})
     endif ()
   endif ()
-  if(NOT ARGS_ARGS)
-    message(FATAL_ERROR "No arg ARGS for macro 'arcanefem_add_seq_test'")
+  if (NOT ARGS_ARGS)
+    message(FATAL_ERROR "No arg ARGS for macro 'arcanefem_add_full_test'")
   endif ()
 
   # Default number of MPI procs for the parallel variant if not specified
@@ -150,16 +151,26 @@ macro(arcanefem_add_full_test)
     set(ARGS_NB_MPI 2)
   endif ()
 
+  # CPU sequential + GPU sequential tests
   arcanefem_add_seq_test(GPU NAME ${ARGS_NAME}
     MODULE ${ARGS_MODULE}
     COMMAND ${ARGS_COMMAND}
     ARGS ${ARGS_ARGS})
 
-  arcanefem_add_mpi_test(GPU NAME ${ARGS_NAME}
-    MODULE ${ARGS_MODULE}
-    NB_MPI ${ARGS_NB_MPI}
-    COMMAND ${ARGS_COMMAND}
-    ARGS ${ARGS_ARGS})
+  # CPU MPI + optionally GPU MPI tests
+  if (ARGS_NO_GPU_MPI)
+    arcanefem_add_mpi_test(NAME ${ARGS_NAME}
+      MODULE ${ARGS_MODULE}
+      NB_MPI ${ARGS_NB_MPI}
+      COMMAND ${ARGS_COMMAND}
+      ARGS ${ARGS_ARGS})
+  else ()
+    arcanefem_add_mpi_test(GPU NAME ${ARGS_NAME}
+      MODULE ${ARGS_MODULE}
+      NB_MPI ${ARGS_NB_MPI}
+      COMMAND ${ARGS_COMMAND}
+      ARGS ${ARGS_ARGS})
+  endif ()
 
 endmacro()
 
