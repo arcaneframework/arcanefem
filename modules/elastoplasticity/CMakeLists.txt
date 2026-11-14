@@ -203,6 +203,54 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/petsc-flags=-ksp_view\ -mat_block_size\ 2\ -pc_type\ gamg
     )
 
+  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Quater_cylinder_von_mises_quad4_bsr_local
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
+      -A,//fem/hex-quad-mesh=true
+      -A,//fem/matrix-format=BSR
+      -A,//fem/gp-material-tensor-strategy=local
+      -A,//fem/solution-comparison-file=check/2D.quater.cylinder.quad4.t20.txt
+      -A,//fem/result-epsilon=1e-8
+      ${SOLVER_PETSC_DIRECT_CG}
+      inputs/2D.quater.cylinder.vonMises.arc)
+
+  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Quater_cylinder_von_mises_quad4_bsr_global
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
+      -A,//fem/hex-quad-mesh=true
+      -A,//fem/matrix-format=BSR
+      -A,//fem/gp-material-tensor-strategy=global
+      -A,//fem/solution-comparison-file=check/2D.quater.cylinder.quad4.t20.txt
+      -A,//fem/result-epsilon=1e-8
+      ${SOLVER_PETSC_DIRECT_CG}
+      inputs/2D.quater.cylinder.vonMises.arc)
+
+  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Quater_cylinder_von_mises_quad4_af-bsr_local
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
+      -A,//fem/hex-quad-mesh=true
+      -A,//fem/matrix-format=AF-BSR
+      -A,//fem/gp-material-tensor-strategy=local
+      -A,//fem/solution-comparison-file=check/2D.quater.cylinder.quad4.t20.txt
+      -A,//fem/result-epsilon=1e-8
+      ${SOLVER_PETSC_DIRECT_CG}
+      inputs/2D.quater.cylinder.vonMises.arc)
+
+  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Quater_cylinder_von_mises_quad4_af-bsr_global
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
+      -A,//fem/hex-quad-mesh=true
+      -A,//fem/matrix-format=AF-BSR
+      -A,//fem/gp-material-tensor-strategy=global
+      -A,//fem/solution-comparison-file=check/2D.quater.cylinder.quad4.t20.txt
+      -A,//fem/result-epsilon=1e-8
+      ${SOLVER_PETSC_DIRECT_CG}
+      inputs/2D.quater.cylinder.vonMises.arc)
+
   arcanefem_add_full_test(NAME 2D_Strip_footing_drucker_prager_bsr_petsc-direct
     COMMAND ./Elastoplasticity
     ARGS
@@ -314,6 +362,95 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
         -A,//fem/linear-system/rtol=1.0e-9
         inputs/2D.quater.cylinder.vonMises.arc)
   endif ()
+
+  # Compare Cartesian beam displacement increments at peak load against CPU DOK.
+  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Beam_cartesian_von_mises_bsr_global
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//fem/tmax=11
+      -A,//fem/matrix-format=BSR
+      -A,//fem/gp-material-tensor-strategy=global
+      -A,//fem/solution-comparison-file=check/2D.beam.cartesian.vonMises.t10.txt
+      -A,//fem/result-epsilon=1e-6
+      inputs/2D.beam.cartesian.vonMises.arc)
+
+  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Beam_cartesian_von_mises_bsr_local
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//fem/tmax=11
+      -A,//fem/matrix-format=BSR
+      -A,//fem/gp-material-tensor-strategy=local
+      -A,//fem/solution-comparison-file=check/2D.beam.cartesian.vonMises.t10.txt
+      -A,//fem/result-epsilon=1e-6
+      inputs/2D.beam.cartesian.vonMises.arc)
+
+  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Beam_cartesian_von_mises_af-bsr_global
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//fem/tmax=11
+      -A,//fem/matrix-format=AF-BSR
+      -A,//fem/gp-material-tensor-strategy=global
+      -A,//fem/solution-comparison-file=check/2D.beam.cartesian.vonMises.t10.txt
+      -A,//fem/result-epsilon=1e-6
+      inputs/2D.beam.cartesian.vonMises.arc)
+
+  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Beam_cartesian_von_mises_af-bsr_local
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//fem/tmax=11
+      -A,//fem/matrix-format=AF-BSR
+      -A,//fem/gp-material-tensor-strategy=local
+      -A,//fem/solution-comparison-file=check/2D.beam.cartesian.vonMises.t10.txt
+      -A,//fem/result-epsilon=1e-6
+      inputs/2D.beam.cartesian.vonMises.arc)
+
+  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Quater_cylinder_von_mises_hypre_quad4_bsr_local
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
+      -A,//fem/hex-quad-mesh=true
+      -A,//fem/matrix-format=BSR
+      -A,//fem/gp-material-tensor-strategy=local
+      -A,//fem/solution-comparison-file=check/2D.quater.cylinder.quad4.t20.txt
+      -A,//fem/result-epsilon=1e-8
+      ${SOLVER_HYPRE_CG}
+      inputs/2D.quater.cylinder.vonMises.arc)
+
+  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Quater_cylinder_von_mises_hypre_quad4_bsr_global
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
+      -A,//fem/hex-quad-mesh=true
+      -A,//fem/matrix-format=BSR
+      -A,//fem/gp-material-tensor-strategy=global
+      -A,//fem/solution-comparison-file=check/2D.quater.cylinder.quad4.t20.txt
+      -A,//fem/result-epsilon=1e-8
+      ${SOLVER_HYPRE_CG}
+      inputs/2D.quater.cylinder.vonMises.arc)
+
+  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Quater_cylinder_von_mises_hypre_quad4_af-bsr_local
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
+      -A,//fem/hex-quad-mesh=true
+      -A,//fem/matrix-format=AF-BSR
+      -A,//fem/gp-material-tensor-strategy=local
+      -A,//fem/solution-comparison-file=check/2D.quater.cylinder.quad4.t20.txt
+      -A,//fem/result-epsilon=1e-8
+      ${SOLVER_HYPRE_CG}
+      inputs/2D.quater.cylinder.vonMises.arc)
+
+  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Quater_cylinder_von_mises_hypre_quad4_af-bsr_global
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
+      -A,//fem/hex-quad-mesh=true
+      -A,//fem/matrix-format=AF-BSR
+      -A,//fem/gp-material-tensor-strategy=global
+      -A,//fem/solution-comparison-file=check/2D.quater.cylinder.quad4.t20.txt
+      -A,//fem/result-epsilon=1e-8
+      ${SOLVER_HYPRE_CG}
+      inputs/2D.quater.cylinder.vonMises.arc)
 
   arcanefem_add_full_test(NAME 2D_Quater_cylinder_von_mises_bsr_hypre
     COMMAND ./Elastoplasticity
