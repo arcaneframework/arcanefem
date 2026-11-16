@@ -203,7 +203,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
     -A,//fem/petsc-flags=-ksp_view\ -mat_block_size\ 2\ -pc_type\ gamg
     )
 
-  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Quater_cylinder_von_mises_quad4_bsr_local
+  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Quater_cylinder_von_mises_quad4_bsr_local_petsc-direct
     COMMAND ./Elastoplasticity
     ARGS
       -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
@@ -215,7 +215,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       ${SOLVER_PETSC_DIRECT_CG}
       inputs/2D.quater.cylinder.vonMises.arc)
 
-  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Quater_cylinder_von_mises_quad4_bsr_global
+  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Quater_cylinder_von_mises_quad4_bsr_global_petsc-direct
     COMMAND ./Elastoplasticity
     ARGS
       -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
@@ -227,7 +227,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       ${SOLVER_PETSC_DIRECT_CG}
       inputs/2D.quater.cylinder.vonMises.arc)
 
-  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Quater_cylinder_von_mises_quad4_af-bsr_local
+  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Quater_cylinder_von_mises_quad4_af-bsr_local_petsc-direct
     COMMAND ./Elastoplasticity
     ARGS
       -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
@@ -239,7 +239,7 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_PETSC)
       ${SOLVER_PETSC_DIRECT_CG}
       inputs/2D.quater.cylinder.vonMises.arc)
 
-  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Quater_cylinder_von_mises_quad4_af-bsr_global
+  arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Quater_cylinder_von_mises_quad4_af-bsr_global_petsc-direct
     COMMAND ./Elastoplasticity
     ARGS
       -A,//meshes/mesh/filename=meshes/quater_cylinder-quad4.msh
