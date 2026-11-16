@@ -393,7 +393,7 @@ assembleBilinearOrderedPerRow(Function compute_element_matrix)
 template <class Function> void BSRFormat::
 assembleBilinearAtomic(Function compute_element_matrix)
 {
-  info() << "BSRFormat(assembleBilinearAtomic): Integrating over elements...";
+  info() << "[BsrMatrix-Info] Assembling matrix using atomic operations";
 
   if (m_bsr_matrix.orderValuePerBlock())
     assembleBilinearOrderedPerBlock(compute_element_matrix);
@@ -557,7 +557,7 @@ assembleBilinearOrderedPerRowAtomicFree(Function compute_element_vectors)
 template <class Function> inline void BSRFormat::
 assembleBilinearAtomicFree(Function compute_element_vectors)
 {
-  info() << "BSRFormat(assembleBilinearAtomicFree): Integrating over nodes...";
+  info() << "[BsrMatrix-Info] Assembling matrix using atomic-free operations";
 
   if (m_bsr_matrix.orderValuePerBlock())
     assembleBilinearOrderedPerBlockAtomicFree(compute_element_vectors);

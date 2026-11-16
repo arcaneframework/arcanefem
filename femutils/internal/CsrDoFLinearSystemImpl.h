@@ -70,7 +70,7 @@ class CsrDoFLinearSystemImpl
 
   void clearValues() override
   {
-    info() << "[CsrImpl]: Clear values";
+    info() << "[CsrImpl-Info] Clear values";
     DoFLinearSystemImplBase::clearValues();
     m_csr_view = {};
   }

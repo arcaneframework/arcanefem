@@ -54,10 +54,10 @@ initialize(Int32 nb_non_zero_value, Int32 nb_col, Int32 nb_row, Int32 nb_block, 
   if (nb_block > nb_row)
     ARCANE_THROW(ArgumentException, "BSRMatrix(initialize): block_size should be less than nb_row");
 
-  info() << "BSRMatrix(initialize): Initialize BSRMatrix with block_size=" << nb_block
-         << ", nb_non_zero_value=" << nb_non_zero_value
+  info() << "[BsrMatrix-Info] Initialized with nb_bs=" << nb_block
+         << ", nb_nnz=" << nb_non_zero_value
          << ", nb_col=" << nb_col << ", nb_row=" << nb_row
-         << ", order_values_per_block=" << std::boolalpha << order_values_per_block;
+         << ", order_per_block=" << std::boolalpha << order_values_per_block;
 
   m_order_values_per_block = order_values_per_block;
 
@@ -111,7 +111,7 @@ findValueIndex(DoFLocalId row, DoFLocalId col) const
 void BSRMatrix::
 toCsr(CsrFormat* csr_matrix)
 {
-  info() << "BSRMatrix(toCsr): Convert matrix to CSR";
+  info() << "[BSRFormat-Info] Convert matrix to CSR";
   auto startTime = platform::getRealTime();
 
   auto nb_block_rows = m_nb_row;
@@ -139,7 +139,7 @@ toCsr(CsrFormat* csr_matrix)
     }
     // NOTE: The last entry calculation might not be needed now, but keep for safety
     // auto row_index_size = csr_matrix->m_matrix_row.extent0();
-    info() << "OFFSET=" << offset << " total_non_zero=" << total_non_zero_elements << " nb_row=" << nb_rows;
+    info(99) << "[BsrMatrix-Info] csr_row_ptr_index=" << offset << " total_non_zero=" << total_non_zero_elements << " nb_row=" << nb_rows;
 
     // Translate `columns`
     offset = 0;
@@ -177,7 +177,7 @@ toCsr(CsrFormat* csr_matrix)
 void BSRMatrix::
 toLinearSystem(DoFLinearSystem& linear_system)
 {
-  info() << "BSRMatrix(toLinearSystem): Translate matrix to linear system using `matrixAddValue`";
+  info() << "[BsrMatrix-Info] Translate matrix to linear_system";
 
   for (auto row = 0; row < m_nb_row; ++row) {
     auto row_start = m_rows_index[row];
@@ -202,7 +202,7 @@ toLinearSystem(DoFLinearSystem& linear_system)
 void BSRMatrix::
 dump(const String& filename)
 {
-  info() << "BSRMatrix(dump): Dump matrix in '" << filename << "'";
+  info() << "[BsrMatrix-Info] Dump matrix in '" << filename << "'";
   ofstream file(filename.localstr());
 
   file << "size :" << nbNonZero() << "\n";
@@ -384,7 +384,7 @@ toLinearSystem(DoFLinearSystem& linear_system)
 
     m_bsr_matrix.toCsr(&m_csr_matrix);
 
-    info() << "BSRFormat(toLinearSystem): Set CSR values into linear system";
+    info() << "[BsrMatrix-Info] Set CSR values into linear_system";
     CSRFormatView csr_view(m_csr_matrix.view());
     linear_system.setCSRValues(csr_view);
   }
@@ -400,7 +400,7 @@ toLinearSystem(DoFLinearSystem& linear_system)
 void BSRFormat::
 computeNzPerRowArray()
 {
-  info() << "BSRFormat(computeNzPerRowArray): Compute nb_nz_per_row BSR matrix array";
+  info() << "[BsrMatrix-Info] Compute nb_nz_per_row BSR matrix array";
   auto startTime = platform::getRealTime();
 
   auto command = makeCommand(m_queue);
@@ -573,8 +573,8 @@ computeRowIndexAtomicFree()
   neighbors.fill(1, &m_queue);
 
   SmallSpan<Int32> neighbors_ss = neighbors.to1DSmallSpan();
-  computeNeighborsAtomicFree(neighbors_ss);
-  info() << "NEIGHBORS_SIZE=" << neighbors.extent0() << " rows=" << m_bsr_matrix._rowsIndex().extent0();
+  computeNeighborsAtomicFree(neighbors_ss); 
+  info(99) << "[BsrMatrix-Info] Neighbors size=" << neighbors.extent0() << " rows=" << m_bsr_matrix._rowsIndex().extent0();
   Accelerator::Scanner<Int32> scanner;
   scanner.exclusiveSum(&m_queue, neighbors_ss, m_bsr_matrix._rowsIndex().to1DSmallSpan());
 }
@@ -784,7 +784,7 @@ computeColumnsAtomicFree()
 void BSRFormat::
 computeSparsityAtomicFree()
 {
-  info() << "BSRFormat(computeSparsityAtomicFree): Compute sparsity of BSR matrix using Arcane connectivities (e.g node-face for 2D and node-node for 3D)";
+  info() << "[BsrMatrix-Info]: Computing sparsity using atomic-free operations";
   auto startTime = platform::getRealTime();
 
   computeRowIndexAtomicFree();
@@ -930,7 +930,7 @@ computeRowIndex(Int32 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>&
   computeNeighbors(edges_per_element, nb_edge_total, neighbors, sorted_edges_ss);
 
   Accelerator::Scanner<Int32> scanner;
-  info() << "NEIGHBORS_SIZE=" << neighbors.extent0() << " rows=" << m_bsr_matrix._rowsIndex().extent0();
+  info(99) << "[BsrMatrix-Info] neighbors=" << neighbors.extent0() << " rows=" << m_bsr_matrix._rowsIndex().extent0();
   scanner.exclusiveSum(&m_queue, neighbors, m_bsr_matrix._rowsIndex());
 }
 
@@ -987,7 +987,7 @@ computeColumns(Int32 edges_per_element, Int64 nb_edge_total, SmallSpan<uint64_t>
 void BSRFormat::
 computeSparsityAtomic()
 {
-  info() << "BSRFormat(computeSparsityAtomic): Computing sparsity of BSR matrix without Arcane connectivities (e.g with atomics)...";
+  info() << "[BsrMatrix-Info] Computing sparsity using atomic operations";
   auto startTime = platform::getRealTime();
 
   Int32 dof_pairs_per_element = 3; // dof-pairs per element, default is for triangle 3

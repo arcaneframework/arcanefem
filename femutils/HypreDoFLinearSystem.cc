@@ -231,12 +231,12 @@ _computeMatrixNumeration()
     // TODO: utiliser un Scan lorsque ce sera disponible dans Arcane
     UniqueArray<Int32> parallel_rows_index(nb_rank, 0);
     pm->allGather(ConstArrayView<Int32>(1, &nb_own_row), parallel_rows_index);
-    info() << "ALL_NB_ROW = " << parallel_rows_index;
+    //info() << "ALL_NB_ROW = " << parallel_rows_index;
     for (Int32 i = 0; i < my_rank; ++i)
       own_first_index += parallel_rows_index[i];
   }
 
-  info() << "OwnFirstIndex=" << own_first_index << " NbOwnRow=" << nb_own_row;
+  info(99) << "[Hypre-Info] OwnFirstIndex=" << own_first_index << " NbOwnRow=" << nb_own_row;
 
   m_first_own_row = own_first_index;
   m_nb_own_row = nb_own_row;
@@ -247,7 +247,7 @@ _computeMatrixNumeration()
     m_dof_matrix_numbering[idof] = own_first_index + idof.index();
     //info() << "Numbering dof_uid=" << dof.uniqueId() << " M=" << m_dof_matrix_numbering[idof];
   }
-  info() << " nb_own_row=" << nb_own_row << " nb_item=" << dof_family->nbItem();
+  info(99) << "[Hypre-Info] nb_own_row=" << nb_own_row << " nb_item=" << dof_family->nbItem();
   m_dof_matrix_numbering.synchronize();
 
   m_parallel_rows_index.resize(nb_own_row);

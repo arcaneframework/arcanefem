@@ -1318,20 +1318,20 @@ _checkNewtonConvergence()
   if (convergence_error_residual <= m_newton_rtol) {
     m_newton_solver_converged = true;
     m_newton_converged_reason = "RESIDUAL_CONVERGED";
-    info() << "[ArcaneFem-Info] At Newton iteration " << m_newton_iter
+    info() << "[ArcaneFem-Info] At time " << t << " (s), Newton iteration " << m_newton_iter
            << ": ||X_k+1 - X_k||/||X_k+1|| = " << m_increment_norm
            << " ||(F_ext - F_int(X_k))||/||(F_ext - F_int(X_0))|| = " << m_residual_norm
            << " => " << "CONVERGED with " << m_newton_converged_reason;
   } else if (convergence_error_increment <= 1.0) {
     m_newton_solver_converged = true;
     m_newton_converged_reason = "INCREMENT_CONVERGED";
-    info() << "[ArcaneFem-Info] At Newton iteration " << m_newton_iter
+    info() << "[ArcaneFem-Info] At time " << t << " (s), Newton iteration " << m_newton_iter
            << ": ||X_k+1 - X_k||/||X_k+1|| = " << m_increment_norm
            << " ||(F_ext - F_int(X_k))||/||(F_ext - F_int(X_0))|| = " << m_residual_norm
            << " => " << "CONVERGED with " << m_newton_converged_reason;
   } else {
     m_newton_solver_converged = false;
-    info() << "[ArcaneFem-Info] At Newton iteration " << m_newton_iter
+    info() << "[ArcaneFem-Info] At time " << t << " (s), Newton iteration " << m_newton_iter
            << ": ||X_k+1 - X_k||/||X_k+1|| = " << m_increment_norm
            << " ||(F_ext - F_int(X_k))||/||(F_ext - F_int(X_0))|| = " << m_residual_norm
            << " => " << "NOT CONVERGED";
