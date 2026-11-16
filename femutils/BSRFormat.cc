@@ -139,7 +139,7 @@ toCsr(CsrFormat* csr_matrix)
     }
     // NOTE: The last entry calculation might not be needed now, but keep for safety
     // auto row_index_size = csr_matrix->m_matrix_row.extent0();
-    info(99) << "[BsrMatrix-Info] csr_row_ptr_index=" << offset << " total_non_zero=" << total_non_zero_elements << " nb_row=" << nb_rows;
+    debug() << "[BsrMatrix-Info] csr_row_ptr_index=" << offset << " total_non_zero=" << total_non_zero_elements << " nb_row=" << nb_rows;
 
     // Translate `columns`
     offset = 0;
@@ -574,7 +574,7 @@ computeRowIndexAtomicFree()
 
   SmallSpan<Int32> neighbors_ss = neighbors.to1DSmallSpan();
   computeNeighborsAtomicFree(neighbors_ss); 
-  info(99) << "[BsrMatrix-Info] Neighbors size=" << neighbors.extent0() << " rows=" << m_bsr_matrix._rowsIndex().extent0();
+  debug() << "[BsrMatrix-Info] Neighbors size=" << neighbors.extent0() << " rows=" << m_bsr_matrix._rowsIndex().extent0();
   Accelerator::Scanner<Int32> scanner;
   scanner.exclusiveSum(&m_queue, neighbors_ss, m_bsr_matrix._rowsIndex().to1DSmallSpan());
 }
@@ -930,7 +930,7 @@ computeRowIndex(Int32 edges_per_element, Int64 nb_edge_total, SmallSpan<UInt64>&
   computeNeighbors(edges_per_element, nb_edge_total, neighbors, sorted_edges_ss);
 
   Accelerator::Scanner<Int32> scanner;
-  info(99) << "[BsrMatrix-Info] neighbors=" << neighbors.extent0() << " rows=" << m_bsr_matrix._rowsIndex().extent0();
+  debug() << "[BsrMatrix-Info] neighbors=" << neighbors.extent0() << " rows=" << m_bsr_matrix._rowsIndex().extent0();
   scanner.exclusiveSum(&m_queue, neighbors, m_bsr_matrix._rowsIndex());
 }
 

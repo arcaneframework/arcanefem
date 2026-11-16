@@ -33,7 +33,7 @@ _applyInternalBodyForce(VariableDoFReal& rhs_values, const IndexedNodeDoFConnect
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {
         if (m_nodes_per_cell == 4)
-          _applyInternalBodyForceQuad4Cpu(rhs_values, node_dof);  // TODO: Implement GPU version for Quad4
+          _applyInternalBodyForceQuad4Gpu(rhs_values, node_dof);
         else if (m_nodes_per_cell == 8)
           _applyInternalBodyForceQuad8Cpu(rhs_values, node_dof);  // TODO: Implement GPU version for Quad8
         else
@@ -323,4 +323,49 @@ _applyInternalBodyForceTria3Gpu(VariableDoFReal& rhs_values,
     }
   };
 
+}
+
+/*---------------------------------------------------------------------------*/
+/**
+* @brief Evaluates and assembles the rhs vector components corresponding
+*        to integration of the internal force for a Quad4 element (ℙ1 FE)
+*        using GPUs.
+*/
+/*---------------------------------------------------------------------------*/
+inline void FemModuleElastoplasticity::
+_applyInternalBodyForceQuad4Gpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof)
+{
+  constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
+  UnstructuredMeshConnectivityView connectivity(mesh());
+  auto cn_cv = connectivity.cellNode();
+  NodeInfoListView nodes_infos(mesh()->nodeFamily());
+  auto command = makeCommand(acceleratorMng()->defaultQueue());
+  auto in_out_rhs_values = Accelerator::viewInOut(command, rhs_values);
+  auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
+  auto in_sigma_gp = Accelerator::viewIn(command, m_sigma_gp);
+  command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh()->allCells())
+  {
+    auto nodes = cn_cv.nodes(cell_lid);
+    Int8 iGP = 0;
+    for (Int8 ixi = 0; ixi < 2; ++ixi) {
+      for (Int8 ieta = 0; ieta < 2; ++ieta) {
+        const Real xi = gp[ixi];
+        const Real eta = gp[ieta];
+        const auto gp_info = Gpu::FeOperation2D::computeGradientsAndJacobianQuad4Gpu(cell_lid, cn_cv, in_node_coord, xi, eta);
+        const Real sigma_xx = in_sigma_gp(cell_lid, iGP, 0);
+        const Real sigma_yy = in_sigma_gp(cell_lid, iGP, 1);
+        const Real sigma_xy = in_sigma_gp(cell_lid, iGP, 2);
+        for (Int32 i = 0; i < 4; ++i) {
+          const NodeLocalId node = nodes[i];
+          if (!nodes_infos.isOwn(node))
+            continue;
+          const Real force_x = -gp_info.det_j * (sigma_xx * gp_info.dN_dx(i) + M_SQRT1_2 * sigma_xy * gp_info.dN_dy(i));
+          const Real force_y = -gp_info.det_j * (sigma_yy * gp_info.dN_dy(i) + M_SQRT1_2 * sigma_xy * gp_info.dN_dx(i));
+          Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_values[node_dof.dofId(node, 0)], force_x);
+          Accelerator::doAtomic<Accelerator::eAtomicOperation::Add>(in_out_rhs_values[node_dof.dofId(node, 1)], force_y);
+        }
+        ++iGP;
+      }
+    }
+  };
 }
