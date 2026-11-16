@@ -363,6 +363,15 @@ if (FEMUTILS_HAS_SOLVER_BACKEND_HYPRE)
         inputs/2D.quater.cylinder.vonMises.arc)
   endif ()
 
+  arcanefem_add_seq_test(GPU NAME 2D_Beam_cartesian_von_mises_body_force_hypre
+    COMMAND ./Elastoplasticity
+    ARGS
+      -A,//fem/tmax=2
+      -A,//fem/f=0.2\ -0.1
+      -A,//fem/solution-comparison-file=check/2D.beam.cartesian.bodyForce.t1.txt
+      -A,//fem/result-epsilon=1e-6
+      inputs/2D.beam.cartesian.vonMises.arc)
+
   arcanefem_add_full_test(NO_GPU_MPI NAME 2D_Beam_cartesian_von_mises_bsr_global
     COMMAND ./Elastoplasticity
     ARGS
