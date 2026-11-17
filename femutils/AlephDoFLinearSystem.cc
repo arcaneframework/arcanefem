@@ -26,7 +26,7 @@
 #include <cstddef>
 
 #ifdef FEMUTILS_HAS_PETSC
-#include <petsclog.h>
+#include <petsc.h>
 #endif
 
 #include "FemUtils.h"
