@@ -79,7 +79,7 @@ inline void FemModuleElastoplasticity::_integrateAndSaveConstitutiveLawVonMises(
     if (mesh()->dimension() == 2) {
       if (m_hex_quad_mesh) {
         if (m_nodes_per_cell == 4)
-          _integrateAndSaveConstitutiveLawVonMisesQuad4Cpu(); // Todo: implement GPU version
+          _integrateAndSaveConstitutiveLawVonMisesQuad4Gpu();
         else if (m_nodes_per_cell == 8)
           _integrateAndSaveConstitutiveLawVonMisesQuad8Cpu(); // Todo: implement GPU version
         else
@@ -355,7 +355,7 @@ ARCCORE_HOST_DEVICE void computeStressAndInVarsVonMisesAtGp(RealVector<3>& sigma
 /**
  * @brief Applies the VonMises plasticity criteria on the CPU to update the
  * tangent material tensor, the stress and the plastic strain increment at
- * each quadrature point for each TRIA3 element
+ * each quadrature point for each Tria3 element
  *
  */
 /*---------------------------------------------------------------------------*/
@@ -424,7 +424,7 @@ inline void FemModuleElastoplasticity::_integrateAndSaveConstitutiveLawVonMisesT
 /**
  * @brief Applies the VonMises plasticity criteria on the accelerator (GPU)
  * to update the tangent material tensor, the stress and the plastic strain
- * increment at each quadrature point for each TRIA3 element
+ * increment at each quadrature point for each Tria3 element
  *
  */
 /*---------------------------------------------------------------------------*/
@@ -549,6 +549,61 @@ RealMatrix<6, 6> FemModuleElastoplasticity::_computeLocalVonMisesElementMatrixTr
   return computeElementMatrixTria3Base(dxu, dyu, area, C_tang_gp);
 }
 /*---------------------------------------------------------------------------*/
+
+inline void FemModuleElastoplasticity::_integrateAndSaveConstitutiveLawVonMisesQuad4Gpu()
+{
+  UnstructuredMeshConnectivityView connectivity(mesh());
+  auto cn_cv = connectivity.cellNode();
+  auto command = makeCommand(acceleratorMng()->defaultQueue());
+  auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
+  auto in_DUn = Accelerator::viewIn(command, m_DUn);
+  auto in_out_C_tang_gp = Accelerator::viewInOut(command, m_C_tang_gp);
+  auto in_out_sigma_gp = Accelerator::viewInOut(command, m_sigma_gp);
+  auto in_sigma_old_gp = Accelerator::viewIn(command, m_sigma_old_gp);
+  auto in_out_sigma_zz_gp = Accelerator::viewInOut(command, m_sigma_zz_gp);
+  auto in_out_dp_gp = Accelerator::viewInOut(command, m_dp_gp);
+  auto in_sigma_zz_old_gp = Accelerator::viewIn(command, m_sigma_zz_old_gp);
+  auto in_p_old_gp = Accelerator::viewIn(command, m_p_old_gp);
+  auto in_C_elas_2d = m_C_elas_2d;
+  auto in_sig0 = sig0;
+  auto in_H = H;
+  auto in_mu = mu;
+
+  constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
+
+  command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh()->allCells())
+  {
+    Int8 iGP = 0;
+    for (Int8 ixi = 0; ixi < 2; ++ixi) {
+      for (Int8 ieta = 0; ieta < 2; ++ieta) {
+        RealMatrix<3, 3> C_tang_gp;
+        RealVector<3> sigma_gp;
+        RealVector<3> sigma_old_gp;
+        for (Int8 i = 0; i < 3; ++i) {
+          sigma_gp(i) = in_out_sigma_gp(cell_lid, iGP, i);
+          sigma_old_gp(i) = in_sigma_old_gp(cell_lid, iGP, i);
+          for (Int8 j = 0; j < 3; ++j)
+            C_tang_gp(i, j) = in_out_C_tang_gp(cell_lid, iGP, i, j);
+        }
+        Real sigma_zz_gp = in_out_sigma_zz_gp(cell_lid, iGP);
+        Real dp_gp = in_out_dp_gp(cell_lid, iGP);
+        const Real3x3 grad_DU = computeDisplacementGradientQuad4Gpu(cell_lid, cn_cv, in_node_coord, in_DUn, gp[ixi], gp[ieta]);
+
+        computeMaterialTensorVonMisesLawAtGpBase(C_tang_gp, sigma_gp, sigma_zz_gp, dp_gp, grad_DU,
+                                                  sigma_old_gp, in_sigma_zz_old_gp(cell_lid, iGP),
+                                                  in_p_old_gp(cell_lid, iGP), in_C_elas_2d, in_sig0, in_H, in_mu);
+        for (Int8 i = 0; i < 3; ++i) {
+          in_out_sigma_gp(cell_lid, iGP, i) = sigma_gp(i);
+          for (Int8 j = 0; j < 3; ++j)
+            in_out_C_tang_gp(cell_lid, iGP, i, j) = C_tang_gp(i, j);
+        }
+        in_out_sigma_zz_gp(cell_lid, iGP) = sigma_zz_gp;
+        in_out_dp_gp(cell_lid, iGP) = dp_gp;
+        ++iGP;
+      }
+    }
+  };
+}
 
 inline void FemModuleElastoplasticity::_integrateAndSaveConstitutiveLawVonMisesQuad4Cpu()
 {
@@ -884,7 +939,7 @@ inline void FemModuleElastoplasticity::_updateStressAndInVarsVonMises()
   if (mesh()->dimension() == 2) {
     if (m_hex_quad_mesh) {
       if (m_nodes_per_cell == 4)
-        _updateStressAndInVarsVonMisesQuad4Cpu(); // Todo: implement GPU version
+        _updateStressAndInVarsVonMisesQuad4Gpu();
       else if (m_nodes_per_cell == 8)
         _updateStressAndInVarsVonMisesQuad8Cpu(); // Todo: implement GPU version
       else
@@ -910,7 +965,7 @@ inline void FemModuleElastoplasticity::_updateStressAndInVarsVonMises()
 /**
  * @brief Applies the VonMises plasticity criteria on the accelerator (GPU)
  * to update the stress and the plastic strain increment at each quadrature
- * point for each TRIA3 element
+ * point for each Tria3 element
  *
  */
 /*---------------------------------------------------------------------------*/
@@ -957,7 +1012,7 @@ inline void FemModuleElastoplasticity::_updateStressAndInVarsVonMisesTria3Gpu()
 
       Real p_old_gp = in_p_old_gp(cell_lid, iGP);
 
-      // epsilon(DU) // NOTE: for nGP>1 it has to evaluated and interpolated at Gauss points
+      // Evaluate the displacement gradient at this quadrature point.
       Real3x3 grad_DU = Gpu::FeOperation2D::computeGradientTria3(cell_lid, cn_cv, in_node_coord, in_DUn);
 
       computeStressAndInVarsVonMisesAtGp(sigma_gp, sigma_zz_gp, dp_gp, grad_DU,
@@ -974,6 +1029,53 @@ inline void FemModuleElastoplasticity::_updateStressAndInVarsVonMisesTria3Gpu()
   };
 }
 /*---------------------------------------------------------------------------*/
+
+inline void FemModuleElastoplasticity::_updateStressAndInVarsVonMisesQuad4Gpu()
+{
+  UnstructuredMeshConnectivityView connectivity(mesh());
+  auto cn_cv = connectivity.cellNode();
+  auto command = makeCommand(acceleratorMng()->defaultQueue());
+  auto in_node_coord = Accelerator::viewIn(command, m_node_coord);
+  auto in_DUn = Accelerator::viewIn(command, m_DUn);
+  auto in_out_sigma_gp = Accelerator::viewInOut(command, m_sigma_gp);
+  auto in_sigma_old_gp = Accelerator::viewIn(command, m_sigma_old_gp);
+  auto in_out_sigma_zz_gp = Accelerator::viewInOut(command, m_sigma_zz_gp);
+  auto in_out_dp_gp = Accelerator::viewInOut(command, m_dp_gp);
+  auto in_sigma_zz_old_gp = Accelerator::viewIn(command, m_sigma_zz_old_gp);
+  auto in_p_old_gp = Accelerator::viewIn(command, m_p_old_gp);
+  auto in_C_elas_2d = m_C_elas_2d;
+  auto in_sig0 = sig0;
+  auto in_H = H;
+  auto in_mu = mu;
+
+  constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
+
+  command << RUNCOMMAND_ENUMERATE(CellLocalId, cell_lid, mesh()->allCells())
+  {
+    Int8 iGP = 0;
+    for (Int8 ixi = 0; ixi < 2; ++ixi) {
+      for (Int8 ieta = 0; ieta < 2; ++ieta) {
+        RealVector<3> sigma_gp;
+        RealVector<3> sigma_old_gp;
+        for (Int8 i = 0; i < 3; ++i) {
+          sigma_gp(i) = in_out_sigma_gp(cell_lid, iGP, i);
+          sigma_old_gp(i) = in_sigma_old_gp(cell_lid, iGP, i);
+        }
+        Real sigma_zz_gp = in_out_sigma_zz_gp(cell_lid, iGP);
+        Real dp_gp = in_out_dp_gp(cell_lid, iGP);
+        const Real3x3 grad_DU = computeDisplacementGradientQuad4Gpu(cell_lid, cn_cv, in_node_coord, in_DUn, gp[ixi], gp[ieta]);
+        computeStressAndInVarsVonMisesAtGp(sigma_gp, sigma_zz_gp, dp_gp, grad_DU,
+                                            sigma_old_gp, in_sigma_zz_old_gp(cell_lid, iGP),
+                                            in_p_old_gp(cell_lid, iGP), in_C_elas_2d, in_sig0, in_H, in_mu);
+        for (Int8 i = 0; i < 3; ++i)
+          in_out_sigma_gp(cell_lid, iGP, i) = sigma_gp(i);
+        in_out_sigma_zz_gp(cell_lid, iGP) = sigma_zz_gp;
+        in_out_dp_gp(cell_lid, iGP) = dp_gp;
+        ++iGP;
+      }
+    }
+  };
+}
 
 inline void FemModuleElastoplasticity::_updateStressAndInVarsVonMisesQuad4Cpu()
 {
@@ -1066,4 +1168,62 @@ inline void FemModuleElastoplasticity::_updateStressAndInVarsVonMisesQuad9Cpu()
       }
     }
   }
+}
+
+// Local material-tensor strategy: recompute the tangent at each Gauss point.
+ARCCORE_HOST_DEVICE RealMatrix<8, 8>
+computeLocalVonMisesElementMatrixQuad4Gpu(CellLocalId cell_lid,
+                    const IndexedCellNodeConnectivityView& cn_cv,
+                    const Accelerator::VariableNodeReal3InView& in_node_coord,
+                    const Accelerator::VariableNodeReal3InView& in_DUn,
+                    const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1, -1>>& in_sigma_old_gp,
+                    const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1>>& in_sigma_zz_old_gp,
+                    const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1>>& in_p_old_gp,
+                    const RealMatrix<3, 3>& C_elas_2d, Real sig0, Real H, Real mu,
+                    bool assemble_elastic)
+{
+  constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
+  RealMatrix<8, 8> ae;
+  ae.fill(0.0);
+  Int8 iGP = 0;
+  for (Int8 ixi = 0; ixi < 2; ++ixi) {
+    for (Int8 ieta = 0; ieta < 2; ++ieta) {
+      const Real xi = gp[ixi];
+      const Real eta = gp[ieta];
+      const auto gp_info = Gpu::FeOperation2D::computeGradientsAndJacobianQuad4Gpu(cell_lid, cn_cv, in_node_coord, xi, eta);
+      RealMatrix<3, 3> C_tang_gp = C_elas_2d;
+      if (!assemble_elastic) {
+        RealVector<3> sigma_old_gp;
+        for (Int8 i = 0; i < 3; ++i)
+          sigma_old_gp(i) = in_sigma_old_gp(cell_lid, iGP, i);
+        const Real3x3 grad_DU = computeDisplacementGradientQuad4Gpu(cell_lid, cn_cv, in_node_coord, in_DUn, xi, eta);
+        computeTangentMaterialTensorVonMisesAtGp(C_tang_gp, grad_DU, sigma_old_gp,
+          in_sigma_zz_old_gp(cell_lid, iGP), in_p_old_gp(cell_lid, iGP), C_elas_2d, sig0, H, mu);
+      }
+      ae += computeElementMatrixQuad4Base(gp_info.dN_dx, gp_info.dN_dy, gp_info.det_j, C_tang_gp);
+      ++iGP;
+    }
+  }
+  return ae;
+}
+
+ARCCORE_HOST_DEVICE RealMatrix<2, 8>
+computeLocalVonMisesElementVectorQuad4Gpu(CellLocalId cell_lid,
+                    const IndexedCellNodeConnectivityView& cn_cv,
+                    const Accelerator::VariableNodeReal3InView& in_node_coord,
+                    const Accelerator::VariableNodeReal3InView& in_DUn,
+                    const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1, -1>>& in_sigma_old_gp,
+                    const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1>>& in_sigma_zz_old_gp,
+                    const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1>>& in_p_old_gp,
+                    const RealMatrix<3, 3>& C_elas_2d, Real sig0, Real H, Real mu,
+                    bool assemble_elastic, Int32 node_lid)
+{
+  const RealMatrix<8, 8> ae = computeLocalVonMisesElementMatrixQuad4Gpu(cell_lid, cn_cv, in_node_coord, in_DUn,
+    in_sigma_old_gp, in_sigma_zz_old_gp, in_p_old_gp, C_elas_2d, sig0, H, mu, assemble_elastic);
+  RealMatrix<2, 8> ae_node;
+  for (Int32 j = 0; j < 8; ++j) {
+    ae_node(0, j) = ae(2 * node_lid, j);
+    ae_node(1, j) = ae(2 * node_lid + 1, j);
+  }
+  return ae_node;
 }

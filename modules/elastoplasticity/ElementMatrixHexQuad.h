@@ -57,6 +57,80 @@ ARCCORE_HOST_DEVICE RealMatrix<8, 8> computeElementMatrixQuad4Base(const RealVec
   return integration_weight * (sigmaXepsxx + sigmaXepsyy + sigmaXepsxy);
 }
 
+// TODO: Move this to a common header file for both CPU and GPU implementations
+ARCCORE_HOST_DEVICE inline Real3x3
+computeDisplacementGradientQuad4Gpu(CellLocalId cell_lid,
+                                    const IndexedCellNodeConnectivityView& cn_cv,
+                                    const Accelerator::VariableNodeReal3InView& in_node_coord,
+                                    const Accelerator::VariableNodeReal3InView& displacement,
+                                    Real xi, Real eta)
+{
+  const auto gp_info = Gpu::FeOperation2D::computeGradientsAndJacobianQuad4Gpu(cell_lid, cn_cv, in_node_coord, xi, eta);
+  Real3x3 gradient{};
+  auto nodes = cn_cv.nodes(cell_lid);
+  for (Int32 i = 0; i < 4; ++i) {
+    const Real3 u = displacement[nodes[i]];
+    gradient(0, 0) += u.x * gp_info.dN_dx(i);
+    gradient(0, 1) += u.x * gp_info.dN_dy(i);
+    gradient(1, 0) += u.y * gp_info.dN_dx(i);
+    gradient(1, 1) += u.y * gp_info.dN_dy(i);
+  }
+  return gradient;
+}
+
+ARCCORE_HOST_DEVICE RealMatrix<8, 8>
+computeElementMatrixQuad4Gpu(CellLocalId cell_lid,
+                             const IndexedCellNodeConnectivityView& cn_cv,
+                             const Accelerator::VariableNodeReal3InView& in_node_coord,
+                             const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1, -1, -1>>& in_C_tang)
+{
+  // Gauss points and weights for 2x2 quadrature
+  constexpr Real gp[2] = { -M_SQRT1_3, M_SQRT1_3 };
+  RealMatrix<8, 8> ae;
+
+  // Loop over Gauss points
+  Int8 iGP = 0;
+  for (Int8 ixi = 0; ixi < 2; ++ixi) {
+    for (Int8 ieta = 0; ieta < 2; ++ieta) {
+
+      // Get shape function gradients w.r.t (𝑥,𝑦) and determinant of Jacobian
+      const auto gp_info = Gpu::FeOperation2D::computeGradientsAndJacobianQuad4Gpu(cell_lid, cn_cv, in_node_coord, gp[ixi], gp[ieta]);
+      const RealVector<4>& dxU = gp_info.dN_dx;
+      const RealVector<4>& dyU = gp_info.dN_dy;
+      const Real detJ = gp_info.det_j;
+
+      // Integration weight
+      const Real integration_weight = detJ; // * w * w; // w = 1.0 for 2x2 quadrature
+
+      RealMatrix<3, 3> C_tang;
+      for (Int8 i = 0; i < 3; ++i) {
+        for (Int8 j = 0; j < 3; ++j)
+          C_tang(i, j) = in_C_tang(cell_lid, iGP, i, j);
+      }
+      ++iGP;
+      ae += computeElementMatrixQuad4Base(dxU, dyU, integration_weight, C_tang);
+    }
+  }
+  return ae;
+}
+
+ARCCORE_HOST_DEVICE RealMatrix<2, 8>
+computeElementVectorQuad4Gpu(CellLocalId cell_lid,
+                             const IndexedCellNodeConnectivityView& cn_cv,
+                             const Accelerator::VariableNodeReal3InView& in_node_coord,
+                             const Accelerator::MeshMDVariableInView<Cell, double, ExtentsV<int, -1, -1, -1>>& in_C_tang,
+                             Int32 node_lid)
+{
+  const RealMatrix<8, 8> ae = computeElementMatrixQuad4Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang);
+  RealMatrix<2, 8> ae_node;
+  for (Int32 j = 0; j < 8; ++j) {
+    ae_node(0, j) = ae(2 * node_lid, j);
+    ae_node(1, j) = ae(2 * node_lid + 1, j);
+  }
+  return ae_node;
+}
+
+// TODO: Move this to a common header file for both CPU and GPU implementations
 inline Real3x3 computeDisplacementGradientQuad4(Cell cell, const VariableNodeReal3& node_coord, const VariableNodeReal3& displacement, Real xi, Real eta)
 {
   const auto gp_info = ArcaneFemFunctions::FeOperation2D::computeGradientsAndJacobianQuad4(cell, node_coord, xi, eta);
@@ -394,7 +468,7 @@ RealMatrix<24, 24> FemModuleElastoplasticity::_computeElementMatrixHexa8(Cell ce
           }
         }
         iGP++;
-        ae += computeElementMatrixHexa8Base(dxU, dyU, dzU, integration_weight,  C_tang_3d);
+        ae += computeElementMatrixHexa8Base(dxU, dyU, dzU, integration_weight, C_tang_3d);
       }
     }
   }

@@ -87,13 +87,17 @@ class FemModuleElastoplasticity
   void _assembleDirichletsNewtonGpu();
   void _assembleZeroRHSOnConstrainedDOFsGpu();
 
+  // CUDA extended-lambda entry points must be public.
   inline void _applyInternalBodyForceTria3Gpu(VariableDoFReal& rhs_values, const FemDoFsOnNodes& dofs_on_nodes, const VariableNodeReal3& node_coord, IMesh* mesh, RunQueue* queue);
+  inline void _applyInternalBodyForceQuad4Gpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
+  inline void _applyExternalBodyForceQuad4Gpu(VariableDoFReal& rhs_values, const IndexedNodeDoFConnectivityView& node_dof);
 
   inline void _integrateAndSaveConstitutiveLawVonMisesTria3Gpu();
+  inline void _integrateAndSaveConstitutiveLawVonMisesQuad4Gpu();
   inline void _updateStressAndInVarsVonMisesTria3Gpu();
+  inline void _updateStressAndInVarsVonMisesQuad4Gpu();
   inline void _integrateAndSaveConstitutiveLawDruckerPragerTria3Gpu();
   inline void _updateStressAndInVarsDruckerPragerTria3Gpu();
-
 
  private:
 

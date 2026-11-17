@@ -232,8 +232,8 @@ _initConstitutiveLaw()
     if (m_hex_quad_mesh && m_constitutive_law != "VonMises")
       ARCANE_FATAL("Quadrilateral plasticity currently supports only the von Mises law");
 
-    if (m_hex_quad_mesh && m_matrix_format != "DOK")
-      ARCANE_FATAL("Quad4/Quad8/Quad9 von Mises assembly currently requires matrix-format='DOK'");
+    if (m_hex_quad_mesh && m_nodes_per_cell != 4 && m_matrix_format != "DOK")
+      ARCANE_FATAL("Quad8/Quad9 von Mises assembly currently requires matrix-format='DOK'");
 
     if (m_constitutive_law == "VonMises") {
       m_p_old_gp.reshape({m_nGP});
@@ -777,7 +777,10 @@ _assembleBilinearOperatorGlobal()
 
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2) {
-      m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang); });
+      if (m_hex_quad_mesh)
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixQuad4Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang); });
+      else
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang); });
     }
     else {
       m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) { return computeElementMatrixTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang); });
@@ -793,7 +796,10 @@ _assembleBilinearOperatorGlobal()
 
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2) {
-      m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang, node_lid); });
+      if (m_hex_quad_mesh)
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorQuad4Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang, node_lid); });
+      else
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang, node_lid); });
     } else {
       m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) { return computeElementVectorTetra4Gpu(cell_lid, cn_cv, in_node_coord, in_C_tang, node_lid); });
     }
@@ -862,7 +868,13 @@ _assembleBilinearOperatorLocalVonMises(bool elastic_assembly)
 
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2) {
-      m_bsr_format.assembleBilinearAtomic(
+      if (m_hex_quad_mesh)
+        m_bsr_format.assembleBilinearAtomic([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) {
+          return computeLocalVonMisesElementMatrixQuad4Gpu(cell_lid, cn_cv, in_node_coord, in_DUn,
+            in_sigma_old_gp, in_sigma_zz_old_gp, in_p_old_gp, C_elas_2d, in_sig0, in_H, in_mu, assemble_elastic);
+        });
+      else
+        m_bsr_format.assembleBilinearAtomic(
       [=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid) {
         return computeLocalVonMisesElementMatrixTria3Gpu(cell_lid, cn_cv, in_node_coord, in_DUn,
                                                          in_sigma_old_gp, in_sigma_zz_old_gp,
@@ -897,7 +909,13 @@ _assembleBilinearOperatorLocalVonMises(bool elastic_assembly)
 
     m_bsr_format.computeSparsity();
     if (mesh()->dimension() == 2) {
-      m_bsr_format.assembleBilinearAtomicFree(
+      if (m_hex_quad_mesh)
+        m_bsr_format.assembleBilinearAtomicFree([=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) {
+          return computeLocalVonMisesElementVectorQuad4Gpu(cell_lid, cn_cv, in_node_coord, in_DUn,
+            in_sigma_old_gp, in_sigma_zz_old_gp, in_p_old_gp, C_elas_2d, in_sig0, in_H, in_mu, assemble_elastic, node_lid);
+        });
+      else
+        m_bsr_format.assembleBilinearAtomicFree(
     [=] ARCCORE_HOST_DEVICE(CellLocalId cell_lid, Int32 node_lid) {
       return computeLocalVonMisesElementVectorTria3Gpu(cell_lid, cn_cv, in_node_coord, in_DUn,
                                                        in_sigma_old_gp, in_sigma_zz_old_gp,
@@ -1318,20 +1336,20 @@ _checkNewtonConvergence()
   if (convergence_error_residual <= m_newton_rtol) {
     m_newton_solver_converged = true;
     m_newton_converged_reason = "RESIDUAL_CONVERGED";
-    info() << "[ArcaneFem-Info] At Newton iteration " << m_newton_iter
+    info() << "[ArcaneFem-Info] At time " << t << " (s), Newton iteration " << m_newton_iter
            << ": ||X_k+1 - X_k||/||X_k+1|| = " << m_increment_norm
            << " ||(F_ext - F_int(X_k))||/||(F_ext - F_int(X_0))|| = " << m_residual_norm
            << " => " << "CONVERGED with " << m_newton_converged_reason;
   } else if (convergence_error_increment <= 1.0) {
     m_newton_solver_converged = true;
     m_newton_converged_reason = "INCREMENT_CONVERGED";
-    info() << "[ArcaneFem-Info] At Newton iteration " << m_newton_iter
+    info() << "[ArcaneFem-Info] At time " << t << " (s), Newton iteration " << m_newton_iter
            << ": ||X_k+1 - X_k||/||X_k+1|| = " << m_increment_norm
            << " ||(F_ext - F_int(X_k))||/||(F_ext - F_int(X_0))|| = " << m_residual_norm
            << " => " << "CONVERGED with " << m_newton_converged_reason;
   } else {
     m_newton_solver_converged = false;
-    info() << "[ArcaneFem-Info] At Newton iteration " << m_newton_iter
+    info() << "[ArcaneFem-Info] At time " << t << " (s), Newton iteration " << m_newton_iter
            << ": ||X_k+1 - X_k||/||X_k+1|| = " << m_increment_norm
            << " ||(F_ext - F_int(X_k))||/||(F_ext - F_int(X_0))|| = " << m_residual_norm
            << " => " << "NOT CONVERGED";
