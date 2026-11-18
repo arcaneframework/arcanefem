@@ -2027,6 +2027,26 @@ _solve()
   elapsedTime = platform::getRealTime() - TimeStart;
   _printArcaneFemTime("[ArcaneFem-Timer] solving-linear-system-3", elapsedTime);
 
+  // Call again the solver to check it is valid to call it
+  // several times. The fourth time we will provide the initial guess, 
+  // then call solve()
+  info() << "Calling solve with initial guess";
+  {
+    TimeStart = platform::getRealTime();
+    Timer::Action ta1(tstat, "LinearSystemSolve4");
+    VariableDoFReal& solution = m_linear_system.solutionVariable();
+    auto node_dof(m_dofs_on_nodes.nodeDoFConnectivityView());
+    solution.fill(0.0);
+    ENUMERATE_ (Node, inode, ownNodes()) {
+      Node node = *inode;
+      solution[node_dof.dofId(node, 0)] = 1.0; // Provide an initial guess of 1.0 for all nodes
+    }
+
+    m_linear_system.solve();
+  }
+  elapsedTime = platform::getRealTime() - TimeStart;
+  _printArcaneFemTime("[ArcaneFem-Timer] solving-linear-system-4", elapsedTime);
+
   // Re-Apply boundary conditions because the solver has modified the value
   {
     TimeStart = platform::getRealTime();
